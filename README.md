@@ -63,6 +63,63 @@ Full documentation: [`web/README.md`](web/README.md)
 
 ---
 
+## Deployment
+
+### Vercel — research portal (`web/`)
+
+The repo ships a root [`vercel.json`](vercel.json) that builds `web/` explicitly,
+so a project whose Root Directory is the repo root still works.
+
+**If the deployment 404s at `/`**, Vercel built the repo root and found no app.
+Fix it in one field: **Project → Settings → Build & Deployment → Root Directory →
+`web` → Save → Redeploy**. That is Vercel's documented answer for a framework in
+a subdirectory and it is the more reliable of the two.
+
+Either configuration works — `web/` is a standard zero-config Next.js 15 app with
+no required environment variables.
+
+### Telegram webhook — gateway
+
+The bot runs in **webhook** mode whenever `PUBLIC_URL` is an `https://` origin,
+and falls back to **long-polling** when it is not. Nothing else changes: every
+command behaves identically on both transports.
+
+The kill switch is why the webhook must point at the gateway and not at Vercel.
+`/kill` has to reach the process that owns the risk state, and a serverless
+function cannot hold that state (nor the L2 WebSocket subscriptions Module A
+needs) between invocations.
+
+Give the gateway a public HTTPS origin — free, no account:
+
+```bash
+cloudflared tunnel --url http://localhost:8000
+#   https://<name>.trycloudflare.com
+```
+
+Put it in `.env` and restart; the bot registers the webhook itself on startup:
+
+```bash
+PUBLIC_URL=https://<name>.trycloudflare.com
+RESEARCH_PORTAL_URL=https://<your-project>.vercel.app
+TELEGRAM_MODE=auto        # -> webhook, because PUBLIC_URL is https
+```
+
+Verify Telegram's own view of it:
+
+```bash
+curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getWebhookInfo"
+# url set, pending_update_count 0, and no last_error_message
+```
+
+A quick tunnel's hostname changes each restart. For anything long-lived use a
+named Cloudflare tunnel or a host with a stable domain, and update `PUBLIC_URL`.
+
+Webhook requests are rejected unless they carry the
+`X-Telegram-Bot-Api-Secret-Token` shared secret, so a forged POST to the public
+URL cannot trip the kill switch.
+
+---
+
 ## One engine, two implementations, one test that proves it
 
 The gateway runs parameter sweeps through vectorbt/numba; Vercel's serverless
