@@ -19,12 +19,42 @@ const BINANCE_HOSTS = [
   "https://data-api.binance.vision", // public market-data mirror, no auth
 ];
 
+/**
+ * Timeouts, because a *stalled* upstream is worse than a dead one.
+ *
+ * A refused connection fails in milliseconds and we fall through to the next
+ * host. A host that completes the TCP handshake and then sends nothing has no
+ * bound other than undici's 300s header timeout — across two hosts and a
+ * sequential pagination loop that is ~10 minutes, far past any serverless
+ * limit. The function is killed before the synthetic fallback can run, so the
+ * caller gets a platform 504 with no JSON body instead of a degraded result.
+ *
+ * Two bounds are needed: per-request (a single stalled socket) and overall
+ * (many slow-but-not-stalled requests in the pagination loop).
+ */
+const FETCH_TIMEOUT_MS = 8_000;
+const OVERALL_BUDGET_MS = 20_000;
+
+async function withTimeout(
+  run: (signal: AbortSignal) => Promise<Response>,
+  ms = FETCH_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await run(controller.signal);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function fetchBinanceKlines(
   symbol: string,
   interval: string,
   bars: number,
 ): Promise<Bar[]> {
   let lastError: unknown = null;
+  const startedAt = Date.now();
 
   for (const host of BINANCE_HOSTS) {
     try {
@@ -32,6 +62,9 @@ export async function fetchBinanceKlines(
       let endTime: number | undefined;
 
       while (out.length < bars) {
+        if (Date.now() - startedAt > OVERALL_BUDGET_MS) {
+          throw new Error(`klines pagination exceeded ${OVERALL_BUDGET_MS}ms budget`);
+        }
         const limit = Math.min(1000, bars - out.length);
         const params = new URLSearchParams({
           symbol: symbol.toUpperCase(),
@@ -40,11 +73,14 @@ export async function fetchBinanceKlines(
         });
         if (endTime) params.set("endTime", String(endTime));
 
-        const res = await fetch(`${host}/api/v3/klines?${params}`, {
-          // Cache identical grids at the edge for a minute — a sweep does not
-          // need second-fresh history, and it keeps us inside the rate limit.
-          next: { revalidate: 60 },
-        });
+        const res = await withTimeout((signal) =>
+          fetch(`${host}/api/v3/klines?${params}`, {
+            signal,
+            // Cache identical grids at the edge for a minute — a sweep does not
+            // need second-fresh history, and it keeps us inside the rate limit.
+            next: { revalidate: 60 },
+          }),
+        );
         if (!res.ok) throw new Error(`${host} responded ${res.status}`);
 
         const chunk = (await res.json()) as unknown[][];
@@ -134,7 +170,7 @@ export async function loadBars(
       bars: syntheticBars(symbol, interval, bars),
       source: "synthetic",
       warnings: [
-        `Live market data unreachable (${(err as Error).message}). ` +
+        `Could not load live market data (${(err as Error).message}). ` +
           `This run uses a deterministic synthetic price series — the workflow is real, the prices are not.`,
       ],
     };

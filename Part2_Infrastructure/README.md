@@ -34,7 +34,7 @@ optional pieces are in §6 (Telegram) and §7 (Celery).
 Run the tests:
 
 ```bash
-pytest                                   # 99 tests, ~9s, no network required
+pytest                                   # 115 tests, ~9s, no network required
 ```
 
 ---
@@ -88,7 +88,7 @@ Part2_Infrastructure/
 │   ├── telegram.py         Bot commands, webhook/polling, Mini App HMAC auth
 │   └── schemas.py          Pydantic contracts shared by API, UI and bot
 ├── templates/miniapp.html  The Mini App / web portal (single file, no build step)
-├── tests/                  99 tests
+├── tests/                  115 tests
 └── requirements.txt
 ```
 
@@ -430,4 +430,4 @@ tests/test_api.py          REST contract, rejection semantics, job lifecycle,
 tests/test_telegram.py     command dispatch, authorisation, rendering, alerts
 ```
 
-99 tests, ~9 s, no network required.
+115 tests, ~9 s, no network required.

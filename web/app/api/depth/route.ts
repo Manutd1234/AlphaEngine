@@ -10,6 +10,7 @@ import {
   spreadBps,
   type Level,
 } from "@/lib/venues";
+import { clampInt, parseSymbol } from "@/lib/params";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic"; // a cached order book is a wrong order book
@@ -23,13 +24,15 @@ export const dynamic = "force-dynamic"; // a cached order book is a wrong order 
  */
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
-  const symbol = (params.get("symbol") ?? "BTCUSDT").toUpperCase();
-  const limit = Math.min(500, Math.max(5, Number(params.get("limit") ?? 100)));
-  const depth = Math.min(50, Math.max(5, Number(params.get("depth") ?? 20)));
-
-  if (!/^[A-Z0-9]{5,20}$/.test(symbol)) {
+  const symbol = parseSymbol(params.get("symbol"));
+  if (!symbol) {
     return NextResponse.json({ error: "invalid symbol" }, { status: 400 });
   }
+  // NaN-safe: a bad `depth` used to slice(0, NaN) -> empty ladders behind a 200,
+  // and a bad `limit` was forwarded raw to the exchanges, which then 400'd and
+  // surfaced a client typo as a two-venue outage.
+  const limit = clampInt(params.get("limit"), 5, 500, 100);
+  const depth = clampInt(params.get("depth"), 5, 50, 20);
 
   const t0 = Date.now();
   const books = await fetchBooks(symbol, limit);

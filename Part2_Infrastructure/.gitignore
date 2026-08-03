@@ -1,15 +1,18 @@
+# Anchored (leading /) on purpose: a bare `data/` matches at ANY depth and would
+# silently swallow a real package such as modules/data/ or tests/data/.
 # secrets — never commit; .env.example is the template
 .env
 
 # runtime artefacts (recreated on startup)
-data/
+/data/*
+!/data/.gitkeep
 *.duckdb
 *.duckdb.wal
 *.sqlite
 
 # python
-venv/
-.venv/
+/venv/
+/.venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/

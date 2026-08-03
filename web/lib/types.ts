@@ -112,6 +112,20 @@ export const PARAM_MEANING: Record<Strategy, { fast: string; slow: string }> = {
   rsi_reversion: { fast: "RSI period", slow: "Trend-filter SMA period" },
 };
 
+/**
+ * What the two overlay lines on the price chart actually ARE, per strategy.
+ *
+ * Distinct from `PARAM_MEANING`: a parameter is a lookback, the plotted line is
+ * the level that lookback produces. `fast: null` means the model has no second
+ * price-scale line worth drawing (RSI lives on 0-100, so plotting it would
+ * collapse the price axis).
+ */
+export const CHART_SERIES: Record<Strategy, { fast: string | null; slow: string }> = {
+  ma_cross: { fast: "Fast SMA", slow: "Slow SMA" },
+  donchian: { fast: "Breakout high", slow: "Trailing low" },
+  rsi_reversion: { fast: null, slow: "Trend SMA" },
+};
+
 export const BARS_PER_YEAR: Record<string, number> = {
   "1m": 525_600,
   "5m": 105_120,

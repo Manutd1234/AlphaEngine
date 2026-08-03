@@ -28,8 +28,8 @@ snapshot every 100ms) rather than the diff stream. The diff stream requires a
 REST snapshot + buffered-delta reconciliation that silently corrupts the book if
 a single message is dropped. For a 20-level, $100k-probe use case the partial
 stream is strictly more robust. Bybit's ``orderbook.50`` *is* consumed as
-snapshot + delta because it is sequence-tagged, and a sequence gap forces a
-resubscribe.
+snapshot + delta because it is sequence-tagged: ``u`` increments by exactly 1
+per delta, and any other step is a gap that forces a resubscribe.
 """
 
 from __future__ import annotations
@@ -58,6 +58,28 @@ log = logging.getLogger("alphaengine.tca")
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def is_sequence_gap(prev_seq: int, new_seq: int) -> bool:
+    """Did a Bybit delta go missing between ``prev_seq`` and ``new_seq``?
+
+    Bybit's ``u`` increments by exactly 1 per delta, so anything other than
+    ``prev + 1`` means a frame was lost. The obvious-looking test
+    ``new_seq < prev_seq`` catches only a *backward* jump, which ordered TCP
+    delivery makes impossible — it never fires, while a real forward gap sails
+    through and gets applied.
+
+    That matters because deltas carry every level *removal*. Drop one and a
+    filled bid stays in the ladder forever, sitting above the true ask: a
+    permanently crossed book that the UI reports as a cross-venue arbitrage
+    which does not exist.
+
+    Returns False when either sequence is 0 (no baseline yet, or the venue
+    omitted the field) so a fresh subscription is never treated as a gap.
+    """
+    if not prev_seq or not new_seq:
+        return False
+    return new_seq != prev_seq + 1
 
 
 # --------------------------------------------------------------------------- #
@@ -381,10 +403,12 @@ class BybitFeed(VenueFeed):
                     if msg.get("type") == "snapshot":
                         book.apply_snapshot(bids, asks)
                     else:
-                        # A sequence gap means the local book can no longer be
-                        # trusted -> drop the connection and force a fresh snapshot.
-                        if book.seq and seq and seq < book.seq:
-                            raise RuntimeError(f"bybit sequence gap on {sym}: {book.seq} -> {seq}")
+                        # A gap means the local book can no longer be trusted ->
+                        # drop the connection and force a fresh snapshot.
+                        if is_sequence_gap(book.seq, seq):
+                            raise RuntimeError(
+                                f"bybit sequence gap on {sym}: {book.seq} -> {seq}"
+                            )
                         book.apply_delta(bids, asks)
                     book.seq = seq or book.seq
                     if msg.get("ts"):

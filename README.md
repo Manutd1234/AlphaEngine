@@ -40,7 +40,7 @@ python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env          # add TELEGRAM_BOT_TOKEN to enable the bot
 uvicorn main:app --port 8000  # portal at http://localhost:8000/app
-pytest                        # 109 tests
+pytest                        # 115 tests
 ```
 
 Full documentation: [`Part2_Infrastructure/README.md`](Part2_Infrastructure/README.md)
@@ -56,7 +56,7 @@ Directory** to `web`. Everything else auto-detects.
 cd web
 npm install
 npm run dev    # http://localhost:3000
-npm test       # 38 tests
+npm test       # 65 tests
 ```
 
 Live-feed endpoints (public, no key):

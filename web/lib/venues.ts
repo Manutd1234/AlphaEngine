@@ -385,6 +385,7 @@ export interface Ticker {
 
 export async function fetchBinanceTickers(symbols: readonly string[]): Promise<Ticker[]> {
   const query = encodeURIComponent(JSON.stringify(symbols.map((s) => s.toUpperCase())));
+  let lastError = "unreachable";
   for (const host of BINANCE_HOSTS) {
     try {
       const rows = (await getJson(`${host}/api/v3/ticker/24hr?symbols=${query}`, 5)) as Array<
@@ -400,10 +401,22 @@ export async function fetchBinanceTickers(symbols: readonly string[]): Promise<T
         volume24h: Number(r.volume),
         quoteVolume24h: Number(r.quoteVolume),
       }));
-    } catch {
-      /* try the next host */
+    } catch (err) {
+      // Keep the reason. Binance 400s the WHOLE batch on one unknown symbol
+      // (-1121), and the mirror returns the same 400 — so swallowing it reported
+      // "unreachable" for six live instruments while the exchange was answering
+      // pings in 0.11s. A delist or rename (MATIC -> POL is real precedent) would
+      // silently blank every symbol for every caller.
+      lastError = (err as Error).message;
     }
   }
+
+  // Per-symbol retry, so one bad symbol cannot take the good ones down with it.
+  if (symbols.length > 1) {
+    const settled = await Promise.all(symbols.map((s) => fetchBinanceTickers([s])));
+    return settled.flat();
+  }
+
   return symbols.map((s) => ({
     symbol: s,
     venue: "BINANCE" as const,
@@ -413,7 +426,7 @@ export async function fetchBinanceTickers(symbols: readonly string[]): Promise<T
     low24h: null,
     volume24h: null,
     quoteVolume24h: null,
-    error: "unreachable",
+    error: lastError,
   }));
 }
 
@@ -445,10 +458,13 @@ export function buildTcaReport(
   let savingUsd: number | null = null;
 
   if (fillable.length) {
+    // Ties keep the FIRST element, matching Python's min()/max(). Written as
+    // `a.vwap < b.vwap ? a : b` the later element wins a tie, so the two
+    // implementations named different venues on the ~20% of probes that tie.
     const cmp = (a: ExecutionEstimate, b: ExecutionEstimate) =>
-      side === "BUY" ? (a.vwap! < b.vwap! ? a : b) : a.vwap! > b.vwap! ? a : b;
+      side === "BUY" ? (b.vwap! < a.vwap! ? b : a) : b.vwap! > a.vwap! ? b : a;
     const inv = (a: ExecutionEstimate, b: ExecutionEstimate) =>
-      side === "BUY" ? (a.vwap! > b.vwap! ? a : b) : a.vwap! < b.vwap! ? a : b;
+      side === "BUY" ? (b.vwap! > a.vwap! ? b : a) : b.vwap! < a.vwap! ? b : a;
     const best = fillable.reduce(cmp);
     const worst = fillable.reduce(inv);
     bestSingleVenue = best.venue;

@@ -17,8 +17,9 @@
  *  - **Binance** uses `@depth20@100ms`, a self-contained top-20 snapshot every
  *    100ms. The diff stream needs REST-snapshot reconciliation and silently
  *    corrupts the book if one message is dropped; the partial stream self-heals.
- *  - **Bybit** is sequence-tagged, so it is consumed as snapshot + delta, and a
- *    sequence gap forces a resubscribe rather than trusting a book with holes.
+ *  - **Bybit** is sequence-tagged, so it is consumed as snapshot + delta. `u`
+ *    increments by exactly 1 per delta; any other step is a gap and forces a
+ *    resubscribe rather than trusting a book with holes.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -136,6 +137,7 @@ function connect(
   let backoff = 1000;
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
   let heartbeat: ReturnType<typeof setInterval> | null = null;
+  let stableTimer: ReturnType<typeof setTimeout> | null = null;
   const ladder = new Ladder();
   let seq = 0;
 
@@ -155,7 +157,13 @@ function connect(
     }
 
     ws.onopen = () => {
-      backoff = 1000;
+      // Reset the backoff only once the socket has PROVEN stable. Resetting on
+      // handshake alone defeats the ceiling on an accept-then-drop path: a proxy
+      // or a flapping venue completes the upgrade, drops, and every retry starts
+      // from 1s again — measured 54 reconnects in 60s instead of backing off.
+      stableTimer = setTimeout(() => {
+        backoff = 1000;
+      }, 10_000);
       handlers.onStatus("live");
       if (venue === "BYBIT") {
         ws?.send(JSON.stringify({ op: "subscribe", args: [`orderbook.50.${symbol.toUpperCase()}`] }));
@@ -189,8 +197,16 @@ function connect(
           ladder.snapshot(bids, asks);
         } else {
           // A sequence gap means the local book can no longer be trusted.
-          if (seq && u && u < seq) {
-            ws?.close();
+          //
+          // Bybit increments `u` by exactly 1 per delta, so the check must be
+          // `u !== seq + 1`. Testing `u < seq` only catches a *backward* jump,
+          // which ordered TCP delivery makes impossible — it never fired once in
+          // ~10k live messages, while a genuine forward gap fell straight through
+          // to apply(). Deltas are the only source of level removals, so one
+          // dropped frame leaves a permanently crossed book: a stale bid sits
+          // above the real ask and the UI reports it as a cross-venue arbitrage.
+          if (seq && u && u !== seq + 1) {
+            ws?.close(); // force a fresh snapshot rather than trust a holed book
             return;
           }
           ladder.delta(bids, asks);
@@ -210,6 +226,8 @@ function connect(
   const retry = (error?: string) => {
     if (heartbeat) clearInterval(heartbeat);
     heartbeat = null;
+    if (stableTimer) clearTimeout(stableTimer);
+    stableTimer = null;
     if (closed) return;
     handlers.onStatus("error", error);
     handlers.onReconnect();
@@ -224,6 +242,7 @@ function connect(
     closed = true;
     if (retryTimer) clearTimeout(retryTimer);
     if (heartbeat) clearInterval(heartbeat);
+    if (stableTimer) clearTimeout(stableTimer);
     ws?.close();
   };
 }
@@ -241,6 +260,11 @@ export function useLiveBook(symbol: string, enabled = true, publishHz = 5): Live
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined") return;
+
+    // Drop the previous instrument's book at once. The publish interval is the
+    // only writer, so without this the old symbol's prices stay painted under
+    // the new symbol's label for a full tick — BTC prices under an ADA button.
+    setSnapshot(null);
 
     const venues: VenueName[] = ["BINANCE", "BYBIT"];
     state.current = new Map(
@@ -274,7 +298,13 @@ export function useLiveBook(symbol: string, enabled = true, publishHz = 5): Live
       const now = Date.now();
       const venueStates = [...state.current.values()].map((s) => ({
         ...s,
-        status: s.status === "live" && now - s.lastUpdate > STALE_AFTER_MS ? ("stale" as const) : s.status,
+        // `lastUpdate` seeds at 0, and "live" is set on handshake — so without
+        // the `updates > 0` guard every venue flashes amber "stale" between the
+        // handshake and its first frame, when there is no book to be stale.
+        status:
+          s.status === "live" && s.updates > 0 && now - s.lastUpdate > STALE_AFTER_MS
+            ? ("stale" as const)
+            : s.status,
       }));
 
       // Only books that are both connected and fresh may price an order.

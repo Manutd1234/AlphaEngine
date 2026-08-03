@@ -46,16 +46,26 @@ else
   pass "no source file is being silently dropped"
 fi
 
-echo "▸ 2. Unanchored directory patterns in .gitignore"
-# `lib/` matches at ANY depth; `/web/lib/` matches one place. Only the second is safe
-# in a polyglot repo.
-risky=$(grep -nE '^[a-zA-Z_][a-zA-Z0-9_.-]*/$' .gitignore \
-  | grep -vE ':(node_modules|__pycache__|\.pytest_cache|\.mypy_cache|\.ruff_cache|\.ipynb_checkpoints)/$' || true)
+echo "▸ 2. Unanchored directory patterns in EVERY .gitignore"
+# `lib/` matches at ANY depth; `/web/lib/` matches one place. Only the second is
+# safe in a polyglot repo.
+#
+# This must walk every tracked ignore file, not just the root one. Checking only
+# the root reported "all patterns anchored" while web/.gitignore still carried a
+# bare `out/` and Part2_Infrastructure/.gitignore a bare `data/` — a false green
+# on the exact check that exists because this bug already shipped once.
+risky=""
+for ignore_file in $(git ls-files '.gitignore' '*/.gitignore' 2>/dev/null); do
+  hits=$(grep -nE '^[a-zA-Z_][a-zA-Z0-9_.-]*/$' "$ignore_file" \
+    | grep -vE ':(node_modules|__pycache__|\.pytest_cache|\.mypy_cache|\.ruff_cache|\.ipynb_checkpoints)/$' || true)
+  [[ -n "$hits" ]] && risky+="$(printf '%s\n' "$hits" | sed "s|^|${ignore_file}:|")"$'\n'
+done
+risky="${risky%$'\n'}"
 if [[ -n "$risky" ]]; then
   bad "unanchored directory patterns (add a leading / to scope them):"
-  printf '        %s\n' "$risky"
+  printf '        %s\n' $risky
 else
-  pass "all directory patterns are anchored or known-safe"
+  pass "all directory patterns anchored or known-safe ($(git ls-files '.gitignore' '*/.gitignore' | wc -l | tr -d ' ') ignore files checked)"
 fi
 
 echo "▸ 3. Uncommitted changes"

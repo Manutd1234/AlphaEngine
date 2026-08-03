@@ -163,3 +163,51 @@ class TestRouteEstimate:
 
     def test_no_book_returns_none(self):
         assert TCAEngine(symbols=["BTCUSDT"], venues=[]).route_estimate("BTCUSDT", "BUY", 100.0) is None
+
+
+class TestSequenceGapDetection:
+    """Bybit deltas carry every level removal, so a dropped frame silently
+    corrupts the book. The check has to test the right direction."""
+
+    def test_consecutive_updates_are_not_a_gap(self):
+        from modules.tca_engine import is_sequence_gap
+
+        assert not is_sequence_gap(100, 101)
+        assert not is_sequence_gap(1, 2)
+
+    def test_forward_gap_is_detected(self):
+        """The case the original `seq < book.seq` test missed entirely."""
+        from modules.tca_engine import is_sequence_gap
+
+        assert is_sequence_gap(100, 102)
+        assert is_sequence_gap(100, 500)
+
+    def test_backward_jump_is_also_a_gap(self):
+        from modules.tca_engine import is_sequence_gap
+
+        assert is_sequence_gap(100, 99)
+
+    def test_repeated_sequence_is_a_gap(self):
+        from modules.tca_engine import is_sequence_gap
+
+        assert is_sequence_gap(100, 100)
+
+    def test_no_baseline_is_never_a_gap(self):
+        """A fresh subscribe, or a venue that omits `u`, must not trigger a
+        reconnect loop."""
+        from modules.tca_engine import is_sequence_gap
+
+        assert not is_sequence_gap(0, 1)
+        assert not is_sequence_gap(100, 0)
+        assert not is_sequence_gap(0, 0)
+
+    def test_a_dropped_delta_would_leave_the_book_crossed(self):
+        """Why the check matters: without it, a missed removal strands a bid
+        above the ask and the UI renders it as cross-venue arbitrage."""
+        book = BookState("BYBIT", "BTCUSDT")
+        book.apply_snapshot(bids=[(100.0, 5.0)], asks=[(101.0, 5.0)])
+        # The delta that removes the 100.0 bid is the frame that goes missing.
+        book.apply_delta(bids=[], asks=[(99.0, 5.0)])  # new ask below the stale bid
+        assert book.best_bid == 100.0
+        assert book.best_ask == 99.0
+        assert book.spread_bps < 0, "a dropped removal leaves the book crossed"

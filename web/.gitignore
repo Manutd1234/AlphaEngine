@@ -1,8 +1,12 @@
-node_modules/
-.next/
-out/
-.vercel/
+# Anchored (leading /) on purpose: a bare `out/` matches at ANY depth, so it
+# would silently swallow e.g. web/components/out/Chart.tsx — the same class of
+# failure that made web/lib/ vanish and broke the deployment.
+/node_modules/
+/.next/
+/out/
+/.vercel/
+/.turbo/
+/next-env.d.ts
+/*.tsbuildinfo
 .env*.local
-*.tsbuildinfo
-next-env.d.ts
 .DS_Store

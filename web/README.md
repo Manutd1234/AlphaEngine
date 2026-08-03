@@ -21,16 +21,17 @@ Locally:
 cd web
 npm install
 npm run dev     # http://localhost:3000
-npm test        # 55 tests, no network required
+npm test        # 65 tests, no network required
 ```
 
 ---
 
 ## What it does
 
-**Trend & signal view** — price with the model's two indicator lines, and the
-bars where it actually held a position shaded behind them. Two moving averages
-crossing is abstract; "you were long here and flat there" is not.
+**Trend & signal view** — price with the lines the model *actually trades on*
+(SMAs for the crossover, breakout/trailing bands for Donchian, the trend filter
+for RSI), and the bars where it held a position shaded behind them. Two moving
+averages crossing is abstract; "you were long here and flat there" is not.
 
 **Parameter controls** — symbol, interval, history depth, model, direction, the
 fast/slow grid (from / to / step for each), fees and slippage in bps, and the
@@ -85,7 +86,9 @@ invocations, so tick-by-tick L2 does not go through the API at all — the **Liv
 market** tab opens sockets straight from the browser to Binance and Bybit. No
 backend, no key, no CORS (the WebSocket handshake is not subject to it), and one
 hop of latency instead of two. `/api/depth` and `/api/tca` serve the same numbers
-as REST snapshots for non-browser callers, computed with identical maths.
+as REST snapshots for non-browser callers, computed with identical maths and
+against the same ladder depth (Binance 20 / Bybit 50, matching the gateway) so a
+probe answers the same question in both places.
 
 The arithmetic is a port of Module A in the Python gateway, and
 `tests/venues.test.ts` replays the gateway's own hand-computed ladders through
@@ -125,7 +128,7 @@ web/
 │   ├── livebook.ts           browser WebSocket L2 client (Binance + Bybit)
 │   └── types.ts              shared contracts
 ├── components/               charts (hand-rolled SVG), controls, tables
-└── tests/                    55 tests incl. cross-engine parity
+└── tests/                    65 tests incl. cross-engine parity
 ```
 
 **Why the sweep runs server-side.** Binance's public API is called from the

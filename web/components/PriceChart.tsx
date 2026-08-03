@@ -9,7 +9,7 @@
  * this strategy actually do?" before any performance number is shown.
  */
 
-import { SeriesPoint, Strategy, PARAM_MEANING } from "@/lib/types";
+import { CHART_SERIES, SeriesPoint, Strategy } from "@/lib/types";
 import { fmt, priceDp, shortDate, dateTime } from "@/lib/format";
 import {
   DEFAULT_MARGIN,
@@ -67,7 +67,7 @@ export default function PriceChart({
   });
   if (start !== null) bands.push([start, series.length - 1]);
 
-  const labels = PARAM_MEANING[strategy];
+  const labels = CHART_SERIES[strategy];
   const point = index != null ? series[index] : null;
   const last = series[series.length - 1];
 
@@ -78,10 +78,12 @@ export default function PriceChart({
           <i style={{ background: "var(--series-1)" }} />
           {symbol} close
         </span>
-        <span>
-          <i style={{ background: "var(--series-2)" }} />
-          {labels.fast} ({fast})
-        </span>
+        {labels.fast && (
+          <span>
+            <i style={{ background: "var(--series-2)" }} />
+            {labels.fast} ({fast})
+          </span>
+        )}
         <span>
           <i style={{ background: "var(--series-3)" }} />
           {labels.slow} ({slow})
@@ -104,7 +106,7 @@ export default function PriceChart({
         width="100%"
         height={HEIGHT}
         role="img"
-        aria-label={`${symbol} price with ${labels.fast.toLowerCase()} ${fast} and ${labels.slow.toLowerCase()} ${slow}, shaded where the strategy held a position`}
+        aria-label={`${symbol} price with ${labels.fast ? `${labels.fast.toLowerCase()} ${fast} and ` : ""}${labels.slow.toLowerCase()} ${slow}, shaded where the strategy held a position`}
         style={{ touchAction: "pan-y" }}
         {...handlers}
       >
@@ -186,7 +188,9 @@ export default function PriceChart({
               title={dateTime(point.t)}
               rows={[
                 { label: "Close", value: fmt(point.close, dp), color: "var(--series-1)" },
-                { label: labels.fast, value: fmt(point.fast, dp), color: "var(--series-2)" },
+                ...(labels.fast
+                  ? [{ label: labels.fast, value: fmt(point.fast, dp), color: "var(--series-2)" }]
+                  : []),
                 { label: labels.slow, value: fmt(point.slow, dp), color: "var(--series-3)" },
                 {
                   label: "Position",

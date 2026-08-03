@@ -413,8 +413,27 @@ export function runSweep(
   }
 
   // --- series for the charts (thinned for payload size) ------------------ //
-  const fastMa = req.strategy === "ma_cross" ? sma(close, best.fast) : sma(close, best.fast);
-  const slowMa = req.strategy === "ma_cross" ? sma(close, best.slow) : sma(close, best.slow);
+  // The overlay must be the lines the model ACTUALLY trades on. Plotting two
+  // SMAs for every strategy makes the chart contradict the position shading:
+  // a Donchian run showed 19 line-crossings against 6 real position changes.
+  // RSI is deliberately not plotted as `fast` — it lives on a 0-100 scale and
+  // PriceChart derives its y-domain from extent([close, fast, slow]), so a raw
+  // RSI would flatten the price axis into a hairline.
+  let fastMa: Float64Array;
+  let slowMa: Float64Array;
+  switch (req.strategy) {
+    case "donchian":
+      fastMa = shift1(rollingMax(high, best.fast)); // breakout trigger
+      slowMa = shift1(rollingMin(low, best.slow)); // trailing exit
+      break;
+    case "rsi_reversion":
+      fastMa = new Float64Array(bars.length).fill(NaN); // RSI is off-scale; omit
+      slowMa = sma(close, best.slow); // the trend filter it really uses
+      break;
+    default:
+      fastMa = sma(close, best.fast);
+      slowMa = sma(close, best.slow);
+  }
   const step = Math.max(1, Math.ceil(bars.length / 700));
   const series: SeriesPoint[] = [];
   let peak = -Infinity;

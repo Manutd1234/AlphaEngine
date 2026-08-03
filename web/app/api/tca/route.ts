@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { buildTcaReport, fetchBooks, type Side } from "@/lib/venues";
+import { clampFloat, parseSymbol } from "@/lib/params";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,23 +10,26 @@ export const dynamic = "force-dynamic";
  * GET /api/tca?symbol=BTCUSDT&side=BUY&notional=100000
  *
  * Prices a target order against the live ladders of every venue and returns the
- * cross-venue routing split that minimises blended cost. Mirrors the gateway's
- * `/api/tca` exactly, so the two cannot disagree about execution cost.
+ * cross-venue routing split that minimises blended cost.
+ *
+ * Uses the same arithmetic AND the same ladder depth as the gateway, so the two
+ * agree on a given book. They can still differ by the age of the snapshot: this
+ * route fetches on demand, the gateway holds a streaming book.
  */
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
-  const symbol = (params.get("symbol") ?? "BTCUSDT").toUpperCase();
-  const side = ((params.get("side") ?? "BUY").toUpperCase() === "SELL" ? "SELL" : "BUY") as Side;
-  const notional = Math.min(50_000_000, Math.max(100, Number(params.get("notional") ?? 100_000)));
-
-  if (!/^[A-Z0-9]{5,20}$/.test(symbol)) {
+  const symbol = parseSymbol(params.get("symbol"));
+  if (!symbol) {
     return NextResponse.json({ error: "invalid symbol" }, { status: 400 });
   }
-  if (!Number.isFinite(notional)) {
-    return NextResponse.json({ error: "invalid notional" }, { status: 400 });
-  }
+  const side = ((params.get("side") ?? "BUY").toUpperCase() === "SELL" ? "SELL" : "BUY") as Side;
+  const notional = clampFloat(params.get("notional"), 100, 50_000_000, 100_000);
 
-  const books = await fetchBooks(symbol, 500);
+  // Match the depth the Live tab streams (Binance @depth20, Bybit orderbook.50)
+  // and the gateway's own feed. Walking a 500-level REST ladder here made the
+  // same $1M probe read "fillable" on this route and "not fillable" in the UI —
+  // both correct, but answering different questions under one product.
+  const books = await fetchBooks(symbol, 50);
   const report = buildTcaReport(symbol, side, notional, books);
 
   if (!report.perVenue.length) {

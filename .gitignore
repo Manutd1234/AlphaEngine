@@ -44,6 +44,10 @@ __pycache__/
 
 # ── Runtime data (recreated on startup) ──────────────────────────────────────
 /Part2_Infrastructure/data/*
+# Re-include the placeholder so the directory survives a clone. This only works
+# because the pattern above excludes the directory's *contents* (`/*`) rather
+# than the directory itself — git will not descend into an excluded directory,
+# so `data/` would have made this negation dead.
 !/Part2_Infrastructure/data/.gitkeep
 *.duckdb
 *.duckdb.wal
