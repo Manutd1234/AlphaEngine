@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>AlphaEngine — Execution Gateway &amp; Risk Portal</title>
+<title>AlphaEngine Trading Automation — Execution Gateway &amp; Risk Portal</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 :root{
@@ -298,6 +298,27 @@ img.chart{width:100%;border-radius:8px;border:1px solid var(--line);display:bloc
   </div>
 
   <div class="card">
+    <h2>Portfolio<span class="spacer"></span><span class="num" id="pfConc" style="font-size:10px;color:var(--faint)"></span></h2>
+    <div class="grid3">
+      <div class="stat"><div class="k">Gross</div><div class="v num" id="pfGross">—</div><div class="s" id="pfNet">—</div></div>
+      <div class="stat"><div class="k">Leverage</div><div class="v num" id="pfLev">—</div><div class="s">of equity</div></div>
+      <div class="stat"><div class="k">Largest position</div><div class="v num" id="pfTop">—</div><div class="s" id="pfTopSym">—</div></div>
+    </div>
+    <div style="margin-top:10px">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">
+        <span>Binding limit</span><span class="num" id="pfBindTxt">—</span>
+      </div>
+      <div class="gauge"><i id="pfBindBar" style="width:0%"></i></div>
+    </div>
+    <div class="tw" style="margin-top:12px"><table id="pfTbl">
+      <thead><tr><th>Symbol</th><th>Notional</th><th>Share</th><th>P&amp;L</th><th>Sym limit</th></tr></thead>
+      <tbody><tr><td colspan="5" class="empty">flat</td></tr></tbody>
+    </table></div>
+    <p class="note" style="margin-top:9px">Concentration and headroom, not just a position list — the
+      question a portfolio manager asks is <b>which limit stops trading first</b>.</p>
+  </div>
+
+  <div class="card">
     <h2>Positions</h2>
     <div class="tw"><table id="posTbl">
       <thead><tr><th>Symbol</th><th>Qty</th><th>Avg</th><th>Mark</th><th>uPnL</th></tr></thead>
@@ -427,7 +448,7 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + b.dataset.v));
   if (b.dataset.v === 'tca') refreshTCA();
-  if (b.dataset.v === 'risk') { refreshRisk(); refreshAudit(); }
+  if (b.dataset.v === 'risk') { refreshRisk(); refreshPortfolio(); refreshAudit(); }
 });
 
 /* ---------- symbol / venue chips ---------- */
@@ -606,6 +627,32 @@ async function refreshRisk() {
     : '<tr><td colspan="5" class="empty">flat</td></tr>';
 }
 
+async function refreshPortfolio() {
+  let p; try { p = await api('/api/portfolio'); } catch (e) { return; }
+  const x = p.exposure, c = p.concentration, r = p.risk_budget;
+
+  $('pfGross').textContent = usd(x.gross);
+  $('pfNet').textContent   = `net ${x.net >= 0 ? '+' : ''}${compact(x.net)}`;
+  $('pfLev').textContent   = `${fx(x.leverage, 2)}x`;
+  $('pfTop').textContent   = pct(c.largest_share, 0);
+  $('pfTopSym').textContent = c.largest_symbol || '—';
+  $('pfConc').textContent  = c.positions
+    ? `HHI ${fx(c.hhi, 2)} · ${fx(c.effective_positions, 1)} effective`
+    : '';
+
+  const [name, used] = r.binding_constraint;
+  $('pfBindTxt').textContent = `${name} — ${pct(used, 0)}`;
+  $('pfBindBar').style.width = `${Math.min(1, used) * 100}%`;
+
+  $('pfTbl').tBodies[0].innerHTML = x.positions.length ? x.positions.map(q => `<tr>
+      <td>${q.symbol} <span class="${q.side === 'LONG' ? 'pos' : 'neg'}">${q.side}</span></td>
+      <td>${compact(q.notional)}</td>
+      <td class="mut">${pct(q.share_of_gross, 0)}</td>
+      <td class="${sgn(q.total_pnl)}">${fx(q.total_pnl, 2)}</td>
+      <td class="mut">${pct(q.symbol_limit.utilisation, 0)}</td>
+    </tr>`).join('') : '<tr><td colspan="5" class="empty">flat</td></tr>';
+}
+
 async function refreshAudit() {
   try {
     const rows = await api('/api/audit/orders?limit=12');
@@ -625,7 +672,7 @@ $('btnKill').onclick = async () => {
   refreshRisk();
 };
 $('btnResume').onclick = async () => { haptic(); await post('/api/risk/resume', {}); refreshRisk(); };
-$('btnReset').onclick  = async () => { haptic(); await post('/api/risk/reset', {}); refreshRisk(); refreshAudit(); };
+$('btnReset').onclick  = async () => { haptic(); await post('/api/risk/reset', {}); refreshRisk(); refreshPortfolio(); refreshAudit(); };
 
 document.querySelectorAll('[data-preset]').forEach(c => c.onclick = async () => {
   haptic();
@@ -678,7 +725,7 @@ async function sendOrder() {
             <span class="i">${c.passed ? '✅' : '⛔️'}</span>
             <span class="n">${c.name}</span><span class="d">${c.detail}</span></div>`).join('')}
       </div>`;
-    refreshRisk(); refreshAudit();
+    refreshRisk(); refreshPortfolio(); refreshAudit();
   } catch (e) {
     $('oResult').innerHTML = `<div class="banner err" style="margin-top:10px">${e.message}</div>`;
   } finally { $('btnSend').disabled = false; }
@@ -810,9 +857,9 @@ function renderResult(r) {
 
 /* ═══════════════ boot ═══════════════ */
 $('btEngine').textContent = CFG.engine + ' engine';
-buildChips(); syncSweep(); openBook(); refreshRisk(); refreshAudit();
+buildChips(); syncSweep(); openBook(); refreshRisk(); refreshPortfolio(); refreshAudit();
 setInterval(refreshRisk, 4000);
-setInterval(() => { if (document.querySelector('nav button.on').dataset.v === 'risk') refreshAudit(); }, 6000);
+setInterval(() => { if (document.querySelector('nav button.on').dataset.v === 'risk') { refreshPortfolio(); refreshAudit(); } }, 6000);
 setInterval(() => { if (document.querySelector('nav button.on').dataset.v === 'tca') refreshTCA(); }, 3000);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && (!ws || ws.readyState > 1)) openBook();

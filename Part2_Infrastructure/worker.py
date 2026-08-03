@@ -27,7 +27,7 @@ def main() -> int:
 
     from celery_tasks import celery_app
 
-    print(f"AlphaEngine worker -> broker {settings.celery_broker_url}")
+    print(f"AlphaEngine Trading Automation worker -> broker {settings.celery_broker_url}")
     celery_app.worker_main(["worker", "--loglevel=info", f"--concurrency={settings.job_workers}"])
     return 0
 

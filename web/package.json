@@ -2,18 +2,18 @@
   "name": "alphaengine-research-portal",
   "version": "1.0.0",
   "private": true,
-  "description": "AlphaEngine strategy research portal — parameter sweeps with multiple-testing correction.",
+  "description": "AlphaEngine Trading Automation research portal — parameter sweeps with multiple-testing correction.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test tests/*.test.ts"
   },
   "dependencies": {
-    "next": "15.5.22",
-    "react": "19.1.1",
-    "react-dom": "19.1.1"
+    "next": "16.2.12",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@types/node": "^22",

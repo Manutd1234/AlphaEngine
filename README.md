@@ -1,4 +1,4 @@
-# AlphaEngine — NUSSIF Developer Analyst Case Study
+# AlphaEngine Trading Automation — NUSSIF Developer Analyst Case Study
 
 Unified execution-quality, pre-trade-risk and strategy-research infrastructure,
 reachable from a **Telegram bot**, a **Telegram Mini App** and a **Vercel web
@@ -23,6 +23,59 @@ portal**.
                        │
               DuckDB audit log
 ```
+
+---
+
+## Who this is for
+
+Three people use a trading desk and they ask different questions. The system is
+organised around that rather than around a feature list.
+
+### 🎯 Traders — *"Can I send this, and what will it cost?"*
+
+| Need | Where |
+|---|---|
+| See real liquidity before committing | Consolidated L2 ladder, streaming from Binance + Bybit |
+| Know the cost *before* the fill | `/tca BTCUSDT 100000 BUY` — VWAP, slippage in bps, routing split |
+| Not send the order with the extra zero | 12 pre-trade gates in ~0.2 ms; a rejection returns the full check vector |
+| Stop everything, now | `/kill` — three characters, works one-thumbed on bad wifi |
+| Know when something breaks without watching a screen | Push alerts on breaches, halts, and `/watch` liquidity thresholds |
+
+### 📁 Portfolio managers — *"Where am I exposed, and which limit binds first?"*
+
+| Need | Where |
+|---|---|
+| The book, not a position list | `/portfolio` and `GET /api/portfolio` |
+| Is this one bet or a spread book? | Concentration: largest share, HHI, effective position count |
+| Gross vs net — directional or hedged? | Both reported; a market-neutral book has large gross and ~zero net |
+| How much room is left before trading stops | Headroom on every limit, and the **binding constraint** named explicitly |
+| What is actually producing the P&L | Attribution by symbol and by strategy, from the append-only audit log |
+
+A trader's view answers a question about the *next order*; a PM's answers one
+about the *whole book*. The same numbers do not serve both, which is why
+`/api/portfolio` exists separately from `/api/risk/state`.
+
+### 🔬 Researchers — *"Does this strategy actually work?"*
+
+| Need | Where |
+|---|---|
+| Test an idea across a parameter grid | Sweep in the Vercel portal, or `/backtest` from the bot |
+| Not be fooled by the best of N draws | **Deflated Sharpe Ratio** — the hurdle a random search of the same size clears |
+| Know it generalises | Walk-forward: parameters chosen in-sample, scored on the next unseen fold |
+| See *robustness*, not just a winner | Sharpe surface — a plateau survives; an isolated peak is an overfit |
+| Realistic costs | Fees and slippage charged on turnover; fills at the next bar, never at mid |
+
+The research portal will tell you a strategy **fails** even when the equity curve
+looks good. That is the feature: a +82% backtest with DSR 0.71 and negative
+out-of-sample Sharpe gets a red FAIL, not a green tick.
+
+### What ties them together
+
+The audit log. Every gate decision, kill-switch event, TCA snapshot and backtest
+run is appended to DuckDB and is queryable with plain SQL. A trader's rejected
+order, a PM's exposure figure and a researcher's sweep all reconcile to the same
+rows — so "why does it say that?" has an answer that does not depend on anyone's
+memory.
 
 ---
 
@@ -163,9 +216,29 @@ cd Part2_Infrastructure && python tools/make_parity_fixture.py
 
 ## Submission checklist
 
-| # | Item | Status |
-|---|---|---|
-| 1 | `CV_Ian_Wangsa.pdf` | _to add_ |
-| 2 | `Part1_Data_Handling.ipynb` | _to add_ |
-| 3 | `Part1_Data_Handling.html` | _to add_ |
-| 4 | `Part2_Infrastructure/` + `web/` | **complete** |
+| # | Item | Where | Status |
+|---|---|---|---|
+| 1 | Up-to-date CV | `CV_Ian_Wangsa.pdf` | _add before zipping_ |
+| 2 | HTML export of the Part 1 notebook | `Part1_Data_Handling/Part1_Data_Handling.html` | **done** |
+| 3 | Original Part 1 notebook | `Part1_Data_Handling/Part1_Data_Handling.ipynb` | **done** |
+| 4 | All code, outputs and supporting files for Part 2 | `Part2_Infrastructure/` + `web/` | **done** |
+
+### Part 1 — data handling
+
+`Part1_Data_Handling/` holds the notebook, its executed HTML export, the source
+workbook, and `build_notebook.py` (the notebook is generated from that script so
+the narrative is diff-able as text rather than buried in cell JSON).
+
+It finds and documents **seven defects in 298 rows** — a mixed date format, two
+label variants, a duplicated export, two missing measures, a negative request
+count and a 4.8× billing anomaly — then answers the three questions:
+
+* **Trend:** requests +22%, tokens +27%, cost +33% across the window. Cost
+  outrunning tokens means the model mix is drifting toward the premium tier, not
+  just that volume is rising.
+* **Cost driver:** `doc-analysis` is 52% of spend on 6.5% of requests. Decomposed,
+  request volume is ×0.45 (it makes *fewer* calls) while tokens/request is ×6.1
+  and unit price is ×4.1 — so one request costs ~25× a `ticket-summarizer` one.
+  The lever is model choice and context size, not call volume.
+* **Assumptions:** every transformation is logged as it happens and printed as a
+  register, with a raw→clean reconciliation of every total.

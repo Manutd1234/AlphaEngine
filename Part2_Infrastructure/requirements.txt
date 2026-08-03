@@ -1,4 +1,4 @@
-# AlphaEngine Execution Gateway & Risk Portal — full dependency set
+# AlphaEngine Trading Automation — full dependency set
 # Verified on Python 3.11 – 3.14.
 #
 #   python -m venv venv && source venv/bin/activate

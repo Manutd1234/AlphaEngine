@@ -1,4 +1,4 @@
-# AlphaEngine — Unified Execution Gateway & Risk Portal
+# AlphaEngine Trading Automation — Unified Execution Gateway & Risk Portal
 
 **NUSSIF Developer Analyst Case Study — Part 2**
 
@@ -13,6 +13,13 @@ institutional-grade system, reachable from a Telegram bot and a Telegram Mini Ap
 | **C** | **Asynchronous Parametric Backtester** | vectorbt parameter sweeps off the request path, **deflated** for multiple testing, walk-forward validated |
 
 Everything writes to an append-only DuckDB audit log.
+
+**Three users, three questions.** Traders ask *"can I send this, and what will it
+cost?"* — Modules A and B. Portfolio managers ask *"where am I exposed and which
+limit binds first?"* — the portfolio view (`/portfolio`, `GET /api/portfolio`).
+Researchers ask *"does this actually work?"* — Module C, which answers with a
+deflated Sharpe rather than a headline one. See the root README for the full
+mapping.
 
 ---
 

@@ -1,6 +1,6 @@
 """
-AlphaEngine — FastAPI Central Gateway
-======================================
+AlphaEngine Trading Automation — FastAPI Central Gateway
+========================================================
 
 Single process, three modules, two interfaces:
 
@@ -46,6 +46,7 @@ from config import BASE_DIR, settings
 from modules.audit import get_audit
 from modules.backtester import VECTORBT_AVAILABLE, run_backtest
 from modules.jobs import get_queue
+from modules.portfolio import build_portfolio
 from modules.risk_proxy import get_gateway
 from modules.schemas import (
     BacktestRequest,
@@ -283,6 +284,17 @@ async def submit_order(order: OrderRequest, actor: str = Depends(trader_identity
 @app.get("/api/risk/state", response_model=RiskState, tags=["B · Risk"])
 async def risk_state() -> RiskState:
     return get_gateway().state()
+
+
+@app.get("/api/portfolio", tags=["B · Risk"])
+async def portfolio() -> dict[str, Any]:
+    """Portfolio-manager view: exposure, concentration, risk headroom, attribution.
+
+    Distinct from `/api/risk/state`, which answers a trader's question about the
+    next order. This answers a PM's: where is the book concentrated, which limit
+    binds first, and what is producing the P&L.
+    """
+    return build_portfolio(get_gateway(), get_audit())
 
 
 @app.get("/api/risk/limits", tags=["B · Risk"])

@@ -1,4 +1,4 @@
-# AlphaEngine — Strategy Research Portal (Vercel)
+# AlphaEngine Trading Automation — Strategy Research Portal (Vercel)
 
 The research half of AlphaEngine as a deployable Next.js app: pick a market and a
 model, sweep a parameter grid, and get an explicit answer to **"does this
@@ -12,7 +12,7 @@ Deployed as a standalone app; it needs no backend, no database and no API keys.
 ## Deploy to Vercel
 
 1. Import the GitHub repo at <https://vercel.com/new>.
-2. Set **Root Directory** to `web`. Everything else auto-detects (Next.js 15).
+2. Set **Root Directory** to `web`. Everything else auto-detects (Next.js 16).
 3. Deploy. There are **no required environment variables**.
 
 Locally:
@@ -20,9 +20,17 @@ Locally:
 ```bash
 cd web
 npm install
-npm run dev     # http://localhost:3000
-npm test        # 65 tests, no network required
+npm run dev        # http://localhost:3000 (Turbopack)
+npm run build      # Turbopack production build
+npm run typecheck  # tsc --noEmit
+npm test           # 65 tests, no network required
 ```
+
+Built on **Next.js 16** with **Turbopack**, which is the default bundler for both
+`dev` and `build` in 16 — no `--turbopack` flag is needed, and passing one is a
+no-op. `next lint` was removed in 16; since this project carries no ESLint config
+or dependency, the script slot is a real `tsc --noEmit` typecheck rather than a
+new dependency tree.
 
 ---
 

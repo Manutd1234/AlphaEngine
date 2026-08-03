@@ -47,14 +47,15 @@ from config import settings
 
 log = logging.getLogger("alphaengine.telegram")
 
-HELP_TEXT = """<b>AlphaEngine — Execution Gateway &amp; Risk Portal</b>
+HELP_TEXT = """<b>AlphaEngine Trading Automation — Execution Gateway &amp; Risk Portal</b>
 
 <b>🛑 Emergency</b>
 <code>/kill</code> — halt ALL trading immediately
 <code>/kill BTCUSDT</code> — halt one instrument
 <code>/resume</code> [SYMBOL] — resume trading
 
-<b>📊 Risk &amp; positions</b>
+<b>📊 Risk &amp; portfolio</b>
+<code>/portfolio</code> — exposure, concentration, risk budget
 <code>/status</code> — gateway + feed health
 <code>/risk</code> — equity, PnL, drawdown budget
 <code>/positions</code> — open paper positions
@@ -85,6 +86,7 @@ BOT_COMMANDS = [
     ("resume", "Resume trading after a halt"),
     ("risk", "Equity, PnL and drawdown budget"),
     ("status", "Gateway and market-data feed health"),
+    ("portfolio", "\U0001F4C1 Exposure, concentration and risk budget"),
     ("positions", "Open paper positions"),
     ("orders", "Last 10 gateway decisions"),
     ("limits", "Active hard risk limits"),
@@ -105,7 +107,7 @@ BOT_COMMANDS = [
 
 BOT_SHORT_DESCRIPTION = "Cross-venue TCA, pre-trade risk gateway and strategy backtesting. /kill halts trading."
 BOT_DESCRIPTION = (
-    "AlphaEngine — institutional execution gateway.\n\n"
+    "AlphaEngine Trading Automation — institutional execution gateway.\n\n"
     "• Live L2 order books from Binance and Bybit, with VWAP, slippage and smart routing\n"
     "• Pre-trade risk gateway: 12 gates in under a millisecond, plus an emergency kill switch\n"
     "• Asynchronous strategy backtests, deflated for multiple testing\n\n"
@@ -355,7 +357,7 @@ class TelegramBot:
             "/whoami": self._cmd_whoami,
             "/subscribe": self._cmd_subscribe, "/unsubscribe": self._cmd_unsubscribe,
             "/watch": self._cmd_watch, "/unwatch": self._cmd_unwatch, "/watches": self._cmd_watches,
-            "/research": self._cmd_research,
+            "/research": self._cmd_research, "/portfolio": self._cmd_portfolio,
         }
         handler = handlers.get(cmd)
         if not handler:
@@ -478,6 +480,13 @@ class TelegramBot:
         limits = self.gateway.state().limits
         body = "\n".join(f"<code>{k:<26}</code> {v:,.4g}" for k, v in limits.items())
         await self.send_message(chat_id, f"<b>Active hard limits</b>\n\n{body}\n\n<i>Changing a limit requires a deploy.</i>")
+
+    async def _cmd_portfolio(self, args, chat_id, actor) -> None:
+        """The portfolio-manager view — the book, not the next order."""
+        from modules.portfolio import build_portfolio, format_for_telegram
+
+        report = build_portfolio(self.gateway, self.audit)
+        await self.send_message(chat_id, format_for_telegram(report))
 
     async def _cmd_positions(self, args, chat_id, actor) -> None:
         s = self.gateway.state()

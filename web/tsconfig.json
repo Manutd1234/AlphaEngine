@@ -11,11 +11,21 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
+    // Next 16 mandates the React automatic runtime. `preserve` is rewritten by
+    // `next build`/`next typegen` on every run, so it is set explicitly here.
+    "jsx": "react-jsx",
     "incremental": true,
     "plugins": [{ "name": "next" }],
     "paths": { "@/*": ["./*"] }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  // `.next/dev/types` is new in Next 16: `next dev` writes to `.next/dev` so it
+  // can run concurrently with `next build`, which still writes `.next/types`.
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }

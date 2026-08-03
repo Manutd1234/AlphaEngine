@@ -3,7 +3,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AlphaEngine — Strategy Research Portal",
+  title: "AlphaEngine Trading Automation — Strategy Research Portal",
   description:
     "Parameter sweeps with multiple-testing correction: run a strategy across a grid, see the trend, and find out whether the winner is edge or selection bias.",
 };

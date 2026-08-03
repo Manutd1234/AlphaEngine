@@ -1,6 +1,6 @@
 """
-AlphaEngine — System Constants & Risk Limits
-=============================================
+AlphaEngine Trading Automation — System Constants & Risk Limits
+===============================================================
 
 Single source of truth for every tunable in the gateway. Everything is
 overridable through environment variables (or a local ``.env`` file) so that the
@@ -71,7 +71,7 @@ def _env_list(key: str, default: list[str]) -> list[str]:
 @dataclass(frozen=True)
 class Settings:
     # ---- Application -------------------------------------------------------
-    app_name: str = "AlphaEngine Execution Gateway & Risk Portal"
+    app_name: str = "AlphaEngine Trading Automation — Execution Gateway & Risk Portal"
     version: str = "1.0.0"
     environment: str = field(default_factory=lambda: _env("ENVIRONMENT", "development"))
     host: str = field(default_factory=lambda: _env("HOST", "0.0.0.0"))

@@ -1,4 +1,4 @@
-"""AlphaEngine modules.
+"""AlphaEngine Trading Automation modules.
 
 A — tca_engine  : cross-venue L2 order book ingest, VWAP / slippage, smart routing
 B — risk_proxy  : pre-trade validation, circuit breakers, emergency kill switch
