@@ -80,6 +80,13 @@ Root Directory setting and cannot drift out of sync with it.
 `next` is pinned exactly (not `^`) so a deployment can never resolve to a
 different build than the one tested here.
 
+**Turn off Deployment Protection.** Settings → Deployment Protection → Vercel
+Authentication → **Disabled**. While it is on, every request redirects to
+`vercel.com/login`, so the Telegram Mini App webview opens a Vercel login page
+instead of the portal, and the `/research` button does nothing useful. The portal
+holds no secrets and has no mutating endpoints — the sweep API is a pure function
+of its query — so there is nothing here that protection is buying.
+
 ### Telegram webhook — gateway
 
 The bot runs in **webhook** mode whenever `PUBLIC_URL` is an `https://` origin,
