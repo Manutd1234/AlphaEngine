@@ -30,8 +30,8 @@ export type AssetClass = "equity" | "crypto" | "fx";
 /**
  * How urgent the caller is — the input to quota rationing.
  *
- * With Marketstack's free plan at 100 calls **per month**, a 5-second dashboard
- * poll exhausts the entire month in eight minutes and the desk then has no data
+ * With Alpha Vantage's free plan at 25 calls **per day**, a 60-second dashboard
+ * poll exhausts the entire day in half an hour and the desk then has no data
  * on the afternoon it actually matters. So background refreshes and human-driven
  * lookups are not the same request even when they hit the same endpoint:
  * `background` may only spend down to the reserve, `interactive` may spend it.
@@ -59,7 +59,7 @@ export interface ProviderMeta {
   assets: AssetClass[];
   /** Env var holding the credential. Absent from the environment ⇒ not configured. */
   keyEnv: string;
-  /** Optional env var overriding the base URL (self-hosted OpenBB, Marketstack's plaintext free host). */
+  /** Optional env var overriding the base URL (self-hosted OpenBB, Massive's legacy polygon.io host). */
   baseUrlEnv?: string;
   quota: QuotaPolicy | null;
   /**

@@ -5,11 +5,12 @@
  * Writing seven `fetch` wrappers is an afternoon. Making them safe to put in
  * front of a trading desk is this file, and it is four mechanisms:
  *
- *   1. **Quota ledger.**   Marketstack's free plan is 100 calls *per month* and
- *      Alpha Vantage's is 25 *per day*. Nothing about a naive integration warns
- *      you before you spend a month's allowance on a dashboard that auto-refreshes.
- *      Calls are counted before they are made, and background polling is fenced
- *      out of a reserve so a human lookup still works at 4pm.
+ *   1. **Quota ledger.**   Alpha Vantage's free plan is 25 calls *per day* and
+ *      Firecrawl's is 1,000 credits *per month*. Nothing about a naive
+ *      integration warns you before you spend a day's allowance on a dashboard
+ *      that auto-refreshes. Calls are counted before they are made, and
+ *      background polling is fenced out of a reserve so a human lookup still
+ *      works at 4pm.
  *
  *   2. **Circuit breaker.** A dead provider that times out costs every request
  *      its full timeout. After N consecutive failures the provider is skipped
@@ -353,11 +354,6 @@ function ctxFor(adapter: Adapter, env: NodeJS.ProcessEnv): FetchCtx {
 export const DEFAULT_BASE_URL: Record<string, string> = {
   alphavantage: "https://www.alphavantage.co",
   tiingo: "https://api.tiingo.com",
-  // Free Marketstack plans are HTTP-only. We default to HTTPS and let the
-  // operator opt *down* via MARKETSTACK_BASE_URL rather than silently
-  // downgrading transport on a TLS error, which would be a security decision
-  // made by a catch block.
-  marketstack: "https://api.marketstack.com/v2",
   // Polygon.io became Massive in Oct 2025; api.polygon.io still resolves, but
   // the new host is the one under active development.
   massive: "https://api.massive.com",
@@ -469,4 +465,4 @@ export async function dispatch<T>(
 }
 
 /** Tiers we know serve delayed or end-of-day data, flagged on every response. */
-const DELAYED_TIERS = new Set(["marketstack", "alphavantage", "massive"]);
+const DELAYED_TIERS = new Set(["alphavantage", "massive"]);

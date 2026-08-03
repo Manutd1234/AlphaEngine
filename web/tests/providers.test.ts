@@ -70,7 +70,7 @@ test("num: vendor missing-value spellings become null, never NaN or 0", () => {
   for (const v of ["None", "", "-", "N/A", "null", undefined, null, {}, []]) {
     assert.equal(num(v), null, `num(${JSON.stringify(v)})`);
   }
-  assert.equal(num("1,234.5"), 1234.5); // Marketstack thousands separator
+  assert.equal(num("1,234.5"), 1234.5); // thousands separator in vendor JSON
   assert.equal(num("1.23%"), 1.23);     // Alpha Vantage percent string
   assert.equal(num(NaN), null);
   assert.equal(num(Infinity), null);

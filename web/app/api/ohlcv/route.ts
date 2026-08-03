@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     // Crypto keeps the original Binance path: keyless, paginated to 5000 bars,
     // and with the synthetic fallback so the research workflow always runs.
     // Equities go through the provider registry (Massive → Tiingo → FMP →
-    // Marketstack → Alpha Vantage) — an equity series has no keyless source, so
+    // Alpha Vantage) — an equity series has no keyless source, so
     // here failover is across vendors instead of down to synthetic data. An
     // equity backtest on invented prices would be a strategy result about
     // nothing, presented as one about AAPL.

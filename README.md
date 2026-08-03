@@ -120,7 +120,7 @@ to the browser, since a serverless function cannot hold a subscription open.
 Research-data endpoints (`/api/quote` incl. cross-source consensus, `/api/news`,
 `/api/fundamentals`, `/api/research` for open-web search/scrape, and
 `/api/providers` for supply-chain health) route through a seven-provider
-registry — FMP, Tiingo, Massive (ex-Polygon.io), Marketstack, Alpha Vantage,
+registry — FMP, Tiingo, Massive (ex-Polygon.io), Alpha Vantage,
 Firecrawl and OpenBB — with per-provider quota budgeting, circuit breaking and
 ranked failover. Every key is optional: keyless deployments still serve crypto
 through Binance's public API. See [`web/.env.example`](web/.env.example).

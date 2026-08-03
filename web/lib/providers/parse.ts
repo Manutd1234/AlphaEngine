@@ -17,8 +17,8 @@ export function num(v: unknown): number | null {
   if (typeof v !== "string") return null;
   const t = v.trim();
   if (MISSING.has(t.toLowerCase())) return null;
-  // Percent strings ("1.23%") and thousands separators appear in Alpha Vantage
-  // and Marketstack payloads respectively.
+  // Percent strings ("1.23%") appear in Alpha Vantage payloads; thousands
+  // separators show up in vendor JSON often enough to strip defensively.
   const n = Number(t.replace(/[%,]/g, ""));
   return Number.isFinite(n) ? n : null;
 }

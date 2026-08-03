@@ -12,6 +12,7 @@
  */
 
 import { arr, isoOrNow, num, obj, pctChange, str } from "./parse";
+import { classify, usdPair } from "./symbols";
 import {
   Adapter,
   AssetClass,
@@ -51,14 +52,18 @@ export const fmp: Adapter = {
     signup: "Free key at financialmodelingprep.com — 250 requests/day.",
   },
 
-  async quote(symbol: string, _asset: AssetClass, ctx: FetchCtx): Promise<Quote> {
-    const rows = arr(assertOk(await ctx.json(url(ctx, "quote", { symbol }))));
+  async quote(symbol: string, asset: AssetClass, ctx: FetchCtx): Promise<Quote> {
+    // FMP quotes crypto against USD (`BTCUSD`), while the rest of this app
+    // writes exchange pairs (`BTCUSDT`). Translate at the boundary; report the
+    // caller's spelling back so rows line up in the UI.
+    const vendorSymbol = asset === "crypto" ? usdPair(symbol) : symbol;
+    const rows = arr(assertOk(await ctx.json(url(ctx, "quote", { symbol: vendorSymbol }))));
     const r = obj(rows[0]);
     const price = num(r["price"]);
     if (price == null) throw new ProviderError(ID, `no quote for ${symbol}`, 404, false);
     const prevClose = num(r["previousClose"]);
     return {
-      symbol: (str(r["symbol"]) ?? symbol).toUpperCase(),
+      symbol: symbol.toUpperCase(),
       price,
       change: num(r["change"]) ?? (prevClose == null ? null : price - prevClose),
       changePct: num(r["changePercentage"]) ?? pctChange(price, prevClose),
@@ -75,7 +80,7 @@ export const fmp: Adapter = {
 
   async bars(
     symbol: string,
-    _asset: AssetClass,
+    asset: AssetClass,
     interval: string,
     limit: number,
     ctx: FetchCtx,
@@ -86,10 +91,13 @@ export const fmp: Adapter = {
       // providers that serve intraday for free.
       throw new ProviderError(ID, `interval ${interval} requires a paid plan`, 402, false);
     }
+    const vendorSymbol = asset === "crypto" ? usdPair(symbol) : symbol;
     const from = new Date(Date.now() - 864e5 * limit * 1.6).toISOString().slice(0, 10);
     const to = new Date().toISOString().slice(0, 10);
     const rows = arr(
-      assertOk(await ctx.json(url(ctx, "historical-price-eod/full", { symbol, from, to }))),
+      assertOk(
+        await ctx.json(url(ctx, "historical-price-eod/full", { symbol: vendorSymbol, from, to })),
+      ),
     );
 
     const bars: OhlcvBar[] = [];
@@ -140,9 +148,19 @@ export const fmp: Adapter = {
 
   async news(symbols: string[], limit: number, ctx: FetchCtx): Promise<NewsItem[]> {
     const params: Record<string, string> = { limit: String(Math.min(250, Math.max(1, limit))) };
-    if (symbols.length) params.symbols = symbols.join(",").toUpperCase();
+    // FMP splits news by asset class: /news/stock and /news/crypto are separate
+    // endpoints, and crypto tickers are USD pairs. Asking /news/stock about
+    // BTCUSDT returns an empty list with HTTP 200 — a silently wrong answer,
+    // which is worse than either endpoint's honest error.
+    const crypto = symbols.length > 0 && classify(symbols[0]) === "crypto";
+    if (symbols.length) {
+      params.symbols = symbols
+        .map((s) => (crypto ? usdPair(s) : s.toUpperCase()))
+        .join(",");
+    }
 
-    const rows = arr(assertOk(await ctx.json(url(ctx, "news/stock", params))));
+    const path = symbols.length === 0 ? "news/general-latest" : crypto ? "news/crypto" : "news/stock";
+    const rows = arr(assertOk(await ctx.json(url(ctx, path, params))));
     return rows
       .map((row): NewsItem | null => {
         const n = obj(row);

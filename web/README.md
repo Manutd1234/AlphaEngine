@@ -128,7 +128,6 @@ public endpoints; each key adds capability without touching code.
 | Financial Modeling Prep | quote¹, fundamentals¹, bars, news | 250/day | `FMP_API_KEY` |
 | Tiingo | quote, bars, news¹ (IEX + crypto) | 1,000/day | `TIINGO_API_KEY` |
 | Massive (ex-Polygon.io) | bars¹, quote, news, reference | 5/min, EOD | `MASSIVE_API_KEY` |
-| Marketstack | EOD bars, 70+ exchanges | **100/month** | `MARKETSTACK_API_KEY` |
 | Alpha Vantage | quote, bars, fundamentals, news+sentiment | 25/day | `ALPHAVANTAGE_API_KEY` |
 | Firecrawl | web search¹, scrape¹ | 1,000 credits/mo | `FIRECRAWL_API_KEY` |
 | OpenBB | aggregator via the Python gateway | n/a | `OPENBB_API_URL` |
@@ -140,9 +139,9 @@ The reliability layer (`lib/providers/runtime.ts`) is what makes seven flaky
 free tiers behave like one dependable feed:
 
 - **Quota ledger** — calls are counted *before* they are made, per calendar
-  window (Marketstack's 100/month would otherwise be gone by 9am); background
-  polling is fenced out of a per-provider reserve so interactive lookups still
-  have budget at 4pm.
+  window (Alpha Vantage's 25/day would otherwise be gone in half an hour of
+  polling); background refreshes are fenced out of a per-provider reserve so
+  interactive lookups still have budget at 4pm.
 - **Circuit breaker** — 3 consecutive failures open the circuit for 60s, so one
   dead vendor stops costing every request its timeout.
 - **Failover with provenance** — the response names who answered *and* who was
@@ -219,7 +218,7 @@ web/
 │       ├── registry.ts       ranked routing, consensus quotes, status
 │       ├── parse.ts          NaN-safe coercion funnel (vendor JSON is hostile)
 │       └── …one adapter per vendor (binance, fmp, tiingo, massive,
-│            marketstack, alphavantage, firecrawl, openbb)
+│            alphavantage, firecrawl, openbb)
 ├── components/               charts (hand-rolled SVG), controls, tables
 └── tests/                    83 tests incl. cross-engine parity
 ```

@@ -19,7 +19,6 @@ import { alphavantage } from "./alphavantage";
 import { binance } from "./binance";
 import { firecrawl } from "./firecrawl";
 import { fmp } from "./fmp";
-import { marketstack } from "./marketstack";
 import { massive } from "./massive";
 import { openbb } from "./openbb";
 import {
@@ -50,7 +49,6 @@ export const ADAPTERS: Adapter[] = [
   fmp,
   tiingo,
   massive,
-  marketstack,
   alphavantage,
   firecrawl,
   openbb,
@@ -59,45 +57,13 @@ export const ADAPTERS: Adapter[] = [
 export const BY_ID = new Map(ADAPTERS.map((a) => [a.meta.id, a]));
 
 // --------------------------------------------------------------------------
-// Symbol classification
+// Symbol classification — lives in symbols.ts (adapters need it too, and the
+// registry imports every adapter, so it must sit below both). Re-exported here
+// because this module is the public face of the provider layer.
 // --------------------------------------------------------------------------
 
-const CRYPTO_QUOTES = ["USDT", "USDC", "BUSD", "USD", "BTC", "ETH"];
-const CRYPTO_BASES = new Set([
-  "BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "DOGE", "AVAX", "MATIC", "POL",
-  "DOT", "LINK", "LTC", "TRX", "ATOM", "ARB", "OP", "SUI", "APT", "NEAR",
-]);
-
-/**
- * Guess the asset class from the ticker.
- *
- * Deliberately conservative in one direction: `BTCUSDT` is unambiguous, but a
- * bare `BTC` on an equity venue is a real NYSE listing (Bitcoin Depot), so a
- * base symbol only counts as crypto when it carries a recognised quote asset.
- * Getting this wrong routes an equity lookup to Binance and returns "unknown
- * symbol" for a ticker that trades — a confusing failure for a user who typed
- * a valid ticker.
- */
-export function classify(symbol: string): AssetClass {
-  const s = symbol.toUpperCase();
-  for (const q of CRYPTO_QUOTES) {
-    if (s.length > q.length && s.endsWith(q) && CRYPTO_BASES.has(s.slice(0, -q.length))) {
-      return "crypto";
-    }
-  }
-  if (/^[A-Z]{3}\/?[A-Z]{3}$/.test(s) && !CRYPTO_BASES.has(s.slice(0, 3))) return "fx";
-  return "equity";
-}
-
-/** Equity tickers are 1–5 letters with an optional class suffix (`BRK.B`). */
-export const EQUITY_SYMBOL_RE = /^[A-Z]{1,5}(?:[.-][A-Z]{1,2})?$/;
-/** Crypto pairs as the rest of the app writes them. */
-export const PAIR_SYMBOL_RE = /^[A-Z0-9]{5,20}$/;
-
-export function isValidSymbol(symbol: string): boolean {
-  const s = symbol.toUpperCase();
-  return EQUITY_SYMBOL_RE.test(s) || PAIR_SYMBOL_RE.test(s);
-}
+export { classify, EQUITY_SYMBOL_RE, isValidSymbol, PAIR_SYMBOL_RE } from "./symbols";
+import { classify } from "./symbols";
 
 // --------------------------------------------------------------------------
 // Candidate selection
@@ -271,7 +237,7 @@ export async function consensusQuote(
       try {
         // Each leg goes through `dispatch` pinned to itself, so it still gets
         // the cache, the breaker and the quota ledger — a consensus check must
-        // not be the thing that burns Marketstack's month.
+        // not be the thing that burns Alpha Vantage's day.
         const r = await getQuote(symbol, { ...opts, provider: id });
         return { adapter, quote: r.data, latencyMs: r.provenance.latencyMs };
       } catch (err) {

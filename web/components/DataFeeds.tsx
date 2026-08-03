@@ -107,9 +107,17 @@ const SKIP_LABEL: Record<string, string> = {
   failed: "failed",
 };
 
+/** One tap instead of typing — the symbols people actually check. */
+const QUICK_PICKS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "AAPL", "NVDA", "TSLA", "MSFT"];
+
+/** Background refresh cadence. 30s is fresh enough for a research view and slow
+ *  enough that, with the `background` priority fencing, it can never spend a
+ *  provider's interactive reserve. */
+const REFRESH_MS = 30_000;
+
 export default function DataFeeds() {
-  const [symbol, setSymbol] = useState("AAPL");
-  const [input, setInput] = useState("AAPL");
+  const [symbol, setSymbol] = useState("BTCUSDT");
+  const [input, setInput] = useState("BTCUSDT");
   const [consensus, setConsensus] = useState(false);
   const [quote, setQuote] = useState<QuoteRow | null>(null);
   const [cons, setCons] = useState<ConsensusRow | null>(null);
@@ -117,44 +125,64 @@ export default function DataFeeds() {
   const [newsNote, setNewsNote] = useState<string | null>(null);
   const [providers, setProviders] = useState<ProviderRow[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const seq = useRef(0);
 
+  const refreshProviders = useCallback(() => {
+    fetch("/api/providers")
+      .then((r) => r.json())
+      .then((body) => setProviders(body.providers ?? []))
+      .catch(() => setProviders((p) => p ?? []));
+  }, []);
+
   const lookup = useCallback(
-    async (sym: string, useConsensus: boolean) => {
+    async (sym: string, useConsensus: boolean, priority: "interactive" | "background") => {
       const mySeq = ++seq.current;
-      setBusy(true);
-      setError(null);
+      // Only a human-initiated lookup shows the busy state or surfaces errors.
+      // A failed background refresh keeps the last good data on screen — the
+      // timestamp goes stale, which is the honest signal, instead of a working
+      // panel flashing into an error every 30s because one poll dropped.
+      if (priority === "interactive") {
+        setBusy(true);
+        setError(null);
+      }
       try {
-        // `interactive`: this is a human clicking, allowed to spend the reserve.
-        const qs = `symbols=${encodeURIComponent(sym)}&priority=interactive${
+        const qs = `symbols=${encodeURIComponent(sym)}&priority=${priority}${
           useConsensus ? "&consensus=1" : ""
         }`;
         const [quoteRes, newsRes] = await Promise.all([
           fetch(`/api/quote?${qs}`),
-          fetch(`/api/news?symbols=${encodeURIComponent(sym)}&limit=8&priority=interactive`),
+          fetch(`/api/news?symbols=${encodeURIComponent(sym)}&limit=8&priority=${priority}`),
         ]);
         // A stale response racing a newer request must not win the state.
         if (mySeq !== seq.current) return;
 
         const quoteBody = await quoteRes.json();
         if (!quoteRes.ok) {
-          setQuote(null);
-          setCons(null);
-          setError(quoteBody.error ?? `HTTP ${quoteRes.status}`);
-        } else if (useConsensus) {
-          setCons(quoteBody.quotes?.[0] ?? null);
-          setQuote(null);
+          if (priority === "interactive") {
+            setQuote(null);
+            setCons(null);
+            setError(quoteBody.error ?? `HTTP ${quoteRes.status}`);
+          }
         } else {
-          setQuote(quoteBody.quotes?.[0] ?? null);
-          setCons(null);
+          // Replace only on success — the previous answer stays visible while
+          // the new one is in flight, so the panel never blanks between polls.
+          if (useConsensus) {
+            setCons(quoteBody.quotes?.[0] ?? null);
+            setQuote(null);
+          } else {
+            setQuote(quoteBody.quotes?.[0] ?? null);
+            setCons(null);
+          }
+          setUpdatedAt(new Date());
         }
 
         if (newsRes.ok) {
           const body = await newsRes.json();
           setNews(body.items ?? []);
           setNewsNote(null);
-        } else {
+        } else if (priority === "interactive") {
           const body = await newsRes.json().catch(() => ({}));
           setNews(null);
           // News being dark is normal on a keyless deploy — say why, quietly,
@@ -165,38 +193,46 @@ export default function DataFeeds() {
               "News unavailable.",
           );
         }
+
+        // Quota counters and circuit state just changed — let the table tick.
+        refreshProviders();
       } catch (err) {
         if (mySeq !== seq.current) return;
-        setError(err instanceof Error ? err.message : "lookup failed");
+        if (priority === "interactive") {
+          setError(err instanceof Error ? err.message : "lookup failed");
+        }
       } finally {
-        if (mySeq === seq.current) setBusy(false);
+        if (mySeq === seq.current && priority === "interactive") setBusy(false);
       }
     },
-    [],
+    [refreshProviders],
   );
 
   useEffect(() => {
-    lookup(symbol, consensus);
+    lookup(symbol, consensus, "interactive");
   }, [symbol, consensus, lookup]);
 
+  // Keep the panel current without keeping the user's quota on the hook: the
+  // poll is `background` priority (fenced from each provider's reserve) and
+  // pauses entirely while the tab is hidden.
   useEffect(() => {
-    let cancelled = false;
-    fetch("/api/providers")
-      .then((r) => r.json())
-      .then((body) => {
-        if (!cancelled) setProviders(body.providers ?? []);
-      })
-      .catch(() => {
-        if (!cancelled) setProviders([]);
-      });
-    return () => {
-      cancelled = true;
+    const tick = () => {
+      if (!document.hidden) lookup(symbol, consensus, "background");
     };
-  }, []);
+    const id = setInterval(tick, REFRESH_MS);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [symbol, consensus, lookup]);
 
-  const submit = () => {
-    const s = input.trim().toUpperCase();
-    if (/^[A-Z0-9.\-]{1,20}$/.test(s)) setSymbol(s);
+  const submit = (s = input) => {
+    const sym = s.trim().toUpperCase();
+    if (/^[A-Z0-9.\-]{1,20}$/.test(sym)) {
+      setInput(sym);
+      setSymbol(sym);
+    }
   };
 
   const q = quote?.data;
@@ -219,7 +255,7 @@ export default function DataFeeds() {
             placeholder="AAPL, BRK.B, BTCUSDT…"
             style={{ fontFamily: "var(--mono)", fontSize: 13, width: 180 }}
           />
-          <button onClick={submit} disabled={busy}>
+          <button onClick={() => submit()} disabled={busy}>
             {busy ? "Loading…" : "Look up"}
           </button>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5 }}>
@@ -230,6 +266,32 @@ export default function DataFeeds() {
             />
             Cross-check all sources
           </label>
+          <div className="grow" />
+          {updatedAt && (
+            <span className="num muted" style={{ fontSize: 11.5 }} role="status">
+              updated {updatedAt.toLocaleTimeString()} · refreshes every {REFRESH_MS / 1000}s
+            </span>
+          )}
+        </div>
+
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+          {QUICK_PICKS.map((s) => (
+            <button
+              key={s}
+              onClick={() => submit(s)}
+              aria-pressed={s === symbol}
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: 11.5,
+                padding: "4px 10px",
+                background: s === symbol ? "var(--series-1)" : "var(--surface-2)",
+                color: s === symbol ? "#fff" : "var(--text-secondary)",
+                borderColor: s === symbol ? "var(--series-1)" : "var(--border)",
+              }}
+            >
+              {s}
+            </button>
+          ))}
         </div>
 
         {error && (
@@ -237,6 +299,12 @@ export default function DataFeeds() {
             <span aria-hidden>✕</span>
             <div>{error}</div>
           </div>
+        )}
+
+        {/* First load only: a fixed-height placeholder so the card does not
+            collapse and re-expand around its content. */}
+        {busy && !q && !cons && !error && (
+          <div className="skeleton" style={{ height: 96, marginTop: 16 }} />
         )}
         {quote?.error && !error && (
           <div className="banner warn" role="status" style={{ marginTop: 12 }}>
@@ -247,7 +315,12 @@ export default function DataFeeds() {
 
         {q && (
           <>
-            <div className="tiles" style={{ marginTop: 16 }}>
+            {/* Dim, don't blank: the old numbers stay readable while the new
+                ones are in flight, so the panel never jumps between states. */}
+            <div
+              className="tiles"
+              style={{ marginTop: 16, opacity: busy ? 0.55 : 1, transition: "opacity 150ms" }}
+            >
               <StatTile
                 label={`${quote!.symbol} last`}
                 value={`${fmt(q.price, q.price < 10 ? 4 : 2)} ${q.currency}`}
@@ -287,7 +360,10 @@ export default function DataFeeds() {
         )}
 
         {cons && (
-          <div className="table-wrap" style={{ marginTop: 16 }}>
+          <div
+            className="table-wrap"
+            style={{ marginTop: 16, opacity: busy ? 0.55 : 1, transition: "opacity 150ms" }}
+          >
             <table>
               <caption className="muted" style={{ captionSide: "top", textAlign: "left", fontSize: 12 }}>
                 Consensus {cons.price != null ? fmt(cons.price, 2) : "—"}
