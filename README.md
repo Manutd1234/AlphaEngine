@@ -67,16 +67,18 @@ Full documentation: [`web/README.md`](web/README.md)
 
 ### Vercel — research portal (`web/`)
 
-The repo ships a root [`vercel.json`](vercel.json) that builds `web/` explicitly,
-so a project whose Root Directory is the repo root still works.
+Set **Project → Settings → Build & Deployment → Root Directory** to `web`.
+That is the only setting required; `web/` is a standard zero-config Next.js 15
+app with no environment variables.
 
-**If the deployment 404s at `/`**, Vercel built the repo root and found no app.
-Fix it in one field: **Project → Settings → Build & Deployment → Root Directory →
-`web` → Save → Redeploy**. That is Vercel's documented answer for a framework in
-a subdirectory and it is the more reliable of the two.
+Deliberately **no `vercel.json`**. A root config that ran `cd web && npm install`
+works only when the Root Directory is the repo root — once it is `web`, the build
+already starts there and the same command fails with
+`cd: web: No such file or directory`. Zero-config detection is correct under the
+Root Directory setting and cannot drift out of sync with it.
 
-Either configuration works — `web/` is a standard zero-config Next.js 15 app with
-no required environment variables.
+`next` is pinned exactly (not `^`) so a deployment can never resolve to a
+different build than the one tested here.
 
 ### Telegram webhook — gateway
 
