@@ -1,0 +1,20 @@
+# secrets — never commit; .env.example is the template
+.env
+
+# runtime artefacts (recreated on startup)
+data/
+*.duckdb
+*.duckdb.wal
+*.sqlite
+
+# python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# os
+.DS_Store

@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+"""
+Generate the cross-engine parity fixture.
+
+The Vercel portal reimplements the backtest engine in TypeScript so sweeps can
+run in a serverless function. Two implementations of the same accounting is two
+chances to be wrong, so the Python engine — the reference — emits real market
+bars plus its own results here, and the TypeScript test-suite asserts it
+reproduces them.
+
+    python tools/make_parity_fixture.py            # refresh from live Binance
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from modules.backtester import NumpyEngine, fetch_ohlcv  # noqa: E402
+from modules.schemas import BacktestRequest  # noqa: E402
+
+OUT = ROOT.parent / "web" / "tests" / "fixtures" / "parity.json"
+
+CASES = [
+    ("BTCUSDT", "4h", "ma_cross", "long_only"),
+    ("ETHUSDT", "1h", "donchian", "long_only"),
+    ("BTCUSDT", "1d", "rsi_reversion", "long_only"),
+    ("ETHUSDT", "4h", "ma_cross", "long_short"),
+]
+COMBOS = [(5, 20), (10, 50), (20, 100), (35, 180)]
+BARS = 1200
+
+
+def main() -> int:
+    payload: dict = {"bars": BARS, "combos": COMBOS, "cases": []}
+
+    for symbol, interval, strategy, direction in CASES:
+        df, source = fetch_ohlcv(symbol, interval, BARS)
+        if source != "binance_rest":
+            print(f"WARNING: {symbol} {interval} came from '{source}', not live Binance", file=sys.stderr)
+
+        req = BacktestRequest(
+            symbol=symbol, interval=interval, strategy=strategy,
+            direction=direction, bars=BARS, fee_bps=6, slippage_bps=2,
+        )
+        results, _ = NumpyEngine().run(df, COMBOS, req)
+
+        payload["cases"].append({
+            "symbol": symbol,
+            "interval": interval,
+            "strategy": strategy,
+            "direction": direction,
+            "feeBps": 6,
+            "slippageBps": 2,
+            "source": source,
+            "bars": [
+                {"t": int(ts.value // 1_000_000), "o": float(o), "h": float(h),
+                 "l": float(low), "c": float(c), "v": float(v)}
+                for ts, o, h, low, c, v in df.reset_index()[
+                    ["ts", "open", "high", "low", "close", "volume"]
+                ].itertuples(index=False)
+            ],
+            "expected": [
+                {
+                    "fast": r.fast, "slow": r.slow,
+                    "totalReturn": r.total_return, "cagr": r.cagr,
+                    "sharpe": r.sharpe, "sortino": r.sortino,
+                    "maxDrawdown": r.max_drawdown, "calmar": r.calmar,
+                    "winRate": r.win_rate, "trades": r.trades,
+                    "exposure": r.exposure, "turnover": r.turnover,
+                    "feesPaid": r.fees_paid,
+                }
+                for r in results
+            ],
+        })
+        print(f"  {symbol:9} {interval:4} {strategy:14} {direction:11} {len(df):5} bars  [{source}]")
+
+    OUT.parent.mkdir(parents=True, exist_ok=True)
+    OUT.write_text(json.dumps(payload))
+    size_kb = OUT.stat().st_size / 1024
+    print(f"\nwrote {OUT.relative_to(ROOT.parent)} ({size_kb:.0f} KB, {len(CASES)} cases)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
