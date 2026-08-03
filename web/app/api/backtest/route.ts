@@ -5,7 +5,10 @@ import { loadBars } from "@/lib/marketdata";
 import { DEFAULT_REQUEST, INTERVALS, SweepRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// No `maxDuration` override. A 74-combination sweep over 2000 bars runs in ~20ms,
+// so nothing here needs an extended budget — and a value above the account's
+// plan limit is rejected at build time, which is a deployment failure that
+// cannot be reproduced locally.
 
 const STRATEGIES = new Set(["ma_cross", "donchian", "rsi_reversion"]);
 const SYMBOL_RE = /^[A-Z0-9]{5,20}$/;

@@ -59,6 +59,11 @@ npm run dev    # http://localhost:3000
 npm test       # 38 tests
 ```
 
+Live-feed endpoints (public, no key):
+`/api/ticker` · `/api/depth` · `/api/tca` · `/api/ohlcv` · `POST /api/backtest` ·
+`/api/markets` for the index. Tick-by-tick L2 streams straight from the exchanges
+to the browser, since a serverless function cannot hold a subscription open.
+
 Full documentation: [`web/README.md`](web/README.md)
 
 ---

@@ -60,6 +60,47 @@ winner, and the in-sample → out-of-sample gap that reveals overfitting.
 
 ---
 
+## API
+
+Every endpoint is public, needs no key, and hits the exchanges live.
+`GET /api/markets` returns this list at runtime.
+
+| Endpoint | Returns |
+|---|---|
+| `GET /api/markets` | symbols, venues, strategies, limits, endpoint index |
+| `GET /api/ticker?symbols=BTCUSDT,ETHUSDT` | last price, 24h change, high/low, volume |
+| `GET /api/depth?symbol=&limit=&depth=` | live L2 book per venue **and** the consolidated ladder, with cumulative notional |
+| `GET /api/tca?symbol=&side=&notional=` | VWAP, slippage in bps, fillability per venue, and the cross-venue routing split |
+| `GET /api/ohlcv?symbol=&interval=&bars=` | historical candles |
+| `POST /api/backtest` | parameter sweep with deflated Sharpe and walk-forward |
+
+```bash
+curl "https://<your-app>.vercel.app/api/tca?symbol=BTCUSDT&side=BUY&notional=100000"
+```
+
+### Streaming vs snapshots
+
+A serverless function cannot hold a WebSocket subscription open between
+invocations, so tick-by-tick L2 does not go through the API at all — the **Live
+market** tab opens sockets straight from the browser to Binance and Bybit. No
+backend, no key, no CORS (the WebSocket handshake is not subject to it), and one
+hop of latency instead of two. `/api/depth` and `/api/tca` serve the same numbers
+as REST snapshots for non-browser callers, computed with identical maths.
+
+The arithmetic is a port of Module A in the Python gateway, and
+`tests/venues.test.ts` replays the gateway's own hand-computed ladders through
+it — so a slippage number here and one from the Telegram bot cannot disagree.
+
+### Depth is measured in a price band, not a level count
+
+`depthUsd` within **±10 bps of mid**, not "the top 20 levels". Level counts are
+not comparable: 20 levels of a merged two-venue book spans a far narrower band
+than 20 levels of one venue, and a fine-tick instrument packs more levels into
+the same band. Measured by level count the same book read 93.9% bid-imbalanced;
+measured in a band it reads +0.34, which is the number that means something.
+
+---
+
 ## Architecture
 
 ```

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Controls from "@/components/Controls";
 import EquityChart from "@/components/EquityChart";
 import Heatmap from "@/components/Heatmap";
+import LiveMarket from "@/components/LiveMarket";
 import PriceChart from "@/components/PriceChart";
 import StatTile from "@/components/StatTile";
 import { ResultsTable, WalkForwardTable } from "@/components/Tables";
@@ -25,6 +26,7 @@ export default function Page() {
   const [inspect, setInspect] = useState<ParamResult | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<"research" | "live">("research");
 
   const run = useCallback(
     async (override?: Partial<SweepRequest>) => {
@@ -107,8 +109,16 @@ export default function Page() {
             Alpha<span>Engine</span>
             <small>Strategy research portal</small>
           </div>
+          <div className="seg" style={{ maxWidth: 280 }} role="tablist" aria-label="View">
+            <button role="tab" aria-selected={view === "research"} aria-pressed={view === "research"} onClick={() => setView("research")}>
+              🧪 Research
+            </button>
+            <button role="tab" aria-selected={view === "live"} aria-pressed={view === "live"} onClick={() => setView("live")}>
+              📡 Live market
+            </button>
+          </div>
           <div className="grow" />
-          {data && (
+          {view === "research" && data && (
             <span className="num muted" style={{ fontSize: 11.5 }}>
               {data.combosTested} combos · {data.durationMs} ms · {data.bars} bars ·{" "}
               {data.dataSource === "binance" ? "Binance live" : "synthetic"}
@@ -134,6 +144,9 @@ export default function Page() {
           </div>
         ))}
 
+        {view === "live" ? (
+          <LiveMarket />
+        ) : (
         <div className="cols">
           <Controls req={req} setReq={setReq} onRun={() => run()} running={running} />
 
@@ -226,6 +239,7 @@ export default function Page() {
             )}
           </div>
         </div>
+        )}
 
         <footer style={{ marginTop: 28, fontSize: 12, color: "var(--text-muted)", maxWidth: "78ch" }}>
           Research tool, not investment advice. Backtests model fees and slippage but assume fills at
