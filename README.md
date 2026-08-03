@@ -93,7 +93,7 @@ python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env          # add TELEGRAM_BOT_TOKEN to enable the bot
 uvicorn main:app --port 8000  # portal at http://localhost:8000/app
-pytest                        # 115 tests
+pytest                        # 134 tests
 ```
 
 Full documentation: [`Part2_Infrastructure/README.md`](Part2_Infrastructure/README.md)
@@ -120,10 +120,11 @@ to the browser, since a serverless function cannot hold a subscription open.
 Research-data endpoints (`/api/quote` incl. cross-source consensus, `/api/news`,
 `/api/fundamentals`, `/api/research` for open-web search/scrape, and
 `/api/providers` for supply-chain health) route through a seven-provider
-registry — FMP, Tiingo, Massive (ex-Polygon.io), Alpha Vantage,
-Firecrawl and OpenBB — with per-provider quota budgeting, circuit breaking and
-ranked failover. Every key is optional: keyless deployments still serve crypto
-through Binance's public API. See [`web/.env.example`](web/.env.example).
+registry — Binance (public, keyless), FMP, Tiingo, Massive (ex-Polygon.io),
+Alpha Vantage, Firecrawl and OpenBB — with per-provider quota budgeting,
+circuit breaking and ranked failover. Every key is optional: keyless
+deployments still serve crypto through Binance's public API.
+See [`web/.env.example`](web/.env.example).
 
 Full documentation: [`web/README.md`](web/README.md)
 
@@ -134,14 +135,18 @@ Full documentation: [`web/README.md`](web/README.md)
 ### Vercel — research portal (`web/`)
 
 Set **Project → Settings → Build & Deployment → Root Directory** to `web`.
-That is the only setting required; `web/` is a standard zero-config Next.js 15
-app with no environment variables.
+That is the only required setting; `web/` is a standard Next.js 16 app and
+every environment variable is optional (provider keys extend coverage — see
+[`web/.env.example`](web/.env.example)).
 
-Deliberately **no `vercel.json`**. A root config that ran `cd web && npm install`
-works only when the Root Directory is the repo root — once it is `web`, the build
-already starts there and the same command fails with
-`cd: web: No such file or directory`. Zero-config detection is correct under the
-Root Directory setting and cannot drift out of sync with it.
+There is deliberately **no root-level `vercel.json`**: a root config that ran
+`cd web && npm install` works only while the Root Directory is the repo root —
+once it is `web`, the build already starts there and the same command fails
+with `cd: web: No such file or directory`. The one config that does exist,
+[`web/vercel.json`](web/vercel.json), contains no paths at all — it only pins
+`"framework": "nextjs"` so the build can never fall back to the static "Other"
+preset, which expects a `public/` output directory and fails *after* a
+successful `next build`.
 
 `next` is pinned exactly (not `^`) so a deployment can never resolve to a
 different build than the one tested here.
@@ -211,6 +216,25 @@ cd Part2_Infrastructure && python tools/make_parity_fixture.py
 
 ---
 
+## Verifying this repo
+
+Everything a reviewer needs to check runs offline:
+
+```bash
+cd Part2_Infrastructure && pytest        # 134 Python tests, ~10 s, no network
+cd web && npm install && npm test        # 83 TypeScript tests, no network
+bash tools/check_repo_complete.sh        # builds the *committed* tree, not the working tree
+```
+
+The last one exists because of a real incident: a bare `lib/` pattern inherited
+from GitHub's Python `.gitignore` template silently swallowed `web/lib/`, so the
+working tree built while the pushed repo did not. The guard exports `HEAD` via
+`git archive` and builds *that*, then checks every tracked `.gitignore` for
+unanchored directory patterns, scans for committed credentials, and verifies
+import-path case (macOS is case-insensitive; the deploy target is not).
+
+---
+
 ## Security
 
 - `.env` is gitignored. **No token, key or secret is committed** — the Telegram
@@ -224,12 +248,12 @@ cd Part2_Infrastructure && python tools/make_parity_fixture.py
 
 ## Submission checklist
 
-| # | Item | Where | Status |
-|---|---|---|---|
-| 1 | Up-to-date CV | `CV_Ian_Wangsa.pdf` | _add before zipping_ |
-| 2 | HTML export of the Part 1 notebook | `Part1_Data_Handling/Part1_Data_Handling.html` | **done** |
-| 3 | Original Part 1 notebook | `Part1_Data_Handling/Part1_Data_Handling.ipynb` | **done** |
-| 4 | All code, outputs and supporting files for Part 2 | `Part2_Infrastructure/` + `web/` | **done** |
+| # | Item | Where |
+|---|---|---|
+| 1 | Up-to-date CV | `CV_Ian_Wangsa.pdf` (placed alongside this README in the zip) |
+| 2 | HTML export of the Part 1 notebook | `Part1_Data_Handling/Part1_Data_Handling.html` |
+| 3 | Original Part 1 notebook | `Part1_Data_Handling/Part1_Data_Handling.ipynb` |
+| 4 | All code, outputs and supporting files for Part 2 | `Part2_Infrastructure/` + `web/` |
 
 ### Part 1 — data handling
 

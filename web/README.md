@@ -211,12 +211,16 @@ web/
 │   ├── marketdata.ts         Binance klines + deterministic synthetic fallback
 │   ├── venues.ts             live venue adapters + book/TCA maths
 │   ├── livebook.ts           browser WebSocket L2 client (Binance + Bybit)
+│   ├── params.ts             NaN-safe query-parameter coercion for the routes
+│   ├── format.ts             number/date formatting shared by the UI
 │   ├── types.ts              shared contracts
-│   └── providers/            the seven-vendor registry
+│   └── providers/            the seven-provider registry
 │       ├── types.ts          capability contracts, normalised payloads, provenance
 │       ├── runtime.ts        quota ledger, circuit breaker, cache, dispatch
 │       ├── registry.ts       ranked routing, consensus quotes, status
+│       ├── symbols.ts        asset classification (BTCUSDT≠BTC-the-stock)
 │       ├── parse.ts          NaN-safe coercion funnel (vendor JSON is hostile)
+│       ├── http.ts           route glue: one error shape, edge cache headers
 │       └── …one adapter per vendor (binance, fmp, tiingo, massive,
 │            alphavantage, firecrawl, openbb)
 ├── components/               charts (hand-rolled SVG), controls, tables

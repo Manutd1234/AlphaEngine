@@ -90,12 +90,14 @@ Part2_Infrastructure/
 │   ├── tca_engine.py       A · L2 ingest, book state, VWAP/slippage, routing
 │   ├── risk_proxy.py       B · pre-trade gates, positions, breaker, kill switch
 │   ├── backtester.py       C · signals, engines, DSR/PSR, walk-forward, plots
+│   ├── portfolio.py        PM view: concentration, headroom, binding constraint
+│   ├── research.py         OpenBB bridge (optional dep, off-loop, never a 500)
 │   ├── jobs.py             Async job queue (in-process pool ⇄ Celery)
 │   ├── audit.py            DuckDB append-only audit log
 │   ├── telegram.py         Bot commands, webhook/polling, Mini App HMAC auth
 │   └── schemas.py          Pydantic contracts shared by API, UI and bot
 ├── templates/miniapp.html  The Mini App / web portal (single file, no build step)
-├── tests/                  115 tests
+├── tests/                  134 tests
 └── requirements.txt
 ```
 
@@ -293,6 +295,7 @@ sends the portal URL as text instead.
 /resume [SYMBOL]    resume
 /status             gateway + per-venue feed health
 /risk               equity, PnL, drawdown budget bar
+/portfolio          PM view: concentration, headroom, binding limit, attribution
 /positions          open paper positions
 /orders             last 10 gateway decisions
 /limits             active hard limits
@@ -300,6 +303,11 @@ sends the portal URL as text instead.
 /tca BTCUSDT 100000 BUY    VWAP, slippage, smart route, $ saved
 /backtest BTCUSDT 1h ma_cross    queue a sweep → chart pushed back
 /jobs               job queue status
+/watch BTCUSDT 100000 6   alert when slippage for $100k exceeds 6 bps
+                          (/watches lists, /unwatch removes)
+/research           link to the research portal
+/subscribe          push fills, rejections and breaker events to this chat
+/whoami             chat ID, for TELEGRAM_ALLOWED_CHAT_IDS
 /app  /start        open the Mini App
 ```
 
@@ -327,9 +335,11 @@ sends the portal URL as text instead.
 | `WS` | `/ws/book/{symbol}` | consolidated book + TCA at 4 Hz |
 | `POST` | `/api/orders` | **submit through the risk gateway** |
 | `GET` | `/api/risk/state` | equity, PnL, drawdown, positions |
+| `GET` | `/api/risk/limits` | the active hard limits |
+| `GET` | `/api/portfolio` | PM view: concentration, headroom, binding constraint, attribution |
 | `POST` | `/api/risk/kill` · `/resume` · `/reset` | emergency control |
 | `POST` | `/api/backtest` | queue a sweep → `job_id` |
-| `GET` | `/api/jobs/{id}` | progress, then the full result |
+| `GET` | `/api/jobs` · `/api/jobs/{id}` | queue stats · progress, then the full result |
 | `GET` | `/api/audit/orders` · `events` · `backtests` · `stats` | audit log |
 | `GET` | `/api/research/openbb/health` · `quote` · `bars` · `news` · `fundamentals` | OpenBB bridge (see below) |
 | `POST` | `/telegram/webhook` | Telegram updates |
@@ -446,6 +456,10 @@ tests/test_backtester.py   signal definitions, look-ahead check, cost accounting
 tests/test_api.py          REST contract, rejection semantics, job lifecycle,
                            initData signature and expiry validation
 tests/test_telegram.py     command dispatch, authorisation, rendering, alerts
+tests/test_portfolio.py    concentration maths, netting, binding constraint,
+                           attribution wiring
+tests/test_research.py     OpenBB bridge: absence contract (ok:false, never 500),
+                           NaN-cleaning, field-alias resolution, input validation
 ```
 
 134 tests, ~10 s, no network required.
