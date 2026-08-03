@@ -73,10 +73,10 @@ export default function Page() {
     fetch("/api/providers")
       .then((response) => response.json())
       .then((body) => {
-        const summary = body.summary as { configured?: number; total?: number; degraded?: string[] } | undefined;
+        const summary = body.summary as { configured?: number; ready?: number; total?: number; degraded?: string[] } | undefined;
         if (summary) {
           setProviderSummary({
-            configured: summary.configured ?? 0,
+            configured: summary.ready ?? summary.configured ?? 0,
             total: summary.total ?? 0,
             degraded: summary.degraded?.length ?? 0,
           });
@@ -236,16 +236,12 @@ export default function Page() {
           <section id="panel-portfolio" role="tabpanel" aria-labelledby="tab-portfolio" className="view-panel">
             <div className="page-heading">
               <div>
-                <span className="page-kicker">Portfolio workspace</span>
-                <h1>See the whole book before changing one position.</h1>
-                <p>Authoritative equity, exposure, concentration and risk headroom from the gateway that enforces every order.</p>
-              </div>
-              <div className="page-actions">
-                <button onClick={() => navigate("research")}>Review research</button>
-                <button onClick={() => navigate("live")}>Open execution</button>
+                <span className="page-kicker">Portfolio managers</span>
+                <h1>Portfolio &amp; risk</h1>
+                <p>Book-level exposure, concentration, P&amp;L and risk headroom from the authoritative gateway.</p>
               </div>
             </div>
-            <PortfolioWorkspace onFocusSymbol={focusPortfolioSymbol} />
+            <PortfolioWorkspace workspaceSymbol={req.symbol} onFocusSymbol={focusPortfolioSymbol} />
           </section>
         )}
 
@@ -253,13 +249,9 @@ export default function Page() {
           <section id="panel-research" role="tabpanel" aria-labelledby="tab-research" className="view-panel">
             <div className="page-heading">
               <div>
-                <span className="page-kicker">Research workspace</span>
-                <h1>Test the thesis. Keep the caveats attached.</h1>
-                <p>Parameter search, robustness checks and walk-forward evidence for the active desk context.</p>
-              </div>
-              <div className="page-actions">
-                <button onClick={() => navigate("data")}>Verify source data</button>
-                <button onClick={() => navigate("live")}>Open execution</button>
+                <span className="page-kicker">Researchers</span>
+                <h1>Research lab</h1>
+                <p>Parameter search, robustness checks and walk-forward evidence for {req.symbol}.</p>
               </div>
             </div>
 
@@ -382,13 +374,9 @@ export default function Page() {
           <section id="panel-live" role="tabpanel" aria-labelledby="tab-live" className="view-panel">
             <div className="page-heading">
               <div>
-                <span className="page-kicker">Execution workspace</span>
-                <h1>Know the cost before the order leaves the desk.</h1>
-                <p>Cross-venue liquidity, live order books and a shared implementation budget for {req.symbol}.</p>
-              </div>
-              <div className="page-actions">
-                <button onClick={() => navigate("research")}>Review research</button>
-                <button onClick={() => navigate("data")}>Check feeds</button>
+                <span className="page-kicker">Traders</span>
+                <h1>Execution</h1>
+                <p>Cross-venue liquidity, live order books and implementation cost for {req.symbol}.</p>
               </div>
             </div>
             <LiveMarket
@@ -409,13 +397,9 @@ export default function Page() {
           <section id="panel-data" role="tabpanel" aria-labelledby="tab-data" className="view-panel">
             <div className="page-heading">
               <div>
-                <span className="page-kicker">Data & systems workspace</span>
-                <h1>Every number should explain where it came from.</h1>
-                <p>Quote consensus, news, provider routing, quota health and desk-facing APIs in one operational surface.</p>
-              </div>
-              <div className="page-actions">
-                <button onClick={() => navigate("research")}>Open research</button>
-                <button onClick={() => navigate("live")}>Open execution</button>
+                <span className="page-kicker">Developers &amp; data operations</span>
+                <h1>Systems &amp; data</h1>
+                <p>Provider health, quote lineage, news, quotas and desk-facing APIs.</p>
               </div>
             </div>
             <DataFeeds

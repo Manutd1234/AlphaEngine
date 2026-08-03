@@ -7,12 +7,12 @@ import { INTERVALS } from "@/lib/types";
 
 export type WorkspaceView = "overview" | "portfolio" | "research" | "live" | "data";
 
-const NAV_ITEMS: { id: WorkspaceView; label: string; description: string }[] = [
-  { id: "overview", label: "Overview", description: "Decision cockpit" },
-  { id: "portfolio", label: "Portfolio", description: "Exposure & risk" },
-  { id: "research", label: "Research", description: "Test & validate" },
-  { id: "live", label: "Execution", description: "Liquidity & routing" },
-  { id: "data", label: "Data & systems", description: "Feeds & APIs" },
+const NAV_ITEMS: { id: WorkspaceView; label: string; accessibleLabel?: string }[] = [
+  { id: "overview", label: "Overview" },
+  { id: "portfolio", label: "Portfolio" },
+  { id: "research", label: "Research" },
+  { id: "live", label: "Execution" },
+  { id: "data", label: "Systems", accessibleLabel: "Data and systems" },
 ];
 
 const COMMON_SYMBOLS = [
@@ -77,33 +77,19 @@ export default function WorkspaceHeader({
       ? `${providerSummary.degraded} provider${providerSummary.degraded === 1 ? "" : "s"} degraded`
       : `${providerSummary.configured}/${providerSummary.total} providers ready`
     : "Checking data plane";
+  const healthNeedsAttention = Boolean(
+    providerSummary
+      && (providerSummary.degraded > 0 || providerSummary.configured < providerSummary.total),
+  );
 
   return (
     <header className="workspace-header">
-      <div className="workspace-header__utility">
+      <div className="workspace-header__utility workspace-header__primary">
         <button className="brand-lockup" onClick={() => onViewChange("overview")} aria-label="Open AlphaEngine overview">
           <span className="brand-mark" aria-hidden>AE</span>
-          <span>
-            <strong>AlphaEngine</strong>
-            <small>Integrated investment infrastructure</small>
-          </span>
+          <strong>AlphaEngine</strong>
         </button>
 
-        <div className="workspace-name" aria-label="Current workspace">
-          <span className="eyebrow">Workspace</span>
-          <strong>Unified Investment Desk</strong>
-        </div>
-
-        <div className="header-spacer" />
-
-        <span className={`system-health ${providerSummary?.degraded ? "is-warn" : ""}`}>
-          <i aria-hidden />
-          {healthLabel}
-        </span>
-        <ThemeToggle />
-      </div>
-
-      <div className="workspace-header__navrow">
         <nav className="workspace-tabs" role="tablist" aria-label="AlphaEngine workspace">
           {NAV_ITEMS.map((item, index) => (
             <button
@@ -112,6 +98,7 @@ export default function WorkspaceHeader({
               id={`tab-${item.id}`}
               type="button"
               role="tab"
+              aria-label={item.accessibleLabel}
               aria-selected={view === item.id}
               aria-controls={`panel-${item.id}`}
               tabIndex={view === item.id ? 0 : -1}
@@ -119,18 +106,28 @@ export default function WorkspaceHeader({
               onKeyDown={(event) => onTabKeyDown(event, index)}
             >
               <span>{item.label}</span>
-              <small>{item.description}</small>
             </button>
           ))}
         </nav>
+
+        <div className="header-spacer" />
+
+        <button
+          type="button"
+          className={`system-health system-health-action ${healthNeedsAttention ? "is-warn" : ""}`}
+          aria-label={`Open data and systems. ${healthLabel}`}
+          onClick={() => onViewChange("data")}
+        >
+          <i aria-hidden />
+          {healthLabel}
+        </button>
+        <ThemeToggle />
       </div>
 
       <div className="context-strip">
         <div className="context-strip__inner">
-          <span className="context-strip__label">Desk context</span>
-
           <form className="context-control context-symbol" onSubmit={submitSymbol}>
-            <label htmlFor="workspace-symbol">Instrument</label>
+            <label className="sr-only" htmlFor="workspace-symbol">Instrument</label>
             <input
               id="workspace-symbol"
               value={draftSymbol}
@@ -152,22 +149,26 @@ export default function WorkspaceHeader({
           </form>
 
           <div className="context-control">
-            <label htmlFor="workspace-interval">Horizon</label>
+            <label className="sr-only" htmlFor="workspace-interval">Horizon</label>
             <select
               id="workspace-interval"
               value={interval}
               onChange={(event) => onIntervalChange(event.target.value)}
+              aria-label="Active workspace horizon"
             >
               {INTERVALS.map((item) => <option key={item}>{item}</option>)}
             </select>
           </div>
 
-          <div className="context-divider" aria-hidden />
-
-          <div className="context-summary">
-            <span className="eyebrow">Shared across every module</span>
+          <button
+            type="button"
+            className="context-summary context-status"
+            onClick={() => onViewChange("research")}
+            aria-label={`Open research. ${contextNote ?? "No validated candidate yet"}`}
+          >
+            <span className="context-status__label">Research</span>
             <strong>{contextNote ?? "No validated candidate yet"}</strong>
-          </div>
+          </button>
         </div>
       </div>
     </header>

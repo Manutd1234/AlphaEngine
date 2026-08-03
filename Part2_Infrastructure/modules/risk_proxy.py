@@ -36,6 +36,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import math
 import time
 import uuid
 from collections import deque
@@ -162,8 +163,94 @@ class RiskGateway:
         self._alert_hooks: list[AlertHook] = []
         self._monitor: asyncio.Task | None = None
         self._lock = asyncio.Lock()
+        self._restore_positions_from_audit()
 
     # -- wiring ----------------------------------------------------------- #
+    def _restore_positions_from_audit(self) -> None:
+        """Rebuild only the current session's position accounting from fills.
+
+        Rehydration calls ``PositionState.apply_fill`` directly: it must not
+        resubmit orders, emit alerts, increment operational counters, repopulate
+        idempotency keys or append new audit rows. Kill/halt state is not restored
+        because the audit contains events, not a durable current-state snapshot;
+        inferring it here could silently choose the wrong side of a release race.
+
+        The audit loader is strict and reset-aware. Any incomplete or ambiguous
+        accepted fill aborts gateway construction instead of starting with an
+        understated partial book.
+        """
+        if self.audit is None:
+            return
+
+        try:
+            fills = self.audit.accepted_fills_for_session(self.session_date)
+        except Exception as exc:
+            raise RuntimeError(
+                f"cannot safely rehydrate the {self.session_date} position book"
+            ) from exc
+
+        restored: dict[str, PositionState] = {}
+        seen_order_ids: set[str] = set()
+        seen_symbol_timestamps: set[tuple[str, str]] = set()
+
+        def finite_number(row: dict, field: str, *, positive: bool) -> float:
+            raw = row.get(field)
+            if isinstance(raw, bool):
+                raise RuntimeError(f"accepted fill has invalid {field}: {raw!r}")
+            try:
+                value = float(raw)
+            except (TypeError, ValueError) as exc:
+                raise RuntimeError(f"accepted fill is missing numeric {field}") from exc
+            valid = math.isfinite(value) and (value > 0 if positive else value >= 0)
+            if not valid:
+                raise RuntimeError(f"accepted fill has invalid {field}: {raw!r}")
+            return value
+
+        for row in fills:
+            if not isinstance(row, dict):
+                raise RuntimeError("accepted fill replay returned a non-object row")
+
+            order_id = row.get("order_id")
+            if not isinstance(order_id, str) or not order_id.strip():
+                raise RuntimeError("accepted fill is missing its order id")
+            if order_id in seen_order_ids:
+                raise RuntimeError(f"duplicate accepted fill in audit: {order_id}")
+            seen_order_ids.add(order_id)
+
+            symbol_value = row.get("symbol")
+            symbol = symbol_value.strip().upper() if isinstance(symbol_value, str) else ""
+            if not symbol:
+                raise RuntimeError(f"accepted fill {order_id} is missing its symbol")
+
+            side = row.get("side")
+            if side not in {"BUY", "SELL"}:
+                raise RuntimeError(f"accepted fill {order_id} has invalid side: {side!r}")
+
+            timestamp = row.get("ts")
+            if timestamp is None:
+                raise RuntimeError(f"accepted fill {order_id} is missing its timestamp")
+            timestamp_key = (symbol, str(timestamp))
+            if timestamp_key in seen_symbol_timestamps:
+                # Fill order is path-dependent when a position is reduced or
+                # flipped. The audit has no sequence column to break an exact
+                # same-symbol timestamp tie, so guessing would fabricate P&L.
+                raise RuntimeError(
+                    f"accepted fills for {symbol} share an ambiguous timestamp: {timestamp}"
+                )
+            seen_symbol_timestamps.add(timestamp_key)
+
+            quantity = finite_number(row, "fill_qty", positive=True)
+            price = finite_number(row, "fill_price", positive=True)
+            fee = finite_number(row, "fee_usd", positive=False)
+            restored.setdefault(symbol, PositionState(symbol)).apply_fill(side, quantity, price, fee)
+
+        self.positions.update(restored)
+        if fills:
+            log.info(
+                "rehydrated %d accepted fills into %d current-session positions",
+                len(fills), len(restored),
+            )
+
     def add_alert_hook(self, hook: AlertHook) -> None:
         self._alert_hooks.append(hook)
 
@@ -525,14 +612,16 @@ class RiskGateway:
 
     def reset_book(self, actor: str = "api") -> None:
         """Flatten the paper book (demo/reset helper — audited like everything else)."""
+        if self.audit:
+            # Persist first. Clearing before this durable boundary exists could
+            # resurrect the old fills on the next process restart.
+            self.audit.record_book_reset(actor)
         self.positions.clear()
         self.orders_accepted = 0
         self.orders_rejected = 0
         self._seen_client_ids.clear()
         self._seen_set.clear()
         self.start_of_day_equity = settings.starting_equity_usd
-        if self.audit:
-            self.audit.record_risk_event("book_reset", severity="info", actor=actor, detail="paper book flattened")
 
 
 _gateway: RiskGateway | None = None

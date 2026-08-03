@@ -92,6 +92,9 @@ interface ProviderRow {
   id: string;
   label: string;
   configured: boolean;
+  /** Added by /api/providers; optional so a rolling UI deploy tolerates the old API. */
+  ready?: boolean;
+  statusDetail?: string | null;
   circuitOpen: boolean;
   keyEnv: string;
   signup: string;
@@ -116,6 +119,10 @@ const QUICK_PICKS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "AAPL", "NVDA", "TSLA", "M
 const REFRESH_MS = 30_000;
 
 const LIVE_SYMBOLS = new Set(["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT"]);
+
+function providerIsReady(provider: ProviderRow): boolean {
+  return provider.ready ?? (provider.configured && !provider.circuitOpen);
+}
 
 const API_SURFACES = [
   { method: "GET", path: "/api/quote?symbols=", purpose: "Normalised quote with provider provenance" },
@@ -502,13 +509,13 @@ export default function DataFeeds({
         <div className="system-summary-grid">
           <div>
             <span>Ready</span>
-            <strong className="num">{providers ? providers.filter((provider) => provider.configured && !provider.circuitOpen).length : "—"}</strong>
-            <small>configured routes</small>
+            <strong className="num">{providers ? providers.filter(providerIsReady).length : "—"}</strong>
+            <small>routing-ready providers</small>
           </div>
           <div>
-            <span>Degraded</span>
-            <strong className="num">{providers ? providers.filter((provider) => provider.circuitOpen).length : "—"}</strong>
-            <small>open circuits</small>
+            <span>Needs attention</span>
+            <strong className="num">{providers ? providers.filter((provider) => provider.configured && !providerIsReady(provider)).length : "—"}</strong>
+            <small>unavailable or circuit open</small>
           </div>
           <div>
             <span>Capabilities</span>
@@ -537,13 +544,20 @@ export default function DataFeeds({
                 <tr key={p.id}>
                   <td>{p.label}</td>
                   <td>
-                    {p.circuitOpen ? (
-                      <span style={{ color: "var(--status-critical)" }}>✕ degraded</span>
-                    ) : p.configured ? (
-                      <span style={{ color: "var(--status-good)" }}>● ready</span>
-                    ) : (
-                      <span className="muted">◌ not configured</span>
-                    )}
+                    <div style={{ display: "grid", gap: 2 }}>
+                      {p.circuitOpen ? (
+                        <span style={{ color: "var(--status-critical)" }}>✕ circuit open</span>
+                      ) : !p.configured ? (
+                        <span className="muted">◌ not configured</span>
+                      ) : providerIsReady(p) ? (
+                        <span style={{ color: "var(--status-good)" }}>● ready</span>
+                      ) : (
+                        <span style={{ color: "var(--status-warning)" }}>▲ unavailable</span>
+                      )}
+                      {p.statusDetail && (
+                        <small className="muted" style={{ maxWidth: 240 }}>{p.statusDetail}</small>
+                      )}
+                    </div>
                   </td>
                   <td className="muted" style={{ fontSize: 11.5 }}>
                     {p.capabilities.join(", ")}

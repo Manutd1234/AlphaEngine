@@ -259,12 +259,18 @@ export async function httpJson(
   timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<unknown> {
   let last: ProviderError | null = null;
+  // OpenBB already enforces its own seven-second worker bound. Retrying the
+  // gateway request here would leave multiple non-cancellable Python provider
+  // threads running after the caller has moved on, so it gets one bounded
+  // attempt and normal registry failover handles the next source.
+  const maxAttempts = provider === "openbb" ? 1 : MAX_ATTEMPTS;
+  const effectiveTimeoutMs = provider === "openbb" ? Math.min(timeoutMs, 7_500) : timeoutMs;
 
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     if (attempt > 0) await sleep(backoffMs(attempt));
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timer = setTimeout(() => controller.abort(), effectiveTimeoutMs);
     try {
       const res = await fetch(url, {
         ...init,
@@ -307,7 +313,7 @@ export async function httpJson(
       const timedOut = err instanceof Error && err.name === "AbortError";
       last = new ProviderError(
         provider,
-        timedOut ? `timed out after ${timeoutMs}ms` : msg,
+        timedOut ? `timed out after ${effectiveTimeoutMs}ms` : msg,
         null,
         true,
       );

@@ -39,6 +39,17 @@ function endpoint(ctx: FetchCtx, path: string, params: Record<string, string>): 
   return `${base}/api/research/openbb/${path}?${new URLSearchParams(params)}`;
 }
 
+function gatewayRequest(ctx: FetchCtx, path: string, params: Record<string, string>): Promise<unknown> {
+  // OpenBB and the portfolio book may share the same protected AlphaEngine
+  // gateway. Keep the bearer credential server-side and allow a dedicated
+  // token when operators split research into its own process.
+  const token = process.env.OPENBB_API_TOKEN?.trim()
+    || process.env.ALPHAENGINE_GATEWAY_TOKEN?.trim();
+  return ctx.json(endpoint(ctx, path, params), {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+}
+
 function assertOk(payload: unknown): Record<string, unknown> {
   const o = obj(payload);
   // The gateway reports an OpenBB provider failure as {ok:false, error:"..."}
@@ -56,7 +67,7 @@ export const openbb: Adapter = {
     label: "OpenBB",
     docs: "https://docs.openbb.co/platform",
     capabilities: ["quote", "bars", "news", "fundamentals"],
-    assets: ["equity", "crypto", "fx"],
+    assets: ["equity", "crypto"],
     // The URL is the credential: unset means the gateway is not deployed.
     keyEnv: "OPENBB_API_URL",
     baseUrlEnv: "OPENBB_API_URL",
@@ -68,7 +79,7 @@ export const openbb: Adapter = {
   },
 
   async quote(symbol: string, asset: AssetClass, ctx: FetchCtx): Promise<Quote> {
-    const o = assertOk(await ctx.json(endpoint(ctx, "quote", { symbol, asset })));
+    const o = assertOk(await gatewayRequest(ctx, "quote", { symbol, asset }));
     const r = obj(o["data"]);
     const price = num(r["price"]);
     if (price == null) throw new ProviderError(ID, `no quote for ${symbol}`, 404, false);
@@ -96,7 +107,7 @@ export const openbb: Adapter = {
     ctx: FetchCtx,
   ): Promise<OhlcvBar[]> {
     const o = assertOk(
-      await ctx.json(endpoint(ctx, "bars", { symbol, asset, interval, limit: String(limit) })),
+      await gatewayRequest(ctx, "bars", { symbol, asset, interval, limit: String(limit) }),
     );
     const bars: OhlcvBar[] = [];
     for (const row of arr(o["data"])) {
@@ -119,9 +130,7 @@ export const openbb: Adapter = {
 
   async news(symbols: string[], limit: number, ctx: FetchCtx): Promise<NewsItem[]> {
     const o = assertOk(
-      await ctx.json(
-        endpoint(ctx, "news", { symbols: symbols.join(","), limit: String(limit) }),
-      ),
+      await gatewayRequest(ctx, "news", { symbols: symbols.join(","), limit: String(limit) }),
     );
     return arr(o["data"])
       .map((row): NewsItem | null => {
@@ -144,7 +153,7 @@ export const openbb: Adapter = {
   },
 
   async fundamentals(symbol: string, ctx: FetchCtx): Promise<Fundamentals> {
-    const o = assertOk(await ctx.json(endpoint(ctx, "fundamentals", { symbol })));
+    const o = assertOk(await gatewayRequest(ctx, "fundamentals", { symbol }));
     const r = obj(o["data"]);
     return {
       symbol,

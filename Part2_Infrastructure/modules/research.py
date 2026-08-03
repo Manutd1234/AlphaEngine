@@ -35,12 +35,14 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
+from datetime import date, timedelta
 from functools import lru_cache
 from typing import Any
 
 log = logging.getLogger("alphaengine.research")
 
 _IMPORT_ERROR: str | None = None
+_OBB_PROVIDER = "yfinance"
 
 
 @lru_cache(maxsize=1)
@@ -65,11 +67,21 @@ def openbb_available() -> bool:
 
 
 def openbb_status() -> dict[str, Any]:
-    ok = openbb_available()
+    obb = _obb()
+    if obb is None:
+        return {
+            "ok": False,
+            "detail": _IMPORT_ERROR or "openbb is not installed",
+            "install": "pip install -r requirements-openbb.txt && openbb-build",
+        }
+
+    providers = set(getattr(getattr(obb, "coverage", None), "providers", []) or [])
+    ok = _OBB_PROVIDER in providers
     return {
         "ok": ok,
-        "detail": None if ok else (_IMPORT_ERROR or "openbb is not installed"),
-        "install": None if ok else "pip install openbb  (heavyweight; optional)",
+        "detail": None if ok else f"OpenBB provider '{_OBB_PROVIDER}' is not installed",
+        "install": None if ok else "pip install -r requirements-openbb.txt && openbb-build",
+        "provider": _OBB_PROVIDER if ok else None,
     }
 
 
@@ -128,14 +140,20 @@ def _quote_sync(symbol: str, asset: str) -> dict[str, Any]:
         if asset == "crypto":
             pair = symbol.upper()
             pair = f"{pair[:-4]}-USD" if pair.endswith("USDT") else pair
-            rows = _rows(obb.crypto.price.historical(symbol=pair, limit=2))
+            rows = _rows(obb.crypto.price.historical(
+                symbol=pair,
+                start_date=date.today() - timedelta(days=7),
+                end_date=date.today() + timedelta(days=1),
+                interval="1d",
+                provider=_OBB_PROVIDER,
+            ))
             if not rows:
                 return {"ok": False, "error": f"no crypto data for {symbol}"}
             row = rows[-1]
             price = _first(row, "close", "price")
             prev = _first(rows[-2] if len(rows) > 1 else row, "close", "price")
         else:
-            rows = _rows(obb.equity.price.quote(symbol=symbol))
+            rows = _rows(obb.equity.price.quote(symbol=symbol, provider=_OBB_PROVIDER))
             if not rows:
                 return {"ok": False, "error": f"no quote for {symbol}"}
             row = rows[0]
@@ -176,9 +194,17 @@ def _bars_sync(symbol: str, asset: str, interval: str, limit: int) -> dict[str, 
         if asset == "crypto":
             pair = symbol.upper()
             pair = f"{pair[:-4]}-USD" if pair.endswith("USDT") else pair
-            rows = _rows(obb.crypto.price.historical(symbol=pair, interval=iv))
+            rows = _rows(obb.crypto.price.historical(
+                symbol=pair,
+                interval="1h" if iv == "4h" else iv,
+                provider=_OBB_PROVIDER,
+            ))
         else:
-            rows = _rows(obb.equity.price.historical(symbol=symbol, interval=iv))
+            rows = _rows(obb.equity.price.historical(
+                symbol=symbol,
+                interval="1h" if iv == "4h" else iv,
+                provider=_OBB_PROVIDER,
+            ))
         bars = [
             {
                 "date": str(r.get("date", "")),
@@ -191,6 +217,26 @@ def _bars_sync(symbol: str, asset: str, interval: str, limit: int) -> dict[str, 
             for r in rows
             if _first(r, "close") is not None
         ]
+        # Yahoo does not expose a native 4h interval. Consolidate consecutive
+        # hourly observations so the bridge keeps its documented interval
+        # contract without asking the provider for an unsupported value.
+        if iv == "4h":
+            grouped: list[dict[str, Any]] = []
+            for start in range(0, len(bars), 4):
+                chunk = bars[start:start + 4]
+                if not chunk:
+                    continue
+                highs = [row["high"] for row in chunk if row["high"] is not None]
+                lows = [row["low"] for row in chunk if row["low"] is not None]
+                grouped.append({
+                    "date": chunk[0]["date"],
+                    "open": chunk[0]["open"],
+                    "high": max(highs) if highs else chunk[-1]["close"],
+                    "low": min(lows) if lows else chunk[-1]["close"],
+                    "close": chunk[-1]["close"],
+                    "volume": sum(row["volume"] or 0 for row in chunk),
+                })
+            bars = grouped
         return {"ok": True, "data": bars[-limit:]}
     except Exception as exc:
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
@@ -202,9 +248,13 @@ def _news_sync(symbols: list[str], limit: int) -> dict[str, Any]:
         return {"ok": False, "error": _IMPORT_ERROR or "openbb not installed"}
     try:
         if symbols:
-            rows = _rows(obb.news.company(symbol=",".join(symbols), limit=limit))
+            rows = _rows(obb.news.company(
+                symbol=",".join(symbols),
+                limit=limit,
+                provider=_OBB_PROVIDER,
+            ))
         else:
-            rows = _rows(obb.news.world(limit=limit))
+            return {"ok": False, "error": "at least one symbol is required for the keyless OpenBB news provider"}
         items = [
             {
                 "title": _first(r, "title"),
@@ -228,11 +278,15 @@ def _fundamentals_sync(symbol: str) -> dict[str, Any]:
     if obb is None:
         return {"ok": False, "error": _IMPORT_ERROR or "openbb not installed"}
     try:
-        profile_rows = _rows(obb.equity.profile(symbol=symbol))
+        profile_rows = _rows(obb.equity.profile(symbol=symbol, provider=_OBB_PROVIDER))
         p = profile_rows[0] if profile_rows else {}
         metrics: dict[str, Any] = {}
         try:
-            metric_rows = _rows(obb.equity.fundamental.metrics(symbol=symbol, limit=1))
+            metric_rows = _rows(obb.equity.fundamental.metrics(
+                symbol=symbol,
+                limit=1,
+                provider=_OBB_PROVIDER,
+            ))
             metrics = metric_rows[0] if metric_rows else {}
         except Exception:
             # Metrics need a fundamentals-capable downstream; the profile alone
@@ -265,17 +319,26 @@ def _fundamentals_sync(symbol: str) -> dict[str, Any]:
 # Async wrappers — the event loop stays free for order flow
 # --------------------------------------------------------------------------- #
 
-_TIMEOUT_S = 20.0
+_TIMEOUT_S = 7.0
+_OPENBB_BULKHEAD = asyncio.Semaphore(2)
 
 
 async def _off_loop(fn, /, *args) -> dict[str, Any]:
-    try:
-        return await asyncio.wait_for(asyncio.to_thread(fn, *args), timeout=_TIMEOUT_S)
-    except asyncio.TimeoutError:
-        # The worker thread may still be running — to_thread cannot cancel it —
-        # but the response is bounded, which is the property that matters to the
-        # caller. The thread finishes and its result is dropped.
-        return {"ok": False, "error": f"openbb call exceeded {_TIMEOUT_S:.0f}s"}
+    # Keep heavyweight provider work from crowding the event loop's executor.
+    # This gateway also owns pre-trade risk checks; research may wait, risk may
+    # not. A small bulkhead also bounds abandoned worker threads after timeout.
+    async with _OPENBB_BULKHEAD:
+        try:
+            return await asyncio.wait_for(asyncio.to_thread(fn, *args), timeout=_TIMEOUT_S)
+        except asyncio.TimeoutError:
+            # The worker thread may still be running — to_thread cannot cancel
+            # it — but at most two OpenBB calls can occupy workers at once.
+            return {"ok": False, "error": f"openbb call exceeded {_TIMEOUT_S:.0f}s"}
+
+
+async def openbb_status_async() -> dict[str, Any]:
+    """Probe/import OpenBB away from the execution gateway's event loop."""
+    return await _off_loop(openbb_status)
 
 
 async def quote(symbol: str, asset: str = "equity") -> dict[str, Any]:

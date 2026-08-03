@@ -1,0 +1,13 @@
+# Optional OpenBB research runtime.
+#
+# Install into the gateway environment after requirements-core.txt (or the full
+# requirements.txt), then rebuild OpenBB's extension map:
+#
+#   pip install -r requirements-openbb.txt
+#   openbb-build
+#
+# AlphaEngine pins a keyless provider explicitly so quote, bars, company news
+# and fundamentals do not depend on alphabetical provider selection or on a
+# second set of vendor credentials inside the Python process.
+openbb==4.7.2
+openbb-yfinance==1.6.3

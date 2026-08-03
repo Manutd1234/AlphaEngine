@@ -4,9 +4,10 @@ Immutable-by-convention audit log (DuckDB, SQLite fallback).
 
 Every risk decision, kill-switch event, TCA snapshot and backtest run is written
 here. The table set is intentionally append-only: nothing in the application
-issues UPDATE or DELETE against ``orders``/``risk_events``, so the log can be
-replayed to reconstruct the exact state the gateway was in when it accepted or
-rejected any order — which is what a compliance review actually asks for.
+issues UPDATE or DELETE against ``orders``/``risk_events``. Accepted fill rows
+contain enough evidence to rebuild the current UTC session's paper position
+book. Operational state such as an engaged kill switch is event history, not a
+durable state snapshot, and is deliberately not inferred during that replay.
 
 DuckDB is used because the same file is directly queryable with analytical SQL
 (``SELECT quantile(latency_ms, 0.99) FROM orders``) without an ETL step. A
@@ -19,7 +20,7 @@ from __future__ import annotations
 import json
 import logging
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -206,6 +207,77 @@ class AuditLog:
             log.error("audit query failed: %s", exc)
             return []
 
+    def accepted_fills_for_session(self, session_date: str) -> list[dict[str, Any]]:
+        """Return ordered accepted fills for one UTC session, after its last reset.
+
+        This is the strict read path used to rebuild risk state. Unlike the
+        operator-facing ``query`` helper it raises on a closed or unreadable
+        audit store: silently treating an audit failure as a flat book would
+        understate exposure. ``book_reset`` is a durable replay boundary, so a
+        reset remains a reset after process restart.
+
+        Only same-day fills are returned. The paper gateway does not persist the
+        start-of-day mark needed to reconstruct overnight P&L safely, so an
+        overnight production book needs a separate durable position snapshot.
+        """
+        try:
+            start = datetime.strptime(session_date, "%Y-%m-%d")
+        except ValueError as exc:
+            raise ValueError(f"invalid UTC session date: {session_date!r}") from exc
+        end = start + timedelta(days=1)
+
+        if self._closed:
+            raise RuntimeError("audit store is closed")
+
+        params: tuple[Any, ...] = (start, end)
+        if self.backend == "sqlite":
+            params = tuple(p.isoformat() if isinstance(p, datetime) else p for p in params)
+
+        try:
+            with self._lock:
+                reset_cur = self._conn.execute(
+                    "SELECT max(ts) AS reset_at FROM risk_events "
+                    "WHERE event = 'book_reset' AND ts >= ? AND ts < ?",
+                    params,
+                )
+                reset_row = reset_cur.fetchone()
+                reset_at = reset_row[0] if reset_row else None
+
+                cur = self._conn.execute(
+                    "SELECT ts, order_id, symbol, side, fill_qty, fill_price, fee_usd "
+                    "FROM orders WHERE accepted AND ts >= ? AND ts < ? "
+                    "ORDER BY ts ASC, order_id ASC",
+                    params,
+                )
+                cols = [d[0] for d in cur.description] if cur.description else []
+                rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+        except Exception as exc:
+            raise RuntimeError("could not read accepted fills for position rehydration") from exc
+
+        if reset_at is None:
+            return rows
+
+        def parsed_timestamp(value: Any) -> datetime:
+            if isinstance(value, datetime):
+                return value.replace(tzinfo=None)
+            try:
+                return datetime.fromisoformat(str(value)).replace(tzinfo=None)
+            except (TypeError, ValueError) as exc:
+                raise RuntimeError(f"invalid audit timestamp during position rehydration: {value!r}") from exc
+
+        reset_time = parsed_timestamp(reset_at)
+        out: list[dict[str, Any]] = []
+        for row in rows:
+            fill_time = parsed_timestamp(row.get("ts"))
+            if fill_time == reset_time:
+                # The schema has timestamps but no cross-table sequence number.
+                # Guessing whether this fill happened before or after the reset
+                # could resurrect a position, so fail closed on the ambiguity.
+                raise RuntimeError("fill and book reset share an ambiguous audit timestamp")
+            if fill_time > reset_time:
+                out.append(row)
+        return out
+
     # -- writers ---------------------------------------------------------- #
     def record_order(self, decision, request, source: str = "api") -> None:
         fill = decision.fill
@@ -250,6 +322,29 @@ class AuditLog:
             "INSERT INTO risk_events VALUES (?,?,?,?,?,?,?)",
             (_utcnow(), event, severity, actor, symbol, detail, json.dumps(payload or {}, default=str)),
         )
+
+    def record_book_reset(self, actor: str) -> None:
+        """Persist the replay boundary before the in-memory book is cleared.
+
+        This write is intentionally strict. If it fails, ``RiskGateway`` leaves
+        the current positions intact rather than clearing them now and silently
+        resurrecting them on the next restart.
+        """
+        if self._closed:
+            raise RuntimeError("audit store is closed")
+        try:
+            with self._lock:
+                params: tuple[Any, ...] = (
+                    _utcnow(), "book_reset", "info", actor, None,
+                    "paper book flattened", json.dumps({}),
+                )
+                if self.backend == "sqlite":
+                    params = tuple(p.isoformat() if isinstance(p, datetime) else p for p in params)
+                self._conn.execute("INSERT INTO risk_events VALUES (?,?,?,?,?,?,?)", params)
+                if self.backend == "sqlite":
+                    self._conn.commit()
+        except Exception as exc:
+            raise RuntimeError("could not persist the book reset replay boundary") from exc
 
     def record_tca_snapshot(self, row: dict[str, Any]) -> None:
         self._exec(

@@ -7,6 +7,7 @@ import { compact, fmt, signedPct, usd } from "@/lib/format";
 export type PortfolioFocusDestination = "research" | "live" | "data";
 
 export interface PortfolioWorkspaceProps {
+  workspaceSymbol: string;
   onFocusSymbol: (symbol: string, destination: PortfolioFocusDestination) => void;
 }
 
@@ -83,6 +84,11 @@ interface PortfolioPayload {
     by_symbol: Array<Record<string, unknown>>;
   };
   execution_quality: Record<string, unknown>;
+  gateway?: {
+    environment: string;
+    version: string;
+    authoritative: boolean;
+  };
 }
 
 interface PortfolioError {
@@ -92,6 +98,8 @@ interface PortfolioError {
 }
 
 const REFRESH_MS = 15_000;
+
+type PortfolioConnectionState = "live" | "stale" | "unconfigured" | "error";
 
 function BudgetRow({ label, used, detail }: { label: string; used: number; detail: string }) {
   const bounded = Math.max(0, Math.min(1, used || 0));
@@ -110,12 +118,14 @@ function BudgetRow({ label, used, detail }: { label: string; used: number; detai
   );
 }
 
-export default function PortfolioWorkspace({ onFocusSymbol }: PortfolioWorkspaceProps) {
+export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: PortfolioWorkspaceProps) {
   const [portfolio, setPortfolio] = useState<PortfolioPayload | null>(null);
   const [error, setError] = useState<PortfolioError | null>(null);
+  const [lastSuccessAt, setLastSuccessAt] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const sequence = useRef(0);
+  const selectedSymbol = workspaceSymbol.trim().toUpperCase();
 
   const refresh = useCallback(async (quiet = false) => {
     const current = ++sequence.current;
@@ -132,10 +142,10 @@ export default function PortfolioWorkspace({ onFocusSymbol }: PortfolioWorkspace
           error: body.error ?? `Portfolio request failed with HTTP ${response.status}.`,
           hint: body.hint,
         });
-        if (!quiet) setPortfolio(null);
         return;
       }
       setPortfolio(body as PortfolioPayload);
+      setLastSuccessAt(new Date());
       setError(null);
     } catch {
       if (current === sequence.current) {
@@ -170,28 +180,62 @@ export default function PortfolioWorkspace({ onFocusSymbol }: PortfolioWorkspace
     );
   }
 
+  const connectionState: PortfolioConnectionState = portfolio
+    ? (error ? "stale" : "live")
+    : (error?.code === "gateway_not_configured" ? "unconfigured" : "error");
+
   if (!portfolio) {
-    const isUnconfigured = error?.code === "gateway_not_configured";
-    return (
-      <div className="portfolio-connection-card">
-        <span className="role-monogram" aria-hidden>PM</span>
-        <div>
-          <span className="page-kicker">{isUnconfigured ? "Optional gateway connection" : "Gateway unavailable"}</span>
-          <h2>{isUnconfigured ? "Connect the authoritative portfolio book." : "Portfolio state is temporarily unavailable."}</h2>
-          <p>{error?.error}</p>
-          {error?.hint && <small>{error.hint}</small>}
-          <div>
-            <button className="primary-action" onClick={() => refresh()} disabled={loading}>Try again</button>
-            <button onClick={() => onFocusSymbol("BTCUSDT", "research")}>Continue with research</button>
+    if (connectionState === "unconfigured") {
+      return (
+        <div className="card portfolio-setup-card" role="status" aria-labelledby="portfolio-setup-title">
+          <div className="portfolio-card-heading">
+            <div>
+              <span className="page-kicker">Portfolio gateway setup</span>
+              <h2 id="portfolio-setup-title">Connect the portfolio book</h2>
+            </div>
           </div>
+          <p className="sub">
+            Add <code>ALPHAENGINE_GATEWAY_URL</code> to the Vercel environment and redeploy to load
+            authoritative positions, exposure and risk limits. Research remains available now.
+          </p>
+          <div className="page-actions">
+            <button className="primary-action" onClick={() => onFocusSymbol(selectedSymbol, "research")}>
+              Open Research
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="card portfolio-setup-card" role="alert" aria-labelledby="portfolio-error-title">
+        <div className="portfolio-card-heading">
+          <div>
+            <span className="page-kicker">Gateway unavailable</span>
+            <h2 id="portfolio-error-title">Portfolio state is temporarily unavailable</h2>
+          </div>
+        </div>
+        <p className="sub">{error?.error ?? "The portfolio gateway did not return a usable response."}</p>
+        {error?.hint && <p className="muted">{error.hint}</p>}
+        <div className="page-actions">
+          <button className="primary-action" onClick={() => refresh()} disabled={loading}>
+            {loading ? "Connecting…" : "Retry connection"}
+          </button>
+          <button onClick={() => onFocusSymbol(selectedSymbol, "research")}>Open Research</button>
         </div>
       </div>
     );
   }
 
+  const isStale = connectionState === "stale";
   const binding = portfolio.risk_budget.binding_constraint;
   const positions = portfolio.exposure.positions;
   const strategies = portfolio.attribution.by_strategy ?? [];
+  const lastRefreshLabel = (lastSuccessAt ?? new Date(portfolio.as_of)).toLocaleTimeString();
+  const gatewayEnvironment = portfolio.gateway?.environment?.trim().toLowerCase();
+  const gatewayLabel = gatewayEnvironment && gatewayEnvironment !== "production"
+    ? `${gatewayEnvironment[0].toUpperCase()}${gatewayEnvironment.slice(1)} risk gateway live`
+    : "Authoritative risk gateway live";
 
   return (
     <>
@@ -199,18 +243,33 @@ export default function PortfolioWorkspace({ onFocusSymbol }: PortfolioWorkspace
         <div className="banner error" role="alert">
           <span aria-hidden>■</span>
           <div>
-            <strong>Trading is halted.</strong>{" "}
+            <strong>{isStale ? "Trading was halted at the last successful refresh." : "Trading is halted."}</strong>{" "}
             {portfolio.halted_symbols.length ? `Halted instruments: ${portfolio.halted_symbols.join(", ")}.` : "The global kill switch is active."}
+          </div>
+        </div>
+      )}
+
+      {isStale && (
+        <div className="banner warn" role="status" aria-live="polite">
+          <span aria-hidden>!</span>
+          <div>
+            <strong>Portfolio data is stale.</strong>{" "}
+            Last successful refresh was {lastRefreshLabel}. {error?.error} Execution handoffs are
+            disabled until the gateway reconnects.
           </div>
         </div>
       )}
 
       <div className="portfolio-statusbar">
         <div>
-          <span className="system-health"><i aria-hidden /> Authoritative risk gateway</span>
-          <span className="num">As of {new Date(portfolio.as_of).toLocaleTimeString()}</span>
+          <span className={`system-health${isStale ? " is-warn" : ""}`}>
+            <i aria-hidden /> {isStale ? "Stale portfolio snapshot" : gatewayLabel}
+          </span>
+          <span className="num">Last successful refresh {lastRefreshLabel}</span>
         </div>
-        <button onClick={() => refresh(true)} disabled={refreshing}>{refreshing ? "Refreshing…" : "Refresh book"}</button>
+        <button onClick={() => refresh(true)} disabled={refreshing}>
+          {refreshing ? (isStale ? "Reconnecting…" : "Refreshing…") : (isStale ? "Reconnect" : "Refresh book")}
+        </button>
       </div>
 
       <section className="portfolio-metrics" aria-label="Portfolio summary">
@@ -225,14 +284,11 @@ export default function PortfolioWorkspace({ onFocusSymbol }: PortfolioWorkspace
           <small>{signedPct(portfolio.equity.daily_return)}</small>
         </div>
         <div>
-          <span>Gross exposure</span>
+          <span>Exposure</span>
           <strong className="num">{usd(portfolio.exposure.gross, 0)}</strong>
-          <small>{fmt(portfolio.exposure.leverage, 2)}× leverage</small>
-        </div>
-        <div>
-          <span>Net exposure</span>
-          <strong className={`num ${portfolio.exposure.net < 0 ? "neg" : ""}`}>{usd(portfolio.exposure.net, 0)}</strong>
-          <small>{positions.length} open position{positions.length === 1 ? "" : "s"}</small>
+          <small>
+            net {usd(portfolio.exposure.net, 0)} · {fmt(portfolio.exposure.leverage, 2)}× · {positions.length} position{positions.length === 1 ? "" : "s"}
+          </small>
         </div>
         <div>
           <span>Binding constraint</span>
@@ -245,7 +301,7 @@ export default function PortfolioWorkspace({ onFocusSymbol }: PortfolioWorkspace
         <div className="card portfolio-positions-card">
           <div className="portfolio-card-heading">
             <div>
-              <span className="page-kicker">Live book</span>
+              <span className="page-kicker">{isStale ? "Last known book" : "Live book"}</span>
               <h2>Positions</h2>
             </div>
             <span>{usd(portfolio.exposure.gross, 0)} gross</span>
@@ -276,9 +332,14 @@ export default function PortfolioWorkspace({ onFocusSymbol }: PortfolioWorkspace
                       <td className={position.total_pnl >= 0 ? "pos" : "neg"}>{usd(position.total_pnl, 0)}</td>
                       <td>
                         <div className="portfolio-row-actions">
-                          <button onClick={() => onFocusSymbol(position.symbol, "live")}>Trade</button>
+                          <button
+                            onClick={() => onFocusSymbol(position.symbol, "live")}
+                            disabled={isStale}
+                            title={isStale ? "Reconnect the portfolio gateway before opening execution." : undefined}
+                          >
+                            Trade
+                          </button>
                           <button onClick={() => onFocusSymbol(position.symbol, "research")}>Research</button>
-                          <button onClick={() => onFocusSymbol(position.symbol, "data")}>Data</button>
                         </div>
                       </td>
                     </tr>
@@ -289,8 +350,12 @@ export default function PortfolioWorkspace({ onFocusSymbol }: PortfolioWorkspace
           ) : (
             <div className="portfolio-empty-book">
               <strong>No open positions</strong>
-              <p>The risk gateway is connected and the book is flat. Research candidates remain available for review.</p>
-              <button onClick={() => onFocusSymbol("BTCUSDT", "research")}>Open research workspace</button>
+              <p>
+                {isStale
+                  ? "The last successful snapshot was flat. Reconnect before relying on current exposure."
+                  : "The risk gateway is connected and the book is flat. Research candidates remain available for review."}
+              </p>
+              <button onClick={() => onFocusSymbol(selectedSymbol, "research")}>Open research workspace</button>
             </div>
           )}
         </div>
@@ -330,7 +395,7 @@ export default function PortfolioWorkspace({ onFocusSymbol }: PortfolioWorkspace
             <span className="page-kicker">Execution attribution</span>
             <h2>Strategy flow</h2>
           </div>
-          <span>Audit-backed order activity</span>
+          <span>{isStale ? "Last known audit-backed activity" : "Audit-backed order activity"}</span>
         </div>
         {strategies.length ? (
           <div className="table-wrap">

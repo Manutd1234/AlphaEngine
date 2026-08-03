@@ -66,6 +66,10 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)-8s %(name)-22s %(message)s",
     datefmt="%H:%M:%S",
 )
+# httpx's INFO request line includes the full Telegram Bot API URL, whose path
+# contains the bot token. Application modules log sanitized outcomes already;
+# never let the transport echo credentials into process logs.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 log = logging.getLogger("alphaengine")
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -288,14 +292,20 @@ async def risk_state() -> RiskState:
 
 
 @app.get("/api/portfolio", tags=["B · Risk"])
-async def portfolio() -> dict[str, Any]:
+async def portfolio(_actor: str = Depends(trader_identity)) -> dict[str, Any]:
     """Portfolio-manager view: exposure, concentration, risk headroom, attribution.
 
     Distinct from `/api/risk/state`, which answers a trader's question about the
     next order. This answers a PM's: where is the book concentrated, which limit
     binds first, and what is producing the P&L.
     """
-    return build_portfolio(get_gateway(), get_audit())
+    payload = build_portfolio(get_gateway(), get_audit())
+    payload["gateway"] = {
+        "environment": settings.environment,
+        "version": settings.version,
+        "authoritative": True,
+    }
+    return payload
 
 
 @app.get("/api/risk/limits", tags=["B · Risk"])
@@ -364,14 +374,15 @@ async def job_status(job_id: str) -> dict[str, Any]:
 # not a gateway error its circuit breaker should count against this process.
 # --------------------------------------------------------------------------- #
 @app.get("/api/research/openbb/health", tags=["C · Research"])
-async def openbb_health() -> dict[str, Any]:
-    return research.openbb_status()
+async def openbb_health(_actor: str = Depends(trader_identity)) -> dict[str, Any]:
+    return await research.openbb_status_async()
 
 
 @app.get("/api/research/openbb/quote", tags=["C · Research"])
 async def openbb_quote(
     symbol: str = Query(min_length=1, max_length=20, pattern=r"^[A-Za-z0-9.\-]+$"),
-    asset: str = Query(default="equity", pattern=r"^(equity|crypto|fx)$"),
+    asset: str = Query(default="equity", pattern=r"^(equity|crypto)$"),
+    _actor: str = Depends(trader_identity),
 ) -> dict[str, Any]:
     return await research.quote(symbol.upper(), asset)
 
@@ -379,9 +390,10 @@ async def openbb_quote(
 @app.get("/api/research/openbb/bars", tags=["C · Research"])
 async def openbb_bars(
     symbol: str = Query(min_length=1, max_length=20, pattern=r"^[A-Za-z0-9.\-]+$"),
-    asset: str = Query(default="equity", pattern=r"^(equity|crypto|fx)$"),
+    asset: str = Query(default="equity", pattern=r"^(equity|crypto)$"),
     interval: str = Query(default="1d", pattern=r"^(15m|1h|4h|1d)$"),
     limit: int = Query(default=500, ge=10, le=5000),
+    _actor: str = Depends(trader_identity),
 ) -> dict[str, Any]:
     return await research.bars(symbol.upper(), asset, interval, limit)
 
@@ -390,6 +402,7 @@ async def openbb_bars(
 async def openbb_news(
     symbols: str = Query(default="", max_length=200),
     limit: int = Query(default=20, ge=1, le=100),
+    _actor: str = Depends(trader_identity),
 ) -> dict[str, Any]:
     parsed = [s.strip().upper() for s in symbols.split(",") if s.strip()][:6]
     return await research.news(parsed, limit)
@@ -398,6 +411,7 @@ async def openbb_news(
 @app.get("/api/research/openbb/fundamentals", tags=["C · Research"])
 async def openbb_fundamentals(
     symbol: str = Query(min_length=1, max_length=20, pattern=r"^[A-Za-z0-9.\-]+$"),
+    _actor: str = Depends(trader_identity),
 ) -> dict[str, Any]:
     return await research.fundamentals(symbol.upper())
 

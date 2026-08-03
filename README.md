@@ -100,7 +100,9 @@ Full documentation: [`Part2_Infrastructure/README.md`](Part2_Infrastructure/READ
 
 ### 2. `web/` — the research portal (Next.js / Vercel)
 
-Module C as a standalone deployable. No backend, no database, no API keys.
+Module C as a standalone deployable. It works keylessly for crypto; optional
+server-side environment variables connect vendor data and the read-only
+portfolio/OpenBB gateway proxy.
 
 **Deploy:** import this repo at <https://vercel.com/new> and set **Root
 Directory** to `web`. Everything else auto-detects.
@@ -136,8 +138,21 @@ Full documentation: [`web/README.md`](web/README.md)
 
 Set **Project → Settings → Build & Deployment → Root Directory** to `web`.
 That is the only required setting; `web/` is a standard Next.js 16 app and
-every environment variable is optional (provider keys extend coverage — see
-[`web/.env.example`](web/.env.example)).
+every environment variable is optional for the research-only experience
+(provider keys extend coverage — see [`web/.env.example`](web/.env.example)).
+The integrated portfolio and OpenBB surfaces need a stable gateway origin:
+
+```text
+ALPHAENGINE_GATEWAY_URL=https://gateway.example.com
+OPENBB_API_URL=https://gateway.example.com
+ALPHAENGINE_GATEWAY_TOKEN=<same value as gateway WEB_API_TOKEN>
+# OPENBB_API_TOKEN=<only needed when research uses a separate token>
+```
+
+Set these for Production and Preview, then redeploy. `/api/providers` probes
+OpenBB health before marking it ready; the presence of a URL alone is not a
+health signal. The portfolio proxy validates the returned schema and preserves
+last-known data as explicitly stale during an outage.
 
 There is deliberately **no root-level `vercel.json`**: a root config that ran
 `cd web && npm install` works only while the Root Directory is the repo root —
@@ -152,11 +167,11 @@ successful `next build`.
 different build than the one tested here.
 
 **Turn off Deployment Protection.** Settings → Deployment Protection → Vercel
-Authentication → **Disabled**. While it is on, every request redirects to
+Authentication → **Disabled** if this case-assessment URL must be public. While
+it is on, every request redirects to
 `vercel.com/login`, so the Telegram Mini App webview opens a Vercel login page
-instead of the portal, and the `/research` button does nothing useful. The portal
-holds no secrets and has no mutating endpoints — the sweep API is a pure function
-of its query — so there is nothing here that protection is buying.
+instead of the portal. Gateway credentials remain server-only in Vercel and the
+browser can access only the explicit read-only proxy routes.
 
 ### Telegram webhook — gateway
 

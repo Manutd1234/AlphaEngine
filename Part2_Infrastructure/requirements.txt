@@ -32,10 +32,10 @@ celery>=5.3
 redis>=5.0
 
 # --- research aggregator (optional & heavyweight; several hundred MB) --------
-# Enables /api/research/openbb/* — without it those routes answer
-# {"ok": false, "error": "..."} and the Vercel portal's registry routes around
-# this gateway. Uncomment to install:
-# openbb>=4.3
+# Enables /api/research/openbb/*. Kept in a separate, pinned file so execution
+# gateway installs stay lean and a provider extension is always included:
+#
+#   pip install -r requirements-openbb.txt && openbb-build
 
 # --- tests -----------------------------------------------------------------
 pytest>=8.0

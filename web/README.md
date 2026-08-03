@@ -24,7 +24,10 @@ registry — see [Data providers](#data-providers).
    to the static "Other" preset, which looks for a `public/` output directory
    and fails **after** a successful `next build` with
    *"No Output Directory named 'public' found"*.
-3. Deploy. There are **no required environment variables**.
+3. Deploy. There are no required variables for keyless crypto research. For the
+   integrated PM/OpenBB experience, set `ALPHAENGINE_GATEWAY_URL` and
+   `OPENBB_API_URL` to the stable FastAPI gateway origin; set
+   `ALPHAENGINE_GATEWAY_TOKEN` to its `WEB_API_TOKEN`. Then redeploy.
 
 Locally:
 
@@ -56,7 +59,10 @@ workspaces without re-entry.
 **Portfolio oversight** — when `ALPHAENGINE_GATEWAY_URL` is configured, the
 read-only server proxy renders authoritative equity, day P&L, gross/net
 exposure, concentration, binding limits, positions, risk headroom and
-audit-backed strategy flow. Gateway credentials remain server-side.
+audit-backed strategy flow. Gateway credentials remain server-side. The UI
+retains a last-good snapshot only with an explicit stale warning, disables its
+execution handoff while stale, and validates the gateway schema before calling
+the book live.
 
 **Trend & signal view** — price with the lines the model *actually trades on*
 (SMAs for the crossover, breakout/trailing bands for Donchian, the trend filter
@@ -116,7 +122,7 @@ The research-data group routes through the [provider registry](#data-providers):
 | `GET /api/fundamentals?symbol=AAPL` | company profile & valuation, edge-cached for a day |
 | `GET /api/research?q=bitcoin+etf+flows` | open-web search returning readable markdown documents |
 | `GET /api/research?url=https://…` | one page fetched as markdown (public HTTP(S) targets only) |
-| `GET /api/providers` | the supply chain: per provider — configured? circuit open? quota spent this window? which env var enables it |
+| `GET /api/providers` | the supply chain: per provider — configured? actively ready? circuit open? quota spent? which env var enables it |
 
 Common query params on the research group: `provider=` pins one adapter
 (`?provider=tiingo`), `priority=interactive` marks a human-driven call that may
@@ -173,7 +179,11 @@ free tiers behave like one dependable feed:
 
 OpenBB is the odd one out: it is a Python *library*, not a hosted API, so it
 runs inside the FastAPI gateway (`modules/research.py`) and the portal's
-adapter is a client of the gateway's `/api/research/openbb/*` routes.
+adapter is a client of the gateway's `/api/research/openbb/*` routes. Install
+the pinned runtime from `Part2_Infrastructure/requirements-openbb.txt`, run
+`openbb-build`, and use a stable gateway origin. `/api/providers` actively
+probes the OpenBB health route, so a non-empty but stale URL is never shown as
+ready.
 
 ### Streaming vs snapshots
 
