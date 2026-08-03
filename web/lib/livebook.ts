@@ -259,7 +259,11 @@ export function useLiveBook(symbol: string, enabled = true, publishHz = 5): Live
   const state = useRef<Map<VenueName, LiveVenueState>>(new Map());
 
   useEffect(() => {
-    if (!enabled || typeof window === "undefined") return;
+    if (!enabled || typeof window === "undefined") {
+      setSnapshot(null);
+      state.current.clear();
+      return;
+    }
 
     // Drop the previous instrument's book at once. The publish interval is the
     // only writer, so without this the old symbol's prices stay painted under

@@ -16,7 +16,7 @@
 import { ParamResult } from "@/lib/types";
 import { fmt, pct } from "@/lib/format";
 import { useMeasuredWidth } from "./chart-kit";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /** Interpolate in sRGB between the diverging poles and the neutral midpoint. */
 function divergingColor(v: number, absMax: number, dark: boolean): string {
@@ -45,14 +45,21 @@ export default function Heatmap({
   const [hover, setHover] = useState<ParamResult | null>(null);
   const [isDark, setIsDark] = useState(false);
 
-  // Read the resolved theme once per render pass — the palette has selected dark
-  // steps rather than an automatic inversion, so the ramp must know which.
-  if (typeof window !== "undefined") {
-    const resolved =
-      document.documentElement.dataset.theme ??
-      (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    if ((resolved === "dark") !== isDark) setIsDark(resolved === "dark");
-  }
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const resolveTheme = () => {
+      const resolved = document.documentElement.dataset.theme ?? (media.matches ? "dark" : "light");
+      setIsDark(resolved === "dark");
+    };
+    const observer = new MutationObserver(resolveTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    media.addEventListener("change", resolveTheme);
+    resolveTheme();
+    return () => {
+      observer.disconnect();
+      media.removeEventListener("change", resolveTheme);
+    };
+  }, []);
 
   const fasts = [...new Set(results.map((r) => r.fast))].sort((a, b) => a - b);
   const slows = [...new Set(results.map((r) => r.slow))].sort((a, b) => a - b);
@@ -134,9 +141,20 @@ export default function Heatmap({
                 strokeWidth={isSel ? 2 : isBest ? 1.4 : 0}
                 strokeDasharray={isBest && !isSel ? "3 2" : undefined}
                 style={{ cursor: onSelect ? "pointer" : "default" }}
+                tabIndex={onSelect ? 0 : undefined}
+                role={onSelect ? "button" : undefined}
+                aria-label={`Fast ${f}, slow ${s}, Sharpe ${fmt(r.sharpe, 2)}, return ${pct(r.totalReturn)}`}
                 onPointerEnter={() => setHover(r)}
                 onPointerLeave={() => setHover(null)}
+                onFocus={() => setHover(r)}
+                onBlur={() => setHover(null)}
                 onClick={() => onSelect?.(r)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelect?.(r);
+                  }
+                }}
               >
                 <title>{`fast ${f} / slow ${s} — Sharpe ${fmt(r.sharpe, 2)}, return ${pct(r.totalReturn)}`}</title>
               </rect>

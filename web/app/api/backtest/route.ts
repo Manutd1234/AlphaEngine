@@ -11,7 +11,11 @@ export const runtime = "nodejs";
 // cannot be reproduced locally.
 
 const STRATEGIES = new Set(["ma_cross", "donchian", "rsi_reversion"]);
-const SYMBOL_RE = /^[A-Z0-9]{5,20}$/;
+// Keep the research context aligned with the data workspace. Equity symbols
+// may contain a class suffix (BRK.B) and short tickers must not silently fall
+// back to BTCUSDT. The current research loader is crypto-first, so unsupported
+// instruments return an explicitly labelled synthetic fallback instead.
+const SYMBOL_RE = /^[A-Z0-9.\-]{1,20}$/;
 
 function clamp(v: unknown, lo: number, hi: number, fallback: number): number {
   const n = Number(v);

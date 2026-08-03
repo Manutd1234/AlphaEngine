@@ -2,7 +2,7 @@
   "name": "alphaengine-research-portal",
   "version": "1.0.0",
   "private": true,
-  "description": "AlphaEngine Trading Automation research portal — parameter sweeps with multiple-testing correction.",
+  "description": "AlphaEngine integrated investment workspace for portfolio, research, execution and data operations.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

@@ -45,6 +45,14 @@ export function ResultsTable({
                 key={`${r.fast}-${r.slow}`}
                 className={isSel ? "is-best" : undefined}
                 onClick={() => onSelect?.(r)}
+                onKeyDown={(event) => {
+                  if (onSelect && (event.key === "Enter" || event.key === " ")) {
+                    event.preventDefault();
+                    onSelect(r);
+                  }
+                }}
+                tabIndex={onSelect ? 0 : undefined}
+                aria-label={onSelect ? `Inspect parameters ${r.fast}/${r.slow}` : undefined}
                 style={{ cursor: onSelect ? "pointer" : undefined }}
               >
                 <th scope="row" style={{ textAlign: "left", padding: "7px 10px", borderBottom: "1px solid var(--grid)", fontWeight: 600 }}>

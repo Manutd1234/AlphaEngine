@@ -1,14 +1,18 @@
-# AlphaEngine Trading Automation — Strategy Research Portal (Vercel)
+# AlphaEngine — Integrated Investment Infrastructure (Vercel)
 
-The research half of AlphaEngine as a deployable Next.js app: pick a market and a
-model, sweep a parameter grid, and get an explicit answer to **"does this
-strategy actually work?"** — with the multiple-testing correction applied, not
-just the headline Sharpe.
+The desk-facing half of AlphaEngine as a deployable Next.js app: one shared
+instrument and decision context across portfolio oversight, strategy research,
+live execution-cost analysis, market-data lineage and developer operations.
+Research still gives an explicit answer to **"does this strategy actually
+work?"** with the multiple-testing correction applied, not just the headline
+Sharpe; the result now carries forward into the execution and data workflows.
 
-Deployed as a standalone app; it needs no backend, no database and no API keys.
-Adding keys (all optional) extends it from crypto into equities, fundamentals,
-news and open-web research through a seven-provider registry — see
-[Data providers](#data-providers).
+The public market, research and data workflows need no backend, database or API
+keys. An optional server-side connection to the included AlphaEngine gateway
+adds the authoritative portfolio/risk view without exposing gateway credentials
+to the browser. Provider keys (also optional) extend coverage from crypto into
+equities, fundamentals, news and open-web research through a seven-provider
+registry — see [Data providers](#data-providers).
 
 ---
 
@@ -42,6 +46,17 @@ new dependency tree.
 ---
 
 ## What it does
+
+**Connected desk context** — instrument and horizon live in the persistent
+workspace shell and carry across Portfolio, Research, Execution and Data &
+systems. Research winners retain their modeled slippage budget when handed to
+the live TCA probe; quote lookups and portfolio positions can focus the other
+workspaces without re-entry.
+
+**Portfolio oversight** — when `ALPHAENGINE_GATEWAY_URL` is configured, the
+read-only server proxy renders authoritative equity, day P&L, gross/net
+exposure, concentration, binding limits, positions, risk headroom and
+audit-backed strategy flow. Gateway credentials remain server-side.
 
 **Trend & signal view** — price with the lines the model *actually trades on*
 (SMAs for the crossover, breakout/trailing bands for Donchian, the trend filter
@@ -88,6 +103,7 @@ exchanges live. `GET /api/markets` returns this list at runtime.
 | `GET /api/depth?symbol=&limit=&depth=` | live L2 book per venue **and** the consolidated ladder, with cumulative notional |
 | `GET /api/tca?symbol=&side=&notional=` | VWAP, slippage in bps, fillability per venue, and the cross-venue routing split |
 | `GET /api/ohlcv?symbol=&interval=&bars=` | historical candles — crypto keyless via Binance; equities via the provider registry |
+| `GET /api/gateway/portfolio` | same-origin read-only proxy to the authoritative FastAPI portfolio/risk book (optional gateway connection) |
 | `POST /api/backtest` | parameter sweep with deflated Sharpe and walk-forward |
 
 The research-data group routes through the [provider registry](#data-providers):

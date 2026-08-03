@@ -115,9 +115,33 @@ const QUICK_PICKS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "AAPL", "NVDA", "TSLA", "M
  *  provider's interactive reserve. */
 const REFRESH_MS = 30_000;
 
-export default function DataFeeds() {
-  const [symbol, setSymbol] = useState("BTCUSDT");
-  const [input, setInput] = useState("BTCUSDT");
+const LIVE_SYMBOLS = new Set(["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT"]);
+
+const API_SURFACES = [
+  { method: "GET", path: "/api/quote?symbols=", purpose: "Normalised quote with provider provenance" },
+  { method: "GET", path: "/api/ohlcv?symbol=&interval=&bars=", purpose: "Historical bars and source warnings" },
+  { method: "GET", path: "/api/depth?symbol=", purpose: "Cross-venue L2 snapshot" },
+  { method: "GET", path: "/api/tca?symbol=&side=&notional=", purpose: "Pre-trade cost and routing estimate" },
+  { method: "POST", path: "/api/backtest", purpose: "Synchronous research sweep" },
+  { method: "GET", path: "/api/providers", purpose: "Provider, quota and circuit health" },
+  { method: "GET", path: "/api/gateway/portfolio", purpose: "Authoritative portfolio and risk state" },
+] as const;
+
+interface DataFeedsProps {
+  workspaceSymbol: string;
+  onWorkspaceSymbolChange: (symbol: string) => void;
+  onOpenResearch: () => void;
+  onOpenLive: () => void;
+}
+
+export default function DataFeeds({
+  workspaceSymbol,
+  onWorkspaceSymbolChange,
+  onOpenResearch,
+  onOpenLive,
+}: DataFeedsProps) {
+  const [symbol, setSymbol] = useState(workspaceSymbol);
+  const [input, setInput] = useState(workspaceSymbol);
   const [consensus, setConsensus] = useState(false);
   const [quote, setQuote] = useState<QuoteRow | null>(null);
   const [cons, setCons] = useState<ConsensusRow | null>(null);
@@ -128,6 +152,14 @@ export default function DataFeeds() {
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const seq = useRef(0);
+
+  useEffect(() => {
+    const next = workspaceSymbol.trim().toUpperCase();
+    if (next) {
+      setSymbol(next);
+      setInput(next);
+    }
+  }, [workspaceSymbol]);
 
   const refreshProviders = useCallback(() => {
     fetch("/api/providers")
@@ -232,6 +264,7 @@ export default function DataFeeds() {
     if (/^[A-Z0-9.\-]{1,20}$/.test(sym)) {
       setInput(sym);
       setSymbol(sym);
+      onWorkspaceSymbolChange(sym);
     }
   };
 
@@ -239,6 +272,20 @@ export default function DataFeeds() {
 
   return (
     <>
+      <div className="workflow-handoff data-handoff">
+        <div>
+          <span className="page-kicker">Shared desk instrument</span>
+          <strong className="num">{symbol}</strong>
+          <small>Every submitted lookup updates the context used by Research and Execution.</small>
+        </div>
+        <div>
+          <button className="primary-action" onClick={onOpenResearch}>Research {symbol}</button>
+          <button onClick={onOpenLive} disabled={!LIVE_SYMBOLS.has(symbol)} title={LIVE_SYMBOLS.has(symbol) ? "Open live venue books" : "Live venue books are available for supported crypto pairs"}>
+            {LIVE_SYMBOLS.has(symbol) ? "Open live book" : "No live L2 coverage"}
+          </button>
+        </div>
+      </div>
+
       {/* ---- lookup ------------------------------------------------------ */}
       <div className="card">
         <h2>Symbol lookup</h2>
@@ -452,6 +499,28 @@ export default function DataFeeds() {
           Ranked failover across these upstreams. A dark provider needs only its environment
           variable — no code changes.
         </p>
+        <div className="system-summary-grid">
+          <div>
+            <span>Ready</span>
+            <strong className="num">{providers ? providers.filter((provider) => provider.configured && !provider.circuitOpen).length : "—"}</strong>
+            <small>configured routes</small>
+          </div>
+          <div>
+            <span>Degraded</span>
+            <strong className="num">{providers ? providers.filter((provider) => provider.circuitOpen).length : "—"}</strong>
+            <small>open circuits</small>
+          </div>
+          <div>
+            <span>Capabilities</span>
+            <strong className="num">{providers ? new Set(providers.flatMap((provider) => provider.capabilities)).size : "—"}</strong>
+            <small>normalised services</small>
+          </div>
+          <div>
+            <span>Refresh policy</span>
+            <strong className="num">{REFRESH_MS / 1000}s</strong>
+            <small>background, quota fenced</small>
+          </div>
+        </div>
         <div className="table-wrap">
           <table>
             <thead>
@@ -495,6 +564,29 @@ export default function DataFeeds() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="card api-surface-card">
+        <div className="section-heading compact">
+          <div>
+            <span className="page-kicker">Developer surface</span>
+            <h2>Desk-facing APIs</h2>
+          </div>
+          <span className="section-note">Same contracts that power this workspace.</span>
+        </div>
+        <div className="api-surface-list">
+          {API_SURFACES.map((surface) => (
+            <div className="api-surface-row" key={`${surface.method}-${surface.path}`}>
+              <span className={`method-badge method-${surface.method.toLowerCase()}`}>{surface.method}</span>
+              <code>{surface.path}</code>
+              <span>{surface.purpose}</span>
+            </div>
+          ))}
+        </div>
+        <p className="api-note">
+          Live browser books are market-data signals, not an execution authority. Order submission,
+          portfolio risk and kill-switch actions stay behind the authenticated gateway.
+        </p>
       </div>
     </>
   );

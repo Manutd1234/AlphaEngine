@@ -8,13 +8,12 @@
  * `/api/depth` and `/api/tca` for non-browser callers.
  */
 
-import { useState } from "react";
-
 import DepthChart from "@/components/DepthChart";
 import StatTile from "@/components/StatTile";
 import { liveTca, useLiveBook } from "@/lib/livebook";
 import { SYMBOLS, type Side } from "@/lib/venues";
 import { compact, fmt, priceDp, usd } from "@/lib/format";
+import { STRATEGY_LABELS, type SweepResponse } from "@/lib/types";
 
 const PROBE_SIZES = [10_000, 50_000, 100_000, 250_000, 1_000_000];
 
@@ -25,12 +24,31 @@ const STATUS_STYLE = {
   error: { color: "var(--status-critical)", icon: "✕", label: "down" },
 } as const;
 
-export default function LiveMarket() {
-  const [symbol, setSymbol] = useState<string>(SYMBOLS[0]);
-  const [side, setSide] = useState<Side>("BUY");
-  const [notional, setNotional] = useState(100_000);
+interface LiveMarketProps {
+  symbol: string;
+  onSymbolChange: (symbol: string) => void;
+  side: Side;
+  onSideChange: (side: Side) => void;
+  notional: number;
+  onNotionalChange: (notional: number) => void;
+  research: SweepResponse | null;
+  onOpenResearch: () => void;
+  onOpenData: () => void;
+}
 
-  const snap = useLiveBook(symbol);
+export default function LiveMarket({
+  symbol,
+  onSymbolChange,
+  side,
+  onSideChange,
+  notional,
+  onNotionalChange,
+  research,
+  onOpenResearch,
+  onOpenData,
+}: LiveMarketProps) {
+  const liveSupported = (SYMBOLS as readonly string[]).includes(symbol);
+  const snap = useLiveBook(symbol, liveSupported);
   const tca = liveTca(snap, side, notional);
   const dp = snap?.consolidatedMid ? priceDp(snap.consolidatedMid) : 2;
 
@@ -82,15 +100,14 @@ export default function LiveMarket() {
     ));
   };
 
-  return (
-    <>
-      <div className="card">
+  const instrumentPanel = (
+    <div className="card instrument-panel">
         <h2>Instrument</h2>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
           {SYMBOLS.map((s) => (
             <button
               key={s}
-              onClick={() => setSymbol(s)}
+              onClick={() => onSymbolChange(s)}
               aria-pressed={s === symbol}
               style={{
                 fontFamily: "var(--mono)",
@@ -124,9 +141,60 @@ export default function LiveMarket() {
               </span>
             );
           })}
-          {!snap && <span className="muted">opening sockets…</span>}
+          {liveSupported && !snap && <span className="muted">opening sockets…</span>}
         </div>
       </div>
+  );
+
+  if (!liveSupported) {
+    return (
+      <>
+        {instrumentPanel}
+        <div className="capability-empty">
+          <span className="role-monogram" aria-hidden>L2</span>
+          <div>
+            <span className="page-kicker">Capability boundary</span>
+            <h2>Live venue routing is not available for {symbol}.</h2>
+            <p>
+              Quote and news coverage can still be inspected in Data & systems. Select a supported
+              crypto pair above to open direct Binance and Bybit order books.
+            </p>
+            <div>
+              <button className="primary-action" onClick={onOpenData}>Open data workspace</button>
+              <button onClick={onOpenResearch}>Review research context</button>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  const costVsModel = tca?.slippageBps == null || !research
+    ? null
+    : tca.slippageBps - research.request.slippageBps;
+
+  return (
+    <>
+      {instrumentPanel}
+
+      {research?.request.symbol === symbol && (
+        <div className="workflow-handoff execution-handoff">
+          <div>
+            <span className="page-kicker">Research context attached</span>
+            <strong>{STRATEGY_LABELS[research.request.strategy]} {research.best.fast}/{research.best.slow} · {research.verdict.level.toUpperCase()}</strong>
+            <small>
+              Model budget {research.request.slippageBps} bps
+              {costVsModel == null
+                ? " · live impact pending"
+                : ` · live impact is ${Math.abs(costVsModel).toFixed(2)} bps ${costVsModel <= 0 ? "inside" : "above"} budget`}
+            </small>
+          </div>
+          <div>
+            <button onClick={onOpenResearch}>Review evidence</button>
+            <button onClick={onOpenData}>Verify feed</button>
+          </div>
+        </div>
+      )}
 
       <div className="tiles" style={{ marginBottom: 16, gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))" }}>
         <StatTile label="Consolidated mid" value={fmt(snap?.consolidatedMid, dp)} note={`${snap?.venues.filter((v) => v.status === "live").length ?? 0} venues live`} />
@@ -216,14 +284,14 @@ export default function LiveMarket() {
               min={100}
               step={10000}
               value={notional}
-              onChange={(e) => setNotional(Math.max(100, Number(e.target.value) || 0))}
+              onChange={(e) => onNotionalChange(Math.max(100, Number(e.target.value) || 0))}
             />
           </div>
           <div style={{ flex: 1 }}>
             <label className="field">Side</label>
             <div className="seg">
               {(["BUY", "SELL"] as Side[]).map((s) => (
-                <button key={s} aria-pressed={s === side} onClick={() => setSide(s)}>
+                <button key={s} aria-pressed={s === side} onClick={() => onSideChange(s)}>
                   {s}
                 </button>
               ))}
@@ -233,7 +301,7 @@ export default function LiveMarket() {
 
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
           {PROBE_SIZES.map((n) => (
-            <button key={n} className="icon" onClick={() => setNotional(n)} style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>
+            <button key={n} className="icon" onClick={() => onNotionalChange(n)} style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>
               ${compact(n)}
             </button>
           ))}

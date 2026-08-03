@@ -10,7 +10,7 @@ import {
   SweepRequest,
 } from "@/lib/types";
 
-const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT"];
+const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "AAPL", "NVDA", "MSFT"];
 
 function Slider({
   label,
@@ -85,23 +85,26 @@ export default function Controls({
   const meaning = PARAM_MEANING[req.strategy];
 
   return (
-    <div className="card sidebar">
-      <h2>Strategy</h2>
+    <div className="card sidebar experiment-panel">
+      <h2>Experiment setup</h2>
+      <p className="sub">Changes stay in the shared desk context until you run a new validation.</p>
       <div className="stack">
         <div className="row">
           <div>
             <label className="field" htmlFor="symbol">
               Symbol
             </label>
-            <select
+            <input
               id="symbol"
+              list="research-symbols"
               value={req.symbol}
-              onChange={(e) => patch({ symbol: e.target.value })}
-            >
-              {SYMBOLS.map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
+              onChange={(e) => patch({ symbol: e.target.value.toUpperCase() })}
+              onBlur={(e) => patch({ symbol: e.target.value.trim().toUpperCase() || "BTCUSDT" })}
+              spellCheck={false}
+            />
+            <datalist id="research-symbols">
+              {SYMBOLS.map((s) => <option key={s} value={s} />)}
+            </datalist>
           </div>
           <div>
             <label className="field" htmlFor="interval">
