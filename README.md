@@ -109,13 +109,21 @@ Directory** to `web`. Everything else auto-detects.
 cd web
 npm install
 npm run dev    # http://localhost:3000
-npm test       # 65 tests
+npm test       # 83 tests
 ```
 
 Live-feed endpoints (public, no key):
 `/api/ticker` · `/api/depth` · `/api/tca` · `/api/ohlcv` · `POST /api/backtest` ·
 `/api/markets` for the index. Tick-by-tick L2 streams straight from the exchanges
 to the browser, since a serverless function cannot hold a subscription open.
+
+Research-data endpoints (`/api/quote` incl. cross-source consensus, `/api/news`,
+`/api/fundamentals`, `/api/research` for open-web search/scrape, and
+`/api/providers` for supply-chain health) route through a seven-provider
+registry — FMP, Tiingo, Massive (ex-Polygon.io), Marketstack, Alpha Vantage,
+Firecrawl and OpenBB — with per-provider quota budgeting, circuit breaking and
+ranked failover. Every key is optional: keyless deployments still serve crypto
+through Binance's public API. See [`web/.env.example`](web/.env.example).
 
 Full documentation: [`web/README.md`](web/README.md)
 

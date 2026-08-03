@@ -41,7 +41,7 @@ optional pieces are in §6 (Telegram) and §7 (Celery).
 Run the tests:
 
 ```bash
-pytest                                   # 115 tests, ~9s, no network required
+pytest                                   # 134 tests, ~10s, no network required
 ```
 
 ---
@@ -331,9 +331,20 @@ sends the portal URL as text instead.
 | `POST` | `/api/backtest` | queue a sweep → `job_id` |
 | `GET` | `/api/jobs/{id}` | progress, then the full result |
 | `GET` | `/api/audit/orders` · `events` · `backtests` · `stats` | audit log |
+| `GET` | `/api/research/openbb/health` · `quote` · `bars` · `news` · `fundamentals` | OpenBB bridge (see below) |
 | `POST` | `/telegram/webhook` | Telegram updates |
 
 Interactive docs at `/docs`.
+
+**The OpenBB bridge** (`modules/research.py`): OpenBB is a Python *library*
+(`pip install openbb`), not a hosted API, so this gateway is where it runs; the
+Vercel portal's provider registry reaches it through these routes by setting
+`OPENBB_API_URL` to this gateway's public URL. The dependency is optional and
+heavyweight — when absent, the routes answer `{"ok": false, "error": …}` with
+HTTP&nbsp;200 so the portal treats it as a routing signal rather than a gateway
+failure, and `/api/research/openbb/health` says exactly what is missing. OpenBB
+calls run in a worker thread with a 20&nbsp;s bound, so research traffic can
+never stall the event loop that serves order-risk checks.
 
 ```bash
 # a rejection, with its evidence
@@ -437,4 +448,4 @@ tests/test_api.py          REST contract, rejection semantics, job lifecycle,
 tests/test_telegram.py     command dispatch, authorisation, rendering, alerts
 ```
 
-115 tests, ~9 s, no network required.
+134 tests, ~10 s, no network required.

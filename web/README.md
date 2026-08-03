@@ -6,13 +6,20 @@ strategy actually work?"** — with the multiple-testing correction applied, not
 just the headline Sharpe.
 
 Deployed as a standalone app; it needs no backend, no database and no API keys.
+Adding keys (all optional) extends it from crypto into equities, fundamentals,
+news and open-web research through a seven-provider registry — see
+[Data providers](#data-providers).
 
 ---
 
 ## Deploy to Vercel
 
 1. Import the GitHub repo at <https://vercel.com/new>.
-2. Set **Root Directory** to `web`. Everything else auto-detects (Next.js 16).
+2. Set **Root Directory** to `web`. Everything else auto-detects (Next.js 16) —
+   `web/vercel.json` pins `"framework": "nextjs"` so the build cannot fall back
+   to the static "Other" preset, which looks for a `public/` output directory
+   and fails **after** a successful `next build` with
+   *"No Output Directory named 'public' found"*.
 3. Deploy. There are **no required environment variables**.
 
 Locally:
@@ -23,7 +30,7 @@ npm install
 npm run dev        # http://localhost:3000 (Turbopack)
 npm run build      # Turbopack production build
 npm run typecheck  # tsc --noEmit
-npm test           # 65 tests, no network required
+npm test           # 83 tests, no network required
 ```
 
 Built on **Next.js 16** with **Turbopack**, which is the default bundler for both
@@ -71,8 +78,8 @@ winner, and the in-sample → out-of-sample gap that reveals overfitting.
 
 ## API
 
-Every endpoint is public, needs no key, and hits the exchanges live.
-`GET /api/markets` returns this list at runtime.
+Every endpoint below the first group is public, needs no key, and hits the
+exchanges live. `GET /api/markets` returns this list at runtime.
 
 | Endpoint | Returns |
 |---|---|
@@ -80,12 +87,78 @@ Every endpoint is public, needs no key, and hits the exchanges live.
 | `GET /api/ticker?symbols=BTCUSDT,ETHUSDT` | last price, 24h change, high/low, volume |
 | `GET /api/depth?symbol=&limit=&depth=` | live L2 book per venue **and** the consolidated ladder, with cumulative notional |
 | `GET /api/tca?symbol=&side=&notional=` | VWAP, slippage in bps, fillability per venue, and the cross-venue routing split |
-| `GET /api/ohlcv?symbol=&interval=&bars=` | historical candles |
+| `GET /api/ohlcv?symbol=&interval=&bars=` | historical candles — crypto keyless via Binance; equities via the provider registry |
 | `POST /api/backtest` | parameter sweep with deflated Sharpe and walk-forward |
+
+The research-data group routes through the [provider registry](#data-providers):
+
+| Endpoint | Returns |
+|---|---|
+| `GET /api/quote?symbols=AAPL,BTCUSDT` | normalised quotes with provenance (which provider, latency, delayed?, quota left) |
+| `GET /api/quote?symbols=AAPL&consensus=1` | every configured source at once: per-leg deviation from the median in bps, staleness, outliers |
+| `GET /api/news?symbols=AAPL&limit=20` | normalised headlines; `sentiment` only where a provider actually scores it |
+| `GET /api/fundamentals?symbol=AAPL` | company profile & valuation, edge-cached for a day |
+| `GET /api/research?q=bitcoin+etf+flows` | open-web search returning readable markdown documents |
+| `GET /api/research?url=https://…` | one page fetched as markdown (public HTTP(S) targets only) |
+| `GET /api/providers` | the supply chain: per provider — configured? circuit open? quota spent this window? which env var enables it |
+
+Common query params on the research group: `provider=` pins one adapter
+(`?provider=tiingo`), `priority=interactive` marks a human-driven call that may
+spend into the reserved quota — the default `background` is fenced out of each
+provider's reserve so an auto-refreshing panel can never exhaust a monthly
+budget a person needs later.
 
 ```bash
 curl "https://<your-app>.vercel.app/api/tca?symbol=BTCUSDT&side=BUY&notional=100000"
+curl "https://<your-app>.vercel.app/api/quote?symbols=AAPL,BTCUSDT&consensus=1"
 ```
+
+## Data providers
+
+Seven upstreams behind one registry (`lib/providers/`). Routes ask for a
+*capability* — quote, bars, news, fundamentals, search, scrape — and the
+registry picks the highest-ranked provider that is configured, under quota and
+not circuit-broken, then attaches provenance and the list of everything it
+skipped and why. **With no keys at all, crypto still works** through Binance's
+public endpoints; each key adds capability without touching code.
+
+| Provider | Capabilities | Free tier assumed | Env var |
+|---|---|---|---|
+| Binance (public) | crypto quote, bars | keyless | — |
+| Financial Modeling Prep | quote¹, fundamentals¹, bars, news | 250/day | `FMP_API_KEY` |
+| Tiingo | quote, bars, news¹ (IEX + crypto) | 1,000/day | `TIINGO_API_KEY` |
+| Massive (ex-Polygon.io) | bars¹, quote, news, reference | 5/min, EOD | `MASSIVE_API_KEY` |
+| Marketstack | EOD bars, 70+ exchanges | **100/month** | `MARKETSTACK_API_KEY` |
+| Alpha Vantage | quote, bars, fundamentals, news+sentiment | 25/day | `ALPHAVANTAGE_API_KEY` |
+| Firecrawl | web search¹, scrape¹ | 1,000 credits/mo | `FIRECRAWL_API_KEY` |
+| OpenBB | aggregator via the Python gateway | n/a | `OPENBB_API_URL` |
+
+¹ = ranked first for that capability. Full signup pointers in
+[`.env.example`](.env.example).
+
+The reliability layer (`lib/providers/runtime.ts`) is what makes seven flaky
+free tiers behave like one dependable feed:
+
+- **Quota ledger** — calls are counted *before* they are made, per calendar
+  window (Marketstack's 100/month would otherwise be gone by 9am); background
+  polling is fenced out of a per-provider reserve so interactive lookups still
+  have budget at 4pm.
+- **Circuit breaker** — 3 consecutive failures open the circuit for 60s, so one
+  dead vendor stops costing every request its timeout.
+- **Failover with provenance** — the response names who answered *and* who was
+  skipped (no key / quota spent / circuit open / failed), so a degraded answer
+  is visibly degraded.
+- **Consensus mode** — the failure that costs money is not an outage, it is a
+  feed quietly serving Friday's close with HTTP 200. `?consensus=1` fans out to
+  every configured source and flags legs > 50bps from the median.
+- **Honest limitation** — the ledger lives in the function instance's memory;
+  on a multi-instance deployment each instance counts its own spend. `Store` is
+  an interface with one in-memory implementation precisely so Vercel KV/Redis
+  is a drop-in swap, and `/api/providers` states the scope in its payload.
+
+OpenBB is the odd one out: it is a Python *library*, not a hosted API, so it
+runs inside the FastAPI gateway (`modules/research.py`) and the portal's
+adapter is a client of the gateway's `/api/research/openbb/*` routes.
 
 ### Streaming vs snapshots
 
@@ -126,7 +199,12 @@ web/
 │       ├── tca/route.ts      VWAP, slippage, cross-venue route
 │       ├── ticker/route.ts   last price and 24h stats
 │       ├── markets/route.ts  endpoint + instrument index
-│       └── ohlcv/route.ts    historical candles
+│       ├── ohlcv/route.ts    historical candles (crypto keyless; equities via registry)
+│       ├── quote/route.ts    multi-provider quotes, incl. consensus mode
+│       ├── news/route.ts     normalised headlines
+│       ├── fundamentals/route.ts  company profile & valuation
+│       ├── research/route.ts open-web search + page-to-markdown (Firecrawl)
+│       └── providers/route.ts  supply-chain health: keys, quotas, breakers
 ├── lib/
 │   ├── engine.ts             vectorised backtester — port of the Python reference
 │   ├── indicators.ts         O(n) SMA / rolling extremes / RSI kernels
@@ -134,9 +212,16 @@ web/
 │   ├── marketdata.ts         Binance klines + deterministic synthetic fallback
 │   ├── venues.ts             live venue adapters + book/TCA maths
 │   ├── livebook.ts           browser WebSocket L2 client (Binance + Bybit)
-│   └── types.ts              shared contracts
+│   ├── types.ts              shared contracts
+│   └── providers/            the seven-vendor registry
+│       ├── types.ts          capability contracts, normalised payloads, provenance
+│       ├── runtime.ts        quota ledger, circuit breaker, cache, dispatch
+│       ├── registry.ts       ranked routing, consensus quotes, status
+│       ├── parse.ts          NaN-safe coercion funnel (vendor JSON is hostile)
+│       └── …one adapter per vendor (binance, fmp, tiingo, massive,
+│            marketstack, alphavantage, firecrawl, openbb)
 ├── components/               charts (hand-rolled SVG), controls, tables
-└── tests/                    65 tests incl. cross-engine parity
+└── tests/                    83 tests incl. cross-engine parity
 ```
 
 **Why the sweep runs server-side.** Binance's public API is called from the

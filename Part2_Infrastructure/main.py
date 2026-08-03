@@ -46,6 +46,7 @@ from config import BASE_DIR, settings
 from modules.audit import get_audit
 from modules.backtester import VECTORBT_AVAILABLE, run_backtest
 from modules.jobs import get_queue
+from modules import research
 from modules.portfolio import build_portfolio
 from modules.risk_proxy import get_gateway
 from modules.schemas import (
@@ -351,6 +352,54 @@ async def job_status(job_id: str) -> dict[str, Any]:
     if record.status == "succeeded":
         out["result"] = record.result
     return out
+
+
+# --------------------------------------------------------------------------- #
+# OpenBB research bridge
+#
+# OpenBB is a Python library, not a hosted API, so this gateway is where it
+# runs; the Vercel portal's `openbb` provider adapter is a client of these
+# routes. Failures return {"ok": false} with HTTP 200 on purpose: a missing
+# downstream key inside OpenBB is a routing signal for the portal's registry,
+# not a gateway error its circuit breaker should count against this process.
+# --------------------------------------------------------------------------- #
+@app.get("/api/research/openbb/health", tags=["C · Research"])
+async def openbb_health() -> dict[str, Any]:
+    return research.openbb_status()
+
+
+@app.get("/api/research/openbb/quote", tags=["C · Research"])
+async def openbb_quote(
+    symbol: str = Query(min_length=1, max_length=20, pattern=r"^[A-Za-z0-9.\-]+$"),
+    asset: str = Query(default="equity", pattern=r"^(equity|crypto|fx)$"),
+) -> dict[str, Any]:
+    return await research.quote(symbol.upper(), asset)
+
+
+@app.get("/api/research/openbb/bars", tags=["C · Research"])
+async def openbb_bars(
+    symbol: str = Query(min_length=1, max_length=20, pattern=r"^[A-Za-z0-9.\-]+$"),
+    asset: str = Query(default="equity", pattern=r"^(equity|crypto|fx)$"),
+    interval: str = Query(default="1d", pattern=r"^(15m|1h|4h|1d)$"),
+    limit: int = Query(default=500, ge=10, le=5000),
+) -> dict[str, Any]:
+    return await research.bars(symbol.upper(), asset, interval, limit)
+
+
+@app.get("/api/research/openbb/news", tags=["C · Research"])
+async def openbb_news(
+    symbols: str = Query(default="", max_length=200),
+    limit: int = Query(default=20, ge=1, le=100),
+) -> dict[str, Any]:
+    parsed = [s.strip().upper() for s in symbols.split(",") if s.strip()][:6]
+    return await research.news(parsed, limit)
+
+
+@app.get("/api/research/openbb/fundamentals", tags=["C · Research"])
+async def openbb_fundamentals(
+    symbol: str = Query(min_length=1, max_length=20, pattern=r"^[A-Za-z0-9.\-]+$"),
+) -> dict[str, Any]:
+    return await research.fundamentals(symbol.upper())
 
 
 # --------------------------------------------------------------------------- #

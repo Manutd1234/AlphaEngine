@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import Controls from "@/components/Controls";
+import DataFeeds from "@/components/DataFeeds";
 import EquityChart from "@/components/EquityChart";
 import Heatmap from "@/components/Heatmap";
 import LiveMarket from "@/components/LiveMarket";
@@ -26,7 +27,7 @@ export default function Page() {
   const [inspect, setInspect] = useState<ParamResult | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<"research" | "live">("research");
+  const [view, setView] = useState<"research" | "live" | "data">("research");
 
   const run = useCallback(
     async (override?: Partial<SweepRequest>) => {
@@ -109,12 +110,15 @@ export default function Page() {
             Alpha<span>Engine</span>
             <small>Strategy research portal</small>
           </div>
-          <div className="seg" style={{ maxWidth: 280 }} role="tablist" aria-label="View">
+          <div className="seg" style={{ maxWidth: 400 }} role="tablist" aria-label="View">
             <button role="tab" aria-selected={view === "research"} aria-pressed={view === "research"} onClick={() => setView("research")}>
               🧪 Research
             </button>
             <button role="tab" aria-selected={view === "live"} aria-pressed={view === "live"} onClick={() => setView("live")}>
               📡 Live market
+            </button>
+            <button role="tab" aria-selected={view === "data"} aria-pressed={view === "data"} onClick={() => setView("data")}>
+              🛰 Data feeds
             </button>
           </div>
           <div className="grow" />
@@ -146,6 +150,8 @@ export default function Page() {
 
         {view === "live" ? (
           <LiveMarket />
+        ) : view === "data" ? (
+          <DataFeeds />
         ) : (
         <div className="cols">
           <Controls req={req} setReq={setReq} onRun={() => run()} running={running} />
