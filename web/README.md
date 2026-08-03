@@ -21,7 +21,7 @@ Locally:
 cd web
 npm install
 npm run dev     # http://localhost:3000
-npm test        # 38 tests, no network required
+npm test        # 55 tests, no network required
 ```
 
 ---
@@ -110,16 +110,22 @@ web/
 │   ├── layout.tsx            theme bootstrap, metadata
 │   ├── globals.css           design tokens (palette, light + dark)
 │   └── api/
-│       ├── backtest/route.ts sweep endpoint (Node runtime, 60s budget)
-│       └── ohlcv/route.ts    raw candles
+│       ├── backtest/route.ts parameter sweep
+│       ├── depth/route.ts    live L2 books + consolidated ladder
+│       ├── tca/route.ts      VWAP, slippage, cross-venue route
+│       ├── ticker/route.ts   last price and 24h stats
+│       ├── markets/route.ts  endpoint + instrument index
+│       └── ohlcv/route.ts    historical candles
 ├── lib/
 │   ├── engine.ts             vectorised backtester — port of the Python reference
 │   ├── indicators.ts         O(n) SMA / rolling extremes / RSI kernels
 │   ├── stats.ts              PSR, Deflated Sharpe, verdict logic
 │   ├── marketdata.ts         Binance klines + deterministic synthetic fallback
+│   ├── venues.ts             live venue adapters + book/TCA maths
+│   ├── livebook.ts           browser WebSocket L2 client (Binance + Bybit)
 │   └── types.ts              shared contracts
 ├── components/               charts (hand-rolled SVG), controls, tables
-└── tests/                    38 tests incl. cross-engine parity
+└── tests/                    55 tests incl. cross-engine parity
 ```
 
 **Why the sweep runs server-side.** Binance's public API is called from the
