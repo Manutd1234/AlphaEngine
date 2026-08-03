@@ -76,7 +76,8 @@ HELP_TEXT = """<b>AlphaEngine — Execution Gateway &amp; Risk Portal</b>
 <code>/jobs</code> — job queue status
 
 <b>🖥 Full UI</b>
-<code>/app</code> — open the Mini App"""
+<code>/app</code> — trading desk (order book, risk, execution)
+<code>/research</code> — strategy research portal (trends, sweeps, verdict)"""
 
 # Registered with Telegram so the client shows a command menu and autocompletes.
 BOT_COMMANDS = [
@@ -96,7 +97,8 @@ BOT_COMMANDS = [
     ("watch", "Alert when execution cost spikes"),
     ("unwatch", "Remove a watch"),
     ("watches", "List active watches"),
-    ("app", "Open the AlphaEngine portal"),
+    ("research", "📈 Open the strategy research portal"),
+    ("app", "Open the AlphaEngine trading desk"),
     ("whoami", "Show your chat id"),
     ("help", "Show all commands"),
 ]
@@ -222,11 +224,20 @@ class TelegramBot:
             return {"ok": False}
 
     def _miniapp_keyboard(self) -> dict | None:
-        url = settings.miniapp_url
-        # Telegram only accepts https:// for web_app buttons.
-        if not url.startswith("https://"):
-            return None
-        return {"inline_keyboard": [[{"text": "🖥 Open AlphaEngine Portal", "web_app": {"url": url}}]]}
+        """Trading desk (this gateway) and research portal (Vercel) as buttons.
+
+        Telegram only accepts https:// for web_app buttons, so each row is
+        included only when its URL actually qualifies — a button that opens a
+        blank sheet is worse than no button.
+        """
+        rows: list[list[dict]] = []
+        if settings.miniapp_url.startswith("https://"):
+            rows.append([{"text": "🖥 Trading desk", "web_app": {"url": settings.miniapp_url}}])
+        if settings.research_portal_url.startswith("https://"):
+            rows.append(
+                [{"text": "📈 Strategy research", "web_app": {"url": settings.research_portal_url}}]
+            )
+        return {"inline_keyboard": rows} if rows else None
 
     # -- lifecycle -------------------------------------------------------- #
     async def start(self) -> None:
@@ -344,6 +355,7 @@ class TelegramBot:
             "/whoami": self._cmd_whoami,
             "/subscribe": self._cmd_subscribe, "/unsubscribe": self._cmd_unsubscribe,
             "/watch": self._cmd_watch, "/unwatch": self._cmd_unwatch, "/watches": self._cmd_watches,
+            "/research": self._cmd_research,
         }
         handler = handlers.get(cmd)
         if not handler:
@@ -369,10 +381,38 @@ class TelegramBot:
         self._subscribe(chat_id, actor)
         kb = self._miniapp_keyboard()
         note = "" if kb else (
-            f"\n\n<i>Mini App button needs a public https URL. "
-            f"Open the portal directly: {esc(settings.miniapp_url)}</i>"
+            f"\n\n<i>Mini App buttons need a public https URL. "
+            f"Open the desk directly: {esc(settings.miniapp_url)}</i>"
         )
         await self.send_message(chat_id, HELP_TEXT + note, kb)
+
+    async def _cmd_research(self, args, chat_id, actor) -> None:
+        """Link out to the Vercel research portal."""
+        url = settings.research_portal_url
+        if not url:
+            await self.send_message(
+                chat_id,
+                "No research portal configured. Set <code>RESEARCH_PORTAL_URL</code> to the "
+                "Vercel deployment, or run a sweep here with <code>/backtest BTCUSDT 1h</code>.",
+            )
+            return
+
+        kb = (
+            {"inline_keyboard": [[{"text": "📈 Open strategy research", "web_app": {"url": url}}]]}
+            if url.startswith("https://")
+            else None
+        )
+        await self.send_message(
+            chat_id,
+            "<b>📈 Strategy research portal</b>\n\n"
+            "Sweep a parameter grid and see whether the winner is edge or selection bias:\n"
+            "• price, indicator lines and the bars actually held\n"
+            "• equity vs buy &amp; hold, with drawdown\n"
+            "• Sharpe surface across the whole grid — click any cell to inspect it\n"
+            "• Deflated Sharpe and walk-forward out-of-sample Sharpe\n\n"
+            f"{esc(url)}",
+            kb,
+        )
 
     async def _cmd_whoami(self, args, chat_id, actor) -> None:
         await self.send_message(chat_id, f"chat id: <code>{chat_id}</code>\nactor: <code>{esc(actor)}</code>")

@@ -396,6 +396,7 @@ async def root(request: Request) -> HTMLResponse:
 
 
 @app.get("/app", include_in_schema=False)
+@app.get("/ui", include_in_schema=False)  # alias
 async def miniapp(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "miniapp.html", {"config": _ui_config()})
 

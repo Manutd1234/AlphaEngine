@@ -162,6 +162,14 @@ class Settings:
     telegram_mode: str = field(default_factory=lambda: _env("TELEGRAM_MODE", "auto").lower())
     telegram_api_base: str = field(default_factory=lambda: _env("TELEGRAM_API_BASE", "https://api.telegram.org"))
 
+    # ---- External research portal (Vercel) ---------------------------------
+    # The Next.js strategy-research UI. Deployed separately because a serverless
+    # runtime cannot hold the L2 WebSocket subscriptions or the risk state that
+    # Modules A and B depend on — so the gateway keeps those and links out to it.
+    research_portal_url: str = field(
+        default_factory=lambda: _env("RESEARCH_PORTAL_URL", "").rstrip("/")
+    )
+
     # ---- Web UI auth -------------------------------------------------------
     # Mini App requests are authenticated by validating Telegram initData HMAC.
     # In a plain browser (no Telegram) we fall back to this bearer token.
