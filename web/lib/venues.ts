@@ -85,8 +85,48 @@ export interface TcaReport {
 export const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT"] as const;
 
 const BINANCE_HOSTS = ["https://api.binance.com", "https://data-api.binance.vision"];
-const BYBIT_HOST = "https://api.bybit.com";
+
+/**
+ * Bybit's primary and its documented alternate domain.
+ *
+ * Binance has had host failover since the beginning; Bybit had a single host,
+ * and that asymmetry stayed invisible until the systems console started
+ * measuring per-venue error rates. In production Bybit answers **HTTP 403** to
+ * every request from the serverless region — a 100% error rate — while the same
+ * call from a laptop succeeds in 62ms. One venue silently dropping out turns
+ * "consolidated cross-venue depth" into single-venue depth, and the routing
+ * numbers built on it into a single-venue quote wearing a cross-venue label.
+ */
+const BYBIT_HOSTS = ["https://api.bybit.com", "https://api.bytick.com"];
+
 const FETCH_TIMEOUT_MS = 8_000;
+
+/**
+ * Which host in a list last answered, remembered per process.
+ *
+ * When a region is blocked the primary does not fail *sometimes* — it fails
+ * every single time, so every request pays a full failed round trip before the
+ * mirror answers. Measured in production that was a 50% error rate on Binance
+ * and roughly double the latency on every depth, ticker and klines call.
+ *
+ * Starting from the last host that worked removes that. It is a *preference*,
+ * not a pin: the loop still walks the whole list, so if the remembered host
+ * starts failing the next one is tried and the memo is rewritten. Per-instance
+ * and non-durable, exactly like the quota ledger — a cold start simply pays the
+ * discovery cost once more.
+ */
+const preferredHost = new Map<string, number>();
+
+function orderedHosts(key: string, hosts: readonly string[]): readonly string[] {
+  const first = preferredHost.get(key) ?? 0;
+  if (first === 0 || first >= hosts.length) return hosts;
+  return [hosts[first], ...hosts.filter((_, i) => i !== first)];
+}
+
+function rememberHost(key: string, hosts: readonly string[], host: string): void {
+  const index = hosts.indexOf(host);
+  if (index >= 0) preferredHost.set(key, index);
+}
 
 /**
  * `venue` is reported to the telemetry kernel, not sent to the exchange.
@@ -379,11 +419,12 @@ function failed(venue: VenueName, symbol: string, error: string, latencyMs: numb
 export async function fetchBinanceBook(symbol: string, limit = 100): Promise<VenueBook> {
   const t0 = Date.now();
   let lastError = "unreachable";
-  for (const host of BINANCE_HOSTS) {
+  for (const host of orderedHosts("binance", BINANCE_HOSTS)) {
     try {
       const d = (await getJson(
         `${host}/api/v3/depth?symbol=${symbol.toUpperCase()}&limit=${limit}`,
       )) as { bids: [string, string][]; asks: [string, string][] };
+      rememberHost("binance", BINANCE_HOSTS, host);
       return finalise(
         "BINANCE",
         symbol,
@@ -400,23 +441,32 @@ export async function fetchBinanceBook(symbol: string, limit = 100): Promise<Ven
 
 export async function fetchBybitBook(symbol: string, limit = 50): Promise<VenueBook> {
   const t0 = Date.now();
-  try {
-    const d = (await getJson(
-      `${BYBIT_HOST}/v5/market/orderbook?category=spot&symbol=${symbol.toUpperCase()}&limit=${Math.min(limit, 200)}`,
-      0,
-      "BYBIT",
-    )) as { retCode: number; retMsg?: string; result?: { b: [string, string][]; a: [string, string][] } };
-    if (d.retCode !== 0 || !d.result) throw new Error(d.retMsg || `retCode ${d.retCode}`);
-    return finalise(
-      "BYBIT",
-      symbol,
-      d.result.b.map(([p, q]) => [Number(p), Number(q)] as Level),
-      d.result.a.map(([p, q]) => [Number(p), Number(q)] as Level),
-      Date.now() - t0,
-    );
-  } catch (err) {
-    return failed("BYBIT", symbol, (err as Error).message, Date.now() - t0);
+  let lastError = "unreachable";
+  for (const host of orderedHosts("bybit", BYBIT_HOSTS)) {
+    try {
+      const d = (await getJson(
+        `${host}/v5/market/orderbook?category=spot&symbol=${symbol.toUpperCase()}&limit=${Math.min(limit, 200)}`,
+        0,
+        "BYBIT",
+      )) as { retCode: number; retMsg?: string; result?: { b: [string, string][]; a: [string, string][] } };
+      // A non-zero retCode is an application-level refusal on an HTTP 200, so it
+      // has to be treated as a failure of *this host* and retried on the next —
+      // otherwise the mirror is never reached for the one class of error it
+      // exists to route around.
+      if (d.retCode !== 0 || !d.result) throw new Error(d.retMsg || `retCode ${d.retCode}`);
+      rememberHost("bybit", BYBIT_HOSTS, host);
+      return finalise(
+        "BYBIT",
+        symbol,
+        d.result.b.map(([p, q]) => [Number(p), Number(q)] as Level),
+        d.result.a.map(([p, q]) => [Number(p), Number(q)] as Level),
+        Date.now() - t0,
+      );
+    } catch (err) {
+      lastError = (err as Error).message;
+    }
   }
+  return failed("BYBIT", symbol, lastError, Date.now() - t0);
 }
 
 /** Both venues in parallel — a slow venue must not delay the fast one. */
@@ -439,11 +489,12 @@ export interface Ticker {
 export async function fetchBinanceTickers(symbols: readonly string[]): Promise<Ticker[]> {
   const query = encodeURIComponent(JSON.stringify(symbols.map((s) => s.toUpperCase())));
   let lastError = "unreachable";
-  for (const host of BINANCE_HOSTS) {
+  for (const host of orderedHosts("binance", BINANCE_HOSTS)) {
     try {
       const rows = (await getJson(`${host}/api/v3/ticker/24hr?symbols=${query}`, 5)) as Array<
         Record<string, string>
       >;
+      rememberHost("binance", BINANCE_HOSTS, host);
       return rows.map((r) => ({
         symbol: r.symbol,
         venue: "BINANCE" as const,

@@ -8,6 +8,8 @@
  */
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 
 import {
@@ -218,5 +220,51 @@ describe("band depth", () => {
 
   it("returns zero without a mid rather than guessing", () => {
     assert.equal(depthWithinBps([[100, 5]], null, "bid"), 0);
+  });
+});
+
+// --------------------------------------------------------------------------
+// Host failover
+// --------------------------------------------------------------------------
+
+describe("every venue client has somewhere to fall back to", () => {
+  // Production surfaced the asymmetry these pin: `api.binance.com` answers
+  // HTTP 451 from the serverless region and `api.bybit.com` answers HTTP 403,
+  // while both work from a laptop. Binance had a mirror and recovered; Bybit
+  // had one host and silently dropped out of every "cross-venue" number.
+  const source = readFileSync(
+    fileURLToPath(new URL("../lib/venues.ts", import.meta.url)),
+    "utf8",
+  );
+
+  it("declares more than one host per venue", () => {
+    const binance = /const BINANCE_HOSTS = \[([^\]]*)\]/s.exec(source)?.[1] ?? "";
+    const bybit = /const BYBIT_HOSTS = \[([^\]]*)\]/s.exec(source)?.[1] ?? "";
+    assert.ok(
+      (binance.match(/https:/g) ?? []).length >= 2,
+      "Binance must keep its mirror host",
+    );
+    assert.ok(
+      (bybit.match(/https:/g) ?? []).length >= 2,
+      "Bybit needs a fallback host — a single-host venue disappears from consolidated depth when a region is blocked",
+    );
+  });
+
+  it("walks the whole host list rather than pinning the remembered one", () => {
+    // `orderedHosts` returns a PREFERENCE. If it ever returned a single host the
+    // memo would become a pin, and one bad answer would strand the venue.
+    const fn = /function orderedHosts[^}]*}/s.exec(source)?.[0] ?? "";
+    assert.match(fn, /\.\.\.hosts\.filter/, "the non-preferred hosts must still be returned");
+    assert.ok(!/return \[hosts\[first\]\];/.test(fn), "orderedHosts must not return a single host");
+  });
+
+  it("treats a non-zero Bybit retCode as a host failure, not a book", () => {
+    // Bybit refuses at the application layer on an HTTP 200. Without throwing,
+    // the loop never reaches the mirror for the one error it exists to route
+    // around.
+    const fn = /export async function fetchBybitBook[\s\S]*?\n}/.exec(source)?.[0] ?? "";
+    assert.match(fn, /retCode !== 0/, "retCode must still be checked");
+    assert.match(fn, /for \(const host of orderedHosts\("bybit"/, "Bybit must loop over hosts");
+    assert.match(fn, /lastError = \(err as Error\)\.message/, "a failed host must be recorded and the loop continue");
   });
 });

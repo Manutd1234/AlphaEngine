@@ -21,6 +21,24 @@ const BINANCE_HOSTS = [
 ];
 
 /**
+ * Index of the host that last answered.
+ *
+ * Same reasoning as `lib/venues.ts`: a region-blocked primary fails on *every*
+ * request, not occasionally, so a fixed order makes each klines page pay a full
+ * failed round trip before the mirror answers. In production `api.binance.com`
+ * returns HTTP 451 from the serverless region while the mirror serves normally.
+ * Kept local rather than shared because these two modules must not import each
+ * other — `venues.ts` is in the client bundle and this one is server-only.
+ */
+let preferredBinanceHost = 0;
+
+function binanceHosts(): string[] {
+  return preferredBinanceHost === 0
+    ? [...BINANCE_HOSTS]
+    : [BINANCE_HOSTS[preferredBinanceHost], ...BINANCE_HOSTS.filter((_, i) => i !== preferredBinanceHost)];
+}
+
+/**
  * Timeouts, because a *stalled* upstream is worse than a dead one.
  *
  * A refused connection fails in milliseconds and we fall through to the next
@@ -57,7 +75,7 @@ export async function fetchBinanceKlines(
   let lastError: unknown = null;
   const startedAt = Date.now();
 
-  for (const host of BINANCE_HOSTS) {
+  for (const host of binanceHosts()) {
     try {
       const out: Bar[] = [];
       let endTime: number | undefined;
@@ -164,7 +182,10 @@ export async function fetchBinanceKlines(
         if (chunk.length < limit) break;
       }
 
-      if (out.length >= Math.min(bars, 200)) return out.slice(-bars);
+      if (out.length >= Math.min(bars, 200)) {
+        preferredBinanceHost = Math.max(0, BINANCE_HOSTS.indexOf(host));
+        return out.slice(-bars);
+      }
       lastError = new Error(`only ${out.length} bars available`);
     } catch (err) {
       lastError = err;
