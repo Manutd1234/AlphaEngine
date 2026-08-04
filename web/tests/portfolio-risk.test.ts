@@ -29,7 +29,7 @@ import {
   portfolioRisk,
   type ReturnsBySymbol,
 } from "../lib/portfolio-risk";
-import { sandboxBook } from "../lib/portfolio";
+import { bookStatus, sandboxBook } from "../lib/portfolio";
 
 const close = (a: number, b: number, tol: number, what = "") =>
   assert.ok(Math.abs(a - b) <= tol, `${what}: ${a} !== ${b} (Δ ${Math.abs(a - b)} > ${tol})`);
@@ -303,5 +303,73 @@ describe("the sandbox book is coherent and unmistakably flagged", () => {
       utilisation >= book.risk_budget.gross_exposure.utilisation - 1e-9,
       "the binding constraint must be at least as tight as gross exposure",
     );
+  });
+});
+
+// --------------------------------------------------------------------------
+// Headline status
+// --------------------------------------------------------------------------
+
+describe("the status chip cannot name one constraint and size another", () => {
+  const book = () => sandboxBook();
+
+  const withBinding = (name: string, utilisation: number) => {
+    const b = book();
+    b.risk_budget.binding_constraint = [name, utilisation];
+    return b;
+  };
+
+  it("takes its number from the constraint it names", () => {
+    // The shipped bug: the name came from `binding_constraint` and the number
+    // from max(gross, drawdown). With symbol exposure at 90% and gross at 72%
+    // the chip read "ELEVATED — symbol exposure at 72%" — right name, wrong
+    // number, one severity band too low.
+    const status = bookStatus(withBinding("symbol_exposure", 0.9));
+    assert.equal(status.constraint, "symbol_exposure");
+    assert.ok(status.utilisation >= 0.9, `utilisation ignored the binder: ${status.utilisation}`);
+    assert.equal(status.level, "critical");
+    assert.match(status.detail, /90%/, `detail must quote the binder's own number: ${status.detail}`);
+  });
+
+  it("never reports a utilisation below the binding constraint's", () => {
+    for (const u of [0.05, 0.4, 0.71, 0.89, 0.9, 1.4]) {
+      const status = bookStatus(withBinding("symbol_exposure", u));
+      assert.ok(
+        status.utilisation >= u,
+        `binder at ${u} but status reported ${status.utilisation}`,
+      );
+    }
+  });
+
+  it("still escalates on a headroom the gateway did not name", () => {
+    // A gateway that under-reports its own binder must not be able to talk the
+    // chip down below what the structured headrooms already show.
+    const b = withBinding("symbol_exposure", 0.1);
+    b.risk_budget.gross_exposure.utilisation = 0.95;
+    assert.equal(bookStatus(b).level, "critical");
+  });
+
+  it("a halt outranks every utilisation band", () => {
+    const b = withBinding("symbol_exposure", 0.01);
+    b.trading_halted = true;
+    const status = bookStatus(b);
+    assert.equal(status.level, "halted");
+    assert.match(status.detail, /kill switch/);
+  });
+
+  it("bands are inclusive at their boundaries", () => {
+    // The other headrooms have to be flattened to isolate the band edges: the
+    // sandbox book's gross sits at 71.7%, so a 0.69 binder correctly still
+    // reports "elevated" — which is the previous assertion's whole point.
+    const only = (utilisation: number) => {
+      const b = withBinding("x", utilisation);
+      b.risk_budget.gross_exposure.utilisation = 0;
+      b.risk_budget.daily_drawdown.utilisation = 0;
+      return bookStatus(b).level;
+    };
+    assert.equal(only(0.9), "critical", "0.9 is inside critical");
+    assert.equal(only(0.7), "elevated", "0.7 is inside elevated");
+    assert.equal(only(0.69), "normal");
+    assert.equal(only(0.899), "elevated", "just under 0.9 must not read critical");
   });
 });

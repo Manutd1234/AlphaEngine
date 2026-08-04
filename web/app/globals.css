@@ -1465,9 +1465,14 @@ button.primary-action:hover:not(:disabled) {
   white-space: nowrap;
 }
 
+/* 60/40 rather than the previous 71/29.
+   The right column stopped being a sidebar the moment it held the risk engine,
+   the correlation matrix and the stress simulator — a 300px rail cannot show a
+   4x4 matrix without wrapping every header. `minmax(0, ...)` on both tracks is
+   what stops a wide table from forcing the grid past its container. */
 .portfolio-main-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(300px, 0.7fr);
+  grid-template-columns: minmax(0, 1.5fr) minmax(340px, 1fr);
   gap: 12px;
   align-items: stretch;
 }
@@ -3430,5 +3435,179 @@ button.primary-action:hover:not(:disabled) {
   }
   .portfolio-statusbar__actions {
     flex-wrap: wrap;
+  }
+}
+
+/* ---------- risk headroom top bar ---------- */
+.headroom-bar {
+  display: grid;
+  /* auto-fit, because the bar carries a fourth gauge whenever the binding
+     constraint is not one of the three structured headrooms. */
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.headroom-card {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+}
+
+/* The constraint that vetoes everything else gets a rail, not just a word. */
+.headroom-card.is-binding {
+  border-left: 3px solid var(--series-1);
+}
+
+.headroom-card.is-critical.is-binding {
+  border-left-color: var(--critical-text);
+}
+
+.headroom-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+
+.headroom-card__head > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.headroom-binding {
+  font-style: normal;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--series-1) 15%, transparent);
+  color: var(--series-1);
+}
+
+.headroom-card.is-critical .headroom-binding {
+  background: color-mix(in srgb, var(--diverging-neg) 15%, transparent);
+  color: var(--critical-text);
+}
+
+.headroom-card__head > strong {
+  font-size: 14px;
+  font-weight: 680;
+  white-space: nowrap;
+}
+
+.headroom-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.headroom-track > i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--status-good);
+}
+
+.headroom-track.is-warning > i { background: var(--status-warning); }
+.headroom-track.is-critical > i { background: var(--status-critical); }
+
+.headroom-card > small {
+  display: block;
+  margin-top: 6px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* ---------- allocation donut ---------- */
+.allocation-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+}
+
+.allocation-ring {
+  flex: 0 0 auto;
+}
+
+.allocation-ring path {
+  cursor: default;
+}
+
+.allocation-legend {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.allocation-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 7px;
+  border-radius: 7px;
+  font-size: 11.5px;
+}
+
+.allocation-row.is-active {
+  background: var(--surface-2);
+}
+
+.allocation-row > i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.allocation-symbol {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--mono);
+  min-width: 0;
+}
+
+.allocation-symbol small {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.allocation-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--grid);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 900px) {
+  .headroom-bar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .allocation-body {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+  }
+  .allocation-legend {
+    width: 100%;
   }
 }

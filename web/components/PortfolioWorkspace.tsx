@@ -2,15 +2,25 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import AllocationDonut from "@/components/portfolio/AllocationDonut";
+import EquityCurve from "@/components/portfolio/EquityCurve";
 import ExecutionHandoff, { type HandoffIntent } from "@/components/portfolio/ExecutionHandoff";
+import HeadroomBar from "@/components/portfolio/HeadroomBar";
 import RiskEngine from "@/components/portfolio/RiskEngine";
 import StressTest from "@/components/portfolio/StressTest";
 import { compact, fmt, pct, signedPct, usd } from "@/lib/format";
-import { type PortfolioPayload, sandboxBook } from "@/lib/portfolio";
+import {
+  type EquityPoint,
+  type PortfolioPayload,
+  bookStatus,
+  sandboxBook,
+  sandboxEquityPath,
+} from "@/lib/portfolio";
 import {
   type CovarianceModel,
   type PortfolioRisk,
   type ReturnsBySymbol,
+  beta,
   buildCovariance,
   portfolioRisk,
 } from "@/lib/portfolio-risk";
@@ -59,6 +69,9 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
   const [returns, setReturns] = useState<ReturnsBySymbol>({});
   const [riskLoading, setRiskLoading] = useState(false);
   const [handoff, setHandoff] = useState<HandoffIntent | null>(null);
+  // The gateway has no session-history endpoint, so the only honest live series
+  // is what this tab has actually seen. Appended on each successful poll.
+  const [observed, setObserved] = useState<EquityPoint[]>([]);
   const sequence = useRef(0);
   const selectedSymbol = workspaceSymbol.trim().toUpperCase();
 
@@ -84,7 +97,17 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
         });
         return;
       }
-      setPortfolio(body as PortfolioPayload);
+      const payload = body as PortfolioPayload;
+      setPortfolio(payload);
+      setObserved((current) => {
+        const equity = payload.equity.current;
+        const at = Date.parse(payload.as_of) || Date.now();
+        // Same snapshot polled twice is one observation, not two — otherwise an
+        // idle tab draws a flat line that looks like measured stability.
+        if (current.length && current[current.length - 1].t === at) return current;
+        const hwm = Math.max(current[current.length - 1]?.highWaterMark ?? equity, equity);
+        return [...current, { t: at, equity, highWaterMark: hwm }].slice(-240);
+      });
       setLastSuccessAt(new Date());
       setError(null);
     } catch {
@@ -254,6 +277,28 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
   const measured = new Set(covarianceModel?.symbols ?? []);
   const missingHistory = riskPositions.map((r) => r.symbol).filter((sym) => !measured.has(sym));
   const referenceSymbol = riskPositions[0]?.symbol ?? "BTCUSDT";
+  // Beta against the largest position, and each position's share of book
+  // volatility. Both belong on the positions row: a PM reading exposure should
+  // not have to scroll to a second table to learn that the third-largest line
+  // carries the most risk.
+  const riskShare = new Map(risk?.contributions.map((c) => [c.symbol, c.contributionShare]) ?? []);
+  const betaBySymbol = new Map(
+    riskPositions.map((r) => [r.symbol, r.symbol === referenceSymbol ? 1 : beta(r.symbol, referenceSymbol, returns)]),
+  );
+  const equityTrack: EquityPoint[] = book.sandbox ? sandboxEquityPath(book) : observed;
+
+  const status = bookStatus(book);
+  const statusTone = {
+    glyph: status.glyph,
+    label: status.label,
+    detail: status.detail,
+    color:
+      status.level === "halted" || status.level === "critical"
+        ? "var(--critical-text)"
+        : status.level === "elevated"
+          ? "var(--warning-text)"
+          : "var(--success-text)",
+  };
 
   return (
     <>
@@ -321,6 +366,27 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
         </div>
       </div>
 
+      <HeadroomBar
+        grossUsed={book.risk_budget.gross_exposure.used}
+        grossLimit={book.risk_budget.gross_exposure.limit}
+        net={book.exposure.net}
+        equity={book.equity.current}
+        drawdownUsedPct={book.risk_budget.daily_drawdown.used_pct}
+        drawdownLimitPct={book.risk_budget.daily_drawdown.limit_pct}
+        cushionUsd={book.risk_budget.daily_drawdown.cushion_usd}
+        bindingConstraint={binding[0]}
+        bindingUtilisation={binding[1]}
+        largestPosition={
+          positions[0]
+            ? {
+                symbol: positions[0].symbol,
+                utilisation: positions[0].symbol_limit.utilisation,
+                remaining: positions[0].symbol_limit.remaining,
+              }
+            : null
+        }
+      />
+
       <section className="portfolio-metrics" aria-label="Portfolio summary">
         <div>
           <span>Equity</span>
@@ -353,6 +419,15 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
               : "needs price history"}
           </small>
         </div>
+        <div>
+          <span>Status</span>
+          {/* Derived from the tightest constraint, never asserted. A green light
+              that is not computed from the limits is worse than no light. */}
+          <strong style={{ color: statusTone.color }}>
+            <span aria-hidden>{statusTone.glyph}</span> {statusTone.label}
+          </strong>
+          <small>{statusTone.detail}</small>
+        </div>
       </section>
 
       <div className="portfolio-main-grid">
@@ -376,6 +451,8 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
                     <th>Share</th>
                     <th>Mark</th>
                     <th>Total P&amp;L</th>
+                    <th>β</th>
+                    <th>Vol contrib</th>
                     <th><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
@@ -388,6 +465,25 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
                       <td>{fmt(position.share_of_gross * 100, 1)}%</td>
                       <td>{fmt(position.mark_price, position.mark_price < 10 ? 4 : 2)}</td>
                       <td className={position.total_pnl >= 0 ? "pos" : "neg"}>{usd(position.total_pnl, 0)}</td>
+                      <td>
+                        {betaBySymbol.get(position.symbol) == null ? (
+                          <span className="muted" title="Not enough aligned price history to measure">—</span>
+                        ) : (
+                          fmt(betaBySymbol.get(position.symbol)!, 2)
+                        )}
+                      </td>
+                      <td className={(riskShare.get(position.symbol) ?? 0) < 0 ? "pos" : undefined}>
+                        {riskShare.has(position.symbol) ? (
+                          <>
+                            {pct(riskShare.get(position.symbol)!, 1)}
+                            {/* A hedge takes risk out; naming it stops a negative
+                                percentage reading as an error. */}
+                            {(riskShare.get(position.symbol) ?? 0) < 0 && <span className="muted"> hedge</span>}
+                          </>
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
+                      </td>
                       <td>
                         <div className="portfolio-row-actions">
                           <button
@@ -456,6 +552,22 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
             <div><span>Effective positions</span><strong className="num">{fmt(book.concentration.effective_positions, 1)}</strong></div>
           </div>
         </div>
+      </div>
+
+      <div className="portfolio-main-grid">
+        <EquityCurve
+          points={equityTrack}
+          startOfDay={book.equity.start_of_day}
+          haltLevel={book.risk_budget.daily_drawdown.equity_at_halt}
+          generated={Boolean(book.sandbox)}
+        />
+        <AllocationDonut
+          positions={positions}
+          gross={book.exposure.gross}
+          effectivePositions={book.concentration.effective_positions}
+          largestShare={book.concentration.largest_share}
+          hhi={book.concentration.hhi}
+        />
       </div>
 
       <div className="portfolio-main-grid">

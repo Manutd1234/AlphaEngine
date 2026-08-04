@@ -173,6 +173,113 @@ function buildPositions(): PortfolioPosition[] {
   });
 }
 
+export interface BookStatus {
+  level: "halted" | "critical" | "elevated" | "normal";
+  label: string;
+  glyph: string;
+  detail: string;
+  /** The utilisation the label is derived from, 0–1. */
+  utilisation: number;
+  constraint: string;
+}
+
+/**
+ * The book's headline status, derived from the constraint that actually binds.
+ *
+ * Extracted from the component because it got this wrong once in a way a
+ * screenshot would not catch: the utilisation was re-derived as
+ * `max(gross, drawdown)` while the *name* came from the gateway's
+ * `binding_constraint`. On a book whose largest position sat at 90% and gross at
+ * 72%, the chip read "ELEVATED — symbol exposure at 72%": the right name beside
+ * the wrong number, one severity band too low, on the one indicator a PM glances
+ * at instead of reading the page.
+ *
+ * The gateway already computes which constraint binds and how hard. Trusting it
+ * and taking the max against the headrooms we can see locally means the label
+ * and the number cannot disagree.
+ */
+export function bookStatus(book: PortfolioPayload): BookStatus {
+  const [constraint, bindingUtilisation] = book.risk_budget.binding_constraint;
+  const utilisation = Math.max(
+    bindingUtilisation,
+    book.risk_budget.gross_exposure.utilisation,
+    book.risk_budget.daily_drawdown.utilisation,
+  );
+  const readable = constraint.replace(/_/g, " ");
+
+  if (book.trading_halted) {
+    return {
+      level: "halted", label: "HALTED", glyph: "■",
+      detail: "the kill switch is active", utilisation, constraint,
+    };
+  }
+  if (utilisation >= 0.9) {
+    return {
+      level: "critical", label: "CRITICAL", glyph: "▲",
+      detail: `${readable} at ${Math.round(utilisation * 100)}%`, utilisation, constraint,
+    };
+  }
+  if (utilisation >= 0.7) {
+    return {
+      level: "elevated", label: "ELEVATED", glyph: "▲",
+      detail: `${readable} at ${Math.round(utilisation * 100)}%`, utilisation, constraint,
+    };
+  }
+  return {
+    level: "normal", label: "NORMAL", glyph: "●",
+    detail: `tightest limit at ${Math.round(utilisation * 100)}%`, utilisation, constraint,
+  };
+}
+
+export interface EquityPoint {
+  t: number;
+  equity: number;
+  /** Running maximum up to this point. */
+  highWaterMark: number;
+}
+
+/**
+ * An intraday equity path for the sandbox.
+ *
+ * The gateway serves a *snapshot* — current equity and start-of-day, and no
+ * history endpoint — so there is no real intraday series to draw for a live
+ * book. On the live path the chart plots only what this tab has actually
+ * observed while open, and says so. Here the path is generated, deterministic,
+ * and ends exactly on the book's stated equity so the chart and the header can
+ * never disagree.
+ *
+ * Shaped to be worth looking at: it goes underwater mid-session before
+ * recovering, so the high-water-mark line separates from the equity line and the
+ * drawdown it measures is visible rather than implied.
+ */
+export function sandboxEquityPath(
+  book: PortfolioPayload,
+  points = 78,
+): EquityPoint[] {
+  const start = book.equity.start_of_day;
+  const end = book.equity.current;
+  const openedAt = Date.parse(book.session_date + "T00:00:00Z");
+  const stepMs = (6.5 * 3_600_000) / Math.max(1, points - 1);
+
+  // Fixed wobble, not random: the same book must draw the same curve on a
+  // server render and a client hydrate.
+  const wobble = (i: number) =>
+    Math.sin(i * 0.7) * 0.0031 + Math.sin(i * 0.23 + 1.1) * 0.0042 - Math.sin(i * 0.11) * 0.0018;
+
+  const out: EquityPoint[] = [];
+  let hwm = start;
+  for (let i = 0; i < points; i++) {
+    const progress = i / (points - 1);
+    // A dip through the middle of the session, then a recovery to `end`.
+    const drift = (end - start) * progress;
+    const dip = -Math.sin(progress * Math.PI) * (start * 0.0089);
+    const equity = i === points - 1 ? end : start + drift + dip + start * wobble(i);
+    hwm = Math.max(hwm, equity);
+    out.push({ t: openedAt + i * stepMs, equity, highWaterMark: hwm });
+  }
+  return out;
+}
+
 /** A realistic, clearly-flagged book. Always the same one. */
 export function sandboxBook(now = Date.parse("2026-08-04T12:00:00Z")): PortfolioPayload {
   const positions = buildPositions();
