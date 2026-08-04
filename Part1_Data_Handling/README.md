@@ -1,5 +1,13 @@
 # Part 1 — Data Handling & Analytics
 
+**NUSSIF Developer Analyst Case Study — Part 2 is in
+[`../Part2_Infrastructure/`](../Part2_Infrastructure/).**
+
+298 rows of LLM API usage: find what is wrong with them, repair it with a stated
+reason, and then answer three questions about spend. The notebook is generated
+from `build_notebook.py` so the narrative is diff-able as text rather than
+buried in cell JSON.
+
 | File | What it is |
 |---|---|
 | `Part1_Data_Handling.ipynb` | The notebook, with all outputs executed |
@@ -43,3 +51,31 @@ both being capped or dropped.
 The 4.8× billing anomaly is a **$106 overcharge on one line**, ~4% of the
 window's total spend. It is restated at the published rate here and flagged as
 something to query with the vendor.
+
+## The three questions
+
+**Trend.** Requests +22%, tokens +27%, cost +33% across the window. The ordering
+is the finding: cost outrunning tokens means the model mix is drifting toward the
+premium tier, not merely that volume is rising. A single "spend is up 33%" number
+hides which of those two it is, and they have different fixes.
+
+**Cost driver.** `doc-analysis` is **52% of spend on 6.5% of requests**.
+Decomposed, request volume is ×0.45 — it makes *fewer* calls — while
+tokens/request is ×6.1 and unit price is ×4.1, so one `doc-analysis` request
+costs roughly **25×** a `ticket-summarizer` one. The lever is therefore model
+choice and context size, not call volume; a campaign to reduce the number of
+calls would target the one factor already working in the right direction.
+
+**Assumptions.** Every transformation is logged as it happens and printed as a
+register at the end, with a raw→clean reconciliation of every total. The point is
+that a reader can disagree with a specific decision without having to re-derive
+the whole notebook to find where it was made.
+
+## Submission checklist
+
+| # | Item | Where |
+|---|---|---|
+| 1 | Up-to-date CV | `CV_Ian_Wangsa.pdf` (alongside the repository in the submission zip) |
+| 2 | HTML export of the Part 1 notebook | `Part1_Data_Handling.html` |
+| 3 | Original Part 1 notebook | `Part1_Data_Handling.ipynb` |
+| 4 | All code, outputs and supporting files for Part 2 | [`../Part2_Infrastructure/`](../Part2_Infrastructure/) — gateway, `web/`, `OpenBB_Service/` |

@@ -6,20 +6,28 @@
 # Building in the working tree proves nothing about what was committed. A file
 # that exists on disk but is excluded by .gitignore compiles locally and then
 # fails on the deployment host with "Module not found". That is exactly how
-# `web/lib/livebook.ts` shipped broken: a pasted-in language template contained
+# `Part2_Infrastructure/web/lib/livebook.ts` shipped broken: a pasted-in language template contained
 # a bare `lib/` pattern, which matches at any depth, so `git add -A` skipped it
 # in silence.
 #
 # This exports HEAD to a scratch directory — only what git actually has — and
 # builds there.
 #
-#   tools/check_repo_complete.sh            # audit + build the committed tree
-#   tools/check_repo_complete.sh --fast     # audit only, skip npm install/build
+#   Part2_Infrastructure/tools/check_repo_complete.sh          # audit + build
+#   Part2_Infrastructure/tools/check_repo_complete.sh --fast   # audit only
 #
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Asked of git rather than derived from this script's own location. The previous
+# `dirname $0/..` form silently meant "the repository root" only while this file
+# sat in a top-level `tools/`; after the move to `Part2_Infrastructure/tools/`
+# the same expression resolved to the gateway directory, and every git command
+# below would have audited a subtree while reporting on the repo.
+REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
+
+# One place to change if the web app ever moves again.
+WEB_DIR="Part2_Infrastructure/web"
 
 FAST=0
 [[ "${1:-}" == "--fast" ]] && FAST=1
@@ -47,11 +55,12 @@ else
 fi
 
 echo "▸ 2. Unanchored directory patterns in EVERY .gitignore"
-# `lib/` matches at ANY depth; `/web/lib/` matches one place. Only the second is
+# `lib/` matches at ANY depth; `/Part2_Infrastructure/web/lib/` matches one
+# place. Only the second is
 # safe in a polyglot repo.
 #
 # This must walk every tracked ignore file, not just the root one. Checking only
-# the root reported "all patterns anchored" while web/.gitignore still carried a
+# the root reported "all patterns anchored" while the web .gitignore still had
 # bare `out/` and Part2_Infrastructure/.gitignore a bare `data/` — a false green
 # on the exact check that exists because this bug already shipped once.
 risky=""
@@ -86,17 +95,18 @@ fi
 
 echo "▸ 5. Import case sensitivity (macOS is case-insensitive, Linux is not)"
 if command -v node >/dev/null 2>&1; then
-  node - <<'NODE'
+  WEB_DIR="$WEB_DIR" node - <<'NODE'
 const { execSync } = require("child_process");
 const fs = require("fs"), path = require("path");
-const files = execSync("git ls-files 'web/**/*.ts' 'web/**/*.tsx'", { encoding: "utf8" })
+const WEB = process.env.WEB_DIR;
+const files = execSync(`git ls-files '${WEB}/**/*.ts' '${WEB}/**/*.tsx'`, { encoding: "utf8" })
   .split("\n").filter(Boolean);
 let bad = 0, n = 0;
 for (const f of files) {
   const src = fs.readFileSync(f, "utf8");
   for (const m of src.matchAll(/from\s+"(\.[^"]+|@\/[^"]+)"/g)) {
     const spec = m[1];
-    const base = spec.startsWith("@/") ? path.join("web", spec.slice(2)) : path.join(path.dirname(f), spec);
+    const base = spec.startsWith("@/") ? path.join(WEB, spec.slice(2)) : path.join(path.dirname(f), spec);
     n++;
     const dir = path.dirname(base), stem = path.basename(base);
     let entries = [];
@@ -129,11 +139,11 @@ trap 'rm -rf "$WORK"' EXIT
 git archive HEAD | tar -x -C "$WORK"
 note "exported HEAD ($(git rev-parse --short HEAD)) -> $WORK"
 
-if [[ ! -f "$WORK/web/package.json" ]]; then
-  bad "web/package.json is not in the committed tree"
+if [[ ! -f "$WORK/$WEB_DIR/package.json" ]]; then
+  bad "$WEB_DIR/package.json is not in the committed tree"
 else
   (
-    cd "$WORK/web"
+    cd "$WORK/$WEB_DIR"
     npm ci --silent >/dev/null 2>&1 || npm install --silent >/dev/null 2>&1
     if npx --no-install next build >"$WORK/build.log" 2>&1; then
       pass "committed tree builds ($(grep -c '' "$WORK/build.log") log lines)"

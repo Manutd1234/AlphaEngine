@@ -3,7 +3,7 @@ Portfolio risk, position sizing and regime — the gateway's own copy.
 ====================================================================
 
 The web workspace computes VaR, correlation and risk contributions in
-``web/lib/portfolio-risk.ts``. The Telegram companion cannot reach that code: it
+``web/lib/portfolio-risk.ts`` (a sibling of this package). The Telegram companion cannot reach that code: it
 is a Python process talking to this gateway, and routing a chat command through
 a Vercel deployment to answer a question about the gateway's own book would make
 the bot's answers depend on a service that has nothing to do with the book.

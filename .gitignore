@@ -3,12 +3,12 @@
 #
 # Every pattern here is ANCHORED (leading `/`) or extension-scoped, on purpose.
 # A bare directory name like `lib/` or `build/` matches at ANY depth, so pasting
-# in a language template silently swallowed `web/lib/` — new source files there
+# in a language template silently swallowed `Part2_Infrastructure/web/lib/` — new source files there
 # were skipped by `git add -A` without a word and the deployment failed with
 # "Module not found: Can't resolve '@/lib/livebook'".
 #
 # Keep patterns anchored so one language's build-output rule cannot reach into
-# another's source tree. `tools/check_repo_complete.sh` guards this.
+# another's source tree. `Part2_Infrastructure/tools/check_repo_complete.sh` guards this.
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── secrets — never commit ───────────────────────────────────────────────────
@@ -54,12 +54,12 @@ __pycache__/
 *.sqlite
 
 # ── Node / Next.js (scoped to the portal) ────────────────────────────────────
-/web/node_modules/
-/web/.next/
-/web/out/
-/web/.vercel/
-/web/next-env.d.ts
-/web/*.tsbuildinfo
-/web/.turbo/
+/Part2_Infrastructure/web/node_modules/
+/Part2_Infrastructure/web/.next/
+/Part2_Infrastructure/web/out/
+/Part2_Infrastructure/web/.vercel/
+/Part2_Infrastructure/web/next-env.d.ts
+/Part2_Infrastructure/web/*.tsbuildinfo
+/Part2_Infrastructure/web/.turbo/
 npm-debug.log*
 yarn-error.log*
