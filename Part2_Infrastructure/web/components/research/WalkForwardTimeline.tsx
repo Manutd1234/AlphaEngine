@@ -197,9 +197,28 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
           <small>folds re-picking the previous choice</small>
         </div>
         <div className="stability-tile">
-          <span>Folds</span>
-          <strong className="num">{report.totalFolds}</strong>
-          <small>train → test windows</small>
+          <span>Overfit probability</span>
+          <strong
+            className="num"
+            style={{
+              color:
+                report.overfittingProbability === null
+                  ? "var(--text-primary)"
+                  : report.overfittingProbability > 0.5
+                    ? "var(--critical-text)"
+                    : report.overfittingProbability > 0.25
+                      ? "var(--warning-text)"
+                      : "var(--success-text)",
+            }}
+          >
+            {report.overfittingProbability === null
+              ? "—"
+              : `${Math.round(report.overfittingProbability * 100)}%`}
+          </strong>
+          {/* Not "how often the strategy lost" — how often the *winner picked
+              in-sample* landed in the worse half of the same grid out-of-sample.
+              Above 50% the search is selecting noise. */}
+          <small>folds where the pick ranked below median OOS</small>
         </div>
       </div>
 

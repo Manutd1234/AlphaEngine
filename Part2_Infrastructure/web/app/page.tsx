@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Controls from "@/components/Controls";
 import DeveloperConsole from "@/components/DeveloperConsole";
 import EquityChart from "@/components/EquityChart";
+import ExecutionCockpit from "@/components/execution/ExecutionCockpit";
 import LiveMarket from "@/components/LiveMarket";
 import PortfolioWorkspace, { type PortfolioFocusDestination } from "@/components/PortfolioWorkspace";
 import PriceChart from "@/components/PriceChart";
@@ -31,6 +32,7 @@ import {
 } from "@/lib/types";
 import {
   addExperiment,
+  annotateExperiment,
   clearExperiments,
   loadExperiments,
   removeExperiment,
@@ -275,7 +277,7 @@ export default function Page() {
           <section id="panel-portfolio" role="tabpanel" aria-labelledby="tab-portfolio" className="view-panel">
             <div className="page-heading">
               <div>
-                <span className="page-kicker">Portfolio managers</span>
+                <span className="page-kicker">Portfolio managers · Risk managers</span>
                 <h1>Portfolio &amp; risk</h1>
                 <p>Book-level exposure, concentration, P&amp;L and risk headroom from the authoritative gateway.</p>
               </div>
@@ -288,7 +290,7 @@ export default function Page() {
           <section id="panel-research" role="tabpanel" aria-labelledby="tab-research" className="view-panel">
             <div className="page-heading">
               <div>
-                <span className="page-kicker">Researchers</span>
+                <span className="page-kicker">Quant researchers</span>
                 <h1>Research lab</h1>
                 <p>Parameter search, robustness checks and walk-forward evidence for {req.symbol}.</p>
               </div>
@@ -439,6 +441,8 @@ export default function Page() {
                       onClone={cloneExperiment}
                       onRemove={dropExperiment}
                       onClear={() => setExperiments(clearExperiments())}
+                      onAnnotate={(id, annotation) =>
+                        setExperiments((current) => annotateExperiment(current, id, annotation))}
                     />
                   </>
                 )}
@@ -451,9 +455,12 @@ export default function Page() {
           <section id="panel-live" role="tabpanel" aria-labelledby="tab-live" className="view-panel">
             <div className="page-heading">
               <div>
-                <span className="page-kicker">Traders</span>
+                <span className="page-kicker">Quant traders</span>
                 <h1>Execution</h1>
-                <p>Cross-venue liquidity, live order books and implementation cost for {req.symbol}.</p>
+                <p>
+                  Live books and implementation cost for {req.symbol}, with the desk&apos;s own flow — orders,
+                  fills, P&amp;L and alerts — on the same screen.
+                </p>
               </div>
             </div>
             <LiveMarket
@@ -467,6 +474,14 @@ export default function Page() {
               onOpenResearch={() => navigate("research")}
               onOpenData={() => navigate("data")}
             />
+            <ExecutionCockpit
+              symbol={req.symbol}
+              side={side}
+              notional={notional}
+              researchStrategy={activeResult ? activeResult.request.strategy : null}
+              researchExperimentId={null}
+              onOpenResearch={() => navigate("research")}
+            />
           </section>
         )}
 
@@ -474,7 +489,7 @@ export default function Page() {
           <section id="panel-data" role="tabpanel" aria-labelledby="tab-data" className="view-panel">
             <div className="page-heading">
               <div>
-                <span className="page-kicker">Developers &amp; data operations</span>
+                <span className="page-kicker">Developers · Data engineers · SRE</span>
                 <h1>Systems console</h1>
                 <p>
                   Pipeline health, circuit breakers, failover routing, quota budgets, live trace and

@@ -99,7 +99,25 @@ _DDL = [
         dsr           DOUBLE,
         oos_sharpe    DOUBLE,
         duration_s    DOUBLE,
-        request_json  VARCHAR
+        request_json  VARCHAR,
+        data_hash     VARCHAR,
+        label         VARCHAR,
+        pbo           DOUBLE
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS equity_snapshots (
+        ts               TIMESTAMP,
+        session_date     VARCHAR,
+        equity           DOUBLE,
+        start_of_day     DOUBLE,
+        realized_pnl     DOUBLE,
+        unrealized_pnl   DOUBLE,
+        daily_pnl        DOUBLE,
+        gross_exposure   DOUBLE,
+        drawdown_pct     DOUBLE,
+        open_positions   INTEGER,
+        kill_switch      BOOLEAN
     )
     """,
     """
@@ -187,6 +205,19 @@ class AuditLog:
             }
             if "user_id" not in subscriber_columns:
                 self._conn.execute("ALTER TABLE subscribers ADD COLUMN user_id VARCHAR")
+
+            # Reproducibility metadata added after the first databases existed.
+            # Older rows keep NULL rather than being back-filled with a guess: a
+            # fabricated data hash would claim two runs saw the same bars.
+            run_cursor = self._conn.execute("SELECT * FROM backtest_runs LIMIT 0")
+            run_columns = {str(column[0]).lower() for column in (run_cursor.description or [])}
+            for column, sql_type in (("data_hash", "VARCHAR"), ("label", "VARCHAR"), ("pbo", "DOUBLE")):
+                if column not in run_columns:
+                    self._conn.execute(
+                        f"ALTER TABLE backtest_runs ADD COLUMN {column} "  # noqa: S608
+                        f"{'REAL' if self.backend == 'sqlite' and sql_type == 'DOUBLE' else sql_type}"
+                    )
+
             if self.backend == "sqlite":
                 self._conn.commit()
 
@@ -216,7 +247,7 @@ class AuditLog:
                 cur = self._conn.execute(sql, params)
                 cols = [d[0] for d in cur.description] if cur.description else []
                 rows = cur.fetchall()
-            return [dict(zip(cols, row)) for row in rows]
+            return [dict(zip(cols, row, strict=True)) for row in rows]
         except Exception as exc:
             log.error("audit query failed: %s", exc)
             return []
@@ -264,7 +295,7 @@ class AuditLog:
                     params,
                 )
                 cols = [d[0] for d in cur.description] if cur.description else []
-                rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+                rows = [dict(zip(cols, row, strict=True)) for row in cur.fetchall()]
         except Exception as exc:
             raise RuntimeError("could not read accepted fills for position rehydration") from exc
 
@@ -382,8 +413,15 @@ class AuditLog:
 
     def record_backtest(self, result, duration_s: float) -> None:
         best = result.best
+        # Named columns, not positional: this table now grows as reproducibility
+        # metadata is added, and a positional INSERT silently writes the wrong
+        # value into the wrong column the first time the schema widens.
         self._exec(
-            "INSERT INTO backtest_runs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO backtest_runs "
+            "(ts, job_id, symbol, interval, strategy, engine, combos_tested, best_fast, best_slow, "
+            " sharpe, total_return, max_drawdown, dsr, oos_sharpe, duration_s, request_json, "
+            " data_hash, label, pbo) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 _utcnow(),
                 result.job_id,
@@ -401,8 +439,59 @@ class AuditLog:
                 result.walk_forward_oos_sharpe,
                 duration_s,
                 result.request.model_dump_json(),
+                getattr(result, "data_hash", None),
+                getattr(result.request, "label", None),
+                getattr(result, "overfitting_probability", None),
             ),
         )
+
+    def record_equity_snapshot(self, state) -> None:
+        """Persist one mark-to-market observation of the book.
+
+        The gateway serves the *current* equity; without this the curve exists
+        only for as long as a browser tab stays open, so nobody can review what
+        the book looked like when a limit was approached. Written from the risk
+        monitor's existing mark loop, so a snapshot costs no extra valuation.
+        """
+        self._exec(
+            "INSERT INTO equity_snapshots VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            (
+                _utcnow(),
+                state.session_date,
+                state.equity,
+                state.start_of_day_equity,
+                state.realized_pnl,
+                state.unrealized_pnl,
+                state.daily_pnl,
+                state.gross_exposure,
+                state.daily_drawdown_pct,
+                len(state.positions),
+                bool(state.kill_switch_active),
+            ),
+        )
+
+    def equity_history(self, limit: int = 500, session_date: str | None = None) -> list[dict[str, Any]]:
+        """Oldest-first equity observations, newest ``limit`` rows.
+
+        Ordered ascending because every consumer plots it; the inner query takes
+        the most recent rows so a long-running gateway does not stream its whole
+        history to draw one chart.
+        """
+        if session_date:
+            rows = self.query(
+                "SELECT * FROM (SELECT ts, session_date, equity, start_of_day, realized_pnl, "
+                "unrealized_pnl, daily_pnl, gross_exposure, drawdown_pct, open_positions, kill_switch "
+                "FROM equity_snapshots WHERE session_date = ? ORDER BY ts DESC LIMIT ?) ORDER BY ts ASC",
+                (session_date, limit),
+            )
+        else:
+            rows = self.query(
+                "SELECT * FROM (SELECT ts, session_date, equity, start_of_day, realized_pnl, "
+                "unrealized_pnl, daily_pnl, gross_exposure, drawdown_pct, open_positions, kill_switch "
+                "FROM equity_snapshots ORDER BY ts DESC LIMIT ?) ORDER BY ts ASC",
+                (limit,),
+            )
+        return rows
 
     def record_job(self, job_id: str, kind: str, status: str, submitted_at, finished_at, backend: str, error) -> None:
         self._exec(
@@ -438,7 +527,9 @@ class AuditLog:
         return row
 
     def list_subscribers(self, alerts_only: bool = True) -> list[dict[str, Any]]:
-        sql = "SELECT * FROM subscribers" + (" WHERE alerts" if alerts_only else "")
+        # The only variable part is a fixed clause chosen by a boolean; no
+        # caller-supplied value reaches the SQL text.
+        sql = "SELECT * FROM subscribers" + (" WHERE alerts" if alerts_only else "")  # noqa: S608
         rows = self.query(sql)
         for row in rows:
             row["watches"] = json.loads(row.get("watches") or "[]")
@@ -472,9 +563,17 @@ class AuditLog:
 
     # -- read models used by the UI --------------------------------------- #
     def recent_orders(self, limit: int = 50) -> list[dict[str, Any]]:
+        """The blotter read model.
+
+        ``strategy``, ``client_order_id`` and the full ``checks_json`` vector are
+        returned as well as the outcome: a blotter that shows *that* an order was
+        rejected without showing *which gate* rejected it sends the trader to the
+        logs, which is the thing the audit log exists to avoid.
+        """
         return self.query(
-            "SELECT ts, order_id, symbol, side, quantity, notional, accepted, rejected_by, reason, "
-            "latency_ms, fill_price, slippage_bps, venue, source "
+            "SELECT ts, order_id, client_order_id, strategy, symbol, side, order_type, quantity, notional, "
+            "accepted, rejected_by, reason, latency_ms, fill_price, fill_qty, fee_usd, slippage_bps, "
+            "venue, checks_json, source "
             "FROM orders ORDER BY ts DESC LIMIT ?",
             (limit,),
         )
@@ -486,9 +585,17 @@ class AuditLog:
         )
 
     def recent_backtests(self, limit: int = 20) -> list[dict[str, Any]]:
+        """Server-side experiment history.
+
+        ``request_json`` and ``data_hash`` are returned so a client can tell
+        whether two runs tested the same idea on the same bars — the browser's
+        local history has no way to know about a run made from another machine,
+        and reconciling them needs the request, not just its result.
+        """
         return self.query(
             "SELECT ts, job_id, symbol, interval, strategy, best_fast, best_slow, sharpe, "
-            "total_return, max_drawdown, dsr, oos_sharpe, duration_s "
+            "total_return, max_drawdown, dsr, oos_sharpe, duration_s, request_json, "
+            "data_hash, label, pbo "
             "FROM backtest_runs ORDER BY ts DESC LIMIT ?",
             (limit,),
         )
@@ -503,14 +610,53 @@ class AuditLog:
             "sum(fee_usd) AS total_fees "
             "FROM orders"
         )
-        return rows[0] if rows else {}
+        stats = rows[0] if rows else {}
+
+        # Tail latency, not just the mean. An average decision time hides the
+        # one order in a hundred that took long enough to miss the price, which
+        # is the number an execution review actually argues about.
+        if self.backend == "duckdb":
+            tail = self.query(
+                "SELECT quantile_cont(latency_ms, 0.5) AS p50_latency_ms, "
+                "quantile_cont(latency_ms, 0.95) AS p95_latency_ms, "
+                "quantile_cont(latency_ms, 0.99) AS p99_latency_ms "
+                "FROM orders WHERE latency_ms IS NOT NULL"
+            )
+            if tail:
+                stats.update(tail[0])
+        return stats
+
+    def execution_quality_by(self, dimension: str) -> list[dict[str, Any]]:
+        """Fill rate, cost and latency grouped by venue or strategy.
+
+        A single desk-wide slippage number cannot tell a trader whether one
+        venue or one strategy is doing the damage, which is the only actionable
+        form of the question.
+        """
+        if dimension not in {"venue", "strategy"}:
+            raise ValueError(f"unsupported grouping: {dimension!r}")
+        return self.query(
+            f"SELECT {dimension} AS bucket, "  # noqa: S608 - identifier from a fixed allow-list above
+            "count(*) AS orders, "
+            "sum(CASE WHEN accepted THEN 1 ELSE 0 END) AS filled, "
+            "sum(COALESCE(notional, 0)) AS notional, "
+            "sum(COALESCE(fee_usd, 0)) AS fees, "
+            "avg(slippage_bps) AS avg_slippage_bps, "
+            "avg(latency_ms) AS avg_latency_ms, "
+            "max(latency_ms) AS max_latency_ms "
+            f"FROM orders WHERE {dimension} IS NOT NULL "  # noqa: S608 - same allow-list
+            f"GROUP BY {dimension} ORDER BY notional DESC"  # noqa: S608 - same allow-list
+        )
 
     def close(self) -> None:
         with self._lock:
             self._closed = True
             try:
                 self._conn.close()
-            except Exception:
+            except Exception:  # noqa: S110 - shutdown must not raise
+                # Reached only while the process is already going down, where a
+                # raised error would mask whatever caused the shutdown. The
+                # ``_closed`` flag above has already stopped new writes.
                 pass
 
 

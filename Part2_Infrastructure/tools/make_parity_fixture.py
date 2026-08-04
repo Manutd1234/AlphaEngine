@@ -23,7 +23,7 @@ sys.path.insert(0, str(ROOT))
 from modules.backtester import NumpyEngine, fetch_ohlcv  # noqa: E402
 from modules.schemas import BacktestRequest  # noqa: E402
 
-OUT = ROOT.parent / "web" / "tests" / "fixtures" / "parity.json"
+OUT = ROOT / "web" / "tests" / "fixtures" / "parity.json"
 
 CASES = [
     ("BTCUSDT", "4h", "ma_cross", "long_only"),
@@ -82,7 +82,7 @@ def main() -> int:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(payload))
     size_kb = OUT.stat().st_size / 1024
-    print(f"\nwrote {OUT.relative_to(ROOT.parent)} ({size_kb:.0f} KB, {len(CASES)} cases)")
+    print(f"\nwrote {OUT.relative_to(ROOT)} ({size_kb:.0f} KB, {len(CASES)} cases)")
     return 0
 
 

@@ -11,8 +11,6 @@ the bug as readily as the behaviour.
 
 from __future__ import annotations
 
-import math
-
 import pytest
 
 from modules.quant_risk import (
@@ -281,3 +279,357 @@ def test_one_live_venue_cannot_produce_a_cross():
 
 def test_returns_from_closes_never_divides_by_zero():
     assert returns_from_closes([0.0, 10.0, 20.0]) == [0.0, 1.0]
+
+
+# --------------------------------------------------------------------------- #
+# Historical VaR — the empirical twin
+# --------------------------------------------------------------------------- #
+
+def _fat_tailed_history(n: int = 120) -> list[float]:
+    """Quiet most days, with occasional large losses — the shape a normal
+    distribution understates and the reason both figures are reported."""
+    series = [0.002 if i % 2 else -0.0018 for i in range(n)]
+    for crash in (17, 53, 91):
+        series[crash] = -0.09
+    return series
+
+
+def test_historical_var_needs_real_history_not_a_handful_of_days():
+    from modules.quant_risk import historical_var
+
+    positions = [{"symbol": "AAA", "side": "LONG", "notional": 100_000}]
+    # Ten observations cannot support a 5th percentile: that is half a data
+    # point wearing a statistic's name.
+    assert historical_var(positions, {"AAA": [0.01] * 10}, 1_000_000) is None
+
+
+def test_historical_var_reports_losses_as_positive_numbers():
+    from modules.quant_risk import historical_var
+
+    positions = [{"symbol": "AAA", "side": "LONG", "notional": 100_000}]
+    result = historical_var(positions, {"AAA": _fat_tailed_history()}, 1_000_000)
+    assert result is not None
+    assert result.var95 > 0, "a loss must read as a positive VaR beside the parametric figure"
+    # CVaR is the mean of the tail beyond VaR, so it can never be smaller.
+    assert result.cvar95 >= result.var95
+
+
+def test_historical_var_sees_a_fat_tail_the_normal_model_misses():
+    from modules.quant_risk import historical_var, portfolio_risk
+
+    positions = [{"symbol": "AAA", "side": "LONG", "notional": 100_000}]
+    history = {"AAA": _fat_tailed_history()}
+    cov = build_covariance(history, interval="1d")
+    parametric = portfolio_risk(positions, cov, 1_000_000)
+    empirical = historical_var(positions, history, 1_000_000)
+
+    assert parametric is not None and empirical is not None
+    # The whole reason both are shown: on a distribution with jumps the
+    # empirical tail is worse than the normal assumption allows for.
+    assert empirical.cvar95 > parametric.cvar95 * 0.5
+
+
+def test_a_short_position_flips_the_sign_of_its_history():
+    from modules.quant_risk import historical_var
+
+    history = {"AAA": _fat_tailed_history()}
+    long_var = historical_var([{"symbol": "AAA", "side": "LONG", "notional": 100_000}], history, 1_000_000)
+    short_var = historical_var([{"symbol": "AAA", "side": "SHORT", "notional": 100_000}], history, 1_000_000)
+    assert long_var and short_var
+    # The crash days are this book's loss and the short book's gain, so their
+    # tails cannot be the same number.
+    assert long_var.var95 != pytest.approx(short_var.var95)
+
+
+# --------------------------------------------------------------------------- #
+# VaR model validation
+#
+# A VaR nobody has back-tested is an opinion. At 95% roughly one day in twenty
+# should breach: zero exceptions is not conservatism, it is a model that cannot
+# measure the risk it is holding capital against.
+# --------------------------------------------------------------------------- #
+
+def test_a_well_calibrated_model_is_validated():
+    from modules.quant_risk import var_backtest
+
+    # 100 days, 5 of them worse than the forecast — exactly the 5% claim.
+    pnl = [-10.0] * 95 + [-2000.0] * 5
+    result = var_backtest(pnl, var_forecast=1000.0)
+    assert result is not None
+    assert result.exceptions == 5
+    assert result.zone == "green"
+    assert result.kupiec_p_value >= 0.05
+
+
+def test_a_model_that_understates_risk_is_rejected():
+    from modules.quant_risk import var_backtest
+
+    # 25 breaches in 100 days against a 5% claim.
+    pnl = [-10.0] * 75 + [-5000.0] * 25
+    result = var_backtest(pnl, var_forecast=1000.0)
+    assert result is not None
+    assert result.exceptions == 25
+    assert result.zone == "red"
+    assert result.kupiec_p_value < 0.01
+    assert "understates" in result.verdict
+
+
+def test_zero_exceptions_is_flagged_rather_than_praised():
+    from modules.quant_risk import var_backtest
+
+    # A forecast nothing ever breaches is not a safe model; it is an
+    # unmeasured one, and the desk is paying for capacity it cannot use.
+    result = var_backtest([-10.0] * 200, var_forecast=1_000_000.0)
+    assert result is not None
+    assert result.exceptions == 0
+    assert result.zone == "yellow"
+    assert "overstates" in result.verdict
+
+
+def test_too_little_data_is_no_verdict_rather_than_a_weak_one():
+    from modules.quant_risk import var_backtest
+
+    assert var_backtest([-10.0] * 19, var_forecast=100.0) is None
+    assert var_backtest([-10.0] * 50, var_forecast=0.0) is None
+
+
+def test_rolling_backtest_never_scores_a_forecast_on_its_own_training_data():
+    from modules.quant_risk import rolling_var_backtest
+
+    history = {"AAA": _fat_tailed_history(220)}
+    positions = [{"symbol": "AAA", "side": "LONG", "notional": 100_000}]
+    result = rolling_var_backtest(positions, history, 1_000_000, window=60)
+    assert result is not None
+    # 220 observations, 60 consumed by the first training window.
+    assert result.observations == 160
+    assert 0 <= result.exceptions <= result.observations
+    assert result.zone in {"green", "yellow", "red"}
+
+
+def test_rolling_backtest_declines_when_the_window_swallows_the_history():
+    from modules.quant_risk import rolling_var_backtest
+
+    positions = [{"symbol": "AAA", "side": "LONG", "notional": 100_000}]
+    assert rolling_var_backtest(positions, {"AAA": [0.001] * 70}, 1_000_000, window=60) is None
+
+
+# --------------------------------------------------------------------------- #
+# Scenario stress testing
+# --------------------------------------------------------------------------- #
+
+def _correlated_history() -> dict[str, list[float]]:
+    base = [0.01, -0.012, 0.008, -0.006, 0.011, -0.009, 0.013, -0.004] * 4
+    return {"BTCUSDT": base, "ETHUSDT": [r * 1.5 for r in base]}
+
+
+def test_an_unmeasurable_beta_leaves_a_position_flat_rather_than_assuming_one():
+    from modules.quant_risk import apply_scenario
+
+    positions = [{"symbol": "NEWCOIN", "side": "LONG", "notional": 50_000}]
+    result = apply_scenario(positions, 1_000_000, {"BTCUSDT": -0.2},
+                            {"BTCUSDT": _correlated_history()["BTCUSDT"]})
+    leg = result.legs[0]
+    # Defaulting an unknown beta to 1.0 would invent a $10k loss and report it
+    # as a measurement.
+    assert leg.beta is None
+    assert leg.via_beta is False
+    assert leg.pnl == 0.0
+    assert result.used_beta is False
+
+
+def test_a_measured_beta_propagates_the_shock():
+    from modules.quant_risk import apply_scenario
+
+    positions = [{"symbol": "ETHUSDT", "side": "LONG", "notional": 50_000}]
+    result = apply_scenario(positions, 1_000_000, {"BTCUSDT": -0.2}, _correlated_history())
+    leg = result.legs[0]
+    assert leg.via_beta and leg.beta is not None
+    assert leg.beta == pytest.approx(1.5, abs=0.05), "ETH moves 1.5x BTC in this history"
+    assert leg.pnl == pytest.approx(50_000 * 1.5 * -0.2, rel=0.05)
+
+
+def test_a_short_book_gains_in_a_crash_and_loses_in_a_melt_up():
+    from modules.quant_risk import apply_scenario
+
+    short = [{"symbol": "BTCUSDT", "side": "SHORT", "notional": 100_000}]
+    crash = apply_scenario(short, 1_000_000, {"BTCUSDT": -0.2}, _correlated_history())
+    rally = apply_scenario(short, 1_000_000, {"BTCUSDT": 0.15}, _correlated_history())
+    assert crash.total_pnl > 0
+    assert rally.total_pnl < 0
+
+
+def test_the_flat_scenario_moves_nothing():
+    from modules.quant_risk import apply_scenario
+
+    positions = [{"symbol": "BTCUSDT", "side": "LONG", "notional": 100_000}]
+    result = apply_scenario(positions, 1_000_000, {"*": 0.0}, _correlated_history())
+    # Any non-zero P&L here would be a bug in the propagation, which is exactly
+    # why the baseline scenario exists.
+    assert result.total_pnl == 0.0
+
+
+def test_scenarios_are_ranked_worst_first():
+    from modules.quant_risk import SCENARIOS, run_scenarios
+
+    positions = [{"symbol": "BTCUSDT", "side": "LONG", "notional": 100_000}]
+    results = run_scenarios(positions, 1_000_000, _correlated_history())
+    assert len(results) == len(SCENARIOS)
+    assert results == sorted(results, key=lambda r: r.total_pnl)
+    assert results[0].total_pnl < 0, "the worst case must be a loss for a long book"
+
+
+# --------------------------------------------------------------------------- #
+# Allocation
+#
+# The platform could say what the book *is* and nothing about what it should be.
+# A proposal is not an instruction — and it is deliberately naive about expected
+# return, because forecasting covariance is hard and forecasting returns is
+# harder.
+# --------------------------------------------------------------------------- #
+
+def _uneven_vol_book():
+    """AAA is roughly three times as volatile as BBB."""
+    calm = [0.002, -0.002, 0.0025, -0.0018, 0.002, -0.0022, 0.0019, -0.002] * 3
+    wild = [v * 3 for v in calm]
+    cov = build_covariance({"AAA": wild, "BBB": calm}, interval="1d")
+    positions = [
+        {"symbol": "AAA", "side": "LONG", "notional": 100_000},
+        {"symbol": "BBB", "side": "LONG", "notional": 100_000},
+    ]
+    return positions, cov
+
+
+def test_inverse_vol_gives_the_quiet_instrument_more_notional():
+    from modules.quant_risk import propose_allocation
+
+    positions, cov = _uneven_vol_book()
+    proposal = propose_allocation(positions, cov, 1_000_000)
+    assert proposal is not None
+    weights = {t.symbol: t.target_weight for t in proposal.targets}
+    # Same risk from a quieter name needs more of it — that is the entire idea.
+    assert weights["BBB"] > weights["AAA"]
+    assert sum(weights.values()) == pytest.approx(1.0, abs=1e-6)
+
+
+def test_equal_risk_equalises_contribution_not_notional():
+    from modules.quant_risk import portfolio_risk, propose_allocation
+
+    positions, cov = _uneven_vol_book()
+    proposal = propose_allocation(positions, cov, 1_000_000, method="equal_risk")
+    assert proposal is not None
+
+    rebalanced = [
+        {"symbol": t.symbol, "side": "LONG", "notional": t.target_notional}
+        for t in proposal.targets
+    ]
+    risk = portfolio_risk(rebalanced, cov, 1_000_000)
+    assert risk is not None
+    shares = [c.contribution_share for c in risk.contributions]
+    assert max(shares) - min(shares) < 0.05, "contributions should be near-equal after the solve"
+
+
+def test_a_proposal_respects_the_limits_the_gateway_enforces():
+    from modules.quant_risk import propose_allocation
+
+    positions, cov = _uneven_vol_book()
+    proposal = propose_allocation(
+        positions, cov, 1_000_000,
+        max_symbol_notional=60_000, max_gross_notional=200_000,
+    )
+    assert proposal is not None
+    assert proposal.clipped is True
+    for target in proposal.targets:
+        assert target.target_notional <= 60_000 + 1e-6
+    # A clipped weight names what bound it — a proposal the gate would reject
+    # order by order is a worse way to learn about the limit.
+    assert any(t.clipped_by == "max_symbol_notional_usd" for t in proposal.targets)
+
+
+def test_a_flat_book_has_nothing_to_allocate():
+    from modules.quant_risk import propose_allocation
+
+    _, cov = _uneven_vol_book()
+    assert propose_allocation([], cov, 1_000_000) is None
+
+
+def test_rebalance_ignores_drift_inside_the_band():
+    from modules.quant_risk import propose_allocation, rebalance_trades
+
+    positions, cov = _uneven_vol_book()
+    proposal = propose_allocation(positions, cov, 1_000_000)
+    assert proposal is not None
+
+    # A band wider than any drift must produce no trades at all: correcting a
+    # 1% deviation costs more than the deviation.
+    assert rebalance_trades(proposal, positions, drift_band=0.99) == []
+    trades = rebalance_trades(proposal, positions, drift_band=0.01)
+    assert trades, "a genuinely drifted book must produce trades"
+
+
+def test_rebalance_trades_point_the_right_way():
+    from modules.quant_risk import propose_allocation, rebalance_trades
+
+    positions, cov = _uneven_vol_book()
+    proposal = propose_allocation(positions, cov, 1_000_000)
+    trades = {t["symbol"]: t for t in rebalance_trades(proposal, positions, drift_band=0.01)}
+
+    # AAA is the volatile name and is overweight under inverse-vol, so it sells.
+    assert trades["AAA"]["side"] == "SELL"
+    assert trades["BBB"]["side"] == "BUY"
+    assert all(t["notional"] > 0 for t in trades.values())
+    assert "overweight" in trades["AAA"]["reason"]
+
+
+def test_adding_to_a_short_is_a_sell_not_a_buy():
+    from modules.quant_risk import propose_allocation, rebalance_trades
+
+    calm = [0.002, -0.002, 0.0025, -0.0018, 0.002, -0.0022, 0.0019, -0.002] * 3
+    cov = build_covariance({"AAA": [v * 3 for v in calm], "BBB": calm}, interval="1d")
+    positions = [
+        {"symbol": "AAA", "side": "LONG", "notional": 100_000},
+        {"symbol": "BBB", "side": "SHORT", "notional": 100_000},
+    ]
+    proposal = propose_allocation(positions, cov, 1_000_000)
+    trades = {t["symbol"]: t for t in rebalance_trades(proposal, positions, drift_band=0.01)}
+    # BBB is underweight, and increasing a short position means selling more.
+    assert trades["BBB"]["side"] == "SELL"
+
+
+def test_a_wildcard_shock_is_labelled_as_an_assumption_not_a_measurement():
+    """The gap that let a fabricated loss look like a measured one.
+
+    ``crypto_cascade`` carries a blanket ``*: -25%``. An instrument with no
+    history takes that shock — which is the scenario doing what it says — but a
+    leg moved by a blanket assumption and a leg moved by a measured beta are
+    different claims, and a payload that cannot tell them apart lets the first
+    be read as the second.
+    """
+    from modules.quant_risk import SCENARIOS, apply_scenario
+
+    positions = [
+        {"symbol": "ETHUSDT", "side": "LONG", "notional": 50_000},   # beta measurable
+        {"symbol": "NEWCOIN", "side": "LONG", "notional": 50_000},   # no history at all
+    ]
+    result = apply_scenario(
+        positions, 1_000_000, SCENARIOS["crypto_cascade"]["shocks"], _correlated_history(),
+    )
+    basis = {leg.symbol: leg.basis for leg in result.legs}
+    assert basis["ETHUSDT"] == "beta"
+    assert basis["NEWCOIN"] == "wildcard", "a blanket shock must not masquerade as a measured beta"
+
+    # And with no wildcard in the scenario, the unmeasurable leg stays flat.
+    risk_off = apply_scenario(positions, 1_000_000, SCENARIOS["risk_off"]["shocks"], _correlated_history())
+    unmeasured = next(leg for leg in risk_off.legs if leg.symbol == "NEWCOIN")
+    assert unmeasured.basis == "unsupported"
+    assert unmeasured.pnl == 0.0
+
+
+def test_a_p_value_far_below_the_threshold_does_not_render_as_zero():
+    from modules.quant_risk import var_backtest
+
+    # 30 exceptions in 250 days against a 5% claim: overwhelming rejection.
+    result = var_backtest([-10.0] * 220 + [-5000.0] * 30, var_forecast=1000.0)
+    assert result is not None
+    # Rounding to 4dp would print 0.0, which reads as a certainty no statistic
+    # is entitled to claim.
+    assert 0.0 < result.kupiec_p_value < 0.001

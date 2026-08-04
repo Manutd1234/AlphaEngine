@@ -27,7 +27,10 @@ try:  # pragma: no cover - trivial
     from dotenv import load_dotenv
 
     load_dotenv(BASE_DIR / ".env")
-except Exception:  # pragma: no cover
+except Exception:  # pragma: no cover  # noqa: S110 - see below
+    # Nothing is logged here on purpose: logging is not configured yet at import
+    # time, and a missing .env is the normal case in CI and in a container where
+    # configuration arrives as real environment variables.
     pass
 
 
@@ -120,12 +123,26 @@ class Settings:
     rate_limit_burst: int = field(default_factory=lambda: _env_int("RATE_LIMIT_BURST", 10))
     # Daily drawdown circuit breaker, as a fraction of start-of-day equity.
     max_daily_drawdown_pct: float = field(default_factory=lambda: _env_float("MAX_DAILY_DRAWDOWN_PCT", 0.05))
+    # Fraction of the drawdown budget at which the desk goes reduce-only:
+    # risk-increasing orders are refused while risk-reducing ones still pass.
+    # Between this and 1.0 the response is graduated instead of binary — the
+    # FIA practice of letting a desk close out of trouble but not deeper into
+    # it. Set to 1.0 to disable and keep the original all-or-nothing behaviour.
+    reduce_only_threshold: float = field(default_factory=lambda: _env_float("REDUCE_ONLY_THRESHOLD", 0.80))
+    # Advisory ceiling on 1-day 95% VaR as a fraction of equity. Reported, never
+    # enforced: VaR needs history, and denying orders on a missing covariance
+    # would halt a healthy book on its first day. Prop-desk practice is 1–3%.
+    var_budget_pct: float = field(default_factory=lambda: _env_float("VAR_BUDGET_PCT", 0.02))
     # Limit price may not deviate from mid by more than this many bps (fat-finger price guard).
     max_price_deviation_bps: float = field(default_factory=lambda: _env_float("MAX_PRICE_DEVIATION_BPS", 500.0))
     # Reject an order whose *estimated* slippage exceeds this (liquidity guard).
     max_est_slippage_bps: float = field(default_factory=lambda: _env_float("MAX_EST_SLIPPAGE_BPS", 75.0))
     # Notional starting equity for the paper book.
     starting_equity_usd: float = field(default_factory=lambda: _env_float("STARTING_EQUITY_USD", 1_000_000.0))
+    # Persist a mark-to-market equity observation every N seconds (0 disables).
+    # Long enough that a day of trading is a few hundred rows, short enough to
+    # show the shape of an intraday drawdown.
+    equity_snapshot_interval_s: float = field(default_factory=lambda: _env_float("EQUITY_SNAPSHOT_INTERVAL_S", 60.0))
     # Taker fee applied to paper fills, in bps.
     paper_fee_bps: float = field(default_factory=lambda: _env_float("PAPER_FEE_BPS", 4.0))
 

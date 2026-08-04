@@ -54,7 +54,7 @@ export default function WorkspaceOverview({
         <div>
           <span className="page-kicker">Decision overview</span>
           <h1>{request.symbol} decision workspace</h1>
-          <p>Research evidence, portfolio risk, execution intent and data health in one shared context.</p>
+          <p>Research evidence, portfolio risk, execution intent and data health in one shared context — for every desk role, reconciling to the same audit log.</p>
         </div>
       </section>
 

@@ -555,3 +555,298 @@ export function scaleShocks(shocks: Shock[], regime: VolatilityRegime | null): S
   const k = Math.min(hi, Math.max(lo, regime.ratio));
   return shocks.map((s) => ({ ...s, move: s.move * k }));
 }
+
+// --------------------------------------------------------------------------
+// VaR model validation
+//
+// A VaR nobody has back-tested is an opinion. Regulators settled this argument
+// decades ago: count how often the realised loss exceeded the forecast and test
+// that count against the model's own claim. At 95% confidence roughly one day
+// in twenty *should* breach — a model with zero exceptions is not conservative,
+// it is wrong in the expensive direction, holding capital against a risk it
+// cannot measure.
+//
+// Mirrors `var_backtest` / `rolling_var_backtest` in modules/quant_risk.py.
+// --------------------------------------------------------------------------
+
+export interface VarBacktest {
+  observations: number;
+  exceptions: number;
+  expectedExceptions: number;
+  exceptionRate: number;
+  kupiecStatistic: number;
+  kupiecPValue: number;
+  zone: "green" | "yellow" | "red";
+  verdict: string;
+}
+
+/**
+ * Survival function of chi-squared with one degree of freedom.
+ *
+ * For 1 df this is exactly `erfc(sqrt(x/2))`. JavaScript has no `erfc`, so this
+ * uses the Abramowitz & Stegun 7.1.26 rational approximation — accurate to
+ * ~1.5e-7, which is far tighter than the 0.01/0.05 thresholds it feeds.
+ */
+function chiSquaredSurvival1df(x: number): number {
+  if (x <= 0) return 1;
+  const z = Math.sqrt(x / 2);
+  const t = 1 / (1 + 0.3275911 * z);
+  const poly = t * (0.254829592
+    + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
+  return poly * Math.exp(-z * z);
+}
+
+function kupiec(exceptions: number, observations: number, alpha: number): VarBacktest {
+  const expected = alpha * observations;
+  const rate = exceptions / observations;
+
+  // Guarded at the boundaries, where log(0) appears for a model with no
+  // exceptions at all — the common case on a short, quiet window.
+  let lr: number;
+  if (exceptions > 0 && exceptions < observations) {
+    lr = -2 * (
+      (observations - exceptions) * Math.log(1 - alpha) + exceptions * Math.log(alpha)
+      - ((observations - exceptions) * Math.log(1 - rate) + exceptions * Math.log(rate))
+    );
+  } else if (exceptions === 0) {
+    lr = -2 * observations * Math.log(1 - alpha);
+  } else {
+    lr = -2 * observations * Math.log(alpha);
+  }
+  lr = Math.max(0, lr);
+  const pValue = chiSquaredSurvival1df(lr);
+
+  let zone: VarBacktest["zone"];
+  let verdict: string;
+  if (pValue >= 0.05) {
+    zone = "green";
+    verdict = "Model validated: the exception count is consistent with the forecast.";
+  } else if (exceptions > expected) {
+    zone = pValue < 0.01 ? "red" : "yellow";
+    verdict = `Model understates risk: ${exceptions} exceptions where ${expected.toFixed(1)} were expected.`;
+  } else {
+    zone = "yellow";
+    verdict = `Model overstates risk: only ${exceptions} exceptions where ${expected.toFixed(1)} were expected `
+      + "— the desk is holding capacity it is not using.";
+  }
+
+  return {
+    observations,
+    exceptions,
+    expectedExceptions: Number(expected.toFixed(2)),
+    exceptionRate: Number(rate.toFixed(4)),
+    kupiecStatistic: Number(lr.toFixed(4)),
+    kupiecPValue: Number(pValue.toFixed(4)),
+    zone,
+    verdict,
+  };
+}
+
+/**
+ * Back-test the parametric VaR this workspace quotes.
+ *
+ * The forecast is re-estimated on a rolling window and scored against the
+ * *next* bar's realised book P&L, so it is never judged on data it was fitted
+ * to. That distinction is the whole test: a VaR evaluated in-sample passes
+ * trivially and tells a risk manager nothing.
+ *
+ * The book is held at today's weights — this measures the *model*, asking
+ * whether the volatility estimate would have covered the losses this book would
+ * have taken, which is the question a limit depends on.
+ */
+export function rollingVarBacktest(
+  positions: RiskPosition[],
+  history: ReturnsBySymbol,
+  window = 60,
+  confidence = 0.95,
+): VarBacktest | null {
+  const usable = positions.filter((p) => (history[p.symbol]?.length ?? 0) > 0);
+  if (!usable.length) return null;
+
+  const length = Math.min(...usable.map((p) => history[p.symbol].length));
+  if (length < window + 20) return null;
+
+  const bookReturns: number[] = [];
+  for (let t = 0; t < length; t++) {
+    let total = 0;
+    for (const p of usable) {
+      const series = history[p.symbol];
+      total += p.signedNotional * series[series.length - length + t];
+    }
+    bookReturns.push(total);
+  }
+
+  let exceptions = 0;
+  let scored = 0;
+  for (let t = window; t < length; t++) {
+    const train = bookReturns.slice(t - window, t);
+    const mean = train.reduce((a, b) => a + b, 0) / train.length;
+    const variance = train.reduce((acc, v) => acc + (v - mean) ** 2, 0) / (train.length - 1);
+    const sigma = Math.sqrt(variance);
+    if (!(sigma > 0)) continue;
+    scored++;
+    if (-bookReturns[t] > Z95 * sigma) exceptions++;
+  }
+
+  if (scored < 20) return null;
+  return kupiec(exceptions, scored, 1 - confidence);
+}
+
+// --------------------------------------------------------------------------
+// Allocation
+//
+// The workspace could say what the book *is* — exposure, concentration, risk
+// contributions — and nothing about what it should be. This closes that, and is
+// deliberately naive about expected return: it allocates by risk, because
+// forecasting covariance is hard and forecasting returns is harder. A proposal
+// that pretended otherwise would be an opinion dressed as arithmetic.
+//
+// Mirrors `propose_allocation` / `rebalance_trades` in modules/quant_risk.py.
+// --------------------------------------------------------------------------
+
+export type AllocationMethod = "inverse_vol" | "equal_risk";
+
+export interface TargetWeight {
+  symbol: string;
+  currentWeight: number;
+  targetWeight: number;
+  currentNotional: number;
+  targetNotional: number;
+  /** Signed change as a fraction of current gross: positive means add. */
+  drift: number;
+  /** Which constraint held this weight below its unclipped value, if any. */
+  clippedBy: string | null;
+}
+
+export interface AllocationProposal {
+  method: AllocationMethod;
+  targets: TargetWeight[];
+  grossBefore: number;
+  grossAfter: number;
+  clipped: boolean;
+}
+
+export interface AllocationLimits {
+  maxSymbolNotional?: number;
+  maxGrossNotional?: number;
+}
+
+export function proposeAllocation(
+  positions: RiskPosition[],
+  model: CovarianceModel,
+  method: AllocationMethod = "inverse_vol",
+  limits: AllocationLimits = {},
+): AllocationProposal | null {
+  const index = new Map(model.symbols.map((s, i) => [s, i]));
+  const live = positions.filter((p) => index.has(p.symbol) && p.signedNotional !== 0);
+  if (!live.length) return null;
+
+  const vols = new Map(live.map((p) => [p.symbol, Math.sqrt(Math.max(0, model.covariance[index.get(p.symbol)!][index.get(p.symbol)!]))]));
+  if ([...vols.values()].some((v) => !(v > 0))) return null;
+
+  let weights = new Map<string, number>();
+  if (method === "equal_risk") {
+    // Fixed-point iteration toward equal risk contribution. The inverse-vol
+    // solution is the natural start: it is already correct when correlations
+    // are zero, so the iteration only has to undo the correlation.
+    let total = 0;
+    for (const [symbol, vol] of vols) { weights.set(symbol, 1 / vol); total += 1 / vol; }
+    for (const [symbol, w] of weights) weights.set(symbol, w / total);
+
+    for (let iteration = 0; iteration < 60; iteration++) {
+      const vector = model.symbols.map((s) => weights.get(s) ?? 0);
+      const marginal = model.symbols.map((_, i) =>
+        model.symbols.reduce((acc, _s, j) => acc + model.covariance[i][j] * vector[j], 0));
+      const variance = model.symbols.reduce((acc, _s, i) => acc + vector[i] * marginal[i], 0);
+      if (!(variance > 0)) break;
+
+      const targetRc = variance / weights.size;
+      const updated = new Map<string, number>();
+      for (const [symbol, w] of weights) {
+        const i = index.get(symbol)!;
+        const contribution = vector[i] * marginal[i];
+        updated.set(symbol, contribution > 0 && marginal[i] > 0 ? w * Math.sqrt(targetRc / contribution) : w);
+      }
+      const sum = [...updated.values()].reduce((a, b) => a + b, 0) || 1;
+      weights = new Map([...updated].map(([s, w]) => [s, w / sum]));
+    }
+  } else {
+    let total = 0;
+    for (const [symbol, vol] of vols) { weights.set(symbol, 1 / vol); total += 1 / vol; }
+    for (const [symbol, w] of weights) weights.set(symbol, w / total);
+  }
+
+  const grossBefore = live.reduce((acc, p) => acc + Math.abs(p.signedNotional), 0);
+  const budget = limits.maxGrossNotional
+    ? Math.min(grossBefore, limits.maxGrossNotional)
+    : grossBefore;
+
+  let clipped = false;
+  const targets: TargetWeight[] = live.map((p) => {
+    const currentNotional = Math.abs(p.signedNotional);
+    let targetNotional = (weights.get(p.symbol) ?? 0) * budget;
+    let clippedBy: string | null = null;
+    if (limits.maxSymbolNotional && targetNotional > limits.maxSymbolNotional) {
+      targetNotional = limits.maxSymbolNotional;
+      clippedBy = "max_symbol_notional_usd";
+      clipped = true;
+    }
+    return {
+      symbol: p.symbol,
+      currentWeight: grossBefore ? currentNotional / grossBefore : 0,
+      targetWeight: budget ? targetNotional / budget : 0,
+      currentNotional,
+      targetNotional,
+      drift: grossBefore ? (targetNotional - currentNotional) / grossBefore : 0,
+      clippedBy,
+    };
+  });
+
+  targets.sort((a, b) => Math.abs(b.drift) - Math.abs(a.drift));
+  return {
+    method,
+    targets,
+    grossBefore,
+    grossAfter: targets.reduce((acc, t) => acc + t.targetNotional, 0),
+    clipped,
+  };
+}
+
+export interface RebalanceTrade {
+  symbol: string;
+  side: "BUY" | "SELL";
+  notional: number;
+  reason: string;
+}
+
+/**
+ * Trades needed to reach the proposal, filtered by a drift band.
+ *
+ * The band is what stops a rebalance being a fee-generating machine: a position
+ * 1% away from target costs more to correct than the correction is worth.
+ */
+export function rebalanceTrades(
+  proposal: AllocationProposal,
+  positions: RiskPosition[],
+  driftBand = 0.05,
+): RebalanceTrade[] {
+  const isLong = new Map(positions.map((p) => [p.symbol, p.signedNotional >= 0]));
+  return proposal.targets
+    .filter((t) => Math.abs(t.drift) >= driftBand)
+    .map((t) => {
+      const delta = t.targetNotional - t.currentNotional;
+      const long = isLong.get(t.symbol) ?? true;
+      // Adding to a short means selling more of it: direction depends on which
+      // side the position is already on.
+      const side: "BUY" | "SELL" = long
+        ? (delta > 0 ? "BUY" : "SELL")
+        : (delta > 0 ? "SELL" : "BUY");
+      return {
+        symbol: t.symbol,
+        side,
+        notional: Math.abs(delta),
+        reason: `${delta < 0 ? "over" : "under"}weight by ${(Math.abs(t.drift) * 100).toFixed(1)}% of gross`
+          + (t.clippedBy ? ` (target clipped by ${t.clippedBy})` : ""),
+      };
+    });
+}

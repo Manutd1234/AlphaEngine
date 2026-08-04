@@ -10,7 +10,6 @@ from typing import Annotated, Any, Awaitable, Callable
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.responses import JSONResponse
-
 from provider import (
     ProviderUnavailable,
     bars,

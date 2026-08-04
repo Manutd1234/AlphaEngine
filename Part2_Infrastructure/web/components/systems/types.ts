@@ -117,6 +117,26 @@ export interface SystemHealth {
     ttlMs: Record<string, number>;
   };
   events: { latest: number; oldest: number; retained: number; capacity: number };
+  /**
+   * Payloads that failed a data contract.
+   *
+   * Optional so a workspace deployed against an older gateway build degrades to
+   * "no quarantine panel" rather than to a crash.
+   */
+  quarantine?: {
+    size: number;
+    byProvider: Array<{ provider: string; records: number; rejected: number }>;
+    recent: Array<{
+      seq: number;
+      at: string;
+      provider: string;
+      capability: string;
+      key: string;
+      rejected: boolean;
+      violations: Array<{ check: string; severity: string; message: string; observed?: string | number | null }>;
+      sample: string;
+    }>;
+  };
 }
 
 export interface TraceEvent {

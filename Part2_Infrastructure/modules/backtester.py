@@ -37,6 +37,7 @@ test-suite asserts the two agree.
 from __future__ import annotations
 
 import base64
+import hashlib
 import io
 import logging
 import math
@@ -100,7 +101,7 @@ def fetch_ohlcv(symbol: str, interval: str, bars: int) -> tuple[pd.DataFrame, st
 
                 get_audit().cache_ohlcv(
                     symbol, interval,
-                    [(ts.to_pydatetime(), o, h, l, c, v) for ts, o, h, l, c, v in
+                    [(ts.to_pydatetime(), o, h, lo, c, v) for ts, o, h, lo, c, v in
                      df.reset_index()[["ts", "open", "high", "low", "close", "volume"]].itertuples(index=False)],
                 )
             except Exception as exc:
@@ -397,7 +398,10 @@ class NumpyEngine:
 
             changes = np.flatnonzero(turnover > 0)
             trades = wins = 0
-            for a, b in zip(changes, np.r_[changes[1:], len(strat_rets)]):
+            # Truncating is intended: with no position changes the right-hand
+            # array still holds the end sentinel, and "no changes" means "no
+            # trades to pair up".
+            for a, b in zip(changes, np.r_[changes[1:], len(strat_rets)], strict=False):
                 if lagged[a] == 0:
                     continue
                 trades += 1
@@ -524,6 +528,12 @@ def walk_forward(df: pd.DataFrame, combos: list[tuple[int, int]], req: BacktestR
 
     The aggregate OOS Sharpe is the honest estimate — it is the only number here
     computed on data the parameter choice never touched.
+
+    ``embargo_bars`` discards a gap between each training window and its test
+    window. Adjacent folds leak: a 200-bar moving average evaluated on the first
+    test bar is mostly made of training bars, so the "out-of-sample" score is
+    partly in-sample. An embargo at least as long as the slowest lookback
+    removes that overlap. It defaults to 0, which keeps the original behaviour.
     """
     n = len(df)
     folds = max(2, min(req.folds, settings.walk_forward_folds if req.folds is None else req.folds))
@@ -531,21 +541,37 @@ def walk_forward(df: pd.DataFrame, combos: list[tuple[int, int]], req: BacktestR
     if seg < 100:
         return [], None
 
+    embargo = max(0, min(int(getattr(req, "embargo_bars", 0) or 0), max(0, seg - 50)))
+
     out: list[WalkForwardFold] = []
     oos_returns: list[np.ndarray] = []
     ann = bars_per_year(req.interval)
 
     for i in range(folds):
-        train = df.iloc[i * seg:(i + 1) * seg]
+        # The embargo comes out of the *training* window's tail rather than
+        # shifting the test window: shifting would walk the last fold off the
+        # end of the data and quietly drop it.
+        train = df.iloc[i * seg:(i + 1) * seg - embargo]
         test = df.iloc[(i + 1) * seg:(i + 2) * seg]
-        if len(test) < 50:
+        if len(test) < 50 or len(train) < 50:
             break
 
         is_results, _ = engine.run(train, combos, req)
         best_is = max(is_results, key=lambda r: r.sharpe)
 
-        oos_results, _ = engine.run(test, [(best_is.fast, best_is.slow)], req)
-        oos = oos_results[0]
+        # Score the *whole* grid out-of-sample, not just the winner. One OOS
+        # Sharpe cannot distinguish "this parameter choice was right" from "this
+        # fold was easy for everything"; the winner's rank among its peers can.
+        oos_results, _ = engine.run(test, combos, req)
+        by_combo = {(r.fast, r.slow): r for r in oos_results}
+        oos = by_combo.get((best_is.fast, best_is.slow))
+        if oos is None:
+            oos = engine.run(test, [(best_is.fast, best_is.slow)], req)[0][0]
+        ranked = sorted(oos_results, key=lambda r: r.sharpe, reverse=True)
+        oos_rank = next(
+            (i + 1 for i, r in enumerate(ranked) if (r.fast, r.slow) == (best_is.fast, best_is.slow)),
+            None,
+        )
 
         # Recompute the OOS return stream so folds can be concatenated.
         entries, exits = build_signals(req.strategy, test, best_is.fast, best_is.slow)
@@ -566,10 +592,61 @@ def walk_forward(df: pd.DataFrame, combos: list[tuple[int, int]], req: BacktestR
             is_sharpe=round(best_is.sharpe, 3),
             oos_sharpe=round(oos.sharpe, 3),
             oos_return=round(oos.total_return, 5),
+            oos_rank=oos_rank,
+            combos_ranked=len(ranked),
+            embargo_bars=embargo,
         ))
 
     agg = _annualised_sharpe(np.concatenate(oos_returns), ann) if oos_returns else None
     return out, agg
+
+
+def overfitting_probability(folds: list[WalkForwardFold]) -> float | None:
+    """Probability that the chosen parameters are no better than a coin flip.
+
+    A lightweight reading of Bailey et al.'s probability of backtest
+    overfitting: in each fold the in-sample winner is ranked against every other
+    combination out-of-sample, and PBO is the fraction of folds where it landed
+    in the *worse* half. A strategy whose winners keep placing in the bottom
+    half is being selected by noise — the grid search is fitting the fold, not
+    the market.
+
+    This is the cheap version. Full CPCV evaluates every train/test split
+    combinatorially rather than the sequential folds used here, which costs
+    factorially more compute for a tighter estimate of the same quantity.
+    Returns ``None`` when no fold produced a rank.
+    """
+    ranked = [f for f in folds if f.oos_rank and f.combos_ranked and f.combos_ranked > 1]
+    if not ranked:
+        return None
+    # Median rank is the midpoint: worse than median is the losing half.
+    losses = sum(1 for f in ranked if f.oos_rank > (f.combos_ranked + 1) / 2)
+    return round(losses / len(ranked), 4)
+
+
+def dataset_fingerprint(df: pd.DataFrame) -> str:
+    """SHA-256 over the price series this run actually saw.
+
+    A symbol and a date range do not identify a dataset. The same window can be
+    a live Binance pull, a cached copy, or the synthetic fallback, and the
+    synthetic series is not even stable across processes. Two runs that share
+    this hash provably compared the same bars; two that do not are not
+    comparable however similar their headers look.
+
+    Every price column is hashed, not just the close: ``donchian`` reads highs
+    and lows, so a vendor revising a session high changes the signal while the
+    close is untouched. A fingerprint that missed that would certify two runs as
+    comparable at exactly the moment they stopped being so.
+    """
+    digest = hashlib.sha256()
+    for column in ("open", "high", "low", "close"):
+        if column in df.columns:
+            digest.update(column.encode())
+            digest.update(np.ascontiguousarray(df[column].to_numpy(dtype="float64")).tobytes())
+    digest.update(str(df.index[0]).encode())
+    digest.update(str(df.index[-1]).encode())
+    digest.update(str(len(df)).encode())
+    return digest.hexdigest()[:16]
 
 
 # --------------------------------------------------------------------------- #
@@ -774,6 +851,7 @@ def run_backtest(req_dict: dict[str, Any], job_id: str = "local",
         bars=len(df),
         period_start=str(df.index[0])[:16],
         period_end=str(df.index[-1])[:16],
+        data_hash=dataset_fingerprint(df),
         combos_tested=len(results),
         best=best,
         benchmark_buy_hold=benchmark,
@@ -783,6 +861,7 @@ def run_backtest(req_dict: dict[str, Any], job_id: str = "local",
         dsr_verdict=dsr_verdict(dsr),
         walk_forward=wf_folds,
         walk_forward_oos_sharpe=round(wf_oos, 3) if wf_oos is not None else None,
+        overfitting_probability=overfitting_probability(wf_folds),
         equity_curve_png=equity_png,
         heatmap_png=heatmap_png,
         equity_curve={

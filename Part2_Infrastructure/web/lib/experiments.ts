@@ -68,6 +68,35 @@ export interface ExperimentRecord {
   promotionTotal: number;
   /** True when any friction beyond flat fee/slippage was modelled. */
   modelledFrictions: boolean;
+  /**
+   * Content hash of the bars the run actually saw.
+   *
+   * `periodStart`/`periodEnd` describe a window, not a dataset: a revised bar,
+   * a different venue or the synthetic fallback all produce the same window
+   * with different numbers. Two records sharing this hash provably compared the
+   * same prices; two that do not are not comparable however alike they look.
+   * Optional because runs recorded before it existed cannot be back-filled with
+   * anything honest.
+   */
+  dataHash?: string | null;
+  /**
+   * Fraction of walk-forward folds whose in-sample winner placed in the worse
+   * half of the same grid out-of-sample.
+   */
+  overfittingProbability?: number | null;
+  /** Free-text note a researcher attaches after the fact. */
+  note?: string;
+  /**
+   * Labels a researcher applies — universe, regime, hypothesis family.
+   *
+   * Deliberately on the record and never on the request: `sameRequest` compares
+   * request fields with scalar equality, so an array there would make every
+   * re-run look like a new experiment and inflate the attempt count this panel
+   * exists to keep honest.
+   */
+  tags?: string[];
+  /** Where the record came from — this browser, or the gateway's audit log. */
+  origin?: "browser" | "gateway";
   /** Enough to reproduce the run exactly. */
   request: SweepRequest;
 }
@@ -100,6 +129,9 @@ export function toRecord(data: SweepResponse, id: string, savedAt: number): Expe
     promotionPassed: data.promotion?.passed ?? 0,
     promotionTotal: data.promotion?.total ?? 0,
     modelledFrictions: !(data.costs?.flatOnly ?? true),
+    dataHash: data.dataHash ?? null,
+    overfittingProbability: data.walkForwardReport?.overfittingProbability ?? null,
+    origin: "browser",
     request: data.request,
   };
 }
@@ -179,8 +211,77 @@ export function addExperiment(
   const duplicate = existing.find((r) => sameRequest(r.request, data.request));
   const id = duplicate ? duplicate.id : nextId(existing);
   const record = toRecord(data, id, now);
+  // A re-run replaces its predecessor, but the researcher's own annotations
+  // are about the hypothesis, not the execution — losing them on every re-run
+  // would train people not to write any.
+  if (duplicate) {
+    record.note = duplicate.note;
+    record.tags = duplicate.tags;
+  }
   const rest = existing.filter((r) => r.id !== id);
   return saveExperiments([record, ...rest]);
+}
+
+/** Attach or replace a researcher's note and tags on one record. */
+export function annotateExperiment(
+  existing: ExperimentRecord[],
+  id: string,
+  annotation: { note?: string; tags?: string[] },
+): ExperimentRecord[] {
+  return saveExperiments(existing.map((record) => (
+    record.id === id
+      ? {
+        ...record,
+        note: annotation.note?.trim() ? annotation.note.trim().slice(0, 400) : undefined,
+        tags: annotation.tags?.length
+          ? [...new Set(annotation.tags.map((t) => t.trim().toLowerCase()).filter(Boolean))].slice(0, 8)
+          : undefined,
+      }
+      : record
+  )));
+}
+
+/**
+ * What differs between two runs, and whether they are even comparable.
+ *
+ * The comparability question comes first. Two runs on different bars can differ
+ * in Sharpe for reasons that have nothing to do with the parameters, so the
+ * data hash is checked before any metric delta is worth reading.
+ */
+export interface RunComparison {
+  sameData: boolean | null;
+  requestDiffs: Array<{ field: string; a: unknown; b: unknown }>;
+  metricDeltas: Array<{ metric: string; a: number | null; b: number | null; delta: number | null }>;
+}
+
+export function compareRuns(a: ExperimentRecord, b: ExperimentRecord): RunComparison {
+  const keys = [...new Set([...Object.keys(a.request), ...Object.keys(b.request)])] as (keyof SweepRequest)[];
+  const requestDiffs = keys
+    .filter((k) => (a.request[k] ?? null) !== (b.request[k] ?? null))
+    .map((k) => ({ field: String(k), a: a.request[k] ?? null, b: b.request[k] ?? null }));
+
+  const metrics: Array<[string, number | null, number | null]> = [
+    ["Sharpe", a.sharpe, b.sharpe],
+    ["Deflated Sharpe", a.deflatedSharpeRatio, b.deflatedSharpeRatio],
+    ["OOS Sharpe", a.walkForwardOosSharpe, b.walkForwardOosSharpe],
+    ["Max drawdown", a.maxDrawdown, b.maxDrawdown],
+    ["Total return", a.totalReturn, b.totalReturn],
+    ["Trades", a.trades, b.trades],
+    ["Gates passed", a.promotionPassed, b.promotionPassed],
+  ];
+
+  return {
+    // Null, not false, when either run predates fingerprinting: "unknown" and
+    // "different" would prompt opposite conclusions from the reader.
+    sameData: a.dataHash && b.dataHash ? a.dataHash === b.dataHash : null,
+    requestDiffs,
+    metricDeltas: metrics.map(([metric, av, bv]) => ({
+      metric,
+      a: av,
+      b: bv,
+      delta: av === null || bv === null ? null : bv - av,
+    })),
+  };
 }
 
 export function removeExperiment(

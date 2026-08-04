@@ -509,8 +509,30 @@ export function walkForwardReport(
     positiveFolds,
     totalFolds: enriched.length,
     parameterPersistence: persistence,
+    overfittingProbability: overfittingProbability(folds),
     verdict: walkForwardVerdict(enriched, defined.length ? median(defined) : null, positiveFolds),
   };
+}
+
+/**
+ * Probability of backtest overfitting, the cheap sequential reading.
+ *
+ * Bailey et al. rank the in-sample winner against every other combination
+ * out-of-sample and ask how often it lands in the losing half. Full CPCV does
+ * this over every combinatorial train/test split; this uses the walk-forward
+ * folds already computed, which costs nothing extra and answers the same
+ * question with a coarser estimate.
+ *
+ * Mirrors `overfitting_probability` in the Python reference.
+ */
+export function overfittingProbability(folds: WalkForwardFold[]): number | null {
+  const ranked = folds.filter(
+    (f): f is WalkForwardFold & { oosRank: number; combosRanked: number } =>
+      typeof f.oosRank === "number" && typeof f.combosRanked === "number" && f.combosRanked > 1,
+  );
+  if (!ranked.length) return null;
+  const losses = ranked.filter((f) => f.oosRank > (f.combosRanked + 1) / 2).length;
+  return Number((losses / ranked.length).toFixed(4));
 }
 
 function walkForwardVerdict(

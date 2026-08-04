@@ -50,6 +50,36 @@ import {
 
 export const barsPerYear = (interval: string) => BARS_PER_YEAR[interval] ?? 8760;
 
+/**
+ * A stable fingerprint of the bars a sweep ran on.
+ *
+ * Not a cryptographic hash — this runs in a serverless function on every sweep
+ * and its only job is to answer "were these the same bars?". FNV-1a over the
+ * closes plus the window bounds collides far too rarely to matter for a
+ * comparison the researcher can also verify by eye, and costs one pass.
+ *
+ * Deliberately NOT expected to equal the Python `data_hash`: the two engines
+ * fingerprint their own inputs, which arrive over different transports with
+ * different float formatting. What each guarantees is internal consistency —
+ * two runs *in the same engine* on the same bars agree.
+ */
+export function datasetFingerprint(bars: Bar[]): string {
+  let hash = 0x811c9dc5;
+  const mix = (value: number) => {
+    hash ^= value >>> 0;
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  };
+  for (const bar of bars) {
+    // Six decimals: enough to separate real revisions, coarse enough that a
+    // float round-trip through JSON does not change the answer.
+    mix(Math.round(bar.c * 1e6));
+  }
+  mix(bars.length);
+  mix(bars[0]?.t ?? 0);
+  mix(bars[bars.length - 1]?.t ?? 0);
+  return hash.toString(16).padStart(8, "0");
+}
+
 // --------------------------------------------------------------------------- //
 // Signals
 // --------------------------------------------------------------------------- //
@@ -385,11 +415,15 @@ export function walkForward(
 
   const out: WalkForwardFold[] = [];
   const oosReturns: number[] = [];
+  // Taken out of the training window's tail rather than by shifting the test
+  // window: shifting would walk the last fold off the end of the data and
+  // quietly drop it. Mirrors `walk_forward` in the Python reference.
+  const embargo = Math.max(0, Math.min(Math.trunc(req.embargoBars ?? 0), Math.max(0, seg - 50)));
 
   for (let i = 0; i < folds; i++) {
-    const train = bars.slice(i * seg, (i + 1) * seg);
+    const train = bars.slice(i * seg, (i + 1) * seg - embargo);
     const test = bars.slice((i + 1) * seg, (i + 2) * seg);
-    if (test.length < 50) break;
+    if (test.length < 50 || train.length < 50) break;
 
     const tr = columns(train);
     let bestIs = combos[0];
@@ -402,9 +436,19 @@ export function walkForward(
       }
     }
 
+    // Score the whole grid out-of-sample, not just the winner: one OOS Sharpe
+    // cannot separate "this choice was right" from "this fold was easy for
+    // everything". The winner's rank among its peers can.
     const te = columns(test);
     const oos = runCombo(test, te.close, te.high, te.low, te.pxRet, req, bestIs[0], bestIs[1], adv);
     for (let k = 0; k < oos.returns.length; k++) oosReturns.push(oos.returns[k]);
+
+    const oosSharpes = combos.map(([f, s2]) => ({
+      combo: [f, s2] as [number, number],
+      sharpe: runCombo(test, te.close, te.high, te.low, te.pxRet, req, f, s2, adv).result.sharpe,
+    }));
+    oosSharpes.sort((a, b) => b.sharpe - a.sharpe);
+    const rankIndex = oosSharpes.findIndex((e) => e.combo[0] === bestIs[0] && e.combo[1] === bestIs[1]);
 
     out.push({
       fold: i + 1,
@@ -417,6 +461,9 @@ export function walkForward(
       isSharpe: bestSharpe,
       oosSharpe: oos.result.sharpe,
       oosReturn: oos.result.totalReturn,
+      oosRank: rankIndex >= 0 ? rankIndex + 1 : undefined,
+      combosRanked: oosSharpes.length,
+      embargoBars: embargo,
     });
   }
 
@@ -610,6 +657,7 @@ export function runSweep(
     bars: bars.length,
     periodStart: isoDay(bars[0].t),
     periodEnd: isoDay(bars[bars.length - 1].t),
+    dataHash: datasetFingerprint(bars),
     combosTested: results.length,
     durationMs: Date.now() - t0,
     best,

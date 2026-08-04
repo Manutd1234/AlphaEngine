@@ -11,11 +11,17 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 # Point every test at a throwaway DuckDB file and keep the tests offline.
+#
+# These are set before ``config`` is imported precisely so they win over a local
+# ``.env``: python-dotenv does not override variables that already exist. A
+# developer's deployment file must not decide whether the suite passes — the
+# tests that care about authentication turn it on themselves via monkeypatch.
 _TMP = Path(tempfile.mkdtemp(prefix="alphaengine-test-"))
 os.environ.setdefault("DATA_DIR", str(_TMP))
 os.environ.setdefault("DB_PATH", str(_TMP / "test.duckdb"))
 os.environ.setdefault("ENABLE_MARKET_DATA", "0")
 os.environ.setdefault("TELEGRAM_BOT_TOKEN", "")
+os.environ.setdefault("REQUIRE_AUTH", "0")
 
 
 def stub_feed(name: str, book):

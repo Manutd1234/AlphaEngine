@@ -16,9 +16,13 @@
  * DuckDB log, and this says so rather than letting anyone assume otherwise.
  */
 
+import { useState } from "react";
+
 import { fmt, pct, signedPct } from "@/lib/format";
 import { STRATEGY_LABELS, type SweepRequest } from "@/lib/types";
 import type { ExperimentRecord } from "@/lib/experiments";
+
+import RunComparison from "./RunComparison";
 
 interface ExperimentHistoryProps {
   records: ExperimentRecord[];
@@ -26,6 +30,8 @@ interface ExperimentHistoryProps {
   onClone: (request: SweepRequest) => void;
   onRemove: (id: string) => void;
   onClear: () => void;
+  /** Attach a researcher's note and tags to one run. */
+  onAnnotate?: (id: string, annotation: { note?: string; tags?: string[] }) => void;
 }
 
 const VERDICT_STYLE: Record<string, { glyph: string; label: string; tone: string }> = {
@@ -40,9 +46,42 @@ export default function ExperimentHistory({
   onClone,
   onRemove,
   onClear,
+  onAnnotate,
 }: ExperimentHistoryProps) {
   const promoted = records.filter((r) => r.promotionTotal > 0 && r.promotionPassed === r.promotionTotal);
   const distinctSymbols = new Set(records.map((r) => r.symbol)).size;
+
+  // At most two: comparing three runs at once is a table, and the table is
+  // already above. This exists for the controlled A/B a researcher actually
+  // reasons about.
+  const [selected, setSelected] = useState<string[]>([]);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draftNote, setDraftNote] = useState("");
+  const [draftTags, setDraftTags] = useState("");
+
+  const toggle = (id: string) => setSelected((current) => (
+    current.includes(id)
+      ? current.filter((x) => x !== id)
+      : [...current, id].slice(-2)
+  ));
+
+  const pair = selected
+    .map((id) => records.find((r) => r.id === id))
+    .filter((r): r is ExperimentRecord => Boolean(r));
+
+  function startEditing(record: ExperimentRecord) {
+    setEditing(record.id);
+    setDraftNote(record.note ?? "");
+    setDraftTags((record.tags ?? []).join(", "));
+  }
+
+  function commit(id: string) {
+    onAnnotate?.(id, {
+      note: draftNote,
+      tags: draftTags.split(",").map((t) => t.trim()).filter(Boolean),
+    });
+    setEditing(null);
+  }
 
   return (
     <div className="card">
@@ -85,6 +124,7 @@ export default function ExperimentHistory({
               </caption>
               <thead>
                 <tr>
+                  <th scope="col"><span className="sr-only">Compare</span></th>
                   <th scope="col">Run</th>
                   <th scope="col">Hypothesis</th>
                   <th scope="col">Sharpe</th>
@@ -103,9 +143,22 @@ export default function ExperimentHistory({
                   return (
                     <tr key={r.id} className={isActive ? "is-best" : undefined}>
                       <td>
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(r.id)}
+                          onChange={() => toggle(r.id)}
+                          aria-label={`Compare ${r.id}`}
+                        />
+                      </td>
+                      <td>
                         <div className="run-id">
                           <strong>{r.id}</strong>
                           {isActive && <small className="muted">on screen</small>}
+                          {r.origin === "gateway" && (
+                            <small className="muted" title="Recorded by the gateway's audit log, not this browser">
+                              gateway
+                            </small>
+                          )}
                         </div>
                       </td>
                       <td>
@@ -115,6 +168,12 @@ export default function ExperimentHistory({
                             {r.symbol} · {r.interval} · {r.fast}/{r.slow} · {r.combosTested} combos
                             {r.modelledFrictions && " · frictions modelled"}
                           </small>
+                          {r.tags?.length ? (
+                            <div className="run-tags">
+                              {r.tags.map((tag) => <span key={tag} className="run-tag">{tag}</span>)}
+                            </div>
+                          ) : null}
+                          {r.note ? <small className="run-note">{r.note}</small> : null}
                         </div>
                       </td>
                       <td>{fmt(r.sharpe, 2)}</td>
@@ -141,6 +200,15 @@ export default function ExperimentHistory({
                           >
                             Clone
                           </button>
+                          {onAnnotate && (
+                            <button
+                              type="button"
+                              onClick={() => startEditing(r)}
+                              title="Attach a note and tags to this run"
+                            >
+                              Note
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => onRemove(r.id)}
@@ -157,6 +225,38 @@ export default function ExperimentHistory({
             </table>
           </div>
 
+          {editing && (
+            <div className="run-annotate">
+              <label>
+                <span>Note on {editing}</span>
+                <textarea
+                  rows={2}
+                  value={draftNote}
+                  maxLength={400}
+                  placeholder="What was the hypothesis, and what did this run settle?"
+                  onChange={(event) => setDraftNote(event.target.value)}
+                />
+              </label>
+              <label>
+                <span>Tags (comma separated)</span>
+                <input
+                  type="text"
+                  value={draftTags}
+                  placeholder="trend, high-vol, funding-sensitive"
+                  onChange={(event) => setDraftTags(event.target.value)}
+                />
+              </label>
+              <div className="run-actions">
+                <button type="button" onClick={() => commit(editing)}>Save</button>
+                <button type="button" onClick={() => setEditing(null)}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {pair.length === 2 && (
+            <RunComparison a={pair[0]} b={pair[1]} onClose={() => setSelected([])} />
+          )}
+
           <div className="research-facts">
             <span>
               Best in-sample <strong className="num">{fmt(bestSharpe(records), 2)}</strong>
@@ -164,6 +264,9 @@ export default function ExperimentHistory({
             <span>
               Best out-of-sample <strong className="num">{fmt(bestOos(records), 2)}</strong>
             </span>
+            {selected.length === 1 && (
+              <span className="muted">Select one more run to compare.</span>
+            )}
             <button type="button" className="text-action" onClick={onClear}>
               Clear history
             </button>

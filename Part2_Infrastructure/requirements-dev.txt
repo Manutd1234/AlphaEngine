@@ -1,0 +1,5 @@
+# Tooling used by CI and pre-push checks, on top of requirements-core.txt.
+# Kept separate so a reviewer running the test suite does not have to install a
+# linter, and so the runtime image never carries development tooling.
+-r requirements-core.txt
+ruff>=0.6

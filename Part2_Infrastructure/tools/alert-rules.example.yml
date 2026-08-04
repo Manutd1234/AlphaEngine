@@ -1,0 +1,185 @@
+# Prometheus alert rules for the AlphaEngine gateway.
+#
+# Every metric named below is one `/metrics` actually exports; an example rule
+# file referring to metrics that do not exist is worse than none, because it
+# looks like coverage.
+#
+# One caveat worth stating rather than discovering: the per-venue and per-route
+# series exist only once there is something to measure. A gateway started with
+# `ENABLE_MARKET_DATA=0` has no `alphaengine_feed_*` series at all, and a route
+# nobody has called has no latency series. Rules over those are inert until the
+# first sample, which is why the venue-down conditions below are paired with
+# `AlphaEngineGatewayDown` — an absent exporter and an absent venue look alike
+# from a single rule, and only `up` tells them apart.
+#
+#   promtool check rules tools/alert-rules.example.yml
+#
+# What is NOT here: paging. The gateway already pushes the same conditions to
+# its Telegram companion (see the "already pushed" note on each rule), which is
+# the notification path a one-person desk actually reads. These rules exist for
+# the deployment that has a Prometheus and wants the same conditions in the same
+# place as everything else it runs.
+#
+# Thresholds are starting points, not truths. A desk that trades one instrument
+# at 4 Hz and one that trades thirty at 400 Hz disagree about what "stale" means.
+
+groups:
+  - name: alphaengine.trading
+    interval: 15s
+    rules:
+      # ---- the desk has stopped ------------------------------------------- #
+      - alert: AlphaEngineKillSwitchEngaged
+        expr: alphaengine_kill_switch_active == 1
+        for: 0m                       # no delay: a halted desk is news immediately
+        labels:
+          severity: critical
+          runbook: docs/RUNBOOK.md#drawdown-breaker-tripped
+        annotations:
+          summary: "Trading is halted across the book"
+          description: >-
+            The kill switch is engaged. Either an operator halted the desk or the
+            automatic drawdown breaker tripped. Nothing new will reach a venue
+            until it is released. Already pushed to Telegram by the gateway.
+
+      - alert: AlphaEngineReduceOnly
+        # Compares against the *configured* threshold, not a copy of the
+        # default: a rule with 0.8 baked in goes quiet the moment an operator
+        # tightens REDUCE_ONLY_THRESHOLD, which is when it matters most.
+        expr: alphaengine_reduce_only_active == 1
+        for: 1m
+        labels:
+          severity: warning
+          runbook: docs/RUNBOOK.md#drawdown-breaker-tripped
+        annotations:
+          summary: "Desk is reduce-only"
+          description: >-
+            Position-increasing orders are being refused; only closing orders
+            pass. This is the window before the hard halt — the point of it is
+            that someone looks now rather than after the breaker trips.
+
+      - alert: AlphaEngineRejectionSpike
+        expr: >-
+          rate(alphaengine_orders_rejected_total[5m])
+          > 3 * rate(alphaengine_orders_accepted_total[5m])
+        for: 5m
+        labels:
+          severity: warning
+          runbook: docs/RUNBOOK.md#rejection-spike
+        annotations:
+          summary: "Most orders are being rejected"
+          description: >-
+            Rejections are running at more than three times acceptances. A gate
+            is firing repeatedly: usually sizing that no longer fits a limit, or
+            a strategy retrying into a rate limit. The blotter names the gate.
+
+  - name: alphaengine.marketdata
+    interval: 15s
+    rules:
+      - alert: AlphaEngineFeedDisconnected
+        expr: alphaengine_feed_connected == 0
+        for: 1m
+        labels:
+          severity: critical
+          runbook: docs/RUNBOOK.md#venue-feed-down
+        annotations:
+          summary: "{{ $labels.venue }} feed is disconnected"
+          description: >-
+            Prices from this venue are not updating. The router excludes stale
+            books automatically, so the immediate risk is not a bad fill — it is
+            that the remaining venue is now the only opinion on the price.
+            Already pushed to Telegram by the feed watchdog.
+
+      - alert: AlphaEngineBookStale
+        expr: alphaengine_book_age_seconds > 30
+        for: 2m
+        labels:
+          severity: warning
+          runbook: docs/RUNBOOK.md#venue-feed-down
+        annotations:
+          summary: "{{ $labels.venue }}/{{ $labels.symbol }} book is {{ $value }}s old"
+          description: >-
+            The socket is up and the data is not. This is the failure mode that
+            looks healthy on a connection count, which is why it is measured on
+            the book rather than the connection.
+
+      - alert: AlphaEngineSyntheticBookActive
+        expr: alphaengine_synthetic_book_active == 1
+        for: 5m
+        labels:
+          severity: warning
+          runbook: docs/RUNBOOK.md#venue-feed-down
+        annotations:
+          summary: "Serving a synthetic book — every venue is dark"
+          description: >-
+            The fallback is running because no real venue is reachable. Books
+            are tagged `synthetic: true` in every payload and the UI labels
+            them, so nothing is being passed off as real; but no number on the
+            screen is a market price right now.
+
+      - alert: AlphaEngineFeedFlapping
+        expr: increase(alphaengine_feed_reconnects_total[15m]) > 5
+        for: 0m
+        labels:
+          severity: warning
+          runbook: docs/RUNBOOK.md#venue-feed-down
+        annotations:
+          summary: "{{ $labels.venue }} has reconnected {{ $value }} times in 15m"
+          description: >-
+            Repeated reconnects usually mean sequence gaps forcing resubscribes
+            rather than a dead socket. Each gap is a window where the book was
+            briefly wrong, and the router was sizing against it.
+
+  - name: alphaengine.platform
+    interval: 30s
+    rules:
+      - alert: AlphaEngineGatewayDown
+        expr: up{job="alphaengine"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          runbook: docs/RUNBOOK.md#gateway-unreachable
+        annotations:
+          summary: "The gateway is not answering scrapes"
+          description: >-
+            No orders can be placed and no risk state is being evaluated. The
+            kill switch is not a durable state, so a restart comes back trading
+            — check the audit log for what tripped before the process died.
+
+      - alert: AlphaEngineGateLatencyHigh
+        expr: alphaengine_request_latency_ms{route="/api/orders",quantile="0.99"} > 250
+        for: 5m
+        labels:
+          severity: warning
+          runbook: docs/RUNBOOK.md#gate-latency
+        annotations:
+          summary: "Order path p99 is {{ $value }}ms"
+          description: >-
+            The pre-trade gates normally decide in well under a millisecond;
+            hundreds of milliseconds means the decision is waiting on something
+            it should not — usually the audit store or a blocked event loop.
+
+      - alert: AlphaEngineJobQueueBacklog
+        expr: alphaengine_jobs{status="queued"} > 20
+        for: 10m
+        labels:
+          severity: warning
+          runbook: docs/RUNBOOK.md#job-backlog
+        annotations:
+          summary: "{{ $value }} backtests queued"
+          description: >-
+            Research jobs are arriving faster than the worker pool clears them.
+            Harmless to trading — the queue is deliberately isolated from the
+            order path — but researchers are waiting.
+
+      - alert: AlphaEngineJobFailures
+        expr: alphaengine_jobs{status="failed"} > 3
+        for: 5m
+        labels:
+          severity: warning
+          runbook: docs/RUNBOOK.md#job-backlog
+        annotations:
+          summary: "{{ $value }} failed jobs in the queue"
+          description: >-
+            Repeated failures usually mean the market-data source a sweep needs
+            is unavailable, not that the engine is broken. Check a job's error
+            in /api/jobs before assuming otherwise.

@@ -5,7 +5,9 @@ import "./globals.css";
 
 const TITLE = "AlphaEngine — Integrated Investment Infrastructure";
 const DESCRIPTION =
-  "A connected workspace for portfolio managers, traders, researchers and developers — from strategy evidence to live execution and data lineage.";
+  "A connected workspace for quant researchers, traders, portfolio managers, risk managers, "
+  + "developers, data engineers and SREs — from strategy evidence to live execution, "
+  + "risk validation and data lineage.";
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();

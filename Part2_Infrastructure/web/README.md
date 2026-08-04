@@ -53,7 +53,7 @@ npm install
 npm run dev        # http://localhost:3000 (Turbopack)
 npm run build      # Turbopack production build
 npm run typecheck  # tsc --noEmit
-npm test           # 198 tests, no network required
+npm test           # 333 tests, no network required
 ```
 
 Built on **Next.js 16** with **Turbopack**, which is the default bundler for both
@@ -350,7 +350,7 @@ web/
 │       └── …one adapter per vendor (binance, fmp, tiingo, massive,
 │            alphavantage, firecrawl, openbb)
 ├── components/               charts (hand-rolled SVG), controls, tables
-└── tests/                    83 tests incl. cross-engine parity
+└── tests/                    333 tests incl. cross-engine and risk-engine parity
 ```
 
 **Why the sweep runs server-side.** Binance's public API is called from the
@@ -415,18 +415,63 @@ need a long-lived process, which is why they are not deployed here:
 
 - **Module A** — live L2 order books from Binance and Bybit over WebSocket, with
   VWAP, slippage and cross-venue smart routing.
-- **Module B** — a pre-trade risk gateway (12 gates in ~0.2 ms) with an emergency
+- **Module B** — a pre-trade risk gateway (14 gates in ~0.2 ms) with an emergency
   kill switch controlled only through authenticated gateway surfaces.
 
 Serverless functions cannot hold a WebSocket subscription open or keep risk state
 between invocations, so those run on the always-on gateway. This workspace reads
 portfolio state through its server-only proxy. The Telegram companion is a
-separate, text-only and operationally read-only client of the same authoritative
-state: it can report halts, risk, portfolio and execution quality, but it cannot
-open this workspace, submit orders, change the kill switch or queue a backtest.
+separate, text-only client of the same authoritative state: it reports halts,
+risk, portfolio and execution quality, and it cannot open this workspace, submit
+orders or queue a backtest. It *can* halt, resume and flatten — those three
+commands are reserved for a second, narrower operator allow-list and each needs
+a single-use confirmation code, because a desk that can only be stopped from a
+laptop is a desk that cannot be stopped from a train.
 
 OpenBB is separate again: the web adapter calls the stateless
 [`../OpenBB_Service`](../OpenBB_Service) using `OPENBB_API_URL` and
 `OPENBB_API_TOKEN`. Portfolio reads call the long-lived gateway using
 `ALPHAENGINE_GATEWAY_URL` and `ALPHAENGINE_GATEWAY_TOKEN`. Both token pairs stay
 server-side and should be independently rotatable.
+
+---
+
+## Extending the system
+
+The two extension points a developer reaches for, and the contract each one has
+to honour.
+
+### Adding a data provider
+
+1. **Implement `Adapter`** (`lib/providers/types.ts`). Every capability method is
+   optional and capability-declared, so a provider that only serves quotes
+   simply omits the rest — the registry never offers it work it cannot do.
+2. **Register it** in `lib/providers/registry.ts` with its quota shape and
+   breaker defaults. Rank matters: the list is the failover order.
+3. **Throw, do not coerce, on a missing primary field.** A quote with no price
+   must fail loudly so the chain moves on. Returning a null price instead
+   converts a failover into a silently wrong number.
+4. **Add a case to `tests/providers.test.ts`** with a canned vendor payload —
+   fixtures are committed, so no test reaches the network.
+
+Data contracts (`lib/providers/contracts.ts`) then apply automatically: the
+capability façade attaches the expectations, and a payload that fails them is
+failed over and quarantined without the adapter having to know.
+
+### Adding a panel
+
+1. Components live in `components/` by audience — `portfolio/`, `research/`,
+   `execution/`, `systems/`.
+2. Read through a **same-origin route**, never a vendor directly: the credential
+   stays on the server and the browser bundle never sees it.
+3. Use the existing tokens. `--status-*` are fill colours at 3:1 and must never
+   be a `color:` value; the `--*-text` roles exist for that and a test enforces
+   it (`tests/theme.test.ts`).
+4. State always encodes as **icon + word + colour**, never colour alone.
+
+### Adding a gateway endpoint
+
+That one lives in the gateway's own README (§7): define the shape in
+`modules/schemas.py`, add the route with `response_model=`, test it, and
+regenerate `tools/openapi.json`. The committed snapshot is what stops a rename
+here from 404ing a browser there.

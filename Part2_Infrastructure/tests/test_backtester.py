@@ -198,3 +198,130 @@ class TestEndToEnd:
         for f in folds:
             assert f.train_end <= f.test_start
             assert f.chosen_fast < f.chosen_slow
+
+
+class TestReproducibility:
+    """What makes two runs comparable rather than merely similar.
+
+    A symbol and a date range do not identify a dataset: the same window can be
+    a live pull, a cached copy, or the synthetic fallback, and only one of those
+    is stable across processes. Without a content hash, "we tested the same
+    thing" is an assumption.
+    """
+
+    def test_identical_bars_hash_identically(self):
+        from modules.backtester import dataset_fingerprint
+
+        df = make_prices(n=600)
+        assert dataset_fingerprint(df) == dataset_fingerprint(df.copy())
+
+    def test_one_changed_bar_changes_the_hash(self):
+        from modules.backtester import dataset_fingerprint
+
+        df = make_prices(n=600)
+        revised = df.copy()
+        revised.iloc[300, revised.columns.get_loc("close")] *= 1.0001
+        assert dataset_fingerprint(df) != dataset_fingerprint(revised)
+
+    def test_the_same_window_from_a_different_series_does_not_collide(self):
+        from modules.backtester import dataset_fingerprint
+
+        # Same length, same index, different prices — the exact case a
+        # period_start/period_end comparison cannot tell apart.
+        a, b = make_prices(n=600, seed=1), make_prices(n=600, seed=2)
+        assert a.index[0] == b.index[0] and a.index[-1] == b.index[-1]
+        assert dataset_fingerprint(a) != dataset_fingerprint(b)
+
+    def test_a_truncated_window_is_a_different_dataset(self):
+        from modules.backtester import dataset_fingerprint
+
+        df = make_prices(n=600)
+        assert dataset_fingerprint(df) != dataset_fingerprint(df.iloc[:-1])
+
+
+class TestEmbargoAndOverfitting:
+    """Two independent overfitting controls: leakage, and selection."""
+
+    def _request(self, **overrides) -> BacktestRequest:
+        base = dict(folds=3, fast_min=5, fast_max=20, fast_step=5,
+                    slow_min=30, slow_max=90, slow_step=30)
+        base.update(overrides)
+        return BacktestRequest(**base)
+
+    def test_embargo_shortens_training_without_dropping_a_fold(self):
+        from modules.backtester import walk_forward
+
+        df = make_prices(n=1600)
+        plain = self._request()
+        embargoed = self._request(embargo_bars=120)
+
+        folds_plain, _ = walk_forward(df, param_grid(plain), plain, NumpyEngine())
+        folds_embargo, _ = walk_forward(df, param_grid(embargoed), embargoed, NumpyEngine())
+
+        # The gap comes out of the training tail rather than shifting the test
+        # window forward, so the fold count and the test windows are untouched.
+        assert len(folds_embargo) == len(folds_plain)
+        for gapped, adjacent in zip(folds_embargo, folds_plain, strict=True):
+            assert gapped.test_start == adjacent.test_start
+            assert gapped.train_end < adjacent.train_end
+            assert gapped.embargo_bars == 120
+
+    def test_default_is_zero_so_existing_results_are_unchanged(self):
+        from modules.backtester import walk_forward
+
+        df = make_prices(n=1600)
+        req = self._request()
+        folds, agg = walk_forward(df, param_grid(req), req, NumpyEngine())
+        assert all(f.embargo_bars == 0 for f in folds)
+        # The Python↔TypeScript parity fixture pins this equivalence too.
+        assert agg is not None
+
+    def test_an_absurd_embargo_cannot_starve_the_training_window(self):
+        from modules.backtester import walk_forward
+
+        df = make_prices(n=1600)
+        req = self._request(embargo_bars=500)
+        folds, _ = walk_forward(df, param_grid(req), req, NumpyEngine())
+        # Clamped rather than producing empty training sets and zero folds.
+        assert folds
+        for fold in folds:
+            assert fold.train_start < fold.train_end
+
+    def test_every_fold_ranks_its_winner_against_the_whole_grid(self):
+        from modules.backtester import walk_forward
+
+        df = make_prices(n=1600)
+        req = self._request()
+        combos = param_grid(req)
+        folds, _ = walk_forward(df, combos, req, NumpyEngine())
+        for fold in folds:
+            assert fold.combos_ranked == len(combos)
+            assert 1 <= fold.oos_rank <= len(combos)
+
+    def test_pbo_counts_folds_whose_pick_landed_in_the_worse_half(self):
+        from modules.backtester import overfitting_probability
+        from modules.schemas import WalkForwardFold
+
+        def fold(rank: int) -> WalkForwardFold:
+            return WalkForwardFold(
+                fold=rank, train_start="a", train_end="b", test_start="c", test_end="d",
+                chosen_fast=5, chosen_slow=30, is_sharpe=1.0, oos_sharpe=0.1, oos_return=0.01,
+                oos_rank=rank, combos_ranked=10,
+            )
+
+        # Ranks 8, 9, 10 of 10 are all below the 5.5 midpoint.
+        assert overfitting_probability([fold(8), fold(9), fold(10)]) == 1.0
+        assert overfitting_probability([fold(1), fold(2), fold(3)]) == 0.0
+        assert overfitting_probability([fold(1), fold(9)]) == 0.5
+
+    def test_pbo_is_none_when_nothing_was_ranked(self):
+        from modules.backtester import overfitting_probability
+        from modules.schemas import WalkForwardFold
+
+        unranked = WalkForwardFold(
+            fold=1, train_start="a", train_end="b", test_start="c", test_end="d",
+            chosen_fast=5, chosen_slow=30, is_sharpe=1.0, oos_sharpe=0.1, oos_return=0.01,
+        )
+        # Absent evidence must read as "unknown", never as "0% overfit".
+        assert overfitting_probability([unranked]) is None
+        assert overfitting_probability([]) is None

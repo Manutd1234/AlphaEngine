@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import AllocationDonut from "@/components/portfolio/AllocationDonut";
 import EquityCurve from "@/components/portfolio/EquityCurve";
 import ExecutionHandoff, { type HandoffIntent } from "@/components/portfolio/ExecutionHandoff";
 import HeadroomBar from "@/components/portfolio/HeadroomBar";
+import AllocationPanel from "@/components/portfolio/AllocationPanel";
 import RiskEngine from "@/components/portfolio/RiskEngine";
 import StressTest from "@/components/portfolio/StressTest";
 import { compact, fmt, pct, signedPct, usd } from "@/lib/format";
@@ -23,6 +24,7 @@ import {
   beta,
   buildCovariance,
   portfolioRisk,
+  rollingVarBacktest,
 } from "@/lib/portfolio-risk";
 
 export type PortfolioFocusDestination = "research" | "live" | "data";
@@ -72,6 +74,8 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
   // The gateway has no session-history endpoint, so the only honest live series
   // is what this tab has actually seen. Appended on each successful poll.
   const [observed, setObserved] = useState<EquityPoint[]>([]);
+  const [periods, setPeriods] = useState<Record<string, { pnl: number | null; return: number | null }> | null>(null);
+  const [historyBackfilled, setHistoryBackfilled] = useState(false);
   const sequence = useRef(0);
   const selectedSymbol = workspaceSymbol.trim().toUpperCase();
 
@@ -120,6 +124,33 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
         setRefreshing(false);
       }
     }
+  }, []);
+
+  // One backfill on mount. The gateway persists an equity snapshot from its
+  // risk monitor, so the curve no longer starts blank every time someone opens
+  // the tab — and the period figures below it are derived from the same rows.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/gateway/portfolio/history?limit=400", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => {
+        if (cancelled || !body?.points?.length) return;
+        const restored: EquityPoint[] = [];
+        let hwm = -Infinity;
+        for (const point of body.points as Array<{ ts: string; equity: number }>) {
+          const t = Date.parse(point.ts.endsWith("Z") ? point.ts : `${point.ts}Z`);
+          if (Number.isNaN(t)) continue;
+          hwm = Math.max(hwm, point.equity);
+          restored.push({ t, equity: point.equity, highWaterMark: hwm });
+        }
+        // Prepended, never merged blindly: whatever this tab has already
+        // observed is newer than anything the endpoint returned.
+        setObserved((current) => [...restored, ...current].slice(-400));
+        setPeriods(body.periods ?? null);
+        setHistoryBackfilled(true);
+      })
+      .catch(() => { /* a missing history endpoint is not an error worth showing */ });
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -276,6 +307,19 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
     : null;
   const measured = new Set(covarianceModel?.symbols ?? []);
   const missingHistory = riskPositions.map((r) => r.symbol).filter((sym) => !measured.has(sym));
+  // Does the VaR above actually hold up? Computed from the same returns, so the
+  // forecast and its scorecard can never describe different data.
+  const varValidation = riskPositions.length ? rollingVarBacktest(riskPositions, returns) : null;
+
+  // The same caps the risk gateway enforces, read off the payload rather than
+  // duplicated as constants — a proposal built against a stale limit would be
+  // rejected order by order at the gate.
+  const allocationLimits = useMemo(() => ({
+    maxSymbolNotional: positions[0]
+      ? positions[0].symbol_limit.used + positions[0].symbol_limit.remaining
+      : undefined,
+    maxGrossNotional: book.risk_budget.gross_exposure.limit,
+  }), [positions, book.risk_budget.gross_exposure.limit]);
   const referenceSymbol = riskPositions[0]?.symbol ?? "BTCUSDT";
   // Beta against the largest position, and each position's share of book
   // volatility. Both belong on the positions row: a PM reading exposure should
@@ -556,6 +600,8 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
 
       <div className="portfolio-main-grid">
         <EquityCurve
+          periods={periods}
+          backfilled={historyBackfilled}
           points={equityTrack}
           startOfDay={book.equity.start_of_day}
           haltLevel={book.risk_budget.daily_drawdown.equity_at_halt}
@@ -577,6 +623,12 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
           equity={book.equity.current}
           loading={riskLoading && !risk}
           missing={missingHistory}
+          validation={varValidation}
+        />
+        <AllocationPanel
+          positions={riskPositions}
+          model={covarianceModel}
+          limits={allocationLimits}
         />
         {riskPositions.length > 0 ? (
           <StressTest

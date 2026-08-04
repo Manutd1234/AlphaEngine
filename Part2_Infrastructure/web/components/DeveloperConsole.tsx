@@ -26,6 +26,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CrossSourceCheck from "@/components/systems/CrossSourceCheck";
 import FailoverGraph, { routeKey } from "@/components/systems/FailoverGraph";
 import HealthMatrix from "@/components/systems/HealthMatrix";
+import QuarantinePanel from "@/components/systems/QuarantinePanel";
 import OperatorPanel, { type ActionOptions } from "@/components/systems/OperatorPanel";
 import PipelineInspector from "@/components/systems/PipelineInspector";
 import QuotaMeters from "@/components/systems/QuotaMeters";
@@ -300,6 +301,15 @@ export default function DeveloperConsole({
           />
 
           <CrossSourceCheck symbol={workspaceSymbol} />
+
+          {/* Transport health and data health are different questions: a
+              provider can answer quickly, from a closed breaker, with a bar
+              series that halves the volatility a backtest measures. */}
+          <QuarantinePanel
+            size={health?.quarantine?.size ?? 0}
+            byProvider={health?.quarantine?.byProvider ?? []}
+            recent={health?.quarantine?.recent ?? []}
+          />
         </div>
 
         <div className="console-column console-column--narrow">

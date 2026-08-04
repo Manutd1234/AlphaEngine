@@ -5,9 +5,9 @@ from __future__ import annotations
 import re
 
 import pytest
+from conftest import deep_book, stub_feed
 
 from config import settings
-from conftest import deep_book, stub_feed
 from modules.audit import AuditLog
 from modules.jobs import JobQueue
 from modules.risk_proxy import RiskGateway, TokenBucket
@@ -15,9 +15,6 @@ from modules.schemas import OrderRequest
 from modules.tca_engine import BookState, TCAEngine
 from modules.telegram import (
     _BOOTSTRAP_COMMANDS,
-    TelegramBot,
-)  # noqa: F401
-from modules.telegram import (
     BOT_COMMANDS,
     BOT_DESCRIPTION,
     BOT_SHORT_DESCRIPTION,
@@ -27,7 +24,7 @@ from modules.telegram import (
     esc,
     help_text,
     split_telegram_html,
-)
+)  # noqa: F401
 
 CHAT = "12345"
 USER = "7"

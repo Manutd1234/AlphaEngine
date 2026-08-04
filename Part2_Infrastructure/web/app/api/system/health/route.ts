@@ -11,6 +11,7 @@ import {
   startedAt,
 } from "@/lib/observability";
 import { openBBReadiness } from "@/lib/providers/openbb-health";
+import { quarantine } from "@/lib/providers/quarantine";
 import { capabilityMatrix, failoverGraph, providerStatus } from "@/lib/providers/registry";
 import { store, TTL_MS } from "@/lib/providers/runtime";
 import { parsePriority } from "@/lib/providers/http";
@@ -151,5 +152,13 @@ export async function GET(request: NextRequest) {
       ttlMs: TTL_MS,
     },
     events: eventCursor(),
+    // Payloads that failed their data contract, with the violations that
+    // flagged them. A counter alone would say something was wrong and nothing
+    // about what, which is the state this buffer exists to end.
+    quarantine: {
+      size: quarantine.size,
+      byProvider: quarantine.byProvider(),
+      recent: quarantine.list(12),
+    },
   });
 }

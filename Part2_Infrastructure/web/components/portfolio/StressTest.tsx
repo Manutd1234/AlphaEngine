@@ -95,6 +95,24 @@ export default function StressTest({
 
   const unmeasured = result.perPosition.filter((p) => !p.viaBeta && p.appliedMove === 0);
 
+  // Every named scenario scored on the same book. One scenario at a time
+  // answers "how bad is this one"; a PM's actual question is "which of these
+  // should I worry about", and that is a ranking.
+  const ranked = useMemo(() => SCENARIOS
+    .map((s) => {
+      const shocks = conditionOnRegime ? scaleShocks(s.shocks, regime) : s.shocks;
+      const outcome = applyScenario(positions, equity, shocks, returns, referenceSymbol);
+      return {
+        id: s.id,
+        label: s.label,
+        pnl: outcome.totalPnl,
+        ret: outcome.totalReturn,
+        breaches: outcome.projectedEquity < haltEquity,
+      };
+    })
+    .sort((a, b) => a.pnl - b.pnl),
+  [conditionOnRegime, regime, positions, equity, returns, referenceSymbol, haltEquity]);
+
   return (
     <div className="card">
       <div className="portfolio-card-heading">
@@ -260,6 +278,43 @@ export default function StressTest({
                 </td>
                 <td className={p.pnl >= 0 ? "pos" : "neg"}>
                   {p.pnl >= 0 ? "+" : "−"}{usd(Math.abs(p.pnl), 0)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <h3 className="stress-subhead">Every scenario, ranked by loss</h3>
+      <div className="table-wrap">
+        <table>
+          <caption className="sr-only">
+            Projected profit and loss for each named scenario against the current book.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Scenario</th>
+              <th scope="col">P&amp;L</th>
+              <th scope="col">Of equity</th>
+              <th scope="col">Halts trading</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ranked.map((row) => (
+              <tr
+                key={row.id}
+                className={row.id === scenarioId && manualShock === null ? "is-best" : undefined}
+              >
+                <td>{row.label}</td>
+                <td className={`num ${row.pnl >= 0 ? "pos" : "neg"}`}>
+                  {row.pnl >= 0 ? "+" : "−"}{usd(Math.abs(row.pnl), 0)}
+                </td>
+                <td className="num">{pct(row.ret, 2)}</td>
+                <td>
+                  {/* icon + word, never colour alone */}
+                  {row.breaches
+                    ? <span style={{ color: "var(--critical-text)" }}><span aria-hidden>✕</span> yes</span>
+                    : <span className="muted"><span aria-hidden>✓</span> no</span>}
                 </td>
               </tr>
             ))}

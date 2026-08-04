@@ -10,11 +10,12 @@
  * quantity the gateway's halt rule is written against.
  *
  * ── Where the series comes from ─────────────────────────────────────────────
- * The gateway serves a **snapshot**: current equity, start-of-day, no history
- * endpoint. So on the live path this plots only the observations this tab has
- * actually made since it opened, and the caption says exactly that — a chart
- * implying a full session it never saw would be inventing history. The sandbox
- * draws a generated path instead, and is labelled as generated.
+ * Two sources, and the caption always says which. The gateway's risk monitor
+ * persists an equity snapshot on a timer, so the curve is backfilled from that
+ * durable history and then extended by this tab's own polls. Where no history
+ * exists yet the chart shows only what this tab observed and says so — a chart
+ * implying a session it never saw would be inventing history. The sandbox draws
+ * a generated path instead, and is labelled as generated.
  */
 
 import {
@@ -36,9 +37,21 @@ interface EquityCurveProps {
   haltLevel: number;
   /** True when the series was generated rather than observed. */
   generated: boolean;
+  /** Period returns derived from the persisted curve, when it exists. */
+  periods?: Record<string, { pnl: number | null; return: number | null }> | null;
+  /** True when the curve was seeded from the gateway's stored history. */
+  backfilled?: boolean;
 }
 
-export default function EquityCurve({ points, startOfDay, haltLevel, generated }: EquityCurveProps) {
+const PERIOD_LABELS: Array<[string, string]> = [
+  ["day", "Day"],
+  ["month_to_date", "Month to date"],
+  ["since_first_snapshot", "Since first snapshot"],
+];
+
+export default function EquityCurve({
+  points, startOfDay, haltLevel, generated, periods, backfilled,
+}: EquityCurveProps) {
   const [ref, width] = useMeasuredWidth<HTMLDivElement>();
 
   if (points.length < 2) {
@@ -52,7 +65,7 @@ export default function EquityCurve({ points, startOfDay, haltLevel, generated }
         </div>
         <p className="sub">
           {points.length === 1
-            ? "One observation so far. The gateway serves a snapshot with no history endpoint, so this curve builds up from the polls this tab makes while it is open — it is not backfilled."
+            ? "One observation so far. The gateway persists a snapshot on a timer, so this fills in as the risk monitor records the book."
             : "Waiting for the first equity observation."}
         </p>
       </div>
@@ -194,10 +207,30 @@ export default function EquityCurve({ points, startOfDay, haltLevel, generated }
         </span>
       </div>
 
+      {!generated && periods && (
+        <div className="tiles period-tiles">
+          {PERIOD_LABELS.map(([key, label]) => {
+            const period = periods[key];
+            if (!period || period.pnl === null) return null;
+            return (
+              <div className="stability-tile" key={key}>
+                <span>{label}</span>
+                <strong className={`num ${period.pnl >= 0 ? "pos" : "neg"}`}>
+                  {period.pnl >= 0 ? "+" : "−"}{usd(Math.abs(period.pnl), 0)}
+                </strong>
+                <small>{period.return === null ? "—" : pct(period.return, 2)}</small>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <p className="research-note">
         {generated
-          ? "Generated path for the sandbox book, deterministic and ending on the stated equity. The live gateway serves a snapshot with no history endpoint, so a real book plots only what this tab observes while open."
-          : "Built from the polls this tab has made since it opened — the gateway exposes current and start-of-day equity, not a session series. It is not backfilled, so a fresh load starts from one point."}
+          ? "Generated path for the sandbox book, deterministic and ending on the stated equity. A real book is drawn from the gateway's persisted snapshots instead."
+          : backfilled
+            ? "Backfilled from the gateway's persisted equity snapshots — written by the risk monitor on a timer — and extended by this tab's own polls. It survives a reload; the sampling interval is the resolution, so this is a shape, not a tick record."
+            : "Built from the polls this tab has made since it opened. The gateway persists snapshots from its risk monitor, so this fills in as they accumulate."}
       </p>
     </div>
   );

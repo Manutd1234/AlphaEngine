@@ -39,16 +39,17 @@ from fastapi import (
     WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from config import BASE_DIR, settings
+from modules import research
 from modules.audit import get_audit
 from modules.backtester import VECTORBT_AVAILABLE, run_backtest
 from modules.jobs import get_queue
-from modules import research
-from modules.portfolio import build_portfolio
+from modules.metrics import RequestTimingMiddleware, render_metrics
+from modules.portfolio import build_equity_history, build_portfolio
 from modules.risk_proxy import get_gateway
 from modules.schemas import (
     BacktestRequest,
@@ -91,8 +92,11 @@ async def lifespan(app: FastAPI):
     queue = get_queue()
     bot = get_bot()
 
-    # Risk alerts and finished jobs are pushed through Telegram.
+    # Risk alerts, feed outages and finished jobs are pushed through Telegram.
+    # A venue going dark is a trading condition, not just a log line: quotes
+    # from a stale book are not safe to size against.
     gateway.add_alert_hook(bot.broadcast)
+    tca.add_alert_hook(bot.broadcast)
     queue.on_complete(bot.push_backtest_result)
 
     await tca.start()
@@ -144,6 +148,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Added last so it wraps outermost: the latency an operator cares about includes
+# whatever CORS and the exception handler spend, not just the handler body.
+app.add_middleware(RequestTimingMiddleware)
 
 static_dir = BASE_DIR / "static"
 if static_dir.exists():
@@ -205,6 +213,19 @@ async def health() -> dict[str, Any]:
         "telegram": bot.health(),
         "audit": {"backend": get_audit().backend, "path": str(get_audit().db_path)},
     }
+
+
+@app.get("/metrics", tags=["meta"], response_class=PlainTextResponse)
+async def metrics() -> PlainTextResponse:
+    """Prometheus text exposition of the same state ``/health`` reports.
+
+    Unauthenticated, like ``/health``: a scrape target that needs a credential
+    is a scrape target that silently stops working, and this exposes no more
+    than the health endpoint already does. A deployment that wants the metrics
+    private restricts ``/metrics`` at the reverse proxy, where the rest of its
+    ingress policy already lives.
+    """
+    return PlainTextResponse(render_metrics(), media_type="text/plain; version=0.0.4; charset=utf-8")
 
 
 @app.get("/api/config", tags=["meta"])
@@ -309,6 +330,22 @@ async def portfolio(_actor: str = Depends(trader_identity)) -> dict[str, Any]:
     return payload
 
 
+@app.get("/api/portfolio/history", tags=["B · Risk"])
+async def portfolio_history(
+    limit: int = Query(default=500, ge=1, le=5000),
+    session_date: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    _actor: str = Depends(trader_identity),
+) -> dict[str, Any]:
+    """The equity curve as persisted by the risk monitor, plus period returns.
+
+    `/api/portfolio` is a snapshot — it cannot answer "what did the book do this
+    month" because that is history, not state. This reads the append-only
+    equity_snapshots table, so the curve survives a browser reload and a gateway
+    restart alike.
+    """
+    return build_equity_history(get_audit(), limit=limit, session_date=session_date)
+
+
 @app.get("/api/risk/limits", tags=["B · Risk"])
 async def risk_limits(_actor: str = Depends(trader_identity)) -> dict[str, float]:
     return settings.risk_limits_dict()
@@ -325,8 +362,12 @@ async def engage_kill(req: KillSwitchRequest = Body(default=KillSwitchRequest())
 @app.post("/api/risk/resume", tags=["B · Risk"])
 async def release_kill(req: KillSwitchRequest = Body(default=KillSwitchRequest()),
                        actor: str = Depends(trader_identity)) -> dict[str, Any]:
-    kill = await get_gateway().release_kill(actor=actor, symbol=req.symbol)
-    return {"kill_switch_active": kill.active, "halted_symbols": sorted(kill.halted_symbols), "actor": actor}
+    # KillSwitchRequest already carries a reason; the resume path used to drop
+    # it, leaving the audit trail with a halt that explains itself and a resume
+    # that does not.
+    kill = await get_gateway().release_kill(actor=actor, symbol=req.symbol, reason=req.reason)
+    return {"kill_switch_active": kill.active, "halted_symbols": sorted(kill.halted_symbols),
+            "reason": req.reason, "actor": actor}
 
 
 @app.post("/api/risk/reset", tags=["B · Risk"])

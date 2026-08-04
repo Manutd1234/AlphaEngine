@@ -1,0 +1,101 @@
+# Continuous integration for the three deployable units.
+#
+# The suites are network-free by design: market data is disabled, the backtester
+# falls back to its NumPy engine, and every fixture is committed. So this
+# workflow needs no secrets and no services — only dependency installs reach the
+# network, and a red build means the code broke, never that an exchange was slow.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # 3.12 is the one version satisfying both units: the gateway supports
+  # 3.11-3.14, the OpenBB service requires >=3.12,<3.15.
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  gateway:
+    name: Gateway (pytest + ruff + API contract)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Part2_Infrastructure
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: Part2_Infrastructure/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Tests
+        run: python -m pytest
+
+      # The committed OpenAPI snapshot is the contract two separately deployed
+      # clients rely on; regenerating it must be a deliberate, reviewable act.
+      - name: API schema is up to date
+        run: python tools/export_openapi.py --check
+
+      # End-to-end smoke over the money path: book -> cost -> risk gate -> audit.
+      - name: Money-path probe
+        run: python tools/synthetic_probe.py
+
+  openbb-service:
+    name: OpenBB research service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Part2_Infrastructure/OpenBB_Service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: Part2_Infrastructure/OpenBB_Service/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest
+
+  web:
+    name: Web workspace (tests + typecheck)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Part2_Infrastructure/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Part2_Infrastructure/web/package-lock.json
+      - run: npm ci
+      - name: Tests
+        run: npm test
+      # Includes the Python/TypeScript engine parity suite: two implementations
+      # of the same accounting are two chances to be wrong.
+      - name: Typecheck
+        run: npm run typecheck
+
+  repo-audit:
+    name: Committed tree is complete
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # the guard exports HEAD with git archive
+      # Catches the failure mode where a file builds locally but was never
+      # committed because a .gitignore pattern silently matched it.
+      - run: bash Part2_Infrastructure/tools/check_repo_complete.sh --fast

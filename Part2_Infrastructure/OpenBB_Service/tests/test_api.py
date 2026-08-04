@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
-
 import app as service_app
+from fastapi.testclient import TestClient
 
 
 def test_liveness_is_public_and_minimal(monkeypatch):

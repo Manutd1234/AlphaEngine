@@ -1,0 +1,3048 @@
+{
+  "components": {
+    "schemas": {
+      "BacktestRequest": {
+        "description": "Every tunable a sweep accepts, with its bounds.\n\nThis model is the parameter registry: the bounds and descriptions here are\nwhat ``/docs`` publishes, so a researcher reads one place to learn what can\nbe varied and how far. Widening a bound is therefore a documented change,\nnot a silent one.",
+        "properties": {
+          "bars": {
+            "default": 1500,
+            "description": "History depth in bars. Fewer than ~500 makes walk-forward folds too short to read.",
+            "maximum": 5000.0,
+            "minimum": 200.0,
+            "title": "Bars",
+            "type": "integer"
+          },
+          "direction": {
+            "default": "long_only",
+            "description": "Whether short signals are traded or flattened to cash.",
+            "enum": [
+              "long_only",
+              "long_short"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "embargo_bars": {
+            "default": 0,
+            "description": "Bars discarded between each training window and its test window. Guards against leakage from indicator lookback spanning the boundary; 0 keeps folds adjacent.",
+            "maximum": 500.0,
+            "minimum": 0.0,
+            "title": "Embargo Bars",
+            "type": "integer"
+          },
+          "fast_max": {
+            "default": 40,
+            "description": "Upper bound of the fast-parameter sweep.",
+            "maximum": 400.0,
+            "minimum": 2.0,
+            "title": "Fast Max",
+            "type": "integer"
+          },
+          "fast_min": {
+            "default": 5,
+            "description": "Lower bound of the fast-parameter sweep.",
+            "maximum": 400.0,
+            "minimum": 2.0,
+            "title": "Fast Min",
+            "type": "integer"
+          },
+          "fast_step": {
+            "default": 5,
+            "description": "Grid spacing for the fast parameter.",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Fast Step",
+            "type": "integer"
+          },
+          "fee_bps": {
+            "default": 6.0,
+            "description": "Per-side taker fee in basis points, charged on turnover.",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Fee Bps",
+            "type": "number"
+          },
+          "folds": {
+            "default": 4,
+            "description": "Number of walk-forward folds.",
+            "maximum": 10.0,
+            "minimum": 2.0,
+            "title": "Folds",
+            "type": "integer"
+          },
+          "interval": {
+            "default": "1h",
+            "description": "Bar size: 15m, 1h, 4h or 1d.",
+            "title": "Interval",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional human label for this run, stored with the audit record.",
+            "title": "Label"
+          },
+          "notify_chat_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Telegram chat to notify when the job finishes.",
+            "title": "Notify Chat Id"
+          },
+          "slippage_bps": {
+            "default": 2.0,
+            "description": "Per-side slippage assumption in basis points. Setting both cost fields to 0 produces a frictionless result that will not survive live.",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Slippage Bps",
+            "type": "number"
+          },
+          "slow_max": {
+            "default": 200,
+            "description": "Upper bound of the slow-parameter sweep.",
+            "maximum": 800.0,
+            "minimum": 3.0,
+            "title": "Slow Max",
+            "type": "integer"
+          },
+          "slow_min": {
+            "default": 20,
+            "description": "Lower bound of the slow-parameter sweep.",
+            "maximum": 800.0,
+            "minimum": 3.0,
+            "title": "Slow Min",
+            "type": "integer"
+          },
+          "slow_step": {
+            "default": 20,
+            "description": "Grid spacing for the slow parameter.",
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Slow Step",
+            "type": "integer"
+          },
+          "strategy": {
+            "default": "ma_cross",
+            "description": "Signal family. Each interprets fast/slow as its own two parameters.",
+            "enum": [
+              "ma_cross",
+              "donchian",
+              "rsi_reversion"
+            ],
+            "title": "Strategy",
+            "type": "string"
+          },
+          "symbol": {
+            "default": "BTCUSDT",
+            "description": "Instrument to test, e.g. BTCUSDT.",
+            "title": "Symbol",
+            "type": "string"
+          },
+          "walk_forward": {
+            "default": true,
+            "description": "Run out-of-sample folds. Disable only for a quick in-sample look.",
+            "title": "Walk Forward",
+            "type": "boolean"
+          }
+        },
+        "title": "BacktestRequest",
+        "type": "object"
+      },
+      "BookLevel": {
+        "properties": {
+          "cum_notional": {
+            "title": "Cum Notional",
+            "type": "number"
+          },
+          "notional": {
+            "title": "Notional",
+            "type": "number"
+          },
+          "price": {
+            "title": "Price",
+            "type": "number"
+          },
+          "size": {
+            "title": "Size",
+            "type": "number"
+          }
+        },
+        "required": [
+          "price",
+          "size",
+          "notional",
+          "cum_notional"
+        ],
+        "title": "BookLevel",
+        "type": "object"
+      },
+      "CheckResult": {
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "observed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "passed",
+          "detail"
+        ],
+        "title": "CheckResult",
+        "type": "object"
+      },
+      "ExecutionEstimate": {
+        "description": "Result of walking a book for a target notional.",
+        "properties": {
+          "fillable": {
+            "title": "Fillable",
+            "type": "boolean"
+          },
+          "filled_notional": {
+            "title": "Filled Notional",
+            "type": "number"
+          },
+          "filled_qty": {
+            "title": "Filled Qty",
+            "type": "number"
+          },
+          "levels_consumed": {
+            "title": "Levels Consumed",
+            "type": "integer"
+          },
+          "mid": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mid"
+          },
+          "slippage_bps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slippage Bps"
+          },
+          "venue": {
+            "title": "Venue",
+            "type": "string"
+          },
+          "vwap": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vwap"
+          },
+          "worst_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Worst Price"
+          }
+        },
+        "required": [
+          "venue",
+          "fillable",
+          "filled_notional",
+          "filled_qty",
+          "vwap",
+          "mid",
+          "slippage_bps",
+          "levels_consumed",
+          "worst_price"
+        ],
+        "title": "ExecutionEstimate",
+        "type": "object"
+      },
+      "Fill": {
+        "properties": {
+          "fee_usd": {
+            "title": "Fee Usd",
+            "type": "number"
+          },
+          "notional": {
+            "title": "Notional",
+            "type": "number"
+          },
+          "price": {
+            "title": "Price",
+            "type": "number"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "number"
+          },
+          "simulated": {
+            "default": true,
+            "title": "Simulated",
+            "type": "boolean"
+          },
+          "slippage_bps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slippage Bps"
+          },
+          "venue": {
+            "title": "Venue",
+            "type": "string"
+          }
+        },
+        "required": [
+          "price",
+          "quantity",
+          "notional",
+          "fee_usd",
+          "slippage_bps",
+          "venue"
+        ],
+        "title": "Fill",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "KillSwitchRequest": {
+        "properties": {
+          "actor": {
+            "default": "api",
+            "title": "Actor",
+            "type": "string"
+          },
+          "reason": {
+            "default": "manual trigger",
+            "title": "Reason",
+            "type": "string"
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol"
+          }
+        },
+        "title": "KillSwitchRequest",
+        "type": "object"
+      },
+      "OrderRequest": {
+        "properties": {
+          "client_order_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Order Id"
+          },
+          "limit_price": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit Price"
+          },
+          "notional": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notional"
+          },
+          "order_type": {
+            "default": "MARKET",
+            "enum": [
+              "MARKET",
+              "LIMIT"
+            ],
+            "title": "Order Type",
+            "type": "string"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "side": {
+            "enum": [
+              "BUY",
+              "SELL"
+            ],
+            "title": "Side",
+            "type": "string"
+          },
+          "strategy": {
+            "default": "manual",
+            "title": "Strategy",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "side"
+        ],
+        "title": "OrderRequest",
+        "type": "object"
+      },
+      "Position": {
+        "properties": {
+          "avg_price": {
+            "title": "Avg Price",
+            "type": "number"
+          },
+          "mark_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mark Price"
+          },
+          "notional": {
+            "title": "Notional",
+            "type": "number"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "number"
+          },
+          "realized_pnl": {
+            "title": "Realized Pnl",
+            "type": "number"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "unrealized_pnl": {
+            "title": "Unrealized Pnl",
+            "type": "number"
+          }
+        },
+        "required": [
+          "symbol",
+          "quantity",
+          "avg_price",
+          "mark_price",
+          "notional",
+          "unrealized_pnl",
+          "realized_pnl"
+        ],
+        "title": "Position",
+        "type": "object"
+      },
+      "RiskDecision": {
+        "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/CheckResult"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "client_order_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Order Id"
+          },
+          "fill": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Fill"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latency_ms": {
+            "default": 0.0,
+            "title": "Latency Ms",
+            "type": "number"
+          },
+          "notional": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notional"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "rejected_by": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Rejected By",
+            "type": "array"
+          },
+          "side": {
+            "enum": [
+              "BUY",
+              "SELL"
+            ],
+            "title": "Side",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id",
+          "client_order_id",
+          "accepted",
+          "symbol",
+          "side",
+          "quantity",
+          "notional",
+          "checks",
+          "timestamp"
+        ],
+        "title": "RiskDecision",
+        "type": "object"
+      },
+      "RiskState": {
+        "properties": {
+          "daily_drawdown_pct": {
+            "title": "Daily Drawdown Pct",
+            "type": "number"
+          },
+          "daily_pnl": {
+            "title": "Daily Pnl",
+            "type": "number"
+          },
+          "drawdown_budget_used_pct": {
+            "title": "Drawdown Budget Used Pct",
+            "type": "number"
+          },
+          "equity": {
+            "title": "Equity",
+            "type": "number"
+          },
+          "gross_exposure": {
+            "title": "Gross Exposure",
+            "type": "number"
+          },
+          "halted_symbols": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Halted Symbols",
+            "type": "array"
+          },
+          "kill_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kill Reason"
+          },
+          "kill_switch_active": {
+            "title": "Kill Switch Active",
+            "type": "boolean"
+          },
+          "killed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Killed At"
+          },
+          "killed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Killed By"
+          },
+          "limits": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Limits",
+            "type": "object"
+          },
+          "orders_accepted": {
+            "title": "Orders Accepted",
+            "type": "integer"
+          },
+          "orders_last_second": {
+            "title": "Orders Last Second",
+            "type": "number"
+          },
+          "orders_rejected": {
+            "title": "Orders Rejected",
+            "type": "integer"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/Position"
+            },
+            "title": "Positions",
+            "type": "array"
+          },
+          "realized_pnl": {
+            "title": "Realized Pnl",
+            "type": "number"
+          },
+          "reduce_only": {
+            "default": false,
+            "title": "Reduce Only",
+            "type": "boolean"
+          },
+          "reduce_only_threshold": {
+            "default": 1.0,
+            "title": "Reduce Only Threshold",
+            "type": "number"
+          },
+          "session_date": {
+            "title": "Session Date",
+            "type": "string"
+          },
+          "start_of_day_equity": {
+            "title": "Start Of Day Equity",
+            "type": "number"
+          },
+          "unrealized_pnl": {
+            "title": "Unrealized Pnl",
+            "type": "number"
+          }
+        },
+        "required": [
+          "kill_switch_active",
+          "kill_reason",
+          "killed_at",
+          "killed_by",
+          "halted_symbols",
+          "equity",
+          "start_of_day_equity",
+          "realized_pnl",
+          "unrealized_pnl",
+          "daily_pnl",
+          "daily_drawdown_pct",
+          "drawdown_budget_used_pct",
+          "gross_exposure",
+          "positions",
+          "orders_accepted",
+          "orders_rejected",
+          "orders_last_second",
+          "limits",
+          "session_date"
+        ],
+        "title": "RiskState",
+        "type": "object"
+      },
+      "RoutingLeg": {
+        "properties": {
+          "notional": {
+            "title": "Notional",
+            "type": "number"
+          },
+          "qty": {
+            "title": "Qty",
+            "type": "number"
+          },
+          "share_pct": {
+            "title": "Share Pct",
+            "type": "number"
+          },
+          "venue": {
+            "title": "Venue",
+            "type": "string"
+          },
+          "vwap": {
+            "title": "Vwap",
+            "type": "number"
+          }
+        },
+        "required": [
+          "venue",
+          "notional",
+          "qty",
+          "vwap",
+          "share_pct"
+        ],
+        "title": "RoutingLeg",
+        "type": "object"
+      },
+      "TCAReport": {
+        "properties": {
+          "best_single_venue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Single Venue"
+          },
+          "consolidated_mid": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consolidated Mid"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "per_venue": {
+            "items": {
+              "$ref": "#/components/schemas/ExecutionEstimate"
+            },
+            "title": "Per Venue",
+            "type": "array"
+          },
+          "saving_vs_worst_bps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saving Vs Worst Bps"
+          },
+          "saving_vs_worst_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saving Vs Worst Usd"
+          },
+          "side": {
+            "enum": [
+              "BUY",
+              "SELL"
+            ],
+            "title": "Side",
+            "type": "string"
+          },
+          "smart_route": {
+            "items": {
+              "$ref": "#/components/schemas/RoutingLeg"
+            },
+            "title": "Smart Route",
+            "type": "array"
+          },
+          "smart_route_slippage_bps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smart Route Slippage Bps"
+          },
+          "smart_route_vwap": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smart Route Vwap"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "synthetic": {
+            "default": false,
+            "title": "Synthetic",
+            "type": "boolean"
+          },
+          "target_notional": {
+            "title": "Target Notional",
+            "type": "number"
+          },
+          "venues_online": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Venues Online",
+            "type": "array"
+          }
+        },
+        "required": [
+          "symbol",
+          "side",
+          "target_notional",
+          "generated_at",
+          "consolidated_mid",
+          "per_venue",
+          "best_single_venue",
+          "smart_route",
+          "smart_route_vwap",
+          "smart_route_slippage_bps",
+          "saving_vs_worst_bps",
+          "saving_vs_worst_usd",
+          "venues_online"
+        ],
+        "title": "TCAReport",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "VenueBook": {
+        "properties": {
+          "asks": {
+            "items": {
+              "$ref": "#/components/schemas/BookLevel"
+            },
+            "title": "Asks",
+            "type": "array"
+          },
+          "best_ask": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Ask"
+          },
+          "best_bid": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Bid"
+          },
+          "bids": {
+            "items": {
+              "$ref": "#/components/schemas/BookLevel"
+            },
+            "title": "Bids",
+            "type": "array"
+          },
+          "connected": {
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "depth_usd_ask": {
+            "default": 0.0,
+            "title": "Depth Usd Ask",
+            "type": "number"
+          },
+          "depth_usd_bid": {
+            "default": 0.0,
+            "title": "Depth Usd Bid",
+            "type": "number"
+          },
+          "imbalance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imbalance"
+          },
+          "last_update": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Update"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Ms"
+          },
+          "mid": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mid"
+          },
+          "spread_bps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spread Bps"
+          },
+          "stale": {
+            "title": "Stale",
+            "type": "boolean"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "synthetic": {
+            "default": false,
+            "title": "Synthetic",
+            "type": "boolean"
+          },
+          "venue": {
+            "title": "Venue",
+            "type": "string"
+          }
+        },
+        "required": [
+          "venue",
+          "symbol",
+          "connected",
+          "stale"
+        ],
+        "title": "VenueBook",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Unified execution-quality, pre-trade-risk and research gateway. Module A: cross-venue L2 TCA \u00b7 Module B: pre-trade risk & kill switch \u00b7 Module C: asynchronous parametric backtesting.",
+    "title": "AlphaEngine Trading Automation \u2014 Execution Gateway & Risk Portal",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/audit/backtests": {
+      "get": {
+        "operationId": "audit_backtests_api_audit_backtests_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Audit Backtests Api Audit Backtests Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Audit Backtests",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
+    "/api/audit/events": {
+      "get": {
+        "operationId": "audit_events_api_audit_events_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Audit Events Api Audit Events Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Audit Events",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
+    "/api/audit/orders": {
+      "get": {
+        "operationId": "audit_orders_api_audit_orders_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Audit Orders Api Audit Orders Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Audit Orders",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
+    "/api/audit/stats": {
+      "get": {
+        "operationId": "audit_stats_api_audit_stats_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Audit Stats Api Audit Stats Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Audit Stats",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
+    "/api/backtest": {
+      "post": {
+        "operationId": "submit_backtest_api_backtest_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BacktestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Submit Backtest Api Backtest Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Backtest",
+        "tags": [
+          "C \u00b7 Research"
+        ]
+      }
+    },
+    "/api/book/{symbol}": {
+      "get": {
+        "operationId": "get_book_api_book__symbol__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "symbol",
+            "required": true,
+            "schema": {
+              "title": "Symbol",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "depth",
+            "required": false,
+            "schema": {
+              "default": 15,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Depth",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VenueBook"
+                  },
+                  "title": "Response Get Book Api Book  Symbol  Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Book",
+        "tags": [
+          "A \u00b7 TCA"
+        ]
+      }
+    },
+    "/api/config": {
+      "get": {
+        "operationId": "api_config_api_config_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Api Config Api Config Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Config",
+        "tags": [
+          "meta"
+        ]
+      }
+    },
+    "/api/jobs": {
+      "get": {
+        "operationId": "list_jobs_api_jobs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response List Jobs Api Jobs Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Jobs",
+        "tags": [
+          "C \u00b7 Research"
+        ]
+      }
+    },
+    "/api/jobs/{job_id}": {
+      "get": {
+        "operationId": "job_status_api_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Job Status Api Jobs  Job Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Job Status",
+        "tags": [
+          "C \u00b7 Research"
+        ]
+      }
+    },
+    "/api/orders": {
+      "post": {
+        "description": "The only way an order reaches a venue. Returns the full check vector for\nboth accepted and rejected orders \u2014 a rejection is a result, not an error.",
+        "operationId": "submit_order_api_orders_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiskDecision"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Order",
+        "tags": [
+          "B \u00b7 Risk"
+        ]
+      }
+    },
+    "/api/portfolio": {
+      "get": {
+        "description": "Portfolio-manager view: exposure, concentration, risk headroom, attribution.\n\nDistinct from `/api/risk/state`, which answers a trader's question about the\nnext order. This answers a PM's: where is the book concentrated, which limit\nbinds first, and what is producing the P&L.",
+        "operationId": "portfolio_api_portfolio_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Portfolio Api Portfolio Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Portfolio",
+        "tags": [
+          "B \u00b7 Risk"
+        ]
+      }
+    },
+    "/api/portfolio/history": {
+      "get": {
+        "description": "The equity curve as persisted by the risk monitor, plus period returns.\n\n`/api/portfolio` is a snapshot \u2014 it cannot answer \"what did the book do this\nmonth\" because that is history, not state. This reads the append-only\nequity_snapshots table, so the curve survives a browser reload and a gateway\nrestart alike.",
+        "operationId": "portfolio_history_api_portfolio_history_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 500,
+              "maximum": 5000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "session_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session Date"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Portfolio History Api Portfolio History Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Portfolio History",
+        "tags": [
+          "B \u00b7 Risk"
+        ]
+      }
+    },
+    "/api/research/openbb/bars": {
+      "get": {
+        "operationId": "openbb_bars_api_research_openbb_bars_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "symbol",
+            "required": true,
+            "schema": {
+              "maxLength": 20,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9.\\-]+$",
+              "title": "Symbol",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "asset",
+            "required": false,
+            "schema": {
+              "default": "equity",
+              "pattern": "^(equity|crypto)$",
+              "title": "Asset",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "interval",
+            "required": false,
+            "schema": {
+              "default": "1d",
+              "pattern": "^(15m|1h|4h|1d)$",
+              "title": "Interval",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 500,
+              "maximum": 5000,
+              "minimum": 10,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Openbb Bars Api Research Openbb Bars Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Openbb Bars",
+        "tags": [
+          "C \u00b7 Research"
+        ]
+      }
+    },
+    "/api/research/openbb/fundamentals": {
+      "get": {
+        "operationId": "openbb_fundamentals_api_research_openbb_fundamentals_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "symbol",
+            "required": true,
+            "schema": {
+              "maxLength": 20,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9.\\-]+$",
+              "title": "Symbol",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Openbb Fundamentals Api Research Openbb Fundamentals Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Openbb Fundamentals",
+        "tags": [
+          "C \u00b7 Research"
+        ]
+      }
+    },
+    "/api/research/openbb/health": {
+      "get": {
+        "operationId": "openbb_health_api_research_openbb_health_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Openbb Health Api Research Openbb Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Openbb Health",
+        "tags": [
+          "C \u00b7 Research"
+        ]
+      }
+    },
+    "/api/research/openbb/news": {
+      "get": {
+        "operationId": "openbb_news_api_research_openbb_news_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "symbols",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 200,
+              "title": "Symbols",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Openbb News Api Research Openbb News Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Openbb News",
+        "tags": [
+          "C \u00b7 Research"
+        ]
+      }
+    },
+    "/api/research/openbb/quote": {
+      "get": {
+        "operationId": "openbb_quote_api_research_openbb_quote_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "symbol",
+            "required": true,
+            "schema": {
+              "maxLength": 20,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9.\\-]+$",
+              "title": "Symbol",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "asset",
+            "required": false,
+            "schema": {
+              "default": "equity",
+              "pattern": "^(equity|crypto)$",
+              "title": "Asset",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Openbb Quote Api Research Openbb Quote Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Openbb Quote",
+        "tags": [
+          "C \u00b7 Research"
+        ]
+      }
+    },
+    "/api/risk/kill": {
+      "post": {
+        "operationId": "engage_kill_api_risk_kill_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KillSwitchRequest",
+                "default": {
+                  "actor": "api",
+                  "reason": "manual trigger"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Engage Kill Api Risk Kill Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Engage Kill",
+        "tags": [
+          "B \u00b7 Risk"
+        ]
+      }
+    },
+    "/api/risk/limits": {
+      "get": {
+        "operationId": "risk_limits_api_risk_limits_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "number"
+                  },
+                  "title": "Response Risk Limits Api Risk Limits Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Risk Limits",
+        "tags": [
+          "B \u00b7 Risk"
+        ]
+      }
+    },
+    "/api/risk/reset": {
+      "post": {
+        "operationId": "reset_book_api_risk_reset_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Reset Book Api Risk Reset Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reset Book",
+        "tags": [
+          "B \u00b7 Risk"
+        ]
+      }
+    },
+    "/api/risk/resume": {
+      "post": {
+        "operationId": "release_kill_api_risk_resume_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KillSwitchRequest",
+                "default": {
+                  "actor": "api",
+                  "reason": "manual trigger"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Release Kill Api Risk Resume Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Release Kill",
+        "tags": [
+          "B \u00b7 Risk"
+        ]
+      }
+    },
+    "/api/risk/state": {
+      "get": {
+        "operationId": "risk_state_api_risk_state_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiskState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Risk State",
+        "tags": [
+          "B \u00b7 Risk"
+        ]
+      }
+    },
+    "/api/tca/{symbol}": {
+      "get": {
+        "operationId": "get_tca_api_tca__symbol__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "symbol",
+            "required": true,
+            "schema": {
+              "title": "Symbol",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "side",
+            "required": false,
+            "schema": {
+              "default": "BUY",
+              "pattern": "^(BUY|SELL|buy|sell)$",
+              "title": "Side",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "notional",
+            "required": false,
+            "schema": {
+              "exclusiveMinimum": 0,
+              "title": "Notional",
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TCAReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Tca",
+        "tags": [
+          "A \u00b7 TCA"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Health Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "meta"
+        ]
+      }
+    },
+    "/metrics": {
+      "get": {
+        "description": "Prometheus text exposition of the same state ``/health`` reports.\n\nUnauthenticated, like ``/health``: a scrape target that needs a credential\nis a scrape target that silently stops working, and this exposes no more\nthan the health endpoint already does. A deployment that wants the metrics\nprivate restricts ``/metrics`` at the reverse proxy, where the rest of its\ningress policy already lives.",
+        "operationId": "metrics_metrics_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Metrics",
+        "tags": [
+          "meta"
+        ]
+      }
+    },
+    "/telegram/health": {
+      "get": {
+        "operationId": "telegram_health_telegram_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Telegram Health Telegram Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Telegram Health",
+        "tags": [
+          "telegram"
+        ]
+      }
+    },
+    "/telegram/webhook": {
+      "post": {
+        "description": "Telegram retries on non-2xx, so this always returns 200 and processes the\nupdate out-of-band \u2014 a slow command must never cause duplicate delivery.",
+        "operationId": "telegram_webhook_telegram_webhook_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-telegram-bot-api-secret-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Telegram-Bot-Api-Secret-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Telegram Webhook Telegram Webhook Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Telegram Webhook",
+        "tags": [
+          "telegram"
+        ]
+      }
+    }
+  }
+}

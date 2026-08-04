@@ -463,3 +463,564 @@ def _top_size(levels: Any) -> float:
         return float(first[1])
     except (TypeError, IndexError, ValueError):
         return 0.0
+
+
+# --------------------------------------------------------------------------- #
+# Historical VaR — the empirical twin of the parametric figure
+#
+# The parametric number assumes returns are normal. Crypto returns are not: the
+# tail is fatter, so the normal figure understates the loss in exactly the
+# conditions a risk manager cares about. Reporting both, side by side, makes
+# that gap visible instead of a hidden modelling choice. Ported from
+# `historicalVar` in web/lib/portfolio-risk.ts, same conventions.
+# --------------------------------------------------------------------------- #
+
+@dataclass
+class HistoricalVaR:
+    var95: float
+    cvar95: float
+    observations: int
+
+
+def historical_var(
+    positions: Sequence[Mapping[str, Any]],
+    returns_by_symbol: Mapping[str, Sequence[float]],
+    equity: float,
+) -> HistoricalVaR | None:
+    """Replay today's book through history and read the 5th-percentile day.
+
+    No distribution is assumed: the book's *current* weights are applied to each
+    past day's returns, and the loss that is worse than 95% of those days is the
+    VaR. CVaR is the mean of the tail beyond it — the number that answers "and
+    how bad is it when it is bad", which VaR alone never does.
+
+    Requires at least 20 aligned observations; below that a percentile is a
+    single data point wearing a statistic's name, and ``None`` is the honest
+    answer.
+    """
+    usable = [
+        p for p in positions
+        if len(returns_by_symbol.get(str(p.get("symbol")), ())) >= 20
+    ]
+    if not usable or equity <= 0:
+        return None
+
+    window = min(len(returns_by_symbol[str(p.get("symbol"))]) for p in usable)
+    if window < 20:
+        return None
+
+    daily_pnl: list[float] = []
+    for t in range(window):
+        total = 0.0
+        for p in usable:
+            symbol = str(p.get("symbol"))
+            series = returns_by_symbol[symbol]
+            direction = -1.0 if str(p.get("side")).upper() == "SHORT" else 1.0
+            signed = direction * abs(float(p.get("notional") or 0.0))
+            total += signed * series[len(series) - window + t]
+        daily_pnl.append(total)
+
+    daily_pnl.sort()
+    k = max(1, math.ceil(0.05 * len(daily_pnl)))
+    tail = daily_pnl[:k]
+    return HistoricalVaR(
+        # Reported positive-as-loss so it reads beside the parametric figure.
+        var95=-daily_pnl[k - 1],
+        cvar95=-_mean(tail),
+        observations=window,
+    )
+
+
+# --------------------------------------------------------------------------- #
+# VaR model validation
+#
+# A VaR number nobody has back-tested is an opinion. Regulators settled this
+# argument decades ago: count how often the realised loss exceeded the forecast,
+# and test that count against the model's own claim. At 95% confidence, roughly
+# one day in twenty *should* breach — a model with zero exceptions is not
+# conservative, it is wrong in the expensive direction, because it is holding
+# capital against a risk it cannot measure.
+# --------------------------------------------------------------------------- #
+
+@dataclass
+class VarBacktest:
+    observations: int
+    exceptions: int
+    expected_exceptions: float
+    exception_rate: float
+    kupiec_statistic: float | None
+    kupiec_p_value: float | None
+    zone: str
+    verdict: str
+
+
+def _chi2_sf_1df(x: float) -> float:
+    """Survival function of chi-squared with one degree of freedom.
+
+    For 1 df this is exactly ``erfc(sqrt(x/2))`` — no series expansion, no
+    dependency, and correct to machine precision.
+    """
+    if x <= 0:
+        return 1.0
+    return math.erfc(math.sqrt(x / 2.0))
+
+
+def _kupiec(exceptions: int, observations: int, alpha: float) -> VarBacktest:
+    """Kupiec proportion-of-failures test from an exception count.
+
+    The likelihood-ratio statistic is chi-squared with one degree of freedom.
+    The p-value is the probability of a count at least this extreme *if the
+    model is correct*, so a low value rejects the model in either direction:
+    too many exceptions means it understates risk; too few means it overstates
+    it and the desk is holding capacity it never uses.
+    """
+    expected = alpha * observations
+    rate = exceptions / observations
+
+    # Guarded at the boundaries, where log(0) appears for a model with no
+    # exceptions at all — the common case on a short, quiet window.
+    if 0 < exceptions < observations:
+        lr = -2.0 * (
+            (observations - exceptions) * math.log(1 - alpha) + exceptions * math.log(alpha)
+            - ((observations - exceptions) * math.log(1 - rate) + exceptions * math.log(rate))
+        )
+    elif exceptions == 0:
+        lr = -2.0 * observations * math.log(1 - alpha)
+    else:
+        lr = -2.0 * observations * math.log(alpha)
+    lr = max(0.0, lr)
+    p_value = _chi2_sf_1df(lr)
+
+    if p_value >= 0.05:
+        zone = "green"
+        verdict = "Model validated: the exception count is consistent with the forecast."
+    elif exceptions > expected:
+        zone = "red" if p_value < 0.01 else "yellow"
+        verdict = f"Model understates risk: {exceptions} exceptions where {expected:.1f} were expected."
+    else:
+        zone = "yellow"
+        verdict = (
+            f"Model overstates risk: only {exceptions} exceptions where {expected:.1f} were expected — "
+            "the desk is holding capacity it is not using."
+        )
+
+    return VarBacktest(
+        observations=observations,
+        exceptions=exceptions,
+        expected_exceptions=round(expected, 2),
+        exception_rate=round(rate, 4),
+        kupiec_statistic=round(lr, 4),
+        # Not rounded to 4dp: a p-value of 1.7e-05 would render as 0.0, which
+        # reads as a certainty nothing here is entitled to claim.
+        kupiec_p_value=float(f"{p_value:.4g}"),
+        zone=zone,
+        verdict=verdict,
+    )
+
+
+def var_backtest(
+    pnl_series: Sequence[float],
+    var_forecast: float,
+    confidence: float = 0.95,
+) -> VarBacktest | None:
+    """Kupiec test of one fixed VaR forecast against a realised P&L series.
+
+    ``var_forecast`` is the loss the model says will be exceeded on
+    ``1 - confidence`` of days, expressed positive. Every day whose loss was
+    worse is an exception.
+
+    Below 20 observations this returns ``None``: an exception rate over a dozen
+    days is not evidence about a 1-in-20 event.
+    """
+    losses = [-float(x) for x in pnl_series]  # positive = loss
+    if len(losses) < 20 or var_forecast <= 0:
+        return None
+    exceptions = sum(1 for loss in losses if loss > var_forecast)
+    return _kupiec(exceptions, len(losses), 1.0 - confidence)
+
+
+def rolling_var_backtest(
+    positions: Sequence[Mapping[str, Any]],
+    returns_by_symbol: Mapping[str, Sequence[float]],
+    equity: float,
+    window: int = 60,
+    confidence: float = 0.95,
+) -> VarBacktest | None:
+    """Back-test the parametric VaR the desk actually quotes.
+
+    The forecast is re-estimated on a rolling window and scored against the
+    *next* day's realised book P&L, so it is never judged on data it was fitted
+    to. That distinction is the whole test: a VaR evaluated in-sample passes
+    trivially and tells a risk manager nothing.
+
+    The book is held fixed at today's weights. This measures the *model*, not
+    the trading — asking whether the volatility estimate would have covered the
+    losses this book would have taken, which is the question a limit depends on.
+    """
+    symbols = {str(p.get("symbol")) for p in positions}
+    series = {s: list(returns_by_symbol.get(s, ())) for s in symbols}
+    series = {s: v for s, v in series.items() if v}
+    if not series or equity <= 0:
+        return None
+
+    length = min(len(v) for v in series.values())
+    if length < window + 20:
+        return None
+
+    signed: dict[str, float] = {}
+    for p in positions:
+        symbol = str(p.get("symbol"))
+        if symbol not in series:
+            continue
+        direction = -1.0 if str(p.get("side")).upper() == "SHORT" else 1.0
+        signed[symbol] = signed.get(symbol, 0.0) + direction * abs(float(p.get("notional") or 0.0))
+
+    book_returns = [
+        sum(signed.get(s, 0.0) * series[s][len(series[s]) - length + t] for s in series)
+        for t in range(length)
+    ]
+
+    exceptions = 0
+    scored = 0
+    for t in range(window, length):
+        sigma = _stdev(book_returns[t - window:t])
+        if sigma <= 0:
+            continue
+        scored += 1
+        if -book_returns[t] > Z95 * sigma:
+            exceptions += 1
+
+    if scored < 20:
+        return None
+    return _kupiec(exceptions, scored, 1.0 - confidence)
+
+
+# --------------------------------------------------------------------------- #
+# Scenario stress testing
+#
+# Ported from web/lib/portfolio-risk.ts so the Telegram companion and the web
+# tab cannot disagree about what a shock does to the book. The propagation rule
+# is the important part: an instrument with no explicit shock moves by
+# `beta × reference shock`, and only when a beta could actually be measured.
+# Defaulting an unmeasurable beta to 1.0 is the quiet way a stress test starts
+# inventing exposure and reporting it as a measurement.
+# --------------------------------------------------------------------------- #
+
+@dataclass
+class ScenarioLeg:
+    symbol: str
+    signed_notional: float
+    applied_move: float
+    via_beta: bool
+    beta: float | None
+    pnl: float
+    #: How the move was decided — "explicit", "beta", "wildcard" or "unsupported".
+    #: A wildcard leg is an *assumption* about an instrument whose co-movement
+    #: could not be measured, and a reader must be able to tell it apart from a
+    #: shock that was named directly.
+    basis: str = "explicit"
+
+
+@dataclass
+class ScenarioResult:
+    scenario_id: str
+    label: str
+    total_pnl: float
+    total_return: float
+    projected_equity: float
+    legs: list[ScenarioLeg]
+    used_beta: bool
+
+
+SCENARIOS: dict[str, dict[str, Any]] = {
+    "crypto_cascade": {
+        "label": "Crypto liquidation cascade",
+        "description": "A leveraged unwind: majors gap down together and correlation goes to one.",
+        "shocks": {"BTCUSDT": -0.20, "*": -0.25},
+    },
+    "risk_off": {
+        "label": "Broad risk-off",
+        "description": "Macro shock. Everything correlated to the reference falls with it.",
+        "shocks": {"BTCUSDT": -0.08},
+    },
+    "melt_up": {
+        "label": "Melt-up",
+        "description": "The upside case — worth running, because a short book fails here.",
+        "shocks": {"BTCUSDT": 0.15},
+    },
+    "flat": {
+        "label": "No shock",
+        "description": "Baseline. Any non-zero P&L here would be a bug in the propagation.",
+        "shocks": {"*": 0.0},
+    },
+}
+
+
+def beta(symbol: str, reference: str, returns_by_symbol: Mapping[str, Sequence[float]]) -> float | None:
+    """Beta of *symbol* against *reference*, measured from returns.
+
+    Returns ``None`` rather than 1.0 when it cannot be estimated — see the
+    module comment above for why that distinction matters.
+    """
+    a = list(returns_by_symbol.get(symbol, ()))
+    b = list(returns_by_symbol.get(reference, ()))
+    if not a or not b:
+        return None
+    n = min(len(a), len(b))
+    if n < 20:
+        return None
+    x, y = b[-n:], a[-n:]
+    mean_x, mean_y = _mean(x), _mean(y)
+    var_x = sum((v - mean_x) ** 2 for v in x) / (n - 1)
+    if var_x <= 0:
+        return None
+    cov_xy = sum((y[i] - mean_y) * (x[i] - mean_x) for i in range(n)) / (n - 1)
+    return cov_xy / var_x
+
+
+def apply_scenario(
+    positions: Sequence[Mapping[str, Any]],
+    equity: float,
+    shocks: Mapping[str, float],
+    returns_by_symbol: Mapping[str, Sequence[float]],
+    reference_symbol: str = "BTCUSDT",
+    scenario_id: str = "custom",
+    label: str = "Custom shock",
+) -> ScenarioResult:
+    explicit = {s: m for s, m in shocks.items() if s != "*"}
+    wildcard = shocks.get("*")
+    reference = explicit.get(reference_symbol, wildcard if wildcard is not None else 0.0)
+
+    used_beta = False
+    legs: list[ScenarioLeg] = []
+    for p in positions:
+        symbol = str(p.get("symbol"))
+        direction = -1.0 if str(p.get("side")).upper() == "SHORT" else 1.0
+        signed = direction * abs(float(p.get("notional") or 0.0))
+
+        if symbol in explicit:
+            move, measured, via, basis = explicit[symbol], None, False, "explicit"
+        else:
+            measured = beta(symbol, reference_symbol, returns_by_symbol) if reference != 0 else None
+            if measured is not None:
+                used_beta = True
+                move, via, basis = measured * reference, True, "beta"
+            elif wildcard is not None:
+                # A scenario that names a blanket move applies it — that is what
+                # "everything falls 25%" means. But it is an assumption about an
+                # instrument whose co-movement could not be measured, and a
+                # stronger one than beta=1 would have been, so the leg says so.
+                move, via, basis = wildcard, False, "wildcard"
+            else:
+                # No measured beta and no blanket move: left flat rather than
+                # assumed to move with the market. Reported as unsupported, so
+                # the total is understated rather than invented.
+                move, via, basis = 0.0, False, "unsupported"
+
+        legs.append(ScenarioLeg(
+            symbol=symbol, signed_notional=signed, applied_move=move,
+            via_beta=via, beta=measured, pnl=signed * move, basis=basis,
+        ))
+
+    total = sum(leg.pnl for leg in legs)
+    return ScenarioResult(
+        scenario_id=scenario_id,
+        label=label,
+        total_pnl=total,
+        total_return=(total / equity) if equity > 0 else 0.0,
+        projected_equity=equity + total,
+        legs=legs,
+        used_beta=used_beta,
+    )
+
+
+def run_scenarios(
+    positions: Sequence[Mapping[str, Any]],
+    equity: float,
+    returns_by_symbol: Mapping[str, Sequence[float]],
+    reference_symbol: str = "BTCUSDT",
+) -> list[ScenarioResult]:
+    """Every named scenario against the current book, worst first."""
+    results = [
+        apply_scenario(
+            positions, equity, spec["shocks"], returns_by_symbol,
+            reference_symbol, scenario_id=scenario_id, label=str(spec["label"]),
+        )
+        for scenario_id, spec in SCENARIOS.items()
+    ]
+    return sorted(results, key=lambda r: r.total_pnl)
+
+
+# --------------------------------------------------------------------------- #
+# Allocation
+#
+# The gap this fills: the platform could tell a PM what the book *is* — exposure,
+# concentration, risk contributions — and nothing about what it should be. A
+# proposal is not an instruction, and this one is deliberately naive about
+# expected return: it allocates by risk, because forecasting covariance is hard
+# and forecasting returns is harder, and a proposal that pretends otherwise is
+# an opinion dressed as arithmetic.
+# --------------------------------------------------------------------------- #
+
+@dataclass
+class TargetWeight:
+    symbol: str
+    current_weight: float
+    target_weight: float
+    current_notional: float
+    target_notional: float
+    drift: float
+    #: Which constraint, if any, held this weight below its unclipped value.
+    clipped_by: str | None
+
+
+@dataclass
+class AllocationProposal:
+    method: str
+    targets: list[TargetWeight]
+    gross_before: float
+    gross_after: float
+    #: Weights before clipping summed to one; after clipping they may not.
+    clipped: bool
+    note: str
+
+
+def propose_allocation(
+    positions: Sequence[Mapping[str, Any]],
+    cov: Covariance,
+    equity: float,
+    method: str = "inverse_vol",
+    max_symbol_notional: float | None = None,
+    max_gross_notional: float | None = None,
+) -> AllocationProposal | None:
+    """Constraint-aware target weights for the current book.
+
+    ``inverse_vol`` weights each position by the reciprocal of its own
+    volatility, so a quiet instrument carries more notional than a violent one
+    for the same risk. ``equal_risk`` goes further and equalises each position's
+    *contribution* to book volatility, which accounts for correlation — two
+    names that move together are collectively one bet and get sized as one.
+
+    Both are then clipped by the same limits the risk gateway enforces, and each
+    clipped weight names the constraint that bound it. A proposal that ignores
+    the limits would be rejected order by order at the gate, which is a worse
+    way to discover it.
+    """
+    index = {s: i for i, s in enumerate(cov.symbols)}
+    live = [p for p in positions if str(p.get("symbol")) in index and float(p.get("notional") or 0.0)]
+    if not live or equity <= 0:
+        return None
+
+    vols = {
+        str(p.get("symbol")): math.sqrt(max(0.0, cov.matrix[index[str(p.get("symbol"))]][index[str(p.get("symbol"))]]))
+        for p in live
+    }
+    if any(v <= 0 for v in vols.values()):
+        return None
+
+    if method == "equal_risk":
+        # Fixed-point iteration toward equal risk contribution. Converges in a
+        # handful of steps for the position counts this book carries; the
+        # inverse-vol solution is the natural starting point because it is
+        # already correct when correlations are zero.
+        weights = {s: 1.0 / v for s, v in vols.items()}
+        total = sum(weights.values())
+        weights = {s: w / total for s, w in weights.items()}
+        for _ in range(60):
+            vector = [weights.get(s, 0.0) for s in cov.symbols]
+            marginal = [
+                sum(cov.matrix[i][j] * vector[j] for j in range(len(cov.symbols)))
+                for i in range(len(cov.symbols))
+            ]
+            variance = sum(vector[i] * marginal[i] for i in range(len(cov.symbols)))
+            if variance <= 0:
+                break
+            target_rc = variance / len(weights)
+            updated = {}
+            for symbol in weights:
+                i = index[symbol]
+                contribution = vector[i] * marginal[i]
+                if contribution <= 0 or marginal[i] <= 0:
+                    updated[symbol] = weights[symbol]
+                    continue
+                updated[symbol] = weights[symbol] * math.sqrt(target_rc / contribution)
+            total = sum(updated.values()) or 1.0
+            weights = {s: w / total for s, w in updated.items()}
+    else:
+        method = "inverse_vol"
+        raw = {s: 1.0 / v for s, v in vols.items()}
+        total = sum(raw.values())
+        weights = {s: w / total for s, w in raw.items()}
+
+    gross_before = sum(abs(float(p.get("notional") or 0.0)) for p in live)
+    budget = min(gross_before, max_gross_notional) if max_gross_notional else gross_before
+
+    targets: list[TargetWeight] = []
+    clipped = False
+    for p in live:
+        symbol = str(p.get("symbol"))
+        current_notional = abs(float(p.get("notional") or 0.0))
+        target_notional = weights[symbol] * budget
+        clipped_by = None
+        if max_symbol_notional and target_notional > max_symbol_notional:
+            target_notional = max_symbol_notional
+            clipped_by = "max_symbol_notional_usd"
+            clipped = True
+        targets.append(TargetWeight(
+            symbol=symbol,
+            current_weight=current_notional / gross_before if gross_before else 0.0,
+            target_weight=target_notional / budget if budget else 0.0,
+            current_notional=round(current_notional, 2),
+            target_notional=round(target_notional, 2),
+            drift=round((target_notional - current_notional) / gross_before, 5) if gross_before else 0.0,
+            clipped_by=clipped_by,
+        ))
+
+    targets.sort(key=lambda t: -abs(t.drift))
+    gross_after = sum(t.target_notional for t in targets)
+
+    return AllocationProposal(
+        method=method,
+        targets=targets,
+        gross_before=round(gross_before, 2),
+        gross_after=round(gross_after, 2),
+        clipped=clipped,
+        note=(
+            "Risk-based only: no expected return is forecast, so this answers "
+            "'how should the risk be spread', never 'what should we own'."
+        ),
+    )
+
+
+def rebalance_trades(
+    proposal: AllocationProposal,
+    positions: Sequence[Mapping[str, Any]],
+    drift_band: float = 0.05,
+) -> list[dict[str, Any]]:
+    """Trades needed to reach the proposal, filtered by a drift band.
+
+    The band is what stops a rebalance from being a fee-generating machine: a
+    position 1% away from target costs more to correct than the correction is
+    worth. Only positions outside it are traded, and the reason for each trade
+    travels with it.
+    """
+    sides = {str(p.get("symbol")): str(p.get("side", "LONG")).upper() for p in positions}
+    trades: list[dict[str, Any]] = []
+    for target in proposal.targets:
+        if abs(target.drift) < drift_band:
+            continue
+        delta = target.target_notional - target.current_notional
+        long_position = sides.get(target.symbol, "LONG") != "SHORT"
+        # Adding to a short means selling more of it; the direction depends on
+        # which side the position is already on.
+        side = ("BUY" if delta > 0 else "SELL") if long_position else ("SELL" if delta > 0 else "BUY")
+        trades.append({
+            "symbol": target.symbol,
+            "side": side,
+            "notional": round(abs(delta), 2),
+            "reason": (
+                f"{'over' if delta < 0 else 'under'}weight by {abs(target.drift):.1%} of gross"
+                + (f" (target clipped by {target.clipped_by})" if target.clipped_by else "")
+            ),
+        })
+    return trades

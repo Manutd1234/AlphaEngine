@@ -12,7 +12,7 @@ is a **second, narrower allow-list** than the one that grants read access, and
 it is empty unless someone sets it: being able to see the book does not imply
 being able to stop the desk. Every control command requires a single-use,
 user-bound, 90-second confirmation code, so a forwarded message cannot fire one,
-and `/flatten` submits through the same twelve pre-trade gates as a manual order
+and `/flatten` submits through the same fourteen pre-trade gates as a manual order
 rather than around them.
 
 | | Module | Where it runs |
@@ -45,21 +45,38 @@ the latter points to the stateless [`OpenBB_Service/`](OpenBB_Service/) project.
 
 ## Who this is for
 
-Three people use a trading desk and they ask different questions. The system is
-organised around that rather than around a feature list.
+Seven roles run a quant desk and they ask different questions. The system is
+organised around that rather than around a feature list — and the point of one
+platform rather than seven tools is that they all reconcile to the same rows.
 
-### 🎯 Traders — *"Can I send this, and what will it cost?"*
+**Coverage at a glance.** What exists, per role, and what is honestly still
+missing (§9 has the detail):
+
+| Role | Their question | Where it is answered | Known gap |
+|---|---|---|---|
+| **Quant Trader** | *Can I send this, and what will it cost?* | Execution cockpit, 14 pre-trade gates, cross-venue TCA, blotter | Paper fills only; no resting-order lifecycle |
+| **Quant Researcher** | *Does this actually work?* | Sweep engine, Deflated Sharpe, walk-forward, PBO, promotion gate | No feature store; per-browser experiment log |
+| **Portfolio Manager** | *Where am I exposed, and what should I own?* | Portfolio view, risk contributions, allocation proposal, rebalance | No benchmark-relative attribution |
+| **Risk Manager** | *Is the model right, and will the limits hold?* | Kupiec VaR backtest, stress scenarios, reduce-only mode, kill switch | No margin or liquidation modelling |
+| **Data Engineer** | *Can I trust this data?* | Provider registry, failover, data contracts, quarantine, lineage | No orchestration or backfill scheduler |
+| **DevOps / SRE** | *Is it healthy, and what do I do at 3am?* | `/health`, `/metrics`, systems console, alert rules, runbook | No log aggregation or distributed tracing |
+| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, parity suites, CI, 241 + 333 + 12 tests | No generated client, no property-based fuzzing |
+
+### 🎯 Quant Traders — *"Can I send this, and what will it cost?"*
 
 | Need | Where |
 |---|---|
 | See real liquidity before committing | Consolidated L2 ladder, streaming from Binance + Bybit |
 | Know the cost *before* the fill | `/tca BTCUSDT 100000 BUY` — VWAP, slippage in bps, routing split |
 | Is the consolidated book crossed right now | Cross-venue dislocation strip, sized to the smaller resting leg and quoted **gross** — because two taker legs usually cost more than the edge |
-| Not send the order with the extra zero | 12 pre-trade gates in ~0.2 ms; a rejection returns the full check vector |
+| Not send the order with the extra zero | 14 pre-trade gates in ~0.2 ms; a rejection returns the full check vector |
 | Stop everything, now | Authenticated gateway console, `POST /api/risk/kill`, the web workspace's risk panel, or `/halt` in Telegram — the last two gated by a separate operator allow-list and a typed confirmation |
-| Know when something breaks without watching a screen | Push alerts on breaches, halts, and `/watch` liquidity thresholds |
+| Know when something breaks without watching a screen | Push alerts on breaches, halts, feed outages and `/watch` liquidity thresholds — to Telegram *and* to the Alerts panel on the Execution tab |
+| See my own flow, not just the market | Execution cockpit: order blotter with the full check vector per row, live P&L strip, execution-quality summary (fill rate, realised slippage, tail latency) |
+| Send an order and see every gate's verdict | Order ticket with the fourteen-check vector rendered for accepts *and* rejects, plus fat-finger and rate-limit presets |
+| Trace a fill back to the idea | Orders stamped with the strategy and experiment id; the blotter links back to the research run |
 
-### 📁 Portfolio managers — *"Where am I exposed, and which limit binds first?"*
+### 📁 Portfolio Managers — *"Where am I exposed, and which limit binds first?"*
 
 | Need | Where |
 |---|---|
@@ -69,12 +86,17 @@ organised around that rather than around a feature list.
 | How much room is left before trading stops | Headroom on every limit, and the **binding constraint** named explicitly |
 | What is actually producing the P&L | Attribution by symbol and by strategy, from the append-only audit log |
 | Is a −20% scenario a tail event today, or a Tuesday | Volatility regime as a percentile of the instrument's *own* history; named scenarios scale **up** with it, never down |
+| Which scenario should I actually worry about | Every named scenario ranked by projected loss, each flagged if it would trip the halt |
+| What *should* the book be, not just what it is | Risk-based allocation proposal — inverse-vol or equal-risk-contribution — clipped by the same limits the gate enforces, naming what clipped each weight |
+| What would I have to trade to get there | Rebalance trade list with an adjustable drift band, composed but never sent |
+| What did the book do this month | Persisted equity snapshots from the risk monitor: day, month-to-date and since-inception P&L that survive a reload |
+| Which sleeve made the money | Realised P&L per strategy, replayed from audited fills through the same average-cost accounting the live book uses |
 
 A trader's view answers a question about the *next order*; a PM's answers one
 about the *whole book*. The same numbers do not serve both, which is why
 `/api/portfolio` exists separately from `/api/risk/state`.
 
-### 🔬 Researchers — *"Does this strategy actually work?"*
+### 🔬 Quant Researchers — *"Does this strategy actually work?"*
 
 | Need | Where |
 |---|---|
@@ -87,19 +109,95 @@ about the *whole book*. The same numbers do not serve both, which is why
 | See the loss tail, not just its variance | VaR, expected shortfall, Ulcer index and a monthly return grid |
 | Realistic costs | Fees and slippage charged on turnover; fills at the next bar, never at mid. Optional square-root impact, funding and borrow — off by default, because on they diverge from the gateway |
 | Know *how much*, not just whether | Kelly from the sweep's own realised win and loss magnitudes — quarter-Kelly, capped at 20% of the book, zero when there is no edge, and flagged when the odds came from too few trades to mean anything |
-| Not re-test the same idea, or forget how many were tried | Local run history that states the cross-run count: a per-run DSR prices one grid, not forty hypotheses |
+| Not re-test the same idea, or forget how many were tried | Run history that states the cross-run count: a per-run DSR prices one grid, not forty hypotheses |
+| Know two runs are actually comparable | A SHA-256 fingerprint of the bars each run saw — a date range is not a dataset, and the comparison panel refuses to imply otherwise |
+| Know whether the search itself is the problem | Probability of backtest overfitting: how often the in-sample winner landed in the *worse half* of the same grid out-of-sample |
+| Stop a lookback leaking across a fold boundary | Optional embargo between each training window and its test window |
+| Record what a run settled, in my own words | Notes and tags per run, kept on the record so a re-run cannot silently discard them |
+| Work in a notebook against the real engine | `notebooks/research_template.ipynb` imports `modules.backtester` directly — no server, no network, and it replays a recorded run out of the audit log |
 
 The research portal will tell you a strategy **fails** even when the equity curve
 looks good. That is the feature: a +82% backtest with DSR 0.71 and negative
 out-of-sample Sharpe gets a red FAIL, not a green tick.
 
+### 🛡 Risk Managers — *"Is the model right, and will the limits hold?"*
+
+| Need | Where |
+|---|---|
+| Checks that are strict, visible and hard to bypass | 14 pre-trade gates on the single order path; the full vector is audited for accepts *and* rejects |
+| Limits that a compromised service cannot move | Limits are a frozen dataclass in `config.py` — changing one is a code change, a review and a deploy |
+| A graduated response, not a cliff | Reduce-only mode from 80% of the drawdown budget: closing orders pass, opening orders do not. A desk in trouble needs a way *out* |
+| Exposure, concentration and drawdown continuously | Live from the gateway, marked to market every 5 s by the same loop that trips the breaker |
+| Tail risk, not just variance | Parametric **and** historical VaR/CVaR side by side — where they diverge is the fat tail the normal model cannot see |
+| **Do I trust my own VaR?** | Kupiec proportion-of-failures backtest with a Basel traffic light. The forecast is re-fitted on a rolling window and scored on the *next* bar, never on data it was fitted to |
+| Scenario loss on today's book | Named historical scenarios with **measured** betas. Every leg reports how its move was decided — explicit shock, measured beta, the scenario's blanket assumption, or left flat because none of those applied — so an assumption can never be read as a measurement |
+| A limit on the risk number itself | Advisory VaR budget as a share of equity (prop-desk practice is 1–3%), reported and deliberately never used to block an order |
+| Stop trading, from anywhere | Kill switch on the API, the console, the web workspace and Telegram — the last two behind a separate operator allow-list and a typed confirmation |
+| A recovery procedure, not an improvised one | `POST /api/risk/resume` takes a reason that lands in the audit log beside what tripped the halt; `docs/RUNBOOK.md` has the sequence |
+
+Risk here is a live guardrail, not an end-of-day report: the breaker trips
+without a human, and every number a risk manager reads is the same number the
+gate used.
+
+### 🔧 Data Engineers — *"Can I trust this data?"*
+
+| Need | Where |
+|---|---|
+| Ingestion that survives a bad feed | Sequence-gap detection forces a resubscribe; per-venue staleness clocks; automatic synthetic fallback, always tagged |
+| Provider failover I can see | Ranked registry across 7 providers with circuit breakers, a quota ledger, and a failover graph showing which node a request would land on *and why each other was skipped* |
+| Validation on content, not just transport | Data contracts on every normalised payload: prices positive and inside their range, bar timestamps unique and ordered, highs above lows, freshness within budget |
+| The difference between bad data and a renamed field | Three severities — `fatal` (rejected, failed over), `warn` (served, labelled), `drift` (our mapping looks stale, not the market) |
+| Somewhere to look at a suspect payload | Quarantine buffer in the Systems tab with the violations and a redacted excerpt. A rejected payload is never cached, so failover gets a shot at a cleaner source |
+| Lineage from vendor bytes to rendered number | Pipeline inspector: cache key, TTL, every skipped provider with its reason, and the raw upstream JSON |
+| Cross-source agreement | Consensus quotes across providers, flagging any leg more than 50 bps from the median |
+| Query the record without an ETL step | DuckDB, append-only: `SELECT quantile(latency_ms, 0.99) FROM orders` against the same file the gateway writes |
+| Feed health as a time series | `/metrics` exports per-venue book age, update rate, reconnects and staleness |
+
+The improvement that matters here is not more data — it is data whose
+provenance and quality are visible at the point of use.
+
+### 🚨 DevOps / SRE — *"Is it healthy, and what do I do at 3am?"*
+
+| Need | Where |
+|---|---|
+| Health for every deployable unit | `GET /health` (gateway), `/telegram/health`, `/healthz` (OpenBB service), `/api/system/health` (web tier) |
+| Metrics a scraper can act on | `GET /metrics` — Prometheus text exposition, hand-rolled, **no client library**: feed state, book age, kill switch, order counters, drawdown budget, queue depth, per-route latency percentiles |
+| Alert rules I do not have to invent | `tools/alert-rules.example.yml` — every expression keyed to a metric this gateway actually exports, each linked to its runbook section |
+| A procedure at 3am | `docs/RUNBOOK.md`: feed down, drawdown halt, rejection spike, gate latency, job backlog, provider degraded — each with a way to rehearse it locally |
+| Whether the failure is compute, provider, cache or venue | Systems console: breaker state, p50/p95/p99 with sample counts, quota meters with the reserve boundary, failover graph |
+| To break it on purpose and watch it recover | Bounded, self-expiring simulated outages from the operator panel |
+| One command that proves the money path works | `python tools/synthetic_probe.py` — health → book → cost → risk gate → audit, in-process and offline, non-zero exit on any failure |
+| A deploy that cannot ship a file that was never committed | `tools/check_repo_complete.sh` builds an export of HEAD, not the working tree |
+| CI on every push | `.github/workflows/ci.yml`: three suites, lint, the OpenAPI contract snapshot, the repo guard and the journey probe |
+
+### 🛠 Quant Developers — *"Can I change this safely?"*
+
+| Need | Where |
+|---|---|
+| Typed contracts, not conventions | Pydantic models on every route, with `response_model` — the schema is the code |
+| A published, versioned API | `/docs` live, plus a committed `tools/openapi.json` snapshot; a test fails if the API changes without regenerating it |
+| Documented tunables | `BacktestRequest` carries bounds *and* descriptions, so `/docs` doubles as the researcher's parameter registry |
+| Confidence that two implementations agree | Python↔TypeScript parity suites for the **backtest engine** and the **risk engine**, both driven by fixtures the Python reference emits |
+| To debug a request without guessing | Pipeline inspector down to raw vendor JSON; bounded trace ring with redaction; `/api/system/inspect` |
+| Tests that run anywhere | 241 gateway + 333 web + 12 service tests, all offline by construction — no network, no fixtures fetched at test time |
+| A lint gate that catches defects, not style | ruff with bugbear, async and bandit rules; `tsc --strict` on the web tier |
+| To add a provider or an endpoint without breaking things | Uniform `Adapter` interface with declared capabilities; the recipe is in §7 and in `web/README.md` |
+
 ### What ties them together
 
-The audit log. Every gate decision, kill-switch event, TCA snapshot and backtest
-run is appended to DuckDB and is queryable with plain SQL. A trader's rejected
-order, a PM's exposure figure and a researcher's sweep all reconcile to the same
-rows — so "why does it say that?" has an answer that does not depend on anyone's
-memory.
+The audit log. Every gate decision, kill-switch event, TCA snapshot, equity
+mark and backtest run is appended to DuckDB and is queryable with plain SQL. A
+trader's rejected order, a PM's attribution figure, a risk manager's incident
+timeline and a researcher's sweep all reconcile to the same rows — so "why does
+it say that?" has an answer that does not depend on anyone's memory.
+
+The second thing that ties them together is that the same maths runs in both
+languages. The backtest engine and the risk engine each exist twice — Python for
+the gateway and the Telegram companion, TypeScript for the browser — because
+neither runtime can call the other. Two implementations of one calculation is
+two chances to be wrong, so the Python side is the reference, `tools/` emits its
+answers as fixtures, and the TypeScript suite asserts it reproduces them. A VaR
+quoted on a phone and a VaR on a screen cannot disagree without a test failing.
 
 ---
 
@@ -127,7 +225,7 @@ gateway and its OpenBB adapter to the separate stateless service.
 cd web
 npm install
 npm run dev    # http://localhost:3000
-npm test       # 258 tests
+npm test       # 333 tests
 ```
 
 Live-feed endpoints (public, no key):
@@ -214,7 +312,7 @@ pytest                                   # deterministic; no network required
                     │       │       │
            ┌────────▼─┐ ┌───▼────┐ ┌▼──────────────┐
            │ A · TCA  │ │ B · risk│ │ C · backtest │
-           │ L2 + VWAP│ │ 12 gates│ │ jobs + DSR   │
+           │ L2 + VWAP│ │ 14 gates│ │ jobs + DSR   │
            └────┬─────┘ └────┬────┘ └──────┬───────┘
                 └────────────┼──────────────┘
                              ▼
@@ -327,7 +425,7 @@ after a rejected ack, an exchange ban from rate-limit abuse, a position that kee
 averaging into a liquidation cascade. Every order therefore passes one choke point
 that can say *no* in microseconds, and a human can stop the desk with one message.
 
-**The 12 gates**, evaluated cheapest-first:
+**The 14 gates**, evaluated cheapest-first:
 
 | # | Gate | Guards against |
 |---|---|---|
@@ -342,9 +440,14 @@ that can say *no* in microseconds, and a human can stop the desk with one messag
 | 9 | `symbol_concentration` | projected per-symbol exposure |
 | 10 | `gross_exposure` | projected book-wide exposure |
 | 11 | `price_band` | limit price far from mark (fat finger, part 2) |
-| 12 | `daily_drawdown` + `est_slippage` | the bad day; illiquid size |
+| 12 | `daily_drawdown` | the bad day — hard stop at 5% of start-of-day equity |
+| 13 | `reduce_only` | *adding* risk once 80% of the drawdown budget is spent, while still allowing the exit |
+| 14 | `est_slippage` | illiquid size — measured on the **routed** execution, not the mid |
 
-Measured on live books: **0.14 – 0.24 ms** per decision, twelve gates.
+Measured on live books: **0.14 – 0.24 ms** per decision. Gate 13 was added with
+the reduce-only work and the count moved from twelve to fourteen; the two that
+were previously one row are now their own, because a hard stop and a graduated
+throttle are different controls and a reader should be able to see both.
 
 **Principles:**
 
@@ -597,6 +700,7 @@ can scale independently from portfolio state.
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/health` | all three modules + feed health |
+| `GET` | `/metrics` | Prometheus text exposition — feeds, risk, queue, latency |
 | `GET` | `/api/config` | symbols, venues, limits |
 | `GET` | `/api/book/{symbol}` | per-venue L2 ladders |
 | `GET` | `/api/tca/{symbol}` | VWAP, slippage, smart route |
@@ -604,7 +708,8 @@ can scale independently from portfolio state.
 | `POST` | `/api/orders` | **submit through the risk gateway** |
 | `GET` | `/api/risk/state` | equity, PnL, drawdown, positions |
 | `GET` | `/api/risk/limits` | the active hard limits |
-| `GET` | `/api/portfolio` | PM view: concentration, headroom, binding constraint, attribution |
+| `GET` | `/api/portfolio` | PM view: concentration, headroom, binding constraint, attribution, per-sleeve realised P&L |
+| `GET` | `/api/portfolio/history` | persisted equity curve + day/MTD/inception returns |
 | `POST` | `/api/risk/kill` · `/resume` · `/reset` | emergency control |
 | `POST` | `/api/backtest` | queue a sweep → `job_id` |
 | `GET` | `/api/jobs` · `/api/jobs/{id}` | queue stats · progress, then the full result |
@@ -612,7 +717,21 @@ can scale independently from portfolio state.
 | `GET` | `/api/research/openbb/health` · `quote` · `bars` · `news` · `fundamentals` | Local/compatibility OpenBB bridge used by the companion |
 | `POST` | `/telegram/webhook` | Telegram updates |
 
-Interactive docs at `/docs`.
+Interactive docs at `/docs`, and a committed snapshot at `tools/openapi.json`.
+The snapshot is the contract two independently deployed clients rely on, so
+`tests/test_openapi_contract.py` fails if the API changes without it being
+regenerated — a rename that would 404 a browser fails in CI instead.
+
+```bash
+python tools/export_openapi.py            # regenerate, deliberately
+python tools/export_openapi.py --check    # what CI runs
+```
+
+**Adding an endpoint.** Define the shape in `modules/schemas.py`, add the route
+in `main.py` with `response_model=`, add a case to `tests/test_api.py`, and
+regenerate the snapshot. The `response_model` is what makes the schema and the
+implementation impossible to drift apart; the snapshot is what makes the drift
+visible to the clients.
 
 **Local OpenBB bridge.** `modules/research.py` remains available for the
 co-located Telegram companion and local compatibility testing. Install the
@@ -691,7 +810,7 @@ that abstraction matters more than the broker choice.
 ### Implemented vs. mocked
 
 **Live and real:** L2 WebSocket ingest from two venues with sequence handling and
-reconnection; all TCA maths and the cross-venue router; all 12 pre-trade gates,
+reconnection; all TCA maths and the cross-venue router; all 14 pre-trade gates,
 position accounting, the drawdown breaker and the kill switch; vectorbt parameter
 sweeps on live Binance klines; DSR and walk-forward; the DuckDB audit log; and
 the fail-closed, text-only Telegram webhook/polling companion.
@@ -708,8 +827,29 @@ AWS ECS/Kubernetes behind an ALB; TimescaleDB or ClickHouse for tick storage wit
 DuckDB kept for ad-hoc analytics; direct FIX sessions instead of public WebSockets;
 Redis-backed Celery workers on a separate autoscaling group; secrets in AWS
 Secrets Manager with an HSM for signing keys; the risk gateway replicated with
-shared limit state in Redis so a single instance failure cannot open the gate;
-Prometheus metrics on gate latency, feed staleness and rejection rates.
+shared limit state in Redis so a single instance failure cannot open the gate.
+
+Prometheus metrics on gate latency, feed staleness and rejection rates **ship
+here** — `GET /metrics`, with example alert rules in
+`tools/alert-rules.example.yml`. What is left for production is the stack around
+them: a Prometheus that scrapes it, a Grafana that draws it, and an alertmanager
+that routes it somewhere other than Telegram.
+
+### What is deliberately missing
+
+A submission that lists only what it has is not a design document. These are the
+gaps a reviewer should expect to find, and why each is where it is:
+
+| Gap | Where it bites | Why it is not here |
+|---|---|---|
+| **RBAC and SSO** | Every role shares one gateway token; the only identity distinctions are that token, the Telegram read allow-list and the narrower control allow-list | Real role separation needs an identity provider and a session layer, which is a system in its own right. The *controls* that matter — who can halt, who can flatten — are already gated separately from who can read |
+| **Orchestration** | No Airflow/Dagster: ingestion is supervised in-process and backfill is manual | A scheduler is the right answer at multi-desk scale and pure overhead at one process. The pieces it would schedule — validation, failover, staleness — exist and are testable without it |
+| **Log aggregation and tracing** | Logs are per-process; there is no request id threaded across the three units | The bounded trace ring and the pipeline inspector answer the debugging questions locally. Shipping logs needs somewhere to ship them |
+| **Margin, financing, liquidation** | Risk is notional-based: no leverage, funding or liquidation modelling | The paper book is unlevered and cash-settled, so a margin model would be arithmetic about a fiction |
+| **Full CPCV** | Overfitting is priced by DSR and a sequential PBO estimate, not combinatorially purged cross-validation | CPCV costs factorially more compute for a tighter estimate of the same quantity. The cheap version is honest about being the cheap version |
+| **Feature store and shared experiment registry** | Experiment history is per browser; the gateway's own `backtest_runs` table is the durable record | A feature store is a team-scale answer to a team-scale problem |
+| **Working-order lifecycle** | Fills are immediate against the live ladder — no resting limit orders, cancel/replace, or open-order panel | Order state machines are where execution systems get genuinely hard, and faking one would misrepresent what is proven here |
+| **mypy** | Python is typed but not type-checked in CI | pydantic plugin plus third-party stubs is a day of work with little to show a reviewer; ruff catches the defects that matter |
 
 ### Validation & signal testing
 
@@ -732,7 +872,9 @@ Key risks and their mitigations, all implemented here:
 | Corrupted book | sequence-gap detection forces a resubscribe; partial-book streams self-heal |
 | Exchange rate-limit ban | token bucket (5/s, burst 10) before anything leaves |
 | Runaway algo | rate limit + idempotency on `client_order_id` + kill switch |
-| Bad day | automatic drawdown breaker at 5%, warning at 80% of budget |
+| Bad day | automatic drawdown breaker at 5%; reduce-only from 80% of budget, so the desk can still close but not open |
+| A VaR nobody has checked | Kupiec proportion-of-failures backtest with a Basel traffic light, scored out-of-sample |
+| Silently bad vendor data | data contracts on every payload; fatal violations fail over, suspect ones are quarantined with the evidence |
 | Overfit research reaching production | DSR + walk-forward reported on every sweep |
 | Alerting outage | alert-hook failures are caught and never block the trade path |
 
@@ -752,12 +894,26 @@ tests/test_api.py          REST contract, rejection semantics, job lifecycle,
 tests/test_telegram.py     command registry, fail-closed user authorization,
                            text rendering, OpenBB reads and transition alerts
 tests/test_portfolio.py    concentration maths, netting, binding constraint,
-                           attribution wiring
+                           attribution wiring, realised P&L per strategy sleeve,
+                           persisted equity history and period returns
 tests/test_research.py     OpenBB bridge: absence contract (ok:false, never 500),
                            NaN-cleaning, field-alias resolution, input validation
+tests/test_quant_risk.py   covariance conventions, risk contributions, Kelly,
+                           regime, historical VaR, Kupiec backtest, scenario
+                           propagation with measured betas, allocation solver
+tests/test_rehydration.py  position replay from audited fills, reset boundaries,
+                           and the ambiguity that must fail closed
+tests/test_telegram_controls.py
+                           the gated controls: separate allow-list, single-use
+                           confirmation codes, expiry
+tests/test_openapi_contract.py
+                           the committed API snapshot, so a contract change to
+                           two independently deployed clients cannot be silent
 ```
 
-The gateway test suite is deterministic and requires no external network.
+The gateway test suite is deterministic and requires no external network: market
+data is disabled, the backtester falls back to its NumPy engine, and every
+fixture is committed. The same is true of the web and service suites.
 
 ---
 
@@ -852,11 +1008,23 @@ multiplier, `ddof=1`, mid-rank percentiles) are pinned by tests on both sides.
 Everything a reviewer needs to check runs offline:
 
 ```bash
-pytest                                    # stateful gateway + companion
-cd OpenBB_Service && pytest               # isolated stateless OpenBB API
-cd web && npm install && npm test         # TypeScript workspace, 258 tests
+pytest                                    # 241 gateway + companion tests
+python tools/synthetic_probe.py           # end-to-end: book → cost → gate → audit
+cd OpenBB_Service && pytest               # 12 stateless service tests
+cd web && npm install && npm test         # 333 workspace tests, incl. both parity suites
 bash tools/check_repo_complete.sh         # builds the *committed* tree
 ```
+
+Two of those deserve a note. The **probe** is the one that proves the parts are
+wired to each other rather than merely correct in isolation: it walks the money
+path in-process, submits an order the risk gate *must* refuse, and exits
+non-zero if any step fails. The **parity suites** are what make "one engine, two
+implementations" a claim rather than an aspiration — `tools/make_parity_fixture.py`
+and `tools/make_risk_fixture.py` emit the Python reference's answers, and the
+TypeScript tests assert reproduction to the fourth decimal.
+
+The same commands run in CI on every push (`.github/workflows/ci.yml`), plus
+`ruff check .` and `python tools/export_openapi.py --check`.
 
 The last one exists because of a real incident: a bare `lib/` pattern inherited
 from GitHub's Python `.gitignore` template silently swallowed the web app's
@@ -881,7 +1049,7 @@ not).
   open a web workspace. It *can* halt, resume and flatten — but only for user
   IDs in `TELEGRAM_CONTROL_USER_IDS`, only with a single-use user-bound
   confirmation code that expires in 90 seconds and is burned even on a wrong
-  guess, and `/flatten` goes through the same twelve pre-trade gates as any
+  guess, and `/flatten` goes through the same fourteen pre-trade gates as any
   other order rather than around them.
 - The web project keeps `ALPHAENGINE_GATEWAY_TOKEN` and `OPENBB_API_TOKEN`
   server-side and connects to two separate services with distinct URLs.

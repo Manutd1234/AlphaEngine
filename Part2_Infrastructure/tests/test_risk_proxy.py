@@ -252,3 +252,106 @@ class TestFillQuality:
         assert state.positions and state.positions[0].symbol == "BTCUSDT"
         assert state.gross_exposure > 0
         assert state.orders_accepted == 1
+
+
+@pytest.mark.asyncio
+class TestReduceOnlyMode:
+    """The stretch between the warning and the halt.
+
+    A binary limit gives a desk no way to de-risk: at 79% of the budget it can
+    do anything, at 80% nothing — including closing the position that is
+    causing the problem. Reduce-only is the graduated response, and the property
+    that matters is that the *exit* stays open while the entrance closes.
+    """
+
+    def _stress(self, gateway, fraction: float = 0.9) -> None:
+        """Push the book to `fraction` of its drawdown budget."""
+        # Drawdown is measured against start-of-day equity, so raising that
+        # mark is the cleanest way to simulate a loss without needing fills.
+        loss_pct = settings.max_daily_drawdown_pct * fraction
+        gateway.start_of_day_equity = gateway.equity() / (1 - loss_pct)
+
+    async def test_below_the_threshold_nothing_changes(self, gateway):
+        self._stress(gateway, fraction=0.5)
+        assert gateway.reduce_only_active() is False
+        decision = await gateway.submit(order())
+        assert decision.accepted, decision.reason
+
+    async def test_opening_orders_are_refused_once_it_engages(self, gateway):
+        self._stress(gateway, fraction=0.9)
+        assert gateway.reduce_only_active() is True
+
+        decision = await gateway.submit(order(client_order_id="opening"))
+        assert not decision.accepted
+        assert "reduce_only" in failed(decision)
+        # The hard breaker has NOT tripped — this is the softer regime.
+        assert "daily_drawdown" not in failed(decision)
+        assert not gateway.kill.active
+
+    async def test_a_closing_order_still_gets_through(self, gateway):
+        # Open a position first, while the book is still healthy.
+        opened = await gateway.submit(order(notional=20_000, client_order_id="entry"))
+        assert opened.accepted
+
+        self._stress(gateway, fraction=0.9)
+        held = gateway.positions["BTCUSDT"].quantity
+        closing = await gateway.submit(order(
+            side="SELL", quantity=held, notional=None, client_order_id="exit"))
+
+        assert closing.accepted, f"a desk in trouble must be able to close: {closing.reason}"
+        assert abs(gateway.positions["BTCUSDT"].quantity) < 1e-9
+
+    async def test_an_oversized_close_is_an_opening_trade_in_disguise(self, gateway):
+        opened = await gateway.submit(order(notional=20_000, client_order_id="entry"))
+        assert opened.accepted
+
+        self._stress(gateway, fraction=0.9)
+        held = gateway.positions["BTCUSDT"].quantity
+        # Selling three times the position flips the book short — that is new
+        # risk wearing the shape of an exit.
+        flipping = await gateway.submit(order(
+            side="SELL", quantity=held * 3, notional=None, client_order_id="flip"))
+        assert not flipping.accepted
+        assert "reduce_only" in failed(flipping)
+
+    async def test_the_state_says_which_regime_the_desk_is_in(self, gateway):
+        assert gateway.state().reduce_only is False
+        self._stress(gateway, fraction=0.9)
+        state = gateway.state()
+        assert state.reduce_only is True
+        assert state.reduce_only_threshold == settings.reduce_only_threshold
+
+    async def test_the_hard_breaker_still_rejects_everything(self, gateway):
+        gateway.start_of_day_equity = settings.starting_equity_usd * 2
+        opened = gateway.positions.setdefault("BTCUSDT", PositionState("BTCUSDT", quantity=10.0, avg_price=100.0))
+        assert opened.quantity > 0
+        # Past the hard limit even a closing order is refused: at that point the
+        # desk is halted, not merely defensive.
+        decision = await gateway.submit(order(side="SELL", quantity=1.0, notional=None))
+        assert not decision.accepted
+        assert "daily_drawdown" in failed(decision)
+
+
+@pytest.mark.asyncio
+class TestHaltRecovery:
+    async def test_a_resume_records_why_and_what_it_was_for(self, gateway, tmp_path):
+        from modules.audit import AuditLog
+
+        gateway.audit = AuditLog(tmp_path / "resume.duckdb")
+        await gateway.trigger_kill("drawdown breach", "circuit-breaker")
+        await gateway.release_kill(actor="ian", reason="feed recovered, exposure reviewed")
+
+        events = gateway.audit.recent_events(10)
+        released = next(e for e in events if e["event"] == "kill_switch_released")
+        assert "feed recovered" in released["detail"]
+        assert "ian" in released["detail"]
+
+    async def test_a_resume_without_a_reason_is_still_allowed(self, gateway, tmp_path):
+        from modules.audit import AuditLog
+
+        gateway.audit = AuditLog(tmp_path / "resume2.duckdb")
+        await gateway.trigger_kill("test", "pytest")
+        # Requiring a reason would mean a desk cannot restart during an incident
+        # if whoever is at the keyboard cannot articulate one yet.
+        kill = await gateway.release_kill(actor="ian")
+        assert kill.active is False

@@ -288,7 +288,7 @@ def _fundamentals_sync(symbol: str) -> dict[str, Any]:
                 provider=_OBB_PROVIDER,
             ))
             metrics = metric_rows[0] if metric_rows else {}
-        except Exception:
+        except Exception:  # noqa: S110 - partial answer is the intended outcome
             # Metrics need a fundamentals-capable downstream; the profile alone
             # is still an answer. Partial data beats a refusal here because the
             # portal merges in ratios from FMP anyway.

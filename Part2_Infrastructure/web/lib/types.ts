@@ -28,6 +28,15 @@ export interface SweepRequest {
   direction: Direction;
   folds: number;
   walkForward: boolean;
+  /**
+   * Bars discarded between each training window and its test window.
+   *
+   * Adjacent folds leak: a 200-bar moving average evaluated on the first test
+   * bar is mostly made of training bars, so an "out-of-sample" score is partly
+   * in-sample. Optional and defaulting to 0, which reproduces the Python
+   * reference exactly — the parity fixture pins that equivalence.
+   */
+  embargoBars?: number;
 
   // ---- microstructure frictions ------------------------------------------
   // All optional and all defaulting to zero, so an unconfigured request is
@@ -77,6 +86,14 @@ export interface WalkForwardFold {
   isSharpe: number;
   oosSharpe: number;
   oosReturn: number;
+  /**
+   * Where the in-sample winner placed out-of-sample among all combinations
+   * scored on this fold. Rank 1 of 40 means the choice held up; rank 33 of 40
+   * means the fold selected noise.
+   */
+  oosRank?: number;
+  combosRanked?: number;
+  embargoBars?: number;
 }
 
 export interface SeriesPoint {
@@ -96,6 +113,14 @@ export interface SweepResponse {
   bars: number;
   periodStart: string;
   periodEnd: string;
+  /**
+   * Content hash of the bars this sweep ran on.
+   *
+   * A window is not a dataset: the same start and end can be a live pull, a
+   * cached copy, or the synthetic fallback. Two results sharing this hash
+   * provably saw the same prices. Mirrors `data_hash` on the Python reference.
+   */
+  dataHash?: string;
   combosTested: number;
   durationMs: number;
   best: ParamResult;
@@ -186,6 +211,13 @@ export interface WalkForwardReport {
   totalFolds: number;
   /** Fraction of folds that re-selected the previous fold's parameters. */
   parameterPersistence: number | null;
+  /**
+   * Probability of backtest overfitting: the fraction of folds whose in-sample
+   * winner landed in the worse half of the same grid out-of-sample. A strategy
+   * whose winners keep placing in the bottom half is being chosen by noise.
+   * Null when no fold ranked its grid.
+   */
+  overfittingProbability: number | null;
   verdict: Verdict;
 }
 

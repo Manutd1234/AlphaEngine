@@ -211,3 +211,106 @@ class TestSequenceGapDetection:
         assert book.best_bid == 100.0
         assert book.best_ask == 99.0
         assert book.spread_bps < 0, "a dropped removal leaves the book crossed"
+
+
+@pytest.mark.asyncio
+class TestFeedHealthAlerts:
+    """A venue going dark is a trading condition, not just a log line.
+
+    Detection already existed — staleness clocks, connection flags, sequence-gap
+    resubscribes — but nothing announced it, so a trader kept sizing against a
+    book that had stopped updating. These tests pin the announcement, and
+    specifically that it fires on the *transition*: an alert repeated every five
+    seconds is one an operator learns to ignore.
+    """
+
+    def _engine(self, monkeypatch, tmp_path) -> TCAEngine:
+        from modules import audit as audit_module
+        from modules.audit import AuditLog
+        from modules.tca_engine import VenueFeed
+
+        store = AuditLog(tmp_path / "feed.duckdb")
+        monkeypatch.setattr(audit_module, "get_audit", lambda: store)
+
+        engine = TCAEngine(symbols=["BTCUSDT"], venues=[])
+        feed = VenueFeed(["BTCUSDT"])
+        feed.name = "BINANCE"
+        feed.books = {"BTCUSDT": make_book("BINANCE")}
+        feed.connected = True
+        engine.feeds = {"BINANCE": feed}
+        engine.audit_store = store
+        return engine
+
+    async def test_first_observation_is_a_baseline_not_an_incident(self, monkeypatch, tmp_path):
+        engine = self._engine(monkeypatch, tmp_path)
+        alerts: list[tuple[str, str]] = []
+        engine.add_alert_hook(lambda severity, message: alerts.append((severity, message)))
+
+        await engine._check_feed_health()
+        assert alerts == [], "starting up healthy is not an event worth waking anyone for"
+
+    async def test_disconnect_then_recovery_each_alert_once(self, monkeypatch, tmp_path):
+        engine = self._engine(monkeypatch, tmp_path)
+        alerts: list[tuple[str, str]] = []
+
+        async def hook(severity, message):
+            alerts.append((severity, message))
+
+        engine.add_alert_hook(hook)
+        await engine._check_feed_health()  # baseline: up
+
+        engine.feeds["BINANCE"].connected = False
+        await engine._check_feed_health()
+        await engine._check_feed_health()  # still down — must stay quiet
+        assert len(alerts) == 1
+        assert alerts[0][0] == "critical"
+        assert "BINANCE" in alerts[0][1]
+
+        engine.feeds["BINANCE"].connected = True
+        await engine._check_feed_health()
+        assert len(alerts) == 2
+        assert alerts[1][0] == "info"
+
+    async def test_transitions_are_audited_with_the_venue_named(self, monkeypatch, tmp_path):
+        engine = self._engine(monkeypatch, tmp_path)
+        await engine._check_feed_health()
+        engine.feeds["BINANCE"].connected = False
+        await engine._check_feed_health()
+
+        events = engine.audit_store.recent_events(10)
+        degraded = [e for e in events if e["event"] == "feed_degraded"]
+        assert degraded, "a feed outage must leave an audit record"
+        assert "BINANCE" in degraded[0]["detail"]
+
+    async def test_a_broken_alert_transport_cannot_stop_ingestion(self, monkeypatch, tmp_path):
+        engine = self._engine(monkeypatch, tmp_path)
+
+        async def exploding_hook(severity, message):
+            raise RuntimeError("telegram is down")
+
+        engine.add_alert_hook(exploding_hook)
+        await engine._check_feed_health()
+        engine.feeds["BINANCE"].connected = False
+        # Must not raise: losing the alert channel is not a reason to lose the
+        # market-data loop that shares this task.
+        await engine._check_feed_health()
+        assert engine._feed_state["BINANCE"] == "down"
+
+    async def test_a_stale_book_is_reported_even_while_connected(self, monkeypatch, tmp_path):
+        engine = self._engine(monkeypatch, tmp_path)
+        alerts: list[tuple[str, str]] = []
+
+        async def hook(severity, message):
+            alerts.append((severity, message))
+
+        engine.add_alert_hook(hook)
+        await engine._check_feed_health()
+
+        # The socket is up, the data is not. This is the failure mode that
+        # looks healthy on a connection count and is worse than a disconnect.
+        book = engine.feeds["BINANCE"].books["BTCUSDT"]
+        book.last_update_wall = 0.0
+        await engine._check_feed_health()
+
+        assert alerts, "a connected-but-stale venue must still raise"
+        assert "stale" in alerts[0][1].lower()

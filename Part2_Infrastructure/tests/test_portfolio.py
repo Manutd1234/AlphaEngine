@@ -8,11 +8,16 @@ every limit, and which limit binds first.
 from __future__ import annotations
 
 import pytest
-
 from conftest import deep_book, stub_feed
+
 from config import settings
 from modules.audit import AuditLog
-from modules.portfolio import build_portfolio, format_for_telegram
+from modules.portfolio import (
+    build_equity_history,
+    build_portfolio,
+    format_for_telegram,
+    realized_pnl_by_strategy,
+)
 from modules.risk_proxy import RiskGateway, TokenBucket
 from modules.schemas import OrderRequest
 from modules.tca_engine import TCAEngine
@@ -138,3 +143,126 @@ class TestPortfolioView:
         assert len(text) < 4000, "would be truncated by Telegram"
         for token in ["Portfolio", "Equity", "Gross expo", "Risk budget", "Binding limit"]:
             assert token in text
+
+
+@pytest.mark.asyncio
+class TestSleeveAttribution:
+    """Flow tells you a sleeve traded; P&L tells you whether it should have."""
+
+    async def test_a_round_trip_is_scored_against_its_own_strategy(self, gateway):
+        await fill(gateway, "BTCUSDT", 20_000, side="BUY", strategy="momentum")
+        await fill(gateway, "BTCUSDT", 20_000, side="SELL", strategy="momentum")
+
+        sleeve = realized_pnl_by_strategy(gateway.audit)["momentum"]
+        assert sleeve["fills"] == 2
+        assert sleeve["closes"] == 1, "the closing fill is the only scored event"
+        # Both legs cross the same synthetic ladder, so the round trip loses
+        # exactly the fees and the spread it paid.
+        assert sleeve["realized_pnl"] < 0
+        assert sleeve["fees"] > 0
+        assert sleeve["win_rate"] == 0.0
+
+    async def test_open_inventory_is_flagged_rather_than_scored(self, gateway):
+        await fill(gateway, "ETHUSDT", 15_000, strategy="carry")
+        sleeve = realized_pnl_by_strategy(gateway.audit)["carry"]
+        assert sleeve["has_open_inventory"] is True
+        assert sleeve["closes"] == 0
+        assert sleeve["win_rate"] is None, "a sleeve with no closed trade has no win rate"
+
+    async def test_sleeves_do_not_bleed_into_each_other(self, gateway):
+        await fill(gateway, "BTCUSDT", 20_000, side="BUY", strategy="alpha")
+        await fill(gateway, "BTCUSDT", 20_000, side="BUY", strategy="beta")
+        # Only alpha closes; beta must keep its inventory and its zero P&L.
+        await fill(gateway, "BTCUSDT", 20_000, side="SELL", strategy="alpha")
+
+        sleeves = realized_pnl_by_strategy(gateway.audit)
+        assert sleeves["alpha"]["closes"] == 1
+        assert sleeves["beta"]["closes"] == 0
+        assert sleeves["beta"]["realized_pnl"] == pytest.approx(-sleeves["beta"]["fees"], abs=0.01)
+
+    async def test_attribution_table_carries_pnl_next_to_flow(self, gateway):
+        await fill(gateway, "BTCUSDT", 20_000, side="BUY", strategy="momentum")
+        await fill(gateway, "BTCUSDT", 20_000, side="SELL", strategy="momentum")
+
+        row = next(s for s in build_portfolio(gateway, gateway.audit)["attribution"]["by_strategy"]
+                   if s["strategy"] == "momentum")
+        assert row["notional"] > 0, "flow is still reported"
+        assert row["realized_pnl"] is not None, "and now so is the result of it"
+        assert row["closed_trades"] == 1
+
+    async def test_execution_quality_splits_by_venue_and_strategy(self, gateway):
+        await fill(gateway, "BTCUSDT", 20_000, strategy="momentum")
+        await fill(gateway, "ETHUSDT", 10_000, strategy="carry")
+
+        by_strategy = {r["bucket"]: r for r in gateway.audit.execution_quality_by("strategy")}
+        assert {"momentum", "carry"} <= set(by_strategy)
+        assert by_strategy["momentum"]["notional"] > by_strategy["carry"]["notional"]
+        assert by_strategy["momentum"]["avg_latency_ms"] is not None
+
+        by_venue = gateway.audit.execution_quality_by("venue")
+        assert by_venue and all(r["filled"] >= 1 for r in by_venue)
+
+        with pytest.raises(ValueError):
+            gateway.audit.execution_quality_by("symbol; DROP TABLE orders")
+
+    async def test_tail_latency_is_reported_not_just_the_mean(self, gateway):
+        await fill(gateway, "BTCUSDT", 10_000)
+        stats = gateway.audit.execution_stats()
+        assert stats["avg_latency_ms"] is not None
+        # DuckDB is the default backend; the percentile block is skipped on the
+        # SQLite fallback, which has no quantile function.
+        if gateway.audit.backend == "duckdb":
+            assert stats["p99_latency_ms"] >= stats["p50_latency_ms"]
+
+
+@pytest.mark.asyncio
+class TestEquityHistory:
+    """Persisted equity: the difference between a chart and a record.
+
+    Before this, the curve lived only in whichever browser tab happened to be
+    open, so "what did the book do while the drawdown built" had no answer.
+    """
+
+    async def test_empty_history_is_empty_not_an_error(self, gateway):
+        history = build_equity_history(gateway.audit)
+        assert history["points"] == []
+        assert history["periods"] == {}
+        assert history["sample_count"] == 0
+
+    async def test_snapshots_persist_and_track_the_book(self, gateway):
+        gateway.snapshot_equity()
+        await fill(gateway, "BTCUSDT", 30_000)
+        gateway.snapshot_equity()
+
+        history = build_equity_history(gateway.audit)
+        assert history["sample_count"] == 2
+        assert history["points"][0]["open_positions"] == 0
+        assert history["points"][1]["open_positions"] == 1
+        assert history["points"][1]["gross_exposure"] == pytest.approx(30_000, rel=0.05)
+
+    async def test_period_returns_are_derived_from_the_stored_curve(self, gateway):
+        gateway.snapshot_equity()
+        # Fees make this a small, certain loss — enough to prove the period
+        # figures come from the curve rather than being hard-coded to zero.
+        await fill(gateway, "BTCUSDT", 30_000)
+        gateway.snapshot_equity()
+
+        periods = build_equity_history(gateway.audit)["periods"]
+        assert periods["current_equity"] == pytest.approx(gateway.equity(), abs=1)
+        assert periods["day"]["pnl"] < 0, "paper fees are a real cost"
+        assert periods["day"]["opening_equity"] == pytest.approx(settings.starting_equity_usd, abs=1)
+        assert periods["since_first_snapshot"]["pnl"] == pytest.approx(periods["day"]["pnl"], abs=0.01)
+        assert periods["month_to_date"]["return"] is not None
+
+    async def test_history_survives_a_halt(self, gateway):
+        await fill(gateway, "BTCUSDT", 10_000)
+        await gateway.trigger_kill("test", "pytest")
+        gateway.snapshot_equity()
+
+        latest = build_equity_history(gateway.audit)["points"][-1]
+        assert latest["kill_switch"] is True, "the curve must keep recording after a halt"
+
+    async def test_session_filter_selects_one_day(self, gateway):
+        gateway.snapshot_equity()
+        assert build_equity_history(gateway.audit, session_date=gateway.session_date)["sample_count"] == 1
+        assert build_equity_history(gateway.audit, session_date="1999-01-01")["sample_count"] == 0

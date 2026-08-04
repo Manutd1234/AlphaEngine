@@ -142,6 +142,17 @@ def build_portfolio(gateway, audit) -> dict[str, Any]:
         "FROM orders GROUP BY strategy ORDER BY notional DESC"
     ) if audit else []
 
+    # Flow says how much a sleeve traded; P&L says whether it should have.
+    realized = realized_pnl_by_strategy(audit)
+    for strategy_row in by_strategy:
+        sleeve = realized.get(strategy_row.get("strategy") or "manual", {})
+        strategy_row["realized_pnl"] = sleeve.get("realized_pnl")
+        strategy_row["win_rate"] = sleeve.get("win_rate")
+        strategy_row["closed_trades"] = sleeve.get("closes")
+        # Realized P&L excludes open inventory, so a sleeve still holding risk
+        # is only partly scored — say so rather than let it read as final.
+        strategy_row["has_open_inventory"] = sleeve.get("has_open_inventory", False)
+
     by_symbol_flow = audit.query(
         "SELECT symbol, "
         "       count(*) AS orders, "
@@ -178,6 +189,187 @@ def build_portfolio(gateway, audit) -> dict[str, Any]:
         "risk_budget": risk_budget,
         "attribution": {"by_strategy": by_strategy, "by_symbol": by_symbol_flow},
         "execution_quality": audit.execution_stats() if audit else {},
+    }
+
+
+def realized_pnl_by_strategy(audit, session_date: str | None = None) -> dict[str, dict[str, Any]]:
+    """Replay accepted fills to get realized P&L per strategy sleeve.
+
+    The audit log stores flow (fills, notional, fees) grouped by strategy, but
+    "which sleeve made money" cannot be read off flow: the same $1m of turnover
+    is a winner or a loser depending on the prices. So the fills are replayed
+    through the same average-cost accounting the live book uses — one position
+    per (strategy, symbol) — which is why a strategy's P&L here reconciles with
+    the gateway's per-symbol figures rather than approximating them.
+
+    Only closed quantity contributes. Open inventory is carried at cost and
+    reported separately, because marking it needs a live price the audit log
+    does not have.
+    """
+    from modules.risk_proxy import PositionState
+
+    if not audit:
+        return {}
+
+    where = "WHERE accepted AND fill_qty IS NOT NULL"
+    params: tuple[Any, ...] = ()
+    if session_date:
+        where += " AND CAST(ts AS VARCHAR) LIKE ?"
+        params = (f"{session_date}%",)
+
+    # `where` is assembled from literals above; the session date travels as a
+    # bound parameter, never as SQL text.
+    sql = (
+        "SELECT strategy, symbol, side, fill_qty, fill_price, fee_usd, notional "  # noqa: S608
+        f"FROM orders {where} ORDER BY ts ASC, order_id ASC"
+    )
+    rows = audit.query(sql, params)
+
+    books: dict[tuple[str, str], Any] = {}
+    summary: dict[str, dict[str, Any]] = {}
+
+    for row in rows:
+        strategy = row.get("strategy") or "manual"
+        symbol = row.get("symbol") or "?"
+        key = (strategy, symbol)
+        book = books.get(key)
+        if book is None:
+            book = books[key] = PositionState(symbol=symbol)
+
+        before = book.realized_pnl
+        quantity_before = book.quantity
+        side = str(row.get("side"))
+        book.apply_fill(
+            side,
+            float(row.get("fill_qty") or 0.0),
+            float(row.get("fill_price") or 0.0),
+            float(row.get("fee_usd") or 0.0),
+        )
+
+        bucket = summary.setdefault(strategy, {
+            "strategy": strategy,
+            "realized_pnl": 0.0,
+            "fees": 0.0,
+            "fills": 0,
+            "notional": 0.0,
+            "wins": 0,
+            "closes": 0,
+            "symbols": set(),
+        })
+        bucket["realized_pnl"] = round(bucket["realized_pnl"] + (book.realized_pnl - before), 2)
+        bucket["fees"] = round(bucket["fees"] + float(row.get("fee_usd") or 0.0), 2)
+        bucket["fills"] += 1
+        bucket["notional"] = round(bucket["notional"] + float(row.get("notional") or 0.0), 2)
+        bucket["symbols"].add(symbol)
+
+        # A close is a fill that traded against an existing position — decided
+        # from the position, not from the P&L. A round trip that scratches at
+        # its entry price moves P&L by nothing and is still a closed trade.
+        opposed = quantity_before != 0 and (quantity_before > 0) != (side == "BUY")
+        if opposed:
+            bucket["closes"] += 1
+            # Gross of fees: whether the trade idea worked is a separate
+            # question from whether it cleared its costs, and a win rate that
+            # counted fees would answer neither cleanly.
+            if book.realized_pnl - before + float(row.get("fee_usd") or 0.0) > 0:
+                bucket["wins"] += 1
+
+    for strategy, bucket in summary.items():
+        open_qty = sum(
+            abs(book.quantity) for (strat, _sym), book in books.items()
+            if strat == strategy and abs(book.quantity) > 1e-12
+        )
+        bucket["symbols"] = sorted(bucket["symbols"])
+        bucket["win_rate"] = round(bucket["wins"] / bucket["closes"], 4) if bucket["closes"] else None
+        bucket["has_open_inventory"] = open_qty > 0
+
+    return summary
+
+
+def build_equity_history(audit, limit: int = 500, session_date: str | None = None) -> dict[str, Any]:
+    """Persisted equity curve plus the period returns derived from it.
+
+    Day P&L is available live from the gateway; month-to-date and
+    since-inception are not, because they need history the process does not
+    keep in memory. Everything here is derived from ``equity_snapshots`` rather
+    than recomputed, so the chart and the period numbers can never disagree.
+    """
+    rows = audit.equity_history(limit=limit, session_date=session_date) if audit else []
+
+    points = [
+        {
+            "ts": row["ts"].isoformat() if hasattr(row["ts"], "isoformat") else str(row["ts"]),
+            "session_date": row.get("session_date"),
+            "equity": round(float(row.get("equity") or 0.0), 2),
+            "start_of_day": round(float(row.get("start_of_day") or 0.0), 2),
+            "daily_pnl": round(float(row.get("daily_pnl") or 0.0), 2),
+            "gross_exposure": round(float(row.get("gross_exposure") or 0.0), 2),
+            "drawdown_pct": round(float(row.get("drawdown_pct") or 0.0), 5),
+            "open_positions": int(row.get("open_positions") or 0),
+            "kill_switch": bool(row.get("kill_switch")),
+        }
+        for row in rows
+    ]
+
+    periods: dict[str, Any] = {}
+    if points:
+        latest = points[-1]
+        current = latest["equity"]
+        today = latest["session_date"]
+        month = str(today)[:7] if today else None
+
+        def _first_equity(predicate) -> float | None:
+            for point in points:
+                if predicate(point):
+                    return point["equity"]
+            return None
+
+        # The day's opening mark comes from the row itself, not from the oldest
+        # point in the returned window. The window is the newest `limit` rows,
+        # so on a long-running gateway it can start hours into the session —
+        # deriving "day P&L" from its first point would silently report the last
+        # few hours instead, and look entirely plausible doing it.
+        day_open = latest.get("start_of_day") or None
+
+        # Month-to-date and inception have no stored equivalent, so they *are*
+        # window-bounded and say so via `observed_from`. Inventing an opening
+        # mark for a period the gateway did not observe would report a return
+        # the book never earned.
+        month_open = _first_equity(lambda p: month and str(p["session_date"]).startswith(month))
+        inception = points[0]["equity"]
+
+        periods = {
+            "current_equity": current,
+            "day": _period(current, day_open),
+            "month_to_date": _period(current, month_open),
+            "since_first_snapshot": _period(current, inception),
+            "observed_from": points[0]["ts"],
+            "observed_to": latest["ts"],
+            "peak_equity": round(max(p["equity"] for p in points), 2),
+            # Each snapshot's drawdown against *its own* start-of-day, so this
+            # is the worst intraday drawdown observed — not a peak-to-trough
+            # figure across the whole window, which would be a different number.
+            "worst_daily_drawdown_pct": round(max((p["drawdown_pct"] for p in points), default=0.0), 5),
+            "window_bounded": ["month_to_date", "since_first_snapshot"],
+        }
+
+    return {
+        "points": points,
+        "periods": periods,
+        "sample_count": len(points),
+        # Naming the sampler makes the resolution of the curve self-evident;
+        # a chart with 60s points should not be read as a tick-level record.
+        "interval_s": settings.equity_snapshot_interval_s,
+    }
+
+
+def _period(current: float, opening: float | None) -> dict[str, Any]:
+    if opening is None:
+        return {"pnl": None, "return": None, "opening_equity": None}
+    return {
+        "pnl": round(current - opening, 2),
+        "return": round(_pct(current - opening, opening), 5),
+        "opening_equity": round(opening, 2),
     }
 
 

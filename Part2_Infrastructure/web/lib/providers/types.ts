@@ -164,6 +164,18 @@ export interface Provenance {
   /** null when the provider publishes no quota we can account for. */
   quotaRemaining: number | null;
   quotaWindow: string | null;
+  /**
+   * Data-contract outcome, present only when something was flagged.
+   *
+   * A payload that passed every expectation carries no field at all: absence
+   * means "nothing to report", which keeps the common case out of every
+   * response body. A payload that *failed* never reaches provenance — it is
+   * failed over instead.
+   */
+  contract?: {
+    passed: boolean;
+    violations: Array<{ check: string; severity: string; message: string }>;
+  };
 }
 
 /** Why a provider that *could* have answered was not asked. */

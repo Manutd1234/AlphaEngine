@@ -216,6 +216,9 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("var", "Risk · Portfolio VaR and expected shortfall", "Risk", "/var [1d|4h|1h]", "/var", "_cmd_var", ("cvar",)),
     CommandSpec("riskcontrib", "Risk · Which position carries the risk", "Risk", "/riskcontrib [INTERVAL]", "/riskcontrib", "_cmd_riskcontrib", ("contrib",)),
     CommandSpec("correlation", "Risk · Cross-position correlation matrix", "Risk", "/correlation [INTERVAL]", "/correlation", "_cmd_correlation", ("corr",)),
+    CommandSpec("stress", "Risk · Scenario loss on the current book", "Risk", "/stress [SCENARIO]", "/stress", "_cmd_stress", ("scenario",)),
+    CommandSpec("varbacktest", "Risk · Has the VaR model been right?", "Risk", "/varbacktest [INTERVAL]", "/varbacktest", "_cmd_varbacktest", ("kupiec",)),
+    CommandSpec("rebalance", "Risk · Risk-based target weights and the trades to reach them", "Risk", "/rebalance [equalrisk]", "/rebalance", "_cmd_rebalance", ("targets",)),
     CommandSpec("regime", "Risk · Volatility regime for an instrument", "Risk", "/regime SYMBOL [INTERVAL]", "/regime BTCUSDT", "_cmd_regime"),
     CommandSpec("size", "Risk · Kelly position sizing from a win rate", "Risk", "/size WIN_RATE PAYOFF [EQUITY]", "/size 0.55 1.8", "_cmd_size", ("kelly",)),
     CommandSpec("dislocation", "Risk · Cross-venue crossed-book check", "Risk", "/dislocation SYMBOL", "/dislocation BTCUSDT", "_cmd_dislocation", ("arb",)),
@@ -233,11 +236,13 @@ for _spec in COMMAND_SPECS:
         _COMMAND_BY_NAME[f"/{_alias}"] = _spec
 
 BOT_COMMANDS = [(spec.name, spec.description) for spec in COMMAND_SPECS]
-BOT_SHORT_DESCRIPTION = "Independent text alerts and read-only portfolio, OpenBB, risk and execution updates."
+BOT_SHORT_DESCRIPTION = "Independent text alerts, portfolio and risk reads, and three gated emergency controls."
 BOT_DESCRIPTION = (
     "AlphaEngine Companion is separate from the web workspace. It provides text-only portfolio, "
     "OpenBB market data, execution analytics, research status and operational alerts. It never "
-    "submits orders or changes trading controls. Send /commands for the full catalogue."
+    "submits orders. Three emergency controls (/halt, /resume, /flatten) are reserved for a "
+    "separate operator allow-list and each needs a single-use confirmation code. "
+    "Send /commands for the full catalogue."
 )
 
 
@@ -246,7 +251,8 @@ def _category_names() -> list[str]:
 
 
 def command_catalogue() -> str:
-    lines = ["<b>⌨️ AlphaEngine command catalogue</b>", "<code>TEXT ONLY · READ-ONLY TRADING STATE</code>", ""]
+    lines = ["<b>⌨️ AlphaEngine command catalogue</b>",
+             "<code>TEXT ONLY · READ EXCEPT GATED CONTROLS</code>", ""]
     for category in _category_names():
         specs = [spec for spec in COMMAND_SPECS if spec.category == category]
         lines.append(f"<b>{esc(category)}</b>")
@@ -267,7 +273,8 @@ def help_text(query: str | None = None) -> str:
             "TEXT ONLY · INDEPENDENT FROM WEB UI",
             [
                 "Read portfolio state, OpenBB market data, execution quality and system health.",
-                "Trading controls and order submission are intentionally unavailable.",
+                "Order submission is intentionally unavailable. The three emergency controls "
+                "(/halt, /resume, /flatten) need the operator allow-list and a confirmation code.",
                 "",
                 f"<b>Categories</b>\n{esc(categories)}",
                 "",
@@ -1202,33 +1209,39 @@ class TelegramBot:
         """
         Bars for every symbol currently held, plus the book they belong to.
 
-        Returns ``(report, covariance)``. Both can be ``None`` — a flat book has
-        no risk to decompose and too little shared history cannot produce a
-        covariance, and the callers say which of those happened rather than
-        printing zeros.
+        Returns ``(report, covariance, returns_by_symbol)``. The covariance can
+        be ``None`` — a flat book has no risk to decompose and too little shared
+        history cannot produce one — and callers say which of those happened
+        rather than printing zeros. The raw returns come back too, because
+        historical VaR and the scenario betas need the series itself, not its
+        second moment.
         """
         from modules.quant_risk import build_covariance, returns_from_closes
 
         report = self._portfolio_report()
         positions = [p for p in report["exposure"]["positions"] if p.get("notional")]
         if not positions:
-            return report, None
+            return report, None, {}
 
         returns: dict[str, list[float]] = {}
-        for position in positions[:8]:
-            symbol = str(position["symbol"])
+        held = {str(p["symbol"]) for p in positions[:8]}
+        # The scenario reference is fetched even when it is not held: without it
+        # every unheld position has no measurable beta and a stress test would
+        # report a flat book under a market-wide shock.
+        for symbol in sorted(held | {"BTCUSDT"}):
             payload = await self._bars_payload(symbol, interval, 180, "crypto")
             rows = payload.get("data") or [] if payload.get("ok") else []
             closes = [float(r["close"]) for r in rows if _finite(r.get("close")) is not None]
             if len(closes) >= 30:
                 returns[symbol] = returns_from_closes(closes)
-        return report, build_covariance(returns, interval)
+        held_returns = {s: r for s, r in returns.items() if s in held}
+        return report, build_covariance(held_returns, interval), returns
 
     async def _cmd_var(self, args, chat_id, actor) -> None:
-        from modules.quant_risk import portfolio_risk
+        from modules.quant_risk import historical_var, portfolio_risk
 
         interval = args[0] if args and args[0] in {"15m", "1h", "4h", "1d"} else "1d"
-        report, cov = await self._risk_inputs(interval)
+        report, cov, returns = await self._risk_inputs(interval)
         equity = float(report["equity"]["current"] or 0.0)
         risk = portfolio_risk(report["exposure"]["positions"], cov, equity) if cov else None
         if not risk:
@@ -1240,16 +1253,38 @@ class TelegramBot:
             f"CVaR 95     <code>{_money(risk.cvar95)}</code> average loss beyond it",
             f"Window      <code>{risk.observations}</code> {interval} bars",
         ]
+
+        # The empirical figure beside the parametric one. Where they diverge is
+        # the fat tail the normal assumption cannot see, and that gap is the
+        # most useful number on this card.
+        empirical = historical_var(report["exposure"]["positions"], returns, equity)
+        if empirical:
+            lines.append(
+                f"Historical  <code>{_money(empirical.var95)}</code> VaR · "
+                f"<code>{_money(empirical.cvar95)}</code> CVaR"
+            )
+            if empirical.var95 > risk.var95 * 1.25:
+                lines.append("<i>The empirical tail is materially worse than the normal model — size on the historical figure.</i>")
+
+        budget = settings.var_budget_pct
+        if budget > 0 and equity > 0:
+            used = risk.var95 / (equity * budget)
+            flag = "🔴" if used >= 1.0 else "🟡" if used >= 0.8 else "🟢"
+            lines.append(
+                f"VaR budget  {flag} <code>{_percent(used)}</code> of "
+                f"<code>{_percent(budget)}</code> equity tolerance"
+            )
+
         if risk.diversification_ratio:
             lines.append(f"Diversif.   <code>{_number(risk.diversification_ratio)}x</code> vs the weighted parts")
-        lines.append("<i>Parametric normal. A fat left tail is understated by construction — /riskcontrib shows where it sits.</i>")
+        lines.append("<i>The budget is advisory: VaR needs history, so it is reported and never used to block an order.</i>")
         await self.send_message(chat_id, text_card("📉 Portfolio VaR", "LIVE BOOK", lines, source="quant_risk · parametric", next_commands="/riskcontrib · /correlation · /stress"))
 
     async def _cmd_riskcontrib(self, args, chat_id, actor) -> None:
         from modules.quant_risk import portfolio_risk
 
         interval = args[0] if args and args[0] in {"15m", "1h", "4h", "1d"} else "1d"
-        report, cov = await self._risk_inputs(interval)
+        report, cov, returns = await self._risk_inputs(interval)
         equity = float(report["equity"]["current"] or 0.0)
         risk = portfolio_risk(report["exposure"]["positions"], cov, equity) if cov else None
         if not risk:
@@ -1264,7 +1299,7 @@ class TelegramBot:
 
     async def _cmd_correlation(self, args, chat_id, actor) -> None:
         interval = args[0] if args and args[0] in {"15m", "1h", "4h", "1d"} else "1d"
-        _, cov = await self._risk_inputs(interval)
+        _, cov, _returns = await self._risk_inputs(interval)
         if not cov or len(cov.symbols) < 2:
             await self.send_message(chat_id, text_card("🔗 Correlation", "NOT MEASURABLE", ["Two or more held symbols with shared history are required."], source="quant_risk", next_commands="/exposure"))
             return
@@ -1282,6 +1317,160 @@ class TelegramBot:
             lines.append(f"<i>⚠ {esc(worst[1])} and {esc(worst[2])} at {worst[0]:.2f} — close to one position of their combined size.</i>")
         lines.append(f"<i>Measured over {cov.observations} {interval} bars. Diversification is only real while these stay low.</i>")
         await self.send_message(chat_id, text_card("🔗 Correlation", "LIVE BOOK", lines, source="quant_risk", next_commands="/riskcontrib · /var"))
+
+    async def _cmd_rebalance(self, args, chat_id, actor) -> None:
+        """Target weights and the trades that would reach them. Read-only."""
+        from modules.quant_risk import propose_allocation, rebalance_trades
+
+        method = "equal_risk" if args and args[0].lower() in {"equalrisk", "equal_risk", "erc"} else "inverse_vol"
+        report, cov, _returns = await self._risk_inputs("1d")
+        positions = [p for p in report["exposure"]["positions"] if p.get("notional")]
+        equity = float(report["equity"]["current"] or 0.0)
+        proposal = propose_allocation(
+            positions, cov, equity, method=method,
+            max_symbol_notional=settings.max_symbol_notional_usd,
+            max_gross_notional=settings.max_gross_exposure_usd,
+        ) if cov else None
+
+        if not proposal:
+            await self.send_message(chat_id, text_card(
+                "⚖️ Rebalance", "NOT MEASURABLE",
+                ["A flat book, or too little shared price history to measure volatility.",
+                 "Allocation needs a covariance, and a covariance needs history."],
+                source="quant_risk", next_commands="/positions · /var"))
+            return
+
+        lines = [f"<b>Method: {esc(proposal.method.replace('_', ' '))}</b>", "",
+                 "<b>SYMBOL     NOW  TARGET   DRIFT</b>"]
+        for target in proposal.targets:
+            cap = " ⚠" if target.clipped_by else ""
+            lines.append(
+                f"<code>{esc(f'{target.symbol[:9]:<9}')}</code> "
+                f"<code>{target.current_weight:>5.0%}</code> "
+                f"<code>{target.target_weight:>6.0%}</code> "
+                f"<code>{target.drift:>+6.1%}</code>{cap}"
+            )
+
+        trades = rebalance_trades(proposal, positions, drift_band=0.05)
+        if trades:
+            lines += ["", "<b>Trades outside a 5% band</b>"]
+            for trade in trades:
+                lines.append(
+                    f"  {trade['side']} <code>{_money(trade['notional'])}</code> {esc(trade['symbol'])}"
+                )
+        else:
+            lines += ["", "<i>Everything is inside a 5% drift band — trading it would cost more than the drift.</i>"]
+
+        if proposal.clipped:
+            lines.append("<i>⚠ A target was capped by a risk limit, so the weights no longer sum to one.</i>")
+        lines.append("<i>Risk-based only: no expected return is forecast. This is a proposal, not an instruction — "
+                     "nothing here is sent.</i>")
+
+        await self.send_message(chat_id, text_card(
+            "⚖️ Rebalance", "PROPOSAL", lines,
+            source="quant_risk · risk-based", next_commands="/exposure · /riskcontrib · /stress"))
+
+    async def _cmd_stress(self, args, chat_id, actor) -> None:
+        """Scenario loss on the book as it stands, with distance to the halt."""
+        from modules.quant_risk import SCENARIOS, apply_scenario, run_scenarios
+
+        report, _cov, returns = await self._risk_inputs("1d")
+        positions = [p for p in report["exposure"]["positions"] if p.get("notional")]
+        equity = float(report["equity"]["current"] or 0.0)
+        if not positions:
+            await self.send_message(chat_id, text_card(
+                "🌩 Stress test", "FLAT BOOK",
+                ["Nothing is at risk, so every scenario is a zero."],
+                source="quant_risk", next_commands="/positions · /var"))
+            return
+
+        requested = args[0].lower() if args else None
+        if requested and requested not in SCENARIOS:
+            # A percentage is accepted as an ad-hoc shock, because the question
+            # is usually "what if BTC drops 12%" rather than a named regime.
+            try:
+                move = float(requested.rstrip("%")) / 100.0
+                results = [apply_scenario(positions, equity, {"BTCUSDT": move}, returns,
+                                          scenario_id="custom", label=f"BTC {move:+.0%}")]
+            except ValueError:
+                await self.send_message(chat_id, text_card(
+                    "🌩 Stress test", "UNKNOWN SCENARIO",
+                    [f"Choose one of: <code>{esc(', '.join(SCENARIOS))}</code>",
+                     "Or give a percentage, e.g. <code>/stress -12</code>."],
+                    source="quant_risk", next_commands="/stress"))
+                return
+        elif requested:
+            spec = SCENARIOS[requested]
+            results = [apply_scenario(positions, equity, spec["shocks"], returns,
+                                      scenario_id=requested, label=str(spec["label"]))]
+        else:
+            results = run_scenarios(positions, equity, returns)
+
+        # The number that decides whether a scenario matters: how much of the
+        # loss the desk could absorb before the breaker halts it.
+        cushion = float(report["risk_budget"]["daily_drawdown"].get("cushion_usd") or 0.0)
+        lines = ["<b>SCENARIO             P&amp;L      OF EQUITY</b>"]
+        for result in results:
+            breach = " 🛑" if cushion > 0 and -result.total_pnl >= cushion else ""
+            lines.append(
+                f"<code>{esc(f'{result.label[:20]:<20}')}</code> "
+                f"<code>{_money(result.total_pnl):>10}</code> "
+                f"<code>{_percent(result.total_return):>7}</code>{breach}"
+            )
+
+        worst = results[0]
+        lines.append("")
+        lines.append(f"Cushion to halt <code>{_money(cushion)}</code>")
+        if cushion > 0 and -worst.total_pnl >= cushion:
+            lines.append(f"<i>🛑 {esc(worst.label)} would trip the drawdown breaker.</i>")
+        unsupported = [leg.symbol for leg in worst.legs if leg.basis == "unsupported"]
+        assumed = [leg.symbol for leg in worst.legs if leg.basis == "wildcard"]
+        if unsupported:
+            lines.append(
+                f"<i>No measurable beta for {esc(', '.join(sorted(set(unsupported))))} — "
+                "left flat, so the total above is understated by whatever they would have moved.</i>"
+            )
+        if assumed:
+            lines.append(
+                f"<i>{esc(', '.join(sorted(set(assumed))))} moved on the scenario's blanket shock, "
+                "not on a measured beta — an assumption, not a measurement.</i>"
+            )
+        await self.send_message(chat_id, text_card(
+            "🌩 Stress test", "LIVE BOOK", lines,
+            source="quant_risk · measured betas", next_commands="/var · /riskcontrib · /headroom"))
+
+    async def _cmd_varbacktest(self, args, chat_id, actor) -> None:
+        """Has the VaR the desk quotes actually been right?"""
+        from modules.quant_risk import rolling_var_backtest
+
+        interval = args[0] if args and args[0] in {"15m", "1h", "4h", "1d"} else "1d"
+        report, _cov, returns = await self._risk_inputs(interval)
+        positions = [p for p in report["exposure"]["positions"] if p.get("notional")]
+        equity = float(report["equity"]["current"] or 0.0)
+        result = rolling_var_backtest(positions, returns, equity) if positions else None
+
+        if not result:
+            await self.send_message(chat_id, text_card(
+                "🧪 VaR backtest", "NOT MEASURABLE",
+                ["A flat book, or fewer than 80 aligned bars per held symbol.",
+                 "The forecast is re-fitted on a rolling window and scored on the next bar, "
+                 "so it needs history on both sides."],
+                source="quant_risk · Kupiec POF", next_commands="/var · /positions"))
+            return
+
+        flag = {"green": "🟢", "yellow": "🟡", "red": "🔴"}[result.zone]
+        lines = [
+            f"Zone        {flag} <code>{result.zone.upper()}</code>",
+            f"Exceptions  <code>{result.exceptions}</code> of <code>{result.observations}</code> "
+            f"(expected <code>{result.expected_exceptions}</code>)",
+            f"Rate        <code>{_percent(result.exception_rate)}</code> vs the 5% claim",
+            f"Kupiec p    <code>{_number(result.kupiec_p_value)}</code>",
+            "",
+            f"<i>{esc(result.verdict)}</i>",
+        ]
+        await self.send_message(chat_id, text_card(
+            "🧪 VaR backtest", "MODEL VALIDATION", lines,
+            source="quant_risk · Kupiec POF", next_commands="/var · /stress"))
 
     async def _cmd_regime(self, args, chat_id, actor) -> None:
         from modules.quant_risk import returns_from_closes, volatility_regime

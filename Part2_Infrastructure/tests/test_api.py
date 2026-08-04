@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import replace
 
 import pytest
+from conftest import deep_book, stub_feed
 from fastapi.testclient import TestClient
 
 import main
-from conftest import deep_book, stub_feed
 from modules.risk_proxy import TokenBucket
 
 
@@ -41,6 +42,58 @@ class TestMeta:
         assert "AlphaEngine" in html
         assert "/ws/book/" in html
         assert "{{" not in html          # template fully rendered
+
+
+class TestMetrics:
+    """The scrape endpoint is only useful if a scraper can parse it."""
+
+    SAMPLE = re.compile(r'^[a-z_]+(\{[a-z_]+="[^"]*"(,[a-z_]+="[^"]*")*\})? -?[0-9.]+$')
+
+    def _samples(self, body: str) -> list[str]:
+        return [ln for ln in body.splitlines() if ln and not ln.startswith("#")]
+
+    def test_exposition_format_parses(self, client):
+        resp = client.get("/metrics")
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("text/plain")
+
+        body = resp.text
+        samples = self._samples(body)
+        assert samples, "no metrics exported"
+        for line in samples:
+            assert self.SAMPLE.match(line), line
+
+        # Every exported series must have declared its type first, or a scraper
+        # has to guess whether a rate() is meaningful.
+        declared = {ln.split()[2] for ln in body.splitlines() if ln.startswith("# TYPE ")}
+        for line in samples:
+            assert line.split("{")[0].split(" ")[0] in declared, line
+
+    def test_kill_switch_state_is_observable(self, client):
+        client.post("/api/risk/kill", json={"reason": "metrics-test"})
+        assert "alphaengine_kill_switch_active 1" in client.get("/metrics").text
+
+        client.post("/api/risk/resume", json={})
+        assert "alphaengine_kill_switch_active 0" in client.get("/metrics").text
+
+    def test_order_counters_advance(self, client):
+        def accepted() -> float:
+            for line in client.get("/metrics").text.splitlines():
+                if line.startswith("alphaengine_orders_accepted_total "):
+                    return float(line.split()[-1])
+            raise AssertionError("orders_accepted_total not exported")
+
+        before = accepted()
+        client.post("/api/orders", json={
+            "symbol": "BTCUSDT", "side": "BUY", "notional": 12000, "order_type": "MARKET"})
+        assert accepted() == before + 1
+
+    def test_latency_window_records_routes_but_not_the_scrape(self, client):
+        client.get("/health")
+        body = client.get("/metrics").text
+        assert 'alphaengine_request_latency_ms{route="/health",quantile="0.5"}' in body
+        # Timing the scrape would make the endpoint report on itself.
+        assert 'route="/metrics"' not in body
 
 
 class TestTCARoutes:

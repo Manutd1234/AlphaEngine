@@ -18,7 +18,7 @@
  */
 
 import { fmt, pct, usd } from "@/lib/format";
-import type { CovarianceModel, PortfolioRisk } from "@/lib/portfolio-risk";
+import type { CovarianceModel, PortfolioRisk, VarBacktest } from "@/lib/portfolio-risk";
 
 interface RiskEngineProps {
   risk: PortfolioRisk | null;
@@ -27,9 +27,23 @@ interface RiskEngineProps {
   loading: boolean;
   /** Symbols whose history could not be fetched — excluded from every figure. */
   missing: string[];
+  /**
+   * Kupiec back-test of the VaR figure above.
+   *
+   * Without it every number on this card is an unverified claim: a model that
+   * has never been scored against realised losses is an opinion with a
+   * confidence interval printed on it.
+   */
+  validation?: VarBacktest | null;
 }
 
-export default function RiskEngine({ risk, model, equity, loading, missing }: RiskEngineProps) {
+const ZONE_STYLE: Record<string, { glyph: string; label: string; tone: string }> = {
+  green: { glyph: "✓", label: "validated", tone: "var(--success-text)" },
+  yellow: { glyph: "▲", label: "on watch", tone: "var(--warning-text)" },
+  red: { glyph: "✕", label: "rejected", tone: "var(--critical-text)" },
+};
+
+export default function RiskEngine({ risk, model, equity, loading, missing, validation }: RiskEngineProps) {
   if (loading) {
     return (
       <div className="card">
@@ -110,6 +124,28 @@ export default function RiskEngine({ risk, model, equity, loading, missing }: Ri
             The normal assumption is understating this book&apos;s tail — size against the historical
             figure, not the parametric one.
           </div>
+        </div>
+      )}
+
+      {validation && (
+        <div className="var-validation">
+          <div className="var-validation__head">
+            <span>VaR model backtest</span>
+            {/* icon + word + colour, never colour alone */}
+            <strong style={{ color: ZONE_STYLE[validation.zone].tone }}>
+              <span aria-hidden>{ZONE_STYLE[validation.zone].glyph}</span>{" "}
+              {ZONE_STYLE[validation.zone].label}
+            </strong>
+          </div>
+          <p>
+            {validation.exceptions} exceptions in {validation.observations} observations, against{" "}
+            {validation.expectedExceptions} expected at 95%. Kupiec p ={" "}
+            {validation.kupiecPValue.toFixed(3)}.
+          </p>
+          <p className="research-note">
+            {validation.verdict} The forecast is re-fitted on a rolling window and scored on the next
+            bar, so it is never judged on data it was fitted to.
+          </p>
         </div>
       )}
 

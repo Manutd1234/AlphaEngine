@@ -22,6 +22,7 @@ import {
 } from "../observability";
 import { alphavantage } from "./alphavantage";
 import { binance } from "./binance";
+import { checkBars, checkQuote } from "./contracts";
 import { firecrawl } from "./firecrawl";
 import { fmp } from "./fmp";
 import { massive } from "./massive";
@@ -123,7 +124,15 @@ export function getQuote(symbol: string, opts: Options = {}): Promise<Sourced<Qu
   return dispatch(
     candidatesFor("quote", asset),
     (a, ctx) => a.quote!(symbol, asset, ctx),
-    { capability: "quote", cacheKey: cacheKeys.quote(symbol, opts.provider), pin: opts.provider, ...opts },
+    {
+      capability: "quote",
+      cacheKey: cacheKeys.quote(symbol, opts.provider),
+      pin: opts.provider,
+      // The façade is the only layer that knows the payload's shape, so it is
+      // where the expectations are attached.
+      contract: (quote) => checkQuote(opts.provider ?? "registry", quote),
+      ...opts,
+    },
   );
 }
 
@@ -141,6 +150,7 @@ export function getBars(
       capability: "bars",
       cacheKey: cacheKeys.bars(symbol, interval, limit, opts.provider),
       pin: opts.provider,
+      contract: (bars) => checkBars(opts.provider ?? "registry", bars, limit),
       ...opts,
     },
   );

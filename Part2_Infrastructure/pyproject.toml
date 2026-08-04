@@ -1,0 +1,36 @@
+# Lint configuration for the gateway and the OpenBB service.
+#
+# There is deliberately no [project] table: neither Python unit is installed as
+# a package (the gateway runs from its directory, the OpenBB service declares
+# its own metadata in OpenBB_Service/pyproject.toml). This file exists so that
+# `ruff check .` means the same thing on a laptop and in CI.
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+extend-exclude = ["venv", ".venv", "web", "data", "notebooks"]
+
+[tool.ruff.lint]
+# Rules that catch defects, not rules that restyle working code. pyupgrade (UP)
+# is deliberately absent: the gateway supports 3.11 through 3.14, and rewriting
+# `datetime.timezone.utc` across the trade path buys nothing a reviewer values.
+select = [
+    "E",      # pycodestyle
+    "F",      # pyflakes — unused imports and undefined names
+    "I",      # import ordering
+    "B",      # bugbear — mutable defaults, shadowed loop vars, silent zip truncation
+    "ASYNC",  # blocking calls inside async functions
+    "S",      # bandit — the trade path handles credentials
+]
+ignore = [
+    "E501",    # long lines are a formatting opinion; the comments here are prose
+    "B008",    # FastAPI's Depends()/Query() defaults are the framework's idiom
+    "S101",    # asserts carry invariants in this codebase and run in tests
+    "S104",    # binding 0.0.0.0 is the container default, overridden by HOST
+    "S311",    # random builds synthetic books, never anything secret
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Probes and fixture generators drive a local process on purpose.
+"tools/*.py" = ["S113", "S310"]
+"tests/*.py" = ["S105", "S106"]

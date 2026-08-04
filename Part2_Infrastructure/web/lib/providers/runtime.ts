@@ -45,6 +45,8 @@ import {
 } from "../observability";
 // Side-effecting import: installs the AsyncLocalStorage-backed capture resolver
 // that `recordUpstream` consults. Server-only, and this module is server-only.
+import { type ContractResult, summariseContract } from "./contracts";
+import { quarantinePayload } from "./quarantine";
 import "./trace";
 import {
   Adapter,
@@ -586,7 +588,7 @@ export const DEFAULT_BASE_URL: Record<string, string> = {
   openbb: "http://127.0.0.1:8010",
 };
 
-export interface DispatchOptions {
+export interface DispatchOptions<T = unknown> {
   capability: Capability;
   cacheKey: string;
   priority?: Priority;
@@ -594,6 +596,17 @@ export interface DispatchOptions {
   pin?: string | null;
   env?: NodeJS.ProcessEnv;
   store?: Store;
+  /**
+   * Expectations the normalised payload must meet before it is believed.
+   *
+   * Supplied by the capability façade, which is the only layer that knows the
+   * shape. A `fatal` violation is treated exactly like a thrown error — the
+   * provider is failed and the chain moves on — because a payload that is
+   * internally impossible is not a better answer than no answer. Warnings and
+   * drift travel with the provenance instead, so a stale-but-usable price is
+   * shown *and* labelled rather than silently dropped.
+   */
+  contract?: (data: T) => ContractResult;
 }
 
 /**
@@ -606,7 +619,7 @@ export interface DispatchOptions {
 export async function dispatch<T>(
   candidates: Adapter[],
   run: (adapter: Adapter, ctx: FetchCtx) => Promise<T>,
-  opts: DispatchOptions,
+  opts: DispatchOptions<T>,
 ): Promise<Sourced<T>> {
   const env = opts.env ?? process.env;
   const s = opts.store ?? store;
@@ -677,10 +690,60 @@ export async function dispatch<T>(
     try {
       const data = await run(adapter, ctxFor(adapter, env));
       const latencyMs = Date.now() - startedAt;
+
+      // Expectations run after normalisation and before anything is recorded,
+      // cached or returned. Order matters: `recordSuccess` *deletes* the
+      // breaker's failure count, so evaluating the contract afterwards would
+      // clear the counter on every broken response and the breaker could never
+      // reach its threshold — a vendor emitting duplicated bar timestamps would
+      // be retried forever, burning quota, while the health matrix showed a 0%
+      // error rate. The check itself must never be the reason a request dies,
+      // so a throwing contract is ignored rather than propagated.
+      let contract: ContractResult | undefined;
+      if (opts.contract) {
+        try {
+          contract = opts.contract(data);
+        } catch {
+          contract = undefined;
+        }
+      }
+      const contractFailed = Boolean(contract && !contract.passed);
+
       // One sample per *dispatch*, not per HTTP hop, so the health matrix's p50
       // answers "what did the registry pay for an answer from this provider".
-      recordLatency(id, latencyMs, true);
-      recordSuccess(id, s);
+      // A contract failure counts as a failed sample: an answer that cannot be
+      // used is not a success however fast it arrived.
+      recordLatency(id, latencyMs, !contractFailed);
+      if (!contractFailed) recordSuccess(id, s);
+
+      if (contract && contract.violations.length) {
+        quarantinePayload(contract, opts.cacheKey, data, redact);
+        emit({
+          level: contract.passed ? "warn" : "error",
+          source: "Contract",
+          message: `${opts.capability} from ${id}: ${summariseContract(contract)}`,
+          fields: {
+            capability: opts.capability,
+            provider: id,
+            checks: contract.violations.map((v) => v.check).join(","),
+            rejected: !contract.passed,
+          },
+        });
+      }
+
+      if (contractFailed) {
+        // Failed like any other bad answer, so the breaker and the failover
+        // chain treat a provider that returns broken data exactly as they
+        // treat one that returns nothing.
+        recordFailure(id, s);
+        attempts.push({
+          provider: id,
+          reason: "failed",
+          detail: `contract: ${(contract?.violations ?? []).filter((v) => v.severity === "fatal")
+            .map((v) => v.check).join(", ")}`,
+        });
+        continue;
+      }
 
       const q = quotaState(adapter, s);
       const provenance: Provenance = {
@@ -692,6 +755,9 @@ export async function dispatch<T>(
         delayed: DELAYED_TIERS.has(id),
         quotaRemaining: q?.remaining ?? null,
         quotaWindow: q?.window ?? null,
+        ...(contract && contract.violations.length
+          ? { contract: { passed: contract.passed, violations: contract.violations } }
+          : {}),
       };
       const out: Sourced<T> = { data, provenance, attempts };
       s.set(opts.cacheKey, out, TTL_MS[opts.capability]);

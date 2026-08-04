@@ -432,8 +432,8 @@ class SyntheticFeed(VenueFeed):
 
     def __init__(self, symbols: list[str]) -> None:
         super().__init__(symbols)
-        for s, b in self.books.items():
-            b.synthetic = True
+        for book in self.books.values():
+            book.synthetic = True
         self._px = {s: self._ANCHORS.get(s, 100.0) for s in symbols}
         self._rng = random.Random(7)
 
@@ -469,6 +469,11 @@ class TCAEngine:
         self._watchdog: asyncio.Task | None = None
         self._snapshotter: asyncio.Task | None = None
         self.started_at: float | None = None
+        self._alert_hooks: list = []
+        # Last announced health per venue, so alerts fire on the *transition*.
+        # Re-announcing "still down" every five seconds trains an operator to
+        # ignore the channel, which is worse than not alerting at all.
+        self._feed_state: dict[str, str] = {}
 
     # -- lifecycle -------------------------------------------------------- #
     async def start(self) -> None:
@@ -497,10 +502,79 @@ class TCAEngine:
                     await task
         await asyncio.gather(*(f.stop() for f in self.feeds.values()), return_exceptions=True)
 
+    # -- alerting --------------------------------------------------------- #
+    def add_alert_hook(self, hook) -> None:
+        """Register a coroutine ``(severity, message)`` for feed transitions.
+
+        The risk gateway has had this for kill-switch and drawdown events since
+        the beginning; market data did not, so a venue could go dark and the
+        only trace was a log line nobody was reading. Same shape, same
+        failure-isolation rule: an alert transport must never break ingestion.
+        """
+        self._alert_hooks.append(hook)
+
+    async def _alert(self, severity: str, message: str) -> None:
+        for hook in self._alert_hooks:
+            try:
+                await hook(severity, message)
+            except Exception as exc:
+                log.error("feed alert hook failed: %s", exc)
+
+    def _feed_health(self, feed: VenueFeed) -> tuple[str, str]:
+        """Classify one venue as up / stale / down, with a human reason."""
+        if not feed.connected:
+            return "down", f"{feed.name} disconnected"
+        books = [b for b in feed.books.values() if b.has_book]
+        if not books:
+            return "down", f"{feed.name} connected but publishing no book"
+        stale = [b.symbol for b in books if b.stale]
+        if len(stale) == len(books):
+            return "stale", f"{feed.name} book stale for {', '.join(sorted(stale))}"
+        if stale:
+            return "degraded", f"{feed.name} stale on {', '.join(sorted(stale))}"
+        return "up", f"{feed.name} healthy"
+
+    async def _check_feed_health(self) -> None:
+        from modules.audit import get_audit
+
+        for name, feed in list(self.feeds.items()):
+            if name == "SIM":
+                continue  # the fallback's own transitions are already logged
+            status, reason = self._feed_health(feed)
+            previous = self._feed_state.get(name)
+            if previous == status:
+                continue
+            self._feed_state[name] = status
+            if previous is None:
+                continue  # first observation is a baseline, not an incident
+
+            recovered = status == "up"
+            severity = "info" if recovered else "warning" if status == "degraded" else "critical"
+            event = "feed_recovered" if recovered else "feed_degraded"
+            try:
+                get_audit().record_risk_event(
+                    event, severity=severity, actor="feed-watchdog", detail=reason,
+                    payload={"venue": name, "status": status, "previous": previous},
+                )
+            except Exception as exc:
+                log.error("could not audit feed transition: %s", exc)
+
+            await self._alert(
+                severity,
+                f"{'✅' if recovered else '📡'} {reason}."
+                + ("" if recovered else " Prices from this venue are not safe to trade on."),
+            )
+
     async def _watch(self) -> None:
         """Bring up the synthetic feed only if every real venue is dark."""
         while True:
             await asyncio.sleep(5)
+            try:
+                await self._check_feed_health()
+            except Exception as exc:
+                # Health reporting is observability; it must never be the reason
+                # the synthetic-book failover below stops running.
+                log.error("feed health check failed: %s", exc)
             if not settings.allow_synthetic_book:
                 continue
             live = any(f.connected and any(b.has_book for b in f.books.values()) for f in self.feeds.values())
@@ -570,7 +644,7 @@ class TCAEngine:
     def get_books(self, symbol: str, depth: int = 20) -> list[VenueBook]:
         symbol = symbol.upper()
         out = []
-        for name, feed in self.feeds.items():
+        for feed in self.feeds.values():
             book = feed.books.get(symbol)
             if book is None:
                 continue

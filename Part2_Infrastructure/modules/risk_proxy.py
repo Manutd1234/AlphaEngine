@@ -270,12 +270,48 @@ class RiskGateway:
             with contextlib.suppress(asyncio.CancelledError):
                 await self._monitor
 
+    def reduce_only_active(self) -> bool:
+        """True when the desk has spent enough of its budget to go defensive.
+
+        The window between this and the hard breaker is deliberately wide: a
+        binary limit gives a desk no warning and no way to de-risk gradually,
+        so the last stretch before a halt accepts only orders that make the
+        book smaller.
+        """
+        limit = settings.max_daily_drawdown_pct
+        if limit <= 0 or settings.reduce_only_threshold >= 1.0:
+            return False
+        return (self.daily_drawdown_pct() / limit) >= settings.reduce_only_threshold
+
+    def snapshot_equity(self) -> None:
+        """Write one equity observation to the audit log.
+
+        Separate from the loop so tests (and an operator at a REPL) can take a
+        snapshot deterministically instead of waiting out a timer. Failures are
+        swallowed by the audit layer: losing a chart point must never interrupt
+        the drawdown breaker sharing this loop.
+        """
+        if self.audit:
+            self.audit.record_equity_snapshot(self.state())
+
     async def _monitor_loop(self) -> None:
         """Marks the book to market and trips the breaker without human input."""
+        last_snapshot = 0.0
         while True:
             await asyncio.sleep(5)
             try:
                 self._roll_session_if_needed()
+
+                # The book is already marked here, so recording it is nearly
+                # free. Done before the kill-switch check on purpose: the
+                # minutes after a halt are exactly when a risk manager wants
+                # the curve to keep updating.
+                interval = settings.equity_snapshot_interval_s
+                now = time.monotonic()
+                if interval > 0 and now - last_snapshot >= interval:
+                    last_snapshot = now
+                    self.snapshot_equity()
+
                 if self.kill.active:
                     continue
                 dd = self.daily_drawdown_pct()
@@ -366,7 +402,17 @@ class RiskGateway:
         )
         return self.kill
 
-    async def release_kill(self, actor: str, symbol: str | None = None) -> KillSwitch:
+    async def release_kill(self, actor: str, symbol: str | None = None,
+                           reason: str | None = None) -> KillSwitch:
+        """Resume trading, recording *why*.
+
+        A halt records what tripped it; a resume recorded only who pressed the
+        button leaves the audit trail with half a story. "Resumed after the feed
+        recovered" and "resumed because the desk wanted to keep trading" are the
+        two answers a post-incident review needs to tell apart, and only the
+        operator can supply which one it was.
+        """
+        tripped_by = self.kill.reason
         if symbol:
             self.kill.halted_symbols.discard(symbol.upper())
             detail = f"{symbol.upper()} resumed by {actor}"
@@ -376,9 +422,20 @@ class RiskGateway:
             self.kill.actor = None
             self.kill.at = None
             detail = f"Global trading resumed by {actor}"
+        if reason:
+            detail += f" — {reason}"
         log.warning(detail)
         if self.audit:
-            self.audit.record_risk_event("kill_switch_released", severity="warning", actor=actor, symbol=symbol, detail=detail)
+            self.audit.record_risk_event(
+                "kill_switch_released", severity="warning", actor=actor, symbol=symbol, detail=detail,
+                payload={
+                    "reason": reason,
+                    # What the halt was for, carried onto the resume so the two
+                    # events can be read as one incident.
+                    "tripped_by": tripped_by,
+                    "drawdown_pct": round(self.daily_drawdown_pct(), 5),
+                },
+            )
         await self._alert("info", f"✅ <b>Trading resumed</b>\n{detail}")
         return self.kill
 
@@ -458,6 +515,33 @@ class RiskGateway:
             add("daily_drawdown", dd < settings.max_daily_drawdown_pct,
                 f"{dd:.2%} used of {settings.max_daily_drawdown_pct:.2%}",
                 observed=dd, limit=settings.max_daily_drawdown_pct)
+
+            # 12 — reduce-only mode. Between the soft threshold and the hard
+            # breaker the desk may still close positions but not open or add to
+            # them: a book in trouble needs a way *out*, and refusing the exit
+            # alongside the entry is how a drawdown becomes a liquidation.
+            if self.reduce_only_active() and notional is not None:
+                pos = self.positions.get(req.symbol)
+                held = pos.quantity if pos else 0.0
+                # An unsized order cannot be shown to reduce anything, so it is
+                # refused rather than assumed either way. Deriving the sign from
+                # `qty or 0` treated a missing quantity as reducing on a long
+                # book and not on a short one — the same order, two answers.
+                signed_qty = qty * (1 if req.side == "BUY" else -1) if qty is not None else None
+                # Reducing means moving toward flat: opposite sign to the
+                # position, and no larger than what is held (an over-sized
+                # "close" that flips the book is an opening trade in disguise).
+                reducing = (
+                    signed_qty is not None
+                    and abs(held) > 1e-12
+                    and (held > 0) != (signed_qty > 0)
+                    and abs(signed_qty) <= abs(held) + 1e-9
+                )
+                budget_used = dd / settings.max_daily_drawdown_pct if settings.max_daily_drawdown_pct else 0.0
+                add("reduce_only", reducing,
+                    f"reduce-only at {budget_used:.0%} of the drawdown budget — "
+                    + ("closing order allowed" if reducing else "only position-reducing orders accepted"),
+                    observed=budget_used, limit=settings.reduce_only_threshold)
 
             # 12 — liquidity: does the live book support this size at a sane cost?
             # Measured on the *routed* execution, because that is what will fill.
@@ -601,6 +685,8 @@ class RiskGateway:
             daily_pnl=self.daily_pnl(),
             daily_drawdown_pct=dd,
             drawdown_budget_used_pct=dd / settings.max_daily_drawdown_pct if settings.max_daily_drawdown_pct else 0.0,
+            reduce_only=self.reduce_only_active(),
+            reduce_only_threshold=settings.reduce_only_threshold,
             gross_exposure=self.gross_exposure(),
             positions=positions,
             orders_accepted=self.orders_accepted,
