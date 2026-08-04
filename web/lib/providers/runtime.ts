@@ -36,6 +36,17 @@
  */
 
 import {
+  emit,
+  outageFor,
+  recordCacheLookup,
+  recordLatency,
+  recordUpstream,
+  redact,
+} from "../observability";
+// Side-effecting import: installs the AsyncLocalStorage-backed capture resolver
+// that `recordUpstream` consults. Server-only, and this module is server-only.
+import "./trace";
+import {
   Adapter,
   Attempt,
   Capability,
@@ -55,6 +66,18 @@ export interface Store {
   set<T>(key: string, value: T, ttlMs?: number): void;
   incr(key: string, ttlMs: number): number;
   del(key: string): void;
+  /**
+   * Milliseconds until `key` expires; `null` when it is absent or already dead.
+   *
+   * The inspector shows "TTL remaining 4.2s" against a cache hit, which is the
+   * difference between "this number is one second old" and "this number is
+   * about to be refetched" — and neither is derivable from the value alone.
+   */
+  ttl(key: string): number | null;
+  /** Live (unexpired) keys, optionally filtered by prefix. */
+  keys(prefix?: string): string[];
+  /** Delete every live key matching `prefix`; returns how many were removed. */
+  purge(prefix?: string): number;
 }
 
 interface Entry {
@@ -75,6 +98,37 @@ export class MemoryStore implements Store {
       return undefined;
     }
     return e.value as T;
+  }
+
+  ttl(key: string): number | null {
+    const e = this.map.get(key);
+    if (!e) return null;
+    const remaining = e.expiresAt - Date.now();
+    if (remaining <= 0) {
+      this.map.delete(key);
+      return null;
+    }
+    return remaining;
+  }
+
+  keys(prefix?: string): string[] {
+    const now = Date.now();
+    const out: string[] = [];
+    for (const [key, entry] of this.map) {
+      if (entry.expiresAt <= now) continue;
+      if (prefix && !key.startsWith(prefix)) continue;
+      out.push(key);
+    }
+    return out;
+  }
+
+  purge(prefix?: string): number {
+    // Snapshot first: deleting while iterating a Map is defined behaviour, but
+    // the live-key filter already walks the map and reusing it keeps the two
+    // notions of "live" from drifting apart.
+    const doomed = this.keys(prefix);
+    for (const key of doomed) this.map.delete(key);
+    return doomed.length;
   }
 
   set<T>(key: string, value: T, ttlMs = 60_000): void {
@@ -178,12 +232,31 @@ export function spendQuota(adapter: Adapter, s: Store = store): void {
   s.incr(`quota:${adapter.meta.id}:${windowKey(q.window)}`, WINDOW_MS[q.window]);
 }
 
+/**
+ * Zero this instance's counter for a provider's current window.
+ *
+ * Worth being blunt about what this does and does not do: it resets **our
+ * ledger**, not the vendor's meter. Alpha Vantage still believes it has served
+ * 25 calls today. The reason it exists at all is that the ledger is a *floor*
+ * derived from one instance's memory, so after a deploy or an instance swap it
+ * can be badly pessimistic and block a provider that has budget left. Anyone
+ * pressing this needs to know they may be about to spend a real allowance.
+ */
+export function resetQuota(adapter: Adapter, s: Store = store): number {
+  const q = adapter.meta.quota;
+  if (!q) return 0;
+  const key = `quota:${adapter.meta.id}:${windowKey(q.window)}`;
+  const used = s.get<number>(key) ?? 0;
+  s.del(key);
+  return used;
+}
+
 // --------------------------------------------------------------------------
 // Circuit breaker
 // --------------------------------------------------------------------------
 
-const BREAKER_THRESHOLD = 3;
-const BREAKER_COOLDOWN_MS = 60_000;
+export const BREAKER_THRESHOLD = 3;
+export const BREAKER_COOLDOWN_MS = 60_000;
 
 interface BreakerState {
   failures: number;
@@ -202,20 +275,93 @@ export function breakerOpen(id: string, s: Store = store): boolean {
     // rather than tracking a separate half-open flag means a probe failure
     // re-counts from one — slower to re-open, but it cannot get stuck open.
     s.del(breakerKey(id));
+    emit({
+      level: "info",
+      source: "Breaker",
+      message: `${id} cooldown elapsed — half-open, next call probes`,
+      fields: { provider: id, state: "half_open" },
+    });
     return false;
   }
   return true;
 }
 
+/**
+ * The breaker as an operator reads it, rather than as dispatch consumes it.
+ *
+ * `breakerOpen` answers one boolean and, as a side effect, retires an expired
+ * breaker. The console needs the shape *behind* that boolean — how many
+ * consecutive failures have accrued, how long until the cooldown lets a probe
+ * through — and it must be able to ask without mutating anything, because a
+ * status panel that silently resets breakers by rendering is not a status panel.
+ */
+export interface BreakerSnapshot {
+  state: "closed" | "open" | "half_open";
+  failures: number;
+  threshold: number;
+  openedAt: number | null;
+  /** Milliseconds until a probe is allowed; 0 when one already is. */
+  cooldownRemainingMs: number;
+}
+
+export function breakerSnapshot(id: string, s: Store = store, now = Date.now()): BreakerSnapshot {
+  const st = s.get<BreakerState>(breakerKey(id));
+  const failures = st?.failures ?? 0;
+  if (!st?.openedAt) {
+    return { state: "closed", failures, threshold: BREAKER_THRESHOLD, openedAt: null, cooldownRemainingMs: 0 };
+  }
+  const remaining = BREAKER_COOLDOWN_MS - (now - st.openedAt);
+  return remaining > 0
+    ? {
+        state: "open",
+        failures,
+        threshold: BREAKER_THRESHOLD,
+        openedAt: st.openedAt,
+        cooldownRemainingMs: remaining,
+      }
+    : {
+        state: "half_open",
+        failures,
+        threshold: BREAKER_THRESHOLD,
+        openedAt: st.openedAt,
+        cooldownRemainingMs: 0,
+      };
+}
+
 export function recordSuccess(id: string, s: Store = store): void {
+  const had = s.get<BreakerState>(breakerKey(id));
   s.del(breakerKey(id));
+  if (had?.openedAt) {
+    emit({
+      level: "info",
+      source: "Breaker",
+      message: `${id} probe succeeded — circuit closed`,
+      fields: { provider: id, state: "closed" },
+    });
+  }
 }
 
 export function recordFailure(id: string, s: Store = store): void {
   const st = s.get<BreakerState>(breakerKey(id)) ?? { failures: 0, openedAt: null };
+  const wasOpen = st.openedAt !== null;
   st.failures += 1;
   if (st.failures >= BREAKER_THRESHOLD) st.openedAt = Date.now();
   s.set(breakerKey(id), st, BREAKER_COOLDOWN_MS * 4);
+  if (st.openedAt && !wasOpen) {
+    emit({
+      level: "error",
+      source: "Breaker",
+      message: `${id} tripped after ${st.failures} consecutive failures — skipping for ${BREAKER_COOLDOWN_MS / 1000}s`,
+      fields: { provider: id, state: "open", failures: st.failures },
+    });
+  }
+}
+
+/** Operator reset. Returns whether a breaker was actually holding the provider out. */
+export function resetBreaker(id: string, s: Store = store): boolean {
+  const had = s.get<BreakerState>(breakerKey(id));
+  s.del(breakerKey(id));
+  return Boolean(had?.openedAt);
 }
 
 // --------------------------------------------------------------------------
@@ -265,12 +411,28 @@ export async function httpJson(
   // attempt and normal registry failover handles the next source.
   const maxAttempts = provider === "openbb" ? 1 : MAX_ATTEMPTS;
   const effectiveTimeoutMs = provider === "openbb" ? Math.min(timeoutMs, 7_500) : timeoutMs;
+  const method = (init.method ?? "GET").toUpperCase();
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     if (attempt > 0) await sleep(backoffMs(attempt));
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), effectiveTimeoutMs);
+    const startedAt = Date.now();
+    // Every attempt reports exactly once. A retried request is three upstream
+    // calls and the inspector shows three, because "it worked" and "it worked on
+    // the third try" are different facts about a provider — and the second one
+    // is invisible in a per-request latency figure that only counts the winner.
+    let reported = false;
+    const report = (
+      ok: boolean,
+      status: number | null,
+      extra: { error?: string; payload?: unknown } = {},
+    ) => {
+      reported = true;
+      recordUpstream({ provider, method, url, status, ms: Date.now() - startedAt, ok, ...extra });
+    };
+
     try {
       const res = await fetch(url, {
         ...init,
@@ -281,6 +443,7 @@ export async function httpJson(
 
       if (!res.ok) {
         const body = await res.text().catch(() => "");
+        report(false, res.status, { error: `HTTP ${res.status}` });
         last = new ProviderError(
           provider,
           `HTTP ${res.status}${body ? `: ${body.slice(0, 200)}` : ""}`,
@@ -292,9 +455,11 @@ export async function httpJson(
       }
 
       const text = await res.text();
+      let parsed: unknown;
       try {
-        return JSON.parse(text);
+        parsed = JSON.parse(text);
       } catch {
+        report(false, res.status, { error: "expected JSON, got a non-JSON body" });
         throw new ProviderError(
           provider,
           `expected JSON, got ${text.slice(0, 120)}`,
@@ -302,6 +467,11 @@ export async function httpJson(
           false,
         );
       }
+      // Reporting sits outside the parse guard on purpose: a fault in the
+      // telemetry path must not be caught and re-labelled as a malformed vendor
+      // response, which is exactly the misdiagnosis this console exists to end.
+      report(true, res.status, { payload: parsed });
+      return parsed;
     } catch (err) {
       if (err instanceof ProviderError) {
         if (!err.retryable) throw err;
@@ -311,6 +481,9 @@ export async function httpJson(
       // AbortError and network failures: both worth one more try.
       const msg = err instanceof Error ? err.message : String(err);
       const timedOut = err instanceof Error && err.name === "AbortError";
+      if (!reported) {
+        report(false, null, { error: timedOut ? `timed out after ${effectiveTimeoutMs}ms` : msg });
+      }
       last = new ProviderError(
         provider,
         timedOut ? `timed out after ${effectiveTimeoutMs}ms` : msg,
@@ -398,7 +571,19 @@ export async function dispatch<T>(
   const attempts: Attempt[] = [];
 
   const cached = s.get<Sourced<T>>(opts.cacheKey);
+  recordCacheLookup(opts.capability, Boolean(cached));
   if (cached) {
+    emit({
+      level: "debug",
+      source: "Cache",
+      message: `hit ${opts.cacheKey} (served by ${cached.provenance.provider})`,
+      fields: {
+        capability: opts.capability,
+        key: opts.cacheKey,
+        provider: cached.provenance.provider,
+        ttlRemainingMs: s.ttl(opts.cacheKey),
+      },
+    });
     return { ...cached, provenance: { ...cached.provenance, cached: true } };
   }
 
@@ -407,6 +592,19 @@ export async function dispatch<T>(
   for (const adapter of pool) {
     const { id } = adapter.meta;
 
+    // Operator-simulated outages are checked first so the reason shown is the
+    // one the operator caused. A provider knocked out on purpose reporting
+    // "quota spent" would send someone reading the failover graph after a
+    // problem that does not exist.
+    const outage = outageFor(id);
+    if (outage) {
+      attempts.push({
+        provider: id,
+        reason: "simulated_outage",
+        detail: `${outage.note}; restores in ${Math.ceil((outage.expiresAt - Date.now()) / 1000)}s`,
+      });
+      continue;
+    }
     if (!isConfigured(adapter, env)) {
       attempts.push({ provider: id, reason: "not_configured", detail: adapter.meta.keyEnv });
       continue;
@@ -431,9 +629,14 @@ export async function dispatch<T>(
     // vendor's meter. Counting on success only under-counts exactly when we are
     // failing most, which is when the count matters.
     spendQuota(adapter, s);
+    emitQuotaThreshold(adapter, s);
 
     try {
       const data = await run(adapter, ctxFor(adapter, env));
+      const latencyMs = Date.now() - startedAt;
+      // One sample per *dispatch*, not per HTTP hop, so the health matrix's p50
+      // answers "what did the registry pay for an answer from this provider".
+      recordLatency(id, latencyMs, true);
       recordSuccess(id, s);
 
       const q = quotaState(adapter, s);
@@ -441,7 +644,7 @@ export async function dispatch<T>(
         provider: id,
         label: adapter.meta.label,
         fetchedAt: new Date().toISOString(),
-        latencyMs: Date.now() - startedAt,
+        latencyMs,
         cached: false,
         delayed: DELAYED_TIERS.has(id),
         quotaRemaining: q?.remaining ?? null,
@@ -449,17 +652,47 @@ export async function dispatch<T>(
       };
       const out: Sourced<T> = { data, provenance, attempts };
       s.set(opts.cacheKey, out, TTL_MS[opts.capability]);
+      emit({
+        level: attempts.length ? "warn" : "info",
+        source: "Dispatch",
+        message: attempts.length
+          ? `${opts.capability} served by ${id} in ${latencyMs}ms after ${attempts.length} skipped`
+          : `${opts.capability} served by ${id} in ${latencyMs}ms`,
+        fields: {
+          capability: opts.capability,
+          provider: id,
+          ms: latencyMs,
+          key: opts.cacheKey,
+          skipped: attempts.map((a) => `${a.provider}:${a.reason}`).join(",") || null,
+        },
+      });
       return out;
     } catch (err) {
+      recordLatency(id, Date.now() - startedAt, false);
       recordFailure(id, s);
       attempts.push({
         provider: id,
         reason: "failed",
-        detail: err instanceof Error ? err.message.slice(0, 200) : String(err),
+        // Redacted before it is stored, not before it is rendered. Alpha Vantage
+        // and FMP carry the key in the query string, and both answer an auth
+        // failure with an HTML page that echoes the request URL — which
+        // `httpJson` then quotes into this message. Without this, a 401 puts a
+        // live credential into the attempts list of a public API response.
+        detail: redact(err instanceof Error ? err.message : String(err)).slice(0, 200),
       });
     }
   }
 
+  emit({
+    level: "error",
+    source: "Dispatch",
+    message: `no provider could serve ${opts.capability}`,
+    fields: {
+      capability: opts.capability,
+      key: opts.cacheKey,
+      skipped: attempts.map((a) => `${a.provider}:${a.reason}`).join(",") || null,
+    },
+  });
   const err = new ProviderError(
     "registry",
     `no provider could serve ${opts.capability}`,
@@ -468,6 +701,41 @@ export async function dispatch<T>(
   );
   (err as ProviderError & { attempts: Attempt[] }).attempts = attempts;
   throw err;
+}
+
+/** Consumption levels worth one line in the log, once each, on the way past. */
+const QUOTA_THRESHOLDS = [0.5, 0.8, 0.95] as const;
+
+/**
+ * Warn on the call that *crosses* a consumption threshold, not on every call
+ * above it.
+ *
+ * A log that repeats "Alpha Vantage above 80%" twenty times is a log nobody
+ * reads. Comparing the count before and after this spend fires each line exactly
+ * once per window, which is what makes the warning worth acting on.
+ */
+function emitQuotaThreshold(adapter: Adapter, s: Store): void {
+  const st = quotaState(adapter, s);
+  if (!st || st.limit <= 0) return;
+  const before = st.used - 1;
+  for (const threshold of QUOTA_THRESHOLDS) {
+    const mark = Math.ceil(st.limit * threshold);
+    if (before < mark && st.used >= mark) {
+      emit({
+        level: threshold >= 0.95 ? "error" : "warn",
+        source: "Quota",
+        message: `${adapter.meta.id} at ${Math.round((st.used / st.limit) * 100)}% of its ${st.window} allowance (${st.used}/${st.limit})`,
+        fields: {
+          provider: adapter.meta.id,
+          used: st.used,
+          limit: st.limit,
+          window: st.window,
+          reserve: st.reserve,
+        },
+      });
+      return;
+    }
+  }
 }
 
 /** Tiers we know serve delayed or end-of-day data, flagged on every response. */

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hmac
 import logging
 from contextlib import asynccontextmanager
 from typing import Any
@@ -154,17 +155,24 @@ if static_dir.exists():
 # --------------------------------------------------------------------------- #
 async def trader_identity(
     authorization: str | None = Header(default=None),
+    x_alphaengine_token: str | None = Header(default=None, alias="X-AlphaEngine-Token"),
 ) -> str:
     """Resolve the caller to an audit actor.
 
-    Server-side bearer token > anonymous. ``REQUIRE_AUTH=1`` turns the
-    anonymous path into a 401 — the setting a real deployment should use.
-    Telegram has its own user allow-list and never authenticates web requests.
+    The dedicated server-to-server header is preferred because some public
+    tunnel and access proxies reserve or rewrite ``Authorization``. Standard
+    bearer auth remains supported for direct clients. ``REQUIRE_AUTH=1`` turns
+    the anonymous path into a 401. Telegram has its own user allow-list and
+    never authenticates web requests.
     """
-    if authorization and authorization.startswith("Bearer "):
-        if authorization.removeprefix("Bearer ").strip() == settings.web_api_token:
+    presented = x_alphaengine_token.strip() if x_alphaengine_token else None
+    if presented is None and authorization and authorization.startswith("Bearer "):
+        presented = authorization.removeprefix("Bearer ").strip()
+
+    if presented is not None:
+        if hmac.compare_digest(presented, settings.web_api_token):
             return "web:token"
-        raise HTTPException(status_code=401, detail="invalid bearer token")
+        raise HTTPException(status_code=401, detail="invalid gateway token")
 
     if settings.require_auth:
         raise HTTPException(status_code=401, detail="authentication required")

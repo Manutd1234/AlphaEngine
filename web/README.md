@@ -53,7 +53,7 @@ npm install
 npm run dev        # http://localhost:3000 (Turbopack)
 npm run build      # Turbopack production build
 npm run typecheck  # tsc --noEmit
-npm test           # 83 tests, no network required
+npm test           # 128 tests, no network required
 ```
 
 Built on **Next.js 16** with **Turbopack**, which is the default bundler for both
@@ -67,10 +67,45 @@ new dependency tree.
 ## What it does
 
 **Connected desk context** — instrument and horizon live in the persistent
-workspace shell and carry across Portfolio, Research, Execution and Data &
-systems. Research winners retain their modeled slippage budget when handed to
+workspace shell and carry across Portfolio, Research, Execution and the Systems
+console. Research winners retain their modeled slippage budget when handed to
 the live TCA probe; quote lookups and portfolio positions can focus the other
 workspaces without re-entry.
+
+<a id="systems-console"></a>
+**Systems console** — the Systems tab is an observability surface, not a second
+quote lookup. It answers the questions a developer actually arrives with:
+
+- **Upstream health matrix** — per provider: circuit state with its failure
+  count and cooldown, p50/p95/p99 latency *with the sample count that produced
+  them* (a p99 over four calls is not a p99), quota consumption, failover rank,
+  and per-row actions. The two direct exchange clients that `/api/depth` and
+  `/api/tca` reach without the registry are measured separately and labelled as
+  such, because they have no failover chain and no breaker.
+- **Failover path** — the ranked chain for a capability/asset pair, evaluated
+  with the same checks in the same order as the dispatch loop, marking the node
+  a request issued right now would land on. `Simulate outage` holds a provider
+  out server-side so failover can be *watched* rather than believed; it is
+  bounded, self-expiring and reported as its own skip reason (`simulated_outage`)
+  so a fault someone caused is never mistaken for one they did not.
+- **Quota meters** — with the reserve boundary drawn on each bar. A provider at
+  82% of Alpha Vantage's 25/day is not "nearly out"; it is already refusing
+  background refreshes and saving the rest for a person, and one threshold
+  cannot show that.
+- **Pipeline inspector** — cache hit or miss, the exact key, TTL remaining and
+  how old the served value was, the lineage, every provider skipped and why,
+  each upstream HTTP call, and the vendor's raw JSON before normalisation. A
+  second tab taps the browser's WebSocket frames, which never reach the server
+  and are labelled accordingly.
+- **Event stream** — server dispatch decisions and browser-side frames merged
+  into one timeline, each line tagged with where it was produced. Cursored by
+  sequence, not timestamp; a discontinuity is rendered rather than hidden.
+- **Operator actions** — every control states what it costs. Resetting a quota
+  ledger clears *our* count, not the vendor's meter, and says so.
+
+Reads are always available. Writes are gated by `ALPHAENGINE_OPERATOR_TOKEN`:
+open outside production, refused in production when unset, so a public
+deployment cannot have its data plane poked by a stranger.
 
 **Portfolio oversight** — when `ALPHAENGINE_GATEWAY_URL` is configured, the
 read-only server proxy renders authoritative equity, day P&L, gross/net
@@ -139,6 +174,15 @@ The research-data group routes through the [provider registry](#data-providers):
 | `GET /api/research?q=bitcoin+etf+flows` | open-web search returning readable markdown documents |
 | `GET /api/research?url=https://…` | one page fetched as markdown (public HTTP(S) targets only) |
 | `GET /api/providers` | the supply chain: per provider — configured? actively ready? circuit open? quota spent? which env var enables it |
+
+The systems group backs the [developer console](#systems-console):
+
+| Endpoint | Returns |
+|---|---|
+| `GET /api/system/health[?priority=]` | superset of `/api/providers`: breaker shape, p50/p95/p99 per provider, the ranked failover chain with the node a request would land on, cache hit accounting, active simulated outages, operator-guard mode |
+| `GET /api/system/events?since=<seq>&limit=` | structured trace cursored by sequence, with the oldest sequence still retained so a lagging client can detect dropped lines |
+| `GET /api/system/inspect?symbol=&capability=&raw=1&refresh=1` | one lookup taken apart: cache key + TTL remaining, lineage, every provider skipped and why, each upstream HTTP call, and the vendor's raw JSON before normalisation |
+| `POST /api/system/actions` | purge cache, reset breaker, simulate/clear an outage, reset a local ledger, probe a provider, reload configuration, clear telemetry |
 
 Common query params on the research group: `provider=` pins one adapter
 (`?provider=tiingo`), `priority=interactive` marks a human-driven call that may

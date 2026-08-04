@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import Controls from "@/components/Controls";
-import DataFeeds from "@/components/DataFeeds";
+import DeveloperConsole from "@/components/DeveloperConsole";
 import EquityChart from "@/components/EquityChart";
 import Heatmap from "@/components/Heatmap";
 import LiveMarket from "@/components/LiveMarket";
@@ -398,11 +398,14 @@ export default function Page() {
             <div className="page-heading">
               <div>
                 <span className="page-kicker">Developers &amp; data operations</span>
-                <h1>Systems &amp; data</h1>
-                <p>Provider health, quote lineage, news, quotas and desk-facing APIs.</p>
+                <h1>Systems console</h1>
+                <p>
+                  Pipeline health, circuit breakers, failover routing, quota budgets, live trace and
+                  operator controls.
+                </p>
               </div>
             </div>
-            <DataFeeds
+            <DeveloperConsole
               workspaceSymbol={req.symbol}
               onWorkspaceSymbolChange={updateSymbol}
               onOpenResearch={() => navigate("research")}

@@ -15,6 +15,11 @@
  * single source cannot detect that about itself; two can.
  */
 
+import {
+  type LatencyStats,
+  latencyStats,
+  outageFor,
+} from "../observability";
 import { alphavantage } from "./alphavantage";
 import { binance } from "./binance";
 import { firecrawl } from "./firecrawl";
@@ -22,12 +27,14 @@ import { fmp } from "./fmp";
 import { massive } from "./massive";
 import { openbb } from "./openbb";
 import {
-  breakerOpen,
+  type BreakerSnapshot,
+  breakerSnapshot,
   dispatch,
   isConfigured,
   quotaState,
   store,
   Store,
+  TTL_MS,
 } from "./runtime";
 import { tiingo } from "./tiingo";
 import {
@@ -83,6 +90,31 @@ export interface Options {
 }
 
 // --------------------------------------------------------------------------
+// Cache keys
+// --------------------------------------------------------------------------
+
+/**
+ * The cache key each façade uses, as data rather than as a template literal
+ * buried in a call site.
+ *
+ * The pipeline inspector shows the exact key a lookup hit or missed, and the
+ * operator console purges by prefix. Both of those are wrong the moment a key
+ * is written down twice, so they are written down once, here, and the façades
+ * below are the only other consumers.
+ */
+export const cacheKeys = {
+  quote: (symbol: string, provider?: string | null) => `quote:${symbol}:${provider ?? "*"}`,
+  bars: (symbol: string, interval: string, limit: number, provider?: string | null) =>
+    `bars:${symbol}:${interval}:${limit}:${provider ?? "*"}`,
+  news: (symbols: string[], limit: number, provider?: string | null) =>
+    `news:${symbols.join(",")}:${limit}:${provider ?? "*"}`,
+  fundamentals: (symbol: string, provider?: string | null) =>
+    `fundamentals:${symbol}:${provider ?? "*"}`,
+  search: (query: string, limit: number) => `search:${query}:${limit}`,
+  scrape: (url: string) => `scrape:${url}`,
+} as const;
+
+// --------------------------------------------------------------------------
 // Capability façades
 // --------------------------------------------------------------------------
 
@@ -91,7 +123,7 @@ export function getQuote(symbol: string, opts: Options = {}): Promise<Sourced<Qu
   return dispatch(
     candidatesFor("quote", asset),
     (a, ctx) => a.quote!(symbol, asset, ctx),
-    { capability: "quote", cacheKey: `quote:${symbol}:${opts.provider ?? "*"}`, pin: opts.provider, ...opts },
+    { capability: "quote", cacheKey: cacheKeys.quote(symbol, opts.provider), pin: opts.provider, ...opts },
   );
 }
 
@@ -107,7 +139,7 @@ export function getBars(
     (a, ctx) => a.bars!(symbol, asset, interval, limit, ctx),
     {
       capability: "bars",
-      cacheKey: `bars:${symbol}:${interval}:${limit}:${opts.provider ?? "*"}`,
+      cacheKey: cacheKeys.bars(symbol, interval, limit, opts.provider),
       pin: opts.provider,
       ...opts,
     },
@@ -127,7 +159,7 @@ export function getNews(
     (a, ctx) => a.news!(symbols, limit, ctx),
     {
       capability: "news",
-      cacheKey: `news:${symbols.join(",")}:${limit}:${opts.provider ?? "*"}`,
+      cacheKey: cacheKeys.news(symbols, limit, opts.provider),
       pin: opts.provider,
       ...opts,
     },
@@ -143,7 +175,7 @@ export function getFundamentals(
     (a, ctx) => a.fundamentals!(symbol, ctx),
     {
       capability: "fundamentals",
-      cacheKey: `fundamentals:${symbol}:${opts.provider ?? "*"}`,
+      cacheKey: cacheKeys.fundamentals(symbol, opts.provider),
       pin: opts.provider,
       ...opts,
     },
@@ -158,7 +190,7 @@ export function searchWeb(
   return dispatch(
     candidatesFor("search", "equity"),
     (a, ctx) => a.search!(query, limit, ctx),
-    { capability: "search", cacheKey: `search:${query}:${limit}`, pin: opts.provider, ...opts },
+    { capability: "search", cacheKey: cacheKeys.search(query, limit), pin: opts.provider, ...opts },
   );
 }
 
@@ -166,7 +198,7 @@ export function scrapeUrl(url: string, opts: Options = {}): Promise<Sourced<Docu
   return dispatch(
     candidatesFor("scrape", "equity"),
     (a, ctx) => a.scrape!(url, ctx),
-    { capability: "scrape", cacheKey: `scrape:${url}`, pin: opts.provider, ...opts },
+    { capability: "scrape", cacheKey: cacheKeys.scrape(url), pin: opts.provider, ...opts },
   );
 }
 
@@ -302,6 +334,12 @@ export interface ProviderStatus {
   circuitOpen: boolean;
   quota: { used: number; limit: number; remaining: number; reserve: number; window: string } | null;
   rank: Partial<Record<Capability, number>>;
+  /** Full breaker shape — failure count and cooldown, not just the boolean. */
+  breaker: BreakerSnapshot;
+  /** p50/p95/p99 over the recent window, with the sample count that produced them. */
+  latency: LatencyStats;
+  /** Set while an operator is deliberately holding this provider out of routing. */
+  simulatedOutage: { expiresAt: number; note: string } | null;
 }
 
 /**
@@ -316,19 +354,194 @@ export function providerStatus(
   env: NodeJS.ProcessEnv = process.env,
   s: Store = store,
 ): ProviderStatus[] {
-  return ADAPTERS.map((a) => ({
-    id: a.meta.id,
-    label: a.meta.label,
-    docs: a.meta.docs,
-    signup: a.meta.signup,
-    capabilities: a.meta.capabilities,
-    assets: a.meta.assets,
-    keyEnv: a.meta.keyEnv || "(none — public)",
-    configured: isConfigured(a, env),
-    circuitOpen: breakerOpen(a.meta.id, s),
-    quota: quotaState(a, s),
-    rank: a.meta.rank,
-  }));
+  return ADAPTERS.map((a) => {
+    // `breakerSnapshot`, not `breakerOpen`: the latter retires an elapsed
+    // breaker as a side effect of being asked. A status endpoint that half-opens
+    // circuits merely by being polled would make the health panel a participant
+    // in the behaviour it is supposed to be reporting.
+    const breaker = breakerSnapshot(a.meta.id, s);
+    const outage = outageFor(a.meta.id);
+    return {
+      id: a.meta.id,
+      label: a.meta.label,
+      docs: a.meta.docs,
+      signup: a.meta.signup,
+      capabilities: a.meta.capabilities,
+      assets: a.meta.assets,
+      keyEnv: a.meta.keyEnv || "(none — public)",
+      configured: isConfigured(a, env),
+      circuitOpen: breaker.state === "open",
+      quota: quotaState(a, s),
+      rank: a.meta.rank,
+      breaker,
+      latency: latencyStats(a.meta.id),
+      simulatedOutage: outage ? { expiresAt: outage.expiresAt, note: outage.note } : null,
+    };
+  });
+}
+
+// --------------------------------------------------------------------------
+// Failover graph
+// --------------------------------------------------------------------------
+
+/** Why a provider is or is not routable right now, in dispatch's own order. */
+export type RouteState =
+  | "ready"
+  | "simulated_outage"
+  | "not_configured"
+  | "circuit_open"
+  | "quota_exhausted"
+  | "quota_reserved";
+
+export interface FailoverNode {
+  provider: string;
+  label: string;
+  /** Position in the ranked chain for this capability, 1-based. */
+  rank: number;
+  state: RouteState;
+  detail: string;
+  latency: LatencyStats;
+  /** True for the node a request issued right now would actually land on. */
+  active: boolean;
+  /**
+   * Out-of-band health-probe verdict, where one exists (today: OpenBB).
+   *
+   * Kept separate from `state` rather than folded into it, because they are
+   * different facts and collapsing them makes the graph wrong either way. A
+   * provider whose service is down is still *configured*, so `dispatch` will
+   * genuinely try it first and only fail over after it times out — reporting it
+   * as skipped would be a lie about routing. Reporting it as healthy would be a
+   * lie about the service. Both are stated.
+   */
+  health: { ok: boolean; detail: string } | null;
+}
+
+export interface FailoverRoute {
+  capability: Capability;
+  asset: AssetClass;
+  nodes: FailoverNode[];
+  /** Provider id a request would reach, or null when the whole chain is dark. */
+  activeProvider: string | null;
+  /** Cache TTL in front of this chain, from the runtime's per-capability table. */
+  cacheTtlMs: number;
+}
+
+/**
+ * Evaluate one provider exactly the way `dispatch` will.
+ *
+ * The order of these checks is not cosmetic — it is copied from the dispatch
+ * loop, because a graph that shows "quota spent" where the code would have said
+ * "circuit open" is worse than no graph: it sends someone to fix the wrong
+ * thing. `priority` matters too, since the reserve fences background traffic out
+ * of budget an interactive lookup could still spend.
+ */
+function routeState(
+  adapter: Adapter,
+  env: NodeJS.ProcessEnv,
+  s: Store,
+  priority: Priority,
+): { state: RouteState; detail: string } {
+  const outage = outageFor(adapter.meta.id);
+  if (outage) {
+    const seconds = Math.ceil((outage.expiresAt - Date.now()) / 1000);
+    return { state: "simulated_outage", detail: `${outage.note} — restores in ${seconds}s` };
+  }
+  if (!isConfigured(adapter, env)) {
+    return { state: "not_configured", detail: `set ${adapter.meta.keyEnv}` };
+  }
+  const breaker = breakerSnapshot(adapter.meta.id, s);
+  if (breaker.state === "open") {
+    return {
+      state: "circuit_open",
+      detail: `${breaker.failures} consecutive failures — probes in ${Math.ceil(breaker.cooldownRemainingMs / 1000)}s`,
+    };
+  }
+  const quota = quotaState(adapter, s);
+  if (quota && quota.remaining <= 0) {
+    return { state: "quota_exhausted", detail: `${quota.used}/${quota.limit} spent this ${quota.window}` };
+  }
+  if (quota && priority === "background" && quota.remaining <= quota.reserve) {
+    return {
+      state: "quota_reserved",
+      detail: `${quota.remaining} left, all of it reserved for interactive lookups`,
+    };
+  }
+  return {
+    state: "ready",
+    detail: breaker.state === "half_open"
+      ? "cooldown elapsed — next call probes this provider"
+      : "configured and routable",
+  };
+}
+
+/** Health-probe verdicts keyed by provider id, for providers that have one. */
+export type ReadinessOverlay = Record<string, { ready: boolean; statusDetail: string }>;
+
+/** The ranked chain for one capability/asset pair, with live state on each node. */
+export function failoverRoute(
+  capability: Capability,
+  asset: AssetClass,
+  env: NodeJS.ProcessEnv = process.env,
+  s: Store = store,
+  priority: Priority = "interactive",
+  readiness: ReadinessOverlay = {},
+): FailoverRoute {
+  const chain = candidatesFor(capability, asset);
+  let activeProvider: string | null = null;
+
+  const nodes: FailoverNode[] = chain.map((adapter, index) => {
+    const { state, detail } = routeState(adapter, env, s, priority);
+    // First ready node in ranked order wins, exactly as the dispatch loop does.
+    const active = state === "ready" && activeProvider === null;
+    if (active) activeProvider = adapter.meta.id;
+    const probe = readiness[adapter.meta.id];
+    return {
+      provider: adapter.meta.id,
+      label: adapter.meta.label,
+      rank: index + 1,
+      state,
+      detail,
+      latency: latencyStats(adapter.meta.id),
+      active,
+      health: probe ? { ok: probe.ready, detail: probe.statusDetail } : null,
+    };
+  });
+
+  return { capability, asset, nodes, activeProvider, cacheTtlMs: TTL_MS[capability] };
+}
+
+/**
+ * The asset classes each capability is actually asked for.
+ *
+ * Not the cross product. `getFundamentals`, `searchWeb` and `scrapeUrl` pass
+ * `"equity"` unconditionally, so a `search · crypto` chain describes a request
+ * this codebase never issues — and a routing diagram that shows routes the code
+ * cannot take is the same defect as one that hides routes it can.
+ */
+export const ROUTE_MATRIX: { capability: Capability; assets: AssetClass[] }[] = [
+  { capability: "quote", assets: ["crypto", "equity"] },
+  { capability: "bars", assets: ["crypto", "equity"] },
+  { capability: "news", assets: ["crypto", "equity"] },
+  { capability: "fundamentals", assets: ["equity"] },
+  { capability: "search", assets: ["equity"] },
+  { capability: "scrape", assets: ["equity"] },
+];
+
+/** Every capability/asset pair a façade can actually dispatch. */
+export function failoverGraph(
+  env: NodeJS.ProcessEnv = process.env,
+  s: Store = store,
+  priority: Priority = "interactive",
+  readiness: ReadinessOverlay = {},
+): FailoverRoute[] {
+  const routes: FailoverRoute[] = [];
+  for (const { capability, assets } of ROUTE_MATRIX) {
+    for (const asset of assets) {
+      if (!candidatesFor(capability, asset).length) continue;
+      routes.push(failoverRoute(capability, asset, env, s, priority, readiness));
+    }
+  }
+  return routes;
 }
 
 /** Capability → the providers that could serve it right now. */

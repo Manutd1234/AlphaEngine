@@ -118,7 +118,7 @@ Directory** to `web`. Everything else auto-detects.
 cd web
 npm install
 npm run dev    # http://localhost:3000
-npm test       # 83 tests
+npm test       # 128 tests
 ```
 
 Live-feed endpoints (public, no key):
@@ -134,6 +134,14 @@ Alpha Vantage, Firecrawl and OpenBB — with per-provider quota budgeting,
 circuit breaking and ranked failover. Every key is optional: keyless
 deployments still serve crypto through Binance's public API.
 See [`web/.env.example`](web/.env.example).
+
+Systems endpoints (`/api/system/health` for breakers, latency percentiles and
+the live failover graph, `/api/system/events` for the structured trace,
+`/api/system/inspect` for one lookup taken apart down to the vendor's raw JSON,
+and `POST /api/system/actions` for operator controls) back the **Systems
+console** — the developer-facing tab. Its write path is gated by
+`ALPHAENGINE_OPERATOR_TOKEN`: open outside production, refused in production
+when unset, because a cache purge and a health probe both spend real quota.
 
 Full documentation: [`web/README.md`](web/README.md)
 

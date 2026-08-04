@@ -22,7 +22,7 @@
  *    resubscribe rather than trusting a book with holes.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import {
   type Level,
@@ -45,6 +45,20 @@ export interface LiveVenueState {
   lastUpdate: number;
   reconnects: number;
   error?: string;
+  /**
+   * Raw frames received, including the ones that never become a book —
+   * subscribe acknowledgements, pongs, and topics we filter out.
+   *
+   * Distinct from `updates` on purpose: a socket whose `frames` climbs while
+   * `updates` sits still is subscribed to the wrong thing, and one number
+   * cannot say that.
+   */
+  frames: number;
+  /** The last parsed frame, exactly as the venue sent it. Treat as read-only. */
+  lastFrame?: unknown;
+  lastFrameAt?: number;
+  /** Operator-forced re-handshakes, kept apart from failure-driven reconnects. */
+  restarts: number;
 }
 
 export interface LiveSnapshot {
@@ -124,14 +138,101 @@ type Handlers = {
   onBook: (book: VenueBook) => void;
   onStatus: (status: LiveVenueState["status"], error?: string) => void;
   onReconnect: () => void;
+  /** Every parsed frame, before any venue-specific filtering. */
+  onFrame?: (frame: unknown) => void;
+  /** An operator-forced re-handshake, distinct from a failure reconnect. */
+  onRestart?: () => void;
 };
+
+// --------------------------------------------------------------------------
+// Socket registry
+// --------------------------------------------------------------------------
+
+/**
+ * Every supervised socket this tab currently owns.
+ *
+ * It exists so the systems console can answer "how many sockets are actually
+ * open, to what, and for how long" and can force a clean re-handshake — neither
+ * of which was possible when a `connect()` closure was the only owner.
+ *
+ * Keyed by a unique incrementing id rather than by `venue:symbol`. React
+ * StrictMode runs every effect mount → cleanup → mount in development, so two
+ * sockets for the same venue and symbol exist briefly on every mount; a
+ * composite key would have the second registration overwrite the first, and the
+ * first's cleanup would then delete the *second's* entry.
+ */
+export interface SocketHandle {
+  id: number;
+  venue: VenueName;
+  symbol: string;
+  openedAt: number;
+  restart(): void;
+  stop(): void;
+}
+
+export interface SocketSummary {
+  id: number;
+  venue: VenueName;
+  symbol: string;
+  openedAt: number;
+}
+
+const registry = new Map<number, SocketHandle>();
+const registryListeners = new Set<() => void>();
+let socketSeq = 0;
+
+/**
+ * Recomputed only on lifecycle changes, never per frame.
+ *
+ * `useSyncExternalStore` requires a referentially stable snapshot between
+ * notifications — returning a fresh array on every read is an infinite render
+ * loop. Frame counters deliberately do not live here: they change ten times a
+ * second per venue and already reach the UI through the hook's throttled 5 Hz
+ * publish.
+ */
+let registrySnapshot: SocketSummary[] = [];
+
+function publishRegistry(): void {
+  registrySnapshot = [...registry.values()].map(({ id, venue, symbol, openedAt }) => ({
+    id, venue, symbol, openedAt,
+  }));
+  for (const listener of registryListeners) listener();
+}
+
+const EMPTY_REGISTRY: SocketSummary[] = [];
+
+/** Live socket inventory for this tab. Safe during SSR — it reports none. */
+export function useSocketRegistry(): SocketSummary[] {
+  return useSyncExternalStore(
+    (listener) => {
+      registryListeners.add(listener);
+      return () => registryListeners.delete(listener);
+    },
+    () => registrySnapshot,
+    () => EMPTY_REGISTRY,
+  );
+}
+
+/**
+ * Force every live socket to drop and re-handshake. Returns how many were cycled.
+ *
+ * Not implemented as `ws.close()` from outside: that path runs through `retry()`,
+ * which makes the operator wait out the current backoff (up to 20s + jitter) and
+ * increments the failure counter — so a deliberate action would read on screen
+ * as an outage.
+ */
+export function restartAllSockets(): number {
+  const handles = [...registry.values()];
+  for (const handle of handles) handle.restart();
+  return handles.length;
+}
 
 /** One supervised socket with exponential backoff + jitter. */
 function connect(
   venue: VenueName,
   symbol: string,
   handlers: Handlers,
-): () => void {
+): SocketHandle {
   let ws: WebSocket | null = null;
   let closed = false;
   let backoff = 1000;
@@ -175,6 +276,12 @@ function connect(
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data as string);
+        // Captured here, above every venue branch, because three early returns
+        // sit below: the Binance `!d?.bids` guard, the Binance return after
+        // onBook, and the Bybit topic filter. Capturing after any of them hides
+        // the subscribe acknowledgement and the pong — which are precisely the
+        // frames worth reading when a handshake is the thing that is wrong.
+        handlers.onFrame?.(msg);
 
         if (venue === "BINANCE") {
           const d = msg.data ?? msg;
@@ -236,15 +343,71 @@ function connect(
     backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
   };
 
+  /**
+   * Operator-forced reconnect. Every line here fixes something a naive
+   * `ws.close(); open();` gets wrong:
+   *
+   *  - `retry()` clears the heartbeat and the stability timer but **never**
+   *    `retryTimer`, because it assumes it is only ever called from a socket
+   *    event. Leaving a pending retry and calling `open()` gives you two live
+   *    sockets on one venue, both writing into one ladder.
+   *  - Detaching the handlers before `close()` stops the dying socket's
+   *    `onclose` from scheduling a *third*.
+   *  - `backoff` resets: a reconnect someone asked for is not evidence of
+   *    instability, and inheriting a 16s backoff would punish them for it.
+   *  - `seq = 0`: Bybit's gap check is `u !== seq + 1`. Carrying the old
+   *    session's sequence into a new one fails on the first delta and closes the
+   *    socket, which looks exactly like a venue outage in a reconnect loop.
+   *  - The ladder is emptied because republishing the pre-restart book would be
+   *    a stale price wearing a fresh timestamp. The venue drops out of the
+   *    merged book until its next snapshot; that gap is honest.
+   */
+  const restart = () => {
+    if (closed) return;
+    if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+    if (heartbeat) { clearInterval(heartbeat); heartbeat = null; }
+    if (stableTimer) { clearTimeout(stableTimer); stableTimer = null; }
+    backoff = 1000;
+    seq = 0;
+    ladder.snapshot([], []);
+    const dying = ws;
+    ws = null;
+    if (dying) {
+      dying.onclose = null;
+      dying.onerror = null;
+      dying.onmessage = null;
+      dying.onopen = null;
+      dying.close();
+    }
+    handlers.onRestart?.();
+    open();
+  };
+
+  const handle: SocketHandle = {
+    id: ++socketSeq,
+    venue,
+    symbol,
+    openedAt: Date.now(),
+    restart,
+    stop: () => {
+      closed = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      if (heartbeat) clearInterval(heartbeat);
+      if (stableTimer) clearTimeout(stableTimer);
+      ws?.close();
+      registry.delete(handle.id);
+      publishRegistry();
+    },
+  };
+
+  // Registered once, here — not inside `open()`, which runs again on every
+  // reconnect and would leak one entry per retry.
+  registry.set(handle.id, handle);
+  publishRegistry();
+
   open();
 
-  return () => {
-    closed = true;
-    if (retryTimer) clearTimeout(retryTimer);
-    if (heartbeat) clearInterval(heartbeat);
-    if (stableTimer) clearTimeout(stableTimer);
-    ws?.close();
-  };
+  return handle;
 }
 
 /**
@@ -274,11 +437,20 @@ export function useLiveBook(symbol: string, enabled = true, publishHz = 5): Live
     state.current = new Map(
       venues.map((v) => [
         v,
-        { venue: v, status: "connecting", book: emptyBook(v, symbol), updates: 0, lastUpdate: 0, reconnects: 0 },
+        {
+          venue: v,
+          status: "connecting",
+          book: emptyBook(v, symbol),
+          updates: 0,
+          lastUpdate: 0,
+          reconnects: 0,
+          frames: 0,
+          restarts: 0,
+        },
       ]),
     );
 
-    const stops = venues.map((venue) =>
+    const handles = venues.map((venue) =>
       connect(venue, symbol, {
         onBook: (book) => {
           const s = state.current.get(venue)!;
@@ -294,6 +466,25 @@ export function useLiveBook(symbol: string, enabled = true, publishHz = 5): Live
         },
         onReconnect: () => {
           state.current.get(venue)!.reconnects += 1;
+        },
+        onFrame: (frame) => {
+          // Written to the ref, never to state. Binance alone sends 10 frames a
+          // second per venue; a setState here reinstates exactly the render
+          // storm the 5 Hz publish interval exists to prevent. The publish tick
+          // already spreads this object, so it reaches consumers for free.
+          const s = state.current.get(venue)!;
+          s.frames += 1;
+          s.lastFrame = frame;
+          s.lastFrameAt = Date.now();
+        },
+        onRestart: () => {
+          const s = state.current.get(venue)!;
+          s.restarts += 1;
+          // Set directly rather than through `onStatus`, which refuses to
+          // downgrade a live venue to "connecting" — correct for a silent
+          // reconnect, wrong for one an operator just asked for and is watching.
+          s.status = "connecting";
+          s.error = undefined;
         },
       }),
     );
@@ -342,11 +533,24 @@ export function useLiveBook(symbol: string, enabled = true, publishHz = 5): Live
 
     return () => {
       clearInterval(publish);
-      stops.forEach((stop) => stop());
+      handles.forEach((handle) => handle.stop());
     };
   }, [symbol, enabled, publishHz]);
 
   return snapshot;
+}
+
+/**
+ * Socket inventory plus the force-reconnect control, for the systems console.
+ *
+ * Read-only over the registry: it does not open anything of its own, so a panel
+ * that renders this cannot change the socket count by being on screen. The
+ * reconnect it exposes cycles whatever `useLiveBook` has already opened.
+ */
+export function useWireTap(): { sockets: SocketSummary[]; reconnectAll: () => number } {
+  const sockets = useSocketRegistry();
+  const reconnectAll = useCallback(() => restartAllSockets(), []);
+  return { sockets, reconnectAll };
 }
 
 /** Client-side TCA off the streaming books — same maths as `/api/tca`. */

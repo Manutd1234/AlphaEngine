@@ -129,7 +129,7 @@ export async function GET() {
     const response = await fetch(endpoint, {
       cache: "no-store",
       signal: controller.signal,
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      headers: token ? { "X-AlphaEngine-Token": token } : undefined,
     });
 
     if (!response.ok) {

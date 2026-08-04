@@ -72,6 +72,19 @@
     --diverging-mid: #24364d;
 
     --success-text: #0ca30c;
+
+    /* The three status hues are the light-theme steps and were inherited
+       unchanged into dark, where #159467 and #d99216 on #0f1c2c fall below AA
+       as text. They are used as text in the systems console (icon + word +
+       colour), so they are lifted here for the same reason --success-text
+       already was. */
+    --status-good: #35c48f;
+    --status-warning: #e8ab3d;
+    --status-critical: #f0737c;
+
+    /* rgba(22,34,51,0.035) is invisible over a dark plane — every card silently
+       lost its elevation in dark mode. */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.28);
   }
 }
 
@@ -100,6 +113,13 @@
   --diverging-mid: #24364d;
 
   --success-text: #0ca30c;
+
+  /* See the note in the prefers-color-scheme block above — same fix, same
+     reason, kept in sync with it. */
+  --status-good: #35c48f;
+  --status-warning: #e8ab3d;
+  --status-critical: #f0737c;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.28);
 }
 
 * {
@@ -1758,4 +1778,1003 @@ button.primary-action:hover:not(:disabled) {
   .portfolio-metrics {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* ==========================================================================
+   Systems console — developer surface
+   ==========================================================================
+   Appended as a self-contained block: every selector below is new, so it
+   cannot collide with the workspace responsive tail above it, and its own
+   media queries follow at the end of this section using the same breakpoint
+   ladder (1120 / 900 / 720 / 520) rather than inventing new ones.
+
+   Two rules govern the whole section. Status is icon + word + colour, never
+   colour alone — `prefers-reduced-motion` strips every animation globally with
+   `!important`, so nothing here may encode state in motion either. And the log
+   pane redefines the dark token set on itself rather than hard-coding colours,
+   because every primitive it contains (buttons, code, .muted) reads var().
+   ========================================================================== */
+
+/* ---------- status strip ---------- */
+.console-statusbar {
+  position: sticky;
+  /* 56px utility row + 42px context strip + 1px border, matching
+     .workspace-shell's calc(100vh - 99px). Below .workspace-header's z-index 50. */
+  top: 99px;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+}
+
+.console-statusbar__metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  flex: 1 1 520px;
+}
+
+.console-stat {
+  display: grid;
+  gap: 1px;
+  padding: 0 16px;
+  border-right: 1px solid var(--border);
+}
+
+.console-stat:last-child {
+  border-right: 0;
+}
+
+.console-stat:first-child {
+  padding-left: 0;
+}
+
+.console-stat span {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.console-stat strong {
+  font-size: 21px;
+  font-weight: 680;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.console-stat.is-warn strong {
+  color: var(--status-warning);
+}
+
+.console-stat small {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.console-statusbar__meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+}
+
+.console-statusbar__meta button {
+  padding: 6px 11px;
+  font-size: 12px;
+}
+
+.console-scope-note {
+  margin-bottom: 14px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+/* ---------- two-column body ---------- */
+.console-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 65fr) minmax(0, 35fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.console-column {
+  min-width: 0;
+}
+
+.console-card {
+  margin-bottom: 16px;
+}
+
+.console-column > .console-card:last-child {
+  margin-bottom: 0;
+}
+
+/* ---------- shared primitives ---------- */
+/* `td { white-space: nowrap }` is global; a message column needs the opt-out
+   or a long provider error widens the table into a horizontal scroll. */
+.console-wrap {
+  display: block;
+  max-width: 34ch;
+  white-space: normal;
+  line-height: 1.45;
+}
+
+.console-sep {
+  color: var(--text-muted);
+}
+
+.console-subhead {
+  margin: 18px 0 8px;
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-secondary);
+}
+
+.console-subhead small {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 450;
+}
+
+.console-note,
+.console-footnote {
+  margin-top: 10px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.console-empty {
+  padding: 14px 0;
+  font-size: 12.5px;
+}
+
+.console-warn {
+  color: var(--status-warning);
+}
+
+.console-card code {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.console-card details {
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-2);
+}
+
+.console-card summary {
+  cursor: pointer;
+  padding: 7px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.console-card summary:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--series-1) 35%, transparent);
+  outline-offset: -1px;
+}
+
+/* ---------- meters ---------- */
+.console-meter {
+  position: relative;
+  display: block;
+  width: 74px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.console-meter--wide {
+  width: 100%;
+  height: 8px;
+  overflow: visible;
+}
+
+.console-meter > i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--status-good);
+}
+
+.console-meter.is-warning > i {
+  background: var(--status-warning);
+}
+
+.console-meter.is-critical > i {
+  background: var(--status-critical);
+}
+
+/* The reserve boundary: where background polling stops and only interactive
+   lookups may spend. A percentage bar without this hides the mechanism. */
+.console-meter__mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--text-secondary);
+  opacity: 0.75;
+}
+
+/* ---------- health matrix ---------- */
+.console-provider {
+  display: grid;
+  gap: 1px;
+}
+
+.console-provider small {
+  font-size: 10px;
+}
+
+.console-status-cell {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+}
+
+.console-quota-cell {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+}
+
+.console-row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.console-row-actions button {
+  padding: 4px 8px;
+  font-size: 9.5px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.console-row-actions button:first-child:not(:disabled) {
+  border-color: color-mix(in srgb, var(--series-1) 30%, var(--border));
+  color: var(--series-1);
+  background: color-mix(in srgb, var(--series-1) 7%, var(--surface-1));
+}
+
+/* ---------- failover graph ---------- */
+.console-route-picker {
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.console-dag {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.console-node {
+  flex: 1 1 168px;
+  min-width: 158px;
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-1);
+  font-size: 11.5px;
+}
+
+.console-node--fixed {
+  background: var(--surface-2);
+  border-style: dashed;
+}
+
+.console-node.is-active {
+  border-color: var(--series-1);
+  background: color-mix(in srgb, var(--series-1) 8%, var(--surface-1));
+  /* A second, non-colour cue so "serving" survives a monochrome print or a
+     reader who cannot separate the border hue from the neighbours'. */
+  box-shadow: inset 3px 0 0 var(--series-1);
+}
+
+.console-node.is-down {
+  background: color-mix(in srgb, var(--text-muted) 6%, var(--surface-1));
+}
+
+.console-node__role {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.console-node__badge {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--series-1);
+  color: #fff;
+  letter-spacing: 0.04em;
+}
+
+.console-node strong {
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.console-node__state {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.console-node small {
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+.console-node .console-wrap {
+  max-width: none;
+}
+
+.console-node__action {
+  margin-top: 6px;
+  padding: 4px 8px;
+  font-size: 9.5px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.console-node__next {
+  margin-top: 4px;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.console-edge {
+  display: flex;
+  align-self: center;
+  align-items: center;
+  gap: 4px;
+  list-style: none;
+  font-size: 15px;
+  color: var(--axis);
+}
+
+.console-edge__label {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.console-dag-note {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+/* ---------- quota panel ---------- */
+.console-quota-row {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--grid);
+}
+
+.console-quota-row:last-of-type {
+  border-bottom: 0;
+}
+
+.console-quota-row__head,
+.console-quota-row__foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.console-quota-row__head {
+  margin-bottom: 6px;
+  font-size: 12.5px;
+}
+
+.console-quota-row__foot {
+  margin-top: 5px;
+}
+
+.console-quota-row__foot small {
+  font-size: 10.5px;
+}
+
+/* ---------- inspector ---------- */
+.console-inspector__controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.console-inspector__controls input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.console-seg {
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.console-seg button {
+  font-size: 11px;
+}
+
+.console-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.console-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--border);
+}
+
+.console-facts > div {
+  padding: 9px 11px;
+  background: var(--surface-1);
+}
+
+.console-facts--tight > div {
+  padding: 7px 10px;
+}
+
+.console-facts dt {
+  font-size: 9.5px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.console-facts dd {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+}
+
+.console-key {
+  margin-top: 8px;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.console-lineage {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: lineage;
+}
+
+.console-lineage li {
+  position: relative;
+  display: grid;
+  gap: 1px;
+  padding: 7px 10px 7px 30px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-1);
+  counter-increment: lineage;
+}
+
+.console-lineage li::before {
+  content: counter(lineage);
+  position: absolute;
+  left: 10px;
+  top: 7px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--series-1);
+}
+
+.console-lineage strong {
+  font-size: 11.5px;
+}
+
+.console-lineage small {
+  font-size: 11px;
+  color: var(--text-muted);
+  max-width: none;
+}
+
+.console-skips {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.console-skips li {
+  display: grid;
+  gap: 1px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--status-warning);
+  border-radius: 0 8px 8px 0;
+  background: var(--surface-2);
+  font-size: 11.5px;
+}
+
+.console-skip__reason {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--status-warning);
+}
+
+.console-skips small {
+  font-size: 10.5px;
+  max-width: none;
+}
+
+.console-calls {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.console-calls > li {
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-1);
+}
+
+.console-call__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  margin-bottom: 5px;
+}
+
+.console-call__url {
+  display: block;
+  font-size: 10.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.console-socket {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-1);
+}
+
+.console-socket__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+/* ---------- trace console ---------- */
+.console-log-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.console-log-controls .console-seg {
+  margin-bottom: 0;
+}
+
+.console-log-filter {
+  flex: 1 1 110px;
+  min-width: 90px;
+}
+
+.console-log-controls button {
+  padding: 6px 11px;
+  font-size: 11.5px;
+}
+
+.console-log-gap {
+  margin-bottom: 8px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* The dark plane. Tokens are redefined on the container rather than colours
+   being hard-coded, so nested primitives resolve correctly; `color-scheme`
+   is what keeps the OS scrollbar from rendering light over it. */
+.console-log {
+  color-scheme: dark;
+
+  --surface-1: #0f1c2c;
+  --surface-2: #162438;
+  --surface-3: #1c2d44;
+  --text-primary: #f6f8fb;
+  --text-secondary: #bdc8d8;
+  --text-muted: #8190a7;
+  --border: #22344b;
+  --grid: #1e3047;
+
+  max-height: 340px;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid #22344b;
+  border-radius: 10px;
+  background: #081321;
+  color: #cfd9e8;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 1.65;
+  tab-size: 2;
+}
+
+.console-log:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--series-1) 45%, transparent);
+  outline-offset: 2px;
+}
+
+.console-log__empty {
+  color: #8190a7;
+  font-size: 11px;
+}
+
+.console-log__line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 7px;
+  padding: 1px 0;
+  overflow-wrap: anywhere;
+}
+
+.console-log__line.is-warn {
+  background: rgba(232, 171, 61, 0.08);
+}
+
+.console-log__line.is-error {
+  background: rgba(240, 115, 124, 0.1);
+}
+
+.console-log__ts {
+  color: #62748d;
+  flex: 0 0 auto;
+}
+
+/* Level is a word, not a colour swatch — the colour is reinforcement. */
+.console-log__level {
+  flex: 0 0 44px;
+  font-weight: 700;
+}
+
+.console-log__level.is-debug { color: #7f8da2; }
+.console-log__level.is-info { color: #5aa2ee; }
+.console-log__level.is-warn { color: #e8ab3d; }
+.console-log__level.is-error { color: #f0737c; }
+
+.console-log__origin {
+  flex: 0 0 auto;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: #162438;
+  color: #8190a7;
+  font-size: 9.5px;
+}
+
+.console-log__source {
+  color: #35c48f;
+  flex: 0 0 auto;
+}
+
+.console-log__msg {
+  color: #dbe4f0;
+}
+
+.console-log__fields {
+  color: #62748d;
+}
+
+.console-log-jump {
+  margin-top: 8px;
+  width: 100%;
+  padding: 6px;
+  font-size: 11.5px;
+}
+
+/* ---------- operator panel ---------- */
+.console-action {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--grid);
+}
+
+.console-action:last-of-type {
+  border-bottom: 0;
+}
+
+.console-action--client {
+  /* Browser-side controls are visually separated from the ones that mutate the
+     server, because "reconnect" meaning two different blast radii on one panel
+     is exactly the confusion an operator surface must not create. */
+  border-left: 3px solid color-mix(in srgb, var(--series-3) 45%, transparent);
+  padding-left: 10px;
+}
+
+.console-action__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.console-action__head strong {
+  font-size: 12.5px;
+}
+
+.console-action__controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.console-action__controls select {
+  font-size: 11.5px;
+  padding: 5px 7px;
+}
+
+.console-action__controls button {
+  padding: 5px 10px;
+  font-size: 11.5px;
+}
+
+.console-action .console-seg {
+  margin-bottom: 0;
+}
+
+.console-action > small {
+  display: block;
+  font-size: 10.5px;
+  line-height: 1.55;
+}
+
+.console-token {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.console-token > span {
+  font-size: 10px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.console-token small {
+  font-size: 10.5px;
+}
+
+.console-actions .banner {
+  margin-top: 14px;
+}
+
+.console-actions .banner small {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* ---------- JSON tree ---------- */
+.json-tree {
+  max-height: 320px;
+  overflow: auto;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 1.6;
+  tab-size: 2;
+}
+
+.json-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 4px;
+  overflow-wrap: anywhere;
+}
+
+.json-toggle {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 9px;
+  line-height: 1;
+  width: 11px;
+}
+
+.json-toggle:hover:not(:disabled) {
+  border-color: transparent;
+  color: var(--text-primary);
+}
+
+.json-key {
+  color: var(--series-1);
+}
+
+.json-key::after {
+  content: ":";
+  color: var(--text-muted);
+}
+
+.json-punct,
+.json-summary {
+  color: var(--text-muted);
+}
+
+.json-summary {
+  font-style: italic;
+  padding: 0 4px;
+}
+
+/* Types differ in form as well as hue: quoted vs bare vs italic. */
+.json-string { color: var(--status-good); }
+.json-number { color: var(--series-2); }
+.json-bool { color: var(--series-1); font-weight: 650; }
+.json-null { color: var(--text-muted); font-style: italic; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1120px) {
+  .console-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .console-statusbar__metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 0;
+  }
+  .console-stat:nth-child(odd) {
+    padding-left: 0;
+  }
+  .console-stat:nth-child(2n) {
+    border-right: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .console-statusbar {
+    /* The header collapses to two rows at this width and the tab strip becomes
+       a full-width grid, so a sticky offset computed for the desktop header
+       would pin this over the content it is meant to sit under. */
+    position: static;
+  }
+  .console-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .console-statusbar {
+    padding: 12px;
+  }
+  .console-statusbar__meta {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .console-node {
+    flex: 1 1 100%;
+  }
+  .console-edge {
+    transform: rotate(90deg);
+    align-self: flex-start;
+  }
+  .console-wrap {
+    max-width: none;
+  }
+  .console-action__head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 520px) {
+  .console-statusbar__metrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .console-stat {
+    padding: 0;
+    border-right: 0;
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+  }
+  .console-stat:first-child {
+    border-top: 0;
+    padding-top: 0;
+  }
+  .console-inspector__controls {
+    flex-direction: column;
+  }
+  .console-log {
+    font-size: 10px;
+  }
+}
+
+/* ---------- headline list (news capability output) ---------- */
+.console-headlines {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.console-headlines > li {
+  display: grid;
+  gap: 2px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-1);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.console-headlines small {
+  font-size: 10.5px;
 }

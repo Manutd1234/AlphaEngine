@@ -21,6 +21,8 @@
  * portal and one from the gateway agree.
  */
 
+import { recordUpstream } from "./observability";
+
 export type Side = "BUY" | "SELL";
 export type VenueName = "BINANCE" | "BYBIT";
 
@@ -86,16 +88,65 @@ const BINANCE_HOSTS = ["https://api.binance.com", "https://data-api.binance.visi
 const BYBIT_HOST = "https://api.bybit.com";
 const FETCH_TIMEOUT_MS = 8_000;
 
-async function getJson(url: string, revalidate = 0): Promise<unknown> {
+/**
+ * `venue` is reported to the telemetry kernel, not sent to the exchange.
+ *
+ * These two clients are the one part of the data plane the provider registry
+ * does not sit in front of — `/api/depth` and `/api/tca` call them directly,
+ * because an order-book snapshot has no failover story to tell. That makes this
+ * function the only place their latency and failures can be observed, so it is
+ * the place that reports them. The latency key is prefixed `venue:` to keep a
+ * direct one-hop measurement out of the same percentile as a registry dispatch.
+ */
+async function getJson(url: string, revalidate = 0, venue: VenueName = "BINANCE"): Promise<unknown> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const startedAt = Date.now();
+  const provider = venue.toLowerCase();
   try {
     const res = await fetch(url, {
       signal: controller.signal,
       ...(revalidate > 0 ? { next: { revalidate } } : { cache: "no-store" }),
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
+    if (!res.ok) {
+      recordUpstream({
+        provider,
+        url,
+        status: res.status,
+        ms: Date.now() - startedAt,
+        ok: false,
+        error: `HTTP ${res.status}`,
+        latencyKey: `venue:${provider}`,
+      });
+      throw new Error(`HTTP ${res.status}`);
+    }
+    const payload = await res.json();
+    recordUpstream({
+      provider,
+      url,
+      status: res.status,
+      ms: Date.now() - startedAt,
+      ok: true,
+      payload,
+      latencyKey: `venue:${provider}`,
+    });
+    return payload;
+  } catch (err) {
+    // An HTTP error already reported above and is rethrown as a plain Error; a
+    // transport failure never reached that branch. Distinguishing them here
+    // keeps one failed request from appearing as two in the trace.
+    if (!(err instanceof Error && /^HTTP \d+$/.test(err.message))) {
+      recordUpstream({
+        provider,
+        url,
+        status: null,
+        ms: Date.now() - startedAt,
+        ok: false,
+        error: controller.signal.aborted ? `timed out after ${FETCH_TIMEOUT_MS}ms` : (err as Error).message,
+        latencyKey: `venue:${provider}`,
+      });
+    }
+    throw err;
   } finally {
     clearTimeout(timer);
   }
@@ -352,6 +403,8 @@ export async function fetchBybitBook(symbol: string, limit = 50): Promise<VenueB
   try {
     const d = (await getJson(
       `${BYBIT_HOST}/v5/market/orderbook?category=spot&symbol=${symbol.toUpperCase()}&limit=${Math.min(limit, 200)}`,
+      0,
+      "BYBIT",
     )) as { retCode: number; retMsg?: string; result?: { b: [string, string][]; a: [string, string][] } };
     if (d.retCode !== 0 || !d.result) throw new Error(d.retMsg || `retCode ${d.retCode}`);
     return finalise(

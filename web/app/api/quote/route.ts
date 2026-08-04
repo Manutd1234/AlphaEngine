@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { cacheHeaders, failure, parsePriority, parseProvider, parseSymbols } from "@/lib/providers/http";
 import { classify, consensusQuote, getQuote } from "@/lib/providers/registry";
+import type { Attempt } from "@/lib/providers/types";
 import { clampFloat } from "@/lib/params";
 
 export const runtime = "nodejs";
@@ -57,6 +58,12 @@ export async function GET(request: NextRequest) {
             symbol,
             asset: classify(symbol),
             error: err instanceof Error ? err.message : "failed",
+            // The per-symbol catch used to drop these, so a partial failure said
+            // "no provider could serve quote" and nothing else — the one place
+            // in the API where the skip list, which is the whole diagnostic, was
+            // thrown away. `failure()` has always carried it on the whole-request
+            // path; this makes the per-symbol path agree.
+            attempts: (err as { attempts?: Attempt[] }).attempts ?? [],
           };
         }
       }),

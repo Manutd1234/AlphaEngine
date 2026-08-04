@@ -176,7 +176,28 @@ class TestReadAuthentication:
             headers={"Authorization": "Bearer wrong-token"},
         )
         assert invalid.status_code == 401
-        assert invalid.json()["error"] == "invalid bearer token"
+        assert invalid.json()["error"] == "invalid gateway token"
+
+    def test_auth_mode_accepts_dedicated_gateway_header(self, client, monkeypatch):
+        token = "pytest-gateway-header-token"
+        monkeypatch.setattr(
+            main,
+            "settings",
+            replace(main.settings, require_auth=True, web_api_token=token),
+        )
+
+        response = client.get(
+            "/api/portfolio",
+            headers={"X-AlphaEngine-Token": token},
+        )
+        assert response.status_code == 200
+
+        invalid = client.get(
+            "/api/portfolio",
+            headers={"X-AlphaEngine-Token": "wrong-token"},
+        )
+        assert invalid.status_code == 401
+        assert invalid.json()["error"] == "invalid gateway token"
 
 
 class TestTelegramAuth:

@@ -12,6 +12,7 @@
  * banner — synthetic data is never passed off as market data.
  */
 
+import { recordUpstream } from "./observability";
 import { Bar, BARS_PER_YEAR } from "./types";
 
 const BINANCE_HOSTS = [
@@ -73,17 +74,42 @@ export async function fetchBinanceKlines(
         });
         if (endTime) params.set("endTime", String(endTime));
 
+        const url = `${host}/api/v3/klines?${params}`;
+        const pageStartedAt = Date.now();
         const res = await withTimeout((signal) =>
-          fetch(`${host}/api/v3/klines?${params}`, {
+          fetch(url, {
             signal,
             // Cache identical grids at the edge for a minute — a sweep does not
             // need second-fresh history, and it keeps us inside the rate limit.
             next: { revalidate: 60 },
           }),
         );
-        if (!res.ok) throw new Error(`${host} responded ${res.status}`);
+        if (!res.ok) {
+          // Reported per page, not per call to this function: a sweep that
+          // paginates six times and fails on the fifth is six upstream calls,
+          // and a trace that collapses them cannot show which page broke.
+          recordUpstream({
+            provider: "binance",
+            url,
+            status: res.status,
+            ms: Date.now() - pageStartedAt,
+            ok: false,
+            error: `HTTP ${res.status}`,
+            latencyKey: "venue:binance",
+          });
+          throw new Error(`${host} responded ${res.status}`);
+        }
 
         const chunk = (await res.json()) as unknown[][];
+        recordUpstream({
+          provider: "binance",
+          url,
+          status: res.status,
+          ms: Date.now() - pageStartedAt,
+          ok: true,
+          payload: chunk,
+          latencyKey: "venue:binance",
+        });
         if (!chunk.length) break;
 
         const parsed: Bar[] = chunk.map((k) => ({

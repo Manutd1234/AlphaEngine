@@ -174,6 +174,12 @@ export type SkipReason =
   | "circuit_open"
   | "quota_exhausted"
   | "quota_reserved"
+  /**
+   * An operator knocked this provider out from the systems console to watch
+   * failover happen. Distinct from every other reason on purpose: a fault
+   * someone caused deliberately must never be mistaken for one they did not.
+   */
+  | "simulated_outage"
   | "failed";
 
 export interface Attempt {

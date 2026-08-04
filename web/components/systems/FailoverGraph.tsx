@@ -1,0 +1,203 @@
+"use client";
+
+/**
+ * The failover chain, drawn.
+ *
+ * The old copy said "ranked failover across every configured provider" and left
+ * the reader to believe it. This shows the chain the code will actually walk for
+ * a given capability and asset class, evaluated with the same checks in the same
+ * order as the dispatch loop, and marks the node a request issued right now
+ * would land on.
+ *
+ * The `Trip` control is the point of the panel. "Does failover work" is a
+ * question about behaviour, and the only honest way to answer it is to knock the
+ * primary out and watch where the next request goes. The outage is server-side,
+ * bounded and self-expiring, so the demonstration cannot outlive the person
+ * running it.
+ *
+ * Rendered as ordered nodes and arrows rather than as a drawn SVG graph: the
+ * chain is a list, `prefers-reduced-motion` removes every transition globally,
+ * and a list stays readable when it wraps onto four lines on a narrow screen.
+ */
+
+import { UI_OUTAGE_MS, type ActionOptions } from "@/components/systems/OperatorPanel";
+import { fmt } from "@/lib/format";
+import {
+  type FailoverRoute,
+  type GuardMode,
+  ROUTE_STATE_STYLE,
+} from "./types";
+
+interface FailoverGraphProps {
+  routes: FailoverRoute[];
+  selected: string;
+  onSelect: (key: string) => void;
+  cacheHitRate: number | null;
+  priority: string;
+  guard: GuardMode;
+  busyAction: string | null;
+  onAction: (action: string, options?: ActionOptions) => void;
+}
+
+export function routeKey(route: { capability: string; asset: string }): string {
+  return `${route.capability}:${route.asset}`;
+}
+
+export default function FailoverGraph({
+  routes,
+  selected,
+  onSelect,
+  cacheHitRate,
+  priority,
+  guard,
+  busyAction,
+  onAction,
+}: FailoverGraphProps) {
+  const route = routes.find((r) => routeKey(r) === selected) ?? routes[0] ?? null;
+  const locked = guard === "locked";
+
+  return (
+    <div className="card console-card">
+      <div className="section-heading compact">
+        <div>
+          <span className="page-kicker">Routing</span>
+          <h2>Failover path</h2>
+        </div>
+        <span className="section-note">
+          Evaluated at <strong>{priority}</strong>{" "}priority — a background poll is fenced out of
+          each provider&apos;s reserve, so its chain can differ.
+        </span>
+      </div>
+
+      <div className="seg console-route-picker" role="group" aria-label="Capability and asset class">
+        {routes.map((r) => {
+          const key = routeKey(r);
+          return (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={key === selected}
+              onClick={() => onSelect(key)}
+            >
+              {r.capability}
+              <span className="console-sep"> · </span>
+              {r.asset}
+            </button>
+          );
+        })}
+      </div>
+
+      {!route && <p className="muted console-empty">No capability is routable in this environment.</p>}
+
+      {route && (
+        <>
+          <ol className="console-dag" aria-label={`Failover chain for ${route.capability} on ${route.asset}`}>
+            <li className="console-node console-node--fixed">
+              <span className="console-node__role">Entry</span>
+              <strong>Client request</strong>
+              <small className="muted">
+                /api/{route.capability === "quote" ? "quote" : route.capability}
+              </small>
+            </li>
+
+            <li className="console-edge" aria-hidden>→</li>
+
+            <li className="console-node console-node--fixed">
+              <span className="console-node__role">Cache</span>
+              <strong>
+                {cacheHitRate === null ? "no lookups yet" : `${fmt(cacheHitRate * 100, 1)}% hit`}
+              </strong>
+              <small className="muted">TTL {Math.round(route.cacheTtlMs / 1000)}s · in-process</small>
+            </li>
+
+            <li className="console-edge" aria-hidden>
+              <span className="console-edge__label">miss</span>→
+            </li>
+
+            {route.nodes.map((node, index) => {
+              const style = ROUTE_STATE_STYLE[node.state];
+              return (
+                <li
+                  key={node.provider}
+                  className={`console-node ${node.active ? "is-active" : ""} ${node.state !== "ready" ? "is-down" : ""}`}
+                >
+                  <span className="console-node__role">
+                    Rank {node.rank}
+                    {node.active && <span className="console-node__badge">serving</span>}
+                  </span>
+                  <strong>{node.label}</strong>
+                  <span style={{ color: style.tone }} className="console-node__state">
+                    <span aria-hidden>{style.icon}</span> {style.label}
+                  </span>
+                  <small className="muted console-wrap">{node.detail}</small>
+                  {/* Configured-and-unreachable is not the same as skipped: dispatch
+                      will still try this node and only fall through after it times
+                      out, so the routing state and the probe are both shown. */}
+                  {node.health && !node.health.ok && (
+                    <small className="console-warn console-wrap">
+                      <span aria-hidden>▲</span> health probe: {node.health.detail} Dispatch will
+                      still attempt it and fail over after the timeout.
+                    </small>
+                  )}
+                  <small className="muted">
+                    {node.latency.n
+                      ? `p50 ${fmt(node.latency.p50 ?? 0, 0)}ms · n=${node.latency.n}`
+                      : "no samples yet"}
+                  </small>
+                  {node.state === "simulated_outage" ? (
+                    <button
+                      type="button"
+                      className="console-node__action"
+                      onClick={() => onAction("clear_outage", { provider: node.provider })}
+                      disabled={locked || busyAction !== null}
+                      title={locked ? "Operator actions are disabled on this deployment." : "Restore this provider now."}
+                    >
+                      Restore
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="console-node__action"
+                      onClick={() => onAction("simulate_outage", { provider: node.provider, ttlMs: UI_OUTAGE_MS })}
+                      disabled={locked || busyAction !== null || node.state !== "ready"}
+                      title={
+                        locked
+                          ? "Operator actions are disabled on this deployment."
+                          : node.state === "ready"
+                            ? "Simulate an outage here and watch the next request move down the chain."
+                            : "Only a routable provider can be knocked out."
+                      }
+                    >
+                      Simulate outage
+                    </button>
+                  )}
+                  {index < route.nodes.length - 1 && (
+                    <span className="console-node__next" aria-hidden>
+                      falls through ↓
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+
+          <p className="console-dag-note">
+            {route.activeProvider ? (
+              <>
+                A request for <strong>{route.capability}</strong> on a <strong>{route.asset}</strong> symbol
+                would be served by <strong>{route.nodes.find((n) => n.active)?.label}</strong>
+                {route.nodes.filter((n) => n.rank < (route.nodes.find((x) => x.active)?.rank ?? 0)).length > 0
+                  && ", after skipping every higher-ranked provider above it"}.
+              </>
+            ) : (
+              <>
+                No provider in this chain is routable — a request for {route.capability} on a {route.asset}{" "}
+                symbol would return <strong>503</strong> with the full skip list attached.
+              </>
+            )}
+          </p>
+        </>
+      )}
+    </div>
+  );
+}

@@ -1,132 +1,10 @@
 import { NextResponse } from "next/server";
 
+import { openBBReadiness } from "@/lib/providers/openbb-health";
 import { capabilityMatrix, providerStatus } from "@/lib/providers/registry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-// The standalone Python service can spend a few seconds importing OpenBB on a
-// cold Vercel instance. Match the adapter's bounded request window so a healthy
-// cold start is not reported as an unavailable provider.
-const OPENBB_HEALTH_TIMEOUT_MS = 7_500;
-const OPENBB_HEALTH_TTL_MS = 30_000;
-
-interface OpenBBReadiness {
-  ready: boolean;
-  statusDetail: string;
-}
-
-interface OpenBBHealthCache extends OpenBBReadiness {
-  origin: string;
-  expiresAt: number;
-}
-
-let openbbHealthCache: OpenBBHealthCache | null = null;
-let openbbHealthInFlight: { origin: string; promise: Promise<OpenBBReadiness> } | null = null;
-
-function parseOpenBBOrigin(raw: string): string | null {
-  try {
-    const parsed = new URL(raw);
-    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.origin : null;
-  } catch {
-    return null;
-  }
-}
-
-function unavailableOpenBBDetail(payload: unknown): string {
-  if (!payload || typeof payload !== "object") {
-    return "OpenBB service reachable but returned an invalid health response.";
-  }
-
-  const detail = "detail" in payload && typeof payload.detail === "string"
-    ? payload.detail.toLowerCase()
-    : "";
-
-  // Deliberately classify rather than echo the gateway's text. Import errors and
-  // provider exceptions can contain local paths, hosts or credential fragments.
-  if (detail.includes("not installed") || detail.includes("no module named")) {
-    return "OpenBB service is missing its provider runtime.";
-  }
-  if (detail.includes("credential") || detail.includes("api key")) {
-    return "OpenBB service needs provider credentials.";
-  }
-  return "OpenBB service reported unavailable.";
-}
-
-async function probeOpenBB(origin: string): Promise<OpenBBReadiness> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), OPENBB_HEALTH_TIMEOUT_MS);
-  const token = process.env.OPENBB_API_TOKEN?.trim();
-
-  try {
-    const response = await fetch(new URL("/api/research/openbb/health", `${origin}/`), {
-      cache: "no-store",
-      headers: {
-        accept: "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        return { ready: false, statusDetail: "Gateway does not expose the OpenBB health route." };
-      }
-      if (response.status === 401 || response.status === 403) {
-        return { ready: false, statusDetail: "Gateway rejected the OpenBB health check." };
-      }
-      return {
-        ready: false,
-        statusDetail: `Gateway health check returned HTTP ${response.status}.`,
-      };
-    }
-
-    let payload: unknown;
-    try {
-      payload = await response.json();
-    } catch {
-      return { ready: false, statusDetail: "Gateway returned invalid JSON for OpenBB health." };
-    }
-
-    if (payload && typeof payload === "object" && "ok" in payload && payload.ok === true) {
-      return { ready: true, statusDetail: "OpenBB service reachable and ready." };
-    }
-    return { ready: false, statusDetail: unavailableOpenBBDetail(payload) };
-  } catch {
-    return controller.signal.aborted
-      ? { ready: false, statusDetail: "OpenBB health check timed out." }
-      : { ready: false, statusDetail: "OpenBB service is unreachable." };
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-async function openBBReadiness(configuredUrl: string): Promise<OpenBBReadiness> {
-  const origin = parseOpenBBOrigin(configuredUrl);
-  if (!origin) {
-    return { ready: false, statusDetail: "Configured OpenBB service URL is invalid." };
-  }
-
-  const now = Date.now();
-  if (openbbHealthCache?.origin === origin && openbbHealthCache.expiresAt > now) {
-    return {
-      ready: openbbHealthCache.ready,
-      statusDetail: openbbHealthCache.statusDetail,
-    };
-  }
-
-  if (openbbHealthInFlight?.origin === origin) return openbbHealthInFlight.promise;
-
-  const promise = probeOpenBB(origin).then((result) => {
-    openbbHealthCache = { origin, expiresAt: Date.now() + OPENBB_HEALTH_TTL_MS, ...result };
-    return result;
-  }).finally(() => {
-    if (openbbHealthInFlight?.origin === origin) openbbHealthInFlight = null;
-  });
-
-  openbbHealthInFlight = { origin, promise };
-  return promise;
-}
 
 /**
  * GET /api/providers — the data-supply control panel.
@@ -141,6 +19,12 @@ async function openBBReadiness(configuredUrl: string): Promise<OpenBBReadiness> 
  * request, and the honest answer is usually one of exactly four things: no key,
  * quota spent, breaker open, or upstream down. All four are here.
  *
+ * `providerStatus` now also carries the breaker's full shape, recent latency
+ * percentiles and any operator-simulated outage; they ride along in the spread
+ * below. `GET /api/system/health` is the superset this endpoint became a subset
+ * of — it adds the failover graph, cache accounting and the operator guard —
+ * but this contract is unchanged, because things already point at it.
+ *
  * **No credential material is returned** — only the *names* of the variables.
  * A status endpoint echoing "key: sk-abc…" as a convenience is how secrets get
  * into logs and screenshots.
@@ -153,6 +37,13 @@ export async function GET() {
     : { ready: false, statusDetail: "Not configured; set OPENBB_API_URL." };
 
   const providers = baseProviders.map((provider) => {
+    if (provider.simulatedOutage) {
+      return {
+        ...provider,
+        ready: false,
+        statusDetail: "Held out of routing by an operator-simulated outage.",
+      };
+    }
     if (!provider.configured) {
       return {
         ...provider,

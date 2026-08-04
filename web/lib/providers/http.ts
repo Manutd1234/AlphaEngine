@@ -10,6 +10,7 @@
 
 import { NextResponse } from "next/server";
 
+import { redact } from "../observability";
 import { isValidSymbol } from "./registry";
 import { Attempt, Priority, ProviderError } from "./types";
 
@@ -53,7 +54,11 @@ export function failure(err: unknown): NextResponse {
     const status = err.status && err.status >= 400 && err.status < 600 ? err.status : 503;
     return NextResponse.json(
       {
-        error: err.message,
+        // A provider message can quote an upstream error body verbatim, and two
+        // of these vendors put the API key in the URL that such a body echoes
+        // back. Redaction belongs on the way out of the process, not at a call
+        // site someone will forget.
+        error: redact(err.message),
         provider: err.provider,
         attempts,
         // `.every` on an empty list is vacuously true, and an adapter-level
