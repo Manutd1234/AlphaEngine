@@ -3,9 +3,17 @@
 Unified execution-quality, pre-trade-risk and strategy-research infrastructure
 with three deliberately separate surfaces: an always-on stateful gateway, a
 Vercel web workspace, and an independent **text-only Telegram companion**. The
-companion reports portfolio, market-data and operational state; it never opens
-or authenticates a web UI, submits an order, changes the kill switch, or queues
-a backtest.
+companion reports portfolio, market-data and operational state, and — for
+explicitly listed operators only — can halt, resume or flatten the book. It
+never opens or authenticates a web UI and never queues a backtest.
+
+That last capability is opt-in and off by default. `TELEGRAM_CONTROL_USER_IDS`
+is a **second, narrower allow-list** than the one that grants read access, and
+it is empty unless someone sets it: being able to see the book does not imply
+being able to stop the desk. Every control command requires a single-use,
+user-bound, 90-second confirmation code, so a forwarded message cannot fire one,
+and `/flatten` submits through the same twelve pre-trade gates as a manual order
+rather than around them.
 
 | | Module | Where it runs |
 |---|---|---|
@@ -17,7 +25,7 @@ a backtest.
  Telegram companion                 Next.js web workspace
  text cards + pushed alerts       portfolio · research · execution
  /portfolio /quote /status              │                 │
-          │ read-only                    │ portfolio       │ OpenBB
+          │ read + gated controls        │ portfolio       │ OpenBB
           ▼                              ▼                 ▼
  FastAPI gateway (always-on)       same gateway      OpenBB Service
  A: L2 ingest + smart routing      server-only       stateless Vercel API
@@ -45,7 +53,7 @@ organised around that rather than around a feature list.
 | See real liquidity before committing | Consolidated L2 ladder, streaming from Binance + Bybit |
 | Know the cost *before* the fill | `/tca BTCUSDT 100000 BUY` — VWAP, slippage in bps, routing split |
 | Not send the order with the extra zero | 12 pre-trade gates in ~0.2 ms; a rejection returns the full check vector |
-| Stop everything, now | Authenticated gateway console or `POST /api/risk/kill`; Telegram reports the resulting halt but cannot trigger it |
+| Stop everything, now | Authenticated gateway console, `POST /api/risk/kill`, the web workspace's risk panel, or `/halt` in Telegram — the last two gated by a separate operator allow-list and a typed confirmation |
 | Know when something breaks without watching a screen | Push alerts on breaches, halts, and `/watch` liquidity thresholds |
 
 ### 📁 Portfolio managers — *"Where am I exposed, and which limit binds first?"*
@@ -122,7 +130,7 @@ Directory** to `web`. Everything else auto-detects.
 cd web
 npm install
 npm run dev    # http://localhost:3000
-npm test       # 198 tests
+npm test       # 237 tests
 ```
 
 Live-feed endpoints (public, no key):
@@ -236,10 +244,13 @@ TELEGRAM_MODE=webhook
 TELEGRAM_WEBHOOK_SECRET=<unique-random-32+-character-secret>
 ```
 
-The bot sends phone-friendly text cards and pushed alerts only. It has no web
-button or link, order submission, kill/resume control or backtest submission
-command. Its operational commands are read-only; only subscription and watch
-preferences can change through chat.
+The bot sends phone-friendly text cards and pushed alerts. It has no web button
+or link and no backtest submission command. Sixty-one of its sixty-four commands
+are read-only; the exceptions are `/halt`, `/resume` and `/flatten`, which
+require membership of `TELEGRAM_CONTROL_USER_IDS` — separate from the read
+allow-list and empty by default — plus a single-use confirmation code bound to
+the requesting user. Subscription and watch preferences also change through
+chat.
 
 #### Safe bootstrap and token rotation
 

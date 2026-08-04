@@ -14,6 +14,10 @@ from modules.risk_proxy import RiskGateway, TokenBucket
 from modules.schemas import OrderRequest
 from modules.tca_engine import BookState, TCAEngine
 from modules.telegram import (
+    _BOOTSTRAP_COMMANDS,
+    TelegramBot,
+)  # noqa: F401
+from modules.telegram import (
     BOT_COMMANDS,
     BOT_DESCRIPTION,
     BOT_SHORT_DESCRIPTION,
@@ -102,12 +106,56 @@ class TestRegistry:
         assert len(BOT_SHORT_DESCRIPTION) <= 120
         assert len(BOT_DESCRIPTION) <= 512
 
-    def test_trading_and_web_controls_are_absent(self):
+    def test_the_companion_stays_text_only_and_never_links_a_web_ui(self):
+        """
+        Unchanged half of the original boundary. The bot gained risk controls,
+        but it is still a text client: it does not open, embed or link to the
+        web workspace, and it cannot queue work.
+        """
         names = {spec.name for spec in COMMAND_SPECS}
-        assert names.isdisjoint({"kill", "resume", "app", "backtest"})
+        assert names.isdisjoint({"app", "backtest"}), "no web-UI launch, no job submission"
         source = "\n".join([command_catalogue(), help_text(), BOT_DESCRIPTION]).lower()
         for forbidden in ("web_app", "telegram mini app", "vercel.app", "http://", "https://"):
             assert forbidden not in source
+
+    def test_trading_controls_exist_but_are_gated(self):
+        """
+        The boundary that MOVED, stated explicitly.
+
+        This test previously asserted the companion had no controls at all. It
+        now has three, and what replaces "they are absent" is not nothing — it
+        is the set of properties that make them safe to expose over chat. If a
+        future change relaxes any of these, this fails rather than the change
+        passing silently because the old assertion was simply deleted.
+        """
+        controls = {spec.name for spec in COMMAND_SPECS if spec.category == "Controls"}
+        assert controls == {"halt", "resume", "flatten"}
+
+        # 1. Never reachable before authorisation.
+        assert not ({"/halt", "/resume", "/flatten"} & _BOOTSTRAP_COMMANDS)
+
+        # 2. A second, narrower allow-list — reading the book does not imply
+        #    being able to stop the desk, and it is empty by default.
+        assert hasattr(settings, "telegram_control_user_ids")
+        bot = TelegramBot()
+        object.__setattr__(settings, "telegram_control_user_ids", [])
+        assert bot._may_control("anyone") is False, "control must fail closed"
+
+        # 3. A single-use, user-bound, expiring challenge — never a bare command.
+        object.__setattr__(settings, "telegram_control_user_ids", ["operator"])
+
+        # A fresh challenge per assertion: consuming BURNS the code even on a
+        # failed attempt, deliberately, so a wrong guess cannot be followed by a
+        # brute force against a still-live four-digit code.
+        code = bot._issue_challenge("operator", "halt", None)
+        assert bot._consume_challenge("other_user", "halt", code)[0] is False, "bound to the user"
+
+        code = bot._issue_challenge("operator", "halt", None)
+        assert bot._consume_challenge("operator", "flatten", code)[0] is False, "bound to the action"
+
+        code = bot._issue_challenge("operator", "halt", None)
+        assert bot._consume_challenge("operator", "halt", code)[0] is True
+        assert bot._consume_challenge("operator", "halt", code)[0] is False, "single use"
 
     def test_help_is_grouped_and_has_exact_syntax(self):
         catalogue = command_catalogue()

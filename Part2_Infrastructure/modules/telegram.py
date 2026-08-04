@@ -210,6 +210,20 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("unwatch", "Alerts · Remove one or all liquidity watches", "Alerts", "/unwatch [SYMBOL]", "/unwatch BTCUSDT", "_cmd_unwatch"),
     CommandSpec("watches", "Alerts · Show active liquidity watches", "Alerts", "/watches", "/watches", "_cmd_watches"),
     CommandSpec("digest", "Alerts · On-demand portfolio and systems digest", "Alerts", "/digest", "/digest", "_cmd_digest"),
+
+    # Quant risk — read-only, computed by modules/quant_risk.py against the
+    # gateway's own book so a number quoted here matches the web tab's.
+    CommandSpec("var", "Risk · Portfolio VaR and expected shortfall", "Risk", "/var [1d|4h|1h]", "/var", "_cmd_var", ("cvar",)),
+    CommandSpec("riskcontrib", "Risk · Which position carries the risk", "Risk", "/riskcontrib [INTERVAL]", "/riskcontrib", "_cmd_riskcontrib", ("contrib",)),
+    CommandSpec("correlation", "Risk · Cross-position correlation matrix", "Risk", "/correlation [INTERVAL]", "/correlation", "_cmd_correlation", ("corr",)),
+    CommandSpec("regime", "Risk · Volatility regime for an instrument", "Risk", "/regime SYMBOL [INTERVAL]", "/regime BTCUSDT", "_cmd_regime"),
+    CommandSpec("size", "Risk · Kelly position sizing from a win rate", "Risk", "/size WIN_RATE PAYOFF [EQUITY]", "/size 0.55 1.8", "_cmd_size", ("kelly",)),
+    CommandSpec("dislocation", "Risk · Cross-venue crossed-book check", "Risk", "/dislocation SYMBOL", "/dislocation BTCUSDT", "_cmd_dislocation", ("arb",)),
+
+    # Controls — gated by TELEGRAM_CONTROL_USER_IDS and a typed challenge.
+    CommandSpec("halt", "Controls · Engage the kill switch", "Controls", "/halt [SYMBOL] | /halt CODE", "/halt", "_cmd_halt"),
+    CommandSpec("resume", "Controls · Release the kill switch", "Controls", "/resume [SYMBOL] | /resume CODE", "/resume", "_cmd_resume"),
+    CommandSpec("flatten", "Controls · Close every open position", "Controls", "/flatten [SYMBOL] | /flatten CODE", "/flatten", "_cmd_flatten"),
 )
 
 _COMMAND_BY_NAME: dict[str, CommandSpec] = {}
@@ -319,6 +333,11 @@ class TelegramBot:
         self._seen_updates: set[int] = set()
         self._seen_update_order: deque[int] = deque(maxlen=2048)
         self._rate_windows: dict[str, deque[float]] = {}
+        # Pending control confirmations, keyed by user. Single-use and
+        # time-boxed — see `_issue_challenge`. In-process on purpose: a restart
+        # invalidating every pending kill-switch confirmation is the safe
+        # direction to fail.
+        self._challenges: dict[str, dict[str, Any]] = {}
         self.me: dict[str, Any] | None = None
         self.started_at: float | None = None
         self.updates_handled = 0
@@ -333,6 +352,20 @@ class TelegramBot:
     @property
     def allowed_user_ids(self) -> list[str]:
         return list(settings.telegram_allowed_user_ids)
+
+    @property
+    def control_user_ids(self) -> list[str]:
+        return list(settings.telegram_control_user_ids)
+
+    def _may_control(self, user_id: str) -> bool:
+        """
+        Reading the book must not imply being able to stop the desk.
+
+        Fails closed on an empty list, like the read allow-list — an
+        unconfigured deployment has a reporting bot, not a dormant kill switch
+        waiting for someone to guess a command.
+        """
+        return bool(self.control_user_ids) and user_id in self.control_user_ids
 
     async def api(self, method: str, **params) -> dict[str, Any]:
         if not self._client:
@@ -1014,6 +1047,314 @@ class TelegramBot:
     # ------------------------------------------------------------------ #
     # Execution analytics
     # ------------------------------------------------------------------ #
+    # ------------------------------------------------------------------ #
+    # Controls — the only commands that change risk state
+    # ------------------------------------------------------------------ #
+    #
+    # Three gates, because a chat message is an unusually easy thing to send by
+    # accident and an unusually easy thing to forward:
+    #
+    #   1. TELEGRAM_CONTROL_USER_IDS — separate from the read allow-list, empty
+    #      by default. Being able to see the book does not imply being able to
+    #      stop the desk.
+    #   2. A per-user, single-use challenge code that expires. `/halt` alone
+    #      never acts; it returns a code that `/halt <code>` consumes. A copied
+    #      or forwarded command cannot fire, because the code is bound to the
+    #      user who asked and dies after one use.
+    #   3. The gateway's own audit log, which records the actor either way.
+
+    _CHALLENGE_TTL_SECONDS = 90.0
+
+    def _issue_challenge(self, user_id: str, action: str, symbol: str | None) -> str:
+        import secrets
+
+        code = f"{secrets.randbelow(9000) + 1000}"
+        self._challenges[user_id] = {
+            "code": code, "action": action, "symbol": symbol,
+            "expires": time.monotonic() + self._CHALLENGE_TTL_SECONDS,
+        }
+        return code
+
+    def _consume_challenge(self, user_id: str, action: str, code: str) -> tuple[bool, str | None, str]:
+        """Returns ``(ok, symbol, reason)``. Single use: the entry is dropped either way."""
+        pending = self._challenges.pop(user_id, None)
+        if not pending:
+            return False, None, "No pending confirmation — run the command without a code first."
+        if time.monotonic() > float(pending["expires"]):
+            return False, None, "That confirmation expired. Start again."
+        if pending["action"] != action:
+            return False, None, f"That code was issued for /{pending['action']}, not /{action}."
+        if pending["code"] != code:
+            return False, None, "Wrong code."
+        return True, pending["symbol"], ""
+
+    async def _control(self, action: str, args, chat_id, actor) -> None:
+        user_id = str(actor)
+        if not self._may_control(user_id):
+            await self.send_message(chat_id, text_card(
+                f"⛔ /{action} not permitted", "CONTROL ALLOW-LIST",
+                [
+                    f"User ID <code>{esc(user_id)}</code> may read this book but not change it.",
+                    "Control commands need <code>TELEGRAM_CONTROL_USER_IDS</code>, which is separate from the read allow-list and empty by default.",
+                ],
+                source="Risk gateway", next_commands="/risk · /headroom"))
+            return
+
+        code_arg = args[0] if args and args[0].isdigit() and len(args[0]) == 4 else None
+        symbol_arg = None
+        if args and not code_arg:
+            candidate = args[0].upper()
+            if re.fullmatch(r"[A-Z0-9.\-]{1,20}", candidate):
+                symbol_arg = candidate
+
+        if not code_arg:
+            code = self._issue_challenge(user_id, action, symbol_arg)
+            scope = f"<code>{esc(symbol_arg)}</code>" if symbol_arg else "the whole book"
+            impact = {
+                "halt": "Every subsequent pre-trade check rejects until it is released.",
+                "resume": "Pre-trade checks start accepting again.",
+                "flatten": "A closing MARKET order is submitted for every open position, through the same risk gates as any other order.",
+            }[action]
+            await self.send_message(chat_id, text_card(
+                f"⚠ Confirm /{action}", "ACTION NOT YET TAKEN",
+                [
+                    f"Scope <b>{scope}</b>",
+                    impact,
+                    "",
+                    f"Reply <code>/{action} {code}</code> within {int(self._CHALLENGE_TTL_SECONDS)}s.",
+                    "<i>The code is single-use and tied to your user ID, so a forwarded message cannot fire it.</i>",
+                ],
+                source="Risk gateway", next_commands="/risk · /positions"))
+            return
+
+        ok, symbol, reason = self._consume_challenge(user_id, action, code_arg)
+        if not ok:
+            await self.send_message(chat_id, text_card(f"✕ /{action} not confirmed", "REJECTED", [esc(reason)], source="Risk gateway", next_commands=f"/{action}"))
+            return
+
+        try:
+            result = await self._apply_control(action, symbol, user_id)
+        except Exception as exc:  # noqa: BLE001 - surfaced to the operator verbatim
+            log.exception("control %s failed", action)
+            await self.send_message(chat_id, text_card(f"✕ /{action} failed", "GATEWAY ERROR", [esc(str(exc)[:200])], source="Risk gateway", next_commands="/status"))
+            return
+
+        await self.send_message(chat_id, text_card(f"✅ /{action} applied", "RISK STATE CHANGED", result, source="Risk gateway · audited", next_commands="/risk · /positions · /orders"))
+
+    async def _apply_control(self, action: str, symbol: str | None, actor: str) -> list[str]:
+        gateway = self.gateway
+        if action == "halt":
+            kill = await gateway.trigger_kill(reason="manual halt from Telegram", actor=actor, symbol=symbol)
+            return [f"Kill switch <code>{'ACTIVE' if kill.active else 'INACTIVE'}</code>", f"Halted symbols <code>{esc(', '.join(sorted(kill.halted_symbols)) or 'ALL')}</code>", f"Actor <code>{esc(actor)}</code>"]
+        if action == "resume":
+            kill = await gateway.release_kill(actor=actor, symbol=symbol)
+            return [f"Kill switch <code>{'ACTIVE' if kill.active else 'INACTIVE'}</code>", f"Halted symbols <code>{esc(', '.join(sorted(kill.halted_symbols)) or 'none')}</code>", f"Actor <code>{esc(actor)}</code>"]
+
+        # flatten — composed from the gateway's own order path, one position at a
+        # time so the submissions cannot race its exposure accounting.
+        report = self._portfolio_report()
+        positions = [
+            p for p in report["exposure"]["positions"]
+            if p.get("notional") and str(p.get("side")).upper() in {"LONG", "SHORT"}
+            and (not symbol or str(p.get("symbol")) == symbol)
+        ]
+        if not positions:
+            return ["Nothing to close — the book is already flat."]
+
+        from modules.schemas import OrderRequest
+
+        lines: list[str] = []
+        for position in positions:
+            side = "SELL" if str(position["side"]).upper() == "LONG" else "BUY"
+            # The same entry point a manual order uses — `gateway.submit`, which
+            # returns the full check vector for accepted and rejected orders
+            # alike. Routing around it would make flatten a second, unaudited
+            # execution path.
+            decision = await gateway.submit(
+                OrderRequest(
+                    symbol=str(position["symbol"]), side=side,
+                    notional=abs(float(position["notional"])),
+                    order_type="MARKET", strategy="flatten",
+                ),
+                source=actor,
+            )
+            mark = "✓" if decision.accepted else "✕"
+            blocked = ", ".join(decision.rejected_by) or (decision.reason or "rejected")
+            reason = "" if decision.accepted else f" · {esc(str(blocked)[:60])}"
+            lines.append(f"{mark} {side} <code>{esc(position['symbol'])}</code> <code>{_money(abs(float(position['notional'])))}</code>{reason}")
+        accepted_n = sum(1 for line in lines if line.startswith("✓"))
+        lines.append(f"<i>{accepted_n}/{len(lines)} accepted. A rejection is the pre-trade gates firing, not a transport failure.</i>")
+        return lines
+
+    async def _cmd_halt(self, args, chat_id, actor) -> None:
+        await self._control("halt", args, chat_id, actor)
+
+    async def _cmd_resume(self, args, chat_id, actor) -> None:
+        await self._control("resume", args, chat_id, actor)
+
+    async def _cmd_flatten(self, args, chat_id, actor) -> None:
+        await self._control("flatten", args, chat_id, actor)
+
+    # ------------------------------------------------------------------ #
+    # Quant risk (read-only)
+    # ------------------------------------------------------------------ #
+    async def _risk_inputs(self, interval: str):
+        """
+        Bars for every symbol currently held, plus the book they belong to.
+
+        Returns ``(report, covariance)``. Both can be ``None`` — a flat book has
+        no risk to decompose and too little shared history cannot produce a
+        covariance, and the callers say which of those happened rather than
+        printing zeros.
+        """
+        from modules.quant_risk import build_covariance, returns_from_closes
+
+        report = self._portfolio_report()
+        positions = [p for p in report["exposure"]["positions"] if p.get("notional")]
+        if not positions:
+            return report, None
+
+        returns: dict[str, list[float]] = {}
+        for position in positions[:8]:
+            symbol = str(position["symbol"])
+            payload = await self._bars_payload(symbol, interval, 180, "crypto")
+            rows = payload.get("data") or [] if payload.get("ok") else []
+            closes = [float(r["close"]) for r in rows if _finite(r.get("close")) is not None]
+            if len(closes) >= 30:
+                returns[symbol] = returns_from_closes(closes)
+        return report, build_covariance(returns, interval)
+
+    async def _cmd_var(self, args, chat_id, actor) -> None:
+        from modules.quant_risk import portfolio_risk
+
+        interval = args[0] if args and args[0] in {"15m", "1h", "4h", "1d"} else "1d"
+        report, cov = await self._risk_inputs(interval)
+        equity = float(report["equity"]["current"] or 0.0)
+        risk = portfolio_risk(report["exposure"]["positions"], cov, equity) if cov else None
+        if not risk:
+            await self.send_message(chat_id, text_card("📉 Portfolio VaR", "NOT MEASURABLE", ["A flat book, or too little shared price history to build a covariance.", "VaR needs at least 30 aligned bars per held symbol."], source="quant_risk", next_commands="/exposure · /positions"))
+            return
+        lines = [
+            f"Book vol    <code>{_percent(risk.annualised_volatility)}</code> annualised",
+            f"VaR 95 1d   <code>{_money(risk.var95)}</code> · <code>{_percent(risk.var95 / equity if equity else 0)}</code> of equity",
+            f"CVaR 95     <code>{_money(risk.cvar95)}</code> average loss beyond it",
+            f"Window      <code>{risk.observations}</code> {interval} bars",
+        ]
+        if risk.diversification_ratio:
+            lines.append(f"Diversif.   <code>{_number(risk.diversification_ratio)}x</code> vs the weighted parts")
+        lines.append("<i>Parametric normal. A fat left tail is understated by construction — /riskcontrib shows where it sits.</i>")
+        await self.send_message(chat_id, text_card("📉 Portfolio VaR", "LIVE BOOK", lines, source="quant_risk · parametric", next_commands="/riskcontrib · /correlation · /stress"))
+
+    async def _cmd_riskcontrib(self, args, chat_id, actor) -> None:
+        from modules.quant_risk import portfolio_risk
+
+        interval = args[0] if args and args[0] in {"15m", "1h", "4h", "1d"} else "1d"
+        report, cov = await self._risk_inputs(interval)
+        equity = float(report["equity"]["current"] or 0.0)
+        risk = portfolio_risk(report["exposure"]["positions"], cov, equity) if cov else None
+        if not risk:
+            await self.send_message(chat_id, text_card("🎯 Risk contribution", "NOT MEASURABLE", ["A flat book, or too little shared price history."], source="quant_risk", next_commands="/exposure"))
+            return
+        lines = ["<b>SYMBOL      NOTIONAL   RISK</b>"]
+        for c in risk.contributions:
+            tag = " hedge" if c.contribution_share < 0 else ""
+            lines.append(f"{esc(c.symbol):<11} <code>{_percent(c.share_of_gross)}</code>  <code>{_percent(c.contribution_share)}</code>{tag}")
+        lines.append("<i>Share of notional is not share of risk. A hedge contributes a negative amount.</i>")
+        await self.send_message(chat_id, text_card("🎯 Risk contribution", f"{risk.observations} {interval.upper()} BARS", lines, source="quant_risk", next_commands="/var · /correlation"))
+
+    async def _cmd_correlation(self, args, chat_id, actor) -> None:
+        interval = args[0] if args and args[0] in {"15m", "1h", "4h", "1d"} else "1d"
+        _, cov = await self._risk_inputs(interval)
+        if not cov or len(cov.symbols) < 2:
+            await self.send_message(chat_id, text_card("🔗 Correlation", "NOT MEASURABLE", ["Two or more held symbols with shared history are required."], source="quant_risk", next_commands="/exposure"))
+            return
+        head = "        " + " ".join(f"{s[:4]:>6}" for s in cov.symbols)
+        lines = [f"<code>{esc(head)}</code>"]
+        for i, symbol in enumerate(cov.symbols):
+            row = " ".join(f"{cov.correlation[i][j]:>6.2f}" for j in range(len(cov.symbols)))
+            lines.append(f"<code>{esc(f'{symbol[:6]:<7}')}{esc(row)}</code>")
+        worst = max(
+            ((cov.correlation[i][j], cov.symbols[i], cov.symbols[j])
+             for i in range(len(cov.symbols)) for j in range(i + 1, len(cov.symbols))),
+            default=(0.0, "", ""),
+        )
+        if worst[0] >= 0.8:
+            lines.append(f"<i>⚠ {esc(worst[1])} and {esc(worst[2])} at {worst[0]:.2f} — close to one position of their combined size.</i>")
+        lines.append(f"<i>Measured over {cov.observations} {interval} bars. Diversification is only real while these stay low.</i>")
+        await self.send_message(chat_id, text_card("🔗 Correlation", "LIVE BOOK", lines, source="quant_risk", next_commands="/riskcontrib · /var"))
+
+    async def _cmd_regime(self, args, chat_id, actor) -> None:
+        from modules.quant_risk import returns_from_closes, volatility_regime
+
+        symbol, interval, count, asset = self._bar_args(args)
+        payload = await self._bars_payload(symbol, interval, max(count, 120), asset)
+        rows = payload.get("data") or [] if payload.get("ok") else []
+        closes = [float(r["close"]) for r in rows if _finite(r.get("close")) is not None]
+        regime = volatility_regime(returns_from_closes(closes), interval=interval) if len(closes) > 45 else None
+        if not regime:
+            await self.send_message(chat_id, self._openbb_error("regime", payload if not payload.get("ok") else {"error": "at least 45 bars are required"}))
+            return
+        lines = [
+            f"Regime      <code>{regime.regime}</code>",
+            f"Current vol <code>{_percent(regime.current_vol)}</code> annualised",
+            f"Baseline    <code>{_percent(regime.baseline_vol)}</code> · ratio <code>{_number(regime.ratio)}x</code>",
+            f"Percentile  <code>{_percent(regime.percentile)}</code> of its own history",
+            f"<i>{esc(regime.note)}</i>",
+        ]
+        await self.send_message(chat_id, text_card(f"🌡 {symbol} volatility regime", f"{regime.observations} WINDOWS · {interval}", lines, source="quant_risk", next_commands=f"/range {symbol} · /var"))
+
+    async def _cmd_size(self, args, chat_id, actor) -> None:
+        from modules.quant_risk import kelly_fraction
+
+        if len(args) < 2:
+            await self.send_message(chat_id, text_card("📐 Position sizing", "USAGE", ["<code>/size WIN_RATE PAYOFF [EQUITY]</code>", "Example <code>/size 0.55 1.8</code>", "Win rate as a fraction, payoff as avg win ÷ avg loss."], source="quant_risk", next_commands="/backtests"))
+            return
+        try:
+            win_rate = float(args[0])
+            payoff = float(args[1])
+        except ValueError:
+            await self.send_message(chat_id, text_card("📐 Position sizing", "BAD INPUT", ["Win rate and payoff must be numbers."], source="quant_risk", next_commands="/help size"))
+            return
+        equity = float(args[2]) if len(args) > 2 and args[2].replace(".", "", 1).isdigit() else float(self._portfolio_report()["equity"]["current"] or 0.0)
+        sizing = kelly_fraction(win_rate, payoff, equity)
+        lines = [
+            f"Full Kelly  <code>{_percent(sizing.full_kelly)}</code>",
+            f"Recommended <code>{_percent(sizing.recommended_fraction)}</code> · <code>{_money(sizing.recommended_notional)}</code>",
+            f"Edge/trade  <code>{_number(sizing.edge_per_trade, 3, signed=True)}</code>",
+            f"On equity   <code>{_money(equity)}</code>",
+            f"<i>{esc(sizing.note)}</i>",
+        ]
+        await self.send_message(chat_id, text_card("📐 Kelly sizing", "QUARTER KELLY" if not sizing.capped_by else sizing.capped_by.upper().replace("_", " "), lines, source="quant_risk", next_commands="/headroom · /limits"))
+
+    async def _cmd_dislocation(self, args, chat_id, actor) -> None:
+        from modules.quant_risk import find_dislocation
+
+        symbol = self._symbol(args)
+        books = [
+            {
+                "venue": b.venue, "ok": bool(b.mid), "best_bid": b.best_bid, "best_ask": b.best_ask,
+                "bids": [[lvl[0], lvl[1]] for lvl in (b.bids or [])[:1]],
+                "asks": [[lvl[0], lvl[1]] for lvl in (b.asks or [])[:1]],
+            }
+            for b in self.tca.get_books(symbol, depth=5)
+        ]
+        found = find_dislocation(books, symbol)
+        if not found:
+            await self.send_message(chat_id, text_card(f"⚖ {symbol} dislocation", "NEEDS TWO VENUES", ["Two venues with a live book are required to compare."], source="TCA engine", next_commands="/feedstatus · /venues"))
+            return
+        if found.crossed:
+            lines = [
+                f"<b>CROSSED</b> buy <code>{esc(found.buy_venue)}</code> · sell <code>{esc(found.sell_venue)}</code>",
+                f"Edge        <code>{_number(found.edge_bps)} bps</code> · <code>{_number(found.edge_usd_per_unit)}</code>/unit",
+                f"Executable  <code>{_number(found.executable_size, 4)}</code> units · <code>{_money(found.executable_notional)}</code>",
+                f"<i>{esc(found.note)}</i>",
+            ]
+            state = "CROSSED"
+        else:
+            lines = [f"Best spread <code>{_number(-found.edge_bps)} bps</code> across venues", f"<i>{esc(found.note)}</i>"]
+            state = "NORMAL"
+        await self.send_message(chat_id, text_card(f"⚖ {symbol} dislocation", state, lines, source="Cross-venue TCA engine", next_commands=f"/book {symbol} · /tca {symbol} 100000 BUY"))
+
     async def _cmd_book(self, args, chat_id, actor) -> None:
         symbol = self._symbol(args)
         books = [book for book in self.tca.get_books(symbol, depth=5) if book.mid]

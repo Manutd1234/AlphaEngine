@@ -157,6 +157,22 @@ class Settings:
             if value.strip()
         ]
     )
+    # A SECOND, narrower allow-list for the commands that change risk state
+    # (/halt, /resume, /flatten). Deliberately separate from the read allow-list
+    # above and empty by default, so the companion stays reporting-only unless
+    # someone opts in explicitly.
+    #
+    # The two answer different questions. Being on the read list means "you may
+    # see this book". Being here means "you may stop the desk". Collapsing them
+    # would mean every analyst added for /portfolio silently gains a kill
+    # switch, which is exactly the accident this split exists to prevent.
+    telegram_control_user_ids: list[str] = field(
+        default_factory=lambda: [
+            value.strip()
+            for value in _env("TELEGRAM_CONTROL_USER_IDS").split(",")
+            if value.strip()
+        ]
+    )
     # Legacy compatibility only. Alert destinations are configured separately.
     telegram_allowed_chat_ids: list[str] = field(
         default_factory=lambda: [c.strip() for c in _env("TELEGRAM_ALLOWED_CHAT_IDS").split(",") if c.strip()]

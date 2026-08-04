@@ -5,8 +5,10 @@
 A long-lived FastAPI service that combines all three assessment options into one
 institutional-grade execution and portfolio gateway. It also hosts an optional,
 independent **text-only Telegram companion**. The companion reads authoritative
-state and delivers alerts; it does not open or authenticate a web interface,
-submit orders, change trading controls, or enqueue research.
+state and delivers alerts; it does not open or authenticate a web interface or
+enqueue research. Operators listed in `TELEGRAM_CONTROL_USER_IDS` — a separate,
+narrower allow-list than the read one, empty by default — may additionally halt,
+resume or flatten the book behind a single-use confirmation code.
 
 | | Module | What it does |
 |---|---|---|
