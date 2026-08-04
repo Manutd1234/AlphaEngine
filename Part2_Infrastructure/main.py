@@ -2,19 +2,19 @@
 AlphaEngine Trading Automation — FastAPI Central Gateway
 ========================================================
 
-Single process, three modules, two interfaces:
+Single process, three modules, and two deliberately independent clients:
 
-    Telegram text commands ─┐                    ┌─ Module A  TCA / L2 order book
-                            ├─ FastAPI gateway ──┼─ Module B  Pre-trade risk + kill switch
-    Telegram Mini App / Web ┘                    └─ Module C  Async backtest queue
-                                    │
-                            DuckDB audit log
+    Telegram text companion ─┐                   ┌─ Module A  TCA / L2 order book
+                             ├─ FastAPI gateway ─┼─ Module B  Pre-trade risk + kill switch
+    Web gateway console ─────┘                   └─ Module C  Async backtest queue
+                                     │
+                             DuckDB audit log
 
 Run:
     uvicorn main:app --reload --port 8000
 
 Everything is optional except the gateway itself: with no Telegram token the
-REST API and web portal work unchanged; with no network the market-data layer
+REST API and web console work unchanged; with no network the market-data layer
 falls back to a clearly-tagged synthetic book.
 """
 
@@ -59,7 +59,7 @@ from modules.schemas import (
     VenueBook,
 )
 from modules.tca_engine import get_engine
-from modules.telegram import get_bot, validate_init_data
+from modules.telegram import get_bot
 
 logging.basicConfig(
     level=logging.INFO,
@@ -109,7 +109,7 @@ async def lifespan(app: FastAPI):
     log.info("job backend    : %s", queue.stats()["backend"])
     log.info("backtest engine: %s", "vectorbt" if VECTORBT_AVAILABLE else "numpy fallback")
     log.info("telegram       : %s", bot.mode)
-    log.info("portal         : %s", settings.miniapp_url)
+    log.info("gateway console: %s", settings.gateway_ui_url)
 
     try:
         yield
@@ -134,7 +134,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# The Mini App runs inside Telegram's webview on a telegram.org origin.
+# The gateway console and separately deployed web workspace are ordinary web
+# clients. Telegram is intentionally not part of web authentication.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -152,22 +153,14 @@ if static_dir.exists():
 # Auth
 # --------------------------------------------------------------------------- #
 async def trader_identity(
-    x_telegram_init_data: str | None = Header(default=None),
     authorization: str | None = Header(default=None),
 ) -> str:
     """Resolve the caller to an audit actor.
 
-    Priority: signed Telegram Mini App payload > bearer token > anonymous.
-    ``REQUIRE_AUTH=1`` turns the anonymous path into a 401 — the setting a real
-    deployment would use.
+    Server-side bearer token > anonymous. ``REQUIRE_AUTH=1`` turns the
+    anonymous path into a 401 — the setting a real deployment should use.
+    Telegram has its own user allow-list and never authenticates web requests.
     """
-    if x_telegram_init_data and settings.telegram_bot_token:
-        payload = validate_init_data(x_telegram_init_data, settings.telegram_bot_token)
-        if payload:
-            user = payload.get("user") or {}
-            return f"tg:{user.get('username') or user.get('id') or 'miniapp'}"
-        raise HTTPException(status_code=401, detail="invalid Telegram initData signature")
-
     if authorization and authorization.startswith("Bearer "):
         if authorization.removeprefix("Bearer ").strip() == settings.web_api_token:
             return "web:token"
@@ -207,7 +200,7 @@ async def health() -> dict[str, Any]:
 
 
 @app.get("/api/config", tags=["meta"])
-async def api_config() -> dict[str, Any]:
+async def api_config(_actor: str = Depends(trader_identity)) -> dict[str, Any]:
     return {
         "symbols": settings.symbols,
         "venues": settings.venues,
@@ -287,7 +280,7 @@ async def submit_order(order: OrderRequest, actor: str = Depends(trader_identity
 
 
 @app.get("/api/risk/state", response_model=RiskState, tags=["B · Risk"])
-async def risk_state() -> RiskState:
+async def risk_state(_actor: str = Depends(trader_identity)) -> RiskState:
     return get_gateway().state()
 
 
@@ -309,7 +302,7 @@ async def portfolio(_actor: str = Depends(trader_identity)) -> dict[str, Any]:
 
 
 @app.get("/api/risk/limits", tags=["B · Risk"])
-async def risk_limits() -> dict[str, float]:
+async def risk_limits(_actor: str = Depends(trader_identity)) -> dict[str, float]:
     return settings.risk_limits_dict()
 
 
@@ -348,13 +341,16 @@ async def submit_backtest(req: BacktestRequest, actor: str = Depends(trader_iden
 
 
 @app.get("/api/jobs", tags=["C · Research"])
-async def list_jobs(limit: int = Query(default=25, ge=1, le=100)) -> dict[str, Any]:
+async def list_jobs(
+    limit: int = Query(default=25, ge=1, le=100),
+    _actor: str = Depends(trader_identity),
+) -> dict[str, Any]:
     queue = get_queue()
     return {"stats": queue.stats(), "jobs": [j.to_status().model_dump(mode="json") for j in queue.list(limit)]}
 
 
 @app.get("/api/jobs/{job_id}", tags=["C · Research"])
-async def job_status(job_id: str) -> dict[str, Any]:
+async def job_status(job_id: str, _actor: str = Depends(trader_identity)) -> dict[str, Any]:
     record = get_queue().get(job_id)
     if not record:
         raise HTTPException(404, f"unknown job {job_id}")
@@ -420,22 +416,31 @@ async def openbb_fundamentals(
 # Audit
 # --------------------------------------------------------------------------- #
 @app.get("/api/audit/orders", tags=["audit"])
-async def audit_orders(limit: int = Query(default=50, ge=1, le=500)) -> list[dict[str, Any]]:
+async def audit_orders(
+    limit: int = Query(default=50, ge=1, le=500),
+    _actor: str = Depends(trader_identity),
+) -> list[dict[str, Any]]:
     return get_audit().recent_orders(limit)
 
 
 @app.get("/api/audit/events", tags=["audit"])
-async def audit_events(limit: int = Query(default=50, ge=1, le=500)) -> list[dict[str, Any]]:
+async def audit_events(
+    limit: int = Query(default=50, ge=1, le=500),
+    _actor: str = Depends(trader_identity),
+) -> list[dict[str, Any]]:
     return get_audit().recent_events(limit)
 
 
 @app.get("/api/audit/backtests", tags=["audit"])
-async def audit_backtests(limit: int = Query(default=20, ge=1, le=200)) -> list[dict[str, Any]]:
+async def audit_backtests(
+    limit: int = Query(default=20, ge=1, le=200),
+    _actor: str = Depends(trader_identity),
+) -> list[dict[str, Any]]:
     return get_audit().recent_backtests(limit)
 
 
 @app.get("/api/audit/stats", tags=["audit"])
-async def audit_stats() -> dict[str, Any]:
+async def audit_stats(_actor: str = Depends(trader_identity)) -> dict[str, Any]:
     return get_audit().execution_stats()
 
 
@@ -449,7 +454,7 @@ async def telegram_webhook(
 ) -> dict[str, bool]:
     """Telegram retries on non-2xx, so this always returns 200 and processes the
     update out-of-band — a slow command must never cause duplicate delivery."""
-    if settings.telegram_webhook_secret and x_telegram_bot_api_secret_token != settings.telegram_webhook_secret:
+    if not settings.telegram_webhook_secret or x_telegram_bot_api_secret_token != settings.telegram_webhook_secret:
         log.warning("webhook called with bad secret token")
         raise HTTPException(403, "bad secret token")
     update = await request.json()
@@ -472,7 +477,7 @@ async def root(request: Request) -> HTMLResponse:
 
 @app.get("/app", include_in_schema=False)
 @app.get("/ui", include_in_schema=False)  # alias
-async def miniapp(request: Request) -> HTMLResponse:
+async def gateway_console(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "miniapp.html", {"config": _ui_config()})
 
 
@@ -485,7 +490,9 @@ def _ui_config() -> dict[str, Any]:
         "backtest_max_combos": settings.backtest_max_combos,
         "engine": "vectorbt" if VECTORBT_AVAILABLE else "numpy",
         "version": settings.version,
-        "web_api_token": settings.web_api_token if not settings.require_auth else "",
+        # Never serialize a gateway credential into HTML. Protected consoles ask
+        # the operator for a bearer token and keep it only in page memory.
+        "auth_required": settings.require_auth,
     }
 
 

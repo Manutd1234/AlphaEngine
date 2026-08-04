@@ -1,8 +1,11 @@
 # AlphaEngine Trading Automation — NUSSIF Developer Analyst Case Study
 
-Unified execution-quality, pre-trade-risk and strategy-research infrastructure,
-reachable from a **Telegram bot**, a **Telegram Mini App** and a **Vercel web
-portal**.
+Unified execution-quality, pre-trade-risk and strategy-research infrastructure
+with three deliberately separate surfaces: an always-on stateful gateway, a
+Vercel web workspace, and an independent **text-only Telegram companion**. The
+companion reports portfolio, market-data and operational state; it never opens
+or authenticates a web UI, submits an order, changes the kill switch, or queues
+a backtest.
 
 | | Module | Where it runs |
 |---|---|---|
@@ -11,18 +14,22 @@ portal**.
 | **C** | Asynchronous parametric backtesting, deflated for multiple testing | gateway **and** Vercel |
 
 ```
-     Telegram bot            Telegram Mini App            Vercel research portal
-   /kill /risk /tca         DOM · risk · research          trends · params · verdict
-          │                          │                              │
-          └────────────┬─────────────┘                              │
-                       ▼                                            ▼
-          FastAPI gateway (always-on)                    Next.js serverless
-        A: L2 ingest, VWAP, smart routing                C: parameter sweeps
-        B: 12 pre-trade gates, kill switch                  DSR + walk-forward
-        C: vectorbt sweeps via job queue
-                       │
-              DuckDB audit log
+ Telegram companion                 Next.js web workspace
+ text cards + pushed alerts       portfolio · research · execution
+ /portfolio /quote /status              │                 │
+          │ read-only                    │ portfolio       │ OpenBB
+          ▼                              ▼                 ▼
+ FastAPI gateway (always-on)       same gateway      OpenBB Service
+ A: L2 ingest + smart routing      server-only       stateless Vercel API
+ B: risk state + kill switch       credentials       quote/bars/news/fundamentals
+ C: jobs + audit history
+          │
+   DuckDB audit log
 ```
+
+`ALPHAENGINE_GATEWAY_URL` and `OPENBB_API_URL` therefore identify different
+services. The former points to the long-lived authoritative portfolio gateway;
+the latter points to the stateless [`OpenBB_Service/`](OpenBB_Service/) project.
 
 ---
 
@@ -38,7 +45,7 @@ organised around that rather than around a feature list.
 | See real liquidity before committing | Consolidated L2 ladder, streaming from Binance + Bybit |
 | Know the cost *before* the fill | `/tca BTCUSDT 100000 BUY` — VWAP, slippage in bps, routing split |
 | Not send the order with the extra zero | 12 pre-trade gates in ~0.2 ms; a rejection returns the full check vector |
-| Stop everything, now | `/kill` — three characters, works one-thumbed on bad wifi |
+| Stop everything, now | Authenticated gateway console or `POST /api/risk/kill`; Telegram reports the resulting halt but cannot trigger it |
 | Know when something breaks without watching a screen | Push alerts on breaches, halts, and `/watch` liquidity thresholds |
 
 ### 📁 Portfolio managers — *"Where am I exposed, and which limit binds first?"*
@@ -59,7 +66,7 @@ about the *whole book*. The same numbers do not serve both, which is why
 
 | Need | Where |
 |---|---|
-| Test an idea across a parameter grid | Sweep in the Vercel portal, or `/backtest` from the bot |
+| Test an idea across a parameter grid | Sweep in the Vercel workspace or submit through the authenticated backtest API; Telegram only monitors jobs and completed results |
 | Not be fooled by the best of N draws | **Deflated Sharpe Ratio** — the hurdle a random search of the same size clears |
 | Know it generalises | Walk-forward: parameters chosen in-sample, scored on the next unseen fold |
 | See *robustness*, not just a winner | Sharpe surface — a plateau survives; an isolated peak is an overfit |
@@ -79,30 +86,30 @@ memory.
 
 ---
 
-## Two deployables
+## Three deployment units
 
 ### 1. `Part2_Infrastructure/` — the gateway (Python / FastAPI)
 
-Live order books, the risk gateway and the Telegram bot. Needs a long-lived
-process: it holds WebSocket subscriptions open and keeps risk state between
-requests.
+Live order books, the risk gateway and the optional text-only Telegram
+companion. This unit needs a long-lived process because it owns WebSocket
+subscriptions, portfolio state, the kill switch and the audit log.
 
 ```bash
 cd Part2_Infrastructure
 python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env          # add TELEGRAM_BOT_TOKEN to enable the bot
-uvicorn main:app --port 8000  # portal at http://localhost:8000/app
-pytest                        # 134 tests
+cp .env.example .env          # optional: configure the Telegram companion
+uvicorn main:app --port 8000  # gateway console at http://localhost:8000/app
+pytest
 ```
 
 Full documentation: [`Part2_Infrastructure/README.md`](Part2_Infrastructure/README.md)
 
 ### 2. `web/` — the research portal (Next.js / Vercel)
 
-Module C as a standalone deployable. It works keylessly for crypto; optional
-server-side environment variables connect vendor data and the read-only
-portfolio/OpenBB gateway proxy.
+The integrated desk workspace. It works keylessly for crypto; optional
+server-side variables connect its read-only portfolio proxy to the stateful
+gateway and its OpenBB adapter to the separate stateless service.
 
 **Deploy:** import this repo at <https://vercel.com/new> and set **Root
 Directory** to `web`. Everything else auto-detects.
@@ -130,6 +137,25 @@ See [`web/.env.example`](web/.env.example).
 
 Full documentation: [`web/README.md`](web/README.md)
 
+### 3. `OpenBB_Service/` — stateless research data (Python / FastAPI / Vercel)
+
+Quotes, bars, company news and fundamentals through pinned OpenBB YFinance
+fetchers. This project has no Telegram lifecycle, trading route, portfolio
+state, database or writable runtime dependency, so it can scale independently
+from the gateway.
+
+```bash
+cd OpenBB_Service
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+uvicorn app:app --port 8010
+pytest
+```
+
+Deploy it as a separate Vercel project with Root Directory
+`OpenBB_Service`, then use its HTTPS origin as `OPENBB_API_URL`. Full details:
+[`OpenBB_Service/README.md`](OpenBB_Service/README.md).
+
 ---
 
 ## Deployment
@@ -138,21 +164,25 @@ Full documentation: [`web/README.md`](web/README.md)
 
 Set **Project → Settings → Build & Deployment → Root Directory** to `web`.
 That is the only required setting; `web/` is a standard Next.js 16 app and
-every environment variable is optional for the research-only experience
+every environment variable is optional for the keyless crypto experience
 (provider keys extend coverage — see [`web/.env.example`](web/.env.example)).
-The integrated portfolio and OpenBB surfaces need a stable gateway origin:
+Connect portfolio and OpenBB independently:
 
 ```text
-ALPHAENGINE_GATEWAY_URL=https://gateway.example.com
-OPENBB_API_URL=https://gateway.example.com
+ALPHAENGINE_GATEWAY_URL=https://stateful-gateway.example.com
 ALPHAENGINE_GATEWAY_TOKEN=<same value as gateway WEB_API_TOKEN>
-# OPENBB_API_TOKEN=<only needed when research uses a separate token>
+
+OPENBB_API_URL=https://openbb-service.example.com
+OPENBB_API_TOKEN=<same value as the OpenBB service OPENBB_API_TOKEN>
 ```
 
-Set these for Production and Preview, then redeploy. `/api/providers` probes
-OpenBB health before marking it ready; the presence of a URL alone is not a
-health signal. The portfolio proxy validates the returned schema and preserves
-last-known data as explicitly stale during an outage.
+Set them for Production and Preview, then redeploy. Do not point
+`OPENBB_API_URL` at the stateful portfolio gateway in production. The
+standalone OpenBB service is stateless and independently scalable, while the
+gateway owns mutable book and risk state. `/api/providers` probes OpenBB health
+before marking it ready; a non-empty URL alone is not a health signal. The
+portfolio proxy validates the gateway schema and preserves last-known data as
+explicitly stale during an outage.
 
 There is deliberately **no root-level `vercel.json`**: a root config that ran
 `cd web && npm install` works only while the Root Directory is the repo root —
@@ -166,52 +196,82 @@ successful `next build`.
 `next` is pinned exactly (not `^`) so a deployment can never resolve to a
 different build than the one tested here.
 
-**Turn off Deployment Protection.** Settings → Deployment Protection → Vercel
-Authentication → **Disabled** if this case-assessment URL must be public. While
-it is on, every request redirects to
-`vercel.com/login`, so the Telegram Mini App webview opens a Vercel login page
-instead of the portal. Gateway credentials remain server-only in Vercel and the
-browser can access only the explicit read-only proxy routes.
+**Turn off Deployment Protection** only if this case-assessment URL must be
+public. Gateway and OpenBB credentials remain server-only in Vercel; the
+browser can access only the explicit same-origin proxy routes. Telegram is not
+an authentication path for this workspace.
 
-### Telegram webhook — gateway
+### Vercel — standalone OpenBB service (`OpenBB_Service/`)
+
+Create a second Vercel project with Root Directory `OpenBB_Service`. Configure
+a long random `OPENBB_API_TOKEN` there, then set the matching token and the new
+project's HTTPS origin in the `web` project. Keep the service read-only and do
+not add portfolio, order, Telegram, database or background-worker concerns to
+it. See [`OpenBB_Service/README.md`](OpenBB_Service/README.md) for its routes and
+deployment checks.
+
+### Telegram companion — gateway process, independent interface
 
 The bot runs in **webhook** mode whenever `PUBLIC_URL` is an `https://` origin,
-and falls back to **long-polling** when it is not. Nothing else changes: every
-command behaves identically on both transports.
-
-The kill switch is why the webhook must point at the gateway and not at Vercel.
-`/kill` has to reach the process that owns the risk state, and a serverless
-function cannot hold that state (nor the L2 WebSocket subscriptions Module A
-needs) between invocations.
-
-Give the gateway a public HTTPS origin — free, no account:
+and falls back to **long-polling** when it is not. Polling is the simplest local
+setup because it needs no public gateway URL. Webhook mode requires a stable
+HTTPS gateway origin and a unique random `TELEGRAM_WEBHOOK_SECRET` of at least
+32 characters:
 
 ```bash
-cloudflared tunnel --url http://localhost:8000
-#   https://<name>.trycloudflare.com
+PUBLIC_URL=https://gateway.example.com
+TELEGRAM_MODE=webhook
+TELEGRAM_WEBHOOK_SECRET=<unique-random-32+-character-secret>
 ```
 
-Put it in `.env` and restart; the bot registers the webhook itself on startup:
+The bot sends phone-friendly text cards and pushed alerts only. It has no web
+button or link, order submission, kill/resume control or backtest submission
+command. Its operational commands are read-only; only subscription and watch
+preferences can change through chat.
+
+#### Safe bootstrap and token rotation
+
+1. Create or rotate the bot token with `@BotFather`. Store it only in an
+   ignored `.env` file or deployment secret; never commit it or paste it into
+   source, screenshots, tickets or documentation.
+2. Start once with `TELEGRAM_ALLOWED_USER_IDS` empty. The bot fails closed and
+   exposes only `/start`, `/help`, `/commands`, `/about`, `/whoami` and
+   `/version`.
+3. Send `/whoami`, copy the reported **user ID** into
+   `TELEGRAM_ALLOWED_USER_IDS`, and restart. User IDs authorize commands;
+   destination chat IDs belong separately in `TELEGRAM_ALERT_CHAT_IDS`. Run
+   `/subscribe` once in each destination to bind it to an allow-listed owner.
+4. If a token appears in chat history or logs, use BotFather to revoke it,
+   replace the environment secret, and restart. Do not reuse the exposed value.
+
+#### Command catalogue
+
+The Telegram menu contains the full registry; `/help CATEGORY` and
+`/help COMMAND` provide syntax and examples without opening another interface.
+
+| Category | Commands |
+|---|---|
+| Essentials | `/start` `/help` `/commands` `/status` `/about` `/whoami` `/version` `/ping` |
+| Portfolio | `/portfolio` `/positions` `/pnl` `/exposure` `/concentration` `/headroom` `/risk` `/limits` `/attribution` |
+| Markets / OpenBB | `/openbb` `/quote` `/bars` `/trend` `/range` `/volume` `/news` `/fundamentals` `/snapshot` `/symbols` |
+| Execution analytics | `/book` `/spread` `/depth` `/tca` `/route` `/liquidity` `/venues` `/feedstatus` `/orders` `/fills` `/rejections` `/slippage` `/fees` |
+| Research monitoring | `/researchstatus` `/jobs` `/job` `/backtests` `/strategies` `/intervals` `/events` `/incidents` |
+| Alert preferences | `/subscribe` `/unsubscribe` `/subscriptions` `/watch` `/unwatch` `/watches` `/digest` |
+
+Representative examples:
 
 ```bash
-PUBLIC_URL=https://<name>.trycloudflare.com
-RESEARCH_PORTAL_URL=https://<your-project>.vercel.app
-TELEGRAM_MODE=auto        # -> webhook, because PUBLIC_URL is https
+/snapshot AAPL
+/bars AAPL 1d 5
+/portfolio
+/tca BTCUSDT 100000 BUY
+/watch BTCUSDT 100000 25
+/help markets
 ```
 
-Verify Telegram's own view of it:
-
-```bash
-curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getWebhookInfo"
-# url set, pending_update_count 0, and no last_error_message
-```
-
-A quick tunnel's hostname changes each restart. For anything long-lived use a
-named Cloudflare tunnel or a host with a stable domain, and update `PUBLIC_URL`.
-
-Webhook requests are rejected unless they carry the
-`X-Telegram-Bot-Api-Secret-Token` shared secret, so a forged POST to the public
-URL cannot trip the kill switch.
+Webhook requests are accepted only with Telegram's matching
+`X-Telegram-Bot-Api-Secret-Token` header. Long-polling and webhook delivery
+produce identical command responses.
 
 ---
 
@@ -236,9 +296,10 @@ cd Part2_Infrastructure && python tools/make_parity_fixture.py
 Everything a reviewer needs to check runs offline:
 
 ```bash
-cd Part2_Infrastructure && pytest        # 134 Python tests, ~10 s, no network
-cd web && npm install && npm test        # 83 TypeScript tests, no network
-bash tools/check_repo_complete.sh        # builds the *committed* tree, not the working tree
+cd Part2_Infrastructure && pytest         # stateful gateway + companion
+cd OpenBB_Service && pytest               # isolated stateless OpenBB API
+cd web && npm install && npm test         # TypeScript workspace
+bash tools/check_repo_complete.sh         # builds the *committed* tree, not the working tree
 ```
 
 The last one exists because of a real incident: a bare `lib/` pattern inherited
@@ -252,10 +313,17 @@ import-path case (macOS is case-insensitive; the deploy target is not).
 
 ## Security
 
-- `.env` is gitignored. **No token, key or secret is committed** — the Telegram
-  bot token lives only in a local `.env` and in the host's environment variables.
-- Mini App requests are authenticated by re-deriving Telegram's `initData` HMAC;
-  webhook requests are verified against a shared secret header.
+- `.env` is gitignored. **No token, key or secret is committed.** Telegram,
+  gateway and OpenBB tokens belong only in local or hosted environment secrets.
+- Telegram authorization uses stable `message.from.id` values from
+  `TELEGRAM_ALLOWED_USER_IDS`, not group chat membership. An empty allow-list is
+  fail-closed and exposes bootstrap help only.
+- Webhook mode requires a non-default high-entropy secret and validates
+  `X-Telegram-Bot-Api-Secret-Token`. Polling mode needs no public endpoint.
+- The Telegram companion cannot submit orders, trip or release the kill switch,
+  enqueue backtests, authenticate a browser, or open a web workspace.
+- The web project keeps `ALPHAENGINE_GATEWAY_TOKEN` and `OPENBB_API_TOKEN`
+  server-side and connects to two separate services with distinct URLs.
 - Risk limits are a frozen dataclass with env overrides: changing a hard limit
   requires a deploy, and therefore a code review.
 
@@ -268,7 +336,7 @@ import-path case (macOS is case-insensitive; the deploy target is not).
 | 1 | Up-to-date CV | `CV_Ian_Wangsa.pdf` (placed alongside this README in the zip) |
 | 2 | HTML export of the Part 1 notebook | `Part1_Data_Handling/Part1_Data_Handling.html` |
 | 3 | Original Part 1 notebook | `Part1_Data_Handling/Part1_Data_Handling.ipynb` |
-| 4 | All code, outputs and supporting files for Part 2 | `Part2_Infrastructure/` + `web/` |
+| 4 | All code, outputs and supporting files for Part 2 | `Part2_Infrastructure/` + `web/` + `OpenBB_Service/` |
 
 ### Part 1 — data handling
 

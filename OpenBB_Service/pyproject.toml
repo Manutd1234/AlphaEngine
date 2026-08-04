@@ -1,0 +1,25 @@
+[project]
+name = "alphaengine-openbb-service"
+version = "1.0.0"
+description = "Stateless read-only OpenBB/YFinance service for AlphaEngine"
+requires-python = ">=3.12,<3.15"
+dependencies = [
+  "fastapi==0.136.3",
+  "openbb-core==1.6.13",
+  "openbb-yfinance==1.6.3",
+  "uvicorn[standard]==0.40.0",
+  "yfinance==1.5.2",
+]
+
+[project.optional-dependencies]
+test = [
+  "httpx==0.28.1",
+  "pytest==9.1.1",
+]
+
+[tool.vercel]
+entrypoint = "app:app"
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]

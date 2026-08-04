@@ -119,7 +119,8 @@ _DDL = [
         username      VARCHAR,
         subscribed_at TIMESTAMP,
         alerts        BOOLEAN,
-        watches       VARCHAR
+        watches       VARCHAR,
+        user_id       VARCHAR
     )
     """,
     """
@@ -173,6 +174,19 @@ class AuditLog:
                 if self.backend == "sqlite":
                     stmt = stmt.replace("TIMESTAMP", "TEXT").replace("DOUBLE", "REAL")
                 self._conn.execute(stmt)
+
+            # Subscriber delivery is authorised by Telegram *user* ID, never
+            # by chat ID.  Older databases did not persist that ownership
+            # metadata.  Add the column without inferring an owner from the
+            # legacy ``username`` field: existing rows remain NULL and are
+            # intentionally fail-closed until an authorised user explicitly
+            # re-subscribes or updates their watch.
+            subscriber_cursor = self._conn.execute("SELECT * FROM subscribers LIMIT 0")
+            subscriber_columns = {
+                str(column[0]).lower() for column in (subscriber_cursor.description or [])
+            }
+            if "user_id" not in subscriber_columns:
+                self._conn.execute("ALTER TABLE subscribers ADD COLUMN user_id VARCHAR")
             if self.backend == "sqlite":
                 self._conn.commit()
 
@@ -401,14 +415,18 @@ class AuditLog:
     # stop delivering risk alerts — the failure mode where nobody notices the
     # kill switch tripped because the alert list was in memory.
     def upsert_subscriber(self, chat_id: str, username: str | None,
-                          alerts: bool = True, watches: list[dict] | None = None) -> None:
+                          alerts: bool = True, watches: list[dict] | None = None,
+                          *, user_id: str | None = None) -> None:
         existing = self.get_subscriber(chat_id)
         payload = json.dumps(watches if watches is not None else (existing or {}).get("watches", []))
+        owner_id = str(user_id) if user_id is not None else None
         self._exec("DELETE FROM subscribers WHERE chat_id = ?", (str(chat_id),))
         self._exec(
-            "INSERT INTO subscribers VALUES (?,?,?,?,?)",
+            "INSERT INTO subscribers "
+            "(chat_id, username, subscribed_at, alerts, watches, user_id) "
+            "VALUES (?,?,?,?,?,?)",
             (str(chat_id), username,
-             (existing or {}).get("subscribed_at") or _utcnow(), alerts, payload),
+             (existing or {}).get("subscribed_at") or _utcnow(), alerts, payload, owner_id),
         )
 
     def get_subscriber(self, chat_id: str) -> dict[str, Any] | None:

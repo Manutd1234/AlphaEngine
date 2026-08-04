@@ -8,11 +8,15 @@ work?"** with the multiple-testing correction applied, not just the headline
 Sharpe; the result now carries forward into the execution and data workflows.
 
 The public market, research and data workflows need no backend, database or API
-keys. An optional server-side connection to the included AlphaEngine gateway
+keys. An optional server-side connection to the stateful AlphaEngine gateway
 adds the authoritative portfolio/risk view without exposing gateway credentials
-to the browser. Provider keys (also optional) extend coverage from crypto into
-equities, fundamentals, news and open-web research through a seven-provider
-registry — see [Data providers](#data-providers).
+to the browser. A separate stateless OpenBB service adds quotes, bars, news and
+fundamentals. Provider keys (also optional) extend coverage through the
+seven-provider registry — see [Data providers](#data-providers).
+
+The Telegram companion is a separate text-only notification client. The web
+workspace never embeds it or authenticates through it, and the bot never opens
+or controls this UI.
 
 ---
 
@@ -25,9 +29,21 @@ registry — see [Data providers](#data-providers).
    and fails **after** a successful `next build` with
    *"No Output Directory named 'public' found"*.
 3. Deploy. There are no required variables for keyless crypto research. For the
-   integrated PM/OpenBB experience, set `ALPHAENGINE_GATEWAY_URL` and
-   `OPENBB_API_URL` to the stable FastAPI gateway origin; set
-   `ALPHAENGINE_GATEWAY_TOKEN` to its `WEB_API_TOKEN`. Then redeploy.
+   integrated PM view, set `ALPHAENGINE_GATEWAY_URL` to the long-lived gateway
+   and `ALPHAENGINE_GATEWAY_TOKEN` to its `WEB_API_TOKEN`. For OpenBB, deploy
+   [`../OpenBB_Service`](../OpenBB_Service) separately and set
+   `OPENBB_API_URL` plus the matching `OPENBB_API_TOKEN`. Then redeploy.
+
+```text
+ALPHAENGINE_GATEWAY_URL=https://stateful-gateway.example.com
+ALPHAENGINE_GATEWAY_TOKEN=<gateway WEB_API_TOKEN>
+
+OPENBB_API_URL=https://openbb-service.example.com
+OPENBB_API_TOKEN=<OpenBB service token>
+```
+
+These URLs must not be collapsed into one production origin. The gateway owns
+mutable portfolio and risk state; the OpenBB service is read-only and stateless.
 
 Locally:
 
@@ -152,7 +168,7 @@ public endpoints; each key adds capability without touching code.
 | Massive (ex-Polygon.io) | bars¹, quote, news, reference | 5/min, EOD | `MASSIVE_API_KEY` |
 | Alpha Vantage | quote, bars, fundamentals, news+sentiment | 25/day | `ALPHAVANTAGE_API_KEY` |
 | Firecrawl | web search¹, scrape¹ | 1,000 credits/mo | `FIRECRAWL_API_KEY` |
-| OpenBB | aggregator via the Python gateway | n/a | `OPENBB_API_URL` |
+| OpenBB | stateless OpenBB/YFinance service | n/a | `OPENBB_API_URL` + `OPENBB_API_TOKEN` |
 
 ¹ = ranked first for that capability. Full signup pointers in
 [`.env.example`](.env.example).
@@ -177,13 +193,14 @@ free tiers behave like one dependable feed:
   an interface with one in-memory implementation precisely so Vercel KV/Redis
   is a drop-in swap, and `/api/providers` states the scope in its payload.
 
-OpenBB is the odd one out: it is a Python *library*, not a hosted API, so it
-runs inside the FastAPI gateway (`modules/research.py`) and the portal's
-adapter is a client of the gateway's `/api/research/openbb/*` routes. Install
-the pinned runtime from `Part2_Infrastructure/requirements-openbb.txt`, run
-`openbb-build`, and use a stable gateway origin. `/api/providers` actively
-probes the OpenBB health route, so a non-empty but stale URL is never shown as
-ready.
+OpenBB is the odd one out: it is a Python library, so this repository packages
+it as an independent API in [`../OpenBB_Service`](../OpenBB_Service). That
+service uses pinned provider fetchers directly and exposes only health, quote,
+bars, news and fundamentals routes. It has no trading endpoints, Telegram
+lifecycle, portfolio state, database or writable runtime dependency. Deploy it
+as its own Vercel project and point `OPENBB_API_URL` to that project—not to the
+stateful portfolio gateway. `/api/providers` actively probes the OpenBB
+readiness route, so a non-empty but stale URL is never shown as ready.
 
 ### Streaming vs snapshots
 
@@ -316,8 +333,17 @@ need a long-lived process, which is why they are not deployed here:
 - **Module A** — live L2 order books from Binance and Bybit over WebSocket, with
   VWAP, slippage and cross-venue smart routing.
 - **Module B** — a pre-trade risk gateway (12 gates in ~0.2 ms) with an emergency
-  kill switch, driven from Telegram.
+  kill switch controlled only through authenticated gateway surfaces.
 
 Serverless functions cannot hold a WebSocket subscription open or keep risk state
-between invocations, so those run on the always-on gateway and are reachable from
-the Telegram bot and its Mini App.
+between invocations, so those run on the always-on gateway. This workspace reads
+portfolio state through its server-only proxy. The Telegram companion is a
+separate, text-only and operationally read-only client of the same authoritative
+state: it can report halts, risk, portfolio and execution quality, but it cannot
+open this workspace, submit orders, change the kill switch or queue a backtest.
+
+OpenBB is separate again: the web adapter calls the stateless
+[`../OpenBB_Service`](../OpenBB_Service) using `OPENBB_API_URL` and
+`OPENBB_API_TOKEN`. Portfolio reads call the long-lived gateway using
+`ALPHAENGINE_GATEWAY_URL` and `ALPHAENGINE_GATEWAY_TOKEN`. Both token pairs stay
+server-side and should be independently rotatable.

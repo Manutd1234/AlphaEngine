@@ -76,7 +76,7 @@ class Settings:
     environment: str = field(default_factory=lambda: _env("ENVIRONMENT", "development"))
     host: str = field(default_factory=lambda: _env("HOST", "0.0.0.0"))
     port: int = field(default_factory=lambda: _env_int("PORT", 8000))
-    # Public base URL of this service (needed for Telegram webhook + Mini App button).
+    # Public base URL of this service (needed only for Telegram webhook delivery).
     public_url: str = field(default_factory=lambda: _env("PUBLIC_URL", "").rstrip("/"))
 
     # ---- Data / persistence ------------------------------------------------
@@ -145,8 +145,19 @@ class Settings:
     # ---- Telegram ----------------------------------------------------------
     telegram_bot_token: str = field(default_factory=lambda: _env("TELEGRAM_BOT_TOKEN"))
     # Shared secret echoed by Telegram in X-Telegram-Bot-Api-Secret-Token.
-    telegram_webhook_secret: str = field(default_factory=lambda: _env("TELEGRAM_WEBHOOK_SECRET", "alphaengine-dev-secret"))
-    # Chat IDs authorised to issue commands. Empty => open (dev only, logged loudly).
+    telegram_webhook_secret: str = field(default_factory=lambda: _env("TELEGRAM_WEBHOOK_SECRET"))
+    # Stable Telegram *user* IDs authorised to read operational data. Empty is
+    # fail-closed: only bootstrap commands such as /whoami remain available.
+    # Fall back to the legacy private-chat setting so existing local configs do
+    # not break; group deployments should always set ALLOWED_USER_IDS explicitly.
+    telegram_allowed_user_ids: list[str] = field(
+        default_factory=lambda: [
+            value.strip()
+            for value in _env("TELEGRAM_ALLOWED_USER_IDS", _env("TELEGRAM_ALLOWED_CHAT_IDS")).split(",")
+            if value.strip()
+        ]
+    )
+    # Legacy compatibility only. Alert destinations are configured separately.
     telegram_allowed_chat_ids: list[str] = field(
         default_factory=lambda: [c.strip() for c in _env("TELEGRAM_ALLOWED_CHAT_IDS").split(",") if c.strip()]
     )
@@ -162,17 +173,10 @@ class Settings:
     telegram_mode: str = field(default_factory=lambda: _env("TELEGRAM_MODE", "auto").lower())
     telegram_api_base: str = field(default_factory=lambda: _env("TELEGRAM_API_BASE", "https://api.telegram.org"))
 
-    # ---- External research portal (Vercel) ---------------------------------
-    # The Next.js strategy-research UI. Deployed separately because a serverless
-    # runtime cannot hold the L2 WebSocket subscriptions or the risk state that
-    # Modules A and B depend on — so the gateway keeps those and links out to it.
-    research_portal_url: str = field(
-        default_factory=lambda: _env("RESEARCH_PORTAL_URL", "").rstrip("/")
-    )
-
     # ---- Web UI auth -------------------------------------------------------
-    # Mini App requests are authenticated by validating Telegram initData HMAC.
-    # In a plain browser (no Telegram) we fall back to this bearer token.
+    # The gateway console and external web clients use a server-side bearer
+    # token. Telegram is an independent notification client and is not an auth
+    # provider for either web interface.
     web_api_token: str = field(default_factory=lambda: _env("WEB_API_TOKEN", "alphaengine-dev-token"))
     require_auth: bool = field(default_factory=lambda: _env_bool("REQUIRE_AUTH", False))
 
@@ -194,7 +198,7 @@ class Settings:
         return "/telegram/webhook"
 
     @property
-    def miniapp_url(self) -> str:
+    def gateway_ui_url(self) -> str:
         base = self.public_url or f"http://{self.host}:{self.port}"
         return f"{base}/app"
 

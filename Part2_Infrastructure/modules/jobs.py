@@ -17,8 +17,8 @@ Two interchangeable backends behind one interface:
   can be scaled horizontally. This is the production topology described in the
   blueprint; see ``celery_tasks.py`` and ``worker.py``.
 
-The abstraction matters more than the broker: the API surface, the Mini App and
-the bot never learn which one is running.
+The abstraction matters more than the broker: the API surface, gateway console
+and independent notification bot never learn which one is running.
 """
 
 from __future__ import annotations

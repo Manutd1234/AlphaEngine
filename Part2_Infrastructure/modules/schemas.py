@@ -1,4 +1,4 @@
-"""Pydantic request/response contracts shared by the REST API, Mini App and bot."""
+"""Pydantic request/response contracts shared by the REST API and gateway console."""
 
 from __future__ import annotations
 

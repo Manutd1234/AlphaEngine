@@ -1,5 +1,5 @@
 /**
- * OpenBB — the aggregator, reached over HTTP because it is a Python library.
+ * OpenBB — the aggregator, reached through the independent Python service.
  *
  * OpenBB is not a hosted REST API like the other six. It is a Python package
  * that federates *other* vendors behind one schema (`obb.equity.price.quote`,
@@ -7,14 +7,13 @@
  * TypeScript process to call.
  *
  * Rather than reimplement its normalisation in TS — which would be a second,
- * silently diverging copy — the AlphaEngine FastAPI gateway hosts it and exposes
- * `/api/research/openbb/*`, and this adapter is a client for that. The Python
- * side is where OpenBB actually runs; see
- * `Part2_Infrastructure/modules/research.py`.
+ * silently diverging copy — the standalone OpenBB service exposes
+ * `/api/research/openbb/*`, and this adapter is its client. The Python side is
+ * where the OpenBB provider actually runs; see `OpenBB_Service/`.
  *
- * The consequence worth stating: this provider's availability is our gateway's
- * availability, not OpenBB's. It is configured only when `OPENBB_API_URL` points
- * at a reachable gateway, and it is ranked mid-pack — valuable because it can
+ * The consequence worth stating: this provider's availability is the service's
+ * availability, not a shared portfolio gateway's. It is configured only when
+ * `OPENBB_API_URL` points at that service, and it is ranked mid-pack — valuable because it can
  * reach vendors we have not integrated directly, but it adds a network hop and a
  * process we own to the failure surface, so it should not sit in front of a
  * provider we can call in one hop.
@@ -39,12 +38,10 @@ function endpoint(ctx: FetchCtx, path: string, params: Record<string, string>): 
   return `${base}/api/research/openbb/${path}?${new URLSearchParams(params)}`;
 }
 
-function gatewayRequest(ctx: FetchCtx, path: string, params: Record<string, string>): Promise<unknown> {
-  // OpenBB and the portfolio book may share the same protected AlphaEngine
-  // gateway. Keep the bearer credential server-side and allow a dedicated
-  // token when operators split research into its own process.
-  const token = process.env.OPENBB_API_TOKEN?.trim()
-    || process.env.ALPHAENGINE_GATEWAY_TOKEN?.trim();
+function serviceRequest(ctx: FetchCtx, path: string, params: Record<string, string>): Promise<unknown> {
+  // OpenBB is an independent, read-only market-data service. Never reuse the
+  // portfolio gateway credential for it; each service has its own trust scope.
+  const token = process.env.OPENBB_API_TOKEN?.trim();
   return ctx.json(endpoint(ctx, path, params), {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
@@ -52,9 +49,9 @@ function gatewayRequest(ctx: FetchCtx, path: string, params: Record<string, stri
 
 function assertOk(payload: unknown): Record<string, unknown> {
   const o = obj(payload);
-  // The gateway reports an OpenBB provider failure as {ok:false, error:"..."}
+  // The service reports an OpenBB provider failure as {ok:false, error:"..."}
   // with HTTP 200, so that a missing downstream key is a *routing* signal here
-  // rather than a 500 that the breaker would count against the gateway itself.
+  // rather than a 500 that the breaker would count against the service itself.
   if (o["ok"] === false) {
     throw new ProviderError(ID, str(o["error"]) ?? "openbb call failed", 424, false);
   }
@@ -68,18 +65,18 @@ export const openbb: Adapter = {
     docs: "https://docs.openbb.co/platform",
     capabilities: ["quote", "bars", "news", "fundamentals"],
     assets: ["equity", "crypto"],
-    // The URL is the credential: unset means the gateway is not deployed.
+    // The URL is the configuration signal: unset means the service is not deployed.
     keyEnv: "OPENBB_API_URL",
     baseUrlEnv: "OPENBB_API_URL",
     // Whatever OpenBB's downstream limits are, they are the downstream's. We do
     // not model a budget we cannot observe.
     quota: null,
     rank: { quote: 6, bars: 6, news: 5, fundamentals: 4 },
-    signup: "Set OPENBB_API_URL to an AlphaEngine gateway running `pip install openbb`.",
+    signup: "Deploy OpenBB_Service and set OPENBB_API_URL to its stable HTTPS origin.",
   },
 
   async quote(symbol: string, asset: AssetClass, ctx: FetchCtx): Promise<Quote> {
-    const o = assertOk(await gatewayRequest(ctx, "quote", { symbol, asset }));
+    const o = assertOk(await serviceRequest(ctx, "quote", { symbol, asset }));
     const r = obj(o["data"]);
     const price = num(r["price"]);
     if (price == null) throw new ProviderError(ID, `no quote for ${symbol}`, 404, false);
@@ -107,7 +104,7 @@ export const openbb: Adapter = {
     ctx: FetchCtx,
   ): Promise<OhlcvBar[]> {
     const o = assertOk(
-      await gatewayRequest(ctx, "bars", { symbol, asset, interval, limit: String(limit) }),
+      await serviceRequest(ctx, "bars", { symbol, asset, interval, limit: String(limit) }),
     );
     const bars: OhlcvBar[] = [];
     for (const row of arr(o["data"])) {
@@ -130,7 +127,7 @@ export const openbb: Adapter = {
 
   async news(symbols: string[], limit: number, ctx: FetchCtx): Promise<NewsItem[]> {
     const o = assertOk(
-      await gatewayRequest(ctx, "news", { symbols: symbols.join(","), limit: String(limit) }),
+      await serviceRequest(ctx, "news", { symbols: symbols.join(","), limit: String(limit) }),
     );
     return arr(o["data"])
       .map((row): NewsItem | null => {
@@ -153,7 +150,7 @@ export const openbb: Adapter = {
   },
 
   async fundamentals(symbol: string, ctx: FetchCtx): Promise<Fundamentals> {
-    const o = assertOk(await gatewayRequest(ctx, "fundamentals", { symbol }));
+    const o = assertOk(await serviceRequest(ctx, "fundamentals", { symbol }));
     const r = obj(o["data"]);
     return {
       symbol,

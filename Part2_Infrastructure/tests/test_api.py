@@ -1,11 +1,9 @@
-"""Gateway-level tests: REST contract, Telegram auth, audit persistence."""
+"""Gateway-level tests: REST contract, client separation, audit persistence."""
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import time
-from urllib.parse import urlencode
+from dataclasses import replace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -126,32 +124,82 @@ class TestJobs:
         assert client.get("/api/jobs/deadbeef").status_code == 404
 
 
+class TestReadAuthentication:
+    SENSITIVE_COLLECTIONS = (
+        "/api/config",
+        "/api/risk/state",
+        "/api/risk/limits",
+        "/api/jobs",
+        "/api/audit/orders",
+        "/api/audit/events",
+        "/api/audit/backtests",
+        "/api/audit/stats",
+    )
+
+    def test_local_mode_keeps_sensitive_reads_available(self, client, monkeypatch):
+        monkeypatch.setattr(main, "settings", replace(main.settings, require_auth=False))
+
+        for path in self.SENSITIVE_COLLECTIONS:
+            assert client.get(path).status_code == 200, path
+        # Local mode reaches the handler, so an unknown job remains a 404 rather
+        # than being intercepted by authentication.
+        assert client.get("/api/jobs/deadbeef").status_code == 404
+
+    def test_auth_mode_requires_bearer_for_sensitive_reads(self, client, monkeypatch):
+        token = "pytest-gateway-bearer"
+        monkeypatch.setattr(
+            main,
+            "settings",
+            replace(main.settings, require_auth=True, web_api_token=token),
+        )
+
+        for path in (*self.SENSITIVE_COLLECTIONS, "/api/jobs/deadbeef"):
+            response = client.get(path)
+            assert response.status_code == 401, path
+            assert response.json()["error"] == "authentication required"
+
+    def test_auth_mode_accepts_valid_bearer_and_rejects_invalid_one(self, client, monkeypatch):
+        token = "pytest-gateway-bearer"
+        monkeypatch.setattr(
+            main,
+            "settings",
+            replace(main.settings, require_auth=True, web_api_token=token),
+        )
+        headers = {"Authorization": f"Bearer {token}"}
+
+        for path in self.SENSITIVE_COLLECTIONS:
+            assert client.get(path, headers=headers).status_code == 200, path
+        assert client.get("/api/jobs/deadbeef", headers=headers).status_code == 404
+
+        invalid = client.get(
+            "/api/risk/state",
+            headers={"Authorization": "Bearer wrong-token"},
+        )
+        assert invalid.status_code == 401
+        assert invalid.json()["error"] == "invalid bearer token"
+
+
 class TestTelegramAuth:
     def test_webhook_rejects_a_bad_secret(self, client):
         r = client.post("/telegram/webhook", json={"update_id": 1},
                         headers={"X-Telegram-Bot-Api-Secret-Token": "wrong"})
         assert r.status_code == 403
 
-    def test_init_data_signature_validation(self):
-        from modules.telegram import validate_init_data
-
-        token = "123456:TEST-TOKEN"
-        fields = {"query_id": "AAA", "user": '{"id":42,"username":"trader"}',
-                  "auth_date": str(int(time.time()))}
-        check = "\n".join(f"{k}={v}" for k, v in sorted(fields.items()))
-        secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256).digest()
-        good = hmac.new(secret, check.encode(), hashlib.sha256).hexdigest()
-
-        assert validate_init_data(urlencode({**fields, "hash": good}), token)["user"]["id"] == 42
-        assert validate_init_data(urlencode({**fields, "hash": "0" * 64}), token) is None
-        assert validate_init_data("", token) is None
-
-    def test_expired_init_data_rejected(self):
-        from modules.telegram import validate_init_data
-
-        token = "123456:TEST-TOKEN"
-        fields = {"auth_date": str(int(time.time()) - 999_999), "user": '{"id":1}'}
-        check = "\n".join(f"{k}={v}" for k, v in sorted(fields.items()))
-        secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256).digest()
-        sig = hmac.new(secret, check.encode(), hashlib.sha256).hexdigest()
-        assert validate_init_data(urlencode({**fields, "hash": sig}), token) is None
+    def test_gateway_console_has_no_telegram_webapp_coupling_or_embedded_secret(
+        self, client, monkeypatch
+    ):
+        secret = "must-never-appear-in-html"
+        monkeypatch.setattr(
+            main,
+            "settings",
+            replace(main.settings, require_auth=True, web_api_token=secret),
+        )
+        html = client.get("/app").text
+        assert "telegram-web-app" not in html
+        assert "initData" not in html
+        assert "X-Telegram-Init-Data" not in html
+        assert secret not in html
+        assert '"auth_required": true' in html
+        assert 'id="authToken"' in html
+        assert "sessionStorage" not in html
+        assert "Gateway Console" in html

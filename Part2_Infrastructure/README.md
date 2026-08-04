@@ -1,10 +1,12 @@
-# AlphaEngine Trading Automation — Unified Execution Gateway & Risk Portal
+# AlphaEngine Trading Automation — Stateful Execution Gateway
 
 **NUSSIF Developer Analyst Case Study — Part 2**
 
-A single FastAPI service that combines all three assessment options into one
-institutional-grade system, reachable from a Telegram bot and a Telegram Mini App
-(which is also a standalone web portal).
+A long-lived FastAPI service that combines all three assessment options into one
+institutional-grade execution and portfolio gateway. It also hosts an optional,
+independent **text-only Telegram companion**. The companion reads authoritative
+state and delivers alerts; it does not open or authenticate a web interface,
+submit orders, change trading controls, or enqueue research.
 
 | | Module | What it does |
 |---|---|---|
@@ -32,16 +34,16 @@ pip install -r requirements.txt          # or requirements-core.txt (see §8)
 uvicorn main:app --port 8000
 ```
 
-Open **<http://localhost:8000/app>**.
+Open the independent gateway console at **<http://localhost:8000/app>**.
 
 That is the whole setup. No API keys, no Redis, no database server, no Telegram
-token — the portal comes up with live market data and a working risk gateway. The
-optional pieces are in §6 (Telegram) and §7 (Celery).
+token — the console comes up with live market data and a working risk gateway.
+The optional pieces are in §6 (Telegram) and §7 (Celery).
 
 Run the tests:
 
 ```bash
-pytest                                   # 134 tests, ~10s, no network required
+pytest                                   # deterministic; no network required
 ```
 
 ---
@@ -49,32 +51,30 @@ pytest                                   # 134 tests, ~10s, no network required
 ## 2. Architecture
 
 ```
-      ┌──────────────────────────┐        ┌──────────────────────────────┐
-      │  Telegram text commands  │        │  Telegram Mini App / Web UI  │
-      │  /kill  /risk  /tca ...  │        │  DOM · TCA · Risk · Research │
-      └────────────┬─────────────┘        └───────────────┬──────────────┘
-                   │ webhook or long-poll                 │ REST + WebSocket
-                   └──────────────────┬───────────────────┘
-                                      ▼
-                      ┌───────────────────────────────┐
-                      │   FastAPI Central Gateway     │
-                      │   main.py · auth · routing    │
-                      └───┬───────────┬───────────┬───┘
-                          │           │           │
-              ┌───────────▼──┐  ┌─────▼───────┐  ┌▼─────────────────┐
-              │ A tca_engine │  │ B risk_proxy│  │ C backtester     │
-              │ L2 WS ingest │◄─┤ 12 gates    │  │ vectorbt sweep   │
-              │ VWAP / slip  │  │ kill switch │  │ DSR + walk-fwd   │
-              │ smart router │  │ breaker     │  │ ↕ jobs.py queue  │
-              └───────┬──────┘  └──────┬──────┘  └────────┬─────────┘
-                      └────────────────┼──────────────────┘
-                                       ▼
-                          ┌─────────────────────────┐
-                          │  DuckDB audit log       │
-                          │  orders · risk_events   │
-                          │  tca_snapshots · runs   │
-                          └─────────────────────────┘
+ Telegram companion          Gateway console / API         Next.js workspace
+ text-only, operational      authenticated controls        portfolio proxy
+ /portfolio /quote /status        │                              │
+          │ read-only             │                              │
+          └──────────────┬────────┘                              │
+                         ▼                                       │
+              FastAPI stateful gateway ◄─────────────────────────┘
+              main.py · auth · routing
+                    │       │       │
+           ┌────────▼─┐ ┌───▼────┐ ┌▼──────────────┐
+           │ A · TCA  │ │ B · risk│ │ C · backtest │
+           │ L2 + VWAP│ │ 12 gates│ │ jobs + DSR   │
+           └────┬─────┘ └────┬────┘ └──────┬───────┘
+                └────────────┼──────────────┘
+                             ▼
+                      DuckDB audit log
+
+ Next.js OpenBB adapter ──► standalone OpenBB_Service (stateless, read-only)
 ```
+
+The stateful portfolio gateway and the production OpenBB service are separate
+deployments. `ALPHAENGINE_GATEWAY_URL` points here; `OPENBB_API_URL` points to
+[`../OpenBB_Service`](../OpenBB_Service). The separation prevents slow research
+fetches and serverless scaling from sharing the gateway's mutable risk state.
 
 Module B **depends on** Module A: the risk gateway prices every order against the
 live ladder, and fills it at the smart route's VWAP. That coupling is the point —
@@ -91,13 +91,13 @@ Part2_Infrastructure/
 │   ├── risk_proxy.py       B · pre-trade gates, positions, breaker, kill switch
 │   ├── backtester.py       C · signals, engines, DSR/PSR, walk-forward, plots
 │   ├── portfolio.py        PM view: concentration, headroom, binding constraint
-│   ├── research.py         OpenBB bridge (optional dep, off-loop, never a 500)
+│   ├── research.py         Local OpenBB bridge for bot/compatibility use
 │   ├── jobs.py             Async job queue (in-process pool ⇄ Celery)
 │   ├── audit.py            DuckDB append-only audit log
-│   ├── telegram.py         Bot commands, webhook/polling, Mini App HMAC auth
+│   ├── telegram.py         Text-only read models, alerts, webhook/polling
 │   └── schemas.py          Pydantic contracts shared by API, UI and bot
-├── templates/miniapp.html  The Mini App / web portal (single file, no build step)
-├── tests/                  134 tests
+├── templates/miniapp.html  Independent gateway console (single file, no build step)
+├── tests/                  Gateway, risk, portfolio, research and bot tests
 └── requirements.txt
 ```
 
@@ -210,9 +210,10 @@ Measured on live books: **0.14 – 0.24 ms** per decision, twelve gates.
 common way a paper system flatters itself. Here the fill price is the smart
 route's actual VWAP, so paper PnL carries live cost structure.
 
-**Kill switch** is reachable four ways — `/kill` in Telegram, an inline button, the
-red button in the Mini App, and `POST /api/risk/kill`. Global or per-symbol. Every
-engage/release is audited with actor and reason, and broadcast to Telegram.
+**Kill-switch control stays inside authenticated trading surfaces.** Use the
+gateway console or `POST /api/risk/kill` and `/api/risk/resume`; every change is
+audited with actor and reason. Telegram broadcasts the resulting state change
+but deliberately has no `/kill` or `/resume` command.
 
 ---
 
@@ -265,62 +266,168 @@ An 82% backtest return that the system refuses to endorse. That is the feature.
   is what makes an offline environment work.
 - Outputs an equity curve (with drawdown panel and the DSR verdict rendered into
   the image) and a Sharpe surface heatmap — a smooth plateau is a robust region,
-  an isolated peak is an overfit. Both are pushed straight into the Telegram chat.
+  an isolated peak is an overfit. Telegram reports a compact text result for jobs
+  submitted elsewhere; it cannot start a sweep.
 
 ---
 
 ## 6. Telegram
 
-Works with **no token at all** — the REST API and web portal are fully functional
-without it. To enable the bot:
+The companion is optional: the gateway, API and web workspace remain fully
+functional with no Telegram token. When enabled, it is an independent text
+interface for phone-friendly portfolio, OpenBB, execution and health cards. It
+does not render a web page or send web links. It also cannot submit orders,
+change the kill switch, reset the book, or enqueue a backtest. Only notification
+preferences and liquidity watches can be changed from chat.
 
-1. `@BotFather` → `/newbot` → copy the token.
-2. `cp .env.example .env`, set `TELEGRAM_BOT_TOKEN`.
-3. Restart. Message the bot `/whoami`, put the chat id in
-   `TELEGRAM_ALLOWED_CHAT_IDS`, restart again.
+### Fail-closed bootstrap
 
-**Transport is automatic.** With a public `https://` `PUBLIC_URL` the bot
-registers a webhook. Without one it long-polls instead — so it works on a laptop
-with no tunnel. Behaviour is identical either way; only delivery differs. Force it
-with `TELEGRAM_MODE=webhook|polling`.
+1. Create the bot with `@BotFather`. Put the token only in an ignored `.env`
+   file or host secret as `TELEGRAM_BOT_TOKEN`; never put it in source or docs.
+2. Leave `PUBLIC_URL` empty and use `TELEGRAM_MODE=polling` (or `auto`) for the
+   first local start. Leave `TELEGRAM_ALLOWED_USER_IDS` empty.
+3. Message `/whoami`. With no allow-list, only `/start`, `/help`, `/commands`,
+   `/about`, `/whoami` and `/version` work; operational data fails closed.
+4. Copy the reported **Telegram user ID** into
+   `TELEGRAM_ALLOWED_USER_IDS`, then restart. Authorization follows
+   `message.from.id`, so an allowed group does not authorize every group member.
+5. Optionally put destination **chat IDs** in `TELEGRAM_ALERT_CHAT_IDS` for
+   centrally managed alerts. User IDs authorize; chat IDs only identify where
+   notifications are delivered. An allow-listed user must run `/subscribe`
+   once in each destination so the bot records its current authorised owner;
+   ownerless legacy rows never receive pushes.
 
-For webhook mode locally: `ngrok http 8000`, then set `PUBLIC_URL` to the https URL.
-The Mini App button also requires https (Telegram's rule) — without it the bot
-sends the portal URL as text instead.
+For webhook delivery, set a stable HTTPS `PUBLIC_URL`, choose
+`TELEGRAM_MODE=webhook`, and configure a unique random
+`TELEGRAM_WEBHOOK_SECRET` of at least 32 characters. The gateway refuses an
+insecure webhook configuration. Long-polling needs no public endpoint and has
+the same command behavior.
 
-### Commands
+### Token rotation
 
-```
-/kill  [SYMBOL]     halt all trading, or one instrument      ← the important one
-/resume [SYMBOL]    resume
-/status             gateway + per-venue feed health
-/risk               equity, PnL, drawdown budget bar
-/portfolio          PM view: concentration, headroom, binding limit, attribution
-/positions          open paper positions
-/orders             last 10 gateway decisions
-/limits             active hard limits
-/book BTCUSDT       top of book, every venue
-/tca BTCUSDT 100000 BUY    VWAP, slippage, smart route, $ saved
-/backtest BTCUSDT 1h ma_cross    queue a sweep → chart pushed back
-/jobs               job queue status
-/watch BTCUSDT 100000 6   alert when slippage for $100k exceeds 6 bps
-                          (/watches lists, /unwatch removes)
-/research           link to the research portal
-/subscribe          push fills, rejections and breaker events to this chat
-/whoami             chat ID, for TELEGRAM_ALLOWED_CHAT_IDS
-/app  /start        open the Mini App
-```
+Treat a token pasted into chat, a ticket, a screenshot or a log as compromised.
+Use BotFather to revoke it, replace the environment secret with the newly issued
+value, restart the gateway, and verify the bot identity with `/version` or
+`/whoami`. Never document or reuse the exposed value. Rotation does not change
+`TELEGRAM_ALLOWED_USER_IDS` or subscription records.
 
-### Security
+### Discoverability
 
-- Webhook requests verified against `X-Telegram-Bot-Api-Secret-Token`.
-- **Mini App requests authenticated by re-deriving Telegram's `initData` HMAC**
-  (`HMAC(HMAC("WebAppData", bot_token), data_check_string)`), with an expiry
-  check. A tampered or unsigned payload cannot reach a mutating endpoint.
-- Chat-ID allow-list gates command execution; an empty list runs open and logs a
-  warning (dev only). `REQUIRE_AUTH=1` closes the anonymous browser path too.
-- The webhook always returns 200 and processes updates out-of-band, so a slow
-  command never causes Telegram to retry and double-fire.
+The command menu is generated from the same registry as dispatch and help, so
+the menu cannot advertise an unimplemented command. Use `/commands` for the
+complete catalogue, `/help portfolio` for a category, or `/help quote` for exact
+syntax and a copyable example. Responses use consistent text cards with an
+explicit `LIVE`, `DELAYED`, `STALE`, `SYNTHETIC` or failure label, data source,
+UTC timestamp and suggested next commands.
+
+Market commands call this process's local `modules/research.py` bridge directly;
+they never call or open the web workspace. Install `requirements-openbb.txt` on
+the gateway host to enable them. The standalone `OpenBB_Service` remains the
+production `OPENBB_API_URL` target for the Next.js workspace, so web research
+can scale independently from portfolio state.
+
+#### Essentials
+
+| Command | Purpose |
+|---|---|
+| `/start` | Open the text command centre; does not subscribe automatically |
+| `/help [CATEGORY\|COMMAND]` | Category help or exact syntax, for example `/help markets` |
+| `/commands` | Complete categorized command catalogue |
+| `/status` | Gateway, feed, queue and OpenBB status |
+| `/about` | Scope and read-only guarantees |
+| `/whoami` | Show Telegram user ID and destination chat ID |
+| `/version` | Gateway version and delivery mode |
+| `/ping` | Command-path responsiveness |
+
+#### Portfolio manager
+
+| Command | Purpose |
+|---|---|
+| `/portfolio` | Whole-book equity, P&L, exposure, concentration and binding limit |
+| `/positions [SYMBOL]` | All positions or one instrument |
+| `/pnl` | Realized and unrealized P&L |
+| `/exposure` | Gross, net and leverage |
+| `/concentration` | Largest weights, HHI and effective bets |
+| `/headroom` | Remaining capacity before deployed limits bind |
+| `/risk` | Drawdown budget and gateway state |
+| `/limits` | Active hard limits; informational only |
+| `/attribution` | Audit-backed flow and cost by strategy |
+
+#### Markets and OpenBB
+
+| Command | Purpose |
+|---|---|
+| `/openbb` | OpenBB/provider readiness |
+| `/quote SYMBOL [equity\|crypto]` | Normalized quote, for example `/quote AAPL` |
+| `/bars SYMBOL [15m\|1h\|4h\|1d] [COUNT]` | Recent OHLCV rows, for example `/bars AAPL 1d 5` |
+| `/trend SYMBOL [INTERVAL] [COUNT]` | Return and direction over recent bars |
+| `/range SYMBOL [INTERVAL] [COUNT]` | Period high, low and range |
+| `/volume SYMBOL [INTERVAL] [COUNT]` | Latest and average volume |
+| `/news SYMBOL [COUNT]` | Recent company headlines |
+| `/fundamentals SYMBOL` | Company profile and key metrics |
+| `/snapshot SYMBOL [equity\|crypto]` | Quote, fundamentals and top headlines in one card |
+| `/symbols` | Tracked instruments and examples |
+
+#### Execution analytics
+
+| Command | Purpose |
+|---|---|
+| `/book SYMBOL` | Top of book across connected venues |
+| `/spread SYMBOL` | Venue and consolidated spreads |
+| `/depth SYMBOL` | Bid/ask depth by venue |
+| `/tca SYMBOL NOTIONAL [BUY\|SELL]` | VWAP, slippage and smart route |
+| `/route SYMBOL NOTIONAL [BUY\|SELL]` | Smart-route allocation only |
+| `/liquidity SYMBOL [NOTIONAL]` | Fillability and route capacity |
+| `/venues` | Venue connectivity overview |
+| `/feedstatus` | Detailed market-feed health |
+| `/orders [COUNT]` | Recent gateway decisions |
+| `/fills [COUNT]` | Recent accepted fills |
+| `/rejections [COUNT]` | Recent rejected orders |
+| `/slippage` | Aggregate execution slippage |
+| `/fees` | Aggregate execution fees |
+
+#### Research and audit monitoring
+
+| Command | Purpose |
+|---|---|
+| `/researchstatus` | OpenBB and job-system status |
+| `/jobs [COUNT]` | Recent externally submitted research jobs |
+| `/job JOB_ID` | Inspect one job without changing it |
+| `/backtests [COUNT]` | Completed backtest history |
+| `/strategies` | Supported strategy reference |
+| `/intervals` | Supported market and backtest horizons |
+| `/events [COUNT]` | Recent risk and audit events |
+| `/incidents [COUNT]` | Warning and critical events only |
+
+#### Notification preferences
+
+| Command | Purpose |
+|---|---|
+| `/subscribe` | Opt this chat into optional operational notifications |
+| `/unsubscribe` | Stop optional notifications; centrally managed destinations are identified clearly |
+| `/subscriptions` | Current notification ownership and state |
+| `/watch SYMBOL [NOTIONAL] [MAX_BPS]` | Alert when execution cost breaches a threshold and when it recovers |
+| `/unwatch [SYMBOL]` | Remove one watch, or all watches when omitted |
+| `/watches` | Active thresholds and current state |
+| `/digest` | On-demand portfolio and systems digest |
+
+### Security and delivery guarantees
+
+- Operational commands require a user ID in `TELEGRAM_ALLOWED_USER_IDS`; an
+  empty list exposes bootstrap identity/help only.
+- The bot is read-only with respect to trading and research job state. There is
+  intentionally no `/kill`, `/resume`, `/reset`, `/order` or `/backtest`
+  submission command.
+- `/start` does not silently subscribe. Subscription changes are explicit and
+  persisted in the audit store.
+- Webhook requests require Telegram's matching
+  `X-Telegram-Bot-Api-Secret-Token`; update IDs are deduplicated and commands are
+  rate-limited per user.
+- Provider and user text is HTML-escaped, long cards split on safe boundaries,
+  and transport errors are sanitized so a token-bearing API URL is never
+  returned through logs or health payloads.
+- Transition alerts fire once on breach and once on recovery rather than every
+  polling interval, reducing alert fatigue without hiding state changes.
 
 ---
 
@@ -341,14 +448,14 @@ sends the portal URL as text instead.
 | `POST` | `/api/backtest` | queue a sweep → `job_id` |
 | `GET` | `/api/jobs` · `/api/jobs/{id}` | queue stats · progress, then the full result |
 | `GET` | `/api/audit/orders` · `events` · `backtests` · `stats` | audit log |
-| `GET` | `/api/research/openbb/health` · `quote` · `bars` · `news` · `fundamentals` | OpenBB bridge (see below) |
+| `GET` | `/api/research/openbb/health` · `quote` · `bars` · `news` · `fundamentals` | Local/compatibility OpenBB bridge used by the companion |
 | `POST` | `/telegram/webhook` | Telegram updates |
 
 Interactive docs at `/docs`.
 
-**The OpenBB bridge** (`modules/research.py`): OpenBB is a Python *library*, not
-a hosted API, so this gateway is where it runs. Install the pinned runtime and
-rebuild its extension map:
+**Local OpenBB bridge.** `modules/research.py` remains available for the
+co-located Telegram companion and local compatibility testing. Install the
+optional gateway runtime and rebuild its extension map when using that path:
 
 ```bash
 pip install -r requirements-openbb.txt
@@ -356,16 +463,31 @@ openbb-build
 ```
 
 The keyless Yahoo Finance extension is selected explicitly for deterministic
-quote, bars, company-news and fundamentals routing. The
-Vercel portal's provider registry reaches it through these routes by setting
-`OPENBB_API_URL` to this gateway's public URL. The dependency is optional and
-heavyweight — when absent, the routes answer `{"ok": false, "error": …}` with
-HTTP&nbsp;200 so the portal treats it as a routing signal rather than a gateway
-failure, and `/api/research/openbb/health` says exactly what is missing. OpenBB
-calls run in a two-worker bulkhead with a 7&nbsp;s bound; health/import work also
-runs off-loop so research traffic cannot stall order-risk checks. On a public
-gateway set `REQUIRE_AUTH=1`, use a strong `WEB_API_TOKEN`, and send the same
-secret from Vercel as `ALPHAENGINE_GATEWAY_TOKEN` (or `OPENBB_API_TOKEN`).
+quote, bars, company-news and fundamentals routing. The dependency remains
+optional: when absent, routes return `{"ok": false, "error": …}` with HTTP 200,
+and `/api/research/openbb/health` reports the missing provider. Calls run in a
+two-worker bulkhead with a seven-second bound so research cannot stall the risk
+event loop.
+
+**Production OpenBB target.** The Next.js workspace should not set
+`OPENBB_API_URL` to this stateful gateway. Deploy
+[`../OpenBB_Service`](../OpenBB_Service) independently and use that stateless
+read-only service as the production target:
+
+```text
+ALPHAENGINE_GATEWAY_URL=https://stateful-gateway.example.com
+ALPHAENGINE_GATEWAY_TOKEN=<gateway WEB_API_TOKEN>
+
+OPENBB_API_URL=https://openbb-service.example.com
+OPENBB_API_TOKEN=<OpenBB service token>
+```
+
+The standalone service uses pinned provider fetchers directly, has no trading
+or Telegram routes, and can scale or cold-start without sharing mutable
+portfolio state. On a public gateway still set `REQUIRE_AUTH=1` and a strong
+`WEB_API_TOKEN`; it protects the portfolio and trading APIs, not the separate
+OpenBB deployment. The console then asks for that bearer token on load and
+keeps it only in the current page's memory; the server never embeds it in HTML.
 
 ```bash
 # a rejection, with its evidence
@@ -397,9 +519,9 @@ nothing else changes.
 
 **Celery/Redis is optional.** Set `REDIS_URL` and the job queue switches from the
 in-process thread pool to Celery automatically; `python worker.py` starts a
-worker. Without a broker, the same task callables run in-process. The API, the
-Mini App and the bot never learn which backend is running — that abstraction
-matters more than the broker choice.
+worker. Without a broker, the same task callables run in-process. The API,
+gateway console and read-only companion consume the same job status contract;
+that abstraction matters more than the broker choice.
 
 ---
 
@@ -410,8 +532,8 @@ matters more than the broker choice.
 **Live and real:** L2 WebSocket ingest from two venues with sequence handling and
 reconnection; all TCA maths and the cross-venue router; all 12 pre-trade gates,
 position accounting, the drawdown breaker and the kill switch; vectorbt parameter
-sweeps on live Binance klines; DSR and walk-forward; the DuckDB audit log; the
-Telegram webhook/polling bot and Mini App HMAC authentication.
+sweeps on live Binance klines; DSR and walk-forward; the DuckDB audit log; and
+the fail-closed, text-only Telegram webhook/polling companion.
 
 **Mocked, deliberately:** order *execution*. Accepted orders fill on paper against
 the live ladder rather than being sent to an exchange. This is exactly what a
@@ -465,12 +587,13 @@ tests/test_risk_proxy.py   every gate, token bucket, position accounting,
 tests/test_backtester.py   signal definitions, look-ahead check, cost accounting,
                            engine agreement, DSR/PSR properties, noise-grid rejection
 tests/test_api.py          REST contract, rejection semantics, job lifecycle,
-                           initData signature and expiry validation
-tests/test_telegram.py     command dispatch, authorisation, rendering, alerts
+                           webhook authentication and companion health
+tests/test_telegram.py     command registry, fail-closed user authorization,
+                           text rendering, OpenBB reads and transition alerts
 tests/test_portfolio.py    concentration maths, netting, binding constraint,
                            attribution wiring
 tests/test_research.py     OpenBB bridge: absence contract (ok:false, never 500),
                            NaN-cleaning, field-alias resolution, input validation
 ```
 
-134 tests, ~10 s, no network required.
+The gateway test suite is deterministic and requires no external network.

@@ -32,7 +32,7 @@ function parseOpenBBOrigin(raw: string): string | null {
 
 function unavailableOpenBBDetail(payload: unknown): string {
   if (!payload || typeof payload !== "object") {
-    return "Gateway reachable; OpenBB returned an invalid health response.";
+    return "OpenBB service reachable but returned an invalid health response.";
   }
 
   const detail = "detail" in payload && typeof payload.detail === "string"
@@ -42,19 +42,18 @@ function unavailableOpenBBDetail(payload: unknown): string {
   // Deliberately classify rather than echo the gateway's text. Import errors and
   // provider exceptions can contain local paths, hosts or credential fragments.
   if (detail.includes("not installed") || detail.includes("no module named")) {
-    return "Gateway reachable; OpenBB is not installed.";
+    return "OpenBB service is missing its provider runtime.";
   }
   if (detail.includes("credential") || detail.includes("api key")) {
-    return "Gateway reachable; OpenBB needs provider credentials.";
+    return "OpenBB service needs provider credentials.";
   }
-  return "Gateway reachable; OpenBB reported unavailable.";
+  return "OpenBB service reported unavailable.";
 }
 
 async function probeOpenBB(origin: string): Promise<OpenBBReadiness> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), OPENBB_HEALTH_TIMEOUT_MS);
-  const token = process.env.OPENBB_API_TOKEN?.trim()
-    || process.env.ALPHAENGINE_GATEWAY_TOKEN?.trim();
+  const token = process.env.OPENBB_API_TOKEN?.trim();
 
   try {
     const response = await fetch(new URL("/api/research/openbb/health", `${origin}/`), {
@@ -87,13 +86,13 @@ async function probeOpenBB(origin: string): Promise<OpenBBReadiness> {
     }
 
     if (payload && typeof payload === "object" && "ok" in payload && payload.ok === true) {
-      return { ready: true, statusDetail: "Gateway reachable; OpenBB is ready." };
+      return { ready: true, statusDetail: "OpenBB service reachable and ready." };
     }
     return { ready: false, statusDetail: unavailableOpenBBDetail(payload) };
   } catch {
     return controller.signal.aborted
       ? { ready: false, statusDetail: "OpenBB health check timed out." }
-      : { ready: false, statusDetail: "OpenBB gateway is unreachable." };
+      : { ready: false, statusDetail: "OpenBB service is unreachable." };
   } finally {
     clearTimeout(timeout);
   }
@@ -102,7 +101,7 @@ async function probeOpenBB(origin: string): Promise<OpenBBReadiness> {
 async function openBBReadiness(configuredUrl: string): Promise<OpenBBReadiness> {
   const origin = parseOpenBBOrigin(configuredUrl);
   if (!origin) {
-    return { ready: false, statusDetail: "Configured OpenBB gateway URL is invalid." };
+    return { ready: false, statusDetail: "Configured OpenBB service URL is invalid." };
   }
 
   const now = Date.now();

@@ -1,45 +1,29 @@
-"""
-Telegram interface — text commands (webhook or long-poll) + Mini App auth.
-==========================================================================
+"""AlphaEngine Telegram companion — independent, text-only operational updates.
 
-Two access paths, deliberately different in character:
+The Telegram bot is deliberately separate from every web interface. It does
+not open a Mini App, authenticate the website, submit orders, alter the kill
+switch, or enqueue research. It reads the same authoritative gateway state and
+OpenBB provider layer, then renders compact phone-friendly text cards.
 
-* **Text commands** are the low-latency, no-UI path. ``/kill`` must work from a
-  phone on bad hotel wifi with one thumb; it is three characters and takes
-  effect before the acknowledgement is even rendered.
-* **The Mini App** is the high-density path — order-book ladders and parameter
-  sweeps need pixels.
-
-Transport
----------
-``webhook`` is the production mode (no polling latency, no idle API traffic).
-``polling`` exists because a grader running this on a laptop has no public HTTPS
-endpoint; the bot detects that and long-polls instead. The behaviour of every
-command is identical either way — only the delivery differs.
-
-Security
---------
-* Webhook requests are verified against ``X-Telegram-Bot-Api-Secret-Token``.
-* Mini App requests are authenticated by re-deriving Telegram's ``initData``
-  HMAC with the bot token; an unsigned or tampered payload cannot reach a
-  mutating endpoint.
-* An allow-list of chat IDs gates command execution. If it is empty the bot runs
-  open and says so loudly in the logs — acceptable in dev, never in prod.
+Only notification preferences mutate through this module. Operational data is
+fail-closed behind ``TELEGRAM_ALLOWED_USER_IDS``; when no allow-list exists,
+the bot exposes only bootstrap commands such as ``/whoami`` so an operator can
+obtain their Telegram user ID safely.
 """
 
 from __future__ import annotations
 
 import asyncio
-import base64
 import contextlib
-import hashlib
-import hmac
 import html
-import json
 import logging
+import math
+import re
 import time
+from collections import deque
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
-from urllib.parse import parse_qsl
 
 import httpx
 
@@ -47,117 +31,278 @@ from config import settings
 
 log = logging.getLogger("alphaengine.telegram")
 
-HELP_TEXT = """<b>AlphaEngine Trading Automation — Execution Gateway &amp; Risk Portal</b>
+_SYMBOL_RE = re.compile(r"^[A-Z0-9.\-]{1,20}$")
+_HTML_TAG_RE = re.compile(r"</?(?:b|i|code|pre|u|s)(?:\s[^>]*)?>", re.IGNORECASE)
+_TELEGRAM_ACTOR_RE = re.compile(r"^tg:([1-9][0-9]*):")
+_TELEGRAM_MESSAGE_LIMIT = 3900
+_BOOTSTRAP_COMMANDS = {"/start", "/help", "/commands", "/about", "/whoami", "/version"}
 
-<b>🛑 Emergency</b>
-<code>/kill</code> — halt ALL trading immediately
-<code>/kill BTCUSDT</code> — halt one instrument
-<code>/resume</code> [SYMBOL] — resume trading
 
-<b>📊 Risk &amp; portfolio</b>
-<code>/portfolio</code> — exposure, concentration, risk budget
-<code>/status</code> — gateway + feed health
-<code>/risk</code> — equity, PnL, drawdown budget
-<code>/positions</code> — open paper positions
-<code>/orders</code> — last 10 gateway decisions
-<code>/limits</code> — active hard limits
+def esc(value: Any) -> str:
+    """Escape user/provider text for Telegram's HTML parse mode."""
+    return html.escape(str(value), quote=False)
 
-<b>📈 Execution analytics</b>
-<code>/book BTCUSDT</code> — top of book, every venue
-<code>/tca BTCUSDT 100000 BUY</code> — VWAP, slippage &amp; smart route
 
-<b>🔔 Notifications</b>
-<code>/subscribe</code> — receive risk &amp; execution alerts here
-<code>/unsubscribe</code> — stop alerts
-<code>/watch BTCUSDT 100000 25</code> — alert when routing $100k costs &gt;25 bps
-<code>/unwatch BTCUSDT</code> · <code>/watches</code> — manage watches
+def utc_now_label() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
-<b>🧪 Research</b>
-<code>/backtest BTCUSDT 1h ma_cross</code> — queue a parameter sweep
-<code>/jobs</code> — job queue status
 
-<b>🖥 Full UI</b>
-<code>/app</code> — trading desk (order book, risk, execution)
-<code>/research</code> — strategy research portal (trends, sweeps, verdict)"""
+def _finite(value: Any) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
 
-# Registered with Telegram so the client shows a command menu and autocompletes.
-BOT_COMMANDS = [
-    ("kill", "🛑 Halt ALL trading immediately"),
-    ("resume", "Resume trading after a halt"),
-    ("risk", "Equity, PnL and drawdown budget"),
-    ("status", "Gateway and market-data feed health"),
-    ("portfolio", "\U0001F4C1 Exposure, concentration and risk budget"),
-    ("positions", "Open paper positions"),
-    ("orders", "Last 10 gateway decisions"),
-    ("limits", "Active hard risk limits"),
-    ("book", "Top of book across every venue"),
-    ("tca", "VWAP, slippage and smart route for a size"),
-    ("backtest", "Queue a strategy parameter sweep"),
-    ("jobs", "Job queue status"),
-    ("subscribe", "🔔 Receive risk and execution alerts"),
-    ("unsubscribe", "Stop receiving alerts"),
-    ("watch", "Alert when execution cost spikes"),
-    ("unwatch", "Remove a watch"),
-    ("watches", "List active watches"),
-    ("research", "📈 Open the strategy research portal"),
-    ("app", "Open the AlphaEngine trading desk"),
-    ("whoami", "Show your chat id"),
-    ("help", "Show all commands"),
-]
 
-BOT_SHORT_DESCRIPTION = "Cross-venue TCA, pre-trade risk gateway and strategy backtesting. /kill halts trading."
+def _money(value: Any, signed: bool = False) -> str:
+    number = _finite(value)
+    if number is None:
+        return "—"
+    return f"${number:+,.0f}" if signed else f"${number:,.0f}"
+
+
+def _number(value: Any, decimals: int = 2, signed: bool = False) -> str:
+    number = _finite(value)
+    if number is None:
+        return "—"
+    sign = "+" if signed else ""
+    return f"{number:{sign},.{decimals}f}"
+
+
+def _percent(value: Any, decimals: int = 2, signed: bool = False) -> str:
+    number = _finite(value)
+    if number is None:
+        return "—"
+    sign = "+" if signed else ""
+    return f"{number:{sign}.{decimals}%}"
+
+
+def text_card(
+    title: str,
+    status: str,
+    lines: list[str],
+    *,
+    source: str,
+    next_commands: str | None = None,
+) -> str:
+    """Consistent textual UI: title, freshness/state, metrics, provenance."""
+    body = [f"<b>{title}</b>", f"<code>{esc(status)}</code>", "", *lines]
+    body += ["", f"<i>{esc(source)} · {utc_now_label()}</i>"]
+    if next_commands:
+        body.append(f"<i>Next: {esc(next_commands)}</i>")
+    return "\n".join(body)
+
+
+def split_telegram_html(text: str, limit: int = _TELEGRAM_MESSAGE_LIMIT) -> list[str]:
+    """Split on complete lines so a message never cuts an HTML tag/entity.
+
+    Generated cards keep every HTML tag on one line. If an upstream value ever
+    creates an oversized line, that one line is converted to escaped plain text
+    before being split; Telegram then receives valid HTML for every chunk.
+    """
+    if len(text) <= limit:
+        return [text]
+
+    chunks: list[str] = []
+    current: list[str] = []
+    current_len = 0
+
+    def flush() -> None:
+        nonlocal current, current_len
+        if current:
+            chunks.append("\n".join(current))
+            current = []
+            current_len = 0
+
+    for line in text.splitlines():
+        if len(line) > limit:
+            flush()
+            plain = esc(html.unescape(_HTML_TAG_RE.sub("", line)))
+            for start in range(0, len(plain), limit):
+                chunks.append(plain[start:start + limit])
+            continue
+
+        extra = len(line) + (1 if current else 0)
+        if current and current_len + extra > limit:
+            flush()
+        current.append(line)
+        current_len += len(line) + (1 if len(current) > 1 else 0)
+    flush()
+    return chunks or [""]
+
+
+@dataclass(frozen=True)
+class CommandSpec:
+    name: str
+    description: str
+    category: str
+    usage: str
+    example: str
+    handler: str
+    aliases: tuple[str, ...] = ()
+
+
+COMMAND_SPECS: tuple[CommandSpec, ...] = (
+    # Essentials
+    CommandSpec("start", "Essentials · Open the text command centre", "Essentials", "/start", "/start", "_cmd_start"),
+    CommandSpec("help", "Essentials · Help by category or command", "Essentials", "/help [CATEGORY|COMMAND]", "/help markets", "_cmd_help"),
+    CommandSpec("commands", "Essentials · List the complete command catalogue", "Essentials", "/commands", "/commands", "_cmd_commands"),
+    CommandSpec("status", "Essentials · Gateway, feeds, queue and OpenBB", "Essentials", "/status", "/status", "_cmd_status", ("health",)),
+    CommandSpec("about", "Essentials · What this independent bot does", "Essentials", "/about", "/about", "_cmd_about"),
+    CommandSpec("whoami", "Essentials · Show Telegram user and chat IDs", "Essentials", "/whoami", "/whoami", "_cmd_whoami"),
+    CommandSpec("version", "Essentials · Runtime version and bot mode", "Essentials", "/version", "/version", "_cmd_version"),
+    CommandSpec("ping", "Essentials · Check command-path responsiveness", "Essentials", "/ping", "/ping", "_cmd_ping"),
+
+    # Portfolio manager
+    CommandSpec("portfolio", "Portfolio · Whole-book PM summary", "Portfolio", "/portfolio", "/portfolio", "_cmd_portfolio", ("bookstate",)),
+    CommandSpec("positions", "Portfolio · Open positions and marks", "Portfolio", "/positions [SYMBOL]", "/positions BTCUSDT", "_cmd_positions", ("toppositions", "position")),
+    CommandSpec("pnl", "Portfolio · Realised and unrealised P&L", "Portfolio", "/pnl", "/pnl", "_cmd_pnl"),
+    CommandSpec("exposure", "Portfolio · Gross, net and leverage", "Portfolio", "/exposure", "/exposure", "_cmd_exposure"),
+    CommandSpec("concentration", "Portfolio · Largest weights and effective bets", "Portfolio", "/concentration", "/concentration", "_cmd_concentration"),
+    CommandSpec("headroom", "Portfolio · Remaining capacity before limits", "Portfolio", "/headroom", "/headroom", "_cmd_headroom"),
+    CommandSpec("risk", "Portfolio · Drawdown and gateway budget", "Portfolio", "/risk", "/risk", "_cmd_risk"),
+    CommandSpec("limits", "Portfolio · Deployed hard risk limits", "Portfolio", "/limits", "/limits", "_cmd_limits"),
+    CommandSpec("attribution", "Portfolio · Flow and costs by strategy", "Portfolio", "/attribution", "/attribution", "_cmd_attribution"),
+
+    # Market data / OpenBB
+    CommandSpec("openbb", "Markets · OpenBB provider readiness", "Markets", "/openbb", "/openbb", "_cmd_openbb", ("providers",)),
+    CommandSpec("quote", "Markets · OpenBB quote", "Markets", "/quote SYMBOL [equity|crypto]", "/quote AAPL", "_cmd_quote", ("market",)),
+    CommandSpec("bars", "Markets · Recent OpenBB OHLCV rows", "Markets", "/bars SYMBOL [15m|1h|4h|1d] [COUNT]", "/bars AAPL 1d 5", "_cmd_bars"),
+    CommandSpec("trend", "Markets · Return and direction over recent bars", "Markets", "/trend SYMBOL [INTERVAL] [COUNT]", "/trend NVDA 1d 20", "_cmd_trend"),
+    CommandSpec("range", "Markets · High/low range over recent bars", "Markets", "/range SYMBOL [INTERVAL] [COUNT]", "/range BTCUSDT 4h 12", "_cmd_range"),
+    CommandSpec("volume", "Markets · Latest and average volume", "Markets", "/volume SYMBOL [INTERVAL] [COUNT]", "/volume MSFT 1d 20", "_cmd_volume"),
+    CommandSpec("news", "Markets · Latest company headlines", "Markets", "/news SYMBOL [COUNT]", "/news AAPL 5", "_cmd_news"),
+    CommandSpec("fundamentals", "Markets · Company profile and key metrics", "Markets", "/fundamentals SYMBOL", "/fundamentals NVDA", "_cmd_fundamentals", ("profile", "valuation")),
+    CommandSpec("snapshot", "Markets · Quote, fundamentals and headlines", "Markets", "/snapshot SYMBOL [equity|crypto]", "/snapshot AAPL", "_cmd_snapshot", ("research",)),
+    CommandSpec("symbols", "Markets · Tracked instruments and examples", "Markets", "/symbols", "/symbols", "_cmd_symbols"),
+
+    # Execution analytics (read-only)
+    CommandSpec("book", "Execution · Top of book across venues", "Execution", "/book SYMBOL", "/book BTCUSDT", "_cmd_book"),
+    CommandSpec("spread", "Execution · Venue and consolidated spreads", "Execution", "/spread SYMBOL", "/spread BTCUSDT", "_cmd_spread"),
+    CommandSpec("depth", "Execution · Bid/ask depth by venue", "Execution", "/depth SYMBOL", "/depth ETHUSDT", "_cmd_depth"),
+    CommandSpec("tca", "Execution · VWAP, slippage and smart route", "Execution", "/tca SYMBOL NOTIONAL [BUY|SELL]", "/tca BTCUSDT 100000 BUY", "_cmd_tca", ("cost",)),
+    CommandSpec("route", "Execution · Smart-route allocation only", "Execution", "/route SYMBOL NOTIONAL [BUY|SELL]", "/route BTCUSDT 50000 SELL", "_cmd_route"),
+    CommandSpec("liquidity", "Execution · Fillability and route capacity", "Execution", "/liquidity SYMBOL [NOTIONAL]", "/liquidity BTCUSDT 250000", "_cmd_liquidity"),
+    CommandSpec("venues", "Execution · Venue connectivity overview", "Execution", "/venues", "/venues", "_cmd_venues"),
+    CommandSpec("feedstatus", "Execution · Detailed market-feed health", "Execution", "/feedstatus", "/feedstatus", "_cmd_feedstatus"),
+    CommandSpec("orders", "Execution · Recent gateway decisions", "Execution", "/orders [COUNT]", "/orders 10", "_cmd_orders"),
+    CommandSpec("fills", "Execution · Recent accepted fills", "Execution", "/fills [COUNT]", "/fills 10", "_cmd_fills"),
+    CommandSpec("rejections", "Execution · Recent rejected orders", "Execution", "/rejections [COUNT]", "/rejections 10", "_cmd_rejections"),
+    CommandSpec("slippage", "Execution · Aggregate execution slippage", "Execution", "/slippage", "/slippage", "_cmd_slippage"),
+    CommandSpec("fees", "Execution · Aggregate execution fees", "Execution", "/fees", "/fees", "_cmd_fees"),
+
+    # Research and audit monitoring (no job submission)
+    CommandSpec("researchstatus", "Research · OpenBB and job-system status", "Research", "/researchstatus", "/researchstatus", "_cmd_research_status"),
+    CommandSpec("jobs", "Research · Recent research jobs", "Research", "/jobs [COUNT]", "/jobs 10", "_cmd_jobs"),
+    CommandSpec("job", "Research · Inspect one job", "Research", "/job JOB_ID", "/job abcd1234", "_cmd_job"),
+    CommandSpec("backtests", "Research · Completed backtest history", "Research", "/backtests [COUNT]", "/backtests 10", "_cmd_backtests"),
+    CommandSpec("strategies", "Research · Supported strategy catalogue", "Research", "/strategies", "/strategies", "_cmd_strategies"),
+    CommandSpec("intervals", "Research · Supported market horizons", "Research", "/intervals", "/intervals", "_cmd_intervals"),
+    CommandSpec("events", "Research · Recent risk/audit events", "Research", "/events [COUNT]", "/events 10", "_cmd_events"),
+    CommandSpec("incidents", "Research · Warning and critical events", "Research", "/incidents [COUNT]", "/incidents 10", "_cmd_incidents"),
+
+    # Notification preferences
+    CommandSpec("subscribe", "Alerts · Receive operational notifications", "Alerts", "/subscribe", "/subscribe", "_cmd_subscribe", ("unmute",)),
+    CommandSpec("unsubscribe", "Alerts · Stop optional notifications", "Alerts", "/unsubscribe", "/unsubscribe", "_cmd_unsubscribe", ("mute",)),
+    CommandSpec("subscriptions", "Alerts · Show notification state", "Alerts", "/subscriptions", "/subscriptions", "_cmd_subscriptions", ("alerts",)),
+    CommandSpec("watch", "Alerts · Watch execution-cost deterioration", "Alerts", "/watch SYMBOL [NOTIONAL] [MAX_BPS]", "/watch BTCUSDT 100000 25", "_cmd_watch"),
+    CommandSpec("unwatch", "Alerts · Remove one or all liquidity watches", "Alerts", "/unwatch [SYMBOL]", "/unwatch BTCUSDT", "_cmd_unwatch"),
+    CommandSpec("watches", "Alerts · Show active liquidity watches", "Alerts", "/watches", "/watches", "_cmd_watches"),
+    CommandSpec("digest", "Alerts · On-demand portfolio and systems digest", "Alerts", "/digest", "/digest", "_cmd_digest"),
+)
+
+_COMMAND_BY_NAME: dict[str, CommandSpec] = {}
+for _spec in COMMAND_SPECS:
+    _COMMAND_BY_NAME[f"/{_spec.name}"] = _spec
+    for _alias in _spec.aliases:
+        _COMMAND_BY_NAME[f"/{_alias}"] = _spec
+
+BOT_COMMANDS = [(spec.name, spec.description) for spec in COMMAND_SPECS]
+BOT_SHORT_DESCRIPTION = "Independent text alerts and read-only portfolio, OpenBB, risk and execution updates."
 BOT_DESCRIPTION = (
-    "AlphaEngine Trading Automation — institutional execution gateway.\n\n"
-    "• Live L2 order books from Binance and Bybit, with VWAP, slippage and smart routing\n"
-    "• Pre-trade risk gateway: 12 gates in under a millisecond, plus an emergency kill switch\n"
-    "• Asynchronous strategy backtests, deflated for multiple testing\n\n"
-    "Send /start to begin, or /kill to halt trading instantly."
+    "AlphaEngine Companion is separate from the web workspace. It provides text-only portfolio, "
+    "OpenBB market data, execution analytics, research status and operational alerts. It never "
+    "submits orders or changes trading controls. Send /commands for the full catalogue."
 )
 
 
-def esc(text: Any) -> str:
-    return html.escape(str(text))
+def _category_names() -> list[str]:
+    return list(dict.fromkeys(spec.category for spec in COMMAND_SPECS))
 
 
-# --------------------------------------------------------------------------- #
-# Mini App authentication
-# --------------------------------------------------------------------------- #
-def validate_init_data(init_data: str, bot_token: str, max_age_s: int = 86_400) -> dict[str, Any] | None:
-    """Verify Telegram WebApp ``initData``. Returns the parsed payload or None.
-
-    Per Telegram's spec: secret = HMAC_SHA256(key="WebAppData", msg=bot_token),
-    then the payload hash must equal HMAC_SHA256(key=secret, msg=data_check_string)
-    where data_check_string is the remaining fields sorted by key, ``k=v`` joined
-    by newlines.
-    """
-    if not init_data or not bot_token:
-        return None
-    try:
-        pairs = dict(parse_qsl(init_data, keep_blank_values=True))
-        received = pairs.pop("hash", "")
-        if not received:
-            return None
-        check_string = "\n".join(f"{k}={v}" for k, v in sorted(pairs.items()))
-        secret = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
-        expected = hmac.new(secret, check_string.encode(), hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(expected, received):
-            return None
-        if max_age_s and (auth_date := pairs.get("auth_date")):
-            if time.time() - int(auth_date) > max_age_s:
-                log.warning("initData rejected: expired")
-                return None
-        if user := pairs.get("user"):
-            with contextlib.suppress(Exception):
-                pairs["user"] = json.loads(user)
-        return pairs
-    except Exception as exc:
-        log.warning("initData validation error: %s", exc)
-        return None
+def command_catalogue() -> str:
+    lines = ["<b>⌨️ AlphaEngine command catalogue</b>", "<code>TEXT ONLY · READ-ONLY TRADING STATE</code>", ""]
+    for category in _category_names():
+        specs = [spec for spec in COMMAND_SPECS if spec.category == category]
+        lines.append(f"<b>{esc(category)}</b>")
+        lines.append(" · ".join(f"/{spec.name}" for spec in specs))
+        lines.append("")
+    lines += [
+        "Use <code>/help markets</code> for one category or <code>/help quote</code> for exact syntax.",
+        "<i>No command opens or controls the web UI.</i>",
+    ]
+    return "\n".join(lines)
 
 
-# --------------------------------------------------------------------------- #
-# Bot
-# --------------------------------------------------------------------------- #
+def help_text(query: str | None = None) -> str:
+    if not query:
+        categories = " · ".join(_category_names())
+        return text_card(
+            "ℹ️ AlphaEngine Companion",
+            "TEXT ONLY · INDEPENDENT FROM WEB UI",
+            [
+                "Read portfolio state, OpenBB market data, execution quality and system health.",
+                "Trading controls and order submission are intentionally unavailable.",
+                "",
+                f"<b>Categories</b>\n{esc(categories)}",
+                "",
+                "Try <code>/portfolio</code>, <code>/snapshot AAPL</code>, "
+                "<code>/tca BTCUSDT 100000 BUY</code> or <code>/digest</code>.",
+            ],
+            source="AlphaEngine command registry",
+            next_commands="/commands · /help portfolio · /help quote",
+        )
+
+    needle = query.strip().lstrip("/").lower()
+    for category in _category_names():
+        if needle == category.lower():
+            specs = [spec for spec in COMMAND_SPECS if spec.category == category]
+            lines = [f"<code>{esc(spec.usage)}</code> — {esc(spec.description.split('·', 1)[-1].strip())}" for spec in specs]
+            return text_card(
+                f"ℹ️ Help · {category}",
+                f"{len(specs)} COMMANDS",
+                lines,
+                source="AlphaEngine command registry",
+                next_commands=f"/help {specs[0].name} · /commands",
+            )
+
+    spec = _COMMAND_BY_NAME.get(f"/{needle}")
+    if spec:
+        aliases = f"\nAliases: {', '.join('/' + alias for alias in spec.aliases)}" if spec.aliases else ""
+        return text_card(
+            f"ℹ️ Help · /{spec.name}",
+            spec.category.upper(),
+            [
+                esc(spec.description.split("·", 1)[-1].strip()),
+                f"Usage   <code>{esc(spec.usage)}</code>",
+                f"Example <code>{esc(spec.example)}</code>{esc(aliases)}",
+            ],
+            source="AlphaEngine command registry",
+            next_commands=f"/help {spec.category.lower()} · /commands",
+        )
+    return text_card(
+        "⚠️ Help topic not found",
+        "UNKNOWN TOPIC",
+        [f"No category or command matches <code>{esc(query)}</code>."],
+        source="AlphaEngine command registry",
+        next_commands="/commands",
+    )
+
+
+HELP_TEXT = help_text()
+
+
 class TelegramBot:
     def __init__(self, gateway=None, tca=None, queue=None, audit=None) -> None:
         self.gateway = gateway
@@ -169,15 +314,15 @@ class TelegramBot:
         self.mode = settings.resolved_telegram_mode
         self._client: httpx.AsyncClient | None = None
         self._poll_task: asyncio.Task | None = None
+        self._watch_task: asyncio.Task | None = None
         self._offset = 0
+        self._seen_updates: set[int] = set()
+        self._seen_update_order: deque[int] = deque(maxlen=2048)
+        self._rate_windows: dict[str, deque[float]] = {}
         self.me: dict[str, Any] | None = None
         self.started_at: float | None = None
         self.updates_handled = 0
         self.last_error: str | None = None
-        self._known_chats: set[str] = set(settings.telegram_alert_chat_ids)
-        self._watch_task: asyncio.Task | None = None
-        # (chat_id, symbol) -> currently in breach, so an alert fires on the
-        # transition rather than on every poll.
         self._watch_state: dict[tuple[str, str], bool] = {}
         self.alerts_sent = 0
 
@@ -185,98 +330,82 @@ class TelegramBot:
     def enabled(self) -> bool:
         return bool(self.token)
 
-    # -- transport -------------------------------------------------------- #
+    @property
+    def allowed_user_ids(self) -> list[str]:
+        return list(settings.telegram_allowed_user_ids)
+
     async def api(self, method: str, **params) -> dict[str, Any]:
         if not self._client:
             self._client = httpx.AsyncClient(timeout=40.0)
         try:
-            resp = await self._client.post(f"{self.base}/{method}", json=params)
-            data = resp.json()
+            response = await self._client.post(f"{self.base}/{method}", json=params)
+            data = response.json()
             if not data.get("ok"):
-                self.last_error = f"{method}: {data.get('description')}"
-                log.warning("telegram %s failed: %s", method, data.get("description"))
+                description = str(data.get("description") or "Telegram API refused the request")[:180]
+                self.last_error = f"{method}: {description}"
+                log.warning("telegram %s failed: %s", method, description)
             return data
-        except Exception as exc:
-            self.last_error = f"{method}: {exc}"
-            log.error("telegram %s error: %s", method, exc)
-            return {"ok": False, "description": str(exc)}
+        except Exception as exc:  # never include the token-bearing request URL
+            error_kind = type(exc).__name__
+            self.last_error = f"{method}: transport {error_kind}"
+            log.error("telegram %s transport error (%s)", method, error_kind)
+            return {"ok": False, "description": f"transport {error_kind}"}
 
-    async def send_message(self, chat_id: str | int, text: str, keyboard: dict | None = None) -> dict:
-        # Telegram hard-caps messages at 4096 chars.
-        if len(text) > 4000:
-            text = text[:3990] + "\n…(truncated)"
-        params: dict[str, Any] = {
-            "chat_id": chat_id, "text": text,
-            "parse_mode": "HTML", "disable_web_page_preview": True,
-        }
-        if keyboard:
-            params["reply_markup"] = keyboard
-        return await self.api("sendMessage", **params)
-
-    async def send_photo_b64(self, chat_id: str | int, png_b64: str, caption: str = "") -> dict:
-        if not self._client:
-            self._client = httpx.AsyncClient(timeout=60.0)
-        try:
-            files = {"photo": ("chart.png", base64.b64decode(png_b64), "image/png")}
-            data = {"chat_id": str(chat_id), "caption": caption[:1000], "parse_mode": "HTML"}
-            resp = await self._client.post(f"{self.base}/sendPhoto", data=data, files=files)
-            return resp.json()
-        except Exception as exc:
-            log.error("sendPhoto failed: %s", exc)
-            return {"ok": False}
-
-    def _miniapp_keyboard(self) -> dict | None:
-        """Trading desk (this gateway) and research portal (Vercel) as buttons.
-
-        Telegram only accepts https:// for web_app buttons, so each row is
-        included only when its URL actually qualifies — a button that opens a
-        blank sheet is worse than no button.
-        """
-        rows: list[list[dict]] = []
-        if settings.miniapp_url.startswith("https://"):
-            rows.append([{"text": "🖥 Trading desk", "web_app": {"url": settings.miniapp_url}}])
-        if settings.research_portal_url.startswith("https://"):
-            rows.append(
-                [{"text": "📈 Strategy research", "web_app": {"url": settings.research_portal_url}}]
+    async def send_message(self, chat_id: str | int, text: str) -> dict[str, Any]:
+        result: dict[str, Any] = {"ok": True}
+        for chunk in split_telegram_html(text):
+            result = await self.api(
+                "sendMessage",
+                chat_id=chat_id,
+                text=chunk,
+                parse_mode="HTML",
+                disable_web_page_preview=True,
             )
-        return {"inline_keyboard": rows} if rows else None
+        return result
 
-    # -- lifecycle -------------------------------------------------------- #
     async def start(self) -> None:
         if not self.enabled:
-            log.info("Telegram disabled (no TELEGRAM_BOT_TOKEN) — REST + web UI still fully functional")
+            log.info("Telegram disabled (no TELEGRAM_BOT_TOKEN); gateway and web remain independent")
             return
+
         self.started_at = time.time()
         me = await self.api("getMe")
         self.me = me.get("result")
         if self.me:
-            log.info("Telegram bot @%s online in %s mode", self.me.get("username"), self.mode)
-        if not settings.telegram_allowed_chat_ids:
-            log.warning("TELEGRAM_ALLOWED_CHAT_IDS is empty — the bot will accept commands from ANY chat")
+            log.info("Telegram companion @%s online in %s mode", self.me.get("username"), self.mode)
+
+        if not self.allowed_user_ids:
+            log.warning("TELEGRAM_ALLOWED_USER_IDS is empty; bootstrap commands only")
 
         await self._register_profile()
 
         if self.mode == "webhook":
-            url = f"{settings.public_url}{settings.webhook_path}"
-            res = await self.api(
-                "setWebhook", url=url, secret_token=settings.telegram_webhook_secret,
-                allowed_updates=["message", "callback_query"], drop_pending_updates=True,
+            secret = settings.telegram_webhook_secret
+            if not settings.public_url.startswith("https://"):
+                raise RuntimeError("Telegram webhook mode requires an https PUBLIC_URL")
+            if len(secret) < 32 or secret.lower().startswith(("change-me", "alphaengine-dev")):
+                raise RuntimeError("Telegram webhook mode requires a unique 32+ character secret")
+            webhook_url = f"{settings.public_url}{settings.webhook_path}"
+            result = await self.api(
+                "setWebhook",
+                url=webhook_url,
+                secret_token=secret,
+                allowed_updates=["message"],
+                drop_pending_updates=False,
             )
-            log.info("webhook -> %s (%s)", url, res.get("ok"))
+            log.info("Telegram webhook registration: %s", bool(result.get("ok")))
         else:
-            await self.api("deleteWebhook", drop_pending_updates=True)
+            await self.api("deleteWebhook", drop_pending_updates=False)
             self._poll_task = asyncio.create_task(self._poll_loop(), name="telegram-poll")
 
         self._watch_task = asyncio.create_task(self._watch_loop(), name="telegram-watch")
-
-        subs = self._subscribers()
-        log.info("notification subscribers restored from audit log: %d", len(subs))
+        log.info("Telegram alert subscribers restored: %d", len(self._subscribers()))
 
     async def _register_profile(self) -> None:
-        """Publish the command menu and descriptions so the Telegram client can
-        autocomplete. Idempotent — safe to call on every boot."""
-        await self.api("setMyCommands",
-                       commands=[{"command": c, "description": d} for c, d in BOT_COMMANDS])
+        await self.api(
+            "setMyCommands",
+            commands=[{"command": command, "description": description} for command, description in BOT_COMMANDS],
+        )
         await self.api("setMyShortDescription", short_description=BOT_SHORT_DESCRIPTION)
         await self.api("setMyDescription", description=BOT_DESCRIPTION)
 
@@ -290,12 +419,16 @@ class TelegramBot:
             await self._client.aclose()
 
     async def _poll_loop(self) -> None:
-        log.info("long-polling for updates")
+        log.info("Telegram long-polling started")
         backoff = 1.0
         while True:
             try:
-                data = await self.api("getUpdates", offset=self._offset, timeout=25,
-                                      allowed_updates=["message", "callback_query"])
+                data = await self.api(
+                    "getUpdates",
+                    offset=self._offset,
+                    timeout=25,
+                    allowed_updates=["message"],
+                )
                 if data.get("ok"):
                     backoff = 1.0
                     for update in data.get("result", []):
@@ -307,457 +440,952 @@ class TelegramBot:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                log.error("poll loop error: %s", exc)
+                log.error("Telegram poll loop error (%s)", type(exc).__name__)
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 30)
 
-    # -- dispatch --------------------------------------------------------- #
-    def _authorised(self, chat_id: str) -> bool:
-        allowed = settings.telegram_allowed_chat_ids
-        return not allowed or str(chat_id) in allowed
+    def _remember_update(self, update_id: Any) -> bool:
+        if not isinstance(update_id, int):
+            return True
+        if update_id in self._seen_updates:
+            return False
+        if len(self._seen_update_order) == self._seen_update_order.maxlen:
+            oldest = self._seen_update_order.popleft()
+            self._seen_updates.discard(oldest)
+        self._seen_update_order.append(update_id)
+        self._seen_updates.add(update_id)
+        return True
+
+    def _authorised(self, user_id: str) -> bool:
+        return bool(self.allowed_user_ids) and user_id in self.allowed_user_ids
+
+    def _rate_allowed(self, user_id: str) -> bool:
+        now = time.monotonic()
+        window = self._rate_windows.setdefault(user_id, deque())
+        while window and now - window[0] > 10.0:
+            window.popleft()
+        if len(window) >= 15:
+            return False
+        window.append(now)
+        return True
 
     async def handle_update(self, update: dict[str, Any]) -> None:
+        if not self._remember_update(update.get("update_id")):
+            return
         self.updates_handled += 1
+        chat_id: str | None = None
+        command = ""
         try:
-            if cb := update.get("callback_query"):
-                await self._handle_callback(cb)
-                return
             message = update.get("message") or update.get("edited_message")
             if not message:
                 return
-            chat_id = str(message["chat"]["id"])
+            chat_id = str(message.get("chat", {}).get("id", ""))
+            user = message.get("from") or {}
+            user_id = str(user.get("id", ""))
             text = (message.get("text") or "").strip()
-            user = message.get("from", {})
-            self._known_chats.add(chat_id)
-
-            if not self._authorised(chat_id):
-                log.warning("unauthorised chat %s (@%s)", chat_id, user.get("username"))
-                await self.send_message(chat_id, f"⛔️ Not authorised.\nYour chat id: <code>{chat_id}</code>")
-                return
-            if not text.startswith("/"):
+            if not chat_id or not user_id or not text.startswith("/"):
                 return
 
             parts = text.split()
-            cmd = parts[0].split("@")[0].lower()
+            command = parts[0].split("@")[0].lower()
             args = parts[1:]
-            actor = f"tg:{user.get('username') or chat_id}"
-            log.info("command %s %s from %s", cmd, args, actor)
-            await self._dispatch(cmd, args, chat_id, actor)
+            authorised = self._authorised(user_id)
+            if not authorised and command not in _BOOTSTRAP_COMMANDS:
+                await self.send_message(
+                    chat_id,
+                    text_card(
+                        "⛔ Not authorised",
+                        "BOOTSTRAP ONLY",
+                        [
+                            f"User ID <code>{esc(user_id)}</code>",
+                            f"Chat ID <code>{esc(chat_id)}</code>",
+                            "Ask the operator to add your user ID to <code>TELEGRAM_ALLOWED_USER_IDS</code>.",
+                        ],
+                        source="AlphaEngine access control",
+                        next_commands="/whoami · /help",
+                    ),
+                )
+                return
+            if not self._rate_allowed(user_id):
+                await self.send_message(
+                    chat_id,
+                    text_card(
+                        "⚠️ Command rate limited",
+                        "TRY AGAIN SHORTLY",
+                        ["The bot accepts up to 15 commands per user in 10 seconds."],
+                        source="AlphaEngine bot guard",
+                        next_commands="/help",
+                    ),
+                )
+                return
+
+            actor = f"tg:{user_id}:{user.get('username') or 'user'}"
+            log.info("Telegram command %s from user %s", command, user_id)
+            await self._dispatch(command, args, chat_id, actor)
         except Exception as exc:
-            log.exception("update handling failed: %s", exc)
+            reference = f"tg-{update.get('update_id', int(time.time()))}"
+            log.exception("Telegram command failed (%s, %s)", reference, type(exc).__name__)
+            if chat_id:
+                with contextlib.suppress(Exception):
+                    await self.send_message(
+                        chat_id,
+                        text_card(
+                            "⚠️ Command failed",
+                            f"REFERENCE {reference}",
+                            ["The request was contained and no trading state was changed."],
+                            source="AlphaEngine command handler",
+                            next_commands=f"/help {command.lstrip('/')} · /status",
+                        ),
+                    )
 
-    async def _dispatch(self, cmd: str, args: list[str], chat_id: str, actor: str) -> None:
-        handlers = {
-            "/start": self._cmd_start, "/help": self._cmd_start, "/app": self._cmd_start,
-            "/status": self._cmd_status, "/risk": self._cmd_risk, "/limits": self._cmd_limits,
-            "/positions": self._cmd_positions, "/orders": self._cmd_orders,
-            "/kill": self._cmd_kill, "/resume": self._cmd_resume,
-            "/book": self._cmd_book, "/tca": self._cmd_tca,
-            "/backtest": self._cmd_backtest, "/jobs": self._cmd_jobs,
-            "/whoami": self._cmd_whoami,
-            "/subscribe": self._cmd_subscribe, "/unsubscribe": self._cmd_unsubscribe,
-            "/watch": self._cmd_watch, "/unwatch": self._cmd_unwatch, "/watches": self._cmd_watches,
-            "/research": self._cmd_research, "/portfolio": self._cmd_portfolio,
-        }
-        handler = handlers.get(cmd)
-        if not handler:
-            await self.send_message(chat_id, f"Unknown command <code>{esc(cmd)}</code>.\n\n{HELP_TEXT}")
-            return
-        await handler(args, chat_id, actor)
-
-    async def _handle_callback(self, cb: dict) -> None:
-        chat_id = str(cb["message"]["chat"]["id"])
-        data = cb.get("data", "")
-        await self.api("answerCallbackQuery", callback_query_id=cb["id"])
-        if not self._authorised(chat_id):
-            return
-        if data.startswith("kill"):
-            await self._cmd_kill(data.split(":")[1:], chat_id, "tg:button")
-        elif data.startswith("resume"):
-            await self._cmd_resume(data.split(":")[1:], chat_id, "tg:button")
-
-    # -- commands --------------------------------------------------------- #
-    async def _cmd_start(self, args, chat_id, actor) -> None:
-        # Talking to the bot is consent to receive its alerts — a trader who has
-        # to opt in separately is a trader who misses the first kill-switch trip.
-        self._subscribe(chat_id, actor)
-        kb = self._miniapp_keyboard()
-        note = "" if kb else (
-            f"\n\n<i>Mini App buttons need a public https URL. "
-            f"Open the desk directly: {esc(settings.miniapp_url)}</i>"
-        )
-        await self.send_message(chat_id, HELP_TEXT + note, kb)
-
-    async def _cmd_research(self, args, chat_id, actor) -> None:
-        """Link out to the Vercel research portal."""
-        url = settings.research_portal_url
-        if not url:
+    async def _dispatch(self, command: str, args: list[str], chat_id: str, actor: str) -> None:
+        spec = _COMMAND_BY_NAME.get(command)
+        if not spec:
             await self.send_message(
                 chat_id,
-                "No research portal configured. Set <code>RESEARCH_PORTAL_URL</code> to the "
-                "Vercel deployment, or run a sweep here with <code>/backtest BTCUSDT 1h</code>.",
+                text_card(
+                    "⚠️ Unknown command",
+                    "NOT DISPATCHED",
+                    [f"No command matches <code>{esc(command)}</code>."],
+                    source="AlphaEngine command registry",
+                    next_commands="/commands · /help",
+                ),
             )
             return
+        handler = getattr(self, spec.handler)
+        await handler(args, chat_id, actor)
 
-        kb = (
-            {"inline_keyboard": [[{"text": "📈 Open strategy research", "web_app": {"url": url}}]]}
-            if url.startswith("https://")
-            else None
+    # ------------------------------------------------------------------ #
+    # Parsing / data helpers
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def _symbol(args: list[str], index: int = 0) -> str:
+        symbol = (args[index] if len(args) > index else settings.symbols[0]).strip().upper()
+        if not _SYMBOL_RE.fullmatch(symbol):
+            raise ValueError("symbol must contain only letters, numbers, dot or hyphen")
+        return symbol
+
+    @staticmethod
+    def _asset(symbol: str, args: list[str], index: int = 1) -> str:
+        default = "crypto" if symbol.endswith(("USDT", "-USD")) else "equity"
+        asset = (args[index].lower() if len(args) > index else default)
+        if asset not in {"equity", "crypto"}:
+            raise ValueError("asset must be equity or crypto")
+        return asset
+
+    @staticmethod
+    def _limit(args: list[str], index: int, default: int, maximum: int = 20) -> int:
+        try:
+            value = int(args[index]) if len(args) > index else default
+        except ValueError as exc:
+            raise ValueError("count must be an integer") from exc
+        if not 1 <= value <= maximum:
+            raise ValueError(f"count must be between 1 and {maximum}")
+        return value
+
+    @staticmethod
+    def _bar_args(args: list[str]) -> tuple[str, str, int, str]:
+        symbol = TelegramBot._symbol(args)
+        interval = args[1].lower() if len(args) > 1 else "1d"
+        if interval not in {"15m", "1h", "4h", "1d"}:
+            raise ValueError("interval must be 15m, 1h, 4h or 1d")
+        count = TelegramBot._limit(args, 2, 5, 50)
+        asset = "crypto" if symbol.endswith(("USDT", "-USD")) else "equity"
+        return symbol, interval, count, asset
+
+    @staticmethod
+    def _trade_args(args: list[str]) -> tuple[str, float, str]:
+        symbol = TelegramBot._symbol(args)
+        notional = _finite(args[1]) if len(args) > 1 else settings.default_probe_notional
+        side = args[2].upper() if len(args) > 2 else "BUY"
+        if notional is None or notional <= 0 or notional > 1_000_000_000:
+            raise ValueError("notional must be a positive finite number up to $1bn")
+        if side not in {"BUY", "SELL"}:
+            raise ValueError("side must be BUY or SELL")
+        return symbol, notional, side
+
+    @staticmethod
+    def _openbb_error(capability: str, payload: dict[str, Any]) -> str:
+        detail = str(payload.get("error") or payload.get("detail") or "provider returned no data")[:260]
+        return text_card(
+            f"⚠️ OpenBB · {capability}",
+            "UNAVAILABLE",
+            [esc(detail)],
+            source="OpenBB / yfinance",
+            next_commands="/openbb · /status",
         )
+
+    def _portfolio_report(self) -> dict[str, Any]:
+        from modules.portfolio import build_portfolio
+
+        return build_portfolio(self.gateway, self.audit)
+
+    # ------------------------------------------------------------------ #
+    # Essentials
+    # ------------------------------------------------------------------ #
+    async def _cmd_start(self, args, chat_id, actor) -> None:
+        await self.send_message(chat_id, HELP_TEXT)
+
+    async def _cmd_help(self, args, chat_id, actor) -> None:
+        await self.send_message(chat_id, help_text(args[0] if args else None))
+
+    async def _cmd_commands(self, args, chat_id, actor) -> None:
+        await self.send_message(chat_id, command_catalogue())
+
+    async def _cmd_about(self, args, chat_id, actor) -> None:
         await self.send_message(
             chat_id,
-            "<b>📈 Strategy research portal</b>\n\n"
-            "Sweep a parameter grid and see whether the winner is edge or selection bias:\n"
-            "• price, indicator lines and the bars actually held\n"
-            "• equity vs buy &amp; hold, with drawdown\n"
-            "• Sharpe surface across the whole grid — click any cell to inspect it\n"
-            "• Deflated Sharpe and walk-forward out-of-sample Sharpe\n\n"
-            f"{esc(url)}",
-            kb,
+            text_card(
+                "ℹ️ AlphaEngine Companion",
+                "INDEPENDENT · TEXT ONLY · READ-ONLY",
+                [
+                    "A separate operational channel for portfolio, market, research and execution updates.",
+                    "It shares authoritative data services with AlphaEngine but never opens or controls the web UI.",
+                    "Order entry, kill-switch changes and backtest submission are intentionally absent.",
+                ],
+                source="AlphaEngine Telegram service",
+                next_commands="/commands · /status · /digest",
+            ),
         )
 
     async def _cmd_whoami(self, args, chat_id, actor) -> None:
-        await self.send_message(chat_id, f"chat id: <code>{chat_id}</code>\nactor: <code>{esc(actor)}</code>")
+        user_id = actor.split(":", 2)[1] if actor.startswith("tg:") else "unknown"
+        authorised = self._authorised(user_id)
+        await self.send_message(
+            chat_id,
+            text_card(
+                "🪪 Telegram identity",
+                "AUTHORISED" if authorised else "NOT YET AUTHORISED",
+                [f"User ID <code>{esc(user_id)}</code>", f"Chat ID <code>{esc(chat_id)}</code>"],
+                source="Telegram update envelope",
+                next_commands="/help" if authorised else "Ask operator to update TELEGRAM_ALLOWED_USER_IDS",
+            ),
+        )
+
+    async def _cmd_version(self, args, chat_id, actor) -> None:
+        await self.send_message(
+            chat_id,
+            text_card(
+                "🏷 AlphaEngine runtime",
+                settings.environment.upper(),
+                [
+                    f"Version <code>{esc(settings.version)}</code>",
+                    f"Bot mode <code>{esc(self.mode)}</code>",
+                    f"Text commands <code>{len(COMMAND_SPECS)}</code>",
+                ],
+                source="AlphaEngine configuration",
+                next_commands="/status · /commands",
+            ),
+        )
+
+    async def _cmd_ping(self, args, chat_id, actor) -> None:
+        started = time.perf_counter()
+        elapsed_ms = (time.perf_counter() - started) * 1000
+        await self.send_message(
+            chat_id,
+            text_card(
+                "🏓 Command path",
+                "RESPONSIVE",
+                [f"Dispatch overhead <code>{elapsed_ms:.2f} ms</code>"],
+                source="AlphaEngine Telegram process",
+                next_commands="/status",
+            ),
+        )
 
     async def _cmd_status(self, args, chat_id, actor) -> None:
-        health = self.tca.health() if self.tca else {}
+        from modules import research
+
+        feed_health = self.tca.health() if self.tca else {}
         state = self.gateway.state() if self.gateway else None
-        lines = ["<b>⚙️ Gateway status</b>", ""]
+        openbb = await research.openbb_status_async()
+        lines: list[str] = []
         if state:
-            flag = "🛑 HALTED" if state.kill_switch_active else "🟢 LIVE"
-            lines.append(f"Trading: <b>{flag}</b>")
-            if state.halted_symbols:
-                lines.append(f"Halted symbols: {', '.join(state.halted_symbols)}")
-        lines.append("")
-        lines.append("<b>Market data feeds</b>")
-        for feed in health.get("feeds", []):
-            icon = "🟢" if feed["connected"] else "🔴"
-            syms = feed.get("symbols", {})
-            rate = sum(s.get("rate_hz") or 0 for s in syms.values())
-            lines.append(
-                f"{icon} <b>{feed['venue']}</b> — {rate:.0f} upd/s, "
-                f"{feed['reconnects']} reconnects, up {feed['uptime_s']:.0f}s"
-            )
-            if feed.get("last_error"):
-                lines.append(f"    <i>{esc(feed['last_error'])[:80]}</i>")
-        if health.get("synthetic_active"):
-            lines.append("\n⚠️ <b>SYNTHETIC BOOK ACTIVE</b> — no live venue reachable.")
+            lines.append(f"Trading state  <code>{'HALTED' if state.kill_switch_active else 'LIVE'}</code>")
+            lines.append(f"Equity         <code>{_money(state.equity)}</code>")
+        feeds = feed_health.get("feeds", [])
+        live_feeds = sum(1 for feed in feeds if feed.get("connected"))
+        lines.append(f"Market feeds   <code>{live_feeds}/{len(feeds)} connected</code>")
+        lines.append(f"Synthetic book <code>{'ACTIVE' if feed_health.get('synthetic_active') else 'off'}</code>")
+        lines.append(f"OpenBB         <code>{'READY' if openbb.get('ok') else 'UNAVAILABLE'}</code>")
         if self.queue:
-            st = self.queue.stats()
-            lines.append(f"\n<b>Job queue</b>: {st['backend']} · {st['workers']} workers · {st['total']} jobs")
-        await self.send_message(chat_id, "\n".join(lines))
+            queue = self.queue.stats()
+            lines.append(f"Research queue <code>{queue['backend']} · {queue['total']} jobs</code>")
+        status = "DEGRADED" if (not openbb.get("ok") or live_feeds < len(feeds)) else "HEALTHY"
+        await self.send_message(
+            chat_id,
+            text_card(
+                "⚙️ AlphaEngine systems",
+                status,
+                lines,
+                source="Gateway + TCA engine + OpenBB",
+                next_commands="/feedstatus · /openbb · /risk",
+            ),
+        )
+
+    # ------------------------------------------------------------------ #
+    # Portfolio manager
+    # ------------------------------------------------------------------ #
+    async def _cmd_portfolio(self, args, chat_id, actor) -> None:
+        from modules.portfolio import format_for_telegram
+
+        await self.send_message(chat_id, format_for_telegram(self._portfolio_report()))
+
+    async def _cmd_positions(self, args, chat_id, actor) -> None:
+        state = self.gateway.state()
+        symbol = self._symbol(args) if args else None
+        positions = [position for position in state.positions if not symbol or position.symbol == symbol]
+        if not positions:
+            message = f"No open position for <code>{esc(symbol)}</code>." if symbol else "The book is flat."
+            await self.send_message(chat_id, text_card("📌 Positions", "FLAT", [message], source="Risk gateway", next_commands="/portfolio"))
+            return
+        lines = []
+        for position in sorted(positions, key=lambda row: -row.notional):
+            side = "LONG" if position.quantity > 0 else "SHORT"
+            lines += [
+                f"<b>{esc(position.symbol)} · {side}</b>",
+                f"Qty <code>{position.quantity:+.6f}</code> · Avg <code>{_number(position.avg_price)}</code> · Mark <code>{_number(position.mark_price)}</code>",
+                f"Notional <code>{_money(position.notional)}</code> · uPnL <code>{_money(position.unrealized_pnl, signed=True)}</code>",
+            ]
+        await self.send_message(chat_id, text_card("📌 Open positions", "LIVE GATEWAY STATE", lines, source="Risk gateway", next_commands="/exposure · /pnl · /concentration"))
+
+    async def _cmd_pnl(self, args, chat_id, actor) -> None:
+        report = self._portfolio_report()
+        equity = report["equity"]
+        lines = [
+            f"Equity       <code>{_money(equity['current'])}</code>",
+            f"Day P&amp;L     <code>{_money(equity['daily_pnl'], signed=True)}</code> · <code>{_percent(equity['daily_return'], signed=True)}</code>",
+            f"Realised     <code>{_money(equity['realized_pnl'], signed=True)}</code>",
+            f"Unrealised   <code>{_money(equity['unrealized_pnl'], signed=True)}</code>",
+        ]
+        await self.send_message(chat_id, text_card("💹 Portfolio P&L", "LIVE GATEWAY STATE", lines, source="Risk gateway", next_commands="/positions · /attribution"))
+
+    async def _cmd_exposure(self, args, chat_id, actor) -> None:
+        report = self._portfolio_report()
+        exposure = report["exposure"]
+        lines = [
+            f"Gross       <code>{_money(exposure['gross'])}</code>",
+            f"Net         <code>{_money(exposure['net'], signed=True)}</code>",
+            f"Leverage    <code>{_number(exposure['leverage'])}x</code>",
+            f"Positions   <code>{len(exposure['positions'])}</code>",
+        ]
+        for position in exposure["positions"][:8]:
+            lines.append(f"{esc(position['symbol']):<10} <code>{_money(position['notional'])}</code> · <code>{_percent(position['share_of_gross'])}</code>")
+        await self.send_message(chat_id, text_card("🧭 Portfolio exposure", "LIVE GATEWAY STATE", lines, source="Risk gateway", next_commands="/concentration · /headroom"))
+
+    async def _cmd_concentration(self, args, chat_id, actor) -> None:
+        concentration = self._portfolio_report()["concentration"]
+        lines = [
+            f"Largest symbol      <code>{esc(concentration['largest_symbol'] or '—')}</code>",
+            f"Largest share       <code>{_percent(concentration['largest_share'])}</code>",
+            f"Top-two share       <code>{_percent(concentration['top_two_share'])}</code>",
+            f"HHI                 <code>{_number(concentration['hhi'], 4)}</code>",
+            f"Effective positions <code>{_number(concentration['effective_positions'])}</code>",
+        ]
+        await self.send_message(chat_id, text_card("🎯 Concentration", "LIVE GATEWAY STATE", lines, source="Portfolio service", next_commands="/positions · /headroom"))
+
+    async def _cmd_headroom(self, args, chat_id, actor) -> None:
+        report = self._portfolio_report()
+        budget = report["risk_budget"]
+        gross = budget["gross_exposure"]
+        drawdown = budget["daily_drawdown"]
+        constraint, utilisation = budget["binding_constraint"]
+        lines = [
+            f"Gross remaining  <code>{_money(gross['remaining'])}</code> · <code>{_percent(gross['utilisation'])}</code> used",
+            f"Drawdown cushion <code>{_money(drawdown['cushion_usd'])}</code> · <code>{_percent(drawdown['utilisation'])}</code> used",
+            f"Binding limit    <code>{esc(constraint)}</code> · <code>{_percent(utilisation)}</code>",
+        ]
+        for position in report["exposure"]["positions"][:8]:
+            cap = position["symbol_limit"]
+            lines.append(f"{esc(position['symbol']):<10} remaining <code>{_money(cap['remaining'])}</code>")
+        await self.send_message(chat_id, text_card("🛡 Risk headroom", "AUTHORITATIVE LIMITS", lines, source="Risk gateway", next_commands="/risk · /limits"))
 
     async def _cmd_risk(self, args, chat_id, actor) -> None:
-        s = self.gateway.state()
-        used = s.drawdown_budget_used_pct
-        bar = "█" * int(min(1.0, used) * 12) + "░" * (12 - int(min(1.0, used) * 12))
+        state = self.gateway.state()
+        used = max(0.0, min(1.0, state.drawdown_budget_used_pct))
+        filled = int(used * 12)
         lines = [
-            f"<b>{'🛑 TRADING HALTED' if s.kill_switch_active else '🟢 Risk gateway live'}</b>",
+            f"Equity      <code>{_money(state.equity)}</code>",
+            f"Day P&amp;L    <code>{_money(state.daily_pnl, signed=True)}</code>",
+            f"Drawdown   <code>{_percent(state.daily_drawdown_pct)}</code> / <code>{_percent(state.limits['max_daily_drawdown_pct'])}</code>",
+            f"Budget     <code>{'█' * filled}{'░' * (12 - filled)}</code> {_percent(used)}",
+            f"Gross       <code>{_money(state.gross_exposure)}</code> / <code>{_money(state.limits['max_gross_exposure_usd'])}</code>",
+            f"Orders      <code>{state.orders_accepted} accepted · {state.orders_rejected} rejected</code>",
         ]
-        if s.kill_switch_active:
-            lines.append(f"<i>{esc(s.kill_reason)}</i> — by {esc(s.killed_by)}")
-        lines += [
-            "",
-            f"Equity        <code>${s.equity:,.0f}</code>",
-            f"Daily PnL     <code>{s.daily_pnl:+,.0f}</code>",
-            f"Realised      <code>{s.realized_pnl:+,.0f}</code>",
-            f"Unrealised    <code>{s.unrealized_pnl:+,.0f}</code>",
-            "",
-            f"Drawdown      <code>{s.daily_drawdown_pct:.2%}</code> of <code>{s.limits['max_daily_drawdown_pct']:.2%}</code>",
-            f"Budget used   <code>{bar}</code> {used:.0%}",
-            "",
-            f"Gross expo    <code>${s.gross_exposure:,.0f}</code> / <code>${s.limits['max_gross_exposure_usd']:,.0f}</code>",
-            f"Orders        <code>{s.orders_accepted} accepted · {s.orders_rejected} rejected</code>",
-            f"Order rate    <code>{s.orders_last_second:.1f}/s</code> (cap {s.limits['max_orders_per_sec']:.0f}/s)",
-        ]
-        kb = {"inline_keyboard": [[
-            {"text": "🛑 KILL", "callback_data": "kill"},
-            {"text": "✅ RESUME", "callback_data": "resume"},
-        ]]}
-        await self.send_message(chat_id, "\n".join(lines), kb)
+        status = "HALTED" if state.kill_switch_active else "LIVE"
+        if state.kill_switch_active:
+            lines.insert(0, f"Reason <code>{esc(state.kill_reason or 'not provided')}</code>")
+        await self.send_message(chat_id, text_card("🛡 Risk gateway", status, lines, source="Authoritative risk process", next_commands="/headroom · /positions · /incidents"))
 
     async def _cmd_limits(self, args, chat_id, actor) -> None:
         limits = self.gateway.state().limits
-        body = "\n".join(f"<code>{k:<26}</code> {v:,.4g}" for k, v in limits.items())
-        await self.send_message(chat_id, f"<b>Active hard limits</b>\n\n{body}\n\n<i>Changing a limit requires a deploy.</i>")
+        lines = [f"<code>{esc(key):<28}</code> {value:,.4g}" for key, value in limits.items()]
+        await self.send_message(chat_id, text_card("🧱 Hard risk limits", "DEPLOY-TIME CONFIGURATION", lines, source="Risk gateway settings", next_commands="/headroom · /risk"))
 
-    async def _cmd_portfolio(self, args, chat_id, actor) -> None:
-        """The portfolio-manager view — the book, not the next order."""
-        from modules.portfolio import build_portfolio, format_for_telegram
+    async def _cmd_attribution(self, args, chat_id, actor) -> None:
+        report = self._portfolio_report()
+        strategies = report["attribution"]["by_strategy"]
+        symbols = report["attribution"]["by_symbol"]
+        lines = ["<b>By strategy</b>"]
+        if strategies:
+            for row in strategies[:8]:
+                lines.append(f"{esc(row.get('strategy') or 'unassigned')} · <code>{row.get('filled') or 0} fills</code> · <code>{_money(row.get('notional'))}</code> · <code>{_number(row.get('avg_slippage_bps'), signed=True)} bps</code>")
+        else:
+            lines.append("No strategy flow recorded.")
+        lines.append("\n<b>By symbol</b>")
+        for row in symbols[:8]:
+            lines.append(f"{esc(row.get('symbol'))} · <code>{row.get('filled') or 0} fills</code> · <code>{row.get('rejected') or 0} rejected</code>")
+        await self.send_message(chat_id, text_card("🧾 Portfolio attribution", "AUDIT-RECONSTRUCTED", lines, source="DuckDB audit log", next_commands="/orders · /slippage · /fees"))
 
-        report = build_portfolio(self.gateway, self.audit)
-        await self.send_message(chat_id, format_for_telegram(report))
+    # ------------------------------------------------------------------ #
+    # OpenBB / market data
+    # ------------------------------------------------------------------ #
+    async def _cmd_openbb(self, args, chat_id, actor) -> None:
+        from modules import research
 
-    async def _cmd_positions(self, args, chat_id, actor) -> None:
-        s = self.gateway.state()
-        if not s.positions:
-            await self.send_message(chat_id, "No open positions. Book is flat.")
+        status = await research.openbb_status_async()
+        lines = [
+            f"Provider <code>{esc(status.get('provider') or '—')}</code>",
+            f"Quote     <code>{'available' if status.get('ok') else 'unavailable'}</code>",
+            f"Bars      <code>{'available' if status.get('ok') else 'unavailable'}</code>",
+            f"News      <code>{'available' if status.get('ok') else 'unavailable'}</code>",
+            f"Fundamentals <code>{'available' if status.get('ok') else 'unavailable'}</code>",
+        ]
+        if status.get("detail"):
+            lines.append(f"Detail <code>{esc(str(status['detail'])[:240])}</code>")
+        await self.send_message(chat_id, text_card("🔌 OpenBB", "READY" if status.get("ok") else "UNAVAILABLE", lines, source="OpenBB provider extension", next_commands="/quote AAPL · /snapshot AAPL · /status"))
+
+    async def _quote_payload(self, symbol: str, asset: str) -> dict[str, Any]:
+        from modules import research
+
+        return await research.quote(symbol, asset)
+
+    async def _cmd_quote(self, args, chat_id, actor) -> None:
+        symbol = self._symbol(args)
+        asset = self._asset(symbol, args)
+        payload = await self._quote_payload(symbol, asset)
+        if not payload.get("ok"):
+            await self.send_message(chat_id, self._openbb_error("quote", payload))
             return
-        lines = ["<b>📌 Open positions</b>", ""]
-        for p in s.positions:
-            lines.append(
-                f"<b>{esc(p.symbol)}</b>  {p.quantity:+.6f} @ {p.avg_price:,.2f}\n"
-                f"   mark <code>{(p.mark_price or 0):,.2f}</code> · "
-                f"notional <code>${p.notional:,.0f}</code> · "
-                f"uPnL <code>{p.unrealized_pnl:+,.2f}</code> · rPnL <code>{p.realized_pnl:+,.2f}</code>"
-            )
-        await self.send_message(chat_id, "\n".join(lines))
+        data = payload["data"]
+        lines = [
+            f"Price      <code>{_number(data.get('price'))}</code> {esc(data.get('currency') or '')}",
+            f"Change     <code>{_number(data.get('change'), signed=True)}</code> · <code>{_number(data.get('change_percent'), signed=True)}%</code>",
+            f"Open       <code>{_number(data.get('open'))}</code>",
+            f"High / Low <code>{_number(data.get('high'))}</code> / <code>{_number(data.get('low'))}</code>",
+            f"Volume     <code>{_number(data.get('volume'), 0)}</code>",
+        ]
+        await self.send_message(chat_id, text_card(f"💹 {symbol} quote", "DELAYED" if data.get("delayed") else "LIVE", lines, source="OpenBB / yfinance", next_commands=f"/bars {symbol} 1d 5 · /snapshot {symbol}"))
 
-    async def _cmd_orders(self, args, chat_id, actor) -> None:
-        rows = self.audit.recent_orders(10) if self.audit else []
+    async def _bars_payload(self, symbol: str, interval: str, count: int, asset: str) -> dict[str, Any]:
+        from modules import research
+
+        return await research.bars(symbol, asset, interval, count)
+
+    async def _cmd_bars(self, args, chat_id, actor) -> None:
+        symbol, interval, count, asset = self._bar_args(args)
+        payload = await self._bars_payload(symbol, interval, count, asset)
+        if not payload.get("ok"):
+            await self.send_message(chat_id, self._openbb_error("bars", payload))
+            return
+        rows = payload.get("data") or []
         if not rows:
-            await self.send_message(chat_id, "No orders in the audit log yet.")
+            await self.send_message(chat_id, self._openbb_error("bars", {"error": "no bars returned"}))
             return
-        lines = ["<b>🧾 Recent gateway decisions</b>", ""]
-        for r in rows:
-            icon = "✅" if r["accepted"] else "❌"
-            ts = str(r["ts"])[11:19]
-            lines.append(
-                f"{icon} <code>{ts}</code> {esc(r['symbol'])} {esc(r['side'])} "
-                f"${(r['notional'] or 0):,.0f} <i>{r['latency_ms']:.2f}ms</i>"
-            )
-            if not r["accepted"]:
-                lines.append(f"   ↳ <code>{esc((r['rejected_by'] or '')[:70])}</code>")
-        await self.send_message(chat_id, "\n".join(lines))
+        lines = []
+        for row in rows[-min(count, 10):]:
+            date_label = str(row.get("date") or "")[:16]
+            lines.append(f"<code>{esc(date_label):<16}</code> O {_number(row.get('open'))} · H {_number(row.get('high'))} · L {_number(row.get('low'))} · C {_number(row.get('close'))}")
+        await self.send_message(chat_id, text_card(f"🕯 {symbol} · {interval}", f"{len(rows)} DELAYED BARS", lines, source="OpenBB / yfinance", next_commands=f"/trend {symbol} {interval} {count} · /range {symbol} {interval} {count}"))
 
-    async def _cmd_kill(self, args, chat_id, actor) -> None:
-        symbol = args[0].upper() if args else None
-        await self.gateway.trigger_kill(reason=f"Telegram /kill by {actor}", actor=actor, symbol=symbol)
-        scope = f"{symbol}" if symbol else "ALL INSTRUMENTS"
-        await self.send_message(chat_id, f"🛑 <b>KILL ENGAGED — {esc(scope)}</b>\nNew orders are being rejected.")
+    async def _cmd_trend(self, args, chat_id, actor) -> None:
+        symbol, interval, count, asset = self._bar_args(args)
+        count = max(2, count)
+        payload = await self._bars_payload(symbol, interval, count, asset)
+        rows = payload.get("data") or [] if payload.get("ok") else []
+        if len(rows) < 2:
+            await self.send_message(chat_id, self._openbb_error("trend", payload if not payload.get("ok") else {"error": "at least two bars are required"}))
+            return
+        first = _finite(rows[0].get("close"))
+        last = _finite(rows[-1].get("close"))
+        change = (last / first - 1) if first and last is not None else None
+        direction = "UP" if change is not None and change > 0 else "DOWN" if change is not None and change < 0 else "FLAT"
+        lines = [f"First close <code>{_number(first)}</code>", f"Last close  <code>{_number(last)}</code>", f"Return      <code>{_percent(change, signed=True)}</code>", f"Direction   <code>{direction}</code>"]
+        await self.send_message(chat_id, text_card(f"📈 {symbol} trend · {interval}", f"{len(rows)} DELAYED BARS", lines, source="OpenBB / yfinance", next_commands=f"/range {symbol} {interval} {count} · /volume {symbol} {interval} {count}"))
 
-    async def _cmd_resume(self, args, chat_id, actor) -> None:
-        symbol = args[0].upper() if args else None
-        await self.gateway.release_kill(actor=actor, symbol=symbol)
-        scope = f"{symbol}" if symbol else "ALL INSTRUMENTS"
-        await self.send_message(chat_id, f"✅ <b>Trading resumed — {esc(scope)}</b>")
+    async def _cmd_range(self, args, chat_id, actor) -> None:
+        symbol, interval, count, asset = self._bar_args(args)
+        payload = await self._bars_payload(symbol, interval, count, asset)
+        rows = payload.get("data") or [] if payload.get("ok") else []
+        highs = [value for row in rows if (value := _finite(row.get("high"))) is not None]
+        lows = [value for row in rows if (value := _finite(row.get("low"))) is not None]
+        if not highs or not lows:
+            await self.send_message(chat_id, self._openbb_error("range", payload if not payload.get("ok") else {"error": "no valid high/low values"}))
+            return
+        high, low = max(highs), min(lows)
+        width = (high / low - 1) if low else None
+        lines = [f"High        <code>{_number(high)}</code>", f"Low         <code>{_number(low)}</code>", f"Range width <code>{_percent(width)}</code>", f"Observations <code>{len(rows)}</code>"]
+        await self.send_message(chat_id, text_card(f"↕️ {symbol} range · {interval}", "DELAYED", lines, source="OpenBB / yfinance", next_commands=f"/bars {symbol} {interval} 5"))
 
+    async def _cmd_volume(self, args, chat_id, actor) -> None:
+        symbol, interval, count, asset = self._bar_args(args)
+        payload = await self._bars_payload(symbol, interval, count, asset)
+        rows = payload.get("data") or [] if payload.get("ok") else []
+        volumes = [value for row in rows if (value := _finite(row.get("volume"))) is not None]
+        if not volumes:
+            await self.send_message(chat_id, self._openbb_error("volume", payload if not payload.get("ok") else {"error": "no volume values"}))
+            return
+        average = sum(volumes) / len(volumes)
+        ratio = volumes[-1] / average if average else None
+        lines = [f"Latest  <code>{_number(volumes[-1], 0)}</code>", f"Average <code>{_number(average, 0)}</code>", f"Ratio   <code>{_number(ratio)}x</code>", f"Bars    <code>{len(volumes)}</code>"]
+        await self.send_message(chat_id, text_card(f"🔊 {symbol} volume · {interval}", "DELAYED", lines, source="OpenBB / yfinance", next_commands=f"/trend {symbol} {interval} {count}"))
+
+    async def _cmd_news(self, args, chat_id, actor) -> None:
+        from modules import research
+
+        symbol = self._symbol(args)
+        count = self._limit(args, 1, 5, 10)
+        payload = await research.news([symbol], count)
+        if not payload.get("ok"):
+            await self.send_message(chat_id, self._openbb_error("news", payload))
+            return
+        items = payload.get("data") or []
+        if not items:
+            await self.send_message(chat_id, self._openbb_error("news", {"error": "no headlines returned"}))
+            return
+        lines = []
+        for index, item in enumerate(items[:count], 1):
+            lines.append(f"<b>{index}. {esc(item.get('title') or 'Untitled')}</b>\n   {esc(item.get('source') or 'OpenBB')} · <code>{esc(str(item.get('date') or '')[:19])}</code>")
+        await self.send_message(chat_id, text_card(f"📰 {symbol} headlines", "DELAYED", lines, source="OpenBB / yfinance", next_commands=f"/snapshot {symbol} · /quote {symbol}"))
+
+    async def _cmd_fundamentals(self, args, chat_id, actor) -> None:
+        from modules import research
+
+        symbol = self._symbol(args)
+        payload = await research.fundamentals(symbol)
+        if not payload.get("ok"):
+            await self.send_message(chat_id, self._openbb_error("fundamentals", payload))
+            return
+        data = payload["data"]
+        lines = [
+            f"Name       <code>{esc(data.get('name') or '—')}</code>",
+            f"Exchange   <code>{esc(data.get('exchange') or '—')}</code>",
+            f"Sector     <code>{esc(data.get('sector') or '—')}</code>",
+            f"Industry   <code>{esc(data.get('industry') or '—')}</code>",
+            f"Market cap <code>{_money(data.get('market_cap'))}</code>",
+            f"P/E        <code>{_number(data.get('pe_ratio'))}</code>",
+            f"EPS        <code>{_number(data.get('eps'))}</code>",
+            f"Beta       <code>{_number(data.get('beta'))}</code>",
+        ]
+        description = str(data.get("description") or "").strip()
+        if description:
+            lines.append(f"\n{esc(description[:420])}{'…' if len(description) > 420 else ''}")
+        await self.send_message(chat_id, text_card(f"🏢 {symbol} fundamentals", "DELAYED", lines, source="OpenBB / yfinance", next_commands=f"/quote {symbol} · /news {symbol} 5"))
+
+    async def _cmd_snapshot(self, args, chat_id, actor) -> None:
+        from modules import research
+
+        symbol = self._symbol(args)
+        asset = self._asset(symbol, args)
+        quote, fundamentals, news = await asyncio.gather(
+            research.quote(symbol, asset),
+            research.fundamentals(symbol) if asset == "equity" else asyncio.sleep(0, result={"ok": False}),
+            research.news([symbol], 3),
+        )
+        if not quote.get("ok") and not fundamentals.get("ok") and not news.get("ok"):
+            await self.send_message(chat_id, self._openbb_error("snapshot", quote))
+            return
+        lines: list[str] = []
+        if quote.get("ok"):
+            data = quote["data"]
+            lines += ["<b>Market</b>", f"Price <code>{_number(data.get('price'))}</code> · Change <code>{_number(data.get('change_percent'), signed=True)}%</code>"]
+        if fundamentals.get("ok"):
+            data = fundamentals["data"]
+            lines += ["\n<b>Company</b>", f"{esc(data.get('name') or symbol)} · {esc(data.get('sector') or 'sector n/a')}", f"Market cap <code>{_money(data.get('market_cap'))}</code> · P/E <code>{_number(data.get('pe_ratio'))}</code>"]
+        if news.get("ok"):
+            lines.append("\n<b>Headlines</b>")
+            for item in (news.get("data") or [])[:3]:
+                lines.append(f"• {esc(item.get('title') or 'Untitled')}")
+        await self.send_message(chat_id, text_card(f"🔎 {symbol} research snapshot", "DELAYED", lines, source="OpenBB / yfinance", next_commands=f"/quote {symbol} · /bars {symbol} 1d 5 · /news {symbol} 5"))
+
+    async def _cmd_symbols(self, args, chat_id, actor) -> None:
+        lines = [f"Tracked crypto <code>{', '.join(settings.symbols)}</code>", "Equity examples <code>AAPL, MSFT, NVDA, SPY</code>", "Assets <code>equity · crypto</code>", "Intervals <code>15m · 1h · 4h · 1d</code>"]
+        await self.send_message(chat_id, text_card("🔤 Instruments", "REFERENCE", lines, source="AlphaEngine configuration", next_commands="/quote AAPL · /book BTCUSDT · /intervals"))
+
+    # ------------------------------------------------------------------ #
+    # Execution analytics
+    # ------------------------------------------------------------------ #
     async def _cmd_book(self, args, chat_id, actor) -> None:
-        symbol = (args[0] if args else settings.symbols[0]).upper()
-        books = [b for b in self.tca.get_books(symbol, depth=5) if b.mid]
+        symbol = self._symbol(args)
+        books = [book for book in self.tca.get_books(symbol, depth=5) if book.mid]
         if not books:
-            await self.send_message(chat_id, f"No live book for <code>{esc(symbol)}</code>. Try /status.")
+            await self.send_message(chat_id, text_card(f"📖 {symbol} book", "NO LIVE BOOK", ["No venue currently has a fresh book."], source="TCA engine", next_commands="/feedstatus"))
             return
-        lines = [f"<b>📖 {esc(symbol)} — top of book</b>", ""]
-        for b in books:
-            tag = " ⚠️SYNTHETIC" if b.synthetic else ""
-            lines.append(
-                f"<b>{esc(b.venue)}</b>{tag}\n"
-                f"  bid <code>{b.best_bid:,.2f}</code>  ask <code>{b.best_ask:,.2f}</code>  "
-                f"spread <code>{(b.spread_bps or 0):.2f}bps</code>\n"
-                f"  depth5 <code>${b.depth_usd_bid:,.0f}</code> / <code>${b.depth_usd_ask:,.0f}</code>  "
-                f"imb <code>{(b.imbalance or 0):+.2f}</code>"
-            )
-        cmid = self.tca.consolidated_mid(symbol)
-        if cmid:
-            lines.append(f"\nConsolidated mid: <code>{cmid:,.2f}</code>")
-        await self.send_message(chat_id, "\n".join(lines))
+        lines = []
+        for book in books:
+            tag = "SYNTHETIC" if book.synthetic else "LIVE"
+            lines += [f"<b>{esc(book.venue)} · {tag}</b>", f"Bid <code>{_number(book.best_bid)}</code> · Ask <code>{_number(book.best_ask)}</code> · Spread <code>{_number(book.spread_bps)} bps</code>", f"Depth5 <code>{_money(book.depth_usd_bid)}</code> / <code>{_money(book.depth_usd_ask)}</code> · Imb <code>{_number(book.imbalance, signed=True)}</code>"]
+        await self.send_message(chat_id, text_card(f"📖 {symbol} top of book", "LIVE" if not any(book.synthetic for book in books) else "SYNTHETIC", lines, source="Cross-venue TCA engine", next_commands=f"/spread {symbol} · /depth {symbol} · /tca {symbol} 100000 BUY"))
+
+    async def _cmd_spread(self, args, chat_id, actor) -> None:
+        symbol = self._symbol(args)
+        books = [book for book in self.tca.get_books(symbol, depth=5) if book.mid]
+        if not books:
+            await self.send_message(chat_id, text_card(f"↔️ {symbol} spreads", "NO LIVE BOOK", ["No fresh venue book."], source="TCA engine", next_commands="/feedstatus"))
+            return
+        lines = [f"{esc(book.venue):<12} <code>{_number(book.spread_bps)} bps</code>" for book in books]
+        best_bid = max(book.best_bid or 0 for book in books)
+        best_ask = min(book.best_ask or math.inf for book in books)
+        consolidated_mid = (best_bid + best_ask) / 2 if best_ask < math.inf else None
+        consolidated = ((best_ask - best_bid) / consolidated_mid * 10_000) if consolidated_mid else None
+        lines += ["", f"Best cross-venue bid <code>{_number(best_bid)}</code>", f"Best cross-venue ask <code>{_number(best_ask)}</code>", f"Consolidated spread <code>{_number(consolidated)} bps</code>"]
+        await self.send_message(chat_id, text_card(f"↔️ {symbol} spreads", "LIVE", lines, source="Cross-venue TCA engine", next_commands=f"/book {symbol} · /route {symbol} 100000 BUY"))
+
+    async def _cmd_depth(self, args, chat_id, actor) -> None:
+        symbol = self._symbol(args)
+        books = [book for book in self.tca.get_books(symbol, depth=20) if book.mid]
+        if not books:
+            await self.send_message(chat_id, text_card(f"🌊 {symbol} depth", "NO LIVE BOOK", ["No fresh venue book."], source="TCA engine", next_commands="/feedstatus"))
+            return
+        lines = [f"<b>{esc(book.venue)}</b> · bids <code>{_money(book.depth_usd_bid)}</code> · asks <code>{_money(book.depth_usd_ask)}</code> · imbalance <code>{_number(book.imbalance, signed=True)}</code>" for book in books]
+        await self.send_message(chat_id, text_card(f"🌊 {symbol} displayed depth", "LIVE" if not any(book.synthetic for book in books) else "SYNTHETIC", lines, source="Cross-venue TCA engine", next_commands=f"/liquidity {symbol} 100000 · /tca {symbol} 100000 BUY"))
 
     async def _cmd_tca(self, args, chat_id, actor) -> None:
-        symbol = (args[0] if args else settings.symbols[0]).upper()
-        notional = float(args[1]) if len(args) > 1 else settings.default_probe_notional
-        side = (args[2].upper() if len(args) > 2 else "BUY")
-        rep = self.tca.tca_report(symbol, side, notional)
-        if not rep.per_venue:
-            await self.send_message(chat_id, f"No live book for <code>{esc(symbol)}</code>.")
+        symbol, notional, side = self._trade_args(args)
+        report = self.tca.tca_report(symbol, side, notional)
+        if not report.per_venue:
+            await self.send_message(chat_id, text_card(f"📊 {symbol} TCA", "NO LIVE BOOK", ["No execution estimate is available."], source="TCA engine", next_commands="/feedstatus"))
             return
+        lines = [f"Side / size <code>{side} · {_money(notional)}</code>", f"Mid         <code>{_number(report.consolidated_mid)}</code>", "", "<b>Single venue</b>"]
+        for estimate in report.per_venue:
+            lines.append(f"{esc(estimate.venue)} · <code>{_number(estimate.slippage_bps, signed=True)} bps</code> · VWAP <code>{_number(estimate.vwap)}</code> · <code>{'fillable' if estimate.fillable else 'partial'}</code>")
+        if report.smart_route:
+            lines += ["", f"<b>Smart route · {_number(report.smart_route_slippage_bps, signed=True)} bps</b>"]
+            for leg in report.smart_route:
+                lines.append(f"{esc(leg.venue)} <code>{leg.share_pct:.1f}%</code> · <code>{_money(leg.notional)}</code>")
+        await self.send_message(chat_id, text_card(f"📊 {symbol} TCA", "SYNTHETIC" if report.synthetic else "LIVE", lines, source="Cross-venue TCA engine", next_commands=f"/route {symbol} {notional:g} {side} · /liquidity {symbol} {notional:g}"))
 
-        lines = [
-            f"<b>📊 TCA — {esc(symbol)} {esc(side)} ${notional:,.0f}</b>",
-            f"Consolidated mid <code>{(rep.consolidated_mid or 0):,.2f}</code>"
-            + ("  ⚠️SYNTHETIC" if rep.synthetic else ""),
-            "",
-            "<b>Single-venue execution</b>",
-        ]
-        for e in rep.per_venue:
-            mark = "✅" if e.fillable else "⚠️"
-            lines.append(
-                f"{mark} <b>{esc(e.venue)}</b> vwap <code>{(e.vwap or 0):,.2f}</code> "
-                f"slip <code>{(e.slippage_bps or 0):+.2f}bps</code> "
-                f"({e.levels_consumed} lvls, ${e.filled_notional:,.0f} filled)"
-            )
-        if rep.smart_route:
-            lines += ["", "<b>🧭 Smart route</b>"]
-            for leg in rep.smart_route:
-                lines.append(f"  {esc(leg.venue)}: <code>{leg.share_pct:.1f}%</code> (${leg.notional:,.0f} @ {leg.vwap:,.2f})")
-            lines.append(f"  blended vwap <code>{(rep.smart_route_vwap or 0):,.2f}</code> "
-                         f"slip <code>{(rep.smart_route_slippage_bps or 0):+.2f}bps</code>")
-            if rep.saving_vs_worst_usd:
-                lines.append(f"  💰 saves <code>${rep.saving_vs_worst_usd:,.2f}</code> "
-                             f"({rep.saving_vs_worst_bps:.2f}bps) vs worst venue")
-        await self.send_message(chat_id, "\n".join(lines))
-
-    async def _cmd_backtest(self, args, chat_id, actor) -> None:
-        from modules.backtester import run_backtest
-        from modules.schemas import BacktestRequest
-
-        symbol = (args[0] if args else "BTCUSDT").upper()
-        interval = args[1] if len(args) > 1 else "1h"
-        strategy = args[2] if len(args) > 2 else "ma_cross"
-        try:
-            req = BacktestRequest(symbol=symbol, interval=interval, strategy=strategy, notify_chat_id=chat_id)
-        except Exception as exc:
-            await self.send_message(chat_id, f"Bad parameters: <code>{esc(exc)}</code>")
+    async def _cmd_route(self, args, chat_id, actor) -> None:
+        symbol, notional, side = self._trade_args(args)
+        report = self.tca.tca_report(symbol, side, notional)
+        if not report.smart_route:
+            await self.send_message(chat_id, text_card(f"🧭 {symbol} route", "NOT FILLABLE", [f"No complete route for <code>{side} {_money(notional)}</code>."], source="TCA engine", next_commands=f"/liquidity {symbol} {notional:g}"))
             return
+        lines = [f"Order <code>{side} · {_money(notional)}</code>", f"Blended VWAP <code>{_number(report.smart_route_vwap)}</code>", f"Slippage <code>{_number(report.smart_route_slippage_bps, signed=True)} bps</code>"]
+        for leg in report.smart_route:
+            lines.append(f"{esc(leg.venue):<12} <code>{leg.share_pct:5.1f}%</code> · <code>{_money(leg.notional)}</code> @ <code>{_number(leg.vwap)}</code>")
+        await self.send_message(chat_id, text_card(f"🧭 {symbol} smart route", "SYNTHETIC" if report.synthetic else "LIVE", lines, source="Cross-venue TCA engine", next_commands=f"/tca {symbol} {notional:g} {side} · /watch {symbol} {notional:g} 25"))
 
-        record = self.queue.submit(
-            "backtest", run_backtest, req.model_dump(),
-            meta={"chat_id": chat_id, "symbol": symbol},
-        )
-        await self.send_message(
-            chat_id,
-            f"🧪 <b>Backtest queued</b>\n"
-            f"<code>{esc(symbol)} · {esc(interval)} · {esc(strategy)}</code>\n"
-            f"job <code>{record.job_id}</code> · backend <code>{record.backend}</code>\n\n"
-            f"<i>Equity curve will be pushed here when it finishes.</i>",
-        )
+    async def _cmd_liquidity(self, args, chat_id, actor) -> None:
+        symbol = self._symbol(args)
+        notional = _finite(args[1]) if len(args) > 1 else settings.default_probe_notional
+        if notional is None or notional <= 0:
+            raise ValueError("notional must be a positive finite number")
+        estimate = self.tca.route_estimate(symbol, "BUY", notional)
+        if not estimate:
+            await self.send_message(chat_id, text_card(f"🌊 {symbol} liquidity", "NO LIVE BOOK", ["No route estimate is available."], source="TCA engine", next_commands="/feedstatus"))
+            return
+        lines = [f"Probe size <code>{_money(notional)}</code>", f"Fillable   <code>{'YES' if estimate.fillable else 'NO'}</code>", f"Routable   <code>{_money(estimate.filled_notional)}</code>", f"Slippage   <code>{_number(estimate.slippage_bps, signed=True)} bps</code>", f"Route      <code>{esc(estimate.venue)}</code>"]
+        await self.send_message(chat_id, text_card(f"🌊 {symbol} liquidity", "LIVE" if estimate.fillable else "THIN", lines, source="Cross-venue TCA engine", next_commands=f"/route {symbol} {notional:g} BUY · /watch {symbol} {notional:g} 25"))
+
+    async def _cmd_venues(self, args, chat_id, actor) -> None:
+        health = self.tca.health()
+        lines = []
+        for feed in health.get("feeds", []):
+            symbols = feed.get("symbols") or {}
+            rate = sum(_finite(value.get("rate_hz")) or 0 for value in symbols.values())
+            lines.append(f"{'🟢' if feed.get('connected') else '🔴'} <b>{esc(feed.get('venue'))}</b> · <code>{rate:.0f} upd/s</code> · <code>{feed.get('reconnects', 0)} reconnects</code>")
+        await self.send_message(chat_id, text_card("🏛 Execution venues", "SYNTHETIC ACTIVE" if health.get("synthetic_active") else "LIVE FEEDS", lines or ["No feeds configured."], source="TCA engine", next_commands="/feedstatus · /book BTCUSDT"))
+
+    async def _cmd_feedstatus(self, args, chat_id, actor) -> None:
+        health = self.tca.health()
+        lines = [f"Engine uptime <code>{_number(health.get('uptime_s'), 0)} s</code>", f"Symbols <code>{', '.join(health.get('symbols') or [])}</code>"]
+        for feed in health.get("feeds", []):
+            lines.append(f"\n<b>{esc(feed.get('venue'))}</b> · <code>{'connected' if feed.get('connected') else 'offline'}</code> · uptime <code>{_number(feed.get('uptime_s'), 0)} s</code>")
+            if feed.get("last_error"):
+                lines.append(f"Error <code>{esc(str(feed['last_error'])[:180])}</code>")
+        await self.send_message(chat_id, text_card("📡 Market-feed health", "SYNTHETIC" if health.get("synthetic_active") else "OBSERVED", lines, source="TCA engine", next_commands="/venues · /status"))
+
+    def _recent_orders(self, args: list[str], accepted: bool | None = None) -> list[dict[str, Any]]:
+        count = self._limit(args, 0, 10, 25)
+        rows = self.audit.recent_orders(max(count * 3, count)) if self.audit else []
+        if accepted is not None:
+            rows = [row for row in rows if bool(row.get("accepted")) is accepted]
+        return rows[:count]
+
+    async def _render_orders(self, chat_id: str, title: str, rows: list[dict[str, Any]], state: str) -> None:
+        if not rows:
+            await self.send_message(chat_id, text_card(title, "NO RECORDS", ["No matching audit rows."], source="DuckDB audit log", next_commands="/orders"))
+            return
+        lines = []
+        for row in rows:
+            icon = "✅" if row.get("accepted") else "❌"
+            timestamp = str(row.get("ts") or "")[11:19]
+            lines.append(f"{icon} <code>{esc(timestamp)}</code> {esc(row.get('symbol'))} {esc(row.get('side'))} <code>{_money(row.get('notional'))}</code> · <code>{_number(row.get('latency_ms'))} ms</code>")
+            if not row.get("accepted"):
+                lines.append(f"   ↳ <code>{esc(str(row.get('rejected_by') or row.get('reason') or 'rejected')[:120])}</code>")
+        await self.send_message(chat_id, text_card(title, state, lines, source="DuckDB audit log", next_commands="/slippage · /fees · /events"))
+
+    async def _cmd_orders(self, args, chat_id, actor) -> None:
+        await self._render_orders(chat_id, "🧾 Gateway decisions", self._recent_orders(args), "AUDIT LOG")
+
+    async def _cmd_fills(self, args, chat_id, actor) -> None:
+        await self._render_orders(chat_id, "✅ Accepted fills", self._recent_orders(args, True), "AUDIT LOG")
+
+    async def _cmd_rejections(self, args, chat_id, actor) -> None:
+        await self._render_orders(chat_id, "❌ Rejected orders", self._recent_orders(args, False), "AUDIT LOG")
+
+    async def _cmd_slippage(self, args, chat_id, actor) -> None:
+        stats = self.audit.execution_stats() if self.audit else {}
+        lines = [f"Accepted orders <code>{stats.get('accepted') or 0}</code>", f"Average slip   <code>{_number(stats.get('avg_slippage_bps'), signed=True)} bps</code>", f"Average latency <code>{_number(stats.get('avg_latency_ms'))} ms</code>", f"Max latency     <code>{_number(stats.get('max_latency_ms'))} ms</code>"]
+        await self.send_message(chat_id, text_card("📉 Execution slippage", "AUDIT AGGREGATE", lines, source="DuckDB audit log", next_commands="/tca BTCUSDT 100000 BUY · /orders"))
+
+    async def _cmd_fees(self, args, chat_id, actor) -> None:
+        stats = self.audit.execution_stats() if self.audit else {}
+        lines = [f"Total fees <code>{_money(stats.get('total_fees'))}</code>", f"Orders     <code>{stats.get('total') or 0}</code>", f"Accepted   <code>{stats.get('accepted') or 0}</code>"]
+        await self.send_message(chat_id, text_card("💸 Execution fees", "AUDIT AGGREGATE", lines, source="DuckDB audit log", next_commands="/attribution · /fills"))
+
+    # ------------------------------------------------------------------ #
+    # Research / audit monitoring
+    # ------------------------------------------------------------------ #
+    async def _cmd_research_status(self, args, chat_id, actor) -> None:
+        from modules import research
+
+        openbb = await research.openbb_status_async()
+        queue = self.queue.stats() if self.queue else {}
+        lines = [f"OpenBB <code>{'READY' if openbb.get('ok') else 'UNAVAILABLE'}</code>", f"Provider <code>{esc(openbb.get('provider') or '—')}</code>", f"Queue backend <code>{esc(queue.get('backend') or '—')}</code>", f"Workers <code>{queue.get('workers') or 0}</code>", f"Jobs <code>{queue.get('total') or 0}</code>"]
+        await self.send_message(chat_id, text_card("🧪 Research systems", "MONITORING ONLY", lines, source="OpenBB + job queue", next_commands="/jobs · /backtests · /snapshot AAPL"))
 
     async def _cmd_jobs(self, args, chat_id, actor) -> None:
-        jobs = self.queue.list(10)
+        count = self._limit(args, 0, 10, 25)
+        jobs = self.queue.list(count) if self.queue else []
         if not jobs:
-            await self.send_message(chat_id, "No jobs submitted yet. Try <code>/backtest BTCUSDT</code>.")
+            await self.send_message(chat_id, text_card("🗂 Research jobs", "EMPTY", ["No research jobs recorded."], source="Job queue", next_commands="/researchstatus"))
             return
-        icons = {"queued": "⏳", "running": "⚙️", "succeeded": "✅", "failed": "❌", "cancelled": "⛔️"}
-        lines = [f"<b>🗂 Job queue</b> ({self.queue.backend})", ""]
-        for j in jobs:
-            lines.append(
-                f"{icons.get(j.status, '•')} <code>{j.job_id}</code> {esc(j.kind)} "
-                f"— {esc(j.status)} {j.progress:.0%}"
-                + (f"\n   <i>{esc(j.message)}</i>" if j.message else "")
-                + (f"\n   <i>{esc(j.error)[:90]}</i>" if j.error else "")
-            )
-        await self.send_message(chat_id, "\n".join(lines))
+        icons = {"queued": "⏳", "running": "⚙️", "succeeded": "✅", "failed": "❌", "cancelled": "⛔"}
+        lines = [f"{icons.get(job.status, '•')} <code>{job.job_id}</code> {esc(job.kind)} · <code>{esc(job.status)}</code> · <code>{job.progress:.0%}</code>" for job in jobs]
+        await self.send_message(chat_id, text_card("🗂 Research jobs", "READ-ONLY MONITOR", lines, source=f"{self.queue.backend} job queue", next_commands="/job JOB_ID · /backtests"))
 
-    # -- subscriptions ---------------------------------------------------- #
-    def _subscribers(self) -> list[dict]:
-        return self.audit.list_subscribers(alerts_only=True) if self.audit else []
+    async def _cmd_job(self, args, chat_id, actor) -> None:
+        if not args:
+            raise ValueError("usage: /job JOB_ID")
+        job = self.queue.get(args[0]) if self.queue else None
+        if not job:
+            await self.send_message(chat_id, text_card("🗂 Research job", "NOT FOUND", [f"Unknown job <code>{esc(args[0])}</code>."], source="Job queue", next_commands="/jobs"))
+            return
+        lines = [f"ID       <code>{esc(job.job_id)}</code>", f"Kind     <code>{esc(job.kind)}</code>", f"Status   <code>{esc(job.status)}</code>", f"Progress <code>{job.progress:.0%}</code>", f"Backend  <code>{esc(job.backend)}</code>"]
+        if job.message:
+            lines.append(f"Message <code>{esc(job.message)}</code>")
+        if job.error:
+            lines.append(f"Error <code>{esc(str(job.error)[:220])}</code>")
+        await self.send_message(chat_id, text_card("🗂 Research job", job.status.upper(), lines, source="Job queue", next_commands="/jobs · /backtests"))
+
+    async def _cmd_backtests(self, args, chat_id, actor) -> None:
+        count = self._limit(args, 0, 10, 25)
+        rows = self.audit.recent_backtests(count) if self.audit else []
+        if not rows:
+            await self.send_message(chat_id, text_card("🧪 Backtest history", "EMPTY", ["No completed backtests in the audit log."], source="DuckDB audit log", next_commands="/researchstatus"))
+            return
+        lines = []
+        for row in rows:
+            lines.append(f"<code>{esc(str(row.get('ts') or '')[:19])}</code> {esc(row.get('symbol'))} {esc(row.get('strategy'))} · Sharpe <code>{_number(row.get('sharpe'))}</code> · DSR <code>{_number(row.get('dsr'), 3)}</code> · OOS <code>{_number(row.get('oos_sharpe'))}</code>")
+        await self.send_message(chat_id, text_card("🧪 Backtest history", "READ-ONLY AUDIT", lines, source="DuckDB audit log", next_commands="/strategies · /jobs"))
+
+    async def _cmd_strategies(self, args, chat_id, actor) -> None:
+        lines = ["<code>ma_cross</code> — moving-average crossover", "<code>donchian</code> — channel breakout", "<code>rsi_reversion</code> — RSI mean reversion", "", "Research submission stays in the API/web research workflow; Telegram only reports status and results."]
+        await self.send_message(chat_id, text_card("🧠 Strategy catalogue", "REFERENCE", lines, source="Backtest request schema", next_commands="/backtests · /researchstatus"))
+
+    async def _cmd_intervals(self, args, chat_id, actor) -> None:
+        lines = ["OpenBB market data <code>15m · 1h · 4h · 1d</code>", "Backtests <code>1m · 5m · 15m · 1h · 4h · 1d</code>", "", "Intraday history availability depends on the upstream provider window."]
+        await self.send_message(chat_id, text_card("⏱ Supported intervals", "REFERENCE", lines, source="OpenBB + backtest schemas", next_commands="/bars AAPL 1d 5 · /trend AAPL 1d 20"))
+
+    def _event_rows(self, args: list[str], incidents_only: bool = False) -> list[dict[str, Any]]:
+        count = self._limit(args, 0, 10, 25)
+        rows = self.audit.recent_events(max(count * 3, count)) if self.audit else []
+        if incidents_only:
+            rows = [row for row in rows if str(row.get("severity") or "").lower() in {"warning", "critical", "error"}]
+        return rows[:count]
+
+    async def _render_events(self, chat_id: str, title: str, rows: list[dict[str, Any]], status: str) -> None:
+        if not rows:
+            await self.send_message(chat_id, text_card(title, "NO RECORDS", ["No matching events."], source="DuckDB audit log", next_commands="/status"))
+            return
+        icon = {"critical": "🛑", "error": "🔴", "warning": "⚠️", "info": "ℹ️"}
+        lines = []
+        for row in rows:
+            severity = str(row.get("severity") or "info").lower()
+            lines.append(f"{icon.get(severity, '•')} <code>{esc(str(row.get('ts') or '')[11:19])}</code> {esc(row.get('event'))} · {esc(row.get('symbol') or 'ALL')}\n   <code>{esc(str(row.get('detail') or '')[:150])}</code>")
+        await self.send_message(chat_id, text_card(title, status, lines, source="DuckDB audit log", next_commands="/risk · /orders · /status"))
+
+    async def _cmd_events(self, args, chat_id, actor) -> None:
+        await self._render_events(chat_id, "📚 Risk and audit events", self._event_rows(args), "AUDIT LOG")
+
+    async def _cmd_incidents(self, args, chat_id, actor) -> None:
+        await self._render_events(chat_id, "🚨 Operational incidents", self._event_rows(args, True), "WARNING + CRITICAL")
+
+    # ------------------------------------------------------------------ #
+    # Notification preferences and delivery
+    # ------------------------------------------------------------------ #
+    def _subscriber_is_authorised(self, subscriber: dict[str, Any] | None) -> bool:
+        """Return whether a persisted recipient owner is currently allowed.
+
+        Chat IDs are destinations, not identities.  A legacy row with no
+        explicit ``user_id`` therefore never qualifies for delivery, even if
+        its old free-form username happens to contain a numeric fragment.
+        """
+        if not subscriber:
+            return False
+        user_id = str(subscriber.get("user_id") or "")
+        return self._authorised(user_id)
+
+    def _subscribers(self, *, alerts_only: bool = True) -> list[dict[str, Any]]:
+        if not self.audit:
+            return []
+        return [
+            subscriber
+            for subscriber in self.audit.list_subscribers(alerts_only=alerts_only)
+            if self._subscriber_is_authorised(subscriber)
+        ]
+
+    def _delivery_allowed(self, chat_id: str | int, *, require_alerts: bool = True) -> bool:
+        if not self.audit:
+            return False
+        subscriber = self.audit.get_subscriber(str(chat_id))
+        if not self._subscriber_is_authorised(subscriber):
+            return False
+        return not require_alerts or bool(subscriber.get("alerts"))
+
+    def _user_id_from_actor(self, actor: str) -> str:
+        match = _TELEGRAM_ACTOR_RE.match(actor)
+        user_id = match.group(1) if match else ""
+        if not self._authorised(user_id):
+            raise PermissionError("notification owner is not currently authorised")
+        return user_id
 
     def _subscribe(self, chat_id: str, actor: str, alerts: bool = True) -> None:
-        self._known_chats.add(str(chat_id))
         if self.audit:
-            self.audit.upsert_subscriber(str(chat_id), actor, alerts=alerts)
+            self.audit.upsert_subscriber(
+                str(chat_id), actor, alerts=alerts,
+                user_id=self._user_id_from_actor(actor),
+            )
 
     async def _cmd_subscribe(self, args, chat_id, actor) -> None:
         self._subscribe(chat_id, actor, alerts=True)
-        await self.send_message(
-            chat_id,
-            "🔔 <b>Subscribed.</b> This chat now receives:\n"
-            "• kill-switch engaged / released\n"
-            "• drawdown warnings and automatic circuit-breaker trips\n"
-            "• orders rejected on a hard limit\n"
-            "• finished backtests, with charts\n\n"
-            "Add execution-cost alerts with <code>/watch BTCUSDT 100000 25</code>.\n"
-            "<code>/unsubscribe</code> to stop.",
-        )
+        await self.send_message(chat_id, text_card("🔔 Notifications enabled", "SUBSCRIBED", ["This chat will receive risk, execution, liquidity and completed-research updates.", "Add a liquidity threshold with <code>/watch BTCUSDT 100000 25</code>."], source="Persistent subscriber registry", next_commands="/subscriptions · /watch BTCUSDT 100000 25"))
 
     async def _cmd_unsubscribe(self, args, chat_id, actor) -> None:
+        if str(chat_id) in settings.telegram_alert_chat_ids:
+            await self.send_message(chat_id, text_card("🔔 Centrally managed notifications", "CANNOT MUTE HERE", ["This chat is listed in <code>TELEGRAM_ALERT_CHAT_IDS</code>; an operator must remove it from the deployment configuration."], source="AlphaEngine configuration", next_commands="/subscriptions"))
+            return
         if self.audit:
-            self.audit.upsert_subscriber(str(chat_id), actor, alerts=False)
-        self._known_chats.discard(str(chat_id))
-        await self.send_message(chat_id, "🔕 Unsubscribed. Commands still work; alerts will stop.")
+            self.audit.upsert_subscriber(
+                str(chat_id), actor, alerts=False,
+                user_id=self._user_id_from_actor(actor),
+            )
+        await self.send_message(chat_id, text_card("🔕 Notifications disabled", "UNSUBSCRIBED", ["Commands remain available; optional pushed alerts will stop."], source="Persistent subscriber registry", next_commands="/subscribe · /subscriptions"))
+
+    async def _cmd_subscriptions(self, args, chat_id, actor) -> None:
+        sub = self.audit.get_subscriber(str(chat_id)) if self.audit else None
+        central = str(chat_id) in settings.telegram_alert_chat_ids
+        watches = (sub or {}).get("watches", [])
+        enabled = self._subscriber_is_authorised(sub) and (central or bool((sub or {}).get("alerts")))
+        lines = [f"Notifications <code>{'ON' if enabled else 'OFF'}</code>", f"Managed by <code>{'deployment' if central else 'chat preference'}</code>", f"Liquidity watches <code>{len(watches)}</code>"]
+        await self.send_message(chat_id, text_card("🔔 Notification state", "ACTIVE" if enabled else "MUTED", lines, source="Configuration + subscriber registry", next_commands="/subscribe · /unsubscribe · /watches"))
 
     async def _cmd_watch(self, args, chat_id, actor) -> None:
-        """/watch SYMBOL [notional] [max_slippage_bps]"""
-        symbol = (args[0] if args else settings.symbols[0]).upper()
-        if symbol not in [s.upper() for s in settings.symbols]:
-            await self.send_message(chat_id, f"Not a tracked instrument: <code>{esc(symbol)}</code>")
-            return
-        try:
-            notional = float(args[1]) if len(args) > 1 else settings.default_probe_notional
-            threshold = float(args[2]) if len(args) > 2 else settings.max_est_slippage_bps / 2
-        except ValueError:
-            await self.send_message(chat_id, "Usage: <code>/watch BTCUSDT 100000 25</code>")
-            return
+        symbol = self._symbol(args)
+        if symbol not in [tracked.upper() for tracked in settings.symbols]:
+            raise ValueError(f"{symbol} is not a tracked execution instrument")
+        notional = _finite(args[1]) if len(args) > 1 else settings.default_probe_notional
+        threshold = _finite(args[2]) if len(args) > 2 else settings.max_est_slippage_bps / 2
+        if notional is None or notional <= 0:
+            raise ValueError("watch notional must be positive and finite")
+        if threshold is None or threshold <= 0 or threshold > 10_000:
+            raise ValueError("watch threshold must be between 0 and 10,000 bps")
 
         sub = self.audit.get_subscriber(str(chat_id)) if self.audit else None
-        watches = [w for w in (sub or {}).get("watches", []) if w["symbol"] != symbol]
+        watches = [watch for watch in (sub or {}).get("watches", []) if watch["symbol"] != symbol]
         watches.append({"symbol": symbol, "notional": notional, "threshold_bps": threshold})
         if self.audit:
-            self.audit.upsert_subscriber(str(chat_id), actor, alerts=True, watches=watches)
-        self._known_chats.add(str(chat_id))
+            self.audit.upsert_subscriber(
+                str(chat_id), actor, alerts=True, watches=watches,
+                user_id=self._user_id_from_actor(actor),
+            )
         self._watch_state.pop((str(chat_id), symbol), None)
-
-        await self.send_message(
-            chat_id,
-            f"👁 <b>Watching {esc(symbol)}</b>\n"
-            f"Alert when routing <code>${notional:,.0f}</code> costs more than "
-            f"<code>{threshold:.1f} bps</code>, and again when it recovers.\n\n"
-            f"<i>Liquidity deterioration is the early warning that a venue is about to "
-            f"become expensive to trade.</i>",
-        )
+        await self.send_message(chat_id, text_card(f"👁 {symbol} liquidity watch", "ACTIVE", [f"Probe size <code>{_money(notional)}</code>", f"Alert above <code>{threshold:.1f} bps</code>", "Notifications fire once on deterioration and once on recovery."], source="TCA engine + subscriber registry", next_commands="/watches · /unwatch " + symbol))
 
     async def _cmd_unwatch(self, args, chat_id, actor) -> None:
-        symbol = (args[0] if args else "").upper()
+        symbol = self._symbol(args) if args else None
         sub = self.audit.get_subscriber(str(chat_id)) if self.audit else None
         watches = (sub or {}).get("watches", [])
-        remaining = [w for w in watches if w["symbol"] != symbol] if symbol else []
+        remaining = [watch for watch in watches if symbol and watch["symbol"] != symbol] if symbol else []
         if self.audit:
-            self.audit.upsert_subscriber(str(chat_id), actor, alerts=True, watches=remaining)
+            self.audit.upsert_subscriber(
+                str(chat_id), actor, alerts=bool((sub or {}).get("alerts")), watches=remaining,
+                user_id=self._user_id_from_actor(actor),
+            )
         removed = len(watches) - len(remaining)
-        await self.send_message(chat_id, f"Removed {removed} watch(es)." if removed else "No matching watch.")
+        await self.send_message(chat_id, text_card("👁 Liquidity watches", "UPDATED", [f"Removed <code>{removed}</code> watch(es)."], source="Persistent subscriber registry", next_commands="/watches · /watch BTCUSDT 100000 25"))
 
     async def _cmd_watches(self, args, chat_id, actor) -> None:
         sub = self.audit.get_subscriber(str(chat_id)) if self.audit else None
         watches = (sub or {}).get("watches", [])
         if not watches:
-            await self.send_message(chat_id, "No active watches. Try <code>/watch BTCUSDT 100000 25</code>.")
+            await self.send_message(chat_id, text_card("👁 Liquidity watches", "NONE", ["No active execution-cost watches."], source="Persistent subscriber registry", next_commands="/watch BTCUSDT 100000 25"))
             return
-        lines = ["<b>👁 Active watches</b>", ""]
-        for w in watches:
-            est = self.tca.route_estimate(w["symbol"], "BUY", w["notional"]) if self.tca else None
-            now = f"{est.slippage_bps:+.2f} bps" if est and est.slippage_bps is not None else "no book"
-            state = "🔴 BREACH" if self._watch_state.get((str(chat_id), w["symbol"])) else "🟢 ok"
-            lines.append(
-                f"{state} <b>{esc(w['symbol'])}</b> ${w['notional']:,.0f} "
-                f"limit <code>{w['threshold_bps']:.1f}bps</code> · now <code>{now}</code>"
-            )
-        lines.append(f"\nAlerts: {'on' if (sub or {}).get('alerts') else 'off'}")
-        await self.send_message(chat_id, "\n".join(lines))
+        lines = []
+        for watch in watches:
+            estimate = self.tca.route_estimate(watch["symbol"], "BUY", watch["notional"]) if self.tca else None
+            current = f"{estimate.slippage_bps:+.2f} bps" if estimate and estimate.slippage_bps is not None else "no book"
+            breached = self._watch_state.get((str(chat_id), watch["symbol"]), False)
+            lines.append(f"{'🔴' if breached else '🟢'} <b>{esc(watch['symbol'])}</b> · <code>{_money(watch['notional'])}</code> · limit <code>{watch['threshold_bps']:.1f} bps</code> · now <code>{current}</code>")
+        await self.send_message(chat_id, text_card("👁 Liquidity watches", "ACTIVE", lines, source="TCA engine + subscriber registry", next_commands="/unwatch SYMBOL · /liquidity BTCUSDT 100000"))
+
+    async def _cmd_digest(self, args, chat_id, actor) -> None:
+        from modules import research
+
+        report = self._portfolio_report()
+        state = self.gateway.state()
+        health = self.tca.health()
+        openbb = await research.openbb_status_async()
+        constraint, utilisation = report["risk_budget"]["binding_constraint"]
+        lines = [
+            "<b>Portfolio</b>",
+            f"Equity <code>{_money(report['equity']['current'])}</code> · Day P&amp;L <code>{_money(report['equity']['daily_pnl'], signed=True)}</code>",
+            f"Gross <code>{_money(report['exposure']['gross'])}</code> · Net <code>{_money(report['exposure']['net'], signed=True)}</code> · Leverage <code>{_number(report['exposure']['leverage'])}x</code>",
+            f"Binding <code>{esc(constraint)}</code> at <code>{_percent(utilisation)}</code>",
+            "\n<b>Systems</b>",
+            f"Trading <code>{'HALTED' if state.kill_switch_active else 'LIVE'}</code> · OpenBB <code>{'READY' if openbb.get('ok') else 'DOWN'}</code>",
+            f"Feeds <code>{sum(1 for feed in health.get('feeds', []) if feed.get('connected'))}/{len(health.get('feeds', []))}</code> · Synthetic <code>{'ON' if health.get('synthetic_active') else 'off'}</code>",
+        ]
+        await self.send_message(chat_id, text_card("🗞 AlphaEngine digest", "ON DEMAND", lines, source="Portfolio + risk + TCA + OpenBB", next_commands="/portfolio · /status · /incidents"))
 
     async def _watch_tick(self) -> None:
-        """One pass over every subscriber's watches. Alerts on *transitions* only.
-
-        Alerting on every breached poll would send a message every few seconds
-        during a liquidity event — which trains the trader to mute the bot, and
-        that is how a kill-switch alert gets missed.
-        """
-        for sub in self._subscribers():
-            chat_id = sub["chat_id"]
-            for w in sub.get("watches", []):
-                symbol, notional, limit = w["symbol"], w["notional"], w["threshold_bps"]
-                est = self.tca.route_estimate(symbol, "BUY", notional) if self.tca else None
-                if est is None or est.slippage_bps is None:
+        for subscriber in self._subscribers():
+            chat_id = subscriber["chat_id"]
+            for watch in subscriber.get("watches", []):
+                symbol = watch["symbol"]
+                notional = watch["notional"]
+                threshold = watch["threshold_bps"]
+                estimate = self.tca.route_estimate(symbol, "BUY", notional) if self.tca else None
+                if estimate is None or estimate.slippage_bps is None:
                     continue
-
                 key = (chat_id, symbol)
-                was = self._watch_state.get(key, False)
-                breached = (not est.fillable) or est.slippage_bps > limit
-                if breached == was:
+                previous = self._watch_state.get(key, False)
+                breached = (not estimate.fillable) or estimate.slippage_bps > threshold
+                if breached == previous:
                     continue
                 self._watch_state[key] = breached
-
                 if breached:
-                    detail = (
-                        f"only <code>${est.filled_notional:,.0f}</code> of "
-                        f"<code>${notional:,.0f}</code> routable"
-                        if not est.fillable else
-                        f"cost <code>{est.slippage_bps:+.2f} bps</code> vs "
-                        f"<code>{limit:.1f} bps</code> limit"
-                    )
-                    await self.send_message(
-                        chat_id,
-                        f"⚠️ <b>Liquidity alert — {esc(symbol)}</b>\n{detail}\n"
-                        f"Route: <code>{esc(est.venue)}</code> · "
-                        f"mid <code>{(est.mid or 0):,.2f}</code>\n\n"
-                        f"<i>Execution on this size is now more expensive than your threshold.</i>",
-                    )
+                    lines = [f"Probe <code>{_money(notional)}</code>", f"Cost <code>{estimate.slippage_bps:+.2f} bps</code> vs <code>{threshold:.1f} bps</code> limit", f"Routable <code>{_money(estimate.filled_notional)}</code> · Route <code>{esc(estimate.venue)}</code>"]
+                    message = text_card(f"⚠️ {symbol} liquidity deterioration", "THRESHOLD BREACH", lines, source="TCA execution-cost watch", next_commands=f"/liquidity {symbol} {notional:g} · /tca {symbol} {notional:g} BUY")
                 else:
-                    await self.send_message(
-                        chat_id,
-                        f"✅ <b>{esc(symbol)} liquidity recovered</b> — routing "
-                        f"<code>${notional:,.0f}</code> now costs "
-                        f"<code>{est.slippage_bps:+.2f} bps</code>.",
-                    )
+                    message = text_card(f"✅ {symbol} liquidity recovered", "BACK WITHIN LIMIT", [f"Probe <code>{_money(notional)}</code>", f"Cost <code>{estimate.slippage_bps:+.2f} bps</code> vs <code>{threshold:.1f} bps</code> limit"], source="TCA execution-cost watch", next_commands="/watches")
+                if not self._delivery_allowed(chat_id):
+                    # Re-check immediately before the network call so an
+                    # allow-list revocation cannot race a long TCA pass.
+                    self._watch_state[key] = previous
+                    continue
+                await self.send_message(chat_id, message)
                 self.alerts_sent += 1
 
     async def _watch_loop(self) -> None:
@@ -768,67 +1396,65 @@ class TelegramBot:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                log.error("watch loop error: %s", exc)
+                log.error("Telegram watch loop error (%s)", type(exc).__name__)
 
-    # -- outbound --------------------------------------------------------- #
     def _alert_targets(self) -> list[str]:
-        """Configured targets win; otherwise everyone who subscribed. Falls back
-        to chats seen this session if the audit log is unavailable."""
         if settings.telegram_alert_chat_ids:
-            return list(settings.telegram_alert_chat_ids)
-        persisted = [s["chat_id"] for s in self._subscribers()]
-        return persisted or sorted(self._known_chats)
+            eligible = {
+                subscriber["chat_id"]
+                for subscriber in self._subscribers(alerts_only=False)
+            }
+            return [
+                chat_id for chat_id in dict.fromkeys(settings.telegram_alert_chat_ids)
+                if chat_id in eligible
+            ]
+        return [subscriber["chat_id"] for subscriber in self._subscribers()]
 
     async def broadcast(self, severity: str, message: str) -> None:
-        """Alert hook consumed by the risk gateway."""
+        """Risk hook: normalize every pushed update into the textual card UI."""
         if not self.enabled:
-            log.info("[alert:%s] %s", severity, message.replace("\n", " ")[:200])
+            log.info("[alert:%s] %s", severity, _HTML_TAG_RE.sub("", message).replace("\n", " ")[:200])
             return
         targets = self._alert_targets()
         if not targets:
-            log.warning("alert dropped — no subscribers. Message the bot /subscribe.")
+            log.warning("Telegram alert dropped; no configured subscribers")
             return
+        severity_key = severity.lower()
+        icon = {"critical": "🛑", "error": "🔴", "warning": "⚠️", "info": "ℹ️"}.get(severity_key, "ℹ️")
+        rendered = text_card(f"{icon} AlphaEngine operational alert", severity_key.upper(), [message], source="Risk gateway event hook", next_commands="/risk · /portfolio · /events")
         for chat_id in targets:
-            await self.send_message(chat_id, message)
+            central = str(chat_id) in settings.telegram_alert_chat_ids
+            if not self._delivery_allowed(chat_id, require_alerts=not central):
+                continue
+            await self.send_message(chat_id, rendered)
             self.alerts_sent += 1
 
     async def push_backtest_result(self, record) -> None:
-        """Job-completion hook — delivers the chart straight into the chat."""
+        """Text-only completion update for jobs submitted outside Telegram."""
         if not self.enabled or record.kind != "backtest":
             return
         chat_id = record.meta.get("chat_id")
         if not chat_id:
             return
-
-        if record.status != "succeeded":
-            await self.send_message(chat_id, f"❌ Backtest <code>{record.job_id}</code> failed:\n<code>{esc(record.error)}</code>")
+        central = str(chat_id) in settings.telegram_alert_chat_ids
+        if not self._delivery_allowed(chat_id, require_alerts=not central):
+            log.warning("Telegram backtest update dropped; recipient is not currently authorised")
             return
-
-        res = record.result or {}
-        best = res.get("best", {})
-        dsr = res.get("deflated_sharpe_ratio", 0.0)
-        oos = res.get("walk_forward_oos_sharpe")
-        req = res.get("request", {})
-        badge = "🟢" if dsr >= 0.95 else ("🟡" if dsr >= 0.8 else "🔴")
-
-        caption = (
-            f"🧪 <b>{esc(req.get('symbol'))} · {esc(req.get('interval'))} · {esc(req.get('strategy'))}</b>\n"
-            f"Best <code>{best.get('fast')}/{best.get('slow')}</code> from "
-            f"{res.get('combos_tested')} combos in {res.get('duration_s')}s ({esc(res.get('engine'))})\n\n"
-            f"Sharpe <code>{best.get('sharpe', 0):.2f}</code> · "
-            f"Return <code>{best.get('total_return', 0):+.1%}</code> · "
-            f"MaxDD <code>{best.get('max_drawdown', 0):.1%}</code>\n"
-            f"Buy&amp;hold Sharpe <code>{res.get('benchmark_buy_hold', {}).get('sharpe', 0):.2f}</code>\n\n"
-            f"{badge} <b>DSR {dsr:.3f}</b>"
-            + (f" · OOS Sharpe <code>{oos:.2f}</code>" if oos is not None else "")
-            + f"\n<i>{esc(res.get('dsr_verdict', ''))}</i>"
-        )
-        if png := res.get("equity_curve_png"):
-            await self.send_photo_b64(chat_id, png, caption)
-        else:
-            await self.send_message(chat_id, caption)
-        if png := res.get("heatmap_png"):
-            await self.send_photo_b64(chat_id, png, "Sharpe surface across the parameter grid")
+        if record.status != "succeeded":
+            await self.send_message(chat_id, text_card("❌ Backtest update", "FAILED", [f"Job <code>{esc(record.job_id)}</code>", f"Error <code>{esc(str(record.error)[:240])}</code>"], source="Research job queue", next_commands="/job " + str(record.job_id)))
+            return
+        result = record.result or {}
+        best = result.get("best") or {}
+        request = result.get("request") or {}
+        lines = [
+            f"Job <code>{esc(record.job_id)}</code>",
+            f"Study <code>{esc(request.get('symbol'))} · {esc(request.get('interval'))} · {esc(request.get('strategy'))}</code>",
+            f"Best params <code>{best.get('fast')}/{best.get('slow')}</code> from <code>{result.get('combos_tested')}</code> combinations",
+            f"Sharpe <code>{_number(best.get('sharpe'))}</code> · Return <code>{_percent(best.get('total_return'), signed=True)}</code> · MaxDD <code>{_percent(best.get('max_drawdown'))}</code>",
+            f"DSR <code>{_number(result.get('deflated_sharpe_ratio'), 3)}</code> · OOS Sharpe <code>{_number(result.get('walk_forward_oos_sharpe'))}</code>",
+            f"Verdict <code>{esc(result.get('dsr_verdict') or '—')}</code>",
+        ]
+        await self.send_message(chat_id, text_card("🧪 Backtest completed", "TEXT RESULT", lines, source="Research job queue", next_commands="/backtests · /researchstatus"))
 
     def health(self) -> dict[str, Any]:
         return {
@@ -839,9 +1465,11 @@ class TelegramBot:
             "uptime_s": round(time.time() - self.started_at, 1) if self.started_at else 0.0,
             "alert_targets": len(self._alert_targets()),
             "subscribers": len(self._subscribers()),
-            "watches": sum(len(s.get("watches", [])) for s in self._subscribers()),
+            "watches": sum(len(subscriber.get("watches", [])) for subscriber in self._subscribers()),
             "alerts_sent": self.alerts_sent,
-            "allowlist_configured": bool(settings.telegram_allowed_chat_ids),
+            "allowlist_configured": bool(self.allowed_user_ids),
+            "read_only": True,
+            "text_only": True,
             "last_error": self.last_error,
         }
 
@@ -859,3 +1487,19 @@ def get_bot() -> TelegramBot:
 
         _bot = TelegramBot(gateway=get_gateway(), tca=get_engine(), queue=get_queue(), audit=get_audit())
     return _bot
+
+
+__all__ = [
+    "BOT_COMMANDS",
+    "BOT_DESCRIPTION",
+    "BOT_SHORT_DESCRIPTION",
+    "COMMAND_SPECS",
+    "HELP_TEXT",
+    "TelegramBot",
+    "command_catalogue",
+    "esc",
+    "get_bot",
+    "help_text",
+    "split_telegram_html",
+    "text_card",
+]

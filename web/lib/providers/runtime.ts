@@ -365,9 +365,9 @@ export const DEFAULT_BASE_URL: Record<string, string> = {
   massive: "https://api.massive.com",
   fmp: "https://financialmodelingprep.com",
   firecrawl: "https://api.firecrawl.dev",
-  // OpenBB is a Python library, not a hosted API. This points at whichever
-  // process is running it — the AlphaEngine gateway by default.
-  openbb: "http://127.0.0.1:8000",
+  // OpenBB is a Python provider runtime, not a shared public API. This points
+  // at the independently deployed, stateless OpenBB_Service.
+  openbb: "http://127.0.0.1:8010",
 };
 
 export interface DispatchOptions {
