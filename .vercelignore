@@ -1,0 +1,13 @@
+# The production web project has `web` configured as its Vercel root directory.
+# CLI deployments run from the repository root, so upload only that application.
+**
+!web
+!web/**
+
+# Keep local build products, dependencies, links and secrets out of uploads.
+web/node_modules/**
+web/.next/**
+web/.vercel/**
+web/.env*
+!web/.env.example
+web/*.tsbuildinfo

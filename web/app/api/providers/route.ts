@@ -5,7 +5,10 @@ import { capabilityMatrix, providerStatus } from "@/lib/providers/registry";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const OPENBB_HEALTH_TIMEOUT_MS = 2_500;
+// The standalone Python service can spend a few seconds importing OpenBB on a
+// cold Vercel instance. Match the adapter's bounded request window so a healthy
+// cold start is not reported as an unavailable provider.
+const OPENBB_HEALTH_TIMEOUT_MS = 7_500;
 const OPENBB_HEALTH_TTL_MS = 30_000;
 
 interface OpenBBReadiness {
