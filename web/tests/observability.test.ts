@@ -282,6 +282,33 @@ describe("the store can be inspected and purged without collateral damage", () =
     assert.ok((CACHE_PREFIXES as string[]).every((p) => p !== "quota" && p !== "breaker"));
   });
 
+  it("eviction never sacrifices the quota ledger to make room for a cached quote", () => {
+    // The original eviction deleted the oldest *insertion* regardless of
+    // namespace, and `incr()` re-setting a key does not move it in Map order —
+    // so a window's counter was written once on the first spend and then sat
+    // permanently first in line. Enough distinct cache keys (search/scrape keys
+    // are caller-supplied) and the instance forgot it had spent the day, stopped
+    // fencing background traffic, and re-spent a real allowance.
+    const s = new MemoryStore(20);
+    for (let i = 0; i < 6; i++) s.incr("quota:alphavantage:2026-08-04", 86_400_000);
+    s.set("breaker:fmp", { failures: 3, openedAt: Date.now() }, 240_000);
+
+    for (let i = 0; i < 60; i++) s.set(`quote:SYM${i}:*`, i, 60_000);
+
+    assert.equal(s.get<number>("quota:alphavantage:2026-08-04"), 6, "the quota ledger was evicted");
+    assert.notEqual(s.get("breaker:fmp"), undefined, "breaker state was evicted");
+  });
+
+  it("eviction reclaims dead entries before it touches a live one", () => {
+    const s = new MemoryStore(10);
+    for (let i = 0; i < 8; i++) s.set(`quote:DEAD${i}:*`, i, -1); // already expired
+    s.set("quote:KEEP:*", "live", 60_000);
+    for (let i = 0; i < 5; i++) s.set(`quote:NEW${i}:*`, i, 60_000);
+
+    assert.equal(s.get("quote:KEEP:*"), "live", "a live entry was dropped while dead ones remained");
+    assert.ok(s.keys().every((k) => !k.includes("DEAD")), "expired entries were never reclaimed");
+  });
+
   it("a symbol-scoped purge matches a comma-joined news key", () => {
     const s = new MemoryStore();
     s.set(cacheKeys.quote("AAPL", null), 1, 5_000);

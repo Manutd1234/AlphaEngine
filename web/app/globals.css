@@ -52,6 +52,11 @@
      an amber warning, so the two are never confused at a glance. */
   --notice-text: #9a4415;
 
+  /* JSON tree keys/booleans sit on --surface-2 inside a <details>. --series-1
+     clears AA there in light (4.63:1) but not in dark (4.30:1), and --series-1
+     has other jobs, so the tree carries its own accent step. */
+  --json-accent: #2563eb;
+
   --radius: 14px;
   --shadow-sm: 0 1px 2px rgba(22, 34, 51, 0.035), 0 8px 24px rgba(22, 34, 51, 0.035);
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -97,6 +102,7 @@
     --warning-text: #e8ab3d;
     --critical-text: #f0737c;
     --notice-text: #f08a5a;
+    --json-accent: #5a9ceb;
 
     /* rgba(22,34,51,0.035) is invisible over a dark plane — every card silently
        lost its elevation in dark mode. */
@@ -131,10 +137,19 @@
   --success-text: #0ca30c;
 
   /* See the note in the prefers-color-scheme block above — same fix, same
-     reason, kept in sync with it. */
+     reason. These two dark blocks MUST stay identical: this one wins on
+     specificity, so a token declared only above silently reverts to its light
+     value for anyone who has pressed the theme toggle. `tests/theme.test.ts`
+     asserts they match. */
   --status-good: #35c48f;
   --status-warning: #e8ab3d;
   --status-critical: #f0737c;
+
+  --warning-text: #e8ab3d;
+  --critical-text: #f0737c;
+  --notice-text: #f08a5a;
+  --json-accent: #5a9ceb;
+
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.28);
 }
 
@@ -285,9 +300,14 @@ label.field {
   margin-bottom: 5px;
   font-weight: 600;
 }
+/* Opt-out rather than opt-in.
+   This was `input[type="number"], input[type="text"]`, which is an *attribute*
+   selector — and `type` defaults to text without ever appearing in the DOM, so
+   every `<input>` written without an explicit type rendered as a raw UA control
+   in the middle of a styled panel. Listing what is excluded means a new input
+   cannot silently lose its styling by omitting an attribute nobody needed. */
 select,
-input[type="number"],
-input[type="text"] {
+input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]) {
   width: 100%;
   padding: 8px 10px;
   border-radius: 8px;
@@ -2672,7 +2692,7 @@ button.primary-action:hover:not(:disabled) {
 }
 
 .json-key {
-  color: var(--series-1);
+  color: var(--json-accent);
 }
 
 .json-key::after {
@@ -2693,7 +2713,7 @@ button.primary-action:hover:not(:disabled) {
 /* Types differ in form as well as hue: quoted vs bare vs italic. */
 .json-string { color: var(--success-text); }
 .json-number { color: var(--notice-text); }
-.json-bool { color: var(--series-1); font-weight: 650; }
+.json-bool { color: var(--json-accent); font-weight: 650; }
 .json-null { color: var(--text-muted); font-style: italic; }
 
 /* ---------- responsive ---------- */
