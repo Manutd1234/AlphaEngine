@@ -19,6 +19,7 @@
 import { UI_OUTAGE_MS, type ActionOptions } from "@/components/systems/OperatorPanel";
 import { fmt } from "@/lib/format";
 import {
+  type FailoverRoute,
   type GuardMode,
   type LatencyStats,
   type ProviderRow,
@@ -27,6 +28,8 @@ import {
 
 interface HealthMatrixProps {
   providers: ProviderRow[] | null;
+  /** Used to resolve each provider's true position in its preferred chain. */
+  routes: FailoverRoute[];
   venues: { id: string; label: string; latency: LatencyStats }[];
   guard: GuardMode;
   busyAction: string | null;
@@ -56,19 +59,33 @@ function statusOf(provider: ProviderRow) {
   if (!provider.configured) return ROUTE_STATE_STYLE.not_configured;
   if (provider.quota && provider.quota.remaining <= 0) return ROUTE_STATE_STYLE.quota_exhausted;
   if (provider.ready) return ROUTE_STATE_STYLE.ready;
-  return { icon: "▲", label: "unavailable", tone: "var(--status-warning)" };
+  return { icon: "▲", label: "unavailable", tone: "var(--warning-text)" };
 }
 
-/** Rank is per capability; the matrix shows the best (lowest) one it holds. */
-function bestRank(provider: ProviderRow): string {
+/**
+ * The capability this provider is preferred for, and where it sits in that chain.
+ *
+ * `meta.rank` is a *sort key*, not a position: it is sparse and shared, so
+ * Binance's `{quote: 0}` and FMP's `{quote: 1}` are ranks 1 and 2 in the crypto
+ * chain but 1 and 1 with a different pool. Printing `rank + 1` as a chain
+ * position was wrong wherever the pool did not happen to be dense from zero, so
+ * the position is taken from the failover graph — which is computed from the
+ * same `candidatesFor` sort the dispatcher walks — and the key is not shown.
+ */
+function bestRank(provider: ProviderRow, routes: FailoverRoute[]): string {
   const ranks = Object.entries(provider.rank ?? {});
   if (!ranks.length) return "—";
-  const [capability, rank] = ranks.reduce((a, b) => (b[1] < a[1] ? b : a));
-  return `${rank + 1} · ${capability}`;
+  const [capability] = ranks.reduce((a, b) => (b[1] < a[1] ? b : a));
+  const chain = routes.find(
+    (route) => route.capability === capability && route.nodes.some((n) => n.provider === provider.id),
+  );
+  const position = chain?.nodes.find((n) => n.provider === provider.id)?.rank;
+  return position ? `${position}/${chain!.nodes.length} · ${capability}` : `— · ${capability}`;
 }
 
 export default function HealthMatrix({
   providers,
+  routes,
   venues,
   guard,
   busyAction,
@@ -154,7 +171,7 @@ export default function HealthMatrix({
                     )}
                   </td>
 
-                  <td>{bestRank(provider)}</td>
+                  <td>{bestRank(provider, routes)}</td>
 
                   <td>
                     <div className="console-row-actions">

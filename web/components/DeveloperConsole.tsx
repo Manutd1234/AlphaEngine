@@ -275,6 +275,7 @@ export default function DeveloperConsole({
         <div className="console-column console-column--wide">
           <HealthMatrix
             providers={health?.providers ?? null}
+            routes={health?.routes ?? []}
             venues={health?.venues ?? []}
             guard={health?.guard.mode ?? "locked"}
             busyAction={busyAction}
@@ -285,7 +286,7 @@ export default function DeveloperConsole({
             routes={health?.routes ?? []}
             selected={route}
             onSelect={setRoute}
-            cacheHitRate={cacheHitRate}
+            cacheByCapability={health?.cache.byCapability ?? {}}
             priority={health?.routePriority ?? "interactive"}
             guard={health?.guard.mode ?? "locked"}
             busyAction={busyAction}

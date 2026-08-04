@@ -459,18 +459,37 @@ async function probeProvider(
   } catch (err) {
     const ms = Date.now() - startedAt;
     const message = err instanceof Error ? err.message : String(err);
+    // A probe can fail two very different ways, and reporting them identically
+    // is a lie in the more common one. If the single pinned candidate was
+    // *skipped* — circuit open, quota spent, key missing — then no request was
+    // sent, nothing was spent, and nothing counted toward the breaker. Saying
+    // "counts toward the circuit breaker exactly as a real request would" there
+    // would have an operator chasing a provider that was never contacted.
+    const attempts = (err as { attempts?: { provider: string; reason: string; detail?: string }[] }).attempts ?? [];
+    const skipped = attempts.find((a) => a.provider === providerId && a.reason !== "failed");
     emit({
       level: "error",
       source: "Operator",
-      message: `probe ${providerId} failed after ${ms}ms`,
-      fields: { provider: providerId, ms, error: message.slice(0, 160) },
+      message: skipped
+        ? `probe ${providerId} not sent — ${skipped.reason}`
+        : `probe ${providerId} failed after ${ms}ms`,
+      fields: { provider: providerId, ms, reason: skipped?.reason ?? "failed", error: message.slice(0, 160) },
     });
+    if (skipped) {
+      return {
+        action: "probe_provider",
+        summary: `${providerId} was not contacted — the registry skipped it (${skipped.reason}).`,
+        caveat:
+          "No request left this process, so nothing was spent and nothing counted toward the circuit breaker. Clear the condition above and probe again.",
+        data: { provider: providerId, ms, ok: false, sent: false, reason: skipped.reason, detail: skipped.detail },
+      };
+    }
     return {
       action: "probe_provider",
       summary: `${providerId} did not answer (${ms}ms).`,
       caveat: "A failed probe counts toward the circuit breaker exactly as a real request would.",
       // `dispatch` already redacts provider messages before they reach here.
-      data: { provider: providerId, ms, ok: false, error: message.slice(0, 300) },
+      data: { provider: providerId, ms, ok: false, sent: true, error: message.slice(0, 300) },
     };
   }
 }

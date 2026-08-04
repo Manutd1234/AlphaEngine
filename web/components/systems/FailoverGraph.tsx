@@ -32,7 +32,8 @@ interface FailoverGraphProps {
   routes: FailoverRoute[];
   selected: string;
   onSelect: (key: string) => void;
-  cacheHitRate: number | null;
+  /** Per-capability, keyed by capability name — not the global figure. */
+  cacheByCapability: Record<string, { hitRate: number | null }>;
   priority: string;
   guard: GuardMode;
   busyAction: string | null;
@@ -43,11 +44,29 @@ export function routeKey(route: { capability: string; asset: string }): string {
   return `${route.capability}:${route.asset}`;
 }
 
+/**
+ * The route that actually enters each chain.
+ *
+ * Written out rather than derived from the capability name: three of these do
+ * not match. Bars are served by `/api/ohlcv`, and search and scrape share
+ * `/api/research` behind different parameters. Printing `/api/bars` would send a
+ * reader to a 404 from the one panel that is supposed to be authoritative about
+ * how requests flow.
+ */
+const ENTRY_ROUTE: Record<string, string> = {
+  quote: "/api/quote",
+  bars: "/api/ohlcv",
+  news: "/api/news",
+  fundamentals: "/api/fundamentals",
+  search: "/api/research?q=",
+  scrape: "/api/research?url=",
+};
+
 export default function FailoverGraph({
   routes,
   selected,
   onSelect,
-  cacheHitRate,
+  cacheByCapability,
   priority,
   guard,
   busyAction,
@@ -55,6 +74,11 @@ export default function FailoverGraph({
 }: FailoverGraphProps) {
   const route = routes.find((r) => routeKey(r) === selected) ?? routes[0] ?? null;
   const locked = guard === "locked";
+  // The cache node sits inside *this* chain, so it must show this capability's
+  // hit rate. The global figure belongs on the status tile, where it is labelled
+  // as global — a quote chain reporting a rate driven mostly by bars lookups is
+  // a number that means nothing where it is standing.
+  const hitRate = route ? cacheByCapability[route.capability]?.hitRate ?? null : null;
 
   return (
     <div className="card console-card">
@@ -95,9 +119,7 @@ export default function FailoverGraph({
             <li className="console-node console-node--fixed">
               <span className="console-node__role">Entry</span>
               <strong>Client request</strong>
-              <small className="muted">
-                /api/{route.capability === "quote" ? "quote" : route.capability}
-              </small>
+              <small className="muted">{ENTRY_ROUTE[route.capability] ?? `/api/${route.capability}`}</small>
             </li>
 
             <li className="console-edge" aria-hidden>→</li>
@@ -105,9 +127,11 @@ export default function FailoverGraph({
             <li className="console-node console-node--fixed">
               <span className="console-node__role">Cache</span>
               <strong>
-                {cacheHitRate === null ? "no lookups yet" : `${fmt(cacheHitRate * 100, 1)}% hit`}
+                {hitRate === null ? "no lookups yet" : `${fmt(hitRate * 100, 1)}% hit`}
               </strong>
-              <small className="muted">TTL {Math.round(route.cacheTtlMs / 1000)}s · in-process</small>
+              <small className="muted">
+                {route.capability} · TTL {Math.round(route.cacheTtlMs / 1000)}s · in-process
+              </small>
             </li>
 
             <li className="console-edge" aria-hidden>

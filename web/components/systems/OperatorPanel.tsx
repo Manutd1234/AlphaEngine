@@ -294,8 +294,9 @@ export default function OperatorPanel({
           </div>
         </div>
         <small className="muted">
-          Browser-side. Refreshes are sent at <code>background</code> priority whatever the cadence,
-          so a 1s debugging loop still cannot spend a provider&apos;s interactive reserve.
+          Browser-side. Unattended ticks are sent at <code>background</code> priority — fenced out of
+          each provider&apos;s interactive reserve — so a 1s debugging loop cannot spend the budget a
+          person needs later. Only an explicit <em>Refresh now</em> or <em>Trace</em> spends into it.
         </small>
       </div>
 

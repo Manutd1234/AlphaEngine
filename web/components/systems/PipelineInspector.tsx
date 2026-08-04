@@ -220,9 +220,13 @@ function RestTrace({ result }: { result: InspectResponse }) {
       <dl className="console-facts">
         <div>
           <dt>State</dt>
-          <dd style={{ color: cacheHit ? "var(--series-1)" : "var(--status-good)" }}>
+          {/* "dispatched to a provider", not "fetched upstream": the registry
+              cache missing does not prove a packet left the process. Binance's
+              public endpoints sit behind Next's fetch cache too, so a miss here
+              can still be answered without touching the exchange. */}
+          <dd style={{ color: cacheHit ? "var(--series-1)" : "var(--success-text)" }}>
             <span aria-hidden>{cacheHit ? "◆" : "↓"}</span>{" "}
-            {cacheHit ? "cache hit (in-process)" : "cache miss — fetched upstream"}
+            {cacheHit ? "registry cache hit (in-process)" : "registry cache miss — dispatched"}
           </dd>
         </div>
         <div>
@@ -235,7 +239,7 @@ function RestTrace({ result }: { result: InspectResponse }) {
         </div>
         <div>
           <dt>Age when served</dt>
-          <dd>{cacheHit ? `${fmt(result.cache.ageMs / 1000, 1)}s` : "0s — freshly fetched"}</dd>
+          <dd>{cacheHit ? `${fmt(result.cache.ageMs / 1000, 1)}s` : "0s — newly written"}</dd>
         </div>
         <div>
           <dt>Round trip</dt>
@@ -300,7 +304,7 @@ function RestTrace({ result }: { result: InspectResponse }) {
             <li key={`${call.url}-${index}`}>
               <div className="console-call__head">
                 <span className={`method-badge method-${call.method.toLowerCase()}`}>{call.method}</span>
-                <span style={{ color: call.ok ? "var(--status-good)" : "var(--status-critical)" }}>
+                <span style={{ color: call.ok ? "var(--success-text)" : "var(--critical-text)" }}>
                   <span aria-hidden>{call.ok ? "●" : "✕"}</span> {call.status ?? "no response"}
                 </span>
                 <span className="num muted">{call.ms}ms</span>
@@ -402,12 +406,12 @@ function SocketTrace({
               style={{
                 color:
                   venue.status === "live"
-                    ? "var(--status-good)"
+                    ? "var(--success-text)"
                     : venue.status === "stale"
-                      ? "var(--status-warning)"
+                      ? "var(--warning-text)"
                       : venue.status === "error"
-                        ? "var(--status-critical)"
-                        : "var(--text-muted)",
+                        ? "var(--critical-text)"
+                        : "var(--text-secondary)",
               }}
             >
               <span aria-hidden>

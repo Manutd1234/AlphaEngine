@@ -394,7 +394,21 @@ function connect(
       if (retryTimer) clearTimeout(retryTimer);
       if (heartbeat) clearInterval(heartbeat);
       if (stableTimer) clearTimeout(stableTimer);
-      ws?.close();
+      // Detached before closing, exactly as `restart()` does. `close()` is
+      // asynchronous: frames already queued still fire `onmessage` afterwards,
+      // and those handlers close over the *previous* effect's state map. On a
+      // symbol change that means the dying BTC socket writes a BTC book into the
+      // new ADA state — or, once React has replaced the map, throws on the
+      // non-null assertion in `state.current.get(venue)!`.
+      const dying = ws;
+      ws = null;
+      if (dying) {
+        dying.onclose = null;
+        dying.onerror = null;
+        dying.onmessage = null;
+        dying.onopen = null;
+        dying.close();
+      }
       registry.delete(handle.id);
       publishRegistry();
     },

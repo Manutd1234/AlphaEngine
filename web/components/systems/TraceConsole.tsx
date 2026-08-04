@@ -85,22 +85,30 @@ export default function TraceConsole({ pollMs, paused, onTogglePause }: TraceCon
         if (response.ok) {
           const body = (await response.json()) as EventsResponse;
           instanceId = body.instance ?? "unknown";
-          if (instance.current !== null && instance.current !== instanceId) {
+          const switched = instance.current !== null && instance.current !== instanceId;
+          instance.current = instanceId;
+          setConnected(true);
+
+          if (switched) {
             // A different instance means a different ring with its own sequence
-            // space and its own history. Restart the cursor and say so, rather
-            // than splicing two unrelated timelines together.
+            // space and its own history, and the page just received was fetched
+            // with the *old* instance's cursor — so it silently omits everything
+            // below that number in the new ring. Rewind and take nothing from
+            // this response; the next tick refetches from zero. Advancing the
+            // cursor from this page instead would leave the skipped lines
+            // permanently unrequested, which is the failure a gap marker exists
+            // to make impossible.
             serverCursor.current = 0;
             setGaps((n) => n + 1);
+          } else {
+            remote = body.events ?? [];
+            // Advance from the last line actually received, not from the ring's
+            // head: if a limit truncated the page, the head is ahead of what was
+            // delivered and the difference would never be fetched.
+            if (remote.length) serverCursor.current = remote[remote.length - 1].seq;
+            else if (body.cursor) serverCursor.current = body.cursor.latest;
+            if (body.dropped) setGaps((n) => n + 1);
           }
-          instance.current = instanceId;
-          remote = body.events ?? [];
-          // Advance from the last line actually received, not from the ring's
-          // head: if a limit truncated the page, the head is ahead of what was
-          // delivered and the difference would never be fetched.
-          if (remote.length) serverCursor.current = remote[remote.length - 1].seq;
-          else if (body.cursor) serverCursor.current = body.cursor.latest;
-          if (body.dropped) setGaps((n) => n + 1);
-          setConnected(true);
         } else {
           setConnected(false);
         }

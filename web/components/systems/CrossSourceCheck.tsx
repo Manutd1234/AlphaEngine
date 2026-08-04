@@ -147,7 +147,7 @@ export default function CrossSourceCheck({ symbol }: CrossSourceCheckProps) {
             </div>
             <div>
               <dt>Outliers &gt; {result.toleranceBps}bps</dt>
-              <dd style={{ color: result.outliers.length ? "var(--status-warning)" : undefined }}>
+              <dd style={{ color: result.outliers.length ? "var(--warning-text)" : undefined }}>
                 {result.outliers.length ? result.outliers.join(", ") : "none"}
               </dd>
             </div>
@@ -187,7 +187,7 @@ export default function CrossSourceCheck({ symbol }: CrossSourceCheckProps) {
                       <tr key={leg.provider}>
                         <td>
                           {/* outlier = icon + word, never colour alone */}
-                          {outlier && <span aria-hidden style={{ color: "var(--status-warning)" }}>▲ </span>}
+                          {outlier && <span aria-hidden style={{ color: "var(--warning-text)" }}>▲ </span>}
                           {leg.label}
                           {leg.delayed && <span className="muted"> (delayed)</span>}
                           {outlier && <span className="muted"> — outlier</span>}
