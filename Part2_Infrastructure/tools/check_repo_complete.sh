@@ -41,9 +41,15 @@ warn() { printf '  %sWARN%s  %s\n' "$YELLOW" "$OFF" "$1"; }
 
 echo "▸ 1. Source files excluded by .gitignore"
 # Anything that looks like source but git is ignoring is a silent-drop candidate.
+#
+# `.vercel/` is excluded deliberately: project.json holds this machine's org and
+# project IDs and Vercel's own documentation says to ignore it. Flagging it read
+# as "source that will never reach the deployment", which is the opposite of
+# true — and a guard that reports a failure on every machine that has run the
+# CLI is a guard people learn to skip.
 ignored_source=$(git ls-files --others --ignored --exclude-standard \
   | grep -E '\.(ts|tsx|js|jsx|mjs|cjs|py|css|html|json|md|sh|yml|yaml)$' \
-  | grep -vE 'node_modules/|\.next/|venv/|__pycache__|\.pytest_cache/|package-lock\.json|next-env\.d\.ts|tsbuildinfo' \
+  | grep -vE 'node_modules/|\.next/|\.vercel/|venv/|__pycache__|\.pytest_cache/|package-lock\.json|next-env\.d\.ts|tsbuildinfo' \
   || true)
 if [[ -n "$ignored_source" ]]; then
   bad "these source files are ignored and will never reach the deployment:"
