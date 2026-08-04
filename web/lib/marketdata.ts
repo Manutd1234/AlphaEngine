@@ -76,14 +76,35 @@ export async function fetchBinanceKlines(
 
         const url = `${host}/api/v3/klines?${params}`;
         const pageStartedAt = Date.now();
-        const res = await withTimeout((signal) =>
-          fetch(url, {
-            signal,
-            // Cache identical grids at the edge for a minute — a sweep does not
-            // need second-fresh history, and it keeps us inside the rate limit.
-            next: { revalidate: 60 },
-          }),
-        );
+        let res: Response;
+        try {
+          res = await withTimeout((signal) =>
+            fetch(url, {
+              signal,
+              // Cache identical grids at the edge for a minute — a sweep does not
+              // need second-fresh history, and it keeps us inside the rate limit.
+              next: { revalidate: 60 },
+            }),
+          );
+        } catch (err) {
+          // A stalled host is the failure this file's timeouts exist for, so it
+          // is the one the telemetry must not be silent about. Without this the
+          // health matrix reports a 0% error rate for `venue:binance` while
+          // every klines request is burning its full 8s and falling back to
+          // synthetic bars.
+          const message = err instanceof Error ? err.message : String(err);
+          const timedOut = err instanceof Error && err.name === "AbortError";
+          recordUpstream({
+            provider: "binance",
+            url,
+            status: null,
+            ms: Date.now() - pageStartedAt,
+            ok: false,
+            error: timedOut ? `timed out after ${FETCH_TIMEOUT_MS}ms` : message,
+            latencyKey: "venue:binance",
+          });
+          throw err;
+        }
         if (!res.ok) {
           // Reported per page, not per call to this function: a sweep that
           // paginates six times and fails on the fifth is six upstream calls,
@@ -100,7 +121,25 @@ export async function fetchBinanceKlines(
           throw new Error(`${host} responded ${res.status}`);
         }
 
-        const chunk = (await res.json()) as unknown[][];
+        let chunk: unknown[][];
+        try {
+          chunk = (await res.json()) as unknown[][];
+        } catch (err) {
+          // HTTP 200 carrying a non-JSON body — a captive portal, a CDN
+          // interstitial, a region block served as HTML. Reported rather than
+          // swallowed, because it is indistinguishable from a healthy host in
+          // every other signal we collect.
+          recordUpstream({
+            provider: "binance",
+            url,
+            status: res.status,
+            ms: Date.now() - pageStartedAt,
+            ok: false,
+            error: "expected JSON, got a non-JSON body",
+            latencyKey: "venue:binance",
+          });
+          throw err;
+        }
         recordUpstream({
           provider: "binance",
           url,

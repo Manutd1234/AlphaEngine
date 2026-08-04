@@ -85,6 +85,15 @@ interface Entry {
   expiresAt: number;
 }
 
+/**
+ * Key namespaces holding reliability state rather than cached answers.
+ *
+ * Never evicted to make room for a cache entry, and never removed by a purge.
+ * Losing a cached quote costs one upstream call; losing the quota ledger costs
+ * a vendor's daily allowance.
+ */
+const PROTECTED_PREFIXES = ["quota:", "breaker:"];
+
 export class MemoryStore implements Store {
   private map = new Map<string, Entry>();
   /** Bound so a long-lived instance cannot grow unboundedly on varied symbols. */
@@ -132,14 +141,48 @@ export class MemoryStore implements Store {
   }
 
   set<T>(key: string, value: T, ttlMs = 60_000): void {
-    if (this.map.size >= this.maxEntries) {
-      // Evict the oldest insertion. Map preserves insertion order, so the first
-      // key is the least recently *written* — good enough here, and it avoids
-      // carrying an LRU structure for a cache whose entries all expire anyway.
-      const oldest = this.map.keys().next();
-      if (!oldest.done) this.map.delete(oldest.value);
-    }
+    if (this.map.size >= this.maxEntries) this.evict();
     this.map.set(key, { value, expiresAt: Date.now() + ttlMs });
+  }
+
+  /**
+   * Free a slot without destroying the reliability state.
+   *
+   * The naive version — delete the oldest insertion — has a nasty failure mode
+   * in this store, because the cache and the *ledger* share one Map. `incr()`
+   * re-setting an existing key does not move it in Map insertion order, so a
+   * window's quota counter is written once on the first spend and then sits
+   * permanently at the front, first in line to be thrown away. Enough distinct
+   * cache keys (`search:{query}` and `scrape:{url}` are caller-supplied, so
+   * 2,000 of them is reachable) and the instance forgets it has spent Alpha
+   * Vantage's day, stops fencing background traffic, and re-spends the
+   * allowance while the console cheerfully reports 0/25 used.
+   *
+   * So: expired entries are reclaimed first — `purge()` and `keys()` skip dead
+   * keys without deleting them, so they otherwise hold the budget forever — and
+   * the ledger namespaces are never evictable. Those are bounded by the provider
+   * count, so exempting them cannot make the store grow without limit.
+   */
+  private evict(): void {
+    const now = Date.now();
+    let reclaimed = false;
+    for (const [key, entry] of this.map) {
+      if (entry.expiresAt <= now) {
+        this.map.delete(key);
+        reclaimed = true;
+      }
+    }
+    if (reclaimed) return;
+
+    for (const key of this.map.keys()) {
+      if (!PROTECTED_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+        this.map.delete(key);
+        return;
+      }
+    }
+    // Nothing evictable: every live entry is reliability state. Exceeding the
+    // bound is the correct outcome — dropping the ledger to honour a cache
+    // limit would trade a memory guarantee for a spending one.
   }
 
   incr(key: string, ttlMs: number): number {

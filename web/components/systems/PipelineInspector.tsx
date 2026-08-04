@@ -57,16 +57,33 @@ export default function PipelineInspector({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const sequence = useRef(0);
+  const busySeq = useRef(0);
 
   useEffect(() => setDraft(symbol), [symbol]);
 
   const inspect = useCallback(
     async (refresh: boolean, quiet: boolean) => {
       const current = ++sequence.current;
-      if (!quiet) setBusy(true);
+      if (!quiet) {
+        // Tracked separately from the staleness cursor. Clearing on
+        // `current === sequence.current` latches `busy` on forever whenever a
+        // background poll starts while an interactive trace is in flight: the
+        // poll bumps the cursor, the trace's finally sees a mismatch, and the
+        // button stays "Tracing…" until the component remounts.
+        busySeq.current = current;
+        setBusy(true);
+      }
       const startedAt = Date.now();
       try {
-        const qs = new URLSearchParams({ symbol, capability, priority: "interactive" });
+        const qs = new URLSearchParams({
+          symbol,
+          capability,
+          // An unattended tick is background traffic and must be fenced out of
+          // each provider's interactive reserve — the whole reason the Priority
+          // type exists. Only a human pressing Trace, or the first load after a
+          // symbol change, may spend into it.
+          priority: quiet ? "background" : "interactive",
+        });
         if (raw) qs.set("raw", "1");
         if (refresh) qs.set("refresh", "1");
         const response = await fetch(`/api/system/inspect?${qs}`, { cache: "no-store" });
@@ -92,7 +109,7 @@ export default function PipelineInspector({
           setError(err instanceof Error ? err.message : "inspection failed");
         }
       } finally {
-        if (current === sequence.current && !quiet) setBusy(false);
+        if (!quiet && busySeq.current === current) setBusy(false);
       }
     },
     [symbol, capability, raw, onEvent],
