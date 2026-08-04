@@ -2,93 +2,24 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { compact, fmt, signedPct, usd } from "@/lib/format";
+import ExecutionHandoff, { type HandoffIntent } from "@/components/portfolio/ExecutionHandoff";
+import RiskEngine from "@/components/portfolio/RiskEngine";
+import StressTest from "@/components/portfolio/StressTest";
+import { compact, fmt, pct, signedPct, usd } from "@/lib/format";
+import { type PortfolioPayload, sandboxBook } from "@/lib/portfolio";
+import {
+  type CovarianceModel,
+  type PortfolioRisk,
+  type ReturnsBySymbol,
+  buildCovariance,
+  portfolioRisk,
+} from "@/lib/portfolio-risk";
 
 export type PortfolioFocusDestination = "research" | "live" | "data";
 
 export interface PortfolioWorkspaceProps {
   workspaceSymbol: string;
   onFocusSymbol: (symbol: string, destination: PortfolioFocusDestination) => void;
-}
-
-interface Headroom {
-  used: number;
-  limit: number;
-  remaining: number;
-  utilisation: number;
-}
-
-interface PortfolioPosition {
-  symbol: string;
-  side: "LONG" | "SHORT" | "FLAT";
-  quantity: number;
-  avg_price: number;
-  mark_price: number;
-  notional: number;
-  share_of_gross: number;
-  unrealized_pnl: number;
-  realized_pnl: number;
-  total_pnl: number;
-  symbol_limit: Headroom;
-}
-
-interface StrategyAttribution {
-  strategy: string | null;
-  orders: number;
-  filled: number;
-  notional: number;
-  fees: number;
-  avg_slippage_bps: number | null;
-}
-
-interface PortfolioPayload {
-  as_of: string;
-  session_date: string;
-  trading_halted: boolean;
-  halted_symbols: string[];
-  equity: {
-    current: number;
-    start_of_day: number;
-    daily_pnl: number;
-    daily_return: number;
-    realized_pnl: number;
-    unrealized_pnl: number;
-  };
-  exposure: {
-    gross: number;
-    net: number;
-    leverage: number;
-    positions: PortfolioPosition[];
-  };
-  concentration: {
-    positions: number;
-    largest_symbol: string | null;
-    largest_share: number;
-    top_two_share: number;
-    hhi: number;
-    effective_positions: number;
-  };
-  risk_budget: {
-    gross_exposure: Headroom;
-    daily_drawdown: {
-      used_pct: number;
-      limit_pct: number;
-      utilisation: number;
-      equity_at_halt: number;
-      cushion_usd: number;
-    };
-    binding_constraint: [string, number];
-  };
-  attribution: {
-    by_strategy: StrategyAttribution[];
-    by_symbol: Array<Record<string, unknown>>;
-  };
-  execution_quality: Record<string, unknown>;
-  gateway?: {
-    environment: string;
-    version: string;
-    authoritative: boolean;
-  };
 }
 
 interface PortfolioError {
@@ -124,8 +55,17 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
   const [lastSuccessAt, setLastSuccessAt] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [sandbox, setSandbox] = useState(false);
+  const [returns, setReturns] = useState<ReturnsBySymbol>({});
+  const [riskLoading, setRiskLoading] = useState(false);
+  const [handoff, setHandoff] = useState<HandoffIntent | null>(null);
   const sequence = useRef(0);
   const selectedSymbol = workspaceSymbol.trim().toUpperCase();
+
+  // The sandbox replaces the payload entirely rather than patching gaps in it.
+  // A book that is half real and half generated is the one thing worse than
+  // either, because no banner can say which half you are reading.
+  const book: PortfolioPayload | null = sandbox ? sandboxBook() : portfolio;
 
   const refresh = useCallback(async (quiet = false) => {
     const current = ++sequence.current;
@@ -170,7 +110,57 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
     };
   }, [refresh]);
 
-  if (loading && !portfolio) {
+  // Daily closes for whatever the book holds. The gateway knows the positions
+  // and nothing about how they co-move, so the covariance has to be measured
+  // here — from the same `/api/ohlcv` route the research tab uses, not from
+  // assumed factor loadings.
+  const heldSymbols = (book?.exposure.positions ?? [])
+    .filter((position) => position.notional > 0)
+    .map((position) => position.symbol)
+    .join(",");
+
+  useEffect(() => {
+    const symbols = heldSymbols ? heldSymbols.split(",") : [];
+    if (!symbols.length) {
+      setReturns({});
+      return;
+    }
+    let cancelled = false;
+    setRiskLoading(true);
+    Promise.all(
+      symbols.map(async (symbol) => {
+        try {
+          const response = await fetch(
+            `/api/ohlcv?symbol=${encodeURIComponent(symbol)}&interval=1d&bars=180`,
+            { cache: "no-store" },
+          );
+          if (!response.ok) return [symbol, [] as number[]] as const;
+          const body = await response.json();
+          const bars: { c: number }[] = body.bars ?? [];
+          // Synthetic bars would silently become a covariance estimate. A book's
+          // risk must not be measured against invented prices, so that source is
+          // dropped rather than used.
+          if (body.source !== "binance" || bars.length < 21) return [symbol, [] as number[]] as const;
+          const series: number[] = [];
+          for (let i = 1; i < bars.length; i++) {
+            if (bars[i - 1].c > 0) series.push(bars[i].c / bars[i - 1].c - 1);
+          }
+          return [symbol, series] as const;
+        } catch {
+          return [symbol, [] as number[]] as const;
+        }
+      }),
+    ).then((entries) => {
+      if (cancelled) return;
+      setReturns(Object.fromEntries(entries.filter(([, r]) => r.length > 0)));
+      setRiskLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [heldSymbols]);
+
+  if (loading && !book) {
     return (
       <div className="portfolio-loading" aria-label="Loading portfolio">
         <div className="skeleton" />
@@ -180,11 +170,11 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
     );
   }
 
-  const connectionState: PortfolioConnectionState = portfolio
+  const connectionState: PortfolioConnectionState = book
     ? (error ? "stale" : "live")
     : (error?.code === "gateway_not_configured" ? "unconfigured" : "error");
 
-  if (!portfolio) {
+  if (!book) {
     if (connectionState === "unconfigured") {
       return (
         <div className="card portfolio-setup-card" role="status" aria-labelledby="portfolio-setup-title">
@@ -199,10 +189,15 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
             authoritative positions, exposure and risk limits. Research remains available now.
           </p>
           <div className="page-actions">
-            <button className="primary-action" onClick={() => onFocusSymbol(selectedSymbol, "research")}>
-              Open Research
+            <button className="primary-action" onClick={() => setSandbox(true)}>
+              Explore the sandbox book
             </button>
+            <button onClick={() => onFocusSymbol(selectedSymbol, "research")}>Open Research</button>
           </div>
+          <p className="research-note">
+            The sandbox is a generated book, labelled as such on every panel. It exists so this
+            surface can be evaluated without standing up a gateway — not to stand in for one.
+          </p>
         </div>
       );
     }
@@ -221,30 +216,53 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
           <button className="primary-action" onClick={() => refresh()} disabled={loading}>
             {loading ? "Connecting…" : "Retry connection"}
           </button>
+          <button onClick={() => setSandbox(true)}>Explore the sandbox book</button>
           <button onClick={() => onFocusSymbol(selectedSymbol, "research")}>Open Research</button>
         </div>
+        <p className="research-note">
+          The gateway is a long-lived process and may simply be asleep. The sandbox is a generated
+          book, labelled on every panel, so this surface can still be evaluated.
+        </p>
       </div>
     );
   }
 
-  const isStale = connectionState === "stale";
-  const binding = portfolio.risk_budget.binding_constraint;
-  const positions = portfolio.exposure.positions;
-  const strategies = portfolio.attribution.by_strategy ?? [];
-  const lastRefreshLabel = (lastSuccessAt ?? new Date(portfolio.as_of)).toLocaleTimeString();
-  const gatewayEnvironment = portfolio.gateway?.environment?.trim().toLowerCase();
+  const isStale = !sandbox && connectionState === "stale";
+  const binding = book.risk_budget.binding_constraint;
+  const positions = book.exposure.positions;
+  const strategies = book.attribution.by_strategy ?? [];
+  const lastRefreshLabel = (lastSuccessAt ?? new Date(book.as_of)).toLocaleTimeString();
+  const gatewayEnvironment = book.gateway?.environment?.trim().toLowerCase();
   const gatewayLabel = gatewayEnvironment && gatewayEnvironment !== "production"
     ? `${gatewayEnvironment[0].toUpperCase()}${gatewayEnvironment.slice(1)} risk gateway live`
     : "Authoritative risk gateway live";
 
+  // Signed notionals: a short must reduce the book's variance, and it only can
+  // if the sign survives into the covariance maths.
+  const riskPositions = positions
+    .filter((position) => position.notional > 0)
+    .map((position) => ({
+      symbol: position.symbol,
+      signedNotional: position.side === "SHORT" ? -position.notional : position.notional,
+    }));
+  const covarianceModel: CovarianceModel | null = riskPositions.length
+    ? buildCovariance(riskPositions.map((r) => r.symbol), returns)
+    : null;
+  const risk: PortfolioRisk | null = covarianceModel
+    ? portfolioRisk(riskPositions, book.equity.current, covarianceModel, 365, returns)
+    : null;
+  const measured = new Set(covarianceModel?.symbols ?? []);
+  const missingHistory = riskPositions.map((r) => r.symbol).filter((sym) => !measured.has(sym));
+  const referenceSymbol = riskPositions[0]?.symbol ?? "BTCUSDT";
+
   return (
     <>
-      {portfolio.trading_halted && (
+      {book.trading_halted && (
         <div className="banner error" role="alert">
           <span aria-hidden>■</span>
           <div>
             <strong>{isStale ? "Trading was halted at the last successful refresh." : "Trading is halted."}</strong>{" "}
-            {portfolio.halted_symbols.length ? `Halted instruments: ${portfolio.halted_symbols.join(", ")}.` : "The global kill switch is active."}
+            {book.halted_symbols.length ? `Halted instruments: ${book.halted_symbols.join(", ")}.` : "The global kill switch is active."}
           </div>
         </div>
       )}
@@ -260,40 +278,80 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
         </div>
       )}
 
+      {sandbox && (
+        /* Rendered above everything, on every refresh, for as long as the mode is
+           on. A one-time notice is how a generated book gets mistaken for a real
+           one after ten minutes of reading. */
+        <div className="banner warn sandbox-banner" role="status">
+          <span aria-hidden>◆</span>
+          <div>
+            <strong>Sandbox book — these positions do not exist.</strong> Equity, P&amp;L, exposure and
+            every risk figure below are generated from a fixed seed. The workflow is real; the book is
+            not. Execution handoffs are disabled.
+          </div>
+        </div>
+      )}
+
       <div className="portfolio-statusbar">
         <div>
-          <span className={`system-health${isStale ? " is-warn" : ""}`}>
-            <i aria-hidden /> {isStale ? "Stale portfolio snapshot" : gatewayLabel}
+          <span className={`system-health${isStale || sandbox ? " is-warn" : ""}`}>
+            <i aria-hidden /> {sandbox ? "Sandbox book (generated)" : isStale ? "Stale portfolio snapshot" : gatewayLabel}
           </span>
-          <span className="num">Last successful refresh {lastRefreshLabel}</span>
+          <span className="num">
+            {sandbox ? "Deterministic — the same book every time" : `Last successful refresh ${lastRefreshLabel}`}
+          </span>
         </div>
-        <button onClick={() => refresh(true)} disabled={refreshing}>
-          {refreshing ? (isStale ? "Reconnecting…" : "Refreshing…") : (isStale ? "Reconnect" : "Refresh book")}
-        </button>
+        <div className="portfolio-statusbar__actions">
+          <div className="seg research-seg" role="group" aria-label="Book source">
+            <button
+              type="button"
+              aria-pressed={!sandbox}
+              onClick={() => setSandbox(false)}
+              disabled={!portfolio && !error}
+            >
+              Live gateway
+            </button>
+            <button type="button" aria-pressed={sandbox} onClick={() => setSandbox(true)}>
+              Sandbox
+            </button>
+          </div>
+          <button onClick={() => refresh(true)} disabled={refreshing || sandbox}>
+            {refreshing ? (isStale ? "Reconnecting…" : "Refreshing…") : (isStale ? "Reconnect" : "Refresh book")}
+          </button>
+        </div>
       </div>
 
       <section className="portfolio-metrics" aria-label="Portfolio summary">
         <div>
           <span>Equity</span>
-          <strong className="num">{usd(portfolio.equity.current, 0)}</strong>
-          <small>start {usd(portfolio.equity.start_of_day, 0)}</small>
+          <strong className="num">{usd(book.equity.current, 0)}</strong>
+          <small>start {usd(book.equity.start_of_day, 0)}</small>
         </div>
         <div>
           <span>Day P&amp;L</span>
-          <strong className={`num ${portfolio.equity.daily_pnl >= 0 ? "pos" : "neg"}`}>{usd(portfolio.equity.daily_pnl, 0)}</strong>
-          <small>{signedPct(portfolio.equity.daily_return)}</small>
+          <strong className={`num ${book.equity.daily_pnl >= 0 ? "pos" : "neg"}`}>{usd(book.equity.daily_pnl, 0)}</strong>
+          <small>{signedPct(book.equity.daily_return)}</small>
         </div>
         <div>
           <span>Exposure</span>
-          <strong className="num">{usd(portfolio.exposure.gross, 0)}</strong>
+          <strong className="num">{usd(book.exposure.gross, 0)}</strong>
           <small>
-            net {usd(portfolio.exposure.net, 0)} · {fmt(portfolio.exposure.leverage, 2)}× · {positions.length} position{positions.length === 1 ? "" : "s"}
+            net {usd(book.exposure.net, 0)} · {fmt(book.exposure.leverage, 2)}× · {positions.length} position{positions.length === 1 ? "" : "s"}
           </small>
         </div>
         <div>
           <span>Binding constraint</span>
           <strong>{binding[0].replace("_", " ")}</strong>
           <small className="num">{fmt(binding[1] * 100, 1)}% utilized</small>
+        </div>
+        <div>
+          <span>VaR 95 · 1 day</span>
+          <strong className="num">{risk ? usd(risk.var95, 0) : "—"}</strong>
+          <small>
+            {risk
+              ? `${pct(risk.var95 / Math.max(1, book.equity.current), 2)} of equity`
+              : "needs price history"}
+          </small>
         </div>
       </section>
 
@@ -304,7 +362,7 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
               <span className="page-kicker">{isStale ? "Last known book" : "Live book"}</span>
               <h2>Positions</h2>
             </div>
-            <span>{usd(portfolio.exposure.gross, 0)} gross</span>
+            <span>{usd(book.exposure.gross, 0)} gross</span>
           </div>
 
           {positions.length ? (
@@ -340,6 +398,17 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
                             Trade
                           </button>
                           <button onClick={() => onFocusSymbol(position.symbol, "research")}>Research</button>
+                          <button
+                            onClick={() => setHandoff({
+                              kind: "flatten_symbol",
+                              symbol: position.symbol,
+                              side: position.side === "SHORT" ? "SHORT" : "LONG",
+                              notional: position.notional,
+                            })}
+                            title="Show the authenticated request that closes this position"
+                          >
+                            Close
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -369,13 +438,13 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
           </div>
           <BudgetRow
             label="Gross exposure"
-            used={portfolio.risk_budget.gross_exposure.utilisation}
-            detail={`${usd(portfolio.risk_budget.gross_exposure.remaining, 0)} headroom of ${usd(portfolio.risk_budget.gross_exposure.limit, 0)}`}
+            used={book.risk_budget.gross_exposure.utilisation}
+            detail={`${usd(book.risk_budget.gross_exposure.remaining, 0)} headroom of ${usd(book.risk_budget.gross_exposure.limit, 0)}`}
           />
           <BudgetRow
             label="Daily drawdown"
-            used={portfolio.risk_budget.daily_drawdown.utilisation}
-            detail={`${usd(portfolio.risk_budget.daily_drawdown.cushion_usd, 0)} equity cushion to halt`}
+            used={book.risk_budget.daily_drawdown.utilisation}
+            detail={`${usd(book.risk_budget.daily_drawdown.cushion_usd, 0)} equity cushion to halt`}
           />
           <BudgetRow
             label="Largest position"
@@ -383,10 +452,64 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
             detail={positions[0] ? `${positions[0].symbol} · ${usd(positions[0].symbol_limit.remaining, 0)} symbol headroom` : "No symbol exposure"}
           />
           <div className="portfolio-concentration">
-            <div><span>Largest share</span><strong className="num">{fmt(portfolio.concentration.largest_share * 100, 1)}%</strong></div>
-            <div><span>Effective positions</span><strong className="num">{fmt(portfolio.concentration.effective_positions, 1)}</strong></div>
+            <div><span>Largest share</span><strong className="num">{fmt(book.concentration.largest_share * 100, 1)}%</strong></div>
+            <div><span>Effective positions</span><strong className="num">{fmt(book.concentration.effective_positions, 1)}</strong></div>
           </div>
         </div>
+      </div>
+
+      <div className="portfolio-main-grid">
+        <RiskEngine
+          risk={risk}
+          model={covarianceModel}
+          equity={book.equity.current}
+          loading={riskLoading && !risk}
+          missing={missingHistory}
+        />
+        {riskPositions.length > 0 ? (
+          <StressTest
+            positions={riskPositions}
+            equity={book.equity.current}
+            returns={returns}
+            referenceSymbol={referenceSymbol}
+            drawdownLimitPct={book.risk_budget.daily_drawdown.limit_pct}
+            startOfDayEquity={book.equity.start_of_day}
+          />
+        ) : (
+          <div className="card">
+            <div className="portfolio-card-heading">
+              <div>
+                <span className="page-kicker">Scenario analysis</span>
+                <h2>Stress test</h2>
+              </div>
+            </div>
+            <p className="sub">
+              A flat book cannot be stressed — there is no exposure for a shock to move. Load the
+              sandbox to see the engine against a populated book.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="card portfolio-controls-card">
+        <div className="portfolio-card-heading">
+          <div>
+            <span className="page-kicker">Risk controls</span>
+            <h2>Emergency actions</h2>
+          </div>
+          <span>handoff only</span>
+        </div>
+        <p className="sub">
+          This workspace holds no gateway credential and cannot move risk. These produce the exact
+          authenticated request to run against your gateway, where it is gated and audited.
+        </p>
+        <div className="page-actions">
+          <button onClick={() => setHandoff({ kind: "flatten_all" })} disabled={!positions.length}>
+            Flatten the book
+          </button>
+          <button onClick={() => setHandoff({ kind: "halt" })}>Halt trading</button>
+        </div>
+        <ExecutionHandoff intent={handoff} onClose={() => setHandoff(null)} sandbox={Boolean(book.sandbox)} />
       </div>
 
       <div className="card portfolio-attribution-card">

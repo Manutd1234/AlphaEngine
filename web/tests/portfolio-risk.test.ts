@@ -1,0 +1,307 @@
+/**
+ * Book-level risk maths.
+ *
+ * The properties here are the ones that separate a real risk decomposition from
+ * a plausible-looking ranking. Component contributions must **sum to total
+ * volatility** — otherwise "what do I cut" has no answer.
+ *
+ * The hedge tests below are the interesting pair, and writing them is what
+ * caught a wrong assumption: a correlated short *always* lowers total
+ * volatility, but its risk **contribution** only turns negative once the
+ * correlation is high enough to overcome its own variance. Below that crossover
+ * it is diversifying rather than hedging — it carries positive risk while
+ * reducing the total. Asserting "short ⇒ negative contribution" would have
+ * pinned something untrue of most real books.
+ *
+ * And an instrument whose beta cannot be measured must move by nothing rather
+ * than by a default of 1, because a stress total inflated by invented exposure
+ * is worse than one that admits a gap.
+ */
+
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
+import {
+  SCENARIOS,
+  applyScenario,
+  beta,
+  buildCovariance,
+  portfolioRisk,
+  type ReturnsBySymbol,
+} from "../lib/portfolio-risk";
+import { sandboxBook } from "../lib/portfolio";
+
+const close = (a: number, b: number, tol: number, what = "") =>
+  assert.ok(Math.abs(a - b) <= tol, `${what}: ${a} !== ${b} (Δ ${Math.abs(a - b)} > ${tol})`);
+
+/** Deterministic LCG — the house pattern for anything needing randomness. */
+function lcg(seed: number) {
+  let s = seed >>> 0;
+  return () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+}
+
+function toReturns([a, b]: [number[], number[]]): ReturnsBySymbol {
+  return { A: a, B: b };
+}
+
+/** Two series with a controlled correlation, built from a shared factor. */
+function correlatedSeries(n: number, rho: number, seed = 5): [number[], number[]] {
+  const rand = lcg(seed);
+  const a: number[] = [];
+  const b: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const common = rand() - 0.5;
+    const idioA = rand() - 0.5;
+    const idioB = rand() - 0.5;
+    a.push(0.02 * (rho * common + (1 - Math.abs(rho)) * idioA));
+    b.push(0.02 * (rho * common + (1 - Math.abs(rho)) * idioB));
+  }
+  return [a, b];
+}
+
+describe("covariance is measured, and refuses to guess", () => {
+  it("recovers a known correlation", () => {
+    const [a, b] = correlatedSeries(500, 0.9);
+    const m = buildCovariance(["A", "B"], { A: a, B: b })!;
+    assert.ok(m, "model should build");
+    assert.ok(m.correlation[0][1] > 0.7, `expected high correlation, got ${m.correlation[0][1]}`);
+    close(m.correlation[0][0], 1, 1e-12, "self-correlation");
+    close(m.correlation[0][1], m.correlation[1][0], 1e-12, "symmetry");
+  });
+
+  it("returns null rather than a covariance built on nothing", () => {
+    assert.equal(buildCovariance(["A"], { A: [0.01, 0.02] }), null, "2 observations is not a covariance");
+    assert.equal(buildCovariance(["A"], {}), null, "no history at all");
+  });
+
+  it("truncates to the shortest common history instead of padding with zeros", () => {
+    // Padding would read as zero volatility and zero correlation — the two
+    // errors that both make a book look safer than it is.
+    const long = Array.from({ length: 200 }, (_, i) => (i % 7) * 0.001 - 0.003);
+    const short = long.slice(-40);
+    const m = buildCovariance(["L", "S"], { L: long, S: short })!;
+    assert.equal(m.observations, 40, "should align to the shorter series");
+    assert.ok(m.vol[0] > 0 && m.vol[1] > 0, "neither series should read as zero-vol");
+  });
+});
+
+describe("risk contributions decompose the actual total", () => {
+  const [a, b] = correlatedSeries(400, 0.5, 11);
+  const returns: ReturnsBySymbol = { A: a, B: b };
+  const model = buildCovariance(["A", "B"], returns)!;
+
+  it("component contributions sum to portfolio volatility", () => {
+    // The Euler property. Without it the column is a ranking, not an
+    // attribution, and cannot answer "what do I cut to lose the most risk".
+    const risk = portfolioRisk(
+      [{ symbol: "A", signedNotional: 3_000_000 }, { symbol: "B", signedNotional: 2_000_000 }],
+      10_000_000,
+      model,
+      365,
+    )!;
+    const summed = risk.contributions.reduce((acc, c) => acc + c.contribution, 0);
+    close(summed, risk.volatility, 1e-12, "contributions must sum to total vol");
+    close(risk.contributions.reduce((acc, c) => acc + c.contributionShare, 0), 1, 1e-12, "shares sum to 1");
+  });
+
+  it("a correlated short lowers total volatility", () => {
+    const hedged = portfolioRisk(
+      [{ symbol: "A", signedNotional: 3_000_000 }, { symbol: "B", signedNotional: -2_500_000 }],
+      10_000_000,
+      model,
+      365,
+    )!;
+    const longOnly = portfolioRisk(
+      [{ symbol: "A", signedNotional: 3_000_000 }],
+      10_000_000,
+      model,
+      365,
+    )!;
+    assert.ok(
+      hedged.volatility < longOnly.volatility,
+      `the short must reduce book volatility: ${hedged.volatility} vs ${longOnly.volatility}`,
+    );
+  });
+
+  it("a hedge's CONTRIBUTION goes negative only once it is correlated enough", () => {
+    // Worth pinning because the two facts above and below are easy to conflate,
+    // and the panel shows the second one.
+    //
+    // For a short B against a long A, the component contribution is
+    // `w_B · (Σw)_B / σₚ`, and `(Σw)_B ∝ w_A·ρ − |w_B|`. With w_A = 0.30 and
+    // w_B = −0.25 that flips sign at ρ ≈ 0.833. Below it the short still lowers
+    // total volatility while *carrying* positive risk — it is diversifying, not
+    // hedging. A test that asserted "short ⇒ negative contribution" would be
+    // asserting something untrue of most real books.
+    const weak = buildCovariance(["A", "B"], toReturns(correlatedSeries(400, 0.5, 11)))!;
+    const strong = buildCovariance(["A", "B"], toReturns(correlatedSeries(400, 0.9, 11)))!;
+    const book = [
+      { symbol: "A", signedNotional: 3_000_000 },
+      { symbol: "B", signedNotional: -2_500_000 },
+    ];
+
+    const weakShort = portfolioRisk(book, 10_000_000, weak, 365)!
+      .contributions.find((c) => c.symbol === "B")!;
+    const strongShort = portfolioRisk(book, 10_000_000, strong, 365)!
+      .contributions.find((c) => c.symbol === "B")!;
+
+    assert.ok(
+      weakShort.contribution > 0,
+      `at rho 0.5 the short still carries risk, got ${weakShort.contribution}`,
+    );
+    assert.ok(
+      strongShort.contribution < 0,
+      `at high correlation the short must take risk OUT, got ${strongShort.contribution}`,
+    );
+  });
+
+  it("VaR scales with equity-relative exposure, not gross notional", () => {
+    const small = portfolioRisk([{ symbol: "A", signedNotional: 1_000_000 }], 10_000_000, model, 365)!;
+    const levered = portfolioRisk([{ symbol: "A", signedNotional: 5_000_000 }], 10_000_000, model, 365)!;
+    close(levered.var95 / small.var95, 5, 1e-9, "5x the exposure is 5x the VaR");
+    assert.ok(levered.var99 > levered.var95, "99% must be deeper than 95%");
+    assert.ok(levered.cvar95 > levered.var95, "expected shortfall is beyond VaR");
+  });
+
+  it("historical VaR is reported alongside, from real replay", () => {
+    const risk = portfolioRisk(
+      [{ symbol: "A", signedNotional: 4_000_000 }],
+      10_000_000,
+      model,
+      365,
+      returns,
+    )!;
+    assert.ok(risk.historicalVar95 !== null, "history was supplied, so it must be used");
+    assert.ok(risk.historicalCvar95! >= risk.historicalVar95!, "ES is at least as deep as VaR");
+  });
+
+  it("a flat book has no risk to decompose", () => {
+    assert.equal(portfolioRisk([], 10_000_000, model, 365), null);
+    assert.equal(
+      portfolioRisk([{ symbol: "A", signedNotional: 0 }], 10_000_000, model, 365),
+      null,
+    );
+  });
+});
+
+describe("stress testing never invents exposure", () => {
+  const [a, b] = correlatedSeries(300, 0.8, 3);
+  const returns: ReturnsBySymbol = { BTCUSDT: a, ETHUSDT: b };
+
+  it("an explicitly shocked position uses the shock, not a beta", () => {
+    const r = applyScenario(
+      [{ symbol: "BTCUSDT", signedNotional: 1_000_000 }],
+      10_000_000,
+      [{ symbol: "BTCUSDT", move: -0.2 }],
+      returns,
+      "BTCUSDT",
+    );
+    close(r.totalPnl, -200_000, 1e-9, "1M long, -20%");
+    assert.equal(r.perPosition[0].viaBeta, false);
+  });
+
+  it("an unshocked position moves by its MEASURED beta", () => {
+    const r = applyScenario(
+      [{ symbol: "ETHUSDT", signedNotional: 1_000_000 }],
+      10_000_000,
+      [{ symbol: "BTCUSDT", move: -0.1 }],
+      returns,
+      "BTCUSDT",
+    );
+    const measured = beta("ETHUSDT", "BTCUSDT", returns)!;
+    assert.ok(measured > 0, "these series are positively related");
+    close(r.perPosition[0].appliedMove, measured * -0.1, 1e-12, "move = beta x shock");
+    assert.equal(r.perPosition[0].viaBeta, true);
+  });
+
+  it("an unmeasurable position is held FLAT, not defaulted to beta 1", () => {
+    // Defaulting to 1 is how a stress total quietly becomes fiction.
+    const r = applyScenario(
+      [{ symbol: "UNKNOWN", signedNotional: 5_000_000 }],
+      10_000_000,
+      [{ symbol: "BTCUSDT", move: -0.3 }],
+      returns,
+      "BTCUSDT",
+    );
+    assert.equal(beta("UNKNOWN", "BTCUSDT", returns), null, "no history means no beta");
+    assert.equal(r.perPosition[0].appliedMove, 0, "no measurable beta must mean no assumed move");
+    assert.equal(r.totalPnl, 0);
+  });
+
+  it("a short profits from a down shock", () => {
+    const r = applyScenario(
+      [{ symbol: "BTCUSDT", signedNotional: -2_000_000 }],
+      10_000_000,
+      [{ symbol: "BTCUSDT", move: -0.25 }],
+      returns,
+      "BTCUSDT",
+    );
+    assert.ok(r.totalPnl > 0, `a short should gain when the market falls, got ${r.totalPnl}`);
+    close(r.totalPnl, 500_000, 1e-9, "2M short, -25%");
+  });
+
+  it("the no-shock baseline moves nothing", () => {
+    const flat = SCENARIOS.find((s) => s.id === "flat")!;
+    const r = applyScenario(
+      [{ symbol: "BTCUSDT", signedNotional: 1_000_000 }, { symbol: "ETHUSDT", signedNotional: -500_000 }],
+      10_000_000,
+      flat.shocks,
+      returns,
+      "BTCUSDT",
+    );
+    close(r.totalPnl, 0, 1e-9, "a zero shock must produce zero P&L");
+  });
+});
+
+describe("the sandbox book is coherent and unmistakably flagged", () => {
+  const book = sandboxBook();
+
+  it("carries the sandbox flag the UI banners on", () => {
+    assert.equal(book.sandbox, true);
+    assert.equal(book.gateway?.authoritative, false);
+  });
+
+  it("is deterministic — the same book every call", () => {
+    assert.deepEqual(sandboxBook(), sandboxBook());
+  });
+
+  it("its own arithmetic agrees", () => {
+    const gross = book.exposure.positions.reduce((acc, p) => acc + p.notional, 0);
+    close(book.exposure.gross, gross, 1e-6, "gross is the sum of notionals");
+    close(
+      book.exposure.positions.reduce((acc, p) => acc + p.share_of_gross, 0),
+      1,
+      1e-9,
+      "shares sum to 1",
+    );
+    close(book.exposure.leverage, gross / book.equity.current, 1e-9, "leverage");
+    close(
+      book.equity.daily_pnl,
+      book.equity.current - book.equity.start_of_day,
+      1e-6,
+      "day P&L",
+    );
+    for (const p of book.exposure.positions) {
+      close(p.total_pnl, p.unrealized_pnl + p.realized_pnl, 1e-6, `${p.symbol} total P&L`);
+    }
+  });
+
+  it("carries a short, so the risk decomposition has a hedge to show", () => {
+    assert.ok(
+      book.exposure.positions.some((p) => p.side === "SHORT"),
+      "an all-long sandbox cannot demonstrate negative risk contribution",
+    );
+    assert.ok(book.exposure.net < book.exposure.gross, "net must be below gross with a short present");
+  });
+
+  it("names a binding constraint that is actually the tightest", () => {
+    const [, utilisation] = book.risk_budget.binding_constraint;
+    assert.ok(
+      utilisation >= book.risk_budget.gross_exposure.utilisation - 1e-9,
+      "the binding constraint must be at least as tight as gross exposure",
+    );
+  });
+});
