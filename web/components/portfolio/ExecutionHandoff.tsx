@@ -1,27 +1,31 @@
 "use client";
 
 /**
- * The boundary, made usable instead of merely stated.
+ * Risk actions — the one place this workspace can change a live book.
  *
- * This tab cannot flatten a book or trim a position, and that is not a missing
- * feature — it is the architecture. Order submission, sizing and the kill switch
- * live behind the authenticated gateway; the browser never holds that
- * credential, and the same rule is why the Telegram companion is read-only. A
- * button here that moved real risk would make the claim in both READMEs false.
+ * It used to only *compose* the request and hand it to an operator, on the
+ * argument that the browser holds no gateway credential. That argument still
+ * holds and is why the credential still never reaches the browser: the request
+ * is relayed by `POST /api/gateway/risk`, server-side, with the token read from
+ * the environment at call time.
  *
- * But "you cannot do that here" is a dead end, and a dead end is what this whole
- * surface is meant to remove. So the handoff produces the *exact* authenticated
- * request an operator runs against their own gateway — endpoint, method, body,
- * and where the token comes from. That is genuinely faster than a button would
- * have been for anyone who has to justify the action afterwards, because what
- * they paste is what the audit log records.
+ * What changed is that pasting a curl command into a terminal during a drawdown
+ * is not a safety property, it is a delay. So the action can now be executed
+ * here — behind three things that a click alone cannot satisfy:
  *
- * The gateway origin is deliberately not embedded. It is a server-only variable
- * (`ALPHAENGINE_GATEWAY_URL`) and shipping it to the browser to make a link
- * clickable would leak the one piece of topology this design keeps private.
+ *  1. **A typed confirmation.** The literal word, not a second button. A
+ *     confirm flag the UI sets for itself is not a confirmation.
+ *  2. **The operator gate.** Production refuses without
+ *     `ALPHAENGINE_OPERATOR_TOKEN`, exactly as the systems console does. Being
+ *     able to *read* a book must not imply being able to flatten it.
+ *  3. **A connected gateway.** With none configured there is nothing
+ *     authoritative to act on, and the route says so rather than pretending.
+ *
+ * The composed request stays on screen either way. Someone auditing what the
+ * button did should not have to read this file to find out.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { usd } from "@/lib/format";
 
@@ -35,9 +39,33 @@ interface ExecutionHandoffProps {
   onClose: () => void;
   /** Sandbox books describe a position that does not exist. */
   sandbox: boolean;
+  /** Re-read the book after something actually changed. */
+  onExecuted?: () => void;
 }
 
-function requestFor(intent: HandoffIntent): { title: string; method: string; path: string; body?: string; why: string } {
+interface ActionResult {
+  ok?: boolean;
+  code?: string;
+  error?: string;
+  hint?: string;
+  summary?: string;
+  caveat?: string;
+  orders?: Array<{ symbol: string; side: string; notional: number; accepted: boolean }>;
+}
+
+interface Composed {
+  title: string;
+  method: string;
+  path: string;
+  body?: string;
+  why: string;
+  /** What `/api/gateway/risk` is asked to do, and the word that unlocks it. */
+  action: "halt" | "flatten";
+  confirmWord: string;
+  symbol?: string;
+}
+
+function requestFor(intent: HandoffIntent): Composed {
   switch (intent.kind) {
     case "halt":
       return {
@@ -46,14 +74,21 @@ function requestFor(intent: HandoffIntent): { title: string; method: string; pat
         path: "/api/risk/kill",
         body: JSON.stringify({ reason: "manual halt from portfolio review" }, null, 2),
         why: "Trips the gateway's kill switch. Every subsequent pre-trade check rejects until it is cleared, and the event is appended to the audit log.",
+        action: "halt",
+        confirmWord: "HALT",
       };
     case "flatten_all":
       return {
         title: "Flatten the book",
         method: "POST",
-        path: "/api/orders/flatten",
-        body: JSON.stringify({ scope: "all", reason: "risk reduction" }, null, 2),
-        why: "Submits closing orders for every open position through the same 12 pre-trade gates as any other order — it is not a bypass.",
+        // One risk-gated order per open position. The gateway has no flatten
+        // endpoint — this card used to name `/api/orders/flatten`, which does
+        // not exist and would have 404ed for anyone who ran it.
+        path: "/api/orders (one per open position)",
+        body: JSON.stringify({ symbol: "<each position>", side: "<opposite>", order_type: "MARKET" }, null, 2),
+        why: "Submits a closing order for every open position through the same pre-trade gates as any other order — it is not a bypass. Orders go one at a time so they cannot race the gateway's exposure accounting.",
+        action: "flatten",
+        confirmWord: "FLATTEN",
       };
     case "flatten_symbol":
       return {
@@ -65,36 +100,109 @@ function requestFor(intent: HandoffIntent): { title: string; method: string; pat
             symbol: intent.symbol,
             side: intent.side === "LONG" ? "SELL" : "BUY",
             notional: Math.round(intent.notional),
-            reason: "position close from portfolio review",
+            order_type: "MARKET",
+            strategy: "flatten",
           },
           null,
           2,
         ),
         why: "A closing order in the opposite direction, sized to the current notional. It passes the same risk gates as an opening order.",
+        action: "flatten",
+        confirmWord: "FLATTEN",
+        symbol: intent.symbol,
       };
   }
 }
 
-export default function ExecutionHandoff({ intent, onClose, sandbox }: ExecutionHandoffProps) {
+export default function ExecutionHandoff({ intent, onClose, sandbox, onExecuted }: ExecutionHandoffProps) {
   const [copied, setCopied] = useState(false);
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<ActionResult | null>(null);
+  const [guard, setGuard] = useState<{ mode: string; gatewayConnected: boolean } | null>(null);
+
+  // Re-arm on every new intent: a confirmation typed for one action must never
+  // carry over and unlock a different one.
+  useEffect(() => {
+    setConfirm("");
+    setResult(null);
+  }, [intent]);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/gateway/risk", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((body) => {
+        if (alive) setGuard({ mode: body?.guard?.mode ?? "locked", gatewayConnected: Boolean(body?.gatewayConnected) });
+      })
+      .catch(() => alive && setGuard({ mode: "locked", gatewayConnected: false }));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   if (!intent) return null;
 
   const req = requestFor(intent);
   const curl = [
-    `curl -X ${req.method} "$ALPHAENGINE_GATEWAY_URL${req.path}" \\`,
-    `  -H "Authorization: Bearer $WEB_API_TOKEN" \\`,
+    `curl -X POST "$ALPHAENGINE_GATEWAY_URL${req.path.split(" ")[0]}" \\`,
+    // The gateway authenticates with its own header, not a bearer token. The
+    // previous copy said Authorization: Bearer, which the gateway ignores.
+    `  -H "X-AlphaEngine-Token: $WEB_API_TOKEN" \\`,
     `  -H "Content-Type: application/json" \\`,
     req.body ? `  -d '${req.body.replace(/\n\s*/g, " ")}'` : "",
   ].filter(Boolean).join("\n");
+
+  const locked = guard?.mode === "locked";
+  const noGateway = guard !== null && !guard.gatewayConnected;
+  const armed = confirm.trim().toUpperCase() === req.confirmWord;
+  const canExecute = !sandbox && !locked && !noGateway && armed && !busy;
+
+  const blockedReason = sandbox
+    ? "This is the sandbox book — there is no real position to act on."
+    : noGateway
+      ? "No risk gateway is connected in this environment."
+      : locked
+        ? "Actions are disabled on this deployment until ALPHAENGINE_OPERATOR_TOKEN is set."
+        : !armed
+          ? `Type ${req.confirmWord} to arm.`
+          : null;
+
+  const execute = async () => {
+    setBusy(true);
+    setResult(null);
+    try {
+      const response = await fetch("/api/gateway/risk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: req.action,
+          confirm: req.confirmWord,
+          symbol: req.symbol,
+          reason: "manual action from portfolio review",
+        }),
+      });
+      const body = (await response.json().catch(() => ({}))) as ActionResult;
+      setResult({ ...body, ok: response.ok && body.ok !== false });
+      if (response.ok) {
+        setConfirm("");
+        onExecuted?.();
+      }
+    } catch (err) {
+      setResult({ ok: false, error: err instanceof Error ? err.message : "the request failed" });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div className="handoff-panel" role="dialog" aria-modal="false" aria-labelledby="handoff-title">
       <div className="handoff-head">
         <div>
-          <span className="page-kicker">Execution handoff</span>
+          <span className="page-kicker">Risk action</span>
           <h3 id="handoff-title">{req.title}</h3>
         </div>
-        <button type="button" onClick={onClose} aria-label="Close handoff">
+        <button type="button" onClick={onClose} aria-label="Close">
           Close
         </button>
       </div>
@@ -103,16 +211,14 @@ export default function ExecutionHandoff({ intent, onClose, sandbox }: Execution
         <div className="banner warn" role="status">
           <span aria-hidden>!</span>
           <div>
-            <strong>This is the sandbox book.</strong> The position below does not exist, so the
-            request is shown to illustrate the shape only — running it would act on your real book.
+            <strong>This is the sandbox book.</strong> The position below does not exist, so execution
+            is disabled — the request is shown to illustrate the shape only.
           </div>
         </div>
       )}
 
       <p className="sub">
-        This workspace cannot submit orders. It holds no gateway credential, by design — the same
-        reason the Telegram companion can report a halt but never trigger one. Run this against your
-        own gateway, where it is authenticated, gated and audited.
+        {req.why}
       </p>
 
       <pre className="handoff-request" tabIndex={0}>{curl}</pre>
@@ -134,9 +240,65 @@ export default function ExecutionHandoff({ intent, onClose, sandbox }: Execution
         </button>
         <small className="muted">
           {intent.kind === "flatten_symbol" && `Closes ${usd(intent.notional, 0)} of ${intent.symbol}. `}
-          {req.why}
+          The credential is read server-side and never reaches this browser.
         </small>
       </div>
+
+      {/* ---- execute ------------------------------------------------------ */}
+      <div className="handoff-execute">
+        <label htmlFor="handoff-confirm">
+          Type <strong>{req.confirmWord}</strong> to arm this action
+        </label>
+        <div className="handoff-execute__row">
+          <input
+            id="handoff-confirm"
+            type="text"
+            value={confirm}
+            onChange={(event) => setConfirm(event.target.value)}
+            placeholder={req.confirmWord}
+            autoComplete="off"
+            spellCheck={false}
+            disabled={sandbox || locked || noGateway}
+            aria-describedby="handoff-blocked"
+          />
+          <button
+            type="button"
+            className="handoff-fire"
+            onClick={() => void execute()}
+            disabled={!canExecute}
+            title={blockedReason ?? `Send this ${req.action} to the gateway`}
+          >
+            {busy ? "Sending…" : req.title}
+          </button>
+        </div>
+        {blockedReason && (
+          <small id="handoff-blocked" className="muted">
+            <span aria-hidden>◌</span> {blockedReason}
+          </small>
+        )}
+      </div>
+
+      {result && (
+        <div className={`banner ${result.ok ? "context-change" : "error"}`} role={result.ok ? "status" : "alert"}>
+          <span aria-hidden>{result.ok ? "✓" : "✕"}</span>
+          <div>
+            <strong>{result.summary ?? result.error}</strong>
+            {result.caveat && <small className="handoff-note">{result.caveat}</small>}
+            {result.hint && <small className="handoff-note">{result.hint}</small>}
+            {result.orders && result.orders.length > 0 && (
+              <ul className="handoff-orders">
+                {result.orders.map((o) => (
+                  <li key={o.symbol}>
+                    <span aria-hidden>{o.accepted ? "✓" : "✕"}</span> {o.side} {o.symbol}{" "}
+                    {usd(o.notional, 0)}
+                    <span className="muted">{o.accepted ? " accepted" : " rejected by the gates"}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

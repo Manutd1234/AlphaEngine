@@ -3611,3 +3611,78 @@ button.primary-action:hover:not(:disabled) {
     width: 100%;
   }
 }
+
+/* ---------- risk action execution ---------- */
+.handoff-execute {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--grid);
+}
+
+.handoff-execute > label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.handoff-execute__row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.handoff-execute__row input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Destructive, and styled to say so — but only once it is armed. A permanently
+   red button is a red button people stop seeing.
+
+   A fixed red rather than --status-critical: that token is a FILL step tuned
+   per theme, and its dark value (#f0737c) carries white text at 2.82:1. This
+   one is 6.55:1 in both themes, which the destructive button of the whole app
+   is the last place to compromise on. */
+.handoff-fire {
+  flex: 0 0 auto;
+  font-weight: 650;
+}
+
+.handoff-fire:not(:disabled) {
+  background: #b3242e;
+  border-color: #b3242e;
+  color: #fff;
+}
+
+.handoff-fire:not(:disabled):hover {
+  background: #9d1c27;
+  border-color: #9d1c27;
+}
+
+.handoff-execute > small {
+  display: block;
+  margin-top: 6px;
+  font-size: 10.5px;
+}
+
+.handoff-note {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.handoff-orders {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 3px;
+  font-family: var(--mono);
+  font-size: 11px;
+}

@@ -621,7 +621,12 @@ export default function PortfolioWorkspace({ workspaceSymbol, onFocusSymbol }: P
           </button>
           <button onClick={() => setHandoff({ kind: "halt" })}>Halt trading</button>
         </div>
-        <ExecutionHandoff intent={handoff} onClose={() => setHandoff(null)} sandbox={Boolean(book.sandbox)} />
+        <ExecutionHandoff
+        intent={handoff}
+        onClose={() => setHandoff(null)}
+        sandbox={Boolean(book.sandbox)}
+        onExecuted={() => void refresh(true)}
+      />
       </div>
 
       <div className="card portfolio-attribution-card">

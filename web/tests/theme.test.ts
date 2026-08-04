@@ -174,7 +174,9 @@ describe("every colour rendered as text clears AA on the surfaces it lands on", 
 describe("the console never renders a fill-step status colour as text", () => {
   it("no --status-* token is used as a `color:` value in the console section", () => {
     const section = css.slice(css.indexOf("Systems console — developer surface"));
-    const offenders = [...section.matchAll(/color:\s*var\(--status-(good|warning|critical)\)/g)]
+    // `(?<![\w-])` so `border-color:` does not match — a border is a graphical
+    // object at a 3:1 bar, not text at 4.5:1, and the fill steps clear that.
+    const offenders = [...section.matchAll(/(?<![\w-])color:\s*var\(--status-(good|warning|critical)\)/g)]
       .map((m) => m[0]);
     assert.deepEqual(
       offenders,
