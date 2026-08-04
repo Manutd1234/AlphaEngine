@@ -70,7 +70,11 @@ about the *whole book*. The same numbers do not serve both, which is why
 | Not be fooled by the best of N draws | **Deflated Sharpe Ratio** — the hurdle a random search of the same size clears |
 | Know it generalises | Walk-forward: parameters chosen in-sample, scored on the next unseen fold |
 | See *robustness*, not just a winner | Sharpe surface — a plateau survives; an isolated peak is an overfit |
-| Realistic costs | Fees and slippage charged on turnover; fills at the next bar, never at mid |
+| Know *why* it failed | Every grid point classified plateau/slope/cliff by what its neighbours do; walk-forward drawn fold by fold with efficiency and parameter drift |
+| Know whether it is alpha or beta | Returns regressed on market, trend and volatility-regime factors built from the same instrument — with alpha's t-statistic and the residual share |
+| See the loss tail, not just its variance | VaR, expected shortfall, Ulcer index and a monthly return grid |
+| Realistic costs | Fees and slippage charged on turnover; fills at the next bar, never at mid. Optional square-root impact, funding and borrow — off by default, because on they diverge from the gateway |
+| Not re-test the same idea, or forget how many were tried | Local run history that states the cross-run count: a per-run DSR prices one grid, not forty hypotheses |
 
 The research portal will tell you a strategy **fails** even when the equity curve
 looks good. That is the feature: a +82% backtest with DSR 0.71 and negative
@@ -118,7 +122,7 @@ Directory** to `web`. Everything else auto-detects.
 cd web
 npm install
 npm run dev    # http://localhost:3000
-npm test       # 128 tests
+npm test       # 198 tests
 ```
 
 Live-feed endpoints (public, no key):

@@ -5,10 +5,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Controls from "@/components/Controls";
 import DeveloperConsole from "@/components/DeveloperConsole";
 import EquityChart from "@/components/EquityChart";
-import Heatmap from "@/components/Heatmap";
 import LiveMarket from "@/components/LiveMarket";
 import PortfolioWorkspace, { type PortfolioFocusDestination } from "@/components/PortfolioWorkspace";
 import PriceChart from "@/components/PriceChart";
+import ExperimentHistory from "@/components/research/ExperimentHistory";
+import FactorPanel from "@/components/research/FactorPanel";
+import PromotionPanel from "@/components/research/PromotionPanel";
+import StabilityPanel from "@/components/research/StabilityPanel";
+import TearSheet from "@/components/research/TearSheet";
+import WalkForwardTimeline from "@/components/research/WalkForwardTimeline";
 import StatTile from "@/components/StatTile";
 import { ResultsTable, WalkForwardTable } from "@/components/Tables";
 import Verdict from "@/components/Verdict";
@@ -22,6 +27,13 @@ import {
   SweepRequest,
   SweepResponse,
 } from "@/lib/types";
+import {
+  addExperiment,
+  clearExperiments,
+  loadExperiments,
+  removeExperiment,
+  type ExperimentRecord,
+} from "@/lib/experiments";
 import type { Side } from "@/lib/venues";
 
 const VIEWS: WorkspaceView[] = ["overview", "portfolio", "research", "live", "data"];
@@ -43,6 +55,7 @@ export default function Page() {
   const [side, setSide] = useState<Side>("BUY");
   const [notional, setNotional] = useState(100_000);
   const [providerSummary, setProviderSummary] = useState<ProviderSummary | null>(null);
+  const [experiments, setExperiments] = useState<ExperimentRecord[]>([]);
   const activeRun = useRef<AbortController | null>(null);
   const runSeq = useRef(0);
 
@@ -109,6 +122,13 @@ export default function Page() {
         if (sequence !== runSeq.current) return;
         setData(json as SweepResponse);
         setResearchDirty(false);
+        // Drill-downs are not hypotheses. `inspectCombo` re-runs the sweep
+        // pinned to one cell to isolate it; recording that would inflate the
+        // attempt count, which is the single number the history panel exists to
+        // keep honest.
+        if (!preserveInspect) {
+          setExperiments((current) => addExperiment(current, json as SweepResponse, Date.now()));
+        }
       } catch (runError) {
         if ((runError as Error).name !== "AbortError" && sequence === runSeq.current) {
           setError((runError as Error).message);
@@ -126,6 +146,23 @@ export default function Page() {
     // One baseline run only. Subsequent request edits are explicit so a slider
     // cannot fan out network work while it is being dragged.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Hydrated in an effect rather than in the initial state. `page.tsx` is a
+  // client component but is still server-rendered, so reading localStorage
+  // during render throws on the server and desynchronises the first paint.
+  useEffect(() => {
+    setExperiments(loadExperiments());
+  }, []);
+
+  const cloneExperiment = useCallback((request: SweepRequest) => {
+    setReq(request);
+    setResearchDirty(true);
+    setInspect(null);
+  }, []);
+
+  const dropExperiment = useCallback((id: string) => {
+    setExperiments((current) => removeExperiment(current, id));
   }, []);
 
   const updateRequest = useCallback((next: SweepRequest) => {
@@ -344,13 +381,35 @@ export default function Page() {
                       />
                     </div>
 
+                            <PromotionPanel
+                      gate={data.promotion}
+                      symbol={data.request.symbol}
+                      fast={data.best.fast}
+                      slow={data.best.slow}
+                      strategyLabel={STRATEGY_LABELS[data.request.strategy]}
+                      slippageBps={data.request.slippageBps}
+                      onHandOff={() => navigate("live")}
+                    />
+
                     {data.results.length > 3 && (
-                      <div className="card">
-                        <h2>Sharpe surface</h2>
-                        <p className="sub">A broad plateau suggests an edge that survives small parameter changes; an isolated bright cell is a warning sign.</p>
-                        <Heatmap results={data.results} best={data.best} selected={inspect} onSelect={inspectCombo} />
-                      </div>
+                      <StabilityPanel
+                        stability={data.stability}
+                        results={data.results}
+                        best={data.best}
+                        selected={inspect}
+                        onSelect={inspectCombo}
+                      />
                     )}
+
+                    <WalkForwardTimeline report={data.walkForwardReport} />
+
+                    <FactorPanel report={data.factors} />
+
+                    <TearSheet
+                      tail={data.tail}
+                      interval={data.request.interval}
+                      turnoverPerYear={data.tail.annualisedTurnover}
+                    />
 
                     <div className="card">
                       <h2>Walk-forward validation</h2>
@@ -363,6 +422,14 @@ export default function Page() {
                       <p className="sub">The top 15 combinations behind the winner. Select a row to isolate that pair.</p>
                       <ResultsTable data={data} onSelect={inspectCombo} selected={inspect} />
                     </div>
+
+                    <ExperimentHistory
+                      records={experiments}
+                      activeRequest={data.request}
+                      onClone={cloneExperiment}
+                      onRemove={dropExperiment}
+                      onClear={() => setExperiments(clearExperiments())}
+                    />
                   </>
                 )}
               </div>

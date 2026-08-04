@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 import { paramGrid } from "@/lib/engine";
 import {
   INTERVALS,
@@ -56,6 +58,75 @@ function Slider({
   );
 }
 
+/**
+ * A numeric field you can actually type a decimal or a minus sign into.
+ *
+ * `<input type="number">` bound straight to `Number(e.target.value)` cannot
+ * accept either. The browser reports `value === ""` for any transient text that
+ * is not yet a valid floating-point number — a trailing `"."`, a lone `"-"` —
+ * and `Number("")` is `0`, so the handler commits zero and React writes "0" back
+ * over the caret. Typing `.05` into Impact k ended up as `005`, which the route
+ * clamped to `1.0`: the maximum impact coefficient, twenty times what was asked
+ * for, with the field still reading `005`.
+ *
+ * So the raw string is held here and only committed when it parses. `type=text`
+ * with `inputMode=decimal` rather than `type=number`, because the number input's
+ * own value-sanitisation algorithm is what discards the partial literal in the
+ * first place — keeping the numeric keypad on touch without the sanitiser.
+ */
+function NumberField({
+  id,
+  label,
+  value,
+  min,
+  max,
+  onCommit,
+}: {
+  id: string;
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onCommit: (v: number) => void;
+}) {
+  const [text, setText] = useState(() => String(value));
+  const ref = useRef<HTMLInputElement | null>(null);
+
+  // Re-sync when the value changes from outside — cloning a saved experiment
+  // rewrites the whole request — but never while the field has focus, which
+  // would be the same stomping this component exists to prevent.
+  useEffect(() => {
+    if (typeof document !== "undefined" && document.activeElement === ref.current) return;
+    setText(String(value));
+  }, [value]);
+
+  return (
+    <div>
+      <label className="field" htmlFor={id}>
+        {label}
+      </label>
+      <input
+        id={id}
+        ref={ref}
+        type="text"
+        inputMode="decimal"
+        value={text}
+        aria-label={label}
+        onChange={(event) => {
+          const raw = event.target.value;
+          setText(raw);
+          const parsed = Number(raw);
+          // "", "-", "0." and "1e" are all mid-typing states. Committing any of
+          // them writes a number the user never asked for.
+          if (raw.trim() === "" || raw === "-" || !Number.isFinite(parsed)) return;
+          onCommit(Math.min(max, Math.max(min, parsed)));
+        }}
+        onBlur={() => setText(String(value))}
+      />
+    </div>
+  );
+}
+
 export default function Controls({
   req,
   setReq,
@@ -83,6 +154,11 @@ export default function Controls({
     return n;
   })();
   const meaning = PARAM_MEANING[req.strategy];
+  const frictionsOn = Boolean(
+    (req.impactCoefficient ?? 0) > 0
+      || (req.fundingBpsPer8h ?? 0) !== 0
+      || (req.borrowBpsAnnual ?? 0) > 0,
+  );
 
   return (
     <div className="card sidebar experiment-panel">
@@ -151,7 +227,7 @@ export default function Controls({
               max={5000}
               step={100}
               value={req.bars}
-              onChange={(e) => patch({ bars: Number(e.target.value) })}
+              onChange={(e) => e.target.value !== "" && patch({ bars: Number(e.target.value) })}
             />
           </div>
           <div>
@@ -187,7 +263,7 @@ export default function Controls({
             </span>
             <span
               className="num"
-              style={{ fontSize: 12, color: combos < raw ? "var(--status-warning)" : "var(--series-1)" }}
+              style={{ fontSize: 12, color: combos < raw ? "var(--warning-text)" : "var(--series-1)" }}
             >
               {combos} combos
             </span>
@@ -228,7 +304,7 @@ export default function Controls({
               max={100}
               step={1}
               value={req.feeBps}
-              onChange={(e) => patch({ feeBps: Number(e.target.value) })}
+              onChange={(e) => e.target.value !== "" && patch({ feeBps: Number(e.target.value) })}
             />
           </div>
           <div>
@@ -242,7 +318,7 @@ export default function Controls({
               max={100}
               step={1}
               value={req.slippageBps}
-              onChange={(e) => patch({ slippageBps: Number(e.target.value) })}
+              onChange={(e) => e.target.value !== "" && patch({ slippageBps: Number(e.target.value) })}
             />
           </div>
           <div>
@@ -255,10 +331,79 @@ export default function Controls({
               min={2}
               max={10}
               value={req.folds}
-              onChange={(e) => patch({ folds: Number(e.target.value) })}
+              onChange={(e) => e.target.value !== "" && patch({ folds: Number(e.target.value) })}
             />
           </div>
         </div>
+
+        <hr style={{ border: 0, borderTop: "1px solid var(--grid)", margin: "4px 0" }} />
+
+        {/* Microstructure frictions.
+            Collapsed by default and zero by default, because switching any of
+            these on makes this run diverge from the Python gateway — which
+            models flat bps only. That is stated where the switch is, not in a
+            footnote, since a cost assumption a researcher forgot they enabled
+            is indistinguishable from a strategy that stopped working. */}
+        <details className="friction-group" open={frictionsOn}>
+          <summary>
+            Microstructure frictions
+            <span className={frictionsOn ? "friction-badge is-on" : "friction-badge"}>
+              {frictionsOn ? "modelled" : "flat bps only"}
+            </span>
+          </summary>
+
+          <p className="friction-note">
+            Beyond flat fee and slippage. Each defaults to zero; with all four at zero this run is
+            arithmetically identical to the gateway&apos;s reference engine. Any non-zero value makes it a
+            model of your assumptions, and the two will no longer agree.
+          </p>
+
+          <div className="row">
+            <NumberField
+              id="impact"
+              label="Impact k"
+              value={req.impactCoefficient ?? 0}
+              min={0}
+              max={1}
+              onCommit={(v) => patch({ impactCoefficient: v })}
+            />
+            <NumberField
+              id="notional"
+              label="Order size"
+              value={req.orderNotional ?? 0}
+              min={0}
+              max={1e10}
+              onCommit={(v) => patch({ orderNotional: v })}
+            />
+          </div>
+          <p className="friction-note">
+            Square-root impact: <code>k·√(order ÷ ADV)</code>. Doubling size costs about 1.41×, not 2×.
+            Both must be non-zero for impact to apply.
+          </p>
+
+          <div className="row">
+            <NumberField
+              id="funding"
+              label="Funding bps/8h"
+              value={req.fundingBpsPer8h ?? 0}
+              min={-50}
+              max={50}
+              onCommit={(v) => patch({ fundingBpsPer8h: v })}
+            />
+            <NumberField
+              id="borrow"
+              label="Borrow bps/yr"
+              value={req.borrowBpsAnnual ?? 0}
+              min={0}
+              max={5000}
+              onCommit={(v) => patch({ borrowBpsAnnual: v })}
+            />
+          </div>
+          <p className="friction-note">
+            Funding is charged on absolute exposure every bar; borrow only on short exposure, so it does
+            nothing in a long-only run.
+          </p>
+        </details>
 
         <button className="primary" onClick={onRun} disabled={running}>
           {running ? "Running sweep…" : "Run parameter sweep"}

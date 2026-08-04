@@ -57,6 +57,18 @@ function sanitise(body: Partial<SweepRequest>): SweepRequest {
     direction: body.direction === "long_short" ? "long_short" : "long_only",
     folds: clamp(body.folds, 2, 10, DEFAULT_REQUEST.folds),
     walkForward: body.walkForward !== false,
+
+    // Microstructure frictions. Every one defaults to 0, which is what keeps an
+    // unconfigured request arithmetically identical to the Python reference —
+    // `clampFloat` returns the fallback for absent, non-numeric and non-finite
+    // input alike, so a client that omits the whole group cannot accidentally
+    // enable it. The upper bounds are deliberately generous: a researcher
+    // stress-testing a strategy at an absurd participation rate is doing the
+    // right thing, and the UI labels the result as a model either way.
+    impactCoefficient: clampFloat(body.impactCoefficient, 0, 1, 0),
+    orderNotional: clampFloat(body.orderNotional, 0, 1e10, 0),
+    fundingBpsPer8h: clampFloat(body.fundingBpsPer8h, -50, 50, 0),
+    borrowBpsAnnual: clampFloat(body.borrowBpsAnnual, 0, 5000, 0),
   };
 }
 

@@ -2814,3 +2814,412 @@ button.primary-action:hover:not(:disabled) {
 .console-headlines small {
   font-size: 10.5px;
 }
+
+/* ---------- health matrix: keep the actions reachable ---------- */
+/* Six columns of monospace do not fit a 65%-wide column, and `.table-wrap`
+   scrolls horizontally — which put the one interactive column off-screen by
+   default. Pinning it means the scroll reveals the *diagnosis* while the
+   controls that act on it stay put. `border-collapse: collapse` drops cell
+   backgrounds behind sticky cells, so the background is set explicitly. */
+.console-matrix th:last-child,
+.console-matrix td:last-child {
+  position: sticky;
+  right: 0;
+  background: var(--surface-1);
+  box-shadow: inset 1px 0 0 var(--grid);
+}
+
+.console-matrix .console-wrap {
+  max-width: 28ch;
+}
+
+/* ==========================================================================
+   Research lab — quant validation surface
+   ==========================================================================
+   Appended after the console section; every selector is new. Reuses .card,
+   .tiles, .table-wrap, .banner, .legend, .seg and .section-heading rather than
+   restyling them, so the research panels sit in the same visual system as the
+   rest of the workspace.
+   ========================================================================== */
+
+/* ---------- shared research primitives ---------- */
+.research-seg button {
+  font-size: 11.5px;
+}
+
+.stability-verdict {
+  margin: 4px 0 14px;
+  padding: 10px 14px;
+  border-left: 3px solid var(--border);
+  border-radius: 0 9px 9px 0;
+  background: var(--surface-2);
+}
+
+.stability-verdict strong {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 3px;
+}
+
+.stability-verdict p {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  max-width: 78ch;
+}
+
+/* A denser tile than .tiles' StatTile — four of these fit where six stat tiles
+   would crowd, and the note line carries the caveat that makes the number safe
+   to read. */
+.stability-tiles {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 4px;
+}
+
+.stability-tile {
+  display: grid;
+  gap: 1px;
+  align-content: start;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-1);
+}
+
+.stability-tile > span {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.stability-tile > strong {
+  font-size: 19px;
+  font-weight: 680;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.stability-tile > small {
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.research-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--grid);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.research-note {
+  margin-top: 12px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  max-width: 84ch;
+}
+
+.research-window {
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+/* ---------- walk-forward timeline ---------- */
+.research-seg,
+.friction-group .row {
+  margin-bottom: 0;
+}
+
+/* ---------- factor attribution ---------- */
+.factor-name {
+  display: grid;
+  gap: 1px;
+  max-width: 40ch;
+}
+
+.factor-name small {
+  font-size: 10px;
+  line-height: 1.45;
+  white-space: normal;
+}
+
+/* Bipolar magnitude bar: the centre line is zero, so the SIDE carries the sign
+   and the hue only reinforces it. A one-sided bar would need colour alone to
+   distinguish a +0.8 loading from a -0.8 one. */
+.factor-bar {
+  position: relative;
+  display: block;
+  width: 110px;
+  height: 6px;
+  margin-left: auto;
+  border-radius: 3px;
+  background: var(--surface-3);
+}
+
+.factor-bar::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--axis);
+}
+
+.factor-bar > i {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: 3px;
+}
+
+/* ---------- monthly returns grid ---------- */
+.monthly-grid td,
+.monthly-grid th {
+  padding-left: 6px;
+  padding-right: 6px;
+  font-size: 11px;
+}
+
+.monthly-cell > span {
+  display: block;
+  padding: 3px 5px;
+  border-radius: 5px;
+  min-width: 40px;
+}
+
+/* ---------- promotion gate ---------- */
+.promotion-score {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.promotion-list {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.promotion-list > li {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-1);
+}
+
+.promotion-list > li.is-pass {
+  border-left: 3px solid var(--success-text);
+}
+
+.promotion-list > li.is-fail {
+  border-left: 3px solid var(--critical-text);
+  background: color-mix(in srgb, var(--diverging-neg) 5%, var(--surface-1));
+}
+
+.promotion-mark {
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+.promotion-list > li.is-pass .promotion-mark {
+  color: var(--success-text);
+}
+
+.promotion-list > li.is-fail .promotion-mark {
+  color: var(--critical-text);
+}
+
+.promotion-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.promotion-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.promotion-body small {
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.promotion-handoff {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.promotion-handoff small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* The .page-actions specificity trap does not apply here — this bar declares its
+   own background so a .primary-action inside it cannot end up white-on-white. */
+.promotion-handoff button.primary-action {
+  background: var(--series-1);
+  border-color: var(--series-1);
+  color: #fff;
+}
+
+.promotion-handoff button.primary-action:disabled {
+  background: var(--surface-3);
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+/* ---------- experiment history ---------- */
+.run-id,
+.run-hypothesis {
+  display: grid;
+  gap: 1px;
+}
+
+.run-id small,
+.run-hypothesis small {
+  font-size: 10px;
+  white-space: normal;
+}
+
+.run-hypothesis {
+  max-width: 34ch;
+}
+
+.run-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.run-actions button {
+  padding: 4px 8px;
+  font-size: 9.5px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* ---------- friction controls ---------- */
+.friction-group {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  padding: 0;
+}
+
+.friction-group > summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 11px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.friction-group > summary:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--series-1) 35%, transparent);
+  outline-offset: -1px;
+}
+
+.friction-group > *:not(summary) {
+  margin: 0 11px 10px;
+}
+
+.friction-badge {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--text-muted);
+}
+
+.friction-badge.is-on {
+  background: color-mix(in srgb, var(--status-warning) 22%, transparent);
+  color: var(--warning-text);
+}
+
+.friction-note {
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.friction-note code {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+/* ---------- responsive ---------- */
+@media (max-width: 1120px) {
+  .stability-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .stability-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .promotion-handoff {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .promotion-handoff button.primary-action {
+    width: 100%;
+  }
+  .factor-name,
+  .run-hypothesis {
+    max-width: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .stability-tiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .research-facts {
+    gap: 10px;
+  }
+}

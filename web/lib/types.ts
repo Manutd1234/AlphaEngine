@@ -28,6 +28,22 @@ export interface SweepRequest {
   direction: Direction;
   folds: number;
   walkForward: boolean;
+
+  // ---- microstructure frictions ------------------------------------------
+  // All optional and all defaulting to zero, so an unconfigured request is
+  // arithmetically identical to the flat-cost model the Python engine
+  // implements and the parity fixture pins. Switching one on is an explicit
+  // choice by the researcher, and the UI labels the results as a *model* rather
+  // than as something the backtest discovered.
+
+  /** Square-root impact coefficient: `impact = k·√(orderNotional / ADV)`. */
+  impactCoefficient?: number;
+  /** Order notional used to size market impact, in quote currency. */
+  orderNotional?: number;
+  /** Perpetual funding, bps per 8h, charged on absolute exposure. */
+  fundingBpsPer8h?: number;
+  /** Annual borrow cost charged on short exposure, in bps. */
+  borrowBpsAnnual?: number;
 }
 
 export interface ParamResult {
@@ -94,6 +110,164 @@ export interface SweepResponse {
   walkForwardOosSharpe: number | null;
   series: SeriesPoint[];
   warnings: string[];
+
+  // ---- research analytics -------------------------------------------------
+  // Additive: `runCombo` and every field above are untouched, so the parity
+  // fixture still pins the engine against the Python reference.
+
+  /** Neighbourhood classification of every grid point — plateau vs cliff. */
+  stability: StabilityReport;
+  /** Per-fold walk-forward efficiency and parameter drift. */
+  walkForwardReport: WalkForwardReport;
+  /** Regression of strategy returns on single-instrument time-series factors. */
+  factors: FactorReport | null;
+  /** Loss-tail statistics, monthly grid and annualised turnover. */
+  tail: TailReport;
+  /** The veto list a candidate must clear before execution hand-off. */
+  promotion: PromotionGate;
+  /** What the cost model actually charged, so an assumption is never invisible. */
+  costs: CostSummary;
+}
+
+// ---------------------------------------------------------------------------
+// Research analytics contracts
+//
+// Defined here rather than in `lib/quant.ts` because they cross the API
+// boundary: the route serialises them and the browser deserialises them, so
+// they are contract, not implementation. `quant.ts` imports them back.
+// ---------------------------------------------------------------------------
+
+/** How a grid point behaves relative to its tested neighbours. */
+export type CellKind = "plateau" | "slope" | "cliff" | "dead" | "isolated";
+
+export interface StabilityCell {
+  fast: number;
+  slow: number;
+  sharpe: number;
+  /** Grid-adjacent combinations that were actually tested (up to 8). */
+  neighbours: number;
+  neighbourMean: number;
+  neighbourMin: number;
+  /** neighbourMean / sharpe — how much of the cell's edge the area retains. */
+  retention: number | null;
+  kind: CellKind;
+}
+
+export interface StabilityReport {
+  cells: StabilityCell[];
+  best: StabilityCell | null;
+  plateauCount: number;
+  cliffCount: number;
+  classified: number;
+  verdict: Verdict;
+}
+
+export interface Verdict {
+  level: "pass" | "marginal" | "fail";
+  headline: string;
+  detail: string;
+}
+
+export interface FoldEfficiency extends WalkForwardFold {
+  /** OOS Sharpe as a fraction of IS Sharpe. Null when IS was not positive. */
+  efficiency: number | null;
+  /** Grid-step distance from the previous fold's chosen parameters. */
+  paramDrift: number | null;
+}
+
+export interface WalkForwardReport {
+  folds: FoldEfficiency[];
+  medianEfficiency: number | null;
+  positiveFolds: number;
+  totalFolds: number;
+  /** Fraction of folds that re-selected the previous fold's parameters. */
+  parameterPersistence: number | null;
+  verdict: Verdict;
+}
+
+export interface FactorLoading {
+  name: string;
+  beta: number;
+  tStat: number;
+  pValue: number;
+}
+
+export interface Regression {
+  n: number;
+  alpha: number;
+  alphaAnnualised: number;
+  alphaTStat: number;
+  alphaPValue: number;
+  loadings: FactorLoading[];
+  rSquared: number;
+  adjRSquared: number;
+  idiosyncraticShare: number;
+  informationRatio: number;
+  collinearity: { a: string; b: string; corr: number }[];
+}
+
+export interface FactorReport {
+  regression: Regression;
+  /** One line per factor saying exactly what it is, so nothing is implied. */
+  descriptions: string[];
+  lookback: number;
+  /** Stated in the payload, not just in the UI copy — see `lib/quant.ts`. */
+  note: string;
+}
+
+export interface MonthlyReturn {
+  month: string;
+  year: number;
+  monthIndex: number;
+  return: number;
+  bars: number;
+}
+
+export interface TailReport {
+  var95: number;
+  var99: number;
+  cvar95: number;
+  cvar99: number;
+  tailRatio: number;
+  bestBar: number;
+  worstBar: number;
+  positiveBars: number;
+  totalBars: number;
+  maxLosingStreak: number;
+  ulcerIndex: number;
+  monthly: MonthlyReturn[];
+  annualisedTurnover: number;
+}
+
+export interface PromotionCheck {
+  id: string;
+  label: string;
+  value: string;
+  hurdle: string;
+  passed: boolean;
+  why: string;
+}
+
+export interface PromotionGate {
+  checks: PromotionCheck[];
+  passed: number;
+  total: number;
+  eligible: boolean;
+}
+
+export interface CostSummary {
+  /** Flat fee + slippage, in basis points of traded notional. */
+  flatBps: number;
+  /** Average daily quote volume the impact model was sized against. */
+  averageDailyVolume: number;
+  /** Modelled impact in bps at the configured order size; 0 when disabled. */
+  impactBps: number;
+  /** Fraction of ADV a single order represents; 0 when impact is disabled. */
+  participation: number;
+  fundingBpsPer8h: number;
+  borrowBpsAnnual: number;
+  /** True when every friction beyond flat fee/slippage is switched off. */
+  flatOnly: boolean;
 }
 
 export const INTERVALS = ["15m", "1h", "4h", "1d"] as const;

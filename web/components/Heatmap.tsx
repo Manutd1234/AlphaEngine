@@ -13,7 +13,7 @@
  * seeing that is worth more than any single number.
  */
 
-import { ParamResult } from "@/lib/types";
+import { CellKind, ParamResult, StabilityCell } from "@/lib/types";
 import { fmt, pct } from "@/lib/format";
 import { useMeasuredWidth } from "./chart-kit";
 import { useEffect, useState } from "react";
@@ -30,16 +30,38 @@ function divergingColor(v: number, absMax: number, dark: boolean): string {
   return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
 }
 
+/**
+ * Categorical fill for the neighbourhood view.
+ *
+ * Categorical, not a ramp: "plateau" and "cliff" are kinds, not two ends of one
+ * quantity, and colouring them along a gradient would invite reading a cliff as
+ * "a bit less plateau". Each kind also carries a glyph in the cell label and the
+ * legend, because these five are exactly the sort of set colour alone cannot
+ * carry.
+ */
+const KIND_STYLE: Record<CellKind, { fill: string; darkFill: string; glyph: string; label: string }> = {
+  plateau: { fill: "#2f8f66", darkFill: "#35c48f", glyph: "▰", label: "plateau — neighbours hold up" },
+  slope: { fill: "#c08a1f", darkFill: "#e8ab3d", glyph: "◪", label: "slope — degrading" },
+  cliff: { fill: "#c2454f", darkFill: "#f0737c", glyph: "▲", label: "cliff — neighbours collapse" },
+  dead: { fill: "#8fa0b5", darkFill: "#40526a", glyph: "·", label: "no edge" },
+  isolated: { fill: "#c9d3e0", darkFill: "#22344b", glyph: "◌", label: "grid edge — cannot judge" },
+};
+
 export default function Heatmap({
   results,
   best,
   onSelect,
   selected,
+  mode = "sharpe",
+  stability,
 }: {
   results: ParamResult[];
   best: ParamResult;
   onSelect?: (r: ParamResult) => void;
   selected?: { fast: number; slow: number } | null;
+  /** `stability` recolours the same grid by neighbourhood behaviour. */
+  mode?: "sharpe" | "stability";
+  stability?: StabilityCell[];
 }) {
   const [ref, width] = useMeasuredWidth<HTMLDivElement>();
   const [hover, setHover] = useState<ParamResult | null>(null);
@@ -65,6 +87,8 @@ export default function Heatmap({
   const slows = [...new Set(results.map((r) => r.slow))].sort((a, b) => a - b);
   const lookup = new Map(results.map((r) => [`${r.fast}:${r.slow}`, r]));
   const absMax = Math.max(...results.map((r) => Math.abs(r.sharpe)), 0.1);
+  const kinds = new Map((stability ?? []).map((c) => [`${c.fast}:${c.slow}`, c]));
+  const showKinds = mode === "stability" && kinds.size > 0;
 
   const padL = 44;
   const padB = 34;
@@ -89,8 +113,27 @@ export default function Heatmap({
           flexWrap: "wrap",
         }}
       >
-        <span>Annualised Sharpe</span>
-        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <span>{showKinds ? "Neighbourhood" : "Annualised Sharpe"}</span>
+        {showKinds && (
+          <span className="legend" style={{ gap: 12 }}>
+            {(Object.keys(KIND_STYLE) as CellKind[]).map((kind) => (
+              <span key={kind} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <i
+                  aria-hidden
+                  style={{
+                    background: isDark ? KIND_STYLE[kind].darkFill : KIND_STYLE[kind].fill,
+                    borderRadius: 3,
+                  }}
+                />
+                <span style={{ fontSize: 11 }}>
+                  <span aria-hidden>{KIND_STYLE[kind].glyph} </span>
+                  {kind}
+                </span>
+              </span>
+            ))}
+          </span>
+        )}
+        <span style={{ display: showKinds ? "none" : "flex", alignItems: "center", gap: 6 }}>
           <span className="num" style={{ fontSize: 11 }}>
             {fmt(-absMax, 1)}
           </span>
@@ -109,7 +152,9 @@ export default function Heatmap({
           </span>
         </span>
         <span className="muted" style={{ fontSize: 11.5 }}>
-          grey = no edge · click a cell to inspect those parameters
+          {showKinds
+            ? "click a cell to inspect those parameters"
+            : "grey = no edge · click a cell to inspect those parameters"}
         </span>
       </div>
 
@@ -136,14 +181,25 @@ export default function Heatmap({
                 width={Math.max(1, cellW - 2)}
                 height={cellH - 2}
                 rx={3}
-                fill={divergingColor(r.sharpe, absMax, isDark)}
+                fill={
+                  showKinds
+                    ? (() => {
+                        const style = KIND_STYLE[kinds.get(`${f}:${s}`)?.kind ?? "isolated"];
+                        return isDark ? style.darkFill : style.fill;
+                      })()
+                    : divergingColor(r.sharpe, absMax, isDark)
+                }
                 stroke={isSel || isBest ? "var(--text-primary)" : "none"}
                 strokeWidth={isSel ? 2 : isBest ? 1.4 : 0}
                 strokeDasharray={isBest && !isSel ? "3 2" : undefined}
                 style={{ cursor: onSelect ? "pointer" : "default" }}
                 tabIndex={onSelect ? 0 : undefined}
                 role={onSelect ? "button" : undefined}
-                aria-label={`Fast ${f}, slow ${s}, Sharpe ${fmt(r.sharpe, 2)}, return ${pct(r.totalReturn)}`}
+                aria-label={
+                  showKinds
+                    ? `Fast ${f}, slow ${s}, ${KIND_STYLE[kinds.get(`${f}:${s}`)?.kind ?? "isolated"].label}, Sharpe ${fmt(r.sharpe, 2)}`
+                    : `Fast ${f}, slow ${s}, Sharpe ${fmt(r.sharpe, 2)}, return ${pct(r.totalReturn)}`
+                }
                 onPointerEnter={() => setHover(r)}
                 onPointerLeave={() => setHover(null)}
                 onFocus={() => setHover(r)}
@@ -156,7 +212,15 @@ export default function Heatmap({
                   }
                 }}
               >
-                <title>{`fast ${f} / slow ${s} — Sharpe ${fmt(r.sharpe, 2)}, return ${pct(r.totalReturn)}`}</title>
+                <title>
+                  {showKinds
+                    ? `fast ${f} / slow ${s} — ${KIND_STYLE[kinds.get(`${f}:${s}`)?.kind ?? "isolated"].label}; Sharpe ${fmt(r.sharpe, 2)}, neighbours retain ${
+                        kinds.get(`${f}:${s}`)?.retention == null
+                          ? "n/a"
+                          : `${Math.round((kinds.get(`${f}:${s}`)!.retention as number) * 100)}%`
+                      }`
+                    : `fast ${f} / slow ${s} — Sharpe ${fmt(r.sharpe, 2)}, return ${pct(r.totalReturn)}`}
+                </title>
               </rect>
             );
           }),

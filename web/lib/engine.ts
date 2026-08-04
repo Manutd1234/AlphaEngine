@@ -15,6 +15,19 @@
 
 import { pctChange, rollingMax, rollingMin, rsi, shift1, sma } from "./indicators";
 import {
+  type CostModel,
+  averageDailyVolume,
+  buildFactors,
+  holdingCost,
+  parameterStability,
+  promotionGate,
+  regress,
+  tailReport,
+  turnoverCost,
+  walkForwardReport,
+  FACTOR_LOOKBACK,
+} from "./quant";
+import {
   deflatedSharpe,
   kurtosis,
   mean,
@@ -169,6 +182,32 @@ export interface ComboRun {
   equity: Float64Array;
   returns: Float64Array;
   position: Float64Array;
+  /** Holding costs (funding + borrow) charged over the run, in fractional terms. */
+  holdingDrag: number;
+}
+
+/**
+ * The fields `runCombo` reads from a request.
+ *
+ * The friction group is `Partial` on purpose. The parity suite constructs this
+ * object literally with the original five fields, and `turnoverCost` /
+ * `holdingCost` both collapse to the flat model when the frictions are absent —
+ * so an unconfigured run is not merely *close* to the Python reference, it
+ * evaluates the identical expression.
+ */
+export type ComboRequest =
+  Pick<SweepRequest, "strategy" | "direction" | "feeBps" | "slippageBps" | "interval">
+  & Partial<Pick<SweepRequest, "impactCoefficient" | "orderNotional" | "fundingBpsPer8h" | "borrowBpsAnnual">>;
+
+export function costModelFor(req: ComboRequest): CostModel {
+  return {
+    feeBps: req.feeBps,
+    slippageBps: req.slippageBps,
+    impactCoefficient: req.impactCoefficient ?? 0,
+    orderNotional: req.orderNotional ?? 0,
+    fundingBpsPer8h: req.fundingBpsPer8h ?? 0,
+    borrowBpsAnnual: req.borrowBpsAnnual ?? 0,
+  };
 }
 
 export function runCombo(
@@ -177,12 +216,18 @@ export function runCombo(
   high: Float64Array,
   low: Float64Array,
   pxRet: Float64Array,
-  req: Pick<SweepRequest, "strategy" | "direction" | "feeBps" | "slippageBps" | "interval">,
+  req: ComboRequest,
   fast: number,
   slow: number,
+  /** Average daily quote volume, for the square-root impact model. */
+  adv = 0,
 ): ComboRun {
   const n = close.length;
-  const cost = (req.feeBps + req.slippageBps) / 1e4;
+  const model = costModelFor(req);
+  const cost = turnoverCost(model, adv);
+  // Skipped entirely when both rates are zero, so the hot loop is byte-identical
+  // to the pre-friction version on a default request.
+  const chargesHolding = model.fundingBpsPer8h !== 0 || model.borrowBpsAnnual !== 0;
   const ann = barsPerYear(req.interval);
 
   const pos = buildPosition(req.strategy, bars, close, high, low, fast, slow, req.direction);
@@ -197,6 +242,7 @@ export function runCombo(
   let wins = 0;
   let tradeEntryEquity = 1;
   let inTrade = false;
+  let holdingDrag = 0;
 
   for (let i = 0; i < n; i++) {
     const lagged = i > 0 ? pos[i - 1] : 0; // execute next bar
@@ -216,7 +262,14 @@ export function runCombo(
       }
     }
 
-    const r = lagged * pxRet[i] - turnover * cost;
+    // Charged on the position actually held this bar, not on the signal —
+    // funding accrues to whoever is carrying the exposure, and the exposure is
+    // the lagged position for exactly the reason the returns use it.
+    const holding = chargesHolding ? holdingCost(model, lagged, req.interval) : 0;
+    holdingDrag += holding;
+    if (holding > 0) feesUsd += holding * eq * 100_000;
+
+    const r = lagged * pxRet[i] - turnover * cost - holding;
     returns[i] = r;
     eq *= 1 + r;
     equity[i] = eq;
@@ -257,6 +310,7 @@ export function runCombo(
     equity,
     returns,
     position: pos,
+    holdingDrag,
   };
 }
 
@@ -301,6 +355,7 @@ export function walkForward(
   bars: Bar[],
   combos: Array<[number, number]>,
   req: SweepRequest,
+  adv = 0,
 ): { folds: WalkForwardFold[]; oosSharpe: number | null } {
   const folds = Math.max(2, Math.min(req.folds, 10));
   const seg = Math.floor(bars.length / (folds + 1));
@@ -318,7 +373,7 @@ export function walkForward(
     let bestIs = combos[0];
     let bestSharpe = -Infinity;
     for (const [f, s] of combos) {
-      const { result } = runCombo(train, tr.close, tr.high, tr.low, tr.pxRet, req, f, s);
+      const { result } = runCombo(train, tr.close, tr.high, tr.low, tr.pxRet, req, f, s, adv);
       if (result.sharpe > bestSharpe) {
         bestSharpe = result.sharpe;
         bestIs = [f, s];
@@ -326,7 +381,7 @@ export function walkForward(
     }
 
     const te = columns(test);
-    const oos = runCombo(test, te.close, te.high, te.low, te.pxRet, req, bestIs[0], bestIs[1]);
+    const oos = runCombo(test, te.close, te.high, te.low, te.pxRet, req, bestIs[0], bestIs[1], adv);
     for (let k = 0; k < oos.returns.length; k++) oosReturns.push(oos.returns[k]);
 
     out.push({
@@ -366,8 +421,14 @@ export function runSweep(
   const { close, high, low, pxRet } = columns(bars);
   const ann = barsPerYear(req.interval);
 
+  // Sized once on the whole series and reused for every combination and every
+  // walk-forward slice. Recomputing it per slice would make an order's modelled
+  // impact depend on which fold it landed in, so two identical trades would be
+  // charged differently for a reason that has nothing to do with the trade.
+  const adv = averageDailyVolume(bars, req.interval);
+
   const runs: ComboRun[] = combos.map(([f, s]) =>
-    runCombo(bars, close, high, low, pxRet, req, f, s),
+    runCombo(bars, close, high, low, pxRet, req, f, s, adv),
   );
   const results = runs.map((r) => r.result);
 
@@ -395,7 +456,7 @@ export function runSweep(
   let wfOos: number | null = null;
   if (req.walkForward) {
     try {
-      const res = walkForward(bars, combos, req);
+      const res = walkForward(bars, combos, req, adv);
       wf = res.folds;
       wfOos = res.oosSharpe;
       if (!wf.length) warnings.push("Walk-forward skipped: not enough bars for the requested folds.");
@@ -457,6 +518,70 @@ export function runSweep(
 
   const sorted = [...results].sort((a, b) => b.sharpe - a.sharpe);
 
+  // --- research analytics ------------------------------------------------ //
+  // All derived from what the sweep already computed. Nothing above this line
+  // changed, which is what keeps the parity fixture meaningful.
+  const stability = parameterStability(results);
+  const wfReport = walkForwardReport(
+    wf,
+    combos.map(([f]) => f),
+    combos.map(([, s]) => s),
+  );
+
+  const factorSet = buildFactors(pxRet);
+  const regression = regress(
+    bestRun.returns,
+    factorSet.names.map((name, i) => ({ name, values: factorSet.values[i] })),
+    ann,
+  );
+  const factors = regression
+    ? {
+        regression,
+        descriptions: factorSet.descriptions,
+        lookback: FACTOR_LOOKBACK,
+        note:
+          "Time-series factors built from this instrument's own bars — not Fama-French and not "
+          + "cross-sectional, which one symbol cannot produce. t-statistics are plain OLS; a "
+          + "Newey-West correction would widen them, so the significance shown here is generous.",
+      }
+    : null;
+
+  const tail = tailReport(
+    bestRun.returns,
+    bestRun.equity,
+    bars,
+    req.interval,
+    best.turnover,
+  );
+
+  const model = costModelFor(req);
+  const participation = model.orderNotional > 0 && adv > 0
+    ? Math.min(1, model.orderNotional / adv)
+    : 0;
+  const flatBps = req.feeBps + req.slippageBps;
+  const costs = {
+    flatBps,
+    averageDailyVolume: adv,
+    impactBps: (turnoverCost(model, adv) * 1e4) - flatBps,
+    participation,
+    fundingBpsPer8h: model.fundingBpsPer8h,
+    borrowBpsAnnual: model.borrowBpsAnnual,
+    flatOnly:
+      model.impactCoefficient === 0
+      && model.fundingBpsPer8h === 0
+      && model.borrowBpsAnnual === 0,
+  };
+
+  const promotion = promotionGate({
+    deflatedSharpe: dsr,
+    walkForwardOosSharpe: wfOos,
+    medianEfficiency: wfReport.medianEfficiency,
+    stability: stability.best?.kind ?? null,
+    alphaTStat: regression?.alphaTStat ?? null,
+    maxDrawdown: best.maxDrawdown,
+    trades: best.trades,
+  });
+
   return {
     request: req,
     dataSource,
@@ -481,5 +606,11 @@ export function runSweep(
     walkForwardOosSharpe: wfOos,
     series,
     warnings,
+    stability,
+    walkForwardReport: wfReport,
+    factors,
+    tail,
+    promotion,
+    costs,
   };
 }

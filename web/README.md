@@ -53,7 +53,7 @@ npm install
 npm run dev        # http://localhost:3000 (Turbopack)
 npm run build      # Turbopack production build
 npm run typecheck  # tsc --noEmit
-npm test           # 128 tests, no network required
+npm test           # 198 tests, no network required
 ```
 
 Built on **Next.js 16** with **Turbopack**, which is the default bundler for both
@@ -114,6 +114,45 @@ audit-backed strategy flow. Gateway credentials remain server-side. The UI
 retains a last-good snapshot only with an explicit stale warning, disables its
 execution handoff while stale, and validates the gateway schema before calling
 the book live.
+
+<a id="research-lab"></a>
+**Research lab** — the Research tab is a validation pipeline, not a parameter
+sweep with a chart. Beyond the verdict and the Sharpe surface it answers the
+questions a researcher asks *after* a result comes back red:
+
+- **Parameter stability** — every grid point is classified by what its
+  *neighbours* do. A plateau degrades smoothly as parameters move; a cliff
+  collapses one grid step away and is a coordinate the search found in noise.
+  Adjacency is in grid-index space, because with a step of 5 the neighbour of 25
+  is 20 — 24 was never tested.
+- **Walk-forward timeline** — in-sample and out-of-sample Sharpe per fold on one
+  axis, with walk-forward efficiency and parameter drift. One aggregate number
+  cannot distinguish steady decay from a single regime break, and those imply
+  different next experiments. Efficiency is blank where in-sample lost money,
+  because OOS ÷ a negative IS returns a *positive* ratio for a fold that lost
+  twice.
+- **Factor exposure** — strategy returns regressed on three time-series factors
+  built from the same instrument: market, trend (TSMOM) and volatility regime.
+  Not Fama–French, and labelled as such: one symbol's OHLCV cannot produce a
+  cross-sectional factor. Reports alpha with its t-statistic, R², the
+  idiosyncratic share and the pairwise factor correlations that make an
+  individual loading unstable.
+- **Tail risk** — VaR/CVaR (expected shortfall over the worst *k* order
+  statistics, not everything below a threshold), the Ulcer index, and a monthly
+  return grid. Sharpe divides by standard deviation and so treats a fat left tail
+  as ordinary variance.
+- **Microstructure frictions** — optional square-root market impact
+  (`k·√(order ÷ ADV)`), perpetual funding and short borrow. All default to zero,
+  and at zero the run is arithmetically identical to the Python gateway's flat-bps
+  engine — which the parity fixture pins. Any non-zero value makes the run a model
+  of your assumptions, and the UI says so where the switch is.
+- **Promotion gate** — six vetoes (DSR, OOS Sharpe, walk-forward efficiency,
+  parameter neighbourhood, alpha t-statistic, trade count), all shown pass or
+  fail. Hand-off to Execution is disabled until every one clears, and moves the
+  candidate to paper pricing only.
+- **Experiment history** — every run saved locally, with the count stated
+  prominently: a per-run Deflated Sharpe prices the grid *inside* that run and
+  knows nothing about the other thirty-nine hypotheses tested that afternoon.
 
 **Trend & signal view** — price with the lines the model *actually trades on*
 (SMAs for the crossover, breakout/trailing bands for Donchian, the trend filter

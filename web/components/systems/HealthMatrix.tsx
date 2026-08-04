@@ -107,7 +107,7 @@ export default function HealthMatrix({
       </div>
 
       <div className="table-wrap">
-        <table>
+        <table className="console-matrix">
           <caption className="sr-only">
             Provider health: status, circuit-breaker state, latency percentiles, quota consumption
             and failover rank, with per-provider operator actions.
