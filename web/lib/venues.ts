@@ -80,6 +80,36 @@ export interface TcaReport {
   savingVsWorstBps: number | null;
   savingVsWorstUsd: number | null;
   venuesOnline: string[];
+  /** Cross-venue touch check. `null` when fewer than two venues answered. */
+  dislocation: Dislocation | null;
+}
+
+/**
+ * The state of the consolidated touch across venues.
+ *
+ * Reported even when nothing is crossed, which is the point: a detector that
+ * returns nothing on the healthy case leaves a caller unable to tell "no
+ * opportunity" from "the feed is down", and those demand opposite responses.
+ */
+export interface Dislocation {
+  symbol: string;
+  /** True only when one venue's bid is strictly above another's ask. */
+  crossed: boolean;
+  /** Venue showing the low offer. `null` unless crossed. */
+  buyVenue: string | null;
+  /** Venue showing the high bid. `null` unless crossed. */
+  sellVenue: string | null;
+  buyPrice: number | null;
+  sellPrice: number | null;
+  /** Gross edge before fees, per base unit. */
+  edgeUsdPerUnit: number;
+  edgeBps: number;
+  /** The smaller of the two resting sizes — both legs have to fill. */
+  executableSize: number;
+  executableNotional: number;
+  /** Gross edge on the executable size. Fees are not deducted; see `note`. */
+  grossEdgeUsd: number;
+  note: string;
 }
 
 export const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT"] as const;
@@ -537,6 +567,90 @@ export async function fetchBinanceTickers(symbols: readonly string[]): Promise<T
 // --------------------------------------------------------------------------- //
 // Report
 // --------------------------------------------------------------------------- //
+/**
+ * Is the consolidated book crossed?
+ *
+ * The routing engine already asks which single venue fills a given order best.
+ * This asks a different question the same two books can answer for free: is one
+ * venue's *bid* above another's *ask* right now — a price that cannot persist,
+ * because it pays to buy on one and sell on the other simultaneously.
+ *
+ * Three things this refuses to do, each because the naive version misleads:
+ *
+ *  - **It will not call a single venue's own spread a dislocation.** If the same
+ *    venue holds both the high bid and the low ask, that is a bid-ask spread,
+ *    which every book has and none of which is free money.
+ *  - **It sizes to `min(bid size, ask size)`, never the larger or the sum.**
+ *    Both legs have to fill for the edge to be real, so the tradeable size is
+ *    whichever leg runs out first.
+ *  - **It reports gross, and says so.** Two taker fees and the transfer between
+ *    venues routinely exceed a few basis points of edge. Presenting a gross
+ *    number as profit is the single most common way this analysis lies.
+ *
+ * Mirrors `quant_risk.find_dislocation` in the Python gateway.
+ */
+export function findDislocation(books: VenueBook[], symbol: string): Dislocation | null {
+  const live = books.filter((b) => b.ok && b.bestBid !== null && b.bestAsk !== null);
+  if (live.length < 2) return null; // one venue cannot cross itself
+
+  const topBid = live.reduce((a, b) => (b.bestBid! > a.bestBid! ? b : a));
+  const topAsk = live.reduce((a, b) => (b.bestAsk! < a.bestAsk! ? b : a));
+
+  const base = {
+    symbol: symbol.toUpperCase(),
+    buyVenue: null,
+    sellVenue: null,
+    buyPrice: null,
+    sellPrice: null,
+    edgeUsdPerUnit: 0,
+    edgeBps: 0,
+    executableSize: 0,
+    executableNotional: 0,
+    grossEdgeUsd: 0,
+  };
+
+  if (topBid.venue === topAsk.venue) {
+    return {
+      ...base,
+      crossed: false,
+      note: `${topBid.venue} holds both sides of the touch — that is its own spread, not a cross-venue dislocation.`,
+    };
+  }
+
+  const bid = topBid.bestBid!;
+  const ask = topAsk.bestAsk!;
+  const mid = (bid + ask) / 2;
+
+  if (bid <= ask || mid <= 0) {
+    return {
+      ...base,
+      crossed: false,
+      note: `Touch spans ${topAsk.venue} (ask) and ${topBid.venue} (bid) without crossing — the normal state of a working market.`,
+    };
+  }
+
+  // Both legs must fill, so the size is whichever runs out first.
+  const askSize = topAsk.asks[0]?.[1] ?? 0;
+  const bidSize = topBid.bids[0]?.[1] ?? 0;
+  const size = Math.min(askSize, bidSize);
+  const edge = bid - ask;
+
+  return {
+    symbol: symbol.toUpperCase(),
+    crossed: true,
+    buyVenue: topAsk.venue,
+    sellVenue: topBid.venue,
+    buyPrice: ask,
+    sellPrice: bid,
+    edgeUsdPerUnit: edge,
+    edgeBps: (edge / mid) * 1e4,
+    executableSize: size,
+    executableNotional: size * mid,
+    grossEdgeUsd: edge * size,
+    note: `Buy ${topAsk.venue} at ${ask}, sell ${topBid.venue} at ${bid}. Gross of fees — two taker legs and the transfer routinely cost more than this.`,
+  };
+}
+
 export function buildTcaReport(
   symbol: string,
   side: Side,
@@ -593,5 +707,6 @@ export function buildTcaReport(
     savingVsWorstBps: savingBps,
     savingVsWorstUsd: savingUsd,
     venuesOnline: live.map((b) => b.venue),
+    dislocation: findDislocation(books, symbol),
   };
 }

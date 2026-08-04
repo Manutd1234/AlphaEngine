@@ -9,6 +9,7 @@
  */
 
 import DepthChart from "@/components/DepthChart";
+import DislocationStrip from "@/components/DislocationStrip";
 import StatTile from "@/components/StatTile";
 import { liveTca, useLiveBook } from "@/lib/livebook";
 import { SYMBOLS, type Side } from "@/lib/venues";
@@ -382,6 +383,11 @@ export default function LiveMarket({
                 tone={tca.savingUsd && tca.savingUsd > 0 ? "pos" : undefined}
               />
             </div>
+
+            <DislocationStrip
+              dislocation={tca.dislocation}
+              venuesOnline={tca.perVenue.map((e) => e.venue)}
+            />
           </>
         ) : (
           <p className="muted" style={{ fontSize: 13 }}>Waiting for a live book on both venues…</p>

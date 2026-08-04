@@ -52,6 +52,7 @@ organised around that rather than around a feature list.
 |---|---|
 | See real liquidity before committing | Consolidated L2 ladder, streaming from Binance + Bybit |
 | Know the cost *before* the fill | `/tca BTCUSDT 100000 BUY` — VWAP, slippage in bps, routing split |
+| Is the consolidated book crossed right now | Cross-venue dislocation strip, sized to the smaller resting leg and quoted **gross** — because two taker legs usually cost more than the edge |
 | Not send the order with the extra zero | 12 pre-trade gates in ~0.2 ms; a rejection returns the full check vector |
 | Stop everything, now | Authenticated gateway console, `POST /api/risk/kill`, the web workspace's risk panel, or `/halt` in Telegram — the last two gated by a separate operator allow-list and a typed confirmation |
 | Know when something breaks without watching a screen | Push alerts on breaches, halts, and `/watch` liquidity thresholds |
@@ -65,6 +66,7 @@ organised around that rather than around a feature list.
 | Gross vs net — directional or hedged? | Both reported; a market-neutral book has large gross and ~zero net |
 | How much room is left before trading stops | Headroom on every limit, and the **binding constraint** named explicitly |
 | What is actually producing the P&L | Attribution by symbol and by strategy, from the append-only audit log |
+| Is a −20% scenario a tail event today, or a Tuesday | Volatility regime as a percentile of the instrument's *own* history; named scenarios scale **up** with it, never down |
 
 A trader's view answers a question about the *next order*; a PM's answers one
 about the *whole book*. The same numbers do not serve both, which is why
@@ -82,6 +84,7 @@ about the *whole book*. The same numbers do not serve both, which is why
 | Know whether it is alpha or beta | Returns regressed on market, trend and volatility-regime factors built from the same instrument — with alpha's t-statistic and the residual share |
 | See the loss tail, not just its variance | VaR, expected shortfall, Ulcer index and a monthly return grid |
 | Realistic costs | Fees and slippage charged on turnover; fills at the next bar, never at mid. Optional square-root impact, funding and borrow — off by default, because on they diverge from the gateway |
+| Know *how much*, not just whether | Kelly from the sweep's own realised win and loss magnitudes — quarter-Kelly, capped at 20% of the book, zero when there is no edge, and flagged when the odds came from too few trades to mean anything |
 | Not re-test the same idea, or forget how many were tried | Local run history that states the cross-run count: a per-run DSR prices one grid, not forty hypotheses |
 
 The research portal will tell you a strategy **fails** even when the equity curve
@@ -130,7 +133,7 @@ Directory** to `web`. Everything else auto-detects.
 cd web
 npm install
 npm run dev    # http://localhost:3000
-npm test       # 237 tests
+npm test       # 258 tests
 ```
 
 Live-feed endpoints (public, no key):
@@ -311,6 +314,14 @@ That test caught two real bugs in the port. It is regenerated with:
 ```bash
 cd Part2_Infrastructure && python tools/make_parity_fixture.py
 ```
+
+The risk maths is deliberately doubled the same way.
+[`Part2_Infrastructure/modules/quant_risk.py`](Part2_Infrastructure/modules/quant_risk.py)
+and [`web/lib/portfolio-risk.ts`](web/lib/portfolio-risk.ts) are two
+implementations of one set of conventions — so that a VaR quoted in Telegram and
+the same VaR on the portfolio tab cannot disagree, and neither depends on the
+other being reachable. The shared constants (`Z95`, the 2.0627 expected-shortfall
+multiplier, `ddof=1`, mid-rank percentiles) are pinned by tests on both sides.
 
 ---
 

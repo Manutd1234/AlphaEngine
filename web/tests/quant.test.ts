@@ -54,7 +54,8 @@ function paramResult(fast: number, slow: number, sharpe: number): ParamResult {
   return {
     fast, slow, sharpe,
     totalReturn: 0, cagr: 0, sortino: 0, maxDrawdown: -0.1, calmar: 0,
-    winRate: 0.5, trades: 40, exposure: 0.5, turnover: 10, feesPaid: 0,
+    winRate: 0.5, trades: 40, avgWin: 0.02, avgLoss: 0.01,
+    exposure: 0.5, turnover: 10, feesPaid: 0,
   };
 }
 

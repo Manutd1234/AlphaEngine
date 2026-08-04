@@ -24,10 +24,13 @@ import { useMemo, useState } from "react";
 
 import { fmt, pct, usd } from "@/lib/format";
 import {
+  REGIME_SCALE_BOUNDS,
   SCENARIOS,
   type ReturnsBySymbol,
   type RiskPosition,
   applyScenario,
+  scaleShocks,
+  volatilityRegime,
 } from "@/lib/portfolio-risk";
 
 interface StressTestProps {
@@ -40,6 +43,17 @@ interface StressTestProps {
   startOfDayEquity: number;
 }
 
+const clampRatio = (r: number) =>
+  Math.min(REGIME_SCALE_BOUNDS[1], Math.max(REGIME_SCALE_BOUNDS[0], r));
+
+/** "85th", not "85%" — a percentile is a rank, and reading it as a share is the
+ *  standard misreading this label exists to prevent. */
+function ordinal(n: number): string {
+  const rem100 = n % 100;
+  if (rem100 >= 11 && rem100 <= 13) return `${n}th`;
+  return `${n}${["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
+}
+
 export default function StressTest({
   positions,
   equity,
@@ -50,15 +64,27 @@ export default function StressTest({
 }: StressTestProps) {
   const [scenarioId, setScenarioId] = useState<string>("crypto_cascade");
   const [manualShock, setManualShock] = useState<number | null>(null);
+  const [conditionOnRegime, setConditionOnRegime] = useState(true);
 
   const scenario = SCENARIOS.find((s) => s.id === scenarioId) ?? SCENARIOS[0];
 
+  // The scenario magnitudes are historical, which makes them plausible on
+  // average and unconditioned on today. The regime is the missing input.
+  const regime = useMemo(
+    () => volatilityRegime(returns[referenceSymbol] ?? []),
+    [returns, referenceSymbol],
+  );
+
   const result = useMemo(() => {
-    const shocks = manualShock === null
+    const base = manualShock === null
       ? scenario.shocks
       : [{ symbol: referenceSymbol, move: manualShock / 100 }];
+    // A manual shock is the operator's own hypothesis, stated in percent and
+    // shown on the slider. Rescaling it would silently disagree with the number
+    // they just set, so conditioning applies to the named scenarios only.
+    const shocks = conditionOnRegime && manualShock === null ? scaleShocks(base, regime) : base;
     return applyScenario(positions, equity, shocks, returns, referenceSymbol);
-  }, [scenario, manualShock, positions, equity, returns, referenceSymbol]);
+  }, [scenario, manualShock, conditionOnRegime, regime, positions, equity, returns, referenceSymbol]);
 
   const haltEquity = startOfDayEquity * (1 - drawdownLimitPct);
   const breachesHalt = result.projectedEquity < haltEquity;
@@ -96,6 +122,50 @@ export default function StressTest({
       </div>
 
       <p className="sub">{manualShock === null ? scenario.description : "Manual shock — a hypothesis you are setting directly."}</p>
+
+      {regime && (
+        <div className={`regime-bar regime-${regime.regime.toLowerCase()}`}>
+          <span className="regime-tag">{regime.regime}</span>
+          <span className="regime-read">
+            {referenceSymbol} realised vol {pct(regime.currentVol, 1)} annualised — the{" "}
+            {ordinal(Math.round(regime.percentile * 100))} percentile of its own last{" "}
+            {regime.observations} windows, {fmt(regime.ratio, 2)}× its baseline of{" "}
+            {pct(regime.baselineVol, 1)}.
+          </span>
+          <label className="regime-toggle">
+            <input
+              type="checkbox"
+              checked={conditionOnRegime}
+              disabled={manualShock !== null}
+              onChange={(event) => setConditionOnRegime(event.target.checked)}
+            />
+            <span>
+              Condition on regime
+              {manualShock !== null && " (manual shock overrides)"}
+            </span>
+          </label>
+          <p className="regime-note">
+            {regime.note}
+            {conditionOnRegime && manualShock === null && (
+              clampRatio(regime.ratio) > 1 ? (
+                <>
+                  {" "}
+                  Named scenarios are scaled up by {fmt(clampRatio(regime.ratio), 2)}× accordingly,
+                  capped at {REGIME_SCALE_BOUNDS[1]}× so a thin sample cannot turn a scenario into
+                  an unfalsifiable catastrophe.
+                </>
+              ) : (
+                <>
+                  {" "}
+                  Scenarios are left at full size. Conditioning only ever scales a shock{" "}
+                  <em>up</em>: relaxing the stress test because the market is quiet would report the
+                  most reassuring number precisely when a compressed regime is closest to ending.
+                </>
+              )
+            )}
+          </p>
+        </div>
+      )}
 
       <label className="stress-slider">
         <span>

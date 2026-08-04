@@ -32,6 +32,7 @@ import {
   bandImbalance,
   consolidatedMid,
   depthWithinBps,
+  findDislocation,
   smartRoute,
   spreadBps,
   walkBook,
@@ -589,5 +590,14 @@ export function liveTca(snap: LiveSnapshot | null, side: Side, notional: number)
     savingUsd = (diff / worst.vwap!) * notional;
   }
 
-  return { perVenue, legs, vwap, slippageBps, savingUsd, mid };
+  // Costs one comparison over books already in hand. Deliberately fed the
+  // *unfiltered* venue list so a book that is present but stale is excluded by
+  // the same `ok` rule the detector applies to the REST path, rather than by a
+  // second rule here that could drift from it.
+  const dislocation = findDislocation(
+    snap.venues.filter((v) => v.status === "live").map((v) => v.book),
+    snap.symbol,
+  );
+
+  return { perVenue, legs, vwap, slippageBps, savingUsd, mid, dislocation };
 }

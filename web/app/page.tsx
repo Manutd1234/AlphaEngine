@@ -11,6 +11,7 @@ import PriceChart from "@/components/PriceChart";
 import ExperimentHistory from "@/components/research/ExperimentHistory";
 import FactorPanel from "@/components/research/FactorPanel";
 import PromotionPanel from "@/components/research/PromotionPanel";
+import SizingPanel from "@/components/research/SizingPanel";
 import StabilityPanel from "@/components/research/StabilityPanel";
 import TearSheet from "@/components/research/TearSheet";
 import WalkForwardTimeline from "@/components/research/WalkForwardTimeline";
@@ -20,6 +21,7 @@ import Verdict from "@/components/Verdict";
 import WorkspaceHeader, { type WorkspaceView } from "@/components/WorkspaceHeader";
 import WorkspaceOverview from "@/components/WorkspaceOverview";
 import { fmt, pct, signedPct, usd } from "@/lib/format";
+import { REFERENCE_EQUITY } from "@/lib/portfolio";
 import {
   DEFAULT_REQUEST,
   ParamResult,
@@ -381,7 +383,7 @@ export default function Page() {
                       />
                     </div>
 
-                            <PromotionPanel
+                    <PromotionPanel
                       gate={data.promotion}
                       symbol={data.request.symbol}
                       fast={data.best.fast}
@@ -389,6 +391,14 @@ export default function Page() {
                       strategyLabel={STRATEGY_LABELS[data.request.strategy]}
                       slippageBps={data.request.slippageBps}
                       onHandOff={() => navigate("live")}
+                    />
+
+                    {/* Directly under the verdict, because "it passed" is only
+                        half an answer and the other half is a position size. */}
+                    <SizingPanel
+                      best={data.best}
+                      gate={data.promotion}
+                      equity={REFERENCE_EQUITY}
                     />
 
                     {data.results.length > 3 && (

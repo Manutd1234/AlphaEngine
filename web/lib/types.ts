@@ -57,6 +57,10 @@ export interface ParamResult {
   calmar: number;
   winRate: number;
   trades: number;
+  /** Mean return of a winning trade, as a fraction. 0 when there were none. */
+  avgWin: number;
+  /** Mean return of a losing trade, as a positive magnitude. 0 when none. */
+  avgLoss: number;
   exposure: number;
   turnover: number;
   feesPaid: number;

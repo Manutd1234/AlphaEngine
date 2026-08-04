@@ -111,7 +111,16 @@ export interface PortfolioPayload {
 // Sandbox book
 // --------------------------------------------------------------------------
 
-const EQUITY = 10_000_000;
+/**
+ * The book size every allocation on the site is quoted against.
+ *
+ * Exported because the research tab sizes candidates in dollars, and a Kelly
+ * fraction shown as "$400k" against one number here and a different number on
+ * the portfolio tab would be two books wearing one label.
+ */
+export const REFERENCE_EQUITY = 10_000_000;
+
+const EQUITY = REFERENCE_EQUITY;
 const START_OF_DAY = 9_857_500;
 const GROSS_LIMIT = 12_000_000;
 const SYMBOL_LIMIT = 4_000_000;

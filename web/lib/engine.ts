@@ -244,6 +244,14 @@ export function runCombo(
   let inTrade = false;
   let holdingDrag = 0;
 
+  // Win *rate* alone cannot size a position: 40% winners paying 3:1 and 40%
+  // winners paying 0.5:1 are the same number and opposite decisions. Kelly needs
+  // the payoff ratio, and the payoff ratio cannot be recovered from the
+  // aggregates afterwards — two unknowns, one equation — so the magnitudes are
+  // accumulated here, where each trade's P&L is actually known.
+  let winReturn = 0;
+  let lossReturn = 0;
+
   for (let i = 0; i < n; i++) {
     const lagged = i > 0 ? pos[i - 1] : 0; // execute next bar
     const turnover = Math.abs(lagged - prevLagged);
@@ -253,7 +261,13 @@ export function runCombo(
       feesUsd += turnover * cost * eq * 100_000;
       if (inTrade) {
         trades += 1;
-        if (eq > tradeEntryEquity) wins += 1;
+        const pnl = eq / tradeEntryEquity - 1;
+        if (eq > tradeEntryEquity) {
+          wins += 1;
+          winReturn += pnl;
+        } else {
+          lossReturn -= pnl; // carried as a positive magnitude
+        }
         inTrade = false;
       }
       if (lagged !== 0) {
@@ -277,7 +291,13 @@ export function runCombo(
   }
   if (inTrade) {
     trades += 1;
-    if (eq > tradeEntryEquity) wins += 1;
+    const pnl = eq / tradeEntryEquity - 1;
+    if (eq > tradeEntryEquity) {
+      wins += 1;
+      winReturn += pnl;
+    } else {
+      lossReturn -= pnl;
+    }
   }
 
   const totalReturn = equity[n - 1] - 1;
@@ -303,6 +323,8 @@ export function runCombo(
       calmar: mdd < 0 ? cagr / Math.abs(mdd) : 0,
       winRate: trades ? wins / trades : 0,
       trades,
+      avgWin: wins ? winReturn / wins : 0,
+      avgLoss: trades - wins ? lossReturn / (trades - wins) : 0,
       exposure: barsInPosition / n,
       turnover: turnoverTotal,
       feesPaid: feesUsd,

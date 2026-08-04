@@ -3686,3 +3686,155 @@ button.primary-action:hover:not(:disabled) {
   font-family: var(--mono);
   font-size: 11px;
 }
+
+/* ==========================================================================
+   Cross-venue dislocation strip
+   ==========================================================================
+   Sits under the routing table on the execution tab. Three states, and the
+   quiet one is styled to stay quiet: the strip renders whether or not anything
+   is crossed, because a component that only appears on a hit teaches the eye to
+   read its absence as "clear" when the usual cause is a venue dropping out.
+
+   Colour carries no information on its own here — every state also says what it
+   is in words, so the strip survives being read in greyscale or by a screen
+   reader that never sees the border.
+   ========================================================================== */
+.dislocation-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--grid);
+  border-left: 3px solid var(--border);
+  border-radius: 0 9px 9px 0;
+  background: var(--surface-2);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.dislocation-strip.muted {
+  opacity: 0.75;
+}
+
+.dislocation-strip.marginal {
+  border-left-color: var(--status-warning);
+}
+
+.dislocation-strip.hit {
+  border-left-color: var(--series-2);
+  background: color-mix(in srgb, var(--series-2) 7%, var(--surface-2));
+}
+
+.disloc-tag {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  color: var(--text-secondary);
+}
+
+.dislocation-strip.hit .disloc-tag {
+  background: var(--series-2);
+  color: #fff;
+}
+
+.dislocation-strip.marginal .disloc-tag {
+  background: transparent;
+  border: 1px solid var(--status-warning);
+  color: var(--warning-text);
+}
+
+.disloc-legs strong {
+  color: var(--text-primary);
+}
+
+.disloc-edge {
+  font-family: var(--mono);
+  color: var(--text-primary);
+}
+
+/* Pushed to its own line so the cost caveat is never truncated out of view —
+   a gross edge quoted without it is the failure mode this panel is guarding. */
+.disloc-note {
+  flex-basis: 100%;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* ==========================================================================
+   Volatility regime bar — stress test
+   ==========================================================================
+   Sits between the scenario picker and the shock slider, because it changes
+   what the scenario below it means. The regime name is a word, not only a
+   colour: "top 15% of its own range" is the claim, and it has to survive being
+   read in greyscale.
+   ========================================================================== */
+.regime-bar {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 10px;
+  align-items: baseline;
+  margin: 12px 0 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--grid);
+  border-left: 3px solid var(--border);
+  border-radius: 0 9px 9px 0;
+  background: var(--surface-2);
+}
+
+.regime-bar.regime-stressed { border-left-color: var(--status-critical); }
+.regime-bar.regime-elevated { border-left-color: var(--status-warning); }
+.regime-bar.regime-compressed { border-left-color: var(--series-3); }
+.regime-bar.regime-normal { border-left-color: var(--status-good); }
+
+.regime-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  color: var(--text-primary);
+}
+
+.regime-bar.regime-stressed .regime-tag { color: var(--critical-text); }
+.regime-bar.regime-elevated .regime-tag { color: var(--warning-text); }
+
+.regime-read {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Spans both columns so the toggle and the caveat sit under the reading rather
+   than beside it — the caveat is the part that must not be clipped. */
+.regime-toggle,
+.regime-note {
+  grid-column: 1 / -1;
+}
+
+.regime-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.regime-toggle input:disabled + span {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.regime-note {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
