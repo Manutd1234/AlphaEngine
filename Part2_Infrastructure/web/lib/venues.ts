@@ -19,6 +19,12 @@
  *
  * The arithmetic is identical to the gateway's, so a slippage number from this
  * portal and one from the gateway agree.
+ *
+ * The what-if extras — `smartRoute`'s optional `opts` (venue include-list,
+ * blended-slippage cap) and `passiveQuote` — are client-side presentation aids
+ * with no Python counterpart. They narrow or annotate the same maths; they
+ * route nothing, and the gateway's pre-trade gates remain the only authority
+ * on what may be sent. With `opts` omitted the walk is the parity path.
  */
 
 import { recordUpstream } from "./observability";
@@ -358,40 +364,111 @@ export function consolidatedMid(books: VenueBook[]): number | null {
 }
 
 /**
+ * What-if constraints for the routing probe. Client-side presentation aids
+ * with NO Python counterpart: they narrow or annotate the same maths, they
+ * route nothing, and the gateway's pre-trade gates stay the only authority
+ * on what may be sent.
+ */
+export interface SmartRouteOptions {
+  /** Cap on BLENDED slippage vs `mid`, in bps. Needs a resolvable mid. */
+  maxSlippageBps?: number;
+  /** Include-list of venue names. Omitted = every book routes; [] = none. */
+  venues?: string[];
+  /** Reference price for the cap. Defaults to consolidatedMid(books). */
+  mid?: number | null;
+}
+
+export interface SmartRouteResult {
+  legs: RoutingLeg[];
+  vwap: number | null;
+  /** Sum of leg notionals — equals the request unless something stopped the walk. */
+  filledNotional: number;
+  /** Present only when filledNotional < requested. */
+  cappedBy?: "slippage" | "liquidity";
+}
+
+/**
  * Greedy price-time allocation across the *merged* ladder.
  *
  * The consolidated book is every venue's levels sorted by price; walking it
  * yields the lowest achievable blended VWAP, and the per-venue split of that
  * walk is the routing instruction.
+ *
+ * With no `opts` the walk is the historical one, byte for byte — the Python
+ * parity claim covers exactly that path. The slippage cap answers "what is
+ * the largest notional routable with blended slippage ≤ cap": a boundary
+ * level is partially consumed via the closed form (BUY, running notional N
+ * and qty Q against bound vmax): t = p·(vmax·Q − N)/(p − vmax). A cap with
+ * no resolvable mid routes nothing — enforcing a cap without a reference
+ * price would be a lie.
  */
 export function smartRoute(
   books: VenueBook[],
   side: Side,
   notional: number,
-): { legs: RoutingLeg[]; vwap: number | null } {
+  opts?: SmartRouteOptions,
+): SmartRouteResult {
+  const usable = opts?.venues ? books.filter((b) => opts.venues!.includes(b.venue)) : books;
+
+  const capActive = Number.isFinite(opts?.maxSlippageBps);
+  let bound: number | null = null;
+  if (capActive) {
+    const mid = opts?.mid ?? consolidatedMid(usable);
+    if (mid == null) return { legs: [], vwap: null, filledNotional: 0, cappedBy: "slippage" };
+    const capFrac = (opts!.maxSlippageBps as number) / 1e4;
+    bound = side === "BUY" ? mid * (1 + capFrac) : mid * (1 - capFrac);
+  }
+
   const merged: Array<[number, number, string]> = [];
-  for (const b of books) {
+  for (const b of usable) {
     const levels = side === "BUY" ? b.asks : b.bids;
     for (const [p, q] of levels) merged.push([p, q, b.venue]);
   }
   merged.sort((a, z) => (side === "BUY" ? a[0] - z[0] : z[0] - a[0]));
 
   let remaining = notional;
+  let runN = 0;
+  let runQ = 0;
+  let cappedBySlippage = false;
   const perVenue = new Map<string, { notional: number; qty: number }>();
   for (const [price, size, venue] of merged) {
     if (remaining <= 1e-9) break;
-    const take = Math.min(price * size, remaining);
-    if (take <= 0) continue;
-    const slot = perVenue.get(venue) ?? { notional: 0, qty: 0 };
-    slot.notional += take;
-    slot.qty += take / price;
-    perVenue.set(venue, slot);
-    remaining -= take;
+    let take = Math.min(price * size, remaining);
+    if (bound != null) {
+      const inside = side === "BUY" ? price <= bound : price >= bound;
+      if (!inside) {
+        // Partial take up to where the blend meets the bound; the ladder is
+        // sorted, so every later level is worse and the walk ends here.
+        const t = side === "BUY"
+          ? (price * (bound * runQ - runN)) / (price - bound)
+          : (price * (runN - bound * runQ)) / (bound - price);
+        const allowed = Math.max(0, t);
+        if (allowed < take) {
+          take = allowed;
+          cappedBySlippage = true;
+        }
+      }
+    }
+    if (take > 0) {
+      const slot = perVenue.get(venue) ?? { notional: 0, qty: 0 };
+      slot.notional += take;
+      slot.qty += take / price;
+      perVenue.set(venue, slot);
+      runN += take;
+      runQ += take / price;
+      remaining -= take;
+    }
+    if (cappedBySlippage) break;
   }
 
   const totalNotional = [...perVenue.values()].reduce((a, v) => a + v.notional, 0);
   const totalQty = [...perVenue.values()].reduce((a, v) => a + v.qty, 0);
-  if (totalQty <= 0) return { legs: [], vwap: null };
+  const cappedBy: SmartRouteResult["cappedBy"] = remaining > 1e-6
+    ? (cappedBySlippage ? "slippage" : "liquidity")
+    : undefined;
+  if (totalQty <= 0) {
+    return { legs: [], vwap: null, filledNotional: 0, ...(cappedBy ? { cappedBy } : {}) };
+  }
 
   const legs = [...perVenue.entries()]
     .sort((a, z) => z[1].notional - a[1].notional)
@@ -403,7 +480,45 @@ export function smartRoute(
       sharePct: Math.round((v.notional / totalNotional) * 10000) / 100,
     }));
 
-  return { legs, vwap: totalNotional / totalQty };
+  return {
+    legs,
+    vwap: totalNotional / totalQty,
+    filledNotional: Math.round(totalNotional * 100) / 100,
+    ...(cappedBy ? { cappedBy } : {}),
+  };
+}
+
+export interface PassiveQuote {
+  venue: string;
+  /** The touch you would join: best bid for a BUY, best ask for a SELL. */
+  price: number;
+  /** Half-spread earned vs mid IF the resting order fills. Positive = earned. */
+  spreadCaptureBps: number | null;
+}
+
+/**
+ * The passive alternative to crossing: join the touch and wait. No queue
+ * position, no adverse-selection model, no fill guarantee — this is a price
+ * "if filled", full stop, and the UI must say so beside it.
+ */
+export function passiveQuote(
+  books: VenueBook[],
+  side: Side,
+  mid: number | null,
+): PassiveQuote | null {
+  let best: { venue: string; price: number } | null = null;
+  for (const b of books) {
+    const touch = side === "BUY" ? b.bids[0]?.[0] : b.asks[0]?.[0];
+    if (touch == null) continue;
+    if (!best || (side === "BUY" ? touch > best.price : touch < best.price)) {
+      best = { venue: b.venue, price: touch };
+    }
+  }
+  if (!best) return null;
+  const spreadCaptureBps = mid
+    ? (side === "BUY" ? ((mid - best.price) / mid) : ((best.price - mid) / mid)) * 1e4
+    : null;
+  return { venue: best.venue, price: best.price, spreadCaptureBps };
 }
 
 // --------------------------------------------------------------------------- //

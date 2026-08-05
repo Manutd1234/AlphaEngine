@@ -13,6 +13,7 @@ import { describe, it } from "node:test";
 import { pctChange, rollingMax, rollingMin, rsi, shift1, sma } from "../lib/indicators";
 import {
   deflatedSharpe,
+  histogramBins,
   kurtosis,
   minTrackRecordLength,
   normCdf,
@@ -297,5 +298,39 @@ describe("engine invariants", () => {
     assert.equal(barsPerYear("1h"), 8760);
     assert.equal(barsPerYear("1d"), 365);
     assert.equal(barsPerYear("nonsense"), 8760);
+  });
+});
+
+describe("histogram binning", () => {
+  it("bins a uniform range into equal widths", () => {
+    const out = histogramBins([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 5)!;
+    assert.equal(out.counts.length, 5);
+    assert.equal(out.edges.length, 6);
+    assert.equal(out.edges[0], 0);
+    assert.equal(out.edges[5], 9);
+    assert.equal(out.counts.reduce((a, b) => a + b, 0), 10);
+  });
+
+  it("puts the maximum inside the last bin rather than past the edge", () => {
+    const out = histogramBins([0, 10], 2)!;
+    assert.deepEqual(out.counts, [1, 1]);
+  });
+
+  it("a degenerate range is one bin, not an invented spread", () => {
+    const out = histogramBins([3, 3, 3], 10)!;
+    assert.deepEqual(out.edges, [3, 3]);
+    assert.deepEqual(out.counts, [3]);
+  });
+
+  it("absence is null, never an empty chart", () => {
+    assert.equal(histogramBins([], 10), null);
+    assert.equal(histogramBins([NaN, Infinity], 10), null);
+  });
+
+  it("drops non-finite values instead of poisoning the range", () => {
+    const out = histogramBins([1, 2, NaN, 3, Infinity], 2)!;
+    assert.equal(out.counts.reduce((a, b) => a + b, 0), 3);
+    assert.equal(out.edges[0], 1);
+    assert.equal(out.edges[2], 3);
   });
 });

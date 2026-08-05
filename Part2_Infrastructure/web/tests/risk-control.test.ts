@@ -8,6 +8,7 @@ import {
   buildRiskRequest,
   classifyRiskResponse,
   confirmArms,
+  operatorHeaders,
 } from "../lib/risk-control";
 
 describe("buildRiskRequest", () => {
@@ -33,6 +34,16 @@ describe("buildRiskRequest", () => {
     );
     assert.equal(full.reason, "drawdown");
     assert.equal(full.symbol, "ETHUSDT");
+  });
+});
+
+describe("operatorHeaders", () => {
+  it("attaches the credential iff a token is present", () => {
+    assert.equal(operatorHeaders("s3cret").Authorization, "Bearer s3cret");
+    assert.ok(!("Authorization" in operatorHeaders()));
+    assert.ok(!("Authorization" in operatorHeaders("")));
+    assert.ok(!("Authorization" in operatorHeaders("   ")));
+    assert.equal(operatorHeaders()["Content-Type"], "application/json");
   });
 });
 

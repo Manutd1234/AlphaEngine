@@ -27,12 +27,14 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import {
   type Level,
   type Side,
+  type SmartRouteOptions,
   type VenueBook,
   type VenueName,
   bandImbalance,
   consolidatedMid,
   depthWithinBps,
   findDislocation,
+  passiveQuote,
   smartRoute,
   spreadBps,
   walkBook,
@@ -568,19 +570,42 @@ export function useWireTap(): { sockets: SocketSummary[]; reconnectAll: () => nu
   return { sockets, reconnectAll };
 }
 
-/** Client-side TCA off the streaming books — same maths as `/api/tca`. */
-export function liveTca(snap: LiveSnapshot | null, side: Side, notional: number) {
+/**
+ * Client-side TCA off the streaming books — same maths as `/api/tca`.
+ *
+ * `opts` are what-if constraints (see `smartRoute`): they narrow this estimate
+ * for analysis and route nothing. Omitted, this is the parity path.
+ */
+export function liveTca(
+  snap: LiveSnapshot | null,
+  side: Side,
+  notional: number,
+  opts?: SmartRouteOptions,
+) {
   if (!snap) return null;
   const live = snap.venues.filter((v) => v.status === "live" && v.book.ok).map((v) => v.book);
   if (!live.length) return null;
 
   const mid = snap.consolidatedMid;
+  // Excluded venues still get walked: the table marks them excluded rather
+  // than dropping rows, so a toggle's effect stays visible.
   const perVenue = live.map((b) => walkBook(side === "BUY" ? b.asks : b.bids, side, notional, b.mid, b.venue));
-  const { legs, vwap } = smartRoute(live, side, notional);
+  const included = opts?.venues ? live.filter((b) => opts.venues!.includes(b.venue)) : live;
+  const { legs, vwap, filledNotional, cappedBy } = smartRoute(
+    live,
+    side,
+    notional,
+    opts ? { ...opts, mid: opts.mid ?? mid } : undefined,
+  );
   const slippageBps =
     vwap && mid ? (side === "BUY" ? ((vwap - mid) / mid) * 1e4 : ((mid - vwap) / mid) * 1e4) : null;
 
-  const fillable = perVenue.filter((e) => e.fillable && e.vwap !== null);
+  // A saving measured against a venue you excluded is not one you realised.
+  // Widened to string: walkBook's estimates carry a plain venue label.
+  const includedVenues = new Set<string>(included.map((b) => b.venue));
+  const fillable = perVenue
+    .filter((e) => e.fillable && e.vwap !== null)
+    .filter((e) => includedVenues.has(e.venue));
   let savingUsd: number | null = null;
   if (fillable.length && vwap) {
     const worst = fillable.reduce((a, b) =>
@@ -599,5 +624,21 @@ export function liveTca(snap: LiveSnapshot | null, side: Side, notional: number)
     snap.symbol,
   );
 
-  return { perVenue, legs, vwap, slippageBps, savingUsd, mid, dislocation };
+  return {
+    perVenue,
+    legs,
+    vwap,
+    slippageBps,
+    savingUsd,
+    mid,
+    dislocation,
+    requestedNotional: notional,
+    filledNotional,
+    cappedBy,
+    excludedVenues: live
+      .filter((b) => !includedVenues.has(b.venue))
+      .map((b) => b.venue as string),
+    /** The alternative to crossing: join the touch. Price if filled, no more. */
+    passive: passiveQuote(included, side, mid),
+  };
 }

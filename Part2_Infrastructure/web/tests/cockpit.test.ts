@@ -20,7 +20,15 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { summarise, toBlotterRow, toRiskEvent } from "../lib/blotter";
+import {
+  UNTAGGED,
+  filterBlotterRows,
+  sandboxBlotter,
+  strategyTags,
+  summarise,
+  toBlotterRow,
+  toRiskEvent,
+} from "../lib/blotter";
 import { gatewayBase, gatewayHeaders, notConfigured } from "../lib/gateway";
 
 const acceptedRow = {
@@ -179,7 +187,52 @@ describe("execution quality describes exactly the rows on screen", () => {
     assert.equal(empty.fillRate, null);
     assert.equal(empty.avgSlippageBps, null);
     assert.equal(empty.p50LatencyMs, null);
+    assert.equal(empty.p90LatencyMs, null);
     assert.equal(empty.topRejectReason, null);
+  });
+
+  it("p90 sits between the median and the tail", () => {
+    const ten = Array.from({ length: 10 }, (_, i) =>
+      toBlotterRow({ ...acceptedRow, order_id: `L${i}`, latency_ms: i + 1 })!);
+    const summary = summarise(ten);
+    // Nearest-rank over 1..10: p50 = 5th, p90 = 9th, p99 = 10th.
+    assert.equal(summary.p50LatencyMs, 5);
+    assert.equal(summary.p90LatencyMs, 9);
+    assert.equal(summary.p99LatencyMs, 10);
+  });
+});
+
+describe("blotter views", () => {
+  const rows = sandboxBlotter(Date.parse("2026-08-04T12:00:00Z"));
+
+  it("status and strategy filters combine", () => {
+    const all = filterBlotterRows(rows, { status: "all", focusSymbol: "BTCUSDT", strategy: null });
+    assert.equal(all.length, rows.length, "a null strategy is a no-op");
+
+    const fills = filterBlotterRows(rows, { status: "accepted", focusSymbol: "BTCUSDT", strategy: null });
+    assert.ok(fills.every((r) => r.accepted));
+
+    const both = filterBlotterRows(rows, { status: "accepted", focusSymbol: "BTCUSDT", strategy: "ma_cross" });
+    assert.ok(both.every((r) => r.accepted && r.strategy === "ma_cross"));
+    assert.ok(both.length < fills.length, "the strategy filter narrows further");
+  });
+
+  it("the untagged sentinel matches rows with no strategy", () => {
+    const tagged = { ...rows[0], strategy: "ma_cross" };
+    const bare = { ...rows[1], strategy: null };
+    const out = filterBlotterRows([tagged, bare], { status: "all", focusSymbol: "X", strategy: UNTAGGED });
+    assert.deepEqual(out, [bare]);
+  });
+
+  it("strategy tags are derived from the rows, with counts", () => {
+    // The sandbox sleeves, exactly as sandboxBook attributes them.
+    assert.deepEqual(strategyTags(rows), [
+      { tag: "donchian", count: 26 },
+      { tag: "ma_cross", count: 48 },
+      { tag: "rsi_reversion", count: 12 },
+    ]);
+    const withBare = strategyTags([...rows, { ...rows[0], strategy: null }]);
+    assert.deepEqual(withBare[withBare.length - 1], { tag: UNTAGGED, count: 1 });
   });
 });
 

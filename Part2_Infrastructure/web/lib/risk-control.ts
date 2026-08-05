@@ -47,10 +47,20 @@ export interface ShapedRiskRequest {
   body: string;
 }
 
-export function buildRiskRequest(input: RiskRequestInput): ShapedRiskRequest {
+/**
+ * JSON headers with the operator credential attached iff a token is set.
+ * Every guarded write surface (risk actions, order ticket) must build its
+ * headers here — the two silent-401 bugs this repo has had were both a
+ * hand-rolled fetch that forgot the header.
+ */
+export function operatorHeaders(operatorToken?: string): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  const token = input.operatorToken?.trim();
+  const token = operatorToken?.trim();
   if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
+export function buildRiskRequest(input: RiskRequestInput): ShapedRiskRequest {
   return {
     url: "/api/gateway/risk",
     method: "POST",
@@ -60,7 +70,7 @@ export function buildRiskRequest(input: RiskRequestInput): ShapedRiskRequest {
       ...(input.reason?.trim() ? { reason: input.reason.trim() } : {}),
       ...(input.symbol ? { symbol: input.symbol } : {}),
     }),
-    headers,
+    headers: operatorHeaders(input.operatorToken),
   };
 }
 

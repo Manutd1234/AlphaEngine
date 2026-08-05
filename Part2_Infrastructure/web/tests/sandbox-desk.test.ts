@@ -113,6 +113,7 @@ describe("the judge replays the gateway's gates, not an approximation of them", 
     assert.equal(SANDBOX_LIMITS.maxDailyDrawdownPct, 0.05);
     assert.equal(SANDBOX_LIMITS.reduceOnlyThreshold, 0.8);
     assert.equal(SANDBOX_LIMITS.maxEstSlippageBps, 75);
+    assert.equal(SANDBOX_LIMITS.maxPriceDeviationBps, 500);
   });
 
   it("a valid $25k order passes every gate and fills with the 6bps taker fee", () => {
@@ -219,5 +220,44 @@ describe("the judge replays the gateway's gates, not an approximation of them", 
       "gross_exposure", "daily_drawdown", "est_slippage",
     ];
     assert.deepEqual(names, expectedOrder);
+  });
+
+  it("a LIMIT order inside the band passes price_band in the gateway's slot", () => {
+    // BTCUSDT sandbox mark is 67,412.5; a price ~15bps away is well in-band.
+    const desk = createSandboxDesk(sandboxBook());
+    const decision = desk.judge(
+      { symbol: "BTCUSDT", side: "BUY", notional: 25_000, orderType: "LIMIT", limitPrice: 67_310 },
+      0,
+    );
+    assert.equal(decision.accepted, true, `rejected by ${decision.rejected_by}`);
+    const names = decision.checks!.map((c) => c.name);
+    // The MARKET vector with price_band inserted where risk_proxy.py has it:
+    // after gross_exposure (gate 9), before daily_drawdown (gate 11).
+    assert.deepEqual(names, [
+      "kill_switch", "symbol_halt", "symbol_whitelist", "duplicate_order", "rate_limit",
+      "price_available", "order_sized", "max_order_notional", "symbol_concentration",
+      "gross_exposure", "price_band", "daily_drawdown", "est_slippage",
+    ]);
+    // Quantity is sized at the limit price, the gateway's reference price.
+    assert.ok(decision.fill);
+    assert.ok(Math.abs(decision.fill!.quantity - 25_000 / 67_310) < 1e-12);
+  });
+
+  it("a LIMIT order 600bps off the mark is rejected by price_band", () => {
+    const desk = createSandboxDesk(sandboxBook());
+    const decision = desk.judge(
+      { symbol: "BTCUSDT", side: "BUY", notional: 25_000, orderType: "LIMIT", limitPrice: 67_412.5 * 1.06 },
+      0,
+    );
+    assert.equal(decision.accepted, false);
+    assert.ok(decision.rejected_by?.includes("price_band"), `got ${decision.rejected_by}`);
+    assert.equal(decision.fill, null);
+  });
+
+  it("a MARKET order never sees the price_band gate", () => {
+    const desk = createSandboxDesk(sandboxBook());
+    const names = desk.judge({ symbol: "BTCUSDT", side: "BUY", notional: 25_000 }, 0)
+      .checks!.map((c) => c.name);
+    assert.ok(!names.includes("price_band"));
   });
 });

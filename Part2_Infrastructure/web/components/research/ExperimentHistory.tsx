@@ -18,6 +18,7 @@
 
 import { useRef, useState } from "react";
 
+import { download } from "@/lib/download";
 import { generatePythonScript } from "@/lib/export-python";
 import { fmt, pct, signedPct } from "@/lib/format";
 import { STRATEGY_LABELS, type SweepRequest } from "@/lib/types";
@@ -38,16 +39,6 @@ interface ExperimentHistoryProps {
   onImport?: (records: ExperimentRecord[]) => void;
 }
 
-/** Client-side download — a Blob and an anchor, no server round trip. */
-function download(filename: string, content: string, type: string) {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
 const VERDICT_STYLE: Record<string, { glyph: string; label: string; tone: string }> = {
   pass: { glyph: "✓", label: "passed", tone: "var(--success-text)" },

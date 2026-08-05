@@ -14,7 +14,7 @@
 
 import { type Level } from "@/lib/venues";
 import { compact, fmt, priceDp } from "@/lib/format";
-import { DEFAULT_MARGIN, Grid, linearScale, ticks, useMeasuredWidth } from "./chart-kit";
+import { DEFAULT_MARGIN, Grid, Tooltip, linearScale, ticks, useMeasuredWidth } from "./chart-kit";
 import { useState } from "react";
 
 const HEIGHT = 210;
@@ -93,6 +93,9 @@ export default function DepthChart({
   const y = linearScale(0, maxCum * 1.05, y0, y1);
   const dp = priceDp(mid);
 
+  // Local pointer math on purpose: chart-kit's useCrosshair is index-based
+  // over uniformly spaced points, and this axis is continuous price with two
+  // independent step series. Only the Tooltip rendering is shared.
   const onMove = (e: React.PointerEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const scale = rect.width / e.currentTarget.viewBox.baseVal.width || 1;
@@ -158,26 +161,16 @@ export default function DepthChart({
         {hover && (
           <>
             <line x1={hover.x} x2={hover.x} y1={y1} y2={y0} stroke="var(--axis)" strokeWidth={1} />
-            <g pointerEvents="none">
-              <rect
-                x={Math.min(Math.max(hover.x + 10, 4), width - 158)}
-                y={10}
-                width={150}
-                height={56}
-                rx={7}
-                fill="var(--surface-1)"
-                stroke="var(--border)"
-              />
-              <text x={Math.min(Math.max(hover.x + 20, 14), width - 148)} y={27} fontSize={11} fontFamily="var(--mono)" fill="var(--text-secondary)">
-                {fmt(hover.price, dp)}
-              </text>
-              <text x={Math.min(Math.max(hover.x + 20, 14), width - 148)} y={43} fontSize={11} fill="var(--diverging-pos)" fontFamily="var(--mono)">
-                bid ${compact(hover.bid)}
-              </text>
-              <text x={Math.min(Math.max(hover.x + 20, 14), width - 148)} y={58} fontSize={11} fill="var(--diverging-neg)" fontFamily="var(--mono)">
-                ask ${compact(hover.ask)}
-              </text>
-            </g>
+            <Tooltip
+              x={hover.x}
+              width={150}
+              chartWidth={width}
+              title={fmt(hover.price, dp)}
+              rows={[
+                { label: "bid", value: `$${compact(hover.bid)}`, color: "var(--diverging-pos)" },
+                { label: "ask", value: `$${compact(hover.ask)}`, color: "var(--diverging-neg)" },
+              ]}
+            />
           </>
         )}
       </svg>

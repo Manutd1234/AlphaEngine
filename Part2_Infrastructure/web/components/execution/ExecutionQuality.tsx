@@ -17,6 +17,7 @@
  * the same limit is a sizing conversation, not an execution problem.
  */
 
+import LatencyHistogram from "@/components/execution/LatencyHistogram";
 import type { BlotterRow, ExecutionSummary } from "@/lib/blotter";
 import { fmt, pct, usd } from "@/lib/format";
 
@@ -24,11 +25,13 @@ interface ExecutionQualityProps {
   summary: ExecutionSummary;
   symbol: string;
   symbolOrders: BlotterRow[];
+  /** The rows the summary was computed from — the distribution needs them all. */
+  rows?: BlotterRow[];
   /** Where the rows behind these numbers came from. */
   source?: "live" | "sandbox" | "unavailable";
 }
 
-export default function ExecutionQuality({ summary, symbol, symbolOrders, source = "live" }: ExecutionQualityProps) {
+export default function ExecutionQuality({ summary, symbol, symbolOrders, rows = [], source = "live" }: ExecutionQualityProps) {
   const symbolFills = symbolOrders.filter((o) => o.accepted);
   const symbolSlippage = symbolFills
     .map((o) => o.slippageBps)
@@ -87,10 +90,25 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, source
               <dt>Gate latency</dt>
               <dd>{summary.p50LatencyMs != null ? `${fmt(summary.p50LatencyMs, 2)} ms` : "—"}</dd>
               <span className="muted">
+                p90 {summary.p90LatencyMs != null ? `${fmt(summary.p90LatencyMs, 2)} ms` : "—"} ·
                 p99 {summary.p99LatencyMs != null ? `${fmt(summary.p99LatencyMs, 2)} ms` : "—"}
               </span>
             </div>
           </dl>
+
+          <div className="cockpit-quality__distribution">
+            <span className="field">Gate latency distribution</span>
+            <LatencyHistogram
+              values={rows.map((r) => r.latencyMs).filter((v): v is number => v != null)}
+              ariaLabel="Distribution of gate decision latency"
+            />
+            <small className="muted">
+              Time inside the pre-trade battery, not order-to-fill.
+              {source === "sandbox"
+                ? " Sandbox latencies are generated uniform 0.14–0.25 ms — the flat shape is the generator, not a gateway."
+                : ""}
+            </small>
+          </div>
 
           {summary.topRejectReason ? (
             <p className="notice">

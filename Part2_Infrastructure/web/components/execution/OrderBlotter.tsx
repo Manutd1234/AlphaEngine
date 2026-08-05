@@ -15,7 +15,15 @@
 
 import { useMemo, useState } from "react";
 
-import type { BlotterRow } from "@/lib/blotter";
+import {
+  UNTAGGED,
+  type BlotterRow,
+  type BlotterStatusFilter,
+  filterBlotterRows,
+  strategyTags,
+} from "@/lib/blotter";
+import { download } from "@/lib/download";
+import { blotterToCsv } from "@/lib/export-csv";
 import { fmt, usd } from "@/lib/format";
 
 interface OrderBlotterProps {
@@ -26,9 +34,7 @@ interface OrderBlotterProps {
   source?: "live" | "sandbox" | "unavailable";
 }
 
-type Filter = "all" | "accepted" | "rejected" | "symbol";
-
-const FILTERS: Array<{ id: Filter; label: string }> = [
+const FILTERS: Array<{ id: BlotterStatusFilter; label: string }> = [
   { id: "all", label: "All" },
   { id: "accepted", label: "Fills" },
   { id: "rejected", label: "Rejected" },
@@ -43,17 +49,23 @@ function time(ts: string): string {
 }
 
 export default function OrderBlotter({ rows, focusSymbol, onOpenResearch, source = "live" }: OrderBlotterProps) {
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<BlotterStatusFilter>("all");
+  const [strategy, setStrategy] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const visible = useMemo(() => {
-    switch (filter) {
-      case "accepted": return rows.filter((r) => r.accepted);
-      case "rejected": return rows.filter((r) => !r.accepted);
-      case "symbol": return rows.filter((r) => r.symbol === focusSymbol);
-      default: return rows;
-    }
-  }, [rows, filter, focusSymbol]);
+  const tags = useMemo(() => strategyTags(rows), [rows]);
+  const visible = useMemo(
+    () => filterBlotterRows(rows, { status: filter, focusSymbol, strategy }),
+    [rows, filter, focusSymbol, strategy],
+  );
+
+  const exportStamp = () => {
+    const parts = ["alphaengine-blotter", source, filter];
+    if (strategy) parts.push(strategy === UNTAGGED ? "untagged" : strategy);
+    parts.push(`${visible.length}rows`);
+    parts.push(new Date().toISOString().slice(0, 10).replace(/-/g, ""));
+    return parts.join("-");
+  };
 
   return (
     <section className="card cockpit-blotter">
@@ -64,19 +76,54 @@ export default function OrderBlotter({ rows, focusSymbol, onOpenResearch, source
             {source === "sandbox"
               ? "A generated session, newest first — same shape as the audit log, none of it audited."
               : "Every decision the gateway made, newest first — accepted and rejected alike, straight from the append-only audit log."}
+            {visible.length !== rows.length ? ` Showing ${visible.length} of ${rows.length}.` : ""}
           </p>
         </div>
-        <div className="seg" role="group" aria-label="Filter blotter">
-          {FILTERS.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              aria-pressed={filter === option.id}
-              onClick={() => setFilter(option.id)}
+        <div className="blotter-toolbar">
+          <div className="seg" role="group" aria-label="Filter blotter">
+            {FILTERS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                aria-pressed={filter === option.id}
+                onClick={() => setFilter(option.id)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          {tags.length > 1 ? (
+            <select
+              aria-label="Filter by strategy tag"
+              value={strategy ?? ""}
+              onChange={(event) => setStrategy(event.target.value === "" ? null : event.target.value)}
             >
-              {option.label}
-            </button>
-          ))}
+              <option value="">All strategies</option>
+              {tags.map(({ tag, count }) => (
+                <option key={tag} value={tag}>
+                  {tag === UNTAGGED ? "untagged" : tag} ({count})
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {/* Exports carry exactly the rows on screen — a file that silently
+              contained more than the filter selected would be a trap. */}
+          <button
+            type="button"
+            disabled={!visible.length}
+            title="Download the filtered rows as CSV"
+            onClick={() => download(`${exportStamp()}.csv`, blotterToCsv(visible), "text/csv")}
+          >
+            Export CSV
+          </button>
+          <button
+            type="button"
+            disabled={!visible.length}
+            title="Download the filtered rows as JSON"
+            onClick={() => download(`${exportStamp()}.json`, JSON.stringify(visible, null, 2), "application/json")}
+          >
+            Export JSON
+          </button>
         </div>
       </header>
 

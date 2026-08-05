@@ -139,6 +139,7 @@ export interface ExecutionSummary {
   worstSlippageBps: number | null;
   totalFees: number;
   p50LatencyMs: number | null;
+  p90LatencyMs: number | null;
   p99LatencyMs: number | null;
   topRejectReason: { gate: string; count: number } | null;
 }
@@ -186,6 +187,8 @@ export const SANDBOX_LIMITS = {
   maxEstSlippageBps: 75,
   /** Taker fee implied by the sandbox attribution table: fees / notional = 6 bps. */
   takerFeeBps: 6,
+  /** LIMIT price sanity band — config.py MAX_PRICE_DEVIATION_BPS default. */
+  maxPriceDeviationBps: 500,
 } as const;
 
 /** Deterministic PRNG — the sandbox must produce the same desk every time. */
@@ -323,6 +326,9 @@ export interface SandboxOrder {
   side: "BUY" | "SELL";
   notional: number;
   clientOrderId?: string | null;
+  /** Defaults to MARKET, matching the gateway's OrderRequest. */
+  orderType?: "MARKET" | "LIMIT";
+  limitPrice?: number | null;
 }
 
 export interface SandboxDecision {
@@ -415,8 +421,16 @@ export function createSandboxDesk(book: SandboxBookShape) {
         `$${Math.round(projectedGross).toLocaleString()} projected vs $${grossCap.toLocaleString()}`);
     }
 
-    // 11 — drawdown budget (gate 10, price_band, applies to LIMIT orders only —
-    // the sandbox ticket sends MARKET, exactly like the gateway skips it)
+    // 10 — limit price sanity, the other half of fat-finger protection.
+    // MARKET orders skip it exactly as risk_proxy.py does. No rand() here, so
+    // the PRNG sequence for MARKET orders is bit-identical to before the gate.
+    if (order.orderType === "LIMIT" && order.limitPrice && mark) {
+      const devBps = (Math.abs(order.limitPrice - mark) / mark) * 1e4;
+      add("price_band", devBps <= limits.maxPriceDeviationBps,
+        `${devBps.toFixed(1)}bps from mark ${mark.toLocaleString()}`);
+    }
+
+    // 11 — drawdown budget
     const dd = Math.max(0, -(book.equity.current - book.equity.start_of_day) / book.equity.start_of_day);
     add("daily_drawdown", dd < limits.maxDailyDrawdownPct,
       `${(dd * 100).toFixed(2)}% used of ${(limits.maxDailyDrawdownPct * 100).toFixed(2)}%`);
@@ -446,6 +460,9 @@ export function createSandboxDesk(book: SandboxBookShape) {
     counter += 1;
 
     const slippage = 1.4 + rand() * 1.8;
+    // Quantity sizes at the same reference the gateway uses (risk_proxy.py:
+    // ref_price = req.limit_price or mark); MARKET path unchanged.
+    const refPrice = order.orderType === "LIMIT" && order.limitPrice ? order.limitPrice : mark;
     return {
       accepted,
       order_id: `SBX-${String(counter).padStart(4, "0")}`,
@@ -458,7 +475,7 @@ export function createSandboxDesk(book: SandboxBookShape) {
       fill: accepted && mark
         ? {
             price: mark * (1 + (order.side === "BUY" ? 1 : -1) * slippage / 1e4),
-            quantity: notional / mark,
+            quantity: notional / refPrice,
             venue: SANDBOX_VENUES[counter % SANDBOX_VENUES.length],
             slippage_bps: slippage,
             fee_usd: notional * (SANDBOX_LIMITS.takerFeeBps / 1e4),
@@ -495,7 +512,54 @@ export function summarise(rows: BlotterRow[]): ExecutionSummary {
     worstSlippageBps: slippage.length ? Math.max(...slippage) : null,
     totalFees: accepted.reduce((sum, r) => sum + (r.feeUsd ?? 0), 0),
     p50LatencyMs: quantile(0.5),
+    p90LatencyMs: quantile(0.9),
     p99LatencyMs: quantile(0.99),
     topRejectReason: worstGate ? { gate: worstGate[0], count: worstGate[1] } : null,
   };
+}
+
+// --------------------------------------------------------------------------
+// Blotter views
+//
+// The filter logic lives here rather than in the table component so it can be
+// tested without a DOM, and so the export writes exactly the rows the filter
+// selected.
+// --------------------------------------------------------------------------
+
+export type BlotterStatusFilter = "all" | "accepted" | "rejected" | "symbol";
+
+/** Sentinel for rows the gateway recorded without a strategy tag. */
+export const UNTAGGED = "∅";
+
+export function filterBlotterRows(
+  rows: BlotterRow[],
+  opts: { status: BlotterStatusFilter; focusSymbol: string; strategy: string | null },
+): BlotterRow[] {
+  const byStatus = rows.filter((row) => {
+    switch (opts.status) {
+      case "accepted": return row.accepted;
+      case "rejected": return !row.accepted;
+      case "symbol": return row.symbol === opts.focusSymbol;
+      default: return true;
+    }
+  });
+  if (opts.strategy === null) return byStatus;
+  if (opts.strategy === UNTAGGED) return byStatus.filter((row) => row.strategy == null);
+  return byStatus.filter((row) => row.strategy === opts.strategy);
+}
+
+/** Distinct strategy tags with counts — derived from the rows in hand, never
+ *  a hardcoded list, so a live gateway's own tags appear unchanged. */
+export function strategyTags(rows: BlotterRow[]): Array<{ tag: string; count: number }> {
+  const counts = new Map<string, number>();
+  let untagged = 0;
+  for (const row of rows) {
+    if (row.strategy == null) untagged += 1;
+    else counts.set(row.strategy, (counts.get(row.strategy) ?? 0) + 1);
+  }
+  const out = [...counts.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([tag, count]) => ({ tag, count }));
+  if (untagged) out.push({ tag: UNTAGGED, count: untagged });
+  return out;
 }

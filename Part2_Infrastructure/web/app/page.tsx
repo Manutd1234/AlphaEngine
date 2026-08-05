@@ -93,6 +93,11 @@ export default function Page() {
   const [view, setView] = useState<WorkspaceView>("overview");
   const [side, setSide] = useState<Side>("BUY");
   const [notional, setNotional] = useState(100_000);
+  // The order draft beyond side/notional, lifted like they are so the ladder
+  // (liquidity subtab) can stage a limit the ticket (trade subtab) picks up —
+  // panels stay mounted, so the draft survives the jump.
+  const [orderType, setOrderType] = useState<"MARKET" | "LIMIT">("MARKET");
+  const [limitPrice, setLimitPrice] = useState<number | null>(null);
   const [researchSection, setResearchSection] = useState<ResearchSection>("summary");
   const [showMcBands, setShowMcBands] = useState(true);
   const [executionSection, setExecutionSection] = useState<ExecutionSection>("trade");
@@ -237,6 +242,16 @@ export default function Page() {
     updateSymbol(symbol);
     navigate(destination);
   }, [navigate, updateSymbol]);
+
+  // Ladder click-to-trade: lifting an ask is a BUY, hitting a bid is a SELL.
+  // The panels stay mounted, so the staged draft is live in the ticket the
+  // moment the trade subtab unhides — no focus juggling needed.
+  const stageLimitFromLadder = useCallback(({ side: picked, price }: { side: Side; price: number }) => {
+    setSide(picked);
+    setOrderType("LIMIT");
+    setLimitPrice(price);
+    setExecutionSection("trade");
+  }, []);
 
   const inspectCombo = useCallback(
     (result: ParamResult) => {
@@ -792,14 +807,20 @@ export default function Page() {
               onOpenResearch={() => navigate("research")}
               onOpenData={() => navigate("data")}
               section={executionSection}
+              onPriceSelect={stageLimitFromLadder}
             >
               <ExecutionCockpit
                 symbol={req.symbol}
                 side={side}
                 notional={notional}
+                orderType={orderType}
+                limitPrice={limitPrice}
                 section={executionSection}
                 onSideChange={setSide}
                 onNotionalChange={setNotional}
+                onOrderTypeChange={setOrderType}
+                onLimitPriceChange={setLimitPrice}
+                operatorToken={systems.token}
                 researchStrategy={activeResult ? activeResult.request.strategy : null}
                 researchExperimentId={null}
                 onOpenResearch={() => navigate("research")}

@@ -13,6 +13,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import DepthChart from "@/components/DepthChart";
 import DislocationStrip from "@/components/DislocationStrip";
 import StatTile from "@/components/StatTile";
+import { LiveMidContext } from "@/components/execution/live-mid-context";
 import { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import { liveTca, useLiveBook } from "@/lib/livebook";
 import { SYMBOLS, type Side, type Ticker } from "@/lib/venues";
@@ -41,6 +42,8 @@ interface LiveMarketProps {
   onOpenResearch: () => void;
   onOpenData: () => void;
   section: ExecutionSection;
+  /** Ladder click-to-trade: stage a limit at the clicked level in the ticket. */
+  onPriceSelect?: (pick: { side: Side; price: number }) => void;
   children?: ReactNode;
 }
 
@@ -55,13 +58,33 @@ export default function LiveMarket({
   onOpenResearch,
   onOpenData,
   section,
+  onPriceSelect,
   children,
 }: LiveMarketProps) {
   const liveSupported = (SYMBOLS as readonly string[]).includes(symbol);
   const snap = useLiveBook(symbol, liveSupported);
-  const tca = liveTca(snap, side, notional);
+  // What-if constraints for the probe only: null include-list means every
+  // venue, and an empty cap string means uncapped, so the default call is
+  // opts-free and stays on the gateway-parity path.
+  const [includedVenues, setIncludedVenues] = useState<string[] | null>(null);
+  const [capText, setCapText] = useState("");
+  const capBps = Number.isFinite(parseFloat(capText)) ? parseFloat(capText) : undefined;
+  const whatIfActive = includedVenues !== null || capBps !== undefined;
+  const tca = liveTca(
+    snap,
+    side,
+    notional,
+    whatIfActive ? { venues: includedVenues ?? undefined, maxSlippageBps: capBps } : undefined,
+  );
   const dp = snap?.consolidatedMid ? priceDp(snap.consolidatedMid) : 2;
   const [tickerBySymbol, setTickerBySymbol] = useState<Record<string, Ticker>>({});
+
+  // The ticket (rendered as children) reads the mid for its price-band hint.
+  const wrappedChildren = (
+    <LiveMidContext.Provider value={snap?.consolidatedMid ?? null}>
+      {children}
+    </LiveMidContext.Provider>
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -103,18 +126,17 @@ export default function LiveMarket({
     const colour = kind === "bid" ? "var(--diverging-pos)" : "var(--diverging-neg)";
     const rowsOut = kind === "ask" ? [...withCum].reverse() : withCum;
 
+    // Lifting an ask is a BUY at that price; hitting a bid is a SELL.
+    const clickSide: Side = kind === "ask" ? "BUY" : "SELL";
+
     return rowsOut.map(({ p, q, cum: c }) => (
-      <div
+      <button
         key={`${kind}-${p}`}
-        style={{
-          position: "relative",
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          padding: "3px 6px",
-          fontFamily: "var(--mono)",
-          fontSize: 11.5,
-          fontVariantNumeric: "tabular-nums",
-        }}
+        type="button"
+        className="ladder-row"
+        title="Stage as a limit order in the ticket"
+        aria-label={`${clickSide === "BUY" ? "Buy" : "Sell"} ${symbol} at ${fmt(p, dp)} — stage a limit order in the ticket`}
+        onClick={() => onPriceSelect?.({ side: clickSide, price: p })}
       >
         <span
           aria-hidden
@@ -125,7 +147,8 @@ export default function LiveMarket({
             right: 0,
             width: `${(c / max) * 100}%`,
             background: colour,
-            opacity: 0.14,
+            /* 0.14 read as ~1.05:1 against the card — a wash nobody saw. */
+            opacity: 0.22,
             borderRadius: 3,
           }}
         />
@@ -136,7 +159,7 @@ export default function LiveMarket({
         <span style={{ position: "relative", textAlign: "right", color: "var(--text-muted)" }}>
           {compact(c)}
         </span>
-      </div>
+      </button>
     ));
   };
 
@@ -152,6 +175,7 @@ export default function LiveMarket({
         </span>
       </div>
 
+      <div className="market-watchlist-shell">
       <div className="market-watchlist" role="group" aria-label="Tradable instruments">
         {SYMBOLS.map((watchSymbol) => {
           const ticker = tickerBySymbol[watchSymbol];
@@ -176,6 +200,7 @@ export default function LiveMarket({
             </button>
           );
         })}
+      </div>
       </div>
 
       <div className="venue-status-strip" aria-label={`${symbol} venue status`}>
@@ -210,7 +235,7 @@ export default function LiveMarket({
     return (
       <>
         {instrumentPanel}
-        {children}
+        {wrappedChildren}
         {(["liquidity", "routing"] as const).map((tabId) => (
           <WorkspaceSubtabPanel key={tabId} workspaceId="execution" tabId={tabId} activeId={section}>
             <div className="capability-empty">
@@ -241,7 +266,7 @@ export default function LiveMarket({
   return (
     <>
       {instrumentPanel}
-      {children}
+      {wrappedChildren}
 
       <WorkspaceSubtabPanel workspaceId="execution" tabId="liquidity" activeId={section}>
 
@@ -278,7 +303,10 @@ export default function LiveMarket({
 
       <div className="card">
         <h2>Consolidated ladder</h2>
-        <p className="sub">Every venue&apos;s levels merged and sorted by price — the book a smart router actually walks.</p>
+        <p className="sub">
+          Every venue&apos;s levels merged and sorted by price — the book a smart router actually
+          walks. Click a level to stage it as a limit order in the ticket.
+        </p>
         <div style={{ fontFamily: "var(--mono)" }}>
           <div
             style={{
@@ -378,6 +406,57 @@ export default function LiveMarket({
           ))}
         </div>
 
+        <fieldset className="whatif-constraints">
+          <legend>
+            <span className="page-kicker">What-if constraints — client-side only</span>
+          </legend>
+          <div className="whatif-constraints__row">
+            <div>
+              <span className="field">Route through</span>
+              <div className="seg" role="group" aria-label="Venues included in the what-if route">
+                {(snap?.venues ?? []).map((v) => {
+                  const on = includedVenues === null || includedVenues.includes(v.venue);
+                  return (
+                    <button
+                      key={v.venue}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => {
+                        const all = (snap?.venues ?? []).map((x) => x.venue);
+                        const current = includedVenues ?? all;
+                        const next = on
+                          ? current.filter((x) => x !== v.venue)
+                          : [...current, v.venue];
+                        setIncludedVenues(next.length === all.length ? null : next);
+                      }}
+                    >
+                      {v.venue}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
+              <label className="field" htmlFor="probe-cap">Max slippage (bps)</label>
+              <input
+                id="probe-cap"
+                type="number"
+                min={0}
+                step={1}
+                value={capText}
+                placeholder="uncapped"
+                disabled={snap?.consolidatedMid == null}
+                title={snap?.consolidatedMid == null ? "A cap needs a reference mid" : undefined}
+                onChange={(e) => setCapText(e.target.value)}
+              />
+            </div>
+          </div>
+          <p className="muted whatif-constraints__note">
+            Reruns the same TCA maths under your constraints. Nothing is routed and the
+            gateway&apos;s pre-trade gates are unaffected.
+          </p>
+        </fieldset>
+
         {tca ? (
           <>
             <div className="table-wrap" style={{ marginBottom: 14 }}>
@@ -393,58 +472,110 @@ export default function LiveMarket({
                   </tr>
                 </thead>
                 <tbody>
-                  {tca.perVenue.map((e) => (
-                    <tr key={e.venue}>
-                      <th scope="row" style={{ textAlign: "left", padding: "7px 10px", borderBottom: "1px solid var(--grid)" }}>
-                        {e.venue}
-                      </th>
-                      <td>{fmt(e.vwap, dp)}</td>
-                      <td className={(e.slippageBps ?? 0) > 10 ? "neg" : ""}>{fmt(e.slippageBps, 2)} bps</td>
-                      <td className="muted">{e.levelsConsumed}</td>
-                      <td className={e.fillable ? "pos" : "neg"}>
-                        {e.fillable ? "yes" : `only $${compact(e.filledNotional)}`}
-                      </td>
-                    </tr>
-                  ))}
+                  {tca.perVenue.map((e) => {
+                    const excluded = tca.excludedVenues.includes(e.venue);
+                    return (
+                      <tr key={e.venue}>
+                        <th scope="row" style={{ textAlign: "left", padding: "7px 10px", borderBottom: "1px solid var(--grid)" }}>
+                          {e.venue}
+                          {excluded ? <span className="pill pill--info" style={{ marginLeft: 6 }}>excluded</span> : null}
+                        </th>
+                        <td>{fmt(e.vwap, dp)}</td>
+                        <td className={(e.slippageBps ?? 0) > 10 ? "neg" : ""}>{fmt(e.slippageBps, 2)} bps</td>
+                        <td className="muted">{e.levelsConsumed}</td>
+                        <td className={e.fillable ? "pos" : "neg"}>
+                          {e.fillable ? "yes" : `only $${compact(e.filledNotional)}`}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
-            <div style={{ display: "flex", height: 26, borderRadius: 6, overflow: "hidden", border: "1px solid var(--border)", marginBottom: 12 }}>
+            {/* Labels live in the legend below, not inside the segments: white
+                text on the orange series-2 fill was ~3.2:1 — an AA failure the
+                bar's size never left room to fix in place. */}
+            <div
+              role="img"
+              aria-label={tca.legs.length
+                ? `Route split: ${tca.legs.map((l) => `${l.venue} ${l.sharePct.toFixed(0)}%`).join(", ")}`
+                : "No routable liquidity"}
+              style={{ display: "flex", height: 18, borderRadius: 6, overflow: "hidden", border: "1px solid var(--border)", marginBottom: 4 }}
+            >
               {tca.legs.length ? (
-                tca.legs.map((l, i) => (
-                  <div
-                    key={l.venue}
-                    style={{
-                      width: `${l.sharePct}%`,
-                      background: i === 0 ? "var(--series-1)" : "var(--series-2)",
-                      color: "#fff",
-                      display: "grid",
-                      placeItems: "center",
-                      fontFamily: "var(--mono)",
-                      fontSize: 10.5,
-                      fontWeight: 700,
-                      /* 2px surface gap rather than a drawn border between fills */
-                      boxShadow: i > 0 ? "inset 2px 0 0 var(--surface-1)" : undefined,
-                    }}
-                  >
-                    {l.venue} {l.sharePct.toFixed(0)}%
-                  </div>
-                ))
+                <>
+                  {tca.legs.map((l, i) => (
+                    <div
+                      key={l.venue}
+                      aria-hidden
+                      style={{
+                        /* Sized against the REQUEST, not the fill, so a capped
+                           route visibly falls short of the bar. */
+                        width: `${(l.notional / tca.requestedNotional) * 100}%`,
+                        background: i === 0 ? "var(--series-1)" : "var(--series-2)",
+                        /* 2px surface gap rather than a drawn border between fills */
+                        boxShadow: i > 0 ? "inset 2px 0 0 var(--surface-1)" : undefined,
+                      }}
+                    />
+                  ))}
+                  {tca.cappedBy ? (
+                    <div
+                      aria-hidden
+                      style={{
+                        flex: 1,
+                        background: "var(--surface-2)",
+                        boxShadow: "inset 2px 0 0 var(--surface-1)",
+                        borderLeft: "1px dashed var(--border)",
+                      }}
+                    />
+                  ) : null}
+                </>
               ) : (
                 <div style={{ width: "100%", background: "var(--surface-2)", display: "grid", placeItems: "center", fontSize: 11, color: "var(--text-muted)" }}>
-                  no routable liquidity
+                  {whatIfActive ? "no venue included in this what-if" : "no routable liquidity"}
                 </div>
               )}
             </div>
+            {tca.legs.length > 0 && (
+              <div className="legend" aria-hidden>
+                {tca.legs.map((l, i) => (
+                  <span key={l.venue}>
+                    <i style={{ background: i === 0 ? "var(--series-1)" : "var(--series-2)" }} />
+                    {l.venue} {l.sharePct.toFixed(0)}%
+                  </span>
+                ))}
+                {tca.cappedBy ? (
+                  <span>
+                    <i style={{ background: "var(--surface-2)", border: "1px dashed var(--border)" }} />
+                    {tca.cappedBy === "slippage" ? "capped" : "no depth"} ${compact(tca.requestedNotional - tca.filledNotional)}
+                  </span>
+                ) : null}
+              </div>
+            )}
+            {tca.cappedBy ? (
+              <p className="muted" style={{ fontSize: 11.5, marginBottom: 10 }}>
+                Routable ${compact(tca.filledNotional)} of ${compact(tca.requestedNotional)}
+                {tca.cappedBy === "slippage"
+                  ? ` — the remainder would breach the ${capBps} bps cap.`
+                  : " — the remainder finds no depth on the included venues."}
+              </p>
+            ) : null}
 
             <div className="tiles" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))" }}>
-              <StatTile label="Blended VWAP" value={fmt(tca.vwap, dp)} note="smart route" />
+              <StatTile label="Blended VWAP" value={fmt(tca.vwap, dp)} note="aggressive · pay the spread, fill now" />
               <StatTile
                 label="Slippage"
                 value={tca.slippageBps == null ? "—" : `${fmt(tca.slippageBps, 2)} bps`}
                 note="vs consolidated mid"
                 tone={(tca.slippageBps ?? 0) > 10 ? "neg" : undefined}
+              />
+              <StatTile
+                label="Passive (join touch)"
+                value={tca.passive == null ? "—" : fmt(tca.passive.price, dp)}
+                note={tca.passive?.spreadCaptureBps == null
+                  ? "no touch to join"
+                  : `earns ${fmt(tca.passive.spreadCaptureBps, 2)} bps — if filled · no guarantee`}
               />
               <StatTile
                 label="Saved vs worst venue"

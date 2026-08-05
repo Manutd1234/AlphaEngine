@@ -2425,6 +2425,26 @@ button.primary-action:hover:not(:disabled) {
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--status-good) 12%, transparent);
 }
 
+.market-watchlist-shell {
+  position: relative;
+}
+
+/* 12 tiles at 142px plus gaps is ~1780px of content, so below that width the
+   row always overflows — the fade is an honest hint, not decoration. The shell
+   carries it because a ::after on the scroller would scroll away with it. */
+@media (max-width: 1900px) {
+  .market-watchlist-shell::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 4px;
+    width: 28px;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, var(--surface-1));
+  }
+}
+
 .market-watchlist {
   display: flex;
   gap: 7px;
@@ -2456,13 +2476,16 @@ button.primary-action:hover:not(:disabled) {
   transform: translateY(-1px);
 }
 
+/* Tokenised, and darker than the old raw-hex gradient on purpose: #fff on
+   --series-1 is only 3.64:1 in the dark theme, so the stops mix toward black
+   until white text clears AA at the lightest stop in both themes. */
 .market-watchlist__item[aria-pressed="true"] {
-  border-color: #3d74e8;
+  border-color: color-mix(in srgb, var(--series-1) 80%, var(--border));
   color: #fff;
   background:
-    radial-gradient(circle at 90% 8%, rgba(116, 231, 208, 0.2), transparent 42%),
-    linear-gradient(135deg, #2f70ef, #1e53c7);
-  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.2);
+    radial-gradient(circle at 90% 8%, color-mix(in srgb, var(--status-good) 22%, transparent), transparent 42%),
+    linear-gradient(135deg, color-mix(in srgb, var(--series-1) 82%, #000), color-mix(in srgb, var(--series-1) 60%, #000));
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--series-1) 20%, transparent);
 }
 
 .market-watchlist__symbol {
@@ -2481,14 +2504,16 @@ button.primary-action:hover:not(:disabled) {
 }
 
 .market-watchlist__item > small {
-  font-size: 9px;
+  font-size: 10px;
   color: var(--text-muted);
 }
 
+/* Solid white: translucent white over the active gradient drops to ~4.1:1 in
+   dark theme — below AA at this size. Hierarchy comes from size, not fade. */
 .market-watchlist__item[aria-pressed="true"] > small,
 .market-watchlist__item[aria-pressed="true"] > small.pos,
 .market-watchlist__item[aria-pressed="true"] > small.neg {
-  color: rgba(255, 255, 255, 0.82);
+  color: #fff;
 }
 
 .venue-status-strip {
@@ -3024,9 +3049,6 @@ button.primary-action:hover:not(:disabled) {
   .attention-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .market-watchlist {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
   .portfolio-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3190,9 +3212,6 @@ button.primary-action:hover:not(:disabled) {
   }
   .decision-metrics {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .market-watchlist {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .market-context-card__heading {
     align-items: flex-start;
@@ -5281,9 +5300,12 @@ button.primary-action:hover:not(:disabled) {
   color: var(--text-secondary);
 }
 
+/* Tinted, not filled: white on --series-2 orange was ~3.2:1. The tint keeps
+   the hue association while the word reads at AA via the notice text step. */
 .dislocation-strip.hit .disloc-tag {
-  background: var(--series-2);
-  color: #fff;
+  background: color-mix(in srgb, var(--series-2) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--series-2) 45%, transparent);
+  color: var(--notice-text);
 }
 
 .dislocation-strip.marginal .disloc-tag {
@@ -5597,6 +5619,121 @@ button.primary-action:hover:not(:disabled) {
 
 .cockpit-ticket__presets button {
   font-size: 11.5px;
+}
+
+.cockpit-ticket__form .seg--type {
+  flex: 0 0 auto;
+  min-width: 110px;
+}
+
+/* Full-width advisory line under the ticket row — a warning the trader can
+   read before the gate says the same thing with a rejection. */
+.cockpit-ticket__hint {
+  flex-basis: 100%;
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  color: var(--warning-text);
+}
+
+/* Gate-tripping demo presets carry their risk intent; a fat-finger trigger
+   must never look like a neutral chip. Colour is a text step (AA-asserted);
+   the status token appears only inside color-mix fills. */
+.cockpit-ticket__presets .preset--warn {
+  border-color: color-mix(in srgb, var(--status-warning) 45%, var(--border));
+  background: color-mix(in srgb, var(--status-warning) 14%, var(--surface-1));
+  color: var(--warning-text);
+}
+
+.cockpit-ticket__presets .preset--notice {
+  border-color: color-mix(in srgb, var(--notice-text) 40%, var(--border));
+  background: color-mix(in srgb, var(--notice-text) 12%, var(--surface-1));
+  color: var(--notice-text);
+}
+
+/* -- blotter toolbar (filters + export) -- */
+.blotter-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.blotter-toolbar button:not(.seg button) {
+  padding: 5px 10px;
+  font-size: 10.5px;
+  font-weight: 650;
+}
+
+/* The global control rule stretches selects to 100%, which pushed the export
+   buttons onto a row of their own and squeezed the filter seg into wrapping. */
+.blotter-toolbar select {
+  width: auto;
+  min-width: 148px;
+  font-size: 11.5px;
+}
+
+.blotter-toolbar .seg button {
+  white-space: nowrap;
+}
+
+.cockpit-quality__distribution {
+  margin-top: 14px;
+  display: grid;
+  gap: 4px;
+}
+
+.cockpit-quality__distribution small {
+  font-size: 10.5px;
+}
+
+/* -- what-if routing constraints (routing probe) -- */
+.whatif-constraints {
+  margin: 0 0 14px;
+  padding: 10px 12px 8px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-2) 45%, var(--surface-1));
+}
+
+.whatif-constraints > legend {
+  padding: 0 6px;
+}
+
+.whatif-constraints__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.whatif-constraints__note {
+  margin: 8px 0 0;
+  font-size: 11px;
+}
+
+/* -- consolidated ladder rows (click-to-trade) --
+   Buttons wearing the old row layout: the global button chrome is reset here,
+   but never `outline` — the house focus-visible ring must keep working. */
+.ladder-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  width: 100%;
+  min-height: 0;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ladder-row:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--series-1) 10%, transparent);
 }
 
 /* -- decision vector -- */

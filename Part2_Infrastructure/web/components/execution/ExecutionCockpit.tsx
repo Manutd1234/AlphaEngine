@@ -56,7 +56,10 @@ import PnlStrip from "./PnlStrip";
 
 const REFRESH_MS = 4_000;
 const MAX_BACKOFF_MS = 60_000;
-const BLOTTER_LIMIT = 60;
+/** 200, not 60: a nearest-rank p99 over 60 rows is just the maximum, and the
+ *  latency distribution needs a window worth binning. The audit route clamps
+ *  at 500, so this passes through untouched. */
+const BLOTTER_LIMIT = 200;
 const EVENT_LIMIT = 40;
 
 interface PortfolioSnapshot {
@@ -75,9 +78,15 @@ export interface CockpitProps {
   symbol: string;
   side: "BUY" | "SELL";
   notional: number;
+  orderType: "MARKET" | "LIMIT";
+  limitPrice: number | null;
   section: "trade" | "liquidity" | "routing" | "activity";
   onSideChange: (side: "BUY" | "SELL") => void;
   onNotionalChange: (notional: number) => void;
+  onOrderTypeChange: (orderType: "MARKET" | "LIMIT") => void;
+  onLimitPriceChange: (price: number | null) => void;
+  /** Operator credential shared with the Reliability tab and the header. */
+  operatorToken?: string;
   /** Strategy tag proposed by the research tab, when a run has been promoted. */
   researchStrategy?: string | null;
   /** Experiment id to stamp on the order so a fill can be traced to its idea. */
@@ -91,9 +100,14 @@ export default function ExecutionCockpit({
   symbol,
   side,
   notional,
+  orderType,
+  limitPrice,
   section,
   onSideChange,
   onNotionalChange,
+  onOrderTypeChange,
+  onLimitPriceChange,
+  operatorToken,
   researchStrategy,
   researchExperimentId,
   onOpenResearch,
@@ -205,6 +219,10 @@ export default function ExecutionCockpit({
   const effectiveEvents = mode === "sandbox" ? sandboxState.events : events;
   const feedSource = mode === "live" ? "live" as const : mode === "sandbox" ? "sandbox" as const : "unavailable" as const;
 
+  // Deliberately the whole fetched window, not the blotter's current filter:
+  // the summary describes the window, filters are a view onto it, and a
+  // headline that moved when someone clicked "Rejected" would be unreadable.
+  // The blotter states "showing X of N" so the two always reconcile on screen.
   const summary = useMemo(() => summarise(effectiveOrders), [effectiveOrders]);
   const symbolOrders = useMemo(
     () => effectiveOrders.filter((o) => o.symbol === symbol),
@@ -271,8 +289,13 @@ export default function ExecutionCockpit({
             symbol={symbol}
             side={side}
             notional={notional}
+            orderType={orderType}
+            limitPrice={limitPrice}
             onSideChange={onSideChange}
             onNotionalChange={onNotionalChange}
+            onOrderTypeChange={onOrderTypeChange}
+            onLimitPriceChange={onLimitPriceChange}
+            operatorToken={operatorToken}
             strategy={researchStrategy ?? null}
             experimentId={researchExperimentId ?? null}
             halted={effectiveBook?.trading_halted ?? false}
@@ -286,7 +309,13 @@ export default function ExecutionCockpit({
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="execution" tabId="activity" activeId={section}>
-        <ExecutionQuality summary={summary} symbol={symbol} symbolOrders={symbolOrders} source={feedSource} />
+        <ExecutionQuality
+          summary={summary}
+          symbol={symbol}
+          symbolOrders={symbolOrders}
+          rows={effectiveOrders}
+          source={feedSource}
+        />
         <OrderBlotter rows={effectiveOrders} focusSymbol={symbol} onOpenResearch={onOpenResearch} source={feedSource} />
         <AlertFeed events={effectiveEvents} source={feedSource} />
       </WorkspaceSubtabPanel>

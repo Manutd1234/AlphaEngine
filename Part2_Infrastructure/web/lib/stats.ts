@@ -199,6 +199,36 @@ export function deflatedSharpe(
   };
 }
 
+/**
+ * Uniform-width binning for a distribution chart.
+ *
+ * `edges.length === counts.length + 1`, with the last bin closed on the right
+ * so the maximum lands inside it. Returns null when nothing finite survives —
+ * absence must be unrepresentable as an empty chart. A degenerate range (every
+ * value identical) yields one bin: widening it artificially would draw a
+ * spread the data does not have.
+ */
+export function histogramBins(
+  values: number[],
+  binCount = 10,
+): { edges: number[]; counts: number[] } | null {
+  const finite = values.filter((v) => Number.isFinite(v));
+  if (!finite.length) return null;
+  const lo = Math.min(...finite);
+  const hi = Math.max(...finite);
+  if (hi === lo) return { edges: [lo, hi], counts: [finite.length] };
+
+  const bins = Math.max(1, Math.floor(binCount));
+  const width = (hi - lo) / bins;
+  const edges = Array.from({ length: bins + 1 }, (_, i) => lo + i * width);
+  const counts = new Array<number>(bins).fill(0);
+  for (const v of finite) {
+    const idx = Math.min(bins - 1, Math.floor((v - lo) / width));
+    counts[idx] += 1;
+  }
+  return { edges, counts };
+}
+
 export function verdictFor(
   dsr: number,
   oosSharpe: number | null,
