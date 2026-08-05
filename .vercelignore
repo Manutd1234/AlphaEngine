@@ -23,12 +23,16 @@ Part2_Infrastructure/web/.next
 Part2_Infrastructure/web/out
 Part2_Infrastructure/web/.turbo
 
-# ── not part of this deployment ──────────────────────────────────────────────
+# ── not needed by either Vercel build ────────────────────────────────────────
+# This file applies to git deployments as well as CLI uploads, and BOTH Vercel
+# projects (developer-analyst-infra and alphaengine-openbb) build from this one
+# repository with different Root Directories. Excluding OpenBB_Service here to
+# slim the web project's upload starved the OpenBB project's own git build —
+# "No FastAPI entrypoint found", because its entrypoint had been ignored out of
+# its build context. Only paths that NO project reads may be listed.
 Part1_Data_Handling
-Part2_Infrastructure/OpenBB_Service
 Part2_Infrastructure/data
 Part2_Infrastructure/tests
-Part2_Infrastructure/tools
 Part2_Infrastructure/notebooks
 Part2_Infrastructure/templates
 Part2_Infrastructure/modules
