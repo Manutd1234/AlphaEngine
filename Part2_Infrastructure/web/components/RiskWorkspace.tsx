@@ -29,6 +29,8 @@ export interface RiskWorkspaceProps {
   view: BookView;
   onOpenPortfolio: () => void;
   onOpenResearch: () => void;
+  /** Operator credential shared with the Reliability tab and the header. */
+  operatorToken?: string;
 }
 
 type RiskSection = "limits" | "model" | "scenarios" | "controls";
@@ -57,7 +59,7 @@ function BudgetRow({ label, used, detail }: { label: string; used: number; detai
   );
 }
 
-export default function RiskWorkspace({ view, onOpenPortfolio, onOpenResearch }: RiskWorkspaceProps) {
+export default function RiskWorkspace({ view, onOpenPortfolio, onOpenResearch, operatorToken }: RiskWorkspaceProps) {
   const [handoff, setHandoff] = useState<HandoffIntent | null>(null);
   const [section, setSection] = useState<RiskSection>("limits");
 
@@ -234,6 +236,7 @@ export default function RiskWorkspace({ view, onOpenPortfolio, onOpenResearch }:
             onClose={() => setHandoff(null)}
             sandbox={Boolean(book.sandbox)}
             onExecuted={() => void refresh(true)}
+            operatorToken={operatorToken}
           />
         </div>
       </WorkspaceSubtabPanel>

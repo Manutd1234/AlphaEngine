@@ -2,6 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 
 import "./globals.css";
+// Must come AFTER globals.css: tailwind.css ships unlayered utilities that win
+// specificity ties by source order (see the cascade note in that file).
+import "./tailwind.css";
 
 const TITLE = "AlphaEngine — Quant Operating System (Developer Case Study)";
 const DESCRIPTION =

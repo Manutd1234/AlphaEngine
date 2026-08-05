@@ -1,0 +1,90 @@
+/**
+ * Tailwind v4, utilities only — the hybrid-adoption bridge.
+ * =========================================================
+ *
+ * globals.css remains the design system: every token, both theme blocks, and
+ * the contrast contract enforced by tests/theme.test.ts live there, untouched.
+ * This file only teaches Tailwind utilities to read those tokens, for the
+ * components that opt in (header chips, kill switch, overview deck/pipeline/
+ * role cards). Everything else in the app keeps its global classes.
+ *
+ * Cascade design — both decisions are load-bearing:
+ *
+ *  1. NO PREFLIGHT, EVER. globals.css owns the base plane (house reset at its
+ *     top; element rules like `button { … }` define the app's look). Importing
+ *     preflight would restyle every control in the app. Granular imports only —
+ *     never a bare `@import "tailwindcss"`.
+ *  2. Utilities are imported UNLAYERED, and this file is imported AFTER
+ *     globals.css in app/layout.tsx. Unlayered author CSS beats layered CSS
+ *     regardless of specificity, so layered utilities could never override the
+ *     global `button {}` rule; unlayered ones can, and same-specificity ties
+ *     resolve by source order in our favour. The high-specificity global input
+ *     rule still wins by design — new inputs inherit the house control look.
+ *
+ * Coexistence rules for components using this bridge:
+ *  - Reuse a global class when the element is an instance of a house pattern:
+ *    .banner warn|error, .handoff-fire, .pipeline-card family, .sr-only, .num.
+ *  - Utilities style everything newly designed. Never add rules to globals.css
+ *    for bridge components.
+ *  - Breakpoints: arbitrary variants matching the house queries — max-[900px]:,
+ *    max-[720px]:, max-[520px]: — never sm/md/lg (different widths).
+ *  - Never use dark: variants. Every bridged utility reads a var that already
+ *    flips with data-theme; v4's dark: keys off prefers-color-scheme only and
+ *    would desynchronise from the ThemeToggle.
+ *  - Rare unbridged token: use the var shorthand, e.g. bg-(--diverging-mid).
+ *  - Raw hex needs a comment. Sanctioned: #b3242e destructive red (contrast
+ *    rationale beside .handoff-fire in globals.css) and the hero pipeline's
+ *    fixed dark-step status map (the hero background is theme-invariant navy).
+ */
+
+@layer theme, base, components, utilities;
+
+/* Theme defaults (spacing scale, breakpoints) go into a cascade layer so any
+   name colliding with a house token — --shadow-sm is the one real collision —
+   loses to the unlayered :root in globals.css. */
+@import "tailwindcss/theme.css" layer(theme);
+
+/* Deliberately NOT layer(utilities) — see cascade note above. */
+@import "tailwindcss/utilities.css";
+
+@theme inline {
+  /* Strip the stock palette: house tokens are the only colours in this app,
+     and text-red-500 must not be able to creep in. */
+  --color-*: initial;
+
+  /* Surfaces and lines */
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-grid: var(--grid);
+  --color-axis: var(--axis);
+
+  /* Ink */
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+
+  /* Categorical accents — fixed order, never cycled */
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+  --color-series-3: var(--series-3);
+
+  /* Status FILL steps — dots, bars, swatches only; never rendered as text */
+  --color-status-good: var(--status-good);
+  --color-status-warning: var(--status-warning);
+  --color-status-critical: var(--status-critical);
+
+  /* Status TEXT steps — the AA-asserted roles words must use */
+  --color-success-text: var(--success-text);
+  --color-warning-text: var(--warning-text);
+  --color-critical-text: var(--critical-text);
+  --color-notice-text: var(--notice-text);
+
+  /* Type and shape */
+  --font-sans: var(--sans);
+  --font-mono: var(--mono);
+  --radius-card: var(--radius);
+  --shadow-card: var(--shadow-sm);
+}

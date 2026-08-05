@@ -2,7 +2,13 @@
 
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 
+import LatencyChip from "@/components/header/LatencyChip";
+import KillSwitchControl, {
+  type KillSwitchHaltState,
+  type KillSwitchRiskControl,
+} from "@/components/header/KillSwitchControl";
 import ThemeToggle from "@/components/ThemeToggle";
+import type { LatencyStats } from "@/components/systems/types";
 import { INTERVALS } from "@/lib/types";
 
 export type WorkspaceView =
@@ -57,8 +63,17 @@ interface WorkspaceHeaderProps {
   onSymbolChange: (symbol: string) => void;
   interval: string;
   onIntervalChange: (interval: string) => void;
-  providerSummary: { configured: number; total: number; degraded: number } | null;
   contextNote?: string;
+  // Narrow derived scalars, not the hook objects: the header re-renders on
+  // every 30s health tick and 15s book tick, and "one snapshot, shared" is the
+  // health hook's stated invariant — the header must not poll for itself.
+  latency: LatencyStats | null;
+  degraded: number;
+  providersReady: number | null;
+  providersTotal: number | null;
+  healthUnreachable: boolean;
+  halt: KillSwitchHaltState | null;
+  riskControl: KillSwitchRiskControl;
 }
 
 export default function WorkspaceHeader({
@@ -68,8 +83,14 @@ export default function WorkspaceHeader({
   onSymbolChange,
   interval,
   onIntervalChange,
-  providerSummary,
   contextNote,
+  latency,
+  degraded,
+  providersReady,
+  providersTotal,
+  healthUnreachable,
+  halt,
+  riskControl,
 }: WorkspaceHeaderProps) {
   const [draftSymbol, setDraftSymbol] = useState(symbol);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -95,15 +116,19 @@ export default function WorkspaceHeader({
     tabRefs.current[nextIndex]?.focus();
   };
 
-  const healthLabel = providerSummary
-    ? providerSummary.degraded
-      ? `${providerSummary.degraded} provider${providerSummary.degraded === 1 ? "" : "s"} degraded`
-      : `${providerSummary.configured}/${providerSummary.total} providers ready`
-    : "Checking data plane";
-  const healthNeedsAttention = Boolean(
-    providerSummary
-      && (providerSummary.degraded > 0 || providerSummary.configured < providerSummary.total),
-  );
+  // "ready" on purpose (ready ⊆ configured), and "degraded" includes exhausted
+  // quota — the same definitions the rest of the app uses.
+  const healthLabel = healthUnreachable
+    ? "Health unreachable"
+    : providersTotal != null
+      ? degraded
+        ? `${degraded} provider${degraded === 1 ? "" : "s"} degraded`
+        : `${providersReady ?? 0}/${providersTotal} providers ready`
+      : "Checking data plane";
+  const healthNeedsAttention =
+    healthUnreachable
+    || degraded > 0
+    || (providersTotal != null && (providersReady ?? 0) < providersTotal);
 
   return (
     <header className="workspace-header">
@@ -150,6 +175,8 @@ export default function WorkspaceHeader({
 
         <div className="header-spacer" />
 
+        <LatencyChip latency={latency} onOpenReliability={() => onViewChange("reliability")} />
+        <KillSwitchControl halt={halt} riskControl={riskControl} />
         <button
           type="button"
           className={`system-health system-health-action ${healthNeedsAttention ? "is-warn" : ""}`}

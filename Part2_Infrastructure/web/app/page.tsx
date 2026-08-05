@@ -82,12 +82,6 @@ const LEGACY_VIEWS: Record<string, WorkspaceView> = {
   systems: "reliability",
 };
 
-interface ProviderSummary {
-  configured: number;
-  total: number;
-  degraded: number;
-}
-
 export default function Page() {
   const [req, setReq] = useState<SweepRequest>(DEFAULT_REQUEST);
   const [data, setData] = useState<SweepResponse | null>(null);
@@ -107,7 +101,6 @@ export default function Page() {
   const [developerSection, setDeveloperSection] = useState<DeveloperSection>("overview");
   const [dataWorkItems, setDataWorkItems] = useState<DataWorkItem[]>(createInitialDataWorkItems);
   const [developerWorkItems, setDeveloperWorkItems] = useState<DeveloperWorkItem[]>(createInitialDeveloperWorkItems);
-  const [providerSummary, setProviderSummary] = useState<ProviderSummary | null>(null);
   const [experiments, setExperiments] = useState<ExperimentRecord[]>([]);
   const activeRun = useRef<AbortController | null>(null);
   const runSeq = useRef(0);
@@ -145,22 +138,6 @@ export default function Page() {
       window.removeEventListener("popstate", readLocation);
       window.removeEventListener("hashchange", readLocation);
     };
-  }, []);
-
-  useEffect(() => {
-    fetch("/api/providers")
-      .then((response) => response.json())
-      .then((body) => {
-        const summary = body.summary as { configured?: number; ready?: number; total?: number; degraded?: string[] } | undefined;
-        if (summary) {
-          setProviderSummary({
-            configured: summary.ready ?? summary.configured ?? 0,
-            total: summary.total ?? 0,
-            degraded: summary.degraded?.length ?? 0,
-          });
-        }
-      })
-      .catch(() => setProviderSummary({ configured: 0, total: 0, degraded: 1 }));
   }, []);
 
   const run = useCallback(
@@ -342,8 +319,28 @@ export default function Page() {
         onSymbolChange={updateSymbol}
         interval={req.interval}
         onIntervalChange={updateInterval}
-        providerSummary={providerSummary}
         contextNote={contextNote}
+        latency={systems.health?.summary.latency ?? null}
+        degraded={systems.degraded}
+        providersReady={systems.health?.summary.ready ?? null}
+        providersTotal={systems.health?.summary.total ?? null}
+        healthUnreachable={Boolean(systems.healthError)}
+        halt={book.book
+          ? {
+              halted: book.book.trading_halted,
+              haltedSymbols: book.book.halted_symbols,
+              sandbox: Boolean(book.book.sandbox),
+            }
+          : null}
+        riskControl={{
+          guardMode: systems.guard,
+          token: systems.token,
+          onTokenChange: systems.setToken,
+          onExecuted: () => {
+            void book.refresh(true);
+            void systems.refresh(true);
+          },
+        }}
       />
 
       <main id="workspace-content" className="workspace-shell" tabIndex={-1}>
@@ -353,12 +350,14 @@ export default function Page() {
               request={req}
               result={activeResult}
               running={running}
+              researchStale={researchStale}
+              staleResult={researchDirty ? data : null}
               side={side}
               notional={notional}
-              providerSummary={providerSummary}
               book={book}
               systems={systems}
               onNavigate={navigate}
+              onRun={() => void run()}
             />
           </section>
         )}
@@ -396,6 +395,7 @@ export default function Page() {
               workspaceSymbol={req.symbol}
               onFocusSymbol={focusPortfolioSymbol}
               onOpenRisk={() => navigate("risk")}
+              operatorToken={systems.token}
             />
           </section>
         )}
@@ -439,6 +439,7 @@ export default function Page() {
               view={book}
               onOpenPortfolio={() => navigate("portfolio")}
               onOpenResearch={() => navigate("research")}
+              operatorToken={systems.token}
             />
           </section>
         )}

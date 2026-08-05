@@ -28,6 +28,7 @@
 import { useEffect, useState } from "react";
 
 import { usd } from "@/lib/format";
+import { fetchRiskControl, submitRiskAction } from "@/lib/risk-control";
 
 export type HandoffIntent =
   | { kind: "flatten_all" }
@@ -41,6 +42,12 @@ interface ExecutionHandoffProps {
   sandbox: boolean;
   /** Re-read the book after something actually changed. */
   onExecuted?: () => void;
+  /**
+   * The operator credential from the Reliability tab. Without it, a
+   * token-guarded deployment answers every action with a 401 — which this
+   * component used to trigger silently by never sending the header at all.
+   */
+  operatorToken?: string;
 }
 
 interface ActionResult {
@@ -114,7 +121,7 @@ function requestFor(intent: HandoffIntent): Composed {
   }
 }
 
-export default function ExecutionHandoff({ intent, onClose, sandbox, onExecuted }: ExecutionHandoffProps) {
+export default function ExecutionHandoff({ intent, onClose, sandbox, onExecuted, operatorToken }: ExecutionHandoffProps) {
   const [copied, setCopied] = useState(false);
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
@@ -130,12 +137,14 @@ export default function ExecutionHandoff({ intent, onClose, sandbox, onExecuted 
 
   useEffect(() => {
     let alive = true;
-    fetch("/api/gateway/risk", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((body) => {
-        if (alive) setGuard({ mode: body?.guard?.mode ?? "locked", gatewayConnected: Boolean(body?.gatewayConnected) });
-      })
-      .catch(() => alive && setGuard({ mode: "locked", gatewayConnected: false }));
+    void fetchRiskControl().then((info) => {
+      if (!alive) return;
+      setGuard(
+        info
+          ? { mode: info.guard.mode, gatewayConnected: info.gatewayConnected }
+          : { mode: "locked", gatewayConnected: false },
+      );
+    });
     return () => {
       alive = false;
     };
@@ -155,8 +164,9 @@ export default function ExecutionHandoff({ intent, onClose, sandbox, onExecuted 
 
   const locked = guard?.mode === "locked";
   const noGateway = guard !== null && !guard.gatewayConnected;
+  const tokenMissing = guard?.mode === "token" && !operatorToken?.trim();
   const armed = confirm.trim().toUpperCase() === req.confirmWord;
-  const canExecute = !sandbox && !locked && !noGateway && armed && !busy;
+  const canExecute = !sandbox && !locked && !noGateway && !tokenMissing && armed && !busy;
 
   const blockedReason = sandbox
     ? "This is the sandbox book — there is no real position to act on."
@@ -164,35 +174,35 @@ export default function ExecutionHandoff({ intent, onClose, sandbox, onExecuted 
       ? "No risk gateway is connected in this environment."
       : locked
         ? "Actions are disabled on this deployment until ALPHAENGINE_OPERATOR_TOKEN is set."
-        : !armed
-          ? `Type ${req.confirmWord} to arm.`
-          : null;
+        : tokenMissing
+          ? "Enter the operator token on the Reliability tab to arm actions."
+          : !armed
+            ? `Type ${req.confirmWord} to arm.`
+            : null;
 
   const execute = async () => {
     setBusy(true);
     setResult(null);
-    try {
-      const response = await fetch("/api/gateway/risk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: req.action,
-          confirm: req.confirmWord,
-          symbol: req.symbol,
-          reason: "manual action from portfolio review",
-        }),
-      });
-      const body = (await response.json().catch(() => ({}))) as ActionResult;
-      setResult({ ...body, ok: response.ok && body.ok !== false });
-      if (response.ok) {
-        setConfirm("");
-        onExecuted?.();
-      }
-    } catch (err) {
-      setResult({ ok: false, error: err instanceof Error ? err.message : "the request failed" });
-    } finally {
-      setBusy(false);
+    // The confirm word here is what the operator typed — `armed` above proved
+    // it matches, so passing it through keeps the server as the judge.
+    const outcome = await submitRiskAction({
+      action: req.action,
+      confirm: confirm,
+      symbol: req.symbol,
+      reason: "manual action from portfolio review",
+      operatorToken,
+    });
+    const relayed = (outcome.body ?? {}) as ActionResult;
+    setResult({
+      ...relayed,
+      ok: outcome.ok,
+      error: outcome.ok ? relayed.error : outcome.message,
+    });
+    if (outcome.ok) {
+      setConfirm("");
+      onExecuted?.();
     }
+    setBusy(false);
   };
 
   return (

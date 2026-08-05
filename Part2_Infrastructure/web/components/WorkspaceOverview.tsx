@@ -1,7 +1,20 @@
 "use client";
 
+/**
+ * The command center — a composer since the four-feature upgrade.
+ *
+ * The hero pipeline, KPI deck and role launcher live in components/overview/;
+ * this file derives their inputs from live page state and keeps the exception
+ * board. Provider readiness reads the polled health snapshot (the old one-shot
+ * /api/providers summary froze at load and duplicated a subset of it).
+ */
+
+import DecisionLoopPipeline from "@/components/overview/DecisionLoopPipeline";
+import KpiDeck from "@/components/overview/KpiDeck";
+import RoleCards, { type RoleContext } from "@/components/overview/RoleCards";
 import { STRATEGY_LABELS, SweepRequest, SweepResponse } from "@/lib/types";
-import { fmt, signedPct, usd } from "@/lib/format";
+import { fmt } from "@/lib/format";
+import { deriveDecisionLoop } from "@/lib/overview-state";
 import type { Side } from "@/lib/venues";
 import type { WorkspaceView } from "@/components/WorkspaceHeader";
 import type { BookView } from "@/lib/use-book";
@@ -11,27 +24,61 @@ interface WorkspaceOverviewProps {
   request: SweepRequest;
   result: SweepResponse | null;
   running: boolean;
+  researchStale: boolean;
+  /** The previous run while the desk context is dirty — shown labelled. */
+  staleResult: SweepResponse | null;
   side: Side;
   notional: number;
-  providerSummary: { configured: number; total: number; degraded: number } | null;
   book: BookView;
   systems: SystemHealthView;
   onNavigate: (view: WorkspaceView) => void;
+  onRun: () => void;
 }
 
 export default function WorkspaceOverview({
   request,
   result,
   running,
+  researchStale,
+  staleResult,
   side,
   notional,
-  providerSummary,
   book,
   systems,
   onNavigate,
+  onRun,
 }: WorkspaceOverviewProps) {
-  const candidate = result
-    ? `${STRATEGY_LABELS[result.request.strategy]} · ${result.best.fast}/${result.best.slow}`
+  const summary = systems.health?.summary;
+  const capabilitiesDown = systems.health
+    ? Object.values(systems.health.capabilities).filter((c) => c.available.length === 0).length
+    : 0;
+
+  const stages = deriveDecisionLoop({
+    healthPresent: systems.health !== null,
+    healthError: Boolean(systems.healthError),
+    degradedCount: systems.degraded,
+    capabilitiesDown,
+    quarantineSize: systems.health?.quarantine?.size ?? 0,
+    providersReady: summary?.ready ?? 0,
+    providersTotal: summary?.total ?? 0,
+    running,
+    researchStale,
+    verdictLevel: result?.verdict.level ?? null,
+    bookPresent: book.book !== null,
+    bookSandbox: Boolean(book.book?.sandbox),
+    bookStale: book.isStale,
+    riskUtilisation: book.book?.risk_budget.binding_constraint?.[1] ?? null,
+    bindingConstraint: book.book?.risk_budget.binding_constraint?.[0] ?? null,
+    varZone: book.varValidation?.zone ?? null,
+    tradingHalted: Boolean(book.book?.trading_halted),
+    haltedSymbolCount: book.book?.halted_symbols.length ?? 0,
+    // Real gateway blotter only; the sandbox blotter is generated data.
+    fillRate: null,
+  });
+
+  const shown = result ?? staleResult;
+  const candidate = shown
+    ? `${STRATEGY_LABELS[shown.request.strategy]} · ${shown.best.fast}/${shown.best.slow}`
     : STRATEGY_LABELS[request.strategy];
   const validation = result
     ? result.walkForwardOosSharpe == null
@@ -40,17 +87,17 @@ export default function WorkspaceOverview({
     : running
       ? "Running"
       : "Pending";
-  const providers = providerSummary
-    ? `${providerSummary.configured}/${providerSummary.total}`
-    : "Checking";
-  const researchStatus = result
-    ? `${result.verdict.level.toUpperCase()} · ${validation} OOS Sharpe`
-    : running
-      ? "Baseline running"
-      : "Awaiting validation";
-  const systemStatus = providerSummary?.degraded
-    ? `${providerSummary.degraded} degraded`
-    : providerSummary
+  const providers = summary ? `${summary.ready}/${summary.total}` : "Checking";
+  const researchStatus = researchStale
+    ? "Context changed · rerun required"
+    : result
+      ? `${result.verdict.level.toUpperCase()} · ${validation} OOS Sharpe`
+      : running
+        ? "Baseline running"
+        : "Awaiting validation";
+  const systemStatus = systems.degraded
+    ? `${systems.degraded} degraded`
+    : summary
       ? `${providers} ready`
       : "Checking routes";
 
@@ -95,12 +142,11 @@ export default function WorkspaceOverview({
     });
   }
 
-  if (providerSummary?.degraded || systems.degraded) {
-    const count = Math.max(providerSummary?.degraded ?? 0, systems.degraded);
+  if (systems.degraded) {
     attentionItems.push({
       severity: "warning",
       owner: "Data",
-      headline: `${count} provider${count === 1 ? " needs" : "s need"} attention`,
+      headline: `${systems.degraded} provider${systems.degraded === 1 ? " needs" : "s need"} attention`,
       detail: "Inspect failover, quota and quarantined payloads before trusting a fresh number",
       view: "data",
     });
@@ -118,7 +164,11 @@ export default function WorkspaceOverview({
     attentionItems.push({
       severity: running ? "info" : "warning",
       owner: "Research",
-      headline: running ? "Baseline research is running" : "Candidate needs validation",
+      headline: running
+        ? "Baseline research is running"
+        : researchStale
+          ? "Desk context changed"
+          : "Candidate needs validation",
       detail: `${request.symbol} has no current out-of-sample verdict yet`,
       view: "research",
     });
@@ -150,35 +200,20 @@ export default function WorkspaceOverview({
           <h1>From market signal to governed decision.</h1>
           <p>{request.symbol} research evidence, portfolio risk, execution intent and data health share one context — and reconcile to the same audit trail.</p>
         </div>
-        <div className="overview-hero__signal" aria-label="AlphaEngine decision loop">
-          <span>Decision loop</span>
-          <strong>Research <i>→</i> Risk <i>→</i> Execution</strong>
-          <small>Paper-only · observable · reproducible</small>
-        </div>
+        <DecisionLoopPipeline stages={stages} />
       </section>
 
-      <section className="decision-metrics" aria-label="Current decision context">
-        <div>
-          <span>Research candidate</span>
-          <strong>{candidate}</strong>
-          <small>{result ? `${result.verdict.level.toUpperCase()} validation verdict` : "First sweep in progress"}</small>
-        </div>
-        <div>
-          <span>Out-of-sample Sharpe</span>
-          <strong className="num">{validation}</strong>
-          <small>{result ? `${signedPct(result.best.totalReturn)} in-sample return` : "Awaiting result"}</small>
-        </div>
-        <div>
-          <span>Order intent</span>
-          <strong className="num">{side} {usd(notional, 0)}</strong>
-          <small>{request.slippageBps} bps modeled slippage</small>
-        </div>
-        <div>
-          <span>Data plane</span>
-          <strong className="num">{providers}</strong>
-          <small>{systemStatus}</small>
-        </div>
-      </section>
+      <KpiDeck
+        request={request}
+        result={result}
+        running={running}
+        researchStale={researchStale}
+        staleResult={staleResult}
+        side={side}
+        notional={notional}
+        book={book}
+        systems={systems}
+      />
 
       <section className="attention-board" aria-labelledby="attention-title">
         <div className="section-heading compact">
@@ -223,38 +258,19 @@ export default function WorkspaceOverview({
 
         {/* Ordered the way work moves — an idea is researched, executed, held,
             and constrained — then the three roles that keep that possible. */}
-        <div className="role-grid">
-          {ROLE_CARDS.map((card) => (
-            <button
-              type="button"
-              key={card.view}
-              className="pipeline-card pipeline-card--action role-card"
-              onClick={() => onNavigate(card.view)}
-            >
-              <span className="role-card__header">
-                <span className="role-monogram" aria-hidden>{card.code}</span>
-                <span className="pipeline-card__step">{card.role}</span>
-              </span>
-              <strong className="pipeline-card__value">{card.headline(context)}</strong>
-              <small className="pipeline-card__status">{card.status(context)}</small>
-              <span className="pipeline-card__link">{card.action} <span aria-hidden>→</span></span>
-            </button>
-          ))}
-        </div>
+        <RoleCards
+          context={context}
+          onNavigate={onNavigate}
+          onRun={onRun}
+          running={running}
+          researchStale={researchStale}
+          onRefreshBook={() => void book.refresh(true)}
+          bookRefreshing={book.refreshing}
+          onRefreshHealth={() => void systems.refresh(false)}
+        />
       </section>
     </div>
   );
-}
-
-interface RoleContext {
-  symbol: string;
-  candidate: string;
-  researchStatus: string;
-  side: Side;
-  notional: number;
-  slippageBps: number;
-  providers: string;
-  systemStatus: string;
 }
 
 interface AttentionItem {
@@ -264,74 +280,3 @@ interface AttentionItem {
   detail: string;
   view: WorkspaceView;
 }
-
-/**
- * The seven roles the platform is built for. Each card states what that role
- * would open the tab to find out, filled in from live context where there is
- * any — a launcher that only listed names would be a table of contents.
- */
-const ROLE_CARDS: {
-  view: WorkspaceView;
-  code: string;
-  role: string;
-  action: string;
-  headline: (context: RoleContext) => string;
-  status: (context: RoleContext) => string;
-}[] = [
-  {
-    view: "research",
-    code: "QR",
-    role: "Quant researcher",
-    action: "Inspect evidence",
-    headline: (c) => c.candidate,
-    status: (c) => c.researchStatus,
-  },
-  {
-    view: "live",
-    code: "EX",
-    role: "Quant trader",
-    action: "Work the order",
-    headline: (c) => `${c.side} ${c.symbol} · ${usd(c.notional, 0)}`,
-    status: (c) => `${c.slippageBps} bps modeled cost budget`,
-  },
-  {
-    view: "portfolio",
-    code: "PM",
-    role: "Portfolio manager",
-    action: "Open the book",
-    headline: () => "Positions & allocation",
-    status: () => "Exposure, concentration and sleeve attribution",
-  },
-  {
-    view: "risk",
-    code: "RM",
-    role: "Risk manager",
-    action: "Check headroom",
-    headline: () => "Limits & tail risk",
-    status: () => "VaR scored against its own record, scenarios, kill switch",
-  },
-  {
-    view: "data",
-    code: "DE",
-    role: "Data engineer",
-    action: "Verify lineage",
-    headline: (c) => c.providers,
-    status: () => "Routing, source agreement, quarantine and quota",
-  },
-  {
-    view: "reliability",
-    code: "SRE",
-    role: "DevOps / SRE",
-    action: "Check health",
-    headline: (c) => c.systemStatus,
-    status: () => "Breakers, latency percentiles, trace and outage drills",
-  },
-  {
-    view: "developer",
-    code: "API",
-    role: "Quant developer",
-    action: "Read the contract",
-    headline: () => "API & verification",
-    status: () => "Committed schema, parity fixtures and the CI gates",
-  },
-];

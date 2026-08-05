@@ -29,6 +29,8 @@ export interface PortfolioWorkspaceProps {
   workspaceSymbol: string;
   onFocusSymbol: (symbol: string, destination: PortfolioFocusDestination) => void;
   onOpenRisk: () => void;
+  /** Operator credential shared with the Reliability tab and the header. */
+  operatorToken?: string;
 }
 
 export default function PortfolioWorkspace({
@@ -36,6 +38,7 @@ export default function PortfolioWorkspace({
   workspaceSymbol,
   onFocusSymbol,
   onOpenRisk,
+  operatorToken,
 }: PortfolioWorkspaceProps) {
   const [handoff, setHandoff] = useState<HandoffIntent | null>(null);
   const selectedSymbol = workspaceSymbol.trim().toUpperCase();
@@ -327,6 +330,7 @@ export default function PortfolioWorkspace({
         onClose={() => setHandoff(null)}
         sandbox={Boolean(book.sandbox)}
         onExecuted={() => void refresh(true)}
+        operatorToken={operatorToken}
       />
     </>
   );
