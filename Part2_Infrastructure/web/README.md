@@ -66,15 +66,38 @@ new dependency tree.
 
 ## What it does
 
+**One tab per desk role** — the workspace has eight tabs: an overview that
+launches into the other seven, and one each for the roles the platform is built
+for.
+
+| Tab | Role | What it answers |
+| --- | --- | --- |
+| Research | Quant researcher | Is this candidate real, or did the search find noise? |
+| Execution | Quant trader | What is the book doing right now, and what would this order cost? |
+| Portfolio | Portfolio manager | What do we hold, and is the capital where it was meant to be? |
+| Risk | Risk manager | How close are we to a limit, and what does the tail look like? |
+| Data | Data engineer | Where did this number come from, and can it be trusted? |
+| Reliability | DevOps / SRE | Is the platform healthy, and which layer broke? |
+| Developer | Quant developer | What is the contract, and what proves it still holds? |
+
+Panels have exactly one home. Where a second role needs a figure — a PM checking
+headroom before adding to a sleeve, an SRE glancing at quarantine during an
+incident — that tab carries a compact summary tile that links to the full panel
+rather than a copy of it, so two tabs can never disagree about the same number.
+
+Portfolio and Risk read one gateway snapshot through a shared hook; Data,
+Reliability and Developer share one health poll the same way. Splitting the tabs
+without sharing the fetch would have given each of them its own idea of the
+book.
+
 **Connected desk context** — instrument and horizon live in the persistent
-workspace shell and carry across Portfolio, Research, Execution and the Systems
-console. Research winners retain their modeled slippage budget when handed to
-the live TCA probe; quote lookups and portfolio positions can focus the other
-workspaces without re-entry.
+workspace shell and carry across every tab. Research winners retain their
+modeled slippage budget when handed to the live TCA probe; quote lookups and
+portfolio positions can focus the other workspaces without re-entry.
 
 <a id="systems-console"></a>
-**Systems console** — the Systems tab is an observability surface, not a second
-quote lookup. It answers the questions a developer actually arrives with:
+**Reliability console** — an observability surface, not a second quote lookup.
+It answers the questions an SRE actually arrives with:
 
 - **Upstream health matrix** — per provider: circuit state with its failure
   count and cooldown, p50/p95/p99 latency *with the sample count that produced

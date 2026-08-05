@@ -53,6 +53,13 @@ export interface StrategyAttribution {
   notional: number;
   fees: number;
   avg_slippage_bps: number | null;
+  /**
+   * Replayed from audited fills at average cost, so it exists only for sleeves
+   * that actually closed something this session. Optional because a gateway
+   * older than the replay query omits the key entirely — absent and zero are
+   * different claims and must not render the same.
+   */
+  realized_pnl?: number | null;
 }
 
 export interface PortfolioPayload {

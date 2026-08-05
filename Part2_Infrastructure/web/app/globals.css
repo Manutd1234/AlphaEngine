@@ -1656,6 +1656,70 @@ button.primary-action:hover:not(:disabled) {
   font-weight: 750;
 }
 
+/* ---------- role launcher ---------- */
+
+/* Seven roles, so a fixed column count would always strand one card on a row of
+   its own. Auto-fit keeps the last row balanced at every width. */
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+}
+
+.role-card .pipeline-card__step {
+  color: var(--series-1);
+  letter-spacing: 0.02em;
+}
+
+/* ---------- cross-role tiles ---------- */
+
+/*
+ * Every role tab is self-sufficient: the panel has one home, and the roles that
+ * only need the headline get this instead of a copy. It is visibly a summary —
+ * dashed edge, muted heading — so nobody mistakes it for the real panel.
+ */
+.cross-link-tile {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--series-1) 3%, var(--surface));
+}
+
+.cross-link-tile .portfolio-card-heading h2 {
+  font-size: 15px;
+}
+
+.cross-link-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px 14px;
+  margin-top: 10px;
+}
+
+.cross-link-metrics > div {
+  display: grid;
+  gap: 2px;
+  align-content: start;
+}
+
+.cross-link-metrics span {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.cross-link-metrics strong {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.cross-link-metrics strong.warn {
+  color: var(--warning-text);
+}
+
+.cross-link-metrics small {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
 /* ---------- responsive workspace ---------- */
 
 @media (max-width: 1120px) {
@@ -1681,12 +1745,19 @@ button.primary-action:hover:not(:disabled) {
     width: 100%;
     min-height: 38px;
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    /* Eight role tabs wrap to two rows here rather than scrolling sideways —
+       a tab you have to discover by dragging is a tab nobody opens. */
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
   .workspace-tabs button {
     width: 100%;
     padding: 7px 6px;
     text-align: center;
+  }
+  /* The role sublabel is the first thing to go when the tab is this narrow;
+     the title attribute still carries it. */
+  .workspace-tabs__role {
+    display: none;
   }
   .system-health-action {
     margin-left: auto;

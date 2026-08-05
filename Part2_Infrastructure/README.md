@@ -147,7 +147,7 @@ gate used.
 | Provider failover I can see | Ranked registry across 7 providers with circuit breakers, a quota ledger, and a failover graph showing which node a request would land on *and why each other was skipped* |
 | Validation on content, not just transport | Data contracts on every normalised payload: prices positive and inside their range, bar timestamps unique and ordered, highs above lows, freshness within budget |
 | The difference between bad data and a renamed field | Three severities — `fatal` (rejected, failed over), `warn` (served, labelled), `drift` (our mapping looks stale, not the market) |
-| Somewhere to look at a suspect payload | Quarantine buffer in the Systems tab with the violations and a redacted excerpt. A rejected payload is never cached, so failover gets a shot at a cleaner source |
+| Somewhere to look at a suspect payload | Quarantine buffer on the Data tab with the violations and a redacted excerpt. A rejected payload is never cached, so failover gets a shot at a cleaner source |
 | Lineage from vendor bytes to rendered number | Pipeline inspector: cache key, TTL, every skipped provider with its reason, and the raw upstream JSON |
 | Cross-source agreement | Consensus quotes across providers, flagging any leg more than 50 bps from the median |
 | Query the record without an ETL step | DuckDB, append-only: `SELECT quantile(latency_ms, 0.99) FROM orders` against the same file the gateway writes |
@@ -245,10 +245,12 @@ See [`web/.env.example`](web/.env.example).
 Systems endpoints (`/api/system/health` for breakers, latency percentiles and
 the live failover graph, `/api/system/events` for the structured trace,
 `/api/system/inspect` for one lookup taken apart down to the vendor's raw JSON,
-and `POST /api/system/actions` for operator controls) back the **Systems
-console** — the developer-facing tab. Its write path is gated by
-`ALPHAENGINE_OPERATOR_TOKEN`: open outside production, refused in production
-when unset, because a cache purge and a health probe both spend real quota.
+and `POST /api/system/actions` for operator controls) back three of the eight
+tabs — **Data** for the data engineer, **Reliability** for the SRE and
+**Developer** for the contract surface — from one shared poll. The write path is
+gated by `ALPHAENGINE_OPERATOR_TOKEN`: open outside production, refused in
+production when unset, because a cache purge and a health probe both spend real
+quota.
 
 Full documentation: [`web/README.md`](web/README.md)
 
@@ -997,7 +999,7 @@ The risk maths is deliberately doubled the same way.
 [`modules/quant_risk.py`](modules/quant_risk.py) and
 [`web/lib/portfolio-risk.ts`](web/lib/portfolio-risk.ts) are two implementations
 of one set of conventions — so that a VaR quoted in Telegram and the same VaR on
-the portfolio tab cannot disagree, and neither depends on the other being
+the risk tab cannot disagree, and neither depends on the other being
 reachable. The shared constants (`Z95`, the 2.0627 expected-shortfall
 multiplier, `ddof=1`, mid-rank percentiles) are pinned by tests on both sides.
 

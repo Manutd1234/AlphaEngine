@@ -48,6 +48,17 @@ export default function WorkspaceOverview({
       ? `${providers} ready`
       : "Checking routes";
 
+  const context: RoleContext = {
+    symbol: request.symbol,
+    candidate,
+    researchStatus,
+    side,
+    notional,
+    slippageBps: request.slippageBps,
+    providers,
+    systemStatus,
+  };
+
   return (
     <div className="overview-page">
       <section className="overview-hero">
@@ -80,40 +91,105 @@ export default function WorkspaceOverview({
         <div className="section-heading">
           <div>
             <span className="page-kicker">Workspaces</span>
-            <h2>Connected workflow</h2>
+            <h2>One tab per desk role</h2>
           </div>
+          <span className="section-note">
+            Each role owns its surface; every action still lands in the same audit log.
+          </span>
         </div>
 
-        <div className="pipeline-grid">
-          <button type="button" className="pipeline-card pipeline-card--action" onClick={() => onNavigate("portfolio")}>
-            <span className="pipeline-card__step"><span>01</span> Portfolio</span>
-            <strong className="pipeline-card__value">Book, exposure &amp; risk</strong>
-            <small className="pipeline-card__status">Positions, concentration and risk headroom</small>
-            <span className="pipeline-card__link">Open portfolio <span aria-hidden>→</span></span>
-          </button>
-
-          <button type="button" className="pipeline-card pipeline-card--action" onClick={() => onNavigate("research")}>
-            <span className="pipeline-card__step"><span>02</span> Research</span>
-            <strong className="pipeline-card__value">{candidate}</strong>
-            <small className="pipeline-card__status">{researchStatus}</small>
-            <span className="pipeline-card__link">Inspect evidence <span aria-hidden>→</span></span>
-          </button>
-
-          <button type="button" className="pipeline-card pipeline-card--action" onClick={() => onNavigate("live")}>
-            <span className="pipeline-card__step"><span>03</span> Execution</span>
-            <strong className="pipeline-card__value num">{side} {request.symbol} · {usd(notional, 0)}</strong>
-            <small className="pipeline-card__status">{request.slippageBps} bps modeled cost budget</small>
-            <span className="pipeline-card__link">Price order intent <span aria-hidden>→</span></span>
-          </button>
-
-          <button type="button" className="pipeline-card pipeline-card--action" onClick={() => onNavigate("data")}>
-            <span className="pipeline-card__step"><span>04</span> Systems</span>
-            <strong className="pipeline-card__value num">{providers}</strong>
-            <small className="pipeline-card__status">{systemStatus}</small>
-            <span className="pipeline-card__link">Verify lineage <span aria-hidden>→</span></span>
-          </button>
+        {/* Ordered the way work moves — an idea is researched, executed, held,
+            and constrained — then the three roles that keep that possible. */}
+        <div className="role-grid">
+          {ROLE_CARDS.map((card) => (
+            <button
+              type="button"
+              key={card.view}
+              className="pipeline-card pipeline-card--action role-card"
+              onClick={() => onNavigate(card.view)}
+            >
+              <span className="pipeline-card__step">{card.role}</span>
+              <strong className="pipeline-card__value">{card.headline(context)}</strong>
+              <small className="pipeline-card__status">{card.status(context)}</small>
+              <span className="pipeline-card__link">{card.action} <span aria-hidden>→</span></span>
+            </button>
+          ))}
         </div>
       </section>
     </div>
   );
 }
+
+interface RoleContext {
+  symbol: string;
+  candidate: string;
+  researchStatus: string;
+  side: Side;
+  notional: number;
+  slippageBps: number;
+  providers: string;
+  systemStatus: string;
+}
+
+/**
+ * The seven roles the platform is built for. Each card states what that role
+ * would open the tab to find out, filled in from live context where there is
+ * any — a launcher that only listed names would be a table of contents.
+ */
+const ROLE_CARDS: {
+  view: WorkspaceView;
+  role: string;
+  action: string;
+  headline: (context: RoleContext) => string;
+  status: (context: RoleContext) => string;
+}[] = [
+  {
+    view: "research",
+    role: "Quant researcher",
+    action: "Inspect evidence",
+    headline: (c) => c.candidate,
+    status: (c) => c.researchStatus,
+  },
+  {
+    view: "live",
+    role: "Quant trader",
+    action: "Work the order",
+    headline: (c) => `${c.side} ${c.symbol} · ${usd(c.notional, 0)}`,
+    status: (c) => `${c.slippageBps} bps modeled cost budget`,
+  },
+  {
+    view: "portfolio",
+    role: "Portfolio manager",
+    action: "Open the book",
+    headline: () => "Positions & allocation",
+    status: () => "Exposure, concentration and sleeve attribution",
+  },
+  {
+    view: "risk",
+    role: "Risk manager",
+    action: "Check headroom",
+    headline: () => "Limits & tail risk",
+    status: () => "VaR scored against its own record, scenarios, kill switch",
+  },
+  {
+    view: "data",
+    role: "Data engineer",
+    action: "Verify lineage",
+    headline: (c) => c.providers,
+    status: () => "Routing, source agreement, quarantine and quota",
+  },
+  {
+    view: "reliability",
+    role: "DevOps / SRE",
+    action: "Check health",
+    headline: (c) => c.systemStatus,
+    status: () => "Breakers, latency percentiles, trace and outage drills",
+  },
+  {
+    view: "developer",
+    role: "Quant developer",
+    action: "Read the contract",
+    headline: () => "API & verification",
+    status: () => "Committed schema, parity fixtures and the CI gates",
+  },
+];

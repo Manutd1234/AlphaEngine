@@ -3,12 +3,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import Controls from "@/components/Controls";
+import DataConsole from "@/components/DataConsole";
 import DeveloperConsole from "@/components/DeveloperConsole";
 import EquityChart from "@/components/EquityChart";
 import ExecutionCockpit from "@/components/execution/ExecutionCockpit";
 import LiveMarket from "@/components/LiveMarket";
 import PortfolioWorkspace, { type PortfolioFocusDestination } from "@/components/PortfolioWorkspace";
 import PriceChart from "@/components/PriceChart";
+import ReliabilityConsole from "@/components/ReliabilityConsole";
+import RiskWorkspace from "@/components/RiskWorkspace";
 import ExperimentHistory from "@/components/research/ExperimentHistory";
 import FactorPanel from "@/components/research/FactorPanel";
 import PromotionPanel from "@/components/research/PromotionPanel";
@@ -19,10 +22,12 @@ import WalkForwardTimeline from "@/components/research/WalkForwardTimeline";
 import StatTile from "@/components/StatTile";
 import { ResultsTable, WalkForwardTable } from "@/components/Tables";
 import Verdict from "@/components/Verdict";
-import WorkspaceHeader, { type WorkspaceView } from "@/components/WorkspaceHeader";
+import WorkspaceHeader, { NAV_ITEMS, type WorkspaceView } from "@/components/WorkspaceHeader";
 import WorkspaceOverview from "@/components/WorkspaceOverview";
 import { fmt, pct, signedPct, usd } from "@/lib/format";
 import { REFERENCE_EQUITY } from "@/lib/portfolio";
+import { useBook } from "@/lib/use-book";
+import { useSystemHealth } from "@/lib/use-system-health";
 import {
   DEFAULT_REQUEST,
   ParamResult,
@@ -40,7 +45,16 @@ import {
 } from "@/lib/experiments";
 import type { Side } from "@/lib/venues";
 
-const VIEWS: WorkspaceView[] = ["overview", "portfolio", "research", "live", "data"];
+const VIEWS: WorkspaceView[] = NAV_ITEMS.map((item) => item.id);
+
+/**
+ * The console used to be one "Systems" tab. Anyone holding a link to it lands on
+ * reliability, which is the half that answers "is it up" — the question someone
+ * following a saved systems link is most likely asking.
+ */
+const LEGACY_VIEWS: Record<string, WorkspaceView> = {
+  systems: "reliability",
+};
 
 interface ProviderSummary {
   configured: number;
@@ -63,6 +77,12 @@ export default function Page() {
   const activeRun = useRef<AbortController | null>(null);
   const runSeq = useRef(0);
 
+  // One book and one health snapshot, shared by the tabs that read them. Both
+  // hooks own their polling, so a tab is a rendering decision rather than a
+  // second source of truth.
+  const book = useBook();
+  const systems = useSystemHealth(req.symbol);
+
   const navigate = useCallback((next: WorkspaceView, replace = false) => {
     setView(next);
     if (typeof window !== "undefined") {
@@ -76,6 +96,7 @@ export default function Page() {
     const readLocation = () => {
       const hash = window.location.hash.slice(1) as WorkspaceView;
       if (VIEWS.includes(hash)) setView(hash);
+      else if (LEGACY_VIEWS[hash]) setView(LEGACY_VIEWS[hash]);
     };
     readLocation();
     window.addEventListener("popstate", readLocation);
@@ -277,12 +298,40 @@ export default function Page() {
           <section id="panel-portfolio" role="tabpanel" aria-labelledby="tab-portfolio" className="view-panel">
             <div className="page-heading">
               <div>
-                <span className="page-kicker">Portfolio managers · Risk managers</span>
-                <h1>Portfolio &amp; risk</h1>
-                <p>Book-level exposure, concentration, P&amp;L and risk headroom from the authoritative gateway.</p>
+                <span className="page-kicker">Portfolio manager</span>
+                <h1>Portfolio</h1>
+                <p>
+                  What the book holds, how the capital is spread across it, and which sleeve earned
+                  the P&amp;L — from the authoritative gateway.
+                </p>
               </div>
             </div>
-            <PortfolioWorkspace workspaceSymbol={req.symbol} onFocusSymbol={focusPortfolioSymbol} />
+            <PortfolioWorkspace
+              view={book}
+              workspaceSymbol={req.symbol}
+              onFocusSymbol={focusPortfolioSymbol}
+              onOpenRisk={() => navigate("risk")}
+            />
+          </section>
+        )}
+
+        {view === "risk" && (
+          <section id="panel-risk" role="tabpanel" aria-labelledby="tab-risk" className="view-panel">
+            <div className="page-heading">
+              <div>
+                <span className="page-kicker">Risk manager</span>
+                <h1>Risk</h1>
+                <p>
+                  Limit headroom, loss estimates scored against their own record, scenario damage and
+                  the controls that stop trading.
+                </p>
+              </div>
+            </div>
+            <RiskWorkspace
+              view={book}
+              onOpenPortfolio={() => navigate("portfolio")}
+              onOpenResearch={() => navigate("research")}
+            />
           </section>
         )}
 
@@ -489,19 +538,61 @@ export default function Page() {
           <section id="panel-data" role="tabpanel" aria-labelledby="tab-data" className="view-panel">
             <div className="page-heading">
               <div>
-                <span className="page-kicker">Developers · Data engineers · SRE</span>
-                <h1>Systems console</h1>
+                <span className="page-kicker">Data engineer</span>
+                <h1>Data quality</h1>
                 <p>
-                  Pipeline health, circuit breakers, failover routing, quota budgets, live trace and
-                  operator controls.
+                  Where a request routes, whether independent sources agree, what failed its contract
+                  and what the budget for asking looks like.
+                </p>
+              </div>
+            </div>
+            <DataConsole
+              view={systems}
+              workspaceSymbol={req.symbol}
+              onWorkspaceSymbolChange={updateSymbol}
+              onOpenReliability={() => navigate("reliability")}
+            />
+          </section>
+        )}
+
+        {view === "reliability" && (
+          <section id="panel-reliability" role="tabpanel" aria-labelledby="tab-reliability" className="view-panel">
+            <div className="page-heading">
+              <div>
+                <span className="page-kicker">DevOps / SRE</span>
+                <h1>Reliability</h1>
+                <p>
+                  Service health, circuit breakers, latency percentiles, the live event trace and the
+                  operator drills that rehearse an outage before a real one.
+                </p>
+              </div>
+            </div>
+            <ReliabilityConsole
+              view={systems}
+              workspaceSymbol={req.symbol}
+              onOpenData={() => navigate("data")}
+            />
+          </section>
+        )}
+
+        {view === "developer" && (
+          <section id="panel-developer" role="tabpanel" aria-labelledby="tab-developer" className="view-panel">
+            <div className="page-heading">
+              <div>
+                <span className="page-kicker">Quant developer</span>
+                <h1>Developer</h1>
+                <p>
+                  The API surface, the committed schema behind it, and the gates that fail the build
+                  when either drifts.
                 </p>
               </div>
             </div>
             <DeveloperConsole
+              view={systems}
               workspaceSymbol={req.symbol}
-              onWorkspaceSymbolChange={updateSymbol}
               onOpenResearch={() => navigate("research")}
               onOpenLive={() => navigate("live")}
+              onOpenReliability={() => navigate("reliability")}
             />
           </section>
         )}
