@@ -68,6 +68,23 @@ const CADENCES: { label: string; ms: number; note: string }[] = [
 
 const PURGE_SCOPES = ["all", "quote", "bars", "news", "fundamentals"] as const;
 
+/** Shared so actions launched from the Services matrix report outside Controls. */
+export function OperatorActionResult({ result }: { result: ActionResponse }) {
+  return (
+    <div
+      className={`banner console-action-result ${result.ok ? "context-change" : "error"}`}
+      role={result.ok ? "status" : "alert"}
+    >
+      <span aria-hidden>{result.ok ? "✓" : "✕"}</span>
+      <div>
+        <strong>{result.summary ?? result.error}</strong>
+        {result.caveat && <small className="console-wrap"> {result.caveat}</small>}
+        {result.hint && <small className="console-wrap"> {result.hint}</small>}
+      </div>
+    </div>
+  );
+}
+
 export default function OperatorPanel({
   guard,
   tokenEnv,
@@ -87,8 +104,12 @@ export default function OperatorPanel({
   const [quotaTarget, setQuotaTarget] = useState<string>("");
 
   const locked = guard === "locked";
-  const disabled = locked || busyAction !== null;
+  const missingToken = guard === "token" && token.trim() === "";
+  const disabled = locked || missingToken || busyAction !== null;
   const metered = (providers ?? []).filter((p) => p.quota !== null);
+  const validQuotaTarget = metered.some((provider) => provider.id === quotaTarget)
+    ? quotaTarget
+    : "";
 
   return (
     <div className="card console-card console-actions">
@@ -97,7 +118,7 @@ export default function OperatorPanel({
           <span className="page-kicker">Control</span>
           <h2>Operator actions</h2>
         </div>
-        <span className="section-note">Per-instance · everything here is reversible.</span>
+        <span className="section-note">Per-instance · cost and blast radius shown before action.</span>
       </div>
 
       {locked && (
@@ -135,6 +156,16 @@ export default function OperatorPanel({
         </p>
       )}
 
+      {lastResult && <OperatorActionResult result={lastResult} />}
+
+      <div className="operator-group-heading">
+        <div>
+          <span className="page-kicker">Server mutations</span>
+          <strong>Gateway state &amp; routing</strong>
+        </div>
+        <small>Authenticated in production · affects this function instance</small>
+      </div>
+
       {/* ---- cache ------------------------------------------------------- */}
       <div className="console-action">
         <div className="console-action__head">
@@ -149,12 +180,15 @@ export default function OperatorPanel({
               {PURGE_SCOPES.map((scope) => (
                 <option key={scope} value={scope}>{scope}</option>
               ))}
-              <option value={`symbol:${symbol}`}>symbol: {symbol}</option>
+              <option value="symbol">symbol: {symbol}</option>
             </select>
             <button
               type="button"
-              onClick={() => onAction("purge_cache", { scope: purgeScope })}
+              onClick={() => onAction("purge_cache", {
+                scope: purgeScope === "symbol" ? `symbol:${symbol}` : purgeScope,
+              })}
               disabled={disabled}
+              className="is-disruptive"
             >
               {busyAction === "purge_cache" ? "Purging…" : "Purge"}
             </button>
@@ -175,6 +209,7 @@ export default function OperatorPanel({
               type="button"
               onClick={() => onAction("reset_breaker", { provider: "all" })}
               disabled={disabled}
+              className="is-recovery"
             >
               Close all circuits
             </button>
@@ -182,6 +217,7 @@ export default function OperatorPanel({
               type="button"
               onClick={() => onAction("clear_outage", { provider: "all" })}
               disabled={disabled}
+              className="is-recovery"
             >
               Clear simulated outages
             </button>
@@ -218,7 +254,7 @@ export default function OperatorPanel({
             <label className="sr-only" htmlFor="console-quota-target">Provider</label>
             <select
               id="console-quota-target"
-              value={quotaTarget}
+              value={validQuotaTarget}
               onChange={(event) => setQuotaTarget(event.target.value)}
             >
               <option value="">choose a provider…</option>
@@ -230,8 +266,9 @@ export default function OperatorPanel({
             </select>
             <button
               type="button"
-              onClick={() => onAction("reset_quota", { provider: quotaTarget })}
-              disabled={disabled || !quotaTarget}
+              onClick={() => onAction("reset_quota", { provider: validQuotaTarget })}
+              disabled={disabled || !validQuotaTarget}
+              className="is-disruptive"
             >
               Reset counter
             </button>
@@ -249,7 +286,12 @@ export default function OperatorPanel({
         <div className="console-action__head">
           <strong>Clear telemetry buffers</strong>
           <div className="console-action__controls">
-            <button type="button" onClick={() => onAction("clear_telemetry")} disabled={disabled}>
+            <button
+              type="button"
+              onClick={() => onAction("clear_telemetry")}
+              disabled={disabled}
+              className="is-disruptive"
+            >
               Clear
             </button>
           </div>
@@ -258,6 +300,14 @@ export default function OperatorPanel({
           Empties the server event ring, latency samples and cache counters. Circuit state and
           simulated outages survive — those are behaviour, not observation.
         </small>
+      </div>
+
+      <div className="operator-group-heading is-session">
+        <div>
+          <span className="page-kicker">Session controls</span>
+          <strong>This browser only</strong>
+        </div>
+        <small>No server state is mutated</small>
       </div>
 
       {/* ---- browser-side ------------------------------------------------ */}
@@ -279,8 +329,8 @@ export default function OperatorPanel({
 
       <div className="console-action console-action--client">
         <div className="console-action__head">
-          <strong>Poll cadence</strong>
-          <div className="seg console-seg" role="group" aria-label="Console poll cadence">
+          <strong>Health snapshot cadence</strong>
+          <div className="seg console-seg" role="group" aria-label="System health poll cadence">
             {CADENCES.map((cadence) => (
               <button
                 key={cadence.label}
@@ -296,23 +346,10 @@ export default function OperatorPanel({
         <small className="muted">
           Browser-side. Unattended ticks are sent at <code>background</code> priority — fenced out of
           each provider&apos;s interactive reserve — so a 1s debugging loop cannot spend the budget a
-          person needs later. Only an explicit <em>Refresh now</em> or <em>Trace</em> spends into it.
+          person needs later. Only an explicit <em>Refresh now</em> requests interactive priority.
         </small>
       </div>
 
-      {lastResult && (
-        <div
-          className={`banner ${lastResult.ok ? "context-change" : "error"}`}
-          role={lastResult.ok ? "status" : "alert"}
-        >
-          <span aria-hidden>{lastResult.ok ? "✓" : "✕"}</span>
-          <div>
-            <strong>{lastResult.summary ?? lastResult.error}</strong>
-            {lastResult.caveat && <small className="console-wrap"> {lastResult.caveat}</small>}
-            {lastResult.hint && <small className="console-wrap"> {lastResult.hint}</small>}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

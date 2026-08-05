@@ -34,8 +34,16 @@ const page = read("../app/page.tsx");
 const subtabs = read("../components/WorkspaceSubtabs.tsx");
 const riskWorkspace = read("../components/RiskWorkspace.tsx");
 const dataConsole = read("../components/DataConsole.tsx");
+const reliabilityConsole = read("../components/ReliabilityConsole.tsx");
+const developerConsole = read("../components/DeveloperConsole.tsx");
 const dataWorkBoard = read("../components/data/DataWorkBoard.tsx");
+const developerWorkQueue = read("../components/developer/DeveloperWorkQueue.tsx");
 const pipelineInspector = read("../components/systems/PipelineInspector.tsx");
+const traceConsole = read("../components/systems/TraceConsole.tsx");
+const repositoryManifest = JSON.parse(read("../lib/repository-manifest.generated.json")) as {
+  version: number;
+  files: string[];
+};
 
 /** Nav ids, in declaration order, from the single NAV_ITEMS literal. */
 function navIds(source: string): string[] {
@@ -103,7 +111,7 @@ describe("dense role workspaces expose accessible feature sections", () => {
     }
   });
 
-  it("splits execution, research, risk and data into focused feature groups", () => {
+  it("splits every dense role workspace into focused feature groups", () => {
     for (const section of ["trade", "liquidity", "routing", "activity", "summary", "parameters", "walkforward", "attribution", "decision", "runs"]) {
       assert.ok(page.includes(`id: "${section}"`), `page is missing the ${section} subtab`);
     }
@@ -114,6 +122,26 @@ describe("dense role workspaces expose accessible feature sections", () => {
       assert.ok(dataConsole.includes(`id: "${section}"`), `data is missing the ${section} subtab`);
       assert.ok(dataConsole.includes(`tabId="${section}"`), `data is missing the ${section} panel`);
     }
+    for (const section of ["overview", "services", "events", "controls"]) {
+      assert.ok(
+        reliabilityConsole.includes(`id: "${section}"`),
+        `reliability is missing the ${section} subtab`,
+      );
+      assert.ok(
+        reliabilityConsole.includes(`tabId="${section}"`),
+        `reliability is missing the ${section} panel`,
+      );
+    }
+    for (const section of ["overview", "codebase", "work", "apis", "quality"]) {
+      assert.ok(
+        developerConsole.includes(`id: "${section}"`),
+        `developer is missing the ${section} subtab`,
+      );
+      assert.ok(
+        developerConsole.includes(`tabId="${section}"`),
+        `developer is missing the ${section} panel`,
+      );
+    }
 
     // The board has a native keyboard alternative to dragging and announces
     // moves without stealing focus. Hidden pipeline panels remain mounted, so
@@ -121,10 +149,44 @@ describe("dense role workspaces expose accessible feature sections", () => {
     assert.match(dataWorkBoard, /aria-label=\{`Status for \$\{item\.id\}`\}/);
     assert.match(dataWorkBoard, /aria-live="polite"/);
     assert.ok(!dataWorkBoard.includes("draggable="), "the board must not rely on drag-only movement");
+    assert.match(developerWorkQueue, /aria-label=\{`Status for \$\{item\.id\}:/);
+    assert.match(developerWorkQueue, /aria-live="polite"/);
+    assert.ok(!developerWorkQueue.includes("draggable="), "developer work must not rely on drag-only movement");
+
+    assert.equal(repositoryManifest.version, 1);
+    assert.ok(repositoryManifest.files.length >= 221, "repository catalog lost committed paths");
+    assert.equal(new Set(repositoryManifest.files).size, repositoryManifest.files.length, "repository catalog has duplicate paths");
+    for (const path of [
+      "README.md",
+      "Part1_Data_Handling/README.md",
+      "Part2_Infrastructure/main.py",
+      "Part2_Infrastructure/OpenBB_Service/app.py",
+      "Part2_Infrastructure/web/app/page.tsx",
+      "Part2_Infrastructure/web/components/DeveloperConsole.tsx",
+    ]) {
+      assert.ok(repositoryManifest.files.includes(path), `repository catalog is missing ${path}`);
+    }
     assert.ok(pipelineInspector.includes('if (!active || tab !== "rest"'), "hidden pipeline keeps polling");
     assert.ok(
       pipelineInspector.includes('active && tab === "socket" && socketSupported'),
       "hidden pipeline keeps venue sockets open",
+    );
+    assert.equal(
+      reliabilityConsole.match(/<TraceConsole/g)?.length,
+      1,
+      "reliability must have one correlated event stream",
+    );
+    assert.ok(
+      reliabilityConsole.includes('active={section === "events"}'),
+      "hidden reliability events are not deactivated",
+    );
+    assert.ok(
+      traceConsole.includes("if (!active || paused) return;"),
+      "hidden or paused trace performs its initial pull",
+    );
+    assert.ok(
+      traceConsole.includes("if (!active || paused || !pollMs) return;"),
+      "hidden trace keeps its polling interval",
     );
   });
 });
@@ -322,6 +384,10 @@ describe("tabs that read the same snapshot share one fetch", () => {
   it("the console tabs share one health poll", () => {
     const healthHook = read("../lib/use-system-health.ts");
     assert.ok(healthHook.includes("/api/system/health"), "the health hook no longer fetches health");
+    assert.ok(
+      healthHook.includes('quiet ? "background" : "interactive"'),
+      "unattended health polls spend interactive provider reserve",
+    );
 
     for (const relative of [
       "../components/DataConsole.tsx",

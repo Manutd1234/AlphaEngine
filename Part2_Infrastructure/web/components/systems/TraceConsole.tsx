@@ -46,17 +46,18 @@ type Line = TraceEvent & { key: string };
 
 interface TraceConsoleProps {
   pollMs: number;
-  paused: boolean;
-  onTogglePause: () => void;
+  /** Hidden tab panels stay mounted; inactive traces retain state without polling. */
+  active: boolean;
 }
 
-export default function TraceConsole({ pollMs, paused, onTogglePause }: TraceConsoleProps) {
+export default function TraceConsole({ pollMs, active }: TraceConsoleProps) {
   const [lines, setLines] = useState<Line[]>([]);
   const [minLevel, setMinLevel] = useState<Level>("debug");
   const [filter, setFilter] = useState("");
   const [follow, setFollow] = useState(true);
   const [gaps, setGaps] = useState(0);
   const [connected, setConnected] = useState(true);
+  const [paused, setPaused] = useState(false);
   const serverCursor = useRef(0);
   const browserCursor = useRef(0);
   const instance = useRef<string | null>(null);
@@ -137,16 +138,17 @@ export default function TraceConsole({ pollMs, paused, onTogglePause }: TraceCon
   }, []);
 
   useEffect(() => {
+    if (!active || paused) return;
     void pull();
-  }, [pull]);
+  }, [active, paused, pull]);
 
   useEffect(() => {
-    if (paused || !pollMs) return;
+    if (!active || paused || !pollMs) return;
     const timer = setInterval(() => {
       if (!document.hidden) void pull();
     }, pollMs);
     return () => clearInterval(timer);
-  }, [paused, pollMs, pull]);
+  }, [active, paused, pollMs, pull]);
 
   const visible = useMemo(() => {
     const needle = filter.trim().toLowerCase();
@@ -186,6 +188,7 @@ export default function TraceConsole({ pollMs, paused, onTogglePause }: TraceCon
         </div>
         <span className="section-note">
           {visible.length}/{lines.length} lines
+          {paused && <span> · stream paused</span>}
           {!connected && <span className="console-warn"> · server unreachable</span>}
         </span>
       </div>
@@ -210,8 +213,8 @@ export default function TraceConsole({ pollMs, paused, onTogglePause }: TraceCon
           aria-label="Filter log lines"
           className="console-log-filter"
         />
-        <button type="button" onClick={onTogglePause} aria-pressed={paused}>
-          {paused ? "Resume" : "Pause"}
+        <button type="button" onClick={() => setPaused((current) => !current)} aria-pressed={paused}>
+          {paused ? "Resume stream" : "Pause stream"}
         </button>
         <button
           type="button"

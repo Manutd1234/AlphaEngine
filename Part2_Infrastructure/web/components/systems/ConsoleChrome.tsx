@@ -15,7 +15,7 @@ export interface ConsoleTile {
   label: string;
   value: string;
   note: string;
-  tone: "good" | "warn" | "bad";
+  tone: "good" | "warn" | "bad" | "neutral";
 }
 
 export function humanUptime(ms: number): string {
@@ -35,7 +35,7 @@ export function ConsoleChrome({
 
   return (
     <>
-      <div className="console-statusbar">
+      <div className={`console-statusbar${healthError ? " is-stale" : ""}`}>
         <div className="console-statusbar__metrics">
           {tiles.map((tile) => (
             <div key={tile.label} className={`console-stat is-${tile.tone}`}>
@@ -62,11 +62,14 @@ export function ConsoleChrome({
       </div>
 
       {health && (
-        <p className="console-scope-note">
-          Counters, breakers and the event ring are <strong>per function instance</strong> —{" "}
-          {health.instance.scope}. Two concurrent instances keep two ledgers, so these numbers are a
-          floor, not an exact figure.
-        </p>
+        <details className="console-scope-note">
+          <summary>Instance-local telemetry · counts are a floor</summary>
+          <p>
+            Counters, breakers and the event ring are <strong>per function instance</strong> —{" "}
+            {health.instance.scope}. Two concurrent instances keep two ledgers, so these numbers are
+            a floor, not an exact figure.
+          </p>
+        </details>
       )}
 
       {healthError && (
@@ -85,10 +88,10 @@ export function ConsoleChrome({
 export function latencyTile(view: SystemHealthView): ConsoleTile {
   const latency = view.health?.summary.latency;
   return {
-    label: "Global latency p50",
+    label: "Upstream latency p50",
     value: latency?.n ? `${fmt(latency.p50 ?? 0, 0)}ms` : "—",
-    note: latency?.n ? `p95 ${fmt(latency.p95 ?? 0, 0)}ms · n=${latency.n}` : "no calls sampled yet",
-    tone: "good",
+    note: latency?.n ? `p95 ${fmt(latency.p95 ?? 0, 0)}ms · n=${latency.n}` : "no attempts sampled yet",
+    tone: "neutral",
   };
 }
 
@@ -103,6 +106,6 @@ export function providerTile(view: SystemHealthView): ConsoleTile {
         ? `${view.degraded} degraded`
         : `${summary.configured} configured`
       : "checking",
-    tone: summary && view.degraded ? "warn" : "good",
+    tone: !summary ? "neutral" : view.degraded ? "warn" : "good",
   };
 }

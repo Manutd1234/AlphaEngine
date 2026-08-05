@@ -7,6 +7,12 @@ import {
   moveDataWorkItem,
   nextDataWorkId,
 } from "../lib/data-work-queue";
+import {
+  createInitialDeveloperWorkItems,
+  filterDeveloperWorkItems,
+  moveDeveloperWorkItem,
+  nextDeveloperWorkId,
+} from "../lib/developer-work";
 
 const NOW = Date.UTC(2026, 7, 5, 12);
 
@@ -27,6 +33,14 @@ describe("the data operations work queue", () => {
     });
     assert.equal(priority[0].priority, "P0");
     assert.ok(priority.findIndex((item) => item.priority === "P1") < priority.findIndex((item) => item.priority === "P2"));
+
+    const developerItems = createInitialDeveloperWorkItems(NOW);
+    const contractFeatures = filterDeveloperWorkItems(developerItems, {
+      query: "contracts",
+      kind: "feature",
+      status: "all",
+    });
+    assert.deepEqual(contractFeatures.map((item) => item.id), ["FEAT-074"]);
   });
 
   it("moves only the selected item without mutating or losing queue records", () => {
@@ -41,6 +55,12 @@ describe("the data operations work queue", () => {
 
     const unknown = moveDataWorkItem(source, "BUG-999", "resolved");
     assert.deepEqual(unknown, source);
+
+    const developerSource = createInitialDeveloperWorkItems(NOW);
+    const developerMoved = moveDeveloperWorkItem(developerSource, "BUG-204", "review");
+    assert.equal(developerSource.find((item) => item.id === "BUG-204")?.status, "progress");
+    assert.equal(developerMoved.find((item) => item.id === "BUG-204")?.status, "review");
+    assert.equal(developerMoved.length, developerSource.length);
   });
 
   it("allocates the next readable ID independently for each work type", () => {
@@ -48,5 +68,10 @@ describe("the data operations work queue", () => {
     assert.equal(nextDataWorkId("request", items), "REQ-188");
     assert.equal(nextDataWorkId("ticket", items), "TKT-323");
     assert.equal(nextDataWorkId("bug", items), "BUG-095");
+
+    const developerItems = createInitialDeveloperWorkItems(NOW);
+    assert.equal(nextDeveloperWorkId("feature", developerItems), "FEAT-077");
+    assert.equal(nextDeveloperWorkId("bug", developerItems), "BUG-205");
+    assert.equal(nextDeveloperWorkId("ticket", developerItems), "TKT-413");
   });
 });

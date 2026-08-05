@@ -4,13 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import Controls from "@/components/Controls";
 import DataConsole, { type DataSection } from "@/components/DataConsole";
-import DeveloperConsole from "@/components/DeveloperConsole";
+import DeveloperConsole, { type DeveloperSection } from "@/components/DeveloperConsole";
 import EquityChart from "@/components/EquityChart";
 import ExecutionCockpit from "@/components/execution/ExecutionCockpit";
 import LiveMarket, { type ExecutionSection } from "@/components/LiveMarket";
 import PortfolioWorkspace, { type PortfolioFocusDestination } from "@/components/PortfolioWorkspace";
 import PriceChart from "@/components/PriceChart";
-import ReliabilityConsole from "@/components/ReliabilityConsole";
+import ReliabilityConsole, { type ReliabilitySection } from "@/components/ReliabilityConsole";
 import RiskWorkspace from "@/components/RiskWorkspace";
 import ExperimentHistory from "@/components/research/ExperimentHistory";
 import FactorPanel from "@/components/research/FactorPanel";
@@ -27,6 +27,7 @@ import WorkspaceIntro from "@/components/WorkspaceIntro";
 import WorkspaceOverview from "@/components/WorkspaceOverview";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import { createInitialDataWorkItems, type DataWorkItem } from "@/lib/data-work-queue";
+import { createInitialDeveloperWorkItems, type DeveloperWorkItem } from "@/lib/developer-work";
 import { fmt, pct, signedPct, usd } from "@/lib/format";
 import { REFERENCE_EQUITY } from "@/lib/portfolio";
 import { useBook } from "@/lib/use-book";
@@ -97,7 +98,10 @@ export default function Page() {
   const [researchSection, setResearchSection] = useState<ResearchSection>("summary");
   const [executionSection, setExecutionSection] = useState<ExecutionSection>("trade");
   const [dataSection, setDataSection] = useState<DataSection>("queue");
+  const [reliabilitySection, setReliabilitySection] = useState<ReliabilitySection>("overview");
+  const [developerSection, setDeveloperSection] = useState<DeveloperSection>("overview");
   const [dataWorkItems, setDataWorkItems] = useState<DataWorkItem[]>(createInitialDataWorkItems);
+  const [developerWorkItems, setDeveloperWorkItems] = useState<DeveloperWorkItem[]>(createInitialDeveloperWorkItems);
   const [providerSummary, setProviderSummary] = useState<ProviderSummary | null>(null);
   const [experiments, setExperiments] = useState<ExperimentRecord[]>([]);
   const activeRun = useRef<AbortController | null>(null);
@@ -108,6 +112,11 @@ export default function Page() {
   // second source of truth.
   const book = useBook();
   const systems = useSystemHealth(req.symbol);
+  const unavailableSystemCapabilities = systems.health
+    ? Object.values(systems.health.capabilities)
+        .filter((capability) => capability.available.length === 0)
+        .length
+    : 0;
 
   const navigate = useCallback((next: WorkspaceView, replace = false) => {
     setView(next);
@@ -761,21 +770,55 @@ export default function Page() {
             <WorkspaceIntro
               kicker="DevOps / SRE"
               title="Reliability"
-              description={<>Service health, golden signals, circuit breakers, correlated events and operator drills that rehearse failure safely.</>}
+              description={<>Service posture first, then dependency diagnosis, correlated events and guarded recovery controls.</>}
               insights={[
                 {
                   label: "Service state",
-                  value: systems.healthError ? "Unreachable" : systems.degraded ? `${systems.degraded} degraded` : systems.health ? "Nominal" : "Checking",
-                  detail: "symptom first",
-                  tone: systems.healthError ? "critical" : systems.degraded ? "warn" : "good",
+                  value: systems.healthError
+                    ? "Unreachable"
+                    : unavailableSystemCapabilities
+                      ? `${unavailableSystemCapabilities} paths down`
+                      : systems.degraded
+                        ? `${systems.degraded} degraded`
+                        : systems.health?.summary.latency.n
+                            && systems.health.summary.latency.errorRate > 0.01
+                          ? "Upstream instability"
+                          : systems.health?.summary.simulated.length
+                            ? "Drill active"
+                            : systems.health
+                              ? "Nominal"
+                              : "Checking",
+                  detail: systems.healthError
+                    ? "last health poll failed"
+                    : unavailableSystemCapabilities
+                      ? "no ready provider for capability"
+                      : systems.health?.summary.simulated.length
+                        ? `${systems.health.summary.simulated.length} controlled outage${systems.health.summary.simulated.length === 1 ? "" : "s"}`
+                        : "dependency posture",
+                  tone: systems.healthError || unavailableSystemCapabilities
+                    ? "critical"
+                    : systems.degraded
+                        || systems.health?.summary.simulated.length
+                        || (systems.health?.summary.latency.n
+                          && systems.health.summary.latency.errorRate > 0.01)
+                      ? "warn"
+                      : systems.health
+                        ? "good"
+                        : "accent",
                 },
                 {
-                  label: "Request success",
+                  label: "Upstream success",
                   value: systems.health?.summary.latency.n
                     ? `${fmt((1 - systems.health.summary.latency.errorRate) * 100, 1)}%`
                     : "Pending",
-                  detail: systems.health?.summary.latency.n ? `n=${systems.health.summary.latency.n}` : "no sampled calls",
-                  tone: (systems.health?.summary.latency.errorRate ?? 0) > 0.01 ? "warn" : "good",
+                  detail: systems.health?.summary.latency.n ? `n=${systems.health.summary.latency.n} attempts` : "no sampled attempts",
+                  tone: systems.healthError
+                    ? "critical"
+                    : !systems.health?.summary.latency.n
+                      ? "accent"
+                      : systems.health.summary.latency.errorRate > 0.01
+                        ? "warn"
+                        : "good",
                   mono: true,
                 },
                 {
@@ -791,6 +834,8 @@ export default function Page() {
               view={systems}
               workspaceSymbol={req.symbol}
               onOpenData={() => navigate("data")}
+              section={reliabilitySection}
+              onSectionChange={setReliabilitySection}
             />
           </section>
         )}
@@ -800,11 +845,17 @@ export default function Page() {
             <WorkspaceIntro
               kicker="Quant developer"
               title="Developer"
-              description={<>The runtime API surface, committed OpenAPI contract, copy-ready calls and the gates that fail the build when either drifts.</>}
+              description={<>Explore the complete repository, triage features and bugs, inspect API contracts, and verify the gates that make a change safe to ship.</>}
               insights={[
-                { label: "Desk context", value: req.symbol, detail: "shared across APIs", tone: "accent", mono: true },
-                { label: "Contract", value: "OpenAPI", detail: "committed snapshot", tone: "good" },
-                { label: "Verification", value: "377 tests", detail: "offline and deterministic", tone: "good", mono: true },
+                { label: "Architecture", value: "3 deployables", detail: "workspace · gateway · OpenBB", tone: "accent" },
+                {
+                  label: "Engineering work",
+                  value: `${developerWorkItems.filter((item) => item.status !== "done").length} open`,
+                  detail: "session planning queue",
+                  tone: developerWorkItems.some((item) => item.kind === "bug" && item.status !== "done") ? "warn" : "good",
+                  mono: true,
+                },
+                { label: "Verification", value: "630 tests", detail: "three offline suites", tone: "good", mono: true },
               ]}
             />
             <DeveloperConsole
@@ -813,6 +864,10 @@ export default function Page() {
               onOpenResearch={() => navigate("research")}
               onOpenLive={() => navigate("live")}
               onOpenReliability={() => navigate("reliability")}
+              section={developerSection}
+              onSectionChange={setDeveloperSection}
+              workItems={developerWorkItems}
+              onWorkItemsChange={setDeveloperWorkItems}
             />
           </section>
         )}

@@ -32,6 +32,8 @@ interface HealthMatrixProps {
   routes: FailoverRoute[];
   venues: { id: string; label: string; latency: LatencyStats }[];
   guard: GuardMode;
+  /** Token mode is not actionable until the operator has supplied a token. */
+  operatorReady: boolean;
   busyAction: string | null;
   onAction: (action: string, options?: ActionOptions) => void;
 }
@@ -42,13 +44,11 @@ function latencyCell(latency: LatencyStats) {
     return <span className="muted">not yet called</span>;
   }
   return (
-    <span>
-      {fmt(latency.p50 ?? 0, 0)}
-      <span className="console-sep"> / </span>
-      {fmt(latency.p95 ?? 0, 0)}
-      <span className="console-sep"> / </span>
-      {fmt(latency.p99 ?? 0, 0)}
-      <small className="muted"> ms · n={latency.n}</small>
+    <span className="console-latency-cell">
+      <strong>{fmt(latency.p95 ?? 0, 0)}ms</strong>
+      <small className="muted">
+        p50 {fmt(latency.p50 ?? 0, 0)} · p99 {fmt(latency.p99 ?? 0, 0)} · n={latency.n}
+      </small>
     </span>
   );
 }
@@ -88,13 +88,16 @@ export default function HealthMatrix({
   routes,
   venues,
   guard,
+  operatorReady,
   busyAction,
   onAction,
 }: HealthMatrixProps) {
-  const locked = guard === "locked";
-  const lockNote = locked
-    ? "Operator actions are disabled on this deployment — see the operator panel."
-    : undefined;
+  const locked = guard === "locked" || !operatorReady;
+  const lockNote = guard === "locked"
+    ? "Operator actions are disabled on this deployment — see Controls."
+    : !operatorReady
+      ? "Enter the operator token in Controls before running provider actions."
+      : undefined;
 
   return (
     <div className="card console-card">
@@ -106,6 +109,15 @@ export default function HealthMatrix({
         <span className="section-note">Percentiles over the last 15 minutes on this instance.</span>
       </div>
 
+      <p className="console-note console-matrix-action-note" id="health-matrix-action-note">
+        Test spends one real provider call. Simulate removes a ready provider from routing for two
+        minutes; Reset closes an existing circuit. {locked
+          ? guard === "token"
+            ? "Enter the operator token in Controls to enable these actions."
+            : "Actions are locked on this deployment; authorization details live in Controls."
+          : "Every mutation is recorded in the event stream."}
+      </p>
+
       <div className="table-wrap">
         <table className="console-matrix">
           <caption className="sr-only">
@@ -116,7 +128,7 @@ export default function HealthMatrix({
             <tr>
               <th scope="col">Provider</th>
               <th scope="col">Status &amp; breaker</th>
-              <th scope="col">p50 / p95 / p99</th>
+              <th scope="col">Latency p95</th>
               <th scope="col">Quota</th>
               <th scope="col">Rank</th>
               <th scope="col">Actions</th>
@@ -179,6 +191,7 @@ export default function HealthMatrix({
                         type="button"
                         onClick={() => onAction("probe_provider", { provider: provider.id })}
                         disabled={locked || busyAction !== null || !provider.configured}
+                        aria-describedby="health-matrix-action-note"
                         title={
                           lockNote
                             ?? (provider.configured
@@ -193,7 +206,9 @@ export default function HealthMatrix({
                           type="button"
                           onClick={() => onAction("clear_outage", { provider: provider.id })}
                           disabled={locked || busyAction !== null}
+                          aria-describedby="health-matrix-action-note"
                           title={lockNote ?? "Return this provider to routing now."}
+                          className="is-recovery"
                         >
                           Restore
                         </button>
@@ -202,26 +217,30 @@ export default function HealthMatrix({
                           type="button"
                           onClick={() => onAction("simulate_outage", { provider: provider.id, ttlMs: UI_OUTAGE_MS })}
                           disabled={locked || busyAction !== null || !provider.ready}
+                          aria-describedby="health-matrix-action-note"
                           title={
                             lockNote
                               ?? (provider.ready
                                 ? "Hold this provider out of routing so you can watch failover. Expires by itself."
                                 : "Only a routable provider can be knocked out.")
                           }
+                          className="is-disruptive"
                         >
-                          Trip
+                          Simulate 2m
                         </button>
                       )}
                       <button
                         type="button"
                         onClick={() => onAction("reset_breaker", { provider: provider.id })}
                         disabled={locked || busyAction !== null || provider.breaker.state === "closed"}
+                        aria-describedby="health-matrix-action-note"
                         title={
                           lockNote
                             ?? (provider.breaker.state === "closed"
                               ? "This circuit is already closed."
                               : "Close the circuit now instead of waiting out the cooldown.")
                         }
+                        className="is-recovery"
                       >
                         Reset
                       </button>

@@ -91,21 +91,22 @@ export function useSystemHealth(workspaceSymbol: string): SystemHealthView {
     async (quiet: boolean) => {
       const current = ++sequence.current;
       try {
-        const response = await fetch("/api/system/health?priority=interactive", { cache: "no-store" });
+        const priority = quiet ? "background" : "interactive";
+        const response = await fetch(`/api/system/health?priority=${priority}`, { cache: "no-store" });
         const body = await response.json().catch(() => ({}));
         // A stale response racing a newer request must not win the state.
         if (current !== sequence.current) return;
         if (!response.ok) {
-          if (!quiet) setHealthError((body as { error?: string }).error ?? `HTTP ${response.status}`);
+          setHealthError((body as { error?: string }).error ?? `HTTP ${response.status}`);
           return;
         }
         setHealth(body as SystemHealth);
         setUpdatedAt(new Date());
         setHealthError(null);
       } catch (err) {
-        // A quiet refresh keeps the last good snapshot and lets the timestamp go
-        // stale. Only an interactive load raises a banner.
-        if (current === sequence.current && !quiet) {
+        // Retain the last good snapshot, but never leave stale values painted as
+        // current. A later successful tick clears this visible stale state.
+        if (current === sequence.current) {
           setHealthError(err instanceof Error ? err.message : "health check failed");
         }
       }
@@ -161,7 +162,7 @@ export function useSystemHealth(workspaceSymbol: string): SystemHealthView {
         setActionResult({ ...body, ok: response.ok && body.ok !== false });
         if (!response.ok) logLocal("error", body.error ?? `action failed (HTTP ${response.status})`);
         // The action changed server state; re-read it rather than guessing.
-        await refresh(true);
+        await refresh(false);
       } catch (err) {
         setActionResult({ ok: false, error: err instanceof Error ? err.message : "action failed" });
       } finally {
