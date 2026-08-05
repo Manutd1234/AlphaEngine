@@ -4,6 +4,20 @@ import app as service_app
 from fastapi.testclient import TestClient
 
 
+def test_root_is_a_front_door_not_a_404(monkeypatch):
+    """The bare hostname is the first thing a human clicks. FastAPI's default
+    404 there reads as a broken deployment; the root must identify the service
+    and point at the real surfaces, unauthenticated even when auth is on."""
+    monkeypatch.setenv("OPENBB_API_TOKEN", "secret")
+    with TestClient(service_app.app) as client:
+        response = client.get("/")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["service"] == "alphaengine-openbb"
+    assert "/healthz" in str(body["endpoints"])
+    assert "detail" not in body
+
+
 def test_liveness_is_public_and_minimal(monkeypatch):
     monkeypatch.setenv("OPENBB_API_TOKEN", "protected")
     with TestClient(service_app.app) as client:

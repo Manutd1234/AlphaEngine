@@ -64,6 +64,34 @@ async def no_store(request, call_next):
     return response
 
 
+@app.get("/", include_in_schema=False)
+async def root() -> dict[str, Any]:
+    """A front door for humans.
+
+    This is a headless API, and FastAPI's stock answer for an undefined root is
+    ``{"detail": "Not Found"}`` — which reads as a broken deployment to anyone
+    who clicks the bare hostname, reviewers included. The service was fine; the
+    first impression was not. The root now says what this is and where the real
+    surfaces are, and costs nothing to the machines that never ask for it.
+    """
+    return {
+        "service": "alphaengine-openbb",
+        "what": (
+            f"{SERVICE_NAME} — stateless read-only market-data bridge for the "
+            "AlphaEngine quant-infrastructure case study (educational demo)"
+        ),
+        "endpoints": {
+            "liveness": "/healthz",
+            "interactive_docs": "/docs",
+            "data": "/api/research/openbb/{health,quote,bars,news,fundamentals}",
+        },
+        "auth": (
+            "data endpoints require a bearer token when OPENBB_API_TOKEN is set; "
+            "liveness and this page are public"
+        ),
+    }
+
+
 @app.get("/healthz", include_in_schema=False)
 async def liveness() -> dict[str, str]:
     """Public process liveness only; provider readiness remains authenticated."""
