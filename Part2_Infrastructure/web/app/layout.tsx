@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 
 import "./globals.css";
 
-const TITLE = "AlphaEngine — Quant Infrastructure Case Study (Demo)";
+const TITLE = "AlphaEngine — Quant Operating System (Developer Case Study)";
 const DESCRIPTION =
   "An educational case-study demonstration of quant trading infrastructure, built for a "
   + "developer assessment. Not a brokerage or investment service: it opens no accounts, holds "
@@ -22,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
   } catch {
     metadataBase = new URL("http://localhost:3000");
   }
-  const image = new URL("/og.png", metadataBase).toString();
+  const image = new URL("/og-alphaengine-v2.png", metadataBase).toString();
 
   return {
     metadataBase,
@@ -32,7 +32,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title: TITLE,
       description: DESCRIPTION,
       type: "website",
-      images: [{ url: image, width: 1731, height: 909, alt: "AlphaEngine connected investment workflow" }],
+      images: [{ url: image, width: 1200, height: 630, alt: "AlphaEngine — one operating context from signal to decision" }],
     },
     twitter: {
       card: "summary_large_image",

@@ -197,7 +197,7 @@ export default function EquityChart({ series }: { series: SeriesPoint[] }) {
                 {
                   label: "Drawdown",
                   value: pct(point.drawdown, 1),
-                  color: "var(--diverging-neg)",
+                  color: "var(--critical-text)",
                 },
               ]}
             />

@@ -114,6 +114,7 @@ const LIGHT = {
   "critical-text": "#b3242e",
   "notice-text": "#9a4415",
   "text-secondary": "#526176",
+  "text-muted": "#5f6d82",
   "json-accent": "#2563eb",
 } as const;
 
@@ -125,6 +126,7 @@ const DARK = {
   "critical-text": "#f0737c",
   "notice-text": "#f08a5a",
   "text-secondary": "#bdc8d8",
+  "text-muted": "#8190a7",
   "json-accent": "#5a9ceb",
 } as const;
 
@@ -134,6 +136,7 @@ const TEXT_ROLES = [
   "critical-text",
   "notice-text",
   "text-secondary",
+  "text-muted",
   "json-accent",
 ] as const;
 

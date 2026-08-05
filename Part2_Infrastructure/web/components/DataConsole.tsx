@@ -56,6 +56,12 @@ export default function DataConsole({
       note: health ? `${health.summary.cache.hits} hits · ${health.summary.cache.misses} misses` : "",
       tone: "good",
     },
+    {
+      label: "Lineage events",
+      value: health ? String(health.events.retained) : "—",
+      note: health ? `${health.events.retained}/${health.events.capacity} retained` : "checking event ring",
+      tone: health && health.events.retained >= health.events.capacity ? "warn" : "good",
+    },
   ];
 
   return (

@@ -23,6 +23,7 @@ import StatTile from "@/components/StatTile";
 import { ResultsTable, WalkForwardTable } from "@/components/Tables";
 import Verdict from "@/components/Verdict";
 import WorkspaceHeader, { NAV_ITEMS, type WorkspaceView } from "@/components/WorkspaceHeader";
+import WorkspaceIntro from "@/components/WorkspaceIntro";
 import WorkspaceOverview from "@/components/WorkspaceOverview";
 import { fmt, pct, signedPct, usd } from "@/lib/format";
 import { REFERENCE_EQUITY } from "@/lib/portfolio";
@@ -268,6 +269,7 @@ export default function Page() {
 
   return (
     <>
+      <a className="skip-link" href="#workspace-content">Skip to workspace content</a>
       <WorkspaceHeader
         view={view}
         onViewChange={navigate}
@@ -279,7 +281,7 @@ export default function Page() {
         contextNote={contextNote}
       />
 
-      <main className="workspace-shell">
+      <main id="workspace-content" className="workspace-shell" tabIndex={-1}>
         {view === "overview" && (
           <section id="panel-overview" role="tabpanel" aria-labelledby="tab-overview" className="view-panel">
             <WorkspaceOverview
@@ -289,6 +291,8 @@ export default function Page() {
               side={side}
               notional={notional}
               providerSummary={providerSummary}
+              book={book}
+              systems={systems}
               onNavigate={navigate}
             />
           </section>
@@ -296,16 +300,32 @@ export default function Page() {
 
         {view === "portfolio" && (
           <section id="panel-portfolio" role="tabpanel" aria-labelledby="tab-portfolio" className="view-panel">
-            <div className="page-heading">
-              <div>
-                <span className="page-kicker">Portfolio manager</span>
-                <h1>Portfolio</h1>
-                <p>
-                  What the book holds, how the capital is spread across it, and which sleeve earned
-                  the P&amp;L — from the authoritative gateway.
-                </p>
-              </div>
-            </div>
+            <WorkspaceIntro
+              kicker="Portfolio manager"
+              title="Portfolio"
+              description={<>What the book holds, how capital is spread, and which sleeve earned the P&amp;L — from one reconciled snapshot.</>}
+              insights={[
+                {
+                  label: "Book source",
+                  value: book.sandbox ? "Sandbox" : book.connectionState,
+                  detail: book.isStale ? "last good snapshot" : "shared with Risk",
+                  tone: book.isStale || book.sandbox ? "warn" : "good",
+                },
+                {
+                  label: "Positions",
+                  value: String(book.book?.exposure.positions.length ?? 0),
+                  detail: book.book ? "current book" : "connecting",
+                  tone: "accent",
+                  mono: true,
+                },
+                {
+                  label: "Risk model",
+                  value: book.riskLoading ? "Measuring" : book.risk ? "Measured" : "Pending",
+                  detail: book.risk ? `${book.risk.observations} aligned bars` : "no assumptions substituted",
+                  tone: book.risk ? "good" : "warn",
+                },
+              ]}
+            />
             <PortfolioWorkspace
               view={book}
               workspaceSymbol={req.symbol}
@@ -317,16 +337,31 @@ export default function Page() {
 
         {view === "risk" && (
           <section id="panel-risk" role="tabpanel" aria-labelledby="tab-risk" className="view-panel">
-            <div className="page-heading">
-              <div>
-                <span className="page-kicker">Risk manager</span>
-                <h1>Risk</h1>
-                <p>
-                  Limit headroom, loss estimates scored against their own record, scenario damage and
-                  the controls that stop trading.
-                </p>
-              </div>
-            </div>
+            <WorkspaceIntro
+              kicker="Risk manager"
+              title="Risk"
+              description={<>Limit headroom, validated loss estimates, forward-looking scenario damage and the controls that stop trading.</>}
+              insights={[
+                {
+                  label: "Trading state",
+                  value: book.book?.trading_halted ? "Halted" : book.book ? "Active" : "Connecting",
+                  detail: book.sandbox ? "sandbox book" : "gateway decision",
+                  tone: book.book?.trading_halted ? "critical" : book.book ? "good" : "warn",
+                },
+                {
+                  label: "VaR validation",
+                  value: book.varValidation?.zone ?? (book.riskLoading ? "Running" : "Pending"),
+                  detail: book.varValidation ? `${book.varValidation.observations} observations` : "Kupiec coverage test",
+                  tone: book.varValidation?.zone === "red" ? "critical" : book.varValidation?.zone === "yellow" ? "warn" : "good",
+                },
+                {
+                  label: "Scenario lens",
+                  value: "Interactive",
+                  detail: "measured betas, no guessed exposure",
+                  tone: "accent",
+                },
+              ]}
+            />
             <RiskWorkspace
               view={book}
               onOpenPortfolio={() => navigate("portfolio")}
@@ -337,13 +372,27 @@ export default function Page() {
 
         {view === "research" && (
           <section id="panel-research" role="tabpanel" aria-labelledby="tab-research" className="view-panel">
-            <div className="page-heading">
-              <div>
-                <span className="page-kicker">Quant researchers</span>
-                <h1>Research lab</h1>
-                <p>Parameter search, robustness checks and walk-forward evidence for {req.symbol}.</p>
-              </div>
-            </div>
+            <WorkspaceIntro
+              kicker="Quant researcher"
+              title="Research lab"
+              description={<>Parameter search, reproducibility, robustness checks and walk-forward evidence for {req.symbol}.</>}
+              insights={[
+                { label: "Instrument", value: req.symbol, detail: req.interval, tone: "accent", mono: true },
+                {
+                  label: "Candidate",
+                  value: running ? "Running" : activeResult ? activeResult.verdict.level : researchDirty ? "Stale" : "Pending",
+                  detail: activeResult ? `${activeResult.combosTested} combinations tested` : "explicit rerun required",
+                  tone: activeResult?.verdict.level === "pass" ? "good" : activeResult?.verdict.level === "fail" ? "critical" : "warn",
+                },
+                {
+                  label: "Experiment trail",
+                  value: String(experiments.length),
+                  detail: "locally recorded attempts",
+                  tone: "accent",
+                  mono: true,
+                },
+              ]}
+            />
 
             {error && (
               <div className="banner error" role="alert">
@@ -399,6 +448,36 @@ export default function Page() {
                         <button className="primary-action" onClick={() => navigate("live")}>Price {usd(notional, 0)} live</button>
                         <button onClick={() => navigate("data")}>Trace market data</button>
                       </div>
+                    </div>
+
+                    <div className="research-provenance" aria-label="Research reproducibility capsule">
+                      <div className="research-provenance__lead">
+                        <span className="page-kicker">Reproducibility capsule</span>
+                        <strong>Evidence carries its own data identity.</strong>
+                        <small>Compare the fingerprint before attributing a changed result to the model.</small>
+                      </div>
+                      <dl>
+                        <div>
+                          <dt>Dataset</dt>
+                          <dd><code title={data.dataHash}>{data.dataHash?.slice(0, 12) ?? "legacy run"}</code></dd>
+                        </div>
+                        <div>
+                          <dt>Source</dt>
+                          <dd>{data.dataSource}</dd>
+                        </div>
+                        <div>
+                          <dt>Window</dt>
+                          <dd className="num">{data.bars} bars</dd>
+                        </div>
+                        <div>
+                          <dt>Search</dt>
+                          <dd className="num">{data.combosTested} combos</dd>
+                        </div>
+                        <div>
+                          <dt>Runtime</dt>
+                          <dd className="num">{fmt(data.durationMs, 0)}ms</dd>
+                        </div>
+                      </dl>
                     </div>
 
                     {inspect && (
@@ -502,16 +581,16 @@ export default function Page() {
 
         {view === "live" && (
           <section id="panel-live" role="tabpanel" aria-labelledby="tab-live" className="view-panel">
-            <div className="page-heading">
-              <div>
-                <span className="page-kicker">Quant traders</span>
-                <h1>Execution</h1>
-                <p>
-                  Live books and implementation cost for {req.symbol}, with the desk&apos;s own flow — orders,
-                  fills, P&amp;L and alerts — on the same screen.
-                </p>
-              </div>
-            </div>
+            <WorkspaceIntro
+              kicker="Quant trader"
+              title="Execution"
+              description={<>Live books and implementation cost for {req.symbol}, with orders, fills, P&amp;L and alerts on the same screen.</>}
+              insights={[
+                { label: "Instrument", value: req.symbol, detail: "consolidated L2", tone: "accent", mono: true },
+                { label: "Intent", value: `${side} ${usd(notional, 0)}`, detail: "editable in the ticket", tone: side === "BUY" ? "good" : "warn", mono: true },
+                { label: "Authority", value: "Paper only", detail: "pre-trade gates stay in control", tone: "good" },
+              ]}
+            />
             <LiveMarket
               symbol={req.symbol}
               onSymbolChange={updateSymbol}
@@ -522,30 +601,49 @@ export default function Page() {
               research={activeResult}
               onOpenResearch={() => navigate("research")}
               onOpenData={() => navigate("data")}
-            />
-            <ExecutionCockpit
-              symbol={req.symbol}
-              side={side}
-              notional={notional}
-              researchStrategy={activeResult ? activeResult.request.strategy : null}
-              researchExperimentId={null}
-              onOpenResearch={() => navigate("research")}
-            />
+            >
+              <ExecutionCockpit
+                symbol={req.symbol}
+                side={side}
+                notional={notional}
+                researchStrategy={activeResult ? activeResult.request.strategy : null}
+                researchExperimentId={null}
+                onOpenResearch={() => navigate("research")}
+              />
+            </LiveMarket>
           </section>
         )}
 
         {view === "data" && (
           <section id="panel-data" role="tabpanel" aria-labelledby="tab-data" className="view-panel">
-            <div className="page-heading">
-              <div>
-                <span className="page-kicker">Data engineer</span>
-                <h1>Data quality</h1>
-                <p>
-                  Where a request routes, whether independent sources agree, what failed its contract
-                  and what the budget for asking looks like.
-                </p>
-              </div>
-            </div>
+            <WorkspaceIntro
+              kicker="Data engineer"
+              title="Data quality"
+              description={<>Routing, cross-source agreement, freshness, schema quarantine and the budget for asking — with provenance attached.</>}
+              insights={[
+                {
+                  label: "Providers",
+                  value: systems.health ? `${systems.health.summary.ready}/${systems.health.summary.total} ready` : "Checking",
+                  detail: systems.degraded ? `${systems.degraded} degraded` : "failover evaluated",
+                  tone: systems.degraded ? "warn" : "good",
+                  mono: true,
+                },
+                {
+                  label: "Quarantine",
+                  value: String(systems.health?.quarantine?.size ?? 0),
+                  detail: "contract-failed payloads held",
+                  tone: systems.health?.quarantine?.size ? "critical" : "good",
+                  mono: true,
+                },
+                {
+                  label: "Cache hit rate",
+                  value: systems.cacheHitRate == null ? "Pending" : `${fmt(systems.cacheHitRate * 100, 1)}%`,
+                  detail: "vendor calls avoided",
+                  tone: "accent",
+                  mono: true,
+                },
+              ]}
+            />
             <DataConsole
               view={systems}
               workspaceSymbol={req.symbol}
@@ -557,16 +655,35 @@ export default function Page() {
 
         {view === "reliability" && (
           <section id="panel-reliability" role="tabpanel" aria-labelledby="tab-reliability" className="view-panel">
-            <div className="page-heading">
-              <div>
-                <span className="page-kicker">DevOps / SRE</span>
-                <h1>Reliability</h1>
-                <p>
-                  Service health, circuit breakers, latency percentiles, the live event trace and the
-                  operator drills that rehearse an outage before a real one.
-                </p>
-              </div>
-            </div>
+            <WorkspaceIntro
+              kicker="DevOps / SRE"
+              title="Reliability"
+              description={<>Service health, golden signals, circuit breakers, correlated events and operator drills that rehearse failure safely.</>}
+              insights={[
+                {
+                  label: "Service state",
+                  value: systems.healthError ? "Unreachable" : systems.degraded ? `${systems.degraded} degraded` : systems.health ? "Nominal" : "Checking",
+                  detail: "symptom first",
+                  tone: systems.healthError ? "critical" : systems.degraded ? "warn" : "good",
+                },
+                {
+                  label: "Request success",
+                  value: systems.health?.summary.latency.n
+                    ? `${fmt((1 - systems.health.summary.latency.errorRate) * 100, 1)}%`
+                    : "Pending",
+                  detail: systems.health?.summary.latency.n ? `n=${systems.health.summary.latency.n}` : "no sampled calls",
+                  tone: (systems.health?.summary.latency.errorRate ?? 0) > 0.01 ? "warn" : "good",
+                  mono: true,
+                },
+                {
+                  label: "Polling",
+                  value: systems.paused ? "Paused" : `${systems.pollMs / 1000}s`,
+                  detail: systems.updatedAt ? `updated ${systems.updatedAt.toLocaleTimeString()}` : "awaiting snapshot",
+                  tone: systems.paused ? "warn" : "accent",
+                  mono: true,
+                },
+              ]}
+            />
             <ReliabilityConsole
               view={systems}
               workspaceSymbol={req.symbol}
@@ -577,16 +694,16 @@ export default function Page() {
 
         {view === "developer" && (
           <section id="panel-developer" role="tabpanel" aria-labelledby="tab-developer" className="view-panel">
-            <div className="page-heading">
-              <div>
-                <span className="page-kicker">Quant developer</span>
-                <h1>Developer</h1>
-                <p>
-                  The API surface, the committed schema behind it, and the gates that fail the build
-                  when either drifts.
-                </p>
-              </div>
-            </div>
+            <WorkspaceIntro
+              kicker="Quant developer"
+              title="Developer"
+              description={<>The runtime API surface, committed OpenAPI contract, copy-ready calls and the gates that fail the build when either drifts.</>}
+              insights={[
+                { label: "Desk context", value: req.symbol, detail: "shared across APIs", tone: "accent", mono: true },
+                { label: "Contract", value: "OpenAPI", detail: "committed snapshot", tone: "good" },
+                { label: "Verification", value: "370 tests", detail: "offline and deterministic", tone: "good", mono: true },
+              ]}
+            />
             <DeveloperConsole
               view={systems}
               workspaceSymbol={req.symbol}

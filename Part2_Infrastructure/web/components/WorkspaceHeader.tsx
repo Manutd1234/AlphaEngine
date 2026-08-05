@@ -103,11 +103,22 @@ export default function WorkspaceHeader({
     <header className="workspace-header">
       <div className="workspace-header__utility workspace-header__primary">
         <button className="brand-lockup" onClick={() => onViewChange("overview")} aria-label="Open AlphaEngine overview">
-          <span className="brand-mark" aria-hidden>AE</span>
-          <strong>AlphaEngine</strong>
+          <span className="brand-mark" aria-hidden>
+            <span className="brand-mark__alpha">α</span>
+            <span className="brand-mark__rails"><i /><i /></span>
+          </span>
+          <span className="brand-copy">
+            <strong>AlphaEngine</strong>
+            <small>Quant operating system</small>
+          </span>
         </button>
 
-        <nav className="workspace-tabs" role="tablist" aria-label="AlphaEngine workspace">
+        <nav
+          className="workspace-tabs"
+          role="tablist"
+          aria-label="AlphaEngine workspace"
+          aria-orientation="horizontal"
+        >
           {NAV_ITEMS.map((item, index) => (
             <button
               key={item.id}
@@ -147,6 +158,8 @@ export default function WorkspaceHeader({
 
       <div className="context-strip">
         <div className="context-strip__inner">
+          <span className="context-strip__label">Desk context</span>
+          <span className="context-divider" aria-hidden />
           <form className="context-control context-symbol" onSubmit={submitSymbol}>
             <label className="sr-only" htmlFor="workspace-symbol">Instrument</label>
             <input

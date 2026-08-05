@@ -94,6 +94,12 @@ export default function DeveloperConsole({
       note: view.guard === "locked" ? "writes refused without a token" : `token env ${view.tokenEnv}`,
       tone: view.guard === "open-dev" ? "warn" : "good",
     },
+    {
+      label: "CI gates",
+      value: String(VERIFICATION.length),
+      note: "contract, parity, journey, lint and types",
+      tone: "good",
+    },
   ];
 
   return (
@@ -133,6 +139,7 @@ export default function DeveloperConsole({
         </div>
         <div className="table-wrap">
           <table>
+            <caption className="sr-only">Continuous integration gates and the regressions they catch</caption>
             <thead>
               <tr>
                 <th>Gate</th>

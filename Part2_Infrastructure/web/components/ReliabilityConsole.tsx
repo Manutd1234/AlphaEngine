@@ -23,6 +23,7 @@ import {
   latencyTile,
   providerTile,
 } from "@/components/systems/ConsoleChrome";
+import { fmt } from "@/lib/format";
 import type { SystemHealthView } from "@/lib/use-system-health";
 
 export interface ReliabilityConsoleProps {
@@ -62,6 +63,14 @@ export default function ReliabilityConsole({
       value: String(sockets.length),
       note: sockets.length ? sockets.map((s) => s.venue).join(" · ") : "wire tap idle",
       tone: "good",
+    },
+    {
+      label: "Request success",
+      value: health?.summary.latency.n
+        ? `${fmt((1 - health.summary.latency.errorRate) * 100, 1)}%`
+        : "—",
+      note: health?.summary.latency.n ? `n=${health.summary.latency.n} sampled calls` : "no calls sampled yet",
+      tone: (health?.summary.latency.errorRate ?? 0) > 0.01 ? "warn" : "good",
     },
   ];
 

@@ -94,6 +94,7 @@ export default function OrderBlotter({ rows, focusSymbol, onOpenResearch, source
       ) : (
         <div className="table-wrap">
           <table>
+            <caption className="sr-only">Filtered execution order blotter</caption>
             <thead>
               <tr>
                 <th scope="col">Time</th>

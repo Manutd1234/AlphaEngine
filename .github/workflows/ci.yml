@@ -69,7 +69,7 @@ jobs:
       - run: python -m pytest
 
   web:
-    name: Web workspace (tests + typecheck)
+    name: Web workspace (tests + typecheck + build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -88,6 +88,11 @@ jobs:
       # of the same accounting are two chances to be wrong.
       - name: Typecheck
         run: npm run typecheck
+      # A type-safe component can still fail during Next's route analysis,
+      # metadata generation or production bundling. CI must exercise the same
+      # artifact Vercel will deploy, not only the source graph.
+      - name: Production build
+        run: npm run build
 
   repo-audit:
     name: Committed tree is complete

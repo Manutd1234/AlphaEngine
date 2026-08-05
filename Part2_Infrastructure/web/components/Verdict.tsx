@@ -12,9 +12,9 @@ import { SweepResponse } from "@/lib/types";
 import { fmt, signedPct } from "@/lib/format";
 
 const STATUS = {
-  pass: { color: "var(--status-good)", icon: "✓", label: "PASS" },
-  marginal: { color: "var(--status-warning)", icon: "!", label: "MARGINAL" },
-  fail: { color: "var(--status-critical)", icon: "✕", label: "FAIL" },
+  pass: { fill: "var(--status-good)", text: "var(--success-text)", icon: "✓", label: "PASS" },
+  marginal: { fill: "var(--status-warning)", text: "var(--warning-text)", icon: "!", label: "MARGINAL" },
+  fail: { fill: "var(--status-critical)", text: "var(--critical-text)", icon: "✕", label: "FAIL" },
 } as const;
 
 export default function Verdict({ data }: { data: SweepResponse }) {
@@ -22,7 +22,7 @@ export default function Verdict({ data }: { data: SweepResponse }) {
   const oos = data.walkForwardOosSharpe;
 
   return (
-    <div className="card" style={{ borderColor: `color-mix(in srgb, ${s.color} 45%, transparent)` }}>
+    <div className="card" style={{ borderColor: `color-mix(in srgb, ${s.fill} 45%, transparent)` }}>
       <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
         {/* Status is icon + label + colour — never colour alone. */}
         <div
@@ -32,15 +32,15 @@ export default function Verdict({ data }: { data: SweepResponse }) {
             gap: 8,
             padding: "6px 12px",
             borderRadius: 999,
-            background: `color-mix(in srgb, ${s.color} 14%, transparent)`,
-            border: `1px solid color-mix(in srgb, ${s.color} 45%, transparent)`,
+            background: `color-mix(in srgb, ${s.fill} 14%, transparent)`,
+            border: `1px solid color-mix(in srgb, ${s.fill} 45%, transparent)`,
             flexShrink: 0,
           }}
         >
-          <span aria-hidden style={{ color: s.color, fontWeight: 700 }}>
+          <span aria-hidden style={{ color: s.text, fontWeight: 700 }}>
             {s.icon}
           </span>
-          <span style={{ color: s.color, fontWeight: 700, fontSize: 12.5, letterSpacing: "0.06em" }}>
+          <span style={{ color: s.text, fontWeight: 700, fontSize: 12.5, letterSpacing: "0.06em" }}>
             {s.label}
           </span>
         </div>
@@ -79,13 +79,13 @@ export default function Verdict({ data }: { data: SweepResponse }) {
           label="Deflated Sharpe (DSR)"
           value={fmt(data.deflatedSharpeRatio, 3)}
           note="P(true Sharpe > 0) after paying for the search"
-          emphasis={s.color}
+          emphasis={s.text}
         />
         <Metric
           label="Walk-forward OOS Sharpe"
           value={oos == null ? "—" : fmt(oos, 2)}
           note="on data the parameters never saw"
-          emphasis={oos != null && oos <= 0 ? "var(--status-critical)" : undefined}
+          emphasis={oos != null && oos <= 0 ? "var(--critical-text)" : undefined}
         />
       </div>
 

@@ -225,7 +225,7 @@ gateway and its OpenBB adapter to the separate stateless service.
 cd web
 npm install
 npm run dev    # http://localhost:3000
-npm test       # 333 tests
+npm test       # 370 tests
 ```
 
 Live-feed endpoints (public, no key):

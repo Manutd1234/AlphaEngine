@@ -8,21 +8,23 @@
  * `/api/depth` and `/api/tca` for non-browser callers.
  */
 
+import { useEffect, useState, type ReactNode } from "react";
+
 import DepthChart from "@/components/DepthChart";
 import DislocationStrip from "@/components/DislocationStrip";
 import StatTile from "@/components/StatTile";
 import { liveTca, useLiveBook } from "@/lib/livebook";
-import { SYMBOLS, type Side } from "@/lib/venues";
-import { compact, fmt, priceDp, usd } from "@/lib/format";
+import { SYMBOLS, type Side, type Ticker } from "@/lib/venues";
+import { compact, fmt, priceDp, signedPct, usd } from "@/lib/format";
 import { STRATEGY_LABELS, type SweepResponse } from "@/lib/types";
 
 const PROBE_SIZES = [10_000, 50_000, 100_000, 250_000, 1_000_000];
 
 const STATUS_STYLE = {
-  live: { color: "var(--status-good)", icon: "●", label: "live" },
-  connecting: { color: "var(--text-muted)", icon: "◌", label: "connecting" },
-  stale: { color: "var(--status-warning)", icon: "▲", label: "stale" },
-  error: { color: "var(--status-critical)", icon: "✕", label: "down" },
+  live: { icon: "●", label: "live" },
+  connecting: { icon: "◌", label: "connecting" },
+  stale: { icon: "▲", label: "stale" },
+  error: { icon: "✕", label: "down" },
 } as const;
 
 interface LiveMarketProps {
@@ -35,6 +37,7 @@ interface LiveMarketProps {
   research: SweepResponse | null;
   onOpenResearch: () => void;
   onOpenData: () => void;
+  children?: ReactNode;
 }
 
 export default function LiveMarket({
@@ -47,11 +50,42 @@ export default function LiveMarket({
   research,
   onOpenResearch,
   onOpenData,
+  children,
 }: LiveMarketProps) {
   const liveSupported = (SYMBOLS as readonly string[]).includes(symbol);
   const snap = useLiveBook(symbol, liveSupported);
   const tca = liveTca(snap, side, notional);
   const dp = snap?.consolidatedMid ? priceDp(snap.consolidatedMid) : 2;
+  const [tickerBySymbol, setTickerBySymbol] = useState<Record<string, Ticker>>({});
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const refreshWatchlist = async () => {
+      if (document.hidden) return;
+      try {
+        const response = await fetch(`/api/ticker?symbols=${SYMBOLS.join(",")}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!response.ok) return;
+        const body = await response.json() as { tickers?: Ticker[] };
+        setTickerBySymbol(Object.fromEntries((body.tickers ?? []).map((ticker) => [ticker.symbol, ticker])));
+      } catch (watchlistError) {
+        if ((watchlistError as Error).name !== "AbortError") {
+          // The L2 stream remains authoritative for the active symbol. A failed
+          // 24h summary should leave em dashes, not take the trading surface down.
+        }
+      }
+    };
+
+    void refreshWatchlist();
+    const timer = window.setInterval(() => void refreshWatchlist(), 30_000);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+    };
+  }, []);
 
   const ladder = (rows: [number, number][], kind: "bid" | "ask") => {
     const top = rows.slice(0, 12);
@@ -102,55 +136,76 @@ export default function LiveMarket({
   };
 
   const instrumentPanel = (
-    <div className="card instrument-panel">
-        <h2>Instrument</h2>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
-          {SYMBOLS.map((s) => (
-            <button
-              key={s}
-              onClick={() => onSymbolChange(s)}
-              aria-pressed={s === symbol}
-              style={{
-                fontFamily: "var(--mono)",
-                fontSize: 12,
-                padding: "6px 12px",
-                background: s === symbol ? "var(--series-1)" : "var(--surface-2)",
-                color: s === symbol ? "#fff" : "var(--text-secondary)",
-                borderColor: s === symbol ? "var(--series-1)" : "var(--border)",
-              }}
-            >
-              {s}
-            </button>
-          ))}
+    <section className="card instrument-panel market-context-card" aria-labelledby="market-watchlist-title">
+      <div className="market-context-card__heading">
+        <div>
+          <span className="page-kicker">Live market context</span>
+          <h2 id="market-watchlist-title">Watchlist</h2>
         </div>
-
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 12 }}>
-          {(snap?.venues ?? []).map((v) => {
-            const st = STATUS_STYLE[v.status];
-            return (
-              <span key={v.venue} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                {/* status = icon + label + colour, never colour alone */}
-                <span aria-hidden style={{ color: st.color }}>{st.icon}</span>
-                <b>{v.venue}</b>
-                <span className="muted">{st.label}</span>
-                {v.status === "live" && (
-                  <span className="num muted">
-                    · {v.updates} upd{v.book.latencyMs ? ` · ${fmt(v.book.latencyMs, 0)}ms` : ""}
-                  </span>
-                )}
-                {v.reconnects > 0 && <span className="num muted">· {v.reconnects} reconnects</span>}
-              </span>
-            );
-          })}
-          {liveSupported && !snap && <span className="muted">opening sockets…</span>}
-        </div>
+        <span className={`market-context-card__mode${liveSupported ? " is-live" : ""}`}>
+          <i aria-hidden /> {liveSupported ? "Direct L2 streaming" : "Quote coverage only"}
+        </span>
       </div>
+
+      <div className="market-watchlist" role="group" aria-label="Tradable instruments">
+        {SYMBOLS.map((watchSymbol) => {
+          const ticker = tickerBySymbol[watchSymbol];
+          const change = ticker?.changePct24h ?? null;
+          const active = watchSymbol === symbol;
+          return (
+            <button
+              type="button"
+              className="market-watchlist__item"
+              key={watchSymbol}
+              onClick={() => onSymbolChange(watchSymbol)}
+              aria-pressed={active}
+              aria-label={`${watchSymbol}, ${ticker?.last == null ? "price pending" : `last ${fmt(ticker.last, priceDp(ticker.last))}`}, ${change == null ? "24 hour change pending" : `${signedPct(change)} over 24 hours`}`}
+            >
+              <span className="market-watchlist__symbol">{watchSymbol}</span>
+              <strong className="num">
+                {ticker?.last == null ? "—" : fmt(ticker.last, priceDp(ticker.last))}
+              </strong>
+              <small className={`num${change == null ? "" : change >= 0 ? " pos" : " neg"}`}>
+                {change == null ? "24h —" : `24h ${signedPct(change)}`}
+              </small>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="venue-status-strip" aria-label={`${symbol} venue status`}>
+        {(snap?.venues ?? []).map((venue) => {
+          const status = STATUS_STYLE[venue.status];
+          return (
+            <div className={`venue-status is-${venue.status}`} key={venue.venue}>
+              <span className="venue-status__name">
+                <i aria-hidden />
+                <strong>{venue.venue}</strong>
+                <small>{status.label}</small>
+              </span>
+              <span className="venue-status__metrics num">
+                {venue.status === "live" ? `${venue.updates.toLocaleString()} updates` : status.icon}
+                {venue.book.latencyMs ? ` · ${fmt(venue.book.latencyMs, 0)}ms` : ""}
+                {venue.reconnects > 0 ? ` · ${venue.reconnects} reconnects` : ""}
+              </span>
+            </div>
+          );
+        })}
+        {liveSupported && !snap ? (
+          <div className="venue-status is-connecting">
+            <span className="venue-status__name"><i aria-hidden /><strong>VENUES</strong><small>connecting</small></span>
+            <span className="venue-status__metrics">Opening public sockets…</span>
+          </div>
+        ) : null}
+      </div>
+    </section>
   );
 
   if (!liveSupported) {
     return (
       <>
         {instrumentPanel}
+        {children}
         <div className="capability-empty">
           <span className="role-monogram" aria-hidden>L2</span>
           <div>
@@ -177,6 +232,7 @@ export default function LiveMarket({
   return (
     <>
       {instrumentPanel}
+      {children}
 
       {research?.request.symbol === symbol && (
         <div className="workflow-handoff execution-handoff">

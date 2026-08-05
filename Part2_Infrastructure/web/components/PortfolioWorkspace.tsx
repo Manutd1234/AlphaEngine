@@ -128,6 +128,7 @@ export default function PortfolioWorkspace({
         {positions.length ? (
           <div className="table-wrap">
             <table>
+              <caption className="sr-only">Current portfolio positions and their measured risk contributions</caption>
               <thead>
                 <tr>
                   <th>Instrument</th>
@@ -285,6 +286,7 @@ export default function PortfolioWorkspace({
         {strategies.length ? (
           <div className="table-wrap">
             <table>
+              <caption className="sr-only">Order activity and performance attributed by strategy</caption>
               <thead>
                 <tr>
                   <th>Strategy</th>
