@@ -1,0 +1,47 @@
+# Upload scope for CLI deployments run from the repository root.
+#
+# The web project's Root Directory is `Part2_Infrastructure/web`, so the CLI has
+# to be run from here — from inside `web/` Vercel appends the root directory a
+# second time and looks for `web/Part2_Infrastructure/web`, which does not
+# exist. Running it from here without this file uploads the whole repository:
+# 1.6 GB of venv, node_modules, `.next` and the DuckDB audit log, to build a
+# Next.js app out of one subdirectory.
+#
+# Written as plain exclusions rather than the exclude-everything-then-re-admit
+# shape used in `Part2_Infrastructure/.vercelignore`. That shape is correct
+# .gitignore syntax and it does not survive here: `**` matches the build
+# artifacts *through* the re-admitted `web/**`, and the upload went out at
+# 252 MB with `.next` inside it. Naming what to drop is duller and it works.
+#
+# Both files are needed — they cover deploys started from two different places.
+
+# ── the two directories that dwarf everything else ───────────────────────────
+Part2_Infrastructure/venv
+Part2_Infrastructure/.venv
+Part2_Infrastructure/web/node_modules
+Part2_Infrastructure/web/.next
+Part2_Infrastructure/web/out
+Part2_Infrastructure/web/.turbo
+
+# ── not part of this deployment ──────────────────────────────────────────────
+Part1_Data_Handling
+Part2_Infrastructure/OpenBB_Service
+Part2_Infrastructure/data
+Part2_Infrastructure/tests
+Part2_Infrastructure/tools
+Part2_Infrastructure/notebooks
+Part2_Infrastructure/templates
+Part2_Infrastructure/modules
+.github
+
+# ── local state, links and secrets ───────────────────────────────────────────
+.vercel
+Part2_Infrastructure/web/.vercel
+.env
+.env.*
+!.env.example
+Part2_Infrastructure/web/*.tsbuildinfo
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+.git

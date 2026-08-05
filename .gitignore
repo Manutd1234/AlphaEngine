@@ -53,6 +53,14 @@ __pycache__/
 *.duckdb.wal
 *.sqlite
 
+# ── Vercel link at the repo root ─────────────────────────────────────────────
+# The web project's Root Directory is `Part2_Infrastructure/web`, so the CLI has
+# to be run from *here* — deploying from inside `web/` makes Vercel append the
+# root directory a second time and look for `web/Part2_Infrastructure/web`. That
+# means a `.vercel/` link lands at the repo root, and it carries project and org
+# ids that have no business in the history.
+/.vercel/
+
 # ── Node / Next.js (scoped to the portal) ────────────────────────────────────
 /Part2_Infrastructure/web/node_modules/
 /Part2_Infrastructure/web/.next/
@@ -63,3 +71,10 @@ __pycache__/
 /Part2_Infrastructure/web/.turbo/
 npm-debug.log*
 yarn-error.log*
+
+# `vercel link` appends `.vercel` and `.env*` here every time it runs. Both are
+# already covered above — `/.vercel/` and the `.env` / `.env.*` pair — and the
+# generated `.env*` is worse than redundant: it sits below `!.env.example` and
+# so silently re-ignores it, which would drop any *new* `.env.example` from the
+# repo exactly the way the note at the top of this file describes. Delete those
+# two lines again after re-linking.
