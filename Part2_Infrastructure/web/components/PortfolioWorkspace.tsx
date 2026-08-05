@@ -115,7 +115,11 @@ export default function PortfolioWorkspace({
       <div className="card portfolio-positions-card">
         <div className="portfolio-card-heading">
           <div>
-            <span className="page-kicker">{isStale ? "Last known book" : "Live book"}</span>
+            {/* Sandbox first: `isStale` is forced false in sandbox, so keying on
+                it alone would caption generated positions as a "Live book". */}
+            <span className="page-kicker">
+              {book.sandbox ? "Sandbox book (generated)" : isStale ? "Last known book" : "Live book"}
+            </span>
             <h2>Positions</h2>
           </div>
           <span>{usd(book.exposure.gross, 0)} gross</span>
@@ -272,7 +276,11 @@ export default function PortfolioWorkspace({
             <span className="page-kicker">Execution attribution</span>
             <h2>Strategy flow</h2>
           </div>
-          <span>{isStale ? "Last known audit-backed activity" : "Audit-backed order activity"}</span>
+          <span>
+            {book.sandbox
+              ? "Generated activity — no audit log behind these rows"
+              : isStale ? "Last known audit-backed activity" : "Audit-backed order activity"}
+          </span>
         </div>
         {strategies.length ? (
           <div className="table-wrap">

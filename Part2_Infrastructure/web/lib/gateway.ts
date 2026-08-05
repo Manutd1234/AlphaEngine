@@ -22,8 +22,8 @@ export const GATEWAY_TOKEN_ENV = "ALPHAENGINE_GATEWAY_TOKEN";
 const DEFAULT_TIMEOUT_MS = 8_000;
 
 export interface GatewayFailure {
-  code: "gateway_not_configured" | "gateway_auth_failed" | "gateway_unreachable"
-    | "gateway_timeout" | "gateway_rejected" | "gateway_invalid_payload";
+  code: "gateway_not_configured" | "gateway_misconfigured" | "gateway_auth_failed"
+    | "gateway_unreachable" | "gateway_timeout" | "gateway_rejected" | "gateway_invalid_payload";
   error: string;
   hint?: string;
   /** HTTP status this app should answer with — not the upstream's. */
@@ -34,24 +34,43 @@ export interface GatewayFailure {
 export type GatewayResult<T> = { ok: true; data: T } | { ok: false; failure: GatewayFailure };
 
 /**
- * Resolve the configured gateway origin.
- *
- * Development falls back to the conventional local port so the workspace is
- * useful with nothing configured; production does not, because silently
- * pointing a deployed app at localhost produces a confusing "unreachable"
- * rather than an honest "not configured".
+ * The three ways a gateway URL can be wrong are three different statements, and
+ * conflating them is how a typo gets reported as an outage. `absent` means this
+ * is a demo deployment and the honest degraded path may run; `invalid` and
+ * `loopback` mean an operator set a value that can never work, which must be
+ * said out loud rather than dressed up as either "not configured" or "down".
  */
-export function gatewayBase(env: NodeJS.ProcessEnv = process.env): URL | null {
+export type GatewayState =
+  | { kind: "url"; url: URL }
+  | { kind: "absent" }
+  | { kind: "invalid"; raw: string }
+  | { kind: "loopback"; raw: string };
+
+const LOOPBACK_HOSTS = /^(localhost|127(?:\.\d{1,3}){3}|\[?::1\]?|0\.0\.0\.0|10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(1[6-9]|2\d|3[01])(?:\.\d{1,3}){2})$/i;
+
+export function gatewayState(env: NodeJS.ProcessEnv = process.env): GatewayState {
   const configured = env[GATEWAY_URL_ENV]?.trim();
   const raw = configured || (env.NODE_ENV === "development" ? "http://127.0.0.1:8000" : "");
-  if (!raw) return null;
+  if (!raw) return { kind: "absent" };
   try {
     const parsed = new URL(raw);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
-    return new URL(`${parsed.origin}/`);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return { kind: "invalid", raw };
+    // A serverless function fetching 127.0.0.1 fetches *itself*. This exact
+    // mistake shipped once — a dev .env.local swept into a CLI upload — and
+    // spent a day reading as a gateway outage instead of a config error.
+    if (env.NODE_ENV !== "development" && LOOPBACK_HOSTS.test(parsed.hostname)) {
+      return { kind: "loopback", raw };
+    }
+    return { kind: "url", url: new URL(`${parsed.origin}/`) };
   } catch {
-    return null;
+    return { kind: "invalid", raw };
   }
+}
+
+/** Back-compat resolver: the URL when one is usable, otherwise null. */
+export function gatewayBase(env: NodeJS.ProcessEnv = process.env): URL | null {
+  const state = gatewayState(env);
+  return state.kind === "url" ? state.url : null;
 }
 
 export function gatewayHeaders(env: NodeJS.ProcessEnv = process.env): Record<string, string> {
@@ -72,17 +91,36 @@ export function notConfigured(what: string): GatewayFailure {
   };
 }
 
+export function misconfigured(state: Extract<GatewayState, { kind: "invalid" | "loopback" }>): GatewayFailure {
+  return {
+    code: "gateway_misconfigured",
+    error: state.kind === "loopback"
+      ? "The configured gateway URL points at a loopback or private address, which a serverless function cannot reach."
+      : "The configured gateway URL is not a valid http(s) origin.",
+    hint: `Fix ${GATEWAY_URL_ENV} on the server — it currently reads a value that can never resolve from this deployment.`,
+    status: 503,
+  };
+}
+
 export interface CallOptions {
   method?: "GET" | "POST";
   body?: unknown;
   timeoutMs?: number;
   /** Reject a 200 whose shape this app cannot safely render. */
   validate?: (payload: unknown) => boolean;
+  /**
+   * Human noun for the thing the caller wanted — "the order blotter", not the
+   * upstream path with its query string. Error text is read by reviewers, and
+   * `/api/audit/orders?limit=60 is unavailable` reads as a stack trace.
+   */
+  subject?: string;
 }
 
 export async function callGateway<T = unknown>(path: string, options: CallOptions = {}): Promise<GatewayResult<T>> {
-  const base = gatewayBase();
-  if (!base) return { ok: false, failure: notConfigured(path) };
+  const state = gatewayState();
+  if (state.kind === "absent") return { ok: false, failure: notConfigured(options.subject ?? path) };
+  if (state.kind !== "url") return { ok: false, failure: misconfigured(state) };
+  const base = state.url;
 
   const controller = new AbortController();
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;

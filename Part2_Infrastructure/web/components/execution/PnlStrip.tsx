@@ -25,13 +25,37 @@ interface Book {
 
 interface PnlStripProps {
   book: Book | null;
+  mode: "live" | "sandbox" | "outage";
   problem: { code?: string; error: string; hint?: string } | null;
   lastSyncAt: Date | null;
   onRefresh: () => void;
+  /** Present only when the deployment has no gateway — re-enters the sandbox. */
+  onEnterSandbox?: () => void;
 }
 
-export default function PnlStrip({ book, problem, lastSyncAt, onRefresh }: PnlStripProps) {
+export default function PnlStrip({ book, mode, problem, lastSyncAt, onRefresh, onEnterSandbox }: PnlStripProps) {
   if (!book) {
+    // Two different absences. "No gateway in this deployment" is an
+    // architectural fact with nothing to retry — a Retry button there is a
+    // promise the button cannot keep. An unreachable configured gateway is an
+    // incident, and Retry is exactly right.
+    if (problem?.code === "gateway_not_configured" && onEnterSandbox) {
+      return (
+        <div className="card cockpit-strip cockpit-strip--offline">
+          <div>
+            <strong>No execution gateway in this deployment</strong>
+            <p>
+              The risk gateway is a long-lived process — WebSocket feeds, an audit log, a kill
+              switch — that a serverless deployment cannot host. The sandbox desk demonstrates the
+              same workflow against a generated book.
+            </p>
+          </div>
+          <button type="button" className="primary-action" onClick={onEnterSandbox}>
+            Open the sandbox desk
+          </button>
+        </div>
+      );
+    }
     return (
       <div className="card cockpit-strip cockpit-strip--offline">
         <div>
@@ -54,13 +78,15 @@ export default function PnlStrip({ book, problem, lastSyncAt, onRefresh }: PnlSt
     <div className={`card cockpit-strip${book.trading_halted ? " cockpit-strip--halted" : ""}`}>
       <div className="cockpit-strip__status">
         <span className={`pill ${book.trading_halted ? "pill--stop" : "pill--live"}`}>
-          {book.trading_halted ? "HALTED" : "TRADING"}
+          {book.trading_halted ? "HALTED" : mode === "sandbox" ? "SANDBOX" : "TRADING"}
         </span>
         {book.halted_symbols.length ? (
           <span className="muted">halted: {book.halted_symbols.join(", ")}</span>
         ) : null}
         <span className="muted cockpit-strip__sync">
-          {lastSyncAt ? `synced ${lastSyncAt.toLocaleTimeString("en-GB")}` : "never synced"}
+          {mode === "sandbox"
+            ? "generated book — deterministic, never synced"
+            : lastSyncAt ? `synced ${lastSyncAt.toLocaleTimeString("en-GB")}` : "never synced"}
         </span>
       </div>
 

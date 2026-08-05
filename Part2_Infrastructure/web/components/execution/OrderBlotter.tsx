@@ -22,6 +22,8 @@ interface OrderBlotterProps {
   rows: BlotterRow[];
   focusSymbol: string;
   onOpenResearch?: () => void;
+  /** Where the rows came from — the empty state must not blame a quiet desk for a missing source. */
+  source?: "live" | "sandbox" | "unavailable";
 }
 
 type Filter = "all" | "accepted" | "rejected" | "symbol";
@@ -40,7 +42,7 @@ function time(ts: string): string {
     : new Date(parsed).toLocaleTimeString("en-GB", { hour12: false });
 }
 
-export default function OrderBlotter({ rows, focusSymbol, onOpenResearch }: OrderBlotterProps) {
+export default function OrderBlotter({ rows, focusSymbol, onOpenResearch, source = "live" }: OrderBlotterProps) {
   const [filter, setFilter] = useState<Filter>("all");
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -59,8 +61,9 @@ export default function OrderBlotter({ rows, focusSymbol, onOpenResearch }: Orde
         <div>
           <h3>Order blotter</h3>
           <p className="muted">
-            Every decision the gateway made, newest first — accepted and rejected alike, straight from the
-            append-only audit log.
+            {source === "sandbox"
+              ? "A generated session, newest first — same shape as the audit log, none of it audited."
+              : "Every decision the gateway made, newest first — accepted and rejected alike, straight from the append-only audit log."}
           </p>
         </div>
         <div className="seg" role="group" aria-label="Filter blotter">
@@ -81,7 +84,12 @@ export default function OrderBlotter({ rows, focusSymbol, onOpenResearch }: Orde
         <p className="muted">
           {rows.length
             ? "No orders match this filter."
-            : "No orders yet. Send one from the ticket above and it will appear here."}
+            : source === "unavailable"
+              // The old copy said "send one and it will appear here", which on a
+              // deployment with no audit log was an instruction that could not
+              // work. An empty table must say WHY it is empty.
+              ? "No audit log is reachable in this deployment, so there is nothing to list."
+              : "No orders yet. Send one from the ticket above and it will appear here."}
         </p>
       ) : (
         <div className="table-wrap">

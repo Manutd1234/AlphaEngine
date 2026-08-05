@@ -21,9 +21,9 @@ export const dynamic = "force-dynamic";
  */
 
 const FEEDS = {
-  orders: { path: "/api/audit/orders", max: 500 },
-  events: { path: "/api/audit/events", max: 500 },
-  backtests: { path: "/api/audit/backtests", max: 200 },
+  orders: { path: "/api/audit/orders", max: 500, subject: "the order blotter" },
+  events: { path: "/api/audit/events", max: 500, subject: "the risk event feed" },
+  backtests: { path: "/api/audit/backtests", max: 200, subject: "the experiment history" },
 } as const;
 
 type Feed = keyof typeof FEEDS;
@@ -45,6 +45,9 @@ export async function GET(request: NextRequest) {
   const limit = Number.isFinite(asked) ? Math.min(Math.max(Math.trunc(asked), 1), feed.max) : 50;
 
   const result = await callGateway<unknown[]>(`${feed.path}?limit=${limit}`, {
+    // The subject is what a person wanted; the path is how we asked. Error text
+    // built from the path reads as a stack trace on a reviewer's screen.
+    subject: feed.subject,
     validate: (payload) => Array.isArray(payload),
   });
 

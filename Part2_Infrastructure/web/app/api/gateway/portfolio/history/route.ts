@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
   const limit = Number.isFinite(asked) ? Math.min(Math.max(Math.trunc(asked), 1), 2000) : 400;
 
   const result = await callGateway<{ points?: unknown[] }>(`/api/portfolio/history?limit=${limit}`, {
+    subject: "the equity history",
     // An empty history is a valid answer from a gateway that started five
     // minutes ago; only a payload with no points *array* is malformed.
     validate: (payload) =>

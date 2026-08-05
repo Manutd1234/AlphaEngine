@@ -24,9 +24,11 @@ interface ExecutionQualityProps {
   summary: ExecutionSummary;
   symbol: string;
   symbolOrders: BlotterRow[];
+  /** Where the rows behind these numbers came from. */
+  source?: "live" | "sandbox" | "unavailable";
 }
 
-export default function ExecutionQuality({ summary, symbol, symbolOrders }: ExecutionQualityProps) {
+export default function ExecutionQuality({ summary, symbol, symbolOrders, source = "live" }: ExecutionQualityProps) {
   const symbolFills = symbolOrders.filter((o) => o.accepted);
   const symbolSlippage = symbolFills
     .map((o) => o.slippageBps)
@@ -40,12 +42,27 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders }: Exec
       <header className="section-heading compact">
         <div>
           <h3>Execution quality</h3>
-          <p className="muted">Measured over the {summary.orders} most recent decisions.</p>
+          <p className="muted">
+            {/* "Measured over the 0 most recent decisions" reads like a bug, and
+                blaming desk inactivity for a missing source is a lie by
+                implication — say which one it is. */}
+            {source === "unavailable"
+              ? "No decision history is reachable in this deployment."
+              : source === "sandbox"
+                ? `Measured over ${summary.orders} generated decisions — same maths, seeded rows.`
+                : summary.orders
+                  ? `Measured over the ${summary.orders} most recent decisions.`
+                  : "Waiting for the first decision."}
+          </p>
         </div>
       </header>
 
       {!summary.orders ? (
-        <p className="muted">Nothing has been sent yet, so there is nothing to measure.</p>
+        <p className="muted">
+          {source === "unavailable"
+            ? "There is nothing to measure without a source."
+            : "Nothing has been sent yet, so there is nothing to measure."}
+        </p>
       ) : (
         <>
           <dl className="cockpit-quality__metrics">

@@ -63,7 +63,7 @@ export default function RiskWorkspace({ view, onOpenPortfolio, onOpenResearch }:
     refresh,
   } = view;
 
-  const fallback = <BookFallback view={view} onOpenResearch={onOpenResearch} />;
+  const fallback = <BookFallback view={view} onOpenResearch={onOpenResearch} surface="risk" />;
   if (!book) return fallback;
 
   const binding = book.risk_budget.binding_constraint;
@@ -101,7 +101,7 @@ export default function RiskWorkspace({ view, onOpenPortfolio, onOpenResearch }:
               <span className="page-kicker">Pre-trade guardrails</span>
               <h2>Risk budget</h2>
             </div>
-            <span>enforced at the gate</span>
+            <span>{book.sandbox ? "sandbox thresholds — same limits, generated book" : "enforced at the gate"}</span>
           </div>
           <BudgetRow
             label="Gross exposure"

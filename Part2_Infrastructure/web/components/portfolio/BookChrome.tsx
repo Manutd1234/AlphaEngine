@@ -15,14 +15,24 @@ export interface BookFallbackProps {
   view: BookView;
   /** Where "open research instead" should land. */
   onOpenResearch: () => void;
+  /** Which tab is asking, so the failure card names what actually failed. */
+  surface?: "portfolio" | "risk";
 }
 
 /**
  * Loading, unconfigured and unreachable states. Returns null once a book
  * exists, so callers read `?? <the real panel>`.
  */
-export function BookFallback({ view, onOpenResearch }: BookFallbackProps) {
+export function BookFallback({ view, onOpenResearch, surface = "portfolio" }: BookFallbackProps) {
   const { book, loading, error, connectionState, refresh, setSandbox } = view;
+
+  // A reviewer opening the Risk tab first must be told about limits and
+  // headroom, not "the portfolio" — a failure card that names the wrong
+  // surface reads like it belongs to a different page.
+  const noun = surface === "risk" ? "risk view" : "portfolio book";
+  const failedThing = surface === "risk"
+    ? "Limits, headroom and tail risk are temporarily unavailable"
+    : "Portfolio state is temporarily unavailable";
 
   if (book) return null;
 
@@ -37,41 +47,46 @@ export function BookFallback({ view, onOpenResearch }: BookFallbackProps) {
   }
 
   if (connectionState === "unconfigured") {
+    // Normally unreachable: useBook auto-enters the sandbox on this exact
+    // state. It renders only when someone pressed "Live gateway" on a
+    // deployment that has none — so the copy explains *why* there is none.
     return (
-      <div className="card portfolio-setup-card" role="status" aria-labelledby="portfolio-setup-title">
+      <div className="card portfolio-setup-card" role="status" aria-labelledby="book-setup-title">
         <div className="portfolio-card-heading">
           <div>
-            <span className="page-kicker">Portfolio gateway setup</span>
-            <h2 id="portfolio-setup-title">Connect the portfolio book</h2>
+            <span className="page-kicker">No gateway in this deployment</span>
+            <h2 id="book-setup-title">The live {noun} needs the always-on gateway</h2>
           </div>
         </div>
         <p className="sub">
-          Add <code>ALPHAENGINE_GATEWAY_URL</code> to the Vercel environment and redeploy to load
-          authoritative positions, exposure and risk limits. Research remains available now.
+          The risk gateway is a long-lived process — WebSocket feeds, a DuckDB audit log, a kill
+          switch — and a serverless deployment cannot host one. This site runs the sandbox instead:
+          a generated book, labelled on every panel, judged by the same gate logic.
         </p>
         <div className="page-actions">
           <button className="primary-action" onClick={() => setSandbox(true)}>
-            Explore the sandbox book
+            Back to the sandbox book
           </button>
           <button onClick={onOpenResearch}>Open Research</button>
         </div>
         <p className="research-note">
-          The sandbox is a generated book, labelled as such on every panel. It exists so this
-          surface can be evaluated without standing up a gateway — not to stand in for one.
+          Self-hosting? Set <code>ALPHAENGINE_GATEWAY_URL</code> and{" "}
+          <code>ALPHAENGINE_GATEWAY_TOKEN</code> on the server and this surface switches to the
+          authoritative book.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="card portfolio-setup-card" role="alert" aria-labelledby="portfolio-error-title">
+    <div className="card portfolio-setup-card" role="alert" aria-labelledby="book-error-title">
       <div className="portfolio-card-heading">
         <div>
           <span className="page-kicker">Gateway unavailable</span>
-          <h2 id="portfolio-error-title">Portfolio state is temporarily unavailable</h2>
+          <h2 id="book-error-title">{failedThing}</h2>
         </div>
       </div>
-      <p className="sub">{error?.error ?? "The portfolio gateway did not return a usable response."}</p>
+      <p className="sub">{error?.error ?? "The risk gateway did not return a usable response."}</p>
       {error?.hint && <p className="muted">{error.hint}</p>}
       <div className="page-actions">
         <button className="primary-action" onClick={() => void refresh()} disabled={loading}>
@@ -81,8 +96,9 @@ export function BookFallback({ view, onOpenResearch }: BookFallbackProps) {
         <button onClick={onOpenResearch}>Open Research</button>
       </div>
       <p className="research-note">
-        The gateway is a long-lived process and may simply be asleep. The sandbox is a generated
-        book, labelled on every panel, so this surface can still be evaluated.
+        A configured gateway is not answering, so nothing here is generated in its place — a
+        sandbox that appears during a real outage is how generated numbers get mistaken for a
+        desk. The sandbox stays one explicit click away.
       </p>
     </div>
   );
@@ -156,7 +172,6 @@ export function BookChrome({ view }: { view: BookView }) {
               type="button"
               aria-pressed={!sandbox}
               onClick={() => setSandbox(false)}
-              disabled={!view.book && !error}
             >
               Live gateway
             </button>

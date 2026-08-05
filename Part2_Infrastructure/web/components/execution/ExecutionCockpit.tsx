@@ -20,11 +20,32 @@
  * One poll drives all four. Four panels polling independently would show four
  * different moments of the same book, and a trader comparing a position against
  * the fill that created it would be comparing across time without knowing it.
+ *
+ * The cockpit runs in one of three modes, decided by the gateway routes'
+ * failure codes and never guessed:
+ *
+ *   live          the gateway answered; everything is authoritative
+ *   sandbox       there IS no gateway in this deployment
+ *                 (`gateway_not_configured` from every route) — the desk runs
+ *                 on generated, banner-labelled data, and the ticket judges
+ *                 orders locally with the gateway's own gate logic
+ *   outage        a gateway is configured but failing — nothing is generated,
+ *                 because fake data is most dangerous during a real incident
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { type BlotterRow, type RiskEventRow, summarise, toBlotterRow, toRiskEvent } from "@/lib/blotter";
+import {
+  type BlotterRow,
+  type RiskEventRow,
+  createSandboxDesk,
+  sandboxBlotter,
+  sandboxRiskEvents,
+  summarise,
+  toBlotterRow,
+  toRiskEvent,
+} from "@/lib/blotter";
+import { sandboxBook } from "@/lib/portfolio";
 
 import AlertFeed from "./AlertFeed";
 import ExecutionQuality from "./ExecutionQuality";
@@ -33,6 +54,7 @@ import OrderTicket from "./OrderTicket";
 import PnlStrip from "./PnlStrip";
 
 const REFRESH_MS = 4_000;
+const MAX_BACKOFF_MS = 60_000;
 const BLOTTER_LIMIT = 60;
 const EVENT_LIMIT = 40;
 
@@ -45,6 +67,8 @@ interface PortfolioSnapshot {
   }> };
   risk_budget: { daily_drawdown: { used_pct: number; limit_pct: number; utilisation: number; cushion_usd: number } };
 }
+
+export type CockpitMode = "live" | "sandbox" | "outage";
 
 export interface CockpitProps {
   symbol: string;
@@ -73,6 +97,11 @@ export default function ExecutionCockpit({
   const [problem, setProblem] = useState<Unavailable | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
+  /** Set once the first refresh settles on "there is no gateway here". */
+  const [unconfigured, setUnconfigured] = useState(false);
+  /** Explicit opt-out: "Live gateway" pressed on a deployment that has none. */
+  const [sandboxOff, setSandboxOff] = useState(false);
+  const [failures, setFailures] = useState(0);
   const sequence = useRef(0);
 
   const refresh = useCallback(async () => {
@@ -83,9 +112,17 @@ export default function ExecutionCockpit({
         fetch(`/api/gateway/audit?feed=orders&limit=${BLOTTER_LIMIT}`, { cache: "no-store" }),
         fetch(`/api/gateway/audit?feed=events&limit=${EVENT_LIMIT}`, { cache: "no-store" }),
       ]);
+
+      // Resolve every body BEFORE the staleness check: a `return` after any of
+      // these awaits with the check done earlier lets a superseded response
+      // write state over a newer one.
+      const [bookBody, orderBody, eventBody] = await Promise.all([
+        bookRes.json().catch(() => ({})),
+        orderRes.ok ? orderRes.json().catch(() => ({ rows: [] })) : Promise.resolve(null),
+        eventRes.ok ? eventRes.json().catch(() => ({ rows: [] })) : Promise.resolve(null),
+      ]);
       if (current !== sequence.current) return;
 
-      const bookBody = await bookRes.json().catch(() => ({}));
       if (!bookRes.ok) {
         setProblem({
           code: bookBody.code,
@@ -93,45 +130,79 @@ export default function ExecutionCockpit({
           hint: bookBody.hint,
         });
         setBook(null);
+        setUnconfigured(bookBody.code === "gateway_not_configured");
+        setFailures((n) => n + 1);
       } else {
         setBook(bookBody as PortfolioSnapshot);
         setProblem(null);
+        setUnconfigured(false);
+        setFailures(0);
       }
 
       // The audit panels are allowed to be empty without taking the whole
       // cockpit down: a gateway with no history yet is a working gateway.
-      if (orderRes.ok) {
-        const body = await orderRes.json().catch(() => ({ rows: [] }));
-        setOrders(((body.rows ?? []) as unknown[]).map(toBlotterRow).filter((r): r is BlotterRow => r !== null));
+      if (orderBody) {
+        setOrders(((orderBody.rows ?? []) as unknown[]).map(toBlotterRow).filter((r): r is BlotterRow => r !== null));
       }
-      if (eventRes.ok) {
-        const body = await eventRes.json().catch(() => ({ rows: [] }));
-        setEvents(((body.rows ?? []) as unknown[]).map(toRiskEvent).filter((r): r is RiskEventRow => r !== null));
+      if (eventBody) {
+        setEvents(((eventBody.rows ?? []) as unknown[]).map(toRiskEvent).filter((r): r is RiskEventRow => r !== null));
       }
       setLastSyncAt(new Date());
     } catch {
       if (current === sequence.current) {
         setProblem({ error: "The cockpit could not reach its same-origin gateway routes." });
+        setFailures((n) => n + 1);
       }
     } finally {
       if (current === sequence.current) setLoading(false);
     }
   }, []);
 
+  const mode: CockpitMode = book ? "live" : unconfigured && !sandboxOff ? "sandbox" : "outage";
+
   useEffect(() => {
     void refresh();
+    // "No gateway in this deployment" cannot change without a redeploy, so
+    // polling it is 45 doomed requests a minute in a reviewer's network tab.
+    // One probe is enough; the Retry button owns any second attempt.
+    if (unconfigured) {
+      return () => { sequence.current += 1; };
+    }
+    // Real outages back off geometrically instead of hammering a struggling
+    // service at a fixed 4s forever.
+    const interval = Math.min(REFRESH_MS * 2 ** Math.min(failures, 8), MAX_BACKOFF_MS);
     const timer = setInterval(() => {
-      // A backgrounded tab polling a trading gateway is pure cost.
       if (!document.hidden) void refresh();
-    }, REFRESH_MS);
+    }, interval);
     return () => {
       clearInterval(timer);
       sequence.current += 1;
     };
-  }, [refresh]);
+  }, [refresh, unconfigured, failures]);
 
-  const summary = useMemo(() => summarise(orders), [orders]);
-  const symbolOrders = useMemo(() => orders.filter((o) => o.symbol === symbol), [orders, symbol]);
+  // The sandbox desk: one deterministic book, blotter and event stream, plus a
+  // local judge replaying the gateway's gates. Created once — the judge holds
+  // the rate bucket and idempotency set a burst preset needs.
+  const sandboxState = useMemo(() => {
+    const generatedBook = sandboxBook();
+    return {
+      book: generatedBook as unknown as PortfolioSnapshot,
+      desk: createSandboxDesk(generatedBook),
+      orders: sandboxBlotter(),
+      events: sandboxRiskEvents(),
+    };
+  }, []);
+
+  const effectiveBook = mode === "sandbox" ? sandboxState.book : book;
+  const effectiveOrders = mode === "sandbox" ? sandboxState.orders : orders;
+  const effectiveEvents = mode === "sandbox" ? sandboxState.events : events;
+  const feedSource = mode === "live" ? "live" as const : mode === "sandbox" ? "sandbox" as const : "unavailable" as const;
+
+  const summary = useMemo(() => summarise(effectiveOrders), [effectiveOrders]);
+  const symbolOrders = useMemo(
+    () => effectiveOrders.filter((o) => o.symbol === symbol),
+    [effectiveOrders, symbol],
+  );
 
   if (loading && !book && !problem) {
     return <div className="card cockpit-placeholder">Connecting to the risk gateway…</div>;
@@ -139,11 +210,43 @@ export default function ExecutionCockpit({
 
   return (
     <div className="cockpit">
+      {mode === "sandbox" && (
+        /* Same grammar as the book chrome: persistent, above everything, on
+           every render — a one-time notice is how a generated desk gets
+           mistaken for a real one after ten minutes of reading. */
+        <div className="banner warn sandbox-banner" role="status">
+          <span aria-hidden>◆</span>
+          <div>
+            <strong>Sandbox desk — these orders were never sent.</strong> The blotter, alerts and
+            P&amp;L below are generated from a fixed seed. The ticket is real: it replays the
+            gateway&apos;s own pre-trade gates against this generated book — order-level limits from
+            the gateway&apos;s config, book-level limits from the book itself, exactly as the live
+            gateway reads them.
+          </div>
+          <button type="button" className="text-action" onClick={() => setSandboxOff(true)}>
+            Live gateway →
+          </button>
+        </div>
+      )}
+      {mode === "outage" && unconfigured && sandboxOff && (
+        <div className="banner warn" role="status">
+          <span aria-hidden>◆</span>
+          <div>
+            No gateway exists in this deployment, so the live desk has nothing to show.
+            <button type="button" className="text-action" onClick={() => setSandboxOff(false)}>
+              Back to the sandbox desk →
+            </button>
+          </div>
+        </div>
+      )}
+
       <PnlStrip
-        book={book}
+        book={effectiveBook}
+        mode={mode}
         problem={problem}
         lastSyncAt={lastSyncAt}
         onRefresh={() => void refresh()}
+        onEnterSandbox={unconfigured ? () => setSandboxOff(false) : undefined}
       />
 
       <div className="cockpit-grid">
@@ -153,16 +256,18 @@ export default function ExecutionCockpit({
           defaultNotional={notional}
           strategy={researchStrategy ?? null}
           experimentId={researchExperimentId ?? null}
-          halted={book?.trading_halted ?? false}
-          haltedSymbols={book?.halted_symbols ?? []}
-          onSubmitted={() => void refresh()}
+          halted={effectiveBook?.trading_halted ?? false}
+          haltedSymbols={effectiveBook?.halted_symbols ?? []}
+          mode={mode}
+          judge={mode === "sandbox" ? sandboxState.desk.judge : undefined}
+          onSubmitted={mode === "live" ? () => void refresh() : () => undefined}
           onOpenResearch={onOpenResearch}
         />
-        <ExecutionQuality summary={summary} symbol={symbol} symbolOrders={symbolOrders} />
+        <ExecutionQuality summary={summary} symbol={symbol} symbolOrders={symbolOrders} source={feedSource} />
       </div>
 
-      <OrderBlotter rows={orders} focusSymbol={symbol} onOpenResearch={onOpenResearch} />
-      <AlertFeed events={events} />
+      <OrderBlotter rows={effectiveOrders} focusSymbol={symbol} onOpenResearch={onOpenResearch} source={feedSource} />
+      <AlertFeed events={effectiveEvents} source={feedSource} />
     </div>
   );
 }

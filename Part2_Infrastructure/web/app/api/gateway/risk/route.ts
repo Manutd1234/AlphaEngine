@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { gatewayBase as sharedGatewayBase } from "@/lib/gateway";
+
 import { emit } from "@/lib/observability";
 import { authorise, guardMode, OPERATOR_TOKEN_ENV } from "@/lib/operator";
 
@@ -70,16 +72,15 @@ interface GatewayPosition {
   quantity: number;
 }
 
+/**
+ * Delegates to the shared resolver so `gatewayConnected` below cannot say true
+ * for a URL the shared boundary would refuse — a loopback address baked into a
+ * deployment once made this route report a connected gateway while every fetch
+ * through it failed, which is the worst possible answer for the one field
+ * operators check first.
+ */
 function gatewayBase(): URL | null {
-  const raw = process.env.ALPHAENGINE_GATEWAY_URL?.trim();
-  if (!raw) return null;
-  try {
-    const parsed = new URL(raw);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
-    return new URL(`${parsed.origin}/`);
-  } catch {
-    return null;
-  }
+  return sharedGatewayBase();
 }
 
 function gatewayHeaders(): HeadersInit {

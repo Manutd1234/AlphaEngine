@@ -20,7 +20,7 @@
 
 import { useState } from "react";
 
-import { type GateCheck } from "@/lib/blotter";
+import { type GateCheck, type SandboxDecision, type SandboxOrder } from "@/lib/blotter";
 import { fmt, usd } from "@/lib/format";
 
 interface OrderTicketProps {
@@ -31,6 +31,14 @@ interface OrderTicketProps {
   experimentId: string | null;
   halted: boolean;
   haltedSymbols: string[];
+  /**
+   * live — POST to the gateway; sandbox — judge locally with the gateway's
+   * gate logic; outage — the ticket is disabled, because inviting a click
+   * that can only produce a 503 teaches a reviewer the wrong lesson.
+   */
+  mode: "live" | "sandbox" | "outage";
+  /** The sandbox desk's judge, present only in sandbox mode. */
+  judge?: (order: SandboxOrder) => SandboxDecision;
   onSubmitted: () => void;
   onOpenResearch?: () => void;
 }
@@ -55,7 +63,7 @@ const PRESETS: Preset[] = [
 
 export default function OrderTicket({
   symbol, defaultSide, defaultNotional, strategy, experimentId,
-  halted, haltedSymbols, onSubmitted, onOpenResearch,
+  halted, haltedSymbols, mode, judge, onSubmitted, onOpenResearch,
 }: OrderTicketProps) {
   const [side, setSide] = useState<"BUY" | "SELL">(defaultSide);
   const [notional, setNotional] = useState<number>(defaultNotional || 25_000);
@@ -64,36 +72,57 @@ export default function OrderTicket({
   const [error, setError] = useState<{ error: string; hint?: string } | null>(null);
 
   const symbolHalted = halted || haltedSymbols.includes(symbol);
+  const disabled = mode === "outage";
 
   async function submit(count = 1, overrideNotional?: number) {
     setBusy(true);
     setError(null);
     const collected: Decision[] = [];
+    let failed = false;
     try {
       for (let i = 0; i < count; i += 1) {
+        const order = {
+          symbol,
+          side,
+          notional: overrideNotional ?? notional,
+          order_type: "MARKET" as const,
+          ...(strategy ? { strategy } : {}),
+          // Stamping the experiment id is what later lets a fill in the
+          // blotter be traced back to the run that argued for it.
+          ...(experimentId ? { client_order_id: `${experimentId}-${Date.now()}-${i}` } : {}),
+        };
+
+        if (mode === "sandbox" && judge) {
+          // No network. The gates are the gateway's own — names, order and
+          // thresholds — replayed against the generated book, and the burst
+          // preset trips the same token bucket for the same reason.
+          collected.push(judge({
+            symbol: order.symbol,
+            side: order.side,
+            notional: order.notional,
+            clientOrderId: order.client_order_id ?? null,
+          }) as Decision);
+          continue;
+        }
+
         const response = await fetch("/api/gateway/orders", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            symbol,
-            side,
-            notional: overrideNotional ?? notional,
-            order_type: "MARKET",
-            ...(strategy ? { strategy } : {}),
-            // Stamping the experiment id is what later lets a fill in the
-            // blotter be traced back to the run that argued for it.
-            ...(experimentId ? { client_order_id: `${experimentId}-${Date.now()}-${i}` } : {}),
-          }),
+          body: JSON.stringify(order),
         });
         const body = await response.json().catch(() => ({}));
         if (!response.ok) {
           setError({ error: body.error ?? `The order route answered HTTP ${response.status}.`, hint: body.hint });
+          failed = true;
           break;
         }
         collected.push(body.decision as Decision);
       }
-      setDecisions(collected);
-      onSubmitted();
+      // A mid-burst failure must not wipe the verdicts already collected, and
+      // a submit that produced nothing has nothing to tell the cockpit to
+      // refresh for — the old path did both.
+      if (collected.length) setDecisions(collected);
+      if (collected.length && !failed) onSubmitted();
     } catch {
       setError({ error: "The order could not be submitted from this browser." });
     } finally {
@@ -127,6 +156,19 @@ export default function OrderTicket({
         </p>
       ) : null}
 
+      {disabled ? (
+        <p className="notice notice--stop">
+          The order path needs a reachable gateway and none is answering, so the ticket is
+          disabled rather than letting a demo click end in an error it cannot explain.
+        </p>
+      ) : null}
+      {mode === "sandbox" ? (
+        <p className="muted">
+          Sandbox: verdicts are computed in this browser by the gateway&apos;s own gate logic against
+          the generated book. No order leaves this page.
+        </p>
+      ) : null}
+
       <div className="cockpit-ticket__form">
         <div className="seg" role="group" aria-label="Side">
           {(["BUY", "SELL"] as const).map((option) => (
@@ -152,7 +194,12 @@ export default function OrderTicket({
           />
         </label>
 
-        <button type="button" className="primary-action" disabled={busy || !(notional > 0)} onClick={() => void submit()}>
+        <button
+          type="button"
+          className="primary-action"
+          disabled={busy || disabled || !(notional > 0)}
+          onClick={() => void submit()}
+        >
           {busy ? "Submitting…" : `Send ${side} ${symbol}`}
         </button>
       </div>
@@ -163,7 +210,7 @@ export default function OrderTicket({
             key={preset.id}
             type="button"
             className="icon"
-            disabled={busy}
+            disabled={busy || disabled}
             title={preset.hint}
             onClick={() => void submit(preset.repeat ?? 1, preset.notional)}
           >

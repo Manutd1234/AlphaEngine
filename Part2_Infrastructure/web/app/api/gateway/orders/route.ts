@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { callGateway, failureBody } from "@/lib/gateway";
+import { callGateway, failureBody, gatewayBase } from "@/lib/gateway";
 import { emit } from "@/lib/observability";
 import { authorise, guardMode, OPERATOR_TOKEN_ENV } from "@/lib/operator";
 
@@ -87,8 +87,17 @@ function parseOrder(input: Record<string, unknown>): { order: Record<string, unk
 export async function POST(request: NextRequest) {
   const rejection = authorise(request.headers.get("authorization"));
   if (rejection) {
+    // The authorisation boundary stays first — a config check ahead of it
+    // would turn a bad credential's 401 into a 503. But when the guard is
+    // locked because no operator token EXISTS, the caller is about to be told
+    // to go set one, follow the hint, and then discover a second missing
+    // dependency behind it. One rejection should name every blocker it knows.
     const { status, ...body } = rejection;
-    return NextResponse.json(body, { status });
+    const blockers = [OPERATOR_TOKEN_ENV, ...(gatewayBase() ? [] : ["ALPHAENGINE_GATEWAY_URL"])];
+    return NextResponse.json(
+      guardMode() === "locked" ? { ...body, blockers } : body,
+      { status },
+    );
   }
 
   let raw: unknown;
@@ -105,6 +114,7 @@ export async function POST(request: NextRequest) {
   const { order } = parsed;
 
   const result = await callGateway<Record<string, unknown>>("/api/orders", {
+    subject: "order submission",
     method: "POST",
     body: order,
     validate: (payload) => typeof payload === "object" && payload !== null && "accepted" in payload,

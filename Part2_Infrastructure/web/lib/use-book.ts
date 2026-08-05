@@ -95,7 +95,17 @@ export function useBook(): BookView {
   const [lastSuccessAt, setLastSuccessAt] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [sandbox, setSandbox] = useState(false);
+  const [sandbox, setSandboxState] = useState(false);
+  // An explicit click on either side of the Live/Sandbox toggle is a decision;
+  // the auto-entry below must never override one. Session-scoped on purpose —
+  // a fresh visit starts from the same defaults a reviewer's first visit does.
+  const chose = useRef(false);
+
+  const setSandbox = useCallback((on: boolean) => {
+    chose.current = true;
+    try { sessionStorage.setItem("alphaengine-book-source", on ? "sandbox" : "live"); } catch { /* private mode */ }
+    setSandboxState(on);
+  }, []);
   const [returns, setReturns] = useState<ReturnsBySymbol>({});
   const [riskLoading, setRiskLoading] = useState(false);
   // The gateway persists equity snapshots from its risk monitor, but only from
@@ -179,8 +189,25 @@ export function useBook(): BookView {
     return () => { cancelled = true; };
   }, []);
 
+  // Restore a choice made earlier this session before the first paint settles.
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("alphaengine-book-source");
+      if (stored === "sandbox" || stored === "live") {
+        chose.current = true;
+        setSandboxState(stored === "sandbox");
+      }
+    } catch { /* private mode */ }
+  }, []);
+
   useEffect(() => {
     void refresh();
+    // While the sandbox is on there is nothing to poll: the book is generated
+    // locally and the gateway probe already ran once. Leaving the interval
+    // running cost four dead 503s a minute and a needless re-render per tick.
+    if (sandbox) {
+      return () => { sequence.current += 1; };
+    }
     const timer = setInterval(() => {
       if (!document.hidden) void refresh(true);
     }, REFRESH_MS);
@@ -188,7 +215,19 @@ export function useBook(): BookView {
       clearInterval(timer);
       sequence.current += 1;
     };
-  }, [refresh]);
+  }, [refresh, sandbox]);
+
+  // The deployed workspace has no gateway by design — it cannot host a
+  // long-lived WebSocket/DuckDB process. When the very first probe settles on
+  // exactly that state, enter the sandbox unprompted so a reviewer lands on a
+  // working, banner-labelled book instead of a setup card. Only for
+  // `gateway_not_configured`: an unreachable or misconfigured gateway is an
+  // incident, and auto-faking a book during an incident is the one thing this
+  // codebase exists to refuse.
+  useEffect(() => {
+    if (loading || portfolio || chose.current) return;
+    if (error?.code === "gateway_not_configured") setSandboxState(true);
+  }, [loading, portfolio, error]);
 
   // Daily closes for whatever the book holds. The gateway knows the positions
   // and nothing about how they co-move, so the covariance has to be measured

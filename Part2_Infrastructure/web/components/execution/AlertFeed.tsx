@@ -20,6 +20,8 @@ import type { RiskEventRow } from "@/lib/blotter";
 
 interface AlertFeedProps {
   events: RiskEventRow[];
+  /** Where the events came from. */
+  source?: "live" | "sandbox" | "unavailable";
 }
 
 const SEVERITY_RANK: Record<string, number> = { critical: 3, error: 3, warning: 2, warn: 2, info: 1 };
@@ -36,7 +38,7 @@ function time(ts: string): string {
     : new Date(parsed).toLocaleTimeString("en-GB", { hour12: false });
 }
 
-export default function AlertFeed({ events }: AlertFeedProps) {
+export default function AlertFeed({ events, source = "live" }: AlertFeedProps) {
   const [importantOnly, setImportantOnly] = useState(false);
 
   const visible = useMemo(
@@ -52,7 +54,9 @@ export default function AlertFeed({ events }: AlertFeedProps) {
         <div>
           <h3>Alerts &amp; risk events</h3>
           <p className="muted">
-            Everything the gateway decided without being asked — the same stream the Telegram companion pushes.
+            {source === "sandbox"
+              ? "A generated event stream — the shape the risk monitor produces, from a seed rather than a desk."
+              : "Everything the gateway decided without being asked — the same stream the Telegram companion pushes."}
           </p>
         </div>
         <label className="toggle">
@@ -67,7 +71,14 @@ export default function AlertFeed({ events }: AlertFeedProps) {
 
       {!visible.length ? (
         <p className="muted">
-          {events.length ? "Nothing at this severity." : "No risk events recorded yet — a quiet desk is the good case."}
+          {events.length
+            ? "Nothing at this severity."
+            : source === "unavailable"
+              // "A quiet desk is the good case" is only true when a live feed
+              // reported zero events. Saying it about an absent feed tells a
+              // reviewer the risk monitor is silent when nothing is listening.
+              ? "The event stream has no source in this deployment."
+              : "No risk events recorded yet — a quiet desk is the good case."}
         </p>
       ) : (
         <ul className="cockpit-alert-list">
