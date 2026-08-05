@@ -599,7 +599,12 @@ export default function Page() {
 
         <footer className="workspace-footer">
           <span>AlphaEngine</span>
-          <p>Research and execution support infrastructure. Not investment advice. Live orders remain gated by the authoritative risk gateway.</p>
+          <p>
+            Educational case-study demonstration built for a developer assessment. Not a brokerage
+            or investment service: no accounts, no funds, no real orders, and no credentials are
+            requested from visitors. Execution is paper-only and remains gated by the risk gateway.
+            Not investment advice.
+          </p>
         </footer>
       </main>
     </>

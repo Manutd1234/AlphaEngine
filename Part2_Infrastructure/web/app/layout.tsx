@@ -3,11 +3,13 @@ import { headers } from "next/headers";
 
 import "./globals.css";
 
-const TITLE = "AlphaEngine — Integrated Investment Infrastructure";
+const TITLE = "AlphaEngine — Quant Infrastructure Case Study (Demo)";
 const DESCRIPTION =
-  "A connected workspace for quant researchers, traders, portfolio managers, risk managers, "
-  + "developers, data engineers and SREs — from strategy evidence to live execution, "
-  + "risk validation and data lineage.";
+  "An educational case-study demonstration of quant trading infrastructure, built for a "
+  + "developer assessment. Not a brokerage or investment service: it opens no accounts, holds "
+  + "no funds, collects no credentials and sends no real orders. A connected workspace for "
+  + "quant researchers, traders, portfolio managers, risk managers, developers, data engineers "
+  + "and SREs — from strategy evidence to paper execution, risk validation and data lineage.";
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();

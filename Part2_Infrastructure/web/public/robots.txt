@@ -1,0 +1,4 @@
+# AlphaEngine — educational quant-infrastructure case study (demo).
+# Not a brokerage or investment service: no accounts, no funds, no real orders.
+User-agent: *
+Allow: /
