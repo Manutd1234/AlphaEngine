@@ -25,8 +25,10 @@ import { fmt, usd } from "@/lib/format";
 
 interface OrderTicketProps {
   symbol: string;
-  defaultSide: "BUY" | "SELL";
-  defaultNotional: number;
+  side: "BUY" | "SELL";
+  notional: number;
+  onSideChange: (side: "BUY" | "SELL") => void;
+  onNotionalChange: (notional: number) => void;
   strategy: string | null;
   experimentId: string | null;
   halted: boolean;
@@ -62,11 +64,9 @@ const PRESETS: Preset[] = [
 ];
 
 export default function OrderTicket({
-  symbol, defaultSide, defaultNotional, strategy, experimentId,
+  symbol, side, notional, onSideChange, onNotionalChange, strategy, experimentId,
   halted, haltedSymbols, mode, judge, onSubmitted, onOpenResearch,
 }: OrderTicketProps) {
-  const [side, setSide] = useState<"BUY" | "SELL">(defaultSide);
-  const [notional, setNotional] = useState<number>(defaultNotional || 25_000);
   const [busy, setBusy] = useState(false);
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [error, setError] = useState<{ error: string; hint?: string } | null>(null);
@@ -176,7 +176,7 @@ export default function OrderTicket({
               key={option}
               type="button"
               aria-pressed={side === option}
-              onClick={() => setSide(option)}
+              onClick={() => onSideChange(option)}
             >
               {option}
             </button>
@@ -190,7 +190,7 @@ export default function OrderTicket({
             min={1}
             step={1000}
             value={notional}
-            onChange={(event) => setNotional(Number(event.target.value))}
+            onChange={(event) => onNotionalChange(Math.max(0, Number(event.target.value) || 0))}
           />
         </label>
 

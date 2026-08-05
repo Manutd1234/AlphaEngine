@@ -31,6 +31,11 @@ function read(relative: string): string {
 
 const header = read("../components/WorkspaceHeader.tsx");
 const page = read("../app/page.tsx");
+const subtabs = read("../components/WorkspaceSubtabs.tsx");
+const riskWorkspace = read("../components/RiskWorkspace.tsx");
+const dataConsole = read("../components/DataConsole.tsx");
+const dataWorkBoard = read("../components/data/DataWorkBoard.tsx");
+const pipelineInspector = read("../components/systems/PipelineInspector.tsx");
 
 /** Nav ids, in declaration order, from the single NAV_ITEMS literal. */
 function navIds(source: string): string[] {
@@ -85,6 +90,42 @@ describe("the nav and the render tree describe the same workspace", () => {
       assert.ok(!ids.includes(from), `"${from}" is a live tab and should not be redirected`);
       assert.ok(ids.includes(to), `legacy hash "${from}" points at "${to}", which is not a tab`);
     }
+  });
+});
+
+describe("dense role workspaces expose accessible feature sections", () => {
+  it("uses one roving tab pattern for every nested workspace", () => {
+    assert.match(subtabs, /role="tablist"/);
+    assert.match(subtabs, /role="tab"/);
+    assert.match(subtabs, /role="tabpanel"/);
+    for (const key of ["ArrowLeft", "ArrowRight", "Home", "End"]) {
+      assert.ok(subtabs.includes(key), `nested tabs do not handle ${key}`);
+    }
+  });
+
+  it("splits execution, research, risk and data into focused feature groups", () => {
+    for (const section of ["trade", "liquidity", "routing", "activity", "summary", "parameters", "walkforward", "attribution", "decision", "runs"]) {
+      assert.ok(page.includes(`id: "${section}"`), `page is missing the ${section} subtab`);
+    }
+    for (const section of ["limits", "model", "scenarios", "controls"]) {
+      assert.ok(riskWorkspace.includes(`id: "${section}"`), `risk is missing the ${section} subtab`);
+    }
+    for (const section of ["queue", "routing", "pipeline", "quality", "capacity"]) {
+      assert.ok(dataConsole.includes(`id: "${section}"`), `data is missing the ${section} subtab`);
+      assert.ok(dataConsole.includes(`tabId="${section}"`), `data is missing the ${section} panel`);
+    }
+
+    // The board has a native keyboard alternative to dragging and announces
+    // moves without stealing focus. Hidden pipeline panels remain mounted, so
+    // their poll and venue sockets must also be explicitly gated by `active`.
+    assert.match(dataWorkBoard, /aria-label=\{`Status for \$\{item\.id\}`\}/);
+    assert.match(dataWorkBoard, /aria-live="polite"/);
+    assert.ok(!dataWorkBoard.includes("draggable="), "the board must not rely on drag-only movement");
+    assert.ok(pipelineInspector.includes('if (!active || tab !== "rest"'), "hidden pipeline keeps polling");
+    assert.ok(
+      pipelineInspector.includes('active && tab === "socket" && socketSupported'),
+      "hidden pipeline keeps venue sockets open",
+    );
   });
 });
 

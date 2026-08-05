@@ -23,8 +23,9 @@ or controls this UI.
 ## Deploy to Vercel
 
 1. Import the GitHub repo at <https://vercel.com/new>.
-2. Set **Root Directory** to `web`. Everything else auto-detects (Next.js 16) —
-   `web/vercel.json` pins `"framework": "nextjs"` so the build cannot fall back
+2. Set **Root Directory** to `Part2_Infrastructure/web`. Everything else
+   auto-detects (Next.js 16) — `Part2_Infrastructure/web/vercel.json` pins
+   `"framework": "nextjs"` so the build cannot fall back
    to the static "Other" preset, which looks for a `public/` output directory
    and fails **after** a successful `next build` with
    *"No Output Directory named 'public' found"*.
@@ -53,7 +54,7 @@ npm install
 npm run dev        # http://localhost:3000 (Turbopack)
 npm run build      # Turbopack production build
 npm run typecheck  # tsc --noEmit
-npm test           # 370 tests, no network required
+npm test           # 377 tests, no network required
 ```
 
 Built on **Next.js 16** with **Turbopack**, which is the default bundler for both
@@ -76,7 +77,7 @@ for.
 | Execution | Quant trader | What is the book doing right now, and what would this order cost? |
 | Portfolio | Portfolio manager | What do we hold, and is the capital where it was meant to be? |
 | Risk | Risk manager | How close are we to a limit, and what does the tail look like? |
-| Data | Data engineer | Where did this number come from, and can it be trusted? |
+| Data | Data engineer | What needs attention, where did this number come from, and can it be trusted? |
 | Reliability | DevOps / SRE | Is the platform healthy, and which layer broke? |
 | Developer | Quant developer | What is the contract, and what proves it still holds? |
 
@@ -89,6 +90,12 @@ Portfolio and Risk read one gateway snapshot through a shared hook; Data,
 Reliability and Developer share one health poll the same way. Splitting the tabs
 without sharing the fetch would have given each of them its own idea of the
 book.
+
+The Data workspace opens on a session-scoped operations queue for requests,
+tickets and bugs, with type filters, priority/age sorting, SLA cues, an active
+work limit and keyboard-native status moves. Routing, pipeline tracing,
+cross-source quality checks, quarantine and capacity live in separate subtabs;
+hidden pipeline panels stop polling and close their live venue sockets.
 
 **Connected desk context** — instrument and horizon live in the persistent
 workspace shell and carry across every tab. Research winners retain their
@@ -373,7 +380,7 @@ web/
 │       └── …one adapter per vendor (binance, fmp, tiingo, massive,
 │            alphavantage, firecrawl, openbb)
 ├── components/               charts (hand-rolled SVG), controls, tables
-└── tests/                    370 tests incl. cross-engine and risk-engine parity
+└── tests/                    377 tests incl. cross-engine and risk-engine parity
 ```
 
 **Why the sweep runs server-side.** Binance's public API is called from the

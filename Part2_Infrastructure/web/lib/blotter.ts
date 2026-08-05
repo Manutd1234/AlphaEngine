@@ -206,9 +206,23 @@ const SANDBOX_SLEEVES = [
   { strategy: "rsi_reversion", orders: 12, filled: 9, notional: 870_000, fees: 522, avgSlippageBps: 4.8 },
 ] as const;
 
-const SANDBOX_SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"] as const;
+const SANDBOX_SYMBOLS = [
+  "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT",
+  "DOGEUSDT", "AVAXUSDT", "LINKUSDT", "DOTUSDT", "LTCUSDT", "TRXUSDT",
+] as const;
 const SANDBOX_MARKS: Record<string, number> = {
-  BTCUSDT: 67_412.5, ETHUSDT: 3_218.4, SOLUSDT: 152.86, BNBUSDT: 584.2,
+  BTCUSDT: 67_412.5,
+  ETHUSDT: 3_218.4,
+  SOLUSDT: 152.86,
+  BNBUSDT: 584.2,
+  XRPUSDT: 0.62,
+  ADAUSDT: 0.45,
+  DOGEUSDT: 0.16,
+  AVAXUSDT: 36.4,
+  LINKUSDT: 18.25,
+  DOTUSDT: 7.12,
+  LTCUSDT: 84.75,
+  TRXUSDT: 0.13,
 };
 const SANDBOX_VENUES = ["BINANCE", "BYBIT"] as const;
 /**

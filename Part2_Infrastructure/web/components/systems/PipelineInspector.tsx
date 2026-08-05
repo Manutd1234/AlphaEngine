@@ -41,6 +41,8 @@ interface PipelineInspectorProps {
   /** Console-wide poll cadence; 0 means paused. */
   pollMs: number;
   onEvent: (level: "info" | "warn" | "error", message: string, fields?: Record<string, string | number | boolean | null>) => void;
+  /** Hidden outer subtabs stay mounted, so network work must be gated explicitly. */
+  active: boolean;
 }
 
 export default function PipelineInspector({
@@ -48,16 +50,20 @@ export default function PipelineInspector({
   onSymbolChange,
   pollMs,
   onEvent,
+  active,
 }: PipelineInspectorProps) {
   const [draft, setDraft] = useState(symbol);
   const [capability, setCapability] = useState<Capability>("quote");
   const [raw, setRaw] = useState(true);
   const [tab, setTab] = useState<"rest" | "socket">("rest");
   const [result, setResult] = useState<InspectResponse | null>(null);
+  const [resultKey, setResultKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const sequence = useRef(0);
   const busySeq = useRef(0);
+  const autoInspectKey = useRef<string | null>(null);
+  const inspectionKey = `${symbol}:${capability}:${raw ? "raw" : "normalised"}`;
 
   useEffect(() => setDraft(symbol), [symbol]);
 
@@ -72,7 +78,9 @@ export default function PipelineInspector({
         // button stays "Tracing…" until the component remounts.
         busySeq.current = current;
         setBusy(true);
+        setError(null);
       }
+      const requestKey = inspectionKey;
       const startedAt = Date.now();
       try {
         const qs = new URLSearchParams({
@@ -95,6 +103,7 @@ export default function PipelineInspector({
           return;
         }
         setResult(body as InspectResponse);
+        setResultKey(requestKey);
         setError(null);
         onEvent(
           (body as InspectResponse).ok ? "info" : "warn",
@@ -112,20 +121,23 @@ export default function PipelineInspector({
         if (!quiet && busySeq.current === current) setBusy(false);
       }
     },
-    [symbol, capability, raw, onEvent],
+    [symbol, capability, raw, inspectionKey, onEvent],
   );
 
   useEffect(() => {
+    if (!active || tab !== "rest") return;
+    if (autoInspectKey.current === inspectionKey) return;
+    autoInspectKey.current = inspectionKey;
     void inspect(false, false);
-  }, [inspect]);
+  }, [active, tab, inspect, inspectionKey]);
 
   useEffect(() => {
-    if (!pollMs) return;
+    if (!active || tab !== "rest" || !pollMs) return;
     const timer = setInterval(() => {
       if (!document.hidden) void inspect(false, true);
     }, pollMs);
     return () => clearInterval(timer);
-  }, [pollMs, inspect]);
+  }, [active, tab, pollMs, inspect]);
 
   const submit = () => {
     const next = draft.trim().toUpperCase();
@@ -135,7 +147,8 @@ export default function PipelineInspector({
 
   const socketSupported = LIVE_SYMBOLS.has(symbol);
   // Sockets open only while the wire tap is on screen and the pair is covered.
-  const snapshot = useLiveBook(symbol, tab === "socket" && socketSupported);
+  const snapshot = useLiveBook(symbol, active && tab === "socket" && socketSupported);
+  const resultMatchesControls = result !== null && resultKey === inspectionKey;
 
   return (
     <div className="card console-card console-inspector">
@@ -197,8 +210,8 @@ export default function PipelineInspector({
 
       {tab === "rest" && (
         <>
-          {!result && busy && <div className="skeleton" style={{ height: 160 }} />}
-          {result && <RestTrace result={result} />}
+          {!resultMatchesControls && busy && <div className="skeleton" style={{ height: 160 }} />}
+          {resultMatchesControls && result && <RestTrace result={result} />}
         </>
       )}
 

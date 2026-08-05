@@ -25,6 +25,8 @@ interface PromotionPanelProps {
   slow: number;
   strategyLabel: string;
   slippageBps: number;
+  blocked?: boolean;
+  blockedReason?: string;
   onHandOff: () => void;
 }
 
@@ -35,6 +37,8 @@ export default function PromotionPanel({
   slow,
   strategyLabel,
   slippageBps,
+  blocked = false,
+  blockedReason,
   onHandOff,
 }: PromotionPanelProps) {
   const failed = gate.total - gate.passed;
@@ -89,7 +93,9 @@ export default function PromotionPanel({
             {symbol} · {strategyLabel} {fast}/{slow}
           </strong>
           <small>
-            {gate.eligible
+            {blocked
+              ? blockedReason ?? "Promotion is temporarily unavailable."
+              : gate.eligible
               ? `Carries a modelled ${fmt(slippageBps, 0)} bps slippage budget into the execution probe.`
               : "Hand-off stays disabled until every gate clears."}
           </small>
@@ -97,9 +103,11 @@ export default function PromotionPanel({
         <button
           className="primary-action"
           onClick={onHandOff}
-          disabled={!gate.eligible}
+          disabled={!gate.eligible || blocked}
           title={
-            gate.eligible
+            blocked
+              ? blockedReason ?? "Promotion is temporarily unavailable"
+              : gate.eligible
               ? "Open the Execution tab with this instrument in context"
               : `${failed} gate${failed === 1 ? "" : "s"} still failing`
           }

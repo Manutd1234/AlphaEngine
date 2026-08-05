@@ -242,6 +242,7 @@ export function useBook(): BookView {
     const symbols = heldSymbols ? heldSymbols.split(",") : [];
     if (!symbols.length) {
       setReturns({});
+      setRiskLoading(false);
       return;
     }
     let cancelled = false;

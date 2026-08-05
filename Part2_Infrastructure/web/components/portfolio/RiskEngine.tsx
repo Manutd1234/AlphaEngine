@@ -46,14 +46,15 @@ const ZONE_STYLE: Record<string, { glyph: string; label: string; tone: string }>
 export default function RiskEngine({ risk, model, equity, loading, missing, validation }: RiskEngineProps) {
   if (loading) {
     return (
-      <div className="card">
+      <div className="card" aria-busy="true" aria-live="polite">
         <div className="portfolio-card-heading">
           <div>
             <span className="page-kicker">Quantitative risk</span>
             <h2>Risk engine</h2>
           </div>
         </div>
-        <div className="skeleton" style={{ height: 150 }} />
+        <div className="skeleton" style={{ height: 150 }} aria-hidden />
+        <span className="sr-only">Measuring portfolio volatility and loss estimates.</span>
       </div>
     );
   }

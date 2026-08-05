@@ -46,6 +46,7 @@ import {
   toRiskEvent,
 } from "@/lib/blotter";
 import { sandboxBook } from "@/lib/portfolio";
+import { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 
 import AlertFeed from "./AlertFeed";
 import ExecutionQuality from "./ExecutionQuality";
@@ -74,6 +75,9 @@ export interface CockpitProps {
   symbol: string;
   side: "BUY" | "SELL";
   notional: number;
+  section: "trade" | "liquidity" | "routing" | "activity";
+  onSideChange: (side: "BUY" | "SELL") => void;
+  onNotionalChange: (notional: number) => void;
   /** Strategy tag proposed by the research tab, when a run has been promoted. */
   researchStrategy?: string | null;
   /** Experiment id to stamp on the order so a fill can be traced to its idea. */
@@ -87,6 +91,9 @@ export default function ExecutionCockpit({
   symbol,
   side,
   notional,
+  section,
+  onSideChange,
+  onNotionalChange,
   researchStrategy,
   researchExperimentId,
   onOpenResearch,
@@ -205,7 +212,16 @@ export default function ExecutionCockpit({
   );
 
   if (loading && !book && !problem) {
-    return <div className="card cockpit-placeholder">Connecting to the risk gateway…</div>;
+    return (
+      <>
+        <WorkspaceSubtabPanel workspaceId="execution" tabId="trade" activeId={section}>
+          <div className="card cockpit-placeholder">Connecting to the risk gateway…</div>
+        </WorkspaceSubtabPanel>
+        <WorkspaceSubtabPanel workspaceId="execution" tabId="activity" activeId={section}>
+          <div className="card cockpit-placeholder">Loading orders, fills and risk events…</div>
+        </WorkspaceSubtabPanel>
+      </>
+    );
   }
 
   return (
@@ -249,25 +265,31 @@ export default function ExecutionCockpit({
         onEnterSandbox={unconfigured ? () => setSandboxOff(false) : undefined}
       />
 
-      <div className="cockpit-grid">
-        <OrderTicket
-          symbol={symbol}
-          defaultSide={side}
-          defaultNotional={notional}
-          strategy={researchStrategy ?? null}
-          experimentId={researchExperimentId ?? null}
-          halted={effectiveBook?.trading_halted ?? false}
-          haltedSymbols={effectiveBook?.halted_symbols ?? []}
-          mode={mode}
-          judge={mode === "sandbox" ? sandboxState.desk.judge : undefined}
-          onSubmitted={mode === "live" ? () => void refresh() : () => undefined}
-          onOpenResearch={onOpenResearch}
-        />
-        <ExecutionQuality summary={summary} symbol={symbol} symbolOrders={symbolOrders} source={feedSource} />
-      </div>
+      <WorkspaceSubtabPanel workspaceId="execution" tabId="trade" activeId={section}>
+        <div className="cockpit-grid cockpit-grid--ticket">
+          <OrderTicket
+            symbol={symbol}
+            side={side}
+            notional={notional}
+            onSideChange={onSideChange}
+            onNotionalChange={onNotionalChange}
+            strategy={researchStrategy ?? null}
+            experimentId={researchExperimentId ?? null}
+            halted={effectiveBook?.trading_halted ?? false}
+            haltedSymbols={effectiveBook?.halted_symbols ?? []}
+            mode={mode}
+            judge={mode === "sandbox" ? sandboxState.desk.judge : undefined}
+            onSubmitted={mode === "live" ? () => void refresh() : () => undefined}
+            onOpenResearch={onOpenResearch}
+          />
+        </div>
+      </WorkspaceSubtabPanel>
 
-      <OrderBlotter rows={effectiveOrders} focusSymbol={symbol} onOpenResearch={onOpenResearch} source={feedSource} />
-      <AlertFeed events={effectiveEvents} source={feedSource} />
+      <WorkspaceSubtabPanel workspaceId="execution" tabId="activity" activeId={section}>
+        <ExecutionQuality summary={summary} symbol={symbol} symbolOrders={symbolOrders} source={feedSource} />
+        <OrderBlotter rows={effectiveOrders} focusSymbol={symbol} onOpenResearch={onOpenResearch} source={feedSource} />
+        <AlertFeed events={effectiveEvents} source={feedSource} />
+      </WorkspaceSubtabPanel>
     </div>
   );
 }

@@ -12,7 +12,11 @@ import {
   SweepRequest,
 } from "@/lib/types";
 
-const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "AAPL", "NVDA", "MSFT"];
+const SYMBOLS = [
+  "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT",
+  "DOGEUSDT", "AVAXUSDT", "LINKUSDT", "DOTUSDT", "LTCUSDT", "TRXUSDT",
+  "AAPL", "NVDA", "MSFT",
+];
 
 function Slider({
   label,

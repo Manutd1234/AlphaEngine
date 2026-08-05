@@ -13,6 +13,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import DepthChart from "@/components/DepthChart";
 import DislocationStrip from "@/components/DislocationStrip";
 import StatTile from "@/components/StatTile";
+import { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import { liveTca, useLiveBook } from "@/lib/livebook";
 import { SYMBOLS, type Side, type Ticker } from "@/lib/venues";
 import { compact, fmt, priceDp, signedPct, usd } from "@/lib/format";
@@ -27,6 +28,8 @@ const STATUS_STYLE = {
   error: { icon: "✕", label: "down" },
 } as const;
 
+export type ExecutionSection = "trade" | "liquidity" | "routing" | "activity";
+
 interface LiveMarketProps {
   symbol: string;
   onSymbolChange: (symbol: string) => void;
@@ -37,6 +40,7 @@ interface LiveMarketProps {
   research: SweepResponse | null;
   onOpenResearch: () => void;
   onOpenData: () => void;
+  section: ExecutionSection;
   children?: ReactNode;
 }
 
@@ -50,6 +54,7 @@ export default function LiveMarket({
   research,
   onOpenResearch,
   onOpenData,
+  section,
   children,
 }: LiveMarketProps) {
   const liveSupported = (SYMBOLS as readonly string[]).includes(symbol);
@@ -206,21 +211,25 @@ export default function LiveMarket({
       <>
         {instrumentPanel}
         {children}
-        <div className="capability-empty">
-          <span className="role-monogram" aria-hidden>L2</span>
-          <div>
-            <span className="page-kicker">Capability boundary</span>
-            <h2>Live venue routing is not available for {symbol}.</h2>
-            <p>
-              Quote and news coverage can still be inspected in Data & systems. Select a supported
-              crypto pair above to open direct Binance and Bybit order books.
-            </p>
-            <div>
-              <button className="primary-action" onClick={onOpenData}>Open data workspace</button>
-              <button onClick={onOpenResearch}>Review research context</button>
+        {(["liquidity", "routing"] as const).map((tabId) => (
+          <WorkspaceSubtabPanel key={tabId} workspaceId="execution" tabId={tabId} activeId={section}>
+            <div className="capability-empty">
+              <span className="role-monogram" aria-hidden>L2</span>
+              <div>
+                <span className="page-kicker">Capability boundary</span>
+                <h2>Live venue routing is not available for {symbol}.</h2>
+                <p>
+                  Quote and news coverage can still be inspected in Data &amp; systems. Select a supported
+                  crypto pair above to open direct Binance and Bybit order books.
+                </p>
+                <div>
+                  <button className="primary-action" onClick={onOpenData}>Open data workspace</button>
+                  <button onClick={onOpenResearch}>Review research context</button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </WorkspaceSubtabPanel>
+        ))}
       </>
     );
   }
@@ -234,24 +243,7 @@ export default function LiveMarket({
       {instrumentPanel}
       {children}
 
-      {research?.request.symbol === symbol && (
-        <div className="workflow-handoff execution-handoff">
-          <div>
-            <span className="page-kicker">Research context attached</span>
-            <strong>{STRATEGY_LABELS[research.request.strategy]} {research.best.fast}/{research.best.slow} · {research.verdict.level.toUpperCase()}</strong>
-            <small>
-              Model budget {research.request.slippageBps} bps
-              {costVsModel == null
-                ? " · live impact pending"
-                : ` · live impact is ${Math.abs(costVsModel).toFixed(2)} bps ${costVsModel <= 0 ? "inside" : "above"} budget`}
-            </small>
-          </div>
-          <div>
-            <button onClick={onOpenResearch}>Review evidence</button>
-            <button onClick={onOpenData}>Verify feed</button>
-          </div>
-        </div>
-      )}
+      <WorkspaceSubtabPanel workspaceId="execution" tabId="liquidity" activeId={section}>
 
       <div className="tiles" style={{ marginBottom: 16, gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))" }}>
         <StatTile label="Consolidated mid" value={fmt(snap?.consolidatedMid, dp)} note={`${snap?.venues.filter((v) => v.status === "live").length ?? 0} venues live`} />
@@ -324,6 +316,28 @@ export default function LiveMarket({
           {snap ? ladder(snap.merged.bids, "bid") : <div className="muted" style={{ padding: 16, textAlign: "center" }}>waiting for book…</div>}
         </div>
       </div>
+
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="execution" tabId="routing" activeId={section}>
+        {research?.request.symbol === symbol && (
+          <div className="workflow-handoff execution-handoff">
+            <div>
+              <span className="page-kicker">Research context attached</span>
+              <strong>{STRATEGY_LABELS[research.request.strategy]} {research.best.fast}/{research.best.slow} · {research.verdict.level.toUpperCase()}</strong>
+              <small>
+                Model budget {research.request.slippageBps} bps
+                {costVsModel == null
+                  ? " · live impact pending"
+                  : ` · live impact is ${Math.abs(costVsModel).toFixed(2)} bps ${costVsModel <= 0 ? "inside" : "above"} budget`}
+              </small>
+            </div>
+            <div>
+              <button onClick={onOpenResearch}>Review evidence</button>
+              <button onClick={onOpenData}>Verify feed</button>
+            </div>
+          </div>
+        )}
 
       <div className="card">
         <h2>Execution cost probe</h2>
@@ -450,18 +464,16 @@ export default function LiveMarket({
         )}
       </div>
 
-      <div className="card">
-        <h2>How this works</h2>
-        <p className="sub" style={{ marginBottom: 0 }}>
-          The ladders above stream over WebSockets opened directly from your browser to Binance and
-          Bybit — a serverless function cannot hold a subscription open between invocations, so
-          routing ticks through an API would add a hop and a cost for nothing. The same numbers are
-          available as REST snapshots at <code>/api/depth</code> and <code>/api/tca</code> for
-          non-browser callers, computed with identical maths. Pre-trade risk checks and the
-          execution kill-switch live on the always-on gateway, which is what the Telegram bot talks
-          to.
-        </p>
-      </div>
+        <details className="card execution-methodology">
+          <summary>How the live routing feed works</summary>
+          <p className="sub">
+            The ladders stream over WebSockets opened directly from your browser to Binance and
+            Bybit. The same numbers are available as REST snapshots at <code>/api/depth</code> and
+            <code>/api/tca</code> for non-browser callers, computed with identical maths. Pre-trade
+            risk checks and the execution kill-switch remain on the always-on gateway.
+          </p>
+        </details>
+      </WorkspaceSubtabPanel>
     </>
   );
 }

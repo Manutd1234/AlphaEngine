@@ -214,8 +214,20 @@ export function syntheticBars(symbol: string, interval: string, bars: number): B
     return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rand());
   };
 
-  const anchor: Record<string, number> =
-    { BTCUSDT: 68000, ETHUSDT: 3500, SOLUSDT: 160, BNBUSDT: 600, XRPUSDT: 0.6 };
+  const anchor: Record<string, number> = {
+    BTCUSDT: 68_000,
+    ETHUSDT: 3_500,
+    SOLUSDT: 160,
+    BNBUSDT: 600,
+    XRPUSDT: 0.6,
+    ADAUSDT: 0.45,
+    DOGEUSDT: 0.16,
+    AVAXUSDT: 36,
+    LINKUSDT: 18,
+    DOTUSDT: 7,
+    LTCUSDT: 85,
+    TRXUSDT: 0.13,
+  };
   const ann = BARS_PER_YEAR[interval] ?? 8760;
   const vol = 0.6 / Math.sqrt(ann);
   const drift = 0.25 / ann;

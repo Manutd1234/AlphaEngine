@@ -164,9 +164,16 @@ describe("the judge replays the gateway's gates, not an approximation of them", 
 
   it("an unlisted instrument fails the whitelist gate", () => {
     const desk = createSandboxDesk(sandboxBook());
-    const decision = desk.judge({ symbol: "DOGEUSDT", side: "BUY", notional: 1_000 }, 0);
+    const decision = desk.judge({ symbol: "PEPEUSDT", side: "BUY", notional: 1_000 }, 0);
     assert.equal(decision.accepted, false);
     assert.ok(decision.rejected_by?.includes("symbol_whitelist"));
+  });
+
+  it("a newly listed DOGE order has a deterministic mark and passes the sandbox gates", () => {
+    const desk = createSandboxDesk(sandboxBook());
+    const decision = desk.judge({ symbol: "DOGEUSDT", side: "BUY", notional: 1_000 }, 0);
+    assert.equal(decision.accepted, true, `rejected by ${decision.rejected_by}`);
+    assert.ok(decision.fill && decision.fill.price > 0, "the expanded pair has a sandbox mark");
   });
 
   it("projected exposure gates read the caps the book declares, seeing the held position", () => {

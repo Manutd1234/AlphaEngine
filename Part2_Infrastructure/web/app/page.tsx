@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import Controls from "@/components/Controls";
-import DataConsole from "@/components/DataConsole";
+import DataConsole, { type DataSection } from "@/components/DataConsole";
 import DeveloperConsole from "@/components/DeveloperConsole";
 import EquityChart from "@/components/EquityChart";
 import ExecutionCockpit from "@/components/execution/ExecutionCockpit";
-import LiveMarket from "@/components/LiveMarket";
+import LiveMarket, { type ExecutionSection } from "@/components/LiveMarket";
 import PortfolioWorkspace, { type PortfolioFocusDestination } from "@/components/PortfolioWorkspace";
 import PriceChart from "@/components/PriceChart";
 import ReliabilityConsole from "@/components/ReliabilityConsole";
@@ -25,6 +25,8 @@ import Verdict from "@/components/Verdict";
 import WorkspaceHeader, { NAV_ITEMS, type WorkspaceView } from "@/components/WorkspaceHeader";
 import WorkspaceIntro from "@/components/WorkspaceIntro";
 import WorkspaceOverview from "@/components/WorkspaceOverview";
+import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
+import { createInitialDataWorkItems, type DataWorkItem } from "@/lib/data-work-queue";
 import { fmt, pct, signedPct, usd } from "@/lib/format";
 import { REFERENCE_EQUITY } from "@/lib/portfolio";
 import { useBook } from "@/lib/use-book";
@@ -48,6 +50,24 @@ import type { Side } from "@/lib/venues";
 
 const VIEWS: WorkspaceView[] = NAV_ITEMS.map((item) => item.id);
 
+type ResearchSection = "summary" | "parameters" | "walkforward" | "attribution" | "decision" | "runs";
+
+const RESEARCH_SECTIONS = [
+  { id: "summary", label: "Summary", description: "Verdict & performance" },
+  { id: "parameters", label: "Parameters", description: "Stability & ranking" },
+  { id: "walkforward", label: "Walk-forward", description: "Out-of-sample evidence" },
+  { id: "attribution", label: "Attribution", description: "Factors & tail behavior" },
+  { id: "decision", label: "Decision", description: "Promotion & sizing" },
+  { id: "runs", label: "Runs", description: "Experiment history" },
+] as const;
+
+const EXECUTION_SECTIONS = [
+  { id: "trade", label: "Trade", description: "Ticket & pre-trade gates" },
+  { id: "liquidity", label: "Liquidity", description: "Depth & consolidated book" },
+  { id: "routing", label: "Routing & TCA", description: "Cost & venue allocation" },
+  { id: "activity", label: "Activity", description: "Quality, fills & alerts" },
+] as const;
+
 /**
  * The console used to be one "Systems" tab. Anyone holding a link to it lands on
  * reliability, which is the half that answers "is it up" — the question someone
@@ -66,6 +86,7 @@ interface ProviderSummary {
 export default function Page() {
   const [req, setReq] = useState<SweepRequest>(DEFAULT_REQUEST);
   const [data, setData] = useState<SweepResponse | null>(null);
+  const [inspectionData, setInspectionData] = useState<SweepResponse | null>(null);
   const [inspect, setInspect] = useState<ParamResult | null>(null);
   const [running, setRunning] = useState(false);
   const [researchDirty, setResearchDirty] = useState(false);
@@ -73,6 +94,10 @@ export default function Page() {
   const [view, setView] = useState<WorkspaceView>("overview");
   const [side, setSide] = useState<Side>("BUY");
   const [notional, setNotional] = useState(100_000);
+  const [researchSection, setResearchSection] = useState<ResearchSection>("summary");
+  const [executionSection, setExecutionSection] = useState<ExecutionSection>("trade");
+  const [dataSection, setDataSection] = useState<DataSection>("queue");
+  const [dataWorkItems, setDataWorkItems] = useState<DataWorkItem[]>(createInitialDataWorkItems);
   const [providerSummary, setProviderSummary] = useState<ProviderSummary | null>(null);
   const [experiments, setExperiments] = useState<ExperimentRecord[]>([]);
   const activeRun = useRef<AbortController | null>(null);
@@ -133,7 +158,10 @@ export default function Page() {
 
       setRunning(true);
       setError(null);
-      if (!preserveInspect) setInspect(null);
+      if (!preserveInspect) {
+        setInspect(null);
+        setInspectionData(null);
+      }
 
       try {
         const body = { ...req, ...override };
@@ -146,7 +174,8 @@ export default function Page() {
         const json = await response.json();
         if (!response.ok) throw new Error(json.error ?? `HTTP ${response.status}`);
         if (sequence !== runSeq.current) return;
-        setData(json as SweepResponse);
+        if (preserveInspect) setInspectionData(json as SweepResponse);
+        else setData(json as SweepResponse);
         setResearchDirty(false);
         // Drill-downs are not hypotheses. `inspectCombo` re-runs the sweep
         // pinned to one cell to isolate it; recording that would inflate the
@@ -185,6 +214,7 @@ export default function Page() {
     setReq(request);
     setResearchDirty(true);
     setInspect(null);
+    setInspectionData(null);
   }, []);
 
   const dropExperiment = useCallback((id: string) => {
@@ -195,18 +225,21 @@ export default function Page() {
     setReq(next);
     setResearchDirty(true);
     setInspect(null);
+    setInspectionData(null);
   }, []);
 
   const updateSymbol = useCallback((symbol: string) => {
     setReq((current) => ({ ...current, symbol }));
     setResearchDirty(true);
     setInspect(null);
+    setInspectionData(null);
   }, []);
 
   const updateInterval = useCallback((interval: string) => {
     setReq((current) => ({ ...current, interval }));
     setResearchDirty(true);
     setInspect(null);
+    setInspectionData(null);
   }, []);
 
   const focusPortfolioSymbol = useCallback((symbol: string, destination: PortfolioFocusDestination) => {
@@ -234,7 +267,8 @@ export default function Page() {
   );
 
   const activeResult = researchDirty ? null : data;
-  const shown = data?.best;
+  const displayedResult = inspectionData ?? data;
+  const shown = displayedResult?.best;
   const contextNote = researchDirty
     ? `${req.symbol} context changed · rerun research`
     : activeResult
@@ -244,19 +278,19 @@ export default function Page() {
         : undefined;
 
   const tiles = useMemo(() => {
-    if (!data || !shown) return null;
+    if (!displayedResult || !shown) return null;
     return (
       <div className="tiles research-tiles">
         <StatTile
           label="Annualised Sharpe"
           value={fmt(shown.sharpe, 2)}
-          note={`buy & hold ${fmt(data.benchmark.sharpe, 2)}`}
-          tone={shown.sharpe > data.benchmark.sharpe ? "pos" : "muted"}
+          note={`buy & hold ${fmt(displayedResult.benchmark.sharpe, 2)}`}
+          tone={shown.sharpe > displayedResult.benchmark.sharpe ? "pos" : "muted"}
         />
         <StatTile
           label="Total return"
           value={signedPct(shown.totalReturn)}
-          note={`buy & hold ${signedPct(data.benchmark.totalReturn)}`}
+          note={`buy & hold ${signedPct(displayedResult.benchmark.totalReturn)}`}
           tone={shown.totalReturn >= 0 ? "pos" : "neg"}
         />
         <StatTile label="Max drawdown" value={pct(shown.maxDrawdown)} note={`calmar ${fmt(shown.calmar, 2)}`} tone="neg" />
@@ -265,7 +299,7 @@ export default function Page() {
         <StatTile label="Costs paid" value={usd(shown.feesPaid)} note="on a $100k book" />
       </div>
     );
-  }, [data, shown]);
+  }, [displayedResult, shown]);
 
   return (
     <>
@@ -340,7 +374,7 @@ export default function Page() {
             <WorkspaceIntro
               kicker="Risk manager"
               title="Risk"
-              description={<>Limit headroom, validated loss estimates, forward-looking scenario damage and the controls that stop trading.</>}
+              description={<>Limits, validated loss estimates, forward-looking scenarios and emergency controls — separated by decision.</>}
               insights={[
                 {
                   label: "Trading state",
@@ -349,16 +383,24 @@ export default function Page() {
                   tone: book.book?.trading_halted ? "critical" : book.book ? "good" : "warn",
                 },
                 {
-                  label: "VaR validation",
-                  value: book.varValidation?.zone ?? (book.riskLoading ? "Running" : "Pending"),
-                  detail: book.varValidation ? `${book.varValidation.observations} observations` : "Kupiec coverage test",
-                  tone: book.varValidation?.zone === "red" ? "critical" : book.varValidation?.zone === "yellow" ? "warn" : "good",
+                  label: "Binding constraint",
+                  value: book.book
+                    ? book.book.risk_budget.binding_constraint[0].replaceAll("_", " ")
+                    : "Pending",
+                  detail: book.book
+                    ? `${fmt(book.book.risk_budget.binding_constraint[1] * 100, 1)}% utilised`
+                    : "waiting for the book",
+                  tone: (book.book?.risk_budget.binding_constraint[1] ?? 0) >= 0.9 ? "critical" : "warn",
                 },
                 {
-                  label: "Scenario lens",
-                  value: "Interactive",
-                  detail: "measured betas, no guessed exposure",
-                  tone: "accent",
+                  label: "Tail risk",
+                  value: book.risk
+                    ? usd(book.risk.historicalVar95 ?? book.risk.var95, 0)
+                    : book.riskLoading ? "Measuring" : "Pending",
+                  detail: book.varValidation
+                    ? `${book.varValidation.zone} validation · ${book.varValidation.observations} obs`
+                    : "historical VaR 95 · 1 day",
+                  tone: book.varValidation?.zone === "red" ? "critical" : book.varValidation?.zone === "yellow" ? "warn" : "accent",
                 },
               ]}
             />
@@ -375,7 +417,7 @@ export default function Page() {
             <WorkspaceIntro
               kicker="Quant researcher"
               title="Research lab"
-              description={<>Parameter search, reproducibility, robustness checks and walk-forward evidence for {req.symbol}.</>}
+              description={<>Build, validate and promote {req.symbol} experiments through focused evidence sections.</>}
               insights={[
                 { label: "Instrument", value: req.symbol, detail: req.interval, tone: "accent", mono: true },
                 {
@@ -420,158 +462,190 @@ export default function Page() {
               </div>
             )}
 
-            <div className="research-layout">
+            <WorkspaceSubtabs
+              workspaceId="research"
+              label="Quant researcher sections"
+              tabs={RESEARCH_SECTIONS}
+              activeId={researchSection}
+              onChange={setResearchSection}
+            />
+
+            {inspect && (
+              <div className="banner warn research-inspection-banner" role="status">
+                <span aria-hidden>◎</span>
+                <div>
+                  Inspecting <strong className="num">{inspect.fast}/{inspect.slow}</strong> without replacing the full parameter sweep.
+                  <button className="text-action" onClick={() => run()}>Back to full sweep →</button>
+                </div>
+              </div>
+            )}
+
+            <div className="research-layout research-layout--sectioned">
               <Controls req={req} setReq={updateRequest} onRun={() => run()} running={running} />
 
               <div className="research-content">
-                {!data && running && (
-                  <>
-                    <div className="skeleton" style={{ height: 150, marginBottom: 16 }} />
-                    <div className="skeleton" style={{ height: 330 }} />
-                  </>
-                )}
-
-                {data && (
-                  <>
-                    <Verdict data={data} />
-
-                    <div className="workflow-handoff">
-                      <div>
-                        <span className="page-kicker">Research → execution handoff</span>
-                        <strong>{data.request.symbol} · {STRATEGY_LABELS[data.request.strategy]} {data.best.fast}/{data.best.slow}</strong>
-                        <small>
-                          {data.verdict.level === "pass" ? "Candidate passed the current validation gates." : "Review the weak evidence before treating this as a trading candidate."}
-                          {" "}The model assumes {data.request.slippageBps} bps slippage.
-                        </small>
-                      </div>
-                      <div>
-                        <button className="primary-action" onClick={() => navigate("live")}>Price {usd(notional, 0)} live</button>
-                        <button onClick={() => navigate("data")}>Trace market data</button>
-                      </div>
-                    </div>
-
-                    <div className="research-provenance" aria-label="Research reproducibility capsule">
-                      <div className="research-provenance__lead">
-                        <span className="page-kicker">Reproducibility capsule</span>
-                        <strong>Evidence carries its own data identity.</strong>
-                        <small>Compare the fingerprint before attributing a changed result to the model.</small>
-                      </div>
-                      <dl>
+                {!data && RESEARCH_SECTIONS.map((section) => (
+                  <WorkspaceSubtabPanel
+                    key={section.id}
+                    workspaceId="research"
+                    tabId={section.id}
+                    activeId={researchSection}
+                  >
+                    {running ? (
+                      <>
+                        <div className="skeleton" style={{ height: 150, marginBottom: 16 }} />
+                        <div className="skeleton" style={{ height: 330 }} />
+                      </>
+                    ) : (
+                      <div className="card capability-empty research-empty-section">
+                        <span className="role-monogram" aria-hidden>R</span>
                         <div>
-                          <dt>Dataset</dt>
-                          <dd><code title={data.dataHash}>{data.dataHash?.slice(0, 12) ?? "legacy run"}</code></dd>
-                        </div>
-                        <div>
-                          <dt>Source</dt>
-                          <dd>{data.dataSource}</dd>
-                        </div>
-                        <div>
-                          <dt>Window</dt>
-                          <dd className="num">{data.bars} bars</dd>
-                        </div>
-                        <div>
-                          <dt>Search</dt>
-                          <dd className="num">{data.combosTested} combos</dd>
-                        </div>
-                        <div>
-                          <dt>Runtime</dt>
-                          <dd className="num">{fmt(data.durationMs, 0)}ms</dd>
-                        </div>
-                      </dl>
-                    </div>
-
-                    {inspect && (
-                      <div className="banner warn" role="status">
-                        <span aria-hidden>◎</span>
-                        <div>
-                          Inspecting <strong className="num">{inspect.fast}/{inspect.slow}</strong> as a single combination, not a search.
-                          <button className="text-action" onClick={() => run()}>Back to full sweep →</button>
+                          <span className="page-kicker">No completed run</span>
+                          <h2>Run the experiment setup to populate {section.label.toLowerCase()}.</h2>
+                          <p>The current controls stay available at left, so you can revise the hypothesis before starting.</p>
+                          <button className="primary-action" onClick={() => run()}>Run research</button>
                         </div>
                       </div>
                     )}
+                  </WorkspaceSubtabPanel>
+                ))}
 
-                    {tiles}
+                {data && displayedResult && (
+                  <>
+                    <WorkspaceSubtabPanel workspaceId="research" tabId="summary" activeId={researchSection}>
+                      <Verdict data={displayedResult} />
 
-                    <div className="card">
-                      <h2>Performance</h2>
-                      <p className="sub">
-                        {data.request.symbol} · {data.request.interval} · {STRATEGY_LABELS[data.request.strategy]} {data.best.fast}/{data.best.slow} · {data.periodStart} → {data.periodEnd}.
-                        Both series are indexed to 1 at the start.
-                      </p>
-                      <EquityChart series={data.series} />
-                    </div>
+                      <div className="research-provenance" aria-label="Research reproducibility capsule">
+                        <div className="research-provenance__lead">
+                          <span className="page-kicker">Reproducibility capsule</span>
+                          <strong>Evidence carries its own data identity.</strong>
+                          <small>Compare the fingerprint before attributing a changed result to the model.</small>
+                        </div>
+                        <dl>
+                          <div>
+                            <dt>Dataset</dt>
+                            <dd><code title={displayedResult.dataHash}>{displayedResult.dataHash?.slice(0, 12) ?? "legacy run"}</code></dd>
+                          </div>
+                          <div>
+                            <dt>Source</dt>
+                            <dd>{displayedResult.dataSource}</dd>
+                          </div>
+                          <div>
+                            <dt>Window</dt>
+                            <dd className="num">{displayedResult.bars} bars</dd>
+                          </div>
+                          <div>
+                            <dt>Search</dt>
+                            <dd className="num">{displayedResult.combosTested} combos</dd>
+                          </div>
+                          <div>
+                            <dt>Runtime</dt>
+                            <dd className="num">{fmt(displayedResult.durationMs, 0)}ms</dd>
+                          </div>
+                        </dl>
+                      </div>
 
-                    <div className="card">
-                      <h2>Signal behavior</h2>
-                      <p className="sub">Shaded bands are held positions. Signals form on one bar and execute on the next, with no look-ahead.</p>
-                      <PriceChart
-                        series={data.series}
-                        strategy={data.request.strategy}
+                      {tiles}
+
+                      <div className="card">
+                        <h2>Performance</h2>
+                        <p className="sub">
+                          {displayedResult.request.symbol} · {displayedResult.request.interval} · {STRATEGY_LABELS[displayedResult.request.strategy]} {displayedResult.best.fast}/{displayedResult.best.slow} · {displayedResult.periodStart} → {displayedResult.periodEnd}.
+                          Both series are indexed to 1 at the start.
+                        </p>
+                        <EquityChart series={displayedResult.series} />
+                      </div>
+
+                      <div className="card">
+                        <h2>Signal behavior</h2>
+                        <p className="sub">Shaded bands are held positions. Signals form on one bar and execute on the next, with no look-ahead.</p>
+                        <PriceChart
+                          series={displayedResult.series}
+                          strategy={displayedResult.request.strategy}
+                          fast={displayedResult.best.fast}
+                          slow={displayedResult.best.slow}
+                          symbol={displayedResult.request.symbol}
+                        />
+                      </div>
+                    </WorkspaceSubtabPanel>
+
+                    <WorkspaceSubtabPanel workspaceId="research" tabId="parameters" activeId={researchSection}>
+                      {data.results.length > 3 ? (
+                        <StabilityPanel
+                          stability={data.stability}
+                          results={data.results}
+                          best={data.best}
+                          selected={inspect}
+                          onSelect={inspectCombo}
+                        />
+                      ) : null}
+                      <div className="card">
+                        <h2>Candidate ranking</h2>
+                        <p className="sub">The top 15 combinations behind the winner. Select a row to inspect that pair without losing the full sweep.</p>
+                        <ResultsTable data={data} onSelect={inspectCombo} selected={inspect} />
+                      </div>
+                    </WorkspaceSubtabPanel>
+
+                    <WorkspaceSubtabPanel workspaceId="research" tabId="walkforward" activeId={researchSection}>
+                      <WalkForwardTimeline report={data.walkForwardReport} />
+                      <div className="card">
+                        <h2>Walk-forward validation</h2>
+                        <p className="sub">Choose parameters on one window, then trade the next window blind.</p>
+                        <WalkForwardTable data={data} />
+                      </div>
+                    </WorkspaceSubtabPanel>
+
+                    <WorkspaceSubtabPanel workspaceId="research" tabId="attribution" activeId={researchSection}>
+                      <FactorPanel report={data.factors} />
+                      <TearSheet
+                        tail={data.tail}
+                        interval={data.request.interval}
+                        turnoverPerYear={data.tail.annualisedTurnover}
+                      />
+                    </WorkspaceSubtabPanel>
+
+                    <WorkspaceSubtabPanel workspaceId="research" tabId="decision" activeId={researchSection}>
+                      <PromotionPanel
+                        gate={data.promotion}
+                        symbol={data.request.symbol}
                         fast={data.best.fast}
                         slow={data.best.slow}
-                        symbol={data.request.symbol}
+                        strategyLabel={STRATEGY_LABELS[data.request.strategy]}
+                        slippageBps={data.request.slippageBps}
+                        blocked={researchDirty || running || Boolean(inspect)}
+                        blockedReason={researchDirty
+                          ? "Refresh this candidate for the current desk context before promotion."
+                          : inspect
+                            ? "Return to the full parameter sweep before promotion."
+                            : "Wait for the active research run to finish."}
+                        onHandOff={() => navigate("live")}
                       />
-                    </div>
-
-                    <PromotionPanel
-                      gate={data.promotion}
-                      symbol={data.request.symbol}
-                      fast={data.best.fast}
-                      slow={data.best.slow}
-                      strategyLabel={STRATEGY_LABELS[data.request.strategy]}
-                      slippageBps={data.request.slippageBps}
-                      onHandOff={() => navigate("live")}
-                    />
-
-                    {/* Directly under the verdict, because "it passed" is only
-                        half an answer and the other half is a position size. */}
-                    <SizingPanel
-                      best={data.best}
-                      gate={data.promotion}
-                      equity={REFERENCE_EQUITY}
-                    />
-
-                    {data.results.length > 3 && (
-                      <StabilityPanel
-                        stability={data.stability}
-                        results={data.results}
+                      <SizingPanel
                         best={data.best}
-                        selected={inspect}
-                        onSelect={inspectCombo}
+                        gate={data.promotion}
+                        equity={REFERENCE_EQUITY}
                       />
-                    )}
+                      <div className="workflow-handoff research-data-handoff">
+                        <div>
+                          <span className="page-kicker">Evidence lineage</span>
+                          <strong>Verify the inputs before approving the candidate.</strong>
+                          <small>Open the data workspace with {data.request.symbol} still in context.</small>
+                        </div>
+                        <button onClick={() => navigate("data")}>Trace market data</button>
+                      </div>
+                    </WorkspaceSubtabPanel>
 
-                    <WalkForwardTimeline report={data.walkForwardReport} />
-
-                    <FactorPanel report={data.factors} />
-
-                    <TearSheet
-                      tail={data.tail}
-                      interval={data.request.interval}
-                      turnoverPerYear={data.tail.annualisedTurnover}
-                    />
-
-                    <div className="card">
-                      <h2>Walk-forward validation</h2>
-                      <p className="sub">Choose parameters on one window, then trade the next window blind.</p>
-                      <WalkForwardTable data={data} />
-                    </div>
-
-                    <div className="card">
-                      <h2>Candidate ranking</h2>
-                      <p className="sub">The top 15 combinations behind the winner. Select a row to isolate that pair.</p>
-                      <ResultsTable data={data} onSelect={inspectCombo} selected={inspect} />
-                    </div>
-
-                    <ExperimentHistory
-                      records={experiments}
-                      activeRequest={data.request}
-                      onClone={cloneExperiment}
-                      onRemove={dropExperiment}
-                      onClear={() => setExperiments(clearExperiments())}
-                      onAnnotate={(id, annotation) =>
-                        setExperiments((current) => annotateExperiment(current, id, annotation))}
-                    />
+                    <WorkspaceSubtabPanel workspaceId="research" tabId="runs" activeId={researchSection}>
+                      <ExperimentHistory
+                        records={experiments}
+                        activeRequest={data.request}
+                        onClone={cloneExperiment}
+                        onRemove={dropExperiment}
+                        onClear={() => setExperiments(clearExperiments())}
+                        onAnnotate={(id, annotation) =>
+                          setExperiments((current) => annotateExperiment(current, id, annotation))}
+                      />
+                    </WorkspaceSubtabPanel>
                   </>
                 )}
               </div>
@@ -584,12 +658,19 @@ export default function Page() {
             <WorkspaceIntro
               kicker="Quant trader"
               title="Execution"
-              description={<>Live books and implementation cost for {req.symbol}, with orders, fills, P&amp;L and alerts on the same screen.</>}
+              description={<>Trade {req.symbol}, inspect liquidity, compare routing cost and review fills without one endless page.</>}
               insights={[
                 { label: "Instrument", value: req.symbol, detail: "consolidated L2", tone: "accent", mono: true },
                 { label: "Intent", value: `${side} ${usd(notional, 0)}`, detail: "editable in the ticket", tone: side === "BUY" ? "good" : "warn", mono: true },
                 { label: "Authority", value: "Paper only", detail: "pre-trade gates stay in control", tone: "good" },
               ]}
+            />
+            <WorkspaceSubtabs
+              workspaceId="execution"
+              label="Quant trader sections"
+              tabs={EXECUTION_SECTIONS}
+              activeId={executionSection}
+              onChange={setExecutionSection}
             />
             <LiveMarket
               symbol={req.symbol}
@@ -601,11 +682,15 @@ export default function Page() {
               research={activeResult}
               onOpenResearch={() => navigate("research")}
               onOpenData={() => navigate("data")}
+              section={executionSection}
             >
               <ExecutionCockpit
                 symbol={req.symbol}
                 side={side}
                 notional={notional}
+                section={executionSection}
+                onSideChange={setSide}
+                onNotionalChange={setNotional}
                 researchStrategy={activeResult ? activeResult.request.strategy : null}
                 researchExperimentId={null}
                 onOpenResearch={() => navigate("research")}
@@ -618,29 +703,43 @@ export default function Page() {
           <section id="panel-data" role="tabpanel" aria-labelledby="tab-data" className="view-panel">
             <WorkspaceIntro
               kicker="Data engineer"
-              title="Data quality"
-              description={<>Routing, cross-source agreement, freshness, schema quarantine and the budget for asking — with provenance attached.</>}
+              title="Data operations"
+              description={<>Triage operational work, trace provider routing, reconcile sources and inspect every number with provenance attached.</>}
               insights={[
                 {
-                  label: "Providers",
-                  value: systems.health ? `${systems.health.summary.ready}/${systems.health.summary.total} ready` : "Checking",
-                  detail: systems.degraded ? `${systems.degraded} degraded` : "failover evaluated",
-                  tone: systems.degraded ? "warn" : "good",
-                  mono: true,
-                },
-                {
-                  label: "Quarantine",
-                  value: String(systems.health?.quarantine?.size ?? 0),
-                  detail: "contract-failed payloads held",
-                  tone: systems.health?.quarantine?.size ? "critical" : "good",
-                  mono: true,
-                },
-                {
-                  label: "Cache hit rate",
-                  value: systems.cacheHitRate == null ? "Pending" : `${fmt(systems.cacheHitRate * 100, 1)}%`,
-                  detail: "vendor calls avoided",
+                  label: "Instrument",
+                  value: req.symbol,
+                  detail: "shared desk context",
                   tone: "accent",
                   mono: true,
+                },
+                {
+                  label: "Trust posture",
+                  value: systems.healthError
+                    ? "Unreachable"
+                    : systems.health?.quarantine?.size
+                      ? "Quarantine"
+                      : systems.degraded
+                        ? "Review"
+                        : systems.health
+                          ? "Healthy"
+                          : "Checking",
+                  detail: systems.health?.quarantine?.size
+                    ? `${systems.health.quarantine.size} payloads held`
+                    : systems.degraded
+                      ? `${systems.degraded} providers degraded`
+                      : "content and route checks",
+                  tone: systems.healthError || systems.health?.quarantine?.size
+                    ? "critical"
+                    : systems.degraded
+                      ? "warn"
+                      : "good",
+                },
+                {
+                  label: "Work queue",
+                  value: `${dataWorkItems.filter((item) => item.status !== "resolved").length} open`,
+                  detail: `${dataWorkItems.filter((item) => item.status !== "resolved" && (item.priority === "P0" || item.priority === "P1")).length} urgent`,
+                  tone: dataWorkItems.some((item) => item.status !== "resolved" && item.priority === "P0") ? "critical" : "warn",
                 },
               ]}
             />
@@ -649,6 +748,10 @@ export default function Page() {
               workspaceSymbol={req.symbol}
               onWorkspaceSymbolChange={updateSymbol}
               onOpenReliability={() => navigate("reliability")}
+              section={dataSection}
+              onSectionChange={setDataSection}
+              workItems={dataWorkItems}
+              onWorkItemsChange={setDataWorkItems}
             />
           </section>
         )}
@@ -701,7 +804,7 @@ export default function Page() {
               insights={[
                 { label: "Desk context", value: req.symbol, detail: "shared across APIs", tone: "accent", mono: true },
                 { label: "Contract", value: "OpenAPI", detail: "committed snapshot", tone: "good" },
-                { label: "Verification", value: "370 tests", detail: "offline and deterministic", tone: "good", mono: true },
+                { label: "Verification", value: "377 tests", detail: "offline and deterministic", tone: "good", mono: true },
               ]}
             />
             <DeveloperConsole

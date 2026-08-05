@@ -160,7 +160,7 @@ export default function HeadroomBar({
             <div
               className={`headroom-track is-${t}`}
               role="img"
-              aria-label={`${g.label}: ${fmt(Math.min(1, g.utilisation) * 100, 0)} percent of limit used. ${g.detail}.`}
+              aria-label={`${g.label}: ${fmt(Math.max(0, g.utilisation) * 100, 0)} percent of limit used. ${g.detail}.`}
             >
               <i style={{ width: `${Math.min(100, Math.max(0, g.utilisation * 100))}%` }} aria-hidden />
             </div>

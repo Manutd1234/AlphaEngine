@@ -71,7 +71,7 @@ cd Part2_Infrastructure
 python -m venv venv && venv/bin/pip install -r requirements-core.txt
 venv/bin/python -m pytest                            # 241 gateway tests
 venv/bin/python tools/synthetic_probe.py             # book → cost → risk gate → audit
-(cd web && npm install && npm test)                  # 370 web tests, incl. cross-engine parity
+(cd web && npm install && npm test)                  # 377 web tests, incl. cross-engine parity
 (cd OpenBB_Service && ../venv/bin/python -m pytest)  # 12 service tests
 ```
 

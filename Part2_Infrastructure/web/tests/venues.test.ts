@@ -20,6 +20,7 @@ import {
   depthWithinBps,
   smartRoute,
   spreadBps,
+  SYMBOLS,
   walkBook,
   type Level,
   type VenueBook,
@@ -67,6 +68,15 @@ const STANDARD_ASKS: Level[] = [
   [103, 30],
 ];
 const MID = 100.5;
+
+describe("the direct L2 universe", () => {
+  it("offers the expanded twelve-pair trading watchlist", () => {
+    assert.deepEqual(SYMBOLS, [
+      "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT",
+      "DOGEUSDT", "AVAXUSDT", "LINKUSDT", "DOTUSDT", "LTCUSDT", "TRXUSDT",
+    ]);
+  });
+});
 
 describe("book maths", () => {
   it("spread in bps", () => {

@@ -60,7 +60,7 @@ missing (§9 has the detail):
 | **Risk Manager** | *Is the model right, and will the limits hold?* | Kupiec VaR backtest, stress scenarios, reduce-only mode, kill switch | No margin or liquidation modelling |
 | **Data Engineer** | *Can I trust this data?* | Provider registry, failover, data contracts, quarantine, lineage | No orchestration or backfill scheduler |
 | **DevOps / SRE** | *Is it healthy, and what do I do at 3am?* | `/health`, `/metrics`, systems console, alert rules, runbook | No log aggregation or distributed tracing |
-| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, parity suites, CI, 241 + 333 + 12 tests | No generated client, no property-based fuzzing |
+| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, parity suites, CI, 241 + 377 + 12 tests | No generated client, no property-based fuzzing |
 
 ### 🎯 Quant Traders — *"Can I send this, and what will it cost?"*
 
@@ -179,7 +179,7 @@ provenance and quality are visible at the point of use.
 | Documented tunables | `BacktestRequest` carries bounds *and* descriptions, so `/docs` doubles as the researcher's parameter registry |
 | Confidence that two implementations agree | Python↔TypeScript parity suites for the **backtest engine** and the **risk engine**, both driven by fixtures the Python reference emits |
 | To debug a request without guessing | Pipeline inspector down to raw vendor JSON; bounded trace ring with redaction; `/api/system/inspect` |
-| Tests that run anywhere | 241 gateway + 333 web + 12 service tests, all offline by construction — no network, no fixtures fetched at test time |
+| Tests that run anywhere | 241 gateway + 377 web + 12 service tests, all offline by construction — no network, no fixtures fetched at test time |
 | A lint gate that catches defects, not style | ruff with bugbear, async and bandit rules; `tsc --strict` on the web tier |
 | To add a provider or an endpoint without breaking things | Uniform `Adapter` interface with declared capabilities; the recipe is in §7 and in `web/README.md` |
 
@@ -225,7 +225,7 @@ gateway and its OpenBB adapter to the separate stateless service.
 cd web
 npm install
 npm run dev    # http://localhost:3000
-npm test       # 370 tests
+npm test       # 377 tests
 ```
 
 Live-feed endpoints (public, no key):
@@ -1013,7 +1013,7 @@ Everything a reviewer needs to check runs offline:
 pytest                                    # 241 gateway + companion tests
 python tools/synthetic_probe.py           # end-to-end: book → cost → gate → audit
 cd OpenBB_Service && pytest               # 12 stateless service tests
-cd web && npm install && npm test         # 333 workspace tests, incl. both parity suites
+cd web && npm install && npm test         # 377 workspace tests, incl. both parity suites
 bash tools/check_repo_complete.sh         # builds the *committed* tree
 ```
 

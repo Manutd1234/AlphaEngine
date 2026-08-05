@@ -4,10 +4,10 @@
  * Data engineer's tab: is what arrived actually true?
  *
  * The blueprint's line for this role is that the improvement worth making is
- * more trustworthy data rather than more of it, so this tab is ordered by trust
- * rather than by traffic: where a request would be routed, whether independent
- * sources agree on the price, what was quarantined for failing its contract, and
- * what the budget for asking looks like.
+ * more trustworthy data rather than more of it. The work queue opens first so
+ * operational demand has one place to land; the diagnostic subtabs then follow
+ * a request through routing and lineage to reconciliation, quarantine, and the
+ * budget for asking.
  *
  * Transport health belongs to the Reliability tab. A provider can answer
  * quickly, from a closed breaker, with a bar series that halves the volatility a
@@ -21,14 +21,31 @@ import PipelineInspector from "@/components/systems/PipelineInspector";
 import QuarantinePanel from "@/components/systems/QuarantinePanel";
 import QuotaMeters from "@/components/systems/QuotaMeters";
 import { ConsoleChrome, type ConsoleTile, providerTile } from "@/components/systems/ConsoleChrome";
+import DataWorkBoard from "@/components/data/DataWorkBoard";
+import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
+import type { DataWorkItem } from "@/lib/data-work-queue";
 import { fmt } from "@/lib/format";
 import type { SystemHealthView } from "@/lib/use-system-health";
+
+export type DataSection = "queue" | "routing" | "pipeline" | "quality" | "capacity";
+
+const DATA_SECTIONS = [
+  { id: "queue", label: "Work queue", description: "Requests, tickets & bugs" },
+  { id: "routing", label: "Routing", description: "Provider path & failover" },
+  { id: "pipeline", label: "Pipeline", description: "Trace, lineage & payloads" },
+  { id: "quality", label: "Quality", description: "Reconcile & quarantine" },
+  { id: "capacity", label: "Capacity", description: "Quota, reserve & cache" },
+] as const;
 
 export interface DataConsoleProps {
   view: SystemHealthView;
   workspaceSymbol: string;
   onWorkspaceSymbolChange: (symbol: string) => void;
   onOpenReliability: () => void;
+  section: DataSection;
+  onSectionChange: (section: DataSection) => void;
+  workItems: DataWorkItem[];
+  onWorkItemsChange: (items: DataWorkItem[]) => void;
 }
 
 export default function DataConsole({
@@ -36,6 +53,10 @@ export default function DataConsole({
   workspaceSymbol,
   onWorkspaceSymbolChange,
   onOpenReliability,
+  section,
+  onSectionChange,
+  workItems,
+  onWorkItemsChange,
 }: DataConsoleProps) {
   const { health, route, setRoute, guard, busyAction, runAction, effectivePollMs, logLocal } = view;
 
@@ -68,8 +89,20 @@ export default function DataConsole({
     <>
       <ConsoleChrome view={view} tiles={tiles} />
 
-      <div className="console-layout">
-        <div className="console-column console-column--wide">
+      <WorkspaceSubtabs
+        workspaceId="data"
+        label="Data engineer sections"
+        tabs={DATA_SECTIONS}
+        activeId={section}
+        onChange={onSectionChange}
+      />
+
+      <WorkspaceSubtabPanel workspaceId="data" tabId="queue" activeId={section}>
+        <DataWorkBoard items={workItems} onItemsChange={onWorkItemsChange} />
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="data" tabId="routing" activeId={section}>
+        <div className="data-console-stack">
           <FailoverGraph
             routes={health?.routes ?? []}
             selected={route}
@@ -80,46 +113,17 @@ export default function DataConsole({
             busyAction={busyAction}
             onAction={runAction}
           />
-
-          <CrossSourceCheck symbol={workspaceSymbol} />
-
-          {/* Transport health and data health are different questions: a
-              provider can answer quickly, from a closed breaker, with a bar
-              series that halves the volatility a backtest measures. */}
-          <QuarantinePanel
-            size={health?.quarantine?.size ?? 0}
-            byProvider={health?.quarantine?.byProvider ?? []}
-            recent={health?.quarantine?.recent ?? []}
-          />
-
-          <QuotaMeters
-            providers={health?.providers ?? null}
-            cacheByCapability={health?.cache.byCapability ?? {}}
-            cacheEntries={health?.cache.entries ?? 0}
-          />
-        </div>
-
-        <div className="console-column console-column--narrow">
-          <PipelineInspector
-            symbol={workspaceSymbol}
-            onSymbolChange={onWorkspaceSymbolChange}
-            pollMs={effectivePollMs}
-            onEvent={logLocal}
-          />
-
-          <div className="card cross-link-tile">
-            <div className="portfolio-card-heading">
+          <aside className="card data-console-handoff" aria-label="Reliability ownership handoff">
+            <div>
               <div>
                 <span className="page-kicker">Owned by reliability</span>
-                <h2>Transport health</h2>
+                <h2>Need transport diagnostics?</h2>
               </div>
-              <button className="text-action" onClick={onOpenReliability}>Open Reliability →</button>
+              <p className="sub">
+                Breaker states, latency percentiles and failure drills live with the SRE workflow;
+                this workspace follows correctness and provenance.
+              </p>
             </div>
-            <p className="sub">
-              Breaker states, latency percentiles and the operator drills that exercise them. A feed
-              that is <em>up</em> and a feed that is <em>correct</em> are separate questions; this tab
-              answers the second.
-            </p>
             <div className="cross-link-metrics">
               <div>
                 <span>Breakers open</span>
@@ -132,9 +136,43 @@ export default function DataConsole({
                 <small>{view.sockets.length ? view.sockets.map((s) => s.venue).join(" · ") : "wire tap idle"}</small>
               </div>
             </div>
-          </div>
+            <button className="text-action" onClick={onOpenReliability}>Open Reliability →</button>
+          </aside>
         </div>
-      </div>
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="data" tabId="pipeline" activeId={section}>
+        <PipelineInspector
+          symbol={workspaceSymbol}
+          onSymbolChange={onWorkspaceSymbolChange}
+          pollMs={effectivePollMs}
+          onEvent={logLocal}
+          active={section === "pipeline"}
+        />
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="data" tabId="quality" activeId={section}>
+        <div className="data-console-pair">
+          <CrossSourceCheck symbol={workspaceSymbol} />
+
+          {/* Transport health and data health are different questions: a
+              provider can answer quickly, from a closed breaker, with a bar
+              series that halves the volatility a backtest measures. */}
+          <QuarantinePanel
+            size={health?.quarantine?.size ?? 0}
+            byProvider={health?.quarantine?.byProvider ?? []}
+            recent={health?.quarantine?.recent ?? []}
+          />
+        </div>
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="data" tabId="capacity" activeId={section}>
+        <QuotaMeters
+          providers={health?.providers ?? null}
+          cacheByCapability={health?.cache.byCapability ?? {}}
+          cacheEntries={health?.cache.entries ?? 0}
+        />
+      </WorkspaceSubtabPanel>
     </>
   );
 }

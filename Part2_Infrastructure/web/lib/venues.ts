@@ -112,7 +112,20 @@ export interface Dislocation {
   note: string;
 }
 
-export const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT"] as const;
+export const SYMBOLS = [
+  "BTCUSDT",
+  "ETHUSDT",
+  "SOLUSDT",
+  "BNBUSDT",
+  "XRPUSDT",
+  "ADAUSDT",
+  "DOGEUSDT",
+  "AVAXUSDT",
+  "LINKUSDT",
+  "DOTUSDT",
+  "LTCUSDT",
+  "TRXUSDT",
+] as const;
 
 const BINANCE_HOSTS = ["https://api.binance.com", "https://data-api.binance.vision"];
 
