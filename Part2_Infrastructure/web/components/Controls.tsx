@@ -163,6 +163,17 @@ export default function Controls({
       || (req.fundingBpsPer8h ?? 0) !== 0
       || (req.borrowBpsAnnual ?? 0) > 0,
   );
+  // Which frictions, not just that some are: a funding rate someone enabled
+  // last week must be visible without expanding the group.
+  const frictionSummary = frictionsOn
+    ? [
+        (req.impactCoefficient ?? 0) > 0 && "impact",
+        (req.fundingBpsPer8h ?? 0) !== 0 && `funding ${req.fundingBpsPer8h} bps/8h`,
+        (req.borrowBpsAnnual ?? 0) > 0 && `borrow ${req.borrowBpsAnnual} bps/yr`,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : null;
 
   return (
     <div className="card sidebar experiment-panel">
@@ -351,8 +362,11 @@ export default function Controls({
         <details className="friction-group" open={frictionsOn}>
           <summary>
             Microstructure frictions
-            <span className={frictionsOn ? "friction-badge is-on" : "friction-badge"}>
-              {frictionsOn ? "modelled" : "flat bps only"}
+            <span
+              className={frictionsOn ? "friction-badge is-on" : "friction-badge"}
+              title={frictionSummary ?? undefined}
+            >
+              {frictionSummary ? `modelled · ${frictionSummary}` : "flat bps only"}
             </span>
           </summary>
 

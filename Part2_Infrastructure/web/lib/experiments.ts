@@ -294,3 +294,135 @@ export function removeExperiment(
 export function clearExperiments(): ExperimentRecord[] {
   return saveExperiments([]);
 }
+
+// ---------------------------------------------------------------------------
+// Export / import
+//
+// "Saved in this browser only" stops being a limitation once the log can leave
+// the browser: a versioned JSON bundle a researcher can commit next to their
+// notes, hand to a colleague, or restore after clearing site data. Import is
+// pure — the caller persists via `saveExperiments`, which is where the record
+// cap and quota handling already live.
+// ---------------------------------------------------------------------------
+
+export const EXPORT_SCHEMA = "alphaengine-experiments@1";
+
+export interface ExperimentExport {
+  schema: typeof EXPORT_SCHEMA;
+  exportedAt: string;
+  appCommit?: string;
+  records: ExperimentRecord[];
+}
+
+export function exportExperiments(records: ExperimentRecord[], appCommit?: string): string {
+  const bundle: ExperimentExport = {
+    schema: EXPORT_SCHEMA,
+    exportedAt: new Date().toISOString(),
+    ...(appCommit ? { appCommit } : {}),
+    records,
+  };
+  // Pretty-printed: these files get committed and diffed, not just parsed.
+  return JSON.stringify(bundle, null, 2);
+}
+
+/** Import needs more than `isRecord`: without a usable `request` a record can
+ *  be neither deduplicated nor reproduced. Unknown extra fields pass through
+ *  untouched — forward compatibility with newer exporters. */
+function isImportableRecord(value: unknown): value is ExperimentRecord {
+  if (!isRecord(value)) return false;
+  const req = (value as ExperimentRecord).request as unknown;
+  if (!req || typeof req !== "object") return false;
+  const r = req as Partial<SweepRequest>;
+  return (
+    typeof r.symbol === "string"
+    && typeof r.interval === "string"
+    && typeof r.strategy === "string"
+  );
+}
+
+export interface ImportResult {
+  /** The merged history, newest first. Caller persists via `saveExperiments`. */
+  records: ExperimentRecord[];
+  added: number;
+  replaced: number;
+  skippedOlder: number;
+  invalid: number;
+  /** Set when the payload as a whole was unusable; `records` === existing. */
+  error?: string;
+}
+
+/**
+ * Merge an exported bundle (or a bare record array) into the current history.
+ *
+ * Identity is `sameRequest`, mirroring `addExperiment`: the newer `savedAt`
+ * wins, and the local researcher's note/tags survive unless the import brings
+ * its own. An id collision on a *different* request is re-issued rather than
+ * refused — ids are local bookkeeping, requests are the science.
+ */
+export function importExperiments(json: string, existing: ExperimentRecord[]): ImportResult {
+  const fail = (error: string): ImportResult => ({
+    records: existing,
+    added: 0,
+    replaced: 0,
+    skippedOlder: 0,
+    invalid: 0,
+    error,
+  });
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    return fail("not valid JSON");
+  }
+
+  let incoming: unknown[];
+  if (Array.isArray(parsed)) {
+    incoming = parsed;
+  } else if (parsed && typeof parsed === "object" && Array.isArray((parsed as { records?: unknown }).records)) {
+    const schema = (parsed as { schema?: unknown }).schema;
+    if (schema !== undefined && schema !== EXPORT_SCHEMA) {
+      return fail(`unrecognised schema "${String(schema)}" — expected ${EXPORT_SCHEMA}`);
+    }
+    incoming = (parsed as { records: unknown[] }).records;
+  } else {
+    return fail("expected an export bundle or an array of records");
+  }
+
+  const merged = [...existing];
+  let added = 0;
+  let replaced = 0;
+  let skippedOlder = 0;
+  let invalid = 0;
+
+  for (const candidate of incoming) {
+    if (!isImportableRecord(candidate)) {
+      invalid++;
+      continue;
+    }
+    const dupIdx = merged.findIndex((r) => sameRequest(r.request, candidate.request));
+    if (dupIdx >= 0) {
+      const current = merged[dupIdx];
+      if (candidate.savedAt > current.savedAt) {
+        merged[dupIdx] = {
+          ...candidate,
+          id: current.id,
+          note: candidate.note ?? current.note,
+          tags: candidate.tags ?? current.tags,
+        };
+        replaced++;
+      } else {
+        skippedOlder++;
+      }
+      continue;
+    }
+    const idTaken = merged.some((r) => r.id === candidate.id);
+    merged.push(idTaken ? { ...candidate, id: nextId(merged) } : candidate);
+    added++;
+  }
+
+  // Newest first, so the MAX_RECORDS bound in saveExperiments drops the
+  // oldest — an import must never silently evict newer local runs.
+  merged.sort((a, b) => b.savedAt - a.savedAt);
+  return { records: merged, added, replaced, skippedOlder, invalid };
+}

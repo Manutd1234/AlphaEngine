@@ -326,6 +326,26 @@ def deflated_sharpe_ratio(
     return dsr, psr0, expected_max
 
 
+def min_track_record_length(
+    sr: float, sr_benchmark: float, skew: float, kurt: float, confidence: float = 0.95
+) -> float:
+    """MinTRL — the observation count at which PSR(benchmark) reaches ``confidence``.
+
+    Bailey & López de Prado:  N* = 1 + (1 − γ₃·S + (γ₄−1)/4·S²)·(Z_conf/(S−S*))²
+
+    The exact inverse of :func:`probabilistic_sharpe_ratio` solved for n, using
+    the same per-observation Sharpe convention, raw kurtosis (normal = 3) and
+    the same 1e-12 variance clamp. Returns ``inf`` when ``sr <= sr_benchmark``:
+    no finite record can prove an edge that is not there. Mirrored in the
+    portal's ``lib/stats.ts``.
+    """
+    if sr <= sr_benchmark:
+        return math.inf
+    z = _norm_ppf(confidence)
+    var_term = max(1e-12, 1 - skew * sr + (kurt - 1) / 4 * sr**2)
+    return 1 + var_term * (z / (sr - sr_benchmark)) ** 2
+
+
 def dsr_verdict(dsr: float) -> str:
     if dsr >= 0.95:
         return "PASS — selected parameters survive the multiple-testing penalty (DSR ≥ 0.95)."
@@ -816,6 +836,7 @@ def run_backtest(req_dict: dict[str, Any], job_id: str = "local",
     skew = float(pd.Series(best_rets).skew() or 0.0)
     kurt = float((pd.Series(best_rets).kurtosis() or 0.0) + 3.0)  # pandas returns excess kurtosis
     dsr, psr, expected_max = deflated_sharpe_ratio(sr_candidates, sr_per_bar, len(best_rets), skew, kurt)
+    mintrl = min_track_record_length(sr_per_bar, 0.0, skew, kurt)
     report(0.80, f"DSR {dsr:.3f} across {len(results)} trials")
 
     # --- walk-forward ----------------------------------------------------- #
@@ -858,6 +879,7 @@ def run_backtest(req_dict: dict[str, Any], job_id: str = "local",
         top_results=sorted(results, key=lambda r: r.sharpe, reverse=True)[:15],
         deflated_sharpe_ratio=round(dsr, 4),
         probabilistic_sharpe_ratio=round(psr, 4),
+        min_track_record_bars=round(mintrl, 1) if math.isfinite(mintrl) else None,
         dsr_verdict=dsr_verdict(dsr),
         walk_forward=wf_folds,
         walk_forward_oos_sharpe=round(wf_oos, 3) if wf_oos is not None else None,

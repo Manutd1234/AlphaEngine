@@ -6,7 +6,15 @@
  * Sharpe is signed around a meaningful zero, so this is a *diverging* scale:
  * blue ↔ neutral grey ↔ red, with grey meaning "no edge". (A red-yellow-green
  * ramp would put a hue at the midpoint, so zero reads as a value rather than as
- * nothing — and yellow/green is the pair colour-blind readers lose first.)
+ * nothing — and yellow/green is the pair colour-blind readers lose first.
+ * Viridis is rejected for the same reason: sequential ramps have no neutral
+ * anchor.) Interpolation happens in OKLab (`lib/colormap`), so the surface
+ * reads as one continuous field instead of muddy sRGB midtones.
+ *
+ * Cells are contiguous in Sharpe mode — a continuous surface for a continuous
+ * quantity — but every cell is still a real backtest: nothing is interpolated
+ * across parameter pairs that were never tested, which is why the grid keeps
+ * its discrete hit targets, keyboard access and per-cell labels.
  *
  * The shape is the message: a broad plateau means the edge survives small
  * parameter changes; a lone bright cell surrounded by grey is an overfit, and
@@ -14,21 +22,10 @@
  */
 
 import { CellKind, ParamResult, StabilityCell } from "@/lib/types";
+import { SHARPE_RAMP_DARK, SHARPE_RAMP_LIGHT, divergingScale } from "@/lib/colormap";
 import { fmt, pct } from "@/lib/format";
 import { useMeasuredWidth } from "./chart-kit";
 import { useEffect, useState } from "react";
-
-/** Interpolate in sRGB between the diverging poles and the neutral midpoint. */
-function divergingColor(v: number, absMax: number, dark: boolean): string {
-  const pos = dark ? [57, 135, 229] : [42, 120, 214];
-  const neg = dark ? [230, 103, 103] : [227, 73, 72];
-  const mid = dark ? [56, 56, 53] : [240, 239, 236];
-  const t = Math.max(-1, Math.min(1, absMax ? v / absMax : 0));
-  const end = t >= 0 ? pos : neg;
-  const k = Math.abs(t);
-  const rgb = mid.map((m, i) => Math.round(m + (end[i] - m) * k));
-  return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
-}
 
 /**
  * Categorical fill for the neighbourhood view.
@@ -90,6 +87,14 @@ export default function Heatmap({
   const kinds = new Map((stability ?? []).map((c) => [`${c.fast}:${c.slow}`, c]));
   const showKinds = mode === "stability" && kinds.size > 0;
 
+  const ramp = isDark ? SHARPE_RAMP_DARK : SHARPE_RAMP_LIGHT;
+  const sharpeColor = divergingScale(absMax, ramp);
+  // Legend gradients sampled from the same eased scale the cells use, split at
+  // zero so the neutral anchor is an explicit tick, not an implied midpoint.
+  const unitScale = divergingScale(1, ramp);
+  const negStops = Array.from({ length: 5 }, (_, i) => unitScale(-1 + i / 4)).join(", ");
+  const posStops = Array.from({ length: 5 }, (_, i) => unitScale(i / 4)).join(", ");
+
   const padL = 44;
   const padB = 34;
   const padT = 18; // room for the "fast ↓" caption above the first row
@@ -133,18 +138,33 @@ export default function Heatmap({
             ))}
           </span>
         )}
-        <span style={{ display: showKinds ? "none" : "flex", alignItems: "center", gap: 6 }}>
+        <span style={{ display: showKinds ? "none" : "flex", alignItems: "center", gap: 5 }}>
           <span className="num" style={{ fontSize: 11 }}>
             {fmt(-absMax, 1)}
           </span>
           <span
             aria-hidden
             style={{
-              width: 120,
+              width: 62,
               height: 9,
-              borderRadius: 5,
+              borderRadius: "5px 0 0 5px",
               border: "1px solid var(--border)",
-              background: `linear-gradient(90deg, ${divergingColor(-absMax, absMax, isDark)}, ${divergingColor(0, absMax, isDark)}, ${divergingColor(absMax, absMax, isDark)})`,
+              borderRight: "none",
+              background: `linear-gradient(90deg, ${negStops})`,
+            }}
+          />
+          <span className="num" style={{ fontSize: 11, color: "var(--text-muted)" }}>
+            0
+          </span>
+          <span
+            aria-hidden
+            style={{
+              width: 62,
+              height: 9,
+              borderRadius: "0 5px 5px 0",
+              border: "1px solid var(--border)",
+              borderLeft: "none",
+              background: `linear-gradient(90deg, ${posStops})`,
             }}
           />
           <span className="num" style={{ fontSize: 11 }}>
@@ -171,23 +191,25 @@ export default function Heatmap({
             if (!r) return null;
             const isBest = r.fast === best.fast && r.slow === best.slow;
             const isSel = selected && r.fast === selected.fast && r.slow === selected.slow;
+            /* Stability keeps its 2px surface gap — five categories need
+               separation. The Sharpe surface is contiguous: a continuous field
+               for a continuous quantity. */
+            const gap = showKinds ? 1 : 0;
             return (
               <rect
                 key={`${f}-${s}`}
-                /* 2px surface gap between cells — separation by spacer, never a
-                   drawn border around every mark. */
-                x={padL + si * cellW + 1}
-                y={padT + fi * cellH + 1}
-                width={Math.max(1, cellW - 2)}
-                height={cellH - 2}
-                rx={3}
+                x={padL + si * cellW + gap}
+                y={padT + fi * cellH + gap}
+                width={Math.max(1, cellW - gap * 2)}
+                height={cellH - gap * 2}
+                rx={showKinds ? 3 : 0}
                 fill={
                   showKinds
                     ? (() => {
                         const style = KIND_STYLE[kinds.get(`${f}:${s}`)?.kind ?? "isolated"];
                         return isDark ? style.darkFill : style.fill;
                       })()
-                    : divergingColor(r.sharpe, absMax, isDark)
+                    : sharpeColor(r.sharpe)
                 }
                 stroke={isSel || isBest ? "var(--text-primary)" : "none"}
                 strokeWidth={isSel ? 2 : isBest ? 1.4 : 0}

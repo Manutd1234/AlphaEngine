@@ -13,6 +13,7 @@
  */
 
 import { recordUpstream } from "./observability";
+import { mulberry32, seedFromString } from "./random";
 import { Bar, BARS_PER_YEAR } from "./types";
 
 const BINANCE_HOSTS = [
@@ -197,18 +198,7 @@ export async function fetchBinanceKlines(
 /** Deterministic GBM with a regime shift, seeded off the symbol so the same
  *  request always reproduces the same series and results stay comparable. */
 export function syntheticBars(symbol: string, interval: string, bars: number): Bar[] {
-  let seed = 0;
-  for (let i = 0; i < symbol.length; i++) seed = (seed * 31 + symbol.charCodeAt(i)) >>> 0;
-
-  // Mulberry32 — small, fast, deterministic.
-  let state = seed || 1;
-  const rand = () => {
-    state |= 0;
-    state = (state + 0x6d2b79f5) | 0;
-    let t = Math.imul(state ^ (state >>> 15), 1 | state);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+  const rand = mulberry32(seedFromString(symbol));
   const gauss = () => {
     const u = Math.max(rand(), 1e-12);
     return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rand());
@@ -234,7 +224,9 @@ export function syntheticBars(symbol: string, interval: string, bars: number): B
 
   const stepMs =
     { "15m": 9e5, "1h": 36e5, "4h": 144e5, "1d": 864e5 }[interval] ?? 36e5;
-  const now = Date.now();
+  // Quantised to the bar interval: raw Date.now() gave identical closes a
+  // different dataHash on every run, breaking compareRuns for synthetic data.
+  const now = Math.floor(Date.now() / stepMs) * stepMs;
 
   const out: Bar[] = [];
   let price = anchor[symbol.toUpperCase()] ?? 100;

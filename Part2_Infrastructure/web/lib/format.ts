@@ -1,3 +1,5 @@
+import { BARS_PER_YEAR } from "./types";
+
 export const fmt = (v: number | null | undefined, d = 2): string =>
   v == null || !Number.isFinite(v)
     ? "—"
@@ -42,3 +44,34 @@ export const dateTime = (ms: number): string =>
 
 /** Price decimals that suit the magnitude — 2dp on BTC, 4dp on a sub-dollar alt. */
 export const priceDp = (v: number): number => (v >= 1000 ? 2 : v >= 1 ? 3 : 5);
+
+/**
+ * Display pair for a Minimum Track Record Length card.
+ *
+ * `needed` is MinTRL in bars (null = the SR does not clear its benchmark, so
+ * no finite record proves anything). The headline value is expressed in time
+ * because "3.1 years" is what a researcher weighs a window against; the bar
+ * counts live in the note. Unknown intervals fall back to bars.
+ */
+export function trackRecordNote(
+  needed: number | null,
+  windowBars: number,
+  interval: string,
+): { value: string; note: string; met: boolean | null } {
+  if (needed == null) {
+    return {
+      value: "—",
+      note: "SR does not clear the benchmark — no finite record can prove it",
+      met: null,
+    };
+  }
+  const ann = BARS_PER_YEAR[interval];
+  const value = ann
+    ? needed / ann >= 1
+      ? `~${fmt(needed / ann, 1)} yr`
+      : `~${fmt((needed / ann) * 12, 1)} mo`
+    : `${needed.toLocaleString("en-US")} bars`;
+  const met = windowBars >= needed;
+  const counts = `needs ${needed.toLocaleString("en-US")} bars · window has ${windowBars.toLocaleString("en-US")}`;
+  return { value, note: met ? `met — ${counts}` : counts, met };
+}

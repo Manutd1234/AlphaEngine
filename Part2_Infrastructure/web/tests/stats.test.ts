@@ -14,6 +14,7 @@ import { pctChange, rollingMax, rollingMin, rsi, shift1, sma } from "../lib/indi
 import {
   deflatedSharpe,
   kurtosis,
+  minTrackRecordLength,
   normCdf,
   normPpf,
   probabilisticSharpe,
@@ -126,6 +127,48 @@ describe("multiple-testing correction", () => {
   });
 });
 
+describe("minimum track record length", () => {
+  it("is the exact inverse of PSR: PSR at N* bars equals the confidence", () => {
+    for (const [sr, skew, kurt, conf] of [
+      [0.03, 0, 3, 0.95],
+      [0.05, -0.8, 6, 0.95],
+      [0.02, 0.5, 4, 0.99],
+    ] as const) {
+      const nStar = minTrackRecordLength(sr, 0, skew, kurt, conf);
+      const psrAtNStar = probabilisticSharpe(sr, 0, nStar, skew, kurt);
+      // Tolerance is set by the A&S erf approximation in normCdf (~1.5e-7),
+      // not by the identity itself, which is exact.
+      assert.ok(
+        Math.abs(psrAtNStar - conf) < 1e-6,
+        `PSR(${sr}) at N*=${nStar} is ${psrAtNStar}, expected ${conf}`,
+      );
+    }
+  });
+
+  it("matches the Gaussian hand calculation", () => {
+    // Normal returns (skew 0, raw kurtosis 3): the variance term is
+    // 1 + S²/2 — Lo (2002) — so N* = 1 + (1 + S²/2)·(z/S)², z = Φ⁻¹(0.95).
+    const nStar = minTrackRecordLength(0.02, 0, 0, 3);
+    const z = normPpf(0.95);
+    assert.ok(Math.abs(nStar - (1 + (1 + 0.02 ** 2 / 2) * (z / 0.02) ** 2)) < 1e-9);
+    assert.ok(Math.abs(nStar - 6766.2) < 1);
+  });
+
+  it("fat tails and negative skew lengthen the required record", () => {
+    const base = minTrackRecordLength(0.03, 0, 0, 3);
+    assert.ok(minTrackRecordLength(0.03, 0, -0.8, 3) > base, "negative skew");
+    assert.ok(minTrackRecordLength(0.03, 0, 0, 8) > base, "fat tails");
+    assert.ok(minTrackRecordLength(0.03, 0, 0, 3, 0.99) > base, "higher confidence");
+    assert.ok(minTrackRecordLength(0.06, 0, 0, 3) < base, "bigger edge shortens");
+  });
+
+  it("no finite record proves an edge that is not there", () => {
+    assert.equal(minTrackRecordLength(0, 0, 0, 3), Infinity);
+    assert.equal(minTrackRecordLength(-0.02, 0, 0, 3), Infinity);
+    assert.equal(minTrackRecordLength(0.02, 0.03, 0, 3), Infinity);
+  });
+});
+
 describe("engine invariants", () => {
   const bars = syntheticBars("BTCUSDT", "4h", 1500);
 
@@ -187,6 +230,31 @@ describe("engine invariants", () => {
     }
     assert.ok(out.deflatedSharpeRatio >= 0 && out.deflatedSharpeRatio <= 1);
     assert.equal(out.series.length > 0, true);
+  });
+
+  it("min track record is JSON-safe and internally consistent", () => {
+    const out = runSweep(bars, { ...DEFAULT_REQUEST, walkForward: false }, "synthetic");
+    const ann = barsPerYear("4h");
+    assert.deepEqual(JSON.parse(JSON.stringify(out.minTrackRecord)), out.minTrackRecord);
+    for (const entry of [out.minTrackRecord.vsZero, out.minTrackRecord.vsSearchHurdle]) {
+      if (entry.bars === null) {
+        assert.equal(entry.years, null);
+        assert.equal(entry.sufficient, null);
+      } else {
+        assert.ok(Math.abs((entry.years ?? 0) - entry.bars / ann) < 1e-12);
+        assert.equal(entry.sufficient, out.bars >= entry.bars);
+      }
+    }
+    // The search hurdle is at least as demanding as the zero benchmark.
+    const { vsZero, vsSearchHurdle } = out.minTrackRecord;
+    if (vsZero.bars !== null && vsSearchHurdle.bars !== null) {
+      assert.ok(vsSearchHurdle.bars >= vsZero.bars);
+    }
+
+    // A flat series has no edge, so no finite record can prove one.
+    const flat: Bar[] = bars.map((b) => ({ ...b, o: 100, h: 100, l: 100, c: 100 }));
+    const flatOut = runSweep(flat, { ...DEFAULT_REQUEST, walkForward: false }, "synthetic");
+    assert.equal(flatOut.minTrackRecord.vsZero.bars, null);
   });
 
   it("walk-forward scores on windows the parameters never saw", () => {

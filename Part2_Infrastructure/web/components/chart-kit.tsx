@@ -98,6 +98,23 @@ export function areaPath(
   return `${top}L${points[points.length - 1].x.toFixed(2)},${baseline.toFixed(2)}L${points[0].x.toFixed(2)},${baseline.toFixed(2)}Z`;
 }
 
+/** Closed envelope between two aligned curves — `areaPath` only supports a
+ *  constant baseline, which a percentile band does not have. Upper edge drawn
+ *  left→right, lower edge right→left. */
+export function bandPath(
+  points: Array<{ x: number; y0: number; y1: number }>,
+): string {
+  if (!points.length) return "";
+  let d = "";
+  for (let i = 0; i < points.length; i++) {
+    d += `${i ? "L" : "M"}${points[i].x.toFixed(2)},${points[i].y1.toFixed(2)}`;
+  }
+  for (let i = points.length - 1; i >= 0; i--) {
+    d += `L${points[i].x.toFixed(2)},${points[i].y0.toFixed(2)}`;
+  }
+  return `${d}Z`;
+}
+
 /** Recessive hairline grid + axis labels. Never dashed. */
 export function Grid({
   yTicks,

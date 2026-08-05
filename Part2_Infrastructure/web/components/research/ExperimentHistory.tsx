@@ -16,11 +16,13 @@
  * DuckDB log, and this says so rather than letting anyone assume otherwise.
  */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
+import { generatePythonScript } from "@/lib/export-python";
 import { fmt, pct, signedPct } from "@/lib/format";
 import { STRATEGY_LABELS, type SweepRequest } from "@/lib/types";
-import type { ExperimentRecord } from "@/lib/experiments";
+import { exportExperiments, importExperiments, type ExperimentRecord } from "@/lib/experiments";
+import { APP_COMMIT } from "@/lib/version";
 
 import RunComparison from "./RunComparison";
 
@@ -32,6 +34,19 @@ interface ExperimentHistoryProps {
   onClear: () => void;
   /** Attach a researcher's note and tags to one run. */
   onAnnotate?: (id: string, annotation: { note?: string; tags?: string[] }) => void;
+  /** Persist a merged history after a JSON import. */
+  onImport?: (records: ExperimentRecord[]) => void;
+}
+
+/** Client-side download — a Blob and an anchor, no server round trip. */
+function download(filename: string, content: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 const VERDICT_STYLE: Record<string, { glyph: string; label: string; tone: string }> = {
@@ -47,6 +62,7 @@ export default function ExperimentHistory({
   onRemove,
   onClear,
   onAnnotate,
+  onImport,
 }: ExperimentHistoryProps) {
   const promoted = records.filter((r) => r.promotionTotal > 0 && r.promotionPassed === r.promotionTotal);
   const distinctSymbols = new Set(records.map((r) => r.symbol)).size;
@@ -58,6 +74,49 @@ export default function ExperimentHistory({
   const [editing, setEditing] = useState<string | null>(null);
   const [draftNote, setDraftNote] = useState("");
   const [draftTags, setDraftTags] = useState("");
+  const [ioStatus, setIoStatus] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  function exportJson() {
+    const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    download(
+      `alphaengine-experiments-${stamp}.json`,
+      exportExperiments(records, APP_COMMIT),
+      "application/json",
+    );
+    setIoStatus(`Exported ${records.length} run${records.length === 1 ? "" : "s"}.`);
+  }
+
+  function exportPython(record: ExperimentRecord) {
+    try {
+      download(
+        `backtest_${record.id}.py`,
+        generatePythonScript(record, { appCommit: APP_COMMIT }),
+        "text/x-python",
+      );
+      setIoStatus(`${record.id} exported as a runnable Python script (needs numpy).`);
+    } catch (err) {
+      setIoStatus(`Export failed: ${err instanceof Error ? err.message : "unknown error"}`);
+    }
+  }
+
+  function handleImportFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = importExperiments(String(reader.result ?? ""), records);
+      if (result.error) {
+        setIoStatus(`Import failed: ${result.error}`);
+        return;
+      }
+      onImport?.(result.records);
+      const parts = [`${result.added} added`, `${result.replaced} replaced`];
+      if (result.skippedOlder) parts.push(`${result.skippedOlder} older skipped`);
+      if (result.invalid) parts.push(`${result.invalid} invalid dropped`);
+      setIoStatus(`Imported — ${parts.join(" · ")}.`);
+    };
+    reader.onerror = () => setIoStatus("Import failed: the file could not be read.");
+    reader.readAsText(file);
+  }
 
   const toggle = (id: string) => setSelected((current) => (
     current.includes(id)
@@ -93,6 +152,33 @@ export default function ExperimentHistory({
         <span className="section-note">
           {records.length} run{records.length === 1 ? "" : "s"} · {promoted.length} promotable
         </span>
+      </div>
+
+      <div className="history-toolbar">
+        <button type="button" onClick={exportJson} disabled={records.length === 0}>
+          Export JSON
+        </button>
+        <button type="button" onClick={() => fileInput.current?.click()} disabled={!onImport}>
+          Import JSON
+        </button>
+        <input
+          ref={fileInput}
+          type="file"
+          accept=".json,application/json"
+          className="sr-only"
+          aria-hidden
+          tabIndex={-1}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) handleImportFile(file);
+            event.target.value = ""; // allow re-importing the same file
+          }}
+        />
+        {ioStatus && (
+          <span className="history-toolbar__status" role="status">
+            {ioStatus}
+          </span>
+        )}
       </div>
 
       {records.length === 0 ? (
@@ -211,6 +297,13 @@ export default function ExperimentHistory({
                           )}
                           <button
                             type="button"
+                            onClick={() => exportPython(r)}
+                            title="Download a self-contained Python script that reproduces this run offline"
+                          >
+                            Py
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => onRemove(r.id)}
                             title="Remove this run from the local history"
                           >
@@ -275,9 +368,10 @@ export default function ExperimentHistory({
       )}
 
       <p className="research-note">
-        Saved in this browser only, as a summary rather than a full result — a research notebook, not
-        an audit trail. The authoritative record of anything that reaches execution is the gateway&apos;s
-        append-only log.
+        Saved in this browser as a summary rather than a full result — a research notebook, not an
+        audit trail. Export the log as JSON to move or share it, or any run as a Python script to
+        verify it offline. The authoritative record of anything that reaches execution is the
+        gateway&apos;s append-only log.
       </p>
     </div>
   );

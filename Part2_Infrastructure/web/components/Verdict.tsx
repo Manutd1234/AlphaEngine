@@ -9,7 +9,7 @@
  */
 
 import { SweepResponse } from "@/lib/types";
-import { fmt, signedPct } from "@/lib/format";
+import { fmt, signedPct, trackRecordNote } from "@/lib/format";
 
 const STATUS = {
   pass: { fill: "var(--status-good)", text: "var(--success-text)", icon: "✓", label: "PASS" },
@@ -20,6 +20,10 @@ const STATUS = {
 export default function Verdict({ data }: { data: SweepResponse }) {
   const s = STATUS[data.verdict.level];
   const oos = data.walkForwardOosSharpe;
+  const psr = data.probabilisticSharpeRatio;
+  // Optional-chained so a payload cached before MinTRL existed still renders.
+  const trl = data.minTrackRecord?.vsZero ?? null;
+  const trlDisplay = trackRecordNote(trl?.bars ?? null, data.bars, data.request.interval);
 
   return (
     <div className="card" style={{ borderColor: `color-mix(in srgb, ${s.fill} 45%, transparent)` }}>
@@ -58,7 +62,7 @@ export default function Verdict({ data }: { data: SweepResponse }) {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
           gap: 12,
           marginTop: 18,
           paddingTop: 16,
@@ -76,10 +80,22 @@ export default function Verdict({ data }: { data: SweepResponse }) {
           note={`what ${data.combosTested} random trials would beat`}
         />
         <Metric
+          label="Probabilistic Sharpe (PSR)"
+          value={fmt(psr, 3)}
+          note="P(true Sharpe > 0) before the search penalty"
+          emphasis={psr < 0.95 ? "var(--warning-text)" : undefined}
+        />
+        <Metric
           label="Deflated Sharpe (DSR)"
           value={fmt(data.deflatedSharpeRatio, 3)}
           note="P(true Sharpe > 0) after paying for the search"
           emphasis={s.text}
+        />
+        <Metric
+          label={`Min track record (${Math.round((data.minTrackRecord?.confidence ?? 0.95) * 100)}%)`}
+          value={trlDisplay.value}
+          note={trlDisplay.note}
+          emphasis={trlDisplay.met === false ? "var(--critical-text)" : undefined}
         />
         <Metric
           label="Walk-forward OOS Sharpe"

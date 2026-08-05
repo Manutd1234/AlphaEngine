@@ -132,6 +132,36 @@ export function probabilisticSharpe(
   return normCdf(((sr - srBenchmark) * Math.sqrt(n - 1)) / denom);
 }
 
+/**
+ * Minimum Track Record Length (Bailey & López de Prado).
+ *
+ *   N* = 1 + (1 − γ₃·S + (γ₄−1)/4·S²) · (Z_conf / (S − S*))²
+ *
+ * The exact inverse of `probabilisticSharpe` solved for n: the observation
+ * count at which PSR(S*) reaches `confidence`. Inputs are per-observation, NOT
+ * annualised, and `kurt` is raw Pearson kurtosis (normal = 3) — same
+ * conventions as `probabilisticSharpe`, including the 1e-12 variance clamp so
+ * the two stay exact inverses under extreme skew.
+ *
+ * Returns fractional bars; `Infinity` when S ≤ S* (no finite record can prove
+ * an edge that isn't there).
+ */
+export function minTrackRecordLength(
+  srPerBar: number,
+  srBenchmarkPerBar: number,
+  skew: number,
+  kurt: number,
+  confidence = 0.95,
+): number {
+  if (srPerBar <= srBenchmarkPerBar) return Infinity;
+  const z = normPpf(confidence);
+  const varTerm = Math.max(
+    1e-12,
+    1 - skew * srPerBar + ((kurt - 1) / 4) * srPerBar * srPerBar,
+  );
+  return 1 + varTerm * (z / (srPerBar - srBenchmarkPerBar)) ** 2;
+}
+
 const EULER_MASCHERONI = 0.5772156649015329;
 
 /**

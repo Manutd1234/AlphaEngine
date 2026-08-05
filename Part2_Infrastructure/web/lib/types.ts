@@ -156,6 +156,90 @@ export interface SweepResponse {
   promotion: PromotionGate;
   /** What the cost model actually charged, so an assumption is never invisible. */
   costs: CostSummary;
+  /**
+   * Minimum Track Record Length (Bailey & López de Prado) at `confidence`.
+   * `vsZero` is the citable literature quantity — bars needed to prove
+   * SR > 0. `vsSearchHurdle` benchmarks against the search's expected-max
+   * Sharpe instead, matching the DSR narrative. `null` bars = the observed SR
+   * does not exceed the benchmark, so no finite record suffices (JSON-safe
+   * stand-in for Infinity).
+   */
+  minTrackRecord: {
+    confidence: number;
+    vsZero: MinTrackRecordEntry;
+    vsSearchHurdle: MinTrackRecordEntry;
+  };
+  /** Bootstrap resampling envelope around the winner's equity curve. */
+  monteCarlo: MonteCarloBands;
+  /** Performance conditioned on market regime — where the returns came from. */
+  regimes: RegimeReport;
+  /** Build identity of the code that ran the sweep; stamped by the route. */
+  commit?: string;
+  /** Generator seed when dataSource is synthetic; null on real market data. */
+  syntheticSeed?: number | null;
+}
+
+export interface MinTrackRecordEntry {
+  bars: number | null;
+  years: number | null;
+  sufficient: boolean | null;
+}
+
+/**
+ * Percentile envelopes of resampled equity paths, aligned 1:1 with `series`
+ * (plain arrays, not Float64Array — typed arrays serialise to objects).
+ * Stationary bootstrap so volatility clustering survives the resample; iid
+ * would understate how wide the honest cone is.
+ */
+export interface MonteCarloBands {
+  method: "stationary-bootstrap";
+  seed: number;
+  paths: number;
+  meanBlockLength: number;
+  p05: number[];
+  p25: number[];
+  p50: number[];
+  p75: number[];
+  p95: number[];
+  terminal: { p05: number; p50: number; p95: number; probLoss: number };
+}
+
+/** Strategy performance over one regime's (non-contiguous) bars. */
+export interface RegimeStat {
+  regime: string;
+  bars: number;
+  /** Of the classified bars in this regime's group (trend or vol). */
+  share: number;
+  /** Annualised; null below ~20 bars, where the estimate is noise. */
+  sharpe: number | null;
+  totalReturn: number;
+  /** Over the concatenated in-regime sub-equity — a diagnostic, not a
+   *  historical drawdown (see RegimeReport.note). */
+  maxDrawdown: number;
+  winRate: number;
+  exposure: number;
+}
+
+/** A named historical stress window, present even when the data misses it. */
+export interface NamedWindowStat {
+  id: string;
+  label: string;
+  covered: boolean;
+  /** Fraction of the window's span that the loaded bars overlap, 0..1. */
+  coverage: number;
+  stat: RegimeStat | null;
+}
+
+export interface RegimeReport {
+  trendLookback: number;
+  deadband: number;
+  volLookback: number;
+  classifiedBars: number;
+  totalBars: number;
+  trend: RegimeStat[];
+  vol: RegimeStat[];
+  windows: NamedWindowStat[];
+  note: string;
 }
 
 // ---------------------------------------------------------------------------

@@ -289,6 +289,10 @@ class BacktestResult(BaseModel):
     top_results: list[ParamResult]
     deflated_sharpe_ratio: float
     probabilistic_sharpe_ratio: float
+    # Minimum Track Record Length at 95% confidence vs a zero benchmark — how
+    # many bars this Sharpe would need to be statistically real. None when the
+    # per-bar Sharpe is not positive (no finite record proves an absent edge).
+    min_track_record_bars: float | None = None
     dsr_verdict: str
     walk_forward: list[WalkForwardFold]
     walk_forward_oos_sharpe: float | None

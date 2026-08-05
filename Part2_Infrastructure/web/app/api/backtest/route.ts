@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { runSweep } from "@/lib/engine";
 import { loadBars } from "@/lib/marketdata";
+import { seedFromString } from "@/lib/random";
 import { DEFAULT_REQUEST, INTERVALS, SweepRequest } from "@/lib/types";
+import { APP_COMMIT } from "@/lib/version";
 
 export const runtime = "nodejs";
 // No `maxDuration` override. A 74-combination sweep over 2000 bars runs in ~20ms,
@@ -77,7 +79,13 @@ export async function POST(request: NextRequest) {
     const req = sanitise((await request.json()) as Partial<SweepRequest>);
     const { bars, source, warnings } = await loadBars(req.symbol, req.interval, req.bars);
     const result = runSweep(bars, req, source, warnings);
-    return NextResponse.json(result);
+    // Environment concerns stay out of the pure engine: the route stamps the
+    // build identity and, for synthetic data, the generator seed.
+    return NextResponse.json({
+      ...result,
+      commit: APP_COMMIT,
+      syntheticSeed: source === "synthetic" ? seedFromString(req.symbol) : null,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown error";
     return NextResponse.json({ error: message }, { status: 400 });

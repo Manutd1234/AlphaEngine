@@ -14,6 +14,8 @@
  */
 
 import { pctChange, rollingMax, rollingMin, rsi, shift1, sma } from "./indicators";
+import { monteCarloBands } from "./montecarlo";
+import { regimeReport } from "./regimes";
 import {
   type CostModel,
   averageDailyVolume,
@@ -31,6 +33,7 @@ import {
   deflatedSharpe,
   kurtosis,
   mean,
+  minTrackRecordLength,
   skewness,
   stdev,
   verdictFor,
@@ -512,13 +515,29 @@ export function runSweep(
   const perBarSd = stdev(bestRun.returns, 1);
   const srPerBar = perBarSd > 0 ? mean(bestRun.returns) / perBarSd : 0;
   const candidates = results.map((r) => r.sharpe / Math.sqrt(ann));
+  const retSkew = skewness(bestRun.returns);
+  const retKurt = kurtosis(bestRun.returns);
   const { dsr, psr, expectedMax } = deflatedSharpe(
     candidates,
     srPerBar,
     bestRun.returns.length,
-    skewness(bestRun.returns),
-    kurtosis(bestRun.returns),
+    retSkew,
+    retKurt,
   );
+
+  // MinTRL benchmarks against the PER-BAR expectedMax; the response's
+  // `expectedMaxSharpe` is the re-annualised one — do not mix them up.
+  const minTrlEntry = (benchmark: number) => {
+    const nStar = minTrackRecordLength(srPerBar, benchmark, retSkew, retKurt);
+    if (!Number.isFinite(nStar)) return { bars: null, years: null, sufficient: null };
+    const needed = Math.ceil(nStar);
+    return { bars: needed, years: needed / ann, sufficient: bars.length >= needed };
+  };
+  const minTrackRecord = {
+    confidence: 0.95,
+    vsZero: minTrlEntry(0),
+    vsSearchHurdle: minTrlEntry(expectedMax),
+  };
 
   // --- walk-forward ------------------------------------------------------ //
   let wf: WalkForwardFold[] = [];
@@ -566,6 +585,7 @@ export function runSweep(
   }
   const step = Math.max(1, Math.ceil(bars.length / 700));
   const series: SeriesPoint[] = [];
+  const sampleIdx: number[] = [];
   let peak = -Infinity;
   const ddArr = new Float64Array(bars.length);
   for (let i = 0; i < bars.length; i++) {
@@ -573,6 +593,7 @@ export function runSweep(
     ddArr[i] = bestRun.equity[i] / peak - 1;
   }
   for (let i = 0; i < bars.length; i += step) {
+    sampleIdx.push(i);
     series.push({
       t: bars[i].t,
       close: close[i],
@@ -590,6 +611,16 @@ export function runSweep(
   // --- research analytics ------------------------------------------------ //
   // All derived from what the sweep already computed. Nothing above this line
   // changed, which is what keeps the parity fixture meaningful.
+  const dataHash = datasetFingerprint(bars);
+
+  // Seeded off the data identity and the winning parameters: rerunning the
+  // same sweep draws the same cone, a different winner draws a fresh one.
+  const mcSeed =
+    (parseInt(dataHash.slice(0, 8), 16) ^ Math.imul(best.fast, 0x9e3779b1) ^ best.slow) >>> 0;
+  const monteCarlo = monteCarloBands(bestRun.returns, sampleIdx, mcSeed);
+
+  const regimes = regimeReport(bars, close, bestRun.returns, bestRun.position, req.interval);
+
   const stability = parameterStability(results);
   const wfReport = walkForwardReport(
     wf,
@@ -657,7 +688,7 @@ export function runSweep(
     bars: bars.length,
     periodStart: isoDay(bars[0].t),
     periodEnd: isoDay(bars[bars.length - 1].t),
-    dataHash: datasetFingerprint(bars),
+    dataHash,
     combosTested: results.length,
     durationMs: Date.now() - t0,
     best,
@@ -682,5 +713,8 @@ export function runSweep(
     tail,
     promotion,
     costs,
+    minTrackRecord,
+    monteCarlo,
+    regimes,
   };
 }

@@ -18,6 +18,7 @@ from modules.backtester import (
     _norm_ppf,
     build_signals,
     deflated_sharpe_ratio,
+    min_track_record_length,
     param_grid,
     probabilistic_sharpe_ratio,
     run_backtest,
@@ -123,6 +124,32 @@ class TestStatistics:
         b = probabilistic_sharpe_ratio(0.05, 0.0, 2500, 0.0, 3.0)
         assert b > a
         assert 0.0 <= a <= 1.0 and 0.0 <= b <= 1.0
+
+    def test_mintrl_is_the_exact_inverse_of_psr(self):
+        """PSR evaluated at N* observations must equal the confidence level —
+        MinTRL is PSR solved for n, and the two share every convention."""
+        for sr, skew, kurt, conf in [(0.03, 0.0, 3.0, 0.95), (0.05, -0.8, 6.0, 0.95), (0.02, 0.5, 4.0, 0.99)]:
+            n_star = min_track_record_length(sr, 0.0, skew, kurt, conf)
+            assert probabilistic_sharpe_ratio(sr, 0.0, n_star, skew, kurt) == pytest.approx(conf, abs=1e-9)
+
+    def test_mintrl_gaussian_hand_check(self):
+        # Normal returns: variance term is 1 + S²/2 (Lo 2002).
+        n_star = min_track_record_length(0.02, 0.0, 0.0, 3.0)
+        z = _norm_ppf(0.95)
+        assert n_star == pytest.approx(1 + (1 + 0.02**2 / 2) * (z / 0.02) ** 2, abs=1e-9)
+
+    def test_mintrl_lengthens_with_fat_tails_and_confidence(self):
+        base = min_track_record_length(0.03, 0.0, 0.0, 3.0)
+        assert min_track_record_length(0.03, 0.0, -0.8, 3.0) > base
+        assert min_track_record_length(0.03, 0.0, 0.0, 8.0) > base
+        assert min_track_record_length(0.03, 0.0, 0.0, 3.0, confidence=0.99) > base
+        assert min_track_record_length(0.06, 0.0, 0.0, 3.0) < base
+
+    def test_mintrl_is_infinite_without_an_edge(self):
+        import math
+        assert math.isinf(min_track_record_length(0.0, 0.0, 0.0, 3.0))
+        assert math.isinf(min_track_record_length(-0.02, 0.0, 0.0, 3.0))
+        assert math.isinf(min_track_record_length(0.02, 0.03, 0.0, 3.0))
 
     def test_dsr_penalises_a_larger_search(self):
         """Same winner, more trials searched -> lower confidence. This is the

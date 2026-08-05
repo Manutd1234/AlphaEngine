@@ -15,8 +15,10 @@ import RiskWorkspace from "@/components/RiskWorkspace";
 import ExperimentHistory from "@/components/research/ExperimentHistory";
 import FactorPanel from "@/components/research/FactorPanel";
 import PromotionPanel from "@/components/research/PromotionPanel";
+import RegimePanel from "@/components/research/RegimePanel";
 import SizingPanel from "@/components/research/SizingPanel";
 import StabilityPanel from "@/components/research/StabilityPanel";
+import StaleGate from "@/components/research/StaleGate";
 import TearSheet from "@/components/research/TearSheet";
 import WalkForwardTimeline from "@/components/research/WalkForwardTimeline";
 import StatTile from "@/components/StatTile";
@@ -45,8 +47,10 @@ import {
   clearExperiments,
   loadExperiments,
   removeExperiment,
+  saveExperiments,
   type ExperimentRecord,
 } from "@/lib/experiments";
+import { APP_COMMIT } from "@/lib/version";
 import type { Side } from "@/lib/venues";
 
 const VIEWS: WorkspaceView[] = NAV_ITEMS.map((item) => item.id);
@@ -96,6 +100,7 @@ export default function Page() {
   const [side, setSide] = useState<Side>("BUY");
   const [notional, setNotional] = useState(100_000);
   const [researchSection, setResearchSection] = useState<ResearchSection>("summary");
+  const [showMcBands, setShowMcBands] = useState(true);
   const [executionSection, setExecutionSection] = useState<ExecutionSection>("trade");
   const [dataSection, setDataSection] = useState<DataSection>("queue");
   const [reliabilitySection, setReliabilitySection] = useState<ReliabilitySection>("overview");
@@ -277,6 +282,9 @@ export default function Page() {
 
   const activeResult = researchDirty ? null : data;
   const displayedResult = inspectionData ?? data;
+  // Drives the region-level gates: stale evidence stays visible under a veil,
+  // never silently presented as current.
+  const researchStale = researchDirty && Boolean(data);
   const shown = displayedResult?.best;
   const contextNote = researchDirty
     ? `${req.symbol} context changed · rerun research`
@@ -288,6 +296,16 @@ export default function Page() {
 
   const tiles = useMemo(() => {
     if (!displayedResult || !shown) return null;
+    // A cost assumption must never be invisible: when anything beyond flat
+    // bps was modelled, the tile says which frictions were charged.
+    const costs = displayedResult.costs;
+    const frictionNote = costs && !costs.flatOnly
+      ? [
+          costs.impactBps > 0 ? `+${fmt(costs.impactBps, 1)} bps impact` : null,
+          costs.fundingBpsPer8h !== 0 ? `funding ${fmt(costs.fundingBpsPer8h, 1)} bps/8h` : null,
+          costs.borrowBpsAnnual > 0 ? `borrow ${fmt(costs.borrowBpsAnnual, 0)} bps/yr` : null,
+        ].filter(Boolean).join(" · ")
+      : null;
     return (
       <div className="tiles research-tiles">
         <StatTile
@@ -305,7 +323,11 @@ export default function Page() {
         <StatTile label="Max drawdown" value={pct(shown.maxDrawdown)} note={`calmar ${fmt(shown.calmar, 2)}`} tone="neg" />
         <StatTile label="Trades" value={String(shown.trades)} note={`win rate ${pct(shown.winRate, 0)}`} />
         <StatTile label="Time in market" value={pct(shown.exposure, 0)} note={`turnover ${fmt(shown.turnover, 1)}×`} />
-        <StatTile label="Costs paid" value={usd(shown.feesPaid)} note="on a $100k book" />
+        <StatTile
+          label="Costs paid"
+          value={usd(shown.feesPaid)}
+          note={frictionNote ? `on a $100k book · ${frictionNote}` : "on a $100k book"}
+        />
       </div>
     );
   }, [displayedResult, shown]);
@@ -522,8 +544,9 @@ export default function Page() {
                 {data && displayedResult && (
                   <>
                     <WorkspaceSubtabPanel workspaceId="research" tabId="summary" activeId={researchSection}>
-                      <Verdict data={displayedResult} />
-
+                      {/* The capsule stays outside the stale gate: reading the
+                          provenance of the old result is exactly what someone
+                          facing the veil needs to do. */}
                       <div className="research-provenance" aria-label="Research reproducibility capsule">
                         <div className="research-provenance__lead">
                           <span className="page-kicker">Reproducibility capsule</span>
@@ -531,6 +554,10 @@ export default function Page() {
                           <small>Compare the fingerprint before attributing a changed result to the model.</small>
                         </div>
                         <dl>
+                          <div>
+                            <dt>Instrument</dt>
+                            <dd className="num">{displayedResult.request.symbol} · {displayedResult.request.interval}</dd>
+                          </div>
                           <div>
                             <dt>Dataset</dt>
                             <dd><code title={displayedResult.dataHash}>{displayedResult.dataHash?.slice(0, 12) ?? "legacy run"}</code></dd>
@@ -551,97 +578,168 @@ export default function Page() {
                             <dt>Runtime</dt>
                             <dd className="num">{fmt(displayedResult.durationMs, 0)}ms</dd>
                           </div>
+                          <div>
+                            <dt>Build</dt>
+                            <dd><code>{displayedResult.commit ?? APP_COMMIT}</code></dd>
+                          </div>
+                          {displayedResult.dataSource === "synthetic" && displayedResult.syntheticSeed != null && (
+                            <div>
+                              <dt>Seed</dt>
+                              <dd className="num">{displayedResult.syntheticSeed}</dd>
+                            </div>
+                          )}
                         </dl>
                       </div>
 
-                      {tiles}
+                      <StaleGate
+                        active={researchStale}
+                        running={running}
+                        targetSymbol={req.symbol}
+                        targetInterval={req.interval}
+                        onRerun={() => run()}
+                      >
+                        <Verdict data={displayedResult} />
 
-                      <div className="card">
-                        <h2>Performance</h2>
-                        <p className="sub">
-                          {displayedResult.request.symbol} · {displayedResult.request.interval} · {STRATEGY_LABELS[displayedResult.request.strategy]} {displayedResult.best.fast}/{displayedResult.best.slow} · {displayedResult.periodStart} → {displayedResult.periodEnd}.
-                          Both series are indexed to 1 at the start.
-                        </p>
-                        <EquityChart series={displayedResult.series} />
-                      </div>
+                        {tiles}
 
-                      <div className="card">
-                        <h2>Signal behavior</h2>
-                        <p className="sub">Shaded bands are held positions. Signals form on one bar and execute on the next, with no look-ahead.</p>
-                        <PriceChart
-                          series={displayedResult.series}
-                          strategy={displayedResult.request.strategy}
-                          fast={displayedResult.best.fast}
-                          slow={displayedResult.best.slow}
-                          symbol={displayedResult.request.symbol}
-                        />
-                      </div>
+                        <div className="card">
+                          <div className="chart-heading">
+                            <h2>Performance</h2>
+                            <label className="chart-toggle">
+                              <input
+                                type="checkbox"
+                                checked={showMcBands}
+                                disabled={!displayedResult.monteCarlo}
+                                onChange={(e) => setShowMcBands(e.target.checked)}
+                              />
+                              Monte Carlo band
+                            </label>
+                          </div>
+                          <p className="sub">
+                            {displayedResult.request.symbol} · {displayedResult.request.interval} · {STRATEGY_LABELS[displayedResult.request.strategy]} {displayedResult.best.fast}/{displayedResult.best.slow} · {displayedResult.periodStart} → {displayedResult.periodEnd}.
+                            Both series are indexed to 1 at the start.
+                            {displayedResult.monteCarlo && showMcBands && (
+                              <> Shaded cone: {displayedResult.monteCarlo.paths} stationary-bootstrap resamples of the strategy&apos;s own bar returns.</>
+                            )}
+                          </p>
+                          <EquityChart
+                            series={displayedResult.series}
+                            bands={displayedResult.monteCarlo ?? null}
+                            showBands={showMcBands}
+                          />
+                        </div>
+
+                        <div className="card">
+                          <h2>Signal behavior</h2>
+                          <p className="sub">Shaded bands are held positions. Signals form on one bar and execute on the next, with no look-ahead.</p>
+                          <PriceChart
+                            series={displayedResult.series}
+                            strategy={displayedResult.request.strategy}
+                            fast={displayedResult.best.fast}
+                            slow={displayedResult.best.slow}
+                            symbol={displayedResult.request.symbol}
+                          />
+                        </div>
+                      </StaleGate>
                     </WorkspaceSubtabPanel>
 
                     <WorkspaceSubtabPanel workspaceId="research" tabId="parameters" activeId={researchSection}>
-                      {data.results.length > 3 ? (
-                        <StabilityPanel
-                          stability={data.stability}
-                          results={data.results}
-                          best={data.best}
-                          selected={inspect}
-                          onSelect={inspectCombo}
-                        />
-                      ) : null}
-                      <div className="card">
-                        <h2>Candidate ranking</h2>
-                        <p className="sub">The top 15 combinations behind the winner. Select a row to inspect that pair without losing the full sweep.</p>
-                        <ResultsTable data={data} onSelect={inspectCombo} selected={inspect} />
-                      </div>
+                      <StaleGate
+                        active={researchStale}
+                        running={running}
+                        targetSymbol={req.symbol}
+                        targetInterval={req.interval}
+                        onRerun={() => run()}
+                      >
+                        {data.results.length > 3 ? (
+                          <StabilityPanel
+                            stability={data.stability}
+                            results={data.results}
+                            best={data.best}
+                            selected={inspect}
+                            onSelect={inspectCombo}
+                          />
+                        ) : null}
+                        <div className="card">
+                          <h2>Candidate ranking</h2>
+                          <p className="sub">The top 15 combinations behind the winner. Select a row to inspect that pair without losing the full sweep.</p>
+                          <ResultsTable data={data} onSelect={inspectCombo} selected={inspect} />
+                        </div>
+                      </StaleGate>
                     </WorkspaceSubtabPanel>
 
                     <WorkspaceSubtabPanel workspaceId="research" tabId="walkforward" activeId={researchSection}>
-                      <WalkForwardTimeline report={data.walkForwardReport} />
-                      <div className="card">
-                        <h2>Walk-forward validation</h2>
-                        <p className="sub">Choose parameters on one window, then trade the next window blind.</p>
-                        <WalkForwardTable data={data} />
-                      </div>
+                      <StaleGate
+                        active={researchStale}
+                        running={running}
+                        targetSymbol={req.symbol}
+                        targetInterval={req.interval}
+                        onRerun={() => run()}
+                      >
+                        <WalkForwardTimeline report={data.walkForwardReport} />
+                        <div className="card">
+                          <h2>Walk-forward validation</h2>
+                          <p className="sub">Choose parameters on one window, then trade the next window blind.</p>
+                          <WalkForwardTable data={data} />
+                        </div>
+                      </StaleGate>
                     </WorkspaceSubtabPanel>
 
                     <WorkspaceSubtabPanel workspaceId="research" tabId="attribution" activeId={researchSection}>
-                      <FactorPanel report={data.factors} />
-                      <TearSheet
-                        tail={data.tail}
-                        interval={data.request.interval}
-                        turnoverPerYear={data.tail.annualisedTurnover}
-                      />
+                      <StaleGate
+                        active={researchStale}
+                        running={running}
+                        targetSymbol={req.symbol}
+                        targetInterval={req.interval}
+                        onRerun={() => run()}
+                      >
+                        <FactorPanel report={data.factors} />
+                        <RegimePanel regimes={data.regimes} />
+                        <TearSheet
+                          tail={data.tail}
+                          interval={data.request.interval}
+                          turnoverPerYear={data.tail.annualisedTurnover}
+                        />
+                      </StaleGate>
                     </WorkspaceSubtabPanel>
 
                     <WorkspaceSubtabPanel workspaceId="research" tabId="decision" activeId={researchSection}>
-                      <PromotionPanel
-                        gate={data.promotion}
-                        symbol={data.request.symbol}
-                        fast={data.best.fast}
-                        slow={data.best.slow}
-                        strategyLabel={STRATEGY_LABELS[data.request.strategy]}
-                        slippageBps={data.request.slippageBps}
-                        blocked={researchDirty || running || Boolean(inspect)}
-                        blockedReason={researchDirty
-                          ? "Refresh this candidate for the current desk context before promotion."
-                          : inspect
-                            ? "Return to the full parameter sweep before promotion."
-                            : "Wait for the active research run to finish."}
-                        onHandOff={() => navigate("live")}
-                      />
-                      <SizingPanel
-                        best={data.best}
-                        gate={data.promotion}
-                        equity={REFERENCE_EQUITY}
-                      />
-                      <div className="workflow-handoff research-data-handoff">
-                        <div>
-                          <span className="page-kicker">Evidence lineage</span>
-                          <strong>Verify the inputs before approving the candidate.</strong>
-                          <small>Open the data workspace with {data.request.symbol} still in context.</small>
+                      <StaleGate
+                        active={researchStale}
+                        running={running}
+                        targetSymbol={req.symbol}
+                        targetInterval={req.interval}
+                        onRerun={() => run()}
+                      >
+                        <PromotionPanel
+                          gate={data.promotion}
+                          symbol={data.request.symbol}
+                          fast={data.best.fast}
+                          slow={data.best.slow}
+                          strategyLabel={STRATEGY_LABELS[data.request.strategy]}
+                          slippageBps={data.request.slippageBps}
+                          blocked={researchDirty || running || Boolean(inspect)}
+                          blockedReason={researchDirty
+                            ? "Refresh this candidate for the current desk context before promotion."
+                            : inspect
+                              ? "Return to the full parameter sweep before promotion."
+                              : "Wait for the active research run to finish."}
+                          onHandOff={() => navigate("live")}
+                        />
+                        <SizingPanel
+                          best={data.best}
+                          gate={data.promotion}
+                          equity={REFERENCE_EQUITY}
+                        />
+                        <div className="workflow-handoff research-data-handoff">
+                          <div>
+                            <span className="page-kicker">Evidence lineage</span>
+                            <strong>Verify the inputs before approving the candidate.</strong>
+                            <small>Open the data workspace with {data.request.symbol} still in context.</small>
+                          </div>
+                          <button onClick={() => navigate("data")}>Trace market data</button>
                         </div>
-                        <button onClick={() => navigate("data")}>Trace market data</button>
-                      </div>
+                      </StaleGate>
                     </WorkspaceSubtabPanel>
 
                     <WorkspaceSubtabPanel workspaceId="research" tabId="runs" activeId={researchSection}>
@@ -653,6 +751,7 @@ export default function Page() {
                         onClear={() => setExperiments(clearExperiments())}
                         onAnnotate={(id, annotation) =>
                           setExperiments((current) => annotateExperiment(current, id, annotation))}
+                        onImport={(merged) => setExperiments(saveExperiments(merged))}
                       />
                     </WorkspaceSubtabPanel>
                   </>
