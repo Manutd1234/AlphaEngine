@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
+import { KeyboardEvent, useRef } from "react";
 
 import LatencyChip from "@/components/header/LatencyChip";
 import KillSwitchControl, {
@@ -9,7 +9,6 @@ import KillSwitchControl, {
 } from "@/components/header/KillSwitchControl";
 import ThemeToggle from "@/components/ThemeToggle";
 import type { LatencyStats } from "@/components/systems/types";
-import { INTERVALS } from "@/lib/types";
 
 export type WorkspaceView =
   | "overview"
@@ -38,32 +37,11 @@ export const NAV_ITEMS: { id: WorkspaceView; label: string; role: string; access
   { id: "developer", label: "Developer", role: "Quant developer" },
 ];
 
-const COMMON_SYMBOLS = [
-  "BTCUSDT",
-  "ETHUSDT",
-  "SOLUSDT",
-  "BNBUSDT",
-  "XRPUSDT",
-  "ADAUSDT",
-  "DOGEUSDT",
-  "AVAXUSDT",
-  "LINKUSDT",
-  "DOTUSDT",
-  "LTCUSDT",
-  "TRXUSDT",
-  "AAPL",
-  "NVDA",
-  "MSFT",
-];
-
 interface WorkspaceHeaderProps {
   view: WorkspaceView;
   onViewChange: (view: WorkspaceView) => void;
-  symbol: string;
-  onSymbolChange: (symbol: string) => void;
-  interval: string;
-  onIntervalChange: (interval: string) => void;
-  contextNote?: string;
+  onOpenProviderHealth: () => void;
+  onOpenTailLatency: () => void;
   // Narrow derived scalars, not the hook objects: the header re-renders on
   // every 30s health tick and 15s book tick, and "one snapshot, shared" is the
   // health hook's stated invariant — the header must not poll for itself.
@@ -79,11 +57,8 @@ interface WorkspaceHeaderProps {
 export default function WorkspaceHeader({
   view,
   onViewChange,
-  symbol,
-  onSymbolChange,
-  interval,
-  onIntervalChange,
-  contextNote,
+  onOpenProviderHealth,
+  onOpenTailLatency,
   latency,
   degraded,
   providersReady,
@@ -92,17 +67,7 @@ export default function WorkspaceHeader({
   halt,
   riskControl,
 }: WorkspaceHeaderProps) {
-  const [draftSymbol, setDraftSymbol] = useState(symbol);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-
-  useEffect(() => setDraftSymbol(symbol), [symbol]);
-
-  const submitSymbol = (event: FormEvent) => {
-    event.preventDefault();
-    const next = draftSymbol.trim().toUpperCase();
-    if (/^[A-Z0-9.\-]{1,20}$/.test(next)) onSymbolChange(next);
-    else setDraftSymbol(symbol);
-  };
 
   const onTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
@@ -116,14 +81,14 @@ export default function WorkspaceHeader({
     tabRefs.current[nextIndex]?.focus();
   };
 
-  // "ready" on purpose (ready ⊆ configured), and "degraded" includes exhausted
-  // quota — the same definitions the rest of the app uses.
+  // "Routable" is intentionally narrower than "live": six paid providers are
+  // not probed on every refresh, so this aggregate must not imply network proof.
   const healthLabel = healthUnreachable
     ? "Health unreachable"
     : providersTotal != null
       ? degraded
         ? `${degraded} provider${degraded === 1 ? "" : "s"} degraded`
-        : `${providersReady ?? 0}/${providersTotal} providers ready`
+        : `${providersReady ?? 0}/${providersTotal} providers routable`
       : "Checking data plane";
   const healthNeedsAttention =
     healthUnreachable
@@ -175,13 +140,13 @@ export default function WorkspaceHeader({
 
         <div className="header-spacer" />
 
-        <LatencyChip latency={latency} onOpenReliability={() => onViewChange("reliability")} />
+        <LatencyChip latency={latency} onOpenReliability={onOpenTailLatency} />
         <KillSwitchControl halt={halt} riskControl={riskControl} />
         <button
           type="button"
           className={`system-health system-health-action ${healthNeedsAttention ? "is-warn" : ""}`}
           aria-label={`Open reliability. ${healthLabel}`}
-          onClick={() => onViewChange("reliability")}
+          onClick={onOpenProviderHealth}
         >
           <i aria-hidden />
           {healthLabel}
@@ -189,55 +154,6 @@ export default function WorkspaceHeader({
         <ThemeToggle />
       </div>
 
-      <div className="context-strip">
-        <div className="context-strip__inner">
-          <span className="context-strip__label">Desk context</span>
-          <span className="context-divider" aria-hidden />
-          <form className="context-control context-symbol" onSubmit={submitSymbol}>
-            <label className="sr-only" htmlFor="workspace-symbol">Instrument</label>
-            <input
-              id="workspace-symbol"
-              value={draftSymbol}
-              list="workspace-symbols"
-              onChange={(event) => setDraftSymbol(event.target.value.toUpperCase())}
-              onBlur={() => {
-                if (draftSymbol !== symbol) {
-                  const next = draftSymbol.trim().toUpperCase();
-                  if (/^[A-Z0-9.\-]{1,20}$/.test(next)) onSymbolChange(next);
-                  else setDraftSymbol(symbol);
-                }
-              }}
-              aria-label="Active workspace instrument"
-              spellCheck={false}
-            />
-            <datalist id="workspace-symbols">
-              {COMMON_SYMBOLS.map((item) => <option value={item} key={item} />)}
-            </datalist>
-          </form>
-
-          <div className="context-control">
-            <label className="sr-only" htmlFor="workspace-interval">Horizon</label>
-            <select
-              id="workspace-interval"
-              value={interval}
-              onChange={(event) => onIntervalChange(event.target.value)}
-              aria-label="Active workspace horizon"
-            >
-              {INTERVALS.map((item) => <option key={item}>{item}</option>)}
-            </select>
-          </div>
-
-          <button
-            type="button"
-            className="context-summary context-status"
-            onClick={() => onViewChange("research")}
-            aria-label={`Open research. ${contextNote ?? "No validated candidate yet"}`}
-          >
-            <span className="context-status__label">Research</span>
-            <strong>{contextNote ?? "No validated candidate yet"}</strong>
-          </button>
-        </div>
-      </div>
     </header>
   );
 }

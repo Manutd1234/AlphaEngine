@@ -184,10 +184,10 @@ export default function RoleCards({
             </span>
             <strong className="pipeline-card__value">{card.headline(context)}</strong>
             <small className="pipeline-card__status">{card.status(context)}</small>
-            <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
+            <div className="role-card__actions">
               <button
                 type="button"
-                className="primary-action rounded-[9px] px-3 py-1.5 text-[11px] font-semibold"
+                className="primary-action role-card__action"
                 onClick={() => onNavigate(card.view)}
               >
                 {card.action} <span aria-hidden>→</span>
@@ -195,7 +195,7 @@ export default function RoleCards({
               {inline && (
                 <button
                   type="button"
-                  className="rounded-[9px] px-3 py-1.5 text-[11px] font-semibold"
+                  className="role-card__action"
                   onClick={inline.run}
                   disabled={inline.disabled}
                   title={inline.title}

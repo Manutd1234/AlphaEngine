@@ -59,8 +59,11 @@ export const viewport: Viewport = {
  *  wrong palette. */
 const THEME_BOOTSTRAP = `
 try {
-  var t = localStorage.getItem('alphaengine-theme');
-  if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  var savedTheme = localStorage.getItem('alphaengine-theme');
+  var resolvedTheme = savedTheme === 'light' || savedTheme === 'dark'
+    ? savedTheme
+    : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  document.documentElement.dataset.theme = resolvedTheme;
 } catch (e) {}
 `;
 

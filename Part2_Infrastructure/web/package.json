@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/check-gateway-openapi-digest.mjs",
     "build": "next build",
     "catalog:refresh": "node scripts/generate-codebase-manifest.mjs",
     "start": "next start",

@@ -278,6 +278,36 @@ export interface SystemHealth {
   };
   /** Bounded contract evidence from this function instance; absent on older deployments. */
   validation?: ValidationTelemetry;
+  /** Delivery evidence derived server-side; schema bodies and credentials never reach the browser. */
+  delivery?: {
+    schema: {
+      kind: "gateway_openapi";
+      state: "match" | "mismatch" | "unavailable";
+      passed: boolean;
+      algorithm: "sha256";
+      expectedDigest: string;
+      observedDigest: string | null;
+      detail: string;
+    };
+    build: {
+      kind: "build_traceability";
+      state: "traceable" | "unverified";
+      passed: boolean;
+      deploymentEnvironment: string | null;
+      commitIdentity: string | null;
+      provenanceDigest: string | null;
+      detail: string;
+    };
+    artifact?: {
+      kind: "artifact_custody";
+      state: "attested" | "unsigned" | "untrusted" | "invalid" | "unverified";
+      passed: boolean;
+      algorithm: "ed25519";
+      deploymentEnvironment: string | null;
+      commitIdentity: string | null;
+      detail: string;
+    };
+  };
 }
 
 export interface TraceEvent {

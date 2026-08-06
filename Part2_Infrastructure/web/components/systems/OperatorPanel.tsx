@@ -207,9 +207,9 @@ export default function OperatorPanel({
       <div className="operator-group-heading">
         <div>
           <span className="page-kicker">Server mutations</span>
-          <strong>Provider routing &amp; local telemetry</strong>
+          <strong>Provider routing controls</strong>
         </div>
-        <small>Authenticated in production · instance-local, non-authoritative</small>
+        <small>Authenticated in production · provider-routing scope</small>
       </div>
 
       {pending ? (

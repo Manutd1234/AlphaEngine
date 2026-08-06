@@ -36,6 +36,56 @@ function names(ids: string[], providers: ProviderRow[]): string {
   return ids.map((id) => labels.get(id) ?? id).join(", ");
 }
 
+function hasSuccessfulTraffic(provider: ProviderRow): boolean {
+  return provider.latency.n > 0 && provider.latency.errorRate < 1;
+}
+
+function hasLiveEvidence(provider: ProviderRow): boolean {
+  return hasSuccessfulTraffic(provider) || (provider.id === "openbb" && provider.ready);
+}
+
+function providerSignal(provider: ProviderRow): {
+  label: string;
+  detail: string;
+  tone: "good" | "warn" | "critical" | "neutral";
+} {
+  if (!provider.configured) {
+    return {
+      label: "Not configured",
+      detail: `Missing ${provider.keyEnv}`,
+      tone: "warn",
+    };
+  }
+  if (!provider.ready) {
+    return {
+      label: "Blocked",
+      detail: provider.statusDetail,
+      tone: "critical",
+    };
+  }
+  if (hasSuccessfulTraffic(provider)) {
+    const successes = Math.max(0, Math.round(provider.latency.n * (1 - provider.latency.errorRate)));
+    const degraded = provider.latency.errorRate > 0.05;
+    return {
+      label: degraded ? "Successes + errors" : "Success observed",
+      detail: `Configured · ${successes}/${provider.latency.n} attempts succeeded in the last 15m`,
+      tone: degraded ? "warn" : "good",
+    };
+  }
+  if (provider.id === "openbb") {
+    return {
+      label: "Live probe",
+      detail: "Configured · readiness endpoint answered",
+      tone: "good",
+    };
+  }
+  return {
+    label: "Routable",
+    detail: "Configured · no live call observed in the last 15m",
+    tone: "neutral",
+  };
+}
+
 const POSTURE_LABEL: Record<ReliabilityStatus, string> = {
   nominal: "Nominal",
   degraded: "Degraded",
@@ -67,6 +117,9 @@ export default function ReliabilityOverview({
       && provider.quota.remaining > 0
       && provider.quota.remaining <= provider.quota.reserve,
   );
+  const configuredProviders = providers.filter((provider) => provider.configured).length;
+  const routableProviders = providers.filter((provider) => provider.ready).length;
+  const providersWithLiveEvidence = providers.filter(hasLiveEvidence).length;
   const quarantined = health?.quarantine?.size ?? 0;
   const posture = health ? deriveReliabilityPosture(health) : null;
   const platform = health?.platform;
@@ -265,6 +318,45 @@ export default function ReliabilityOverview({
         </section>
       </div>
 
+      <section className="card reliability-dependency-digest" aria-labelledby="reliability-provider-api-title">
+        <div className="section-heading compact">
+          <div>
+            <span className="page-kicker">Research data plane</span>
+            <h2 id="reliability-provider-api-title">Every provider API</h2>
+          </div>
+          <button type="button" className="text-action" onClick={() => onOpenSection("services")}>
+            Open latency, quota &amp; circuits →
+          </button>
+        </div>
+
+        <div className="reliability-dependency-summary" aria-label="Provider API summary">
+          <div><span>Configured</span><strong>{health ? `${configuredProviders}/${providers.length}` : "—"}</strong></div>
+          <div><span>Routable now</span><strong>{health ? `${routableProviders}/${providers.length}` : "—"}</strong></div>
+          <div><span>Success evidence</span><strong>{health ? `${providersWithLiveEvidence}/${providers.length}` : "—"}</strong></div>
+          <div><span>Automatic probes</span><strong>OpenBB only</strong></div>
+        </div>
+
+        <ul className="reliability-provider-digest" aria-label="Configured, routable and live status for every provider">
+          {providers.map((provider) => {
+            const signal = providerSignal(provider);
+            return (
+              <li key={provider.id}>
+                <span className={`reliability-provider-digest__state is-${signal.tone}`}>
+                  <i aria-hidden />{signal.label}
+                </span>
+                <strong>{provider.label}</strong>
+                <small>{signal.detail}</small>
+              </li>
+            );
+          })}
+          {!health && <li className="is-loading">Loading all provider states…</li>}
+        </ul>
+        <p className="reliability-window-note">
+          “Routable” means configured, within quota and not held behind an open circuit. Success evidence needs an observed successful call;
+          only OpenBB is probed automatically because probing every paid API on each health refresh would consume quota.
+        </p>
+      </section>
+
       {platform ? (
         <section className="card reliability-platform" aria-labelledby="reliability-platform-title">
           <div className="section-heading compact">
@@ -346,7 +438,7 @@ export default function ReliabilityOverview({
               {posture ? POSTURE_LABEL[posture.paths.research.status] : "Connecting"}
             </span>
             <strong>Provider-routing plane</strong>
-            <small>{posture?.paths.research.reason ?? "Waiting for the provider-routing snapshot."} Instance-local counters remain a floor.</small>
+            <small>{posture?.paths.research.reason ?? "Waiting for the provider-routing snapshot."}</small>
           </div>
           <div>
             <span className={`reliability-evidence__state is-${posture?.paths.trading.status ?? "unknown"}`}>

@@ -31,6 +31,8 @@ function read(relative: string): string {
 
 const header = read("../components/WorkspaceHeader.tsx");
 const page = read("../app/page.tsx");
+const roleCards = read("../components/overview/RoleCards.tsx");
+const styles = read("../app/globals.css");
 const subtabs = read("../components/WorkspaceSubtabs.tsx");
 const riskWorkspace = read("../components/RiskWorkspace.tsx");
 const portfolioWorkspace = read("../components/PortfolioWorkspace.tsx");
@@ -48,7 +50,8 @@ const repositoryManifest = JSON.parse(read("../lib/repository-manifest.generated
 
 /** Nav ids, in declaration order, from the single NAV_ITEMS literal. */
 function navIds(source: string): string[] {
-  const block = source.slice(source.indexOf("NAV_ITEMS"), source.indexOf("const COMMON_SYMBOLS"));
+  const start = source.indexOf("export const NAV_ITEMS");
+  const block = source.slice(start, source.indexOf("];", start) + 2);
   return [...block.matchAll(/\{\s*id:\s*"([a-z]+)"/g)].map((match) => match[1]);
 }
 
@@ -70,6 +73,24 @@ describe("the nav and the render tree describe the same workspace", () => {
       "reliability",
       "developer",
     ]);
+  });
+
+  it("keeps instrument and horizon controls out of the global header", () => {
+    for (const retiredSurface of ["context-strip", "workspace-symbol", "workspace-interval"]) {
+      assert.ok(!header.includes(retiredSurface), `${retiredSurface} returned to the global header`);
+    }
+  });
+
+  it("balances the seven overview role cards and keeps their actions on one baseline", () => {
+    assert.ok(roleCards.includes('className="role-card__actions"'), "role actions lost their layout hook");
+    assert.ok(!roleCards.includes("flex-wrap"), "role actions can wrap onto mismatched baselines");
+    assert.ok(
+      styles.includes("grid-template-columns: repeat(8, minmax(0, 1fr));"),
+      "desktop role cards no longer share the centred four-plus-three grid",
+    );
+    for (const card of [5, 6, 7]) {
+      assert.ok(styles.includes(`.role-card:nth-child(${card})`), `role card ${card} is not centred`);
+    }
   });
 
   it("every nav id renders a panel with the matching id", () => {
@@ -189,6 +210,15 @@ describe("dense role workspaces expose accessible feature sections", () => {
     assert.ok(
       page.includes('url.hash = `data/${next}`'),
       "data subtabs are not addressable by URL hash",
+    );
+    assert.ok(
+      page.includes('url.hash = `reliability/${next}`'),
+      "reliability subtabs are not addressable by URL hash",
+    );
+    assert.ok(
+      page.includes('openReliabilitySection("services", "reliability-latency-guide")')
+        && page.includes('openReliabilitySection("services", "reliability-provider-health")'),
+      "header health controls no longer land on their matching reliability evidence",
     );
     assert.ok(
       page.includes("workspaceInterval={req.interval}")

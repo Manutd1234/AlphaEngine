@@ -168,7 +168,7 @@ export function formatLatencyChip(
     value: `p99 ${Math.round(latency.p99)}ms`,
     caveat:
       `upstream p99 ${Math.round(latency.p99)}ms · error rate ${Math.round(latency.errorRate * 100)}% · `
-      + `per-instance, 15-minute window, n=${latency.n}`,
+      + `rolling 15-minute window, n=${latency.n}`,
   };
 }
 

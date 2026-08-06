@@ -26,6 +26,8 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { nextThemeMode, resolveThemeMode } from "../lib/theme";
+
 const css = readFileSync(
   fileURLToPath(new URL("../app/globals.css", import.meta.url)),
   "utf8",
@@ -83,6 +85,20 @@ describe("the two dark palettes cannot drift apart", () => {
     for (const role of ["--success-text", "--warning-text", "--critical-text", "--notice-text"]) {
       assert.ok(attrDark.has(role), `${role} is missing from the dark palette`);
     }
+  });
+});
+
+describe("the theme control has exactly two direct states", () => {
+  it("changes the visible palette on every click", () => {
+    assert.equal(nextThemeMode("light"), "dark");
+    assert.equal(nextThemeMode("dark"), "light");
+  });
+
+  it("uses the stamped palette, saved choice, then initial OS preference", () => {
+    assert.equal(resolveThemeMode("dark", "light", false), "dark");
+    assert.equal(resolveThemeMode(undefined, "light", true), "light");
+    assert.equal(resolveThemeMode(undefined, "system", true), "dark");
+    assert.equal(resolveThemeMode(undefined, null, false), "light");
   });
 });
 

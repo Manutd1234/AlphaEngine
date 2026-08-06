@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import { NextRequest } from "next/server";
 
+import committedGatewayOpenApi from "../../tools/openapi.json";
 import { GET } from "../app/api/system/health/route";
 import type {
   GatewayOpsSnapshot,
@@ -15,6 +16,7 @@ import {
   isGatewayOpsSnapshot,
   OPS_SNAPSHOT_TIMEOUT_MS,
 } from "../lib/reliability";
+import { resetGatewayOpenApiEvidenceCache } from "../lib/delivery-readiness";
 
 const NOW = Date.UTC(2026, 7, 6, 12, 0, 0);
 
@@ -252,6 +254,7 @@ describe("reliability posture keeps the trading and research planes separate", (
 
 describe("the aggregate health route fails open for local observability", () => {
   it("returns provider health when no gateway is configured", async () => {
+    resetGatewayOpenApiEvidenceCache();
     await withEnvironment({
       NODE_ENV: "test",
       ALPHAENGINE_GATEWAY_URL: undefined,
@@ -268,10 +271,13 @@ describe("the aggregate health route fails open for local observability", () => 
       assert.equal(body.validation?.scope, "per-instance");
       assert.equal(body.validation?.evaluated, 0);
       assert.equal(body.validation?.windowStart, null);
+      assert.equal(body.delivery?.schema.state, "unavailable");
+      assert.equal(body.delivery?.artifact?.state, "unverified");
     });
   });
 
   it("returns provider health and a critical source signal when the configured gateway is down", async () => {
+    resetGatewayOpenApiEvidenceCache();
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async () => { throw new TypeError("offline"); };
     try {
@@ -294,12 +300,24 @@ describe("the aggregate health route fails open for local observability", () => 
   });
 
   it("attaches a validated gateway snapshot without extending the timeout budget", async () => {
+    resetGatewayOpenApiEvidenceCache();
     const current = platform({ observed_at: new Date().toISOString() });
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = async () => new Response(JSON.stringify(current), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    let openApiCalls = 0;
+    globalThis.fetch = async (input) => {
+      const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
+      if (url.pathname === "/openapi.json") {
+        openApiCalls += 1;
+        return new Response(JSON.stringify(committedGatewayOpenApi), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify(current), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    };
     try {
       await withEnvironment({
         NODE_ENV: "test",
@@ -310,7 +328,74 @@ describe("the aggregate health route fails open for local observability", () => 
         const body = await response.json() as SystemHealth;
         assert.equal(body.platform?.schema_version, 1);
         assert.equal(body.sources?.gateway.state, "fresh");
+        assert.equal(body.delivery?.schema.state, "match");
+        assert.equal(body.delivery?.schema.passed, true);
+        const repeated = await GET(new NextRequest("http://local.test/api/system/health"));
+        assert.equal(repeated.status, 200);
+        assert.equal(openApiCalls, 1, "the static contract was fetched again during its cache window");
         assert.ok(OPS_SNAPSHOT_TIMEOUT_MS <= 2_000, "health waits too long on the failed dependency it diagnoses");
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("keeps gateway health fresh when its OpenAPI response is malformed", async () => {
+    resetGatewayOpenApiEvidenceCache();
+    const current = platform({ observed_at: new Date().toISOString() });
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input) => {
+      const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
+      return url.pathname === "/openapi.json"
+        ? new Response("not-json", { status: 200, headers: { "Content-Type": "application/json" } })
+        : new Response(JSON.stringify(current), { status: 200, headers: { "Content-Type": "application/json" } });
+    };
+    try {
+      await withEnvironment({
+        NODE_ENV: "test",
+        ALPHAENGINE_GATEWAY_URL: "https://gateway-malformed.example.test",
+        OPENBB_API_URL: undefined,
+      }, async () => {
+        const response = await GET(new NextRequest("http://local.test/api/system/health"));
+        const body = await response.json() as SystemHealth;
+        assert.equal(body.sources?.gateway.state, "fresh");
+        assert.equal(body.platform?.schema_version, 1);
+        assert.equal(body.delivery?.schema.state, "unavailable");
+        assert.equal(body.delivery?.schema.passed, false);
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("stops an oversized chunked OpenAPI body before parsing it", async () => {
+    resetGatewayOpenApiEvidenceCache();
+    const current = platform({ observed_at: new Date().toISOString() });
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input) => {
+      const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
+      if (url.pathname !== "/openapi.json") {
+        return new Response(JSON.stringify(current), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+      const chunk = new Uint8Array(300 * 1024).fill(97);
+      return new Response(new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(chunk);
+          controller.enqueue(chunk);
+          controller.close();
+        },
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    };
+    try {
+      await withEnvironment({
+        NODE_ENV: "test",
+        ALPHAENGINE_GATEWAY_URL: "https://gateway-oversized.example.test",
+        OPENBB_API_URL: undefined,
+      }, async () => {
+        const response = await GET(new NextRequest("http://local.test/api/system/health"));
+        const body = await response.json() as SystemHealth;
+        assert.equal(body.sources?.gateway.state, "fresh");
+        assert.equal(body.delivery?.schema.state, "unavailable");
       });
     } finally {
       globalThis.fetch = originalFetch;

@@ -1,40 +1,69 @@
 "use client";
 
+import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
-type Mode = "light" | "dark" | "system";
+import { nextThemeMode, resolveThemeMode, type ThemeMode } from "@/lib/theme";
 
 /**
  * Dark mode uses its own selected palette steps, not an inverted light mode, so
  * the toggle stamps `data-theme` on the root and the CSS picks the right set.
  */
 export default function ThemeToggle() {
-  const [mode, setMode] = useState<Mode>("system");
+  const [mode, setMode] = useState<ThemeMode | null>(null);
 
   useEffect(() => {
-    const saved = (localStorage.getItem("alphaengine-theme") as Mode | null) ?? "system";
-    setMode(saved);
+    const stamped = document.documentElement.dataset.theme;
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem("alphaengine-theme");
+    } catch {
+      // A blocked storage API should not make the visible control unusable.
+    }
+    const resolved = resolveThemeMode(
+      stamped,
+      saved,
+      window.matchMedia("(prefers-color-scheme: dark)").matches,
+    );
+    document.documentElement.dataset.theme = resolved;
+    try {
+      localStorage.setItem("alphaengine-theme", resolved);
+    } catch {
+      // The document palette still changes for this session.
+    }
+    setMode(resolved);
   }, []);
 
-  useEffect(() => {
+  const toggle = () => {
     const root = document.documentElement;
-    if (mode === "system") delete root.dataset.theme;
-    else root.dataset.theme = mode;
-    localStorage.setItem("alphaengine-theme", mode);
-  }, [mode]);
+    const current = resolveThemeMode(
+      root.dataset.theme,
+      mode,
+      window.matchMedia("(prefers-color-scheme: dark)").matches,
+    );
+    const next = nextThemeMode(current);
+    root.dataset.theme = next;
+    try {
+      localStorage.setItem("alphaengine-theme", next);
+    } catch {
+      // Keep the control functional even when persistence is unavailable.
+    }
+    setMode(next);
+  };
 
-  const next: Record<Mode, Mode> = { system: "light", light: "dark", dark: "system" };
-  const icon = { system: "◐", light: "☀", dark: "☾" }[mode];
+  const label = mode === null ? "Theme" : mode === "dark" ? "Dark mode" : "Light mode";
+  const nextLabel = mode === "dark" ? "light" : "dark";
 
   return (
     <button
-      className="icon"
-      onClick={() => setMode(next[mode])}
-      title={`Theme: ${mode} — click for ${next[mode]}`}
-      aria-label={`Theme: ${mode}. Switch to ${next[mode]}.`}
+      type="button"
+      className="icon theme-toggle"
+      onClick={toggle}
+      title={mode === null ? "Choose light or dark mode" : `${label} — switch to ${nextLabel} mode`}
+      aria-label={mode === null ? "Choose light or dark mode." : `${label} active. Switch to ${nextLabel} mode.`}
     >
-      <span aria-hidden>{icon}</span>{" "}
-      <span style={{ fontSize: 11.5, textTransform: "capitalize" }}>{mode}</span>
+      {mode === "dark" ? <Moon size={14} aria-hidden /> : <Sun size={14} aria-hidden />}
+      <span>{label}</span>
     </button>
   );
 }

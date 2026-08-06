@@ -108,6 +108,8 @@ export interface CallOptions {
   timeoutMs?: number;
   /** Reject a 200 whose shape this app cannot safely render. */
   validate?: (payload: unknown) => boolean;
+  /** Refuse oversized JSON before parsing it. Omitted for existing callers. */
+  maxResponseBytes?: number;
   /**
    * Human noun for the thing the caller wanted — "the order blotter", not the
    * upstream path with its query string. Error text is read by reviewers, and
@@ -151,17 +153,58 @@ export async function callGateway<T = unknown>(path: string, options: CallOption
       };
     }
 
-    const payload: unknown = await response.json().catch(() => null);
+    const invalidPayload = (error: string): GatewayResult<T> => ({
+      ok: false,
+      failure: {
+        code: "gateway_invalid_payload",
+        error,
+        hint: "Deploy the gateway and the workspace together before treating this data as live.",
+        status: 502,
+      },
+    });
+    const declaredLength = Number(response.headers.get("content-length"));
+    if (
+      options.maxResponseBytes != null
+      && Number.isFinite(declaredLength)
+      && declaredLength > options.maxResponseBytes
+    ) {
+      controller.abort();
+      await response.body?.cancel().catch(() => undefined);
+      return invalidPayload("The risk gateway returned a payload larger than this workspace accepts.");
+    }
+    let responseText: string;
+    if (options.maxResponseBytes != null && response.body) {
+      const reader = response.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let received = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        received += value.byteLength;
+        if (received > options.maxResponseBytes) {
+          await reader.cancel().catch(() => undefined);
+          return invalidPayload("The risk gateway returned a payload larger than this workspace accepts.");
+        }
+        chunks.push(value);
+      }
+      const bytes = new Uint8Array(received);
+      let offset = 0;
+      for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+      responseText = new TextDecoder().decode(bytes);
+    } else {
+      responseText = await response.text();
+    }
+    let payload: unknown;
+    try {
+      payload = JSON.parse(responseText);
+    } catch {
+      return invalidPayload("The risk gateway returned malformed JSON.");
+    }
     if (options.validate && !options.validate(payload)) {
-      return {
-        ok: false,
-        failure: {
-          code: "gateway_invalid_payload",
-          error: "The risk gateway returned a payload this workspace does not recognise.",
-          hint: "Deploy the gateway and the workspace together before treating this data as live.",
-          status: 502,
-        },
-      };
+      return invalidPayload("The risk gateway returned a payload this workspace does not recognise.");
     }
     return { ok: true, data: payload as T };
   } catch (error) {

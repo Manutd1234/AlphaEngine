@@ -33,7 +33,12 @@ or controls this UI.
    integrated PM view, set `ALPHAENGINE_GATEWAY_URL` to the long-lived gateway
    and `ALPHAENGINE_GATEWAY_TOKEN` to its `WEB_API_TOKEN`. For OpenBB, deploy
    [`../OpenBB_Service`](../OpenBB_Service) separately and set
-   `OPENBB_API_URL` plus the matching `OPENBB_API_TOKEN`. Then redeploy.
+   `OPENBB_API_URL` plus the matching `OPENBB_API_TOKEN`. To make Artifact
+   custody pass, pin the approved public-key SPKI SHA-256 fingerprint in
+   `lib/artifact-trust.mjs`, then add the matching Ed25519 PEM as
+   `ALPHAENGINE_ARTIFACT_SIGNING_KEY`; the build signs its commit/environment
+   plus a digest of its Git tree, dependency lock, toolchain, and deployment
+   identity without compiling the private key into the app. Then redeploy.
 
 ```text
 ALPHAENGINE_GATEWAY_URL=https://stateful-gateway.example.com
@@ -54,7 +59,7 @@ npm install
 npm run dev        # http://localhost:3000 (Turbopack)
 npm run build      # Turbopack production build
 npm run typecheck  # tsc --noEmit
-npm test           # 666 tests, no network required
+npm test           # 680 tests, no network required
 ```
 
 Built on **Next.js 16** with **Turbopack**, which is the default bundler for both
@@ -110,10 +115,11 @@ or incident system. This scope keeps the assessment's market-data
 quality/freshness monitor useful to a trader while making infrastructure
 quality, reliability and implemented-vs-mocked boundaries reviewable.
 
-**Connected desk context** — instrument and horizon live in the persistent
-workspace shell and carry across every tab. Research winners retain their
-modeled slippage budget when handed to the live TCA probe; quote lookups and
-portfolio positions can focus the other workspaces without re-entry.
+**Connected desk context** — instrument and horizon remain shared application
+state, edited inside the workspaces that use them rather than in a permanent
+header row. Research winners retain their modeled slippage budget when handed
+to the live TCA probe; quote lookups and portfolio positions can focus the
+other workspaces without re-entry.
 
 <a id="systems-console"></a>
 **Reliability console** — an observability surface, not a second quote lookup.
@@ -438,7 +444,7 @@ web/
 │       └── …one adapter per vendor (binance, fmp, tiingo, massive,
 │            alphavantage, firecrawl, openbb)
 ├── components/               charts (hand-rolled SVG), controls, tables
-└── tests/                    666 tests incl. cross-engine and risk-engine parity
+└── tests/                    680 tests incl. cross-engine and risk-engine parity
 ```
 
 **Why the sweep runs server-side.** Binance's public API is called from the

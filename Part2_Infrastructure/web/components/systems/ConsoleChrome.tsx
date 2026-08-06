@@ -1,12 +1,6 @@
 "use client";
 
-/**
- * Shared header for the three console tabs.
- *
- * The per-instance caveat travels with it. These counters live in one function
- * instance's memory, so a reader who sees "3 breaker trips" on one tab and the
- * same strip on another must be told, on both, that the number is a floor.
- */
+/** Shared status header for the operational console. */
 
 import { fmt } from "@/lib/format";
 import type { SystemHealthView } from "@/lib/use-system-health";
@@ -16,6 +10,8 @@ export interface ConsoleTile {
   value: string;
   note: string;
   tone: "good" | "warn" | "bad" | "neutral";
+  actionLabel?: string;
+  onClick?: () => void;
 }
 
 export function humanUptime(ms: number): string {
@@ -37,13 +33,31 @@ export function ConsoleChrome({
     <>
       <div className={`console-statusbar${healthError ? " is-stale" : ""}`}>
         <div className="console-statusbar__metrics">
-          {tiles.map((tile) => (
-            <div key={tile.label} className={`console-stat is-${tile.tone}`}>
-              <span>{tile.label}</span>
-              <strong className="num">{tile.value}</strong>
-              <small>{tile.note}</small>
-            </div>
-          ))}
+          {tiles.map((tile) => {
+            const content = (
+              <>
+                <span>{tile.label}</span>
+                <strong className="num">{tile.value}</strong>
+                <small>{tile.note}</small>
+                {tile.actionLabel && <em>{tile.actionLabel} →</em>}
+              </>
+            );
+            return tile.onClick ? (
+              <button
+                type="button"
+                key={tile.label}
+                className={`console-stat is-${tile.tone} is-action`}
+                onClick={tile.onClick}
+                aria-label={`${tile.actionLabel ?? "Open details"}. ${tile.label}: ${tile.value}. ${tile.note}`}
+              >
+                {content}
+              </button>
+            ) : (
+              <div key={tile.label} className={`console-stat is-${tile.tone}`}>
+                {content}
+              </div>
+            );
+          })}
         </div>
         <div className="console-statusbar__meta">
           <span className="muted">
@@ -60,17 +74,6 @@ export function ConsoleChrome({
           </button>
         </div>
       </div>
-
-      {health && (
-        <details className="console-scope-note">
-          <summary>Instance-local telemetry · counts are a floor</summary>
-          <p>
-            Counters, breakers and the event ring are <strong>per function instance</strong> —{" "}
-            {health.instance.scope}. Two concurrent instances keep two ledgers, so these numbers are
-            a floor, not an exact figure.
-          </p>
-        </details>
-      )}
 
       {healthError && (
         <div className="banner error" role="alert">

@@ -23,10 +23,13 @@ import TraceConsole from "@/components/systems/TraceConsole";
 import { ConsoleChrome, type ConsoleTile } from "@/components/systems/ConsoleChrome";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import { fmt } from "@/lib/format";
+import { LATENCY_MIN_SAMPLES, latencyTone } from "@/lib/overview-state";
 import { deriveReliabilityPosture, type ReliabilityStatus } from "@/lib/reliability";
 import type { SystemHealthView } from "@/lib/use-system-health";
 
 export type ReliabilitySection = "overview" | "services" | "events" | "controls";
+
+export const RELIABILITY_SECTION_IDS: ReliabilitySection[] = ["overview", "services", "events", "controls"];
 
 const RELIABILITY_SECTIONS = [
   { id: "overview", label: "Telemetry & SLIs", description: "Signals, scope & active impact" },
@@ -89,7 +92,6 @@ export default function ReliabilityConsole({
   } = view;
 
   const latency = health?.summary.latency;
-  const hasTraffic = Boolean(latency?.n);
   const posture = health ? deriveReliabilityPosture(health) : null;
 
   const overallState = view.healthError
@@ -97,6 +99,19 @@ export default function ReliabilityConsole({
     : !posture
       ? "Checking"
       : POSTURE_LABEL[posture.overall];
+
+  const openDrilldown = (next: ReliabilityDrilldown, targetId?: string) => {
+    onSectionChange(next);
+    window.requestAnimationFrame(() => {
+      const target = targetId ? document.getElementById(targetId) : null;
+      (target ?? document.getElementById(`reliability-subtab-${next}`))?.focus();
+    });
+  };
+
+  const latencyState = latencyTone(latency?.p99 ?? null, latency?.n ?? 0, latency?.errorRate ?? 0);
+  const hasReliableP99 = Boolean(
+    latency?.p99 != null && (latency?.n ?? 0) >= LATENCY_MIN_SAMPLES,
+  );
 
   const tiles: ConsoleTile[] = [
     {
@@ -118,27 +133,26 @@ export default function ReliabilityConsole({
       tone: postureTone(posture?.paths.trading.status),
     },
     {
-      label: "Research providers",
+      label: "Provider APIs",
       value: health ? `${health.summary.ready}/${health.summary.total}` : "—",
-      note: posture?.paths.research.reason ?? "checking provider registry",
+      note: health
+        ? `${health.summary.configured} configured · ${health.summary.ready} routable`
+        : "checking provider registry",
       tone: postureTone(posture?.paths.research.status),
+      actionLabel: "View every provider",
+      onClick: () => openDrilldown("services", "reliability-provider-health"),
     },
     {
-      label: "Upstream p95",
-      value: hasTraffic ? `${fmt(latency?.p95 ?? 0, 0)}ms` : "—",
-      note: hasTraffic
-        ? `success ${fmt((1 - (latency?.errorRate ?? 0)) * 100, 1)}% · p99 ${fmt(latency?.p99 ?? 0, 0)}ms · n=${latency?.n ?? 0}`
-        : "no attempts sampled yet",
-      tone: !hasTraffic ? "neutral" : (latency?.errorRate ?? 0) >= 0.05 ? "bad" : (latency?.errorRate ?? 0) > 0.01 ? "warn" : "neutral",
+      label: "Tail latency (p99)",
+      value: hasReliableP99 ? `${fmt(latency?.p99 ?? 0, 0)}ms` : "Collecting",
+      note: hasReliableP99
+        ? `99% completed within this · ${latencyState.label} · n=${latency?.n ?? 0}`
+        : `${latency?.n ?? 0}/${LATENCY_MIN_SAMPLES} samples · not a failure`,
+      tone: latencyState.tone === "bad" ? "bad" : latencyState.tone === "warn" ? "warn" : "neutral",
+      actionLabel: "Explain p99",
+      onClick: () => openDrilldown("services", "reliability-latency-guide"),
     },
   ];
-
-  const openDrilldown = (next: ReliabilityDrilldown) => {
-    onSectionChange(next);
-    window.requestAnimationFrame(() => {
-      document.getElementById(`reliability-subtab-${next}`)?.focus();
-    });
-  };
 
   const openData = () => {
     onOpenData();

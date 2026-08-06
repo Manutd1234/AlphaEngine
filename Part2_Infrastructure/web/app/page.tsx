@@ -10,7 +10,7 @@ import ExecutionCockpit from "@/components/execution/ExecutionCockpit";
 import LiveMarket, { type ExecutionSection } from "@/components/LiveMarket";
 import PortfolioWorkspace, { type PortfolioFocusDestination } from "@/components/PortfolioWorkspace";
 import PriceChart from "@/components/PriceChart";
-import ReliabilityConsole, { type ReliabilitySection } from "@/components/ReliabilityConsole";
+import ReliabilityConsole, { RELIABILITY_SECTION_IDS, type ReliabilitySection } from "@/components/ReliabilityConsole";
 import RiskWorkspace from "@/components/RiskWorkspace";
 import ExperimentHistory from "@/components/research/ExperimentHistory";
 import FactorPanel from "@/components/research/FactorPanel";
@@ -118,6 +118,7 @@ export default function Page() {
   const navigate = useCallback((next: WorkspaceView, replace = false) => {
     setView(next);
     if (next === "data") setDataSection("overview");
+    if (next === "reliability") setReliabilitySection("overview");
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       url.hash = next;
@@ -134,6 +135,10 @@ export default function Page() {
         if (hashView === "data") {
           const requested = nestedSection as DataSection;
           setDataSection(DATA_SECTION_IDS.includes(requested) ? requested : "overview");
+        }
+        if (hashView === "reliability") {
+          const requested = nestedSection as ReliabilitySection;
+          setReliabilitySection(RELIABILITY_SECTION_IDS.includes(requested) ? requested : "overview");
         }
       } else if (LEGACY_VIEWS[workspace]) {
         setView(LEGACY_VIEWS[workspace]);
@@ -154,6 +159,28 @@ export default function Page() {
       const url = new URL(window.location.href);
       url.hash = `data/${next}`;
       window.history.pushState({}, "", url);
+    }
+  }, []);
+
+  const changeReliabilitySection = useCallback((next: ReliabilitySection) => {
+    setReliabilitySection(next);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.hash = `reliability/${next}`;
+      window.history.pushState({}, "", url);
+    }
+  }, []);
+
+  const openReliabilitySection = useCallback((next: ReliabilitySection, targetId?: string) => {
+    setView("reliability");
+    setReliabilitySection(next);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.hash = `reliability/${next}`;
+      window.history.pushState({}, "", url);
+      if (targetId) {
+        window.requestAnimationFrame(() => document.getElementById(targetId)?.focus());
+      }
     }
   }, []);
 
@@ -243,13 +270,6 @@ export default function Page() {
     setInspectionData(null);
   }, []);
 
-  const updateInterval = useCallback((interval: string) => {
-    setReq((current) => ({ ...current, interval }));
-    setResearchDirty(true);
-    setInspect(null);
-    setInspectionData(null);
-  }, []);
-
   const focusPortfolioSymbol = useCallback((symbol: string, destination: PortfolioFocusDestination) => {
     updateSymbol(symbol);
     navigate(destination);
@@ -290,14 +310,6 @@ export default function Page() {
   // never silently presented as current.
   const researchStale = researchDirty && Boolean(data);
   const shown = displayedResult?.best;
-  const contextNote = researchDirty
-    ? `${req.symbol} context changed · rerun research`
-    : activeResult
-      ? `${STRATEGY_LABELS[activeResult.request.strategy]} ${activeResult.best.fast}/${activeResult.best.slow} · ${activeResult.verdict.level}`
-      : running
-        ? `Building ${req.symbol} baseline`
-        : undefined;
-
   const tiles = useMemo(() => {
     if (!displayedResult || !shown) return null;
     // A cost assumption must never be invisible: when anything beyond flat
@@ -342,11 +354,8 @@ export default function Page() {
       <WorkspaceHeader
         view={view}
         onViewChange={navigate}
-        symbol={req.symbol}
-        onSymbolChange={updateSymbol}
-        interval={req.interval}
-        onIntervalChange={updateInterval}
-        contextNote={contextNote}
+        onOpenProviderHealth={() => openReliabilitySection("services", "reliability-provider-health")}
+        onOpenTailLatency={() => openReliabilitySection("services", "reliability-latency-guide")}
         latency={systems.health?.summary.latency ?? null}
         degraded={systems.degraded}
         providersReady={systems.health?.summary.ready ?? null}
@@ -864,7 +873,7 @@ export default function Page() {
               workspaceSymbol={req.symbol}
               onOpenData={() => navigate("data")}
               section={reliabilitySection}
-              onSectionChange={setReliabilitySection}
+              onSectionChange={changeReliabilitySection}
             />
           </section>
         )}

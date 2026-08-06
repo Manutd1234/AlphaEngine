@@ -217,7 +217,7 @@ function metricsForSection(
     {
       label: "Quarantine buffer",
       value: health?.quarantine ? String(quarantined) : "—",
-      note: quarantined ? "review held or flagged payloads" : "bounded per-instance evidence",
+      note: quarantined ? "review held or flagged payloads" : "bounded runtime evidence",
       tone: rejected
         ? "bad"
         : quarantined

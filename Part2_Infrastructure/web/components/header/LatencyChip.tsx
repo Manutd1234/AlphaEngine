@@ -14,7 +14,7 @@
 import { Gauge } from "lucide-react";
 
 import type { LatencyStats } from "@/components/systems/types";
-import { formatLatencyChip, latencyTone } from "@/lib/overview-state";
+import { formatLatencyChip, LATENCY_MIN_SAMPLES, latencyTone } from "@/lib/overview-state";
 
 const DOT_CLASS: Record<string, string> = {
   good: "bg-status-good",
@@ -33,21 +33,30 @@ export default function LatencyChip({
   const stats = latency ? { p99: latency.p99, n: latency.n, errorRate: latency.errorRate } : null;
   const tone = latencyTone(stats?.p99 ?? null, stats?.n ?? 0, stats?.errorRate ?? 0);
   const chip = formatLatencyChip(stats);
+  const sampleCount = stats?.n ?? 0;
+  const warmingUp = sampleCount < LATENCY_MIN_SAMPLES || stats?.p99 == null;
+  const visibleValue = warmingUp ? "P99 collecting" : chip.value.replace(/^p99 /, "P99 ");
+  const visibleState = warmingUp ? `${sampleCount}/${LATENCY_MIN_SAMPLES} samples` : tone.label;
 
   return (
     <button
       type="button"
       onClick={onOpenReliability}
       title={chip.caveat}
-      aria-label={`Open reliability. Upstream ${chip.value} — ${chip.caveat}`}
-      className="inline-flex items-center gap-1.5 rounded-[9px] border border-transparent bg-transparent px-2 py-1.5 font-mono text-[11px] font-semibold text-text-secondary hover:border-border hover:bg-surface-2 max-[520px]:hidden"
+      aria-label={`Open reliability tail-latency evidence. ${visibleValue}; ${visibleState}. ${chip.caveat}`}
+      className={`latency-chip is-${tone.tone}`}
     >
-      <Gauge size={14} aria-hidden />
-      <span className="max-[900px]:hidden">{chip.value}</span>
-      <span className="hidden max-[900px]:inline">
-        {chip.value.replace(/^p99 /, "")}
+      <span className="latency-chip__icon" aria-hidden>
+        <Gauge size={15} />
       </span>
-      <i aria-hidden className={`h-[7px] w-[7px] rounded-full ${DOT_CLASS[tone.tone]}`} />
+      <span className="latency-chip__copy">
+        <small>Tail latency</small>
+        <strong>{visibleValue}</strong>
+      </span>
+      <span className="latency-chip__state">
+        <i aria-hidden className={DOT_CLASS[tone.tone]} />
+        {warmingUp ? `${sampleCount}/${LATENCY_MIN_SAMPLES}` : tone.label}
+      </span>
     </button>
   );
 }

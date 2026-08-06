@@ -102,14 +102,40 @@ export default function HealthMatrix({
       : undefined;
 
   return (
-    <div className="card console-card">
+    <section
+      className="card console-card"
+      id="reliability-provider-health"
+      aria-labelledby="reliability-provider-health-title"
+      tabIndex={-1}
+    >
       <div className="section-heading compact">
         <div>
           <span className="page-kicker">Pipeline observability</span>
-          <h2>Upstream health &amp; circuit breakers</h2>
+          <h2 id="reliability-provider-health-title">Upstream health &amp; circuit breakers</h2>
         </div>
         <span className="section-note">Percentiles over the last 15 minutes on this instance.</span>
       </div>
+
+      <section
+        className="console-percentile-guide"
+        id="reliability-latency-guide"
+        aria-labelledby="reliability-latency-guide-title"
+        tabIndex={-1}
+      >
+        <span className="console-percentile-guide__mark" aria-hidden>P99</span>
+        <div>
+          <h3 id="reliability-latency-guide-title">Tail latency, explained</h3>
+          <p>
+            P99 is the nearest-rank boundary at or below which almost all sampled upstream attempts
+            completed. The rolling 15-minute window includes failures and timeouts, and a P99 is shown
+            only after at least 20 samples.
+          </p>
+        </div>
+        <span className="console-percentile-guide__window">
+          <small>Evidence window</small>
+          <strong>15 min · n≥20</strong>
+        </span>
+      </section>
 
       <p className="console-note console-matrix-action-note" id="health-matrix-action-note">
         Test spends one real provider call. Simulate removes a ready provider from this instance&apos;s
@@ -131,7 +157,7 @@ export default function HealthMatrix({
             <tr>
               <th scope="col">Provider</th>
               <th scope="col">Status &amp; breaker</th>
-              <th scope="col">Latency p95</th>
+              <th scope="col">Latency p50 / p95 / p99</th>
               <th scope="col">Quota</th>
               <th scope="col">Rank</th>
               <th scope="col">Actions</th>
@@ -320,6 +346,6 @@ export default function HealthMatrix({
           </div>
         </>
       )}
-    </div>
+    </section>
   );
 }

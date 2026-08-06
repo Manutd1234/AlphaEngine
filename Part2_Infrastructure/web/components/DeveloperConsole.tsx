@@ -59,7 +59,7 @@ const CI_JOBS = [
   },
   {
     name: "Web workspace",
-    count: 666,
+    count: 680,
     command: "npm test && npm run typecheck && npm run build",
     evidence: "domain tests · contract fixtures · strict TypeScript · Next.js build",
   },
@@ -146,7 +146,7 @@ function gatewayState(view: SystemHealthView): ControlState {
   if (!view.health) return { label: "Checking", detail: "Gateway health has not arrived yet.", tone: "info" };
   if (!platform) {
     return {
-      label: source?.state === "not_configured" ? "Off" : "Unavailable",
+      label: source?.state === "not_configured" ? "Not connected" : "Unavailable",
       detail: source?.detail ?? "No authoritative gateway operations snapshot is available.",
       tone: source?.state === "not_configured" ? "off" : "warn",
     };
@@ -158,6 +158,34 @@ function gatewayState(view: SystemHealthView): ControlState {
     return { label: "Degraded", detail: `Gateway ${platform.version}; ${source?.detail ?? "degraded"}.`, tone: "warn" };
   }
   return { label: "Healthy", detail: `Gateway ${platform.version} · ${platform.environment}.`, tone: "good" };
+}
+
+function schemaCompatibilityState(view: SystemHealthView): ControlState {
+  if (!view.health) return { label: "Checking", detail: "Waiting for delivery evidence.", tone: "info" };
+  const evidence = view.health.delivery?.schema;
+  if (!evidence) {
+    return { label: "Unverified", detail: "This health route does not expose live schema evidence yet.", tone: "warn" };
+  }
+  if (evidence.state === "match") {
+    return { label: "Exact match", detail: evidence.detail, tone: "good" };
+  }
+  if (evidence.state === "mismatch") {
+    return { label: "Drift detected", detail: evidence.detail, tone: "bad" };
+  }
+  return { label: "Unverified", detail: evidence.detail, tone: "warn" };
+}
+
+function artifactCustodyState(view: SystemHealthView): ControlState {
+  if (!view.health) return { label: "Checking", detail: "Waiting for artifact evidence.", tone: "info" };
+  const evidence = view.health.delivery?.artifact;
+  if (!evidence) {
+    return { label: "Unverified", detail: "This health route does not expose artifact attestation evidence yet.", tone: "warn" };
+  }
+  if (evidence.state === "attested") return { label: "Attested", detail: evidence.detail, tone: "good" };
+  if (evidence.state === "invalid") return { label: "Invalid", detail: evidence.detail, tone: "bad" };
+  if (evidence.state === "untrusted") return { label: "No trust root", detail: evidence.detail, tone: "warn" };
+  if (evidence.state === "unsigned") return { label: "Unsigned", detail: evidence.detail, tone: "warn" };
+  return { label: "Unverified", detail: evidence.detail, tone: "warn" };
 }
 
 function openBBState(view: SystemHealthView): ControlState {
@@ -193,18 +221,22 @@ function PipelineStrip() {
   );
 }
 
-function SchemaGateTable({ compact = false }: { compact?: boolean }) {
+function SchemaGateTable({ view, compact = false }: { view: SystemHealthView; compact?: boolean }) {
+  const liveSchema = schemaCompatibilityState(view);
+  const rows = SCHEMA_GATES.map((row) => row.object === "Production schema"
+    ? { ...row, impact: liveSchema.label, tone: liveSchema.tone, detail: liveSchema.detail }
+    : { ...row, detail: `${row.baseline} → ${row.candidate}` });
   return (
     <div className={`developer-cp-table${compact ? " is-compact" : ""}`} role="table" aria-label="Schema compatibility gates">
       <div className="developer-cp-table__row is-head" role="row">
         <span role="columnheader">Contract</span><span role="columnheader">Baseline</span><span role="columnheader">Candidate</span><span role="columnheader">State</span>
       </div>
-      {SCHEMA_GATES.map((row) => (
+      {rows.map((row) => (
         <div className="developer-cp-table__row" role="row" key={row.object}>
           <strong role="cell">{row.object}</strong>
           <code role="cell">{row.baseline}</code>
           <span role="cell">{row.candidate}</span>
-          <StatusPill state={{ label: row.impact, detail: `${row.baseline} → ${row.candidate}`, tone: row.tone }} compact role="cell" />
+          <StatusPill state={{ label: row.impact, detail: row.detail, tone: row.tone }} compact role="cell" />
         </div>
       ))}
     </div>
@@ -255,23 +287,29 @@ function DeveloperOverview({
   }));
   const currentWorkspace = workspaceState(view);
   const currentGateway = gatewayState(view);
-  const schemaConnected = false;
+  const currentSchema = schemaCompatibilityState(view);
+  const currentArtifact = artifactCustodyState(view);
   const readinessChecks = [
     {
       label: "Deployment",
       value: IS_VERCEL_DEPLOYMENT ? currentWorkspace.label : "Not deployed",
       passed: IS_VERCEL_DEPLOYMENT && currentWorkspace.tone === "good",
+      detail: currentWorkspace.detail,
     },
-    { label: "Gateway", value: currentGateway.label, passed: currentGateway.tone === "good" },
+    { label: "Gateway", value: currentGateway.label, passed: currentGateway.tone === "good", detail: currentGateway.detail },
     {
       label: "Providers",
       value: view.health ? `${view.health.summary.ready}/${view.health.summary.total}` : "Checking",
       passed: Boolean(view.health?.summary.total && view.health.summary.ready === view.health.summary.total),
+      detail: view.health
+        ? `${view.health.summary.configured} configured; ${view.health.summary.ready} currently routable.`
+        : "Waiting for provider health.",
     },
-    { label: "Schema compatibility", value: schemaConnected ? "Compared" : "No live diff", passed: schemaConnected },
-    { label: "Artifact custody", value: "Unsigned", passed: false },
+    { label: "Schema compatibility", value: currentSchema.label, passed: currentSchema.tone === "good", detail: currentSchema.detail },
+    { label: "Artifact custody", value: currentArtifact.label, passed: currentArtifact.tone === "good", detail: currentArtifact.detail },
   ];
   const readyCount = readinessChecks.filter((check) => check.passed).length;
+  const blockedChecks = readinessChecks.filter((check) => !check.passed);
   const readinessAngle = `${Math.round((readyCount / readinessChecks.length) * 360)}deg`;
   const openWork = workItems.filter((item) => item.status !== "done");
 
@@ -327,11 +365,15 @@ function DeveloperOverview({
             {readinessChecks.map((check) => (
               <div key={check.label}>
                 <i className={check.passed ? "is-good" : "is-warn"} aria-hidden="true">{check.passed ? "✓" : "!"}</i>
-                <span>{check.label}</span><strong>{check.value}</strong>
+                <span><b>{check.label}</b><small>{check.detail}</small></span><strong>{check.value}</strong>
               </div>
             ))}
           </div>
-          <p>Missing live schema comparison and artifact signing remain explicit blockers.</p>
+          <p>
+            {blockedChecks.length
+              ? `${blockedChecks.map((check) => check.label).join(", ")} ${blockedChecks.length === 1 ? "is" : "are"} blocking launch.`
+              : "All five launch gates have current evidence."}
+          </p>
         </section>
 
         <section className="card developer-cp-pipeline-card">
@@ -348,13 +390,13 @@ function DeveloperOverview({
             <div><span>Contract custody</span><h2>Schema diff</h2></div>
             <button className="text-action" type="button" onClick={() => onOpenSection("apis")}>Inspect routes →</button>
           </div>
-          <SchemaGateTable compact />
+          <SchemaGateTable view={view} compact />
         </section>
 
         <section className="card developer-cp-artifact-card">
           <div className="developer-cp-heading">
             <div><span>Build custody</span><h2>Artifact lineage</h2></div>
-            <code>{APP_COMMIT}</code>
+            <StatusPill state={currentArtifact} compact />
           </div>
           <ArtifactLineage view={view} compact />
         </section>
@@ -417,13 +459,14 @@ function DeveloperPipelines({ view }: { view: SystemHealthView }) {
       <section className="card developer-cp-artifact-card">
         <div className="developer-cp-heading"><div><span>Artifact registry</span><h2>Deployable lineage</h2></div><span>Runtime-observed state</span></div>
         <ArtifactLineage view={view} />
-        <p className="developer-cp-disclosure">Build signing, downloadable release artifacts, and staging promotion records are not connected yet; they are not shown as successful.</p>
+        <p className="developer-cp-disclosure">Artifact custody passes only when the pinned Ed25519 signer attests the deployment&apos;s full commit, environment, and content-addressed build provenance. Downloadable release bundles and promotion records remain separate evidence.</p>
       </section>
     </div>
   );
 }
 
-function DeveloperInterfaces() {
+function DeveloperInterfaces({ view }: { view: SystemHealthView }) {
+  const liveSchema = schemaCompatibilityState(view);
   return (
     <div className="developer-cp-stack">
       <section className="card developer-cp-section-hero">
@@ -431,8 +474,8 @@ function DeveloperInterfaces() {
         <StatusPill state={{ label: `${API_OPERATIONS.length} operations`, detail: "Route handlers indexed from this runtime.", tone: "info" }} />
       </section>
       <section className="card developer-cp-schema-card">
-        <div className="developer-cp-heading"><div><span>Breaking-change guard</span><h2>Schema compatibility</h2></div><StatusPill state={{ label: "1 gap", detail: "Production schema comparison is not authenticated.", tone: "warn" }} /></div>
-        <SchemaGateTable />
+        <div className="developer-cp-heading"><div><span>Breaking-change guard</span><h2>Schema compatibility</h2></div><StatusPill state={liveSchema} /></div>
+        <SchemaGateTable view={view} />
       </section>
       <DeveloperApiCatalog />
     </div>
@@ -526,7 +569,7 @@ export default function DeveloperConsole({
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="developer" tabId="apis" activeId={section}>
-        <DeveloperInterfaces />
+        <DeveloperInterfaces view={view} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="developer" tabId="codebase" activeId={section}>

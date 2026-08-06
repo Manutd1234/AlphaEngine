@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import type { GatewayOpsSnapshot } from "@/components/systems/types";
+import { TRUSTED_ARTIFACT_PUBLIC_KEY_SHA256 } from "@/lib/artifact-trust.mjs";
+import {
+  evaluateArtifactCustody,
+  evaluateBuildTraceability,
+  gatewayOpenApiEvidence,
+} from "@/lib/delivery-readiness";
 import { callGateway } from "@/lib/gateway";
 import { guardMode, CACHE_PREFIXES, OPERATOR_TOKEN_ENV } from "@/lib/operator";
 import {
@@ -24,6 +30,7 @@ import {
   OPS_SNAPSHOT_TIMEOUT_MS,
   PROVIDER_HEALTH_STALE_AFTER_MS,
 } from "@/lib/reliability";
+import { APP_COMMIT, APP_DEPLOYMENT_ENV } from "@/lib/version";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,10 +65,11 @@ const DIRECT_VENUES = [
  */
 export async function GET(request: NextRequest) {
   const priority = parsePriority(request.nextUrl.searchParams.get("priority"));
+  const buildCommit = process.env.ALPHAENGINE_BUILD_COMMIT_SHA ?? APP_COMMIT;
 
   const base = providerStatus();
   const configuredOpenBBUrl = process.env.OPENBB_API_URL?.trim() ?? "";
-  const [openBB, gatewaySnapshot] = await Promise.all([
+  const [openBB, gatewaySnapshot, schemaEvidence] = await Promise.all([
     configuredOpenBBUrl
       ? openBBReadiness(configuredOpenBBUrl)
       : Promise.resolve({ ready: false, statusDetail: "Not configured; set OPENBB_API_URL." }),
@@ -71,6 +79,7 @@ export async function GET(request: NextRequest) {
       subject: "the operations snapshot",
       validate: isGatewayOpsSnapshot,
     }),
+    gatewayOpenApiEvidence(),
   ]);
 
   const providers = base.map((provider) => {
@@ -130,7 +139,6 @@ export async function GET(request: NextRequest) {
     gatewaySnapshot.ok ? undefined : gatewaySnapshot.failure,
     fetchedAtMs,
   );
-
   return NextResponse.json({
     schemaVersion: 2,
     fetchedAt,
@@ -202,5 +210,18 @@ export async function GET(request: NextRequest) {
     // function instance. Zero means no payload was evaluated here; it must not
     // be rendered as a clean bill of health.
     validation: validationTelemetry.snapshot(),
+    delivery: {
+      schema: schemaEvidence,
+      build: evaluateBuildTraceability(APP_DEPLOYMENT_ENV, buildCommit),
+      artifact: evaluateArtifactCustody({
+        deploymentEnvironment: APP_DEPLOYMENT_ENV,
+        commitIdentity: buildCommit,
+        attestation: process.env.ALPHAENGINE_ARTIFACT_ATTESTATION,
+        signature: process.env.ALPHAENGINE_ARTIFACT_SIGNATURE,
+        publicKey: process.env.ALPHAENGINE_ARTIFACT_PUBLIC_KEY,
+        trustedPublicKeySha256: TRUSTED_ARTIFACT_PUBLIC_KEY_SHA256,
+        provenanceSha256: process.env.ALPHAENGINE_BUILD_PROVENANCE_SHA256,
+      }),
+    },
   }, { headers: { "Cache-Control": "no-store" } });
 }
