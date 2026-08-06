@@ -1197,8 +1197,8 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 select:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--series-1) 35%, transparent);
-  outline-offset: 2px;
+  outline: 2px solid color-mix(in srgb, var(--series-1) 70%, transparent);
+  outline-offset: 0px;
 }
 button:disabled {
   opacity: 0.5;
@@ -2562,6 +2562,7 @@ button.primary-action:hover:not(:disabled) {
   border-color: var(--border);
   border-radius: 10px;
   background: color-mix(in srgb, var(--surface-2) 68%, var(--surface-1));
+  color: var(--text-primary);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-content: center;
@@ -2571,21 +2572,19 @@ button.primary-action:hover:not(:disabled) {
 }
 
 .market-watchlist__item:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--series-1) 38%, var(--border));
-  background: color-mix(in srgb, var(--series-1) 5%, var(--surface-1));
+  border-color: color-mix(in srgb, var(--series-1) 50%, var(--border));
+  background: color-mix(in srgb, var(--series-1) 8%, var(--surface-1));
+  color: var(--text-primary);
   transform: translateY(-1px);
 }
 
-/* Tokenised, and darker than the old raw-hex gradient on purpose: #fff on
-   --series-1 is only 3.64:1 in the dark theme, so the stops mix toward black
-   until white text clears AA at the lightest stop in both themes. */
 .market-watchlist__item[aria-pressed="true"] {
   border-color: color-mix(in srgb, var(--series-1) 80%, var(--border));
-  color: #fff;
+  color: #ffffff;
   background:
     radial-gradient(circle at 90% 8%, color-mix(in srgb, var(--status-good) 22%, transparent), transparent 42%),
     linear-gradient(135deg, color-mix(in srgb, var(--series-1) 82%, #000), color-mix(in srgb, var(--series-1) 60%, #000));
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--series-1) 20%, transparent);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--series-1) 25%, transparent);
 }
 
 .market-watchlist__symbol {
@@ -2593,6 +2592,7 @@ button.primary-action:hover:not(:disabled) {
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 800;
+  color: inherit;
   text-overflow: ellipsis;
 }
 
@@ -2601,6 +2601,7 @@ button.primary-action:hover:not(:disabled) {
   align-self: center;
   font-size: 11.5px;
   font-weight: 650;
+  color: inherit;
 }
 
 .market-watchlist__item > small {
@@ -2608,12 +2609,12 @@ button.primary-action:hover:not(:disabled) {
   color: var(--text-muted);
 }
 
-/* Solid white: translucent white over the active gradient drops to ~4.1:1 in
-   dark theme — below AA at this size. Hierarchy comes from size, not fade. */
+.market-watchlist__item[aria-pressed="true"] .market-watchlist__symbol,
+.market-watchlist__item[aria-pressed="true"] > strong,
 .market-watchlist__item[aria-pressed="true"] > small,
 .market-watchlist__item[aria-pressed="true"] > small.pos,
 .market-watchlist__item[aria-pressed="true"] > small.neg {
-  color: #fff;
+  color: #ffffff !important;
 }
 
 .venue-status-strip {

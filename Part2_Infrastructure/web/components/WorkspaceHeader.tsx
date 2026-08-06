@@ -27,14 +27,14 @@ export type WorkspaceView =
  * links and bookmarks already in circulation still resolve.
  */
 export const NAV_ITEMS: { id: WorkspaceView; label: string; role: string; accessibleLabel?: string }[] = [
-  { id: "overview", label: "Overview", role: "Every desk role" },
-  { id: "research", label: "Research", role: "Quant researcher" },
-  { id: "live", label: "Execution", role: "Quant trader", accessibleLabel: "Execution" },
-  { id: "portfolio", label: "Portfolio", role: "Portfolio manager" },
-  { id: "risk", label: "Risk", role: "Risk manager" },
-  { id: "data", label: "Data", role: "Data engineer", accessibleLabel: "Data operations" },
-  { id: "reliability", label: "Reliability", role: "DevOps / SRE" },
-  { id: "developer", label: "Developer", role: "Quant developer" },
+  { id: "overview", label: "Overview (All Roles)", role: "Every desk role" },
+  { id: "research", label: "Research (Quant Researcher)", role: "Quant researcher" },
+  { id: "live", label: "Execution (Quant Trader)", role: "Quant trader", accessibleLabel: "Execution" },
+  { id: "portfolio", label: "Portfolio (Portfolio Manager)", role: "Portfolio manager" },
+  { id: "risk", label: "Risk (Risk Manager)", role: "Risk manager" },
+  { id: "data", label: "Data (Data Engineer)", role: "Data engineer", accessibleLabel: "Data operations" },
+  { id: "reliability", label: "Reliability (DevOps/SRE)", role: "DevOps / SRE" },
+  { id: "developer", label: "Developer (Quant Developer)", role: "Quant developer" },
 ];
 
 interface WorkspaceHeaderProps {

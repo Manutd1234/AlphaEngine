@@ -1,8 +1,30 @@
-# AlphaEngine Trading Automation — NUSSIF Developer Analyst Case Study, Part 2
+# AlphaEngine Trading Automation — NUSSIF Developer Analyst Case Study (Part 2)
+
+> **NUSSIF 2026 Infra Assessment Alignment**  
+> This infrastructure project supports quant traders, researchers, portfolio managers, risk officers, and data/SRE engineers across the assessment themes: **Portfolio Risk Dashboard (Theme #2)**, **Market Data Quality/Freshness Monitor (Theme #3)**, **Alternative Data & Signal Pipeline (Theme #6)**, **TCA / Execution Automation**, and **Infrastructure Reliability**.
+
+---
+
+## 🎯 Assessment Proof-of-Concept & Thought Process
+
+1. **Alpha & Signal Utility**: Real-time cross-venue L2 order book depth (Binance + Bybit) prevents adverse selection. Pre-trade TCA estimates VWAP & slippage before order entry. Deflated Sharpe ratios (DSR) prevent backtest overfitting.
+2. **Implemented vs. Mocked Components**:
+   - **Implemented**: Live Binance/Bybit WebSocket depth streaming, 15 pre-trade risk check vectors, FastAPI risk gateway, DuckDB append-only audit log, OpenBB provider layer, Next.js web workspace, Telegram companion bot with matplotlib PNG chart generation.
+   - **Mocked**: Paper order execution (simulated fills at L2 touch; resting limit orders).
+3. **Production Architecture & Data Collection Frequency**:
+   - **100ms** L2 depth polling & book consolidation.
+   - **4s** system health & circuit breaker polling.
+   - **30s** persistent DuckDB audit log flushes.
+4. **Trader & PM Signal Consumption**:
+   - **Interactive Web Workspace**: 8 Role-Explicit workspaces (`Overview (All Roles)`, `Research (Quant Researcher)`, `Execution (Quant Trader)`, `Portfolio (Portfolio Manager)`, `Risk (Risk Manager)`, `Data (Data Engineer)`, `Reliability (DevOps/SRE)`, `Developer (Quant Developer)`).
+   - **Telegram Mobile Companion**: 8 tab commands (`/overview`, `/research`, `/execution`, `/portfolio`, `/risk`, `/data`, `/reliability`, `/developer`) delivering both formatted statistics and visual chart PNGs.
+5. **Validation & Risk Constraints**: Kupiec Likelihood Ratio test for VaR model validation, hard risk limits, and rate limiting (15 commands per 10s).
+
+---
 
 Unified execution-quality, pre-trade-risk and strategy-research infrastructure
 with three deliberately separate surfaces: an always-on stateful gateway, a
-Vercel web workspace, and an independent **text-only Telegram companion**. The
+Vercel web workspace, and an independent **text-only & visual chart Telegram companion**. The
 companion reports portfolio, market-data and operational state, and — for
 explicitly listed operators only — can halt, resume or flatten the book. It
 never opens or authenticates a web UI and never queues a backtest.

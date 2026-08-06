@@ -47,6 +47,12 @@ class StubBot(TelegramBot):
         self.sent.extend(split_telegram_html(text))
         return {"ok": True}
 
+    async def send_photo(self, chat_id, photo_bytes, caption=""):
+        if caption:
+            self.sent.extend(split_telegram_html(caption))
+        self.api_calls.append(("sendPhoto", {"chat_id": chat_id, "photo": photo_bytes, "caption": caption}))
+        return {"ok": True}
+
     @property
     def last(self) -> str:
         return self.sent[-1] if self.sent else ""
@@ -496,3 +502,22 @@ class TestRenderingAndSafety:
         await TelegramBot.api(bot, "getMe")
         assert bot.token not in (bot.last_error or "")
         assert "RuntimeError" in (bot.last_error or "")
+
+
+@pytest.mark.asyncio
+class TestDeskRoleTabsAndCharts:
+    async def test_all_8_desk_role_tab_commands_dispatch_and_send_charts(self, bot):
+        commands = [
+            "/overview",
+            "/research BTCUSDT",
+            "/execution BTCUSDT",
+            "/portfolio",
+            "/risk",
+            "/data",
+            "/reliability",
+            "/developer",
+        ]
+        for idx, cmd in enumerate(commands, start=100):
+            await bot.handle_update(update(cmd, update_id=idx))
+            assert any(method == "sendPhoto" for method, _ in bot.api_calls)
+            assert len(bot.last) > 0
