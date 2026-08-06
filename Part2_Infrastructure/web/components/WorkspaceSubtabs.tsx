@@ -67,11 +67,17 @@ export default function WorkspaceSubtabs<T extends string>({
               aria-selected={selected}
               aria-controls={`${workspaceId}-subpanel-${tab.id}`}
               tabIndex={selected ? 0 : -1}
+              /* Not rendered on the rail: two stacked lines forced a 58px
+                 button and made the second level of navigation taller and
+                 louder than the first. Same trade the role tabs already make at
+                 900px (globals.css:3080) — the title attribute carries it, and
+                 the tab's accessible NAME improves by losing it, going from
+                 "Limits Headroom & concentration" to "Limits". */
+              title={tab.description}
               onClick={() => onChange(tab.id)}
               onKeyDown={(event) => handleKeyDown(event, index)}
             >
               <strong>{tab.label}</strong>
-              <small>{tab.description}</small>
             </button>
           );
         })}

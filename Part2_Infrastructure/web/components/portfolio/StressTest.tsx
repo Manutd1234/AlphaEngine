@@ -29,6 +29,7 @@ import {
   type ReturnsBySymbol,
   type RiskPosition,
   applyScenario,
+  manualShocks,
   scaleShocks,
   volatilityRegime,
 } from "@/lib/portfolio-risk";
@@ -63,10 +64,38 @@ export default function StressTest({
   startOfDayEquity,
 }: StressTestProps) {
   const [scenarioId, setScenarioId] = useState<string>("crypto_cascade");
-  const [manualShock, setManualShock] = useState<number | null>(null);
+  /**
+   * Hand-set moves in PERCENT, keyed by symbol. `"*"` is a legal key and means
+   * every instrument not named — applyScenario already understands it.
+   *
+   * SPARSE ON PURPOSE. A record seeded to zero for every position cannot tell
+   * "the operator set this to flat" from "the operator never touched it", and
+   * that distinction decides whether the instrument is PINNED at zero or moved
+   * by its measured beta. Seeding would silently pin every untouched name flat
+   * — the mirror image of the beta = 1 mistake this panel was built to avoid,
+   * removing real exposure instead of inventing it.
+   *
+   * Keyed by symbol rather than index so it survives a position closing under
+   * it. Empty means no override at all, so a named scenario is live.
+   */
+  const [manual, setManual] = useState<Record<string, number>>({});
   const [conditionOnRegime, setConditionOnRegime] = useState(true);
 
   const scenario = SCENARIOS.find((s) => s.id === scenarioId) ?? SCENARIOS[0];
+
+  const manualSymbols = Object.keys(manual);
+  const manualActive = manualSymbols.length > 0;
+  /** True when something is set for the propagation reference, directly or by wildcard. */
+  const referenceShocked = referenceSymbol in manual || "*" in manual;
+
+  /* Removing the key rather than setting it to zero. A row at 0 is "this does
+     not move"; a removed row is "propagate it by beta". Different claims. */
+  const clearSymbol = (symbol: string) =>
+    setManual((prev) => {
+      const next = { ...prev };
+      delete next[symbol];
+      return next;
+    });
 
   // The scenario magnitudes are historical, which makes them plausible on
   // average and unconditioned on today. The regime is the missing input.
@@ -76,15 +105,23 @@ export default function StressTest({
   );
 
   const result = useMemo(() => {
-    const base = manualShock === null
-      ? scenario.shocks
-      : [{ symbol: referenceSymbol, move: manualShock / 100 }];
-    // A manual shock is the operator's own hypothesis, stated in percent and
-    // shown on the slider. Rescaling it would silently disagree with the number
-    // they just set, so conditioning applies to the named scenarios only.
-    const shocks = conditionOnRegime && manualShock === null ? scaleShocks(base, regime) : base;
+    const base = manualActive ? manualShocks(manual) : scenario.shocks;
+    // Conditioning applies to the named scenarios only, and the reason gets
+    // stronger with N sliders rather than weaker:
+    //
+    //  - If the reference is hand-shocked, the beta propagation is already
+    //    driven by the operator's own number. Rescaling it would put a figure
+    //    on screen that disagrees with the slider they are looking at.
+    //  - If the reference is NOT hand-shocked, the base is entirely
+    //    operator-supplied and there is no historical magnitude left for a
+    //    regime multiplier to act on.
+    //
+    // Either way there is nothing legitimate to condition, so the checkbox is
+    // disabled the moment any slider is set — the same rule the single slider
+    // had, now with a reason that survives N of them.
+    const shocks = conditionOnRegime && !manualActive ? scaleShocks(base, regime) : base;
     return applyScenario(positions, equity, shocks, returns, referenceSymbol);
-  }, [scenario, manualShock, conditionOnRegime, regime, positions, equity, returns, referenceSymbol]);
+  }, [scenario, manual, manualActive, conditionOnRegime, regime, positions, equity, returns, referenceSymbol]);
 
   const haltEquity = startOfDayEquity * (1 - drawdownLimitPct);
   const breachesHalt = result.projectedEquity < haltEquity;
@@ -128,10 +165,10 @@ export default function StressTest({
           <button
             key={s.id}
             type="button"
-            aria-pressed={manualShock === null && s.id === scenarioId}
+            aria-pressed={!manualActive && s.id === scenarioId}
             onClick={() => {
               setScenarioId(s.id);
-              setManualShock(null);
+              setManual({});
             }}
           >
             {s.label}
@@ -139,7 +176,11 @@ export default function StressTest({
         ))}
       </div>
 
-      <p className="sub">{manualShock === null ? scenario.description : "Manual shock — a hypothesis you are setting directly."}</p>
+      <p className="sub">
+        {manualActive
+          ? `Hand shocks on ${manualSymbols.length} instrument${manualSymbols.length === 1 ? "" : "s"} — a hypothesis you are setting directly.`
+          : scenario.description}
+      </p>
 
       {regime && (
         <div className={`regime-bar regime-${regime.regime.toLowerCase()}`}>
@@ -154,17 +195,17 @@ export default function StressTest({
             <input
               type="checkbox"
               checked={conditionOnRegime}
-              disabled={manualShock !== null}
+              disabled={manualActive}
               onChange={(event) => setConditionOnRegime(event.target.checked)}
             />
             <span>
               Condition on regime
-              {manualShock !== null && " (manual shock overrides)"}
+              {manualActive && " (hand shocks override)"}
             </span>
           </label>
           <p className="regime-note">
             {regime.note}
-            {conditionOnRegime && manualShock === null && (
+            {conditionOnRegime && !manualActive && (
               clampRatio(regime.ratio) > 1 ? (
                 <>
                   {" "}
@@ -185,28 +226,38 @@ export default function StressTest({
         </div>
       )}
 
-      <label className="stress-slider">
-        <span>
-          Shock {referenceSymbol}
-          <strong
-            className="num"
-            style={{
-              color: (manualShock ?? 0) < 0 ? "var(--critical-text)" : "var(--success-text)",
-            }}
+      <div className="stress-manual">
+        <div className="stress-manual__head">
+          <span className="stress-subhead">Hand shocks</span>
+          <button
+            type="button"
+            className="stress-manual__clear"
+            disabled={!manualActive}
+            onClick={() => setManual({})}
           >
-            {manualShock === null ? "—" : `${manualShock > 0 ? "+" : ""}${manualShock}%`}
-          </strong>
-        </span>
-        <input
-          type="range"
-          min={-50}
-          max={50}
-          step={1}
-          value={manualShock ?? 0}
-          aria-label={`Shock ${referenceSymbol} by percent`}
-          onChange={(event) => setManualShock(Number(event.target.value))}
-        />
-      </label>
+            {manualActive
+              ? `Clear ${manualSymbols.length} hand shock${manualSymbols.length === 1 ? "" : "s"} → “${scenario.label}”`
+              : "No hand shocks set"}
+          </button>
+        </div>
+        <p className="research-note">
+          Set a move for any instrument. Anything left untouched moves by its measured beta against{" "}
+          {referenceSymbol}; “everything else” names a move for the rest directly. A row set to 0% is
+          pinned flat, which is a different claim from leaving it alone.
+        </p>
+        <div className="stress-manual__grid">
+          {[...positions.map((p) => p.symbol), "*"].map((symbol) => (
+            <ShockRow
+              key={symbol}
+              symbol={symbol}
+              label={symbol === "*" ? "Everything else" : symbol.replace("USDT", "")}
+              value={manual[symbol]}
+              onChange={(v) => setManual((prev) => ({ ...prev, [symbol]: v }))}
+              onClear={() => clearSymbol(symbol)}
+            />
+          ))}
+        </div>
+      </div>
 
       <div className={`stress-result ${result.totalPnl < 0 ? "is-loss" : "is-gain"}`}>
         <div>
@@ -268,11 +319,23 @@ export default function StressTest({
                 <td>
                   {p.viaBeta ? (
                     <span className="muted">β {fmt(p.beta ?? 0, 2)}</span>
+                  ) : p.symbol in manual ? (
+                    <span className="muted" title="Set by hand on the slider above">pinned</span>
                   ) : p.appliedMove !== 0 ? (
                     <span className="muted">shocked</span>
-                  ) : (
+                  ) : referenceShocked ? (
                     <span className="muted" title="Beta could not be measured from available history, so no move was assumed">
                       not measurable
+                    </span>
+                  ) : (
+                    /* The beta may be perfectly measurable — there is simply no
+                       reference move for it to propagate from. Calling that "not
+                       measurable" blames the data for a gap in the hypothesis. */
+                    <span
+                      className="muted"
+                      title={`No move is set for ${referenceSymbol}, so there is nothing for a beta to propagate from. Set the reference, or use “everything else”.`}
+                    >
+                      not propagated
                     </span>
                   )}
                 </td>
@@ -303,7 +366,7 @@ export default function StressTest({
             {ranked.map((row) => (
               <tr
                 key={row.id}
-                className={row.id === scenarioId && manualShock === null ? "is-best" : undefined}
+                className={row.id === scenarioId && !manualActive ? "is-best" : undefined}
               >
                 <td>{row.label}</td>
                 <td className={`num ${row.pnl >= 0 ? "pos" : "neg"}`}>
@@ -324,9 +387,10 @@ export default function StressTest({
 
       {unmeasured.length > 0 && (
         <p className="research-note">
-          Held flat because no beta could be measured: {unmeasured.map((p) => p.symbol).join(", ")}.
-          The total above is understated by whatever those would have moved — assuming a beta of 1 for
-          them would have produced a larger, more confident and less true number.
+          Held flat: {unmeasured.map((p) => p.symbol).join(", ")}.{" "}
+          {referenceShocked
+            ? "No beta could be measured for these from available history. The total above is understated by whatever they would have moved — assuming a beta of 1 for them would have produced a larger, more confident and less true number."
+            : `Nothing is set for ${referenceSymbol}, so there is no reference move for a beta to propagate. Set it, or use “everything else”, to move the rest of the book.`}
         </p>
       )}
 
@@ -335,6 +399,60 @@ export default function StressTest({
         returns the risk engine uses. Scenario magnitudes are drawn from moves these markets have
         actually made — which makes them plausible, not predictions.
       </p>
+    </div>
+  );
+}
+
+/**
+ * One instrument's hand shock.
+ *
+ * `value === undefined` is the unset state and renders as β rather than 0 —
+ * the visible half of the sparse-record decision above. Clearing removes the
+ * key; it never writes a zero, because a zero is a claim.
+ */
+function ShockRow({
+  symbol,
+  label,
+  value,
+  onChange,
+  onClear,
+}: {
+  symbol: string;
+  label: string;
+  value: number | undefined;
+  onChange: (v: number) => void;
+  onClear: () => void;
+}) {
+  const set = value !== undefined;
+  return (
+    <div className={`shock-row${set ? " is-set" : ""}`}>
+      <div className="shock-row__head">
+        <span>{label}</span>
+        <strong
+          className="num"
+          style={{ color: !set ? undefined : value < 0 ? "var(--critical-text)" : "var(--success-text)" }}
+        >
+          {set ? `${value > 0 ? "+" : ""}${value}%` : "β"}
+        </strong>
+        <button
+          type="button"
+          className="shock-row__clear"
+          onClick={onClear}
+          disabled={!set}
+          aria-label={`Clear the ${label} shock`}
+        >
+          ×
+        </button>
+      </div>
+      <input
+        type="range"
+        min={-50}
+        max={50}
+        step={1}
+        value={value ?? 0}
+        aria-label={`Shock ${symbol === "*" ? "every unnamed instrument" : symbol} by percent`}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
     </div>
   );
 }

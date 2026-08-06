@@ -3,27 +3,29 @@
 /**
  * What the book is actually risking.
  *
- * The gateway reports notional, and notional is not risk. A $1.15M short in BNB
- * and a $1.45M long in SOL are similar numbers that do opposite things to the
- * variance of the book, and no exposure table can show that. So this panel
- * decomposes total volatility into per-position contributions that **sum to the
- * total** — the Euler decomposition — which is what makes "cut this to lose the
- * most risk per dollar" answerable.
- *
  * Two numbers are shown for the same quantity on purpose. Parametric VaR assumes
  * normality; historical VaR replays the current book over real returns and
  * assumes nothing. In crypto the second is routinely worse, and the gap between
  * them *is* the fat tail. Reporting only the parametric figure would be the
  * tidier screen and the more dangerous one.
+ *
+ * Three cards, split by question rather than by widget: this one answers *how
+ * much can this book lose*, RiskContributions answers *who is causing it*, and
+ * CorrelationMatrix answers *why does it all move together*. They were one card
+ * holding a whole page.
+ *
+ * This component calls no hooks, which is what makes its three early returns
+ * safe. Keep it that way — anything needing state belongs in a child.
  */
 
-import { fmt, pct, usd } from "@/lib/format";
-import type { CovarianceModel, PortfolioRisk, VarBacktest } from "@/lib/portfolio-risk";
+import CorrelationMatrix from "@/components/portfolio/CorrelationMatrix";
+import RiskContributions from "@/components/portfolio/RiskContributions";
+import { pct, usd } from "@/lib/format";
+import type { CovarianceModel, PortfolioRisk, VarBacktest, VarSeries } from "@/lib/portfolio-risk";
 
 interface RiskEngineProps {
   risk: PortfolioRisk | null;
   model: CovarianceModel | null;
-  equity: number;
   loading: boolean;
   /** Symbols whose history could not be fetched — excluded from every figure. */
   missing: string[];
@@ -35,6 +37,16 @@ interface RiskEngineProps {
    * confidence interval printed on it.
    */
   validation?: VarBacktest | null;
+  /**
+   * The per-observation series behind `validation`.
+   *
+   * Rendered inside this card rather than as a sibling in the workspace: the
+   * forecast and its scorecard can never describe different data, and they
+   * cannot if they are one card fed by one prop source.
+   */
+  varSeries?: VarSeries | null;
+  /** True when the notionals came from the generated sandbox book. */
+  sandbox?: boolean;
 }
 
 const ZONE_STYLE: Record<string, { glyph: string; label: string; tone: string }> = {
@@ -43,7 +55,7 @@ const ZONE_STYLE: Record<string, { glyph: string; label: string; tone: string }>
   red: { glyph: "✕", label: "rejected", tone: "var(--critical-text)" },
 };
 
-export default function RiskEngine({ risk, model, equity, loading, missing, validation }: RiskEngineProps) {
+export default function RiskEngine({ risk, model, loading, missing, validation }: RiskEngineProps) {
   if (loading) {
     return (
       <div className="card" aria-busy="true" aria-live="polite">
@@ -80,6 +92,7 @@ export default function RiskEngine({ risk, model, equity, loading, missing, vali
   const tailGap = risk.historicalVar95 !== null ? risk.historicalVar95 - risk.var95 : null;
 
   return (
+    <>
     <div className="card">
       <div className="portfolio-card-heading">
         <div>
@@ -157,136 +170,15 @@ export default function RiskEngine({ risk, model, equity, loading, missing, vali
         </p>
       )}
 
-      <p className="console-subhead">
-        Risk contribution
-        <small className="muted"> — sums to the book&apos;s total volatility, so it answers what to cut.</small>
-      </p>
-
-      <div className="table-wrap">
-        <table>
-          <caption className="sr-only">
-            Per-position share of notional against share of portfolio volatility, with standalone
-            volatility.
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Instrument</th>
-              <th scope="col">Notional</th>
-              <th scope="col">Share of book</th>
-              <th scope="col">Standalone vol</th>
-              <th scope="col">Risk share</th>
-              <th scope="col">Contribution</th>
-            </tr>
-          </thead>
-          <tbody>
-            {risk.contributions.map((c) => {
-              const notionalShare = equity > 0 ? Math.abs(c.signedNotional) / Math.max(1, totalGross(risk)) : 0;
-              const diverges = Math.abs(c.contributionShare - notionalShare) > 0.1;
-              return (
-                <tr key={c.symbol}>
-                  <td>{c.symbol}</td>
-                  <td className={c.signedNotional >= 0 ? "pos" : "neg"}>{usd(c.signedNotional, 0)}</td>
-                  <td>{pct(notionalShare, 1)}</td>
-                  <td>{pct(c.standaloneVol, 1)}</td>
-                  <td className={c.contributionShare < 0 ? "pos" : undefined}>
-                    {pct(c.contributionShare, 1)}
-                    {/* A hedge takes risk OUT. Worth naming, since a negative
-                        percentage is easy to read as an error. */}
-                    {c.contributionShare < 0 && <span className="muted"> · hedge</span>}
-                    {diverges && c.contributionShare >= 0 && (
-                      <span className="muted"> · {c.contributionShare > notionalShare ? "over" : "under"}-risks its size</span>
-                    )}
-                  </td>
-                  <td>
-                    <span className="risk-bar" role="img" aria-label={`${pct(c.contributionShare, 1)} of book volatility`}>
-                      <i
-                        style={{
-                          width: `${Math.min(100, Math.abs(c.contributionShare) * 100)}%`,
-                          background: c.contributionShare < 0 ? "var(--series-3)" : "var(--series-1)",
-                        }}
-                        aria-hidden
-                      />
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <p className="console-subhead">
-        Correlation
-        <small className="muted"> — diversification is only real while these stay low.</small>
-      </p>
-
-      {risk.worstCorrelation && Math.abs(risk.worstCorrelation.corr) >= 0.8 && (
-        <div className="banner warn" role="status">
-          <span aria-hidden>!</span>
-          <div>
-            <strong>
-              {risk.worstCorrelation.a} and {risk.worstCorrelation.b} correlate at{" "}
-              {fmt(risk.worstCorrelation.corr, 2)}.
-            </strong>{" "}
-            Two positions this correlated are close to one position of their combined size — the book
-            is less diversified than the position count suggests.
-          </div>
-        </div>
-      )}
-
-      <div className="table-wrap">
-        <table className="corr-matrix">
-          <caption className="sr-only">Pairwise return correlation between held instruments.</caption>
-          <thead>
-            <tr>
-              <th scope="col"></th>
-              {model.symbols.map((s) => (
-                <th scope="col" key={s}>{s.replace("USDT", "")}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {model.symbols.map((rowSymbol, i) => (
-              <tr key={rowSymbol}>
-                <th scope="row">{rowSymbol.replace("USDT", "")}</th>
-                {model.symbols.map((colSymbol, j) => {
-                  const c = model.correlation[i][j];
-                  return (
-                    <td key={colSymbol} className="corr-cell">
-                      <span
-                        title={`${rowSymbol} vs ${colSymbol}: ${fmt(c, 3)}`}
-                        style={{
-                          // Alpha carries magnitude, hue carries sign, and the
-                          // number is always printed — readable with no colour
-                          // perception at all.
-                          background:
-                            i === j
-                              ? "var(--surface-3)"
-                              : c >= 0
-                                ? `color-mix(in srgb, var(--diverging-pos) ${Math.round(Math.abs(c) * 55)}%, transparent)`
-                                : `color-mix(in srgb, var(--diverging-neg) ${Math.round(Math.abs(c) * 55)}%, transparent)`,
-                        }}
-                      >
-                        {fmt(c, 2)}
-                      </span>
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
       <p className="research-note">
-        Covariance measured from {risk.observations} daily closes of the instruments actually held —
-        not from assumed factor loadings. Parametric VaR additionally assumes normal returns, which is
-        why the historical figure is shown beside it rather than instead of it.
+        Parametric VaR assumes normal returns, which is why the historical figure is shown beside it
+        rather than instead of it.
       </p>
     </div>
-  );
-}
 
-function totalGross(risk: PortfolioRisk): number {
-  return risk.contributions.reduce((acc, c) => acc + Math.abs(c.signedNotional), 0);
+    <RiskContributions contributions={risk.contributions} />
+
+    <CorrelationMatrix model={model} worst={risk.worstCorrelation} observations={risk.observations} />
+    </>
+  );
 }

@@ -37,12 +37,16 @@ import {
   type ReturnsBySymbol,
   type RiskPosition,
   type VarBacktest,
+  type VarSeries,
   beta,
   buildCovariance,
   portfolioRisk,
   rollingVarBacktest,
+  rollingVarSeries,
 } from "@/lib/portfolio-risk";
 import { sessionReturn } from "@/lib/pnl-attribution";
+import { averageDailyVolume } from "@/lib/quant";
+import { BARS_PER_YEAR, type Bar } from "@/lib/types";
 
 export interface BookError {
   code?: string;
@@ -58,6 +62,9 @@ const REFRESH_MS = 15_000;
 
 /** Newest daily bar per symbol, keyed for the session-alignment check. */
 export type SessionBars = Record<string, { openMs: number; prevClose: number; close: number }>;
+
+/** Quote-currency average daily volume, measured from the same bars as `returns`. */
+export type AdvBySymbol = Record<string, { adv: number; observations: number }>;
 
 export interface BookView {
   /** Null only while the first request is in flight, or when it failed. */
@@ -78,6 +85,8 @@ export interface BookView {
   risk: PortfolioRisk | null;
   covarianceModel: CovarianceModel | null;
   varValidation: VarBacktest | null;
+  /** Per-observation series behind `varValidation`. Null when it could not be built. */
+  varSeries: VarSeries | null;
   riskPositions: RiskPosition[];
   returns: ReturnsBySymbol;
   riskLoading: boolean;
@@ -86,6 +95,10 @@ export interface BookView {
   referenceSymbol: string;
   /** The newest daily bar per symbol, so a consumer can verify its own alignment. */
   sessionBars: SessionBars;
+  /** Bar open-times, index-aligned with `returns[symbol]`. Same binance-only rule. */
+  barTimes: Record<string, number[]>;
+  /** Quote-currency ADV per symbol, measured from the same bars as `returns`. */
+  advBySymbol: AdvBySymbol;
   /**
    * The reference instrument's session-to-date return, or null when the newest
    * daily bar does not cover the gateway's session. Checked rather than assumed:
@@ -120,6 +133,8 @@ export function useBook(): BookView {
   }, []);
   const [returns, setReturns] = useState<ReturnsBySymbol>({});
   const [sessionBars, setSessionBars] = useState<SessionBars>({});
+  const [barTimes, setBarTimes] = useState<Record<string, number[]>>({});
+  const [advBySymbol, setAdvBySymbol] = useState<AdvBySymbol>({});
   const [riskLoading, setRiskLoading] = useState(false);
   // The gateway persists equity snapshots from its risk monitor, but only from
   // the moment it started. Whatever this tab observes is appended to whatever
@@ -271,6 +286,8 @@ export function useBook(): BookView {
     if (!symbols.length) {
       setReturns({});
       setSessionBars({});
+      setBarTimes({});
+      setAdvBySymbol({});
       setRiskLoading(false);
       return;
     }
@@ -278,21 +295,43 @@ export function useBook(): BookView {
     setRiskLoading(true);
     Promise.all(
       symbols.map(async (symbol) => {
+        const empty = {
+          symbol,
+          series: [] as number[],
+          times: [] as number[],
+          bar: null as SessionBars[string] | null,
+          adv: null as { adv: number; observations: number } | null,
+        };
         try {
           const response = await fetch(
-            `/api/ohlcv?symbol=${encodeURIComponent(symbol)}&interval=1d&bars=180`,
+            // 400 rather than 180: a 60-bar rolling VaR backtest scores only
+            // `n - 60` points, so 180 bars is 119 — a sketch rather than a
+            // chart. `fetchBinanceKlines` pages at <= 1000, so this is still one
+            // request. It is NOT free in meaning: buildCovariance aligns to the
+            // shortest common series, so every figure on this tab moves from a
+            // ~6-month to a ~13-month window. The panel prints `observations`,
+            // so the change announces itself.
+            `/api/ohlcv?symbol=${encodeURIComponent(symbol)}&interval=1d&bars=400`,
             { cache: "no-store" },
           );
-          if (!response.ok) return [symbol, [] as number[]] as const;
+          if (!response.ok) return empty;
           const body = await response.json();
-          const bars: { c: number; t: number }[] = body.bars ?? [];
+          const bars: Bar[] = body.bars ?? [];
           // Synthetic bars would silently become a covariance estimate. A book's
           // risk must not be measured against invented prices, so that source is
           // dropped rather than used.
-          if (body.source !== "binance" || bars.length < 21) return [symbol, [] as number[], null] as const;
+          if (body.source !== "binance" || bars.length < 21) return empty;
+          // Returns and their bar times are built in one pass so `times[k]` is
+          // by construction the open of the bar whose close produced
+          // `series[k]`. Every downstream x-axis rests on that alignment, and it
+          // must not be re-derived anywhere else.
           const series: number[] = [];
+          const times: number[] = [];
           for (let i = 1; i < bars.length; i++) {
-            if (bars[i - 1].c > 0) series.push(bars[i].c / bars[i - 1].c - 1);
+            if (bars[i - 1].c > 0) {
+              series.push(bars[i].c / bars[i - 1].c - 1);
+              times.push(Number(bars[i].t));
+            }
           }
           // The newest bar's open time is what lets a consumer check that the
           // return it is about to use covers the gateway's session rather than
@@ -303,16 +342,31 @@ export function useBook(): BookView {
           const bar = newest && previous && previous.c > 0
             ? { openMs: Number(newest.t), prevClose: previous.c, close: newest.c }
             : null;
-          return [symbol, series, bar] as const;
+          // Quote-currency ADV from the same bars the risk numbers use, so a
+          // position can never have a liquidity figure but no risk figure.
+          return {
+            symbol,
+            series,
+            times,
+            bar,
+            adv: { adv: averageDailyVolume(bars, "1d"), observations: bars.length },
+          };
         } catch {
-          return [symbol, [] as number[], null] as const;
+          return empty;
         }
       }),
     ).then((entries) => {
       if (cancelled) return;
-      setReturns(Object.fromEntries(entries.filter(([, r]) => r.length > 0).map(([s2, r]) => [s2, r])));
+      // One predicate for every map, so a symbol can never appear in one and
+      // not another.
+      const measured = entries.filter((e) => e.series.length > 0);
+      setReturns(Object.fromEntries(measured.map((e) => [e.symbol, e.series])));
+      setBarTimes(Object.fromEntries(measured.map((e) => [e.symbol, e.times])));
+      setAdvBySymbol(Object.fromEntries(
+        measured.filter((e) => e.adv !== null).map((e) => [e.symbol, e.adv!]),
+      ));
       setSessionBars(Object.fromEntries(
-        entries.filter((e) => e[2] !== null).map((e) => [e[0], e[2]!]),
+        entries.filter((e) => e.bar !== null).map((e) => [e.symbol, e.bar!]),
       ));
       setRiskLoading(false);
     });
@@ -347,7 +401,9 @@ export function useBook(): BookView {
 
   const equityNow = book?.equity.current ?? 0;
   const risk = useMemo(
-    () => (covarianceModel ? portfolioRisk(riskPositions, equityNow, covarianceModel, 365, returns) : null),
+    // One annualisation constant, shared with the factor decomposition. Two
+    // literals that must agree is one too many.
+    () => (covarianceModel ? portfolioRisk(riskPositions, equityNow, covarianceModel, BARS_PER_YEAR["1d"], returns) : null),
     [covarianceModel, riskPositions, equityNow, returns],
   );
 
@@ -356,6 +412,15 @@ export function useBook(): BookView {
   const varValidation = useMemo(
     () => (riskPositions.length ? rollingVarBacktest(riskPositions, returns) : null),
     [riskPositions, returns],
+  );
+
+  // The same points the scorer counts, kept rather than discarded. Recomputing
+  // is deliberate and cheap — `returns` only changes when the OHLCV effect
+  // resolves, not on the 15s poll — and it buys one exported entry point per
+  // question instead of a scorer that also returns a chart payload.
+  const varSeries = useMemo(
+    () => (riskPositions.length ? rollingVarSeries(riskPositions, returns, { times: barTimes }) : null),
+    [riskPositions, returns, barTimes],
   );
 
   const missingHistory = useMemo(() => {
@@ -424,12 +489,15 @@ export function useBook(): BookView {
     risk,
     covarianceModel,
     varValidation,
+    varSeries,
     riskPositions,
     returns,
     riskLoading,
     missingHistory,
     referenceSymbol,
     sessionBars,
+    barTimes,
+    advBySymbol,
     referenceSessionReturn,
     riskShare,
     betaBySymbol,

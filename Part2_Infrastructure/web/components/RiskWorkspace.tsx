@@ -22,7 +22,8 @@ import HeadroomBar from "@/components/portfolio/HeadroomBar";
 import RiskEngine from "@/components/portfolio/RiskEngine";
 import StressTest from "@/components/portfolio/StressTest";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
-import { fmt, usd } from "@/lib/format";
+import { fmt, pct, usd } from "@/lib/format";
+import { type LimitTone, limitRows, limitTone } from "@/lib/portfolio";
 import type { BookView } from "@/lib/use-book";
 
 export interface RiskWorkspaceProps {
@@ -42,21 +43,15 @@ const RISK_SECTIONS = [
   { id: "controls", label: "Controls", description: "Halt & flatten handoffs" },
 ] as const;
 
-function BudgetRow({ label, used, detail }: { label: string; used: number; detail: string }) {
-  const bounded = Math.max(0, Math.min(1, used || 0));
-  const tone = bounded >= 0.9 ? "critical" : bounded >= 0.7 ? "warning" : "good";
-  return (
-    <div className="portfolio-budget-row">
-      <div>
-        <strong>{label}</strong>
-        <span className="num">{fmt(bounded * 100, 1)}%</span>
-      </div>
-      <div className="portfolio-budget-track" aria-label={`${label}: ${fmt(bounded * 100, 1)} percent used`}>
-        <i className={`is-${tone}`} style={{ width: `${bounded * 100}%` }} />
-      </div>
-      <small>{detail}</small>
-    </div>
-  );
+const TONE_TEXT: Record<LimitTone, string | undefined> = {
+  good: undefined,
+  warning: "var(--warning-text)",
+  critical: "var(--critical-text)",
+};
+
+/** Raw values arrive from `limitRows`; the unit decides the formatter. */
+function limitValue(value: number, unit: "usd" | "pct"): string {
+  return unit === "usd" ? usd(value, 0) : pct(value, 2);
 }
 
 export default function RiskWorkspace({ view, onOpenPortfolio, onOpenResearch, operatorToken }: RiskWorkspaceProps) {
@@ -125,25 +120,56 @@ export default function RiskWorkspace({ view, onOpenPortfolio, onOpenResearch, o
               </div>
               <span>{book.sandbox ? "sandbox thresholds — same limits, generated book" : "enforced at the gate"}</span>
             </div>
-            <BudgetRow
-              label="Gross exposure"
-              used={book.risk_budget.gross_exposure.utilisation}
-              detail={`${usd(book.risk_budget.gross_exposure.remaining, 0)} headroom of ${usd(book.risk_budget.gross_exposure.limit, 0)}`}
-            />
-            <BudgetRow
-              label="Daily drawdown"
-              used={book.risk_budget.daily_drawdown.utilisation}
-              detail={`${usd(book.risk_budget.daily_drawdown.cushion_usd, 0)} equity cushion to halt`}
-            />
-            <BudgetRow
-              label="Largest position"
-              used={positions[0]?.symbol_limit.utilisation ?? 0}
-              detail={positions[0] ? `${positions[0].symbol} · ${usd(positions[0].symbol_limit.remaining, 0)} symbol headroom` : "No symbol exposure"}
-            />
+            {/* The gauges above already carry each constraint as a bar and a
+                sentence. What they compress away is the arithmetic, so this is
+                the table rather than a second set of the same bars — which is
+                what it used to be. */}
+            <div className="table-wrap">
+              <table>
+                <caption className="sr-only">
+                  Each pre-trade constraint with its current usage, its limit, the headroom left, and
+                  whether it is the one that binds first.
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Constraint</th>
+                    <th scope="col">Used</th>
+                    <th scope="col">Limit</th>
+                    <th scope="col">Headroom</th>
+                    <th scope="col">Utilisation</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {limitRows(book).map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        {row.label}
+                        {/* icon + word, never colour alone */}
+                        {row.binding && <span className="muted"> · ▲ binds first</span>}
+                      </td>
+                      <td className="num">{limitValue(row.used, row.unit)}</td>
+                      <td className="num">{limitValue(row.limit, row.unit)}</td>
+                      <td className="num">{limitValue(row.headroom, row.headroomUnit)}</td>
+                      <td className="num" style={{ color: TONE_TEXT[limitTone(row.utilisation)] }}>
+                        {pct(row.utilisation, 1)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
             <div className="portfolio-concentration">
               <div><span>Largest share</span><strong className="num">{fmt(book.concentration.largest_share * 100, 1)}%</strong></div>
               <div><span>Effective positions</span><strong className="num">{fmt(book.concentration.effective_positions, 1)}</strong></div>
             </div>
+            <p className="research-note">
+              Effective positions is 1 ÷ the Herfindahl index of the book&apos;s weights — the number
+              of equally-sized positions that would carry this much concentration.{" "}
+              {positions.length} position{positions.length === 1 ? "" : "s"} behaving like{" "}
+              {fmt(book.concentration.effective_positions, 1)} is a statement about how much of the
+              book is really one bet.
+            </p>
           </div>
 
           {/* The book, compressed to what a limit decision needs. Full positions
@@ -179,7 +205,6 @@ export default function RiskWorkspace({ view, onOpenPortfolio, onOpenResearch, o
         <RiskEngine
           risk={risk}
           model={covarianceModel}
-          equity={book.equity.current}
           loading={riskLoading && !risk}
           missing={missingHistory}
           validation={varValidation}

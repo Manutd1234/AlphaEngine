@@ -20,6 +20,7 @@
  */
 
 import { fmt, pct, usd } from "@/lib/format";
+import { limitTone } from "@/lib/portfolio";
 
 interface Gauge {
   id: string;
@@ -58,9 +59,10 @@ interface HeadroomBarProps {
   largestPosition: { symbol: string; utilisation: number; remaining: number } | null;
 }
 
-function tone(utilisation: number): "good" | "warning" | "critical" {
-  return utilisation >= 0.9 ? "critical" : utilisation >= 0.7 ? "warning" : "good";
-}
+/* One threshold table, in lib/portfolio.ts, shared with the book status chip and
+   the limits table. Three local copies of 0.9/0.7 were three chances to
+   disagree about whether 0.9 is a breach. */
+const tone = limitTone;
 
 export default function HeadroomBar({
   grossUsed,

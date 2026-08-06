@@ -340,6 +340,106 @@ export interface BookStatus {
  * and taking the max against the headrooms we can see locally means the label
  * and the number cannot disagree.
  */
+/**
+ * Where a utilisation crosses from headroom into a warning and then into a
+ * breach. One table, because it is quoted by the book status line, by every
+ * headroom gauge and by the limits table, and three copies of a threshold are
+ * three chances to disagree about whether 0.9 is a breach.
+ */
+export const LIMIT_TONE_BOUNDS: [number, number] = [0.7, 0.9];
+
+export type LimitTone = "good" | "warning" | "critical";
+
+export function limitTone(utilisation: number): LimitTone {
+  const [warn, crit] = LIMIT_TONE_BOUNDS;
+  // NaN falls through both comparisons to "good", which is wrong in the
+  // dangerous direction, so it is caught explicitly rather than silently.
+  if (!Number.isFinite(utilisation)) return "good";
+  return utilisation >= crit ? "critical" : utilisation >= warn ? "warning" : "good";
+}
+
+/**
+ * One pre-trade constraint.
+ *
+ * Values stay raw and carry their own `unit` rather than arriving pre-formatted:
+ * drawdown is a fraction of start-of-day equity while the other two are dollars,
+ * so a single formatter would have to guess. The component formats; this module
+ * stays free of presentation and the test asserts numbers.
+ */
+export interface LimitRow {
+  id: string;
+  label: string;
+  unit: "usd" | "pct";
+  used: number;
+  limit: number;
+  /** In `unit`, except for drawdown where the meaningful cushion is in dollars. */
+  headroom: number;
+  headroomUnit: "usd" | "pct";
+  utilisation: number;
+  /** True for the constraint the gateway says binds first. */
+  binding: boolean;
+}
+
+/**
+ * The arithmetic behind the headroom gauges.
+ *
+ * HeadroomBar compresses each constraint to a bar and a sentence, which is the
+ * right read at a glance and the wrong one when somebody asks "how much room is
+ * left, exactly". This is the table that answers that, and it is a pure builder
+ * so the numbers can be tested without a DOM.
+ */
+export function limitRows(book: PortfolioPayload): LimitRow[] {
+  const [constraint] = book.risk_budget.binding_constraint;
+  const gross = book.risk_budget.gross_exposure;
+  const drawdown = book.risk_budget.daily_drawdown;
+  const largest = book.exposure.positions[0];
+
+  const rows: LimitRow[] = [
+    {
+      id: "gross_exposure",
+      label: "Gross exposure",
+      unit: "usd",
+      used: gross.used,
+      limit: gross.limit,
+      headroom: gross.remaining,
+      headroomUnit: "usd",
+      utilisation: gross.utilisation,
+      binding: constraint === "gross_exposure",
+    },
+    {
+      id: "daily_drawdown",
+      label: "Daily drawdown",
+      unit: "pct",
+      used: drawdown.used_pct,
+      limit: drawdown.limit_pct,
+      // The headroom that matters here is the equity cushion, in dollars — the
+      // number a PM can compare against a position size.
+      headroom: drawdown.cushion_usd,
+      headroomUnit: "usd",
+      utilisation: drawdown.utilisation,
+      binding: constraint === "daily_drawdown",
+    },
+  ];
+
+  if (largest) {
+    rows.push({
+      id: "symbol_limit",
+      label: `Largest position · ${largest.symbol}`,
+      unit: "usd",
+      used: largest.symbol_limit.used,
+      limit: largest.symbol_limit.limit,
+      headroom: largest.symbol_limit.remaining,
+      headroomUnit: "usd",
+      utilisation: largest.symbol_limit.utilisation,
+      // The gateway names the binder either by kind or by the symbol itself,
+      // depending on which limit tripped. Match both rather than guessing.
+      binding: constraint === "symbol_limit" || constraint === largest.symbol,
+    });
+  }
+
+  return rows;
+}
+
 export function bookStatus(book: PortfolioPayload): BookStatus {
   const [constraint, bindingUtilisation] = book.risk_budget.binding_constraint;
   const utilisation = Math.max(
@@ -355,13 +455,14 @@ export function bookStatus(book: PortfolioPayload): BookStatus {
       detail: "the kill switch is active", utilisation, constraint,
     };
   }
-  if (utilisation >= 0.9) {
+  const tone = limitTone(utilisation);
+  if (tone === "critical") {
     return {
       level: "critical", label: "CRITICAL", glyph: "▲",
       detail: `${readable} at ${Math.round(utilisation * 100)}%`, utilisation, constraint,
     };
   }
-  if (utilisation >= 0.7) {
+  if (tone === "warning") {
     return {
       level: "elevated", label: "ELEVATED", glyph: "▲",
       detail: `${readable} at ${Math.round(utilisation * 100)}%`, utilisation, constraint,
