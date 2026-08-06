@@ -58,9 +58,9 @@ missing (§9 has the detail):
 | **Quant Researcher** | *Does this actually work?* | Sweep engine, Deflated Sharpe, walk-forward, PBO, promotion gate | No feature store; per-browser experiment log |
 | **Portfolio Manager** | *Where am I exposed, and what should I own?* | Portfolio view, risk contributions, allocation proposal, rebalance | No benchmark-relative attribution |
 | **Risk Manager** | *Is the model right, and will the limits hold?* | Kupiec VaR backtest, stress scenarios, reduce-only mode, kill switch | No margin or liquidation modelling |
-| **Data Engineer** | *Can I trust this data?* | Provider registry, failover, data contracts, quarantine, lineage | No orchestration or backfill scheduler |
+| **Data Engineer** | *Can I trust this data?* | Overview-first trust cockpit, provider registry, failover, data contracts, quarantine and lineage | No durable quality ledger, orchestration or backfill scheduler |
 | **DevOps / SRE** | *Is it healthy, and what do I do at 3am?* | `/health`, `/metrics`, systems console, alert rules, runbook | No log aggregation or distributed tracing |
-| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, parity suites, CI, 337 + 642 + 13 tests | No generated client, no property-based fuzzing |
+| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, parity suites, CI, 337 + 666 + 13 tests | No generated client, no property-based fuzzing |
 
 ### 🎯 Quant Traders — *"Can I send this, and what will it cost?"*
 
@@ -144,18 +144,26 @@ gate used.
 
 | Need | Where |
 |---|---|
+| Market-data quality and freshness at a glance | The Data tab opens on an overview-first trust cockpit for the active instrument, bringing freshness, validation evidence, quarantine, lineage and provider capacity into one triage path |
 | Ingestion that survives a bad feed | Sequence-gap detection forces a resubscribe; per-venue staleness clocks; automatic synthetic fallback, always tagged |
 | Provider failover I can see | Ranked registry across 7 providers with circuit breakers, a quota ledger, and a failover graph showing which node a request would land on *and why each other was skipped* |
-| Validation on content, not just transport | Data contracts on every normalised payload: prices positive and inside their range, bar timestamps unique and ordered, highs above lows, freshness within budget |
+| Validation on content, not just transport | Quote and bar contracts check positive/ranged prices, unique ordered timestamps, valid highs/lows and freshness. The active-quote probe carries the contract result for that exact payload; separate aggregate counters are bounded to the health-route instance, and zero evaluated payloads is **unknown**, never a clean bill of health |
 | The difference between bad data and a renamed field | Three severities — `fatal` (rejected, failed over), `warn` (served, labelled), `drift` (our mapping looks stale, not the market) |
-| Somewhere to look at a suspect payload | Quarantine buffer on the Data tab with the violations and a redacted excerpt. A rejected payload is never cached, so failover gets a shot at a cleaner source |
-| Lineage from vendor bytes to rendered number | Pipeline inspector: cache key, TTL, every skipped provider with its reason, and the raw upstream JSON |
-| Cross-source agreement | Consensus quotes across providers, flagging any leg more than 50 bps from the median |
+| Somewhere to look at a suspect payload | Bounded, health-route-instance quarantine on the Data tab with violations, cache key and a redacted excerpt. Serverless request routes do not reliably share that memory, so an empty buffer is never treated as proof; rejected payloads are never cached |
+| Lineage from vendor bytes to rendered number | Pipeline inspector follows the workspace's active symbol and selected bar interval through cache key, TTL, provenance, every skipped provider, upstream calls, raw vendor JSON and normalised output |
+| Cross-source agreement | On-demand consensus quotes show available, configured and answering source counts, absolute source timestamps and any leg more than 50 bps from the median |
+| Provider capacity before a lookup fails | Failover order, readiness, quota consumption, reserve boundaries and cache state sit together in **Providers & Capacity** |
+| Operational triage without overstating persistence | **Work Queue** is explicitly mocked sample data, editable only in browser memory for the current session; it is not a ticket system |
 | Query the record without an ETL step | DuckDB, append-only: `SELECT quantile(latency_ms, 0.99) FROM orders` against the same file the gateway writes |
 | Feed health as a time series | `/metrics` exports per-venue book age, update rate, reconnects and staleness |
 
-The improvement that matters here is not more data — it is data whose
-provenance and quality are visible at the point of use.
+This directly addresses the assessment's market-data quality/freshness monitor,
+infrastructure quality and reliability criteria while keeping the first answer
+usable to a trader under pressure: *trust, review, or insufficient evidence?*
+The improvement that matters is not more data — it is data whose provenance,
+scope and quality are visible at the point of use. The UI does not turn its
+instance-local evidence into a claim of durable orchestration or scheduled
+backfill.
 
 ### 🚨 DevOps / SRE — *"Is it healthy, and what do I do at 3am?"*
 
@@ -180,7 +188,7 @@ provenance and quality are visible at the point of use.
 | Documented tunables | `BacktestRequest` carries bounds *and* descriptions, so `/docs` doubles as the researcher's parameter registry |
 | Confidence that two implementations agree | Python↔TypeScript parity suites for the **backtest engine** and the **risk engine**, both driven by fixtures the Python reference emits |
 | To debug a request without guessing | Pipeline inspector down to raw vendor JSON; bounded trace ring with redaction; `/api/system/inspect` |
-| Tests that run anywhere | 337 gateway + 642 web + 13 service tests, all offline by construction — no network, no fixtures fetched at test time |
+| Tests that run anywhere | 337 gateway + 666 web + 13 service tests, all offline by construction — no network, no fixtures fetched at test time |
 | A lint gate that catches defects, not style | ruff with bugbear, async and bandit rules; `tsc --strict` on the web tier |
 | To add a provider or an endpoint without breaking things | Uniform `Adapter` interface with declared capabilities; the recipe is in §7 and in `web/README.md` |
 
@@ -226,7 +234,7 @@ gateway and its OpenBB adapter to the separate stateless service.
 cd web
 npm install
 npm run dev    # http://localhost:3000
-npm test       # 642 tests
+npm test       # 666 tests
 ```
 
 Live-feed endpoints (public, no key):
@@ -997,7 +1005,9 @@ lifecycle — five states, three times in force, the touch-crossing matcher,
 cancel and replace, maker fills priced and charged separately from taker fills,
 and the three invariants that empty the book; vectorbt parameter sweeps on live
 Binance klines; DSR and walk-forward; the DuckDB audit log; and the fail-closed,
-text-only Telegram webhook/polling companion.
+text-only Telegram webhook/polling companion. The Data workspace reads live
+registry, freshness, cache, lineage and provider-capacity evidence; its contract
+and quarantine telemetry is bounded to the function instance that observed it.
 
 **Mocked, deliberately:** order *execution*. Accepted orders fill on paper against
 the live ladder rather than being sent to an exchange, and a resting order is
@@ -1006,7 +1016,9 @@ so it has no queue ahead of it, which is the **queue position and partial fills*
 row of the table below. This is exactly what a pre-production risk gateway does
 before it is pointed at a venue, and it is the only honest thing to do without a
 funded account. The synthetic order book (§3) is a clearly-labelled offline
-fallback, never a silent substitute.
+fallback, never a silent substitute. The Data tab's **Work Queue** is also
+deliberately mocked: its sample cards and edits exist only in the current browser
+session and are not presented as a durable ticketing or incident system.
 
 ### Production scale-out
 
@@ -1074,7 +1086,7 @@ Key risks and their mitigations, all implemented here:
 | Runaway algo | rate limit + idempotency on `client_order_id` + kill switch |
 | Bad day | automatic drawdown breaker at 5%; reduce-only from 80% of budget, so the desk can still close but not open |
 | A VaR nobody has checked | Kupiec proportion-of-failures backtest with a Basel traffic light, scored out-of-sample |
-| Silently bad vendor data | data contracts on every payload; fatal violations fail over, suspect ones are quarantined with the evidence |
+| Silently bad vendor data | quote and bar data contracts; fatal violations fail over, suspect ones are quarantined with bounded per-instance evidence |
 | Overfit research reaching production | DSR + walk-forward reported on every sweep |
 | Alerting outage | alert-hook failures are caught and never block the trade path |
 
@@ -1240,7 +1252,7 @@ Everything a reviewer needs to check runs offline:
 pytest                                    # 337 gateway + companion tests
 python tools/synthetic_probe.py           # end-to-end: book → cost → gate → audit
 cd OpenBB_Service && pytest               # 13 stateless service tests
-cd web && npm install && npm test         # 642 workspace tests, incl. both parity suites
+cd web && npm install && npm test         # 666 workspace tests, incl. both parity suites
 bash tools/check_repo_complete.sh         # builds the *committed* tree
 ```
 

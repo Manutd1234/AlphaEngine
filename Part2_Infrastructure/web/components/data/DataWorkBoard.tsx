@@ -189,9 +189,9 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
         <div>
           <div className="data-workboard__eyebrow">
             <span className="page-kicker">Operations queue</span>
-            <span className="pill">Session workspace</span>
+            <span className="pill">Mocked · session only</span>
           </div>
-          <h2>Requests, tickets &amp; bugs</h2>
+          <h2>Sample requests, tickets &amp; bugs</h2>
           <p className="sub">
             Triage by impact, protect active work with a visible limit, and move every item with a
             keyboard-accessible status control.
@@ -218,8 +218,9 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
       </div>
 
       <p className="data-workboard__scope">
-        This case-assessment board is editable for the current app session; it is not presented as a
-        durable ticket system. Live provider and pipeline telemetry remains in the status strip above.
+        Demonstration data only. Edits live in browser memory for the current app session and are
+        neither persisted nor connected to a production ticket system. Operational evidence is kept
+        in the Overview, Quality, Lineage and Providers sections.
       </p>
 
       <div className="data-workboard__toolbar">

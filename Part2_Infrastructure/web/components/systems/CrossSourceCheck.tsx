@@ -30,6 +30,8 @@ interface ConsensusLeg {
   provider: string;
   label: string;
   price: number;
+  /** Market-data timestamp. Optional so an older route remains renderable. */
+  asOf?: string;
   deviationBps: number;
   stalenessSec: number;
   delayed: boolean;
@@ -50,24 +52,35 @@ interface CrossSourceCheckProps {
   symbol: string;
 }
 
+function absoluteAsOf(iso: string | undefined): string {
+  if (!iso) return "not supplied";
+  const parsed = Date.parse(iso);
+  if (Number.isNaN(parsed)) return iso;
+  return new Date(parsed).toISOString().replace("T", " ").replace(".000Z", " UTC");
+}
+
 export default function CrossSourceCheck({ symbol }: CrossSourceCheckProps) {
   const [result, setResult] = useState<ConsensusRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [ranAt, setRanAt] = useState<Date | null>(null);
   const sequence = useRef(0);
+  const activeRequest = useRef<AbortController | null>(null);
 
   // Not polled. Every run queries *every* configured source at once, so an
   // auto-refresh here would multiply a provider's quota consumption by the
   // number of legs — the exact behaviour the ledger exists to prevent.
   const run = useCallback(async () => {
+    activeRequest.current?.abort();
+    const controller = new AbortController();
+    activeRequest.current = controller;
     const current = ++sequence.current;
     setBusy(true);
     setError(null);
     try {
       const response = await fetch(
         `/api/quote?symbols=${encodeURIComponent(symbol)}&consensus=1&priority=interactive`,
-        { cache: "no-store" },
+        { cache: "no-store", signal: controller.signal },
       );
       const body = await response.json().catch(() => ({}));
       if (current !== sequence.current) return;
@@ -78,11 +91,13 @@ export default function CrossSourceCheck({ symbol }: CrossSourceCheckProps) {
       setResult(((body as { quotes?: ConsensusRow[] }).quotes ?? [])[0] ?? null);
       setRanAt(new Date());
     } catch (err) {
+      if ((err as Error).name === "AbortError") return;
       if (current === sequence.current) {
         setError(err instanceof Error ? err.message : "reconciliation failed");
       }
     } finally {
       if (current === sequence.current) setBusy(false);
+      if (activeRequest.current === controller) activeRequest.current = null;
     }
   }, [symbol]);
 
@@ -90,13 +105,29 @@ export default function CrossSourceCheck({ symbol }: CrossSourceCheckProps) {
   // legs under a new instrument's heading is the one wrong thing this panel
   // must never show.
   useEffect(() => {
+    sequence.current += 1;
+    activeRequest.current?.abort();
+    activeRequest.current = null;
     setResult(null);
     setRanAt(null);
     setError(null);
+    setBusy(false);
+
+    return () => {
+      sequence.current += 1;
+      activeRequest.current?.abort();
+    };
   }, [symbol]);
 
   const legs = result?.legs ?? [];
-  const configured = legs.length;
+  const attempts = result?.attempts ?? [];
+  // `consensusQuote` returns one leg or one attempt for every adapter that
+  // supports this capability/asset pair. That lets the UI distinguish supply,
+  // configuration and actual answers without inventing a health state.
+  const available = legs.length + attempts.length;
+  const notConfigured = attempts.filter((attempt) => attempt.reason === "not_configured").length;
+  const configured = Math.max(0, available - notConfigured);
+  const answering = legs.length;
 
   return (
     <div className="card console-card">
@@ -142,8 +173,16 @@ export default function CrossSourceCheck({ symbol }: CrossSourceCheckProps) {
               <dd>{result.spreadBps === null ? "—" : `${fmt(result.spreadBps, 1)} bps`}</dd>
             </div>
             <div>
-              <dt>Sources answering</dt>
+              <dt>Available adapters</dt>
+              <dd>{available}</dd>
+            </div>
+            <div>
+              <dt>Configured</dt>
               <dd>{configured}</dd>
+            </div>
+            <div>
+              <dt>Answering</dt>
+              <dd>{answering}</dd>
             </div>
             <div>
               <dt>Outliers &gt; {result.toleranceBps}bps</dt>
@@ -153,28 +192,33 @@ export default function CrossSourceCheck({ symbol }: CrossSourceCheckProps) {
             </div>
           </dl>
 
-          {configured < 2 && (
+          {answering < 2 && (
             <div className="banner warn" role="status">
               <span aria-hidden>!</span>
               <div>
-                {configured === 1
-                  ? "Only one price source is configured, so there is nothing to reconcile against. A single feed cannot detect that it has gone stale — add a second key to make this check meaningful."
-                  : "No price source answered for this symbol."}
+                {configured === 0
+                  ? "No price source is configured for this symbol, so there is no independent value to reconcile."
+                  : answering === 0
+                    ? `${configured} source${configured === 1 ? " is" : "s are"} configured, but none answered this check.`
+                    : configured === 1
+                      ? "Only one price source is configured and answering, so there is no independent value to reconcile against."
+                      : `Only one of ${configured} configured sources answered. Review the failed legs below before treating that value as consensus.`}
               </div>
             </div>
           )}
 
-          {configured > 0 && (
+          {answering > 0 && (
             <div className="table-wrap">
               <table>
                 <caption className="sr-only">
-                  Per-source price, deviation from the median in basis points, staleness relative to
-                  the freshest print, and latency.
+                  Per-source price, absolute market-data timestamp, deviation from the median in basis
+                  points, staleness relative to the freshest print, and latency.
                 </caption>
                 <thead>
                   <tr>
                     <th scope="col">Source</th>
                     <th scope="col">Price</th>
+                    <th scope="col">As of (UTC)</th>
                     <th scope="col">Δ vs consensus</th>
                     <th scope="col">Staleness</th>
                     <th scope="col">Latency</th>
@@ -193,6 +237,7 @@ export default function CrossSourceCheck({ symbol }: CrossSourceCheckProps) {
                           {outlier && <span className="muted"> — outlier</span>}
                         </td>
                         <td>{fmt(leg.price, leg.price < 10 ? 4 : 2)}</td>
+                        <td><time dateTime={leg.asOf}>{absoluteAsOf(leg.asOf)}</time></td>
                         <td>
                           {leg.deviationBps >= 0 ? "+" : ""}
                           {fmt(leg.deviationBps, 1)} bps
@@ -207,10 +252,10 @@ export default function CrossSourceCheck({ symbol }: CrossSourceCheckProps) {
             </div>
           )}
 
-          {result.attempts.length > 0 && (
+          {attempts.length > 0 && (
             <p className="console-footnote">
-              Did not answer:{" "}
-              {result.attempts
+              Not answering:{" "}
+              {attempts
                 .map((a) => `${a.provider} (${SKIP_LABEL[a.reason] ?? a.reason})`)
                 .join(" · ")}
             </p>

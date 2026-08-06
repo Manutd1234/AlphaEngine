@@ -165,16 +165,17 @@ export interface Provenance {
   quotaRemaining: number | null;
   quotaWindow: string | null;
   /**
-   * Data-contract outcome, present only when something was flagged.
+   * Data-contract outcome for the exact payload stored in this envelope.
    *
-   * A payload that passed every expectation carries no field at all: absence
-   * means "nothing to report", which keeps the common case out of every
-   * response body. A payload that *failed* never reaches provenance — it is
-   * failed over instead.
+   * Present for every contract-evaluated payload, including a clean result, so
+   * a cached inspection can prove which payload was checked without relying on
+   * module-local aggregate telemetry. A payload that *failed* never reaches
+   * provenance — it is failed over instead.
    */
   contract?: {
     passed: boolean;
     violations: Array<{ check: string; severity: string; message: string }>;
+    notEvaluated: string[];
   };
 }
 

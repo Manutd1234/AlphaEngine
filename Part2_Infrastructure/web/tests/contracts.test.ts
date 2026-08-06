@@ -18,7 +18,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { checkBars, checkQuote, summariseContract, FRESHNESS_LIMIT_MS } from "../lib/providers/contracts";
+import {
+  checkBars,
+  checkQuote,
+  FRESHNESS_LIMIT_MS,
+  summariseContract,
+  VALIDATION_TELEMETRY_CAPACITY,
+  validationTelemetry,
+} from "../lib/providers/contracts";
 import { quarantine, quarantinePayload } from "../lib/providers/quarantine";
 import type { OhlcvBar, Quote } from "../lib/providers/types";
 
@@ -238,6 +245,53 @@ describe("suspect payloads are kept where someone can look at them", () => {
 });
 
 // --------------------------------------------------------------------------
+// Validation telemetry
+// --------------------------------------------------------------------------
+
+describe("validation evidence is explicit, scoped, and bounded", () => {
+  it("counts payload outcomes separately from individual findings", () => {
+    validationTelemetry.clear();
+    const firstAt = NOW - 1_000;
+    const lastAt = NOW;
+
+    validationTelemetry.record(checkQuote("warning-vendor", quote({
+      asOf: new Date(NOW - FRESHNESS_LIMIT_MS - 1).toISOString(),
+      change: null,
+    }), NOW), firstAt);
+    validationTelemetry.record(checkBars("fatal-vendor", [], 100), lastAt);
+
+    const snapshot = validationTelemetry.snapshot();
+    assert.equal(snapshot.scope, "per-instance");
+    assert.equal(snapshot.evaluated, 2);
+    assert.equal(snapshot.passed, 1);
+    assert.equal(snapshot.fatal, 1);
+    assert.equal(snapshot.warn, 1);
+    assert.equal(snapshot.drift, 1);
+    assert.equal(snapshot.notEvaluated, 3);
+    assert.equal(snapshot.windowStart, new Date(firstAt).toISOString());
+    assert.equal(snapshot.lastValidationAt, new Date(lastAt).toISOString());
+    assert.equal(snapshot.byCapability.quote?.evaluated, 1);
+    assert.equal(snapshot.byCapability.bars?.fatal, 1);
+    assert.equal(snapshot.byProvider["warning-vendor"].warn, 1);
+    assert.equal(snapshot.byProvider["fatal-vendor"].passed, 0);
+  });
+
+  it("retains only the fixed observation window", () => {
+    validationTelemetry.clear();
+    const result = checkQuote("bounded-vendor", quote(), NOW);
+    for (let i = 0; i < VALIDATION_TELEMETRY_CAPACITY + 3; i++) {
+      validationTelemetry.record(result, NOW + i);
+    }
+
+    const snapshot = validationTelemetry.snapshot();
+    assert.equal(snapshot.evaluated, VALIDATION_TELEMETRY_CAPACITY);
+    assert.equal(snapshot.retained, VALIDATION_TELEMETRY_CAPACITY);
+    assert.equal(snapshot.capacity, VALIDATION_TELEMETRY_CAPACITY);
+    assert.equal(snapshot.windowStart, new Date(NOW + 3).toISOString());
+  });
+});
+
+// --------------------------------------------------------------------------
 // The runtime wiring
 //
 // The checks above test pure functions. What actually protects the desk is what
@@ -323,7 +377,10 @@ describe("a provider that returns broken data is failed like one that returns no
   });
 
   it("falls over to the next provider and says why", async () => {
+    quarantine.clear();
+    validationTelemetry.clear();
     const store = new MemoryStore();
+    const evaluatedProviders: string[] = [];
     const result = await dispatch<Bar[]>(
       [fakeAdapter("badvendor"), fakeAdapter("goodvendor")],
       async (adapter) => (adapter.meta.id === "badvendor" ? brokenBars() : goodBars()),
@@ -332,16 +389,29 @@ describe("a provider that returns broken data is failed like one that returns no
         cacheKey: "bars:failover",
         store,
         env: { NODE_ENV: "test" } as NodeJS.ProcessEnv,
-        contract: (bars) => check("registry", bars),
+        // Deliberately return the old generic label: dispatch must still own
+        // and enforce the adapter identity used by quarantine and telemetry.
+        contract: (bars, provider) => {
+          evaluatedProviders.push(provider);
+          return check("registry", bars);
+        },
       },
     );
 
     assert.equal(result.provenance.provider, "goodvendor");
+    assert.equal(result.provenance.contract?.passed, true);
+    assert.deepEqual(result.provenance.contract?.violations, []);
+    assert.deepEqual(evaluatedProviders, ["badvendor", "goodvendor"]);
     const skipped = result.attempts.find((a) => a.provider === "badvendor");
     assert.ok(skipped, "the rejected provider must appear in the attempt list");
     // The reason names the check, not just "failed" — otherwise the failover
     // graph cannot distinguish bad data from a timeout.
     assert.match(String(skipped.detail), /contract: .*unique_timestamps/);
+    assert.equal(quarantine.list(1)[0].provider, "badvendor");
+    const telemetry = validationTelemetry.snapshot();
+    assert.equal(telemetry.byProvider.badvendor.fatal, 1);
+    assert.equal(telemetry.byProvider.goodvendor.passed, 1);
+    assert.equal(telemetry.byProvider.registry, undefined);
   });
 
   it("keeps the record of what was rejected", async () => {

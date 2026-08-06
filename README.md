@@ -69,10 +69,10 @@ its own NumPy engine, and every fixture is committed.
 ```bash
 cd Part2_Infrastructure
 python -m venv venv && venv/bin/pip install -r requirements-core.txt
-venv/bin/python -m pytest                            # 241 gateway tests
+venv/bin/python -m pytest                            # 337 gateway tests
 venv/bin/python tools/synthetic_probe.py             # book → cost → risk gate → audit
-(cd web && npm install && npm test)                  # 377 web tests, incl. cross-engine parity
-(cd OpenBB_Service && ../venv/bin/python -m pytest)  # 12 service tests
+(cd web && npm install && npm test)                  # 666 web tests, incl. cross-engine parity
+(cd OpenBB_Service && ../venv/bin/python -m pytest)  # 13 service tests
 ```
 
 To see it running: `venv/bin/uvicorn main:app` then open

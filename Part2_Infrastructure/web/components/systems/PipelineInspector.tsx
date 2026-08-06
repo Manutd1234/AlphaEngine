@@ -38,6 +38,8 @@ const LIVE_SYMBOLS = new Set<string>(SYMBOLS);
 interface PipelineInspectorProps {
   symbol: string;
   onSymbolChange: (symbol: string) => void;
+  /** Workspace bar interval. Only sent to the bars capability. */
+  interval: string;
   /** Console-wide poll cadence; 0 means paused. */
   pollMs: number;
   onEvent: (level: "info" | "warn" | "error", message: string, fields?: Record<string, string | number | boolean | null>) => void;
@@ -48,6 +50,7 @@ interface PipelineInspectorProps {
 export default function PipelineInspector({
   symbol,
   onSymbolChange,
+  interval,
   pollMs,
   onEvent,
   active,
@@ -63,7 +66,8 @@ export default function PipelineInspector({
   const sequence = useRef(0);
   const busySeq = useRef(0);
   const autoInspectKey = useRef<string | null>(null);
-  const inspectionKey = `${symbol}:${capability}:${raw ? "raw" : "normalised"}`;
+  const requestedInterval = capability === "bars" ? interval : null;
+  const inspectionKey = `${symbol}:${capability}:${requestedInterval ?? "-"}:${raw ? "raw" : "normalised"}`;
 
   useEffect(() => setDraft(symbol), [symbol]);
 
@@ -92,6 +96,7 @@ export default function PipelineInspector({
           // symbol change, may spend into it.
           priority: quiet ? "background" : "interactive",
         });
+        if (capability === "bars") qs.set("interval", interval);
         if (raw) qs.set("raw", "1");
         if (refresh) qs.set("refresh", "1");
         const response = await fetch(`/api/system/inspect?${qs}`, { cache: "no-store" });
@@ -105,10 +110,16 @@ export default function PipelineInspector({
         setResult(body as InspectResponse);
         setResultKey(requestKey);
         setError(null);
+        const eventFields: Record<string, string | number | boolean | null> = {
+          symbol,
+          capability,
+          cache: (body as InspectResponse).cache.state,
+        };
+        if (capability === "bars") eventFields.interval = interval;
         onEvent(
           (body as InspectResponse).ok ? "info" : "warn",
-          `inspect ${symbol} ${capability} — ${(body as InspectResponse).cache.state} in ${Date.now() - startedAt}ms`,
-          { symbol, capability, cache: (body as InspectResponse).cache.state },
+          `inspect ${symbol} ${capability}${capability === "bars" ? ` ${interval}` : ""} — ${(body as InspectResponse).cache.state} in ${Date.now() - startedAt}ms`,
+          eventFields,
         );
       } catch (err) {
         // A quiet refresh keeps the last good trace on screen. The timestamp
@@ -121,7 +132,7 @@ export default function PipelineInspector({
         if (!quiet && busySeq.current === current) setBusy(false);
       }
     },
-    [symbol, capability, raw, inspectionKey, onEvent],
+    [symbol, capability, interval, raw, inspectionKey, onEvent],
   );
 
   useEffect(() => {
@@ -157,7 +168,9 @@ export default function PipelineInspector({
           <span className="page-kicker">Live debug</span>
           <h2>Pipeline inspector</h2>
         </div>
-        <span className="section-note">{symbol}</span>
+        <span className="section-note">
+          {symbol}{capability === "bars" ? ` · ${interval}` : ""}
+        </span>
       </div>
 
       <div className="console-inspector__controls">
@@ -211,7 +224,9 @@ export default function PipelineInspector({
       {tab === "rest" && (
         <>
           {!resultMatchesControls && busy && <div className="skeleton" style={{ height: 160 }} />}
-          {resultMatchesControls && result && <RestTrace result={result} />}
+          {resultMatchesControls && result && (
+            <RestTrace result={result} interval={requestedInterval ?? undefined} />
+          )}
         </>
       )}
 
@@ -226,11 +241,23 @@ export default function PipelineInspector({
 // REST trace
 // --------------------------------------------------------------------------
 
-function RestTrace({ result }: { result: InspectResponse }) {
+function absoluteTimestamp(iso: string): string {
+  const parsed = Date.parse(iso);
+  if (Number.isNaN(parsed)) return iso;
+  return new Date(parsed).toISOString().replace("T", " ").replace(".000Z", " UTC");
+}
+
+function RestTrace({ result, interval }: { result: InspectResponse; interval?: string }) {
   const cacheHit = result.cache.state === "hit";
   return (
     <>
       <dl className="console-facts">
+        {result.capability === "bars" && interval && (
+          <div>
+            <dt>Requested interval</dt>
+            <dd>{interval}</dd>
+          </div>
+        )}
         <div>
           <dt>State</dt>
           {/* "dispatched to a provider", not "fetched upstream": the registry
@@ -263,6 +290,45 @@ function RestTrace({ result }: { result: InspectResponse }) {
       <p className="console-key">
         <span className="muted">key</span> <code>{result.cache.key}</code>
       </p>
+
+      {result.provenance && (
+        <>
+          <p className="console-subhead">Provenance</p>
+          <dl className="console-facts console-facts--tight" aria-label="Answer provenance">
+            <div>
+              <dt>Provider</dt>
+              <dd>{result.provenance.label} <span className="muted">({result.provenance.provider})</span></dd>
+            </div>
+            <div>
+              <dt>Fetched at (UTC)</dt>
+              <dd>
+                <time dateTime={result.provenance.fetchedAt}>
+                  {absoluteTimestamp(result.provenance.fetchedAt)}
+                </time>
+              </dd>
+            </div>
+            <div>
+              <dt>Provider latency</dt>
+              <dd>{result.provenance.latencyMs}ms</dd>
+            </div>
+            <div>
+              <dt>Delivery</dt>
+              <dd>
+                {result.provenance.cached ? "cache hit" : "upstream"}
+                {` · ${result.provenance.delayed ? "delayed" : "live tier"}`}
+              </dd>
+            </div>
+            <div>
+              <dt>Quota remaining</dt>
+              <dd>
+                {result.provenance.quotaRemaining === null
+                  ? "not metered"
+                  : `${result.provenance.quotaRemaining}${result.provenance.quotaWindow ? ` · ${result.provenance.quotaWindow}` : ""}`}
+              </dd>
+            </div>
+          </dl>
+        </>
+      )}
 
       <p className="console-subhead">Lineage</p>
       <ol className="console-lineage">
@@ -340,6 +406,13 @@ function RestTrace({ result }: { result: InspectResponse }) {
         </ul>
       )}
 
+      {result.upstream.calls.some((call) => call.body !== undefined) && (
+        <p className="console-footnote">
+          Raw vendor bodies and normalised output are shown as separate evidence. This response does
+          not expose a field-level transformation map, so the console does not infer one.
+        </p>
+      )}
+
       <p className="console-subhead">Normalised output</p>
       {/* Headlines are the one normalised payload that is unreadable as a tree —
           a list of titles answers "did the news capability actually serve
@@ -364,7 +437,11 @@ function RestTrace({ result }: { result: InspectResponse }) {
         </ul>
       )}
       <details open={result.capability !== "news"}>
-        <summary>{result.capability} after coercion</summary>
+        <summary>
+          {result.capability === "bars" && interval
+            ? `bars · ${interval} after coercion`
+            : `${result.capability} after coercion`}
+        </summary>
         <JsonTree value={result.data} initialDepth={2} />
       </details>
     </>

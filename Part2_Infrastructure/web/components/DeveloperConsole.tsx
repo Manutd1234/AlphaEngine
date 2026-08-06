@@ -59,7 +59,7 @@ const CI_JOBS = [
   },
   {
     name: "Web workspace",
-    count: 653,
+    count: 666,
     command: "npm test && npm run typecheck && npm run build",
     evidence: "domain tests · contract fixtures · strict TypeScript · Next.js build",
   },

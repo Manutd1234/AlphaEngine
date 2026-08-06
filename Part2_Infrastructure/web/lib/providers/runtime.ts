@@ -45,7 +45,11 @@ import {
 } from "../observability";
 // Side-effecting import: installs the AsyncLocalStorage-backed capture resolver
 // that `recordUpstream` consults. Server-only, and this module is server-only.
-import { type ContractResult, summariseContract } from "./contracts";
+import {
+  type ContractResult,
+  summariseContract,
+  validationTelemetry,
+} from "./contracts";
 import { quarantinePayload } from "./quarantine";
 import "./trace";
 import {
@@ -606,7 +610,7 @@ export interface DispatchOptions<T = unknown> {
    * drift travel with the provenance instead, so a stale-but-usable price is
    * shown *and* labelled rather than silently dropped.
    */
-  contract?: (data: T) => ContractResult;
+  contract?: (data: T, provider: string) => ContractResult;
 }
 
 /**
@@ -702,9 +706,28 @@ export async function dispatch<T>(
       let contract: ContractResult | undefined;
       if (opts.contract) {
         try {
-          contract = opts.contract(data);
+          const evaluated = opts.contract(data, id);
+          // Dispatch owns the provider identity. Normalise it here even when a
+          // legacy/custom callback returns a stale label such as "registry", so
+          // quarantine and telemetry can never blame the façade for an
+          // adapter's payload.
+          contract = {
+            ...evaluated,
+            capability: opts.capability,
+            provider: id,
+          };
         } catch {
           contract = undefined;
+        }
+      }
+      if (contract) {
+        // Telemetry must never weaken the gate. If evidence collection itself
+        // ever fails, preserve the evaluated contract so fatal data still
+        // fails over and warnings still travel with provenance.
+        try {
+          validationTelemetry.record(contract);
+        } catch {
+          // Best-effort, per-instance observability only.
         }
       }
       const contractFailed = Boolean(contract && !contract.passed);
@@ -755,8 +778,12 @@ export async function dispatch<T>(
         delayed: DELAYED_TIERS.has(id),
         quotaRemaining: q?.remaining ?? null,
         quotaWindow: q?.window ?? null,
-        ...(contract && contract.violations.length
-          ? { contract: { passed: contract.passed, violations: contract.violations } }
+        ...(contract
+          ? { contract: {
+              passed: contract.passed,
+              violations: contract.violations,
+              notEvaluated: contract.notEvaluated,
+            } }
           : {}),
       };
       const out: Sourced<T> = { data, provenance, attempts };

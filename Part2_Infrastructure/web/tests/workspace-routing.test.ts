@@ -129,7 +129,7 @@ describe("dense role workspaces expose accessible feature sections", () => {
         `portfolio is missing the ${section} panel`,
       );
     }
-    for (const section of ["queue", "routing", "pipeline", "quality", "capacity"]) {
+    for (const section of ["overview", "quality", "lineage", "providers", "queue"]) {
       assert.ok(dataConsole.includes(`id: "${section}"`), `data is missing the ${section} subtab`);
       assert.ok(dataConsole.includes(`tabId="${section}"`), `data is missing the ${section} panel`);
     }
@@ -181,6 +181,19 @@ describe("dense role workspaces expose accessible feature sections", () => {
     assert.ok(
       pipelineInspector.includes('active && tab === "socket" && socketSupported'),
       "hidden pipeline keeps venue sockets open",
+    );
+    assert.ok(
+      page.includes('useState<DataSection>("overview")'),
+      "data must open on trust evidence rather than the sample work queue",
+    );
+    assert.ok(
+      page.includes('url.hash = `data/${next}`'),
+      "data subtabs are not addressable by URL hash",
+    );
+    assert.ok(
+      page.includes("workspaceInterval={req.interval}")
+        && dataConsole.includes("interval={workspaceInterval}"),
+      "the lineage trace silently falls back to its own bar interval",
     );
     assert.equal(
       reliabilityConsole.match(/<TraceConsole/g)?.length,

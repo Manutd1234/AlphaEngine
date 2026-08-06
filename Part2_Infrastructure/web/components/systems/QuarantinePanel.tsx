@@ -21,6 +21,8 @@
  * renamed the change field", which is the difference between a shrug and a fix.
  */
 
+import type { ValidationTelemetry } from "./types";
+
 interface Violation {
   check: string;
   /**
@@ -48,6 +50,8 @@ interface QuarantinePanelProps {
   size: number;
   byProvider: Array<{ provider: string; records: number; rejected: number }>;
   recent: QuarantineRecord[];
+  /** Optional during a rolling deploy against an older health route. */
+  validation?: ValidationTelemetry | null;
 }
 
 const SEVERITY_STYLE: Record<string, { glyph: string; tone: string }> = {
@@ -61,7 +65,12 @@ function time(iso: string): string {
   return Number.isNaN(parsed) ? iso : new Date(parsed).toLocaleTimeString("en-GB", { hour12: false });
 }
 
-export default function QuarantinePanel({ size, byProvider, recent }: QuarantinePanelProps) {
+export default function QuarantinePanel({
+  size,
+  byProvider,
+  recent,
+  validation,
+}: QuarantinePanelProps) {
   return (
     <div className="card console-card">
       <div className="section-heading compact">
@@ -70,17 +79,51 @@ export default function QuarantinePanel({ size, byProvider, recent }: Quarantine
           <h2>Quarantine</h2>
         </div>
         <span className="section-note">
-          {size === 0 ? "nothing flagged" : `${size} flagged payload${size === 1 ? "" : "s"}`}
+          {size === 0 ? "0 records in health-route buffer" : `${size} flagged payload${size === 1 ? "" : "s"}`}
         </span>
       </div>
 
+      {validation && (
+        <dl className="console-facts console-facts--tight" aria-label="Contract evaluation evidence">
+          <div>
+            <dt>Payloads evaluated</dt>
+            <dd>{validation.evaluated}</dd>
+          </div>
+          <div>
+            <dt>No fatal finding</dt>
+            <dd>{validation.evaluated ? `${validation.passed} / ${validation.evaluated}` : "—"}</dd>
+          </div>
+          <div>
+            <dt>Findings</dt>
+            <dd>{validation.fatal} fatal · {validation.warn} warn · {validation.drift} drift</dd>
+          </div>
+          <div>
+            <dt>Checks not evaluated</dt>
+            <dd>{validation.notEvaluated}</dd>
+          </div>
+          <div>
+            <dt>Evidence window</dt>
+            <dd>{validation.retained} / {validation.capacity} per instance</dd>
+          </div>
+        </dl>
+      )}
+
       {size === 0 ? (
-        <p className="sub">
-          Every payload since this instance started has met its contract: prices positive and inside
-          their own range, bar timestamps unique and ordered, highs above lows, timestamps recent
-          enough to be what they claim. A green transport layer does not imply this — it is checked
-          separately, on the content.
-        </p>
+        validation?.evaluated ? (
+          <p className="sub">
+            No flagged payload excerpt is retained. This health-route instance evaluated {validation.evaluated}{" "}
+            normalised quote or bar payload{validation.evaluated === 1 ? "" : "s"} in the bounded
+            window above; {validation.passed} had no fatal finding. Warnings, drift, and checks that
+            could not run remain separate evidence and are not silently counted as clean checks.
+          </p>
+        ) : (
+          <p className="sub">
+            No flagged payload excerpt is retained, but there is no evaluated denominator in this
+            health-route instance&apos;s evidence window. That means no aggregate evidence here—not that
+            every payload passed. Request routes can run in separate serverless instances, so use the
+            overview&apos;s exact-payload probe and lineage trace for request-bound evidence.
+          </p>
+        )
       ) : (
         <>
           <div className="table-wrap">
@@ -120,6 +163,9 @@ export default function QuarantinePanel({ size, byProvider, recent }: Quarantine
                     ? <span className="pill pill--stop">rejected</span>
                     : <span className="pill pill--warn">served, flagged</span>}
                 </div>
+                <p className="console-key">
+                  <span className="muted">cache key</span> <code>{record.key}</code>
+                </p>
                 <ul className="quarantine-violations">
                   {record.violations.map((violation) => {
                     const style = SEVERITY_STYLE[violation.severity] ?? SEVERITY_STYLE.warn;
@@ -142,16 +188,16 @@ export default function QuarantinePanel({ size, byProvider, recent }: Quarantine
               </li>
             ))}
           </ul>
-
-          <p className="research-note">
-            A bounded, in-memory buffer of the most recent flags — a diagnostic aid, not a data lake,
-            and it is emptied on restart. Rejected payloads were never cached: the failover chain got
-            a chance at a cleaner source instead. Excerpts are redacted with the same rules the trace
-            console uses, so a credential echoed in a vendor error cannot be stored by the tool meant
-            to help debug it.
-          </p>
         </>
       )}
+
+      <p className="research-note">
+        Scope: normalised quote and bar payloads handled by the health-route function instance—not
+        every request route, provider, symbol, raw vendor schema, or deployed instance. The evidence
+        window and quarantine are bounded in memory and reset on restart. Rejected payloads were never
+        cached, so failover could try a cleaner source; stored excerpts use the trace console&apos;s
+        redaction rules.
+      </p>
     </div>
   );
 }

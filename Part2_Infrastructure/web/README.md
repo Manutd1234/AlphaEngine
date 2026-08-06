@@ -54,7 +54,7 @@ npm install
 npm run dev        # http://localhost:3000 (Turbopack)
 npm run build      # Turbopack production build
 npm run typecheck  # tsc --noEmit
-npm test           # 642 tests, no network required
+npm test           # 666 tests, no network required
 ```
 
 Built on **Next.js 16** with **Turbopack**, which is the default bundler for both
@@ -91,11 +91,24 @@ Reliability and Developer share one health poll the same way. Splitting the tabs
 without sharing the fetch would have given each of them its own idea of the
 book.
 
-The Data workspace opens on a session-scoped operations queue for requests,
-tickets and bugs, with type filters, priority/age sorting, SLA cues, an active
-work limit and keyboard-native status moves. Routing, pipeline tracing,
-cross-source quality checks, quarantine and capacity live in separate subtabs;
-hidden pipeline panels stop polling and close their live venue sockets.
+The Data workspace opens on an overview-first trust cockpit for the active
+instrument. It combines market-data freshness, quote/bar validation evidence,
+quarantine, lineage and provider capacity into one triage view, then drills into
+**Quality & Incidents**, **Lineage & Payloads**, **Providers & Capacity** and
+**Work Queue**. A trust verdict is evidence-backed: the validation window is
+bounded and local to one function instance, and zero evaluated payloads is
+reported as insufficient evidence rather than healthy. On entry, an on-demand
+quote inspection attaches the contract outcome to that exact active-symbol
+payload, so the verdict does not rely on module memory being shared across
+separate Vercel route instances.
+
+Lineage follows the workspace's active symbol and selected interval through the
+cache key, TTL, provenance, skipped providers, upstream calls, raw vendor JSON
+and normalised output. The Work Queue is deliberately mocked sample data held
+only in browser memory for the current session; it is not a durable ticketing
+or incident system. This scope keeps the assessment's market-data
+quality/freshness monitor useful to a trader while making infrastructure
+quality, reliability and implemented-vs-mocked boundaries reviewable.
 
 **Connected desk context** — instrument and horizon live in the persistent
 workspace shell and carry across every tab. Research winners retain their
@@ -293,9 +306,9 @@ The systems group backs the [developer console](#systems-console):
 
 | Endpoint | Returns |
 |---|---|
-| `GET /api/system/health[?priority=]` | provider breakers, latency, failover, cache and guard state plus an optional validated FastAPI `/api/ops/snapshot`; provider and gateway freshness are reported independently, and a failed gateway never erases local observability |
+| `GET /api/system/health[?priority=]` | provider breakers, latency, failover, cache and guard state plus an optional validated FastAPI `/api/ops/snapshot`; provider and gateway freshness remain independent, while bounded health-route-instance quote/bar totals expose their limited evidence window and leave zero observations unknown |
 | `GET /api/system/events?since=<seq>&limit=` | structured trace cursored by sequence, with the oldest sequence still retained so a lagging client can detect dropped lines |
-| `GET /api/system/inspect?symbol=&capability=&raw=1&refresh=1` | one lookup taken apart: cache key + TTL remaining, lineage, every provider skipped and why, each upstream HTTP call, and the vendor's raw JSON before normalisation |
+| `GET /api/system/inspect?symbol=&capability=&raw=1&refresh=1` | one lookup taken apart: cache key + TTL remaining, exact-payload contract result, lineage, every provider skipped and why, each upstream HTTP call, and the vendor's raw JSON before normalisation |
 | `POST /api/system/actions` | purge cache, reset breaker, simulate/clear an outage, reset a local ledger, probe a provider, reload configuration, clear telemetry |
 
 Common query params on the research group: `provider=` pins one adapter
@@ -425,7 +438,7 @@ web/
 │       └── …one adapter per vendor (binance, fmp, tiingo, massive,
 │            alphavantage, firecrawl, openbb)
 ├── components/               charts (hand-rolled SVG), controls, tables
-└── tests/                    642 tests incl. cross-engine and risk-engine parity
+└── tests/                    666 tests incl. cross-engine and risk-engine parity
 ```
 
 **Why the sweep runs server-side.** Binance's public API is called from the
@@ -531,9 +544,12 @@ to honour.
 4. **Add a case to `tests/providers.test.ts`** with a canned vendor payload —
    fixtures are committed, so no test reaches the network.
 
-Data contracts (`lib/providers/contracts.ts`) then apply automatically: the
-capability façade attaches the expectations, and a payload that fails them is
-failed over and quarantined without the adapter having to know.
+Quote and bar data contracts (`lib/providers/contracts.ts`) then apply
+automatically: the capability façade attaches the expectations, and a payload
+that fails them is failed over and quarantined without the adapter having to
+know. The contract result travels with each inspected payload; health counters
+and excerpts are separate bounded, route-instance diagnostics, not a durable
+platform-wide quality ledger.
 
 ### Adding a panel
 

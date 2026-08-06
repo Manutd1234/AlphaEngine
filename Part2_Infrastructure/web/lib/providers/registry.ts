@@ -130,7 +130,7 @@ export function getQuote(symbol: string, opts: Options = {}): Promise<Sourced<Qu
       pin: opts.provider,
       // The façade is the only layer that knows the payload's shape, so it is
       // where the expectations are attached.
-      contract: (quote) => checkQuote(opts.provider ?? "registry", quote),
+      contract: (quote, provider) => checkQuote(provider, quote),
       ...opts,
     },
   );
@@ -150,7 +150,7 @@ export function getBars(
       capability: "bars",
       cacheKey: cacheKeys.bars(symbol, interval, limit, opts.provider),
       pin: opts.provider,
-      contract: (bars) => checkBars(opts.provider ?? "registry", bars, limit),
+      contract: (bars, provider) => checkBars(provider, bars, limit),
       ...opts,
     },
   );

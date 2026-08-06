@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import Controls from "@/components/Controls";
-import DataConsole, { type DataSection } from "@/components/DataConsole";
+import DataConsole, { DATA_SECTION_IDS, type DataSection } from "@/components/DataConsole";
 import DeveloperConsole, { type DeveloperSection } from "@/components/DeveloperConsole";
 import EquityChart from "@/components/EquityChart";
 import ExecutionCockpit from "@/components/execution/ExecutionCockpit";
@@ -101,7 +101,7 @@ export default function Page() {
   const [researchSection, setResearchSection] = useState<ResearchSection>("summary");
   const [showMcBands, setShowMcBands] = useState(true);
   const [executionSection, setExecutionSection] = useState<ExecutionSection>("trade");
-  const [dataSection, setDataSection] = useState<DataSection>("queue");
+  const [dataSection, setDataSection] = useState<DataSection>("overview");
   const [reliabilitySection, setReliabilitySection] = useState<ReliabilitySection>("overview");
   const [developerSection, setDeveloperSection] = useState<DeveloperSection>("overview");
   const [dataWorkItems, setDataWorkItems] = useState<DataWorkItem[]>(createInitialDataWorkItems);
@@ -117,6 +117,7 @@ export default function Page() {
   const systems = useSystemHealth(req.symbol);
   const navigate = useCallback((next: WorkspaceView, replace = false) => {
     setView(next);
+    if (next === "data") setDataSection("overview");
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       url.hash = next;
@@ -126,9 +127,17 @@ export default function Page() {
 
   useEffect(() => {
     const readLocation = () => {
-      const hash = window.location.hash.slice(1) as WorkspaceView;
-      if (VIEWS.includes(hash)) setView(hash);
-      else if (LEGACY_VIEWS[hash]) setView(LEGACY_VIEWS[hash]);
+      const [workspace, nestedSection] = window.location.hash.slice(1).split("/");
+      const hashView = workspace as WorkspaceView;
+      if (VIEWS.includes(hashView)) {
+        setView(hashView);
+        if (hashView === "data") {
+          const requested = nestedSection as DataSection;
+          setDataSection(DATA_SECTION_IDS.includes(requested) ? requested : "overview");
+        }
+      } else if (LEGACY_VIEWS[workspace]) {
+        setView(LEGACY_VIEWS[workspace]);
+      }
     };
     readLocation();
     window.addEventListener("popstate", readLocation);
@@ -137,6 +146,15 @@ export default function Page() {
       window.removeEventListener("popstate", readLocation);
       window.removeEventListener("hashchange", readLocation);
     };
+  }, []);
+
+  const changeDataSection = useCallback((next: DataSection) => {
+    setDataSection(next);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.hash = `data/${next}`;
+      window.history.pushState({}, "", url);
+    }
   }, []);
 
   const run = useCallback(
@@ -825,55 +843,14 @@ export default function Page() {
 
         {view === "data" && (
           <section id="panel-data" role="tabpanel" aria-labelledby="tab-data" className="view-panel">
-            <WorkspaceIntro
-              kicker="Data engineer"
-              title="Data operations"
-              description={<>Triage operational work, trace provider routing, reconcile sources and inspect every number with provenance attached.</>}
-              insights={[
-                {
-                  label: "Instrument",
-                  value: req.symbol,
-                  detail: "shared desk context",
-                  tone: "accent",
-                  mono: true,
-                },
-                {
-                  label: "Trust posture",
-                  value: systems.healthError
-                    ? "Unreachable"
-                    : systems.health?.quarantine?.size
-                      ? "Quarantine"
-                      : systems.degraded
-                        ? "Review"
-                        : systems.health
-                          ? "Healthy"
-                          : "Checking",
-                  detail: systems.health?.quarantine?.size
-                    ? `${systems.health.quarantine.size} payloads held`
-                    : systems.degraded
-                      ? `${systems.degraded} providers degraded`
-                      : "content and route checks",
-                  tone: systems.healthError || systems.health?.quarantine?.size
-                    ? "critical"
-                    : systems.degraded
-                      ? "warn"
-                      : "good",
-                },
-                {
-                  label: "Work queue",
-                  value: `${dataWorkItems.filter((item) => item.status !== "resolved").length} open`,
-                  detail: `${dataWorkItems.filter((item) => item.status !== "resolved" && (item.priority === "P0" || item.priority === "P1")).length} urgent`,
-                  tone: dataWorkItems.some((item) => item.status !== "resolved" && item.priority === "P0") ? "critical" : "warn",
-                },
-              ]}
-            />
             <DataConsole
               view={systems}
               workspaceSymbol={req.symbol}
+              workspaceInterval={req.interval}
               onWorkspaceSymbolChange={updateSymbol}
               onOpenReliability={() => navigate("reliability")}
               section={dataSection}
-              onSectionChange={setDataSection}
+              onSectionChange={changeDataSection}
               workItems={dataWorkItems}
               onWorkItemsChange={setDataWorkItems}
             />

@@ -13,6 +13,7 @@ import {
   startedAt,
 } from "@/lib/observability";
 import { openBBReadiness } from "@/lib/providers/openbb-health";
+import { validationTelemetry } from "@/lib/providers/contracts";
 import { quarantine } from "@/lib/providers/quarantine";
 import { capabilityMatrix, failoverGraph, providerStatus } from "@/lib/providers/registry";
 import { store, TTL_MS } from "@/lib/providers/runtime";
@@ -197,5 +198,9 @@ export async function GET(request: NextRequest) {
       byProvider: quarantine.byProvider(),
       recent: quarantine.list(12),
     },
+    // Contract evidence is intentionally a bounded window owned by this
+    // function instance. Zero means no payload was evaluated here; it must not
+    // be rendered as a clean bill of health.
+    validation: validationTelemetry.snapshot(),
   }, { headers: { "Cache-Control": "no-store" } });
 }

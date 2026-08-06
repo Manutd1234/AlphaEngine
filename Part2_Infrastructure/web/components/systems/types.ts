@@ -87,6 +87,28 @@ export interface CacheCounters {
   hitRate: number | null;
 }
 
+export interface ValidationCounts {
+  /** Payloads evaluated in the bounded observation window. */
+  evaluated: number;
+  /** Evaluated payloads with no fatal violation; warnings and drift may remain. */
+  passed: number;
+  /** Individual findings/checks, not payload counts. */
+  fatal: number;
+  warn: number;
+  drift: number;
+  notEvaluated: number;
+}
+
+export interface ValidationTelemetry extends ValidationCounts {
+  scope: "per-instance";
+  windowStart: string | null;
+  lastValidationAt: string | null;
+  retained: number;
+  capacity: number;
+  byCapability: Partial<Record<string, ValidationCounts>>;
+  byProvider: Record<string, ValidationCounts>;
+}
+
 export type GuardMode = "token" | "open-dev" | "locked";
 
 /**
@@ -254,6 +276,8 @@ export interface SystemHealth {
       sample: string;
     }>;
   };
+  /** Bounded contract evidence from this function instance; absent on older deployments. */
+  validation?: ValidationTelemetry;
 }
 
 export interface TraceEvent {
@@ -310,6 +334,12 @@ export interface InspectResponse {
     delayed: boolean;
     quotaRemaining: number | null;
     quotaWindow: string | null;
+    /** Contract result attached to this exact cached or upstream payload. */
+    contract?: {
+      passed: boolean;
+      violations: Array<{ check: string; severity: string; message: string }>;
+      notEvaluated: string[];
+    };
   } | null;
   attempts: { provider: string; reason: string; detail?: string }[];
   upstream: { captured: boolean; calls: UpstreamCall[]; note: string };

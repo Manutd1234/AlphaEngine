@@ -265,6 +265,9 @@ describe("the aggregate health route fails open for local observability", () => 
       assert.ok(body.providers.length > 0, "provider matrix was lost with the gateway");
       assert.equal(body.platform, undefined);
       assert.equal(body.sources?.gateway.state, "not_configured");
+      assert.equal(body.validation?.scope, "per-instance");
+      assert.equal(body.validation?.evaluated, 0);
+      assert.equal(body.validation?.windowStart, null);
     });
   });
 

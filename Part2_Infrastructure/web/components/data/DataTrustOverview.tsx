@@ -1,0 +1,294 @@
+"use client";
+
+import type { InspectResponse, SystemHealth } from "@/components/systems/types";
+import {
+  deriveDataTrust,
+  type DataTrustDestination,
+  type DataTrustTone,
+} from "@/lib/data-trust";
+
+interface DataTrustOverviewProps {
+  health: SystemHealth | null;
+  healthError?: string | null;
+  symbol: string;
+  probe?: InspectResponse | null;
+  probeError?: string | null;
+  probeLoading?: boolean;
+  onOpenSection?: (section: DataTrustDestination) => void;
+}
+
+const TONE_GLYPH: Record<DataTrustTone, string> = {
+  good: "●",
+  warn: "▲",
+  bad: "✕",
+  unknown: "◌",
+};
+
+function absoluteTime(value: string | null | undefined): string {
+  if (!value) return "not observed";
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed)
+    ? value
+    : new Date(parsed).toISOString().replace("T", " ").replace(".000Z", " UTC");
+}
+
+export default function DataTrustOverview({
+  health,
+  healthError,
+  symbol,
+  probe,
+  probeError,
+  probeLoading,
+  onOpenSection,
+}: DataTrustOverviewProps) {
+  const trust = deriveDataTrust(health, { symbol, healthError, probe, probeError, probeLoading });
+  const feeds = health?.platform?.market_data.feeds ?? [];
+  const providerValidation = Object.entries(trust.validation?.byProvider ?? {})
+    .sort((left, right) => right[1].evaluated - left[1].evaluated);
+  const probeContract = probe?.provenance?.contract;
+  const probeTone: DataTrustTone = probeLoading
+    ? "unknown"
+    : probeError || probeContract?.passed === false
+      ? "bad"
+      : !probeContract
+        ? "unknown"
+        : probeContract.violations.length || probeContract.notEvaluated.length
+          ? "warn"
+          : "good";
+
+  return (
+    <div className="data-trust-overview">
+      <section className={`card data-trust-hero is-${trust.verdict.tone}`} aria-labelledby="data-trust-heading">
+        <div>
+          <span className="page-kicker">Market data quality / freshness monitor</span>
+          <h2 id="data-trust-heading">{trust.verdict.label}</h2>
+          <p>{trust.verdict.detail}</p>
+        </div>
+        <div className={`data-trust-verdict is-${trust.verdict.tone}`}>
+          <span aria-hidden>{TONE_GLYPH[trust.verdict.tone]}</span>
+          <div>
+            <strong>{symbol}</strong>
+            <small>exact quote + observed platform scope</small>
+          </div>
+        </div>
+      </section>
+
+      <section className="data-trust-section" aria-labelledby="trust-evidence-heading">
+        <div className="section-heading compact">
+          <div>
+            <span className="page-kicker">Decision evidence</span>
+            <h2 id="trust-evidence-heading">What is known now</h2>
+          </div>
+          <span className="section-note">missing evidence remains unknown</span>
+        </div>
+        <div className="data-trust-evidence-grid">
+          {trust.evidence.map((item) => (
+            <article key={item.id} className={`card data-trust-evidence is-${item.tone}`}>
+              <div>
+                <span aria-hidden>{TONE_GLYPH[item.tone]}</span>
+                <small>{item.label}</small>
+              </div>
+              <strong className="num">{item.value}</strong>
+              <p>{item.detail}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <div className="data-trust-detail-grid">
+        <section className="card data-trust-monitor" aria-labelledby="feed-monitor-heading">
+          <div className="section-heading compact">
+            <div>
+              <span className="page-kicker">Freshness</span>
+              <h2 id="feed-monitor-heading">Observed market feeds</h2>
+            </div>
+            <span className="section-note">
+              gateway {trust.gatewaySource?.state?.replace("_", " ") ?? "not observed"}
+            </span>
+          </div>
+
+          {feeds.length ? (
+            <div className="table-wrap">
+              <table>
+                <caption className="sr-only">Gateway market-feed freshness and update evidence.</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Venue</th>
+                    <th scope="col">State</th>
+                    <th scope="col">{symbol} age</th>
+                    <th scope="col">Updates</th>
+                    <th scope="col">Reconnects</th>
+                    <th scope="col">Mode</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {feeds.map((feed) => {
+                    const instrument = feed.symbols.find((row) => row.symbol === symbol);
+                    return (
+                      <tr key={feed.venue}>
+                        <td><strong>{feed.venue}</strong></td>
+                        <td>
+                          <span className={`data-trust-inline-state is-${feed.status === "up" ? "good" : feed.status === "down" ? "bad" : "warn"}`}>
+                            <span aria-hidden>{feed.status === "up" ? "●" : feed.status === "down" ? "✕" : "▲"}</span>
+                            {feed.status}
+                          </span>
+                        </td>
+                        <td className="num">
+                          {!instrument ? "not covered" : instrument.age_seconds == null ? "—" : `${instrument.age_seconds.toFixed(2)}s`}
+                        </td>
+                        <td className="num">{instrument?.updates_total?.toLocaleString() ?? "—"}</td>
+                        <td className="num">{feed.reconnects}</td>
+                        <td>{feed.synthetic ? "synthetic" : "upstream"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="data-trust-empty">
+              <strong>No gateway feed evidence.</strong>
+              <p>
+                The provider registry may still answer requests, but it cannot prove streaming feed
+                freshness. Gateway source: {trust.gatewaySource?.state?.replace("_", " ") ?? "not exposed"}.
+              </p>
+            </div>
+          )}
+
+          <p className="console-footnote">
+            Gateway observed at {absoluteTime(trust.gatewaySource?.observedAt)}. Feed ages belong to
+            each venue and symbol; the health response fetch time does not make an old feed fresh.
+          </p>
+        </section>
+
+        <section className="card data-trust-monitor" aria-labelledby="contract-monitor-heading">
+          <div className="section-heading compact">
+            <div>
+              <span className="page-kicker">Validation</span>
+              <h2 id="contract-monitor-heading">Exact payload &amp; instance sample</h2>
+            </div>
+            <span className="section-note">quote + bars only</span>
+          </div>
+
+          <div className={`data-trust-probe is-${probeTone}`}>
+            <span>Active quote</span>
+            <strong>
+              {probeLoading
+                ? `checking ${symbol}`
+                : probeError
+                  ? "probe failed"
+                  : probe?.provenance?.contract
+                    ? `${probe.provenance.provider} · ${probe.cache.state} · contract attached`
+                    : "no exact-payload contract result"}
+            </strong>
+            <small>
+              {probe?.provenance?.contract
+                ? `${probe.provenance.contract.violations.length} findings · ${probe.provenance.contract.notEvaluated.length} checks not evaluated · fetched ${absoluteTime(probe.provenance.fetchedAt)}`
+                : probeError ?? "A green verdict is withheld until this exact response carries validation evidence."}
+            </small>
+          </div>
+
+          {providerValidation.length ? (
+            <div className="table-wrap">
+              <table>
+                <caption className="sr-only">Bounded contract-validation evidence by provider.</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Provider</th>
+                    <th scope="col">Evaluated</th>
+                    <th scope="col">No fatal</th>
+                    <th scope="col">Fatal</th>
+                    <th scope="col">Warn / drift</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {providerValidation.map(([provider, counts]) => (
+                    <tr key={provider}>
+                      <td><strong>{provider}</strong></td>
+                      <td className="num">{counts.evaluated}</td>
+                      <td className="num">{counts.passed}</td>
+                      <td className="num">{counts.fatal}</td>
+                      <td className="num">{counts.warn} / {counts.drift}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="data-trust-empty">
+              <strong>No aggregate in the health-route instance.</strong>
+              <p>
+                Serverless routes do not reliably share module memory. The exact active-quote result
+                above is request-bound evidence; an empty health-route aggregate is not evidence that
+                every payload passed.
+              </p>
+            </div>
+          )}
+
+          <p className="console-footnote">
+            Window {trust.validation ? `${trust.validation.retained}/${trust.validation.capacity}` : "not exposed"}
+            {trust.validation?.windowStart ? ` · since ${absoluteTime(trust.validation.windowStart)}` : ""}
+            {trust.validation?.lastValidationAt ? ` · last ${absoluteTime(trust.validation.lastValidationAt)}` : ""}.
+            Aggregate counts reset with the health-route function instance and are not tied to {symbol}.
+          </p>
+        </section>
+      </div>
+
+      <section className="data-trust-section" aria-labelledby="trust-actions-heading">
+        <div className="section-heading compact">
+          <div>
+            <span className="page-kicker">Operator path</span>
+            <h2 id="trust-actions-heading">Next evidence to inspect</h2>
+          </div>
+          <span className="section-note">read-only diagnostics</span>
+        </div>
+        <div className="data-trust-actions">
+          {trust.actions.map((action) => (
+            <button
+              key={action.destination}
+              type="button"
+              className={`card data-trust-action is-${action.priority}`}
+              onClick={() => onOpenSection?.(action.destination)}
+              disabled={!onOpenSection}
+            >
+              <span>{action.priority}</span>
+              <strong>{action.label}</strong>
+              <small>{action.detail}</small>
+              <i aria-hidden>Open {action.destination} →</i>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="card data-trust-boundaries" aria-labelledby="trust-boundaries-heading">
+        <div className="section-heading compact">
+          <div>
+            <span className="page-kicker">Assessment boundary</span>
+            <h2 id="trust-boundaries-heading">Implemented evidence vs production gap</h2>
+          </div>
+          <span className="section-note">claims match the running system</span>
+        </div>
+        <div>
+          <article>
+            <h3><span aria-hidden>✓</span> Implemented</h3>
+            <ul>
+              <li>Ranked provider failover with circuit, quota, reserve and cache state.</li>
+              <li>Quote/bar contracts, rejected-payload failover and bounded quarantine evidence.</li>
+              <li>On-demand cross-source reconciliation and real request lineage for the active symbol and interval.</li>
+              <li>Gateway venue freshness, reconnect and synthetic-feed disclosure when configured.</li>
+            </ul>
+          </article>
+          <article>
+            <h3><span aria-hidden>△</span> Explicit production gaps</h3>
+            <ul>
+              <li>No durable, cross-instance quality ledger or automated alert escalation.</li>
+              <li>No orchestrator, replay service or backfill scheduler is wired to this UI.</li>
+              <li>Contracts do not yet cover news, fundamentals or every raw vendor schema.</li>
+              <li>The Work Queue is mocked browser-session state, not a ticket or worker backend.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+    </div>
+  );
+}
