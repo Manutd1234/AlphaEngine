@@ -106,6 +106,16 @@ portfolio positions can focus the other workspaces without re-entry.
 **Reliability console** — an observability surface, not a second quote lookup.
 It answers the questions an SRE actually arrives with:
 
+- **One source-aware status strip** — overall, trading-path and research-path
+  posture are derived once. A provider-only deployment is degraded rather than
+  nominal; stale gateway evidence is unknown; an unreachable configured gateway
+  is critical; and an authoritative risk halt stays distinct from a research
+  provider outage.
+- **Authoritative gateway components** — when `ALPHAENGINE_GATEWAY_URL` is
+  connected, the FastAPI gateway contributes a versioned snapshot of venue-feed
+  freshness, risk mode, queue configuration, audit availability and bounded
+  per-route latency. Source observation time travels with the payload, so a
+  last-good snapshot cannot silently remain green.
 - **Upstream health matrix** — per provider: circuit state with its failure
   count and cooldown, p50/p95/p99 latency *with the sample count that produced
   them* (a p99 over four calls is not a p99), quota consumption, failover rank,
@@ -127,15 +137,25 @@ It answers the questions an SRE actually arrives with:
   each upstream HTTP call, and the vendor's raw JSON before normalisation. A
   second tab taps the browser's WebSocket frames, which never reach the server
   and are labelled accordingly.
-- **Event stream** — server dispatch decisions and browser-side frames merged
-  into one timeline, each line tagged with where it was produced. Cursored by
-  sequence, not timestamp; a discontinuity is rendered rather than hidden.
-- **Operator actions** — every control states what it costs. Resetting a quota
-  ledger clears *our* count, not the vendor's meter, and says so.
+- **Logs & traces** — server dispatch decisions and browser-side frames merge
+  into a cursor-aware timeline with a structured detail pane. Provider and venue
+  rows jump here with a contextual filter already applied; a discontinuity is
+  rendered rather than hidden.
+- **Guarded remediation** — disruptive provider-routing actions stop at a
+  keyboard-focusable preview showing target, control plane, blast radius and
+  consequence. Resetting a quota ledger clears *our* count, not the vendor's
+  meter, and says so.
 
 Reads are always available. Writes are gated by `ALPHAENGINE_OPERATOR_TOKEN`:
 open outside production, refused in production when unset, so a public
-deployment cannot have its data plane poked by a stranger.
+deployment cannot have its data plane poked by a stranger. These mutations are
+explicitly instance-local provider-routing controls; the Python gateway kill
+switch remains on its authenticated trading surfaces.
+
+The four stable subtab IDs now present the incident workflow as **Telemetry &
+SLIs → Services & Circuits → Logs & Traces → Remediation**. The compact strip is
+the only repeated posture summary; the overview begins with active attention
+and evidence scope instead of restating the same latency and success figures.
 
 **Portfolio oversight** — when `ALPHAENGINE_GATEWAY_URL` is configured, the
 read-only server proxy renders authoritative equity, day P&L, gross/net
@@ -273,7 +293,7 @@ The systems group backs the [developer console](#systems-console):
 
 | Endpoint | Returns |
 |---|---|
-| `GET /api/system/health[?priority=]` | superset of `/api/providers`: breaker shape, p50/p95/p99 per provider, the ranked failover chain with the node a request would land on, cache hit accounting, active simulated outages, operator-guard mode |
+| `GET /api/system/health[?priority=]` | provider breakers, latency, failover, cache and guard state plus an optional validated FastAPI `/api/ops/snapshot`; provider and gateway freshness are reported independently, and a failed gateway never erases local observability |
 | `GET /api/system/events?since=<seq>&limit=` | structured trace cursored by sequence, with the oldest sequence still retained so a lagging client can detect dropped lines |
 | `GET /api/system/inspect?symbol=&capability=&raw=1&refresh=1` | one lookup taken apart: cache key + TTL remaining, lineage, every provider skipped and why, each upstream HTTP call, and the vendor's raw JSON before normalisation |
 | `POST /api/system/actions` | purge cache, reset breaker, simulate/clear an outage, reset a local ledger, probe a provider, reload configuration, clear telemetry |

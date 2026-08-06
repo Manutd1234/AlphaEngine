@@ -115,12 +115,6 @@ export default function Page() {
   // second source of truth.
   const book = useBook();
   const systems = useSystemHealth(req.symbol);
-  const unavailableSystemCapabilities = systems.health
-    ? Object.values(systems.health.capabilities)
-        .filter((capability) => capability.available.length === 0)
-        .length
-    : 0;
-
   const navigate = useCallback((next: WorkspaceView, replace = false) => {
     setView(next);
     if (typeof window !== "undefined") {
@@ -888,69 +882,6 @@ export default function Page() {
 
         {view === "reliability" && (
           <section id="panel-reliability" role="tabpanel" aria-labelledby="tab-reliability" className="view-panel">
-            <WorkspaceIntro
-              kicker="DevOps / SRE"
-              title="Reliability"
-              description={<>Service posture first, then dependency diagnosis, correlated events and guarded recovery controls.</>}
-              insights={[
-                {
-                  label: "Service state",
-                  value: systems.healthError
-                    ? "Unreachable"
-                    : unavailableSystemCapabilities
-                      ? `${unavailableSystemCapabilities} paths down`
-                      : systems.degraded
-                        ? `${systems.degraded} degraded`
-                        : systems.health?.summary.latency.n
-                            && systems.health.summary.latency.errorRate > 0.01
-                          ? "Upstream instability"
-                          : systems.health?.summary.simulated.length
-                            ? "Drill active"
-                            : systems.health
-                              ? "Nominal"
-                              : "Checking",
-                  detail: systems.healthError
-                    ? "last health poll failed"
-                    : unavailableSystemCapabilities
-                      ? "no ready provider for capability"
-                      : systems.health?.summary.simulated.length
-                        ? `${systems.health.summary.simulated.length} controlled outage${systems.health.summary.simulated.length === 1 ? "" : "s"}`
-                        : "dependency posture",
-                  tone: systems.healthError || unavailableSystemCapabilities
-                    ? "critical"
-                    : systems.degraded
-                        || systems.health?.summary.simulated.length
-                        || (systems.health?.summary.latency.n
-                          && systems.health.summary.latency.errorRate > 0.01)
-                      ? "warn"
-                      : systems.health
-                        ? "good"
-                        : "accent",
-                },
-                {
-                  label: "Upstream success",
-                  value: systems.health?.summary.latency.n
-                    ? `${fmt((1 - systems.health.summary.latency.errorRate) * 100, 1)}%`
-                    : "Pending",
-                  detail: systems.health?.summary.latency.n ? `n=${systems.health.summary.latency.n} attempts` : "no sampled attempts",
-                  tone: systems.healthError
-                    ? "critical"
-                    : !systems.health?.summary.latency.n
-                      ? "accent"
-                      : systems.health.summary.latency.errorRate > 0.01
-                        ? "warn"
-                        : "good",
-                  mono: true,
-                },
-                {
-                  label: "Polling",
-                  value: systems.paused ? "Paused" : `${systems.pollMs / 1000}s`,
-                  detail: systems.updatedAt ? `updated ${systems.updatedAt.toLocaleTimeString()}` : "awaiting snapshot",
-                  tone: systems.paused ? "warn" : "accent",
-                  mono: true,
-                },
-              ]}
-            />
             <ReliabilityConsole
               view={systems}
               workspaceSymbol={req.symbol}

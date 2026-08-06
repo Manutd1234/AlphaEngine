@@ -13,6 +13,7 @@ from __future__ import annotations
 import sys
 
 from config import settings
+from modules.jobs import broker_transport_identity
 
 
 def main() -> int:
@@ -27,7 +28,7 @@ def main() -> int:
 
     from celery_tasks import celery_app
 
-    print(f"AlphaEngine Trading Automation worker -> broker {settings.celery_broker_url}")
+    print(f"AlphaEngine Trading Automation worker -> broker transport {broker_transport_identity()}")
     celery_app.worker_main(["worker", "--loglevel=info", f"--concurrency={settings.job_workers}"])
     return 0
 

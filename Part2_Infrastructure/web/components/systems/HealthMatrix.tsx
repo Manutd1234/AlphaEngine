@@ -36,6 +36,7 @@ interface HealthMatrixProps {
   operatorReady: boolean;
   busyAction: string | null;
   onAction: (action: string, options?: ActionOptions) => void;
+  onInspectEvents: (query: string, label: string) => void;
 }
 
 /** Percentiles, or an honest dash. `0` and "never measured" are not the same. */
@@ -91,6 +92,7 @@ export default function HealthMatrix({
   operatorReady,
   busyAction,
   onAction,
+  onInspectEvents,
 }: HealthMatrixProps) {
   const locked = guard === "locked" || !operatorReady;
   const lockNote = guard === "locked"
@@ -110,8 +112,9 @@ export default function HealthMatrix({
       </div>
 
       <p className="console-note console-matrix-action-note" id="health-matrix-action-note">
-        Test spends one real provider call. Simulate removes a ready provider from routing for two
-        minutes; Reset closes an existing circuit. {locked
+        Test spends one real provider call. Simulate removes a ready provider from this instance&apos;s
+        routing for two minutes; Reset closes an existing circuit on that same instance. These are
+        not fleet-wide or trading-gateway controls. {locked
           ? guard === "token"
             ? "Enter the operator token in Controls to enable these actions."
             : "Actions are locked on this deployment; authorization details live in Controls."
@@ -187,6 +190,13 @@ export default function HealthMatrix({
 
                   <td>
                     <div className="console-row-actions">
+                      <button
+                        type="button"
+                        onClick={() => onInspectEvents(provider.id, provider.label)}
+                        title={`Open Logs & Traces filtered to ${provider.label}`}
+                      >
+                        Logs
+                      </button>
                       <button
                         type="button"
                         onClick={() => onAction("probe_provider", { provider: provider.id })}
@@ -281,6 +291,7 @@ export default function HealthMatrix({
                   <th scope="col">Client</th>
                   <th scope="col">p50 / p95 / p99</th>
                   <th scope="col">Error rate</th>
+                  <th scope="col">Investigate</th>
                 </tr>
               </thead>
               <tbody>
@@ -292,6 +303,15 @@ export default function HealthMatrix({
                       {venue.latency.n
                         ? `${fmt(venue.latency.errorRate * 100, 1)}%`
                         : <span className="muted">—</span>}
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => onInspectEvents(venue.id, venue.label)}
+                        title={`Open Logs & Traces filtered to ${venue.label}`}
+                      >
+                        View logs
+                      </button>
                     </td>
                   </tr>
                 ))}

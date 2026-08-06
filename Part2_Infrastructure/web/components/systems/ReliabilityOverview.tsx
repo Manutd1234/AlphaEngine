@@ -1,17 +1,18 @@
 "use client";
 
 /**
- * Symptom-first landing view for the Reliability workspace.
+ * Triage landing view for the Reliability workspace.
  *
- * This is intentionally a summary of the existing health contract rather than
- * a second telemetry source. SREs should be able to answer "is anyone hurting?"
- * here, then move to Services for causes, Events for correlation, and Controls
- * for a guarded response without this component starting another poller.
+ * ConsoleChrome owns the one status summary. This panel starts where a compact
+ * strip should stop: active symptoms, evidence boundaries and the next safe
+ * investigation step. It deliberately does not repeat golden signals or the
+ * provider table that already lives in Services & Circuits.
  */
 
 import { fmt } from "@/lib/format";
+import { deriveReliabilityPosture, type ReliabilityStatus } from "@/lib/reliability";
 import type { SystemHealthView } from "@/lib/use-system-health";
-import type { ProviderRow } from "./types";
+import type { GatewayOpsSnapshot, ProviderRow } from "./types";
 
 export type ReliabilityDrilldown = "services" | "events" | "controls";
 
@@ -21,13 +22,11 @@ interface ReliabilityOverviewProps {
   onOpenData: () => void;
 }
 
-type Tone = "good" | "warn" | "critical" | "neutral";
-
 interface AttentionItem {
   id: string;
   title: string;
   detail: string;
-  tone: Exclude<Tone, "good">;
+  tone: "warn" | "critical" | "neutral";
   destination: ReliabilityDrilldown | "data";
   action: string;
 }
@@ -37,16 +36,13 @@ function names(ids: string[], providers: ProviderRow[]): string {
   return ids.map((id) => labels.get(id) ?? id).join(", ");
 }
 
-function providerState(provider: ProviderRow): { label: string; tone: Tone } {
-  if (provider.simulatedOutage) return { label: "Drill active", tone: "warn" };
-  if (provider.breaker.state === "open") return { label: "Circuit open", tone: "critical" };
-  if (!provider.configured) return { label: "Not configured", tone: "neutral" };
-  if (provider.quota && provider.quota.remaining <= 0) {
-    return { label: "Quota exhausted", tone: "critical" };
-  }
-  if (provider.ready) return { label: "Ready", tone: "good" };
-  return { label: "Unavailable", tone: "critical" };
-}
+const POSTURE_LABEL: Record<ReliabilityStatus, string> = {
+  nominal: "Nominal",
+  degraded: "Degraded",
+  critical: "Critical",
+  halted: "Trading halted",
+  unknown: "Unknown",
+};
 
 export default function ReliabilityOverview({
   view,
@@ -58,7 +54,6 @@ export default function ReliabilityOverview({
   const summary = health?.summary;
   const latency = summary?.latency;
   const hasTraffic = Boolean(latency?.n);
-  const successRate = hasTraffic ? (1 - (latency?.errorRate ?? 0)) * 100 : null;
   const openBreakers = summary?.degraded ?? [];
   const exhausted = summary?.exhausted ?? [];
   const simulated = summary?.simulated ?? [];
@@ -73,52 +68,20 @@ export default function ReliabilityOverview({
       && provider.quota.remaining <= provider.quota.reserve,
   );
   const quarantined = health?.quarantine?.size ?? 0;
-
-  let serviceState: { label: string; detail: string; tone: Tone };
-  if (healthError) {
-    serviceState = {
-      label: "Telemetry unavailable",
-      detail: health ? "Showing the last good snapshot" : "No health snapshot is available",
-      tone: "critical",
-    };
-  } else if (!health) {
-    serviceState = {
-      label: "Connecting",
-      detail: "Waiting for the first health snapshot",
-      tone: "neutral",
-    };
-  } else if (unavailableCapabilities.length) {
-    serviceState = {
-      label: "Service path unavailable",
-      detail: `${unavailableCapabilities.length} ${unavailableCapabilities.length === 1 ? "routing capability has" : "routing capabilities have"} no ready provider`,
-      tone: "critical",
-    };
-  } else if (openBreakers.length || exhausted.length) {
-    const dependencies = openBreakers.length + exhausted.length;
-    serviceState = {
-      label: "Degraded",
-      detail: `${dependencies} dependency signal${dependencies === 1 ? "" : "s"} active`,
-      tone: "critical",
-    };
-  } else if ((latency?.errorRate ?? 0) > 0.01) {
-    serviceState = {
-      label: "Upstream instability",
-      detail: "Provider / venue attempt success is below 99%",
-      tone: "warn",
-    };
-  } else if (simulated.length) {
-    serviceState = {
-      label: "Drill active",
-      detail: `${simulated.length} simulated outage${simulated.length === 1 ? "" : "s"} in progress`,
-      tone: "warn",
-    };
-  } else {
-    serviceState = {
-      label: "Nominal",
-      detail: "No active dependency symptom detected",
-      tone: "good",
-    };
-  }
+  const posture = health ? deriveReliabilityPosture(health) : null;
+  const platform = health?.platform;
+  const hasPlatform = Boolean(platform);
+  const gatewaySource = health?.sources?.gateway;
+  const realFeeds = platform?.market_data.feeds.filter((feed) => !feed.synthetic) ?? [];
+  const connectedFeeds = realFeeds.filter((feed) => feed.connected).length;
+  const books = realFeeds.flatMap((feed) => feed.symbols);
+  const staleBooks = books.filter((book) => book.stale).length;
+  const queueActive = (platform?.queue.by_status.queued ?? 0) + (platform?.queue.by_status.running ?? 0);
+  const routeSamples = platform?.route_latency.routes.reduce((total, route) => total + route.samples, 0) ?? 0;
+  const slowestRoute = platform?.route_latency.routes.reduce<GatewayOpsSnapshot["route_latency"]["routes"][number] | null>(
+    (slowest, route) => !slowest || route.p95_ms > slowest.p95_ms ? route : slowest,
+    null,
+  ) ?? null;
 
   const attention: AttentionItem[] = [];
   if (healthError) {
@@ -128,7 +91,24 @@ export default function ReliabilityOverview({
       detail: healthError,
       tone: "critical",
       destination: "events",
-      action: "Inspect events",
+      action: "Inspect logs",
+    });
+  }
+  if (!healthError && posture && posture.paths.trading.status !== "nominal") {
+    const tradingStatus = posture.paths.trading.status;
+    attention.push({
+      id: "trading-path-posture",
+      title: tradingStatus === "halted"
+        ? "Authoritative trading is halted"
+        : tradingStatus === "critical"
+          ? "Trading-path component is unavailable"
+          : tradingStatus === "degraded"
+            ? "Trading path is operating with restrictions"
+            : "Trading-path health is unverified",
+      detail: posture.paths.trading.reason,
+      tone: tradingStatus === "critical" || tradingStatus === "halted" ? "critical" : "warn",
+      destination: "events",
+      action: "Inspect telemetry",
     });
   }
   if (hasTraffic && (latency?.errorRate ?? 0) > 0.01) {
@@ -138,7 +118,7 @@ export default function ReliabilityOverview({
       detail: `${fmt((latency?.errorRate ?? 0) * 100, 1)}% of ${latency?.n ?? 0} provider / venue attempts failed`,
       tone: (latency?.errorRate ?? 0) >= 0.05 ? "critical" : "warn",
       destination: "events",
-      action: "Correlate events",
+      action: "Correlate logs",
     });
   }
   if (unavailableCapabilities.length) {
@@ -202,67 +182,8 @@ export default function ReliabilityOverview({
     });
   }
 
-  const goldenSignals = [
-    {
-      label: "Upstream success",
-      value: successRate === null ? "—" : `${fmt(successRate, 1)}%`,
-      detail: hasTraffic ? `${latency?.n ?? 0} provider / venue attempts` : "No attempts sampled yet",
-      tone: successRate === null ? "neutral" : successRate < 95 ? "critical" : successRate < 99 ? "warn" : "good",
-    },
-    {
-      label: "Upstream latency",
-      value: hasTraffic ? `${fmt(latency?.p95 ?? 0, 0)}ms` : "—",
-      detail: hasTraffic
-        ? `p50 ${fmt(latency?.p50 ?? 0, 0)}ms · p99 ${fmt(latency?.p99 ?? 0, 0)}ms`
-        : "Waiting for a measured attempt",
-      tone: "neutral",
-    },
-    {
-      label: "Sample volume",
-      value: hasTraffic ? String(latency?.n ?? 0) : "0",
-      detail: "Upstream attempts · rolling 15m",
-      tone: "neutral",
-    },
-    {
-      label: "Saturation",
-      value: exhausted.length + atReserve.length ? `${exhausted.length + atReserve.length} risks` : "Clear",
-      detail: `${atReserve.length} at reserve · ${exhausted.length} exhausted`,
-      tone: exhausted.length ? "critical" : atReserve.length ? "warn" : health ? "good" : "neutral",
-    },
-  ] as const;
-
   return (
     <div className="reliability-overview">
-      <section className="card reliability-posture" aria-labelledby="reliability-posture-title">
-        <div className="section-heading compact reliability-posture__heading">
-          <div>
-            <span className="page-kicker">Dependency signals</span>
-            <h2 id="reliability-posture-title">Current service posture</h2>
-          </div>
-          <div className={`reliability-state is-${serviceState.tone}`} role="status">
-            <span className="reliability-state__dot" aria-hidden />
-            <span>
-              <strong>{serviceState.label}</strong>
-              <small>{serviceState.detail}</small>
-            </span>
-          </div>
-        </div>
-
-        <div className="reliability-signal-grid">
-          {goldenSignals.map((signal) => (
-            <div className={`reliability-signal is-${signal.tone}`} key={signal.label}>
-              <span>{signal.label}</span>
-              <strong className="num">{signal.value}</strong>
-              <small>{signal.detail}</small>
-            </div>
-          ))}
-        </div>
-        <p className="reliability-window-note">
-          Instance-local provider and venue attempts for fast dependency triage. Failover can recover
-          a failed attempt, so these are not request-level availability or a fleet-wide SLO report.
-        </p>
-      </section>
-
       <div className="reliability-overview__split">
         <section className="card reliability-attention" aria-labelledby="reliability-attention-title">
           <div className="section-heading compact">
@@ -277,8 +198,8 @@ export default function ReliabilityOverview({
             <div className="reliability-all-clear" role="status">
               <span aria-hidden>✓</span>
               <div>
-                <strong>No active symptoms</strong>
-                <small>Routes are available, quotas have headroom, and no dependency drill is running.</small>
+                <strong>No active symptoms in the observed planes</strong>
+                <small>Provider routes have headroom and no dependency drill is running.</small>
               </div>
             </div>
           ) : !health && !healthError ? (
@@ -329,14 +250,14 @@ export default function ReliabilityOverview({
             <li>
               <button type="button" onClick={() => onOpenSection("events")}>
                 <span className="num">02</span>
-                <span><strong>Correlate events</strong><small>Read server dispatch and browser wire events on one timeline.</small></span>
+                <span><strong>Correlate logs</strong><small>Read server dispatch and browser wire events on one timeline.</small></span>
                 <span aria-hidden>→</span>
               </button>
             </li>
             <li>
               <button type="button" onClick={() => onOpenSection("controls")}>
                 <span className="num">03</span>
-                <span><strong>Recover safely</strong><small>Use authenticated, scoped controls with the cost shown first.</small></span>
+                <span><strong>Recover safely</strong><small>Preview the target, cost and scope before a guarded mutation.</small></span>
                 <span aria-hidden>→</span>
               </button>
             </li>
@@ -344,44 +265,101 @@ export default function ReliabilityOverview({
         </section>
       </div>
 
-      <section className="card reliability-dependency-digest" aria-labelledby="reliability-dependency-title">
+      {platform ? (
+        <section className="card reliability-platform" aria-labelledby="reliability-platform-title">
+          <div className="section-heading compact">
+            <div>
+              <span className="page-kicker">Authoritative gateway</span>
+              <h2 id="reliability-platform-title">Quant infrastructure components</h2>
+            </div>
+            <span className={`reliability-source-state is-${gatewaySource?.state ?? "invalid"}`}>
+              {gatewaySource?.state === "fresh" ? "Fresh snapshot" : gatewaySource?.state?.replace("_", " ") ?? "Source unknown"}
+            </span>
+          </div>
+
+          <div className="reliability-platform__grid">
+            <article className={`is-${platform.market_data.status}`}>
+              <span>Market data</span>
+              <strong>{platform.market_data.status.replace("_", " ")}</strong>
+              <small>
+                {realFeeds.length
+                  ? `${connectedFeeds}/${realFeeds.length} venue feeds connected · ${staleBooks}/${books.length} books stale`
+                  : "No live venue feeds observed"}
+                {platform.market_data.synthetic_active ? " · synthetic fallback active" : ""}
+              </small>
+            </article>
+            <article className={`is-${platform.risk.status}`}>
+              <span>Pre-trade risk</span>
+              <strong>{platform.risk.status.replace("_", " ")}</strong>
+              <small>
+                {platform.risk.working_orders} working orders · {fmt(platform.risk.drawdown_budget_used_pct * 100, 0)}% drawdown budget used
+              </small>
+            </article>
+            <article className={platform.queue.broker_configured && platform.queue.backend !== "celery" ? "is-degraded" : "is-nominal"}>
+              <span>Research queue</span>
+              <strong>{platform.queue.backend}</strong>
+              <small>
+                {queueActive} queued / running · {platform.queue.workers} configured worker slots
+              </small>
+            </article>
+            <article className={platform.audit.available ? "is-nominal" : "is-critical"}>
+              <span>Audit store</span>
+              <strong>{platform.audit.available ? "available" : "unavailable"}</strong>
+              <small>{platform.audit.backend} · append-only decision evidence</small>
+            </article>
+          </div>
+
+          <div className="reliability-platform__sli" aria-label="Gateway route latency evidence">
+            <span>
+              <small>Slowest sampled route p95</small>
+              <strong className="num">{slowestRoute ? `${fmt(slowestRoute.p95_ms, 1)}ms` : "—"}</strong>
+              <code>{slowestRoute?.route ?? "no route samples"}</code>
+            </span>
+            <span>
+              <small>Latency evidence</small>
+              <strong className="num">{routeSamples}</strong>
+              <code>{fmt(platform.route_latency.window_seconds / 60, 0)}m bounded window</code>
+            </span>
+            <span>
+              <small>Gateway build</small>
+              <strong className="num">v{platform.version}</strong>
+              <code>{platform.environment}</code>
+            </span>
+          </div>
+          <p className="reliability-platform__caveat">
+            Queue workers are configured slots, not distributed worker heartbeats. This is one gateway-process snapshot;
+            fleet aggregation and exchange order-to-ack timing still belong in external telemetry.
+          </p>
+        </section>
+      ) : null}
+
+      <section className="card reliability-evidence" aria-labelledby="reliability-evidence-title">
         <div className="section-heading compact">
           <div>
-            <span className="page-kicker">Dependency posture</span>
-            <h2 id="reliability-dependency-title">Provider readiness at a glance</h2>
+            <span className="page-kicker">Evidence boundary</span>
+            <h2 id="reliability-evidence-title">What this snapshot can prove</h2>
           </div>
-          <button type="button" className="text-action" onClick={() => onOpenSection("services")}>
-            Open service matrix →
-          </button>
         </div>
-
-        <div className="reliability-dependency-summary" aria-label="Dependency summary">
-          <div><span>Ready</span><strong className="num">{summary ? `${summary.ready}/${summary.total}` : "—"}</strong></div>
-          <div><span>Circuits open</span><strong className={`num${openBreakers.length ? " critical" : ""}`}>{openBreakers.length}</strong></div>
-          <div><span>At reserve</span><strong className={`num${atReserve.length ? " warn" : ""}`}>{atReserve.length}</strong></div>
-          <div><span>Active drills</span><strong className={`num${simulated.length ? " warn" : ""}`}>{simulated.length}</strong></div>
+        <div className="reliability-evidence__grid">
+          <div>
+            <span className={`reliability-evidence__state is-${posture?.paths.research.status ?? "unknown"}`}>
+              {posture ? POSTURE_LABEL[posture.paths.research.status] : "Connecting"}
+            </span>
+            <strong>Provider-routing plane</strong>
+            <small>{posture?.paths.research.reason ?? "Waiting for the provider-routing snapshot."} Instance-local counters remain a floor.</small>
+          </div>
+          <div>
+            <span className={`reliability-evidence__state is-${posture?.paths.trading.status ?? "unknown"}`}>
+              {posture ? POSTURE_LABEL[posture.paths.trading.status] : "Connecting"}
+            </span>
+            <strong>Trading gateway plane</strong>
+            <small>
+              {hasPlatform
+                ? posture?.paths.trading.reason
+                : posture?.paths.trading.reason ?? "A provider-only snapshot cannot prove market-data freshness, worker health or kill-switch state."}
+            </small>
+          </div>
         </div>
-
-        <ul className="reliability-provider-digest">
-          {providers.map((provider) => {
-            const state = providerState(provider);
-            return (
-              <li key={provider.id}>
-                <span className={`reliability-provider-digest__state is-${state.tone}`}>
-                  <i aria-hidden /> {state.label}
-                </span>
-                <strong>{provider.label}</strong>
-                <small>
-                  {provider.latency.n
-                    ? `p95 ${fmt(provider.latency.p95 ?? 0, 0)}ms · n=${provider.latency.n}`
-                    : "Latency not sampled"}
-                  {provider.quota ? ` · quota ${provider.quota.remaining}/${provider.quota.limit} remaining · ${provider.quota.window}` : ""}
-                </small>
-              </li>
-            );
-          })}
-          {!health && <li className="is-loading"><strong>Loading provider registry…</strong></li>}
-        </ul>
 
         <aside className="reliability-data-handoff" aria-label="Data quality ownership handoff">
           <div>

@@ -39,6 +39,7 @@ def test_every_client_facing_route_is_published(schema):
     for path in (
         "/health",
         "/metrics",
+        "/api/ops/snapshot",
         "/api/config",
         "/api/book/{symbol}",
         "/api/tca/{symbol}",

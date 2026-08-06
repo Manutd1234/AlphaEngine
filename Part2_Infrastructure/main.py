@@ -49,6 +49,7 @@ from modules.audit import get_audit
 from modules.backtester import VECTORBT_AVAILABLE, run_backtest
 from modules.jobs import get_queue
 from modules.metrics import RequestTimingMiddleware, render_metrics
+from modules.operations import OperationsSnapshot, build_operations_snapshot
 from modules.portfolio import build_equity_history, build_portfolio
 from modules.risk_proxy import get_gateway
 from modules.schemas import (
@@ -232,6 +233,23 @@ async def metrics() -> PlainTextResponse:
     ingress policy already lives.
     """
     return PlainTextResponse(render_metrics(), media_type="text/plain; version=0.0.4; charset=utf-8")
+
+
+@app.get("/api/ops/snapshot", response_model=OperationsSnapshot, tags=["meta"])
+async def operations_snapshot(_actor: str = Depends(trader_identity)) -> OperationsSnapshot:
+    """Structured reliability state for the operator workspace.
+
+    This endpoint deliberately excludes raw URLs, storage paths, usernames and
+    error strings. ``observed_at`` plus ``stale_after_seconds`` lets a client
+    distinguish a healthy snapshot from a monitoring path that has gone quiet.
+    """
+    return build_operations_snapshot(
+        tca=get_engine(),
+        gateway=get_gateway(),
+        queue=get_queue(),
+        audit=get_audit(),
+        bot=get_bot(),
+    )
 
 
 @app.get("/api/config", tags=["meta"])

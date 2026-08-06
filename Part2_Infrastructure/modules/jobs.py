@@ -32,11 +32,51 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable
+from urllib.parse import urlsplit
 
 from config import settings
 from modules.schemas import JobStatus
 
 log = logging.getLogger("alphaengine.jobs")
+
+
+# Kombu supports more transports than these, but returning an arbitrary URL
+# scheme would turn malformed configuration such as ``secret:...`` into a log
+# or API disclosure. Unknown transports are still observable as ``other``;
+# credentials, hosts, ports, virtual hosts and query strings never are.
+_KNOWN_BROKER_TRANSPORTS = {
+    "amqp",
+    "azurestoragequeues",
+    "consul",
+    "filesystem",
+    "gcpubsub",
+    "memory",
+    "mongodb",
+    "pyamqp",
+    "redis",
+    "rediss",
+    "sentinel",
+    "sqs",
+    "sqlalchemy",
+}
+
+
+def broker_transport_identity(url: str | None = None) -> str | None:
+    """Return a credential-free broker transport label.
+
+    This is intentionally much narrower than a redacted URL. Even a redacted
+    URL exposes deployment topology (host, port, database index and vhost),
+    none of which an operator needs in the queue summary.
+    """
+    raw = settings.celery_broker_url if url is None else url
+    if not raw:
+        return None
+    try:
+        scheme = urlsplit(raw).scheme.lower()
+    except ValueError:
+        return "other"
+    base = scheme.split("+", 1)[0]
+    return base if base in _KNOWN_BROKER_TRANSPORTS else "other"
 
 
 def _utcnow() -> datetime:
@@ -90,10 +130,13 @@ class JobQueue:
             from celery_tasks import celery_app  # type: ignore
 
             self._celery_app = celery_app
-            log.info("job backend: celery (%s)", settings.celery_broker_url)
+            log.info("job backend: celery (%s)", broker_transport_identity())
             return "celery"
         except Exception as exc:
-            log.warning("CELERY_BROKER_URL set but Celery unavailable (%s); using in-process pool", exc)
+            log.warning(
+                "CELERY_BROKER_URL set but Celery unavailable (%s); using in-process pool",
+                type(exc).__name__,
+            )
             return "in-process"
 
     def on_complete(self, hook: Callable[[JobRecord], Any]) -> None:
@@ -254,7 +297,8 @@ class JobQueue:
         return {
             "backend": self.backend,
             "workers": self.workers,
-            "broker": settings.celery_broker_url or None,
+            "broker_configured": bool(settings.celery_broker_url),
+            "broker_transport": broker_transport_identity(),
             "total": len(self._jobs),
             "by_status": by_status,
         }

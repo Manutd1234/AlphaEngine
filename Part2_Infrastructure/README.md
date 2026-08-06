@@ -161,7 +161,7 @@ provenance and quality are visible at the point of use.
 
 | Need | Where |
 |---|---|
-| Health for every deployable unit | `GET /health` (gateway), `/telegram/health`, `/healthz` (OpenBB service), `/api/system/health` (web tier) |
+| Health for every deployable unit | `GET /health` (gateway), authenticated `GET /api/ops/snapshot` (typed gateway components), `/telegram/health`, `/healthz` (OpenBB service), `/api/system/health` (web aggregation) |
 | Metrics a scraper can act on | `GET /metrics` — Prometheus text exposition, hand-rolled, **no client library**: feed state, book age, kill switch, order counters, drawdown budget, queue depth, per-route latency percentiles |
 | Alert rules I do not have to invent | `tools/alert-rules.example.yml` — every expression keyed to a metric this gateway actually exports, each linked to its runbook section |
 | A procedure at 3am | `docs/RUNBOOK.md`: feed down, drawdown halt, rejection spike, gate latency, job backlog, provider degraded — each with a way to rehearse it locally |
@@ -851,6 +851,7 @@ order rather than around them.
 |---|---|---|
 | `GET` | `/health` | all three modules + feed health |
 | `GET` | `/metrics` | Prometheus text exposition — feeds, risk, queue, latency |
+| `GET` | `/api/ops/snapshot` | authenticated, versioned and secret-free SRE snapshot — feed freshness, risk mode, queue, audit, alerting and route latency |
 | `GET` | `/api/config` | symbols, venues, limits |
 | `GET` | `/api/book/{symbol}` | per-venue L2 ladders |
 | `GET` | `/api/tca/{symbol}` | VWAP, slippage, smart route |

@@ -333,7 +333,7 @@ def render_metrics() -> str:
 # that budget is attacker-controlled.
 # --------------------------------------------------------------------------- #
 _LATENCY_CAPACITY = 200
-_LATENCY_WINDOW_S = 900.0
+REQUEST_LATENCY_WINDOW_SECONDS = 900.0
 #: Distinct routes tracked. The real app has ~30; anything beyond this is
 #: unmatched paths, which are aggregated rather than given a series each.
 _MAX_ROUTES = 60
@@ -352,7 +352,7 @@ def observe_request(route: str, duration_ms: float, *, error: bool = False) -> N
         route = UNMATCHED_ROUTE
     window = _latency.setdefault(route, [])
     window.append((now, duration_ms))
-    cutoff = now - _LATENCY_WINDOW_S
+    cutoff = now - REQUEST_LATENCY_WINDOW_SECONDS
     if len(window) > _LATENCY_CAPACITY or (window and window[0][0] < cutoff):
         window[:] = [s for s in window[-_LATENCY_CAPACITY:] if s[0] >= cutoff]
     if error:
@@ -381,7 +381,7 @@ def _quantile(sorted_values: list[float], q: float) -> float:
 
 def request_latency_summary() -> dict[str, dict[str, float]]:
     out: dict[str, dict[str, float]] = {}
-    cutoff = time.monotonic() - _LATENCY_WINDOW_S
+    cutoff = time.monotonic() - REQUEST_LATENCY_WINDOW_SECONDS
     for route, window in _latency.items():
         recent = sorted(duration for at, duration in window if at >= cutoff)
         if not recent:

@@ -1,6 +1,24 @@
 {
   "components": {
     "schemas": {
+      "AuditOperationsSnapshot": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "backend": {
+            "title": "Backend",
+            "type": "string"
+          }
+        },
+        "required": [
+          "backend",
+          "available"
+        ],
+        "title": "AuditOperationsSnapshot",
+        "type": "object"
+      },
       "BacktestRequest": {
         "description": "Every tunable a sweep accepts, with its bounds.\n\nThis model is the parameter registry: the bounds and descriptions here are\nwhat ``/docs`` publishes, so a researcher reads one place to learn what can\nbe varied and how far. Widening a bound is therefore a documented change,\nnot a silent one.",
         "properties": {
@@ -416,6 +434,217 @@
         "title": "KillSwitchRequest",
         "type": "object"
       },
+      "MarketDataFeedSnapshot": {
+        "properties": {
+          "connected": {
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "error_present": {
+            "default": false,
+            "title": "Error Present",
+            "type": "boolean"
+          },
+          "reconnects": {
+            "default": 0,
+            "title": "Reconnects",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "up",
+              "degraded",
+              "stale",
+              "down"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "symbols": {
+            "items": {
+              "$ref": "#/components/schemas/MarketDataSymbolSnapshot"
+            },
+            "title": "Symbols",
+            "type": "array"
+          },
+          "synthetic": {
+            "default": false,
+            "title": "Synthetic",
+            "type": "boolean"
+          },
+          "uptime_seconds": {
+            "default": 0.0,
+            "title": "Uptime Seconds",
+            "type": "number"
+          },
+          "venue": {
+            "title": "Venue",
+            "type": "string"
+          }
+        },
+        "required": [
+          "venue",
+          "status",
+          "connected"
+        ],
+        "title": "MarketDataFeedSnapshot",
+        "type": "object"
+      },
+      "MarketDataSnapshot": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "feeds": {
+            "items": {
+              "$ref": "#/components/schemas/MarketDataFeedSnapshot"
+            },
+            "title": "Feeds",
+            "type": "array"
+          },
+          "stale_after_seconds": {
+            "title": "Stale After Seconds",
+            "type": "number"
+          },
+          "status": {
+            "enum": [
+              "nominal",
+              "degraded",
+              "critical",
+              "disabled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "synthetic_active": {
+            "title": "Synthetic Active",
+            "type": "boolean"
+          },
+          "uptime_seconds": {
+            "default": 0.0,
+            "title": "Uptime Seconds",
+            "type": "number"
+          }
+        },
+        "required": [
+          "enabled",
+          "status",
+          "stale_after_seconds",
+          "synthetic_active"
+        ],
+        "title": "MarketDataSnapshot",
+        "type": "object"
+      },
+      "MarketDataSymbolSnapshot": {
+        "properties": {
+          "age_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age Seconds"
+          },
+          "stale": {
+            "default": true,
+            "title": "Stale",
+            "type": "boolean"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "update_rate_hz": {
+            "default": 0.0,
+            "title": "Update Rate Hz",
+            "type": "number"
+          },
+          "updates_total": {
+            "default": 0,
+            "title": "Updates Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "symbol"
+        ],
+        "title": "MarketDataSymbolSnapshot",
+        "type": "object"
+      },
+      "OperationsSnapshot": {
+        "properties": {
+          "audit": {
+            "$ref": "#/components/schemas/AuditOperationsSnapshot"
+          },
+          "environment": {
+            "title": "Environment",
+            "type": "string"
+          },
+          "market_data": {
+            "$ref": "#/components/schemas/MarketDataSnapshot"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "queue": {
+            "$ref": "#/components/schemas/QueueOperationsSnapshot"
+          },
+          "risk": {
+            "$ref": "#/components/schemas/RiskOperationsSnapshot"
+          },
+          "route_latency": {
+            "$ref": "#/components/schemas/RouteLatencyOperationsSnapshot"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "stale_after_seconds": {
+            "title": "Stale After Seconds",
+            "type": "number"
+          },
+          "status": {
+            "enum": [
+              "nominal",
+              "degraded",
+              "critical",
+              "halted"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "telegram": {
+            "$ref": "#/components/schemas/TelegramOperationsSnapshot"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "observed_at",
+          "stale_after_seconds",
+          "status",
+          "environment",
+          "version",
+          "market_data",
+          "risk",
+          "queue",
+          "audit",
+          "telegram",
+          "route_latency"
+        ],
+        "title": "OperationsSnapshot",
+        "type": "object"
+      },
       "OrderAck": {
         "properties": {
           "actor": {
@@ -741,6 +970,52 @@
         "title": "Position",
         "type": "object"
       },
+      "QueueOperationsSnapshot": {
+        "properties": {
+          "backend": {
+            "title": "Backend",
+            "type": "string"
+          },
+          "broker_configured": {
+            "title": "Broker Configured",
+            "type": "boolean"
+          },
+          "broker_transport": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Broker Transport"
+          },
+          "by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Status",
+            "type": "object"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "workers": {
+            "title": "Workers",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "backend",
+          "workers",
+          "broker_configured",
+          "total"
+        ],
+        "title": "QueueOperationsSnapshot",
+        "type": "object"
+      },
       "ReplaceRequest": {
         "properties": {
           "limit_price": {
@@ -931,6 +1206,81 @@
         "title": "RiskDecision",
         "type": "object"
       },
+      "RiskOperationsSnapshot": {
+        "properties": {
+          "daily_drawdown_pct": {
+            "title": "Daily Drawdown Pct",
+            "type": "number"
+          },
+          "drawdown_budget_used_pct": {
+            "title": "Drawdown Budget Used Pct",
+            "type": "number"
+          },
+          "equity": {
+            "title": "Equity",
+            "type": "number"
+          },
+          "gross_exposure": {
+            "title": "Gross Exposure",
+            "type": "number"
+          },
+          "halted_symbols": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Halted Symbols",
+            "type": "array"
+          },
+          "kill_switch_active": {
+            "title": "Kill Switch Active",
+            "type": "boolean"
+          },
+          "orders_accepted_total": {
+            "title": "Orders Accepted Total",
+            "type": "integer"
+          },
+          "orders_last_second": {
+            "title": "Orders Last Second",
+            "type": "number"
+          },
+          "orders_rejected_total": {
+            "title": "Orders Rejected Total",
+            "type": "integer"
+          },
+          "reduce_only": {
+            "title": "Reduce Only",
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "nominal",
+              "reduce_only",
+              "halted"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "working_orders": {
+            "title": "Working Orders",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "status",
+          "kill_switch_active",
+          "reduce_only",
+          "orders_accepted_total",
+          "orders_rejected_total",
+          "working_orders",
+          "orders_last_second",
+          "daily_drawdown_pct",
+          "drawdown_budget_used_pct",
+          "equity",
+          "gross_exposure"
+        ],
+        "title": "RiskOperationsSnapshot",
+        "type": "object"
+      },
       "RiskState": {
         "properties": {
           "carried_realized_pnl": {
@@ -1088,6 +1438,64 @@
           "session_date"
         ],
         "title": "RiskState",
+        "type": "object"
+      },
+      "RouteLatencyOperationsSnapshot": {
+        "properties": {
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/RouteLatencySnapshot"
+            },
+            "title": "Routes",
+            "type": "array"
+          },
+          "window_seconds": {
+            "title": "Window Seconds",
+            "type": "number"
+          }
+        },
+        "required": [
+          "window_seconds"
+        ],
+        "title": "RouteLatencyOperationsSnapshot",
+        "type": "object"
+      },
+      "RouteLatencySnapshot": {
+        "properties": {
+          "errors_total": {
+            "title": "Errors Total",
+            "type": "integer"
+          },
+          "p50_ms": {
+            "title": "P50 Ms",
+            "type": "number"
+          },
+          "p95_ms": {
+            "title": "P95 Ms",
+            "type": "number"
+          },
+          "p99_ms": {
+            "title": "P99 Ms",
+            "type": "number"
+          },
+          "route": {
+            "title": "Route",
+            "type": "string"
+          },
+          "samples": {
+            "title": "Samples",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "route",
+          "p50_ms",
+          "p95_ms",
+          "p99_ms",
+          "samples",
+          "errors_total"
+        ],
+        "title": "RouteLatencySnapshot",
         "type": "object"
       },
       "RoutingLeg": {
@@ -1255,6 +1663,54 @@
           "venues_online"
         ],
         "title": "TCAReport",
+        "type": "object"
+      },
+      "TelegramOperationsSnapshot": {
+        "properties": {
+          "alerts_sent": {
+            "title": "Alerts Sent",
+            "type": "integer"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "last_error_present": {
+            "title": "Last Error Present",
+            "type": "boolean"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "running",
+              "degraded",
+              "disabled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "updates_handled": {
+            "title": "Updates Handled",
+            "type": "integer"
+          },
+          "uptime_seconds": {
+            "title": "Uptime Seconds",
+            "type": "number"
+          }
+        },
+        "required": [
+          "enabled",
+          "mode",
+          "status",
+          "uptime_seconds",
+          "updates_handled",
+          "alerts_sent",
+          "last_error_present"
+        ],
+        "title": "TelegramOperationsSnapshot",
         "type": "object"
       },
       "ValidationError": {
@@ -2248,6 +2704,72 @@
         "summary": "Job Status",
         "tags": [
           "C \u00b7 Research"
+        ]
+      }
+    },
+    "/api/ops/snapshot": {
+      "get": {
+        "description": "Structured reliability state for the operator workspace.\n\nThis endpoint deliberately excludes raw URLs, storage paths, usernames and\nerror strings. ``observed_at`` plus ``stale_after_seconds`` lets a client\ndistinguish a healthy snapshot from a monitoring path that has gone quiet.",
+        "operationId": "operations_snapshot_api_ops_snapshot_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationsSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Operations Snapshot",
+        "tags": [
+          "meta"
         ]
       }
     },

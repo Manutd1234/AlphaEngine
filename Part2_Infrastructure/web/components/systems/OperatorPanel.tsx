@@ -21,7 +21,7 @@
  * belong to this browser tab, and the poll cadence is this console's own.
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { ActionResponse, GuardMode, ProviderRow } from "./types";
 
@@ -68,6 +68,15 @@ const CADENCES: { label: string; ms: number; note: string }[] = [
 
 const PURGE_SCOPES = ["all", "quote", "bars", "news", "fundamentals"] as const;
 
+interface PendingConfirmation {
+  action: string;
+  options?: ActionOptions;
+  title: string;
+  confirmLabel: string;
+  target: string;
+  effect: string;
+}
+
 /** Shared so actions launched from the Services matrix report outside Controls. */
 export function OperatorActionResult({ result }: { result: ActionResponse }) {
   return (
@@ -102,14 +111,41 @@ export default function OperatorPanel({
 }: OperatorPanelProps) {
   const [purgeScope, setPurgeScope] = useState<string>("all");
   const [quotaTarget, setQuotaTarget] = useState<string>("");
+  const [pending, setPending] = useState<PendingConfirmation | null>(null);
+  const confirmButton = useRef<HTMLButtonElement | null>(null);
+  const confirmationTrigger = useRef<HTMLButtonElement | null>(null);
 
   const locked = guard === "locked";
   const missingToken = guard === "token" && token.trim() === "";
-  const disabled = locked || missingToken || busyAction !== null;
+  const disabled = locked || missingToken || busyAction !== null || pending !== null;
   const metered = (providers ?? []).filter((p) => p.quota !== null);
   const validQuotaTarget = metered.some((provider) => provider.id === quotaTarget)
     ? quotaTarget
     : "";
+
+  useEffect(() => {
+    if (pending) confirmButton.current?.focus();
+  }, [pending]);
+
+  const closeConfirmation = () => {
+    setPending(null);
+    window.requestAnimationFrame(() => confirmationTrigger.current?.focus());
+  };
+
+  const requestConfirmation = (
+    trigger: HTMLButtonElement,
+    confirmation: PendingConfirmation,
+  ) => {
+    confirmationTrigger.current = trigger;
+    setPending(confirmation);
+  };
+
+  const confirmPending = () => {
+    if (!pending || locked || missingToken || busyAction !== null) return;
+    const { action, options } = pending;
+    setPending(null);
+    onAction(action, options);
+  };
 
   return (
     <div className="card console-card console-actions">
@@ -118,7 +154,17 @@ export default function OperatorPanel({
           <span className="page-kicker">Control</span>
           <h2>Operator actions</h2>
         </div>
-        <span className="section-note">Per-instance · cost and blast radius shown before action.</span>
+        <span className="section-note">Routing instance only · preview required for disruptive actions.</span>
+      </div>
+
+      <div className="banner warn console-control-scope" role="note">
+        <span aria-hidden>!</span>
+        <div>
+          <strong>These are not authoritative fleet or trading controls.</strong> Server mutations
+          affect only the Next.js provider-routing instance that receives the request. Another
+          instance may retain different caches, ledgers and circuits, and these actions do not halt
+          or resume the Python trading gateway.
+        </div>
       </div>
 
       {locked && (
@@ -161,10 +207,50 @@ export default function OperatorPanel({
       <div className="operator-group-heading">
         <div>
           <span className="page-kicker">Server mutations</span>
-          <strong>Gateway state &amp; routing</strong>
+          <strong>Provider routing &amp; local telemetry</strong>
         </div>
-        <small>Authenticated in production · affects this function instance</small>
+        <small>Authenticated in production · instance-local, non-authoritative</small>
       </div>
+
+      {pending ? (
+        <section
+          className="operator-confirmation"
+          role="alertdialog"
+          aria-modal="false"
+          aria-labelledby="operator-confirmation-title"
+          aria-describedby="operator-confirmation-effect"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") closeConfirmation();
+          }}
+        >
+          <div className="operator-confirmation__heading">
+            <div>
+              <span className="page-kicker">Confirmation preview</span>
+              <h3 id="operator-confirmation-title">{pending.title}</h3>
+            </div>
+            <span className="operator-confirmation__badge">Disruptive</span>
+          </div>
+          <dl className="operator-confirmation__facts">
+            <div><dt>Target</dt><dd><code>{pending.target}</code></dd></div>
+            <div><dt>Control plane</dt><dd>Next.js provider routing</dd></div>
+            <div><dt>Blast radius</dt><dd>One function instance; other instances may retain different state</dd></div>
+          </dl>
+          <p id="operator-confirmation-effect">{pending.effect}</p>
+          <div className="operator-confirmation__actions">
+            <button type="button" onClick={closeConfirmation}>Cancel</button>
+            <button
+              ref={confirmButton}
+              type="button"
+              className="is-disruptive"
+              onClick={confirmPending}
+              disabled={locked || missingToken || busyAction !== null}
+            >
+              {pending.confirmLabel}
+            </button>
+          </div>
+          <small>Press Escape or choose Cancel to leave state unchanged.</small>
+        </section>
+      ) : null}
 
       {/* ---- cache ------------------------------------------------------- */}
       <div className="console-action">
@@ -184,9 +270,17 @@ export default function OperatorPanel({
             </select>
             <button
               type="button"
-              onClick={() => onAction("purge_cache", {
-                scope: purgeScope === "symbol" ? `symbol:${symbol}` : purgeScope,
-              })}
+              onClick={(event) => {
+                const scope = purgeScope === "symbol" ? `symbol:${symbol}` : purgeScope;
+                requestConfirmation(event.currentTarget, {
+                  action: "purge_cache",
+                  options: { scope },
+                  title: "Purge cached responses?",
+                  confirmLabel: "Confirm purge",
+                  target: scope,
+                  effect: "Matching cached responses will be dropped. The next request for every removed key goes upstream and spends real provider quota.",
+                });
+              }}
               disabled={disabled}
               className="is-disruptive"
             >
@@ -266,7 +360,17 @@ export default function OperatorPanel({
             </select>
             <button
               type="button"
-              onClick={() => onAction("reset_quota", { provider: validQuotaTarget })}
+              onClick={(event) => {
+                const provider = metered.find((candidate) => candidate.id === validQuotaTarget);
+                requestConfirmation(event.currentTarget, {
+                  action: "reset_quota",
+                  options: { provider: validQuotaTarget },
+                  title: "Reset the local quota ledger?",
+                  confirmLabel: "Confirm reset",
+                  target: provider ? `${provider.label} (${provider.id})` : validQuotaTarget,
+                  effect: "Only this instance's accounting is reset. The vendor's meter and billing remain unchanged, so subsequent calls can still be rejected or billed upstream.",
+                });
+              }}
               disabled={disabled || !validQuotaTarget}
               className="is-disruptive"
             >
@@ -288,7 +392,13 @@ export default function OperatorPanel({
           <div className="console-action__controls">
             <button
               type="button"
-              onClick={() => onAction("clear_telemetry")}
+              onClick={(event) => requestConfirmation(event.currentTarget, {
+                action: "clear_telemetry",
+                title: "Clear diagnostic telemetry?",
+                confirmLabel: "Confirm clear",
+                target: "event ring, latency samples and cache counters",
+                effect: "The current instance's retained investigation history will be destroyed. Circuit and simulated-outage behavior survives, but the evidence that led here does not.",
+              })}
               disabled={disabled}
               className="is-disruptive"
             >

@@ -37,6 +37,57 @@ class TestMeta:
         assert cfg["limits"]["max_order_notional_usd"] > 0
         assert cfg["symbols"]
 
+    def test_operations_snapshot_is_structured_and_freshness_aware(self, client):
+        body = client.get("/api/ops/snapshot").json()
+        assert body["schema_version"] == 1
+        assert body["status"] in {"nominal", "degraded", "critical", "halted"}
+        assert body["observed_at"].endswith("Z")
+        assert body["stale_after_seconds"] == 65
+        assert body["environment"]
+        assert body["version"]
+
+        assert body["market_data"]["feeds"][0]["symbols"][0]["symbol"] == "BTCUSDT"
+        assert body["market_data"]["feeds"][0]["symbols"][0]["age_seconds"] >= 0
+        assert body["risk"]["orders_accepted_total"] >= 0
+        assert body["queue"]["workers"] >= 1
+        assert {"queued", "running", "succeeded", "failed", "cancelled"} <= set(body["queue"]["by_status"])
+        assert body["audit"]["backend"] in {"duckdb", "sqlite"}
+        assert body["audit"]["available"] is True
+        assert body["telegram"]["status"] == "disabled"
+        assert body["route_latency"]["window_seconds"] > 0
+
+        # Raw error messages and deployment identities do not belong on this
+        # frequently-polled endpoint even when their safe presence flags do.
+        def keys(value):
+            if isinstance(value, dict):
+                return set(value).union(*(keys(item) for item in value.values()))
+            if isinstance(value, list):
+                return set().union(*(keys(item) for item in value))
+            return set()
+
+        published_keys = keys(body)
+        assert "last_error" not in published_keys
+        assert "username" not in published_keys
+        assert "db_path" not in published_keys
+
+    def test_broker_credentials_never_reach_gateway_payloads(self, client, monkeypatch):
+        from modules import jobs
+
+        secret = "redis://queue-user:super-secret@redis.internal:6379/7?ssl=true"
+        monkeypatch.setattr(jobs, "settings", replace(jobs.settings, celery_broker_url=secret))
+
+        for path in ("/health", "/api/jobs", "/api/ops/snapshot"):
+            response = client.get(path)
+            assert response.status_code == 200
+            assert secret not in response.text
+            assert "super-secret" not in response.text
+            assert "redis.internal" not in response.text
+
+        queue = client.get("/api/ops/snapshot").json()["queue"]
+        assert queue["broker_configured"] is True
+        assert queue["broker_transport"] == "redis"
+        assert "broker" not in queue
+
     def test_portal_renders(self, client):
         html = client.get("/app").text
         assert "AlphaEngine" in html

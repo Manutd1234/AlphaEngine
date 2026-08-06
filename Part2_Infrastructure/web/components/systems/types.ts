@@ -89,7 +89,114 @@ export interface CacheCounters {
 
 export type GuardMode = "token" | "open-dev" | "locked";
 
+/**
+ * Authoritative operations snapshot emitted by the FastAPI gateway.
+ *
+ * Field names deliberately stay snake_case: this is a versioned wire contract,
+ * not a view model. Keeping the gateway's names intact makes contract drift
+ * visible and avoids a second, subtly different translation of operational
+ * state in the Next.js tier.
+ */
+export type GatewayPlatformStatus = "nominal" | "degraded" | "critical" | "halted";
+
+export interface GatewayMarketDataSymbol {
+  symbol: string;
+  age_seconds: number | null;
+  updates_total: number;
+  update_rate_hz: number;
+  stale: boolean;
+}
+
+export interface GatewayMarketDataFeed {
+  venue: string;
+  status: "up" | "degraded" | "stale" | "down";
+  connected: boolean;
+  reconnects: number;
+  uptime_seconds: number;
+  error_present: boolean;
+  synthetic: boolean;
+  symbols: GatewayMarketDataSymbol[];
+}
+
+export interface GatewayOpsSnapshot {
+  schema_version: 1;
+  observed_at: string;
+  stale_after_seconds: number;
+  status: GatewayPlatformStatus;
+  environment: string;
+  version: string;
+  market_data: {
+    enabled: boolean;
+    status: "nominal" | "degraded" | "critical" | "disabled";
+    uptime_seconds: number;
+    stale_after_seconds: number;
+    synthetic_active: boolean;
+    feeds: GatewayMarketDataFeed[];
+  };
+  risk: {
+    status: "nominal" | "reduce_only" | "halted";
+    kill_switch_active: boolean;
+    halted_symbols: string[];
+    reduce_only: boolean;
+    orders_accepted_total: number;
+    orders_rejected_total: number;
+    working_orders: number;
+    orders_last_second: number;
+    daily_drawdown_pct: number;
+    drawdown_budget_used_pct: number;
+    equity: number;
+    gross_exposure: number;
+  };
+  queue: {
+    backend: string;
+    /** Configured slots; a live distributed-worker heartbeat is not available yet. */
+    workers: number;
+    broker_configured: boolean;
+    broker_transport: string | null;
+    total: number;
+    by_status: Record<string, number>;
+  };
+  audit: {
+    backend: string;
+    available: boolean;
+  };
+  telegram: {
+    enabled: boolean;
+    mode: string;
+    status: "running" | "degraded" | "disabled";
+    uptime_seconds: number;
+    updates_handled: number;
+    alerts_sent: number;
+    last_error_present: boolean;
+  };
+  route_latency: {
+    window_seconds: number;
+    routes: Array<{
+      route: string;
+      p50_ms: number;
+      p95_ms: number;
+      p99_ms: number;
+      samples: number;
+      errors_total: number;
+    }>;
+  };
+}
+
+export type HealthSourceState = "fresh" | "stale" | "not_configured" | "unreachable" | "invalid";
+
+/** Freshness belongs to each source; one current provider read cannot freshen an old gateway sample. */
+export interface HealthSourceFreshness {
+  state: HealthSourceState;
+  observedAt: string | null;
+  receivedAt: string;
+  ageMs: number | null;
+  staleAfterMs: number | null;
+  detail?: string;
+}
+
 export interface SystemHealth {
+  /** Optional in the browser contract so an old route remains safe during a rolling deploy. */
+  schemaVersion?: 2;
   fetchedAt: string;
   instance: { id: string; startedAt: string; uptimeMs: number; scope: string };
   guard: { mode: GuardMode; tokenEnv: string };
@@ -117,6 +224,16 @@ export interface SystemHealth {
     ttlMs: Record<string, number>;
   };
   events: { latest: number; oldest: number; retained: number; capacity: number };
+  /**
+   * Authoritative trading-path state. Absent when the gateway is unavailable,
+   * not configured, or an older gateway has not shipped schema v1 yet.
+   */
+  platform?: GatewayOpsSnapshot;
+  /** Per-source observation age; consumers must not infer freshness from fetchedAt alone. */
+  sources?: {
+    providers: HealthSourceFreshness;
+    gateway: HealthSourceFreshness;
+  };
   /**
    * Payloads that failed a data contract.
    *

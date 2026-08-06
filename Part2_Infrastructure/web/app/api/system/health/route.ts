@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import type { GatewayOpsSnapshot } from "@/components/systems/types";
+import { callGateway } from "@/lib/gateway";
 import { guardMode, CACHE_PREFIXES, OPERATOR_TOKEN_ENV } from "@/lib/operator";
 import {
   activeOutages,
@@ -15,6 +17,12 @@ import { quarantine } from "@/lib/providers/quarantine";
 import { capabilityMatrix, failoverGraph, providerStatus } from "@/lib/providers/registry";
 import { store, TTL_MS } from "@/lib/providers/runtime";
 import { parsePriority } from "@/lib/providers/http";
+import {
+  gatewaySourceFreshness,
+  isGatewayOpsSnapshot,
+  OPS_SNAPSHOT_TIMEOUT_MS,
+  PROVIDER_HEALTH_STALE_AFTER_MS,
+} from "@/lib/reliability";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,9 +60,17 @@ export async function GET(request: NextRequest) {
 
   const base = providerStatus();
   const configuredOpenBBUrl = process.env.OPENBB_API_URL?.trim() ?? "";
-  const openBB = configuredOpenBBUrl
-    ? await openBBReadiness(configuredOpenBBUrl)
-    : { ready: false, statusDetail: "Not configured; set OPENBB_API_URL." };
+  const [openBB, gatewaySnapshot] = await Promise.all([
+    configuredOpenBBUrl
+      ? openBBReadiness(configuredOpenBBUrl)
+      : Promise.resolve({ ready: false, statusDetail: "Not configured; set OPENBB_API_URL." }),
+    callGateway<GatewayOpsSnapshot>("/api/ops/snapshot", {
+      method: "GET",
+      timeoutMs: OPS_SNAPSHOT_TIMEOUT_MS,
+      subject: "the operations snapshot",
+      validate: isGatewayOpsSnapshot,
+    }),
+  ]);
 
   const providers = base.map((provider) => {
     if (provider.simulatedOutage) {
@@ -106,8 +122,17 @@ export async function GET(request: NextRequest) {
     (CACHE_PREFIXES as string[]).includes(key.split(":")[0]),
   ).length;
 
+  const fetchedAtMs = Date.now();
+  const fetchedAt = new Date(fetchedAtMs).toISOString();
+  const gatewayFreshness = gatewaySourceFreshness(
+    gatewaySnapshot.ok ? gatewaySnapshot.data : undefined,
+    gatewaySnapshot.ok ? undefined : gatewaySnapshot.failure,
+    fetchedAtMs,
+  );
+
   return NextResponse.json({
-    fetchedAt: new Date().toISOString(),
+    schemaVersion: 2,
+    fetchedAt,
     instance: {
       id: instanceId,
       startedAt: new Date(startedAt).toISOString(),
@@ -152,6 +177,18 @@ export async function GET(request: NextRequest) {
       ttlMs: TTL_MS,
     },
     events: eventCursor(),
+    ...(gatewaySnapshot.ok ? { platform: gatewaySnapshot.data } : {}),
+    sources: {
+      providers: {
+        state: "fresh",
+        observedAt: fetchedAt,
+        receivedAt: fetchedAt,
+        ageMs: 0,
+        staleAfterMs: PROVIDER_HEALTH_STALE_AFTER_MS,
+        detail: "Provider registry and readiness state were observed in this response.",
+      },
+      gateway: gatewayFreshness,
+    },
     // Payloads that failed their data contract, with the violations that
     // flagged them. A counter alone would say something was wrong and nothing
     // about what, which is the state this buffer exists to end.
@@ -160,5 +197,5 @@ export async function GET(request: NextRequest) {
       byProvider: quarantine.byProvider(),
       recent: quarantine.list(12),
     },
-  });
+  }, { headers: { "Cache-Control": "no-store" } });
 }

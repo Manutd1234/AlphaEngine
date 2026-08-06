@@ -321,6 +321,16 @@ class AuditLog:
             log.error("audit query failed: %s", exc)
             return []
 
+    def health(self) -> dict[str, Any]:
+        """Cheap process-local storage state without exposing its filesystem path.
+
+        The operations snapshot is polled frequently, so it must not contend
+        with order-path writes by issuing a probe query on every request. An
+        open connection reports available; write failures remain authoritative
+        in the audit error logs and metrics.
+        """
+        return {"backend": self.backend, "available": not self._closed}
+
     def accepted_fills_for_session(self, session_date: str) -> list[dict[str, Any]]:
         """Return ordered accepted fills for one UTC session, after its last reset.
 

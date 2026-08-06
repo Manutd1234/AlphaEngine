@@ -1,23 +1,11 @@
 "use client";
 
 /**
- * The streaming trace — one timeline for a system that runs in two places.
+ * Cross-origin event investigation with a bounded, cursor-aware stream.
  *
- * Server-side dispatch decisions and browser-side WebSocket frames are both part
- * of the data path, and neither can see the other. Reading them in two windows
- * is how you miss that the socket went quiet ninety milliseconds before the REST
- * fallback fired. So both are merged here, ordered by time, and every line is
- * tagged with where it was produced — merged, but never conflated.
- *
- * Server lines are pulled with a sequence cursor rather than a timestamp,
- * because several of these routinely land inside the same millisecond and a time
- * cursor either duplicates or drops them. When the cursor falls behind the
- * server's ring the response says so and a gap marker is rendered: a log with a
- * silent hole in it is worse than one that admits the hole.
- *
- * Auto-scroll is opt-out and disengages the moment you scroll up, because the
- * one time you need to read a line is the one time the console will helpfully
- * yank it off screen.
+ * Server dispatch events and browser wire events remain explicitly tagged. A
+ * selectable master list keeps the timeline scannable while the detail pane
+ * exposes every structured field without flattening it into an unreadable row.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -28,32 +16,31 @@ import type { EventsResponse, TraceEvent } from "./types";
 const LEVELS = ["debug", "info", "warn", "error"] as const;
 type Level = (typeof LEVELS)[number];
 
-/** Rank so a chosen minimum level includes everything above it. */
 const LEVEL_RANK: Record<Level, number> = { debug: 0, info: 1, warn: 2, error: 3 };
-
-/** Bounded so a console left open overnight cannot grow without limit. */
 const MAX_LINES = 800;
 
-/**
- * A line plus a key that is unique across origins *and across instances*.
- *
- * Sequence numbers are monotonic within one process and restart at 1 in the
- * next, so `origin:seq` alone collides the moment a poll lands on a different
- * serverless instance — two unrelated events sharing a React key, which is
- * silent duplication rather than an error.
- */
 type Line = TraceEvent & { key: string };
+
+export interface TraceFilterRequest {
+  id: number;
+  query: string;
+  label: string;
+}
 
 interface TraceConsoleProps {
   pollMs: number;
   /** Hidden tab panels stay mounted; inactive traces retain state without polling. */
   active: boolean;
+  /** A service-row drilldown can request the same query repeatedly via its id. */
+  filterRequest?: TraceFilterRequest | null;
 }
 
-export default function TraceConsole({ pollMs, active }: TraceConsoleProps) {
+export default function TraceConsole({ pollMs, active, filterRequest }: TraceConsoleProps) {
   const [lines, setLines] = useState<Line[]>([]);
   const [minLevel, setMinLevel] = useState<Level>("debug");
   const [filter, setFilter] = useState("");
+  const [filterContext, setFilterContext] = useState<string | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [follow, setFollow] = useState(true);
   const [gaps, setGaps] = useState(0);
   const [connected, setConnected] = useState(true);
@@ -61,18 +48,14 @@ export default function TraceConsole({ pollMs, active }: TraceConsoleProps) {
   const serverCursor = useRef(0);
   const browserCursor = useRef(0);
   const instance = useRef<string | null>(null);
-  // Two polls in flight would both read the cursor before either advanced it and
-  // ingest the same page twice. StrictMode's double-invoked effect makes that
-  // the *normal* case in development, not a rare race.
   const inFlight = useRef(false);
-  const viewport = useRef<HTMLDivElement | null>(null);
+  const viewport = useRef<HTMLOListElement | null>(null);
 
   const pull = useCallback(async () => {
     if (inFlight.current) return;
     inFlight.current = true;
     try {
-      // Browser-side lines first and unconditionally: they exist even when the
-      // server is unreachable, which is exactly when a log is worth having.
+      // Local events remain available even when the server is unreachable.
       const local = eventsSince(browserCursor.current, 200);
       if (local.length) browserCursor.current = local[local.length - 1].seq;
 
@@ -91,24 +74,15 @@ export default function TraceConsole({ pollMs, active }: TraceConsoleProps) {
           setConnected(true);
 
           if (switched) {
-            // A different instance means a different ring with its own sequence
-            // space and its own history, and the page just received was fetched
-            // with the *old* instance's cursor — so it silently omits everything
-            // below that number in the new ring. Rewind and take nothing from
-            // this response; the next tick refetches from zero. Advancing the
-            // cursor from this page instead would leave the skipped lines
-            // permanently unrequested, which is the failure a gap marker exists
-            // to make impossible.
+            // Sequence spaces are instance-local. Rewind rather than ingesting a
+            // page fetched with another instance's cursor and hiding the hole.
             serverCursor.current = 0;
-            setGaps((n) => n + 1);
+            setGaps((count) => count + 1);
           } else {
             remote = body.events ?? [];
-            // Advance from the last line actually received, not from the ring's
-            // head: if a limit truncated the page, the head is ahead of what was
-            // delivered and the difference would never be fetched.
             if (remote.length) serverCursor.current = remote[remote.length - 1].seq;
             else if (body.cursor) serverCursor.current = body.cursor.latest;
-            if (body.dropped) setGaps((n) => n + 1);
+            if (body.dropped) setGaps((count) => count + 1);
           }
         } else {
           setConnected(false);
@@ -118,14 +92,12 @@ export default function TraceConsole({ pollMs, active }: TraceConsoleProps) {
       }
 
       const fresh: Line[] = [
-        ...local.map((e) => ({ ...e, key: `browser:${e.seq}` })),
-        ...remote.map((e) => ({ ...e, key: `server:${instanceId}:${e.seq}` })),
+        ...local.map((event) => ({ ...event, key: `browser:${event.seq}` })),
+        ...remote.map((event) => ({ ...event, key: `server:${instanceId}:${event.seq}` })),
       ];
       if (!fresh.length) return;
+
       setLines((current) => {
-        // Deduplicate on the way in. The cursor guard above should make this
-        // unnecessary; keeping it means a future change to the cursor logic
-        // degrades into a missing line rather than a duplicated one.
         const seen = new Set(current.map((line) => line.key));
         const added = fresh.filter((line) => !seen.has(line.key));
         if (!added.length) return current;
@@ -136,6 +108,14 @@ export default function TraceConsole({ pollMs, active }: TraceConsoleProps) {
       inFlight.current = false;
     }
   }, []);
+
+  useEffect(() => {
+    if (!filterRequest) return;
+    setFilter(filterRequest.query);
+    setFilterContext(filterRequest.label);
+    setMinLevel("debug");
+    setSelectedKey(null);
+  }, [filterRequest]);
 
   useEffect(() => {
     if (!active || paused) return;
@@ -158,7 +138,11 @@ export default function TraceConsole({ pollMs, active }: TraceConsoleProps) {
       return (
         line.message.toLowerCase().includes(needle)
         || line.source.toLowerCase().includes(needle)
-        || Object.values(line.fields ?? {}).some((v) => String(v).toLowerCase().includes(needle))
+        || line.origin.toLowerCase().includes(needle)
+        || Object.entries(line.fields ?? {}).some(([key, value]) => (
+          key.toLowerCase().includes(needle)
+          || String(value).toLowerCase().includes(needle)
+        ))
       );
     });
   }, [lines, minLevel, filter]);
@@ -169,9 +153,11 @@ export default function TraceConsole({ pollMs, active }: TraceConsoleProps) {
     if (node) node.scrollTop = node.scrollHeight;
   }, [visible, follow]);
 
-  // Disengage follow as soon as the reader scrolls away from the bottom, and
-  // re-engage when they come back. A "follow" checkbox that fights the scroll
-  // wheel is the reason people paste logs into a text editor instead.
+  const selected = useMemo(() => {
+    const explicit = selectedKey ? visible.find((line) => line.key === selectedKey) : null;
+    return explicit ?? visible[visible.length - 1] ?? null;
+  }, [selectedKey, visible]);
+
   const onScroll = () => {
     const node = viewport.current;
     if (!node) return;
@@ -179,17 +165,23 @@ export default function TraceConsole({ pollMs, active }: TraceConsoleProps) {
     setFollow(atBottom);
   };
 
+  const clearFilter = () => {
+    setFilter("");
+    setFilterContext(null);
+    setSelectedKey(null);
+  };
+
   return (
     <div className="card console-card console-log-card">
       <div className="section-heading compact">
         <div>
-          <span className="page-kicker">Trace</span>
-          <h2>Event stream</h2>
+          <span className="page-kicker">Investigation</span>
+          <h2>Logs &amp; traces</h2>
         </div>
-        <span className="section-note">
-          {visible.length}/{lines.length} lines
-          {paused && <span> · stream paused</span>}
-          {!connected && <span className="console-warn"> · server unreachable</span>}
+        <span className="section-note" aria-live="polite">
+          {visible.length}/{lines.length} entries
+          {paused ? <span> · stream paused</span> : null}
+          {!connected ? <span className="console-warn"> · server unreachable</span> : null}
         </span>
       </div>
 
@@ -206,13 +198,21 @@ export default function TraceConsole({ pollMs, active }: TraceConsoleProps) {
             </button>
           ))}
         </div>
-        <input
-          value={filter}
-          onChange={(event) => setFilter(event.target.value)}
-          placeholder="filter…"
-          aria-label="Filter log lines"
-          className="console-log-filter"
-        />
+        <label className="console-log-search">
+          <span className="sr-only">Filter log entries</span>
+          <input
+            value={filter}
+            onChange={(event) => {
+              setFilter(event.target.value);
+              setFilterContext(null);
+              setSelectedKey(null);
+            }}
+            placeholder="source, message, field or value…"
+            aria-label="Filter log entries"
+            className="console-log-filter"
+          />
+        </label>
+        {filter ? <button type="button" onClick={clearFilter}>Clear filter</button> : null}
         <button type="button" onClick={() => setPaused((current) => !current)} aria-pressed={paused}>
           {paused ? "Resume stream" : "Pause stream"}
         </button>
@@ -221,75 +221,154 @@ export default function TraceConsole({ pollMs, active }: TraceConsoleProps) {
           onClick={() => {
             setLines([]);
             setGaps(0);
+            setSelectedKey(null);
           }}
         >
           Clear view
         </button>
       </div>
 
-      {gaps > 0 && (
+      {filterContext ? (
+        <p className="console-filter-context" role="status">
+          Filtered from Services &amp; Circuits: <strong>{filterContext}</strong>
+        </p>
+      ) : null}
+
+      {gaps > 0 ? (
         <p className="console-warn console-log-gap" role="status">
           <span aria-hidden>▲</span> Timeline discontinuity ×{gaps} — either the server ring advanced
-          past this client&apos;s cursor (lines produced faster than they were polled), or a poll
-          landed on a different instance, whose ring is a different history. Either way, lines exist
-          that are not on this screen.
+          past this client&apos;s cursor or a poll landed on a different instance. Entries exist that
+          are not on this screen.
         </p>
-      )}
+      ) : null}
 
-      <div
-        className="console-log"
-        ref={viewport}
-        onScroll={onScroll}
-        role="log"
-        aria-label="System event stream"
-        tabIndex={0}
-      >
-        {visible.length === 0 && (
-          <p className="console-log__empty">
-            No lines yet. Trace a symbol or trip a provider and this fills up.
-          </p>
-        )}
-        {visible.map((line) => (
-          <div className={`console-log__line is-${line.level}`} key={line.key}>
-            <span className="console-log__ts">{stamp(line.ts)}</span>
-            <span className={`console-log__level is-${line.level}`}>{line.level.toUpperCase()}</span>
-            <span className="console-log__origin" title={line.origin === "server" ? "produced on the server instance" : "produced in this browser tab"}>
-              {line.origin === "server" ? "srv" : "web"}
-            </span>
-            <span className="console-log__source">[{line.source}]</span>
-            <span className="console-log__msg">{line.message}</span>
-            {Object.entries(line.fields ?? {}).length > 0 && (
-              <span className="console-log__fields">
-                {Object.entries(line.fields)
-                  .filter(([, value]) => value !== null && value !== "")
-                  .map(([key, value]) => `${key}=${value}`)
-                  .join(" ")}
-              </span>
-            )}
+      <div className="console-trace-split">
+        <div className="console-trace-master">
+          <div className="console-trace-pane-heading">
+            <strong>Timeline</strong>
+            <span>{follow ? "Following latest" : "Follow disengaged"}</span>
           </div>
-        ))}
-      </div>
+          <ol
+            className="console-log"
+            ref={viewport}
+            onScroll={onScroll}
+            role="log"
+            aria-label="System event timeline"
+            aria-live="off"
+            tabIndex={0}
+          >
+            {visible.length === 0 ? (
+              <li className="console-log__empty">
+                {lines.length ? "No entries match the current filter." : "No entries yet. Trace a symbol or trip a provider to populate the stream."}
+              </li>
+            ) : null}
+            {visible.map((line) => (
+              <li className="console-log__entry" key={line.key}>
+                <button
+                  type="button"
+                  className={`console-log__line is-${line.level}`}
+                  aria-pressed={selected?.key === line.key}
+                  aria-controls="trace-event-detail"
+                  onClick={() => {
+                    setSelectedKey(line.key);
+                    if (line.key !== visible[visible.length - 1]?.key) setFollow(false);
+                  }}
+                >
+                  <time className="console-log__ts" dateTime={new Date(line.ts).toISOString()}>{stamp(line.ts)}</time>
+                  <span className={`console-log__level is-${line.level}`}>{line.level.toUpperCase()}</span>
+                  <span
+                    className="console-log__origin"
+                    title={line.origin === "server" ? "Produced on the server instance" : "Produced in this browser tab"}
+                  >
+                    {line.origin === "server" ? "srv" : "web"}
+                  </span>
+                  <span className="console-log__source">[{line.source}]</span>
+                  <span className="console-log__msg">{line.message}</span>
+                  {Object.keys(line.fields ?? {}).length ? (
+                    <span className="console-log__fields">{fieldSummary(line.fields)}</span>
+                  ) : null}
+                </button>
+              </li>
+            ))}
+          </ol>
 
-      {!follow && (
-        <button
-          type="button"
-          className="console-log-jump"
-          onClick={() => {
-            setFollow(true);
-            const node = viewport.current;
-            if (node) node.scrollTop = node.scrollHeight;
-          }}
-        >
-          Jump to latest ↓
-        </button>
-      )}
+          {!follow ? (
+            <button
+              type="button"
+              className="console-log-jump"
+              onClick={() => {
+                setFollow(true);
+                setSelectedKey(null);
+                const node = viewport.current;
+                if (node) node.scrollTop = node.scrollHeight;
+              }}
+            >
+              Follow latest ↓
+            </button>
+          ) : null}
+        </div>
+
+        <aside className="console-trace-detail" id="trace-event-detail" aria-labelledby="trace-event-detail-title">
+          <div className="console-trace-pane-heading">
+            <strong id="trace-event-detail-title">Structured detail</strong>
+            <span>{selected ? `event ${selected.seq}` : "No selection"}</span>
+          </div>
+          {selected ? (
+            <div className="console-trace-detail__body">
+              <div className="console-trace-detail__title">
+                <span className={`console-log__level is-${selected.level}`}>{selected.level.toUpperCase()}</span>
+                <h3>{selected.message}</h3>
+              </div>
+              <dl className="console-trace-meta">
+                <div><dt>Time (UTC)</dt><dd>{new Date(selected.ts).toISOString()}</dd></div>
+                <div><dt>Source</dt><dd><code>{selected.source}</code></dd></div>
+                <div><dt>Origin</dt><dd>{selected.origin === "server" ? "Server instance" : "This browser tab"}</dd></div>
+                <div><dt>Sequence</dt><dd className="num">{selected.seq}</dd></div>
+              </dl>
+
+              <div className="console-trace-fields-heading">
+                <strong>Fields</strong>
+                <span>{Object.keys(selected.fields ?? {}).length}</span>
+              </div>
+              {Object.keys(selected.fields ?? {}).length ? (
+                <dl className="console-trace-fields">
+                  {Object.entries(selected.fields).map(([key, value]) => (
+                    <div key={key}>
+                      <dt>{key}</dt>
+                      <dd>{formatFieldValue(value)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : (
+                <p className="muted console-trace-empty-detail">This event has no structured fields.</p>
+              )}
+            </div>
+          ) : (
+            <p className="muted console-trace-empty-detail">Select an entry to inspect its timestamp, source and fields.</p>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }
 
+function fieldSummary(fields: TraceEvent["fields"]): string {
+  return Object.entries(fields)
+    .filter(([, value]) => value !== null && value !== "")
+    .slice(0, 4)
+    .map(([key, value]) => `${key}=${String(value)}`)
+    .join(" ");
+}
+
+function formatFieldValue(value: string | number | boolean | null): string {
+  if (value === null) return "null";
+  if (typeof value === "boolean") return value ? "true" : "false";
+  return String(value);
+}
+
 /** Millisecond precision, because the interesting gaps here are sub-second. */
 function stamp(ts: number): string {
-  const d = new Date(ts);
-  const pad = (n: number, width = 2) => String(n).padStart(width, "0");
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`;
+  const date = new Date(ts);
+  const pad = (value: number, width = 2) => String(value).padStart(width, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`;
 }

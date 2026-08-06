@@ -5,14 +5,16 @@
  *
  * The role's blueprint asks to locate a failure in compute, network, provider,
  * cache or broker connectivity without opening several dashboards, so the
- * workflow answers that question in layers — Overview surfaces symptoms, the
- * Services matrix says which provider or breaker is involved, Events says when
- * it started, and Controls is where a guarded response or drill is performed.
+ * workflow answers that question in layers — Telemetry surfaces symptoms, the
+ * Services matrix says which provider or breaker is involved, Logs says when
+ * it started, and Remediation is where a guarded response or drill is performed.
  *
  * Reads are free and always available; writes are gated and every control states
- * its cost. The gateway's own `/metrics` endpoint is the scrape surface for all
- * of this — this tab is the human view of the same counters.
+ * its cost. Provider-routing telemetry and the trading gateway are separate
+ * observation planes; this UI keeps their source and scope explicit.
  */
+
+import { useRef, useState } from "react";
 
 import HealthMatrix from "@/components/systems/HealthMatrix";
 import OperatorPanel, { OperatorActionResult } from "@/components/systems/OperatorPanel";
@@ -21,15 +23,16 @@ import TraceConsole from "@/components/systems/TraceConsole";
 import { ConsoleChrome, type ConsoleTile } from "@/components/systems/ConsoleChrome";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import { fmt } from "@/lib/format";
+import { deriveReliabilityPosture, type ReliabilityStatus } from "@/lib/reliability";
 import type { SystemHealthView } from "@/lib/use-system-health";
 
 export type ReliabilitySection = "overview" | "services" | "events" | "controls";
 
 const RELIABILITY_SECTIONS = [
-  { id: "overview", label: "Overview", description: "Signals & active impact" },
-  { id: "services", label: "Services", description: "Providers, venues & circuits" },
-  { id: "events", label: "Events", description: "Cross-origin trace" },
-  { id: "controls", label: "Controls", description: "Guarded remediation" },
+  { id: "overview", label: "Telemetry & SLIs", description: "Signals, scope & active impact" },
+  { id: "services", label: "Services & Circuits", description: "Providers, venues & failover" },
+  { id: "events", label: "Logs & Traces", description: "Cross-origin event investigation" },
+  { id: "controls", label: "Remediation", description: "Guarded, scoped operator actions" },
 ] as const;
 
 export interface ReliabilityConsoleProps {
@@ -40,6 +43,21 @@ export interface ReliabilityConsoleProps {
   onSectionChange: (section: ReliabilitySection) => void;
 }
 
+const POSTURE_LABEL: Record<ReliabilityStatus, string> = {
+  nominal: "Nominal",
+  degraded: "Degraded",
+  critical: "Critical",
+  halted: "Trading halted",
+  unknown: "Unknown",
+};
+
+function postureTone(status: ReliabilityStatus | undefined): ConsoleTile["tone"] {
+  if (status === "critical" || status === "halted") return "bad";
+  if (status === "degraded" || status === "unknown") return "warn";
+  if (status === "nominal") return "good";
+  return "neutral";
+}
+
 export default function ReliabilityConsole({
   view,
   workspaceSymbol,
@@ -47,6 +65,12 @@ export default function ReliabilityConsole({
   section,
   onSectionChange,
 }: ReliabilityConsoleProps) {
+  const [traceFilterRequest, setTraceFilterRequest] = useState<{
+    id: number;
+    query: string;
+    label: string;
+  } | null>(null);
+  const traceFilterSequence = useRef(0);
   const {
     health,
     guard,
@@ -66,32 +90,13 @@ export default function ReliabilityConsole({
 
   const latency = health?.summary.latency;
   const hasTraffic = Boolean(latency?.n);
-  const unavailableCapabilities = health
-    ? Object.entries(health.capabilities)
-        .filter(([, capability]) => capability.available.length === 0)
-        .map(([capability]) => capability)
-    : [];
-  const signalProviders = new Set([
-    ...(health?.summary.degraded ?? []),
-    ...(health?.summary.exhausted ?? []),
-    ...(health?.summary.simulated ?? []),
-  ]);
-  const signalCount = (view.healthError ? 1 : 0)
-    + signalProviders.size
-    + unavailableCapabilities.length
-    + (hasTraffic && (latency?.errorRate ?? 0) > 0.01 ? 1 : 0);
+  const posture = health ? deriveReliabilityPosture(health) : null;
 
   const overallState = view.healthError
     ? "Unreachable"
-    : !health
+    : !posture
       ? "Checking"
-      : unavailableCapabilities.length || health.summary.degraded.length || health.summary.exhausted.length
-        ? "Degraded"
-        : hasTraffic && (latency?.errorRate ?? 0) > 0.01
-          ? "Upstream instability"
-          : health.summary.simulated.length
-            ? "Drill active"
-            : "Nominal";
+      : POSTURE_LABEL[posture.overall];
 
   const tiles: ConsoleTile[] = [
     {
@@ -99,54 +104,32 @@ export default function ReliabilityConsole({
       value: overallState,
       note: view.healthError
         ? health ? "last good snapshot retained" : "no health snapshot available"
-        : health?.summary.simulated.length
-          ? `${health.summary.simulated.length} controlled drill${health.summary.simulated.length === 1 ? "" : "s"}`
-          : signalCount
-            ? `${signalCount} active signal${signalCount === 1 ? "" : "s"}`
-            : health
-              ? "no active dependency symptom"
-              : "awaiting snapshot",
+        : posture
+          ? `trading ${POSTURE_LABEL[posture.paths.trading.status].toLowerCase()} · research ${POSTURE_LABEL[posture.paths.research.status].toLowerCase()}`
+          : "awaiting snapshot",
       tone: view.healthError
         ? "bad"
-        : unavailableCapabilities.length || health?.summary.degraded.length || health?.summary.exhausted.length
-          ? "bad"
-          : hasTraffic && (latency?.errorRate ?? 0) >= 0.05
-            ? "bad"
-            : hasTraffic && (latency?.errorRate ?? 0) > 0.01
-              ? "warn"
-              : health?.summary.simulated.length
-                ? "warn"
-                : health
-                  ? "good"
-                  : "neutral",
+        : postureTone(posture?.overall),
     },
     {
-      label: "Providers ready",
+      label: "Trading path",
+      value: posture ? POSTURE_LABEL[posture.paths.trading.status] : "—",
+      note: posture?.paths.trading.reason ?? "awaiting gateway source",
+      tone: postureTone(posture?.paths.trading.status),
+    },
+    {
+      label: "Research providers",
       value: health ? `${health.summary.ready}/${health.summary.total}` : "—",
-      note: health
-        ? `${health.summary.configured} configured · ${health.summary.degraded.length} open · ${health.summary.exhausted.length} exhausted`
-        : "checking registry",
-      tone: !health
-        ? "neutral"
-        : unavailableCapabilities.length || signalProviders.size
-          ? "warn"
-          : "good",
-    },
-    {
-      label: "Upstream success",
-      value: hasTraffic
-        ? `${fmt((1 - (latency?.errorRate ?? 0)) * 100, 1)}%`
-        : "—",
-      note: hasTraffic ? `n=${latency?.n ?? 0} provider / venue attempts` : "no attempts sampled yet",
-      tone: !hasTraffic ? "neutral" : (latency?.errorRate ?? 0) >= 0.05 ? "bad" : (latency?.errorRate ?? 0) > 0.01 ? "warn" : "good",
+      note: posture?.paths.research.reason ?? "checking provider registry",
+      tone: postureTone(posture?.paths.research.status),
     },
     {
       label: "Upstream p95",
       value: hasTraffic ? `${fmt(latency?.p95 ?? 0, 0)}ms` : "—",
       note: hasTraffic
-        ? `p50 ${fmt(latency?.p50 ?? 0, 0)}ms · p99 ${fmt(latency?.p99 ?? 0, 0)}ms`
+        ? `success ${fmt((1 - (latency?.errorRate ?? 0)) * 100, 1)}% · p99 ${fmt(latency?.p99 ?? 0, 0)}ms · n=${latency?.n ?? 0}`
         : "no attempts sampled yet",
-      tone: "neutral",
+      tone: !hasTraffic ? "neutral" : (latency?.errorRate ?? 0) >= 0.05 ? "bad" : (latency?.errorRate ?? 0) > 0.01 ? "warn" : "neutral",
     },
   ];
 
@@ -160,6 +143,12 @@ export default function ReliabilityConsole({
   const openData = () => {
     onOpenData();
     window.requestAnimationFrame(() => document.getElementById("tab-data")?.focus());
+  };
+
+  const openEventsFor = (query: string, label: string) => {
+    traceFilterSequence.current += 1;
+    setTraceFilterRequest({ id: traceFilterSequence.current, query, label });
+    openDrilldown("events");
   };
 
   return (
@@ -200,6 +189,7 @@ export default function ReliabilityConsole({
           operatorReady={guard === "open-dev" || (guard === "token" && Boolean(token.trim()))}
           busyAction={busyAction}
           onAction={runAction}
+          onInspectEvents={openEventsFor}
         />
       </WorkspaceSubtabPanel>
 
@@ -207,6 +197,7 @@ export default function ReliabilityConsole({
         <TraceConsole
           pollMs={pollMs || 30_000}
           active={section === "events"}
+          filterRequest={traceFilterRequest}
         />
       </WorkspaceSubtabPanel>
 
