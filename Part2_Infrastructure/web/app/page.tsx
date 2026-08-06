@@ -894,22 +894,6 @@ export default function Page() {
 
         {view === "developer" && (
           <section id="panel-developer" role="tabpanel" aria-labelledby="tab-developer" className="view-panel">
-            <WorkspaceIntro
-              kicker="Quant developer"
-              title="Developer"
-              description={<>Explore the complete repository, triage features and bugs, inspect API contracts, and verify the gates that make a change safe to ship.</>}
-              insights={[
-                { label: "Architecture", value: "3 deployables", detail: "workspace · gateway · OpenBB", tone: "accent" },
-                {
-                  label: "Engineering work",
-                  value: `${developerWorkItems.filter((item) => item.status !== "done").length} open`,
-                  detail: "session planning queue",
-                  tone: developerWorkItems.some((item) => item.kind === "bug" && item.status !== "done") ? "warn" : "good",
-                  mono: true,
-                },
-                { label: "Verification", value: "630 tests", detail: "three offline suites", tone: "good", mono: true },
-              ]}
-            />
             <DeveloperConsole
               view={systems}
               workspaceSymbol={req.symbol}

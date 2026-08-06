@@ -17,6 +17,13 @@ function commitSha() {
   }
 }
 
+function deploymentEnvironment() {
+  const value = process.env.VERCEL_ENV;
+  return value === "production" || value === "preview" || value === "development"
+    ? value
+    : "local";
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -26,6 +33,10 @@ const nextConfig = {
   agentRules: false,
   env: {
     NEXT_PUBLIC_COMMIT_SHA: commitSha(),
+    // A Git SHA proves source identity, not that the artifact was deployed.
+    // Expose Vercel's build context separately so the Developer control plane
+    // can keep local builds and deployed artifacts visibly distinct.
+    NEXT_PUBLIC_DEPLOYMENT_ENV: deploymentEnvironment(),
   },
 };
 

@@ -110,7 +110,7 @@ const DEVELOPER_WORK_SEEDS: readonly DeveloperWorkSeed[] = [
     priority: "P2",
     status: "done",
     title: "API inventory omitted supported route methods",
-    summary: "The Developer API catalog now lists all twenty-three web operations by domain.",
+    summary: "The Developer API catalog now lists every supported web operation by domain.",
     owner: "Ian",
     area: "Developer portal",
     ageHours: 120,

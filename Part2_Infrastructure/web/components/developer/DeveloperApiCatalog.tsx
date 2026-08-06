@@ -48,6 +48,10 @@ export const API_OPERATIONS: readonly ApiOperation[] = [
   { method: "GET", path: "/api/system/inspect?symbol=BTCUSDT&raw=1", purpose: "One request with route and raw-payload lineage", group: "system" },
 ] as const;
 
+const API_ROUTE_HANDLER_COUNT = new Set(
+  API_OPERATIONS.map((operation) => operation.path.split("?", 1)[0]),
+).size;
+
 export default function DeveloperApiCatalog() {
   const [group, setGroup] = useState<ApiGroup | "all">("all");
   const [query, setQuery] = useState("");
@@ -82,9 +86,9 @@ export default function DeveloperApiCatalog() {
       <div className="section-heading compact">
         <div>
           <span className="page-kicker">Developer surface</span>
-          <h2>Twenty-three web API operations</h2>
+          <h2>{API_OPERATIONS.length} web API operations</h2>
         </div>
-        <span className="section-note">20 route handlers · grouped by responsibility</span>
+        <span className="section-note">{API_ROUTE_HANDLER_COUNT} route handlers · grouped by responsibility</span>
       </div>
 
       <div className="developer-api-catalog__toolbar">

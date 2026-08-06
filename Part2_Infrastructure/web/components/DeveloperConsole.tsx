@@ -1,83 +1,233 @@
 "use client";
 
 /**
- * Quant developer workspace: where is the code, what work is active, and can a
- * change cross its contracts safely? The repository, workflow, APIs, and CI
- * evidence are separate subtabs so each question fits in one viewport instead
- * of becoming a single documentation wall.
+ * AlphaEngine developer control plane.
+ *
+ * This is deliberately part of the main workspace rather than a second app.
+ * It combines the live health snapshot already owned by `useSystemHealth` with
+ * committed delivery evidence. Anything that is not connected to a live
+ * source says so explicitly; a polished placeholder must never impersonate a
+ * CI conclusion, schema comparison, or signed artifact.
  */
+
+import type { CSSProperties } from "react";
 
 import CodebaseExplorer from "@/components/developer/CodebaseExplorer";
 import DeveloperApiCatalog, { API_OPERATIONS } from "@/components/developer/DeveloperApiCatalog";
 import DeveloperWorkQueue from "@/components/developer/DeveloperWorkQueue";
-import { ConsoleChrome, type ConsoleTile } from "@/components/systems/ConsoleChrome";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import type { DeveloperWorkItem } from "@/lib/developer-work";
-import { DEPLOYABLES, REPOSITORY_STATS } from "@/lib/repository-catalog";
+import { DEPLOYABLES, GITHUB_SOURCE_ROOT, REPOSITORY_STATS } from "@/lib/repository-catalog";
 import type { SystemHealthView } from "@/lib/use-system-health";
+import { APP_COMMIT, APP_DEPLOYMENT_ENV, IS_VERCEL_DEPLOYMENT } from "@/lib/version";
+
+const GITHUB_REPOSITORY_ROOT = GITHUB_SOURCE_ROOT.split("/blob/main")[0];
+const HAS_COMMIT_IDENTITY = APP_COMMIT !== "dev";
+const RUNTIME_LABEL = APP_DEPLOYMENT_ENV === "production"
+  ? "Vercel production"
+  : APP_DEPLOYMENT_ENV === "preview"
+    ? "Vercel preview"
+    : process.env.NODE_ENV === "production"
+      ? "Local production build"
+      : "Local development";
 
 export type DeveloperSection = "overview" | "codebase" | "work" | "apis" | "quality";
 
+/** IDs stay stable for saved workspace state; labels and order are the product IA. */
 const DEVELOPER_SECTIONS = [
-  { id: "overview", label: "Overview", description: "Architecture & active work" },
-  { id: "codebase", label: "Codebase", description: "Every repository path" },
-  { id: "work", label: "Work", description: "Features, bugs & tickets" },
-  { id: "apis", label: "APIs", description: "Routes & copy-ready calls" },
-  { id: "quality", label: "Quality", description: "Tests, contracts & CI" },
+  { id: "overview", label: "Overview", description: "Topology, readiness & delivery posture" },
+  { id: "quality", label: "CI / CD", description: "Pipelines, test gates & artifacts" },
+  { id: "apis", label: "API & Schema", description: "Routes, payloads & contract drift" },
+  { id: "codebase", label: "Code & Diffs", description: "Repository paths & change custody" },
+  { id: "work", label: "Task Queue", description: "Engineering-impact work" },
 ] as const;
 
-/** Each entry is a configured CI gate — see .github/workflows/ci.yml. */
-const VERIFICATION = [
-  {
-    gate: "Contract snapshot",
-    detail: "tools/export_openapi.py --check diffs the served schema against tools/openapi.json.",
-    breaks: "A gateway route or field changing shape without a deliberate snapshot update.",
-  },
-  {
-    gate: "Cross-language parity",
-    detail: "TypeScript backtest and risk maths are pinned to Python-generated fixtures.",
-    breaks: "The browser and gateway disagreeing on a Sharpe, VaR, fold, or risk contribution.",
-  },
-  {
-    gate: "Gateway contract fixtures",
-    detail: "Canonical gateway payloads are replayed through web-side validators.",
-    breaks: "A consumer drifting from what the authoritative gateway actually emits.",
-  },
-  {
-    gate: "Money-path probe",
-    detail: "tools/synthetic_probe.py walks health → book → cost → risk gate → audit in-process.",
-    breaks: "A broken order journey even when its individual units still pass.",
-  },
-  {
-    gate: "Lint, types & build",
-    detail: "ruff, strict tsc, and a production Next.js build run before delivery.",
-    breaks: "Unsafe Python, payload type drift, route analysis errors, or a failed production bundle.",
-  },
-] as const;
+type ControlTone = "good" | "warn" | "bad" | "off" | "info";
 
-const TEST_SUITES = [
-  { name: "Gateway + companion", count: 241, command: "python -m pytest", detail: "Risk, execution, audit, jobs, research, and Telegram" },
-  { name: "Web workspace", count: 377, command: "npm test", detail: "UI structure, domain logic, providers, and parity" },
-  { name: "OpenBB service", count: 12, command: "python -m pytest", detail: "Provider facade and authenticated route contracts" },
-] as const;
+interface ControlState {
+  label: string;
+  detail: string;
+  tone: ControlTone;
+}
 
 const CI_JOBS = [
-  { name: "Gateway", detail: "pytest · ruff · OpenAPI snapshot · money-path probe" },
-  { name: "OpenBB service", detail: "isolated provider and API suite" },
-  { name: "Web workspace", detail: "tests · strict typecheck · production build" },
-  { name: "Repository audit", detail: "exports HEAD and verifies the committed tree" },
+  {
+    name: "Gateway",
+    count: 342,
+    command: "python -m pytest",
+    evidence: "pytest · ruff · OpenAPI snapshot · money-path probe",
+  },
+  {
+    name: "Web workspace",
+    count: 653,
+    command: "npm test && npm run typecheck && npm run build",
+    evidence: "domain tests · contract fixtures · strict TypeScript · Next.js build",
+  },
+  {
+    name: "OpenBB service",
+    count: 13,
+    command: "python -m pytest",
+    evidence: "provider facade · authentication · API contracts",
+  },
+  {
+    name: "Repository audit",
+    count: null,
+    command: "tools/check_repo_complete.sh",
+    evidence: "exports Git HEAD and verifies the committed delivery tree",
+  },
 ] as const;
 
-export interface DeveloperConsoleProps {
-  view: SystemHealthView;
-  workspaceSymbol: string;
-  onOpenResearch: () => void;
-  onOpenLive: () => void;
-  onOpenReliability: () => void;
-  section: DeveloperSection;
-  onSectionChange: (section: DeveloperSection) => void;
-  workItems: DeveloperWorkItem[];
-  onWorkItemsChange: (items: DeveloperWorkItem[]) => void;
+const PIPELINE_STAGES = [
+  { name: "Code", note: APP_COMMIT, tone: HAS_COMMIT_IDENTITY ? "good" as const : "warn" as const },
+  { name: "Build", note: IS_VERCEL_DEPLOYMENT ? "Vercel build" : "Local build", tone: IS_VERCEL_DEPLOYMENT ? "good" as const : "warn" as const },
+  { name: "Tests", note: "Configured gates", tone: "warn" as const },
+  { name: "Contracts", note: "Configured gates", tone: "warn" as const },
+  { name: "Package", note: IS_VERCEL_DEPLOYMENT ? "Vercel artifact" : "Unverified local output", tone: IS_VERCEL_DEPLOYMENT ? "good" as const : "warn" as const },
+  {
+    name: "Deploy",
+    note: APP_DEPLOYMENT_ENV === "production" ? "Production" : APP_DEPLOYMENT_ENV === "preview" ? "Preview" : "Not deployed",
+    tone: IS_VERCEL_DEPLOYMENT ? "good" as const : "warn" as const,
+  },
+] as const;
+
+const SCHEMA_GATES = [
+  {
+    object: "Gateway OpenAPI",
+    baseline: "tools/openapi.json",
+    candidate: "FastAPI runtime",
+    impact: "CI gated",
+    tone: "good" as const,
+  },
+  {
+    object: "Risk parity",
+    baseline: "Python fixture",
+    candidate: "TypeScript consumer",
+    impact: "CI gated",
+    tone: "good" as const,
+  },
+  {
+    object: "Gateway payloads",
+    baseline: "Canonical fixtures",
+    candidate: "Web validators",
+    impact: "CI gated",
+    tone: "good" as const,
+  },
+  {
+    object: "Production schema",
+    baseline: "Authenticated endpoint",
+    candidate: "Current commit",
+    impact: "Not connected",
+    tone: "warn" as const,
+  },
+] as const;
+
+function StatusPill({ state, compact = false, role }: { state: ControlState; compact?: boolean; role?: "cell" }) {
+  return (
+    <span className={`developer-cp-status is-${state.tone}${compact ? " is-compact" : ""}`} title={state.detail} role={role}>
+      <i aria-hidden="true" />
+      {state.label}
+    </span>
+  );
+}
+
+function workspaceState(view: SystemHealthView): ControlState {
+  if (view.healthError) return { label: "Degraded", detail: view.healthError, tone: "bad" };
+  if (!view.health) return { label: "Checking", detail: "Waiting for the shared system-health snapshot.", tone: "info" };
+  return {
+    label: "Healthy",
+    detail: `Serving commit ${APP_COMMIT}; instance ${view.health.instance.id}.`,
+    tone: "good",
+  };
+}
+
+function gatewayState(view: SystemHealthView): ControlState {
+  const source = view.health?.sources?.gateway;
+  const platform = view.health?.platform;
+  if (!view.health) return { label: "Checking", detail: "Gateway health has not arrived yet.", tone: "info" };
+  if (!platform) {
+    return {
+      label: source?.state === "not_configured" ? "Off" : "Unavailable",
+      detail: source?.detail ?? "No authoritative gateway operations snapshot is available.",
+      tone: source?.state === "not_configured" ? "off" : "warn",
+    };
+  }
+  if (platform.status === "critical" || platform.status === "halted") {
+    return { label: platform.status, detail: `Gateway ${platform.version} reports ${platform.status}.`, tone: "bad" };
+  }
+  if (platform.status === "degraded" || source?.state === "stale") {
+    return { label: "Degraded", detail: `Gateway ${platform.version}; ${source?.detail ?? "degraded"}.`, tone: "warn" };
+  }
+  return { label: "Healthy", detail: `Gateway ${platform.version} · ${platform.environment}.`, tone: "good" };
+}
+
+function openBBState(view: SystemHealthView): ControlState {
+  const provider = view.health?.providers.find((item) => item.id === "openbb");
+  if (!view.health) return { label: "Checking", detail: "Provider health has not arrived yet.", tone: "info" };
+  if (!provider?.configured) {
+    return { label: "Off", detail: provider?.statusDetail ?? "OpenBB is not configured.", tone: "off" };
+  }
+  if (!provider.ready) return { label: "Degraded", detail: provider.statusDetail, tone: "warn" };
+  return { label: "Healthy", detail: provider.statusDetail, tone: "good" };
+}
+
+function stateForDeployable(id: string, view: SystemHealthView): ControlState {
+  if (id === "workspace") return workspaceState(view);
+  if (id === "gateway") return gatewayState(view);
+  return openBBState(view);
+}
+
+function PipelineStrip() {
+  return (
+    <div className="developer-cp-pipeline" aria-label="Configured delivery pipeline">
+      {PIPELINE_STAGES.map((stage, index) => (
+        <div className="developer-cp-pipeline__stage" key={stage.name}>
+          <div className={`developer-cp-pipeline__node is-${stage.tone}`} aria-hidden="true">
+            {index + 1}
+          </div>
+          <strong>{stage.name}</strong>
+          <small>{stage.note}</small>
+          {index < PIPELINE_STAGES.length - 1 && <span className="developer-cp-pipeline__connector" aria-hidden="true" />}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SchemaGateTable({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={`developer-cp-table${compact ? " is-compact" : ""}`} role="table" aria-label="Schema compatibility gates">
+      <div className="developer-cp-table__row is-head" role="row">
+        <span role="columnheader">Contract</span><span role="columnheader">Baseline</span><span role="columnheader">Candidate</span><span role="columnheader">State</span>
+      </div>
+      {SCHEMA_GATES.map((row) => (
+        <div className="developer-cp-table__row" role="row" key={row.object}>
+          <strong role="cell">{row.object}</strong>
+          <code role="cell">{row.baseline}</code>
+          <span role="cell">{row.candidate}</span>
+          <StatusPill state={{ label: row.impact, detail: `${row.baseline} → ${row.candidate}`, tone: row.tone }} compact role="cell" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ArtifactLineage({ view, compact = false }: { view: SystemHealthView; compact?: boolean }) {
+  const states = Object.fromEntries(DEPLOYABLES.map((item) => [item.id, stateForDeployable(item.id, view)]));
+  return (
+    <div className={`developer-cp-artifacts${compact ? " is-compact" : ""}`} role="table" aria-label="Deployment artifact lineage">
+      <div className="developer-cp-artifacts__row is-head" role="row">
+        <span role="columnheader">Commit / build</span><span role="columnheader">Artifact</span><span role="columnheader">Runtime</span><span role="columnheader">Environment</span>
+      </div>
+      {DEPLOYABLES.map((deployable) => (
+        <div className="developer-cp-artifacts__row" role="row" key={deployable.id}>
+          <code role="cell">{deployable.id === "workspace" ? APP_COMMIT : "runtime"}</code>
+          <span role="cell"><strong>{deployable.name}</strong><small>{deployable.stack}</small></span>
+          <code role="cell">{deployable.entry}</code>
+          <StatusPill state={states[deployable.id]} compact role="cell" />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 interface DeveloperOverviewProps {
@@ -99,111 +249,129 @@ function DeveloperOverview({
   onOpenLive,
   onOpenReliability,
 }: DeveloperOverviewProps) {
+  const deploymentStates = DEPLOYABLES.map((deployable) => ({
+    deployable,
+    state: stateForDeployable(deployable.id, view),
+  }));
+  const currentWorkspace = workspaceState(view);
+  const currentGateway = gatewayState(view);
+  const schemaConnected = false;
+  const readinessChecks = [
+    {
+      label: "Deployment",
+      value: IS_VERCEL_DEPLOYMENT ? currentWorkspace.label : "Not deployed",
+      passed: IS_VERCEL_DEPLOYMENT && currentWorkspace.tone === "good",
+    },
+    { label: "Gateway", value: currentGateway.label, passed: currentGateway.tone === "good" },
+    {
+      label: "Providers",
+      value: view.health ? `${view.health.summary.ready}/${view.health.summary.total}` : "Checking",
+      passed: Boolean(view.health?.summary.total && view.health.summary.ready === view.health.summary.total),
+    },
+    { label: "Schema compatibility", value: schemaConnected ? "Compared" : "No live diff", passed: schemaConnected },
+    { label: "Artifact custody", value: "Unsigned", passed: false },
+  ];
+  const readyCount = readinessChecks.filter((check) => check.passed).length;
+  const readinessAngle = `${Math.round((readyCount / readinessChecks.length) * 360)}deg`;
   const openWork = workItems.filter((item) => item.status !== "done");
-  const priorityRank = { P0: 0, P1: 1, P2: 2, P3: 3 } as const;
-  const nextWork = [...openWork]
-    .sort((left, right) => priorityRank[left.priority] - priorityRank[right.priority] || left.openedAt - right.openedAt)
-    .slice(0, 4);
-  const health = view.health;
 
   return (
-    <div className="developer-overview">
-      <section className="card developer-architecture">
-        <div className="section-heading compact">
-          <div>
-            <span className="page-kicker">Change map</span>
-            <h2>Three deployables, one reviewed path</h2>
-          </div>
-          <button className="text-action" type="button" onClick={() => onOpenSection("codebase")}>Browse all files →</button>
+    <div className="developer-cp-overview">
+      {view.healthError && (
+        <div className="banner error" role="alert">
+          <span aria-hidden>✕</span>
+          <div><strong>Health snapshot is stale.</strong> {view.healthError}</div>
         </div>
-        <div className="developer-architecture__flow" aria-label="AlphaEngine deployable architecture">
-          {DEPLOYABLES.map((deployable, index) => (
-            <div className="developer-deployable" key={deployable.id}>
-              <div className="developer-deployable__topline">
-                <span className="num">0{index + 1}</span>
-                <span>{deployable.role}</span>
-              </div>
-              <h3>{deployable.name}</h3>
-              <p>{deployable.detail}</p>
-              <code>{deployable.entry}</code>
-              <small>{deployable.stack}</small>
-            </div>
-          ))}
-        </div>
-        <div className="developer-architecture__legend">
-          <span><i className="status-dot" /> Browser and server routes</span>
-          <span>→ authenticated gateway state</span>
-          <span>→ isolated research data</span>
-        </div>
-      </section>
+      )}
 
-      <div className="developer-overview__grid">
-        <section className="card developer-work-preview">
-          <div className="section-heading compact">
-            <div>
-              <span className="page-kicker">Next engineering work</span>
-              <h2>{openWork.length} open items</h2>
-            </div>
-            <button className="text-action" type="button" onClick={() => onOpenSection("work")}>Open queue →</button>
+      <div className="developer-cp-overview__grid">
+        <section className="card developer-cp-topology">
+          <div className="developer-cp-heading">
+            <div><span>Runtime map</span><h2>Deployment topology</h2></div>
+            <button className="text-action" type="button" onClick={() => onOpenSection("quality")}>Open CI / CD →</button>
           </div>
-          <div className="developer-work-preview__list">
-            {nextWork.map((item) => (
-              <div key={item.id}>
-                <span className={`developer-work-kind is-${item.kind}`}>{item.kind}</span>
-                <div>
-                  <strong>{item.title}</strong>
-                  <small><code>{item.id}</code> · {item.area} · {item.owner}</small>
-                </div>
-                <span className={`developer-work-preview__priority is-${item.priority.toLocaleLowerCase()}`}>{item.priority}</span>
-              </div>
+          <div className="developer-cp-edge">
+            <span>{IS_VERCEL_DEPLOYMENT ? "Vercel edge" : "Local runtime"}</span>
+            <StatusPill state={currentWorkspace} compact />
+          </div>
+          <div className="developer-cp-topology__line" aria-hidden="true" />
+          <div className="developer-cp-topology__nodes">
+            {deploymentStates.map(({ deployable, state }, index) => (
+              <article key={deployable.id} className={`developer-cp-node is-${state.tone}`}>
+                <div><span className="num">0{index + 1}</span><StatusPill state={state} compact /></div>
+                <h3>{deployable.name}</h3>
+                <p>{deployable.role}</p>
+                <code>{deployable.entry}</code>
+                <small>{deployable.detail}</small>
+              </article>
             ))}
           </div>
-          <p className="developer-work-preview__note">
-            Representative, session-only planning data. Connect an authenticated issue backend before
-            treating this queue as a durable source of truth.
-          </p>
+          <div className="developer-cp-legend">
+            <span><i className="is-good" />Healthy</span>
+            <span><i className="is-warn" />Degraded</span>
+            <span><i className="is-off" />Off / not configured</span>
+          </div>
         </section>
 
-        <section className="card developer-confidence">
-          <div className="section-heading compact">
-            <div>
-              <span className="page-kicker">Change confidence</span>
-              <h2>Configured delivery gates</h2>
-            </div>
-            <button className="text-action" type="button" onClick={() => onOpenSection("quality")}>See evidence →</button>
+        <section className="card developer-cp-readiness">
+          <div className="developer-cp-heading"><div><span>Promotion gates</span><h2>Launch readiness</h2></div></div>
+          <div
+            className="developer-cp-readiness__ring"
+            style={{ "--developer-readiness-angle": readinessAngle } as CSSProperties}
+            aria-label={`${readyCount} of ${readinessChecks.length} readiness checks pass`}
+          >
+            <div><strong>{readyCount}<span>/{readinessChecks.length}</span></strong><small>PASS</small></div>
           </div>
-          <div className="developer-confidence__total">
-            <strong className="num">630</strong>
-            <span>documented offline tests across three suites</span>
-          </div>
-          <div className="developer-confidence__jobs">
-            {CI_JOBS.map((job) => (
-              <div key={job.name}>
-                <i className="status-dot" />
-                <span><strong>{job.name}</strong><small>{job.detail}</small></span>
-                <em>defined</em>
+          <strong className="developer-cp-readiness__verdict">{readyCount === readinessChecks.length ? "READY" : "BLOCKED"}</strong>
+          <div className="developer-cp-readiness__checks">
+            {readinessChecks.map((check) => (
+              <div key={check.label}>
+                <i className={check.passed ? "is-good" : "is-warn"} aria-hidden="true">{check.passed ? "✓" : "!"}</i>
+                <span>{check.label}</span><strong>{check.value}</strong>
               </div>
             ))}
           </div>
-          <p>Configuration evidence, not a live GitHub Actions conclusion.</p>
+          <p>Missing live schema comparison and artifact signing remain explicit blockers.</p>
+        </section>
+
+        <section className="card developer-cp-pipeline-card">
+          <div className="developer-cp-heading">
+            <div><span>Delivery path</span><h2>CI pipeline</h2></div>
+            <a className="text-action" href={`${GITHUB_REPOSITORY_ROOT}/actions`} target="_blank" rel="noreferrer">Open Actions ↗</a>
+          </div>
+          <PipelineStrip />
+          <p className="developer-cp-disclosure">Stages are configured delivery evidence. GitHub Actions remains the authority for the current run conclusion.</p>
+        </section>
+
+        <section className="card developer-cp-schema-card">
+          <div className="developer-cp-heading">
+            <div><span>Contract custody</span><h2>Schema diff</h2></div>
+            <button className="text-action" type="button" onClick={() => onOpenSection("apis")}>Inspect routes →</button>
+          </div>
+          <SchemaGateTable compact />
+        </section>
+
+        <section className="card developer-cp-artifact-card">
+          <div className="developer-cp-heading">
+            <div><span>Build custody</span><h2>Artifact lineage</h2></div>
+            <code>{APP_COMMIT}</code>
+          </div>
+          <ArtifactLineage view={view} compact />
         </section>
       </div>
 
-      <section className="card developer-context">
+      <section className="card developer-cp-context">
         <div>
-          <span className="page-kicker">Shared desk context</span>
+          <span>Shared desk context</span>
           <h2>Trace a change into the running workflow</h2>
-          <p>
-            Use <strong className="num">{workspaceSymbol}</strong> to reproduce the same instrument in
-            research, execution, and reliability. The system snapshot remains shared across tabs.
-          </p>
+          <p><strong className="num">{workspaceSymbol}</strong> stays shared across research, execution, reliability, and this control plane.</p>
         </div>
-        <div className="developer-context__health">
-          <span>Providers ready</span>
-          <strong className="num">{health ? `${health.summary.ready}/${health.summary.total}` : "—"}</strong>
-          <small>{view.degraded ? `${view.degraded} degraded` : health ? "all nominal" : "checking"}</small>
+        <div className="developer-cp-context__facts">
+          <span><strong>{REPOSITORY_STATS.files}</strong> files</span>
+          <span><strong>{API_OPERATIONS.length}</strong> API operations</span>
+          <span><strong>{openWork.length}</strong> open tasks</span>
         </div>
-        <div className="developer-context__actions">
+        <div className="developer-cp-context__actions">
           <button type="button" className="primary-action" onClick={onOpenResearch}>Research {workspaceSymbol}</button>
           <button type="button" onClick={onOpenLive}>Open live book</button>
           <button type="button" onClick={onOpenReliability}>Open Reliability</button>
@@ -213,85 +381,94 @@ function DeveloperOverview({
   );
 }
 
-function DeveloperQuality({ view }: { view: SystemHealthView }) {
+function DeveloperPipelines({ view }: { view: SystemHealthView }) {
+  const totalTests = CI_JOBS.reduce((sum, job) => sum + (job.count ?? 0), 0);
   return (
-    <div className="developer-quality">
-      <section className="card developer-test-suites">
-        <div className="section-heading compact">
-          <div>
-            <span className="page-kicker">Offline verification</span>
-            <h2>630 tests, three independent suites</h2>
-          </div>
-          <span className="section-note">Documented repository baseline</span>
+    <div className="developer-cp-stack">
+      <section className="card developer-cp-section-hero">
+        <div>
+          <span>Delivery workflow</span>
+          <h2>Pipeline execution and release custody</h2>
+          <p>Configured checks are visible here; the linked Actions run remains the source of truth for pending, passing, or failed state.</p>
         </div>
-        <div className="developer-test-suites__grid">
-          {TEST_SUITES.map((suite) => (
-            <div key={suite.name}>
-              <span>{suite.name}</span>
-              <strong className="num">{suite.count}</strong>
-              <p>{suite.detail}</p>
-              <code>{suite.command}</code>
-            </div>
-          ))}
-          <div className="is-total">
-            <span>All suites</span>
-            <strong className="num">630</strong>
-            <p>No market-data network or secret is required to reproduce the baseline.</p>
-            <code>CI on every push</code>
-          </div>
+        <div className="developer-cp-section-hero__actions">
+          <StatusPill state={{ label: `${totalTests} tests`, detail: "Documented offline baseline across three suites.", tone: "info" }} />
+          <a className="primary-action" href={`${GITHUB_REPOSITORY_ROOT}/actions`} target="_blank" rel="noreferrer">Open GitHub Actions ↗</a>
         </div>
       </section>
 
-      <section className="card developer-ci-jobs">
-        <div className="section-heading compact">
-          <div>
-            <span className="page-kicker">Delivery workflow</span>
-            <h2>Four jobs protect different failure modes</h2>
-          </div>
-          <a className="text-action" href="https://github.com/Manutd1234/Developer_Analyst_Infra/actions" target="_blank" rel="noreferrer">Open Actions ↗</a>
-        </div>
-        <div className="developer-ci-jobs__flow">
-          {CI_JOBS.map((job, index) => (
-            <div key={job.name}>
-              <span className="num">{index + 1}</span>
-              <strong>{job.name}</strong>
-              <small>{job.detail}</small>
+      <section className="card developer-cp-pipeline-card">
+        <div className="developer-cp-heading"><div><span>Current build path</span><h2>Commit {APP_COMMIT}</h2></div><StatusPill state={workspaceState(view)} /></div>
+        <PipelineStrip />
+      </section>
+
+      <section className="card developer-cp-jobs">
+        <div className="developer-cp-heading"><div><span>Verification matrix</span><h2>Configured jobs</h2></div><span>Every push</span></div>
+        <div className="developer-cp-jobs__table" role="table" aria-label="Continuous integration jobs">
+          <div className="developer-cp-jobs__row is-head" role="row"><span role="columnheader">Job</span><span role="columnheader">Evidence</span><span role="columnheader">Command</span><span role="columnheader">Baseline</span></div>
+          {CI_JOBS.map((job) => (
+            <div className="developer-cp-jobs__row" role="row" key={job.name}>
+              <strong role="cell">{job.name}</strong><span role="cell">{job.evidence}</span><code role="cell">{job.command}</code><span role="cell">{job.count === null ? "tree audit" : `${job.count} tests`}</span>
             </div>
           ))}
         </div>
-        <div className="developer-ci-jobs__state">
-          <span>Write guard <strong>{view.guard}</strong></span>
-          <span>Contract <strong>committed snapshot</strong></span>
-          <span>Live CI result <strong>open Actions to verify</strong></span>
-        </div>
       </section>
 
-      <section className="card verification-card">
-        <div className="section-heading compact">
-          <div>
-            <span className="page-kicker">Continuous verification</span>
-            <h2>What breaks the build</h2>
-          </div>
-          <span className="section-note">Every push · reproducible offline</span>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <caption className="sr-only">Continuous integration gates and the regressions they catch</caption>
-            <thead><tr><th>Gate</th><th>What it does</th><th>What it catches</th></tr></thead>
-            <tbody>
-              {VERIFICATION.map((row) => (
-                <tr key={row.gate}>
-                  <th scope="row">{row.gate}</th>
-                  <td>{row.detail}</td>
-                  <td className="muted">{row.breaks}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <section className="card developer-cp-artifact-card">
+        <div className="developer-cp-heading"><div><span>Artifact registry</span><h2>Deployable lineage</h2></div><span>Runtime-observed state</span></div>
+        <ArtifactLineage view={view} />
+        <p className="developer-cp-disclosure">Build signing, downloadable release artifacts, and staging promotion records are not connected yet; they are not shown as successful.</p>
       </section>
     </div>
   );
+}
+
+function DeveloperInterfaces() {
+  return (
+    <div className="developer-cp-stack">
+      <section className="card developer-cp-section-hero">
+        <div><span>Contract intelligence</span><h2>API &amp; Schema</h2><p>Browse the current route inventory and see exactly which compatibility gates are automated versus still missing.</p></div>
+        <StatusPill state={{ label: `${API_OPERATIONS.length} operations`, detail: "Route handlers indexed from this runtime.", tone: "info" }} />
+      </section>
+      <section className="card developer-cp-schema-card">
+        <div className="developer-cp-heading"><div><span>Breaking-change guard</span><h2>Schema compatibility</h2></div><StatusPill state={{ label: "1 gap", detail: "Production schema comparison is not authenticated.", tone: "warn" }} /></div>
+        <SchemaGateTable />
+      </section>
+      <DeveloperApiCatalog />
+    </div>
+  );
+}
+
+function DeveloperChanges() {
+  return (
+    <div className="developer-cp-stack">
+      <section className="card developer-cp-section-hero">
+        <div><span>Repository evidence</span><h2>Code &amp; Diffs</h2><p>This runtime exposes the committed path manifest, not arbitrary source contents. GitHub remains the authenticated surface for blame, history, and executable diffs.</p></div>
+        <div className="developer-cp-section-hero__actions">
+          <StatusPill state={{ label: APP_COMMIT, detail: "Build-time Git identity.", tone: APP_COMMIT === "dev" ? "warn" : "good" }} />
+          <a className="primary-action" href={APP_COMMIT === "dev" ? `${GITHUB_REPOSITORY_ROOT}/commits/main` : `${GITHUB_REPOSITORY_ROOT}/commit/${APP_COMMIT}`} target="_blank" rel="noreferrer">Open commit ↗</a>
+        </div>
+      </section>
+      <div className="developer-cp-change-summary">
+        <section className="card"><span>Repository snapshot</span><strong>{REPOSITORY_STATS.files}</strong><small>{REPOSITORY_STATS.areas} owned code areas</small></section>
+        <section className="card"><span>Verification files</span><strong>{REPOSITORY_STATS.tests}</strong><small>tests indexed in committed HEAD</small></section>
+        <section className="card"><span>API routes</span><strong>{REPOSITORY_STATS.webRoutes}</strong><small>server-side route handlers</small></section>
+      </div>
+      <CodebaseExplorer />
+    </div>
+  );
+}
+
+export interface DeveloperConsoleProps {
+  view: SystemHealthView;
+  workspaceSymbol: string;
+  onOpenResearch: () => void;
+  onOpenLive: () => void;
+  onOpenReliability: () => void;
+  section: DeveloperSection;
+  onSectionChange: (section: DeveloperSection) => void;
+  workItems: DeveloperWorkItem[];
+  onWorkItemsChange: (items: DeveloperWorkItem[]) => void;
 }
 
 export default function DeveloperConsole({
@@ -306,47 +483,27 @@ export default function DeveloperConsole({
   onWorkItemsChange,
 }: DeveloperConsoleProps) {
   const openWork = workItems.filter((item) => item.status !== "done");
-  const openBugs = openWork.filter((item) => item.kind === "bug");
-
-  const tiles: ConsoleTile[] = [
-    {
-      label: "Repository snapshot",
-      value: `${REPOSITORY_STATS.files} files`,
-      note: `${REPOSITORY_STATS.areas} code areas · full path index`,
-      tone: "good",
-    },
-    {
-      label: "Deployable units",
-      value: String(DEPLOYABLES.length),
-      note: "workspace · gateway · OpenBB",
-      tone: "good",
-    },
-    {
-      label: "Open engineering work",
-      value: String(openWork.length),
-      note: `${openBugs.length} bug${openBugs.length === 1 ? "" : "s"} · session queue`,
-      tone: openBugs.length ? "warn" : "good",
-    },
-    {
-      label: "Web API operations",
-      value: String(API_OPERATIONS.length),
-      note: "20 route handlers · grouped catalog",
-      tone: "good",
-    },
-  ];
-
+  const currentState = workspaceState(view);
   const openSection = (next: DeveloperSection) => {
     onSectionChange(next);
     window.requestAnimationFrame(() => document.getElementById(`developer-subtab-${next}`)?.focus());
   };
 
   return (
-    <>
-      <ConsoleChrome view={view} tiles={tiles} />
+    <div className="developer-control-plane">
+      <h1 className="sr-only">AlphaEngine Developer control plane</h1>
+      <header className="developer-cp-bar">
+        <div><span>Repository</span><strong>Developer_Analyst_Infra</strong></div>
+        <div><span>Revision</span><strong><code>main@{APP_COMMIT}</code></strong></div>
+        <div><span>Environment</span><strong>{RUNTIME_LABEL}</strong></div>
+        <div><span>Engineering queue</span><strong>{openWork.length} open</strong></div>
+        <StatusPill state={currentState} />
+        <button type="button" onClick={() => void view.refresh(false)} disabled={view.busyAction !== null}>Refresh health</button>
+      </header>
 
       <WorkspaceSubtabs
         workspaceId="developer"
-        label="Quant developer sections"
+        label="Developer control-plane sections"
         tabs={DEVELOPER_SECTIONS}
         activeId={section}
         onChange={onSectionChange}
@@ -364,21 +521,27 @@ export default function DeveloperConsole({
         />
       </WorkspaceSubtabPanel>
 
-      <WorkspaceSubtabPanel workspaceId="developer" tabId="codebase" activeId={section}>
-        <CodebaseExplorer />
-      </WorkspaceSubtabPanel>
-
-      <WorkspaceSubtabPanel workspaceId="developer" tabId="work" activeId={section}>
-        <DeveloperWorkQueue items={workItems} onItemsChange={onWorkItemsChange} />
+      <WorkspaceSubtabPanel workspaceId="developer" tabId="quality" activeId={section}>
+        <DeveloperPipelines view={view} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="developer" tabId="apis" activeId={section}>
-        <DeveloperApiCatalog />
+        <DeveloperInterfaces />
       </WorkspaceSubtabPanel>
 
-      <WorkspaceSubtabPanel workspaceId="developer" tabId="quality" activeId={section}>
-        <DeveloperQuality view={view} />
+      <WorkspaceSubtabPanel workspaceId="developer" tabId="codebase" activeId={section}>
+        <DeveloperChanges />
       </WorkspaceSubtabPanel>
-    </>
+
+      <WorkspaceSubtabPanel workspaceId="developer" tabId="work" activeId={section}>
+        <div className="developer-cp-stack">
+          <section className="card developer-cp-section-hero">
+            <div><span>Engineering impact</span><h2>Task Queue</h2><p>Features, bugs, and delivery tickets only. Changes remain session-local until an authenticated tracker is connected.</p></div>
+            <StatusPill state={{ label: `${openWork.length} open`, detail: "Session-scoped engineering queue.", tone: openWork.length ? "warn" : "good" }} />
+          </section>
+          <DeveloperWorkQueue items={workItems} onItemsChange={onWorkItemsChange} />
+        </div>
+      </WorkspaceSubtabPanel>
+    </div>
   );
 }
