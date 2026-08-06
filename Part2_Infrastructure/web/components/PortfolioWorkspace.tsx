@@ -313,16 +313,18 @@ export default function PortfolioWorkspace({
           </div>
         </section>
 
-        <EquityCurve
-          periods={periods}
-          backfilled={historyBackfilled}
-          points={equityTrack}
-          startOfDay={book.equity.start_of_day}
-          haltLevel={book.risk_budget.daily_drawdown.equity_at_halt}
-          generated={Boolean(book.sandbox)}
-        />
+        <div className="compact-grid-2col">
+          <EquityCurve
+            periods={periods}
+            backfilled={historyBackfilled}
+            points={equityTrack}
+            startOfDay={book.equity.start_of_day}
+            haltLevel={book.risk_budget.daily_drawdown.equity_at_halt}
+            generated={Boolean(book.sandbox)}
+          />
 
-        <PnlWaterfall waterfall={waterfall} generated={Boolean(book.sandbox)} />
+          <PnlWaterfall waterfall={waterfall} generated={Boolean(book.sandbox)} />
+        </div>
 
         {/* A summary, not a second copy: four columns against the full table's
             nine, and it defers rather than repeating the row actions. Both read

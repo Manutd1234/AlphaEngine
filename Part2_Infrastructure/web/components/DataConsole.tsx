@@ -422,21 +422,23 @@ export default function DataConsole({
 
       <WorkspaceSubtabPanel workspaceId="data" tabId="providers" activeId={section}>
         <div className="data-console-stack">
-          <FailoverGraph
-            routes={health?.routes ?? []}
-            selected={route}
-            onSelect={setRoute}
-            cacheByCapability={health?.cache.byCapability ?? {}}
-            priority={health?.routePriority ?? "interactive"}
-            guard={guard}
-            busyAction={busyAction}
-            onAction={runAction}
-          />
-          <QuotaMeters
-            providers={health?.providers ?? null}
-            cacheByCapability={health?.cache.byCapability ?? {}}
-            cacheEntries={health?.cache.entries ?? 0}
-          />
+          <div className="compact-grid-2col">
+            <FailoverGraph
+              routes={health?.routes ?? []}
+              selected={route}
+              onSelect={setRoute}
+              cacheByCapability={health?.cache.byCapability ?? {}}
+              priority={health?.routePriority ?? "interactive"}
+              guard={guard}
+              busyAction={busyAction}
+              onAction={runAction}
+            />
+            <QuotaMeters
+              providers={health?.providers ?? null}
+              cacheByCapability={health?.cache.byCapability ?? {}}
+              cacheEntries={health?.cache.entries ?? 0}
+            />
+          </div>
           <aside className="card data-console-handoff" aria-label="Reliability ownership handoff">
             <div>
               <span className="page-kicker">Owned by reliability</span>

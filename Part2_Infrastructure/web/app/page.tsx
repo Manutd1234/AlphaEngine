@@ -639,43 +639,41 @@ export default function Page() {
 
                         {tiles}
 
-                        <div className="card">
-                          <div className="chart-heading">
-                            <h2>Performance</h2>
-                            <label className="chart-toggle">
-                              <input
-                                type="checkbox"
-                                checked={showMcBands}
-                                disabled={!displayedResult.monteCarlo}
-                                onChange={(e) => setShowMcBands(e.target.checked)}
-                              />
-                              Monte Carlo band
-                            </label>
+                        <div className="compact-grid-2col">
+                          <div className="card">
+                            <div className="chart-heading">
+                              <h2>Performance</h2>
+                              <label className="chart-toggle">
+                                <input
+                                  type="checkbox"
+                                  checked={showMcBands}
+                                  disabled={!displayedResult.monteCarlo}
+                                  onChange={(e) => setShowMcBands(e.target.checked)}
+                                />
+                                Monte Carlo band
+                              </label>
+                            </div>
+                            <p className="sub">
+                              {displayedResult.request.symbol} · {displayedResult.request.interval} · {STRATEGY_LABELS[displayedResult.request.strategy]} {displayedResult.best.fast}/{displayedResult.best.slow}.
+                            </p>
+                            <EquityChart
+                              series={displayedResult.series}
+                              bands={displayedResult.monteCarlo ?? null}
+                              showBands={showMcBands}
+                            />
                           </div>
-                          <p className="sub">
-                            {displayedResult.request.symbol} · {displayedResult.request.interval} · {STRATEGY_LABELS[displayedResult.request.strategy]} {displayedResult.best.fast}/{displayedResult.best.slow} · {displayedResult.periodStart} → {displayedResult.periodEnd}.
-                            Both series are indexed to 1 at the start.
-                            {displayedResult.monteCarlo && showMcBands && (
-                              <> Shaded cone: {displayedResult.monteCarlo.paths} stationary-bootstrap resamples of the strategy&apos;s own bar returns.</>
-                            )}
-                          </p>
-                          <EquityChart
-                            series={displayedResult.series}
-                            bands={displayedResult.monteCarlo ?? null}
-                            showBands={showMcBands}
-                          />
-                        </div>
 
-                        <div className="card">
-                          <h2>Signal behavior</h2>
-                          <p className="sub">Shaded bands are held positions. Signals form on one bar and execute on the next, with no look-ahead.</p>
-                          <PriceChart
-                            series={displayedResult.series}
-                            strategy={displayedResult.request.strategy}
-                            fast={displayedResult.best.fast}
-                            slow={displayedResult.best.slow}
-                            symbol={displayedResult.request.symbol}
-                          />
+                          <div className="card">
+                            <h2>Signal behavior</h2>
+                            <p className="sub">Shaded bands are held positions. Signals form on one bar and execute on the next.</p>
+                            <PriceChart
+                              series={displayedResult.series}
+                              strategy={displayedResult.request.strategy}
+                              fast={displayedResult.best.fast}
+                              slow={displayedResult.best.slow}
+                              symbol={displayedResult.request.symbol}
+                            />
+                          </div>
                         </div>
                       </StaleGate>
                     </WorkspaceSubtabPanel>
@@ -730,8 +728,10 @@ export default function Page() {
                         targetInterval={req.interval}
                         onRerun={() => run()}
                       >
-                        <FactorPanel report={data.factors} />
-                        <RegimePanel regimes={data.regimes} />
+                        <div className="compact-grid-2col">
+                          <FactorPanel report={data.factors} />
+                          <RegimePanel regimes={data.regimes} />
+                        </div>
                         <TearSheet
                           tail={data.tail}
                           interval={data.request.interval}
@@ -748,26 +748,28 @@ export default function Page() {
                         targetInterval={req.interval}
                         onRerun={() => run()}
                       >
-                        <PromotionPanel
-                          gate={data.promotion}
-                          symbol={data.request.symbol}
-                          fast={data.best.fast}
-                          slow={data.best.slow}
-                          strategyLabel={STRATEGY_LABELS[data.request.strategy]}
-                          slippageBps={data.request.slippageBps}
-                          blocked={researchDirty || running || Boolean(inspect)}
-                          blockedReason={researchDirty
-                            ? "Refresh this candidate for the current desk context before promotion."
-                            : inspect
-                              ? "Return to the full parameter sweep before promotion."
-                              : "Wait for the active research run to finish."}
-                          onHandOff={() => navigate("live")}
-                        />
-                        <SizingPanel
-                          best={data.best}
-                          gate={data.promotion}
-                          equity={REFERENCE_EQUITY}
-                        />
+                        <div className="compact-grid-2col">
+                          <PromotionPanel
+                            gate={data.promotion}
+                            symbol={data.request.symbol}
+                            fast={data.best.fast}
+                            slow={data.best.slow}
+                            strategyLabel={STRATEGY_LABELS[data.request.strategy]}
+                            slippageBps={data.request.slippageBps}
+                            blocked={researchDirty || running || Boolean(inspect)}
+                            blockedReason={researchDirty
+                              ? "Refresh this candidate for the current desk context before promotion."
+                              : inspect
+                                ? "Return to the full parameter sweep before promotion."
+                                : "Wait for the active research run to finish."}
+                            onHandOff={() => navigate("live")}
+                          />
+                          <SizingPanel
+                            best={data.best}
+                            gate={data.promotion}
+                            equity={REFERENCE_EQUITY}
+                          />
+                        </div>
                         <div className="workflow-handoff research-data-handoff">
                           <div>
                             <span className="page-kicker">Evidence lineage</span>

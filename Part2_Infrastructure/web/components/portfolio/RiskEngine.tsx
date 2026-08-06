@@ -176,9 +176,10 @@ export default function RiskEngine({ risk, model, loading, missing, validation }
       </p>
     </div>
 
-    <RiskContributions contributions={risk.contributions} />
-
-    <CorrelationMatrix model={model} worst={risk.worstCorrelation} observations={risk.observations} />
+    <div className="compact-grid-2col">
+      <RiskContributions contributions={risk.contributions} />
+      <CorrelationMatrix model={model} worst={risk.worstCorrelation} observations={risk.observations} />
+    </div>
     </>
   );
 }

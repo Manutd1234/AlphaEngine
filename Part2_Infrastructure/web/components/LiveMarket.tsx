@@ -288,60 +288,62 @@ export default function LiveMarket({
         />
       </div>
 
-      <div className="card">
-        <h2>Cumulative depth</h2>
-        <p className="sub">
-          How much size sits between the mid and any price. A near-vertical step is a wall; a
-          shallow ramp is a thin book that will cost you to cross.
-        </p>
-        <DepthChart
-          bids={snap?.merged.bids ?? []}
-          asks={snap?.merged.asks ?? []}
-          mid={snap?.consolidatedMid ?? null}
-        />
-      </div>
+      <div className="compact-grid-2col">
+        <div className="card">
+          <h2>Cumulative depth</h2>
+          <p className="sub">
+            How much size sits between the mid and any price. A near-vertical step is a wall; a
+            shallow ramp is a thin book that will cost you to cross.
+          </p>
+          <DepthChart
+            bids={snap?.merged.bids ?? []}
+            asks={snap?.merged.asks ?? []}
+            mid={snap?.consolidatedMid ?? null}
+          />
+        </div>
 
-      <div className="card">
-        <h2>Consolidated ladder</h2>
-        <p className="sub">
-          Every venue&apos;s levels merged and sorted by price — the book a smart router actually
-          walks. Click a level to stage it as a limit order in the ticket.
-        </p>
-        <div style={{ fontFamily: "var(--mono)" }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr",
-              fontSize: 10,
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              color: "var(--text-muted)",
-              padding: "0 6px 6px",
-            }}
-          >
-            <span>Price</span>
-            <span style={{ textAlign: "right" }}>Size</span>
-            <span style={{ textAlign: "right" }}>Cum $</span>
+        <div className="card">
+          <h2>Consolidated ladder</h2>
+          <p className="sub">
+            Every venue&apos;s levels merged and sorted by price — the book a smart router actually
+            walks. Click a level to stage it as a limit order in the ticket.
+          </p>
+          <div style={{ fontFamily: "var(--mono)" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr 1fr",
+                fontSize: 10,
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                color: "var(--text-muted)",
+                padding: "0 6px 6px",
+              }}
+            >
+              <span>Price</span>
+              <span style={{ textAlign: "right" }}>Size</span>
+              <span style={{ textAlign: "right" }}>Cum $</span>
+            </div>
+            {snap ? ladder(snap.merged.asks, "ask") : null}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "8px 6px",
+                margin: "4px 0",
+                borderTop: "1px solid var(--grid)",
+                borderBottom: "1px solid var(--grid)",
+              }}
+            >
+              <span className="num" style={{ fontSize: 17, fontWeight: 650 }}>
+                {fmt(snap?.consolidatedMid, dp)}
+              </span>
+              <span className="num muted" style={{ fontSize: 11.5 }}>
+                spread {fmt(snap?.spreadBps, 2)} bps
+              </span>
+            </div>
+            {snap ? ladder(snap.merged.bids, "bid") : <div className="muted" style={{ padding: 16, textAlign: "center" }}>waiting for book…</div>}
           </div>
-          {snap ? ladder(snap.merged.asks, "ask") : null}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              padding: "8px 6px",
-              margin: "4px 0",
-              borderTop: "1px solid var(--grid)",
-              borderBottom: "1px solid var(--grid)",
-            }}
-          >
-            <span className="num" style={{ fontSize: 17, fontWeight: 650 }}>
-              {fmt(snap?.consolidatedMid, dp)}
-            </span>
-            <span className="num muted" style={{ fontSize: 11.5 }}>
-              spread {fmt(snap?.spreadBps, 2)} bps
-            </span>
-          </div>
-          {snap ? ladder(snap.merged.bids, "bid") : <div className="muted" style={{ padding: 16, textAlign: "center" }}>waiting for book…</div>}
         </div>
       </div>
 
