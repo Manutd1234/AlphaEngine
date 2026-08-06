@@ -217,6 +217,11 @@ def render_metrics() -> str:
         help="Orders stopped by at least one pre-trade gate.", type="counter",
     )
     out.metric("orders_last_second", state.orders_last_second, help="Observed order rate over the last second.")
+    out.metric("working_orders", state.working_orders, help="Orders resting on the book right now.")
+    out.metric(
+        "working_notional_usd", state.working_notional,
+        help="Committed capital in resting orders, worst side per symbol.",
+    )
     out.metric("equity_usd", state.equity, help="Mark-to-market account equity.")
     out.metric("daily_pnl_usd", state.daily_pnl, help="Session P&L against the start-of-day mark.")
     out.metric("realized_pnl_usd", state.realized_pnl, help="Realized session P&L.")

@@ -42,6 +42,7 @@ import {
   portfolioRisk,
   rollingVarBacktest,
 } from "@/lib/portfolio-risk";
+import { sessionReturn } from "@/lib/pnl-attribution";
 
 export interface BookError {
   code?: string;
@@ -54,6 +55,9 @@ export type BookConnectionState = "live" | "stale" | "unconfigured" | "error";
 export type PeriodReturns = Record<string, { pnl: number | null; return: number | null }>;
 
 const REFRESH_MS = 15_000;
+
+/** Newest daily bar per symbol, keyed for the session-alignment check. */
+export type SessionBars = Record<string, { openMs: number; prevClose: number; close: number }>;
 
 export interface BookView {
   /** Null only while the first request is in flight, or when it failed. */
@@ -80,6 +84,14 @@ export interface BookView {
   /** Held symbols with too little aligned history to enter the covariance. */
   missingHistory: string[];
   referenceSymbol: string;
+  /** The newest daily bar per symbol, so a consumer can verify its own alignment. */
+  sessionBars: SessionBars;
+  /**
+   * The reference instrument's session-to-date return, or null when the newest
+   * daily bar does not cover the gateway's session. Checked rather than assumed:
+   * a restarted or stale gateway can carry a session_date that is not today's.
+   */
+  referenceSessionReturn: number | null;
   riskShare: Map<string, number>;
   betaBySymbol: Map<string, number | null>;
   allocationLimits: AllocationLimits;
@@ -107,6 +119,7 @@ export function useBook(): BookView {
     setSandboxState(on);
   }, []);
   const [returns, setReturns] = useState<ReturnsBySymbol>({});
+  const [sessionBars, setSessionBars] = useState<SessionBars>({});
   const [riskLoading, setRiskLoading] = useState(false);
   // The gateway persists equity snapshots from its risk monitor, but only from
   // the moment it started. Whatever this tab observes is appended to whatever
@@ -173,11 +186,26 @@ export function useBook(): BookView {
         if (cancelled || !body?.points?.length) return;
         const restored: EquityPoint[] = [];
         let hwm = -Infinity;
-        for (const point of body.points as Array<{ ts: string; equity: number }>) {
+        // Each history row carries gross exposure and the kill-switch state
+        // alongside the equity mark. Reading only `equity` threw away a leverage
+        // band and a halt shading that cost nothing to draw.
+        type HistoryPoint = {
+          ts: string;
+          equity: number;
+          gross_exposure?: number;
+          kill_switch?: boolean;
+        };
+        for (const point of body.points as HistoryPoint[]) {
           const t = Date.parse(point.ts.endsWith("Z") ? point.ts : `${point.ts}Z`);
           if (Number.isNaN(t)) continue;
           hwm = Math.max(hwm, point.equity);
-          restored.push({ t, equity: point.equity, highWaterMark: hwm });
+          restored.push({
+            t,
+            equity: point.equity,
+            highWaterMark: hwm,
+            grossExposure: typeof point.gross_exposure === "number" ? point.gross_exposure : null,
+            killSwitch: typeof point.kill_switch === "boolean" ? point.kill_switch : null,
+          });
         }
         // Prepended, never merged blindly: whatever this tab has already
         // observed is newer than anything the endpoint returned.
@@ -242,6 +270,7 @@ export function useBook(): BookView {
     const symbols = heldSymbols ? heldSymbols.split(",") : [];
     if (!symbols.length) {
       setReturns({});
+      setSessionBars({});
       setRiskLoading(false);
       return;
     }
@@ -256,23 +285,35 @@ export function useBook(): BookView {
           );
           if (!response.ok) return [symbol, [] as number[]] as const;
           const body = await response.json();
-          const bars: { c: number }[] = body.bars ?? [];
+          const bars: { c: number; t: number }[] = body.bars ?? [];
           // Synthetic bars would silently become a covariance estimate. A book's
           // risk must not be measured against invented prices, so that source is
           // dropped rather than used.
-          if (body.source !== "binance" || bars.length < 21) return [symbol, [] as number[]] as const;
+          if (body.source !== "binance" || bars.length < 21) return [symbol, [] as number[], null] as const;
           const series: number[] = [];
           for (let i = 1; i < bars.length; i++) {
             if (bars[i - 1].c > 0) series.push(bars[i].c / bars[i - 1].c - 1);
           }
-          return [symbol, series] as const;
+          // The newest bar's open time is what lets a consumer check that the
+          // return it is about to use covers the gateway's session rather than
+          // yesterday's. The pipeline used to read `c` and drop `t`, which made
+          // that check impossible and the alignment an assumption.
+          const newest = bars[bars.length - 1];
+          const previous = bars[bars.length - 2];
+          const bar = newest && previous && previous.c > 0
+            ? { openMs: Number(newest.t), prevClose: previous.c, close: newest.c }
+            : null;
+          return [symbol, series, bar] as const;
         } catch {
-          return [symbol, [] as number[]] as const;
+          return [symbol, [] as number[], null] as const;
         }
       }),
     ).then((entries) => {
       if (cancelled) return;
-      setReturns(Object.fromEntries(entries.filter(([, r]) => r.length > 0)));
+      setReturns(Object.fromEntries(entries.filter(([, r]) => r.length > 0).map(([s2, r]) => [s2, r])));
+      setSessionBars(Object.fromEntries(
+        entries.filter((e) => e[2] !== null).map((e) => [e[0], e[2]!]),
+      ));
       setRiskLoading(false);
     });
     return () => {
@@ -333,6 +374,11 @@ export function useBook(): BookView {
     [risk],
   );
 
+  const referenceSessionReturn = useMemo(
+    () => sessionReturn(sessionBars[referenceSymbol], book?.session_date ?? ""),
+    [sessionBars, referenceSymbol, book?.session_date],
+  );
+
   const betaBySymbol = useMemo(
     () =>
       new Map<string, number | null>(
@@ -383,6 +429,8 @@ export function useBook(): BookView {
     riskLoading,
     missingHistory,
     referenceSymbol,
+    sessionBars,
+    referenceSessionReturn,
     riskShare,
     betaBySymbol,
     allocationLimits,

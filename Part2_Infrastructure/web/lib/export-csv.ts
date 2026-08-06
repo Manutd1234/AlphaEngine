@@ -67,7 +67,10 @@ export function blotterToCsv(rows: BlotterRow[]): string {
       r.fillPrice,
       r.slippageBps,
       r.latencyMs,
-      r.accepted ? "filled" : "rejected",
+      // The existing column, widened rather than a new one: `verdict` already
+      // meant "how did this end", and status is a more precise answer to the
+      // same question. A cancelled order used to export as "rejected".
+      r.status.toLowerCase(),
       r.strategy,
       r.orderId,
       r.clientOrderId,

@@ -25,6 +25,8 @@
  * would show a different book.
  */
 
+import { sandboxBlotter } from "@/lib/blotter";
+
 export interface Headroom {
   used: number;
   limit: number;
@@ -60,6 +62,40 @@ export interface StrategyAttribution {
    * different claims and must not render the same.
    */
   realized_pnl?: number | null;
+  /** Closed trades that made money, over closed trades. Same optionality rule. */
+  win_rate?: number | null;
+  closed_trades?: number | null;
+  /**
+   * Realized P&L excludes open inventory, so a sleeve still carrying risk is only
+   * partly scored. Without this flag a half-finished sleeve reads as final.
+   */
+  has_open_inventory?: boolean;
+}
+
+/**
+ * Costs and realised P&L scoped to *this* session.
+ *
+ * Every other block under `attribution` is lifetime, because a PM reading flow
+ * wants the whole record. A day's P&L cannot be decomposed with those figures:
+ * subtracting a lifetime fee total from one session's P&L reports a loss the desk
+ * did not take. Optional because a gateway older than this block omits it, and
+ * absent is not zero.
+ */
+export interface SessionAttribution {
+  session_date?: string;
+  fills?: number;
+  notional?: number;
+  fees?: number;
+  slippage_cost?: number;
+  /** Fills whose slippage was never measured — the cost leg is a lower bound. */
+  fills_without_slippage?: number;
+  realized_pnl?: number;
+  unrealized_pnl?: number;
+  basis?: "audited" | "generated";
+  /** Sandbox only: a supplied market leg, never a measured one. */
+  market_pnl?: number;
+  reference_symbol?: string;
+  reference_return?: number;
 }
 
 export interface PortfolioPayload {
@@ -103,6 +139,7 @@ export interface PortfolioPayload {
   attribution: {
     by_strategy: StrategyAttribution[];
     by_symbol: Array<Record<string, unknown>>;
+    session?: SessionAttribution;
   };
   execution_quality: Record<string, unknown>;
   gateway?: {
@@ -125,6 +162,95 @@ export interface PortfolioPayload {
  * fraction shown as "$400k" against one number here and a different number on
  * the portfolio tab would be two books wearing one label.
  */
+/**
+ * Sleeve-level realised P&L for the sandbox.
+ *
+ * Sums to `equity.realized_pnl` (50,700) by construction, so a reader who adds
+ * the Performance column and compares it to the headline finds them equal — the
+ * same cross-check the live gateway's replay gives for free.
+ */
+const SANDBOX_SLEEVE_PNL: Record<string, { realized: number; winRate: number; closes: number; open: boolean }> = {
+  ma_cross: { realized: 34_900, winRate: 0.61, closes: 28, open: true },
+  donchian: { realized: 12_600, winRate: 0.54, closes: 15, open: true },
+  rsi_reversion: { realized: 3_200, winRate: 0.44, closes: 5, open: false },
+};
+
+/**
+ * The sandbox's own session attribution block.
+ *
+ * Fees and slippage are **computed from `sandboxBlotter()`** rather than restated
+ * as constants: those rows already reconcile to the cent with this book's
+ * attribution table, and a second hand-written total is a second thing to keep in
+ * step. The market leg, by contrast, is *supplied* — attributing part of a
+ * generated day P&L to a real measured market move would be a fabricated
+ * attribution, and it would make the panel disagree between server render and
+ * hydrate, which is the one property `sandboxEquityPath` exists to guarantee.
+ */
+function sandboxSession(sessionDate: string, dailyPnl: number, net: number): SessionAttribution {
+  const fills = sandboxBlotter().filter((row) => row.status === "FILLED");
+  const fees = fills.reduce((acc, row) => acc + (row.feeUsd ?? 0), 0);
+  const slippageCost = fills.reduce(
+    (acc, row) => acc + (row.notional ?? 0) * (row.slippageBps ?? 0) / 1e4,
+    0,
+  );
+  // Beta of one against the reference: the sandbox has no measured betas to
+  // apply, and inventing per-symbol ones would dress an assumption as a
+  // measurement. Net exposure times the move is the honest simplification, and
+  // `basis: "generated"` is what tells a reader not to trust it as anything else.
+  const referenceReturn = 0.0187;
+  const marketPnl = Math.round(net * referenceReturn * 100) / 100;
+
+  return {
+    session_date: sessionDate,
+    fills: fills.length,
+    notional: Math.round(fills.reduce((acc, row) => acc + (row.notional ?? 0), 0) * 100) / 100,
+    fees: Math.round(fees * 100) / 100,
+    slippage_cost: Math.round(slippageCost * 100) / 100,
+    // Every generated fill carries a slippage figure, so the cost leg is exact
+    // here rather than a lower bound.
+    fills_without_slippage: 0,
+    realized_pnl: Object.values(SANDBOX_SLEEVE_PNL).reduce((acc, s) => acc + s.realized, 0),
+    unrealized_pnl: Math.round((dailyPnl - marketPnl) * 100) / 100,
+    basis: "generated",
+    market_pnl: marketPnl,
+    reference_symbol: "BTCUSDT",
+    reference_return: referenceReturn,
+  };
+}
+
+/**
+ * Per-symbol flow, folded out of the same generated rows as everything else.
+ *
+ * The previous sandbox shipped `by_symbol: []`, which read as "this desk traded
+ * nothing per symbol" — untrue of a book whose blotter has 86 rows. Filling it
+ * with zeros would have been worse: a symbol that traded and a symbol that did
+ * not are different claims.
+ */
+function sandboxSymbolFlow(): Array<Record<string, unknown>> {
+  const bySymbol = new Map<string, { orders: number; filled: number; rejected: number; fees: number; latency: number[] }>();
+  for (const row of sandboxBlotter()) {
+    const slot = bySymbol.get(row.symbol)
+      ?? { orders: 0, filled: 0, rejected: 0, fees: 0, latency: [] };
+    slot.orders += 1;
+    if (row.status === "FILLED") { slot.filled += 1; slot.fees += row.feeUsd ?? 0; }
+    else slot.rejected += 1;
+    if (row.latencyMs != null) slot.latency.push(row.latencyMs);
+    bySymbol.set(row.symbol, slot);
+  }
+  return [...bySymbol.entries()]
+    .map(([symbol, slot]) => ({
+      symbol,
+      orders: slot.orders,
+      filled: slot.filled,
+      rejected: slot.rejected,
+      fees: Math.round(slot.fees * 100) / 100,
+      avg_latency_ms: slot.latency.length
+        ? Math.round((slot.latency.reduce((a, b) => a + b, 0) / slot.latency.length) * 1000) / 1000
+        : null,
+    }))
+    .sort((a, b) => b.filled - a.filled);
+}
+
 export const REFERENCE_EQUITY = 10_000_000;
 
 const EQUITY = REFERENCE_EQUITY;
@@ -252,6 +378,17 @@ export interface EquityPoint {
   equity: number;
   /** Running maximum up to this point. */
   highWaterMark: number;
+  /**
+   * Gross exposure at this observation, when the source recorded it.
+   *
+   * The history endpoint has always sent this and the client read `ts` and
+   * `equity` and threw the rest away. Optional because a locally observed point
+   * (one this tab saw arrive, rather than one it backfilled) has no snapshot
+   * behind it — and absent is not zero.
+   */
+  grossExposure?: number | null;
+  /** Was the kill switch engaged at this observation? */
+  killSwitch?: boolean | null;
 }
 
 /**
@@ -365,8 +502,18 @@ export function sandboxBook(now = Date.parse("2026-08-04T12:00:00Z")): Portfolio
         { strategy: "ma_cross", orders: 48, filled: 44, notional: 5_820_000, fees: 3_492, avg_slippage_bps: 2.4 },
         { strategy: "donchian", orders: 26, filled: 24, notional: 2_910_000, fees: 1_746, avg_slippage_bps: 3.1 },
         { strategy: "rsi_reversion", orders: 12, filled: 9, notional: 870_000, fees: 522, avg_slippage_bps: 4.8 },
-      ],
-      by_symbol: [],
+      ].map((row) => {
+        const sleeve = SANDBOX_SLEEVE_PNL[row.strategy];
+        return {
+          ...row,
+          realized_pnl: sleeve.realized,
+          win_rate: sleeve.winRate,
+          closed_trades: sleeve.closes,
+          has_open_inventory: sleeve.open,
+        };
+      }),
+      by_symbol: sandboxSymbolFlow(),
+      session: sandboxSession(new Date(now).toISOString().slice(0, 10), dailyPnl, net),
     },
     execution_quality: {},
     gateway: { environment: "sandbox", version: "mock", authoritative: false },

@@ -24,6 +24,7 @@ import {
   createSandboxDesk,
   sandboxBlotter,
   sandboxRiskEvents,
+  sandboxWorkingOrders,
   summarise,
 } from "../lib/blotter";
 import { sandboxBook } from "../lib/portfolio";
@@ -222,7 +223,7 @@ describe("the judge replays the gateway's gates, not an approximation of them", 
     assert.deepEqual(names, expectedOrder);
   });
 
-  it("a LIMIT order inside the band passes price_band in the gateway's slot", () => {
+  it("a LIMIT order inside the band runs the gateway's own gate vector", () => {
     // BTCUSDT sandbox mark is 67,412.5; a price ~15bps away is well in-band.
     const desk = createSandboxDesk(sandboxBook());
     const decision = desk.judge(
@@ -231,16 +232,69 @@ describe("the judge replays the gateway's gates, not an approximation of them", 
     );
     assert.equal(decision.accepted, true, `rejected by ${decision.rejected_by}`);
     const names = decision.checks!.map((c) => c.name);
-    // The MARKET vector with price_band inserted where risk_proxy.py has it:
-    // after gross_exposure (gate 9), before daily_drawdown (gate 11).
+    // The MARKET vector with the two LIMIT-only gates inserted where
+    // risk_proxy.py has them: price_band after gross_exposure, then the
+    // resting-book ceiling, then daily_drawdown.
     assert.deepEqual(names, [
       "kill_switch", "symbol_halt", "symbol_whitelist", "duplicate_order", "rate_limit",
       "price_available", "order_sized", "max_order_notional", "symbol_concentration",
-      "gross_exposure", "price_band", "daily_drawdown", "est_slippage",
+      "gross_exposure", "price_band", "working_book", "daily_drawdown", "est_slippage",
     ]);
-    // Quantity is sized at the limit price, the gateway's reference price.
+  });
+
+  it("a bid below the offer rests instead of filling", () => {
+    // The assertion that changed when the gateway learned to rest an order. This
+    // used to claim a fill: 67,310 is below the 67,412.5 mark, so nobody is
+    // showing that price and there is nothing to cross. A sandbox that filled it
+    // anyway would teach a reviewer the opposite of what was built.
+    const desk = createSandboxDesk(sandboxBook());
+    const decision = desk.judge(
+      { symbol: "BTCUSDT", side: "BUY", notional: 25_000, orderType: "LIMIT", limitPrice: 67_310 },
+      0,
+    );
+    assert.equal(decision.accepted, true, "resting is an acceptance, not a rejection");
+    assert.equal(decision.status, "WORKING");
+    assert.equal(decision.fill, null, "nobody has met this price yet");
+    assert.match(decision.reason!, /resting/);
+  });
+
+  it("a bid through the offer crosses the spread and fills", () => {
+    const desk = createSandboxDesk(sandboxBook());
+    const decision = desk.judge(
+      { symbol: "BTCUSDT", side: "BUY", notional: 25_000, orderType: "LIMIT", limitPrice: 67_500 },
+      0,
+    );
+    assert.equal(decision.status, "FILLED");
     assert.ok(decision.fill);
-    assert.ok(Math.abs(decision.fill!.quantity - 25_000 / 67_310) < 1e-12);
+    // Quantity is sized at the limit price, the gateway's reference price.
+    assert.ok(Math.abs(decision.fill!.quantity - 25_000 / 67_500) < 1e-12);
+  });
+
+  it("an offer below the bid crosses on the sell side too", () => {
+    const desk = createSandboxDesk(sandboxBook());
+    const resting = desk.judge(
+      { symbol: "BTCUSDT", side: "SELL", notional: 25_000, orderType: "LIMIT", limitPrice: 67_500 },
+      0,
+    );
+    assert.equal(resting.status, "WORKING", "asking above the bid has to wait");
+
+    const crossing = desk.judge(
+      { symbol: "BTCUSDT", side: "SELL", notional: 25_000, orderType: "LIMIT", limitPrice: 67_300 },
+      0,
+    );
+    assert.equal(crossing.status, "FILLED");
+  });
+
+  it("a MARKET order is never sent down the resting path", () => {
+    const desk = createSandboxDesk(sandboxBook());
+    const decision = desk.judge(
+      { symbol: "BTCUSDT", side: "BUY", notional: 25_000, orderType: "MARKET", limitPrice: null },
+      0,
+    );
+    assert.equal(decision.status, "FILLED");
+    assert.ok(decision.fill);
+    // The resting-book gate is LIMIT-only, so it must not appear here.
+    assert.ok(!decision.checks!.some((c) => c.name === "working_book"));
   });
 
   it("a LIMIT order 600bps off the mark is rejected by price_band", () => {
@@ -259,5 +313,119 @@ describe("the judge replays the gateway's gates, not an approximation of them", 
     const names = desk.judge({ symbol: "BTCUSDT", side: "BUY", notional: 25_000 }, 0)
       .checks!.map((c) => c.name);
     assert.ok(!names.includes("price_band"));
+  });
+});
+
+
+// --------------------------------------------------------------------------
+// The resting book
+//
+// A working order and a position in the same instrument appear on the same tab.
+// If the generated resting book quoted a different mark from the generated
+// position book, a reader would see BTCUSDT at two prices a few hundred pixels
+// apart — the exact incoherence the sandbox exists to avoid.
+// --------------------------------------------------------------------------
+
+describe("the generated resting book agrees with the generated position book", () => {
+  const orders = sandboxWorkingOrders();
+  const book = sandboxBook();
+  const marks = new Map(book.exposure.positions.map((p) => [p.symbol, p.mark_price]));
+
+  it("is deterministic", () => {
+    assert.deepEqual(sandboxWorkingOrders(), sandboxWorkingOrders());
+  });
+
+  it("quotes every order against the book's own mark", () => {
+    for (const order of orders) {
+      const mark = marks.get(order.symbol);
+      assert.ok(mark, `${order.symbol} rests but is not in the book`);
+      assert.equal(
+        order.markPrice, mark,
+        `${order.symbol} rests against ${order.markPrice} but the book marks it at ${mark}`,
+      );
+    }
+  });
+
+  it("states a distance that matches the two prices it sits between", () => {
+    for (const order of orders) {
+      const expected = ((order.limitPrice - order.markPrice!) / order.markPrice!) * 1e4;
+      assert.ok(
+        Math.abs(order.distanceBps! - expected) < 0.01,
+        `${order.symbol}: ${order.distanceBps} vs ${expected}`,
+      );
+    }
+  });
+
+  it("rests every order inside the gateway's own price band", () => {
+    // An order the real gate would have refused has no business appearing as one
+    // it accepted.
+    for (const order of orders) {
+      assert.ok(
+        Math.abs(order.distanceBps!) <= SANDBOX_LIMITS.maxPriceDeviationBps,
+        `${order.symbol} is ${order.distanceBps}bps out, past the ${SANDBOX_LIMITS.maxPriceDeviationBps}bps band`,
+      );
+    }
+  });
+
+  it("never quotes a resting order at a price that would have filled", () => {
+    // A BUY above the mark and a SELL below it are marketable: they would have
+    // crossed on arrival rather than rested, so seeing one here would mean the
+    // fixture disagrees with the judge that produced it.
+    for (const order of orders) {
+      if (order.side === "BUY") assert.ok(order.limitPrice < order.markPrice!, order.symbol);
+      else assert.ok(order.limitPrice > order.markPrice!, order.symbol);
+    }
+  });
+
+  it("gives only DAY orders an expiry", () => {
+    for (const order of orders) {
+      if (order.timeInForce === "DAY") assert.ok(order.expiresAt, `${order.orderId} has no boundary`);
+      // A far-future date on a GTC order would read as an expiry it does not have.
+      else assert.equal(order.expiresAt, null, `${order.orderId} claims an expiry it does not have`);
+    }
+  });
+
+  it("stays out of the blotter's totals", () => {
+    // sandboxBlotter's per-sleeve counts reconcile to the cent with the book's
+    // attribution table. A resting order has no fill and no fee, so leaking one
+    // into those rows would break a reconciliation two other tests depend on.
+    const ids = new Set(sandboxBlotter().map((row) => row.orderId));
+    for (const order of orders) {
+      assert.ok(!ids.has(order.orderId), `${order.orderId} appears in both generators`);
+    }
+  });
+});
+
+describe("the generated session block reconciles with the rows behind it", () => {
+  const book = sandboxBook();
+  const session = book.attribution.session!;
+
+  it("derives its costs from the blotter rather than restating them", () => {
+    const fills = sandboxBlotter().filter((row) => row.status === "FILLED");
+    const fees = fills.reduce((acc, row) => acc + (row.feeUsd ?? 0), 0);
+    assert.ok(Math.abs(session.fees! - fees) < 0.01, `${session.fees} vs ${fees}`);
+    assert.equal(session.fills, fills.length);
+  });
+
+  it("carries a market leg that is supplied, not measured", () => {
+    // Attributing part of a generated P&L to a real market move would be a
+    // fabricated attribution, and it would make the panel disagree between
+    // server render and hydrate.
+    assert.equal(session.basis, "generated");
+    assert.ok(typeof session.market_pnl === "number");
+    assert.ok(typeof session.reference_return === "number");
+  });
+
+  it("has no unmeasured fills, so the cost leg is exact rather than a bound", () => {
+    assert.equal(session.fills_without_slippage, 0);
+  });
+
+  it("sums its sleeve P&L to the book's own realised figure", () => {
+    const sleeves = book.attribution.by_strategy
+      .reduce((acc, row) => acc + (row.realized_pnl ?? 0), 0);
+    assert.ok(
+      Math.abs(sleeves - book.equity.realized_pnl) < 0.01,
+      `sleeves sum to ${sleeves} but the book reports ${book.equity.realized_pnl}`,
+    );
   });
 });

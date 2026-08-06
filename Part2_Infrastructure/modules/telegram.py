@@ -218,7 +218,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("correlation", "Risk · Cross-position correlation matrix", "Risk", "/correlation [INTERVAL]", "/correlation", "_cmd_correlation", ("corr",)),
     CommandSpec("stress", "Risk · Scenario loss on the current book", "Risk", "/stress [SCENARIO]", "/stress", "_cmd_stress", ("scenario",)),
     CommandSpec("varbacktest", "Risk · Has the VaR model been right?", "Risk", "/varbacktest [INTERVAL]", "/varbacktest", "_cmd_varbacktest", ("kupiec",)),
-    CommandSpec("rebalance", "Risk · Risk-based target weights and the trades to reach them", "Risk", "/rebalance [equalrisk]", "/rebalance", "_cmd_rebalance", ("targets",)),
+    CommandSpec("rebalance", "Risk · Target weights and the trades to reach them", "Risk", "/rebalance [ew|iv|erc|mv]", "/rebalance", "_cmd_rebalance", ("targets",)),
     CommandSpec("regime", "Risk · Volatility regime for an instrument", "Risk", "/regime SYMBOL [INTERVAL]", "/regime BTCUSDT", "_cmd_regime"),
     CommandSpec("size", "Risk · Kelly position sizing from a win rate", "Risk", "/size WIN_RATE PAYOFF [EQUITY]", "/size 0.55 1.8", "_cmd_size", ("kelly",)),
     CommandSpec("dislocation", "Risk · Cross-venue crossed-book check", "Risk", "/dislocation SYMBOL", "/dislocation BTCUSDT", "_cmd_dislocation", ("arb",)),
@@ -239,9 +239,10 @@ BOT_COMMANDS = [(spec.name, spec.description) for spec in COMMAND_SPECS]
 BOT_SHORT_DESCRIPTION = "Independent text alerts, portfolio and risk reads, and three gated emergency controls."
 BOT_DESCRIPTION = (
     "AlphaEngine Companion is separate from the web workspace. It provides text-only portfolio, "
-    "OpenBB market data, execution analytics, research status and operational alerts. It never "
-    "submits orders. Three emergency controls (/halt, /resume, /flatten) are reserved for a "
-    "separate operator allow-list and each needs a single-use confirmation code. "
+    "OpenBB market data, execution analytics, research status and operational alerts. It cannot "
+    "open a position: there is no /order and no /backtest. Three controls (/halt, /resume, "
+    "/flatten) need a separate operator allow-list and a single-use code; /flatten closes "
+    "positions through the same pre-trade gates as any order. "
     "Send /commands for the full catalogue."
 )
 
@@ -677,11 +678,18 @@ class TelegramBot:
             chat_id,
             text_card(
                 "ℹ️ AlphaEngine Companion",
-                "INDEPENDENT · TEXT ONLY · READ-ONLY",
+                "INDEPENDENT · TEXT ONLY · READ EXCEPT THREE CONTROLS",
                 [
                     "A separate operational channel for portfolio, market, research and execution updates.",
                     "It shares authoritative data services with AlphaEngine but never opens or controls the web UI.",
-                    "Order entry, kill-switch changes and backtest submission are intentionally absent.",
+                    # This card used to say READ-ONLY and that order entry was absent.
+                    # `/flatten` submits real orders through `gateway.submit`, so both
+                    # were false — and a security note the product itself contradicts is
+                    # worse than no note at all.
+                    "Sixty-four of its commands only read. The three that do not — /halt, /resume, /flatten "
+                    "— need the separate control allow-list and a single-use confirmation code.",
+                    "/flatten enters closing orders, and they face the same pre-trade gates as any other order "
+                    "rather than going around them. There is no /order and no /backtest.",
                 ],
                 source="AlphaEngine Telegram service",
                 next_commands="/commands · /status · /digest",
@@ -1322,7 +1330,17 @@ class TelegramBot:
         """Target weights and the trades that would reach them. Read-only."""
         from modules.quant_risk import propose_allocation, rebalance_trades
 
-        method = "equal_risk" if args and args[0].lower() in {"equalrisk", "equal_risk", "erc"} else "inverse_vol"
+        # Aliased rather than matched exactly: a phone keyboard is a bad place to
+        # type "min_variance", and an unrecognised word falls back to inverse-vol
+        # in the engine, which would silently answer a different question from
+        # the one that was asked.
+        aliases = {
+            "ew": "equal_weight", "equalweight": "equal_weight", "equal_weight": "equal_weight",
+            "iv": "inverse_vol", "invvol": "inverse_vol", "inverse_vol": "inverse_vol",
+            "erc": "equal_risk", "equalrisk": "equal_risk", "equal_risk": "equal_risk",
+            "mv": "min_variance", "minvar": "min_variance", "min_variance": "min_variance",
+        }
+        method = aliases.get(args[0].lower(), "inverse_vol") if args else "inverse_vol"
         report, cov, _returns = await self._risk_inputs("1d")
         positions = [p for p in report["exposure"]["positions"] if p.get("notional")]
         equity = float(report["equity"]["current"] or 0.0)

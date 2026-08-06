@@ -1,8 +1,15 @@
 """Restart recovery for the paper position book.
 
-Only accepted fills from the current UTC session are replayed. This deliberately
-does not claim to restore an overnight book, live kill/halt state, counters,
-rate-limit history or idempotency keys; those need dedicated durable snapshots.
+Only accepted fills from the current UTC session are replayed. Everything a
+restart needs from *earlier* sessions arrives as two numbers on the durable
+``session_rollover`` record — what those sessions banked, and the equity this one
+opened on — and `tests/test_session_rollover.py` is where that half is pinned.
+This file covers the replay itself and, below, what the reader does when the
+record it depends on cannot be trusted.
+
+The replay deliberately does not claim to restore an overnight *book*, live
+kill/halt state, counters, rate-limit history or idempotency keys; those need
+dedicated durable snapshots.
 """
 
 from __future__ import annotations
@@ -11,6 +18,7 @@ from datetime import timedelta
 
 import pytest
 
+import modules.audit as audit_module
 import modules.risk_proxy as risk_proxy
 from modules.audit import AuditLog
 from modules.risk_proxy import RiskGateway, TokenBucket
@@ -139,8 +147,33 @@ async def test_restart_does_not_guess_an_overnight_book(tmp_path, monkeypatch):
     reopened.close()
 
 
+class _NoRollover:
+    """The ordinary case for a session that has not closed one: no record.
+
+    Every stand-in below inherits it so each test varies exactly one thing. A
+    restart reads the durable session baseline before it replays a single fill,
+    so an audit that cannot answer that question at all stops the gateway before
+    the fill evidence is ever reached — which would make these tests pass for the
+    wrong reason.
+    """
+
+    def latest_session_rollover(self, session_date):
+        return None
+
+    def has_activity_before(self, session_date):
+        # A store with no earlier sessions, which is what makes "no rollover
+        # record" the ordinary case rather than a boundary crossed while the
+        # process was down. A stand-in that omitted this would answer the
+        # gateway's question by raising, and the tests below would pass on an
+        # error from the wrong line.
+        return False
+
+    def accepted_fills_for_session(self, session_date):
+        return []
+
+
 def test_incomplete_fill_evidence_fails_closed():
-    class IncompleteAudit:
+    class IncompleteAudit(_NoRollover):
         def accepted_fills_for_session(self, session_date):
             return [{
                 "ts": "2026-08-04T00:00:00",
@@ -154,3 +187,87 @@ def test_incomplete_fill_evidence_fails_closed():
 
     with pytest.raises(RuntimeError, match="missing numeric fee_usd"):
         gateway(engine(), IncompleteAudit())
+
+
+def test_an_unreadable_session_baseline_fails_closed():
+    """A baseline that cannot be read is refused, not defaulted.
+
+    0.0 and ``starting_equity_usd`` look like a neutral fallback and are not:
+    they assert that nothing has been banked and that this session opened on the
+    original balance. After a losing week both are false in the direction that
+    *widens* the drawdown budget, so a gateway that quietly defaulted would come
+    up holding risk capacity it never had. Same reasoning
+    ``accepted_fills_for_session`` uses to refuse an understated book — a
+    gateway that will not construct is loud; one that starts on a fabricated
+    baseline is not.
+    """
+    class UnreadableAudit(_NoRollover):
+        def latest_session_rollover(self, session_date):
+            raise RuntimeError("could not read the durable session rollover record")
+
+    with pytest.raises(RuntimeError, match="cannot safely restore"):
+        gateway(engine(), UnreadableAudit())
+
+
+def test_a_rollover_record_missing_its_carry_fails_closed():
+    """A partially-written record is not partially applied.
+
+    Taking the baseline and defaulting the carry would produce a book whose
+    equity and whose drawdown denominator came from different sessions — self-
+    consistent nowhere, and wrong by an amount nothing in the payload names.
+    """
+    class CorruptAudit(_NoRollover):
+        def latest_session_rollover(self, session_date):
+            return {
+                "session_date": session_date,
+                "carried_realized_pnl": None,
+                "start_of_day_equity": 900_000.0,
+            }
+
+    with pytest.raises(RuntimeError, match="missing numeric carried_realized_pnl"):
+        gateway(engine(), CorruptAudit())
+
+
+def test_a_rollover_record_filed_under_another_session_is_refused():
+    """The row is found by the window its timestamp falls in, so the payload must agree.
+
+    A record naming a different day disagrees with its own clock. Applying it
+    anyway would anchor today's drawdown budget to some other day's balance — a
+    wrong denominator that reads as entirely plausible in the panel.
+    """
+    class MisfiledAudit(_NoRollover):
+        def latest_session_rollover(self, session_date):
+            return {
+                "session_date": "1999-12-31",
+                "carried_realized_pnl": 5_000.0,
+                "start_of_day_equity": 1_005_000.0,
+            }
+
+    with pytest.raises(RuntimeError, match="session it was filed under"):
+        gateway(engine(), MisfiledAudit())
+
+
+def test_a_rollover_tying_with_a_reset_is_refused(tmp_path, monkeypatch):
+    """The tie the schema cannot break, refused rather than guessed at.
+
+    ``risk_events`` carries timestamps and no sequence column. A rollover and a
+    book reset stamped at the same instant put the account on two different
+    balances — the rollover's banked carry, or the opening balance the reset
+    restores — and nothing in either row says which happened second. Picking one
+    would be a coin flip wearing a number's clothes, so the read refuses, exactly
+    as a fill tying with a reset does.
+    """
+    audit = AuditLog(tmp_path / "tie.duckdb")
+    at = risk_proxy._utcnow()
+    session = at.strftime("%Y-%m-%d")
+    audit.record_session_rollover(
+        session, carried_realized_pnl=1_000.0, start_of_day_equity=1_001_000.0,
+        unrealized_at_rollover=0.0, at=at,
+    )
+    # `record_book_reset` reads its own clock, so the tie has to be arranged.
+    monkeypatch.setattr(audit_module, "_utcnow", lambda: at.replace(tzinfo=None))
+    audit.record_book_reset("pytest")
+
+    with pytest.raises(RuntimeError, match="ambiguous audit timestamp"):
+        audit.latest_session_rollover(session)
+    audit.close()

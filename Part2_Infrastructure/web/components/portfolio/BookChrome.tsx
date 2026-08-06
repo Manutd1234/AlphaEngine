@@ -143,28 +143,32 @@ export function BookChrome({ view }: { view: BookView }) {
         </div>
       )}
 
-      {sandbox && (
-        /* Rendered above everything, on every refresh, for as long as the mode is
-           on. A one-time notice is how a generated book gets mistaken for a real
-           one after ten minutes of reading. */
-        <div className="banner warn sandbox-banner" role="status">
-          <span aria-hidden>◆</span>
-          <div>
-            <strong>Sandbox book — these positions do not exist.</strong> Equity, P&amp;L, exposure and
-            every risk figure below are generated from a fixed seed. The workflow is real; the book is
-            not. Execution handoffs are disabled.
-          </div>
-        </div>
-      )}
+      {/* The sandbox warning and the source strip used to be two stacked blocks
+          saying overlapping things — one banner declaring the book generated, and
+          a status line underneath repeating it and adding "deterministic". Merged
+          into one strip that carries the source, the determinism note and the
+          controls together, which is ~80px of vertical space back on a page that
+          now has four sections to fit.
 
-      <div className="portfolio-statusbar">
+          What did NOT change: the marker is still rendered on every pass for as
+          long as the mode is on, and still carries the notice rail. A one-time
+          banner is how a generated book gets mistaken for a real one after ten
+          minutes of reading, and globals.css says outright that the sandbox
+          marker must never be subtle. */}
+      <div className={`portfolio-statusbar${sandbox ? " is-sandbox" : ""}`} role={sandbox ? "status" : undefined}>
         <div>
           <span className={`system-health${isStale || sandbox ? " is-warn" : ""}`}>
             <i aria-hidden /> {sandbox ? "Sandbox book (generated)" : isStale ? "Stale portfolio snapshot" : gatewayLabel}
           </span>
-          <span className="num">
-            {sandbox ? "Deterministic — the same book every time" : `Last successful refresh ${lastRefreshLabel}`}
-          </span>
+          {sandbox ? (
+            <span>
+              <strong>These positions do not exist.</strong> Equity, P&amp;L, exposure and every risk
+              figure below are generated from a fixed seed — the same book every time. The workflow
+              is real; the book is not. Execution handoffs are disabled.
+            </span>
+          ) : (
+            <span className="num">Last successful refresh {lastRefreshLabel}</span>
+          )}
         </div>
         <div className="portfolio-statusbar__actions">
           <div className="seg research-seg" role="group" aria-label="Book source">

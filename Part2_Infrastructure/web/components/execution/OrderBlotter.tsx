@@ -175,9 +175,14 @@ export default function OrderBlotter({ rows, focusSymbol, onOpenResearch, source
                     <td className="num">{row.slippageBps != null ? `${fmt(row.slippageBps, 1)}bp` : "—"}</td>
                     <td className="num">{row.latencyMs != null ? `${fmt(row.latencyMs, 2)}ms` : "—"}</td>
                     <td>
-                      {row.accepted
+                      {/* Status, not `accepted`. A cancelled or expired order was
+                          accepted and never filled — labelling it "filled" would
+                          claim a trade that did not happen. */}
+                      {row.status === "FILLED"
                         ? <span className="pill pill--live">filled</span>
-                        : <span className="pill pill--stop">{row.rejectedBy[0] ?? "rejected"}</span>}
+                        : row.status === "REJECTED"
+                          ? <span className="pill pill--stop">{row.rejectedBy[0] ?? "rejected"}</span>
+                          : <span className="pill pill--warn">{row.status.toLowerCase()}</span>}
                     </td>
                     <td className="muted">{row.strategy ?? "—"}</td>
                   </tr>,

@@ -595,6 +595,143 @@ def test_adding_to_a_short_is_a_sell_not_a_buy():
     assert trades["BBB"]["side"] == "SELL"
 
 
+def _correlated_three_asset_book():
+    """Three names with unequal volatility and one genuinely negative pair.
+
+    Minimum variance has nothing to do on a diagonal covariance — the answer is
+    inverse-variance and the solver is already at its fixed point on step zero.
+    A book with real off-diagonal structure is the only one that tests it.
+    """
+    base = [0.004, -0.003, 0.005, -0.0045, 0.0035, -0.004, 0.0042, -0.0038] * 4
+    swing = [0.001, 0.0015, -0.0012, 0.0008, -0.0016, 0.0011, -0.0009, 0.0013] * 4
+    cov = build_covariance(
+        {
+            "AAA": base,
+            "BBB": [0.6 * b + 2.0 * s for b, s in zip(base, swing, strict=True)],
+            "CCC": [-0.4 * b + 0.5 * s for b, s in zip(base, swing, strict=True)],
+        },
+        interval="1d",
+    )
+    positions = [
+        {"symbol": "BBB", "side": "LONG", "notional": 180_000},
+        {"symbol": "AAA", "side": "LONG", "notional": 120_000},
+        {"symbol": "CCC", "side": "SHORT", "notional": 60_000},
+    ]
+    return positions, cov
+
+
+def test_equal_weight_is_one_over_n_and_ignores_volatility():
+    from modules.quant_risk import propose_allocation
+
+    positions, cov = _uneven_vol_book()
+    proposal = propose_allocation(positions, cov, 1_000_000, method="equal_weight")
+    assert proposal is not None
+    assert proposal.method == "equal_weight"
+
+    weights = {t.symbol: t.target_weight for t in proposal.targets}
+    # AAA is three times the volatility of BBB and gets exactly the same weight.
+    # That is the point of the baseline: it knows nothing and does not pretend to.
+    assert weights["AAA"] == pytest.approx(0.5, abs=1e-9)
+    assert weights["BBB"] == pytest.approx(0.5, abs=1e-9)
+
+
+def test_min_variance_is_never_worse_than_the_seed_it_started_from():
+    """The assertion that earns the method its name.
+
+    A multiplicative fixed point is not proven to decrease the objective on every
+    step, so the solver keeps its best iterate. Without that, "minimum variance"
+    could return a portfolio more volatile than the one it began with.
+    """
+    from modules.quant_risk import portfolio_variance, propose_allocation
+
+    positions, cov = _correlated_three_asset_book()
+    seed = {}
+    total = 0.0
+    for i, symbol in enumerate(cov.symbols):
+        variance = cov.matrix[i][i]
+        seed[symbol] = 1.0 / variance
+        total += 1.0 / variance
+    seed = {s: w / total for s, w in seed.items()}
+
+    proposal = propose_allocation(positions, cov, 1_000_000, method="min_variance")
+    assert proposal is not None
+    solved = {t.symbol: t.target_weight for t in proposal.targets}
+
+    assert portfolio_variance(cov, solved) <= portfolio_variance(cov, seed) + 1e-18
+
+
+def test_min_variance_beats_inverse_vol_when_the_book_is_correlated():
+    from modules.quant_risk import portfolio_variance, propose_allocation
+
+    positions, cov = _correlated_three_asset_book()
+    inverse = propose_allocation(positions, cov, 1_000_000, method="inverse_vol")
+    minimum = propose_allocation(positions, cov, 1_000_000, method="min_variance")
+    assert inverse is not None and minimum is not None
+
+    inverse_weights = {t.symbol: t.target_weight for t in inverse.targets}
+    minimum_weights = {t.symbol: t.target_weight for t in minimum.targets}
+
+    assert portfolio_variance(cov, minimum_weights) < portfolio_variance(cov, inverse_weights)
+    # If the two agreed, every parity assertion about min-variance would pass
+    # while proving nothing about the solver.
+    assert any(
+        abs(minimum_weights[s] - inverse_weights[s]) > 1e-3 for s in minimum_weights
+    ), "min_variance is indistinguishable from inverse_vol on this book"
+
+
+def test_min_variance_stays_long_only_and_fully_invested():
+    from modules.quant_risk import propose_allocation
+
+    positions, cov = _correlated_three_asset_book()
+    proposal = propose_allocation(positions, cov, 1_000_000, method="min_variance")
+    assert proposal is not None
+
+    weights = [t.target_weight for t in proposal.targets]
+    assert all(w >= 0 for w in weights), "a long-only solve cannot short a name"
+    assert sum(weights) == pytest.approx(1.0, abs=1e-6)
+
+
+def test_min_variance_survives_a_negative_marginal_without_a_nan():
+    """A hedge has no update in the fixed point, and sqrt() of a negative is a
+    NaN that would propagate into every weight at the next renormalisation."""
+    from modules.quant_risk import propose_allocation
+
+    positions, cov = _correlated_three_asset_book()
+    proposal = propose_allocation(positions, cov, 1_000_000, method="min_variance")
+    assert proposal is not None
+    for target in proposal.targets:
+        assert target.target_weight == target.target_weight, "NaN reached a weight"
+        assert target.target_notional == target.target_notional
+
+
+def test_every_method_declines_on_the_same_book():
+    """A method that produced a proposal where the others refuse would make the
+    panel appear and disappear as the reader toggles between them."""
+    from modules.quant_risk import ALLOCATION_METHODS, propose_allocation
+
+    _, cov = _uneven_vol_book()
+    for method in ALLOCATION_METHODS:
+        assert propose_allocation([], cov, 1_000_000, method=method) is None
+        assert propose_allocation(
+            [{"symbol": "AAA", "side": "LONG", "notional": 100_000}], cov, 0, method=method,
+        ) is None
+
+
+def test_an_unknown_method_still_falls_back_to_inverse_vol_and_says_so():
+    from modules.quant_risk import propose_allocation
+
+    positions, cov = _uneven_vol_book()
+    proposal = propose_allocation(positions, cov, 1_000_000, method="black_litterman")
+    assert proposal is not None
+    # The proposal names its own method, so the fallback has to be reflected
+    # there rather than left as whatever the caller asked for.
+    assert proposal.method == "inverse_vol"
+
+    baseline = propose_allocation(positions, cov, 1_000_000, method="inverse_vol")
+    assert baseline is not None
+    assert [t.target_weight for t in proposal.targets] == [t.target_weight for t in baseline.targets]
+
+
 def test_a_wildcard_shock_is_labelled_as_an_assumption_not_a_measurement():
     """The gap that let a fabricated loss look like a measured one.
 

@@ -145,6 +145,16 @@ class Settings:
     equity_snapshot_interval_s: float = field(default_factory=lambda: _env_float("EQUITY_SNAPSHOT_INTERVAL_S", 60.0))
     # Taker fee applied to paper fills, in bps.
     paper_fee_bps: float = field(default_factory=lambda: _env_float("PAPER_FEE_BPS", 4.0))
+    # Maker fee, for a resting order that was filled *by* someone crossing the
+    # spread rather than by crossing it. Charging a resting fill the taker fee
+    # would report a cost the desk did not pay.
+    paper_maker_fee_bps: float = field(default_factory=lambda: _env_float("PAPER_MAKER_FEE_BPS", 1.0))
+    # How often the resting book is checked against the consolidated touch.
+    working_order_sweep_s: float = field(default_factory=lambda: _env_float("WORKING_ORDER_SWEEP_S", 1.0))
+    # A ceiling on the resting book itself. Without it a runaway algo leaves an
+    # unbounded number of orders alive, which is unbounded memory and an
+    # unbounded sweep — the failure Module B exists to stop.
+    max_working_orders: int = field(default_factory=lambda: _env_int("MAX_WORKING_ORDERS", 200))
 
     # ---- Module C: Backtester ---------------------------------------------
     backtest_max_combos: int = field(default_factory=lambda: _env_int("BACKTEST_MAX_COMBOS", 400))

@@ -188,6 +188,17 @@
         "title": "BookLevel",
         "type": "object"
       },
+      "CancelRequest": {
+        "properties": {
+          "reason": {
+            "default": "manual cancel",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "title": "CancelRequest",
+        "type": "object"
+      },
       "CheckResult": {
         "properties": {
           "detail": {
@@ -405,6 +416,149 @@
         "title": "KillSwitchRequest",
         "type": "object"
       },
+      "OrderAck": {
+        "properties": {
+          "actor": {
+            "title": "Actor",
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "status": {
+            "enum": [
+              "WORKING",
+              "FILLED",
+              "CANCELLED",
+              "EXPIRED",
+              "REJECTED"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id",
+          "status",
+          "actor",
+          "at"
+        ],
+        "title": "OrderAck",
+        "type": "object"
+      },
+      "OrderEvent": {
+        "properties": {
+          "actor": {
+            "default": "system",
+            "title": "Actor",
+            "type": "string"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "event": {
+            "title": "Event",
+            "type": "string"
+          },
+          "fee_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fee Usd"
+          },
+          "fill_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fill Price"
+          },
+          "fill_qty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fill Qty"
+          },
+          "replaces": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaces"
+          },
+          "status": {
+            "enum": [
+              "WORKING",
+              "FILLED",
+              "CANCELLED",
+              "EXPIRED",
+              "REJECTED"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "ts": {
+            "format": "date-time",
+            "title": "Ts",
+            "type": "string"
+          },
+          "venue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Venue"
+          }
+        },
+        "required": [
+          "ts",
+          "event",
+          "status"
+        ],
+        "title": "OrderEvent",
+        "type": "object"
+      },
       "OrderRequest": {
         "properties": {
           "client_order_id": {
@@ -479,6 +633,22 @@
           "symbol": {
             "title": "Symbol",
             "type": "string"
+          },
+          "time_in_force": {
+            "anyOf": [
+              {
+                "enum": [
+                  "GTC",
+                  "DAY",
+                  "IOC"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time In Force"
           }
         },
         "required": [
@@ -486,6 +656,39 @@
           "side"
         ],
         "title": "OrderRequest",
+        "type": "object"
+      },
+      "OrderTimeline": {
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/OrderEvent"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "WORKING",
+              "FILLED",
+              "CANCELLED",
+              "EXPIRED",
+              "REJECTED"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id",
+          "status",
+          "events"
+        ],
+        "title": "OrderTimeline",
         "type": "object"
       },
       "Position": {
@@ -536,6 +739,53 @@
           "realized_pnl"
         ],
         "title": "Position",
+        "type": "object"
+      },
+      "ReplaceRequest": {
+        "properties": {
+          "limit_price": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit Price"
+          },
+          "notional": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notional"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "reason": {
+            "default": "replace",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "title": "ReplaceRequest",
         "type": "object"
       },
       "RiskDecision": {
@@ -629,9 +879,37 @@
             "title": "Side",
             "type": "string"
           },
+          "status": {
+            "default": "FILLED",
+            "enum": [
+              "WORKING",
+              "FILLED",
+              "CANCELLED",
+              "EXPIRED",
+              "REJECTED"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
           "symbol": {
             "title": "Symbol",
             "type": "string"
+          },
+          "time_in_force": {
+            "anyOf": [
+              {
+                "enum": [
+                  "GTC",
+                  "DAY",
+                  "IOC"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time In Force"
           },
           "timestamp": {
             "format": "date-time",
@@ -655,6 +933,11 @@
       },
       "RiskState": {
         "properties": {
+          "carried_realized_pnl": {
+            "default": 0.0,
+            "title": "Carried Realized Pnl",
+            "type": "number"
+          },
           "daily_drawdown_pct": {
             "title": "Daily Drawdown Pct",
             "type": "number"
@@ -771,6 +1054,16 @@
           "unrealized_pnl": {
             "title": "Unrealized Pnl",
             "type": "number"
+          },
+          "working_notional": {
+            "default": 0.0,
+            "title": "Working Notional",
+            "type": "number"
+          },
+          "working_orders": {
+            "default": 0,
+            "title": "Working Orders",
+            "type": "integer"
           }
         },
         "required": [
@@ -1137,6 +1430,146 @@
           "stale"
         ],
         "title": "VenueBook",
+        "type": "object"
+      },
+      "WorkingOrder": {
+        "description": "An order resting on the book right now.\n\nTerminal decisions live in ``/api/audit/orders``. This is only what is still\nopen, which is the set a desk can actually still act on.",
+        "properties": {
+          "accepted_at": {
+            "format": "date-time",
+            "title": "Accepted At",
+            "type": "string"
+          },
+          "age_seconds": {
+            "title": "Age Seconds",
+            "type": "number"
+          },
+          "client_order_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Order Id"
+          },
+          "distance_bps": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance Bps"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "limit_price": {
+            "title": "Limit Price",
+            "type": "number"
+          },
+          "mark_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mark Price"
+          },
+          "notional": {
+            "title": "Notional",
+            "type": "number"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "order_type": {
+            "enum": [
+              "MARKET",
+              "LIMIT"
+            ],
+            "title": "Order Type",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "number"
+          },
+          "side": {
+            "enum": [
+              "BUY",
+              "SELL"
+            ],
+            "title": "Side",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "WORKING",
+              "FILLED",
+              "CANCELLED",
+              "EXPIRED",
+              "REJECTED"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "strategy": {
+            "title": "Strategy",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "time_in_force": {
+            "enum": [
+              "GTC",
+              "DAY",
+              "IOC"
+            ],
+            "title": "Time In Force",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id",
+          "symbol",
+          "side",
+          "order_type",
+          "time_in_force",
+          "quantity",
+          "limit_price",
+          "notional",
+          "strategy",
+          "source",
+          "status",
+          "accepted_at",
+          "age_seconds"
+        ],
+        "title": "WorkingOrder",
         "type": "object"
       }
     }
@@ -1819,6 +2252,93 @@
       }
     },
     "/api/orders": {
+      "get": {
+        "description": "Orders resting on the book right now.\n\nTerminal decisions \u2014 filled, rejected, cancelled, expired \u2014 live in\n`/api/audit/orders`. This is only what is still open, which is the set a desk\ncan still act on.",
+        "operationId": "list_working_orders_api_orders_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "symbol",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 20,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9.\\-]+$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Symbol"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkingOrder"
+                  },
+                  "title": "Response List Working Orders Api Orders Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Working Orders",
+        "tags": [
+          "B \u00b7 Risk"
+        ]
+      },
       "post": {
         "description": "The only way an order reaches a venue. Returns the full check vector for\nboth accepted and rejected orders \u2014 a rejection is a result, not an error.",
         "operationId": "submit_order_api_orders_post",
@@ -1889,6 +2409,250 @@
           }
         },
         "summary": "Submit Order",
+        "tags": [
+          "B \u00b7 Risk"
+        ]
+      }
+    },
+    "/api/orders/{order_id}": {
+      "get": {
+        "description": "Every transition one order made, from the append-only event log.",
+        "operationId": "order_timeline_api_orders__order_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "title": "Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderTimeline"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Order Timeline",
+        "tags": [
+          "B \u00b7 Risk"
+        ]
+      }
+    },
+    "/api/orders/{order_id}/cancel": {
+      "post": {
+        "description": "Pull one resting order.\n\nNo typed-confirmation ritual, unlike the kill switch: that ceremony suits a\ndesk-wide action, not a single order a trader pulls repeatedly. A cancel also\ndoes not consume a rate-limit token \u2014 it only ever reduces risk, and a book in\ntrouble must always be able to get out.",
+        "operationId": "cancel_order_api_orders__order_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "title": "Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderAck"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Order",
+        "tags": [
+          "B \u00b7 Risk"
+        ]
+      }
+    },
+    "/api/orders/{order_id}/replace": {
+      "post": {
+        "description": "Cancel-and-new. Returns the **new** order's full check vector.\n\nA replacement faces every gate again and can be rejected where the original\npassed, so the evidence returned has to be the new evidence.",
+        "operationId": "replace_order_api_orders__order_id__replace_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "title": "Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiskDecision"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Replace Order",
         "tags": [
           "B \u00b7 Risk"
         ]

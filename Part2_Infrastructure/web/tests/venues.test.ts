@@ -13,11 +13,13 @@ import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 
 import {
+  absorbs,
   bandImbalance,
   buildTcaReport,
   consolidatedMid,
   depthUsd,
   depthWithinBps,
+  FILL_TOLERANCE,
   passiveQuote,
   smartRoute,
   spreadBps,
@@ -265,6 +267,134 @@ describe("what-if routing constraints", () => {
   });
 });
 
+/**
+ * The fill tolerance.
+ *
+ * `fillable` is a pre-trade risk gate, so it has to survive the arithmetic that
+ * produces it. A ladder walk reaches the request by subtracting one level at a
+ * time, so the total lands a few ULPs either side of it and never exactly on it.
+ * The gateway's reported failure was a SELL of 99.95002498750625 at a limit of
+ * 101 refused with "only $10,095 of $10,095 routable" — the two figures
+ * identical to the dollar — while the same order at a quantity of exactly 99.95
+ * went through.
+ *
+ * The half of that defect which came from summing cent-rounded legs was never
+ * reachable here; this file has always compared against the raw walk. What was
+ * wrong on this side was the *convention*: a fixed `1e-6` epsilon, which is a
+ * different boundary from the gateway's relative one at every order size except
+ * $1,000. Two engines answering the same question about the same book with
+ * different boundaries is worse than either boundary alone.
+ *
+ * Both directions are pinned below, and the second is the one that matters:
+ * a false *reject* is a cosmetic annoyance, a false *accept* releases an order
+ * into a book that cannot fill it.
+ */
+describe("the fill tolerance is relative to the order", () => {
+  // The reported book: 50 levels a cent apart, 5000 units each — ~$24.9M a side.
+  const DEEP_BIDS: Level[] = Array.from(
+    { length: 50 },
+    (_, i) => [99.95 - i * 0.01, 5000] as Level,
+  );
+  const DEEP_DEPTH = DEEP_BIDS.reduce((sum, [p, q]) => sum + p * q, 0);
+  const DEEP_MID = 100;
+  /** The reported order, one level deep in that book. */
+  const RAGGED = 99.95002498750625 * 101;
+
+  it("absorbs an order that lands off a cent boundary", () => {
+    const e = walkBook(DEEP_BIDS, "SELL", RAGGED, DEEP_MID);
+    assert.ok(e.fillable, "one level of a $24.9M book covers a $10k order");
+    assert.equal(e.levelsConsumed, 1);
+    // Equal to the cent because the walk really did take it, not because the
+    // request was copied over the measurement.
+    close(e.filledNotional, RAGGED, 0.005, "measured fill");
+  });
+
+  it("still refuses an order larger than the whole book", () => {
+    const e = walkBook(DEEP_BIDS, "SELL", DEEP_DEPTH * 10, DEEP_MID);
+    assert.equal(e.fillable, false);
+  });
+
+  it("takes an order for exactly the whole book", () => {
+    const e = walkBook(DEEP_BIDS, "SELL", DEEP_DEPTH, DEEP_MID);
+    assert.ok(e.fillable, "the book holds precisely this much and no less");
+    close(e.filledNotional, DEEP_DEPTH, 0.01, "measured fill");
+  });
+
+  it("refuses the whole book plus one meaningful unit", () => {
+    // $1 short on a $24.9M book is 4e-8 of the order — below any absolute
+    // epsilon you would plausibly pick, and still a real shortfall the gate
+    // has to catch.
+    assert.equal(walkBook(DEEP_BIDS, "SELL", DEEP_DEPTH + 1, DEEP_MID).fillable, false);
+  });
+
+  it("reports the measured walk, never the request", () => {
+    // The cheap way to make the comparison pass is to clamp the measurement to
+    // the request. That turns every partial fill into a full one.
+    const e = walkBook(DEEP_BIDS, "SELL", DEEP_DEPTH * 10, DEEP_MID);
+    close(e.filledNotional, DEEP_DEPTH, 0.01, "all the book had");
+    assert.ok(e.filledNotional < DEEP_DEPTH * 10, "and nothing like what was asked");
+  });
+
+  it("moves the boundary with the order size, not with the dollar", () => {
+    // A cent-scale instrument: $1.00 of bids. Half a thousandth of a cent short
+    // is 5e-5% of a $10,000 order and pure noise, but on this order it is
+    // 5e-5% of a dollar — and the absolute 1e-6 epsilon this replaced ACCEPTED
+    // it. That is the false accept the gate exists to prevent.
+    const penny: Level[] = [[0.01, 100]];
+    assert.ok(walkBook(penny, "SELL", 1, 0.0105).fillable);
+    assert.equal(walkBook(penny, "SELL", 1.0000005, 0.0105).fillable, false);
+
+    // The same absolute epsilon at the other end of the range: a $10,000 order
+    // that came up 5e-6 short was refused outright, which is arithmetic noise
+    // being reported as a book that cannot fill.
+    const deepEnough: Level[] = [[1, 9999.999995]];
+    assert.ok(
+      walkBook(deepEnough, "BUY", 10_000, null).fillable,
+      "half a thousandth of a cent on $10k is noise, not a partial fill",
+    );
+  });
+
+  it("forgives exactly the tolerance and not a hair more", () => {
+    assert.ok(absorbs(10_000 - 10_000 * FILL_TOLERANCE, 10_000));
+    assert.equal(absorbs(10_000 - 2 * 10_000 * FILL_TOLERANCE, 10_000), false);
+  });
+
+  it("does not consume an extra level for a sub-tolerance remainder", () => {
+    // Without the dust exit the walk takes a 2e-6 bite out of the level below,
+    // which costs nothing but reports `levelsConsumed: 2` and a `worstPrice` of
+    // 2 — a price this order never reaches, on a screen a trader reads.
+    const e = walkBook([[1, 9999.999998], [2, 100]], "BUY", 10_000, null);
+    assert.equal(e.levelsConsumed, 1);
+    assert.equal(e.worstPrice, 1);
+  });
+
+  it("the router does not emit a phantom venue leg for the same remainder", () => {
+    // Same failure one layer up, and louder: the second venue's leg rounds to
+    // $0.00 at 0.00% share, so the routing instruction names a venue the order
+    // has no business touching.
+    const a = book("BINANCE", [[0.9, 100]], [[1, 9999.999998]]);
+    const b = book("BYBIT", [[0.8, 100]], [[2, 100]]);
+    const { legs } = smartRoute([a, b], "BUY", 10_000);
+    assert.equal(legs.length, 1);
+    assert.equal(legs[0].venue, "BINANCE");
+  });
+
+  it("labels a route capped only when the walk really fell short", () => {
+    // Fully routed: 5e-6 of drift on $10,000 is not a liquidity shortage, and
+    // saying so sends a trader hunting for depth that is already there.
+    const full = smartRoute([book("BINANCE", [[0.9, 100]], [[1, 9999.999995]])], "BUY", 10_000);
+    assert.equal(full.cappedBy, undefined);
+
+    // Genuinely short, and the display rounding hides it: $0.9999995 of asks
+    // against a $1.00 order reports `filledNotional: 1` to the cent. The verdict
+    // is decided on the unrounded walk, so it still says liquidity — this is the
+    // "$X of $X" shape, caught rather than rendered as a full fill.
+    const short = smartRoute([book("BINANCE", [[0.009, 100]], [[0.01, 99.99995]])], "BUY", 1);
+    assert.equal(short.filledNotional, 1, "the display rounds up to the request");
+    assert.equal(short.cappedBy, "liquidity", "the verdict does not");
+  });
+});
+
 describe("band depth", () => {
   it("counts only what rests inside the band", () => {
     const mid = 100;
@@ -349,5 +479,65 @@ describe("every venue client has somewhere to fall back to", () => {
     assert.match(fn, /retCode !== 0/, "retCode must still be checked");
     assert.match(fn, /for \(const host of orderedHosts\("bybit"/, "Bybit must loop over hosts");
     assert.match(fn, /lastError = \(err as Error\)\.message/, "a failed host must be recorded and the loop continue");
+  });
+});
+
+// --------------------------------------------------------------------------
+// Parity with the Python gateway
+// --------------------------------------------------------------------------
+
+/**
+ * The behavioural tests above prove this file is internally consistent. They
+ * cannot prove it agrees with `modules/tca_engine.py`, and that is the property
+ * that failed: the tolerance moved on the Python side and this port did not
+ * follow, so the same book and the same order got one verdict from the gateway
+ * and another from the portal.
+ *
+ * So this reads both files. The next person to change one tolerance has to
+ * change the other or watch this fail, which is the only mechanism that has ever
+ * kept two hand-maintained mirrors in step.
+ */
+describe("the portal and the gateway share one fill tolerance", () => {
+  const read = (relative: string) =>
+    readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
+  const ts = read("../lib/venues.ts");
+  const py = read("../../modules/tca_engine.py");
+
+  it("declares the same FILL_TOLERANCE literal on both sides", () => {
+    const tsLiteral = /^export const FILL_TOLERANCE = (.+);$/m.exec(ts)?.[1];
+    const pyLiteral = /^FILL_TOLERANCE = (.+)$/m.exec(py)?.[1];
+    assert.ok(tsLiteral, "venues.ts must declare FILL_TOLERANCE");
+    assert.ok(pyLiteral, "tca_engine.py must declare FILL_TOLERANCE");
+    assert.equal(
+      tsLiteral,
+      pyLiteral,
+      "a portal that says routable where the gateway says not is worse than either answer alone",
+    );
+    assert.equal(String(FILL_TOLERANCE), String(Number(pyLiteral)), "and the value must be the one in force");
+  });
+
+  it("keeps the same names across the port", () => {
+    // Same names, so the two files diff. `_dust` carries Python's private
+    // underscore for exactly that reason.
+    assert.match(ts, /export function absorbs\(filled: number, requested: number\): boolean/);
+    assert.match(py, /^def absorbs\(filled: float, requested: float\) -> bool:$/m);
+    assert.match(ts, /function _dust\(targetNotional: number\): number/);
+    assert.match(py, /^def _dust\(target_notional: float\) -> float:$/m);
+  });
+
+  it("leaves no absolute epsilon in the walk or the router", () => {
+    // The whole point of the convention is that the boundary scales with the
+    // order. A bare `1e-6` reintroduced anywhere in these two functions puts it
+    // back on the dollar, and would be invisible at the one order size where the
+    // two conventions happen to coincide.
+    const walk = /export function walkBook[\s\S]*?\n}/.exec(ts)?.[0] ?? "";
+    const route = /export function smartRoute[\s\S]*?\n}/.exec(ts)?.[0] ?? "";
+    assert.ok(walk && route, "both functions must still be found");
+    for (const [name, body] of [["walkBook", walk], ["smartRoute", route]] as const) {
+      assert.ok(
+        !/\d+e-\d+/.test(body),
+        `${name} must decide fills through absorbs/_dust, not a fixed epsilon`,
+      );
+    }
   });
 });

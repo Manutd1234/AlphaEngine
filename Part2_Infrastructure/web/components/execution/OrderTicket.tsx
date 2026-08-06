@@ -92,6 +92,10 @@ export default function OrderTicket({
   halted, haltedSymbols, mode, judge, onSubmitted, onOpenResearch,
 }: OrderTicketProps) {
   const [busy, setBusy] = useState(false);
+  // Local rather than lifted. `orderType` and `limitPrice` live in page.tsx so
+  // the ladder can stage a limit the ticket picks up; nothing stages a
+  // time-in-force from another panel, so lifting it would add a prop for no reader.
+  const [timeInForce, setTimeInForce] = useState<"GTC" | "DAY" | "IOC">("GTC");
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [error, setError] = useState<{ error: string; hint?: string } | null>(null);
   const mid = useLiveMid();
@@ -119,6 +123,9 @@ export default function OrderTicket({
           notional: overrideNotional ?? notional,
           order_type: effectiveType,
           ...(effectiveType === "LIMIT" && limitPrice ? { limit_price: limitPrice } : {}),
+          // LIMIT only. The gateway rejects a resting MARKET order with a 422
+          // rather than coercing it, so sending one would be asking for an error.
+          ...(effectiveType === "LIMIT" ? { time_in_force: timeInForce } : {}),
           ...(strategy ? { strategy } : {}),
           // Stamping the experiment id is what later lets a fill in the
           // blotter be traced back to the run that argued for it.
@@ -236,6 +243,26 @@ export default function OrderTicket({
           ))}
         </div>
 
+        {orderType === "LIMIT" && (
+          <div className="seg seg--type" role="group" aria-label="Time in force">
+            {(["GTC", "DAY", "IOC"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={timeInForce === option}
+                onClick={() => setTimeInForce(option)}
+                title={
+                  option === "GTC" ? "Rests until it fills or is cancelled"
+                    : option === "DAY" ? "Rests until the UTC session boundary, then expires"
+                      : "Fills against what is showing now, or expires immediately"
+                }
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        )}
+
         <label>
           <span>Notional</span>
           <input
@@ -323,7 +350,11 @@ export default function OrderTicket({
               Filled {fmt(latest.fill.quantity, 6)} @ {usd(latest.fill.price, 2)} on {latest.fill.venue} ·
               slippage {fmt(latest.fill.slippage_bps, 1)} bps · fee {usd(latest.fill.fee_usd, 2)}
               {latest.order_type === "LIMIT"
-                ? <> · paper fill at route VWAP — resting orders are not modelled</>
+                // A marketable limit crosses the spread and pays for it; one that
+                // rests is filled by someone crossing to reach it and takes its
+                // own price. Naming which happened is the difference between a
+                // cost the desk paid and one it collected.
+                ? <> · marketable limit — crossed the spread at route VWAP</>
                 : null}
             </p>
           ) : null}

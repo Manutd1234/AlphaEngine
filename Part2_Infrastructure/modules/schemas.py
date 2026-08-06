@@ -5,10 +5,21 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 Side = Literal["BUY", "SELL"]
 OrderType = Literal["MARKET", "LIMIT"]
+
+#: Three, not the usual six. ``FOK`` is only meaningful alongside partial fills,
+#: and this gateway deliberately does not model those — see the README's
+#: "deliberately missing" table.
+TimeInForce = Literal["GTC", "DAY", "IOC"]
+
+#: Five states, and ``PARTIALLY_FILLED`` is deliberately absent. The L2 feeds
+#: carry ladder snapshots rather than trade prints, so how much of a resting
+#: order a crossing trade consumed is unknowable here. Declaring a state that can
+#: never be reached would claim a model that does not exist.
+OrderStatus = Literal["WORKING", "FILLED", "CANCELLED", "EXPIRED", "REJECTED"]
 
 
 # --------------------------------------------------------------------------- #
@@ -91,11 +102,29 @@ class OrderRequest(BaseModel):
     limit_price: float | None = Field(default=None, gt=0)
     strategy: str = "manual"
     client_order_id: str | None = None
+    # No default here on purpose: the sensible one differs by order type, and a
+    # single field default cannot say so. `submit` resolves None to GTC for a
+    # LIMIT and IOC for a MARKET, which makes every client that never sends the
+    # field behave exactly as it did before resting orders existed.
+    time_in_force: TimeInForce | None = None
 
     @field_validator("symbol")
     @classmethod
     def _upper(cls, v: str) -> str:
         return v.strip().upper()
+
+    @field_validator("time_in_force", mode="before")
+    @classmethod
+    def _tif_upper(cls, v: Any) -> Any:
+        return v.strip().upper() if isinstance(v, str) else v
+
+    @model_validator(mode="after")
+    def _resting_market_orders_are_nonsense(self) -> OrderRequest:
+        # Rejected rather than coerced. A market order that rests is not a thing,
+        # and quietly rewriting it to IOC would answer a question nobody asked.
+        if self.order_type == "MARKET" and self.time_in_force in {"GTC", "DAY"}:
+            raise ValueError("a MARKET order cannot rest — use GTC or DAY with a LIMIT price")
+        return self
 
     @field_validator("side", mode="before")
     @classmethod
@@ -140,6 +169,79 @@ class RiskDecision(BaseModel):
     latency_ms: float = 0.0
     timestamp: datetime
     fill: Fill | None = None
+    # Defaulted so every existing assertion about `accepted` and `fill` keeps
+    # meaning what it meant: before resting orders, an accepted order was a
+    # filled order, and these defaults say exactly that.
+    status: OrderStatus = "FILLED"
+    time_in_force: TimeInForce | None = None
+
+
+class WorkingOrder(BaseModel):
+    """An order resting on the book right now.
+
+    Terminal decisions live in ``/api/audit/orders``. This is only what is still
+    open, which is the set a desk can actually still act on.
+    """
+
+    order_id: str
+    client_order_id: str | None = None
+    symbol: str
+    side: Side
+    order_type: OrderType
+    time_in_force: TimeInForce
+    quantity: float
+    limit_price: float
+    #: Committed capital: quantity x limit price. A resting order is not free.
+    notional: float
+    strategy: str
+    source: str
+    status: OrderStatus
+    accepted_at: datetime
+    age_seconds: float
+    mark_price: float | None = None
+    #: How far the limit sits from the mark. Null when there is no live mark to
+    #: measure against — never zero, which would read as "at the touch".
+    distance_bps: float | None = None
+    #: DAY orders only.
+    expires_at: datetime | None = None
+
+
+class OrderAck(BaseModel):
+    order_id: str
+    status: OrderStatus
+    actor: str
+    reason: str | None = None
+    at: datetime
+
+
+class CancelRequest(BaseModel):
+    reason: str = "manual cancel"
+
+
+class ReplaceRequest(BaseModel):
+    quantity: float | None = Field(default=None, gt=0)
+    notional: float | None = Field(default=None, gt=0)
+    limit_price: float | None = Field(default=None, gt=0)
+    reason: str = "replace"
+
+
+class OrderEvent(BaseModel):
+    ts: datetime
+    event: str
+    status: OrderStatus
+    detail: str = ""
+    actor: str = "system"
+    fill_price: float | None = None
+    fill_qty: float | None = None
+    fee_usd: float | None = None
+    venue: str | None = None
+    replaces: str | None = None
+
+
+class OrderTimeline(BaseModel):
+    order_id: str
+    status: OrderStatus
+    events: list[OrderEvent]
 
 
 class Position(BaseModel):
@@ -161,6 +263,13 @@ class RiskState(BaseModel):
     equity: float
     start_of_day_equity: float
     realized_pnl: float
+    # ``realized_pnl`` is *this session's*, because the gateway zeroes the
+    # per-position counters at every UTC rollover. The money those closed
+    # sessions made is here, and without it the payload stops reconciling:
+    # after the first boundary ``equity != starting + realized + unrealized``
+    # and the missing term has no name. Defaulted so the field is an additive
+    # contract change — every existing client keeps parsing what it parsed.
+    carried_realized_pnl: float = 0.0
     unrealized_pnl: float
     daily_pnl: float
     daily_drawdown_pct: float
@@ -174,6 +283,10 @@ class RiskState(BaseModel):
     orders_accepted: int
     orders_rejected: int
     orders_last_second: float
+    # Resting orders are committed capital that has not landed yet, so a state
+    # snapshot that omitted them would understate what the book is exposed to.
+    working_orders: int = 0
+    working_notional: float = 0.0
     limits: dict[str, float]
     session_date: str
 

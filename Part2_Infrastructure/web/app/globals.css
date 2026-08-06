@@ -6061,7 +6061,207 @@ button.primary-action:hover:not(:disabled) {
   margin-top: 6px;
 }
 
+/* The sandbox marker lives on the status strip now that the standalone banner
+   was merged into it. The rail and the tint move with it — `.sandbox-banner`
+   said "the sandbox marker must never be subtle", and merging must not be the
+   edit that makes it subtle. */
+.portfolio-statusbar.is-sandbox {
+  border-left: 3px solid var(--notice-text);
+  background: color-mix(in oklab, var(--status-warning) 10%, var(--surface-1));
+  align-items: flex-start;
+}
+
+.portfolio-statusbar.is-sandbox > div:first-child {
+  max-width: 74ch;
+}
+
+.portfolio-statusbar.is-sandbox strong {
+  color: var(--notice-text);
+}
+
+/* ---------- row action menu ---------- */
+
+/* Three buttons on every row made the table scroll sideways on anything narrower
+   than a desktop, and repeated the same three words down the page. A disclosure
+   costs one click for an action taken rarely and gives the numbers the width. */
+.row-menu {
+  position: relative;
+  display: inline-block;
+}
+
+.row-menu > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 2px 9px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+  user-select: none;
+}
+
+.row-menu > summary::-webkit-details-marker { display: none; }
+
+.row-menu > summary:hover { color: var(--text-primary); }
+
+.row-menu > summary:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+
+.row-menu__items {
+  position: absolute;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 132px;
+  margin-top: 4px;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+}
+
+.row-menu__items button {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  font-size: 12.5px;
+}
+
+/* ---------- soft-limit alerts ---------- */
+
+.portfolio-alerts ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.portfolio-alerts li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  border-left: 3px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+}
+
+.portfolio-alerts li > strong {
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* --status-* are fill steps and appear only as a border or inside color-mix;
+   the words take the AA-safe text roles. */
+.portfolio-alerts li.is-warn {
+  border-left-color: var(--status-warning);
+  background: color-mix(in oklab, var(--status-warning) 8%, var(--surface-2));
+}
+.portfolio-alerts li.is-warn > strong { color: var(--warning-text); }
+
+.portfolio-alerts li.is-critical {
+  border-left-color: var(--status-critical);
+  background: color-mix(in oklab, var(--status-critical) 8%, var(--surface-2));
+}
+.portfolio-alerts li.is-critical > strong { color: var(--critical-text); }
+
+/* ---------- P&L waterfall ---------- */
+
+.pnl-waterfall {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  margin-bottom: 12px;
+}
+
+.pnl-waterfall svg {
+  display: block;
+  min-width: 320px;
+}
+
+/* The legend entry for a leg nobody could measure. Drawn as the same dashed
+   outline the chart uses, so the two readings agree — a hollow swatch and a
+   filled one are the difference between "zero" and "unknown". */
+.legend i.is-withheld {
+  background: none;
+  border: 1px dashed var(--border);
+}
+
 /* ---------- allocation and period performance ---------- */
+
+/* Four methods do not fit a segmented control. `.seg button` is flex:1 inside a
+   heading row that already carries an h2 and a kicker, and the two-option
+   version already had to abbreviate its labels to fit. A select carries four
+   full names and groups them; the per-method explanation was never in the
+   tooltip anyway, it is the paragraph below the heading. */
+.allocation-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.allocation-method-label {
+  font-size: 9.5px;
+  font-weight: 750;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.portfolio-card-heading .allocation-method {
+  width: auto;
+  min-width: 178px;
+  min-height: 32px;
+  font-size: 11.5px;
+  font-weight: 650;
+}
+
+.allocation-override-toggle {
+  font-size: 11.5px;
+  min-height: 32px;
+  white-space: nowrap;
+}
+
+/* The chip has to read as a state, not as decoration, so it carries a word.
+   --status-warning is a fill step at 3:1 and can only appear inside color-mix
+   here; the legible text step is --notice-text. */
+.allocation-override-chip {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  color: var(--notice-text);
+  background: color-mix(in oklab, var(--status-warning) 14%, transparent);
+  border: 1px solid color-mix(in oklab, var(--status-warning) 38%, transparent);
+}
+
+.allocation-target-input {
+  width: 72px;
+  padding: 3px 6px;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
 
 .allocation-band {
   margin-top: 14px;

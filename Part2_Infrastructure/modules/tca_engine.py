@@ -83,6 +83,58 @@ def is_sequence_gap(prev_seq: int, new_seq: int) -> bool:
 
 
 # --------------------------------------------------------------------------- #
+# Fill tolerance
+# --------------------------------------------------------------------------- #
+# A ladder walk reaches the requested notional by subtracting one level at a
+# time, so the total lands a few ULPs either side of the request rather than
+# exactly on it, and a request that is not on a cent boundary never matches a
+# figure that has been quantised to cents anywhere along the way. Deciding
+# ``fillable`` with a bare ``>=`` therefore reports "this book cannot absorb the
+# order" for orders the book demonstrably absorbs: a SELL of 99.95002498750625 at
+# a limit of 101 was rejected by the pre-trade liquidity gate with "only $10,095
+# of $10,095 routable" — the two figures identical to the dollar — while the same
+# order at a quantity of exactly 99.95 went through.
+#
+# The tolerance is *relative* because this engine prices instruments from cents
+# to tens of thousands. A fixed dollar epsilon is wrong at one end or the other:
+# one loose enough to cover accumulation drift on a $50M block would swallow a
+# complete miss on a $2 order, and one tight enough for the $2 order rejects the
+# block outright. 1e-9 of the request sits several orders of magnitude above the
+# drift even a thousand-level ladder can accumulate (~1e-13 relative) and still
+# forgives only a single cent on a $10M order.
+#
+# The direction of the error matters more than its size. ``fillable`` is a
+# pre-trade risk gate, so a false *accept* releases an order into a book that
+# cannot fill it, whereas a false *reject* is a cosmetic annoyance. This
+# tolerance is therefore sized to absorb arithmetic noise and nothing else — it
+# must never be widened far enough to hide a real partial fill, and no caller may
+# substitute the requested notional for the measured one to make it pass.
+FILL_TOLERANCE = 1e-9
+
+
+def absorbs(filled: float, requested: float) -> bool:
+    """Did a walk that measured ``filled`` actually cover ``requested``?
+
+    ``filled`` must be the honest measured figure. Clamping it to ``requested``
+    upstream would make this function a tautology and disarm the gate.
+    """
+    if requested <= 0.0:
+        return True
+    return filled >= requested - requested * FILL_TOLERANCE
+
+
+def _dust(target_notional: float) -> float:
+    """Residual below which a walk is finished rather than one level short.
+
+    Same tolerance, applied to the loop exit: without it a sub-ULP remainder
+    consumes an extra level, inflating ``levels_consumed`` and reporting a
+    ``worst_price`` (or, in the router, an extra venue leg) the order never
+    actually reaches.
+    """
+    return max(target_notional, 0.0) * FILL_TOLERANCE
+
+
+# --------------------------------------------------------------------------- #
 # Book state
 # --------------------------------------------------------------------------- #
 @dataclass
@@ -192,6 +244,7 @@ class BookState:
         filled_qty = 0.0
         consumed = 0
         worst = None
+        dust = _dust(target_notional)
 
         for price, size in levels:
             level_notional = price * size
@@ -204,7 +257,7 @@ class BookState:
             remaining -= take
             consumed += 1
             worst = price
-            if remaining <= 1e-9:
+            if remaining <= dust:
                 break
 
         vwap = filled_notional / filled_qty if filled_qty > 0 else None
@@ -214,7 +267,10 @@ class BookState:
 
         return ExecutionEstimate(
             venue=self.venue,
-            fillable=remaining <= 1e-6,
+            # Judged on what the walk measured, not on the residual counter: the
+            # two carry the same drift, and reading the measurement directly is
+            # what keeps the reported ``filled_notional`` and the verdict in step.
+            fillable=absorbs(filled_notional, target_notional),
             filled_notional=round(filled_notional, 2),
             filled_qty=filled_qty,
             vwap=vwap,
@@ -666,6 +722,29 @@ class TCAEngine:
             den += w
         return num / den if den else None
 
+    def top_of_book(
+        self, symbol: str,
+    ) -> tuple[float | None, str | None, float | None, str | None]:
+        """The consolidated touch: ``(best_bid, bid_venue, best_ask, ask_venue)``.
+
+        ``consolidated_mid`` is depth-weighted and is deliberately not a touch —
+        it is a stable *reference*, which is the wrong thing to fill a resting
+        order against. A limit order crosses when somebody is actually showing a
+        price through it, and that is the best bid or offer anyone is displaying.
+
+        Built from ``_live_books``, so a stale venue cannot fill a resting order
+        for the same reason it cannot price a route.
+        """
+        best_bid = best_ask = None
+        bid_venue = ask_venue = None
+        for name, book in self._live_books(symbol).items():
+            bid, ask = book.best_bid, book.best_ask
+            if bid is not None and (best_bid is None or bid > best_bid):
+                best_bid, bid_venue = bid, name
+            if ask is not None and (best_ask is None or ask < best_ask):
+                best_ask, ask_venue = ask, name
+        return best_bid, bid_venue, best_ask, ask_venue
+
     def last_price(self, symbol: str) -> float | None:
         return self.consolidated_mid(symbol.upper())
 
@@ -683,10 +762,25 @@ class TCAEngine:
         price; walking it yields the lowest achievable blended VWAP, and the
         per-venue split of that walk is the routing instruction.
         """
+        legs, vwap, _ = self._merged_walk(symbol, side, notional)
+        return legs, vwap
+
+    def _merged_walk(
+        self, symbol: str, side: str, notional: float
+    ) -> tuple[list[RoutingLeg], float | None, float]:
+        """``smart_route`` plus the raw notional the walk actually took.
+
+        The legs quantise to cents because they are an instruction a human reads
+        and a venue receives, but that rounding must not leak into the fill
+        decision: summing rounded legs loses up to half a cent *per leg* against
+        a request that is not itself on a cent boundary, and the gate then reads
+        "only $10,095 of $10,095 routable". The third element is the unrounded
+        measurement, and it is the only figure ``fillable`` may be judged on.
+        """
         symbol, side = symbol.upper(), side.upper()
         books = self._live_books(symbol)
         if not books:
-            return [], None
+            return [], None, 0.0
 
         merged: list[tuple[float, float, str]] = []
         for name, book in books.items():
@@ -695,9 +789,10 @@ class TCAEngine:
         merged.sort(key=lambda x: x[0], reverse=(side == "SELL"))
 
         remaining = notional
+        dust = _dust(notional)
         per_venue: dict[str, list[float]] = {}  # venue -> [notional, qty]
         for price, size, venue in merged:
-            if remaining <= 1e-9:
+            if remaining <= dust:
                 break
             take = min(price * size, remaining)
             if take <= 0:
@@ -710,7 +805,7 @@ class TCAEngine:
         total_notional = sum(v[0] for v in per_venue.values())
         total_qty = sum(v[1] for v in per_venue.values())
         if total_qty <= 0:
-            return [], None
+            return [], None, 0.0
 
         legs = [
             RoutingLeg(
@@ -722,7 +817,7 @@ class TCAEngine:
             )
             for venue, (n, q) in sorted(per_venue.items(), key=lambda kv: -kv[1][0])
         ]
-        return legs, total_notional / total_qty
+        return legs, total_notional / total_qty, total_notional
 
     def route_estimate(self, symbol: str, side: str, notional: float) -> ExecutionEstimate | None:
         """Execution estimate for the *routed* order — the merged ladder walk.
@@ -733,11 +828,10 @@ class TCAEngine:
         would understate cost on orders it accepted.
         """
         symbol, side = symbol.upper(), side.upper()
-        legs, vwap = self.smart_route(symbol, side, notional)
+        legs, vwap, filled = self._merged_walk(symbol, side, notional)
         if not legs or not vwap:
             return None
 
-        filled = sum(leg.notional for leg in legs)
         qty = sum(leg.qty for leg in legs)
         mid = self.consolidated_mid(symbol)
         slip = None
@@ -746,7 +840,9 @@ class TCAEngine:
 
         return ExecutionEstimate(
             venue="+".join(leg.venue for leg in legs),
-            fillable=filled >= notional - 1e-6,
+            fillable=absorbs(filled, notional),
+            # Rounded for display only, and only after the verdict is decided —
+            # a partial fill still reports the depth it truly found.
             filled_notional=round(filled, 2),
             filled_qty=qty,
             vwap=vwap,

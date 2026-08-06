@@ -12,7 +12,7 @@ is a **second, narrower allow-list** than the one that grants read access, and
 it is empty unless someone sets it: being able to see the book does not imply
 being able to stop the desk. Every control command requires a single-use,
 user-bound, 90-second confirmation code, so a forwarded message cannot fire one,
-and `/flatten` submits through the same fourteen pre-trade gates as a manual order
+and `/flatten` submits through the same pre-trade gates as a manual order
 rather than around them.
 
 | | Module | Where it runs |
@@ -54,13 +54,13 @@ missing (§9 has the detail):
 
 | Role | Their question | Where it is answered | Known gap |
 |---|---|---|---|
-| **Quant Trader** | *Can I send this, and what will it cost?* | Execution cockpit, 14 pre-trade gates, cross-venue TCA, blotter | Paper fills only; no resting-order lifecycle |
+| **Quant Trader** | *Can I send this, and what will it cost?* | Execution cockpit, 15 pre-trade gates, cross-venue TCA, resting-order book, blotter | Paper fills only; no queue position, so a resting order fills in full or not at all |
 | **Quant Researcher** | *Does this actually work?* | Sweep engine, Deflated Sharpe, walk-forward, PBO, promotion gate | No feature store; per-browser experiment log |
 | **Portfolio Manager** | *Where am I exposed, and what should I own?* | Portfolio view, risk contributions, allocation proposal, rebalance | No benchmark-relative attribution |
 | **Risk Manager** | *Is the model right, and will the limits hold?* | Kupiec VaR backtest, stress scenarios, reduce-only mode, kill switch | No margin or liquidation modelling |
 | **Data Engineer** | *Can I trust this data?* | Provider registry, failover, data contracts, quarantine, lineage | No orchestration or backfill scheduler |
 | **DevOps / SRE** | *Is it healthy, and what do I do at 3am?* | `/health`, `/metrics`, systems console, alert rules, runbook | No log aggregation or distributed tracing |
-| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, parity suites, CI, 241 + 377 + 12 tests | No generated client, no property-based fuzzing |
+| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, parity suites, CI, 337 + 642 + 13 tests | No generated client, no property-based fuzzing |
 
 ### 🎯 Quant Traders — *"Can I send this, and what will it cost?"*
 
@@ -69,11 +69,12 @@ missing (§9 has the detail):
 | See real liquidity before committing | Consolidated L2 ladder, streaming from Binance + Bybit |
 | Know the cost *before* the fill | `/tca BTCUSDT 100000 BUY` — VWAP, slippage in bps, routing split |
 | Is the consolidated book crossed right now | Cross-venue dislocation strip, sized to the smaller resting leg and quoted **gross** — because two taker legs usually cost more than the edge |
-| Not send the order with the extra zero | 14 pre-trade gates in ~0.2 ms; a rejection returns the full check vector |
+| Not send the order with the extra zero | 15 pre-trade gates in ~0.2 ms; a rejection returns the full check vector |
 | Stop everything, now | Authenticated gateway console, `POST /api/risk/kill`, the web workspace's risk panel, or `/halt` in Telegram — the last two gated by a separate operator allow-list and a typed confirmation |
 | Know when something breaks without watching a screen | Push alerts on breaches, halts, feed outages and `/watch` liquidity thresholds — to Telegram *and* to the Alerts panel on the Execution tab |
 | See my own flow, not just the market | Execution cockpit: order blotter with the full check vector per row, live P&L strip, execution-quality summary (fill rate, realised slippage, tail latency) |
-| Send an order and see every gate's verdict | Order ticket with the fourteen-check vector rendered for accepts *and* rejects, plus fat-finger and rate-limit presets |
+| Send an order and see every gate's verdict | Order ticket with the gate-by-gate check vector rendered for accepts *and* rejects, plus fat-finger and rate-limit presets |
+| Leave a bid on the book instead of paying the spread | Resting `LIMIT` orders (`GTC`/`DAY`/`IOC`) that fill at their own limit when the consolidated touch crosses them, and can be cancelled or replaced: `GET /api/orders`, `POST /api/orders/{id}/cancel` |
 | Trace a fill back to the idea | Orders stamped with the strategy and experiment id; the blotter links back to the research run |
 
 ### 📁 Portfolio Managers — *"Where am I exposed, and which limit binds first?"*
@@ -87,7 +88,7 @@ missing (§9 has the detail):
 | What is actually producing the P&L | Attribution by symbol and by strategy, from the append-only audit log |
 | Is a −20% scenario a tail event today, or a Tuesday | Volatility regime as a percentile of the instrument's *own* history; named scenarios scale **up** with it, never down |
 | Which scenario should I actually worry about | Every named scenario ranked by projected loss, each flagged if it would trip the halt |
-| What *should* the book be, not just what it is | Risk-based allocation proposal — inverse-vol or equal-risk-contribution — clipped by the same limits the gate enforces, naming what clipped each weight |
+| What *should* the book be, not just what it is | Allocation proposal in four methods — equal-weight, inverse-vol, equal-risk-contribution, minimum-variance — clipped by the same limits the gate enforces, naming what clipped each weight |
 | What would I have to trade to get there | Rebalance trade list with an adjustable drift band, composed but never sent |
 | What did the book do this month | Persisted equity snapshots from the risk monitor: day, month-to-date and since-inception P&L that survive a reload |
 | Which sleeve made the money | Realised P&L per strategy, replayed from audited fills through the same average-cost accounting the live book uses |
@@ -124,7 +125,7 @@ out-of-sample Sharpe gets a red FAIL, not a green tick.
 
 | Need | Where |
 |---|---|
-| Checks that are strict, visible and hard to bypass | 14 pre-trade gates on the single order path; the full vector is audited for accepts *and* rejects |
+| Checks that are strict, visible and hard to bypass | 15 pre-trade gates on the single order path; the full vector is audited for accepts *and* rejects |
 | Limits that a compromised service cannot move | Limits are a frozen dataclass in `config.py` — changing one is a code change, a review and a deploy |
 | A graduated response, not a cliff | Reduce-only mode from 80% of the drawdown budget: closing orders pass, opening orders do not. A desk in trouble needs a way *out* |
 | Exposure, concentration and drawdown continuously | Live from the gateway, marked to market every 5 s by the same loop that trips the breaker |
@@ -132,7 +133,7 @@ out-of-sample Sharpe gets a red FAIL, not a green tick.
 | **Do I trust my own VaR?** | Kupiec proportion-of-failures backtest with a Basel traffic light. The forecast is re-fitted on a rolling window and scored on the *next* bar, never on data it was fitted to |
 | Scenario loss on today's book | Named historical scenarios with **measured** betas. Every leg reports how its move was decided — explicit shock, measured beta, the scenario's blanket assumption, or left flat because none of those applied — so an assumption can never be read as a measurement |
 | A limit on the risk number itself | Advisory VaR budget as a share of equity (prop-desk practice is 1–3%), reported and deliberately never used to block an order |
-| Stop trading, from anywhere | Kill switch on the API, the console, the web workspace and Telegram — the last two behind a separate operator allow-list and a typed confirmation |
+| Stop trading, from anywhere | Kill switch on the API, the console, the web workspace and Telegram — the last two behind a separate operator allow-list and a typed confirmation. Engaging it also cancels the resting book, because a halt that leaves orders working is not a halt |
 | A recovery procedure, not an improvised one | `POST /api/risk/resume` takes a reason that lands in the audit log beside what tripped the halt; `docs/RUNBOOK.md` has the sequence |
 
 Risk here is a live guardrail, not an end-of-day report: the breaker trips
@@ -179,7 +180,7 @@ provenance and quality are visible at the point of use.
 | Documented tunables | `BacktestRequest` carries bounds *and* descriptions, so `/docs` doubles as the researcher's parameter registry |
 | Confidence that two implementations agree | Python↔TypeScript parity suites for the **backtest engine** and the **risk engine**, both driven by fixtures the Python reference emits |
 | To debug a request without guessing | Pipeline inspector down to raw vendor JSON; bounded trace ring with redaction; `/api/system/inspect` |
-| Tests that run anywhere | 241 gateway + 377 web + 12 service tests, all offline by construction — no network, no fixtures fetched at test time |
+| Tests that run anywhere | 337 gateway + 642 web + 13 service tests, all offline by construction — no network, no fixtures fetched at test time |
 | A lint gate that catches defects, not style | ruff with bugbear, async and bandit rules; `tsc --strict` on the web tier |
 | To add a provider or an endpoint without breaking things | Uniform `Adapter` interface with declared capabilities; the recipe is in §7 and in `web/README.md` |
 
@@ -225,7 +226,7 @@ gateway and its OpenBB adapter to the separate stateless service.
 cd web
 npm install
 npm run dev    # http://localhost:3000
-npm test       # 377 tests
+npm test       # 642 tests
 ```
 
 Live-feed endpoints (public, no key):
@@ -306,7 +307,7 @@ pytest                                   # deterministic; no network required
  Telegram companion          Gateway console / API         Next.js workspace
  text-only, operational      authenticated controls        portfolio proxy
  /portfolio /quote /status        │                              │
-          │ read-only             │                              │
+          │ read + 3 controls     │                              │
           └──────────────┬────────┘                              │
                          ▼                                       │
               FastAPI stateful gateway ◄─────────────────────────┘
@@ -314,7 +315,7 @@ pytest                                   # deterministic; no network required
                     │       │       │
            ┌────────▼─┐ ┌───▼────┐ ┌▼──────────────┐
            │ A · TCA  │ │ B · risk│ │ C · backtest │
-           │ L2 + VWAP│ │ 14 gates│ │ jobs + DSR   │
+           │ L2 + VWAP│ │ 15 gates│ │ jobs + DSR   │
            └────┬─────┘ └────┬────┘ └──────┬───────┘
                 └────────────┼──────────────┘
                              ▼
@@ -340,7 +341,7 @@ Part2_Infrastructure/
 ├── worker.py               Celery worker entrypoint (optional)
 ├── modules/
 │   ├── tca_engine.py       A · L2 ingest, book state, VWAP/slippage, routing
-│   ├── risk_proxy.py       B · pre-trade gates, positions, breaker, kill switch
+│   ├── risk_proxy.py       B · gates, positions, resting book, breaker, kill switch
 │   ├── backtester.py       C · signals, engines, DSR/PSR, walk-forward, plots
 │   ├── portfolio.py        PM view: concentration, headroom, binding constraint
 │   ├── research.py         Local OpenBB bridge for bot/compatibility use
@@ -348,6 +349,7 @@ Part2_Infrastructure/
 │   ├── audit.py            DuckDB append-only audit log
 │   ├── telegram.py         Text-only read models, alerts, webhook/polling
 │   ├── quant_risk.py       VaR/ES, risk contribution, Kelly, regime, dislocation
+│   ├── metrics.py          Prometheus text exposition, hand-rolled (no client lib)
 │   └── schemas.py          Pydantic contracts shared by API, UI and bot
 ├── templates/miniapp.html  Independent gateway console (single file, no build step)
 ├── tests/                  Gateway, risk, portfolio, research and bot tests
@@ -427,7 +429,7 @@ after a rejected ack, an exchange ban from rate-limit abuse, a position that kee
 averaging into a liquidation cascade. Every order therefore passes one choke point
 that can say *no* in microseconds, and a human can stop the desk with one message.
 
-**The 14 gates**, evaluated cheapest-first:
+**The 15 gates**, evaluated cheapest-first:
 
 | # | Gate | Guards against |
 |---|---|---|
@@ -439,17 +441,36 @@ that can say *no* in microseconds, and a human can stop the desk with one messag
 | 6 | `price_available` | pricing an order with no live mark |
 | 7 | `order_sized` | ambiguous quantity/notional |
 | 8 | `max_order_notional` | **fat finger** — $50k cap |
-| 9 | `symbol_concentration` | projected per-symbol exposure |
-| 10 | `gross_exposure` | projected book-wide exposure |
+| 9 | `symbol_concentration` | projected per-symbol exposure, resting orders included |
+| 10 | `gross_exposure` | projected book-wide exposure, likewise |
 | 11 | `price_band` | limit price far from mark (fat finger, part 2) |
-| 12 | `daily_drawdown` | the bad day — hard stop at 5% of start-of-day equity |
-| 13 | `reduce_only` | *adding* risk once 80% of the drawdown budget is spent, while still allowing the exit |
-| 14 | `est_slippage` | illiquid size — measured on the **routed** execution, not the mid |
+| 12 | `working_book` | an algo that places and never cancels — the resting book has a ceiling of its own |
+| 13 | `daily_drawdown` | the bad day — hard stop at 5% of start-of-day equity |
+| 14 | `reduce_only` | *adding* risk once 80% of the drawdown budget is spent, while still allowing the exit |
+| 15 | `est_slippage` | illiquid size — measured on the **routed** execution, not the mid |
 
-Measured on live books: **0.14 – 0.24 ms** per decision. Gate 13 was added with
+Measured on live books: **0.14 – 0.24 ms** per decision. Gate 14 was added with
 the reduce-only work and the count moved from twelve to fourteen; the two that
 were previously one row are now their own, because a hard stop and a graduated
 throttle are different controls and a reader should be able to see both.
+`working_book` took it to fifteen on exactly that precedent. Resting orders
+introduced a resource an algo can exhaust without breaching a single notional
+limit — an order that is placed and never cancelled costs unbounded memory and an
+unbounded sweep, which is the runaway-loop failure this module exists to stop —
+and a ceiling that never appears in a check vector is a ceiling nobody audits.
+
+Seven of the fifteen are conditional on the order in front of them.
+`max_order_notional`, `symbol_concentration` and `gross_exposure` each price a
+*size*, so all three are skipped when the order could not be sized at all — which
+is exactly the feed-outage case: a `MARKET` order carrying a quantity but no live
+mark runs eight gates, rows 1–7 plus `daily_drawdown`, and never reaches a
+notional limit because there is no notional to compare. `price_band` and
+`working_book` apply only to a `LIMIT`, `reduce_only` only inside the defensive
+regime and only to an order that has a size to call reducing, and `est_slippage`
+only where there is a size to route. A returned vector is therefore the gates
+that *ran*, not a fixed-length row — a check that did not apply and a check that
+passed are different facts, and collapsing them would be the same mistake as
+reporting a missing number as zero.
 
 **Principles:**
 
@@ -470,13 +491,96 @@ throttle are different controls and a reader should be able to see both.
    `tests/test_risk_proxy.py::test_slippage_check_and_fill_price_agree` pins this.
 
 **Paper fills are priced off the ladder, not the mid.** Filling at mid is the most
-common way a paper system flatters itself. Here the fill price is the smart
-route's actual VWAP, so paper PnL carries live cost structure.
+common way a paper system flatters itself. A **taker** — a market order, or a
+limit that crosses the spread — fills at the smart route's actual VWAP and pays
+`PAPER_FEE_BPS`, so paper PnL carries live cost structure.
 
-**Kill-switch control stays inside authenticated trading surfaces.** Use the
-gateway console or `POST /api/risk/kill` and `/api/risk/resume`; every change is
-audited with actor and reason. Telegram broadcasts the resulting state change
-but deliberately has no `/kill` or `/resume` command.
+**A maker is priced differently, and has to be.** A resting order fills when the
+consolidated touch crosses it, at **its own limit price**, and pays
+`PAPER_MAKER_FEE_BPS`. It is on the other side of that trade: somebody crossed the
+spread to reach it. Charging it a taker fee, or filling it at a route VWAP that
+walked *through* its own limit, would report a cost the desk did not pay. Its
+measured slippage against the mark is therefore often **negative** — that is price
+improvement, it is the honest number, and it is what makes maker-versus-taker
+economics visible in the blotter rather than a footnote.
+
+**Kill-switch control stays inside authenticated surfaces.** Use the gateway
+console or `POST /api/risk/kill` and `/api/risk/resume`; every change is audited
+with actor and reason. Telegram reaches the same switch through `/halt` and
+`/resume`, but only from the second, narrower control allow-list and only through
+a two-message confirmation the API path does not require (§6): a chat message is
+an unusually easy thing to send by accident and an unusually easy thing to
+forward, so the surface that is easiest to reach carries the ceremony.
+
+### Resting orders
+
+A `LIMIT` order nobody is willing to meet has somewhere to wait. Five states cover
+its whole life:
+
+| State | Means |
+|---|---|
+| `WORKING` | resting on the book: live, cancellable, and counted against exposure |
+| `FILLED` | the consolidated touch crossed it |
+| `CANCELLED` | pulled — by a trader, a replace, the kill switch, reduce-only, a session roll or a book reset |
+| `EXPIRED` | a `DAY` order that reached the session boundary, or an `IOC` with nothing to be immediate against |
+| `REJECTED` | never rested; a gate said no |
+
+`PARTIALLY_FILLED` is deliberately absent, and its absence is load-bearing. The L2
+feeds carry ladder *snapshots*, not trade prints (§3), so how much of a resting
+order a crossing trade consumed cannot be measured from this data. A state that
+can never be reached honestly is a state that advertises a model this system does
+not have.
+
+**The matcher** is a 1 s sweep (`WORKING_ORDER_SWEEP_S`) over the resting book
+against `TCAEngine.top_of_book` — the **consolidated touch**, the best bid and
+offer anyone is actually displaying. Deliberately *not* `consolidated_mid`: that
+number is depth-weighted, which is what makes it a stable reference and exactly
+what makes it the wrong thing to fill against. A limit order crosses when somebody
+is showing a price through it, not when a weighted average drifts past it. The
+sweep reads the same `_live_books` the router does, so a stale venue cannot fill a
+resting order for the same reason it cannot price a route, and it is directly
+callable (`sweep_working_orders`) so a test observes a fill deterministically
+instead of waiting out a timer and still not knowing when it happened.
+
+**Time in force** is `GTC`, `DAY` or `IOC` — three, not the usual six. `FOK` is
+not offered because fill-or-kill is only meaningful alongside partial fills, and
+advertising it would imply the model above. A `MARKET` order sent with `GTC` or
+`DAY` is a 422 rather than a silent coercion to `IOC`: a market order that rests
+is not a thing, and quietly rewriting one answers a question nobody asked. Clients
+that never send the field are unaffected — `submit` resolves an absent value to
+`GTC` for a `LIMIT` and `IOC` for a `MARKET`, which is what the gateway did before
+resting orders existed.
+
+**Three things empty the book, and each is an invariant rather than a courtesy.**
+
+1. **The kill switch.** The halt alert says *"all new orders are now rejected"*.
+   With resting orders alive that sentence was false — an order placed before the
+   halt would have kept trading through it. A halt that does not reach the resting
+   book is not a halt, so `trigger_kill` cancels it and says how many it pulled.
+2. **Reduce-only.** The defensive regime accepts only orders that make the book
+   smaller. An order that rested before the threshold was crossed does not know
+   that, and one that fills afterwards makes the book bigger — which would leave
+   the regime a claim rather than a control. The sweep pulls every resting order
+   that would add risk, by the same reducing test gate 14 applies to an incoming one.
+3. **Session rollover and book reset.** Every resting order dies at the boundary,
+   `DAY` or not. That is what guarantees a decision and its fill land in the same
+   UTC session and on the same side of a `book_reset` — the property the
+   rehydration replay depends on without knowing this code exists. The `DAY`
+   orders are retired **first**, and as `EXPIRED` rather than `CANCELLED`,
+   because a `DAY` order at midnight did exactly what its time in force
+   promised. With the blanket cancel running first, `EXPIRED` was a state the
+   schema declared that this route could never reach, and the blotter read as
+   though the system had pulled an order that had simply run out of day.
+
+**Storage.** `orders` still holds one row per order, written once, when the order
+reaches a terminal state — so the resting phase never leaves behind a row that a
+later write has to mutate. `ts` is when that outcome happened and `decided_at` is
+when the gates ran; for a `MARKET` order they are the same instant, which is why
+every pre-existing row stays correct, and for a resting order they are not, so the
+blotter shows a fill when it filled rather than an hour earlier. The transitions
+themselves go to a new append-only `order_events` table. That is what lets an order
+outlive its own request without costing the audit log the append-only property the
+whole replay path is built on.
 
 ---
 
@@ -540,11 +644,11 @@ The companion is optional: the gateway, API and web workspace remain fully
 functional with no Telegram token. When enabled, it is an independent text
 interface for phone-friendly portfolio, OpenBB, execution and health cards. It
 does not render a web page or send web links, and it cannot enqueue a backtest
-or reset the book. Sixty-one of its sixty-four commands are read-only. The three
+or reset the book. Sixty-four of its sixty-seven commands are read-only. The three
 that are not — `/halt`, `/resume`, `/flatten` — require membership of
-`TELEGRAM_CONTROL_USER_IDS` (§6.1), which is separate from the read allow-list
-and empty by default. Notification preferences and liquidity watches also change
-from chat.
+`TELEGRAM_CONTROL_USER_IDS` (**Gated controls**, below), which is separate from
+the read allow-list and empty by default. Notification preferences and liquidity
+watches also change from chat.
 
 ### Fail-closed bootstrap
 
@@ -600,7 +704,7 @@ can scale independently from portfolio state.
 | `/help [CATEGORY\|COMMAND]` | Category help or exact syntax, for example `/help markets` |
 | `/commands` | Complete categorized command catalogue |
 | `/status` | Gateway, feed, queue and OpenBB status |
-| `/about` | Scope and read-only guarantees |
+| `/about` | Scope, and which three commands are not reads |
 | `/whoami` | Show Telegram user ID and destination chat ID |
 | `/version` | Gateway version and delivery mode |
 | `/ping` | Command-path responsiveness |
@@ -677,13 +781,57 @@ can scale independently from portfolio state.
 | `/watches` | Active thresholds and current state |
 | `/digest` | On-demand portfolio and systems digest |
 
+#### Risk analytics
+
+| Command | Purpose |
+|---|---|
+| `/var [1d\|4h\|1h]` | Portfolio VaR and expected shortfall |
+| `/riskcontrib [INTERVAL]` | Which position carries the risk |
+| `/correlation [INTERVAL]` | Cross-position correlation matrix |
+| `/stress [SCENARIO]` | Scenario loss on the current book |
+| `/varbacktest [INTERVAL]` | Has the VaR model been right? |
+| `/rebalance [ew\|iv\|erc\|mv]` | Target weights and the trades to reach them |
+| `/regime SYMBOL [INTERVAL]` | Volatility regime for an instrument |
+| `/size WIN_RATE PAYOFF [EQUITY]` | Kelly position sizing from a win rate |
+| `/dislocation SYMBOL` | Cross-venue crossed-book check |
+
+All nine are read-only — `/rebalance` composes a trade list and never sends one —
+and all nine are computed by `modules/quant_risk.py` against the gateway's own
+book, which is the point of §12: a VaR quoted on a phone and the same VaR on the
+risk tab cannot be allowed to disagree.
+
+#### Gated controls
+
+These three are the only commands that change what the desk is allowed to do, and
+they are the reason `TELEGRAM_CONTROL_USER_IDS` exists as a **second, narrower
+allow-list** than the one that grants read access. It is empty unless someone
+sets it: being able to see the book does not imply being able to stop the desk.
+
+| Command | Purpose |
+|---|---|
+| `/halt [SYMBOL]` · `/halt CODE` | Engage the kill switch, book-wide or per instrument |
+| `/resume [SYMBOL]` · `/resume CODE` | Release it; the acting user ID is recorded either way |
+| `/flatten [SYMBOL]` · `/flatten CODE` | Close every open position |
+
+The two-call shape is the control. The bare command returns a single-use,
+user-bound confirmation code that expires in ninety seconds and is burned even on
+a wrong guess; the second call spends it. A forwarded message therefore cannot
+fire one, and `/flatten` submits through the same pre-trade gates as a manual
+order rather than around them.
+
 ### Security and delivery guarantees
 
 - Operational commands require a user ID in `TELEGRAM_ALLOWED_USER_IDS`; an
   empty list exposes bootstrap identity/help only.
-- The bot is read-only with respect to trading and research job state. There is
-  intentionally no `/kill`, `/resume`, `/reset`, `/order` or `/backtest`
-  submission command.
+- The bot cannot *open* a position or queue a research job: there is
+  intentionally no `/order`, `/backtest` or `/reset` command. The only three
+  commands that change trading state are `/halt`, `/resume` and `/flatten`, and
+  each needs the separate control allow-list *and* a confirmation code.
+  `/flatten` does enter orders — closing ones, submitted through the same
+  fifteen pre-trade gates as a manual order rather than around them — so the
+  guarantee is that the companion cannot add risk, not that it never trades.
+  Subscriptions and liquidity watches are the companion's own state, not the
+  desk's.
 - `/start` does not silently subscribe. Subscription changes are explicit and
   persisted in the audit store.
 - Webhook requests require Telegram's matching
@@ -708,6 +856,10 @@ can scale independently from portfolio state.
 | `GET` | `/api/tca/{symbol}` | VWAP, slippage, smart route |
 | `WS` | `/ws/book/{symbol}` | consolidated book + TCA at 4 Hz |
 | `POST` | `/api/orders` | **submit through the risk gateway** |
+| `GET` | `/api/orders` | orders resting on the book right now (`?symbol=` to narrow) |
+| `GET` | `/api/orders/{id}` | one order's transition timeline, from `order_events` |
+| `POST` | `/api/orders/{id}/cancel` | pull one resting order |
+| `POST` | `/api/orders/{id}/replace` | cancel-and-new; returns the **new** order's check vector |
 | `GET` | `/api/risk/state` | equity, PnL, drawdown, positions |
 | `GET` | `/api/risk/limits` | the active hard limits |
 | `GET` | `/api/portfolio` | PM view: concentration, headroom, binding constraint, attribution, per-sleeve realised P&L |
@@ -718,6 +870,24 @@ can scale independently from portfolio state.
 | `GET` | `/api/audit/orders` · `events` · `backtests` · `stats` | audit log |
 | `GET` | `/api/research/openbb/health` · `quote` · `bars` · `news` · `fundamentals` | Local/compatibility OpenBB bridge used by the companion |
 | `POST` | `/telegram/webhook` | Telegram updates |
+
+Three of the order routes deserve their reasons stated. `GET /api/orders` is the
+*open* book only — terminal decisions stay in `/api/audit/orders`, because the set
+a desk can still act on and the set it has already acted on are different
+questions. **Cancel does not consume a rate-limit token.** The token bucket sits
+on the submit path and nowhere else, so a cancel spends nothing: it only ever
+reduces risk, and a book in trouble must always be able to get out; a rate limiter
+that can trap a desk inside a position is a worse control than no rate limiter. A
+*replace* does spend one, because its second half is a submit and a replacement
+that could outrun the limiter would be a cancel-shaped hole in it. It carries no
+typed-confirmation ritual either — that
+ceremony suits a desk-wide action, not a single order a trader pulls repeatedly.
+**Replace is cancel-and-new**, so the replacement faces every gate again and the
+caller gets *its* check vector rather than the original's: a replacement can be
+rejected where the first order passed, and returning stale evidence would hide
+that. It does not inherit the original `client_order_id`, which is already spent
+against the idempotency gate and would reject the replacement as a duplicate of
+the order it replaces.
 
 Interactive docs at `/docs`, and a committed snapshot at `tools/openapi.json`.
 The snapshot is the contract two independently deployed clients rely on, so
@@ -794,6 +964,14 @@ Every value in `config.py` is env-overridable; see `.env.example`. Defaults matc
 the assessment brief: **$50k** max order, **5 orders/sec**, **5%** daily drawdown,
 **$100k** TCA probe size.
 
+The resting book adds three of its own:
+
+| Variable | Default | What it sets |
+|---|---|---|
+| `WORKING_ORDER_SWEEP_S` | `1.0` | how often the resting book is checked against the consolidated touch |
+| `MAX_WORKING_ORDERS` | `200` | the ceiling gate 12 (`working_book`) enforces |
+| `PAPER_MAKER_FEE_BPS` | `1.0` | what a resting fill pays, against the taker `PAPER_FEE_BPS` (`4.0`) |
+
 `requirements.txt` is the full set (verified on Python 3.11 – 3.14, including
 vectorbt + numba on 3.14). If numba will not build on your platform, use
 `requirements-core.txt` — the backtester falls back to its NumPy engine and
@@ -802,7 +980,7 @@ nothing else changes.
 **Celery/Redis is optional.** Set `REDIS_URL` and the job queue switches from the
 in-process thread pool to Celery automatically; `python worker.py` starts a
 worker. Without a broker, the same task callables run in-process. The API,
-gateway console and read-only companion consume the same job status contract;
+gateway console and text-only companion consume the same job status contract;
 that abstraction matters more than the broker choice.
 
 ---
@@ -812,16 +990,22 @@ that abstraction matters more than the broker choice.
 ### Implemented vs. mocked
 
 **Live and real:** L2 WebSocket ingest from two venues with sequence handling and
-reconnection; all TCA maths and the cross-venue router; all 14 pre-trade gates,
-position accounting, the drawdown breaker and the kill switch; vectorbt parameter
-sweeps on live Binance klines; DSR and walk-forward; the DuckDB audit log; and
-the fail-closed, text-only Telegram webhook/polling companion.
+reconnection; all TCA maths and the cross-venue router; all 15 pre-trade gates,
+position accounting, the drawdown breaker and the kill switch; the resting-order
+lifecycle — five states, three times in force, the touch-crossing matcher,
+cancel and replace, maker fills priced and charged separately from taker fills,
+and the three invariants that empty the book; vectorbt parameter sweeps on live
+Binance klines; DSR and walk-forward; the DuckDB audit log; and the fail-closed,
+text-only Telegram webhook/polling companion.
 
 **Mocked, deliberately:** order *execution*. Accepted orders fill on paper against
-the live ladder rather than being sent to an exchange. This is exactly what a
-pre-production risk gateway does before it is pointed at a venue, and it is the
-only honest thing to do without a funded account. The synthetic order book (§3) is
-a clearly-labelled offline fallback, never a silent substitute.
+the live ladder rather than being sent to an exchange, and a resting order is
+matched against the consolidated touch rather than by a venue's matching engine —
+so it has no queue ahead of it, which is the **queue position and partial fills**
+row of the table below. This is exactly what a pre-production risk gateway does
+before it is pointed at a venue, and it is the only honest thing to do without a
+funded account. The synthetic order book (§3) is a clearly-labelled offline
+fallback, never a silent substitute.
 
 ### Production scale-out
 
@@ -850,8 +1034,21 @@ gaps a reviewer should expect to find, and why each is where it is:
 | **Margin, financing, liquidation** | Risk is notional-based: no leverage, funding or liquidation modelling | The paper book is unlevered and cash-settled, so a margin model would be arithmetic about a fiction |
 | **Full CPCV** | Overfitting is priced by DSR and a sequential PBO estimate, not combinatorially purged cross-validation | CPCV costs factorially more compute for a tighter estimate of the same quantity. The cheap version is honest about being the cheap version |
 | **Feature store and shared experiment registry** | Experiment history is per browser; the gateway's own `backtest_runs` table is the durable record | A feature store is a team-scale answer to a team-scale problem |
-| **Working-order lifecycle** | Fills are immediate against the live ladder — no resting limit orders, cancel/replace, or open-order panel | Order state machines are where execution systems get genuinely hard, and faking one would misrepresent what is proven here |
+| **Queue position and partial fills** | A working `LIMIT` fills *in full* the instant the consolidated touch crosses it: nothing sits ahead of it in a queue, and no fill is ever partial | The L2 feeds carry ladder snapshots, not trade prints (§3, `modules/tca_engine.py`), so how much of a resting order a crossing trade consumed is genuinely unknowable from this data. Modelling it would mean inventing a queue-position assumption and a participation rate, then reporting the result as measured execution. Full-fill-on-cross is optimistic and says so; a fabricated partial-fill model would not |
+| **Working-order durability** | Resting orders live in the single gateway process. A *graceful* stop cancels them and audits the cancellation like any other. An ungraceful one — `SIGKILL`, an OOM, the host going away — cancels nothing and audits nothing: `order_events` stops at the order's `ACCEPTED_WORKING` row, no `orders` row is ever written, and the record's last word is that the order is still resting when it no longer exists anywhere | Persisting them would claim a recovery guarantee a single-instance paper gateway cannot honour, and would risk resurrecting a resting order at a price nobody has re-checked. The gap is disclosed rather than papered over because the failure mode is silent: nothing in the audit log distinguishes an order that vanished with the process from one that is genuinely still open |
+| **An overnight book, and the equity level across a downtime** | Two halves of one gap. A position held across 00:00 UTC has no durable start-of-day mark, so the session boundary records the equity it opened on but the fill replay — which covers one UTC day — cannot rebuild the positions behind it. The restarted process therefore publishes a *smaller* book than the live one by exactly that mark, and says so in a `WARNING`. Separately, a gateway that was **down** across the boundary finds no rollover record at all: the P&L its earlier sessions banked is unrecoverable from a session-scoped replay, so it opens on the configured starting balance and warns that it has done so | The daily drawdown limit is meant to reset each session, so a full budget on a new session is correct. What is wrong is the *denominator* it resets against: after a losing week the restarted desk measures today's loss against its opening balance rather than against what the account is really worth, so a given dollar loss reads as a smaller fraction than it is. Closing it needs a durable position snapshot with per-symbol start-of-day marks, which is the same missing piece as the margin model above. Refusing to boot was the alternative and is worse: stopping a paper desk overnight is ordinary operation, and a gateway that will not start after it is the more damaging failure. Both cases are loud in the log rather than silent on the panel |
 | **mypy** | Python is typed but not type-checked in CI | pydantic plugin plus third-party stubs is a day of work with little to show a reviewer; ruff catches the defects that matter |
+
+Three smaller absences around the resting book belong in that list rather than in
+a footnote. There is no `FOK`, post-only, stop, iceberg or OCO order type — each
+is either meaningless without partial fills or a second matching model wearing an
+order type's clothes. Replace is cancel-and-new with no queue-priority retention,
+which is what most venues do for a price change or a size increase anyway, so the
+simplification costs less than it first looks. And a *marketable* `LIMIT` can
+still print through its own limit price on a thin ladder: it takes the taker path,
+and `smart_route` is not price-bounded. The limit is enforced as a resting
+condition, not as a fill constraint, and this is the one place the paper fill is
+optimistic in a way a real venue would not be.
 
 ### Validation & signal testing
 
@@ -889,6 +1086,10 @@ tests/test_tca_engine.py   book state, delta application, VWAP/slippage vs
                            hand-computed ladders, routing, staleness
 tests/test_risk_proxy.py   every gate, token bucket, position accounting,
                            automatic breaker, fill quality, gate/fill agreement
+tests/test_working_orders.py
+                           the resting book: the touch-crossing matcher, time in
+                           force, maker pricing and fees, cancel and replace, and
+                           the three invariants that empty the book
 tests/test_backtester.py   signal definitions, look-ahead check, cost accounting,
                            engine agreement, DSR/PSR properties, noise-grid rejection
 tests/test_api.py          REST contract, rejection semantics, job lifecycle,
@@ -902,9 +1103,16 @@ tests/test_research.py     OpenBB bridge: absence contract (ok:false, never 500)
                            NaN-cleaning, field-alias resolution, input validation
 tests/test_quant_risk.py   covariance conventions, risk contributions, Kelly,
                            regime, historical VaR, Kupiec backtest, scenario
-                           propagation with measured betas, allocation solver
+                           propagation with measured betas, all four allocation
+                           methods and the limits that clip them
 tests/test_rehydration.py  position replay from audited fills, reset boundaries,
                            and the ambiguity that must fail closed
+tests/test_session_rollover.py
+                           the UTC boundary: day two opens flat after a winning
+                           and a losing session, equity does not jump across it,
+                           the drawdown budget resets against the new balance,
+                           and the boundary survives a restart — including one
+                           whose durable write failed, which must not roll
 tests/test_telegram_controls.py
                            the gated controls: separate allow-list, single-use
                            confirmation codes, expiry
@@ -1003,6 +1211,24 @@ the risk tab cannot disagree, and neither depends on the other being
 reachable. The shared constants (`Z95`, the 2.0627 expected-shortfall
 multiplier, `ddof=1`, mid-rank percentiles) are pinned by tests on both sides.
 
+The allocation solvers are the sharpest case of that discipline. All four —
+`equal_weight`, `inverse_vol`, `equal_risk` and `min_variance` — exist in both
+engines, and [`web/tests/fixtures/risk-parity.json`](web/tests/fixtures/risk-parity.json)
+pins every one of them target weight by target weight to 1e-4. Two details are
+there because the obvious version is wrong. Minimum variance runs a
+square-root-damped multiplicative fixed point that **retains its best iterate**: a
+multiplicative fixed point is not proven to decrease the objective on every step,
+and a method called "minimum variance" that returned a portfolio more volatile
+than the inverse-variance seed it started from would be indefensible. And the
+allocation fixture carries its **own** book instead of reusing the VaR history —
+that history is exactly collinear by design (ETHUSDT is 1.5× BTCUSDT, so the
+measured beta is a known quantity rather than a sample artefact), which makes its
+covariance singular and its minimum-variance objective flat along one direction,
+where two implementations wander apart for reasons that have nothing to do with
+either being wrong. Both iterative solvers also run a fixed 60 steps rather than
+testing for convergence, because a tolerance check lets two implementations stop
+on different iterations and disagree by more than the fixture allows.
+
 ---
 
 ## 13. Verifying this deliverable
@@ -1010,10 +1236,10 @@ multiplier, `ddof=1`, mid-rank percentiles) are pinned by tests on both sides.
 Everything a reviewer needs to check runs offline:
 
 ```bash
-pytest                                    # 241 gateway + companion tests
+pytest                                    # 337 gateway + companion tests
 python tools/synthetic_probe.py           # end-to-end: book → cost → gate → audit
-cd OpenBB_Service && pytest               # 12 stateless service tests
-cd web && npm install && npm test         # 377 workspace tests, incl. both parity suites
+cd OpenBB_Service && pytest               # 13 stateless service tests
+cd web && npm install && npm test         # 642 workspace tests, incl. both parity suites
 bash tools/check_repo_complete.sh         # builds the *committed* tree
 ```
 
@@ -1051,8 +1277,8 @@ not).
   open a web workspace. It *can* halt, resume and flatten — but only for user
   IDs in `TELEGRAM_CONTROL_USER_IDS`, only with a single-use user-bound
   confirmation code that expires in 90 seconds and is burned even on a wrong
-  guess, and `/flatten` goes through the same fourteen pre-trade gates as any
-  other order rather than around them.
+  guess, and `/flatten` goes through the same pre-trade gates as any other order
+  rather than around them.
 - The web project keeps `ALPHAENGINE_GATEWAY_TOKEN` and `OPENBB_API_TOKEN`
   server-side and connects to two separate services with distinct URLs.
 - Risk limits are a frozen dataclass with env overrides: changing a hard limit

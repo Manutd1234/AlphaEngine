@@ -175,6 +175,12 @@ def build_portfolio(gateway, audit) -> dict[str, Any]:
             "daily_return": round(_pct(state.daily_pnl, state.start_of_day_equity), 5),
             "realized_pnl": round(state.realized_pnl, 2),
             "unrealized_pnl": round(state.unrealized_pnl, 2),
+            # `realized_pnl` above is this session's — the gateway zeroes the
+            # per-position counters at every UTC rollover. Everything banked
+            # before today is this term, named rather than left implicit: without
+            # it `current` exceeds `starting + realized + unrealized` by an
+            # amount the block gives a PM no way to account for.
+            "banked_prior_sessions": round(state.carried_realized_pnl, 2),
         },
         "exposure": {
             "gross": round(gross, 2),
@@ -187,8 +193,50 @@ def build_portfolio(gateway, audit) -> dict[str, Any]:
         },
         "concentration": concentration,
         "risk_budget": risk_budget,
-        "attribution": {"by_strategy": by_strategy, "by_symbol": by_symbol_flow},
+        "attribution": {
+            "by_strategy": by_strategy,
+            "by_symbol": by_symbol_flow,
+            "session": session_attribution(audit, state),
+        },
         "execution_quality": audit.execution_stats() if audit else {},
+        "working": {
+            "orders": state.working_orders,
+            "notional": round(state.working_notional, 2),
+        },
+    }
+
+
+def session_attribution(audit, state) -> dict[str, Any]:
+    """The costs and realised P&L of *this* session, scoped to it.
+
+    Everything else under ``attribution`` is lifetime, because a PM reading flow
+    wants the whole record. A day's P&L cannot be decomposed with those figures:
+    subtracting a lifetime fee total from one session's P&L reports a loss the
+    desk did not take. So this block exists separately and names the day it
+    covers.
+
+    ``basis`` is what a consumer keys off. ``audited`` means every number here was
+    replayed from fills; a caller that finds anything else must not draw it as a
+    measured leg.
+    """
+    if audit is None:
+        return {}
+    costs = audit.session_costs(state.session_date)
+    sleeves = realized_pnl_by_strategy(audit, session_date=state.session_date)
+    return {
+        "session_date": state.session_date,
+        "fills": int(costs.get("fills") or 0),
+        "notional": round(float(costs.get("notional") or 0.0), 2),
+        "fees": round(float(costs.get("fees") or 0.0), 2),
+        "slippage_cost": round(float(costs.get("slippage_cost") or 0.0), 2),
+        # A fill whose slippage was never measured makes the cost leg a lower
+        # bound. Treating the gap as zero would understate what execution cost.
+        "fills_without_slippage": int(costs.get("fills_without_slippage") or 0),
+        "realized_pnl": round(
+            sum(float(s.get("realized_pnl") or 0.0) for s in sleeves.values()), 2,
+        ),
+        "unrealized_pnl": round(state.unrealized_pnl, 2),
+        "basis": "audited",
     }
 
 

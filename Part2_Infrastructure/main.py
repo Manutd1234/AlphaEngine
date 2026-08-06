@@ -53,12 +53,18 @@ from modules.portfolio import build_equity_history, build_portfolio
 from modules.risk_proxy import get_gateway
 from modules.schemas import (
     BacktestRequest,
+    CancelRequest,
     KillSwitchRequest,
+    OrderAck,
+    OrderEvent,
     OrderRequest,
+    OrderTimeline,
+    ReplaceRequest,
     RiskDecision,
     RiskState,
     TCAReport,
     VenueBook,
+    WorkingOrder,
 )
 from modules.tca_engine import get_engine
 from modules.telegram import get_bot
@@ -306,6 +312,81 @@ async def submit_order(order: OrderRequest, actor: str = Depends(trader_identity
     """The only way an order reaches a venue. Returns the full check vector for
     both accepted and rejected orders — a rejection is a result, not an error."""
     return await get_gateway().submit(order, source=actor)
+
+
+@app.get("/api/orders", response_model=list[WorkingOrder], tags=["B · Risk"])
+async def list_working_orders(
+    symbol: str | None = Query(default=None, min_length=1, max_length=20, pattern=r"^[A-Za-z0-9.\-]+$"),
+    _actor: str = Depends(trader_identity),
+) -> list[WorkingOrder]:
+    """Orders resting on the book right now.
+
+    Terminal decisions — filled, rejected, cancelled, expired — live in
+    `/api/audit/orders`. This is only what is still open, which is the set a desk
+    can still act on.
+    """
+    return get_gateway().list_working(symbol)
+
+
+@app.get("/api/orders/{order_id}", response_model=OrderTimeline, tags=["B · Risk"])
+async def order_timeline(order_id: str, _actor: str = Depends(trader_identity)) -> OrderTimeline:
+    """Every transition one order made, from the append-only event log."""
+    rows = get_audit().order_timeline(order_id)
+    if not rows:
+        raise HTTPException(status_code=404, detail=f"no such order: {order_id}")
+    events = [
+        OrderEvent(
+            ts=row["ts"],
+            event=str(row.get("event") or "UNKNOWN"),
+            status=str(row.get("status") or "WORKING"),
+            detail=str(row.get("detail") or ""),
+            actor=str(row.get("actor") or "system"),
+            fill_price=row.get("fill_price"),
+            fill_qty=row.get("fill_qty"),
+            fee_usd=row.get("fee_usd"),
+            venue=row.get("venue"),
+            replaces=row.get("replaces"),
+        )
+        for row in rows
+    ]
+    return OrderTimeline(order_id=order_id, status=events[-1].status, events=events)
+
+
+@app.post("/api/orders/{order_id}/cancel", response_model=OrderAck, tags=["B · Risk"])
+async def cancel_order(
+    order_id: str,
+    req: CancelRequest = Body(default_factory=CancelRequest),
+    actor: str = Depends(trader_identity),
+) -> OrderAck:
+    """Pull one resting order.
+
+    No typed-confirmation ritual, unlike the kill switch: that ceremony suits a
+    desk-wide action, not a single order a trader pulls repeatedly. A cancel also
+    does not consume a rate-limit token — it only ever reduces risk, and a book in
+    trouble must always be able to get out.
+    """
+    ack = await get_gateway().cancel_working(order_id, actor=actor, reason=req.reason)
+    if ack is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"{order_id} is not resting — it may have filled, expired or already been cancelled",
+        )
+    return ack
+
+
+@app.post("/api/orders/{order_id}/replace", response_model=RiskDecision, tags=["B · Risk"])
+async def replace_order(
+    order_id: str, req: ReplaceRequest, actor: str = Depends(trader_identity),
+) -> RiskDecision:
+    """Cancel-and-new. Returns the **new** order's full check vector.
+
+    A replacement faces every gate again and can be rejected where the original
+    passed, so the evidence returned has to be the new evidence.
+    """
+    decision = await get_gateway().replace_working(order_id, req, actor=actor)
+    if decision is None:
+        raise HTTPException(status_code=404, detail=f"{order_id} is not resting")
+    return decision
 
 
 @app.get("/api/risk/state", response_model=RiskState, tags=["B · Risk"])

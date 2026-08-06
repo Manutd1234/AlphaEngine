@@ -17,6 +17,16 @@ export interface GateCheck {
   detail?: string | null;
 }
 
+/**
+ * Where an order ended up.
+ *
+ * Mirrors `OrderStatus` in modules/schemas.py. `PARTIALLY_FILLED` is absent on
+ * both sides: the L2 feeds carry ladder snapshots rather than trade prints, so
+ * how much of a resting order a crossing trade consumed is not knowable here,
+ * and a state that can never be reached would claim a model that does not exist.
+ */
+export type OrderStatus = "WORKING" | "FILLED" | "CANCELLED" | "EXPIRED" | "REJECTED";
+
 export interface BlotterRow {
   ts: string;
   orderId: string;
@@ -36,8 +46,41 @@ export interface BlotterRow {
   slippageBps: number | null;
   venue: string | null;
   source: string | null;
+  status: OrderStatus;
+  timeInForce: string | null;
   /** The full pre-trade check vector, when the gateway recorded one. */
   checks: GateCheck[];
+}
+
+/**
+ * An order resting on the book right now.
+ *
+ * Deliberately a different type from `BlotterRow`, which is a terminal decision.
+ * A working order has no fill, no latency worth reading and no verdict — giving
+ * it those fields as nulls would invite a table to render "—" where the honest
+ * answer is "not yet".
+ */
+export interface WorkingOrderRow {
+  orderId: string;
+  clientOrderId: string | null;
+  symbol: string;
+  side: string;
+  orderType: string;
+  timeInForce: string;
+  quantity: number;
+  limitPrice: number;
+  /** Committed capital: quantity x limit price. A resting order is not free. */
+  notional: number;
+  strategy: string | null;
+  source: string | null;
+  status: "WORKING";
+  acceptedAt: string;
+  ageSeconds: number;
+  markPrice: number | null;
+  /** Null, never zero, when there is no mark: "at the touch" and "nobody is
+   *  quoting this" are opposite claims. */
+  distanceBps: number | null;
+  expiresAt: string | null;
 }
 
 export interface RiskEventRow {
@@ -109,7 +152,46 @@ export function toBlotterRow(raw: unknown): BlotterRow | null {
     slippageBps: num(row.slippage_bps),
     venue: str(row.venue),
     source: str(row.source),
+    // Derived, not required. Rows written before the order lifecycle existed
+    // carry no status, and back then an accepted order *was* a filled order —
+    // so the fallback is exact for legacy rows rather than a guess.
+    status: (str(row.status) as OrderStatus | null) ?? (row.accepted === true ? "FILLED" : "REJECTED"),
+    timeInForce: str(row.time_in_force),
     checks: parseChecks(row.checks_json),
+  };
+}
+
+export function toWorkingOrder(raw: unknown): WorkingOrderRow | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const row = raw as Record<string, unknown>;
+  const symbol = str(row.symbol);
+  const orderId = str(row.order_id);
+  const acceptedAt = str(row.accepted_at);
+  const quantity = num(row.quantity);
+  const limitPrice = num(row.limit_price);
+  // A resting order without a price or a size is not a resting order. Rendering
+  // one with "—" in those columns would put an order on screen that the gateway
+  // could not have accepted.
+  if (!symbol || !orderId || !acceptedAt || quantity == null || limitPrice == null) return null;
+
+  return {
+    orderId,
+    clientOrderId: str(row.client_order_id),
+    symbol,
+    side: str(row.side) ?? "—",
+    orderType: str(row.order_type) ?? "LIMIT",
+    timeInForce: str(row.time_in_force) ?? "GTC",
+    quantity,
+    limitPrice,
+    notional: num(row.notional) ?? quantity * limitPrice,
+    strategy: str(row.strategy),
+    source: str(row.source),
+    status: "WORKING",
+    acceptedAt,
+    ageSeconds: num(row.age_seconds) ?? 0,
+    markPrice: num(row.mark_price),
+    distanceBps: num(row.distance_bps),
+    expiresAt: str(row.expires_at),
   };
 }
 
@@ -189,6 +271,8 @@ export const SANDBOX_LIMITS = {
   takerFeeBps: 6,
   /** LIMIT price sanity band — config.py MAX_PRICE_DEVIATION_BPS default. */
   maxPriceDeviationBps: 500,
+  /** Resting-book ceiling — config.py MAX_WORKING_ORDERS default. */
+  maxWorkingOrders: 200,
 } as const;
 
 /** Deterministic PRNG — the sandbox must produce the same desk every time. */
@@ -279,7 +363,7 @@ export function sandboxBlotter(now = Date.parse("2026-08-04T12:00:00Z")): Blotte
           ts, orderId: `SBX-${sleeve.strategy.slice(0, 2).toUpperCase()}-${1000 + i}`,
           clientOrderId: null, strategy: sleeve.strategy, symbol, side,
           orderType: "MARKET", quantity: notional / mark, notional,
-          accepted: true, rejectedBy: [], reason: null,
+          accepted: true, status: "FILLED", timeInForce: "IOC", rejectedBy: [], reason: null,
           latencyMs: latency, fillPrice: mark * (1 + (side === "BUY" ? 1 : -1) * slippage / 1e4),
           feeUsd: fee, slippageBps: slippage,
           venue: SANDBOX_VENUES[Math.floor(rand() * SANDBOX_VENUES.length)],
@@ -298,7 +382,7 @@ export function sandboxBlotter(now = Date.parse("2026-08-04T12:00:00Z")): Blotte
           clientOrderId: null, strategy: sleeve.strategy, symbol, side,
           orderType: "MARKET", quantity: null,
           notional: rejectedNotional,
-          accepted: false, rejectedBy: [gate],
+          accepted: false, status: "REJECTED", timeInForce: "IOC", rejectedBy: [gate],
           reason: REJECT_REASONS[gate], latencyMs: latency,
           fillPrice: null, feeUsd: null, slippageBps: null,
           venue: null, source: "sandbox", checks: [],
@@ -321,6 +405,80 @@ export function sandboxRiskEvents(now = Date.parse("2026-08-04T12:00:00Z")): Ris
   ];
 }
 
+/**
+ * Marks the resting book quotes against.
+ *
+ * These deliberately track `SEEDS` in lib/portfolio.ts rather than
+ * `SANDBOX_MARKS` above: a working order and a position in the same instrument
+ * appear on the same tab, and quoting BTCUSDT at two different marks a few
+ * hundred pixels apart is the kind of incoherence the sandbox exists to avoid.
+ * `sandbox-desk.test.ts` pins the agreement so an edit to either side fails
+ * loudly instead of drifting.
+ */
+const SANDBOX_BOOK_MARKS: Record<string, number> = {
+  BTCUSDT: 63_580,
+  ETHUSDT: 1_858.4,
+  SOLUSDT: 96.42,
+};
+
+/**
+ * Three orders resting on the sandbox book, identical every call.
+ *
+ * Kept separate from `sandboxBlotter()` rather than folded into it. That
+ * generator's per-sleeve row counts reconcile to the cent with the book's
+ * attribution table and are pinned by two test files; a resting order has no
+ * fill and no fees and would corrupt exactly those totals.
+ *
+ * Every limit sits inside the gateway's 500bps price band, because an order the
+ * real gate would have rejected has no business appearing as one it accepted.
+ */
+export function sandboxWorkingOrders(now = Date.parse("2026-08-04T12:00:00Z")): WorkingOrderRow[] {
+  const specs = [
+    {
+      orderId: "SBX-W-4417", symbol: "BTCUSDT", side: "BUY", strategy: "ma_cross",
+      limitPrice: 62_900, quantity: 12, timeInForce: "GTC", minutesAgo: 34,
+    },
+    {
+      orderId: "SBX-W-4418", symbol: "SOLUSDT", side: "SELL", strategy: "donchian",
+      limitPrice: 99.5, quantity: 4_200, timeInForce: "GTC", minutesAgo: 17,
+    },
+    {
+      orderId: "SBX-W-4419", symbol: "ETHUSDT", side: "BUY", strategy: "rsi_reversion",
+      limitPrice: 1_820, quantity: 190, timeInForce: "DAY", minutesAgo: 6,
+    },
+  ] as const;
+
+  return specs.map((spec) => {
+    const acceptedAt = now - spec.minutesAgo * 60_000;
+    const mark = SANDBOX_BOOK_MARKS[spec.symbol];
+    const midnight = new Date(acceptedAt);
+    midnight.setUTCHours(0, 0, 0, 0);
+    return {
+      orderId: spec.orderId,
+      clientOrderId: null,
+      symbol: spec.symbol,
+      side: spec.side,
+      orderType: "LIMIT",
+      timeInForce: spec.timeInForce,
+      quantity: spec.quantity,
+      limitPrice: spec.limitPrice,
+      notional: spec.quantity * spec.limitPrice,
+      strategy: spec.strategy,
+      source: "sandbox",
+      status: "WORKING",
+      acceptedAt: new Date(acceptedAt).toISOString(),
+      ageSeconds: spec.minutesAgo * 60,
+      markPrice: mark,
+      distanceBps: Math.round(((spec.limitPrice - mark) / mark) * 1e4 * 100) / 100,
+      // Only a DAY order has a boundary to die at; GTC reports null rather than
+      // a far-future date that would read as an expiry it does not have.
+      expiresAt: spec.timeInForce === "DAY"
+        ? new Date(midnight.getTime() + 86_400_000).toISOString()
+        : null,
+    };
+  });
+}
+
 export interface SandboxOrder {
   symbol: string;
   side: "BUY" | "SELL";
@@ -333,6 +491,7 @@ export interface SandboxOrder {
 
 export interface SandboxDecision {
   accepted: boolean;
+  status?: OrderStatus;
   order_id?: string;
   reason?: string | null;
   rejected_by?: string[];
@@ -368,6 +527,13 @@ interface SandboxBookShape {
  */
 export function createSandboxDesk(book: SandboxBookShape) {
   const seen = new Set<string>();
+  // The sandbox has no ladder, so marketability is decided against a synthesised
+  // half-spread around the fixed mark. That is a sandbox-only approximation and
+  // is the one place this judge does not replay the gateway literally — the
+  // gateway reads a real consolidated touch. Everything downstream of the
+  // decision (which gate vector runs, what fills, what rests) does match.
+  const SANDBOX_HALF_SPREAD_BPS = 2;
+  let resting = 0;
   const stamps: number[] = [];
   let counter = 0;
   const rand = mulberry32(0xdecade);
@@ -432,6 +598,13 @@ export function createSandboxDesk(book: SandboxBookShape) {
 
     // 11 — drawdown budget
     const dd = Math.max(0, -(book.equity.current - book.equity.start_of_day) / book.equity.start_of_day);
+    // 11 — resting-book ceiling, LIMIT only, exactly where risk_proxy.py runs it:
+    // after price_band, before daily_drawdown.
+    if (order.orderType === "LIMIT") {
+      add("working_book", resting < limits.maxWorkingOrders,
+        `${resting} resting vs ${limits.maxWorkingOrders} cap`);
+    }
+
     add("daily_drawdown", dd < limits.maxDailyDrawdownPct,
       `${(dd * 100).toFixed(2)}% used of ${(limits.maxDailyDrawdownPct * 100).toFixed(2)}%`);
     // 12 — reduce-only engages between the soft threshold and the halt
@@ -459,6 +632,18 @@ export function createSandboxDesk(book: SandboxBookShape) {
     if (order.clientOrderId && accepted) seen.add(order.clientOrderId);
     counter += 1;
 
+    // Marketable, or resting? A limit that crosses the spread is a taker and
+    // fills now; one nobody is willing to meet has something to wait for. The
+    // gateway makes exactly this split, and a sandbox that filled everything
+    // would teach a reviewer the wrong thing about what was built.
+    const marketable = order.orderType !== "LIMIT" || !order.limitPrice || !mark
+      ? true
+      : order.side === "BUY"
+        ? order.limitPrice >= mark * (1 + SANDBOX_HALF_SPREAD_BPS / 1e4)
+        : order.limitPrice <= mark * (1 - SANDBOX_HALF_SPREAD_BPS / 1e4);
+    const status: OrderStatus = !accepted ? "REJECTED" : marketable ? "FILLED" : "WORKING";
+    if (status === "WORKING") resting += 1;
+
     const slippage = 1.4 + rand() * 1.8;
     // Quantity sizes at the same reference the gateway uses (risk_proxy.py:
     // ref_price = req.limit_price or mark); MARKET path unchanged.
@@ -466,13 +651,16 @@ export function createSandboxDesk(book: SandboxBookShape) {
     return {
       accepted,
       order_id: `SBX-${String(counter).padStart(4, "0")}`,
-      reason: accepted
-        ? "accepted against the sandbox book — no order was sent anywhere"
-        : `rejected by ${rejectedBy.join(", ")} (sandbox)`,
+      reason: !accepted
+        ? `rejected by ${rejectedBy.join(", ")} (sandbox)`
+        : marketable
+          ? "accepted against the sandbox book — no order was sent anywhere"
+          : "resting on the sandbox book — nobody is showing this price",
       rejected_by: rejectedBy,
       latency_ms: 0.05 + rand() * 0.1,
       checks,
-      fill: accepted && mark
+      status,
+      fill: status === "FILLED" && mark
         ? {
             price: mark * (1 + (order.side === "BUY" ? 1 : -1) * slippage / 1e4),
             quantity: notional / refPrice,
@@ -488,7 +676,10 @@ export function createSandboxDesk(book: SandboxBookShape) {
 }
 
 export function summarise(rows: BlotterRow[]): ExecutionSummary {
-  const accepted = rows.filter((r) => r.accepted);
+  // Fills, not acceptances. Before resting orders those were the same set; now a
+  // cancelled or expired order is accepted-but-unfilled, and a fill rate that
+  // counted it would flatter the desk.
+  const accepted = rows.filter((r) => r.status === "FILLED");
   const slippage = accepted.map((r) => r.slippageBps).filter((v): v is number => v != null);
   const latency = rows.map((r) => r.latencyMs).filter((v): v is number => v != null).sort((a, b) => a - b);
 
@@ -537,7 +728,10 @@ export function filterBlotterRows(
 ): BlotterRow[] {
   const byStatus = rows.filter((row) => {
     switch (opts.status) {
-      case "accepted": return row.accepted;
+      // Keyed off status, not `accepted`: a resting order that was cancelled
+      // was accepted and never filled, and counting it as a fill would overstate
+      // what the desk actually did.
+      case "accepted": return row.status === "FILLED";
       case "rejected": return !row.accepted;
       case "symbol": return row.symbol === opts.focusSymbol;
       default: return true;

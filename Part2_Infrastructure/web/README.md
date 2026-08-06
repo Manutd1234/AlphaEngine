@@ -54,7 +54,7 @@ npm install
 npm run dev        # http://localhost:3000 (Turbopack)
 npm run build      # Turbopack production build
 npm run typecheck  # tsc --noEmit
-npm test           # 377 tests, no network required
+npm test           # 642 tests, no network required
 ```
 
 Built on **Next.js 16** with **Turbopack**, which is the default bundler for both
@@ -145,6 +145,16 @@ retains a last-good snapshot only with an explicit stale warning, disables its
 execution handoff while stale, and validates the gateway schema before calling
 the book live.
 
+The tab is four sub-tabs — **Overview**, **Positions**, **Allocation**,
+**Performance** — on the same `WorkspaceSubtabs` roving-tablist primitive the
+other six dense workspaces already use. Portfolio was the last one still a single
+scroll, and a PM checking exposure had to travel past a rebalance table and an
+attribution table to reach it. The split duplicates nothing: the Overview's
+largest-exposure summary is five columns against the full table's nine — no mark,
+no beta, no volatility contribution, no row actions — and *links to* Positions
+rather than repeating them. Both read the same snapshot,
+so they cannot disagree — but only one of them is the place to act on a position.
+
 <a id="research-lab"></a>
 **Research lab** — the Research tab is a validation pipeline, not a parameter
 sweep with a chart. Beyond the verdict and the Sharpe surface it answers the
@@ -230,7 +240,22 @@ exchanges live. `GET /api/markets` returns this list at runtime.
 | `GET /api/tca?symbol=&side=&notional=` | VWAP, slippage in bps, fillability per venue, and the cross-venue routing split |
 | `GET /api/ohlcv?symbol=&interval=&bars=` | historical candles — crypto keyless via Binance; equities via the provider registry |
 | `GET /api/gateway/portfolio` | same-origin read-only proxy to the authoritative FastAPI portfolio/risk book (optional gateway connection) |
+| `POST /api/gateway/orders` | submit one order through the gateway's pre-trade gates; every field validated, never coerced |
+| `GET /api/gateway/orders/working?symbol=` | the gateway's resting order book — what is still open, and therefore still actionable |
+| `POST /api/gateway/orders/{id}/cancel` | pull one resting order |
+| `POST /api/gateway/orders/{id}/replace` | cancel-and-new; relays the replacement's own check vector, not the original's |
 | `POST /api/backtest` | parameter sweep with deflated Sharpe and walk-forward |
+
+The read is ungated, exactly like every other read in this app; the two mutators
+sit behind `ALPHAENGINE_OPERATOR_TOKEN` alongside `POST /api/gateway/orders`,
+because reaching a book and being allowed to *move* it are separate questions. A
+gateway rejection still comes back with HTTP 200 and its full check vector — a
+blocked order is the system working, not a failed request — and on a replace that
+matters twice over, because a rejected replacement still means the original is
+gone, and the decision is the only place the client can learn it. An id that has
+stopped resting is a 404 with its own sentence rather than the shared boundary's
+blanket 502: the order filled or expired between reading the book and pressing
+the button, which is the ordinary race, not an outage.
 
 The research-data group routes through the [provider registry](#data-providers):
 
@@ -380,7 +405,7 @@ web/
 │       └── …one adapter per vendor (binance, fmp, tiingo, massive,
 │            alphavantage, firecrawl, openbb)
 ├── components/               charts (hand-rolled SVG), controls, tables
-└── tests/                    377 tests incl. cross-engine and risk-engine parity
+└── tests/                    642 tests incl. cross-engine and risk-engine parity
 ```
 
 **Why the sweep runs server-side.** Binance's public API is called from the
@@ -445,8 +470,10 @@ need a long-lived process, which is why they are not deployed here:
 
 - **Module A** — live L2 order books from Binance and Bybit over WebSocket, with
   VWAP, slippage and cross-venue smart routing.
-- **Module B** — a pre-trade risk gateway (14 gates in ~0.2 ms) with an emergency
-  kill switch controlled only through authenticated gateway surfaces.
+- **Module B** — a pre-trade risk gateway (15 gates in ~0.2 ms), a resting-order
+  book with cancel and replace, and an emergency kill switch controlled only
+  through authenticated gateway surfaces — engaging it also cancels the resting
+  book, because a halt that leaves orders working is not a halt.
 
 Serverless functions cannot hold a WebSocket subscription open or keep risk state
 between invocations, so those run on the always-on gateway. This workspace reads

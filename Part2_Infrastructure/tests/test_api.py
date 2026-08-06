@@ -177,9 +177,97 @@ class TestJobs:
         assert client.get("/api/jobs/deadbeef").status_code == 404
 
 
+class TestOrderLifecycle:
+    """The routes that exist because an order can now outlive its own request."""
+
+    def _rest(self, client) -> str:
+        """Place a non-marketable limit and return its id."""
+        body = client.post("/api/orders", json={
+            "symbol": "BTCUSDT", "side": "BUY", "quantity": 10.0,
+            "order_type": "LIMIT", "limit_price": 98.0,
+        }).json()
+        assert body["status"] == "WORKING", body
+        return body["order_id"]
+
+    def test_a_resting_order_appears_in_the_open_book(self, client):
+        order_id = self._rest(client)
+        rows = client.get("/api/orders").json()
+        assert any(row["order_id"] == order_id for row in rows)
+
+        row = next(r for r in rows if r["order_id"] == order_id)
+        assert row["status"] == "WORKING"
+        assert row["notional"] == pytest.approx(980.0)
+        # A resting order with no mark reports null distance, never zero: "at the
+        # touch" and "nobody is quoting this" are different claims.
+        assert row["distance_bps"] is not None
+
+        client.post(f"/api/orders/{order_id}/cancel", json={"reason": "cleanup"})
+
+    def test_the_open_book_filters_by_symbol(self, client):
+        order_id = self._rest(client)
+        assert client.get("/api/orders", params={"symbol": "BTCUSDT"}).json()
+        assert client.get("/api/orders", params={"symbol": "ETHUSDT"}).json() == []
+        client.post(f"/api/orders/{order_id}/cancel", json={"reason": "cleanup"})
+
+    def test_cancel_takes_it_off_the_book_and_acknowledges(self, client):
+        order_id = self._rest(client)
+        resp = client.post(f"/api/orders/{order_id}/cancel", json={"reason": "changed my mind"})
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "CANCELLED"
+        assert not any(r["order_id"] == order_id for r in client.get("/api/orders").json())
+
+    def test_cancelling_something_that_is_not_resting_is_a_404(self, client):
+        resp = client.post("/api/orders/deadbeef/cancel", json={})
+        assert resp.status_code == 404
+
+    def test_the_timeline_records_every_transition(self, client):
+        order_id = self._rest(client)
+        client.post(f"/api/orders/{order_id}/cancel", json={"reason": "cleanup"})
+
+        body = client.get(f"/api/orders/{order_id}").json()
+        assert body["status"] == "CANCELLED"
+        events = [e["event"] for e in body["events"]]
+        assert events == ["ACCEPTED_WORKING", "CANCELLED"], events
+
+    def test_an_unknown_timeline_is_a_404(self, client):
+        assert client.get("/api/orders/deadbeef").status_code == 404
+
+    def test_replace_returns_the_new_order_s_evidence_not_the_old(self, client):
+        order_id = self._rest(client)
+        resp = client.post(f"/api/orders/{order_id}/replace", json={"limit_price": 97.0})
+        assert resp.status_code == 200
+
+        body = resp.json()
+        assert body["order_id"] != order_id
+        assert body["checks"], "a replacement faces every gate again"
+        assert body["status"] == "WORKING"
+
+        rows = client.get("/api/orders").json()
+        assert not any(r["order_id"] == order_id for r in rows)
+        replacement = next(r for r in rows if r["order_id"] == body["order_id"])
+        assert replacement["limit_price"] == 97.0
+
+        client.post(f"/api/orders/{body['order_id']}/cancel", json={"reason": "cleanup"})
+
+    def test_a_market_order_that_claims_to_rest_is_rejected_not_coerced(self, client):
+        resp = client.post("/api/orders", json={
+            "symbol": "BTCUSDT", "side": "BUY", "notional": 1000.0,
+            "order_type": "MARKET", "time_in_force": "GTC",
+        })
+        assert resp.status_code == 422
+
+    def test_risk_state_counts_the_resting_book(self, client):
+        order_id = self._rest(client)
+        state = client.get("/api/risk/state").json()
+        assert state["working_orders"] >= 1
+        assert state["working_notional"] > 0
+        client.post(f"/api/orders/{order_id}/cancel", json={"reason": "cleanup"})
+
+
 class TestReadAuthentication:
     SENSITIVE_COLLECTIONS = (
         "/api/config",
+        "/api/orders",
         "/api/risk/state",
         "/api/risk/limits",
         "/api/jobs",

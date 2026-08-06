@@ -86,6 +86,16 @@ export default function EquityCurve({
   const [lo, hi] = extent([...equity, ...hwm, startOfDay, haltLevel]);
   const yScale = linearScale(lo, hi, y0, y1);
   const xScale = linearScale(0, points.length - 1, x0, x1);
+
+  // Contiguous runs of halted observations, collapsed into spans so a long halt
+  // draws as one band rather than a picket fence of adjacent rectangles.
+  const haltedSpans: Array<{ from: number; to: number }> = [];
+  for (let i = 0; i < points.length; i += 1) {
+    if (points[i].killSwitch !== true) continue;
+    const previous = haltedSpans[haltedSpans.length - 1];
+    if (previous && previous.to === i - 1) previous.to = i;
+    else haltedSpans.push({ from: i, to: i });
+  }
   const yTicks = ticks(lo, hi, 4);
 
   const last = points[points.length - 1];
@@ -118,6 +128,15 @@ export default function EquityCurve({
         <span>
           <i style={{ background: "var(--status-critical)" }} aria-hidden /> Halt level
         </span>
+        {haltedSpans.length > 0 && (
+          <span>
+            <i
+              aria-hidden
+              style={{ background: "color-mix(in oklab, var(--status-critical) 12%, transparent)" }}
+            />{" "}
+            Halted
+          </span>
+        )}
       </div>
 
       <div ref={ref}>
@@ -129,6 +148,24 @@ export default function EquityCurve({
           aria-label={`Intraday equity against its high-water mark. Currently ${usd(last.equity, 0)}, ${pct(drawdown, 2)} from a peak of ${usd(peak, 0)}.`}
         >
           <Grid yTicks={yTicks} yScale={yScale} x0={x0} x1={x1} format={(v) => `$${compact(v)}`} />
+
+          {/* Halted stretches, shaded behind the line. The endpoint has always
+              recorded the kill-switch state per observation and the client threw
+              it away, which left the curve unable to distinguish "the desk chose
+              not to trade" from "the desk was not allowed to". Drawn first so the
+              equity line stays on top of it. */}
+          {haltedSpans.map((span) => (
+            <rect
+              key={`halt-${span.from}`}
+              x={xScale(span.from)}
+              y={y1}
+              width={Math.max(1, xScale(span.to) - xScale(span.from))}
+              height={y0 - y1}
+              fill="color-mix(in oklab, var(--status-critical) 12%, transparent)"
+            >
+              <title>Trading halted for {span.to - span.from + 1} observation(s)</title>
+            </rect>
+          ))}
 
           {/* The stop, drawn as a rule rather than left to the axis labels. */}
           {haltLevel >= lo && haltLevel <= hi && (

@@ -6,8 +6,15 @@ Every risk decision, kill-switch event, TCA snapshot and backtest run is written
 here. The table set is intentionally append-only: nothing in the application
 issues UPDATE or DELETE against ``orders``/``risk_events``. Accepted fill rows
 contain enough evidence to rebuild the current UTC session's paper position
-book. Operational state such as an engaged kill switch is event history, not a
-durable state snapshot, and is deliberately not inferred during that replay.
+book, and a ``session_rollover`` row carries the two figures that replay alone
+cannot reach — what the sessions before this one banked, and the equity this one
+opened on. Operational state such as an engaged kill switch is event history,
+not a durable state snapshot, and is deliberately not inferred during that
+replay.
+
+``book_reset`` and ``session_rollover`` are both durable replay boundaries, read
+back the same way: find the newest one inside the session window, refuse to
+guess when two of them share a timestamp, and let the later one win.
 
 DuckDB is used because the same file is directly queryable with analytical SQL
 (``SELECT quantile(latency_ms, 0.99) FROM orders``) without an ETL step. A
@@ -51,7 +58,33 @@ _DDL = [
         slippage_bps    DOUBLE,
         venue           VARCHAR,
         checks_json     VARCHAR,
-        source          VARCHAR
+        source          VARCHAR,
+        status          VARCHAR,
+        time_in_force   VARCHAR,
+        decided_at      TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS order_events (
+        ts              TIMESTAMP,
+        order_id        VARCHAR,
+        client_order_id VARCHAR,
+        event           VARCHAR,
+        status          VARCHAR,
+        symbol          VARCHAR,
+        side            VARCHAR,
+        order_type      VARCHAR,
+        time_in_force   VARCHAR,
+        quantity        DOUBLE,
+        limit_price     DOUBLE,
+        notional        DOUBLE,
+        fill_price      DOUBLE,
+        fill_qty        DOUBLE,
+        fee_usd         DOUBLE,
+        venue           VARCHAR,
+        actor           VARCHAR,
+        detail          VARCHAR,
+        replaces        VARCHAR
     )
     """,
     """
@@ -160,6 +193,23 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
+def _audit_timestamp(value: Any, *, context: str) -> datetime:
+    """A naive-UTC ``datetime`` from an audit column, or a refusal.
+
+    DuckDB hands back a ``datetime``; the SQLite fallback hands back the ISO
+    string it was given. Both have to become the same comparable value before a
+    row can be placed on one side of a durable boundary — comparing a string
+    against a ``datetime`` raises, and quietly failing to parse one would put
+    every row on the wrong side of the boundary and say nothing about it.
+    """
+    if isinstance(value, datetime):
+        return value.replace(tzinfo=None)
+    try:
+        return datetime.fromisoformat(str(value)).replace(tzinfo=None)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(f"invalid audit timestamp {context}: {value!r}") from exc
+
+
 class AuditLog:
     """Thin, thread-safe wrapper over DuckDB with a SQLite fallback."""
 
@@ -218,6 +268,25 @@ class AuditLog:
                         f"{'REAL' if self.backend == 'sqlite' and sql_type == 'DOUBLE' else sql_type}"
                     )
 
+            # Order lifecycle columns added when resting orders arrived. Legacy
+            # rows keep NULL rather than being back-filled: before this schema
+            # every accepted order filled in the same call, so a NULL status is
+            # correctly read as "filled" by the blotter and — importantly — is
+            # still treated as ambiguous by the rehydration guard below, which
+            # fails closed on an accepted row with no fill evidence.
+            order_cursor = self._conn.execute("SELECT * FROM orders LIMIT 0")
+            order_columns = {str(column[0]).lower() for column in (order_cursor.description or [])}
+            for column, sql_type in (
+                ("status", "VARCHAR"),
+                ("time_in_force", "VARCHAR"),
+                ("decided_at", "TIMESTAMP"),
+            ):
+                if column not in order_columns:
+                    self._conn.execute(
+                        f"ALTER TABLE orders ADD COLUMN {column} "  # noqa: S608
+                        f"{'TEXT' if self.backend == 'sqlite' and sql_type == 'TIMESTAMP' else sql_type}"
+                    )
+
             if self.backend == "sqlite":
                 self._conn.commit()
 
@@ -261,9 +330,12 @@ class AuditLog:
         understate exposure. ``book_reset`` is a durable replay boundary, so a
         reset remains a reset after process restart.
 
-        Only same-day fills are returned. The paper gateway does not persist the
-        start-of-day mark needed to reconstruct overnight P&L safely, so an
-        overnight production book needs a separate durable position snapshot.
+        Only same-day fills are returned. Everything a restarted gateway needs
+        from *earlier* sessions is two numbers, and they come from
+        ``latest_session_rollover`` instead: the P&L those sessions banked and
+        the equity this one opened on. Overnight *positions* are still not
+        reconstructed — that needs a durable position snapshot this schema does
+        not carry.
         """
         try:
             start = datetime.strptime(session_date, "%Y-%m-%d")
@@ -288,9 +360,16 @@ class AuditLog:
                 reset_row = reset_cur.fetchone()
                 reset_at = reset_row[0] if reset_row else None
 
+                # `status IS NULL OR status = 'FILLED'` rather than a fill_qty
+                # test. An accepted order that was cancelled or expired never
+                # filled by design, and letting it through would make the caller
+                # treat missing fill evidence as corruption and refuse to start.
+                # Legacy rows carry a NULL status and keep failing closed on that
+                # same check, which is the behaviour that guard was written for.
                 cur = self._conn.execute(
                     "SELECT ts, order_id, symbol, side, fill_qty, fill_price, fee_usd "
-                    "FROM orders WHERE accepted AND ts >= ? AND ts < ? "
+                    "FROM orders WHERE accepted AND (status IS NULL OR status = 'FILLED') "
+                    "AND ts >= ? AND ts < ? "
                     "ORDER BY ts ASC, order_id ASC",
                     params,
                 )
@@ -302,18 +381,10 @@ class AuditLog:
         if reset_at is None:
             return rows
 
-        def parsed_timestamp(value: Any) -> datetime:
-            if isinstance(value, datetime):
-                return value.replace(tzinfo=None)
-            try:
-                return datetime.fromisoformat(str(value)).replace(tzinfo=None)
-            except (TypeError, ValueError) as exc:
-                raise RuntimeError(f"invalid audit timestamp during position rehydration: {value!r}") from exc
-
-        reset_time = parsed_timestamp(reset_at)
+        reset_time = _audit_timestamp(reset_at, context="during position rehydration")
         out: list[dict[str, Any]] = []
         for row in rows:
-            fill_time = parsed_timestamp(row.get("ts"))
+            fill_time = _audit_timestamp(row.get("ts"), context="during position rehydration")
             if fill_time == reset_time:
                 # The schema has timestamps but no cross-table sequence number.
                 # Guessing whether this fill happened before or after the reset
@@ -323,13 +394,158 @@ class AuditLog:
                 out.append(row)
         return out
 
+    def has_activity_before(self, session_date: str) -> bool:
+        """Did this audit store record anything at all before ``session_date``?
+
+        The question ``latest_session_rollover`` cannot answer. It returns
+        ``None`` for two opposite claims — "no session has ever closed here" and
+        "a session closed while this process was down" — and a caller that reads
+        both as the first hands a restarted gateway a clean slate it has not
+        earned: nothing banked, opened on the configured starting balance, and
+        therefore an entirely unspent drawdown budget after a week of losses.
+
+        A process that was down across 00:00 UTC leaves exactly this trace: rows
+        it wrote before the boundary, and no rollover record for the session it
+        woke up in, because nothing was running to write one.
+        """
+        try:
+            start = datetime.strptime(session_date, "%Y-%m-%d")
+        except ValueError as exc:
+            raise ValueError(f"invalid UTC session date: {session_date!r}") from exc
+
+        if self._closed:
+            raise RuntimeError("audit store is closed")
+
+        params: tuple[Any, ...] = (start, start)
+        if self.backend == "sqlite":
+            params = tuple(p.isoformat() if isinstance(p, datetime) else p for p in params)
+
+        try:
+            with self._lock:
+                cur = self._conn.execute(
+                    "SELECT ("
+                    "  (SELECT count(*) FROM orders WHERE ts < ?)"
+                    "  + (SELECT count(*) FROM risk_events WHERE ts < ?)"
+                    ") AS earlier",
+                    params,
+                )
+                row = cur.fetchone()
+        except Exception as exc:
+            raise RuntimeError("could not check the audit store for earlier sessions") from exc
+
+        return bool(row and row[0])
+
+    def latest_session_rollover(self, session_date: str) -> dict[str, Any] | None:
+        """The durable rollover record that opened one UTC session, after its last reset.
+
+        The companion of ``accepted_fills_for_session``, and strict for the same
+        reason: the replay covers *this* session's fills, so the P&L banked by
+        every session before it and the equity this one opened on reach a
+        restarted process only through this row. Read them wrong and the paper
+        account moves without a trade behind it.
+
+        ``None`` means no record, which is not an error — a first-ever session,
+        or a restart before this session's first rollover, genuinely has nothing
+        banked. An *unreadable* record is a different claim and raises; the
+        caller decides what to do with the difference.
+
+        ``book_reset`` is the other durable boundary in this table and it wins
+        when it is the later of the two: a reset puts the paper account back on
+        its opening balance, so a rollover it superseded would re-credit money
+        the reset has already written off. An exact tie is refused rather than
+        guessed at, exactly as a fill tying with a reset is.
+        """
+        try:
+            start = datetime.strptime(session_date, "%Y-%m-%d")
+        except ValueError as exc:
+            raise ValueError(f"invalid UTC session date: {session_date!r}") from exc
+        end = start + timedelta(days=1)
+
+        if self._closed:
+            raise RuntimeError("audit store is closed")
+
+        params: tuple[Any, ...] = (start, end)
+        if self.backend == "sqlite":
+            params = tuple(p.isoformat() if isinstance(p, datetime) else p for p in params)
+
+        try:
+            with self._lock:
+                reset_cur = self._conn.execute(
+                    "SELECT max(ts) AS reset_at FROM risk_events "
+                    "WHERE event = 'book_reset' AND ts >= ? AND ts < ?",
+                    params,
+                )
+                reset_row = reset_cur.fetchone()
+                reset_at = reset_row[0] if reset_row else None
+
+                # Newest first, one row. The table is append-only and the roll
+                # fires on a date-string inequality, so more than one record can
+                # land in a single session's window; the last one written is the
+                # one whose figures the session is actually running on.
+                cur = self._conn.execute(
+                    "SELECT ts, payload FROM risk_events "
+                    "WHERE event = 'session_rollover' AND ts >= ? AND ts < ? "
+                    "ORDER BY ts DESC LIMIT 1",
+                    params,
+                )
+                row = cur.fetchone()
+        except Exception as exc:
+            raise RuntimeError("could not read the durable session rollover record") from exc
+
+        if row is None:
+            return None
+
+        rollover_at = _audit_timestamp(row[0], context="on the session rollover record")
+        if reset_at is not None:
+            reset_time = _audit_timestamp(reset_at, context="on the book reset boundary")
+            if rollover_at == reset_time:
+                raise RuntimeError(
+                    "session rollover and book reset share an ambiguous audit timestamp"
+                )
+            if rollover_at < reset_time:
+                return None
+
+        try:
+            payload = json.loads(row[1] or "")
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError("session rollover record has an unreadable payload") from exc
+        if not isinstance(payload, dict):
+            raise RuntimeError(f"session rollover record has a non-object payload: {payload!r}")
+        return payload
+
     # -- writers ---------------------------------------------------------- #
-    def record_order(self, decision, request, source: str = "api") -> None:
+    def record_order(
+        self,
+        decision,
+        request,
+        source: str = "api",
+        *,
+        outcome_at: datetime | None = None,
+    ) -> None:
+        """One row per order, written once, when the order reaches a terminal state.
+
+        Named columns, not positional. ``record_backtest`` learned this the hard
+        way: a positional INSERT silently writes the wrong value into the wrong
+        column the first time the schema widens, and this table has now widened
+        twice.
+
+        ``ts`` is when the recorded outcome happened; ``decided_at`` is when the
+        gates ran. For a MARKET order they are the same instant, which is why
+        every pre-existing row stays correct. For a resting order they are not,
+        and the blotter has to show the fill when it filled rather than an hour
+        earlier when the order was accepted.
+        """
         fill = decision.fill
+        decided_at = decision.timestamp.replace(tzinfo=None)
         self._exec(
-            """INSERT INTO orders VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            """INSERT INTO orders (
+                ts, order_id, client_order_id, strategy, symbol, side, order_type,
+                quantity, notional, limit_price, accepted, rejected_by, reason,
+                latency_ms, fill_price, fill_qty, fee_usd, slippage_bps, venue,
+                checks_json, source, status, time_in_force, decided_at
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
-                decision.timestamp.replace(tzinfo=None),
+                (outcome_at.replace(tzinfo=None) if outcome_at else decided_at),
                 decision.order_id,
                 decision.client_order_id,
                 getattr(request, "strategy", "manual"),
@@ -350,7 +566,64 @@ class AuditLog:
                 fill.venue if fill else None,
                 json.dumps([c.model_dump() for c in decision.checks]),
                 source,
+                getattr(decision, "status", None),
+                getattr(decision, "time_in_force", None),
+                decided_at,
             ),
+        )
+
+    def record_order_event(
+        self,
+        *,
+        order_id: str,
+        event: str,
+        status: str,
+        symbol: str,
+        side: str,
+        order_type: str = "LIMIT",
+        time_in_force: str | None = None,
+        quantity: float | None = None,
+        limit_price: float | None = None,
+        notional: float | None = None,
+        fill_price: float | None = None,
+        fill_qty: float | None = None,
+        fee_usd: float | None = None,
+        venue: str | None = None,
+        client_order_id: str | None = None,
+        actor: str = "system",
+        detail: str = "",
+        replaces: str | None = None,
+        at: datetime | None = None,
+    ) -> None:
+        """One row per transition, appended and never revised.
+
+        The ``orders`` table carries the outcome; this carries how the order got
+        there. Keeping them apart is what lets ``orders`` stay one-row-per-order
+        without the table ever being UPDATEd — which is the property the whole
+        replay path depends on.
+        """
+        self._exec(
+            """INSERT INTO order_events (
+                ts, order_id, client_order_id, event, status, symbol, side, order_type,
+                time_in_force, quantity, limit_price, notional, fill_price, fill_qty,
+                fee_usd, venue, actor, detail, replaces
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                (at.replace(tzinfo=None) if at else _utcnow()),
+                order_id, client_order_id, event, status, symbol, side, order_type,
+                time_in_force, quantity, limit_price, notional, fill_price, fill_qty,
+                fee_usd, venue, actor, detail, replaces,
+            ),
+        )
+
+    def order_timeline(self, order_id: str) -> list[dict[str, Any]]:
+        """Every transition one order made, oldest first."""
+        return self.query(
+            "SELECT ts, order_id, client_order_id, event, status, symbol, side, order_type, "
+            "time_in_force, quantity, limit_price, notional, fill_price, fill_qty, fee_usd, "
+            "venue, actor, detail, replaces "
+            "FROM order_events WHERE order_id = ? ORDER BY ts ASC",
+            (order_id,),
         )
 
     def record_risk_event(
@@ -390,6 +663,62 @@ class AuditLog:
                     self._conn.commit()
         except Exception as exc:
             raise RuntimeError("could not persist the book reset replay boundary") from exc
+
+    def record_session_rollover(
+        self,
+        session_date: str,
+        *,
+        carried_realized_pnl: float,
+        start_of_day_equity: float,
+        unrealized_at_rollover: float,
+        at: datetime,
+    ) -> None:
+        """Persist the session boundary before the in-memory book crosses it.
+
+        Strict for the same reason ``record_book_reset`` is, and the failure it
+        prevents is that one's mirror image. A lost reset resurrects positions on
+        the next restart; a lost rollover *deletes* money — the gateway banks the
+        closing session's P&L in memory only, and the next restart replays the new
+        session's fills against an opening balance that has forgotten every
+        session before it. Equity then steps down by the whole carry with no order
+        behind it, *inside* one session's curve, where nothing can explain it.
+        ``record_risk_event`` would have swallowed that write failure and logged
+        it, which is why this does not go through it.
+
+        ``at`` is the clock reading that decided the roll, not a second one taken
+        here. The row has to land inside the session window it opens, and a
+        rollover that ran across 00:00 would otherwise be filed under the
+        following day — a record nobody will ever query for is a record that does
+        not exist.
+        """
+        if self._closed:
+            raise RuntimeError("audit store is closed")
+        try:
+            with self._lock:
+                params: tuple[Any, ...] = (
+                    at.replace(tzinfo=None), "session_rollover", "info", "system", None,
+                    f"session {session_date} opened",
+                    json.dumps({
+                        "session_date": session_date,
+                        "carried_realized_pnl": carried_realized_pnl,
+                        "start_of_day_equity": start_of_day_equity,
+                        # Recorded separately because it is the one term of that
+                        # baseline a restart cannot reproduce. `start_of_day_equity`
+                        # includes the mark of positions open across the boundary,
+                        # and the replay covers one UTC day, so those positions come
+                        # back empty. A reader that applied the baseline whole would
+                        # measure a smaller book against a larger opening balance and
+                        # publish the difference as a loss nobody took.
+                        "unrealized_at_rollover": unrealized_at_rollover,
+                    }),
+                )
+                if self.backend == "sqlite":
+                    params = tuple(p.isoformat() if isinstance(p, datetime) else p for p in params)
+                self._conn.execute("INSERT INTO risk_events VALUES (?,?,?,?,?,?,?)", params)
+                if self.backend == "sqlite":
+                    self._conn.commit()
+        except Exception as exc:
+            raise RuntimeError("could not persist the session rollover replay boundary") from exc
 
     def record_tca_snapshot(self, row: dict[str, Any]) -> None:
         self._exec(
@@ -573,7 +902,7 @@ class AuditLog:
         return self.query(
             "SELECT ts, order_id, client_order_id, strategy, symbol, side, order_type, quantity, notional, "
             "accepted, rejected_by, reason, latency_ms, fill_price, fill_qty, fee_usd, slippage_bps, "
-            "venue, checks_json, source "
+            "venue, checks_json, source, status, time_in_force, decided_at "
             "FROM orders ORDER BY ts DESC LIMIT ?",
             (limit,),
         )
@@ -624,6 +953,41 @@ class AuditLog:
             )
             if tail:
                 stats.update(tail[0])
+        return stats
+
+    def session_costs(self, session_date: str) -> dict[str, Any]:
+        """Fees and slippage actually paid during one UTC session, in dollars.
+
+        ``execution_stats`` is lifetime and its ``avg_slippage_bps`` is an
+        unweighted mean of basis points — neither can become a dollar leg of one
+        day's P&L. Subtracting a lifetime fee total from a single session's P&L
+        reports a loss the desk did not take, so the session figures are computed
+        separately and name the day they cover.
+
+        ``fills_without_slippage`` is the honesty field. A fill whose slippage was
+        never measured makes the cost leg a *lower bound*, and a caller that
+        treated the gap as zero would understate what execution cost.
+        """
+        try:
+            start = datetime.strptime(session_date, "%Y-%m-%d")
+        except ValueError:
+            return {}
+        end = start + timedelta(days=1)
+        params: tuple[Any, ...] = (start, end)
+        if self.backend == "sqlite":
+            params = tuple(p.isoformat() for p in (start, end))
+
+        rows = self.query(
+            "SELECT count(*) AS fills, "
+            "sum(COALESCE(notional, 0)) AS notional, "
+            "sum(COALESCE(fee_usd, 0)) AS fees, "
+            "sum(COALESCE(notional, 0) * COALESCE(slippage_bps, 0)) / 10000.0 AS slippage_cost, "
+            "sum(CASE WHEN slippage_bps IS NULL THEN 1 ELSE 0 END) AS fills_without_slippage "
+            "FROM orders WHERE accepted AND fill_qty IS NOT NULL AND ts >= ? AND ts < ?",
+            params,
+        )
+        stats = dict(rows[0]) if rows else {}
+        stats["session_date"] = session_date
         return stats
 
     def execution_quality_by(self, dimension: str) -> list[dict[str, Any]]:

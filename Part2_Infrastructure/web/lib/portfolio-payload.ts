@@ -82,7 +82,22 @@ export function isPortfolioPayload(value: unknown): boolean {
       && (strategy.avg_slippage_bps === null || isFiniteNumber(strategy.avg_slippage_bps));
   });
 
+  // Validated only when present. Making it required would flip every gateway
+  // older than the session block to `gateway_invalid_payload` — a deployment
+  // that works becoming one that reports itself broken, which is the worse
+  // failure of the two. Absent means the waterfall withholds its cost legs and
+  // says so, which is the behaviour the consumer already implements.
+  const session = attribution.session;
+  const validSession = session === undefined || (
+    isRecord(session)
+    && (session.session_date === undefined || typeof session.session_date === "string")
+    && (session.basis === undefined || session.basis === "audited" || session.basis === "generated")
+    && ["fills", "notional", "fees", "slippage_cost", "fills_without_slippage", "realized_pnl", "unrealized_pnl", "market_pnl", "reference_return"]
+      .every((key) => session[key] === undefined || isFiniteNumber(session[key]))
+  );
+
   return validGateway
+    && validSession
     && isHeadroom(riskBudget.gross_exposure)
     && isRecord(drawdown)
     && ["used_pct", "limit_pct", "utilisation", "equity_at_halt", "cushion_usd"]

@@ -33,6 +33,7 @@ const header = read("../components/WorkspaceHeader.tsx");
 const page = read("../app/page.tsx");
 const subtabs = read("../components/WorkspaceSubtabs.tsx");
 const riskWorkspace = read("../components/RiskWorkspace.tsx");
+const portfolioWorkspace = read("../components/PortfolioWorkspace.tsx");
 const dataConsole = read("../components/DataConsole.tsx");
 const reliabilityConsole = read("../components/ReliabilityConsole.tsx");
 const developerConsole = read("../components/DeveloperConsole.tsx");
@@ -117,6 +118,16 @@ describe("dense role workspaces expose accessible feature sections", () => {
     }
     for (const section of ["limits", "model", "scenarios", "controls"]) {
       assert.ok(riskWorkspace.includes(`id: "${section}"`), `risk is missing the ${section} subtab`);
+    }
+    for (const section of ["overview", "positions", "allocation", "performance"]) {
+      assert.ok(
+        portfolioWorkspace.includes(`id: "${section}"`),
+        `portfolio is missing the ${section} subtab`,
+      );
+      assert.ok(
+        portfolioWorkspace.includes(`tabId="${section}"`),
+        `portfolio is missing the ${section} panel`,
+      );
     }
     for (const section of ["queue", "routing", "pipeline", "quality", "capacity"]) {
       assert.ok(dataConsole.includes(`id: "${section}"`), `data is missing the ${section} subtab`);
@@ -309,6 +320,7 @@ const COMPONENTS = [
   "../components/ReliabilityConsole.tsx",
   "../components/DeveloperConsole.tsx",
   "../components/portfolio/BookChrome.tsx",
+  "../components/portfolio/WorkingOrders.tsx",
   "../lib/use-book.ts",
   "../lib/use-system-health.ts",
 ];
