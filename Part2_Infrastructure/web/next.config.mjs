@@ -88,17 +88,25 @@ function normalisePemKey(raw) {
  * Name the wrong value by its shape, never by echoing it — whatever was pasted
  * may itself be a live secret, and build logs are not a secret store.
  */
-function describeWrongShape(value) {
-  if (/^[0-9a-f]{64}$/i.test(value)) {
+function describeWrongShape(raw, pem) {
+  // Check the NORMALISED text for armor labels, not the raw value: a
+  // well-formed public key survives normalisation intact (the armor regex
+  // accepts any [A-Z ]+ label), and base64-of-a-public-key has no armor at all
+  // until it is decoded. Testing only `raw` left both branches unreachable and
+  // handed the two likeliest paste mistakes a bare OpenSSL decoder code.
+  const armored = pem ?? raw;
+  if (armored.includes("-----BEGIN PUBLIC KEY")) {
+    return "this is the PUBLIC key (artifact-signing-pub.pem); the build signs with the private one";
+  }
+  if (armored.includes("-----BEGIN CERTIFICATE")) return "this is a certificate, not a private key";
+  if (/^[0-9a-f]{64}$/i.test(raw)) {
     return "this looks like a 64-character hex digest — probably the signer's "
       + "fingerprint (artifact-signing-fingerprint.txt) or a gateway token, not the private key";
   }
-  if (value.includes("-----BEGIN PUBLIC KEY")) return "this is the PUBLIC key; the build signs with the private one";
-  if (value.includes("-----BEGIN CERTIFICATE")) return "this is a certificate, not a private key";
-  if (/^eyJ[A-Za-z0-9_-]/.test(value)) return "this looks like a JWT (a Supabase anon/service key)";
-  if (/^(sbp_|sb_secret_|sb_publishable_)/.test(value)) return "this looks like a Supabase token";
-  if (/^https?:\/\//.test(value)) return "this looks like a URL";
-  return `unrecognised (${value.length} characters, no PEM armor and not base64-of-PEM)`;
+  if (/^eyJ[A-Za-z0-9_-]/.test(raw)) return "this looks like a JWT (a Supabase anon/service key)";
+  if (/^(sbp_|sb_secret_|sb_publishable_)/.test(raw)) return "this looks like a Supabase token";
+  if (/^https?:\/\//.test(raw)) return "this looks like a URL";
+  return null;
 }
 
 /**
@@ -122,12 +130,16 @@ function artifactAttestationEnv() {
   const pem = normalisePemKey(configured);
   let privateKey;
   try {
-    if (!pem) throw new Error(describeWrongShape(configured));
+    if (!pem) throw new Error("no PEM armor and not base64-of-PEM");
     privateKey = createPrivateKey(pem);
   } catch (cause) {
+    // Consulted for EVERY failure, not just unnormalisable ones — a valid
+    // public-key PEM normalises cleanly and only fails at createPrivateKey.
+    const shape = describeWrongShape(configured, pem)
+      ?? `${cause.message} (${configured.length} characters)`;
     console.warn(
       "\n⚠ ALPHAENGINE_ARTIFACT_SIGNING_KEY could not be read as a private key — "
-      + `${cause.message}.\n`
+      + `${shape}.\n`
       + "  Building WITHOUT an attestation: the app deploys and Artifact custody "
       + "reports 'unsigned' rather than a false pass.\n"
       + "  To fix: set it to the PEM contents of your Ed25519 key, or to "

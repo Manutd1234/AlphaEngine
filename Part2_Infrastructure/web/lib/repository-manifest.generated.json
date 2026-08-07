@@ -308,6 +308,7 @@
     "Part2_Infrastructure/web/scripts/check-gateway-openapi-digest.mjs",
     "Part2_Infrastructure/web/scripts/generate-codebase-manifest.mjs",
     "Part2_Infrastructure/web/scripts/start-dev-all.mjs",
+    "Part2_Infrastructure/web/tests/artifact-signing-key.test.ts",
     "Part2_Infrastructure/web/tests/cockpit.test.ts",
     "Part2_Infrastructure/web/tests/colormap.test.ts",
     "Part2_Infrastructure/web/tests/contracts.test.ts",

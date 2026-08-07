@@ -39,7 +39,9 @@ export async function POST(request: NextRequest) {
 
   const result = await callGateway("/api/research/rag/search", {
     method: "POST",
-    body: JSON.stringify({ query, match_count: matchCount, kind }),
+    // A plain object: callGateway serialises. Pre-stringifying here sent a
+    // quoted JSON *string* on the wire, which the Pydantic model cannot bind.
+    body: { query, match_count: matchCount, kind },
     subject: "the research similarity index",
     validate: isResearchRagSearchResponse,
   });

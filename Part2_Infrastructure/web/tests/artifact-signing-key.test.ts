@@ -23,7 +23,7 @@
  */
 
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { type KeyObject, generateKeyPairSync } from "node:crypto";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -135,6 +135,53 @@ describe("the security assertions still fail the build", () => {
 
   it("builds unsigned when no key is configured at all", () => {
     assert.equal(loadConfig(undefined), "unsigned");
+  });
+});
+
+describe("the diagnostic names the actual mistake, not a decoder routine", () => {
+  /**
+   * Both streams: console.warn writes to stderr, and on a SUCCESSFUL load
+   * execFileSync returns stdout only — so capturing stdout alone yields an
+   * empty string and any assertion over it passes vacuously.
+   */
+  function warningFor(value: string): string {
+    const run = spawnSync(
+      process.execPath,
+      ["--input-type=module", "-e", 'import(process.cwd() + "/next.config.mjs")'],
+      {
+        cwd: webRoot,
+        env: { ...process.env, ALPHAENGINE_ARTIFACT_SIGNING_KEY: value },
+        encoding: "utf8",
+      },
+    );
+    return `${run.stdout ?? ""}${run.stderr ?? ""}`;
+  }
+
+  const publicPem = generateKeyPairSync("ed25519").publicKey
+    .export({ type: "spki", format: "pem" }).toString();
+
+  // A well-formed public key normalises cleanly (the armor regex accepts any
+  // [A-Z ]+ label), so it only fails at createPrivateKey. Testing the raw value
+  // alone left this branch unreachable and printed ERR_OSSL_UNSUPPORTED — the
+  // exact opaque string this layer exists to replace.
+  it("recognises a public key pasted instead of the private one", () => {
+    assert.match(warningFor(publicPem), /this is the PUBLIC key/);
+  });
+
+  it("recognises a public key even when base64-encoded", () => {
+    assert.match(warningFor(Buffer.from(publicPem).toString("base64")), /this is the PUBLIC key/);
+  });
+
+  it("recognises the signer fingerprint", () => {
+    assert.match(warningFor("a1b2c3d4".repeat(8)), /fingerprint/);
+  });
+
+  it("never leaks a raw OpenSSL decoder code as the whole explanation", () => {
+    const warning = warningFor(publicPem);
+    assert.ok(
+      !/could not be read as a private key — error:[0-9A-F]{8}:/.test(warning),
+      "an unexplained OpenSSL code is the failure mode this layer exists to prevent",
+    );
   });
 });
 

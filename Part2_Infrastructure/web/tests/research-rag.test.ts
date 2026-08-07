@@ -24,6 +24,24 @@ describe("the proxy route", () => {
     assert.match(route, /validate: isResearchRagSearchResponse/);
   });
 
+  it("hands callGateway an object, never a pre-serialised string", () => {
+    // callGateway owns serialisation (lib/gateway.ts). Pre-stringifying here
+    // put a quoted JSON string on the wire; the gateway's Pydantic model
+    // rejected it with 422, which surfaced as a permanent `gateway_rejected`
+    // 502 the moment ALPHAENGINE_GATEWAY_URL started resolving. The original
+    // test asserted only that callGateway was *called*, which this bug passed.
+    // Scope to the callGateway invocation: the route also declares
+    // `let body: unknown` for the incoming request, which a file-wide regex
+    // matches first.
+    const call = route.slice(route.indexOf("callGateway("));
+    const body = call.slice(call.indexOf("body:")).split("\n")[0];
+    assert.ok(
+      !body.includes("JSON.stringify"),
+      `body must be a plain object for the shared boundary to serialise, got: ${body}`,
+    );
+    assert.match(body, /body:\s*\{\s*query/, "expected an object literal");
+  });
+
   it("is read-shaped: no operator-token gate, token stays server-side", () => {
     assert.ok(!route.includes("authorise("), "reads are not operator-gated (audit precedent)");
     assert.ok(!route.includes("NEXT_PUBLIC"), "no browser-visible credential");

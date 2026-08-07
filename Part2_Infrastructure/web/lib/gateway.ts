@@ -118,7 +118,28 @@ export interface CallOptions {
   subject?: string;
 }
 
+/**
+ * Reject a body the caller already serialised. Every gateway route binds a
+ * Pydantic model, and a quoted JSON string fails that binding with a 422 the
+ * client sees as `gateway_rejected` — a real defect wearing an outage's face.
+ * A string body is never legitimate here, so it is safe to refuse outright.
+ */
+function assertUnserialised(body: unknown): unknown {
+  if (typeof body === "string") {
+    throw new TypeError(
+      "callGateway serialises its body — pass a plain object, not a JSON string "
+      + "(pre-stringifying double-encodes and the gateway answers 422)",
+    );
+  }
+  return body;
+}
+
 export async function callGateway<T = unknown>(path: string, options: CallOptions = {}): Promise<GatewayResult<T>> {
+  // Before the configuration check: a caller passing the wrong body type is a
+  // programming error, and it must not stay hidden on deployments where the
+  // gateway happens to be unset — that is exactly how this one survived review.
+  if (options.body !== undefined) assertUnserialised(options.body);
+
   const state = gatewayState();
   if (state.kind === "absent") return { ok: false, failure: notConfigured(options.subject ?? path) };
   if (state.kind !== "url") return { ok: false, failure: misconfigured(state) };
@@ -134,6 +155,8 @@ export async function callGateway<T = unknown>(path: string, options: CallOption
       cache: "no-store",
       signal: controller.signal,
       headers: gatewayHeaders(),
+      // Callers pass plain objects; this boundary owns serialisation. The
+      // guard runs at function entry (assertUnserialised).
       ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
     });
 

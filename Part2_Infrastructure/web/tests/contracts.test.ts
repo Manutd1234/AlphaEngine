@@ -59,6 +59,19 @@ function bars(count: number, stepMs = 3_600_000): OhlcvBar[] {
 // Quotes
 // --------------------------------------------------------------------------
 
+describe("callGateway refuses a pre-serialised body", () => {
+  // The guard exists because double-encoding produced an upstream 422 that
+  // read as a gateway outage. A string body is never legitimate at this
+  // boundary, so refusing it outright cannot break a valid caller.
+  it("throws a TypeError naming the fix", async () => {
+    const { callGateway } = await import("../lib/gateway");
+    await assert.rejects(
+      () => callGateway("/api/anything", { method: "POST", body: JSON.stringify({ a: 1 }) as unknown as object }),
+      /pass a plain object, not a JSON string/,
+    );
+  });
+});
+
 describe("a quote is checked for things that parse and are still wrong", () => {
   it("passes a healthy quote with nothing to report", () => {
     const result = checkQuote("fmp", quote(), NOW);
