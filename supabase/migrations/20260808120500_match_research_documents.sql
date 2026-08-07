@@ -31,12 +31,12 @@ as $$
   select
     d.id, d.kind, d.source_ref, d.symbol, d.strategy, d.occurred_at,
     d.title, d.body, d.metrics,
-    1 - (d.embedding <=> query_embedding) as similarity
+    1 - (d.embedding operator(extensions.<=>) query_embedding) as similarity
   from public.research_documents d
   where d.embedding is not null
     and d.embedding_status = 'ready'
     and (filter_kind is null or d.kind = filter_kind)
-    and 1 - (d.embedding <=> query_embedding) >= min_similarity
-  order by d.embedding <=> query_embedding
+    and 1 - (d.embedding operator(extensions.<=>) query_embedding) >= min_similarity
+  order by d.embedding operator(extensions.<=>) query_embedding
   limit greatest(1, least(match_count, 20));
 $$;

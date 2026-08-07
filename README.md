@@ -61,22 +61,33 @@ failing.
 **→ [`Part2_Infrastructure/README.md`](Part2_Infrastructure/README.md)** for the
 architecture, the design arguments, and what is implemented versus mocked.
 
-### Tech stack
+## 🛠️ Tech Stack
 
-One platform, four layers. A row marked *planned* names work that is designed
-but not yet shipped — a README that described it as live would be the same
-defect as an untagged synthetic book.
+Versions are as deployed/locked on 2026-08-08 (read from the running container,
+the lockfile and the live database). Full detail — every dependency's *why*,
+the API-key table and the RAG/ML pipeline — lives in
+[`Part2_Infrastructure/README.md` §Tech Stack](Part2_Infrastructure/README.md).
 
-| Layer | What runs it | Status |
-|---|---|---|
-| **Frontend** | Next.js 16 (App Router, Turbopack) · React 19 · TypeScript 5 · Tailwind 4 · Vercel (`sin1`) | shipped |
-| **Backend** | Python 3.12 · FastAPI · uvicorn (single process, stateful by design) · Docker on host port 8000 · optional Celery/Redis | shipped · container in `docker/` |
-| **Database** | DuckDB embedded append-only audit log (**authoritative**) · Supabase Postgres mirror with RLS (`supabase/migrations/`) | shipped · mirror off by default |
-| **RAG** | Supabase pgvector · `gte-small` 384-dim embeddings via Edge Function · corpus = backtest runs, execution summaries, risk incidents | shipped · requires Supabase configured |
+### Frontend Core
+* **[Next.js v16.3.0](https://nextjs.org)** — App Router + Turbopack on Vercel (`sin1`); the browser bundle ships zero backend credentials.
+* **[React v19.2.8](https://react.dev)** · **[TypeScript v5.9.3](https://www.typescriptlang.org)** — one workspace, eight URL-addressable role tabs.
+* **[Tailwind CSS v4.3.3](https://tailwindcss.com)** — utilities over a hand-written token system with a test-enforced AA contrast contract; charts are hand-rolled SVG, no chart library.
 
-DuckDB stays authoritative and Postgres is a mirror because the desk must keep
-trading when the cloud is unreachable — the mirror can lag or drop; the gateway
-never waits for it.
+### Backend
+* **[Python v3.12.13](https://www.python.org)** + **[FastAPI v0.141.1](https://fastapi.tiangolo.com)** + **[Uvicorn v0.52.1](https://www.uvicorn.org)** — the always-on gateway, one stateful process by design (in-memory book + kill switch).
+* **[NumPy v2.5.1](https://numpy.org)** / **[pandas v3.0.5](https://pandas.pydata.org)** — reference engines for TCA, risk and backtesting; vectorbt optional.
+* **[httpx](https://www.python-httpx.org)** / **[websockets](https://websockets.readthedocs.io)** — keyless Binance + Bybit L2 ingest and all outbound HTTP.
+
+### Database
+* **[DuckDB v1.5.5](https://duckdb.org)** — embedded append-only audit log, the **authoritative** store; survives every network dependency being down.
+* **[PostgreSQL v17.6](https://www.postgresql.org) / [Supabase](https://supabase.com)** — durable mirror with RLS deny-by-default and `decided_by` provenance; never a second decision-maker.
+* **[pgvector v0.8.2](https://github.com/pgvector/pgvector)** — 384-dim HNSW research index (`gte-small` via a Supabase Edge Function; zero API keys).
+
+### DevOps & Infrastructure
+* **[Docker v29.7.2](https://www.docker.com)** — non-root two-stage image + compose; contract-tested, secret-free by test.
+* **[Caddy v2.6.2](https://caddyserver.com)** — automatic HTTPS in front of the gateway on Oracle Cloud (Singapore — region is load-bearing for venue egress).
+* **[GitHub Actions](https://github.com/features/actions)** — four network-free CI jobs; 396 gateway + 689 web + 13 service tests.
+* **[Vercel](https://vercel.com)** — two serverless projects from one repo; builds are Ed25519-attested against a trust root pinned in reviewed source.
 
 ### Verify it end to end
 
