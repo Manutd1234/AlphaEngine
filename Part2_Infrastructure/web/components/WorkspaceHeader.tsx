@@ -54,6 +54,10 @@ interface WorkspaceHeaderProps {
   riskControl: KillSwitchRiskControl;
 }
 
+import { KeyboardEvent, useRef, useState, useEffect } from "react";
+import CommandBar from "@/components/header/CommandBar";
+import AudienceAccessibilityBar from "@/components/common/AudienceAccessibilityBar";
+
 export default function WorkspaceHeader({
   view,
   onViewChange,
@@ -68,6 +72,27 @@ export default function WorkspaceHeader({
   riskControl,
 }: WorkspaceHeaderProps) {
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [commandBarOpen, setCommandBarOpen] = useState(false);
+  const [fontSize, setFontSize] = useState<"normal" | "large" | "xlarge" | "huge">("normal");
+  const [plainEnglishMode, setPlainEnglishMode] = useState(false);
+
+  useEffect(() => {
+    const onKeyDown = (e: globalThis.KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setCommandBarOpen((prev) => !prev);
+      }
+      if (e.altKey && e.key >= "1" && e.key <= "8") {
+        e.preventDefault();
+        const index = parseInt(e.key, 10) - 1;
+        if (index >= 0 && index < NAV_ITEMS.length) {
+          onViewChange(NAV_ITEMS[index].id);
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onViewChange]);
 
   const onTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
@@ -151,9 +176,23 @@ export default function WorkspaceHeader({
           <i aria-hidden />
           {healthLabel}
         </button>
+        <AudienceAccessibilityBar
+          fontSize={fontSize}
+          onFontSizeChange={setFontSize}
+          plainEnglishMode={plainEnglishMode}
+          onTogglePlainEnglish={() => setPlainEnglishMode((p) => !p)}
+        />
         <ThemeToggle />
       </div>
 
+      <CommandBar
+        open={commandBarOpen}
+        onClose={() => setCommandBarOpen(false)}
+        onSelectTab={(tabId) => onViewChange(tabId as WorkspaceView)}
+        onSymbolSelect={() => onViewChange("live")}
+        onToggleKillSwitch={() => onViewChange("risk")}
+        onToggleFontSize={() => setFontSize((s) => (s === "normal" ? "large" : s === "large" ? "xlarge" : s === "xlarge" ? "huge" : "normal"))}
+      />
     </header>
   );
 }

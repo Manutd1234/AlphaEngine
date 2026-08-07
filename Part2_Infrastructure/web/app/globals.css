@@ -1661,29 +1661,27 @@ tbody tr[tabindex]:focus-visible {
 .workspace-tabs {
   display: flex;
   align-self: stretch;
-  align-items: stretch;
+  align-items: center;
   gap: 2px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.workspace-tabs::-webkit-scrollbar {
-  display: none;
+  overflow-x: visible;
+  flex: 1;
 }
 
 .workspace-tabs button {
   position: relative;
-  min-width: auto;
-  padding: 8px 12px;
+  flex: 1;
+  padding: 6px 8px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   color: var(--text-secondary);
-  display: grid;
-  align-content: center;
-  gap: 1px;
-  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
   white-space: nowrap;
+  font-size: 11px;
 }
 
 .workspace-tabs button::after {

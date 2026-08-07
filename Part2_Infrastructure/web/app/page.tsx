@@ -12,6 +12,7 @@ import PortfolioWorkspace, { type PortfolioFocusDestination } from "@/components
 import PriceChart from "@/components/PriceChart";
 import ReliabilityConsole, { RELIABILITY_SECTION_IDS, type ReliabilitySection } from "@/components/ReliabilityConsole";
 import RiskWorkspace from "@/components/RiskWorkspace";
+import SignalDAGViewer from "@/components/research/SignalDAGViewer";
 import ExperimentHistory from "@/components/research/ExperimentHistory";
 import FactorPanel from "@/components/research/FactorPanel";
 import PromotionPanel from "@/components/research/PromotionPanel";
@@ -503,6 +504,8 @@ export default function Page() {
                 },
               ]}
             />
+
+            <SignalDAGViewer />
 
             {error && (
               <div className="banner error" role="alert">

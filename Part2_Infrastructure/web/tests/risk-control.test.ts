@@ -54,7 +54,7 @@ describe("confirmArms", () => {
     assert.equal(confirmArms("flatten", "flatten"), true);
     assert.equal(confirmArms("HALT", "resume"), false);
     assert.equal(confirmArms("", "halt"), false);
-    assert.equal(Object.keys(RISK_CONFIRM_WORD).length, 3);
+    assert.equal(Object.keys(RISK_CONFIRM_WORD).length, 4);
   });
 });
 
