@@ -1410,17 +1410,16 @@ tbody tr[tabindex]:focus-visible {
 }
 
 .workspace-header__utility {
-  width: min(1480px, 100%);
+  width: 100%;
+  max-width: 100vw;
   margin: 0 auto;
-  padding-left: 24px;
-  padding-right: 24px;
-}
-
-.workspace-header__utility {
+  padding-left: 16px;
+  padding-right: 16px;
   min-height: 62px;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
+  overflow-x: hidden;
 }
 
 .brand-lockup {

@@ -22,14 +22,14 @@ export type WorkspaceView =
   | "developer";
 
 export const NAV_ITEMS: { id: WorkspaceView; label: string; role: string; accessibleLabel?: string }[] = [
-  { id: "overview", label: "Overview (All Roles)", role: "Every desk role" },
-  { id: "research", label: "Research (Quant Researcher)", role: "Quant researcher" },
-  { id: "live", label: "Execution (Quant Trader)", role: "Quant trader", accessibleLabel: "Execution" },
-  { id: "portfolio", label: "Portfolio (Portfolio Manager)", role: "Portfolio manager" },
-  { id: "risk", label: "Risk (Risk Manager)", role: "Risk manager" },
-  { id: "data", label: "Data (Data Engineer)", role: "Data engineer", accessibleLabel: "Data operations" },
-  { id: "reliability", label: "Reliability (DevOps/SRE)", role: "DevOps / SRE" },
-  { id: "developer", label: "Developer (Quant Developer)", role: "Quant developer" },
+  { id: "overview", label: "Overview", role: "All Roles" },
+  { id: "research", label: "Research", role: "Quant" },
+  { id: "live", label: "Execution", role: "Trader", accessibleLabel: "Execution" },
+  { id: "portfolio", label: "Portfolio", role: "PM" },
+  { id: "risk", label: "Risk", role: "Risk" },
+  { id: "data", label: "Data", role: "Data", accessibleLabel: "Data operations" },
+  { id: "reliability", label: "Reliability", role: "SRE" },
+  { id: "developer", label: "Developer", role: "Dev" },
 ];
 
 interface WorkspaceHeaderProps {
