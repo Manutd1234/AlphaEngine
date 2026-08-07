@@ -72,40 +72,70 @@ function normalisePemKey(raw) {
   if (!value.includes("-----BEGIN")) {
     // No PEM armor at all: treat as base64 of the whole PEM file.
     const decoded = Buffer.from(value.replace(/\s+/g, ""), "base64").toString("utf8");
-    if (!decoded.includes("-----BEGIN")) {
-      throw new Error(
-        "ALPHAENGINE_ARTIFACT_SIGNING_KEY is neither a PEM nor base64-of-PEM — "
-        + "paste the .pem file's contents, or `base64 -i key.pem` for a paste-proof single line",
-      );
-    }
+    if (!decoded.includes("-----BEGIN")) return null;
     value = decoded;
   }
   // Rebuild the armor: whatever happened to the whitespace between the
   // markers, the base64 body is recoverable by stripping it all.
   const match = value.match(/-----BEGIN ([A-Z ]+)-----([\s\S]*?)-----END \1-----/);
-  if (!match) {
-    throw new Error("ALPHAENGINE_ARTIFACT_SIGNING_KEY has mismatched PEM BEGIN/END markers");
-  }
+  if (!match) return null;
   const body = match[2].replace(/\s+/g, "");
   const wrapped = body.replace(/(.{64})/g, "$1\n").trim();
   return `-----BEGIN ${match[1]}-----\n${wrapped}\n-----END ${match[1]}-----\n`;
 }
 
+/**
+ * Name the wrong value by its shape, never by echoing it — whatever was pasted
+ * may itself be a live secret, and build logs are not a secret store.
+ */
+function describeWrongShape(value) {
+  if (/^[0-9a-f]{64}$/i.test(value)) {
+    return "this looks like a 64-character hex digest — probably the signer's "
+      + "fingerprint (artifact-signing-fingerprint.txt) or a gateway token, not the private key";
+  }
+  if (value.includes("-----BEGIN PUBLIC KEY")) return "this is the PUBLIC key; the build signs with the private one";
+  if (value.includes("-----BEGIN CERTIFICATE")) return "this is a certificate, not a private key";
+  if (/^eyJ[A-Za-z0-9_-]/.test(value)) return "this looks like a JWT (a Supabase anon/service key)";
+  if (/^(sbp_|sb_secret_|sb_publishable_)/.test(value)) return "this looks like a Supabase token";
+  if (/^https?:\/\//.test(value)) return "this looks like a URL";
+  return `unrecognised (${value.length} characters, no PEM armor and not base64-of-PEM)`;
+}
+
+/**
+ * Optional attestation, and *optional* has to mean it: an unusable value here
+ * must not be able to fail the build. A failed build never replaces the running
+ * deployment, so treating a mistyped signing key as fatal takes the whole site
+ * down — and hides every other env fix in the same deploy behind an error about
+ * a feature nobody was blocked on. (That happened; this is the fix.)
+ *
+ * The security assertion is kept where it belongs. An unreadable value proves
+ * nothing and yields no attestation, so `evaluateArtifactCustody` reports
+ * `unsigned` and the readiness gate stays visibly red. But a *well-formed* key
+ * that is the wrong algorithm or signs under an untrusted fingerprint is a real
+ * alarm — someone is signing builds with a key this repo does not trust — and
+ * that still fails the build, loudly and immediately.
+ */
 function artifactAttestationEnv() {
   const configured = process.env.ALPHAENGINE_ARTIFACT_SIGNING_KEY?.trim();
   if (!configured) return {};
+
+  const pem = normalisePemKey(configured);
   let privateKey;
   try {
-    privateKey = createPrivateKey(normalisePemKey(configured));
+    if (!pem) throw new Error(describeWrongShape(configured));
+    privateKey = createPrivateKey(pem);
   } catch (cause) {
-    // The stock OpenSSL error names a decoder routine, not the fix. Name both.
-    throw new Error(
-      "ALPHAENGINE_ARTIFACT_SIGNING_KEY could not be parsed as a private key "
-      + `(${cause.message}). Re-paste the PEM with its line breaks, or store it `
-      + "base64-encoded (`base64 -i key.pem`) — both forms are accepted.",
-      { cause },
+    console.warn(
+      "\n⚠ ALPHAENGINE_ARTIFACT_SIGNING_KEY could not be read as a private key — "
+      + `${cause.message}.\n`
+      + "  Building WITHOUT an attestation: the app deploys and Artifact custody "
+      + "reports 'unsigned' rather than a false pass.\n"
+      + "  To fix: set it to the PEM contents of your Ed25519 key, or to "
+      + "`base64 -i key.pem` output for a paste-proof single line.\n",
     );
+    return {};
   }
+
   if (privateKey.asymmetricKeyType !== "ed25519") {
     throw new Error("ALPHAENGINE_ARTIFACT_SIGNING_KEY must be an Ed25519 private key");
   }
