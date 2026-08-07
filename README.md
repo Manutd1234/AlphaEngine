@@ -63,31 +63,43 @@ architecture, the design arguments, and what is implemented versus mocked.
 
 ## 🛠️ Tech Stack
 
-Versions are as deployed/locked on 2026-08-08 (read from the running container,
-the lockfile and the live database). Full detail — every dependency's *why*,
-the API-key table and the RAG/ML pipeline — lives in
+Versions are as deployed/locked on 2026-08-08 — read from the running
+container, the lockfile and the live database. Full detail (every dependency's
+*why*, the API-key table and the RAG/ML pipeline) is in
 [`Part2_Infrastructure/README.md` §Tech Stack](Part2_Infrastructure/README.md).
 
 ### Frontend Core
-* **[Next.js v16.3.0](https://nextjs.org)** — App Router + Turbopack on Vercel (`sin1`); the browser bundle ships zero backend credentials.
-* **[React v19.2.8](https://react.dev)** · **[TypeScript v5.9.3](https://www.typescriptlang.org)** — one workspace, eight URL-addressable role tabs.
-* **[Tailwind CSS v4.3.3](https://tailwindcss.com)** — utilities over a hand-written token system with a test-enforced AA contrast contract; charts are hand-rolled SVG, no chart library.
+
+| Component | Version | Role |
+|---|---|---|
+| **[Next.js](https://nextjs.org)** | 16.3.0 | App Router + Turbopack on Vercel (`sin1`); the browser bundle ships zero backend credentials. |
+| **[React](https://react.dev)** · **[TypeScript](https://www.typescriptlang.org)** | 19.2.8 · 5.9.3 | One workspace, eight URL-addressable role tabs, strict mode. |
+| **[Tailwind CSS](https://tailwindcss.com)** | 4.3.3 | Utilities over a hand-written token system with a test-enforced AA contrast contract. Charts are hand-rolled SVG — no chart library. |
 
 ### Backend
-* **[Python v3.12.13](https://www.python.org)** + **[FastAPI v0.141.1](https://fastapi.tiangolo.com)** + **[Uvicorn v0.52.1](https://www.uvicorn.org)** — the always-on gateway, one stateful process by design (in-memory book + kill switch).
-* **[NumPy v2.5.1](https://numpy.org)** / **[pandas v3.0.5](https://pandas.pydata.org)** — reference engines for TCA, risk and backtesting; vectorbt optional.
-* **[httpx](https://www.python-httpx.org)** / **[websockets](https://websockets.readthedocs.io)** — keyless Binance + Bybit L2 ingest and all outbound HTTP.
+
+| Component | Version | Role |
+|---|---|---|
+| **[Python](https://www.python.org)** · **[FastAPI](https://fastapi.tiangolo.com)** · **[Uvicorn](https://www.uvicorn.org)** | 3.12.13 · 0.141.1 · 0.52.1 | The always-on gateway — one stateful process by design (in-memory book + kill switch). |
+| **[NumPy](https://numpy.org)** · **[pandas](https://pandas.pydata.org)** | 2.5.1 · 3.0.5 | Reference engines for TCA, risk and backtesting; vectorbt optional. |
+| **[httpx](https://www.python-httpx.org)** · **[websockets](https://websockets.readthedocs.io)** | 0.28.1 · 17.0.1 | Keyless Binance + Bybit L2 ingest and all outbound HTTP. |
 
 ### Database
-* **[DuckDB v1.5.5](https://duckdb.org)** — embedded append-only audit log, the **authoritative** store; survives every network dependency being down.
-* **[PostgreSQL v17.6](https://www.postgresql.org) / [Supabase](https://supabase.com)** — durable mirror with RLS deny-by-default and `decided_by` provenance; never a second decision-maker.
-* **[pgvector v0.8.2](https://github.com/pgvector/pgvector)** — 384-dim HNSW research index (`gte-small` via a Supabase Edge Function; zero API keys).
+
+| Component | Version | Role |
+|---|---|---|
+| **[DuckDB](https://duckdb.org)** | 1.5.5 | Embedded append-only audit log — the **authoritative** store; survives every network dependency being down. |
+| **[PostgreSQL](https://www.postgresql.org)** / **[Supabase](https://supabase.com)** | 17.6 | Durable mirror with RLS deny-by-default and `decided_by` provenance; never a second decision-maker. |
+| **[pgvector](https://github.com/pgvector/pgvector)** | 0.8.2 | 384-dim HNSW research index (`gte-small` via a Supabase Edge Function; zero API keys). |
 
 ### DevOps & Infrastructure
-* **[Docker v29.7.2](https://www.docker.com)** — non-root two-stage image + compose; contract-tested, secret-free by test.
-* **[Caddy v2.6.2](https://caddyserver.com)** — automatic HTTPS in front of the gateway on Oracle Cloud (Singapore — region is load-bearing for venue egress).
-* **[GitHub Actions](https://github.com/features/actions)** — four network-free CI jobs; 396 gateway + 689 web + 13 service tests.
-* **[Vercel](https://vercel.com)** — two serverless projects from one repo; builds are Ed25519-attested against a trust root pinned in reviewed source.
+
+| Component | Version | Role |
+|---|---|---|
+| **[Docker](https://www.docker.com)** | 29.7.2 | Non-root two-stage image + compose; contract-tested, secret-free by test. |
+| **[Caddy](https://caddyserver.com)** | 2.6.2 | Automatic HTTPS in front of the gateway on Oracle Cloud (Singapore — region is load-bearing for venue egress). |
+| **[GitHub Actions](https://github.com/features/actions)** | — | Four network-free CI jobs: 396 gateway + 711 web + 13 service tests. |
+| **[Vercel](https://vercel.com)** | — | Two serverless projects from one repo; builds are Ed25519-attested against a trust root pinned in reviewed source. |
 
 ### Verify it end to end
 
@@ -98,7 +110,7 @@ cd Part2_Infrastructure
 python -m venv venv && venv/bin/pip install -r requirements-core.txt
 venv/bin/python -m pytest                            # 396 gateway tests
 venv/bin/python tools/synthetic_probe.py             # book → cost → risk gate → audit
-(cd web && npm install && npm test)                  # 689 web tests, incl. cross-engine parity
+(cd web && npm install && npm test)                  # 711 web tests, incl. cross-engine parity
 (cd OpenBB_Service && ../venv/bin/python -m pytest)  # 13 service tests
 ```
 
