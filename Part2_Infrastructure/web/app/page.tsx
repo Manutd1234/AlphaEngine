@@ -22,6 +22,7 @@ import StabilityPanel from "@/components/research/StabilityPanel";
 import StaleGate from "@/components/research/StaleGate";
 import TearSheet from "@/components/research/TearSheet";
 import WalkForwardTimeline from "@/components/research/WalkForwardTimeline";
+import NextStepFooter from "@/components/common/NextStepFooter";
 import StatTile from "@/components/StatTile";
 import { ResultsTable, WalkForwardTable } from "@/components/Tables";
 import Verdict from "@/components/Verdict";
@@ -396,6 +397,7 @@ export default function Page() {
               onNavigate={navigate}
               onRun={() => void run()}
             />
+            <NextStepFooter currentView="overview" onNavigate={navigate} />
           </section>
         )}
 
@@ -434,6 +436,7 @@ export default function Page() {
               onOpenRisk={() => navigate("risk")}
               operatorToken={systems.token}
             />
+            <NextStepFooter currentView="portfolio" onNavigate={navigate} />
           </section>
         )}
 
@@ -478,6 +481,7 @@ export default function Page() {
               onOpenResearch={() => navigate("research")}
               operatorToken={systems.token}
             />
+            <NextStepFooter currentView="risk" onNavigate={navigate} />
           </section>
         )}
 
@@ -800,6 +804,7 @@ export default function Page() {
                 )}
               </div>
             </div>
+            <NextStepFooter currentView="research" onNavigate={navigate} />
           </section>
         )}
 
@@ -852,6 +857,7 @@ export default function Page() {
                 onOpenResearch={() => navigate("research")}
               />
             </LiveMarket>
+            <NextStepFooter currentView="live" onNavigate={navigate} />
           </section>
         )}
 
@@ -868,6 +874,7 @@ export default function Page() {
               workItems={dataWorkItems}
               onWorkItemsChange={setDataWorkItems}
             />
+            <NextStepFooter currentView="data" onNavigate={navigate} />
           </section>
         )}
 
@@ -880,6 +887,7 @@ export default function Page() {
               section={reliabilitySection}
               onSectionChange={changeReliabilitySection}
             />
+            <NextStepFooter currentView="reliability" onNavigate={navigate} />
           </section>
         )}
 
@@ -896,6 +904,7 @@ export default function Page() {
               workItems={developerWorkItems}
               onWorkItemsChange={setDeveloperWorkItems}
             />
+            <NextStepFooter currentView="developer" onNavigate={navigate} />
           </section>
         )}
 

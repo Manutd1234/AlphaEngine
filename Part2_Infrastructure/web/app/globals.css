@@ -11177,3 +11177,73 @@ button.data-trust-action > i {
     text-align: center;
   }
 }
+
+/* ===========================================================================
+   NextStepFooter — Decision Loop Flow
+   =========================================================================== */
+.next-step-footer {
+  margin-top: 32px;
+  margin-bottom: 24px;
+  padding: 16px 24px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.next-step-footer__content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.next-step-footer__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.next-step-footer__kicker {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--series-1);
+}
+
+.next-step-footer__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.next-step-footer__hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.next-step-footer__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #ffffff;
+  background-color: var(--series-1);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  white-space: nowrap;
+}
+
+.next-step-footer__action:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
