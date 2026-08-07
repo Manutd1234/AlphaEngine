@@ -19,6 +19,8 @@ import QuarantinePanel from "@/components/systems/QuarantinePanel";
 import QuotaMeters from "@/components/systems/QuotaMeters";
 import type { InspectResponse } from "@/components/systems/types";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
+import FreshnessStamp from "@/components/workspace/FreshnessStamp";
+import PageHead from "@/components/workspace/PageHead";
 import type { DataWorkItem } from "@/lib/data-work-queue";
 import { deriveDataTrust } from "@/lib/data-trust";
 import { fmt } from "@/lib/format";
@@ -326,49 +328,33 @@ export default function DataConsole({
 
   return (
     <div className="data-control-plane">
-      <h1 className="sr-only">AlphaEngine data trust control plane</h1>
-
-      <header className={`data-cp-bar is-${trustState.tone}${view.healthError ? " is-stale" : ""}`}>
-        <div className="data-cp-bar__metrics">
-          {metrics.map((metric) => (
-            <div key={metric.label} className={`data-cp-metric is-${metric.tone ?? "neutral"}`}>
-              <span>{metric.label}</span>
-              <strong className="num">{metric.value}</strong>
-              <small>{metric.note}</small>
-            </div>
-          ))}
-        </div>
-        <div className={`data-cp-status is-${trustState.tone}`} role="status">
-          <span aria-hidden>{trustState.tone === "good" ? "●" : trustState.tone === "bad" ? "✕" : trustState.tone === "warn" ? "▲" : "◌"}</span>
-          {trustState.label}
-        </div>
-        <button
-          type="button"
-          onClick={() => void Promise.all([view.refresh(false), refreshProbe(true)])}
-          disabled={busyAction !== null || currentProbeLoading}
-        >
-          Refresh evidence
-        </button>
-      </header>
-
-      <details className="data-cp-scope">
-        <summary>Evidence scope &amp; collection</summary>
-        <div>
-          <p>
-            Snapshot updated <strong>{absoluteTime(view.updatedAt)}</strong>. Provider counters,
-            validation aggregates, quarantine records and the event ring belong to the health-route
-            function instance {health ? <>(<code>{health.instance.id}</code>)</> : null}; request routes
-            can run on different instances, so these are a floor, not a durable global ledger.
-          </p>
-          <ul>
-            <li>Contract checks currently cover normalised quote and bar payloads; zero evaluated means unknown, not healthy.</li>
-            <li>The overview&apos;s active-quote probe carries its own contract result, so it does not depend on cross-route memory.</li>
-            <li>Gateway feed freshness is authoritative only when the gateway source is present and current.</li>
-            <li>Reconciliation is on demand because it spends one request per configured source.</li>
-            <li>The Work Queue is mocked UI state and resets on reload; no scheduler or backfill worker is claimed.</li>
-          </ul>
-        </div>
-      </details>
+      <PageHead
+        kicker="Data engineer"
+        title="Data operations"
+        description="Can the desk trust the number it is about to use — freshness, source agreement, contract evidence and payload lineage."
+        metrics={metrics.map((metric) => ({
+          label: metric.label,
+          value: metric.value,
+          note: metric.note,
+          tone: metric.tone === "bad" ? "critical" : metric.tone,
+        }))}
+        status={{
+          label: trustState.label,
+          tone: trustState.tone === "bad" ? "critical" : trustState.tone === "good" ? "good" : trustState.tone === "warn" ? "warn" : "neutral",
+        }}
+        actions={
+          <>
+            <FreshnessStamp updatedAt={view.updatedAt} pollMs={effectivePollMs} paused={view.paused} />
+            <button
+              type="button"
+              onClick={() => void Promise.all([view.refresh(false), refreshProbe(true)])}
+              disabled={busyAction !== null || currentProbeLoading}
+            >
+              Refresh evidence
+            </button>
+          </>
+        }
+      />
 
       {view.healthError && (
         <div className="banner error" role="alert">
@@ -383,6 +369,7 @@ export default function DataConsole({
         tabs={DATA_SECTIONS}
         activeId={section}
         onChange={onSectionChange}
+        secondary={["queue"]}
       />
 
       <WorkspaceSubtabPanel workspaceId="data" tabId="overview" activeId={section}>

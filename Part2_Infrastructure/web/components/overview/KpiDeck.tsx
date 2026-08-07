@@ -40,15 +40,29 @@ function KpiCard({
   return (
     <div className="grid min-w-0 gap-0.5 rounded-[12px] border border-border bg-surface-1 px-4 py-3.5 shadow-card">
       <span className="text-[9.5px] font-bold uppercase tracking-[0.07em] text-text-muted">{label}</span>
-      <div className="flex items-end justify-between gap-3">
-        <strong
-          className={`min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[14px] leading-[1.25] ${mono ? "num" : ""}`}
-        >
-          {value}
-        </strong>
+      {/* The value owns its own row.
+          It used to share one with the sparkline, and that row carried no
+          `min-w-0` — so as a grid item its automatic minimum size was its
+          max-content width (a 246px strategy label + a rigid 96px chart in a
+          311px card). Neither child could shrink, the row simply overflowed,
+          and the chart drew itself outside the card's right border. Here the
+          value gets the full width and truncates on its own terms, and the
+          chart shares the quieter bottom line with the note. */}
+      <strong
+        /* Narrow decks truncate "Moving-average crossover · 30/200" past the
+           parameters, which are the half worth reading. The full string stays
+           available on hover. */
+        title={typeof value === "string" ? value : undefined}
+        className={`min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[14px] leading-[1.25] ${mono ? "num" : ""}`}
+      >
+        {value}
+      </strong>
+      <div className="flex min-w-0 items-center justify-between gap-2">
+        <small className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[10.5px] text-text-muted">
+          {note}
+        </small>
         {spark}
       </div>
-      <small className="overflow-hidden text-ellipsis whitespace-nowrap text-[10.5px] text-text-muted">{note}</small>
     </div>
   );
 }

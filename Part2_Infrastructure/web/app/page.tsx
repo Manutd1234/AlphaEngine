@@ -8,10 +8,14 @@ import DeveloperConsole, { type DeveloperSection } from "@/components/DeveloperC
 import EquityChart from "@/components/EquityChart";
 import ExecutionCockpit from "@/components/execution/ExecutionCockpit";
 import LiveMarket, { type ExecutionSection } from "@/components/LiveMarket";
-import PortfolioWorkspace, { type PortfolioFocusDestination } from "@/components/PortfolioWorkspace";
+import PortfolioWorkspace, {
+  PORTFOLIO_SECTION_IDS,
+  type PortfolioFocusDestination,
+  type PortfolioSection,
+} from "@/components/PortfolioWorkspace";
 import PriceChart from "@/components/PriceChart";
 import ReliabilityConsole, { RELIABILITY_SECTION_IDS, type ReliabilitySection } from "@/components/ReliabilityConsole";
-import RiskWorkspace from "@/components/RiskWorkspace";
+import RiskWorkspace, { RISK_SECTION_IDS, type RiskSection } from "@/components/RiskWorkspace";
 import SignalDAGViewer from "@/components/research/SignalDAGViewer";
 import ExperimentHistory from "@/components/research/ExperimentHistory";
 import FactorPanel from "@/components/research/FactorPanel";
@@ -75,6 +79,17 @@ const EXECUTION_SECTIONS = [
   { id: "activity", label: "Activity", description: "Quality, fills & alerts" },
 ] as const;
 
+/** Section ids, for validating a hash before it is trusted as state. */
+const RESEARCH_SECTION_IDS = RESEARCH_SECTIONS.map((s) => s.id) as readonly ResearchSection[];
+const EXECUTION_SECTION_IDS = EXECUTION_SECTIONS.map((s) => s.id) as readonly ExecutionSection[];
+const DEVELOPER_SECTION_IDS = [
+  "overview",
+  "codebase",
+  "work",
+  "apis",
+  "quality",
+] as const satisfies readonly DeveloperSection[];
+
 /**
  * The console used to be one "Systems" tab. Anyone holding a link to it lands on
  * reliability, which is the half that answers "is it up" — the question someone
@@ -106,6 +121,12 @@ export default function Page() {
   const [dataSection, setDataSection] = useState<DataSection>("overview");
   const [reliabilitySection, setReliabilitySection] = useState<ReliabilitySection>("overview");
   const [developerSection, setDeveloperSection] = useState<DeveloperSection>("overview");
+  // Risk and Portfolio kept these internally, which made them the only two
+  // steppers in the workspace that a link could not address: `#risk/model`
+  // opened the tab on step 1. Lifted here so they route exactly like the other
+  // five — pushed on change, and restored by `readLocation` on back/forward.
+  const [riskSection, setRiskSection] = useState<RiskSection>("limits");
+  const [portfolioSection, setPortfolioSection] = useState<PortfolioSection>("overview");
   const [dataWorkItems, setDataWorkItems] = useState<DataWorkItem[]>(createInitialDataWorkItems);
   const [developerWorkItems, setDeveloperWorkItems] = useState<DeveloperWorkItem[]>(createInitialDeveloperWorkItems);
   const [experiments, setExperiments] = useState<ExperimentRecord[]>([]);
@@ -125,6 +146,13 @@ export default function Page() {
       const url = new URL(window.location.href);
       url.hash = next;
       window.history[replace ? "replaceState" : "pushState"]({}, "", url);
+      // Tabs are a lateral move between desk surfaces, not a continuation of
+      // the one being left. Landing halfway down the new tab — which is what
+      // happens when the scroll position carries over from a long surface like
+      // the blotter — hides the page heading and the section rail, so the tab
+      // reads as broken until you scroll up. Reset to the top of the workspace.
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
     }
   }, []);
 
@@ -142,6 +170,30 @@ export default function Page() {
           const requested = nestedSection as ReliabilitySection;
           setReliabilitySection(RELIABILITY_SECTION_IDS.includes(requested) ? requested : "overview");
         }
+        // Research, Execution and Developer address their sections the same
+        // way. Every second-level rail in the workspace is now a real location:
+        // a link into "walk-forward evidence" survives being sent to someone,
+        // and Back steps through sections instead of leaving the tab entirely.
+        if (hashView === "research") {
+          const requested = nestedSection as ResearchSection;
+          setResearchSection(RESEARCH_SECTION_IDS.includes(requested) ? requested : "summary");
+        }
+        if (hashView === "live") {
+          const requested = nestedSection as ExecutionSection;
+          setExecutionSection(EXECUTION_SECTION_IDS.includes(requested) ? requested : "trade");
+        }
+        if (hashView === "developer") {
+          const requested = nestedSection as DeveloperSection;
+          setDeveloperSection(DEVELOPER_SECTION_IDS.includes(requested) ? requested : "overview");
+        }
+        if (hashView === "risk") {
+          const requested = nestedSection as RiskSection;
+          setRiskSection(RISK_SECTION_IDS.includes(requested) ? requested : "limits");
+        }
+        if (hashView === "portfolio") {
+          const requested = nestedSection as PortfolioSection;
+          setPortfolioSection(PORTFOLIO_SECTION_IDS.includes(requested) ? requested : "overview");
+        }
       } else if (LEGACY_VIEWS[workspace]) {
         setView(LEGACY_VIEWS[workspace]);
       }
@@ -154,6 +206,39 @@ export default function Page() {
       window.removeEventListener("hashchange", readLocation);
     };
   }, []);
+
+  /** Records a second-level section in the URL without leaving the workspace. */
+  const pushSection = useCallback((workspace: WorkspaceView, next: string) => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    url.hash = `${workspace}/${next}`;
+    window.history.pushState({}, "", url);
+  }, []);
+
+  const changeResearchSection = useCallback((next: ResearchSection) => {
+    setResearchSection(next);
+    pushSection("research", next);
+  }, [pushSection]);
+
+  const changeExecutionSection = useCallback((next: ExecutionSection) => {
+    setExecutionSection(next);
+    pushSection("live", next);
+  }, [pushSection]);
+
+  const changeDeveloperSection = useCallback((next: DeveloperSection) => {
+    setDeveloperSection(next);
+    pushSection("developer", next);
+  }, [pushSection]);
+
+  const changeRiskSection = useCallback((next: RiskSection) => {
+    setRiskSection(next);
+    pushSection("risk", next);
+  }, [pushSection]);
+
+  const changePortfolioSection = useCallback((next: PortfolioSection) => {
+    setPortfolioSection(next);
+    pushSection("portfolio", next);
+  }, [pushSection]);
 
   const changeDataSection = useCallback((next: DataSection) => {
     setDataSection(next);
@@ -435,6 +520,8 @@ export default function Page() {
               onFocusSymbol={focusPortfolioSymbol}
               onOpenRisk={() => navigate("risk")}
               operatorToken={systems.token}
+              section={portfolioSection}
+              onSectionChange={changePortfolioSection}
             />
             <NextStepFooter currentView="portfolio" onNavigate={navigate} />
           </section>
@@ -480,6 +567,8 @@ export default function Page() {
               onOpenPortfolio={() => navigate("portfolio")}
               onOpenResearch={() => navigate("research")}
               operatorToken={systems.token}
+              section={riskSection}
+              onSectionChange={changeRiskSection}
             />
             <NextStepFooter currentView="risk" onNavigate={navigate} />
           </section>
@@ -508,8 +597,6 @@ export default function Page() {
                 },
               ]}
             />
-
-            <SignalDAGViewer />
 
             {error && (
               <div className="banner error" role="alert">
@@ -542,7 +629,21 @@ export default function Page() {
               label="Quant researcher sections"
               tabs={RESEARCH_SECTIONS}
               activeId={researchSection}
-              onChange={setResearchSection}
+              onChange={changeResearchSection}
+              secondary={["runs"]}
+              actions={
+                <>
+                  <span className="rail-meta num">{req.symbol} · {req.interval}</span>
+                  <button
+                    type="button"
+                    className="primary-action"
+                    onClick={() => run()}
+                    disabled={running}
+                  >
+                    {running ? "Running…" : researchDirty ? "Rerun sweep" : "Run sweep"}
+                  </button>
+                </>
+              }
             />
 
             {inspect && (
@@ -682,6 +783,12 @@ export default function Page() {
                             />
                           </div>
                         </div>
+
+                        {/* Lineage belongs with the result it produced. It used
+                            to sit above the section rail, where it pushed the
+                            rail and every verdict below the fold on the tab
+                            people open first. */}
+                        <SignalDAGViewer />
                       </StaleGate>
                     </WorkspaceSubtabPanel>
 
@@ -825,7 +932,12 @@ export default function Page() {
               label="Quant trader sections"
               tabs={EXECUTION_SECTIONS}
               activeId={executionSection}
-              onChange={setExecutionSection}
+              onChange={changeExecutionSection}
+              actions={
+                <span className="rail-meta num">
+                  {side} {req.symbol} · {usd(notional, 0)}
+                </span>
+              }
             />
             <LiveMarket
               symbol={req.symbol}
@@ -900,7 +1012,7 @@ export default function Page() {
               onOpenLive={() => navigate("live")}
               onOpenReliability={() => navigate("reliability")}
               section={developerSection}
-              onSectionChange={setDeveloperSection}
+              onSectionChange={changeDeveloperSection}
               workItems={developerWorkItems}
               onWorkItemsChange={setDeveloperWorkItems}
             />

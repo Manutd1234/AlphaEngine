@@ -1,8 +1,18 @@
 "use client";
 
+/**
+ * The signal execution workflow — raw depth in, routed order out.
+ *
+ * Every colour here used to be a hardcoded hex from a dark palette (#090d12
+ * strip, #111827 nodes, #38bdf8 labels) dropped inside a white card, so the
+ * panel read as a foreign screenshot pasted into the page and inverted itself
+ * against the theme. It now uses the house tokens like every other surface, so
+ * it follows the light and dark palettes instead of fighting them.
+ */
+
 import { useState } from "react";
 
-interface DAGNode {
+interface WorkflowStep {
   id: string;
   name: string;
   category: "data" | "alpha" | "optimizer" | "risk" | "fix";
@@ -11,83 +21,98 @@ interface DAGNode {
   details: string;
 }
 
-export default function SignalDAGViewer() {
-  const [selectedNode, setSelectedNode] = useState<DAGNode | null>(null);
+const STEPS: WorkflowStep[] = [
+  {
+    id: "node-1",
+    name: "Binance & Bybit L2 Depth Stream",
+    category: "data",
+    status: "active",
+    latency: "0.2ms",
+    details: "Consolidated L2 websocket depth stack streaming 100ms snapshots across 12 symbol pairs.",
+  },
+  {
+    id: "node-2",
+    name: "Trend & Mean Reversion Alpha Signals",
+    category: "alpha",
+    status: "passing",
+    latency: "0.5ms",
+    details: "DSR-validated momentum signals generating real-time buy/sell allocation weights.",
+  },
+  {
+    id: "node-3",
+    name: "Euler Variance Portfolio Optimizer",
+    category: "optimizer",
+    status: "verified",
+    latency: "0.8ms",
+    details: "Risk-budget constrained Mean-Variance optimizer targeting max Sharpe ratio under leverage cap.",
+  },
+  {
+    id: "node-4",
+    name: "Pre-Trade Risk Gateway (15 Gates)",
+    category: "risk",
+    status: "verified",
+    latency: "0.2ms",
+    details: "15 hard limit checks (drawdown, max gross, price collar, fat finger, rate limit) evaluated in 0.2ms.",
+  },
+  {
+    id: "node-5",
+    name: "FIX Protocol Execution Engine",
+    category: "fix",
+    status: "active",
+    latency: "1.1ms",
+    details: "FIX 4.2 / 4.4 order execution engine dispatching 35=D orders and auditing 35=8 execution reports.",
+  },
+];
 
-  const nodes: DAGNode[] = [
-    { id: "node-1", name: "Binance & Bybit L2 Depth Stream", category: "data", status: "active", latency: "0.2ms", details: "Consolidated L2 websocket depth stack streaming 100ms snapshots across 12 symbol pairs." },
-    { id: "node-2", name: "Trend & Mean Reversion Alpha Signals", category: "alpha", status: "passing", latency: "0.5ms", details: "DSR-validated momentum signals generating real-time buy/sell allocation weights." },
-    { id: "node-3", name: "Euler Variance Portfolio Optimizer", category: "optimizer", status: "verified", latency: "0.8ms", details: "Risk-budget constrained Mean-Variance optimizer targeting max Sharpe ratio under leverage cap." },
-    { id: "node-4", name: "Pre-Trade Risk Gateway (15 Gates)", category: "risk", status: "verified", latency: "0.2ms", details: "15 hard limit checks (drawdown, max gross, price collar, fat finger, rate limit) evaluated in 0.2ms." },
-    { id: "node-5", name: "FIX Protocol Execution Engine", category: "fix", status: "active", latency: "1.1ms", details: "FIX 4.2 / 4.4 order execution engine dispatching 35=D orders and auditing 35=8 execution reports." },
-  ];
+export default function SignalDAGViewer() {
+  const [selected, setSelected] = useState<WorkflowStep | null>(null);
 
   return (
-    <div className="card">
+    <div className="card signal-workflow">
       <div className="portfolio-card-heading">
         <div>
-          <span className="page-kicker">Data Lineage &amp; Pipeline</span>
-          <h2>Signal DAG Execution Graph</h2>
+          <span className="page-kicker">Data lineage &amp; pipeline</span>
+          <h2>Signal Execution Workflow</h2>
         </div>
-        <span className="pill is-good">🟢 5/5 Pipeline Nodes Active</span>
+        <span className="pill is-good">{STEPS.length}/{STEPS.length} stages active</span>
       </div>
 
       <p className="sub">
-        Visual representation of quantitative signal lineage from raw L2 depth stream to pre-trade risk validation and FIX order routing.
+        Quantitative signal lineage from the raw L2 depth stream through pre-trade risk validation to
+        FIX order routing. Select a stage to read what it does.
       </p>
 
-      {/* DAG Node Flow Pipeline */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "8px",
-          margin: "16px 0",
-          overflowX: "auto",
-          padding: "12px",
-          background: "#090d12",
-          borderRadius: "8px",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
-        }}
-      >
-        {nodes.map((node, index) => (
-          <div key={node.id} style={{ display: "flex", alignItems: "center" }}>
+      <ol className="signal-workflow__track" aria-label="Signal execution stages">
+        {STEPS.map((step, index) => (
+          <li key={step.id} className="signal-workflow__stage">
             <button
               type="button"
-              onClick={() => setSelectedNode(node)}
-              style={{
-                background: selectedNode?.id === node.id ? "rgba(56, 189, 248, 0.2)" : "#111827",
-                border: selectedNode?.id === node.id ? "1px solid #38bdf8" : "1px solid #1e293b",
-                borderRadius: "6px",
-                padding: "10px 12px",
-                color: "#f8fafc",
-                cursor: "pointer",
-                textAlign: "left",
-                minWidth: "160px",
-                transition: "all 0.15s ease",
-              }}
+              className={`signal-workflow__node${selected?.id === step.id ? " is-selected" : ""}`}
+              aria-pressed={selected?.id === step.id}
+              onClick={() => setSelected(selected?.id === step.id ? null : step)}
             >
-              <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.08em", color: "#38bdf8", fontWeight: 700, marginBottom: "2px" }}>
-                Step {index + 1} · {node.category}
-              </div>
-              <div style={{ fontSize: "11.5px", fontWeight: 700, marginBottom: "4px" }}>{node.name}</div>
-              <div style={{ fontSize: "10px", color: "#94a3b8", display: "flex", justifyContent: "space-between" }}>
-                <span>Latency: {node.latency}</span>
-                <span style={{ color: "#00e676" }}>✓ {node.status}</span>
-              </div>
+              <span className="signal-workflow__step">
+                Step {index + 1} · {step.category}
+              </span>
+              <strong>{step.name}</strong>
+              <span className="signal-workflow__meta">
+                <span className="num">{step.latency}</span>
+                <em>✓ {step.status}</em>
+              </span>
             </button>
-            {index < nodes.length - 1 && (
-              <span style={{ margin: "0 8px", color: "#475569", fontWeight: 700, fontSize: "14px" }}>➔</span>
+            {index < STEPS.length - 1 && (
+              <span className="signal-workflow__arrow" aria-hidden>
+                →
+              </span>
             )}
-          </div>
+          </li>
         ))}
-      </div>
+      </ol>
 
-      {selectedNode && (
-        <div style={{ background: "#1e293b", padding: "12px", borderRadius: "6px", borderLeft: "4px solid #38bdf8", fontSize: "11.5px", color: "#f8fafc" }}>
-          <strong>Node Inspection: {selectedNode.name}</strong>
-          <p style={{ margin: "4px 0 0 0", color: "#cbd5e1" }}>{selectedNode.details}</p>
+      {selected && (
+        <div className="signal-workflow__detail" role="status">
+          <strong>{selected.name}</strong>
+          <p>{selected.details}</p>
         </div>
       )}
     </div>

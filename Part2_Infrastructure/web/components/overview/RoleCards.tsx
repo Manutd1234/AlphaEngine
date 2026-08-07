@@ -108,10 +108,16 @@ export default function RoleCards({
           </span>
           <strong className="pipeline-card__value">{card.headline(context)}</strong>
           <small className="pipeline-card__status">{card.status(context)}</small>
+          {/* Was seven solid blue primary buttons in one grid — seven things
+              shouting equally, so none of them led. The launcher's job is to be
+              a set of doors, not a set of calls to action: the whole card is
+              now the hit area (the label stretches over it via ::after) and the
+              overview keeps exactly one primary button, in the hero, for
+              whatever the decision loop says is actually blocking. */}
           <div className="role-card__actions">
             <button
               type="button"
-              className="primary-action role-card__action"
+              className="role-card__action"
               onClick={() => onNavigate(card.view)}
             >
               {card.action}

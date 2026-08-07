@@ -9,7 +9,6 @@ import KillSwitchControl, {
 import ThemeToggle from "@/components/ThemeToggle";
 import type { LatencyStats } from "@/components/systems/types";
 import CommandBar from "@/components/header/CommandBar";
-import AudienceAccessibilityBar from "@/components/common/AudienceAccessibilityBar";
 
 export type WorkspaceView =
   | "overview"
@@ -60,9 +59,32 @@ export default function WorkspaceHeader({
   riskControl,
 }: WorkspaceHeaderProps) {
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const headerRef = useRef<HTMLElement | null>(null);
   const [commandBarOpen, setCommandBarOpen] = useState(false);
-  const [fontSize, setFontSize] = useState<"normal" | "large" | "xlarge" | "huge">("normal");
-  const [plainEnglishMode, setPlainEnglishMode] = useState(false);
+
+  /**
+   * Publishes the header's measured height as `--header-h`, which every sticky
+   * offset in the workspace is expressed against.
+   *
+   * A constant does not work here. Below 900px the eight role tabs wrap onto
+   * their own row and the bar goes from 57px to ~120px. A section rail
+   * docked to a hardcoded 56px simply disappeared behind the header in both
+   * cases — navigation present in the DOM and invisible on screen.
+   */
+  useEffect(() => {
+    const node = headerRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const publish = () => {
+      document.documentElement.style.setProperty(
+        "--header-h",
+        `${Math.round(node.getBoundingClientRect().height)}px`,
+      );
+    };
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (e: globalThis.KeyboardEvent) => {
@@ -109,7 +131,7 @@ export default function WorkspaceHeader({
     || (providersTotal != null && (providersReady ?? 0) < providersTotal);
 
   return (
-    <header className="workspace-header">
+    <header className="workspace-header" ref={headerRef}>
       <div className="workspace-header__utility workspace-header__primary">
         <button className="brand-lockup" onClick={() => onViewChange("overview")} aria-label="Open AlphaEngine overview">
           <span className="brand-mark" aria-hidden>
@@ -164,12 +186,6 @@ export default function WorkspaceHeader({
           <i aria-hidden />
           {healthLabel}
         </button>
-        <AudienceAccessibilityBar
-          fontSize={fontSize}
-          onFontSizeChange={setFontSize}
-          plainEnglishMode={plainEnglishMode}
-          onTogglePlainEnglish={() => setPlainEnglishMode((p) => !p)}
-        />
         <ThemeToggle />
       </div>
 
@@ -179,7 +195,6 @@ export default function WorkspaceHeader({
         onSelectTab={(tabId) => onViewChange(tabId as WorkspaceView)}
         onSymbolSelect={() => onViewChange("live")}
         onToggleKillSwitch={() => onViewChange("risk")}
-        onToggleFontSize={() => setFontSize((s) => (s === "normal" ? "large" : s === "large" ? "xlarge" : s === "xlarge" ? "huge" : "normal"))}
       />
     </header>
   );

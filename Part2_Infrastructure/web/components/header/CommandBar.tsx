@@ -9,7 +9,6 @@ interface CommandBarProps {
   onSelectTab: (tabId: WorkspaceView) => void;
   onSymbolSelect: (symbol: string) => void;
   onToggleKillSwitch: () => void;
-  onToggleFontSize?: () => void;
 }
 
 export default function CommandBar({
@@ -18,7 +17,6 @@ export default function CommandBar({
   onSelectTab,
   onSymbolSelect,
   onToggleKillSwitch,
-  onToggleFontSize,
 }: CommandBarProps) {
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -47,7 +45,6 @@ export default function CommandBar({
     { id: "sym-sol", label: "SOLUSDT — Solana / USDT Spot", category: "Market Symbol", action: () => onSymbolSelect("SOLUSDT"), hotkey: "" },
 
     { id: "act-kill", label: "🚨 EMERGENCY KILL SWITCH / FLATTEN", category: "Risk Controls", action: () => onToggleKillSwitch(), hotkey: "Ctrl+Shift+K" },
-    { id: "act-font", label: "🔍 Toggle High-Legibility Font Scaling (Elderly / Accessibility)", category: "Accessibility", action: () => onToggleFontSize?.(), hotkey: "" },
   ];
 
   const filtered = commands.filter((c) =>

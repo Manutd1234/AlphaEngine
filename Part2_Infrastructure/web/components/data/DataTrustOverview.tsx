@@ -1,5 +1,6 @@
 "use client";
 
+import CategoryBars, { type BarRow } from "@/components/charts/CategoryBars";
 import type { InspectResponse, SystemHealth } from "@/components/systems/types";
 import {
   deriveDataTrust,
@@ -56,6 +57,30 @@ export default function DataTrustOverview({
           ? "warn"
           : "good";
 
+  // One row per capability that has actually answered something. Cache hits are
+  // counted separately from validated fetches because a cached answer was never
+  // re-checked — folding them together would report contract coverage the
+  // instance never performed.
+  const validationWindow = health?.validation ?? null;
+  const provenanceRows: BarRow[] = Object.entries(health?.cache.byCapability ?? {})
+    .map(([capability, counters]) => {
+      const checks = validationWindow?.byCapability?.[capability];
+      const flagged = (checks?.fatal ?? 0) + (checks?.warn ?? 0) + (checks?.drift ?? 0);
+      const hits = counters?.hits ?? 0;
+      const rate = counters?.hitRate;
+      return {
+        label: capability,
+        note: rate == null ? `${hits} cached` : `${Math.round(rate * 100)}% cached`,
+        segments: [
+          { label: "served from cache", value: hits, color: "var(--series-3)" },
+          { label: "fetched · contract passed", value: checks?.passed ?? 0, color: "var(--series-1)" },
+          { label: "fetched · flagged", value: flagged, color: "var(--status-warning)" },
+          { label: "fetched · not evaluated", value: checks?.notEvaluated ?? 0, color: "var(--axis)" },
+        ],
+      };
+    })
+    .filter((row) => row.segments.some((segment) => segment.value > 0));
+
   return (
     <div className="data-trust-overview">
       <section className={`card data-trust-hero is-${trust.verdict.tone}`} aria-labelledby="data-trust-heading">
@@ -71,6 +96,32 @@ export default function DataTrustOverview({
             <small>exact quote + observed platform scope</small>
           </div>
         </div>
+      </section>
+
+      {/* Where every answer on this desk came from.
+          The tab is eleven text panels and no chart, which for the surface that
+          exists to certify trust is the wrong way round: "234 evaluated, 0
+          fatal" is a sentence a reader has to reassemble into a proportion.
+          Each capability's bar is that proportion already — cache hits carry no
+          contract check because nothing was fetched, and every fetch that did
+          happen is shown as passed, flagged, or unevaluated. */}
+      <section className="card data-trust-provenance" aria-labelledby="trust-provenance-heading">
+        <div className="portfolio-card-heading">
+          <div>
+            <span className="page-kicker">Evidence composition</span>
+            <h2 id="trust-provenance-heading">Where each answer came from</h2>
+          </div>
+          <span className="section-note">
+            {validationWindow
+              ? `${validationWindow.retained}/${validationWindow.capacity} of the instance window retained`
+              : "no validation window yet"}
+          </span>
+        </div>
+        <CategoryBars
+          ariaLabel="Per capability, how many answers were served from cache versus fetched and contract-checked."
+          rows={provenanceRows}
+          emptyNote="No capability has served a request on this instance yet, so there is nothing to attribute."
+        />
       </section>
 
       <section className="data-trust-section" aria-labelledby="trust-evidence-heading">

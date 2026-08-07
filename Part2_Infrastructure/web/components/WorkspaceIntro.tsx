@@ -1,3 +1,5 @@
+import PageHead, { type PageMetric } from "@/components/workspace/PageHead";
+
 interface WorkspaceInsight {
   label: string;
   value: string;
@@ -11,42 +13,40 @@ interface WorkspaceIntroProps {
   title: string;
   description: React.ReactNode;
   insights: WorkspaceInsight[];
+  /** Controls that belong to the surface as a whole (refresh, source switch). */
+  actions?: React.ReactNode;
 }
 
 /**
- * A compact brief at the top of each desk surface.
+ * The desk-role brief at the top of a workspace.
  *
- * The title explains the role's question; the right side carries only the
- * shared facts needed to answer it. Keeping this one component across all tabs
- * prevents Research, Risk and Operations from inventing three different visual
- * grammars for the same instrument and system state.
+ * This is now a thin adapter over `PageHead`, which every one of the eight tabs
+ * renders — including the three consoles that used to draw their own status
+ * bars. Keeping the older `insights` vocabulary here means the role tabs did not
+ * all have to be rewritten to gain the shared header.
  */
 export default function WorkspaceIntro({
   kicker,
   title,
   description,
   insights,
+  actions,
 }: WorkspaceIntroProps) {
-  return (
-    <div className="page-heading">
-      <div className="page-heading__copy">
-        <span className="page-kicker">{kicker}</span>
-        <h1>{title}</h1>
-        <p>{description}</p>
-      </div>
+  const metrics: PageMetric[] = insights.map((insight) => ({
+    label: insight.label,
+    value: insight.value,
+    note: insight.detail,
+    tone: insight.tone,
+    mono: insight.mono ?? false,
+  }));
 
-      <div className="page-heading__insights" aria-label={`${title} decision context`}>
-        {insights.map((insight) => (
-          <div
-            className={`page-insight${insight.tone ? ` is-${insight.tone}` : ""}`}
-            key={insight.label}
-          >
-            <span>{insight.label}</span>
-            <strong className={insight.mono ? "num" : undefined}>{insight.value}</strong>
-            {insight.detail ? <small>{insight.detail}</small> : null}
-          </div>
-        ))}
-      </div>
-    </div>
+  return (
+    <PageHead
+      kicker={kicker}
+      title={title}
+      description={description}
+      metrics={metrics}
+      actions={actions}
+    />
   );
 }

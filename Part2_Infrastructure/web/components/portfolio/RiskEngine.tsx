@@ -21,6 +21,7 @@
 import CorrelationMatrix from "@/components/portfolio/CorrelationMatrix";
 import RiskContributions from "@/components/portfolio/RiskContributions";
 import { pct, usd } from "@/lib/format";
+import VarBacktestChart from "@/components/portfolio/VarBacktestChart";
 import type { CovarianceModel, PortfolioRisk, VarBacktest, VarSeries } from "@/lib/portfolio-risk";
 
 interface RiskEngineProps {
@@ -55,7 +56,20 @@ const ZONE_STYLE: Record<string, { glyph: string; label: string; tone: string }>
   red: { glyph: "✕", label: "rejected", tone: "var(--critical-text)" },
 };
 
-export default function RiskEngine({ risk, model, loading, missing, validation }: RiskEngineProps) {
+export default function RiskEngine({
+  risk,
+  model,
+  loading,
+  missing,
+  validation,
+  // `varSeries` and `sandbox` were declared, documented at length, and then
+  // left out of this destructure — so VarBacktestChart, 329 lines of it, was
+  // never mounted by anything in the app. The scalars beside it answered "did
+  // the model fail more often than it should" while the one component that
+  // could answer "when" sat unreferenced.
+  varSeries,
+  sandbox = false,
+}: RiskEngineProps) {
   if (loading) {
     return (
       <div className="card" aria-busy="true" aria-live="polite">
@@ -177,6 +191,15 @@ export default function RiskEngine({ risk, model, loading, missing, validation }
     </div>
 
     <div className="compact-grid-2col">
+      {varSeries && (
+        <VarBacktestChart
+          series={varSeries}
+          validation={validation ?? null}
+          sandbox={sandbox}
+          missing={missing}
+        />
+      )}
+
       <RiskContributions contributions={risk.contributions} />
       <CorrelationMatrix model={model} worst={risk.worstCorrelation} observations={risk.observations} />
     </div>

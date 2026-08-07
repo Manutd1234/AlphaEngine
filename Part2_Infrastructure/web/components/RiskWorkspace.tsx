@@ -16,7 +16,7 @@
 
 import { useState } from "react";
 
-import { BookChrome, BookFallback, CrossLinkTile } from "@/components/portfolio/BookChrome";
+import { BookChrome, BookFallback, BookSourceControl, CrossLinkTile } from "@/components/portfolio/BookChrome";
 import ExecutionHandoff, { type HandoffIntent } from "@/components/portfolio/ExecutionHandoff";
 import HeadroomBar from "@/components/portfolio/HeadroomBar";
 import RiskEngine from "@/components/portfolio/RiskEngine";
@@ -32,9 +32,12 @@ export interface RiskWorkspaceProps {
   onOpenResearch: () => void;
   /** Operator credential shared with the Reliability tab and the header. */
   operatorToken?: string;
+  section: RiskSection;
+  onSectionChange: (section: RiskSection) => void;
 }
 
-type RiskSection = "limits" | "model" | "scenarios" | "controls";
+export const RISK_SECTION_IDS = ["limits", "model", "scenarios", "controls"] as const;
+export type RiskSection = (typeof RISK_SECTION_IDS)[number];
 
 const RISK_SECTIONS = [
   { id: "limits", label: "Limits", description: "Headroom & concentration" },
@@ -54,9 +57,15 @@ function limitValue(value: number, unit: "usd" | "pct"): string {
   return unit === "usd" ? usd(value, 0) : pct(value, 2);
 }
 
-export default function RiskWorkspace({ view, onOpenPortfolio, onOpenResearch, operatorToken }: RiskWorkspaceProps) {
+export default function RiskWorkspace({
+  view,
+  onOpenPortfolio,
+  onOpenResearch,
+  operatorToken,
+  section,
+  onSectionChange,
+}: RiskWorkspaceProps) {
   const [handoff, setHandoff] = useState<HandoffIntent | null>(null);
-  const [section, setSection] = useState<RiskSection>("limits");
 
   const {
     book,
@@ -64,6 +73,7 @@ export default function RiskWorkspace({ view, onOpenPortfolio, onOpenResearch, o
     riskPositions,
     covarianceModel,
     varValidation,
+    varSeries,
     riskLoading,
     missingHistory,
     referenceSymbol,
@@ -86,7 +96,8 @@ export default function RiskWorkspace({ view, onOpenPortfolio, onOpenResearch, o
         label="Risk manager sections"
         tabs={RISK_SECTIONS}
         activeId={section}
-        onChange={setSection}
+        onChange={onSectionChange}
+        actions={<BookSourceControl view={view} />}
       />
 
       <WorkspaceSubtabPanel workspaceId="risk" tabId="limits" activeId={section}>
@@ -208,6 +219,8 @@ export default function RiskWorkspace({ view, onOpenPortfolio, onOpenResearch, o
           loading={riskLoading && !risk}
           missing={missingHistory}
           validation={varValidation}
+          varSeries={varSeries}
+          sandbox={Boolean(book.sandbox)}
         />
       </WorkspaceSubtabPanel>
 

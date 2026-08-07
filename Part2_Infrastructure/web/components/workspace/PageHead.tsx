@@ -1,0 +1,139 @@
+"use client";
+
+import type { ReactNode } from "react";
+
+/**
+ * The one page header every workspace uses.
+ *
+ * Before this existed the eight tabs opened five different ways: the overview
+ * had a navy hero, Research/Execution/Portfolio/Risk had `.page-heading`, Data
+ * had `.data-cp-bar`, and Reliability and Developer had `.console-statusbar`.
+ * Each carried the same four things — who the surface is for, what it answers,
+ * the handful of numbers that frame the answer, and the controls that refresh
+ * them — in four different visual grammars, so moving between tabs meant
+ * re-learning where to look.
+ *
+ * Everything here is one row of meaning: identity on the left, the metrics that
+ * frame it on the right, controls after them. A tab that needs a status word
+ * (Data's trust state) passes `status`; a tab that needs a refresh control
+ * passes `actions`. Nothing else is negotiable, which is the point.
+ */
+
+export type MetricTone = "good" | "warn" | "critical" | "accent" | "neutral";
+
+export interface PageMetric {
+  label: string;
+  value: ReactNode;
+  /** The supporting line. Always the provenance of the value, never a repeat. */
+  note?: ReactNode;
+  tone?: MetricTone;
+  /** Tabular figures. On by default — most of these are numbers. */
+  mono?: boolean;
+  /** Makes the chip a button. `actionLabel` becomes its accessible name. */
+  onClick?: () => void;
+  actionLabel?: string;
+}
+
+export interface PageStatus {
+  label: string;
+  tone: "good" | "warn" | "critical" | "neutral";
+}
+
+const STATUS_GLYPH: Record<PageStatus["tone"], string> = {
+  good: "●",
+  warn: "▲",
+  critical: "✕",
+  neutral: "◌",
+};
+
+export interface PageHeadProps {
+  /** The desk role this surface belongs to. */
+  kicker: string;
+  title: string;
+  /** One sentence: the question this tab answers. */
+  description?: ReactNode;
+  metrics?: PageMetric[];
+  status?: PageStatus | null;
+  actions?: ReactNode;
+  /** Rendered under the head, above the section rail — banners and notices. */
+  children?: ReactNode;
+}
+
+function Metric({ metric }: { metric: PageMetric }) {
+  const mono = metric.mono ?? true;
+  const body = (
+    <>
+      <span>{metric.label}</span>
+      <strong className={mono ? "num" : undefined}>{metric.value}</strong>
+      {metric.note ? <small>{metric.note}</small> : null}
+    </>
+  );
+  const className = `page-insight is-${metric.tone ?? "neutral"}`;
+
+  if (!metric.onClick) {
+    return <div className={className}>{body}</div>;
+  }
+  return (
+    <button
+      type="button"
+      className={`${className} is-action`}
+      onClick={metric.onClick}
+      aria-label={`${metric.actionLabel ?? "Open details"}. ${metric.label}: ${
+        typeof metric.value === "string" || typeof metric.value === "number" ? metric.value : ""
+      }`}
+    >
+      {body}
+      {metric.actionLabel ? <em>{metric.actionLabel} →</em> : null}
+    </button>
+  );
+}
+
+export default function PageHead({
+  kicker,
+  title,
+  description,
+  metrics = [],
+  status = null,
+  actions,
+  children,
+}: PageHeadProps) {
+  return (
+    <>
+      <header className="page-heading" aria-label={`${title} context`}>
+        <div className="page-heading__copy">
+          <span className="page-kicker">{kicker}</span>
+          <h1>{title}</h1>
+          {description ? <p>{description}</p> : null}
+        </div>
+
+        {(metrics.length > 0 || status || actions) && (
+          <div className="page-heading__context">
+            {metrics.length > 0 && (
+              <div
+                className="page-heading__insights"
+                data-count={metrics.length}
+                aria-label={`${title} decision context`}
+              >
+                {metrics.map((metric) => (
+                  <Metric key={metric.label} metric={metric} />
+                ))}
+              </div>
+            )}
+            {(status || actions) && (
+              <div className="page-heading__actions">
+                {status && (
+                  <span className={`page-status is-${status.tone}`} role="status">
+                    <span aria-hidden>{STATUS_GLYPH[status.tone]}</span>
+                    {status.label}
+                  </span>
+                )}
+                {actions}
+              </div>
+            )}
+          </div>
+        )}
+      </header>
+      {children}
+    </>
+  );
+}

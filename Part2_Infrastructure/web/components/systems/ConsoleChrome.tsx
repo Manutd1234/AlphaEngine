@@ -2,6 +2,8 @@
 
 /** Shared status header for the operational console. */
 
+import FreshnessStamp from "@/components/workspace/FreshnessStamp";
+import PageHead, { type PageMetric } from "@/components/workspace/PageHead";
 import { fmt } from "@/lib/format";
 import type { SystemHealthView } from "@/lib/use-system-health";
 
@@ -20,61 +22,59 @@ export function humanUptime(ms: number): string {
   return `${Math.round(ms / 3_600_000)}h`;
 }
 
+/** The console vocabulary predates the shared header's; `bad` is `critical`. */
+function metricTone(tone: ConsoleTile["tone"]): PageMetric["tone"] {
+  return tone === "bad" ? "critical" : tone;
+}
+
+/**
+ * The operational console header.
+ *
+ * This used to be `.console-statusbar` — a sticky card of four oversized stats
+ * with the instance line and the refresh control trailing it. It now renders
+ * the same facts through `PageHead`, so Reliability and Developer open with the
+ * identical shape as Research, Risk and every other tab: who the surface is
+ * for, what it answers, the numbers that frame it, then the controls.
+ */
 export function ConsoleChrome({
   view,
   tiles,
+  kicker,
+  title,
+  description,
 }: {
   view: SystemHealthView;
   tiles: ConsoleTile[];
+  kicker: string;
+  title: string;
+  description: React.ReactNode;
 }) {
   const { health, healthError, updatedAt, paused, pollMs, refresh, busyAction } = view;
 
-  return (
-    <>
-      <div className={`console-statusbar${healthError ? " is-stale" : ""}`}>
-        <div className="console-statusbar__metrics">
-          {tiles.map((tile) => {
-            const content = (
-              <>
-                <span>{tile.label}</span>
-                <strong className="num">{tile.value}</strong>
-                <small>{tile.note}</small>
-                {tile.actionLabel && <em>{tile.actionLabel} →</em>}
-              </>
-            );
-            return tile.onClick ? (
-              <button
-                type="button"
-                key={tile.label}
-                className={`console-stat is-${tile.tone} is-action`}
-                onClick={tile.onClick}
-                aria-label={`${tile.actionLabel ?? "Open details"}. ${tile.label}: ${tile.value}. ${tile.note}`}
-              >
-                {content}
-              </button>
-            ) : (
-              <div key={tile.label} className={`console-stat is-${tile.tone}`}>
-                {content}
-              </div>
-            );
-          })}
-        </div>
-        <div className="console-statusbar__meta">
-          <span className="muted">
-            {health
-              ? `instance ${health.instance.id} · up ${humanUptime(health.instance.uptimeMs)}`
-              : "connecting"}
-          </span>
-          <span className="muted">
-            {paused ? "polling paused" : pollMs ? `polling every ${pollMs / 1000}s` : "polling off"}
-            {updatedAt && ` · updated ${updatedAt.toLocaleTimeString()}`}
-          </span>
-          <button type="button" onClick={() => void refresh(false)} disabled={busyAction !== null}>
-            Refresh now
-          </button>
-        </div>
-      </div>
+  const metrics: PageMetric[] = tiles.map((tile) => ({
+    label: tile.label,
+    value: tile.value,
+    note: tile.note,
+    tone: metricTone(tile.tone),
+    onClick: tile.onClick,
+    actionLabel: tile.actionLabel,
+  }));
 
+  return (
+    <PageHead
+      kicker={kicker}
+      title={title}
+      description={description}
+      metrics={metrics}
+      actions={
+        <>
+          <FreshnessStamp updatedAt={updatedAt} pollMs={pollMs} paused={paused} />
+          <button type="button" onClick={() => void refresh(false)} disabled={busyAction !== null}>
+            Refresh
+          </button>
+        </>
+      }
+    >
       {healthError && (
         <div className="banner error" role="alert">
           <span aria-hidden>✕</span>
@@ -83,7 +83,7 @@ export function ConsoleChrome({
           </div>
         </div>
       )}
-    </>
+    </PageHead>
   );
 }
 

@@ -16,6 +16,8 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import html
+import io
+import json
 import logging
 import math
 import re
@@ -26,8 +28,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 import httpx
-import io
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
@@ -96,6 +98,160 @@ def text_card(
     if next_commands:
         body.append(f"<i>Next: {esc(next_commands)}</i>")
     return "\n".join(body)
+
+
+def _style_axes(fig, ax) -> None:
+    """The shared dark canvas every bot chart is drawn on."""
+    fig.patch.set_facecolor('#0f172a')
+    ax.set_facecolor('#1e293b')
+    ax.tick_params(colors='#94a3b8', labelsize=8)
+    for spine in ax.spines.values():
+        spine.set_color('#334155')
+
+
+def _finish(fig) -> bytes:
+    plt.tight_layout()
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', facecolor=fig.get_facecolor(), edgecolor='none')
+    plt.close(fig)
+    return buf.getvalue()
+
+
+def generate_series_chart_png(symbol: str, closes: list[float], interval: str, source: str) -> bytes:
+    """
+    One symbol's close series, drawn from the bars the caller actually fetched.
+
+    Deliberately separate from `generate_chart_png("quote", ...)`, which titles
+    itself "Real-Time Market Quote" and plots `64200 + sin(i * 0.3) * 450`. That
+    is a decorative curve with a factual caption, and on a desk tool it is worse
+    than no chart: a reader cannot tell it apart from a real one. Everything
+    below is plotted from `closes` or not plotted at all.
+    """
+    fig, ax = plt.subplots(figsize=(6, 3.2), dpi=120)
+    _style_axes(fig, ax)
+
+    xs = list(range(len(closes)))
+    first, last = closes[0], closes[-1]
+    rising = last >= first
+    colour = '#00e676' if rising else '#ff5252'
+    ax.plot(xs, closes, color=colour, linewidth=2)
+    ax.fill_between(xs, closes, min(closes), color=colour, alpha=0.15)
+    ax.axhline(first, color='#64748b', linewidth=1, linestyle='--', alpha=0.7)
+
+    move = ((last / first) - 1) * 100 if first else 0.0
+    ax.set_title(
+        f"{symbol} · {interval} · {move:+.2f}% over {len(closes)} bars",
+        color='#f8fafc', fontsize=10, fontweight='bold',
+    )
+    ax.set_ylabel("Close", color='#94a3b8', fontsize=8)
+    ax.set_xlabel(f"{source} · dashed line is the first close", color='#94a3b8', fontsize=8)
+    return _finish(fig)
+
+
+_CI_JOBS: list[dict[str, Any]] = [
+    {"name": "Gateway", "count": 342},
+    {"name": "Web workspace", "count": 680},
+    {"name": "OpenBB service", "count": 13},
+    {"name": "Repository audit", "count": None},
+]
+
+
+def generate_bars_chart_png(
+    title: str,
+    labels: list[str],
+    values: list[float],
+    ylabel: str,
+    colours: list[str] | None = None,
+    horizontal: bool = False,
+    value_fmt: str = "{:.0f}",
+) -> bytes | None:
+    """A bar chart of whatever the caller measured. None when nothing was."""
+    pairs = [(label, value) for label, value in zip(labels, values, strict=False) if value is not None]
+    if not pairs:
+        return None
+    labels = [label for label, _ in pairs]
+    values = [float(value) for _, value in pairs]
+
+    fig, ax = plt.subplots(figsize=(6, 3.2), dpi=120)
+    _style_axes(fig, ax)
+    palette = colours or ['#38bdf8'] * len(values)
+    if horizontal:
+        ax.barh(labels, values, color=palette, height=0.5)
+        ax.set_xlabel(ylabel, color='#94a3b8', fontsize=8)
+        ax.invert_yaxis()
+        for index, value in enumerate(values):
+            ax.text(value, index, " " + value_fmt.format(value), color='#f8fafc', fontsize=8, va='center')
+    else:
+        ax.bar(labels, values, color=palette, width=0.5)
+        ax.set_ylabel(ylabel, color='#94a3b8', fontsize=8)
+        for index, value in enumerate(values):
+            ax.text(index, value, value_fmt.format(value), color='#f8fafc', fontsize=8, ha='center', va='bottom')
+    ax.set_title(title, color='#f8fafc', fontsize=10, fontweight='bold')
+    return _finish(fig)
+
+
+def generate_depth_chart_png(symbol: str, bids: list[tuple[float, float]], asks: list[tuple[float, float]]) -> bytes | None:
+    """
+    The real consolidated ladder as cumulative depth either side of the mid.
+
+    `generate_chart_png("depth", ...)` drew a fixed shape that never touched a
+    venue. This one draws the rungs it was handed and returns None when there
+    are none, because "no live book" is a fact the caption should carry rather
+    than something a picture papers over.
+    """
+    if len(bids) < 2 or len(asks) < 2:
+        return None
+
+    fig, ax = plt.subplots(figsize=(6, 3.2), dpi=120)
+    _style_axes(fig, ax)
+
+    bid_prices, bid_cum = [], []
+    running = 0.0
+    for price, size in sorted(bids, key=lambda r: -r[0]):
+        running += price * size
+        bid_prices.append(price)
+        bid_cum.append(running)
+
+    ask_prices, ask_cum = [], []
+    running = 0.0
+    for price, size in sorted(asks, key=lambda r: r[0]):
+        running += price * size
+        ask_prices.append(price)
+        ask_cum.append(running)
+
+    ax.step(bid_prices, bid_cum, where='post', color='#00e676', linewidth=2, label='Bids')
+    ax.fill_between(bid_prices, bid_cum, step='post', color='#00e676', alpha=0.15)
+    ax.step(ask_prices, ask_cum, where='post', color='#ff5252', linewidth=2, label='Asks')
+    ax.fill_between(ask_prices, ask_cum, step='post', color='#ff5252', alpha=0.15)
+
+    mid = (bid_prices[0] + ask_prices[0]) / 2
+    ax.axvline(mid, color='#64748b', linewidth=1, linestyle='--', alpha=0.8)
+    ax.set_title(f"{symbol} consolidated depth · mid {mid:,.2f}", color='#f8fafc', fontsize=10, fontweight='bold')
+    ax.set_ylabel("Cumulative notional (USD)", color='#94a3b8', fontsize=8)
+    ax.set_xlabel("Price", color='#94a3b8', fontsize=8)
+    ax.legend(facecolor='#1e293b', edgecolor='#334155', labelcolor='#f8fafc', fontsize=8)
+    return _finish(fig)
+
+
+def generate_drawdown_chart_png(symbol: str, closes: list[float]) -> bytes | None:
+    """Peak-to-trough drawdown of the same closes the price chart drew."""
+    if len(closes) < 2:
+        return None
+    peak = closes[0]
+    drawdown = []
+    for close in closes:
+        peak = max(peak, close)
+        drawdown.append((close / peak - 1) * 100 if peak else 0.0)
+
+    fig, ax = plt.subplots(figsize=(6, 2.6), dpi=120)
+    _style_axes(fig, ax)
+    xs = list(range(len(drawdown)))
+    ax.plot(xs, drawdown, color='#ff5252', linewidth=1.6)
+    ax.fill_between(xs, drawdown, 0, color='#ff5252', alpha=0.18)
+    ax.axhline(0, color='#64748b', linewidth=1)
+    ax.set_title(f"{symbol} drawdown from running peak · worst {min(drawdown):.2f}%", color='#f8fafc', fontsize=10, fontweight='bold')
+    ax.set_ylabel("Drawdown (%)", color='#94a3b8', fontsize=8)
+    return _finish(fig)
 
 
 def generate_chart_png(chart_type: str, symbol: str = "BTCUSDT") -> bytes:
@@ -561,6 +717,65 @@ class TelegramBot:
 
         return await self.send_message(chat_id, caption)
 
+    async def send_media_group(
+        self,
+        chat_id: str | int,
+        photos: list[tuple[str, bytes]],
+        caption: str = "",
+    ) -> dict[str, Any]:
+        """
+        Send several charts as one album.
+
+        `sendPhoto` carries exactly one image, so a command covering three
+        symbols could only ever answer about one of them, or spam three
+        notifications. `sendMediaGroup` delivers up to ten as a single message.
+
+        The caption rides on the first item — Telegram shows it under the album
+        — and every item keeps its own filename so a saved chart is still
+        identifiable. Degrades twice: to sequential photos if the album call
+        fails, and to the text card if the photos themselves fail, because the
+        numbers matter more than the pictures.
+        """
+        usable = [(name, blob) for name, blob in photos if blob]
+        if not usable:
+            return await self.send_message(chat_id, caption)
+        if len(usable) == 1:
+            return await self.send_photo(chat_id, usable[0][1], caption=caption)
+
+        if not self._client:
+            self._client = httpx.AsyncClient(timeout=60.0)
+
+        # Telegram caps an album at ten.
+        usable = usable[:10]
+        try:
+            media: list[dict[str, Any]] = []
+            files: dict[str, tuple[str, bytes, str]] = {}
+            for index, (name, blob) in enumerate(usable):
+                key = f"photo{index}"
+                item: dict[str, Any] = {"type": "photo", "media": f"attach://{key}"}
+                if index == 0 and caption:
+                    item["caption"] = caption[:1024]
+                    item["parse_mode"] = "HTML"
+                media.append(item)
+                files[key] = (f"{name}.png", blob, "image/png")
+
+            response = await self._client.post(
+                f"{self.base}/sendMediaGroup",
+                data={"chat_id": str(chat_id), "media": json.dumps(media)},
+                files=files,
+            )
+            res = response.json()
+            if res.get("ok"):
+                return res
+            log.warning("sendMediaGroup failed (%s), falling back to sequential photos", res.get("description"))
+        except Exception as exc:
+            log.warning("sendMediaGroup exception (%s), falling back to sequential photos", exc)
+
+        result: dict[str, Any] = {}
+        for index, (_, blob) in enumerate(usable):
+            result = await self.send_photo(chat_id, blob, caption=caption if index == 0 else "")
+        return result
+
     async def start(self) -> None:
         if not self.enabled:
             log.info("Telegram disabled (no TELEGRAM_BOT_TOKEN); gateway and web remain independent")
@@ -764,6 +979,30 @@ class TelegramBot:
         return symbol
 
     @staticmethod
+    def _symbols(args: list[str], limit: int = 6) -> list[str]:
+        """
+        Every leading argument that is a symbol, de-duplicated, order kept.
+
+        `_symbol` reads one and `_asset` reads the next positional as the asset
+        class, so "/quote BTCUSDT ETHUSDT" used to reject ETHUSDT as an invalid
+        asset. Symbol-shaped leading tokens are collected here instead, and
+        parsing stops at the first token that is not one — which is where the
+        asset keyword lives, so the existing single-symbol form is untouched.
+        """
+        found: list[str] = []
+        for raw in args:
+            candidate = raw.strip().upper()
+            if candidate.lower() in {"equity", "crypto"}:
+                break
+            if not _SYMBOL_RE.fullmatch(candidate):
+                break
+            if candidate not in found:
+                found.append(candidate)
+            if len(found) >= limit:
+                break
+        return found or [settings.symbols[0].upper()]
+
+    @staticmethod
     def _asset(symbol: str, args: list[str], index: int = 1) -> str:
         default = "crypto" if symbol.endswith(("USDT", "-USD")) else "equity"
         asset = (args[index].lower() if len(args) > index else default)
@@ -930,81 +1169,285 @@ class TelegramBot:
     # ------------------------------------------------------------------ #
     # 8 Desk Role Tabs (Explicit Vercel UI Tab mapping & Visual Charts)
     # ------------------------------------------------------------------ #
-    async def _cmd_tab_overview(self, args, chat_id, actor) -> None:
-        lines = [
-            "<b>AlphaEngine Desk Control Launchpad</b>",
-            "1️⃣ <b>Research</b>: Strategy Lab, Overfitting Verdict & Signals",
-            "2️⃣ <b>Execution</b>: Multi-venue L2 Book & TCA Smart Routing",
-            "3️⃣ <b>Portfolio</b>: Book Exposure, Sleeve Allocations & P&L Waterfall",
-            "4️⃣ <b>Risk</b>: Pre-trade Hard Limits, VaR 95/99 & Stress Tests",
-            "5️⃣ <b>Data</b>: Data Freshness, Provider Lineage & Failover",
-            "6️⃣ <b>Reliability</b>: Telemetry, SLIs, Circuit Breakers & Traces",
-            "7️⃣ <b>Developer</b>: OpenAPI Contracts, CI/CD Gates & Topology",
-            "",
-            "<b>System Signal</b>: 🟢 <code>HEALTHY · 1,080 CI PASSED</code>",
+    # Shared real-telemetry readers for the desk-role cards. Every one of these
+    # cards previously shipped a fixed script — "Sharpe Ratio 2.14", "Uptime
+    # 99.99%", "Quota 84% Remaining", "Binance 58% / Bybit 42%" — under a
+    # <b>LIVE</b> header, beside a chart drawn from `sin(i * 0.3)`. None of it
+    # was measured. The web workspace refuses to substitute a number it did not
+    # observe; the companion answering the same questions with invented ones is
+    # the same lie in a channel where it is harder to check.
+    #
+    # These read the sources the rest of the bot already uses. Where a source is
+    # unavailable the card says so and drops the chart, rather than falling back
+    # to a plausible shape.
+
+    def _subsystem_lines(self) -> tuple[list[str], str]:
+        """Trading state, feeds and services — the real ones."""
+        feed_health = self.tca.health() if self.tca else {}
+        state = self.gateway.state() if self.gateway else None
+        feeds = feed_health.get("feeds", [])
+        live_feeds = sum(1 for feed in feeds if feed.get("connected"))
+        lines: list[str] = []
+        if state:
+            lines.append(f"Trading state  <code>{'HALTED' if state.kill_switch_active else 'LIVE'}</code>")
+            lines.append(f"Equity         <code>{_money(state.equity)}</code>")
+            lines.append(f"Daily P&amp;L      <code>{_money(state.daily_pnl)}</code>")
+        else:
+            lines.append("Trading state  <code>gateway unavailable</code>")
+        lines.append(f"Market feeds   <code>{live_feeds}/{len(feeds)} connected</code>")
+        if feed_health.get("synthetic_active"):
+            lines.append("Book source    <code>SYNTHETIC — generated, not a venue</code>")
+        uptime = feed_health.get("uptime_s")
+        if uptime:
+            lines.append(f"Engine uptime  <code>{uptime:.0f}s</code>")
+        status = "DEGRADED" if (not state or live_feeds < len(feeds)) else "LIVE"
+        return lines, status
+
+    def _latency_rows(self) -> list[tuple[str, float, float, float, int]]:
+        """Per-route p50/p95/p99 actually observed by the gateway middleware."""
+        from modules import metrics
+
+        rows = []
+        for route, stats in metrics.request_latency_summary().items():
+            rows.append((route, stats["p50"], stats["p95"], stats["p99"], int(stats["samples"])))
+        rows.sort(key=lambda row: row[3], reverse=True)
+        return rows[:6]
+
+    async def _closes_for(self, symbol: str, asset: str, interval: str = "1d", count: int = 60) -> list[float]:
+        try:
+            payload = await self._bars_payload(symbol, interval, count, asset)
+        except Exception:
+            return []
+        if not payload.get("ok"):
+            return []
+        return [
+            value for value in (_finite(row.get("close")) for row in (payload.get("data") or []))
+            if value is not None
         ]
-        text = text_card("🌐 Overview (All Roles)", "DESK LAUNCHPAD", lines, source="Executive Control Plane", next_commands="/research · /execution · /portfolio · /risk · /data · /reliability · /developer")
-        chart_bytes = generate_chart_png("overview")
-        await self.send_photo(chat_id, chart_bytes, caption=text[:1000])
+
+    async def _cmd_tab_overview(self, args, chat_id, actor) -> None:
+        lines, status = self._subsystem_lines()
+        positions: list[dict[str, Any]] = []
+        if self.gateway:
+            try:
+                positions = self._portfolio_report().get("exposure", {}).get("positions", []) or []
+            except Exception:
+                lines.append("<i>The book could not be read, so there is no exposure chart.</i>")
+        charts: list[tuple[str, bytes]] = []
+
+        exposure = generate_bars_chart_png(
+            "Gross exposure by symbol (USD)",
+            [str(position.get("symbol")) for position in positions[:8]],
+            [_finite(position.get("notional")) or 0.0 for position in positions[:8]],
+            "Notional (USD)",
+            horizontal=True,
+            value_fmt="{:,.0f}",
+        )
+        if exposure:
+            charts.append(("exposure", exposure))
+
+        latency = self._latency_rows()
+        latency_chart = generate_bars_chart_png(
+            "Gateway route latency p99 (ms, observed)",
+            [route for route, *_ in latency],
+            [p99 for _, _, _, p99, _ in latency],
+            "p99 (ms)",
+            horizontal=True,
+            value_fmt="{:.0f}ms",
+        )
+        if latency_chart:
+            charts.append(("latency", latency_chart))
+        else:
+            lines.append("<i>No gateway request has been timed yet, so no latency chart.</i>")
+
+        if not positions:
+            lines.append("<i>The book holds no position, so there is no exposure chart.</i>")
+
+        text = text_card(
+            "🌐 Desk overview",
+            status,
+            lines,
+            source="Gateway + TCA engine + request middleware",
+            next_commands="/research · /execution · /portfolio · /risk · /data · /reliability · /developer",
+        )
+        await self.send_media_group(chat_id, charts, caption=text)
 
     async def _cmd_tab_research(self, args, chat_id, actor) -> None:
-        symbol = self._symbol(args) if args else "BTCUSDT"
+        symbol = self._symbol(args) if args else settings.symbols[0].upper()
+        asset = self._asset(symbol, args)
+        closes = await self._closes_for(symbol, asset)
+        if len(closes) < 2:
+            await self.send_message(chat_id, text_card(
+                f"🔬 Research · {esc(symbol)}", "NO BARS",
+                ["No daily bars were returned, so nothing can be measured for this symbol."],
+                source="OpenBB / yfinance", next_commands="/quote " + symbol,
+            ))
+            return
+
+        returns = [closes[i] / closes[i - 1] - 1 for i in range(1, len(closes)) if closes[i - 1]]
+        mean = sum(returns) / len(returns) if returns else 0.0
+        variance = sum((r - mean) ** 2 for r in returns) / (len(returns) - 1) if len(returns) > 1 else 0.0
+        vol = math.sqrt(variance) * math.sqrt(365)
+        total = closes[-1] / closes[0] - 1 if closes[0] else 0.0
+        peak, worst = closes[0], 0.0
+        for close in closes:
+            peak = max(peak, close)
+            worst = min(worst, close / peak - 1 if peak else 0.0)
+
         lines = [
-            f"<b>Strategy &amp; Signal Lab — {esc(symbol)}</b>",
-            "• <b>Step A (Setup)</b>: SMA Cross / Trend Model (20/50 bars)",
-            "• <b>Step B (Evidence)</b>: Sharpe Ratio <code>2.14</code> · Max DD <code>-4.2%</code> · Win Rate <code>68.5%</code>",
-            "• <b>Step C (Verdict)</b>: Deflated Sharpe <code>0.845 (PASSED)</code> · OOS Sharpe <code>1.92</code>",
-            "• <b>Promotion</b>: Candidate approved for live execution routing",
+            f"Window      <code>{len(closes)} daily closes</code>",
+            f"Return      <code>{_percent(total, signed=True)}</code>",
+            f"Volatility  <code>{_percent(vol)}</code> annualised",
+            f"Max drawdown <code>{_percent(worst)}</code>",
+            "<i>Descriptive statistics of the price series only — this is not a "
+            "backtest and carries no verdict. Run /backtest for a scored candidate.</i>",
         ]
-        text = text_card("🔬 Research (Quant Researcher)", "STRATEGY LAB", lines, source="Research Engine", next_commands=f"/backtests · /execution {symbol}")
-        chart_bytes = generate_chart_png("equity", symbol)
-        await self.send_photo(chat_id, chart_bytes, caption=text[:1000])
+        charts = [(f"{symbol}-price", generate_series_chart_png(symbol, closes, "1d", "OpenBB / yfinance"))]
+        drawdown = generate_drawdown_chart_png(symbol, closes)
+        if drawdown:
+            charts.append((f"{symbol}-drawdown", drawdown))
+
+        await self.send_media_group(chat_id, charts, caption=text_card(
+            f"🔬 Research · {esc(symbol)}", "MEASURED", lines,
+            source="OpenBB / yfinance", next_commands=f"/backtest {symbol} · /quote {symbol}",
+        ))
 
     async def _cmd_tab_execution(self, args, chat_id, actor) -> None:
-        symbol = self._symbol(args) if args else "BTCUSDT"
-        lines = [
-            f"<b>L2 Smart Order Routing &amp; TCA — {esc(symbol)}</b>",
-            "• <b>Step A (Watchlist)</b>: Binance (Live) · Bybit (Live) · Spread <code>0.5 bps</code>",
-            "• <b>Step B (Order Book)</b>: Bid Depth <code>$2.4M</code> · Ask Depth <code>$2.1M</code>",
-            "• <b>Step C (TCA Audit)</b>: $100k Order VWAP <code>$64,608.20</code> · Expected Slippage <code>1.2 bps</code>",
-            "• <b>Route Allocation</b>: Binance 58% / Bybit 42%",
-        ]
-        text = text_card("⚡ Execution (Quant Trader)", "SMART ORDER ROUTER", lines, source="TCA Engine", next_commands=f"/book {symbol} · /tca {symbol} 100000 BUY")
-        chart_bytes = generate_chart_png("depth", symbol)
-        await self.send_photo(chat_id, chart_bytes, caption=text[:1000])
+        symbol = self._symbol(args) if args else settings.symbols[0].upper()
+        books = [book for book in self.tca.get_books(symbol, depth=20) if book.mid] if self.tca else []
+        if not books:
+            await self.send_message(chat_id, text_card(
+                f"⚡ Execution · {esc(symbol)}", "NO LIVE BOOK",
+                ["No venue currently has a fresh book for this symbol, so there is nothing to route against."],
+                source="TCA engine", next_commands="/feedstatus",
+            ))
+            return
+
+        bids: list[tuple[float, float]] = []
+        asks: list[tuple[float, float]] = []
+        lines: list[str] = []
+        synthetic = False
+        for book in books:
+            # `get_books` hands back the VenueBook schema, not the raw BookState:
+            # the ladders are lists of BookLevel and the depth totals are already
+            # computed fields. Reaching for `.items()` and `depth_usd()` here is
+            # reaching for the internal type.
+            synthetic = synthetic or bool(getattr(book, "synthetic", False))
+            bids.extend((level.price, level.size) for level in book.bids)
+            asks.extend((level.price, level.size) for level in book.asks)
+            lines.append(
+                f"<code>{esc(book.venue):<9}</code> mid <code>{_number(book.mid)}</code>"
+                f" · spread <code>{_number(book.spread_bps, 2)}</code> bps"
+                f" · depth <code>{_money(book.depth_usd_bid)}</code> / <code>{_money(book.depth_usd_ask)}</code>"
+            )
+        if synthetic:
+            lines.append("<i>At least one venue is serving a synthetic book — generated, not a venue.</i>")
+
+        chart = generate_depth_chart_png(symbol, bids, asks)
+        charts = [(f"{symbol}-depth", chart)] if chart else []
+        await self.send_media_group(chat_id, charts, caption=text_card(
+            f"⚡ Execution · {esc(symbol)}", "SYNTHETIC BOOK" if synthetic else "LIVE BOOK", lines,
+            source="TCA engine", next_commands=f"/book {symbol} · /tca {symbol} 100000 BUY",
+        ))
 
     async def _cmd_tab_data(self, args, chat_id, actor) -> None:
+        from modules import research
+
+        feed_health = self.tca.health() if self.tca else {}
+        feeds = feed_health.get("feeds", [])
+        openbb = await research.openbb_status_async()
         lines = [
-            "<b>Market Data Quality &amp; Freshness Monitor</b>",
-            "• <b>Step A (Trust Overview)</b>: Data Quality Score <code>100%</code> · Stale Feeds <code>0</code>",
-            "• <b>Step B (Lineage)</b>: OpenBB / Binance / Bybit Ingestion Lineage Verified",
-            "• <b>Step C (Failover)</b>: Primary Active · Backup Ready · Quota <code>84% Remaining</code>",
+            f"OpenBB service <code>{'READY' if openbb.get('ok') else 'UNAVAILABLE'}</code>",
+            f"Market feeds   <code>{sum(1 for f in feeds if f.get('connected'))}/{len(feeds)} connected</code>",
         ]
-        text = text_card("📊 Data (Data Engineer)", "DATA MONITOR", lines, source="Data Console", next_commands="/openbb · /feedstatus")
-        chart_bytes = generate_chart_png("latency")
-        await self.send_photo(chat_id, chart_bytes, caption=text[:1000])
+        if feed_health.get("synthetic_active"):
+            lines.append("Book source    <code>SYNTHETIC — generated, not a venue</code>")
+        for feed in feeds:
+            lines.append(
+                f"<code>{esc(str(feed.get('venue') or feed.get('name') or '?')):<9}</code>"
+                f" <code>{'connected' if feed.get('connected') else 'down'}</code>"
+                f" · <code>{_number(feed.get('update_rate_hz'), 2)} Hz</code>"
+            )
+
+        chart = generate_bars_chart_png(
+            "Feed update rate by venue (Hz, observed)",
+            [str(feed.get("venue") or feed.get("name") or "?") for feed in feeds],
+            [_finite(feed.get("update_rate_hz")) or 0.0 for feed in feeds],
+            "Updates per second",
+            colours=['#00e676' if feed.get("connected") else '#ff5252' for feed in feeds],
+            value_fmt="{:.2f}",
+        )
+        if not chart:
+            lines.append("<i>No feed is reporting an update rate, so no chart.</i>")
+
+        await self.send_media_group(chat_id, [("feeds", chart)] if chart else [], caption=text_card(
+            "📊 Data operations", "READY" if openbb.get("ok") else "DEGRADED", lines,
+            source="TCA engine + OpenBB", next_commands="/openbb · /feedstatus",
+        ))
 
     async def _cmd_tab_reliability(self, args, chat_id, actor) -> None:
-        lines = [
-            "<b>Infrastructure Uptime &amp; Telemetry</b>",
-            "• <b>Step A (Telemetry)</b>: Uptime <code>99.99%</code> · Circuit Breakers <code>CLOSED (NORMAL)</code>",
-            "• <b>Step B (Traces)</b>: P50 Latency <code>12ms</code> · P99 Latency <code>28ms</code>",
-            "• <b>Step C (Remediation)</b>: Zero active operational incidents",
-        ]
-        text = text_card("🛡️ Reliability (DevOps / SRE)", "SRE TELEMETRY", lines, source="System Reliability Console", next_commands="/status · /incidents")
-        chart_bytes = generate_chart_png("latency")
-        await self.send_photo(chat_id, chart_bytes, caption=text[:1000])
+        rows = self._latency_rows()
+        feed_health = self.tca.health() if self.tca else {}
+        uptime = feed_health.get("uptime_s") or 0.0
+        lines = [f"Engine uptime  <code>{uptime:.0f}s</code>"]
+        if rows:
+            for route, p50, p95, p99, samples in rows:
+                lines.append(
+                    f"<code>{esc(route)[:22]:<22}</code> p50 <code>{p50:.0f}</code>"
+                    f" · p95 <code>{p95:.0f}</code> · p99 <code>{p99:.0f}</code> ms"
+                    f" · n=<code>{samples}</code>"
+                )
+        else:
+            lines.append("<i>No request has been timed in the current window, so there is nothing to plot.</i>")
+
+        charts: list[tuple[str, bytes]] = []
+        p99_chart = generate_bars_chart_png(
+            "Route latency p99 (ms, observed)",
+            [route[:18] for route, *_ in rows],
+            [p99 for _, _, _, p99, _ in rows],
+            "p99 (ms)", horizontal=True, value_fmt="{:.0f}ms",
+        )
+        if p99_chart:
+            charts.append(("p99", p99_chart))
+        sample_chart = generate_bars_chart_png(
+            "Requests timed per route (window)",
+            [route[:18] for route, *_ in rows],
+            [float(samples) for *_, samples in rows],
+            "Samples", horizontal=True, value_fmt="{:,.0f}",
+        )
+        if sample_chart:
+            charts.append(("samples", sample_chart))
+
+        await self.send_media_group(chat_id, charts, caption=text_card(
+            "🛡️ Reliability", "MEASURED" if rows else "NO SAMPLES", lines,
+            source="Gateway request middleware", next_commands="/status · /incidents",
+        ))
 
     async def _cmd_tab_developer(self, args, chat_id, actor) -> None:
         lines = [
-            "<b>Developer Control Plane &amp; CI/CD Posture</b>",
-            "• <b>Step A (Topology)</b>: Next.js Web UI + FastAPI Gateway + OpenBB Service",
-            "• <b>Step B (API Specs)</b>: 26 OpenAPI Route Handlers · Contract Drift <code>0</code>",
-            "• <b>Step C (CI Posture)</b>: 1,080 Passed Assertions (680 Web + 341 Gateway + 13 OpenBB + 46 Risk)",
+            f"Build          <code>{esc(settings.version)}</code> · <code>{esc(settings.environment)}</code>",
+            f"Configured gates <code>{sum(job['count'] for job in _CI_JOBS if job['count'])}</code> assertions",
         ]
-        text = text_card("💻 Developer (Quant Developer)", "CONTROL PLANE", lines, source="Developer Console", next_commands="/version · /commands")
-        chart_bytes = generate_chart_png("ci")
-        await self.send_photo(chat_id, chart_bytes, caption=text[:1000])
+        for job in _CI_JOBS:
+            count = job["count"]
+            lines.append(
+                f"<code>{esc(job['name']):<16}</code> "
+                + (f"<code>{count}</code> checks" if count else "<code>tree audit</code>")
+            )
+        lines.append(
+            "<i>These are the gates committed in this repository, not the conclusion "
+            "of the last run — GitHub Actions remains the authority for that.</i>"
+        )
+        chart = generate_bars_chart_png(
+            "Automated checks by CI job (configured)",
+            [job["name"] for job in _CI_JOBS],
+            [float(job["count"]) if job["count"] else None for job in _CI_JOBS],
+            "Assertions", horizontal=True, value_fmt="{:,.0f}",
+        )
+        await self.send_media_group(chat_id, [("ci", chart)] if chart else [], caption=text_card(
+            "💻 Developer", "CONFIGURED", lines,
+            source="Committed CI configuration", next_commands="/version · /commands",
+        ))
 
     # ------------------------------------------------------------------ #
     # Portfolio manager
@@ -1012,9 +1455,36 @@ class TelegramBot:
     async def _cmd_portfolio(self, args, chat_id, actor) -> None:
         from modules.portfolio import format_for_telegram
 
-        text = format_for_telegram(self._portfolio_report())
-        chart_bytes = generate_chart_png("allocation")
-        await self.send_photo(chat_id, chart_bytes, caption=text[:1000])
+        report = self._portfolio_report()
+        text = format_for_telegram(report)
+        positions = report.get("exposure", {}).get("positions", []) or []
+
+        # Was `generate_chart_png("allocation")` — a fixed three-slice pie that
+        # never read the book it was captioning. These are the book's own
+        # notionals and its own daily P&L per symbol.
+        charts: list[tuple[str, bytes]] = []
+        allocation = generate_bars_chart_png(
+            "Allocation by symbol (USD notional)",
+            [str(position.get("symbol")) for position in positions[:8]],
+            [_finite(position.get("notional")) or 0.0 for position in positions[:8]],
+            "Notional (USD)", horizontal=True, value_fmt="{:,.0f}",
+        )
+        if allocation:
+            charts.append(("allocation", allocation))
+
+        pnl_values = [_finite(position.get("unrealized_pnl")) for position in positions[:8]]
+        pnl = generate_bars_chart_png(
+            "Unrealised P&L by symbol (USD)",
+            [str(position.get("symbol")) for position in positions[:8]],
+            pnl_values,
+            "Unrealised P&L (USD)",
+            colours=['#00e676' if (value or 0) >= 0 else '#ff5252' for value in pnl_values],
+            horizontal=True, value_fmt="{:,.0f}",
+        )
+        if pnl:
+            charts.append(("pnl", pnl))
+
+        await self.send_media_group(chat_id, charts, caption=text[:1024])
 
     async def _cmd_positions(self, args, chat_id, actor) -> None:
         state = self.gateway.state()
@@ -1100,7 +1570,33 @@ class TelegramBot:
         status = "HALTED" if state.kill_switch_active else "LIVE"
         if state.kill_switch_active:
             lines.insert(0, f"Reason <code>{esc(state.kill_reason or 'not provided')}</code>")
-        await self.send_message(chat_id, text_card("🛡 Risk gateway", status, lines, source="Authoritative risk process", next_commands="/headroom · /positions · /incidents"))
+
+        # The budget bar was drawn in block characters for the drawdown only.
+        # Every hard limit the gateway enforces has a utilisation, and which one
+        # binds first is the whole question — so all of them are plotted against
+        # the same 100% scale, from the gateway's own numbers.
+        gross_limit = state.limits.get("max_gross_exposure_usd") or 0.0
+        dd_limit = state.limits.get("max_daily_drawdown_pct") or 0.0
+        utilisations = [
+            ("Daily drawdown", (state.daily_drawdown_pct / dd_limit * 100) if dd_limit else None),
+            ("Gross exposure", (state.gross_exposure / gross_limit * 100) if gross_limit else None),
+            ("Drawdown budget", used * 100),
+        ]
+        chart = generate_bars_chart_png(
+            "Risk limit utilisation (% of hard limit)",
+            [label for label, value in utilisations if value is not None],
+            [value for _, value in utilisations if value is not None],
+            "Utilisation (%)",
+            colours=[
+                '#ff5252' if (value or 0) >= 90 else '#f59e0b' if (value or 0) >= 70 else '#00e676'
+                for _, value in utilisations if value is not None
+            ],
+            horizontal=True, value_fmt="{:.1f}%",
+        )
+        await self.send_media_group(chat_id, [("limits", chart)] if chart else [], caption=text_card(
+            "🛡 Risk gateway", status, lines,
+            source="Authoritative risk process", next_commands="/headroom · /positions · /incidents",
+        ))
 
     async def _cmd_limits(self, args, chat_id, actor) -> None:
         limits = self.gateway.state().limits
@@ -1145,24 +1641,88 @@ class TelegramBot:
 
         return await research.quote(symbol, asset)
 
-    async def _cmd_quote(self, args, chat_id, actor) -> None:
-        symbol = self._symbol(args)
-        asset = self._asset(symbol, args)
+    async def _quote_line(self, symbol: str, asset: str) -> tuple[str | None, dict[str, Any]]:
+        """One symbol's quote row for a multi-symbol card, plus its raw payload."""
         payload = await self._quote_payload(symbol, asset)
         if not payload.get("ok"):
-            await self.send_message(chat_id, self._openbb_error("quote", payload))
-            return
+            return None, payload
         data = payload["data"]
-        lines = [
-            f"Price      <code>{_number(data.get('price'))}</code> {esc(data.get('currency') or '')}",
-            f"Change     <code>{_number(data.get('change'), signed=True)}</code> · <code>{_number(data.get('change_percent'), signed=True)}%</code>",
-            f"Open       <code>{_number(data.get('open'))}</code>",
-            f"High / Low <code>{_number(data.get('high'))}</code> / <code>{_number(data.get('low'))}</code>",
-            f"Volume     <code>{_number(data.get('volume'), 0)}</code>",
+        row = (
+            f"<code>{esc(symbol):<10}</code> "
+            f"<code>{_number(data.get('price'))}</code> "
+            f"· <code>{_number(data.get('change_percent'), signed=True)}%</code> "
+            f"· H <code>{_number(data.get('high'))}</code> "
+            f"· L <code>{_number(data.get('low'))}</code>"
+        )
+        return row, payload
+
+    async def _symbol_chart(self, symbol: str, asset: str) -> bytes | None:
+        """A close-series chart for one symbol, or nothing if the bars are not there."""
+        try:
+            payload = await self._bars_payload(symbol, "1d", 30, asset)
+        except Exception:
+            return None
+        if not payload.get("ok"):
+            return None
+        closes = [
+            value for value in (_finite(row.get("close")) for row in (payload.get("data") or []))
+            if value is not None
         ]
-        photo = generate_chart_png("quote", symbol)
-        card = text_card(f"💹 {symbol} quote", "DELAYED" if data.get("delayed") else "LIVE", lines, source="OpenBB / yfinance", next_commands=f"/bars {symbol} 1d 5 · /snapshot {symbol}")
-        await self.send_photo(chat_id, photo, caption=card)
+        if len(closes) < 2:
+            return None
+        return generate_series_chart_png(symbol, closes, "1d", "OpenBB / yfinance")
+
+    async def _cmd_quote(self, args, chat_id, actor) -> None:
+        """
+        Quote one symbol or several.
+
+        "/quote BTCUSDT ETHUSDT SOLUSDT" now answers about all three in one
+        message: a row per symbol in the card, and a chart per symbol in a
+        single album, rather than one symbol's picture standing in for a watch
+        list. A symbol whose bars are unavailable keeps its quote row and simply
+        contributes no chart — a missing series is not worth suppressing the
+        numbers over.
+        """
+        symbols = self._symbols(args)
+        asset_index = len(symbols) if len(symbols) > 1 else 1
+        rows: list[str] = []
+        charts: list[tuple[str, bytes]] = []
+        failures: list[str] = []
+        delayed = False
+
+        for symbol in symbols:
+            asset = self._asset(symbol, args, index=asset_index)
+            row, payload = await self._quote_line(symbol, asset)
+            if row is None:
+                failures.append(symbol)
+                if len(symbols) == 1:
+                    await self.send_message(chat_id, self._openbb_error("quote", payload))
+                    return
+                continue
+            rows.append(row)
+            delayed = delayed or bool(payload["data"].get("delayed"))
+            chart = await self._symbol_chart(symbol, asset)
+            if chart:
+                charts.append((symbol, chart))
+
+        if not rows:
+            await self.send_message(chat_id, self._openbb_error("quote", {"error": "no symbol returned a quote"}))
+            return
+
+        if failures:
+            rows.append(f"<i>No quote for {esc(', '.join(failures))}</i>")
+        if len(charts) < len(rows) - (1 if failures else 0):
+            rows.append("<i>Symbols without a chart had fewer than two daily bars.</i>")
+
+        title = f"💹 {symbols[0]} quote" if len(symbols) == 1 else f"💹 {len(rows) - (1 if failures else 0)} quotes"
+        card = text_card(
+            title,
+            "DELAYED" if delayed else "LIVE",
+            rows,
+            source="OpenBB / yfinance",
+            next_commands=f"/bars {symbols[0]} 1d 5 · /snapshot {symbols[0]}",
+        )
+        await self.send_media_group(chat_id, charts, caption=card)
 
     async def _bars_payload(self, symbol: str, interval: str, count: int, asset: str) -> dict[str, Any]:
         from modules import research

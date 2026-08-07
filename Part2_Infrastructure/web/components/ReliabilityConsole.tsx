@@ -167,7 +167,13 @@ export default function ReliabilityConsole({
 
   return (
     <>
-      <ConsoleChrome view={view} tiles={tiles} />
+      <ConsoleChrome
+        view={view}
+        tiles={tiles}
+        kicker="DevOps / SRE"
+        title="Reliability"
+        description="Is the desk up, what is degrading it, and which control brings it back — read from one health snapshot."
+      />
 
       {section !== "controls" && actionResult && (
         <OperatorActionResult result={actionResult} />

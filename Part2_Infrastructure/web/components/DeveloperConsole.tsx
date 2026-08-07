@@ -16,6 +16,8 @@ import CodebaseExplorer from "@/components/developer/CodebaseExplorer";
 import DeveloperApiCatalog, { API_OPERATIONS } from "@/components/developer/DeveloperApiCatalog";
 import DeveloperWorkQueue from "@/components/developer/DeveloperWorkQueue";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
+import CategoryBars from "@/components/charts/CategoryBars";
+import PageHead from "@/components/workspace/PageHead";
 import type { DeveloperWorkItem } from "@/lib/developer-work";
 import { DEPLOYABLES, GITHUB_SOURCE_ROOT, REPOSITORY_STATS } from "@/lib/repository-catalog";
 import type { SystemHealthView } from "@/lib/use-system-health";
@@ -385,6 +387,30 @@ function DeveloperOverview({
           <p className="developer-cp-disclosure">Stages are configured delivery evidence. GitHub Actions remains the authority for the current run conclusion.</p>
         </section>
 
+        {/* The CI counts were prose inside the pipeline card — "342", "680",
+            "13" as three numbers in three sentences. Drawn against each other
+            they say the thing the sentences could not: nearly every test in
+            this delivery is in the web workspace, and the repository audit
+            contributes none because it asserts a tree rather than behaviour. */}
+        <section className="card developer-cp-tests-card">
+          <div className="developer-cp-heading">
+            <div><span>Verification weight</span><h2>Automated checks by job</h2></div>
+            <span className="section-note">committed gates · GitHub Actions is the authority</span>
+          </div>
+          <CategoryBars
+            ariaLabel="Number of automated checks contributed by each CI job."
+            rows={CI_JOBS.map((job) => ({
+              label: job.name,
+              note: job.count == null ? "tree audit" : `${job.count} checks`,
+              segments: [{ label: "automated checks", value: job.count ?? 0, color: "var(--series-1)" }],
+            }))}
+            emptyNote="No job reports a check count."
+          />
+          <p className="developer-cp-disclosure">
+            Counts are the gates configured in this repository, not the conclusion of the last run.
+          </p>
+        </section>
+
         <section className="card developer-cp-schema-card">
           <div className="developer-cp-heading">
             <div><span>Contract custody</span><h2>Schema diff</h2></div>
@@ -534,15 +560,31 @@ export default function DeveloperConsole({
 
   return (
     <div className="developer-control-plane">
-      <h1 className="sr-only">AlphaEngine Developer control plane</h1>
-      <header className="developer-cp-bar">
-        <div><span>Repository</span><strong>Developer_Analyst_Infra</strong></div>
-        <div><span>Revision</span><strong><code>main@{APP_COMMIT}</code></strong></div>
-        <div><span>Environment</span><strong>{RUNTIME_LABEL}</strong></div>
-        <div><span>Engineering queue</span><strong>{openWork.length} open</strong></div>
-        <StatusPill state={currentState} />
-        <button type="button" onClick={() => void view.refresh(false)} disabled={view.busyAction !== null}>Refresh health</button>
-      </header>
+      <PageHead
+        kicker="Quant developer"
+        title="Developer"
+        description="What is deployed, what CI proved, and where the schema contracts stand — against this exact revision."
+        metrics={[
+          { label: "Repository", value: "Developer_Analyst_Infra", note: "committed delivery tree", mono: false },
+          { label: "Revision", value: `main@${APP_COMMIT}`, note: HAS_COMMIT_IDENTITY ? "build identity" : "no commit stamped" },
+          { label: "Environment", value: RUNTIME_LABEL, note: IS_VERCEL_DEPLOYMENT ? "hosted build" : "unverified local output", mono: false },
+          {
+            label: "Engineering queue",
+            value: `${openWork.length} open`,
+            note: "session-scoped",
+            tone: openWork.length ? "warn" : "good",
+          },
+        ]}
+        status={{
+          label: currentState.label,
+          tone: currentState.tone === "bad" ? "critical" : currentState.tone === "good" ? "good" : currentState.tone === "warn" ? "warn" : "neutral",
+        }}
+        actions={
+          <button type="button" onClick={() => void view.refresh(false)} disabled={view.busyAction !== null}>
+            Refresh health
+          </button>
+        }
+      />
 
       <WorkspaceSubtabs
         workspaceId="developer"
@@ -550,6 +592,7 @@ export default function DeveloperConsole({
         tabs={DEVELOPER_SECTIONS}
         activeId={section}
         onChange={onSectionChange}
+        secondary={["work"]}
       />
 
       <WorkspaceSubtabPanel workspaceId="developer" tabId="overview" activeId={section}>

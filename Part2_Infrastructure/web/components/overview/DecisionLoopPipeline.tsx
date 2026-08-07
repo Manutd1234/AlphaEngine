@@ -48,27 +48,35 @@ const STATE_STYLE: Record<StageState, { Icon: typeof Circle; word: string; hex: 
 export default function DecisionLoopPipeline({ stages }: { stages: DecisionStage[] }) {
   return (
     <div
-      className="relative z-[1] min-w-[300px] rounded-[13px] border border-white/15 bg-[rgba(5,17,34,0.36)] p-4 backdrop-blur-[10px] max-[900px]:w-full max-[900px]:min-w-0"
+      /* Four stages, one row. The list used to wrap, which stranded Execution
+         on a second line under three-quarters of empty panel and made the hero
+         ~70px taller than it needed to be. Every stage is now `flex-1 min-w-0`
+         in a nowrap row, so they share the width and each detail line ellipses
+         rather than pushing a sibling onto the next line. */
+      className="relative z-[1] min-w-0 flex-[1_1_600px] rounded-[13px] border border-white/15 bg-[rgba(5,17,34,0.36)] p-4 max-[900px]:w-full"
       aria-label="AlphaEngine decision loop"
     >
-      <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-[#86adf5]">Decision loop</span>
-      <ol className="mt-2 flex list-none flex-wrap items-stretch gap-x-1 gap-y-2 p-0" aria-label="Pipeline stages">
+      <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-[#8fd3ff]">Decision loop</span>
+      <ol
+        className="mt-2 flex list-none flex-nowrap items-stretch gap-x-1 p-0 max-[560px]:flex-wrap max-[560px]:gap-y-2"
+        aria-label="Pipeline stages"
+      >
         {stages.map((stage, index) => {
           const StageIcon = STAGE_ICON[stage.id];
           const style = STATE_STYLE[stage.state];
           const StateIcon = style.Icon;
           return (
-            <li key={stage.id} className="flex min-w-0 items-center gap-1">
-              <div className="grid min-w-0 gap-0.5 rounded-[9px] border border-white/10 bg-[rgba(11,23,40,0.55)] px-2.5 py-1.5">
-                <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[#e8eefb]">
-                  <StageIcon size={13} aria-hidden />
-                  {stage.label}
-                  <span className="flex items-center gap-1 text-[10px] font-bold" style={{ color: style.hex }}>
+            <li key={stage.id} className="flex min-w-0 flex-1 items-center gap-1 max-[560px]:flex-[1_1_100%]">
+              <div className="grid min-w-0 flex-1 gap-0.5 rounded-[9px] border border-white/10 bg-[rgba(11,23,40,0.55)] px-2.5 py-1.5">
+                <span className="flex min-w-0 items-center gap-1.5 text-[11px] font-semibold text-[#e8eefb]">
+                  <StageIcon size={13} aria-hidden className="shrink-0" />
+                  <span className="min-w-0 truncate">{stage.label}</span>
+                  <span className="flex shrink-0 items-center gap-1 text-[10px] font-bold" style={{ color: style.hex }}>
                     <StateIcon size={11} aria-hidden className={stage.state === "active" ? "animate-spin" : undefined} />
                     {style.word}
                   </span>
                 </span>
-                <span className="max-w-[11rem] overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-[#9fb0c7]">
+                <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-[#a9c4e0]">
                   {stage.detail}
                 </span>
               </div>
@@ -79,7 +87,7 @@ export default function DecisionLoopPipeline({ stages }: { stages: DecisionStage
           );
         })}
       </ol>
-      <small className="mt-2 block text-[10px] text-[#9fb0c7]">Paper-only · observable · reproducible</small>
+      <small className="mt-2 block text-[10px] text-[#a9c4e0]">Paper-only · observable · reproducible</small>
     </div>
   );
 }

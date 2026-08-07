@@ -54,7 +54,12 @@ export default function Sparkline({
       height={height}
       role="img"
       aria-label={ariaLabel}
-      className="shrink-0"
+      /* `shrink-0` meant this kept its full 96px however little room the tile
+         had, and pushed itself out through the card's right border. It may now
+         give ground: the viewBox scales uniformly (the default xMidYMid meet),
+         so a narrower slot yields a smaller sparkline rather than a distorted
+         one or a broken card. */
+      className="block min-w-0 max-w-full shrink"
     >
       {variant === "area" && (
         <path d={areaPath(coords, height - pad)} fill={color} fillOpacity={0.12} />

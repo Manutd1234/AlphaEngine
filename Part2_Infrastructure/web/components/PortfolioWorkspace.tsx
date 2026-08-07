@@ -22,7 +22,7 @@ import { useState } from "react";
 
 import AllocationDonut from "@/components/portfolio/AllocationDonut";
 import AllocationPanel from "@/components/portfolio/AllocationPanel";
-import { BookChrome, BookFallback, CrossLinkTile } from "@/components/portfolio/BookChrome";
+import { BookChrome, BookFallback, BookSourceControl, CrossLinkTile } from "@/components/portfolio/BookChrome";
 import EquityCurve from "@/components/portfolio/EquityCurve";
 import ExecutionHandoff, { type HandoffIntent } from "@/components/portfolio/ExecutionHandoff";
 import PnlWaterfall from "@/components/portfolio/PnlWaterfall";
@@ -43,9 +43,12 @@ export interface PortfolioWorkspaceProps {
   onOpenRisk: () => void;
   /** Operator credential shared with the Reliability tab and the header. */
   operatorToken?: string;
+  section: PortfolioSection;
+  onSectionChange: (section: PortfolioSection) => void;
 }
 
-type PortfolioSection = "overview" | "positions" | "allocation" | "performance";
+export const PORTFOLIO_SECTION_IDS = ["overview", "positions", "allocation", "performance"] as const;
+export type PortfolioSection = (typeof PORTFOLIO_SECTION_IDS)[number];
 
 const PORTFOLIO_SECTIONS = [
   { id: "overview", label: "Overview", description: "Book snapshot & equity" },
@@ -73,9 +76,10 @@ export default function PortfolioWorkspace({
   onFocusSymbol,
   onOpenRisk,
   operatorToken,
+  section,
+  onSectionChange,
 }: PortfolioWorkspaceProps) {
   const [handoff, setHandoff] = useState<HandoffIntent | null>(null);
-  const [section, setSection] = useState<PortfolioSection>("overview");
   const selectedSymbol = workspaceSymbol.trim().toUpperCase();
 
   const {
@@ -113,7 +117,7 @@ export default function PortfolioWorkspace({
   // the rail is a tablist, so landing on the tab itself puts the arrow keys back
   // in reach instead of stranding the caret wherever the link was.
   const openSection = (next: PortfolioSection) => {
-    setSection(next);
+    onSectionChange(next);
     if (typeof window !== "undefined") {
       window.requestAnimationFrame(() => document.getElementById(`portfolio-subtab-${next}`)?.focus());
     }
@@ -225,7 +229,8 @@ export default function PortfolioWorkspace({
         label="Portfolio manager sections"
         tabs={PORTFOLIO_SECTIONS}
         activeId={section}
-        onChange={setSection}
+        onChange={onSectionChange}
+        actions={<BookSourceControl view={view} />}
       />
 
       <WorkspaceSubtabPanel workspaceId="portfolio" tabId="overview" activeId={section}>
@@ -236,9 +241,7 @@ export default function PortfolioWorkspace({
                 <span className="page-kicker">Soft limits</span>
                 <h2>Wants attention</h2>
               </div>
-              <button type="button" className="text-action" onClick={onOpenRisk}>
-                Open Risk →
-              </button>
+              <span className="section-note">enforced at the gate</span>
             </div>
             <ul>
               {alerts.map((alert) => (

@@ -143,51 +143,78 @@ export function BookChrome({ view }: { view: BookView }) {
         </div>
       )}
 
-      {/* The sandbox warning and the source strip used to be two stacked blocks
-          saying overlapping things — one banner declaring the book generated, and
-          a status line underneath repeating it and adding "deterministic". Merged
-          into one strip that carries the source, the determinism note and the
-          controls together, which is ~80px of vertical space back on a page that
-          now has four sections to fit.
+      {/* The sandbox marker stays a full-width block, and only the sandbox
+          marker does.
 
-          What did NOT change: the marker is still rendered on every pass for as
-          long as the mode is on, and still carries the notice rail. A one-time
-          banner is how a generated book gets mistaken for a real one after ten
-          minutes of reading, and globals.css says outright that the sandbox
-          marker must never be subtle. */}
-      <div className={`portfolio-statusbar${sandbox ? " is-sandbox" : ""}`} role={sandbox ? "status" : undefined}>
-        <div>
-          <span className={`system-health${isStale || sandbox ? " is-warn" : ""}`}>
-            <i aria-hidden /> {sandbox ? "Sandbox book (generated)" : isStale ? "Stale portfolio snapshot" : gatewayLabel}
-          </span>
-          {sandbox ? (
+          The source controls that used to share this strip moved to the section
+          rail (`BookSourceControl`), where they stay reachable while scrolling
+          instead of costing ~70px at the top of two tabs. The declaration that
+          the book is generated did NOT move with them: it is rendered on every
+          pass for as long as the mode is on, at full width, on the notice rail.
+          A one-time or shrunken banner is how a generated book gets mistaken for
+          a real one after ten minutes of reading, and globals.css says outright
+          that this marker must never be subtle. On the live path there is no
+          strip at all — the refresh time reads from the rail. */}
+      {sandbox && (
+        <div className="portfolio-statusbar is-sandbox" role="status">
+          <div>
+            <span className="system-health is-warn">
+              <i aria-hidden /> Sandbox book (generated)
+            </span>
             <span>
               <strong>These positions do not exist.</strong> Equity, P&amp;L, exposure and every risk
               figure below are generated from a fixed seed — the same book every time. The workflow
               is real; the book is not. Execution handoffs are disabled.
             </span>
-          ) : (
-            <span className="num">Last successful refresh {lastRefreshLabel}</span>
-          )}
-        </div>
-        <div className="portfolio-statusbar__actions">
-          <div className="seg research-seg" role="group" aria-label="Book source">
-            <button
-              type="button"
-              aria-pressed={!sandbox}
-              onClick={() => setSandbox(false)}
-            >
-              Live gateway
-            </button>
-            <button type="button" aria-pressed={sandbox} onClick={() => setSandbox(true)}>
-              Sandbox
-            </button>
           </div>
-          <button onClick={() => void refresh(true)} disabled={refreshing || sandbox}>
-            {refreshing ? (isStale ? "Reconnecting…" : "Refreshing…") : (isStale ? "Reconnect" : "Refresh book")}
-          </button>
         </div>
+      )}
+      {!sandbox && isStale && (
+        <div className="portfolio-statusbar" role="status">
+          <div>
+            <span className="system-health is-warn">
+              <i aria-hidden /> Stale portfolio snapshot
+            </span>
+            <span className="num">Last successful refresh {lastRefreshLabel}</span>
+          </div>
+        </div>
+      )}
+      <span className="sr-only">{gatewayLabel}</span>
+    </>
+  );
+}
+
+/**
+ * Book source and refresh, sized for the sticky section rail.
+ *
+ * Portfolio and Risk read the same snapshot, so both mount this and both get
+ * the control in the same place — one row down from the workspace tabs, in the
+ * slot every other tab uses for its own surface-level controls.
+ */
+export function BookSourceControl({ view }: { view: BookView }) {
+  const { book, isStale, sandbox, setSandbox, refresh, refreshing, lastSuccessAt } = view;
+  if (!book) return null;
+
+  const lastRefreshLabel = (lastSuccessAt ?? new Date(book.as_of)).toLocaleTimeString();
+
+  return (
+    <>
+      {!sandbox && !isStale && (
+        <span className="rail-meta num" title="Last successful gateway refresh">
+          {lastRefreshLabel}
+        </span>
+      )}
+      <div className="seg research-seg" role="group" aria-label="Book source">
+        <button type="button" aria-pressed={!sandbox} onClick={() => setSandbox(false)}>
+          Live
+        </button>
+        <button type="button" aria-pressed={sandbox} onClick={() => setSandbox(true)}>
+          Sandbox
+        </button>
       </div>
+      <button onClick={() => void refresh(true)} disabled={refreshing || sandbox}>
+        {refreshing ? (isStale ? "Reconnecting…" : "Refreshing…") : (isStale ? "Reconnect" : "Refresh")}
+      </button>
     </>
   );
 }

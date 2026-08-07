@@ -14,6 +14,15 @@ interface WorkspaceSubtabsProps<T extends string> {
   tabs: readonly WorkspaceSubtab<T>[];
   activeId: T;
   onChange: (id: T) => void;
+  /** Surface-level controls that stay reachable while the rail is stuck. */
+  actions?: ReactNode;
+  /**
+   * Sections that are reference material rather than a step in the workflow —
+   * a run archive, a sample work queue. They keep their place on the rail but
+   * drop out of the numbering and sit after a divider, so the numbered run
+   * reads as the actual sequence of the desk's job.
+   */
+  secondary?: readonly T[];
 }
 
 /**
@@ -23,6 +32,11 @@ interface WorkspaceSubtabsProps<T extends string> {
  * pattern used by the primary workspace tabs. The controlled API lets the
  * parent keep every feature panel mounted, so chart selections, draft orders,
  * and scenario inputs survive a section switch.
+ *
+ * The rail is sticky under the global tab bar. These workspaces are tall — the
+ * lineage inspector and the blotter both run past a screen — and a rail that
+ * scrolled away meant every section change started with a scroll back to the
+ * top. Two fixed bars, 96px total, and section navigation is always one click.
  */
 export default function WorkspaceSubtabs<T extends string>({
   workspaceId,
@@ -30,8 +44,15 @@ export default function WorkspaceSubtabs<T extends string>({
   tabs,
   activeId,
   onChange,
+  actions,
+  secondary,
 }: WorkspaceSubtabsProps<T>) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  // The numbered spine: every tab that is not reference material, in order.
+  const steps = tabs.filter((tab) => !secondary?.includes(tab.id));
+  const activeStep = steps.findIndex((tab) => tab.id === activeId);
+  const nextStep = activeStep >= 0 ? steps[activeStep + 1] : undefined;
 
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
@@ -57,6 +78,8 @@ export default function WorkspaceSubtabs<T extends string>({
       >
         {tabs.map((tab, index) => {
           const selected = tab.id === activeId;
+          const step = steps.indexOf(tab);
+          const isSecondary = step === -1;
           return (
             <button
               key={tab.id}
@@ -64,6 +87,7 @@ export default function WorkspaceSubtabs<T extends string>({
               id={`${workspaceId}-subtab-${tab.id}`}
               type="button"
               role="tab"
+              className={isSecondary ? "is-secondary" : undefined}
               aria-selected={selected}
               aria-controls={`${workspaceId}-subpanel-${tab.id}`}
               tabIndex={selected ? 0 : -1}
@@ -77,11 +101,33 @@ export default function WorkspaceSubtabs<T extends string>({
               onClick={() => onChange(tab.id)}
               onKeyDown={(event) => handleKeyDown(event, index)}
             >
+              {!isSecondary && (
+                <span className="workspace-subtabs__step" aria-hidden>{step + 1}</span>
+              )}
               <strong>{tab.label}</strong>
             </button>
           );
         })}
       </div>
+      {(actions || nextStep) && (
+        <div className="workspace-subtabs__actions">
+          {actions}
+          {nextStep && (
+            /* Walks the numbered spine without a trip back to the rail. Text,
+               not a filled button: the surface's own primary action lives in
+               this slot too, and two solids competing is what the last pass
+               was spent undoing. */
+            <button
+              type="button"
+              className="workspace-subtabs__advance"
+              onClick={() => onChange(nextStep.id)}
+              aria-label={`Next section: ${nextStep.label}`}
+            >
+              Next: {nextStep.label} <span aria-hidden>→</span>
+            </button>
+          )}
+        </div>
+      )}
     </nav>
   );
 }

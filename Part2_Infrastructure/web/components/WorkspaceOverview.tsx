@@ -4,9 +4,13 @@
  * The command center — a composer since the four-feature upgrade.
  *
  * The hero pipeline, KPI deck and role launcher live in components/overview/;
- * this file derives their inputs from live page state and keeps the exception
- * board. Provider readiness reads the polled health snapshot (the old one-shot
- * /api/providers summary froze at load and duplicated a subset of it).
+ * this file derives their inputs from live page state. Provider readiness reads
+ * the polled health snapshot (the old one-shot /api/providers summary froze at
+ * load and duplicated a subset of it).
+ *
+ * The exception board that used to sit between the deck and the launcher is
+ * gone: its four rows restated the four stages the hero pipeline already
+ * derives from the same call, one screen higher.
  */
 
 import DecisionLoopPipeline from "@/components/overview/DecisionLoopPipeline";
@@ -101,6 +105,33 @@ export default function WorkspaceOverview({
       ? `${providers} ready`
       : "Checking routes";
 
+  /**
+   * The one primary action on the overview.
+   *
+   * The launcher used to carry seven, one per desk, all identical — which told
+   * a reader nothing about which desk to open. The loop already knows: the
+   * first stage that is not `ok` is the thing holding the desk up, so that
+   * stage names the action. When everything is clear the loop continues at
+   * research, which is where the next decision starts.
+   */
+  const blocking = stages.find((stage) => stage.state !== "ok" && stage.state !== "idle");
+  const primaryAction: { label: string; run: () => void } = (() => {
+    switch (blocking?.id) {
+      case "data":
+        return { label: "Inspect data health", run: () => onNavigate("data") };
+      case "research":
+        return researchStale || !result
+          ? { label: running ? "Research running…" : "Run research", run: onRun }
+          : { label: "Review the verdict", run: () => onNavigate("research") };
+      case "risk":
+        return { label: "Open risk limits", run: () => onNavigate("risk") };
+      case "execution":
+        return { label: "Open execution", run: () => onNavigate("live") };
+      default:
+        return { label: "Open research", run: () => onNavigate("research") };
+    }
+  })();
+
   const context: RoleContext = {
     symbol: request.symbol,
     candidate,
@@ -112,93 +143,22 @@ export default function WorkspaceOverview({
     systemStatus,
   };
 
-  const attentionItems: AttentionItem[] = [];
-
-  if (book.book?.trading_halted) {
-    attentionItems.push({
-      severity: "critical",
-      owner: "Risk",
-      headline: "Trading is halted",
-      detail: book.book.halted_symbols.length
-        ? `${book.book.halted_symbols.join(", ")} blocked by the current risk state`
-        : "The global kill switch is active",
-      view: "risk",
-    });
-  } else if (book.isStale) {
-    attentionItems.push({
-      severity: "warning",
-      owner: "Portfolio",
-      headline: "Book snapshot is stale",
-      detail: "Execution handoffs remain disabled until the gateway reconnects",
-      view: "portfolio",
-    });
-  } else if (book.sandbox) {
-    attentionItems.push({
-      severity: "info",
-      owner: "Portfolio",
-      headline: "Sandbox book is active",
-      detail: "The workflow is real; positions and P&L are generated and clearly labelled",
-      view: "portfolio",
-    });
-  }
-
-  if (systems.degraded) {
-    attentionItems.push({
-      severity: "warning",
-      owner: "Data",
-      headline: `${systems.degraded} provider${systems.degraded === 1 ? " needs" : "s need"} attention`,
-      detail: "Inspect failover, quota and quarantined payloads before trusting a fresh number",
-      view: "data",
-    });
-  } else if (systems.healthError) {
-    attentionItems.push({
-      severity: "critical",
-      owner: "Reliability",
-      headline: "System health is unreachable",
-      detail: "The last known desk state cannot be confirmed",
-      view: "reliability",
-    });
-  }
-
-  if (!result) {
-    attentionItems.push({
-      severity: running ? "info" : "warning",
-      owner: "Research",
-      headline: running
-        ? "Baseline research is running"
-        : researchStale
-          ? "Desk context changed"
-          : "Candidate needs validation",
-      detail: `${request.symbol} has no current out-of-sample verdict yet`,
-      view: "research",
-    });
-  } else if (result.verdict.level !== "pass") {
-    attentionItems.push({
-      severity: result.verdict.level === "fail" ? "critical" : "warning",
-      owner: "Research",
-      headline: result.verdict.headline,
-      detail: `${result.walkForwardOosSharpe == null ? "No" : fmt(result.walkForwardOosSharpe, 2)} OOS Sharpe · execution promotion remains gated`,
-      view: "research",
-    });
-  }
-
-  if (!attentionItems.length) {
-    attentionItems.push({
-      severity: "ready",
-      owner: "All desks",
-      headline: "No urgent exceptions",
-      detail: "Research, book state and provider health are currently aligned",
-      view: "research",
-    });
-  }
-
   return (
     <div className="overview-page">
       <section className="overview-hero">
-        <div>
+        <div className="overview-hero__copy">
           <span className="page-kicker">AlphaEngine command center</span>
           <h1>From market signal to governed decision.</h1>
           <p>{request.symbol} research evidence, portfolio risk, execution intent and data health share one context — and reconcile to the same audit trail.</p>
+          <button
+            type="button"
+            className="overview-hero__cta"
+            onClick={primaryAction.run}
+            disabled={running && primaryAction.label.endsWith("…")}
+          >
+            {primaryAction.label}
+            <span aria-hidden>→</span>
+          </button>
         </div>
         <DecisionLoopPipeline stages={stages} />
       </section>
@@ -214,36 +174,6 @@ export default function WorkspaceOverview({
         book={book}
         systems={systems}
       />
-
-      <section className="attention-board" aria-labelledby="attention-title">
-        <div className="section-heading compact">
-          <div>
-            <span className="page-kicker">Exception-led workflow</span>
-            <h2 id="attention-title">What needs attention now</h2>
-          </div>
-          <span className="section-note">Severity · owner · evidence · next action</span>
-        </div>
-        <div className="attention-list">
-          {attentionItems.map((item) => (
-            <button
-              type="button"
-              className={`attention-item is-${item.severity}`}
-              key={`${item.owner}-${item.headline}`}
-              onClick={() => onNavigate(item.view)}
-            >
-              <span className="attention-item__status">
-                <i aria-hidden /> {item.severity}
-              </span>
-              <span className="attention-item__copy">
-                <small>{item.owner}</small>
-                <strong>{item.headline}</strong>
-                <span>{item.detail}</span>
-              </span>
-              <span className="attention-item__action">Open {item.owner} <span aria-hidden>→</span></span>
-            </button>
-          ))}
-        </div>
-      </section>
 
       <section className="overview-section">
         <div className="section-heading">
@@ -273,10 +203,3 @@ export default function WorkspaceOverview({
   );
 }
 
-interface AttentionItem {
-  severity: "critical" | "warning" | "info" | "ready";
-  owner: string;
-  headline: string;
-  detail: string;
-  view: WorkspaceView;
-}

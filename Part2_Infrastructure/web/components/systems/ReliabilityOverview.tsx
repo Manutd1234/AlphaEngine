@@ -9,6 +9,7 @@
  * provider table that already lives in Services & Circuits.
  */
 
+import LatencyTrend from "@/components/systems/LatencyTrend";
 import { fmt } from "@/lib/format";
 import { deriveReliabilityPosture, type ReliabilityStatus } from "@/lib/reliability";
 import type { SystemHealthView } from "@/lib/use-system-health";
@@ -237,6 +238,8 @@ export default function ReliabilityOverview({
 
   return (
     <div className="reliability-overview">
+      <LatencyTrend history={view.latencyHistory} />
+
       <div className="reliability-overview__split">
         <section className="card reliability-attention" aria-labelledby="reliability-attention-title">
           <div className="section-heading compact">

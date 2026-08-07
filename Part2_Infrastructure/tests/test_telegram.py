@@ -506,18 +506,218 @@ class TestRenderingAndSafety:
 
 @pytest.mark.asyncio
 class TestDeskRoleTabsAndCharts:
-    async def test_all_8_desk_role_tab_commands_dispatch_and_send_charts(self, bot):
+    """
+    The desk-role cards must report what was measured, or say nothing was.
+
+    The previous version of this test asserted that every one of these commands
+    sends a photo. That is the invariant that produced the problem: with no
+    real series to draw, "always send a chart" can only be satisfied by drawing
+    a fake one, and the module duly shipped `64200 + sin(i * 0.3) * 450` under
+    the title "Real-Time Market Quote", plus hardcoded captions reporting a
+    Sharpe of 2.14 and 99.99% uptime that nothing had computed.
+
+    The contract now is: always answer, chart only what exists.
+    """
+
+    async def test_every_desk_role_command_answers(self, bot):
         commands = [
-            "/overview",
-            "/research BTCUSDT",
-            "/execution BTCUSDT",
-            "/portfolio",
-            "/risk",
-            "/data",
-            "/reliability",
-            "/developer",
+            "/overview", "/research BTCUSDT", "/execution BTCUSDT", "/portfolio",
+            "/risk", "/data", "/reliability", "/developer",
         ]
         for idx, cmd in enumerate(commands, start=100):
+            bot.sent.clear()
             await bot.handle_update(update(cmd, update_id=idx))
-            assert any(method == "sendPhoto" for method, _ in bot.api_calls)
-            assert len(bot.last) > 0
+            assert bot.sent, f"{cmd} produced no card at all"
+
+    async def test_a_card_without_data_says_so_instead_of_drawing_one(self, bot):
+        # `metrics` keeps one process-wide latency window, and any earlier test
+        # that exercised a route leaves samples in it — this assertion is about
+        # the empty case, so it has to establish that itself rather than assume
+        # the suite ran in a convenient order.
+        from modules import metrics
+
+        metrics.reset_request_latency()
+
+        # No request has been timed and no venue has a book in this harness, so
+        # both cards must name the absence rather than plot around it.
+        bot.sent.clear()
+        await bot.handle_update(update("/reliability", update_id=140))
+        assert "NO SAMPLES" in bot.last or "nothing to plot" in bot.last
+
+        bot.sent.clear()
+        await bot.handle_update(update("/execution BTCUSDT", update_id=141))
+        assert "NO LIVE BOOK" in bot.last or "depth" in bot.last.lower()
+
+    async def test_measured_latency_reaches_the_reliability_card(self, bot):
+        from modules import metrics
+
+        metrics.reset_request_latency()
+        for _ in range(5):
+            metrics.observe_request("/api/quote", 12.5)
+        try:
+            bot.sent.clear()
+            await bot.handle_update(update("/reliability", update_id=142))
+            assert "/api/quote" in bot.last
+            assert "MEASURED" in bot.last
+        finally:
+            metrics.reset_request_latency()
+
+
+
+@pytest.mark.asyncio
+class TestBookDerivedCharts:
+    """
+    Portfolio and risk draw the book, not a stock picture.
+
+    `/portfolio` shipped a fixed three-slice pie captioned with the real report
+    beside it, so the numbers and the chart described different books. Both
+    commands now chart the gateway's own state, and chart nothing when the book
+    is empty.
+    """
+
+    async def test_portfolio_and_risk_chart_the_gateway_state(self, bot):
+        albums: list[list[tuple[str, bytes]]] = []
+
+        async def capture(chat_id, photos, caption=""):
+            albums.append(list(photos))
+            bot.sent.extend(split_telegram_html(caption))
+            return {"ok": True}
+
+        monkey = capture
+        original = bot.send_media_group
+        bot.send_media_group = monkey
+        try:
+            await bot.handle_update(update("/risk", update_id=930))
+            await bot.handle_update(update("/portfolio", update_id=931))
+        finally:
+            bot.send_media_group = original
+
+        assert len(albums) == 2, "both commands must go through the album path"
+        risk_charts = [name for name, _ in albums[0]]
+        # The gateway always publishes hard limits, so a utilisation chart is
+        # always derivable even on an empty book.
+        assert risk_charts == ["limits"], risk_charts
+        # Allocation and P&L only exist when something is held; either way the
+        # command must not invent them.
+        assert all(name in {"allocation", "pnl"} for name, _ in albums[1])
+
+
+@pytest.mark.asyncio
+class TestMultiSymbolCharts:
+    """
+    A command that names several symbols has to answer about all of them.
+
+    `sendPhoto` carries one image, so before this the bot could show one
+    symbol's chart and let it stand for a watch list. These pin the three things
+    that make the album honest: the parser stops where the asset argument
+    begins, one chart is produced per symbol that has bars, and a symbol whose
+    bars are missing keeps its quote row instead of being dropped.
+    """
+
+    async def test_several_symbols_produce_one_chart_each(self, bot, monkeypatch):
+        seen: list[str] = []
+
+        async def quote(symbol, asset):
+            return {"ok": True, "data": {"price": 10.0, "change_percent": 1.0, "high": 11.0, "low": 9.0, "delayed": False}}
+
+        async def chart(symbol, asset):
+            seen.append(symbol)
+            return b"\x89PNG-" + symbol.encode()
+
+        album: list[list[tuple[str, bytes]]] = []
+
+        async def send_media_group(chat_id, photos, caption=""):
+            album.append(list(photos))
+            bot.sent.extend(split_telegram_html(caption))
+            return {"ok": True}
+
+        monkeypatch.setattr(bot, "_quote_payload", quote)
+        monkeypatch.setattr(bot, "_symbol_chart", chart)
+        monkeypatch.setattr(bot, "send_media_group", send_media_group)
+
+        await bot.handle_update(update("/quote BTCUSDT ETHUSDT SOLUSDT", update_id=901))
+
+        assert seen == ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
+        assert [name for name, _ in album[0]] == ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
+        for symbol in ("BTCUSDT", "ETHUSDT", "SOLUSDT"):
+            assert symbol in bot.last
+
+    async def test_a_symbol_without_bars_keeps_its_quote_row(self, bot, monkeypatch):
+        async def quote(symbol, asset):
+            return {"ok": True, "data": {"price": 10.0, "change_percent": 1.0, "high": 11.0, "low": 9.0, "delayed": False}}
+
+        async def chart(symbol, asset):
+            return None if symbol == "ETHUSDT" else b"\x89PNG"
+
+        album: list[list[tuple[str, bytes]]] = []
+
+        async def send_media_group(chat_id, photos, caption=""):
+            album.append(list(photos))
+            bot.sent.extend(split_telegram_html(caption))
+            return {"ok": True}
+
+        monkeypatch.setattr(bot, "_quote_payload", quote)
+        monkeypatch.setattr(bot, "_symbol_chart", chart)
+        monkeypatch.setattr(bot, "send_media_group", send_media_group)
+
+        await bot.handle_update(update("/quote BTCUSDT ETHUSDT", update_id=902))
+
+        assert [name for name, _ in album[0]] == ["BTCUSDT"]
+        # The number survives even though the picture did not.
+        assert "ETHUSDT" in bot.last
+
+    async def test_album_degrades_to_a_single_photo_and_then_to_text(self, bot):
+        # One item is a plain photo, never an album; none at all is the card.
+        await bot.send_media_group(CHAT, [("BTCUSDT", b"\x89PNG")], caption="one chart")
+        assert any(method == "sendPhoto" for method, _ in bot.api_calls)
+
+        bot.sent.clear()
+        await bot.send_media_group(CHAT, [], caption="no charts at all")
+        assert "no charts at all" in bot.last
+
+
+class TestMultiSymbolParsingAndDrawing:
+    """The synchronous half: argument parsing, pixels, and the honesty scan."""
+
+    def test_no_fabricated_desk_figures_survive_in_the_module(self):
+        from pathlib import Path
+
+        import modules.telegram as telegram_module
+
+        # Strip comments and docstrings — this file's own explanation names the
+        # very literals it is banning, and a raw substring scan would match it.
+        raw = Path(telegram_module.__file__).read_text()
+        source = "\n".join(
+            line for line in raw.splitlines()
+            if not line.lstrip().startswith("#")
+        )
+        # Each of these was printed as live desk telemetry and computed by
+        # nothing. They are pinned as literals so a future edit cannot quietly
+        # reintroduce the pattern.
+        for fabricated in [
+            "Sharpe Ratio <code>2.14",
+            "99.99%",
+            "84% Remaining",
+            "Binance 58% / Bybit 42%",
+            "$64,608.20",
+            "1,080 CI PASSED",
+        ]:
+            assert fabricated not in source, f"fabricated desk figure is back: {fabricated}"
+
+    def test_symbol_parsing_stops_at_the_asset_argument(self, bot):
+        assert bot._symbols(["btcusdt", "ethusdt", "solusdt"]) == ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
+        # `_asset` reads the positional after the symbols; it must not be eaten.
+        assert bot._symbols(["AAPL", "equity"]) == ["AAPL"]
+        assert bot._symbols(["BTCUSDT", "BTCUSDT"]) == ["BTCUSDT"]
+        assert bot._symbols([]) == [settings.symbols[0].upper()]
+        assert len(bot._symbols(["A", "B", "C", "D", "E", "F", "G", "H"])) == 6
+
+    def test_the_series_chart_is_drawn_from_the_closes_it_is_given(self):
+        from modules.telegram import generate_series_chart_png
+
+        rising = generate_series_chart_png("BTCUSDT", [100.0, 101.0, 108.0], "1d", "OpenBB")
+        falling = generate_series_chart_png("BTCUSDT", [108.0, 101.0, 100.0], "1d", "OpenBB")
+        assert rising[:4] == b"\x89PNG" and falling[:4] == b"\x89PNG"
+        # Different inputs must not render the same picture — the point of the
+        # separate generator is that it plots data rather than a fixed curve.
+        assert rising != falling

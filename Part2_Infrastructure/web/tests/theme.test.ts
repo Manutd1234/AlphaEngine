@@ -124,7 +124,10 @@ const AA_NORMAL = 4.5;
 /** Resolved palettes, kept here rather than re-parsed so the expectation is explicit. */
 const LIGHT = {
   "surface-1": "#ffffff",
-  "surface-2": "#eef3f8",
+  // Beige, since the plane warmed up. Every role below is re-checked against it
+  // — --json-accent clears AA here by 0.09, so this value is not free to drift
+  // darker without moving the accent with it.
+  "surface-2": "#f7f2e8",
   "success-text": "#087552",
   "warning-text": "#85570b",
   "critical-text": "#b3242e",
@@ -181,6 +184,19 @@ describe("every colour rendered as text clears AA on the surfaces it lands on", 
         attrDark.get(`--${role}`),
         DARK[role],
         `--${role} changed in the stylesheet without this test being updated`,
+      );
+    }
+
+    // The light surfaces were only ever asserted as literals here, so the beige
+    // repaint could have moved them without a single test noticing. They are
+    // read from the stylesheet now, which is what makes the contrast maths
+    // above a check rather than a restatement.
+    const light = tokensIn(blockAfter(":root {"));
+    for (const surface of ["surface-1", "surface-2"] as const) {
+      assert.equal(
+        light.get(`--${surface}`),
+        LIGHT[surface],
+        `--${surface} changed in the stylesheet without this test being updated`,
       );
     }
   });
