@@ -1,7 +1,6 @@
 "use client";
 
-import { KeyboardEvent, useRef } from "react";
-
+import { KeyboardEvent, useRef, useState, useEffect } from "react";
 import LatencyChip from "@/components/header/LatencyChip";
 import KillSwitchControl, {
   type KillSwitchHaltState,
@@ -9,6 +8,8 @@ import KillSwitchControl, {
 } from "@/components/header/KillSwitchControl";
 import ThemeToggle from "@/components/ThemeToggle";
 import type { LatencyStats } from "@/components/systems/types";
+import CommandBar from "@/components/header/CommandBar";
+import AudienceAccessibilityBar from "@/components/common/AudienceAccessibilityBar";
 
 export type WorkspaceView =
   | "overview"
@@ -20,12 +21,6 @@ export type WorkspaceView =
   | "reliability"
   | "developer";
 
-/**
- * One tab per desk role, in the order work moves through them: an idea is
- * researched, executed, held in a book, and constrained by risk — then the three
- * roles that keep that possible. `live` and `data` keep their original ids so
- * links and bookmarks already in circulation still resolve.
- */
 export const NAV_ITEMS: { id: WorkspaceView; label: string; role: string; accessibleLabel?: string }[] = [
   { id: "overview", label: "Overview (All Roles)", role: "Every desk role" },
   { id: "research", label: "Research (Quant Researcher)", role: "Quant researcher" },
@@ -42,9 +37,6 @@ interface WorkspaceHeaderProps {
   onViewChange: (view: WorkspaceView) => void;
   onOpenProviderHealth: () => void;
   onOpenTailLatency: () => void;
-  // Narrow derived scalars, not the hook objects: the header re-renders on
-  // every 30s health tick and 15s book tick, and "one snapshot, shared" is the
-  // health hook's stated invariant — the header must not poll for itself.
   latency: LatencyStats | null;
   degraded: number;
   providersReady: number | null;
@@ -53,10 +45,6 @@ interface WorkspaceHeaderProps {
   halt: KillSwitchHaltState | null;
   riskControl: KillSwitchRiskControl;
 }
-
-import { KeyboardEvent, useRef, useState, useEffect } from "react";
-import CommandBar from "@/components/header/CommandBar";
-import AudienceAccessibilityBar from "@/components/common/AudienceAccessibilityBar";
 
 export default function WorkspaceHeader({
   view,
