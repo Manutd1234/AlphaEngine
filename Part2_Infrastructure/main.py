@@ -56,6 +56,7 @@ from modules.schemas import (
     BacktestRequest,
     CancelRequest,
     KillSwitchRequest,
+    ReduceOnlyRequest,
     OrderAck,
     OrderEvent,
     OrderRequest,
@@ -461,12 +462,16 @@ async def engage_kill(req: KillSwitchRequest = Body(default=KillSwitchRequest())
 @app.post("/api/risk/resume", tags=["B · Risk"])
 async def release_kill(req: KillSwitchRequest = Body(default=KillSwitchRequest()),
                        actor: str = Depends(trader_identity)) -> dict[str, Any]:
-    # KillSwitchRequest already carries a reason; the resume path used to drop
-    # it, leaving the audit trail with a halt that explains itself and a resume
-    # that does not.
     kill = await get_gateway().release_kill(actor=actor, symbol=req.symbol, reason=req.reason)
     return {"kill_switch_active": kill.active, "halted_symbols": sorted(kill.halted_symbols),
             "reason": req.reason, "actor": actor}
+
+
+@app.post("/api/risk/reduce-only", tags=["B · Risk"])
+async def toggle_reduce_only(req: ReduceOnlyRequest = Body(default=ReduceOnlyRequest()),
+                             actor: str = Depends(trader_identity)) -> dict[str, Any]:
+    state = await get_gateway().set_reduce_only(enabled=req.enabled, actor=actor, reason=req.reason)
+    return {"reduce_only": state.reduce_only, "reduce_only_source": state.reduce_only_source, "actor": actor}
 
 
 @app.post("/api/risk/reset", tags=["B · Risk"])

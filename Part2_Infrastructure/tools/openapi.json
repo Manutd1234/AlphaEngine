@@ -409,13 +409,8 @@
       },
       "KillSwitchRequest": {
         "properties": {
-          "actor": {
-            "default": "api",
-            "title": "Actor",
-            "type": "string"
-          },
           "reason": {
-            "default": "manual trigger",
+            "default": "Manual override",
             "title": "Reason",
             "type": "string"
           },
@@ -1016,6 +1011,33 @@
         "title": "QueueOperationsSnapshot",
         "type": "object"
       },
+      "ReduceOnlyRequest": {
+        "properties": {
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "reason": {
+            "default": "Operator soft halt",
+            "title": "Reason",
+            "type": "string"
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol"
+          }
+        },
+        "title": "ReduceOnlyRequest",
+        "type": "object"
+      },
       "ReplaceRequest": {
         "properties": {
           "limit_price": {
@@ -1387,6 +1409,16 @@
             "default": false,
             "title": "Reduce Only",
             "type": "boolean"
+          },
+          "reduce_only_source": {
+            "default": "off",
+            "enum": [
+              "threshold",
+              "operator",
+              "off"
+            ],
+            "title": "Reduce Only Source",
+            "type": "string"
           },
           "reduce_only_threshold": {
             "default": 1.0,
@@ -3827,8 +3859,7 @@
               "schema": {
                 "$ref": "#/components/schemas/KillSwitchRequest",
                 "default": {
-                  "actor": "api",
-                  "reason": "manual trigger"
+                  "reason": "Manual override"
                 }
               }
             }
@@ -3928,6 +3959,86 @@
           }
         },
         "summary": "Risk Limits",
+        "tags": [
+          "B \u00b7 Risk"
+        ]
+      }
+    },
+    "/api/risk/reduce-only": {
+      "post": {
+        "operationId": "toggle_reduce_only_api_risk_reduce_only_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReduceOnlyRequest",
+                "default": {
+                  "enabled": true,
+                  "reason": "Operator soft halt"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Toggle Reduce Only Api Risk Reduce Only Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Toggle Reduce Only",
         "tags": [
           "B \u00b7 Risk"
         ]
@@ -4043,8 +4154,7 @@
               "schema": {
                 "$ref": "#/components/schemas/KillSwitchRequest",
                 "default": {
-                  "actor": "api",
-                  "reason": "manual trigger"
+                  "reason": "Manual override"
                 }
               }
             }

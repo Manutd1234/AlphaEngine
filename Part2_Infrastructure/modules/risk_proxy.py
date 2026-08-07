@@ -218,6 +218,7 @@ class RiskGateway:
         # nothing else, and an opening carry of zero after a rollover would drop
         # every earlier session's money on the floor.
         self.carried_realized_pnl = 0.0
+        self._reduce_only_override: bool = False
         self.orders_accepted = 0
         self.orders_rejected = 0
         # The resting book. Live state only: it is deliberately not persisted,
@@ -524,17 +525,20 @@ class RiskGateway:
             await self.cancel_all_working("gateway shutdown", actor="system")
 
     def reduce_only_active(self) -> bool:
-        """True when the desk has spent enough of its budget to go defensive.
-
-        The window between this and the hard breaker is deliberately wide: a
-        binary limit gives a desk no warning and no way to de-risk gradually,
-        so the last stretch before a halt accepts only orders that make the
-        book smaller.
-        """
+        """True when the desk has spent enough of its budget or operator overrode to go defensive."""
+        if self._reduce_only_override:
+            return True
         limit = settings.max_daily_drawdown_pct
         if limit <= 0 or settings.reduce_only_threshold >= 1.0:
             return False
         return (self.daily_drawdown_pct() / limit) >= settings.reduce_only_threshold
+
+    async def set_reduce_only(self, enabled: bool, actor: str = "operator", reason: str = "") -> RiskState:
+        """Operator override for reduce-only mode (the soft halt)."""
+        self._reduce_only_override = enabled
+        await self._audit("REDUCE_ONLY_TOGGLED", {"enabled": enabled, "actor": actor, "reason": reason})
+        await self._alert("REDUCE_ONLY_TOGGLED", f"Reduce-only mode set to {enabled} by {actor}: {reason}")
+        return self.get_state()
 
     def snapshot_equity(self) -> None:
         """Write one equity observation to the audit log.
@@ -1606,6 +1610,7 @@ class RiskGateway:
             drawdown_budget_used_pct=dd / settings.max_daily_drawdown_pct if settings.max_daily_drawdown_pct else 0.0,
             reduce_only=self.reduce_only_active(),
             reduce_only_threshold=settings.reduce_only_threshold,
+            reduce_only_source="operator" if self._reduce_only_override else ("threshold" if self.reduce_only_active() else "off"),
             gross_exposure=self.gross_exposure(),
             positions=positions,
             orders_accepted=self.orders_accepted,

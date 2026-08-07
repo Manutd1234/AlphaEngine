@@ -278,6 +278,7 @@ class RiskState(BaseModel):
     # position-reducing orders still pass, everything else is refused.
     reduce_only: bool = False
     reduce_only_threshold: float = 1.0
+    reduce_only_source: Literal["threshold", "operator", "off"] = "off"
     gross_exposure: float
     positions: list[Position]
     orders_accepted: int
@@ -292,8 +293,13 @@ class RiskState(BaseModel):
 
 
 class KillSwitchRequest(BaseModel):
-    reason: str = "manual trigger"
-    actor: str = "api"
+    reason: str = "Manual override"
+    symbol: str | None = None
+
+
+class ReduceOnlyRequest(BaseModel):
+    enabled: bool = True
+    reason: str = "Operator soft halt"
     symbol: str | None = None
 
 
