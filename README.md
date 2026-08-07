@@ -63,22 +63,22 @@ architecture, the design arguments, and what is implemented versus mocked.
 
 ### Verify it end to end
 
-Everything runs offline: market data is disabled, the backtester falls back to
-its own NumPy engine, and every fixture is committed.
+Everything runs offline: market data falls back to clearly-tagged synthetic books, the backtester uses its own NumPy engine, and every fixture is committed.
 
 ```bash
 cd Part2_Infrastructure
 python -m venv venv && venv/bin/pip install -r requirements-core.txt
-venv/bin/python -m pytest                            # 337 gateway tests
+venv/bin/python -m pytest                            # 342 gateway tests
 venv/bin/python tools/synthetic_probe.py             # book → cost → risk gate → audit
-(cd web && npm install && npm test)                  # 666 web tests, incl. cross-engine parity
+(cd web && npm install && npm test)                  # 680 web tests, incl. cross-engine parity
 (cd OpenBB_Service && ../venv/bin/python -m pytest)  # 13 service tests
 ```
 
-To see it running: `venv/bin/uvicorn main:app` then open
-<http://127.0.0.1:8000/app>. With no venue reachable it serves a clearly-tagged
-synthetic book, so the console, the risk gates and the audit trail are all
-demonstrable with no network at all.
+To run the complete platform concurrently:
+```bash
+cd Part2_Infrastructure/web && npm run dev:all
+```
+This launches both the **FastAPI Gateway (`http://127.0.0.1:8000`)** and **Next.js Desk Workspace (`http://localhost:3000`)** concurrently.
 
 `.github/workflows/ci.yml` runs the same three suites plus lint, the API
 contract snapshot, the committed-tree guard and the journey probe on every push.
