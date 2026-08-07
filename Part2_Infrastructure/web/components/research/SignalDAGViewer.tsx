@@ -68,7 +68,7 @@ export default function SignalDAGViewer() {
                 transition: "all 0.15s ease",
               }}
             >
-              <div style={{ fontSize: "9px", textTransform: "uppercase", tracking: "0.08em", color: "#38bdf8", fontWeight: 700, marginBottom: "2px" }}>
+              <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.08em", color: "#38bdf8", fontWeight: 700, marginBottom: "2px" }}>
                 Step {index + 1} · {node.category}
               </div>
               <div style={{ fontSize: "11.5px", fontWeight: 700, marginBottom: "4px" }}>{node.name}</div>

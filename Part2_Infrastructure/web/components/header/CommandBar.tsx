@@ -35,7 +35,7 @@ export default function CommandBar({
   const commands = [
     { id: "tab-overview", label: "Overview (All Roles)", category: "Workspace", action: () => onSelectTab("overview"), hotkey: "Alt+1" },
     { id: "tab-research", label: "Research (Quant Researcher)", category: "Workspace", action: () => onSelectTab("research"), hotkey: "Alt+2" },
-    { id: "tab-execution", label: "Execution (Quant Trader)", category: "Workspace", action: () => onSelectTab("execution"), hotkey: "Alt+3" },
+    { id: "tab-execution", label: "Execution (Quant Trader)", category: "Workspace", action: () => onSelectTab("live"), hotkey: "Alt+3" },
     { id: "tab-portfolio", label: "Portfolio (Portfolio Manager)", category: "Workspace", action: () => onSelectTab("portfolio"), hotkey: "Alt+4" },
     { id: "tab-risk", label: "Risk (Risk Manager)", category: "Workspace", action: () => onSelectTab("risk"), hotkey: "Alt+5" },
     { id: "tab-data", label: "Data (Data Engineer)", category: "Workspace", action: () => onSelectTab("data"), hotkey: "Alt+6" },
@@ -140,7 +140,7 @@ export default function CommandBar({
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
                 <div>
-                  <span style={{ fontSize: "10px", textTransform: "uppercase", tracking: "0.05em", color: "#38bdf8", marginRight: "8px", fontWeight: 600 }}>
+                  <span style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#38bdf8", marginRight: "8px", fontWeight: 600 }}>
                     [{item.category}]
                   </span>
                   <span>{item.label}</span>
