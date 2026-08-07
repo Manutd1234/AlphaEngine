@@ -304,7 +304,14 @@ Deploy it as a separate Vercel project with Root Directory
 `Part2_Infrastructure/OpenBB_Service`, then use its HTTPS origin as
 `OPENBB_API_URL`. Full details: [`OpenBB_Service/README.md`](OpenBB_Service/README.md).
 
----
+### Also in this directory: [`developer-console/`](developer-console/) — experimental, not a deployment unit
+
+A fourth tracked app (Next.js 16 on a Vite/Cloudflare toolchain, drizzle-orm on
+SQLite) that prototypes a standalone developer console. It is **not** part of
+the assessed deliverable, is deployed nowhere, and shares no code or data with
+the three units above — named here so the directory tree and the docs agree.
+Its SQLite/drizzle stack is unrelated to the Supabase Postgres mirror described
+in §2.
 
 ---
 
@@ -341,7 +348,7 @@ pytest                                   # deterministic; no network required
           └──────────────┬────────┘                              │
                          ▼                                       │
               FastAPI stateful gateway ◄─────────────────────────┘
-              main.py · auth · routing
+              main.py · auth · routing · one process, in Docker (:8000)
                     │       │       │
            ┌────────▼─┐ ┌───▼────┐ ┌▼──────────────┐
            │ A · TCA  │ │ B · risk│ │ C · backtest │
@@ -349,7 +356,12 @@ pytest                                   # deterministic; no network required
            └────┬─────┘ └────┬────┘ └──────┬───────┘
                 └────────────┼──────────────┘
                              ▼
-                      DuckDB audit log
+                      DuckDB audit log ── authoritative, on a Docker volume
+                             │
+                             │  best-effort, bounded queue, never on the order path
+                             ▼
+              Supabase Postgres ── order_blotter mirror · desk_risk_limits (RLS)
+                             └──── pgvector research_documents (RAG)
 
  Next.js OpenBB adapter ──► standalone OpenBB_Service (stateless, read-only)
 ```
@@ -358,6 +370,46 @@ The stateful portfolio gateway and the production OpenBB service are separate
 deployments. `ALPHAENGINE_GATEWAY_URL` points here; `OPENBB_API_URL` points to
 [`OpenBB_Service/`](OpenBB_Service/). The separation prevents slow research
 fetches and serverless scaling from sharing the gateway's mutable risk state.
+
+### Tech stack
+
+**Frontend** — Next.js 16 (App Router, Turbopack), React 19, TypeScript 5,
+Tailwind 4, deployed on Vercel in `sin1` (the region is not cosmetic — see §11).
+The browser holds **no backend credential**: it reaches the gateway only through
+same-origin proxy routes, and every chart is hand-rolled SVG on one measured
+scale kit (`web/components/chart-kit.tsx`).
+
+**Backend** — Python 3.12, FastAPI, uvicorn as a **single process, by design**:
+the risk gateway holds a mutable in-memory book, a resting-order book, a token
+bucket and the kill switch, so a second worker would fork the book and localise
+the halt. The container ([`docker/gateway.Dockerfile`](docker/gateway.Dockerfile))
+ships `requirements-core.txt` — the NumPy backtest engine is the documented
+fallback; vectorbt stays an opt-in build arg. Celery/Redis remain optional
+(`jobs.py` degrades to the in-process pool).
+
+**Database** — two stores with one rule. The **DuckDB append-only audit log is
+authoritative** (`modules/audit.py`, SQLite fallback, on a named Docker volume in
+deployment); the desk must keep trading when the cloud is unreachable. **Supabase
+Postgres is a mirror**: `modules/supabase_mirror.py` streams every gateway
+decision through a bounded queue to `public.order_blotter` — best-effort,
+batched, never on the order path, and it counts what it drops instead of
+pretending it arrived. RLS denies `anon` everything; every row carries
+`decided_by` so a mirrored row can never be read as a second decision-maker.
+The pre-trade gates were deliberately **not** re-implemented in plpgsql — §12
+explains why a third implementation that can drift is worse than none; the SQL
+`submit_alphaengine_order` that ships is a labelled sandbox in the same family
+as the browser's.
+
+**RAG** — Supabase pgvector over `public.research_documents`
+(`vector(384)`, HNSW, cosine). Embeddings come from the `gte-small` model inside
+a Supabase Edge Function (`supabase/functions/embed-research/`) — no paid API,
+no model weights in the gateway image. The corpus is what the desk already
+records: completed backtest runs (with DSR verdict and `data_hash`), session
+execution summaries, and risk incidents. On an execution anomaly the gateway
+retrieves the three most similar historical reports and attaches them to the
+alert. A document whose embedding fails is stored `embedding_status='pending'` —
+never a zero vector, which would be equidistant from everything and surface as
+"similar" to anything.
 
 Module B **depends on** Module A: the risk gateway prices every order against the
 live ladder, and fills it at the smart route's VWAP. That coupling is the point —
@@ -384,11 +436,15 @@ Part2_Infrastructure/
 ├── templates/miniapp.html  Independent gateway console (single file, no build step)
 ├── tests/                  Gateway, risk, portfolio, research and bot tests
 ├── tools/                  Parity-fixture generator + committed-tree build guard
+├── docker/                 gateway.Dockerfile + deploy notes (compose file at repo root)
 ├── requirements.txt
 │
 ├── web/                    Unit 2 — Next.js research portal (deployed to Vercel)
 ├── OpenBB_Service/         Unit 3 — stateless OpenBB API (deployed separately)
 └── LICENSE
+
+../supabase/                Postgres mirror + RAG: migrations, seed, edge function
+../docker-compose.yml       One-command always-on gateway (host port 8000)
 ```
 
 ---
@@ -1014,6 +1070,19 @@ worker. Without a broker, the same task callables run in-process. The API,
 gateway console and text-only companion consume the same job status contract;
 that abstraction matters more than the broker choice.
 
+**Supabase is optional and off by default.** With none of these set, the mirror
+and the RAG index are no-ops and every test passes offline:
+
+| Variable | Default | What it sets |
+|---|---|---|
+| `SUPABASE_URL` | *(empty — disabled)* | the project's `https://<ref>.supabase.co` origin |
+| `SUPABASE_SERVICE_ROLE_KEY` | *(empty — disabled)* | server-side PostgREST credential; **gateway env only, never Vercel** |
+| `SUPABASE_MIRROR_ENABLED` | `0` | stream gateway order decisions to `public.order_blotter` |
+| `SUPABASE_DESK_ID` | fixed UUID `…0001` | the single-tenant desk id until auth ships |
+| `SUPABASE_TIMEOUT_S` | `5.0` | per-request timeout for mirror/RAG writes |
+| `SUPABASE_MIRROR_QUEUE_MAX` | `1000` | bounded queue; overflow is counted and dropped, never blocking |
+| `RESEARCH_RAG_ENABLED` | `0` | embed backtests/summaries/incidents and retrieve on anomaly |
+
 ---
 
 ## 9. Assessment criteria
@@ -1042,13 +1111,24 @@ fallback, never a silent substitute. The Data tab's **Work Queue** is also
 deliberately mocked: its sample cards and edits exist only in the current browser
 session and are not presented as a durable ticketing or incident system.
 
+**Mirror and RAG (Supabase):** the Postgres mirror and the pgvector research
+index are real code with real tests, and **off by default** — the gateway is
+fully functional with Supabase absent, and every suite passes without a network.
+The SQL `submit_alphaengine_order` RPC is a labelled **sandbox decider** (same
+family as the browser sandbox), never the desk's decision: authoritative rows
+carry `decided_by = 'gateway'`. Realtime browser streaming is designed but not
+shipped — it would put the first backend env var into the browser bundle, and
+that trade is documented rather than made by accident.
+
 ### Production scale-out
 
 AWS ECS/Kubernetes behind an ALB; TimescaleDB or ClickHouse for tick storage with
-DuckDB kept for ad-hoc analytics; direct FIX sessions instead of public WebSockets;
-Redis-backed Celery workers on a separate autoscaling group; secrets in AWS
-Secrets Manager with an HSM for signing keys; the risk gateway replicated with
-shared limit state in Redis so a single instance failure cannot open the gate.
+DuckDB kept for ad-hoc analytics (the Supabase Postgres mirror shipped here is
+the first step on that path — durable cloud copy, RLS multi-tenant-ready);
+direct FIX sessions instead of public WebSockets; Redis-backed Celery workers on
+a separate autoscaling group; secrets in AWS Secrets Manager with an HSM for
+signing keys; the risk gateway replicated with shared limit state in Redis so a
+single instance failure cannot open the gate.
 
 Prometheus metrics on gate latency, feed staleness and rejection rates **ship
 here** — `GET /metrics`, with example alert rules in
@@ -1163,6 +1243,60 @@ fixture is committed. The same is true of the web and service suites.
 ---
 
 ## 11. Deployment
+
+### Docker — the always-on gateway (host port 8000)
+
+The serverless portal cannot host the gateway: long-lived venue WebSockets, an
+embedded DuckDB file and an in-memory kill switch all need one process that
+never spins down. That process now ships as a container.
+
+```bash
+docker compose up -d --build       # from the repo root
+docker compose ps                  # wait for STATUS (healthy)
+curl -fsS http://127.0.0.1:8000/health | head -c 200
+docker compose exec gateway python tools/synthetic_probe.py   # money path, in-container
+```
+
+Design decisions live as comments in
+[`docker/gateway.Dockerfile`](docker/gateway.Dockerfile) and the root
+`docker-compose.yml`; the load-bearing ones: **one uvicorn process** (a second
+worker would fork the in-memory book and localise the kill switch),
+`requirements-core.txt` in the image (NumPy engine fallback; vectorbt via
+`--build-arg REQUIREMENTS=requirements.txt`), a **named volume** for
+`/app/data` so the audit log survives rebuilds (a bind mount arrives owned by
+the host and uid 10001 cannot write it), non-root user, and a stdlib health
+probe against the unauthenticated `/health`. Secrets arrive only through
+`Part2_Infrastructure/.env` (see `.env.example`) — the committed files contain
+none, and `tests/test_container_contract.py` enforces that shape permanently.
+
+### Oracle Cloud (or any Docker host) — the public origin Vercel can reach
+
+The compose file is the portable artifact; the host just needs Docker. On an
+OCI instance:
+
+1. **Verify the instance**: Ampere A1 (aarch64) is fully supported — every
+   `requirements-core.txt` dependency ships aarch64 wheels; build the image on
+   the VM. A 1 GB E2 Micro runs the core gateway but is tight. Region matters —
+   from US egress Binance returns 451 and Bybit 403 (see the Vercel note below);
+   test `curl -sI https://api.binance.com/api/v3/ping` from the VM first.
+2. **Open ingress twice** — the VCN security list (443/80) *and* the OS
+   firewall (Oracle images ship restrictive iptables). One without the other is
+   the classic "port open in the console but unreachable".
+3. `git clone` → `cp Part2_Infrastructure/.env.example Part2_Infrastructure/.env`
+   and set `WEB_API_TOKEN` (fresh `openssl rand -hex 32`), `REQUIRE_AUTH=1` →
+   `docker compose up -d --build`.
+4. **HTTPS**: point a domain at the instance and run Caddy in front
+   (`caddy reverse-proxy --from your-domain.com --to 127.0.0.1:8000`) — the
+   gateway token must not cross the internet in cleartext.
+5. On Vercel set `ALPHAENGINE_GATEWAY_URL=https://your-domain.com` and
+   `ALPHAENGINE_GATEWAY_TOKEN` to the same `WEB_API_TOKEN`, redeploy. This is
+   the step that switches Portfolio/Risk from the labelled sandbox to the
+   authoritative live book and turns the Developer tab's Gateway and Schema
+   readiness gates green.
+
+If Always Free: Oracle reclaims *idle* Always Free instances, and a quiet
+gateway can look idle — upgrading the account to Pay-As-You-Go keeps the free
+resources free while exempting it from reclamation.
 
 ### Vercel — research portal (`web/`)
 
@@ -1318,3 +1452,14 @@ not).
   server-side and connects to two separate services with distinct URLs.
 - Risk limits are a frozen dataclass with env overrides: changing a hard limit
   requires a deploy, and therefore a code review.
+- **Supabase posture:** `SUPABASE_SERVICE_ROLE_KEY` lives only in the gateway's
+  environment — never on Vercel, never in the browser. RLS is enabled on every
+  table with **zero `anon` policies** (deny-by-default: the published anon key
+  can read nothing until an authenticated-user story ships). Every
+  `SECURITY DEFINER` function pins `SET search_path = public, pg_temp` — an
+  unpinned definer function is a privilege-escalation footgun. `order_blotter`
+  is append-only by trigger, not convention. `tests/test_supabase_schema.py`
+  asserts all of this from the committed SQL, offline.
+- The container runs as non-root (uid 10001) with a stdlib health probe;
+  `tests/test_container_contract.py` rejects any secret-shaped literal in the
+  committed Docker files.

@@ -36,6 +36,9 @@ Part2_Infrastructure/tests
 Part2_Infrastructure/notebooks
 Part2_Infrastructure/templates
 Part2_Infrastructure/modules
+Part2_Infrastructure/docker
+docker-compose.yml
+supabase
 .github
 
 # ── local state, links and secrets ───────────────────────────────────────────

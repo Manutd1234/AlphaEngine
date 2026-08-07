@@ -616,6 +616,16 @@
             "title": "Status",
             "type": "string"
           },
+          "supabase": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SupabaseMirrorSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "telegram": {
             "$ref": "#/components/schemas/TelegramOperationsSnapshot"
           },
@@ -1083,6 +1093,234 @@
           }
         },
         "title": "ReplaceRequest",
+        "type": "object"
+      },
+      "ResearchRagAnomalyMatch": {
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "similarity": {
+            "title": "Similarity",
+            "type": "number"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "kind",
+          "similarity",
+          "occurred_at"
+        ],
+        "title": "ResearchRagAnomalyMatch",
+        "type": "object"
+      },
+      "ResearchRagMatch": {
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "title": "Metrics",
+            "type": "object"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "similarity": {
+            "title": "Similarity",
+            "type": "number"
+          },
+          "source_ref": {
+            "title": "Source Ref",
+            "type": "string"
+          },
+          "strategy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strategy"
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "source_ref",
+          "occurred_at",
+          "title",
+          "body",
+          "similarity"
+        ],
+        "title": "ResearchRagMatch",
+        "type": "object"
+      },
+      "ResearchRagSearchRequest": {
+        "description": "A similarity query over the desk's own research corpus.",
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "backtest_run",
+                  "execution_summary",
+                  "risk_incident"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "match_count": {
+            "default": 3,
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Match Count",
+            "type": "integer"
+          },
+          "query": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "ResearchRagSearchRequest",
+        "type": "object"
+      },
+      "ResearchRagSearchResponse": {
+        "description": "`unavailable` is a state, never an empty match list wearing one's face:\n\"searched and found nothing\" and \"could not search\" are different facts.",
+        "properties": {
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchRagMatch"
+            },
+            "title": "Matches",
+            "type": "array"
+          },
+          "state": {
+            "enum": [
+              "ok",
+              "unavailable",
+              "embed_failed"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "ResearchRagSearchResponse",
+        "type": "object"
+      },
+      "ResearchRagStatus": {
+        "description": "Counters and the cached anomaly retrieval \u2014 no URL, no key, no raw error.",
+        "properties": {
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "dropped": {
+            "title": "Dropped",
+            "type": "integer"
+          },
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "indexed": {
+            "title": "Indexed",
+            "type": "integer"
+          },
+          "last_anomaly_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Anomaly At"
+          },
+          "last_anomaly_matches": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchRagAnomalyMatch"
+            },
+            "title": "Last Anomaly Matches",
+            "type": "array"
+          },
+          "pending_embeddings": {
+            "title": "Pending Embeddings",
+            "type": "integer"
+          },
+          "queued": {
+            "title": "Queued",
+            "type": "integer"
+          },
+          "running": {
+            "title": "Running",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "configured",
+          "running",
+          "queued",
+          "indexed",
+          "pending_embeddings",
+          "failed",
+          "dropped"
+        ],
+        "title": "ResearchRagStatus",
         "type": "object"
       },
       "RiskDecision": {
@@ -1561,6 +1799,56 @@
           "share_pct"
         ],
         "title": "RoutingLeg",
+        "type": "object"
+      },
+      "SupabaseMirrorSnapshot": {
+        "description": "Mirror counters \u2014 a closed error vocabulary and no identity, per the\nendpoint's own no-URLs/no-paths rule.",
+        "properties": {
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "dropped": {
+            "title": "Dropped",
+            "type": "integer"
+          },
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "last_error_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error Kind"
+          },
+          "queued": {
+            "title": "Queued",
+            "type": "integer"
+          },
+          "running": {
+            "title": "Running",
+            "type": "boolean"
+          },
+          "written": {
+            "title": "Written",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "configured",
+          "running",
+          "queued",
+          "written",
+          "failed",
+          "dropped"
+        ],
+        "title": "SupabaseMirrorSnapshot",
         "type": "object"
       },
       "TCAReport": {
@@ -3811,6 +4099,148 @@
           }
         },
         "summary": "Openbb Quote",
+        "tags": [
+          "C \u00b7 Research"
+        ]
+      }
+    },
+    "/api/research/rag/search": {
+      "post": {
+        "description": "Similarity search over the desk's own backtests, summaries and incidents.\n\nReturns `state: unavailable` when Supabase is not configured \u2014 deliberately\nnot an empty list, which would mean \"searched, found nothing\".",
+        "operationId": "research_rag_search_api_research_rag_search_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResearchRagSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchRagSearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Research Rag Search",
+        "tags": [
+          "C \u00b7 Research"
+        ]
+      }
+    },
+    "/api/research/rag/status": {
+      "get": {
+        "description": "Index counters plus the cached matches from the last execution anomaly.",
+        "operationId": "research_rag_status_api_research_rag_status_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchRagStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Research Rag Status",
         "tags": [
           "C \u00b7 Research"
         ]

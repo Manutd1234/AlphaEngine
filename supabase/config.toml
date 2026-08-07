@@ -1,0 +1,4 @@
+# Supabase CLI project binding. Auth/storage/etc. are managed in the hosted
+# dashboard; this file exists so `supabase link --project-ref umwnjwhwemvvygtdkcxr`
+# and `supabase db push` run from a clean clone.
+project_id = "umwnjwhwemvvygtdkcxr"

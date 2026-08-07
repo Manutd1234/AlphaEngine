@@ -58,6 +58,8 @@ def test_every_client_facing_route_is_published(schema):
         "/api/audit/orders",
         "/api/audit/events",
         "/api/audit/backtests",
+        "/api/research/rag/search",
+        "/api/research/rag/status",
     ):
         assert path in published, f"{path} disappeared from the API"
 

@@ -111,6 +111,18 @@ class Settings:
     binance_rest_url: str = field(default_factory=lambda: _env("BINANCE_REST_URL", "https://api.binance.com"))
     bybit_ws_url: str = field(default_factory=lambda: _env("BYBIT_WS_URL", "wss://stream.bybit.com/v5/public/spot"))
 
+    # ---- Supabase mirror + RAG (optional; all empty/off by default) -------
+    # DuckDB stays authoritative. These enable a best-effort Postgres mirror
+    # and the pgvector research index; with any of the first two empty every
+    # Supabase code path is a no-op and the suite passes offline.
+    supabase_url: str = field(default_factory=lambda: _env("SUPABASE_URL", ""))
+    supabase_service_role_key: str = field(default_factory=lambda: _env("SUPABASE_SERVICE_ROLE_KEY", ""))
+    supabase_mirror_enabled: bool = field(default_factory=lambda: _env_bool("SUPABASE_MIRROR_ENABLED", False))
+    supabase_desk_id: str = field(default_factory=lambda: _env("SUPABASE_DESK_ID", "00000000-0000-0000-0000-000000000001"))
+    supabase_timeout_s: float = field(default_factory=lambda: _env_float("SUPABASE_TIMEOUT_S", 5.0))
+    supabase_mirror_queue_max: int = field(default_factory=lambda: _env_int("SUPABASE_MIRROR_QUEUE_MAX", 1000))
+    research_rag_enabled: bool = field(default_factory=lambda: _env_bool("RESEARCH_RAG_ENABLED", False))
+
     # ---- Module B: Pre-trade risk limits ----------------------------------
     # Hard ceiling on a single order's notional value. Fat-finger guard.
     max_order_notional_usd: float = field(default_factory=lambda: _env_float("MAX_ORDER_NOTIONAL_USD", 50_000.0))

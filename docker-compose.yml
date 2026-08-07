@@ -1,0 +1,49 @@
+# AlphaEngine always-on gateway — host port 8000.
+#
+#   docker compose up -d --build
+#
+# Secrets NEVER appear in this file: WEB_API_TOKEN, TELEGRAM_BOT_TOKEN and
+# SUPABASE_SERVICE_ROLE_KEY arrive through Part2_Infrastructure/.env (see
+# .env.example there). tests/test_container_contract.py enforces that shape —
+# a secret-shaped literal committed here fails the suite.
+#
+# The audit log lives on a NAMED volume, not a bind mount: a host directory
+# arrives owned by the host user and the container's uid 10001 cannot write
+# it, which silently degrades DuckDB to an unwritable SQLite fallback. To
+# inspect the log from the host: `docker compose exec gateway python - <<...`
+# or copy the file out with `docker cp`.
+#
+# stop_grace_period covers the lifespan shutdown: main.py writes a final
+# gateway_stop risk event and closes the audit log on SIGTERM; the 10s default
+# risks SIGKILL mid-write and a stranded .duckdb.wal.
+
+name: alphaengine
+
+services:
+  gateway:
+    build:
+      context: ./Part2_Infrastructure
+      dockerfile: docker/gateway.Dockerfile
+    container_name: alphaengine_gateway
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: ./Part2_Infrastructure/.env
+        required: false
+    environment:
+      ENVIRONMENT: production
+      REQUIRE_AUTH: "1"
+      DATA_DIR: /app/data
+      DB_PATH: /app/data/alphaengine.duckdb
+    volumes:
+      - alphaengine_audit:/app/data
+    restart: unless-stopped
+    stop_grace_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  alphaengine_audit:

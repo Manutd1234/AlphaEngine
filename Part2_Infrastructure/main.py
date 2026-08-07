@@ -51,23 +51,28 @@ from modules.jobs import get_queue
 from modules.metrics import RequestTimingMiddleware, render_metrics
 from modules.operations import OperationsSnapshot, build_operations_snapshot
 from modules.portfolio import build_equity_history, build_portfolio
+from modules.research_rag import get_rag
 from modules.risk_proxy import get_gateway
 from modules.schemas import (
     BacktestRequest,
     CancelRequest,
     KillSwitchRequest,
-    ReduceOnlyRequest,
     OrderAck,
     OrderEvent,
     OrderRequest,
     OrderTimeline,
+    ReduceOnlyRequest,
     ReplaceRequest,
+    ResearchRagSearchRequest,
+    ResearchRagSearchResponse,
+    ResearchRagStatus,
     RiskDecision,
     RiskState,
     TCAReport,
     VenueBook,
     WorkingOrder,
 )
+from modules.supabase_mirror import get_mirror
 from modules.tca_engine import get_engine
 from modules.telegram import get_bot
 
@@ -107,9 +112,22 @@ async def lifespan(app: FastAPI):
     tca.add_alert_hook(bot.broadcast)
     queue.on_complete(bot.push_backtest_result)
 
+    # Best-effort Postgres mirror: a no-op unless SUPABASE_* is configured.
+    # enqueue is put_nowait — it can never slow an order down.
+    mirror = get_mirror()
+    gateway.add_decision_hook(mirror.enqueue)
+
+    # pgvector research index: backtests are embedded as they complete, and an
+    # execution anomaly retrieves its three most similar historical reports.
+    rag = get_rag()
+    gateway.add_decision_hook(rag.on_decision)
+    queue.on_complete(rag.on_backtest_complete)
+
     await tca.start()
     await gateway.start()
     await bot.start()
+    await mirror.start()
+    await rag.start()
 
     audit.record_risk_event(
         "gateway_start", severity="info", actor="system",
@@ -130,6 +148,8 @@ async def lifespan(app: FastAPI):
         log.info("shutting down…")
         audit.record_risk_event("gateway_stop", severity="info", actor="system", detail="clean shutdown")
         await bot.stop()
+        await rag.stop()
+        await mirror.stop()
         await gateway.stop()
         await tca.stop()
         queue.shutdown()
@@ -250,6 +270,7 @@ async def operations_snapshot(_actor: str = Depends(trader_identity)) -> Operati
         queue=get_queue(),
         audit=get_audit(),
         bot=get_bot(),
+        mirror=get_mirror(),
     )
 
 
@@ -483,6 +504,25 @@ async def reset_book(actor: str = Depends(trader_identity)) -> dict[str, Any]:
 # --------------------------------------------------------------------------- #
 # Module C — Backtesting
 # --------------------------------------------------------------------------- #
+@app.post("/api/research/rag/search", tags=["C · Research"])
+async def research_rag_search(
+    req: ResearchRagSearchRequest, _actor: str = Depends(trader_identity)
+) -> ResearchRagSearchResponse:
+    """Similarity search over the desk's own backtests, summaries and incidents.
+
+    Returns `state: unavailable` when Supabase is not configured — deliberately
+    not an empty list, which would mean "searched, found nothing".
+    """
+    result = await get_rag().search(req.query, match_count=req.match_count, kind=req.kind)
+    return ResearchRagSearchResponse(**result)
+
+
+@app.get("/api/research/rag/status", tags=["C · Research"])
+async def research_rag_status(_actor: str = Depends(trader_identity)) -> ResearchRagStatus:
+    """Index counters plus the cached matches from the last execution anomaly."""
+    return ResearchRagStatus(**get_rag().status())
+
+
 @app.post("/api/backtest", tags=["C · Research"])
 async def submit_backtest(req: BacktestRequest, actor: str = Depends(trader_identity)) -> dict[str, Any]:
     record = get_queue().submit(

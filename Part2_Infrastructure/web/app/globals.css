@@ -12994,3 +12994,32 @@ button:active:not(:disabled) {
     grid-column: 1 / -1;
   }
 }
+
+/* ---------- fill-quality heatmap ---------- */
+
+.fill-quality-heatmap__grid td,
+.fill-quality-heatmap__grid th {
+  padding: 4px 7px;
+  font-size: 10.5px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.fill-quality-heatmap__grid th[scope="row"] {
+  text-align: left;
+  font-weight: 650;
+}
+
+.fill-quality-heatmap__grid td.num {
+  /* The ramp midpoint is near-white; ink stays readable across the whole
+     range because |slippage| rarely exceeds a few bps of tint. */
+  color: #122033;
+  border-radius: 3px;
+}
+
+.fill-quality-heatmap__grid td.is-empty {
+  background:
+    repeating-linear-gradient(45deg, transparent, transparent 3px,
+      color-mix(in srgb, var(--axis) 25%, transparent) 3px,
+      color-mix(in srgb, var(--axis) 25%, transparent) 4px);
+}

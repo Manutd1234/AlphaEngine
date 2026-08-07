@@ -236,6 +236,7 @@ class RiskGateway:
         self._seen_client_ids: deque[str] = deque(maxlen=5000)
         self._seen_set: set[str] = set()
         self._alert_hooks: list[AlertHook] = []
+        self._decision_hooks: list = []
         self._monitor: asyncio.Task | None = None
         self._working_task: asyncio.Task | None = None
         self._lock = asyncio.Lock()
@@ -500,6 +501,24 @@ class RiskGateway:
 
     def add_alert_hook(self, hook: AlertHook) -> None:
         self._alert_hooks.append(hook)
+
+    def add_decision_hook(self, hook) -> None:
+        """Register a post-decision observer (mirror, RAG anomaly detector).
+
+        Hooks run after the audit write, outside the lock, and are called
+        synchronously with (decision, request, source) — so a hook must be
+        cheap and non-blocking (the Supabase mirror's enqueue is put_nowait).
+        A hook that raises is logged and dropped from the call, never allowed
+        to break the order path.
+        """
+        self._decision_hooks.append(hook)
+
+    def _notify_decision(self, decision, req, source: str) -> None:
+        for hook in self._decision_hooks:
+            try:
+                hook(decision, req, source)
+            except Exception as exc:  # observers must never break trading
+                log.error("decision hook failed: %s", type(exc).__name__)
 
     async def _alert(self, severity: str, message: str) -> None:
         for hook in self._alert_hooks:
@@ -1512,6 +1531,7 @@ class RiskGateway:
         if self.audit and status != "WORKING":
             await asyncio.to_thread(self.audit.record_order, decision, req, source)
         await self._drain_deferred_audit()
+        self._notify_decision(decision, req, source)
 
         # Post-decision side effects run outside the lock.
         if not accepted:

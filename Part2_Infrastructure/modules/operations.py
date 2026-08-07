@@ -112,7 +112,22 @@ class RouteLatencyOperationsSnapshot(BaseModel):
     routes: list[RouteLatencySnapshot] = Field(default_factory=list)
 
 
+class SupabaseMirrorSnapshot(BaseModel):
+    """Mirror counters — a closed error vocabulary and no identity, per the
+    endpoint's own no-URLs/no-paths rule."""
+
+    configured: bool
+    running: bool
+    queued: int
+    written: int
+    failed: int
+    dropped: int
+    last_error_kind: str | None = None
+
+
 class OperationsSnapshot(BaseModel):
+    # Additive optional field only — web/lib/reliability.ts hard-rejects
+    # schema_version 2, and an older gateway must keep validating.
     schema_version: Literal[1] = 1
     observed_at: datetime
     stale_after_seconds: float
@@ -125,6 +140,7 @@ class OperationsSnapshot(BaseModel):
     audit: AuditOperationsSnapshot
     telegram: TelegramOperationsSnapshot
     route_latency: RouteLatencyOperationsSnapshot
+    supabase: SupabaseMirrorSnapshot | None = None
 
 
 def _finite_float(value: Any, default: float = 0.0) -> float:
@@ -291,6 +307,7 @@ def build_operations_snapshot(
     queue: Any,
     audit: Any,
     bot: Any,
+    mirror: Any = None,
     observed_at: datetime | None = None,
 ) -> OperationsSnapshot:
     """Build one internally consistent, process-local reliability snapshot."""
@@ -314,7 +331,10 @@ def build_operations_snapshot(
     else:
         status = "nominal"
 
+    supabase = SupabaseMirrorSnapshot(**mirror.health()) if mirror is not None else None
+
     return OperationsSnapshot(
+        supabase=supabase,
         observed_at=observed_at or datetime.now(timezone.utc),
         stale_after_seconds=SNAPSHOT_STALE_AFTER_SECONDS,
         status=status,

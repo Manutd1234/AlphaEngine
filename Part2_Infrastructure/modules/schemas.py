@@ -436,3 +436,56 @@ class JobStatus(BaseModel):
     finished_at: datetime | None = None
     error: str | None = None
     backend: str = "in-process"
+
+
+# --------------------------------------------------------------------------- #
+# Research RAG (Supabase pgvector) — typed route contracts
+# --------------------------------------------------------------------------- #
+class ResearchRagSearchRequest(BaseModel):
+    """A similarity query over the desk's own research corpus."""
+
+    query: str = Field(min_length=1, max_length=2000)
+    match_count: int = Field(default=3, ge=1, le=20)
+    kind: Literal["backtest_run", "execution_summary", "risk_incident"] | None = None
+
+
+class ResearchRagMatch(BaseModel):
+    id: str
+    kind: str
+    source_ref: str
+    symbol: str | None = None
+    strategy: str | None = None
+    occurred_at: datetime
+    title: str
+    body: str
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    similarity: float
+
+
+class ResearchRagSearchResponse(BaseModel):
+    """`unavailable` is a state, never an empty match list wearing one's face:
+    "searched and found nothing" and "could not search" are different facts."""
+
+    state: Literal["ok", "unavailable", "embed_failed"]
+    matches: list[ResearchRagMatch] = Field(default_factory=list)
+
+
+class ResearchRagAnomalyMatch(BaseModel):
+    title: str
+    kind: str
+    similarity: float
+    occurred_at: datetime
+
+
+class ResearchRagStatus(BaseModel):
+    """Counters and the cached anomaly retrieval — no URL, no key, no raw error."""
+
+    configured: bool
+    running: bool
+    queued: int
+    indexed: int
+    pending_embeddings: int
+    failed: int
+    dropped: int
+    last_anomaly_at: datetime | None = None
+    last_anomaly_matches: list[ResearchRagAnomalyMatch] = Field(default_factory=list)

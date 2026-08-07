@@ -50,6 +50,7 @@ import { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 
 import AlertFeed from "./AlertFeed";
 import ExecutionQuality from "./ExecutionQuality";
+import FillQualityHeatmap from "./FillQualityHeatmap";
 import OrderBlotter from "./OrderBlotter";
 import OrderTicket from "./OrderTicket";
 import PnlStrip from "./PnlStrip";
@@ -316,6 +317,8 @@ export default function ExecutionCockpit({
           rows={effectiveOrders}
           source={feedSource}
         />
+        {/* Renders only above its own sample floor — see the component. */}
+        <FillQualityHeatmap rows={effectiveOrders} source={feedSource} />
         <OrderBlotter rows={effectiveOrders} focusSymbol={symbol} onOpenResearch={onOpenResearch} source={feedSource} />
         <AlertFeed events={effectiveEvents} source={feedSource} />
       </WorkspaceSubtabPanel>

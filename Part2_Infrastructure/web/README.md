@@ -20,6 +20,31 @@ or controls this UI.
 
 ---
 
+## Tech stack
+
+**This app:** Next.js 16 (App Router, Turbopack), React 19, TypeScript 5,
+Tailwind 4 utilities over a hand-written token system (`app/globals.css` owns
+every colour, both theme palettes and the AA contrast contract that
+`tests/theme.test.ts` enforces). Charts are hand-rolled SVG on one scale kit
+(`components/chart-kit.tsx`) — no chart library. Deployed on Vercel, region
+`sin1` (venue egress — see the region note under Deploy).
+
+**Behind it** (documented once, in
+[`../README.md` §2 Tech stack](../README.md#2-architecture) — this section
+deliberately summarises rather than restates, so the two files cannot drift into
+different claims): a Python 3.12 / FastAPI gateway in Docker on port 8000 with
+an authoritative DuckDB audit log; a Supabase Postgres mirror + pgvector RAG
+layer (off by default, server-side only); a stateless OpenBB research service.
+
+**Credential rule:** the browser bundle contains **zero backend env vars**.
+`ALPHAENGINE_GATEWAY_URL` must be `https://` (the proxy rejects `ws://` and any
+non-http(s) scheme, and rejects loopback/private hosts in production). The
+`NEXT_PUBLIC_SUPABASE_*` variables may be set but are **inert**: no code reads
+them until the deferred Realtime phase, and Next.js only inlines a
+`NEXT_PUBLIC_*` value where it is referenced.
+
+---
+
 ## Deploy to Vercel
 
 1. Import the GitHub repo at <https://vercel.com/new>.

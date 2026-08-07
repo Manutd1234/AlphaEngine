@@ -1,0 +1,5 @@
+# Supabase CLI local state — anchored (a bare `dir/` pattern fails
+# tools/check_repo_complete.sh and would silently drop migrations from git).
+/.branches/
+/.temp/
+/.env

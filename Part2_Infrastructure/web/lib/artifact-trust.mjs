@@ -8,4 +8,9 @@
  *
  * @type {string | null}
  */
-export const TRUSTED_ARTIFACT_PUBLIC_KEY_SHA256 = null;
+// Pinned 2026-08-08. Ed25519 keypair generated locally (~/.alphaengine/,
+// outside the repository); the private PEM lives only in Vercel's
+// ALPHAENGINE_ARTIFACT_SIGNING_KEY. Rotating the signer = generate a new pair,
+// replace this fingerprint in the same commit, update the Vercel secret.
+export const TRUSTED_ARTIFACT_PUBLIC_KEY_SHA256 =
+  "3db8b54f0f95d635c5533277042f384cdc953f9d43fc879558164823c8a25970";

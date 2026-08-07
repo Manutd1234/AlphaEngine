@@ -1,0 +1,22 @@
+# Build context hygiene. Without this the context is the full working tree —
+# the same ~1.6 GB venv/node_modules incident the root .vercelignore header
+# already documents. (.dockerignore is NOT scanned by check_repo_complete.sh's
+# gitignore guard, so unanchored patterns are fine here.)
+venv/
+.venv/
+web/
+OpenBB_Service/
+developer-console/
+notebooks/
+docs/
+data/
+tests/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.pyc
+.env
+*.duckdb
+*.duckdb.wal
+*.sqlite
+.git/

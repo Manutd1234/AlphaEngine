@@ -77,6 +77,14 @@ export const REPOSITORY_AREAS = [
     description: "The separate Part 1 source data, notebook, workbook, and written deliverable.",
   },
   {
+    id: "platform-data",
+    label: "Platform data",
+    shortLabel: "Platform data",
+    owner: "Quant platform",
+    lifecycle: "Deployed",
+    description: "Supabase Postgres mirror: migrations, RLS policies, seed data, and edge functions.",
+  },
+  {
     id: "delivery",
     label: "Delivery & configuration",
     shortLabel: "Delivery",
@@ -165,6 +173,7 @@ function areaForPath(path: string): RepositoryAreaId {
     || path.startsWith("Part2_Infrastructure/data/")
     || path.startsWith("Part2_Infrastructure/templates/")
   ) return "research-assets";
+  if (path.startsWith("supabase/")) return "platform-data";
   if (
     path.startsWith("Part2_Infrastructure/modules/")
     || [
@@ -184,6 +193,8 @@ function extensionForPath(path: string): string {
 }
 
 function languageForPath(path: string): string {
+  const name = path.split("/").at(-1) ?? path;
+  if (name === "Dockerfile" || name.endsWith(".Dockerfile") || name === ".dockerignore") return "Dockerfile";
   const extension = extensionForPath(path);
   const languages: Record<string, string> = {
     ".css": "CSS",
@@ -197,6 +208,7 @@ function languageForPath(path: string): string {
     ".png": "Image",
     ".py": "Python",
     ".sh": "Shell",
+    ".sql": "SQL",
     ".svg": "SVG",
     ".toml": "TOML",
     ".ts": "TypeScript",
@@ -218,6 +230,11 @@ function kindForPath(path: string): RepositoryFileKind {
   if (path.includes("/components/") && name.endsWith(".tsx")) return "Component";
   if (/\/(page|layout)\.tsx$/.test(path)) return "Application shell";
   if (name === "openapi.json" || name.includes("parity") || name === "schemas.py") return "Contract";
+  // A migration is a contract with the database: applied once, never edited.
+  if (path.includes("supabase/migrations/")) return "Contract";
+  if (name === "Dockerfile" || name.endsWith(".Dockerfile") || name === ".dockerignore" || name.endsWith("compose.yml")) {
+    return "Configuration";
+  }
   if (name.endsWith(".ipynb")) return "Notebook";
   if (path.includes("/public/")) return "Public asset";
   if (name.endsWith(".md")) return "Documentation";

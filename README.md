@@ -61,6 +61,23 @@ failing.
 **→ [`Part2_Infrastructure/README.md`](Part2_Infrastructure/README.md)** for the
 architecture, the design arguments, and what is implemented versus mocked.
 
+### Tech stack
+
+One platform, four layers. A row marked *planned* names work that is designed
+but not yet shipped — a README that described it as live would be the same
+defect as an untagged synthetic book.
+
+| Layer | What runs it | Status |
+|---|---|---|
+| **Frontend** | Next.js 16 (App Router, Turbopack) · React 19 · TypeScript 5 · Tailwind 4 · Vercel (`sin1`) | shipped |
+| **Backend** | Python 3.12 · FastAPI · uvicorn (single process, stateful by design) · Docker on host port 8000 · optional Celery/Redis | shipped · container in `docker/` |
+| **Database** | DuckDB embedded append-only audit log (**authoritative**) · Supabase Postgres mirror with RLS (`supabase/migrations/`) | shipped · mirror off by default |
+| **RAG** | Supabase pgvector · `gte-small` 384-dim embeddings via Edge Function · corpus = backtest runs, execution summaries, risk incidents | shipped · requires Supabase configured |
+
+DuckDB stays authoritative and Postgres is a mirror because the desk must keep
+trading when the cloud is unreachable — the mirror can lag or drop; the gateway
+never waits for it.
+
 ### Verify it end to end
 
 Everything runs offline: market data falls back to clearly-tagged synthetic books, the backtester uses its own NumPy engine, and every fixture is committed.
@@ -68,9 +85,9 @@ Everything runs offline: market data falls back to clearly-tagged synthetic book
 ```bash
 cd Part2_Infrastructure
 python -m venv venv && venv/bin/pip install -r requirements-core.txt
-venv/bin/python -m pytest                            # 342 gateway tests
+venv/bin/python -m pytest                            # 396 gateway tests
 venv/bin/python tools/synthetic_probe.py             # book → cost → risk gate → audit
-(cd web && npm install && npm test)                  # 680 web tests, incl. cross-engine parity
+(cd web && npm install && npm test)                  # 689 web tests, incl. cross-engine parity
 (cd OpenBB_Service && ../venv/bin/python -m pytest)  # 13 service tests
 ```
 

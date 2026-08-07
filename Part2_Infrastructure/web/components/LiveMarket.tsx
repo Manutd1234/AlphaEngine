@@ -412,6 +412,36 @@ export default function LiveMarket({
           <legend>
             <span className="page-kicker">What-if constraints — client-side only</span>
           </legend>
+          {/* Urgency presets. The probe's honest levers are the venue set and
+              the slippage cap, so that is all a preset writes — into the same
+              visible inputs, never hidden state. Passive accepts only cheap
+              liquidity; aggressive takes the book as it comes. */}
+          <div className="whatif-constraints__row whatif-constraints__presets-row">
+            <div>
+              <span className="field">Routing strategy</span>
+              <div className="seg" role="group" aria-label="What-if routing urgency preset">
+                {([
+                  { label: "Passive", cap: "1" },
+                  { label: "Balanced", cap: "3" },
+                  { label: "Aggressive", cap: "" },
+                ] as const).map((preset) => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    aria-pressed={capText === preset.cap && includedVenues === null}
+                    disabled={snap?.consolidatedMid == null && preset.cap !== ""}
+                    onClick={() => {
+                      setCapText(preset.cap);
+                      setIncludedVenues(null);
+                    }}
+                    title={preset.cap === "" ? "All venues, uncapped" : `All venues, max slippage ${preset.cap} bps`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
           <div className="whatif-constraints__row">
             <div>
               <span className="field">Route through</span>
