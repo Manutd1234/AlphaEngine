@@ -494,14 +494,27 @@ class TelegramBot:
         return result
 
     async def send_photo(self, chat_id: str | int, photo_bytes: bytes, caption: str = "") -> dict[str, Any]:
-        """Dispatch visual chart photo to Telegram chat."""
-        return await self.api(
-            "sendPhoto",
-            chat_id=chat_id,
-            photo=photo_bytes,
-            caption=caption[:1000] if caption else "",
-            parse_mode="HTML" if caption else None,
-        )
+        """Dispatch visual chart photo to Telegram chat, falling back to text message if photo upload fails."""
+        if not self._client:
+            self._client = httpx.AsyncClient(timeout=40.0)
+
+        if photo_bytes:
+            try:
+                files = {"photo": ("chart.png", photo_bytes, "image/png")}
+                data: dict[str, str] = {"chat_id": str(chat_id)}
+                if caption:
+                    data["caption"] = caption[:1000]
+                    data["parse_mode"] = "HTML"
+
+                response = await self._client.post(f"{self.base}/sendPhoto", data=data, files=files)
+                res = response.json()
+                if res.get("ok"):
+                    return res
+                log.warning("sendPhoto API call failed (%s), falling back to text message", res.get("description"))
+            except Exception as exc:
+                log.warning("sendPhoto upload exception (%s), falling back to text message", exc)
+
+        return await self.send_message(chat_id, caption)
 
     async def start(self) -> None:
         if not self.enabled:
