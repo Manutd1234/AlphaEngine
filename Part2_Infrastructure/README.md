@@ -375,49 +375,53 @@ fetches and serverless scaling from sharing the gateway's mutable risk state.
 
 Versions are what is **actually deployed or locked** as of 2026-08-08 — read
 from the running container, the lockfile and the live database, not from
-minimum pins. Rows marked *optional* degrade gracefully when absent.
+minimum pins. Rows marked *optional* degrade gracefully when absent; a managed
+service carries no pinned version.
 
 ### Frontend Core
 
 | Component | Version | Role in AlphaEngine |
 |---|---|---|
-| **[Next.js](https://nextjs.org)** | 16.3.0 | App Router + Turbopack on Node ≥20.9. Server-side proxy routes are the only path to backend credentials; the browser bundle ships zero secrets. |
-| **[React](https://react.dev)** | 19.2.8 | One client workspace, eight role tabs. Every subtab is URL-addressable and survives back/forward. |
-| **[TypeScript](https://www.typescriptlang.org)** | 5.9.3 | Strict mode. Contract fixtures emitted by the Python engine are type-checked on this side (§12 parity). |
-| **[Tailwind CSS](https://tailwindcss.com)** | 4.3.3 | Utilities only, bridged onto a hand-written token system in `app/globals.css` that owns both theme palettes and an AA contrast contract enforced by `tests/theme.test.ts`. No preflight — the house reset stays authoritative. |
-| **[Lucide](https://lucide.dev)** | 1.28.0 | The only icon dependency. Charts are hand-rolled SVG on one scale kit (`components/chart-kit.tsx`) — there is deliberately no chart library. |
+| **[Next.js](https://nextjs.org)** | `16.3.0` | App Router + Turbopack on Node ≥20.9. Server-side proxy routes are the only path to backend credentials; the browser bundle ships zero secrets. |
+| **[React](https://react.dev)** | `19.2.8` | One client workspace, eight role tabs. Every subtab is URL-addressable and survives back/forward. |
+| **[TypeScript](https://www.typescriptlang.org)** | `5.9.3` | Strict mode. Contract fixtures emitted by the Python engine are type-checked on this side (§12 parity). |
+| **[Tailwind CSS](https://tailwindcss.com)** | `4.3.3` | Utilities only, bridged onto a hand-written token system in `app/globals.css` that owns both theme palettes and an AA contrast contract enforced by `tests/theme.test.ts`. No preflight — the house reset stays authoritative. |
+| **[Lucide](https://lucide.dev)** | `1.28.0` | The only icon dependency. Charts are hand-rolled SVG on one scale kit (`components/chart-kit.tsx`) — there is deliberately no chart library. |
 
 ### Backend
 
 | Component | Version | Role in AlphaEngine |
 |---|---|---|
-| **[Python](https://www.python.org)** | 3.12.13 | The gateway runtime inside the container. |
-| **[FastAPI](https://fastapi.tiangolo.com)** | 0.141.1 | 34 documented routes. The OpenAPI schema is a committed contract (`tools/openapi.json`) whose SHA-256 the web build verifies at `prebuild`. |
-| **[Uvicorn](https://www.uvicorn.org)** | 0.52.1 | **One process, no workers, by design** — the risk gateway holds a mutable in-memory book, a resting-order book, a token bucket and the kill switch; a second worker would fork the book and localise the halt. |
-| **[Pydantic](https://docs.pydantic.dev)** | 2.13.4 | Every API payload, risk decision and bot read-model shares one schema module (`modules/schemas.py`). |
-| **[httpx](https://www.python-httpx.org)** · **[websockets](https://websockets.readthedocs.io)** | 0.28.1 · 17.0.1 | Venue WebSocket ingest (Binance + Bybit L2) and all outbound HTTP, including the Supabase mirror — chosen over `supabase-py` to keep the import graph network-free for CI. |
-| **[NumPy](https://numpy.org)** · **[pandas](https://pandas.pydata.org)** | 2.5.1 · 3.0.5 | The reference backtest engine and all TCA/risk maths. |
-| **[vectorbt](https://vectorbt.dev)** *(optional)* | — | Accelerator in `requirements.txt`. The NumPy engine is the documented fallback and `/health` reports which is live. |
-| **[Celery](https://docs.celeryq.dev) + Redis** *(optional)* | — | Set `REDIS_URL` and the job queue switches from the in-process pool automatically; same task callables either way. |
+| **[Python](https://www.python.org)** | `3.12.13` | The gateway runtime inside the container. |
+| **[FastAPI](https://fastapi.tiangolo.com)** | `0.141.1` | 34 documented routes. The OpenAPI schema is a committed contract (`tools/openapi.json`) whose SHA-256 the web build verifies at `prebuild`. |
+| **[Uvicorn](https://www.uvicorn.org)** | `0.52.1` | **One process, no workers, by design** — the risk gateway holds a mutable in-memory book, a resting-order book, a token bucket and the kill switch; a second worker would fork the book and localise the halt. |
+| **[Pydantic](https://docs.pydantic.dev)** | `2.13.4` | Every API payload, risk decision and bot read-model shares one schema module (`modules/schemas.py`). |
+| **[httpx](https://www.python-httpx.org)** | `0.28.1` | All outbound HTTP, including the Supabase mirror — chosen over `supabase-py` to keep the import graph network-free for CI. |
+| **[websockets](https://websockets.readthedocs.io)** | `17.0.1` | Venue WebSocket ingest: Binance and Bybit L2 depth streams. |
+| **[NumPy](https://numpy.org)** | `2.5.1` | The reference backtest engine and all TCA/risk maths. |
+| **[pandas](https://pandas.pydata.org)** | `3.0.5` | Bar/series handling across the backtester and analytics. |
+| **[vectorbt](https://vectorbt.dev)** | *optional* | Accelerator in `requirements.txt`. The NumPy engine is the documented fallback and `/health` reports which is live. |
+| **[Celery](https://docs.celeryq.dev) + Redis** | *optional* | Set `REDIS_URL` and the job queue switches from the in-process pool automatically; same task callables either way. |
 
 ### Database
 
 | Component | Version | Role in AlphaEngine |
 |---|---|---|
-| **[DuckDB](https://duckdb.org)** | 1.5.5 | The **authoritative** store: an embedded, append-only audit log (orders, events, backtests, equity) on a named Docker volume, with an SQLite fallback. Embedded on purpose — the desk must keep trading when every network dependency is down. |
-| **[PostgreSQL](https://www.postgresql.org)** on **[Supabase](https://supabase.com)** | 17.6 | The durable **mirror**, never a second decision-maker. Every gateway decision streams through a bounded queue into `public.order_blotter` with `decided_by` provenance, measured `latency_ms` and the full 15-gate check vector. RLS deny-by-default (zero `anon` policies), append-only by trigger, `search_path` pinned on every `SECURITY DEFINER` function. Six ordered migrations in [`../supabase/migrations/`](../supabase/migrations/); `tests/test_supabase_schema.py` pins SQL limit defaults to `config.py` offline. |
-| **[pgvector](https://github.com/pgvector/pgvector)** | 0.8.2 | 384-dim HNSW cosine index over `public.research_documents` — see **RAG & ML** below. |
+| **[DuckDB](https://duckdb.org)** | `1.5.5` | The **authoritative** store: an embedded, append-only audit log (orders, events, backtests, equity) on a named Docker volume, with an SQLite fallback. Embedded on purpose — the desk must keep trading when every network dependency is down. |
+| **[PostgreSQL](https://www.postgresql.org)** | `17.6` | The durable **mirror**, never a second decision-maker. Every gateway decision streams through a bounded queue into `public.order_blotter` with `decided_by` provenance, measured `latency_ms` and the full 15-gate check vector. |
+| **[Supabase](https://supabase.com)** | managed | Hosts that Postgres. RLS deny-by-default (zero `anon` policies), append-only by trigger, `search_path` pinned on every `SECURITY DEFINER` function. Six ordered migrations in [`../supabase/migrations/`](../supabase/migrations/); `tests/test_supabase_schema.py` pins SQL limit defaults to `config.py` offline. |
+| **[pgvector](https://github.com/pgvector/pgvector)** | `0.8.2` | 384-dim HNSW cosine index over `public.research_documents` — see **RAG & ML** below. |
 
 ### DevOps & Infrastructure
 
 | Component | Version | Role in AlphaEngine |
 |---|---|---|
-| **[Docker](https://www.docker.com)** | 29.7.2 | Two-stage `python:3.12-slim` image ([`docker/gateway.Dockerfile`](docker/gateway.Dockerfile)), non-root uid 10001, stdlib health probe, compose file at the repo root. `tests/test_container_contract.py` rejects any secret-shaped literal in the committed files. |
-| **[Caddy](https://caddyserver.com)** | 2.6.2 | TLS termination on the VM with automatic Let's Encrypt issuance; the gateway token never crosses the internet in cleartext. |
-| **[Oracle Cloud](https://www.oracle.com/cloud/)** | — | The always-on host (Singapore). Region is load-bearing: US egress gets Binance HTTP 451 / Bybit 403 (§11). |
-| **[Vercel](https://vercel.com)** | — | Two serverless projects (web portal, OpenBB service) from one repo with different Root Directories, region `sin1`. Artifact custody via an Ed25519-signed build attestation against a trust root pinned in reviewed source (`web/lib/artifact-trust.mjs`). |
-| **[GitHub Actions](https://github.com/features/actions)** | — | Four network-free jobs (gateway, OpenBB, web, repo-audit): a red build means the code broke, never that an exchange was slow. 396 gateway + 711 web + 13 service tests. |
-| **[Supabase CLI](https://supabase.com/docs/guides/cli)** | 2.112.0 | Migration push via the IPv4 session pooler (the direct DB host is IPv6-only) and edge-function deploys. |
+| **[Docker](https://www.docker.com)** | `29.7.2` | Two-stage `python:3.12-slim` image ([`docker/gateway.Dockerfile`](docker/gateway.Dockerfile)), non-root uid 10001, stdlib health probe, compose file at the repo root. `tests/test_container_contract.py` rejects any secret-shaped literal in the committed files. |
+| **[Caddy](https://caddyserver.com)** | `2.6.2` | TLS termination on the VM with automatic Let's Encrypt issuance; the gateway token never crosses the internet in cleartext. |
+| **[Supabase CLI](https://supabase.com/docs/guides/cli)** | `2.112.0` | Migration push via the IPv4 session pooler (the direct DB host is IPv6-only) and edge-function deploys. |
+| **[Oracle Cloud](https://www.oracle.com/cloud/)** | managed | The always-on host (Singapore). Region is load-bearing: US egress gets Binance HTTP 451 / Bybit 403 (§11). |
+| **[Vercel](https://vercel.com)** | managed | Two serverless projects (web portal, OpenBB service) from one repo with different Root Directories, region `sin1`. Artifact custody via an Ed25519-signed build attestation against a trust root pinned in reviewed source (`web/lib/artifact-trust.mjs`). |
+| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free jobs (gateway, OpenBB, web, repo-audit): a red build means the code broke, never that an exchange was slow. 396 gateway + 711 web + 13 service tests. |
 
 ### 🔑 API Keys & Secrets
 

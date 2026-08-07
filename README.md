@@ -72,34 +72,40 @@ container, the lockfile and the live database. Full detail (every dependency's
 
 | Component | Version | Role |
 |---|---|---|
-| **[Next.js](https://nextjs.org)** | 16.3.0 | App Router + Turbopack on Vercel (`sin1`); the browser bundle ships zero backend credentials. |
-| **[React](https://react.dev)** · **[TypeScript](https://www.typescriptlang.org)** | 19.2.8 · 5.9.3 | One workspace, eight URL-addressable role tabs, strict mode. |
-| **[Tailwind CSS](https://tailwindcss.com)** | 4.3.3 | Utilities over a hand-written token system with a test-enforced AA contrast contract. Charts are hand-rolled SVG — no chart library. |
+| **[Next.js](https://nextjs.org)** | `16.3.0` | App Router + Turbopack on Vercel (`sin1`); the browser bundle ships zero backend credentials. |
+| **[React](https://react.dev)** | `19.2.8` | One workspace, eight URL-addressable role tabs. |
+| **[TypeScript](https://www.typescriptlang.org)** | `5.9.3` | Strict mode, shared contract types with the Python engine's fixtures. |
+| **[Tailwind CSS](https://tailwindcss.com)** | `4.3.3` | Utilities over a hand-written token system with a test-enforced AA contrast contract. Charts are hand-rolled SVG — no chart library. |
 
 ### Backend
 
 | Component | Version | Role |
 |---|---|---|
-| **[Python](https://www.python.org)** · **[FastAPI](https://fastapi.tiangolo.com)** · **[Uvicorn](https://www.uvicorn.org)** | 3.12.13 · 0.141.1 · 0.52.1 | The always-on gateway — one stateful process by design (in-memory book + kill switch). |
-| **[NumPy](https://numpy.org)** · **[pandas](https://pandas.pydata.org)** | 2.5.1 · 3.0.5 | Reference engines for TCA, risk and backtesting; vectorbt optional. |
-| **[httpx](https://www.python-httpx.org)** · **[websockets](https://websockets.readthedocs.io)** | 0.28.1 · 17.0.1 | Keyless Binance + Bybit L2 ingest and all outbound HTTP. |
+| **[Python](https://www.python.org)** | `3.12.13` | The gateway runtime. |
+| **[FastAPI](https://fastapi.tiangolo.com)** | `0.141.1` | 34 routes behind a committed OpenAPI contract. |
+| **[Uvicorn](https://www.uvicorn.org)** | `0.52.1` | One stateful process by design — in-memory book + kill switch. |
+| **[NumPy](https://numpy.org)** | `2.5.1` | Reference engine for TCA, risk and backtesting; vectorbt optional. |
+| **[pandas](https://pandas.pydata.org)** | `3.0.5` | Bar/series handling across analytics. |
+| **[websockets](https://websockets.readthedocs.io)** | `17.0.1` | Keyless Binance + Bybit L2 ingest. |
 
 ### Database
 
 | Component | Version | Role |
 |---|---|---|
-| **[DuckDB](https://duckdb.org)** | 1.5.5 | Embedded append-only audit log — the **authoritative** store; survives every network dependency being down. |
-| **[PostgreSQL](https://www.postgresql.org)** / **[Supabase](https://supabase.com)** | 17.6 | Durable mirror with RLS deny-by-default and `decided_by` provenance; never a second decision-maker. |
-| **[pgvector](https://github.com/pgvector/pgvector)** | 0.8.2 | 384-dim HNSW research index (`gte-small` via a Supabase Edge Function; zero API keys). |
+| **[DuckDB](https://duckdb.org)** | `1.5.5` | Embedded append-only audit log — the **authoritative** store; survives every network dependency being down. |
+| **[PostgreSQL](https://www.postgresql.org)** | `17.6` | Durable mirror with `decided_by` provenance; never a second decision-maker. |
+| **[Supabase](https://supabase.com)** | managed | Hosts the mirror; RLS deny-by-default, zero `anon` policies. |
+| **[pgvector](https://github.com/pgvector/pgvector)** | `0.8.2` | 384-dim HNSW research index (`gte-small` via a Supabase Edge Function; zero API keys). |
 
 ### DevOps & Infrastructure
 
 | Component | Version | Role |
 |---|---|---|
-| **[Docker](https://www.docker.com)** | 29.7.2 | Non-root two-stage image + compose; contract-tested, secret-free by test. |
-| **[Caddy](https://caddyserver.com)** | 2.6.2 | Automatic HTTPS in front of the gateway on Oracle Cloud (Singapore — region is load-bearing for venue egress). |
-| **[GitHub Actions](https://github.com/features/actions)** | — | Four network-free CI jobs: 396 gateway + 711 web + 13 service tests. |
-| **[Vercel](https://vercel.com)** | — | Two serverless projects from one repo; builds are Ed25519-attested against a trust root pinned in reviewed source. |
+| **[Docker](https://www.docker.com)** | `29.7.2` | Non-root two-stage image + compose; contract-tested, secret-free by test. |
+| **[Caddy](https://caddyserver.com)** | `2.6.2` | Automatic HTTPS in front of the gateway. |
+| **[Oracle Cloud](https://www.oracle.com/cloud/)** | managed | Always-on host, Singapore — region is load-bearing for venue egress. |
+| **[Vercel](https://vercel.com)** | managed | Two serverless projects from one repo; builds are Ed25519-attested against a trust root pinned in reviewed source. |
+| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free CI jobs: 396 gateway + 711 web + 13 service tests. |
 
 ### Verify it end to end
 
