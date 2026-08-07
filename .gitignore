@@ -16,12 +16,13 @@
 .env.*
 !.env.example
 
-# ── OS / editor ──────────────────────────────────────────────────────────────
+# ── OS / editor / docs ──────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
 *.swp
+*.pdf
 
 # ── Python (scoped to the gateway) ───────────────────────────────────────────
 /Part2_Infrastructure/venv/
