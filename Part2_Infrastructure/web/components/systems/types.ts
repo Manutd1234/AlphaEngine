@@ -402,10 +402,10 @@ export const SKIP_LABEL: Record<string, string> = {
 
 /** Route-state presentation. Icon and word carry the meaning; colour reinforces. */
 export const ROUTE_STATE_STYLE: Record<RouteState, { icon: string; label: string; tone: string }> = {
-  ready: { icon: "●", label: "ready", tone: "var(--success-text)" },
-  circuit_open: { icon: "✕", label: "circuit open", tone: "var(--critical-text)" },
-  simulated_outage: { icon: "⏻", label: "simulated outage", tone: "var(--notice-text)" },
-  quota_exhausted: { icon: "▲", label: "quota spent", tone: "var(--warning-text)" },
-  quota_reserved: { icon: "▲", label: "quota reserved", tone: "var(--warning-text)" },
-  not_configured: { icon: "◌", label: "not configured", tone: "var(--text-secondary)" },
+  ready: { icon: "🟢", label: "ONLINE (Ready)", tone: "var(--success-text)" },
+  circuit_open: { icon: "🔴", label: "OFFLINE (Circuit Open)", tone: "var(--critical-text)" },
+  simulated_outage: { icon: "🟡", label: "DEGRADED (Simulated Outage)", tone: "var(--notice-text)" },
+  quota_exhausted: { icon: "🟡", label: "DEGRADED (Quota Spent)", tone: "var(--warning-text)" },
+  quota_reserved: { icon: "🟡", label: "DEGRADED (Quota Reserved)", tone: "var(--warning-text)" },
+  not_configured: { icon: "⚪", label: "NOT CONFIGURED", tone: "var(--text-secondary)" },
 };

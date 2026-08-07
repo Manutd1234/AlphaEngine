@@ -182,13 +182,13 @@ export default function KillSwitchControl({
 
           <p className="mt-2 flex items-center gap-1.5 text-[11px]">
             {gatewayConnected === null ? (
-              <span className="text-text-muted">Checking the gateway…</span>
+              <span className="text-text-muted">Checking gateway connection…</span>
             ) : gatewayConnected ? (
-              <span className="text-success-text"><span aria-hidden>●</span> gateway connected · guard: {riskControl.guardMode}</span>
+              <span className="text-success-text"><span aria-hidden>🟢</span> GATEWAY ONLINE · guard: {riskControl.guardMode}</span>
             ) : (
-              <span className="text-critical-text"><span aria-hidden>✕</span> no gateway configured</span>
+              <span className="text-critical-text"><span aria-hidden>🔴</span> GATEWAY OFFLINE — Run <code className="font-mono">python -m uvicorn main:app --port 8000</code></span>
             )}
-            {halt?.sandbox && <span className="text-notice-text">· sandbox book</span>}
+            {halt?.sandbox && <span className="text-notice-text">· sandbox mode</span>}
           </p>
 
           <label className="mt-3 block text-[11px] font-semibold text-text-secondary" htmlFor="kill-switch-reason">

@@ -146,8 +146,8 @@ function gatewayState(view: SystemHealthView): ControlState {
   if (!view.health) return { label: "Checking", detail: "Gateway health has not arrived yet.", tone: "info" };
   if (!platform) {
     return {
-      label: source?.state === "not_configured" ? "Not connected" : "Unavailable",
-      detail: source?.detail ?? "No authoritative gateway operations snapshot is available.",
+      label: source?.state === "not_configured" ? "Gateway Off" : "Unavailable",
+      detail: source?.detail ?? "FastAPI Gateway is offline. Run 'python -m uvicorn main:app --port 8000' to connect.",
       tone: source?.state === "not_configured" ? "off" : "warn",
     };
   }

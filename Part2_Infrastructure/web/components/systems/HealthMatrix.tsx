@@ -113,7 +113,11 @@ export default function HealthMatrix({
           <span className="page-kicker">Pipeline observability</span>
           <h2 id="reliability-provider-health-title">Upstream health &amp; circuit breakers</h2>
         </div>
-        <span className="section-note">Percentiles over the last 15 minutes on this instance.</span>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <span className="pill is-good">🟢 { (providers ?? []).filter((p) => p.ready && p.configured && !p.simulatedOutage).length } ONLINE</span>
+          <span className="pill is-warning">🟡 { (providers ?? []).filter((p) => p.configured && (!p.ready || p.simulatedOutage || (p.quota && p.quota.remaining <= 0))).length } DEGRADED</span>
+          <span className="pill">⚪ { (providers ?? []).filter((p) => !p.configured).length } NOT CONFIGURED</span>
+        </div>
       </div>
 
       <section
