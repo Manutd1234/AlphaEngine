@@ -6,7 +6,7 @@
 
 import { BARS_PER_YEAR } from "@/lib/types";
 import { regress } from "@/lib/quant";
-import type { PortfolioPosition } from "@/lib/portfolio-risk";
+import type { RiskPosition } from "@/lib/portfolio-risk";
 
 export const MIN_FACTOR_OBSERVATIONS = 60;
 
@@ -44,32 +44,36 @@ export function decomposeBookRisk(
     return null;
   }
 
-  const fit = regress(bookReturns, refReturns);
+  const ann = Math.sqrt(BARS_PER_YEAR["1d"]);
+  const fit = regress(bookReturns, [{ name: referenceSymbol, values: refReturns }], ann);
   if (!fit) return null;
 
-  const ann = Math.sqrt(BARS_PER_YEAR["1d"]);
-  const totalVol = fit.stdY * ann;
+  const loading = fit.loadings[0];
+  const beta = loading ? loading.beta : 0;
+  const tStat = loading ? loading.tStat : 0;
+
+  const totalVol = fit.alphaAnnualised; // total annualised scale
   const systematicShare = fit.rSquared;
   const idiosyncraticShare = fit.idiosyncraticShare;
   const systematicVol = totalVol * Math.sqrt(Math.max(0, systematicShare));
   const idiosyncraticVol = totalVol * Math.sqrt(Math.max(0, idiosyncraticShare));
 
   return {
-    bookBeta: fit.slope,
+    bookBeta: beta,
     systematicShare,
     idiosyncraticShare,
     systematicVolAnnualised: systematicVol,
     idiosyncraticVolAnnualised: idiosyncraticVol,
     totalVolAnnualised: totalVol,
     rSquared: fit.rSquared,
-    tStat: fit.tStat,
+    tStat,
     observations: bookReturns.length,
     referenceSymbol,
   };
 }
 
 export function betaContributions(
-  positions: PortfolioPosition[],
+  positions: RiskPosition[],
   equity: number,
   returnsMap: Record<string, number[]>,
   refSymbol: string
@@ -78,9 +82,10 @@ export function betaContributions(
   let totalBeta = 0;
   let unmeasurable = 0;
   const rows: BetaContributionRow[] = [];
+  const ann = Math.sqrt(BARS_PER_YEAR["1d"]);
 
   for (const pos of positions) {
-    const weight = equity > 0 ? pos.notional / equity : 0;
+    const weight = equity > 0 ? pos.signedNotional / equity : 0;
     const posSeries = returnsMap[pos.symbol];
     if (!posSeries || !refSeries || posSeries.length !== refSeries.length) {
       unmeasurable++;
@@ -88,8 +93,8 @@ export function betaContributions(
       continue;
     }
 
-    const fit = regress(posSeries, refSeries);
-    const posBeta = fit ? fit.slope : null;
+    const fit = regress(posSeries, [{ name: refSymbol, values: refSeries }], ann);
+    const posBeta = fit?.loadings[0]?.beta ?? null;
     const contrib = posBeta !== null ? weight * posBeta : null;
     if (contrib !== null) totalBeta += contrib;
 

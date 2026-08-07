@@ -5,10 +5,10 @@
  */
 
 import { decomposeBookRisk, betaContributions } from "@/lib/factor-risk";
-import type { PortfolioPosition } from "@/lib/portfolio-risk";
+import type { RiskPosition } from "@/lib/portfolio-risk";
 
 interface FactorRiskPanelProps {
-  positions: PortfolioPosition[];
+  positions: RiskPosition[];
   equity: number;
   returnsMap: Record<string, number[]>;
   referenceSymbol: string;
@@ -21,7 +21,7 @@ export default function FactorRiskPanel({
   referenceSymbol,
 }: FactorRiskPanelProps) {
   const refSeries = returnsMap[referenceSymbol];
-  const bookSeries = returnsMap[positions[0]?.symbol ?? referenceSymbol]; // Proxy or aggregated book return
+  const bookSeries = returnsMap[positions[0]?.symbol ?? referenceSymbol];
 
   const factorDec = decomposeBookRisk(bookSeries, refSeries, referenceSymbol);
   const betaRes = betaContributions(positions, equity, returnsMap, referenceSymbol);

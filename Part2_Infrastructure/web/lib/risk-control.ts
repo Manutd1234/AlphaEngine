@@ -16,13 +16,14 @@
 
 import type { GuardMode } from "@/components/systems/types";
 
-export type RiskAction = "halt" | "resume" | "flatten";
+export type RiskAction = "halt" | "resume" | "flatten" | "cancel_all";
 
 /** Mirror of CONFIRM_WORD in app/api/gateway/risk/route.ts. */
 export const RISK_CONFIRM_WORD: Record<RiskAction, string> = {
   halt: "HALT",
   resume: "RESUME",
   flatten: "FLATTEN",
+  cancel_all: "CANCEL",
 };
 
 /** Same normalisation the route applies before comparing. */
