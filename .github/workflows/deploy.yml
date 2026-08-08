@@ -193,6 +193,36 @@ jobs:
             exit 1
           fi
 
+          # SSH_HOST is a host, not a URL. Everything below produces the same
+          # end-of-job error from the SSH action — `dial tcp: lookup ***: no
+          # such host` — with the value masked, so the one thing you need to see
+          # is the one thing the log will not show you. Checked here, by shape,
+          # while it can still be described without printing it.
+          host="$SSH_HOST"
+          case "$host" in
+            *://*)   echo "::error::SSH_HOST includes a scheme. Use the bare host: 129.x.x.x, not http://129.x.x.x"; exit 1 ;;
+            */*)     echo "::error::SSH_HOST includes a path or slash. Use the bare host only."; exit 1 ;;
+            *:*[0-9]) echo "::error::SSH_HOST includes a port. The port is configured separately (8000)."; exit 1 ;;
+            *\ *|*"	"*) echo "::error::SSH_HOST contains whitespace — most likely a trailing newline from a copy-paste. Re-enter it."; exit 1 ;;
+          esac
+          if [ "$host" != "$(echo "$host" | tr -d '[:space:]')" ]; then
+            echo "::error::SSH_HOST has leading or trailing whitespace. GitHub stores secrets verbatim; re-enter it."
+            exit 1
+          fi
+
+          # A literal IPv4 never reaches a resolver, so if this fails the value
+          # is a hostname — and it does not exist.
+          if ! printf '%s' "$host" | grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
+            if ! getent hosts "$host" >/dev/null 2>&1; then
+              echo "::error::SSH_HOST is neither an IPv4 address nor a name that resolves."
+              echo "Use the instance's PUBLIC IP from OCI Console → Compute → Instances → Public IP address."
+              exit 1
+            fi
+            echo "SSH_HOST is a hostname and it resolves."
+          else
+            echo "SSH_HOST is a literal IPv4 address."
+          fi
+
       - name: Pull, swap, verify, roll back on failure
         uses: appleboy/ssh-action@v1.0.3
         with:

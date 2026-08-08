@@ -1,0 +1,179 @@
+# Apply the committed database schema to Oracle ADB and Supabase.
+#
+# MANUAL ON PURPOSE. Everything here is DDL against a live database, and DDL
+# that rides a code deploy is how a table gets altered by someone who was
+# shipping a CSS change. `deploy.yml` ships the application; this ships the
+# schema, and the two move at different speeds by design.
+#
+# It is safe to re-run. Every statement in `oracle/*.sql` is wrapped to swallow
+# only its own "already exists" code, and `supabase db push` skips migrations
+# already recorded — so this is the same job on a fresh database and on one that
+# is already current, which is what makes it usable as a repair tool rather than
+# a one-shot.
+#
+#   Actions → Apply database schema → Run workflow
+#
+# Both halves skip cleanly when their secrets are absent, so a fork or a clone
+# gets a green run that did nothing rather than a red one it cannot fix.
+
+name: Apply database schema
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Which database to apply"
+        type: choice
+        options: [both, oracle, supabase]
+        default: both
+      dry_run:
+        description: "Parse and list the statements without connecting"
+        type: boolean
+        default: false
+
+concurrency:
+  # Two concurrent applies against one database would race on the same CREATE.
+  group: schema
+  cancel-in-progress: false
+
+jobs:
+  oracle:
+    name: Oracle Autonomous Database
+    if: inputs.target == 'both' || inputs.target == 'oracle'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Part2_Infrastructure
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Thin mode: a pure-Python implementation of the wire protocol, so no
+      # Instant Client download and no LD_LIBRARY_PATH. It is also the same mode
+      # the web routes use, which means a success here proves their path.
+      - run: pip install oracledb
+
+      - name: Parse the DDL
+        run: python tools/apply_oracle_schema.py --dry-run
+
+      - name: Secrets present?
+        id: gate
+        run: |
+          if [ -n "${{ secrets.DB_CONNECTION_STRING }}" ] && [ -n "${{ secrets.DB_PASSWORD }}" ]; then
+            echo "ready=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=no" >> "$GITHUB_OUTPUT"
+            echo "::notice::DB_CONNECTION_STRING / DB_PASSWORD absent — nothing applied."
+          fi
+
+      - name: Apply
+        if: steps.gate.outputs.ready == 'yes' && !inputs.dry_run
+        env:
+          # The repository stores these under DB_*; the app reads ORACLE_*.
+          # Mapped here rather than renamed on either side.
+          ORACLE_CONN_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+          ORACLE_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          ORACLE_USER: ${{ secrets.ORACLE_USER }}
+        run: python tools/apply_oracle_schema.py
+
+      # Proves the objects the routes bind against actually resolve. Applying
+      # DDL and never selecting from it is how a typo in a column name survives
+      # to the first page load.
+      - name: Verify from the app's own probe
+        if: steps.gate.outputs.ready == 'yes' && !inputs.dry_run
+        working-directory: Part2_Infrastructure/web
+        env:
+          ORACLE_CONN_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+          ORACLE_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          ORACLE_USER: ${{ secrets.ORACLE_USER }}
+        run: |
+          npm ci
+          node scripts/verify-oracle.mjs
+
+  supabase:
+    name: Supabase migrations and functions
+    if: inputs.target == 'both' || inputs.target == 'supabase'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Secrets present?
+        id: gate
+        run: |
+          if [ -n "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ] && [ -n "${{ secrets.SUPABASE_DB_PASSWORD }}" ]; then
+            echo "ready=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=no" >> "$GITHUB_OUTPUT"
+            echo "::notice::SUPABASE_ACCESS_TOKEN / SUPABASE_DB_PASSWORD absent — nothing applied."
+            echo "::notice::Create a token at https://supabase.com/dashboard/account/tokens"
+          fi
+
+      - uses: supabase/setup-cli@v1
+        if: steps.gate.outputs.ready == 'yes'
+        with:
+          version: latest
+
+      - name: Link the project
+        if: steps.gate.outputs.ready == 'yes'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        # The ref comes from the committed config.toml, so it cannot drift from
+        # what the migrations were written against.
+        run: |
+          ref="$(grep -oE 'project_id = "[a-z]+"' supabase/config.toml | cut -d'"' -f2)"
+          echo "Linking $ref"
+          supabase link --project-ref "$ref"
+
+      - name: Show what would change
+        if: steps.gate.outputs.ready == 'yes'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase db push --dry-run
+
+      - name: Push migrations
+        if: steps.gate.outputs.ready == 'yes' && !inputs.dry_run
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase db push
+
+      # verify_jwt stays ON for embed-research: the gateway calls it with the
+      # service-role key and anon must get a 401. evaluate-order is deployed
+      # WITHOUT it so an unauthenticated call gets a clean 401 from the
+      # function's own getUser() check rather than an opaque one from the edge.
+      - name: Deploy edge functions
+        if: steps.gate.outputs.ready == 'yes' && !inputs.dry_run
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase functions deploy embed-research
+          supabase functions deploy evaluate-order --no-verify-jwt
+
+      - name: Confirm anon is still denied
+        if: steps.gate.outputs.ready == 'yes' && !inputs.dry_run
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::notice::SUPABASE_URL / SUPABASE_ANON_KEY absent — skipping the RLS probe."
+            exit 0
+          fi
+          # The migration grants anon SELECT on order_blotter scoped to the demo
+          # desk, and grants nothing at all on desk_risk_limits. That second
+          # revoke is the one worth proving after a push: it is where the desk's
+          # configured thresholds live, and publishing them tells anyone how to
+          # size an order that passes the gates.
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            "$SUPABASE_URL/rest/v1/desk_risk_limits?select=id&limit=1")
+          echo "anon → desk_risk_limits: $code"
+          case "$code" in
+            401|403|404) echo "Correctly denied." ;;
+            200) echo "::error::anon can read desk_risk_limits — the REVOKE was lost"; exit 1 ;;
+            *) echo "::error::unexpected status $code"; exit 1 ;;
+          esac
