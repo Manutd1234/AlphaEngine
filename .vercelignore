@@ -39,6 +39,7 @@ Part2_Infrastructure/modules
 Part2_Infrastructure/docker
 docker-compose.yml
 supabase
+oracle
 .github
 
 # ── local state, links and secrets ───────────────────────────────────────────

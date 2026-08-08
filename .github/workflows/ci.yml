@@ -94,6 +94,81 @@ jobs:
       - name: Production build
         run: npm run build
 
+  # ---------------------------------------------------------------------------
+  # Live connectivity — workflow_dispatch ONLY, and deliberately so.
+  #
+  # The three jobs above are network-free by design (see this file's header): a
+  # red build must mean the code broke, never that a service was slow. Putting an
+  # ADB probe in `pull_request` would trade that guarantee away — an Always Free
+  # Autonomous Database auto-stops when idle, so a perfectly good PR would go red
+  # because nobody had queried the database in a week.
+  #
+  # It skips cleanly when the secrets are absent, which is every fork and every
+  # clone, so it is opt-in rather than broken-by-default.
+  # ---------------------------------------------------------------------------
+  live-smoke:
+    name: Live services (manual)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Part2_Infrastructure/web/package-lock.json
+
+      - name: Are the secrets present?
+        id: gate
+        run: |
+          if [ -n "${{ secrets.ORACLE_CONN_STRING }}" ] && [ -n "${{ secrets.ORACLE_PASSWORD }}" ]; then
+            echo "oracle=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "oracle=no" >> "$GITHUB_OUTPUT"
+            echo "::notice::Oracle secrets absent — skipping the ADB probe."
+          fi
+          if [ -n "${{ secrets.SUPABASE_URL }}" ]; then
+            echo "supabase=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "supabase=no" >> "$GITHUB_OUTPUT"
+            echo "::notice::Supabase URL absent — skipping the PostgREST probe."
+          fi
+
+      - if: steps.gate.outputs.oracle == 'yes'
+        working-directory: Part2_Infrastructure/web
+        run: npm ci
+
+      # Connects over walletless TLS, checks both schema objects exist, and runs
+      # one small Monte Carlo. Its error taxonomy names the fix for each failure
+      # rather than printing an ORA stack.
+      - name: Oracle Autonomous Database
+        if: steps.gate.outputs.oracle == 'yes'
+        working-directory: Part2_Infrastructure/web
+        env:
+          ORACLE_CONN_STRING: ${{ secrets.ORACLE_CONN_STRING }}
+          ORACLE_PASSWORD: ${{ secrets.ORACLE_PASSWORD }}
+          ORACLE_USER: ${{ secrets.ORACLE_USER }}
+        run: node scripts/verify-oracle.mjs
+
+      # A HEAD against PostgREST proves reachability and that the anon key is
+      # accepted, without reading a row — deny-by-default RLS means anon can
+      # read nothing, and a 200 here would actually be the bug.
+      - name: Supabase PostgREST reachable
+        if: steps.gate.outputs.supabase == 'yes'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' -I \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            "$SUPABASE_URL/rest/v1/order_blotter?select=id&limit=1")
+          echo "PostgREST returned $code"
+          case "$code" in
+            401|403) echo "Reachable, and anon is correctly denied by RLS." ;;
+            200)     echo "::error::anon can READ order_blotter — RLS is not deny-by-default"; exit 1 ;;
+            *)       echo "::error::unexpected status $code"; exit 1 ;;
+          esac
+
   repo-audit:
     name: Committed tree is complete
     runs-on: ubuntu-latest

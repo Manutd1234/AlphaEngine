@@ -49,6 +49,7 @@ import { sandboxBook } from "@/lib/portfolio";
 import { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 
 import AlertFeed from "./AlertFeed";
+import DeskTape from "./DeskTape";
 import ExecutionQuality from "./ExecutionQuality";
 import FillQualityHeatmap from "./FillQualityHeatmap";
 import OrderBlotter from "./OrderBlotter";
@@ -320,6 +321,11 @@ export default function ExecutionCockpit({
         {/* Renders only above its own sample floor — see the component. */}
         <FillQualityHeatmap rows={effectiveOrders} source={feedSource} />
         <OrderBlotter rows={effectiveOrders} focusSymbol={symbol} onOpenResearch={onOpenResearch} source={feedSource} />
+        {/* After the blotter, deliberately: the blotter is the complete
+            polled record and the tape is the stream of what has just
+            landed. Reading the stream first would invite treating it as
+            the record, which is exactly what it cannot be. */}
+        <DeskTape symbol={symbol} />
         <AlertFeed events={effectiveEvents} source={feedSource} />
       </WorkspaceSubtabPanel>
     </div>
