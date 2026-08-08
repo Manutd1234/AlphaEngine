@@ -30,6 +30,7 @@ import NextStepFooter from "@/components/common/NextStepFooter";
 import StatTile from "@/components/StatTile";
 import { ResultsTable, WalkForwardTable } from "@/components/Tables";
 import Verdict from "@/components/Verdict";
+import CommandBar from "@/components/header/CommandBar";
 import WorkspaceHeader, { NAV_ITEMS, type WorkspaceView } from "@/components/WorkspaceHeader";
 import WorkspaceIntro from "@/components/WorkspaceIntro";
 import WorkspaceOverview from "@/components/WorkspaceOverview";
@@ -53,6 +54,7 @@ import {
   clearExperiments,
   loadExperiments,
   removeExperiment,
+  sameRequest,
   saveExperiments,
   type ExperimentRecord,
 } from "@/lib/experiments";
@@ -99,6 +101,26 @@ const LEGACY_VIEWS: Record<string, WorkspaceView> = {
   systems: "reliability",
 };
 
+/** Remembers the Auto choice across visits. Off is a deliberate act; it should stick. */
+const AUTO_RUN_KEY = "alphaengine.research.autorun";
+
+/**
+ * Safety net for the one commit signal the DOM does not give us: a field the
+ * user typed into and then abandoned without blurring, pressing Enter, or
+ * touching anything else. Long enough that it never races a real `change`,
+ * short enough that the result does not feel abandoned. Runs it triggers are
+ * deduplicated by `sameRequest`, so firing after a `change` already ran is a
+ * no-op rather than a second request.
+ */
+const IDLE_COMMIT_MS = 700;
+
+/**
+ * A sweep slower than this makes auto-run feel worse than the button it
+ * replaced, so Auto turns itself off and says why rather than making every
+ * subsequent edit wait on a run the user did not ask for.
+ */
+const AUTO_RUN_BUDGET_MS = 1500;
+
 export default function Page() {
   const [req, setReq] = useState<SweepRequest>(DEFAULT_REQUEST);
   const [data, setData] = useState<SweepResponse | null>(null);
@@ -132,6 +154,16 @@ export default function Page() {
   const [experiments, setExperiments] = useState<ExperimentRecord[]>([]);
   const activeRun = useRef<AbortController | null>(null);
   const runSeq = useRef(0);
+  // Auto-run state. `autoRun` is the user's switch; `autoSuspended` is the
+  // reason we turned it off for them, shown once and cleared when they turn it
+  // back on. Hydrated from localStorage in an effect, never during render.
+  const [autoRun, setAutoRun] = useState(true);
+  const [autoSuspended, setAutoSuspended] = useState<string | null>(null);
+  const [commandBarOpen, setCommandBarOpen] = useState(false);
+  // The request the newest run was started with. `sameRequest` against this is
+  // what makes the idle fallback, the `change` commit and ⌘Enter idempotent
+  // instead of three requests for one edit.
+  const lastRunRequest = useRef<SweepRequest | null>(null);
 
   // One book and one health snapshot, shared by the tabs that read them. Both
   // hooks own their polling, so a tab is a rendering decision rather than a
@@ -272,11 +304,27 @@ export default function Page() {
   }, []);
 
   const run = useCallback(
-    async (override?: Partial<SweepRequest>, preserveInspect = false) => {
+    async (
+      override?: Partial<SweepRequest>,
+      preserveInspect = false,
+      /**
+       * Whether this run belongs in the experiment trail.
+       *
+       * Auto-runs pass `false`. `addExperiment` deduplicates by `sameRequest`,
+       * so a *re-run* replaces its predecessor — but every auto-run carries
+       * DIFFERENT parameters and would therefore be a new record. Dragging one
+       * slider across ten values would write ten rows into the panel whose
+       * entire purpose is an honest count of how many hypotheses were tried.
+       * The trail is populated by an explicit Pin, or by promotion.
+       */
+      record = true,
+    ) => {
       activeRun.current?.abort();
       const controller = new AbortController();
       activeRun.current = controller;
       const sequence = ++runSeq.current;
+      const body = { ...req, ...override };
+      lastRunRequest.current = body;
 
       setRunning(true);
       setError(null);
@@ -285,8 +333,8 @@ export default function Page() {
         setInspectionData(null);
       }
 
+      const startedAt = Date.now();
       try {
-        const body = { ...req, ...override };
         const response = await fetch("/api/backtest", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -299,16 +347,28 @@ export default function Page() {
         if (preserveInspect) setInspectionData(json as SweepResponse);
         else setData(json as SweepResponse);
         setResearchDirty(false);
-        // Drill-downs are not hypotheses. `inspectCombo` re-runs the sweep
-        // pinned to one cell to isolate it; recording that would inflate the
-        // attempt count, which is the single number the history panel exists to
-        // keep honest.
-        if (!preserveInspect) {
+        // Measured end to end, not from the engine's own duration: what makes
+        // auto-run unpleasant is the wait the user experiences, which includes
+        // the request. A grid this slow stops driving itself.
+        if (Date.now() - startedAt > AUTO_RUN_BUDGET_MS && !record) {
+          setAutoRun(false);
+          setAutoSuspended(
+            "That sweep took over 1.5s, so Auto is off. Narrow the grid or run it by hand.",
+          );
+        }
+        // Drill-downs are not hypotheses either. `inspectCombo` re-runs the
+        // sweep pinned to one cell to isolate it; recording that would inflate
+        // the same count.
+        if (record && !preserveInspect) {
           setExperiments((current) => addExperiment(current, json as SweepResponse, Date.now()));
         }
       } catch (runError) {
         if ((runError as Error).name !== "AbortError" && sequence === runSeq.current) {
           setError((runError as Error).message);
+          // A failed run leaves the result belonging to the old context with no
+          // sweep on its way, which is the hard-stale case — the veil must go
+          // back to asking rather than claiming to be recomputing.
+          lastRunRequest.current = null;
         }
       } finally {
         if (sequence === runSeq.current) setRunning(false);
@@ -317,11 +377,29 @@ export default function Page() {
     [req],
   );
 
+  /**
+   * The auto-run entry point: a value settled, so run unless something says not to.
+   *
+   * Skipping a request identical to the one already in flight is what keeps the
+   * three commit paths (native `change`, the idle fallback, ⌘Enter) from
+   * becoming three requests for one edit.
+   */
+  const commitRequest = useCallback(() => {
+    if (!autoRun) return;
+    // A drill-down is a deliberate isolation of one parameter pair, run with
+    // `preserveInspect`. An auto-run would replace it with the full sweep and
+    // silently undo the thing the user just asked for.
+    if (inspect) return;
+    if (lastRunRequest.current && sameRequest(lastRunRequest.current, req)) return;
+    void run(undefined, false, false);
+  }, [autoRun, inspect, req, run]);
+
   useEffect(() => {
     void run();
     return () => activeRun.current?.abort();
-    // One baseline run only. Subsequent request edits are explicit so a slider
-    // cannot fan out network work while it is being dragged.
+    // The baseline. Every later run comes from a settled control, the idle
+    // fallback or an explicit action — never from this effect, which would
+    // re-fire on each `run` identity change and fan out network work mid-drag.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -330,7 +408,64 @@ export default function Page() {
   // during render throws on the server and desynchronises the first paint.
   useEffect(() => {
     setExperiments(loadExperiments());
+    try {
+      if (window.localStorage.getItem(AUTO_RUN_KEY) === "0") setAutoRun(false);
+    } catch {
+      // Private browsing or a blocked origin. The default stands.
+    }
   }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(AUTO_RUN_KEY, autoRun ? "1" : "0");
+    } catch {
+      // Preference is a convenience; failing to persist it must not break the run.
+    }
+  }, [autoRun]);
+
+  /**
+   * The idle fallback described at `IDLE_COMMIT_MS`.
+   *
+   * This is NOT the primary mechanism — the native `change` listener in
+   * `Controls` is. It only catches a field left mid-edit with no commit event
+   * coming. `commitRequest` short-circuits on `sameRequest`, so on every path
+   * where `change` already fired this timer resolves to nothing.
+   */
+  useEffect(() => {
+    if (!autoRun || inspect) return;
+    const timer = window.setTimeout(commitRequest, IDLE_COMMIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [req, autoRun, inspect, commitRequest]);
+
+  /**
+   * ⌘K lives here rather than in `WorkspaceHeader` because the palette it opens
+   * cannot render inside that element — `.workspace-header` has a
+   * `backdrop-filter`, which is a containing block for fixed-position
+   * descendants, so the dialog has to be a sibling of the header to escape it.
+   * The shortcut follows the thing it controls.
+   */
+  useEffect(() => {
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandBarOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  /** ⌘/Ctrl+Enter runs the sweep from anywhere, and always records it. */
+  useEffect(() => {
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.key !== "Enter") return;
+      if (view !== "research") return;
+      event.preventDefault();
+      void run();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [run, view]);
 
   const cloneExperiment = useCallback((request: SweepRequest) => {
     setReq(request);
@@ -391,11 +526,27 @@ export default function Page() {
     [run],
   );
 
+  /** Records the displayed result as a hypothesis worth keeping. */
+  const pinRun = useCallback(() => {
+    if (!data) return;
+    setExperiments((current) => addExperiment(current, data, Date.now()));
+  }, [data]);
+
   const activeResult = researchDirty ? null : data;
   const displayedResult = inspectionData ?? data;
   // Drives the region-level gates: stale evidence stays visible under a veil,
   // never silently presented as current.
   const researchStale = researchDirty && Boolean(data);
+  /**
+   * Whether a sweep for the current context is genuinely on its way. Only then
+   * may the veil describe itself as recomputing — with Auto off, or after a
+   * failed run, nothing is coming and it has to say so and offer the rerun.
+   */
+  const sweepIncoming = autoRun && !inspect && !error;
+  const currentPinned = useMemo(
+    () => data !== null && experiments.some((record) => sameRequest(record.request, data.request)),
+    [data, experiments],
+  );
   const shown = displayedResult?.best;
   const tiles = useMemo(() => {
     if (!displayedResult || !shown) return null;
@@ -416,6 +567,14 @@ export default function Page() {
           value={fmt(shown.sharpe, 2)}
           note={`buy & hold ${fmt(displayedResult.benchmark.sharpe, 2)}`}
           tone={shown.sharpe > displayedResult.benchmark.sharpe ? "pos" : "muted"}
+          explain={{
+            definition: "Excess return per unit of volatility, scaled to a year.",
+            formula: "√periods · mean(r) ÷ stdev(r)",
+            plainEnglish:
+              "How much return the strategy earned for the amount it bounced around. "
+              + "Compare it to buy-and-hold below — beating the market matters less than "
+              + "beating it per unit of risk taken.",
+          }}
         />
         <StatTile
           label="Total return"
@@ -423,9 +582,32 @@ export default function Page() {
           note={`buy & hold ${signedPct(displayedResult.benchmark.totalReturn)}`}
           tone={shown.totalReturn >= 0 ? "pos" : "neg"}
         />
-        <StatTile label="Max drawdown" value={pct(shown.maxDrawdown)} note={`calmar ${fmt(shown.calmar, 2)}`} tone="neg" />
+        <StatTile
+          label="Max drawdown"
+          value={pct(shown.maxDrawdown)}
+          note={`calmar ${fmt(shown.calmar, 2)}`}
+          tone="neg"
+          explain={{
+            definition: "The deepest peak-to-trough fall in equity over the run.",
+            formula: "min(equity ÷ running-max(equity) − 1)",
+            plainEnglish:
+              "The worst losing streak you would have had to sit through. This is the number "
+              + "that decides whether a strategy is actually tradable — a great Sharpe with a "
+              + "60% drawdown gets turned off by a human long before it recovers.",
+          }}
+        />
         <StatTile label="Trades" value={String(shown.trades)} note={`win rate ${pct(shown.winRate, 0)}`} />
-        <StatTile label="Time in market" value={pct(shown.exposure, 0)} note={`turnover ${fmt(shown.turnover, 1)}×`} />
+        <StatTile
+          label="Time in market"
+          value={pct(shown.exposure, 0)}
+          note={`turnover ${fmt(shown.turnover, 1)}×`}
+          explain={{
+            definition: "Share of bars holding a position, and how often the book turned over.",
+            plainEnglish:
+              "Low exposure with a high Sharpe means the edge is concentrated in a few periods; "
+              + "high turnover means costs matter more than the headline return suggests.",
+          }}
+        />
         <StatTile
           label="Costs paid"
           value={usd(shown.feesPaid)}
@@ -464,6 +646,18 @@ export default function Page() {
             void systems.refresh(true);
           },
         }}
+      />
+
+      {/* A sibling of the header, never a child: `.workspace-header`'s
+          `backdrop-filter` is a containing block for fixed-position
+          descendants, and a modal rendered inside it is positioned against the
+          header box rather than the viewport. See CommandBar's header. */}
+      <CommandBar
+        open={commandBarOpen}
+        onClose={() => setCommandBarOpen(false)}
+        onSelectTab={(tabId) => navigate(tabId)}
+        onSymbolSelect={(symbol) => { updateSymbol(symbol); navigate("live"); }}
+        onToggleKillSwitch={() => navigate("risk")}
       />
 
       <main id="workspace-content" className="workspace-shell" tabIndex={-1}>
@@ -613,7 +807,17 @@ export default function Page() {
                 </div>
               </div>
             ))}
-            {researchDirty && data && (
+            {autoSuspended && (
+              <div className="banner warn" role="status">
+                <span aria-hidden>!</span>
+                <div>{autoSuspended}</div>
+                <button onClick={() => { setAutoRun(true); setAutoSuspended(null); }}>Turn Auto back on</button>
+              </div>
+            )}
+            {/* Only when nothing is coming on its own. With Auto on, a run is
+                already in flight within a few hundred milliseconds and this
+                would be a call to action for something already happening. */}
+            {researchDirty && data && !sweepIncoming && (
               <div className="banner context-change" role="status">
                 <span aria-hidden>↻</span>
                 <div>
@@ -634,13 +838,36 @@ export default function Page() {
               actions={
                 <>
                   <span className="rail-meta num">{req.symbol} · {req.interval}</span>
+                  <label className="rail-toggle" title="Re-run the sweep whenever a control settles">
+                    <input
+                      type="checkbox"
+                      checked={autoRun}
+                      onChange={(event) => {
+                        setAutoRun(event.target.checked);
+                        setAutoSuspended(null);
+                      }}
+                    />
+                    Auto
+                  </label>
+                  {/* Auto-runs deliberately do not enter the trail (see `run`),
+                      so keeping one is an explicit act. */}
+                  <button
+                    type="button"
+                    onClick={pinRun}
+                    disabled={!data || currentPinned || running}
+                    title={currentPinned
+                      ? "These parameters are already in the run archive"
+                      : "Record these parameters and their result in the run archive"}
+                  >
+                    {currentPinned ? "Pinned" : "Pin run"}
+                  </button>
                   <button
                     type="button"
                     className="primary-action"
                     onClick={() => run()}
                     disabled={running}
                   >
-                    {running ? "Running…" : researchDirty ? "Rerun sweep" : "Run sweep"}
+                    {running ? "Running…" : "Run now"}
                   </button>
                 </>
               }
@@ -657,7 +884,13 @@ export default function Page() {
             )}
 
             <div className="research-layout research-layout--sectioned">
-              <Controls req={req} setReq={updateRequest} onRun={() => run()} running={running} />
+              <Controls
+                req={req}
+                setReq={updateRequest}
+                onRun={() => run()}
+                onCommit={commitRequest}
+                running={running}
+              />
 
               <div className="research-content">
                 {!data && RESEARCH_SECTIONS.map((section) => (
@@ -738,6 +971,7 @@ export default function Page() {
 
                       <StaleGate
                         active={researchStale}
+                        mode={sweepIncoming ? "recomputing" : "stale"}
                         running={running}
                         targetSymbol={req.symbol}
                         targetInterval={req.interval}
@@ -795,6 +1029,7 @@ export default function Page() {
                     <WorkspaceSubtabPanel workspaceId="research" tabId="parameters" activeId={researchSection}>
                       <StaleGate
                         active={researchStale}
+                        mode={sweepIncoming ? "recomputing" : "stale"}
                         running={running}
                         targetSymbol={req.symbol}
                         targetInterval={req.interval}
@@ -820,6 +1055,7 @@ export default function Page() {
                     <WorkspaceSubtabPanel workspaceId="research" tabId="walkforward" activeId={researchSection}>
                       <StaleGate
                         active={researchStale}
+                        mode={sweepIncoming ? "recomputing" : "stale"}
                         running={running}
                         targetSymbol={req.symbol}
                         targetInterval={req.interval}
@@ -837,6 +1073,7 @@ export default function Page() {
                     <WorkspaceSubtabPanel workspaceId="research" tabId="attribution" activeId={researchSection}>
                       <StaleGate
                         active={researchStale}
+                        mode={sweepIncoming ? "recomputing" : "stale"}
                         running={running}
                         targetSymbol={req.symbol}
                         targetInterval={req.interval}
@@ -857,6 +1094,7 @@ export default function Page() {
                     <WorkspaceSubtabPanel workspaceId="research" tabId="decision" activeId={researchSection}>
                       <StaleGate
                         active={researchStale}
+                        mode={sweepIncoming ? "recomputing" : "stale"}
                         running={running}
                         targetSymbol={req.symbol}
                         targetInterval={req.interval}

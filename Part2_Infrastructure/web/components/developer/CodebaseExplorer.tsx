@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   REPOSITORY_AREAS,
@@ -12,6 +12,7 @@ import {
 } from "@/lib/repository-catalog";
 
 export default function CodebaseExplorer() {
+  const summaryRef = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [area, setArea] = useState<RepositoryAreaId | "all">("all");
@@ -38,6 +39,34 @@ export default function CodebaseExplorer() {
       files: visibleFiles.filter((file) => file.areaId === areaMeta.id),
     }))
     .filter((group) => group.files.length > 0), [visibleFiles]);
+
+  /**
+   * Publishes the summary bar's measured height as `--codebase-summary-h`, which
+   * the sticky group headings below dock against.
+   *
+   * The stylesheet used to hard-code `top: 39px` here. That number was measured
+   * by hand against a one-line summary — the bar wraps to two lines on a narrow
+   * column, and every group heading then sat behind it. Same failure, and same
+   * fix, as `--header-h` in WorkspaceHeader: measure, do not count.
+   */
+  useEffect(() => {
+    const node = summaryRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    // Written to the scroller, not to the observed node: setting a custom
+    // property on the element being measured is how a ResizeObserver loop
+    // starts.
+    const target = node.parentElement;
+    const publish = () => {
+      target?.style.setProperty(
+        "--codebase-summary-h",
+        `${Math.round(node.getBoundingClientRect().height)}px`,
+      );
+    };
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   const activeFile = visibleFiles.find((file) => file.path === selectedPath) ?? visibleFiles[0] ?? null;
   const activeArea = activeFile ? repositoryArea(activeFile.areaId) : null;
@@ -97,7 +126,7 @@ export default function CodebaseExplorer() {
 
       <div className="codebase-explorer__layout">
         <aside className="codebase-filelist" aria-label="Repository files">
-          <div className="codebase-filelist__summary" aria-live="polite">
+          <div className="codebase-filelist__summary" aria-live="polite" ref={summaryRef}>
             <span>{visibleFiles.length} of {REPOSITORY_FILES.length} paths</span>
             <small>{groupedFiles.length} code areas</small>
           </div>

@@ -202,6 +202,32 @@ export interface GatewayOpsSnapshot {
       errors_total: number;
     }>;
   };
+  /**
+   * Supabase mirror counters, from `modules/operations.py`'s
+   * `SupabaseMirrorSnapshot`.
+   *
+   * The gateway has been emitting this on every ops snapshot and nothing here
+   * modelled it, so mirror lag, dropped rows and the classified last error
+   * arrived at Vercel and were discarded — the durability of the Postgres
+   * mirror was unobservable from the console whose job is observing things.
+   *
+   * Optional because the gateway omits it entirely when Supabase is not
+   * configured, which is a different fact from `configured: false` (mirror off
+   * on a gateway that supports it) and both differ from a mirror that is
+   * configured and failing. `dropped` is the one that matters most: the queue
+   * is bounded and drops rather than blocking the order path, so a non-zero
+   * value means the Postgres blotter is silently incomplete.
+   */
+  supabase?: {
+    configured: boolean;
+    running: boolean;
+    queued: number;
+    written: number;
+    failed: number;
+    dropped: number;
+    /** A closed vocabulary — never a URL, a key or raw error text. */
+    last_error_kind: string | null;
+  } | null;
 }
 
 export type HealthSourceState = "fresh" | "stale" | "not_configured" | "unreachable" | "invalid";

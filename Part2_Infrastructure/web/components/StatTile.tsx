@@ -1,47 +1,38 @@
 "use client";
 
+import QuantEducationalTooltip from "@/components/common/QuantEducationalTooltip";
+
 /** A single number is not a chart. These are stat tiles, not one-bar bar charts. */
 export default function StatTile({
   label,
   value,
   note,
   tone,
+  explain,
 }: {
   label: string;
   value: string;
   note?: string;
   tone?: "pos" | "neg" | "muted";
+  /**
+   * An optional definition for the measure this tile reports. A desk metric
+   * whose name is only meaningful to someone who already knows it is not a
+   * finished metric — and the alternative, a paragraph under every tile, is
+   * what the tile format exists to avoid.
+   */
+  explain?: { definition: string; formula?: string; plainEnglish: string };
 }) {
-  const color =
-    tone === "pos"
-      ? "var(--success-text)"
-      : tone === "neg"
-        ? "var(--diverging-neg)"
-        : "var(--text-primary)";
+  const toneClass = tone === "pos" ? "is-pos" : tone === "neg" ? "is-neg" : undefined;
   return (
-    <div
-      style={{
-        background: "var(--surface-1)",
-        border: "1px solid var(--border)",
-        borderRadius: 10,
-        padding: "12px 14px",
-      }}
-    >
-      <div
-        style={{
-          fontSize: 10.5,
-          textTransform: "uppercase",
-          letterSpacing: "0.07em",
-          color: "var(--text-muted)",
-          marginBottom: 2,
-        }}
-      >
+    <div className="stat-tile">
+      <div className="stat-tile__label">
         {label}
+        {explain && <QuantEducationalTooltip term={label} {...explain} />}
       </div>
-      <div className="num" style={{ fontSize: 22, fontWeight: 650, letterSpacing: "-0.02em", color }}>
+      <div className={["num", "stat-tile__value", toneClass].filter(Boolean).join(" ")}>
         {value}
       </div>
-      {note && <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{note}</div>}
+      {note && <div className="stat-tile__note">{note}</div>}
     </div>
   );
 }

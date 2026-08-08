@@ -19,6 +19,7 @@ import { useState } from "react";
 import { BookChrome, BookFallback, BookSourceControl, CrossLinkTile } from "@/components/portfolio/BookChrome";
 import ExecutionHandoff, { type HandoffIntent } from "@/components/portfolio/ExecutionHandoff";
 import HeadroomBar from "@/components/portfolio/HeadroomBar";
+import OracleVarPanel from "@/components/portfolio/OracleVarPanel";
 import RiskEngine from "@/components/portfolio/RiskEngine";
 import StressTest from "@/components/portfolio/StressTest";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
@@ -220,6 +221,15 @@ export default function RiskWorkspace({
           missing={missingHistory}
           validation={varValidation}
           varSeries={varSeries}
+          sandbox={Boolean(book.sandbox)}
+        />
+        {/* Deliberately after the engine, not beside it: this is a check ON the
+            figures above, and reading it first would invert that. Both take the
+            same measured volatility, so a divergence is the method, not the
+            input. */}
+        <OracleVarPanel
+          equity={book.equity.current}
+          annualVol={risk?.annualisedVolatility ?? null}
           sandbox={Boolean(book.sandbox)}
         />
       </WorkspaceSubtabPanel>

@@ -104,3 +104,66 @@ class TestSecurityPosture:
         # The blueprint hardcoded latency_ms 0.19 — a fabricated measurement.
         # The RPC may only ever read latency from the payload it was handed.
         assert "0.19" not in rpc
+
+
+class TestSandboxIsolation:
+    """Two writers share ``order_blotter``; only one of them is the desk.
+
+    The gateway appends real fifteen-gate decisions; ``submit_alphaengine_order``
+    and the ``evaluate-order`` Edge Function append labelled two-gate sandbox
+    decisions. ``decided_by`` is what keeps them apart, and the table is
+    append-only by trigger — so a reader that forgets to filter produces a
+    blended blotter that cannot be cleaned up afterwards.
+
+    These assert the structural guard rather than the convention: the safe read
+    surface exists, it filters, and the sandbox writer stamps itself.
+    """
+
+    _EDGE_SRC = (
+        Path(__file__).resolve().parent.parent.parent
+        / "supabase" / "functions" / "evaluate-order" / "index.ts"
+    ).read_text()
+    # Comment bodies removed. That file documents at length what was WRONG with
+    # the blueprint's listing — the `import { Deno }` that fails at boot, the
+    # hardcoded 0.19 latency, the `*` CORS — so scanning the raw text finds the
+    # explanation and reports each fix as the defect it describes.
+    EDGE_FN = re.sub(r"//[^\n]*", "", _EDGE_SRC)
+
+    def test_the_desk_view_excludes_sandbox_rows(self):
+        view = SQL["20260808120600_desk_blotter_view.sql"]
+        assert "create or replace view public.desk_blotter" in view
+        assert "decided_by = 'gateway'" in view, (
+            "desk_blotter must filter to gateway decisions — it is the surface readers "
+            "are pointed at precisely so the filter cannot be forgotten"
+        )
+
+    def test_views_do_not_bypass_rls(self):
+        # Without security_invoker a view runs as its owner, which would make
+        # these a way around the deny-by-default policies.
+        view = SQL["20260808120600_desk_blotter_view.sql"]
+        assert view.count("security_invoker = true") == 2
+        assert "revoke all on public.desk_blotter from anon" in view
+
+    def test_the_edge_function_stamps_every_row_it_writes(self):
+        inserts = len(re.findall(r'\.from\("order_blotter"\)\s*\.insert\(', self.EDGE_FN))
+        assert inserts >= 2, f"expected an accept path and a reject path, found {inserts}"
+        assert self.EDGE_FN.count('decided_by: "supabase_rpc"') == inserts, (
+            "every insert from the Edge sandbox must stamp decided_by, or its rows become "
+            "indistinguishable from the desk's in an append-only table"
+        )
+
+    def test_the_edge_function_boots(self):
+        # The blueprint's listing imports `Deno` from std/http/server.ts, which
+        # exports `serve`. `Deno` is a runtime global; that import fails at boot.
+        assert "import { Deno }" not in self.EDGE_FN
+        assert "Deno.serve(" in self.EDGE_FN
+
+    def test_the_edge_function_does_not_fabricate_latency(self):
+        # The blueprint hardcodes 0.19 as a measurement.
+        assert "0.19" not in self.EDGE_FN
+        assert "performance.now()" in self.EDGE_FN
+
+    def test_cors_is_not_open(self):
+        # It is deployed --no-verify-jwt and it writes rows.
+        assert '"Access-Control-Allow-Origin": "*"' not in self.EDGE_FN
+        assert "ALLOWED_ORIGINS" in self.EDGE_FN

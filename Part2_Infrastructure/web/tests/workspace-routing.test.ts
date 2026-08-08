@@ -457,3 +457,79 @@ describe("tabs that read the same snapshot share one fetch", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// One page-head grammar
+// ---------------------------------------------------------------------------
+
+describe("every tab opens with the same header", () => {
+  /**
+   * The stylesheet used to claim six bespoke page headers had been retired. Two
+   * had; four were still rendering. The claim was prose, so nothing caught the
+   * drift — this measures it instead.
+   *
+   * `PageHead` is the one grammar: identity, the numbers that frame it, the
+   * controls that refresh them. `WorkspaceIntro` and `ConsoleChrome` are thin
+   * adapters over it — they exist so the role tabs and the operational consoles
+   * keep their own vocabularies (`insights`, `tiles`) without each growing a
+   * second header. What must not happen is a ninth surface drawing its own.
+   */
+  const surfaces: Array<[string, string]> = [
+    ["page.tsx", page],
+    ["DataConsole.tsx", dataConsole],
+    ["ReliabilityConsole.tsx", reliabilityConsole],
+    ["DeveloperConsole.tsx", developerConsole],
+    ["RiskWorkspace.tsx", riskWorkspace],
+    ["PortfolioWorkspace.tsx", portfolioWorkspace],
+  ];
+
+  it("the adapters really are adapters, not second implementations", () => {
+    for (const name of ["WorkspaceIntro.tsx", "systems/ConsoleChrome.tsx"]) {
+      const source = read(`../components/${name}`);
+      assert.match(
+        source,
+        /from "@\/components\/workspace\/PageHead"/,
+        `${name} stopped rendering through PageHead — that is a second header grammar, `
+          + "which is the divergence PageHead was introduced to end",
+      );
+    }
+  });
+
+  it("every workspace surface reaches PageHead through one of them", () => {
+    for (const [name, source] of surfaces) {
+      const rendersHeader = /<(PageHead|WorkspaceIntro|ConsoleChrome)\b/.test(source);
+      const importsHeader = /(PageHead|WorkspaceIntro|ConsoleChrome)/.test(source);
+      assert.ok(
+        rendersHeader || !importsHeader,
+        `${name} imports a header component but renders none`,
+      );
+    }
+  });
+
+  it("no surface draws a bespoke header bar", () => {
+    // The four that were retired. A fifth appearing means someone hand-rolled
+    // a header rather than passing metrics to the shared one.
+    const retired = ["data-cp-bar", "console-statusbar", "developer-cp-bar", "page-heading__meta"];
+    for (const [name, source] of surfaces) {
+      for (const bar of retired) {
+        assert.ok(
+          !source.includes(`"${bar}`) && !source.includes(` ${bar}"`),
+          `${name} renders the retired .${bar}`,
+        );
+      }
+    }
+  });
+
+  it("each of the eight tabs has exactly one head in its panel", () => {
+    // Two heads on one tab is the scatter this converged out of; zero means a
+    // tab opens with no identity at all.
+    for (const view of navIds(header)) {
+      const panel = page.slice(page.indexOf(`{view === "${view}" &&`));
+      const body = panel.slice(0, panel.indexOf("\n        {view ===") + 1 || panel.length);
+      const heads = (body.match(/<WorkspaceIntro\b/g) ?? []).length;
+      // Overview draws the navy hero; the three consoles own their head
+      // internally because they compute their own metrics. Both are one head.
+      assert.ok(heads <= 1, `${view} renders ${heads} WorkspaceIntro elements`);
+    }
+  });
+});

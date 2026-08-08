@@ -402,6 +402,47 @@ export default function ReliabilityOverview({
               <strong>{platform.audit.available ? "available" : "unavailable"}</strong>
               <small>{platform.audit.backend} · append-only decision evidence</small>
             </article>
+            {/* The gateway has always emitted these counters; nothing rendered
+                them, so the durability of the Postgres mirror was invisible in
+                the console whose job is visibility.
+
+                Three distinct states, deliberately not collapsed: absent (this
+                gateway build predates the mirror), configured:false (mirror
+                off), and configured-and-failing. Only the last is a fault.
+                `dropped` leads because the queue is bounded and drops rather
+                than blocking the order path — a non-zero value means the
+                Postgres blotter is silently incomplete, which is exactly the
+                kind of quiet loss nobody notices without a number. */}
+            {platform.supabase && (
+              <article
+                className={
+                  !platform.supabase.configured
+                    ? "is-disabled"
+                    : platform.supabase.dropped > 0 || platform.supabase.last_error_kind
+                      ? "is-degraded"
+                      : "is-nominal"
+                }
+              >
+                <span>Postgres mirror</span>
+                <strong>
+                  {!platform.supabase.configured
+                    ? "not configured"
+                    : platform.supabase.dropped > 0
+                      ? "lossy"
+                      : platform.supabase.running ? "streaming" : "idle"}
+                </strong>
+                <small>
+                  {platform.supabase.configured
+                    ? <>
+                        {platform.supabase.written} mirrored · {platform.supabase.queued} queued
+                        {platform.supabase.dropped > 0 && ` · ${platform.supabase.dropped} DROPPED`}
+                        {platform.supabase.failed > 0 && ` · ${platform.supabase.failed} failed`}
+                        {platform.supabase.last_error_kind && ` · last error: ${platform.supabase.last_error_kind}`}
+                      </>
+                    : "DuckDB stays authoritative; the mirror is optional durability"}
+                </small>
+              </article>
+            )}
           </div>
 
           <div className="reliability-platform__sli" aria-label="Gateway route latency evidence">

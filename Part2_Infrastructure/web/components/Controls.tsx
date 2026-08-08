@@ -35,19 +35,9 @@ function Slider({
 }) {
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          fontSize: 11,
-          color: "var(--text-muted)",
-          marginBottom: 2,
-        }}
-      >
+      <div className="slider-row">
         <span>{label}</span>
-        <span className="num" style={{ color: "var(--text-primary)", fontWeight: 600 }}>
-          {value}
-        </span>
+        <span className="num">{value}</span>
       </div>
       <input
         type="range"
@@ -135,13 +125,44 @@ export default function Controls({
   req,
   setReq,
   onRun,
+  onCommit,
   running,
 }: {
   req: SweepRequest;
   setReq: (r: SweepRequest) => void;
   onRun: () => void;
+  /** The user has settled on a value — see the `change` listener below. */
+  onCommit: () => void;
   running: boolean;
 }) {
+  const panelRef = useRef<HTMLDivElement | null>(null);
+
+  /**
+   * Auto-run, driven by the DOM's own notion of "the user has finished".
+   *
+   * React's `onChange` is really the native `input` event: it fires on every
+   * tick of a slider drag, which is why every edit below patches the request
+   * but does not run anything. The native `change` event is the browser's own
+   * commit signal — pointer release for a drag, arrow-key press for the
+   * keyboard, blur or Enter for a typed field — and it is both cheaper and
+   * more accurate than any debounce interval we could pick.
+   *
+   * One listener, not fifteen: `change` bubbles for form controls, so the
+   * panel root sees every slider, select and field in the subtree. Adding a
+   * control below needs no wiring here.
+   *
+   * A ref rather than an `onChange` prop because React has no synthetic event
+   * for the native `change` of a range input — its `onChange` is `input`, and
+   * the distinction between the two is the entire mechanism.
+   */
+  useEffect(() => {
+    const node = panelRef.current;
+    if (!node) return;
+    const handler = () => onCommit();
+    node.addEventListener("change", handler);
+    return () => node.removeEventListener("change", handler);
+  }, [onCommit]);
+
   const patch = (p: Partial<SweepRequest>) => {
     const next = { ...req, ...p };
     // Keep the grid coherent while dragging, rather than rejecting it on submit.
@@ -176,9 +197,12 @@ export default function Controls({
     : null;
 
   return (
-    <div className="card sidebar experiment-panel">
+    <div className="card sidebar experiment-panel" ref={panelRef}>
       <h2>Experiment setup</h2>
-      <p className="sub">Changes stay in the shared desk context until you run a new validation.</p>
+      <p className="sub">
+        Each control re-runs the sweep the moment you settle on a value — on release for a slider,
+        on blur for a typed field. Turn <strong>Auto</strong> off on the section rail to hold it.
+      </p>
       <div className="stack">
         <div className="row">
           <div>
@@ -262,50 +286,36 @@ export default function Controls({
           </div>
         </div>
 
-        <hr style={{ border: 0, borderTop: "1px solid var(--grid)", margin: "4px 0" }} />
+        <hr className="field-divider" />
 
         <div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "baseline",
-              marginBottom: 8,
-            }}
-          >
-            <span className="field" style={{ margin: 0 }}>
-              Parameter sweep
-            </span>
-            <span
-              className="num"
-              style={{ fontSize: 12, color: combos < raw ? "var(--warning-text)" : "var(--series-1)" }}
-            >
+          <div className="sweep-heading">
+            <span className="field">Parameter sweep</span>
+            <span className={combos < raw ? "num sweep-count is-thinned" : "num sweep-count"}>
               {combos} combos
             </span>
           </div>
           {combos < raw && (
-            <p style={{ fontSize: 11.5, color: "var(--text-muted)", marginBottom: 10 }}>
+            <p className="sweep-note">
               Grid of {raw} thinned to {MAX_COMBOS} — a wider search also raises the
               multiple-testing hurdle, so it is not free.
             </p>
           )}
 
           <div className="stack">
-            <div style={{ fontSize: 11.5, color: "var(--text-secondary)" }}>{meaning.fast}</div>
+            <div className="param-caption">{meaning.fast}</div>
             <Slider label="from" value={req.fastMin} min={2} max={100} onChange={(v) => patch({ fastMin: v })} />
             <Slider label="to" value={req.fastMax} min={3} max={200} onChange={(v) => patch({ fastMax: v })} />
             <Slider label="step" value={req.fastStep} min={1} max={25} onChange={(v) => patch({ fastStep: v })} />
 
-            <div style={{ fontSize: 11.5, color: "var(--text-secondary)", paddingTop: 6 }}>
-              {meaning.slow}
-            </div>
+            <div className="param-caption is-spaced">{meaning.slow}</div>
             <Slider label="from" value={req.slowMin} min={5} max={300} onChange={(v) => patch({ slowMin: v })} />
             <Slider label="to" value={req.slowMax} min={10} max={600} onChange={(v) => patch({ slowMax: v })} />
             <Slider label="step" value={req.slowStep} min={1} max={60} onChange={(v) => patch({ slowStep: v })} />
           </div>
         </div>
 
-        <hr style={{ border: 0, borderTop: "1px solid var(--grid)", margin: "4px 0" }} />
+        <hr className="field-divider" />
 
         <div className="row">
           <div>
@@ -351,7 +361,7 @@ export default function Controls({
           </div>
         </div>
 
-        <hr style={{ border: 0, borderTop: "1px solid var(--grid)", margin: "4px 0" }} />
+        <hr className="field-divider" />
 
         {/* Microstructure frictions.
             Collapsed by default and zero by default, because switching any of
@@ -423,8 +433,11 @@ export default function Controls({
           </p>
         </details>
 
+        {/* Still here with auto-run on: it is the escape hatch for a field left
+            mid-edit, and the only control when Auto is off. ⌘/Ctrl+Enter does
+            the same thing from anywhere in the workspace. */}
         <button className="primary" onClick={onRun} disabled={running}>
-          {running ? "Running sweep…" : "Run parameter sweep"}
+          {running ? "Running sweep…" : "Run sweep now"}
         </button>
       </div>
     </div>

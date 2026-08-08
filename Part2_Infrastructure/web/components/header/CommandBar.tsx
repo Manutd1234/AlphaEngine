@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { WorkspaceView } from "@/components/WorkspaceHeader";
 
 interface CommandBarProps {
@@ -11,6 +11,34 @@ interface CommandBarProps {
   onToggleKillSwitch: () => void;
 }
 
+interface Command {
+  id: string;
+  label: string;
+  category: string;
+  action: () => void;
+  hotkey?: string;
+}
+
+/**
+ * The ⌘K launcher, as a native modal dialog.
+ *
+ * `showModal()` is load-bearing, not stylistic. This component used to render a
+ * `position: fixed; inset: 0; z-index: 10000` div — and it is a child of
+ * `.workspace-header`, which carries `backdrop-filter: blur(18px)`. A filter
+ * establishes a stacking context AND a containing block for fixed-position
+ * descendants, so the overlay was sized and positioned against the *header
+ * box* rather than the viewport, and its z-index was inert outside a context
+ * it could not see. No z-index would have fixed it; the top layer does, by
+ * leaving the containing block entirely.
+ *
+ * Three more defects went with it, all of which `<dialog>` handles natively and
+ * none of which had any implementation here: the palette rendered an `ESC` hint
+ * with no Escape handler anywhere, focus was not trapped, and focus was never
+ * restored to whatever opened it.
+ *
+ * Colours come from the token set. The previous version hard-coded nine dark
+ * hexes, so the palette was an unreadable dark slab in the light theme.
+ */
 export default function CommandBar({
   open,
   onClose,
@@ -18,144 +46,140 @@ export default function CommandBar({
   onSymbolSelect,
   onToggleKillSwitch,
 }: CommandBarProps) {
+  const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const [query, setQuery] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [cursor, setCursor] = useState(0);
 
+  const commands: Command[] = [
+    { id: "tab-overview", label: "Overview", category: "Workspace", action: () => onSelectTab("overview"), hotkey: "Alt+1" },
+    { id: "tab-research", label: "Research — Quant Researcher", category: "Workspace", action: () => onSelectTab("research"), hotkey: "Alt+2" },
+    { id: "tab-execution", label: "Execution — Quant Trader", category: "Workspace", action: () => onSelectTab("live"), hotkey: "Alt+3" },
+    { id: "tab-portfolio", label: "Portfolio — Portfolio Manager", category: "Workspace", action: () => onSelectTab("portfolio"), hotkey: "Alt+4" },
+    { id: "tab-risk", label: "Risk — Risk Manager", category: "Workspace", action: () => onSelectTab("risk"), hotkey: "Alt+5" },
+    { id: "tab-data", label: "Data — Data Engineer", category: "Workspace", action: () => onSelectTab("data"), hotkey: "Alt+6" },
+    { id: "tab-reliability", label: "Reliability — DevOps / SRE", category: "Workspace", action: () => onSelectTab("reliability"), hotkey: "Alt+7" },
+    { id: "tab-developer", label: "Developer — Quant Developer", category: "Workspace", action: () => onSelectTab("developer"), hotkey: "Alt+8" },
+
+    { id: "sym-btc", label: "BTCUSDT — Bitcoin / USDT spot", category: "Symbol", action: () => onSymbolSelect("BTCUSDT") },
+    { id: "sym-eth", label: "ETHUSDT — Ethereum / USDT spot", category: "Symbol", action: () => onSymbolSelect("ETHUSDT") },
+    { id: "sym-sol", label: "SOLUSDT — Solana / USDT spot", category: "Symbol", action: () => onSymbolSelect("SOLUSDT") },
+
+    { id: "act-kill", label: "Kill switch — halt and flatten", category: "Risk control", action: onToggleKillSwitch },
+  ];
+
+  const needle = query.trim().toLowerCase();
+  const filtered = needle
+    ? commands.filter((c) =>
+      c.label.toLowerCase().includes(needle) || c.category.toLowerCase().includes(needle))
+    : commands;
+
+  /**
+   * Drives the dialog from the `open` prop. `showModal()` rather than the
+   * `open` attribute: only the former puts the element in the top layer, and
+   * only the former brings the backdrop, the focus trap and Escape with it.
+   */
   useEffect(() => {
-    if (open) {
+    const node = dialogRef.current;
+    if (!node) return;
+    if (open && !node.open) {
       setQuery("");
-      setTimeout(() => inputRef.current?.focus(), 50);
+      setCursor(0);
+      node.showModal();
+      inputRef.current?.focus();
+    } else if (!open && node.open) {
+      node.close();
     }
   }, [open]);
 
-  if (!open) return null;
+  /**
+   * `close` fires for Escape and for `close()` alike, so the parent's state
+   * follows the dialog rather than the other way round. Without this, dismissing
+   * with Escape would leave `open` true and the palette could not be reopened.
+   */
+  useEffect(() => {
+    const node = dialogRef.current;
+    if (!node) return;
+    const onCloseEvent = () => onClose();
+    node.addEventListener("close", onCloseEvent);
+    return () => node.removeEventListener("close", onCloseEvent);
+  }, [onClose]);
 
-  const commands = [
-    { id: "tab-overview", label: "Overview (All Roles)", category: "Workspace", action: () => onSelectTab("overview"), hotkey: "Alt+1" },
-    { id: "tab-research", label: "Research (Quant Researcher)", category: "Workspace", action: () => onSelectTab("research"), hotkey: "Alt+2" },
-    { id: "tab-execution", label: "Execution (Quant Trader)", category: "Workspace", action: () => onSelectTab("live"), hotkey: "Alt+3" },
-    { id: "tab-portfolio", label: "Portfolio (Portfolio Manager)", category: "Workspace", action: () => onSelectTab("portfolio"), hotkey: "Alt+4" },
-    { id: "tab-risk", label: "Risk (Risk Manager)", category: "Workspace", action: () => onSelectTab("risk"), hotkey: "Alt+5" },
-    { id: "tab-data", label: "Data (Data Engineer)", category: "Workspace", action: () => onSelectTab("data"), hotkey: "Alt+6" },
-    { id: "tab-reliability", label: "Reliability (DevOps / SRE)", category: "Workspace", action: () => onSelectTab("reliability"), hotkey: "Alt+7" },
-    { id: "tab-developer", label: "Developer (Quant Developer)", category: "Workspace", action: () => onSelectTab("developer"), hotkey: "Alt+8" },
-    
-    { id: "sym-btc", label: "BTCUSDT — Bitcoin / USDT Spot", category: "Market Symbol", action: () => onSymbolSelect("BTCUSDT"), hotkey: "" },
-    { id: "sym-eth", label: "ETHUSDT — Ethereum / USDT Spot", category: "Market Symbol", action: () => onSymbolSelect("ETHUSDT"), hotkey: "" },
-    { id: "sym-sol", label: "SOLUSDT — Solana / USDT Spot", category: "Market Symbol", action: () => onSymbolSelect("SOLUSDT"), hotkey: "" },
-
-    { id: "act-kill", label: "🚨 EMERGENCY KILL SWITCH / FLATTEN", category: "Risk Controls", action: () => onToggleKillSwitch(), hotkey: "Ctrl+Shift+K" },
-  ];
-
-  const filtered = commands.filter((c) =>
-    c.label.toLowerCase().includes(query.toLowerCase()) ||
-    c.category.toLowerCase().includes(query.toLowerCase())
-  );
+  const runCommand = (command: Command) => {
+    command.action();
+    onClose();
+  };
 
   return (
-    <div
-      className="command-bar-overlay"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(9, 13, 18, 0.75)",
-        backdropFilter: "blur(8px)",
-        zIndex: 10000,
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "center",
-        paddingTop: "120px",
-      }}
-      onClick={onClose}
+    <dialog
+      ref={dialogRef}
+      className="command-bar"
+      aria-label="Command launcher"
+      // The backdrop is a sibling pseudo-element, so a click landing on the
+      // dialog box itself is a click on `<dialog>` only when it hit the padding
+      // around the panel — which is what dismiss-on-outside-click means here.
+      onClick={(event) => { if (event.target === dialogRef.current) onClose(); }}
     >
-      <div
-        className="command-bar-modal"
-        style={{
-          width: "600px",
-          maxWidth: "92vw",
-          background: "#111827",
-          border: "1px solid rgba(255, 255, 255, 0.12)",
-          borderRadius: "12px",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.75)",
-          overflow: "hidden",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{ display: "flex", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid rgba(255, 255, 255, 0.08)" }}>
-          <span style={{ fontSize: "16px", marginRight: "10px" }}>⚡</span>
+      <div className="command-bar__panel">
+        <div className="command-bar__search">
+          <span className="command-bar__glyph" aria-hidden>⌘</span>
           <input
             ref={inputRef}
             type="text"
+            role="combobox"
+            aria-expanded
+            aria-controls="command-bar-results"
+            aria-activedescendant={filtered[cursor]?.id}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Type a command, ticker (BTCUSDT), or workspace (Alt+1-8)..."
-            style={{
-              flex: 1,
-              background: "transparent",
-              border: "none",
-              outline: "none",
-              color: "#f8fafc",
-              fontSize: "14px",
-              fontFamily: "var(--font-mono, monospace)",
+            onChange={(event) => { setQuery(event.target.value); setCursor(0); }}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                setCursor((c) => (filtered.length ? (c + 1) % filtered.length : 0));
+              } else if (event.key === "ArrowUp") {
+                event.preventDefault();
+                setCursor((c) => (filtered.length ? (c - 1 + filtered.length) % filtered.length : 0));
+              } else if (event.key === "Enter") {
+                event.preventDefault();
+                const picked = filtered[cursor];
+                if (picked) runCommand(picked);
+              }
             }}
+            placeholder="Workspace, ticker or control…"
+            aria-label="Search commands"
           />
-          <kbd style={{ background: "#1f2937", border: "1px solid #374151", borderRadius: "4px", padding: "2px 6px", fontSize: "10px", color: "#9ca3af" }}>
-            ESC
-          </kbd>
+          <kbd>esc</kbd>
         </div>
 
-        <div style={{ maxHeight: "360px", overflowY: "auto", padding: "8px" }}>
+        <ul className="command-bar__results" id="command-bar-results" role="listbox" aria-label="Commands">
           {filtered.length === 0 ? (
-            <div style={{ padding: "16px", textAlign: "center", color: "#9ca3af", fontSize: "12px" }}>
-              No matching commands or tickers found.
-            </div>
+            <li className="command-bar__empty">No command, workspace or ticker matches that.</li>
           ) : (
-            filtered.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  item.action();
-                  onClose();
-                }}
-                style={{
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "10px 12px",
-                  borderRadius: "6px",
-                  background: "transparent",
-                  border: "none",
-                  color: "#f8fafc",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  fontSize: "13px",
-                  transition: "background 0.15s ease",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255, 255, 255, 0.06)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-              >
-                <div>
-                  <span style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.05em", color: "#38bdf8", marginRight: "8px", fontWeight: 600 }}>
-                    [{item.category}]
-                  </span>
-                  <span>{item.label}</span>
-                </div>
-                {item.hotkey && (
-                  <kbd style={{ background: "#1f2937", border: "1px solid #374151", borderRadius: "4px", padding: "2px 6px", fontSize: "10px", color: "#9ca3af" }}>
-                    {item.hotkey}
-                  </kbd>
-                )}
-              </button>
+            filtered.map((command, index) => (
+              <li key={command.id}>
+                <button
+                  id={command.id}
+                  type="button"
+                  role="option"
+                  aria-selected={index === cursor}
+                  className={index === cursor ? "is-active" : undefined}
+                  onMouseEnter={() => setCursor(index)}
+                  onClick={() => runCommand(command)}
+                >
+                  <span className="command-bar__category">{command.category}</span>
+                  <span className="command-bar__label">{command.label}</span>
+                  {command.hotkey && <kbd>{command.hotkey}</kbd>}
+                </button>
+              </li>
             ))
           )}
-        </div>
-        <div style={{ padding: "8px 16px", background: "#090d12", borderTop: "1px solid rgba(255, 255, 255, 0.05)", fontSize: "10.5px", color: "#64748b", display: "flex", justifyContent: "space-between" }}>
-          <span>Navigation: <code style={{ color: "#38bdf8" }}>Alt+1-8</code> · Kill Switch: <code style={{ color: "#ef4444" }}>Ctrl+Shift+K</code></span>
-          <span>AlphaEngine Command Launcher</span>
-        </div>
+        </ul>
+
+        <p className="command-bar__footer">
+          <span><kbd>↑</kbd><kbd>↓</kbd> to move · <kbd>enter</kbd> to run</span>
+          <span>Alt+1–8 jumps to a workspace directly</span>
+        </p>
       </div>
-    </div>
+    </dialog>
   );
 }
