@@ -103,9 +103,23 @@
   --header-h: var(--chrome-header);
   --chrome-total: calc(var(--header-h) + var(--chrome-rail));
 
-  --z-rail: 30;
-  --z-header: 50;
-  --z-overlay: 60;
+  /* The stacking ladder. Every `z-index` in this file resolves to one of these
+     six — `tests/layering.test.ts` fails the build on a raw number, because a
+     raw number is how the three overlays below ended up fighting each other
+     with 20, 9999 and 10000 while all three lost to a stacking context they
+     could not see.
+
+     The two that are NOT here matter as much: the ⌘K palette and the popovers
+     render in the browser's TOP LAYER (`<dialog showModal()>`, `popover`),
+     which sits above every z-index on the page and, crucially, escapes the
+     header's `backdrop-filter` containing block. `--z-overlay` is only for a
+     positioned overlay that cannot use the top layer. */
+  --z-below: -1;        /* the rail's bleed band, ::before backdrops           */
+  --z-sticky-cell: 5;   /* sticky thead / pinned column, inside its own scroller */
+  --z-rail: 30;         /* .workspace-subtabs                                  */
+  --z-header: 50;       /* .workspace-header                                   */
+  --z-overlay: 60;      /* positioned overlays with no top-layer option        */
+  --z-skip: 90;         /* .skip-link — above everything that is not top layer */
 
   --dur-fast: 110ms;
   --dur: 170ms;
@@ -115,6 +129,30 @@
      --card-pad-tight rather than inventing a third value. */
   --card-pad: 16px;
   --card-pad-tight: 13px;
+
+  /* -------------------------------------------------------------------------
+     The command-centre hero.
+     It is navy in BOTH themes — a deliberate fixed surface, not a bug, so these
+     do not appear in either dark block below. They are named here because the
+     same five values were otherwise repeated as bare hexes across the hero's CSS
+     and inside `DecisionLoopPipeline`'s Tailwind classes, where nothing marked
+     them as belonging to one surface and a theme sweep would "fix" them into
+     illegibility. Contrast is against --hero-plane, not against --surface-1.
+     ------------------------------------------------------------------------- */
+  --hero-plane: #102846;
+  --hero-text: #e8eefb;      /* 13.4:1 on --hero-plane */
+  --hero-text-dim: #a9c4e0;  /*  7.6:1 — supporting copy   */
+  --hero-accent: #8fd3ff;    /*  9.3:1 — kickers, labels   */
+  --hero-accent-2: #74e7d0;  /* 10.8:1 — flow connectors   */
+  --hero-muted: #9fb0c7;     /*  6.4:1 — idle state        */
+  /* The status steps, in their DARK values, because the hero is a dark surface
+     whatever the theme is. They deliberately equal --status-* from the dark
+     blocks rather than referencing them: reading a token that flips with the
+     theme would give this surface the light steps, which fail on navy. */
+  --hero-info: #86adf5;
+  --hero-good: #35c48f;
+  --hero-warn: #e8ab3d;
+  --hero-critical: #f0737c;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -257,23 +295,11 @@ a {
   padding: 20px 20px 72px;
 }
 
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  background: color-mix(in srgb, var(--surface-0) 92%, transparent);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--border);
-}
-.topbar-inner {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 12px 20px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-}
+/* `.topbar`/`.topbar-inner` lived here — the pre-workspace page header, replaced
+   by `.workspace-header`. Deleted rather than tokenised: it was a second sticky
+   bar at the same z-index as the section rail, so anything that started
+   rendering it again would have collided with the rail non-deterministically. */
+
 .brand {
   font-weight: 650;
   letter-spacing: -0.02em;
@@ -330,9 +356,31 @@ a {
     position: static !important;
   }
 }
+/* The offset lives in the standardisation layer, against the measured chrome —
+   the literal 72px that used to sit here was a guess at header + rail, and it
+   was already being overridden further down. Two rules disagreeing about the
+   same number is how one of them ends up wrong without anyone noticing. */
 .sidebar {
   position: sticky;
-  top: 72px;
+}
+
+/* ---------- layout containers ----------
+   A panel should lay itself out against the width of the box it is IN, not the
+   width of the window. Those are the same number only for a full-width surface,
+   and most of this workspace is not one: the research content sits beside a
+   300px sidebar, and every `.compact-grid-*` child is half or a third of the
+   shell. A viewport breakpoint cannot see any of that, which is why a six-tile
+   row stayed six-across inside a 700px column on a 1400px screen.
+
+   Declared on wrappers, never on a chart's own box. `container-type: inline-size`
+   brings inline-size containment with it — the element's width stops depending
+   on its contents — which is right for a column and wrong for something that
+   measures itself. */
+.workspace-subtab-panel,
+.research-content,
+.compact-grid-2col > *,
+.compact-grid-3col > * {
+  container-type: inline-size;
 }
 
 .tiles {
@@ -341,11 +389,22 @@ a {
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 12px;
 }
-@media (max-width: 1180px) {
+
+/* Measured against the container above, so the same row of tiles is 6-across in
+   a full-width panel and 2-across in a half-width column of the same page. */
+@container (max-width: 1180px) {
   .tiles {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+@container (max-width: 620px) {
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* The fallback for a `.tiles` that has no container ancestor: without this it
+   would keep six columns at every width. Scoped to the viewport sizes where six
+   is indefensible regardless of what box it sits in. */
 @media (max-width: 620px) {
   .tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -364,14 +423,6 @@ a {
   color: var(--text-secondary);
 }
 
-.console-statusbar.is-stale {
-  border-color: color-mix(in srgb, var(--status-critical) 44%, var(--border));
-  box-shadow: inset 3px 0 0 var(--status-critical), var(--shadow-sm);
-}
-
-.console-statusbar.is-stale .console-stat:not(.is-bad) strong {
-  color: var(--text-muted);
-}
 
 .reliability-overview {
   display: grid;
@@ -883,19 +934,27 @@ a {
   font-size: 11px;
 }
 
+/* `isolation: isolate` seals the table's internal ladder into its own stacking
+   context. `overflow: auto` alone does NOT create one, so without this the
+   three sticky tiers below are competing with page chrome rather than only
+   with each other — they happen to be below `--z-rail` today, which is luck,
+   not design. */
 .reliability-service-panel .table-wrap {
   max-height: min(70vh, 680px);
   overflow: auto;
+  isolation: isolate;
 }
 
 .reliability-service-panel .console-matrix {
   min-width: 940px;
 }
 
+/* Three tiers, all derived from one token: pinned column < sticky header <
+   the corner cells, which are both at once and must beat either. */
 .reliability-service-panel .console-matrix thead th {
   position: sticky;
   top: 0;
-  z-index: 4;
+  z-index: var(--z-sticky-cell);
   background: var(--surface-1);
   box-shadow: inset 0 -1px 0 var(--grid);
 }
@@ -904,14 +963,14 @@ a {
 .reliability-service-panel .console-matrix td:first-child {
   position: sticky;
   left: 0;
-  z-index: 3;
+  z-index: calc(var(--z-sticky-cell) - 1);
   background: var(--surface-1);
   box-shadow: inset -1px 0 0 var(--grid);
 }
 
 .reliability-service-panel .console-matrix thead th:first-child,
 .reliability-service-panel .console-matrix thead th:last-child {
-  z-index: 6;
+  z-index: calc(var(--z-sticky-cell) + 1);
 }
 
 .reliability-service-panel .console-row-actions button {
@@ -1428,7 +1487,7 @@ tbody tr[tabindex]:focus-visible {
   position: fixed;
   top: 10px;
   left: 10px;
-  z-index: 1000;
+  z-index: var(--z-skip);
   padding: 9px 13px;
   border: 2px solid var(--series-1);
   border-radius: 9px;
@@ -1460,7 +1519,7 @@ tbody tr[tabindex]:focus-visible {
 .workspace-header {
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: var(--z-header);
   background: color-mix(in srgb, var(--surface-1) 96%, transparent);
   border-bottom: 1px solid var(--border);
   backdrop-filter: blur(18px);
@@ -1815,7 +1874,7 @@ tbody tr[tabindex]:focus-visible {
   background:
     radial-gradient(circle at 82% 12%, rgba(82, 145, 255, 0.34), transparent 30%),
     radial-gradient(circle at 92% 90%, rgba(17, 169, 135, 0.22), transparent 28%),
-    linear-gradient(135deg, #0b1728 0%, #102846 58%, #123255 100%);
+    linear-gradient(135deg, #0b1728 0%, var(--hero-plane) 58%, #123255 100%);
   box-shadow: 0 18px 45px rgba(12, 27, 48, 0.16);
   display: flex;
   align-items: center;
@@ -1842,7 +1901,7 @@ tbody tr[tabindex]:focus-visible {
 }
 
 .overview-hero .page-kicker {
-  color: #86adf5;
+  color: var(--hero-info);
 }
 
 .overview-hero h1 {
@@ -1856,7 +1915,7 @@ tbody tr[tabindex]:focus-visible {
 .overview-hero p {
   max-width: 690px;
   margin-top: 8px;
-  color: #c2cee0;
+  color: var(--hero-text-dim);
   font-size: 14px;
 }
 
@@ -1875,7 +1934,7 @@ tbody tr[tabindex]:focus-visible {
 }
 
 .overview-hero__signal > span {
-  color: #86adf5;
+  color: var(--hero-info);
   font-size: 9px;
   font-weight: 750;
   letter-spacing: 0.1em;
@@ -1889,12 +1948,12 @@ tbody tr[tabindex]:focus-visible {
 
 .overview-hero__signal strong i {
   margin: 0 5px;
-  color: #74e7d0;
+  color: var(--hero-accent-2);
   font-style: normal;
 }
 
 .overview-hero__signal small {
-  color: #9fb0c7;
+  color: var(--hero-muted);
   font-size: 10px;
 }
 
@@ -2243,18 +2302,6 @@ button.primary-action:hover:not(:disabled) {
 }
 
 /* Compact & bounded inner scrolling containers */
-.scroll-container-sm {
-  max-height: 260px;
-  overflow-y: auto;
-}
-.scroll-container-md {
-  max-height: 380px;
-  overflow-y: auto;
-}
-.scroll-container-lg {
-  max-height: 480px;
-  overflow-y: auto;
-}
 .compact-grid-2col {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
@@ -3310,9 +3357,6 @@ button.primary-action:hover:not(:disabled) {
     width: 100%;
     min-width: 0;
   }
-  .console-statusbar {
-    position: static;
-  }
   .research-provenance {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -3489,31 +3533,15 @@ button.primary-action:hover:not(:disabled) {
    ========================================================================== */
 
 /* ---------- status strip ---------- */
-.console-statusbar {
-  position: sticky;
-  /* 62px utility row + 1px border, matching the workspace shell offset.
-     Below .workspace-header's z-index 50. */
-  top: 63px;
-  z-index: 20;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-  padding: 12px 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-sm);
-}
+/* `.console-statusbar` was here, replaced by `PageHead`/`ConsoleChrome`.
+   Deleted rather than tokenised because it was the worst instance of the bug
+   this ladder exists to stop: `top: 63px`, hand-measured against a 62px
+   utility row, with a comment tying it to that number. The header is 57px wide
+   and ~120px once the eight role tabs wrap, which is precisely why
+   `WorkspaceHeader` measures itself into `--header-h`. Anything rendering this
+   again would have docked a status bar behind the header on every narrow
+   viewport. `.console-stat*` below is still live and stays. */
 
-.console-statusbar__metrics {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0;
-  flex: 1 1 520px;
-}
 
 .console-stat {
   display: grid;
@@ -3576,37 +3604,14 @@ button.console-stat:hover:not(:disabled) {
   font-weight: 750;
 }
 
-.console-statusbar__meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 11px;
-}
-
-.console-statusbar__meta button {
-  padding: 6px 11px;
-  font-size: 12px;
-}
 
 /* ---------- two-column body ---------- */
-.console-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 65fr) minmax(0, 35fr);
-  gap: 16px;
-  align-items: start;
-}
 
-.console-column {
-  min-width: 0;
-}
 
 .console-card {
   margin-bottom: 16px;
 }
 
-.console-column > .console-card:last-child {
-  margin-bottom: 0;
-}
 
 /* ---------- shared primitives ---------- */
 /* `td { white-space: nowrap }` is global; a message column needs the opt-out
@@ -4390,13 +4395,6 @@ button.console-stat:hover:not(:disabled) {
 
 /* ---------- responsive ---------- */
 @media (max-width: 1120px) {
-  .console-layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .console-statusbar__metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px 0;
-  }
   .console-stat:nth-child(odd) {
     padding-left: 0;
   }
@@ -4406,25 +4404,12 @@ button.console-stat:hover:not(:disabled) {
 }
 
 @media (max-width: 900px) {
-  .console-statusbar {
-    /* The header collapses to two rows at this width and the tab strip becomes
-       a full-width grid, so a sticky offset computed for the desktop header
-       would pin this over the content it is meant to sit under. */
-    position: static;
-  }
   .console-facts {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
 @media (max-width: 720px) {
-  .console-statusbar {
-    padding: 12px;
-  }
-  .console-statusbar__meta {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
   .console-node {
     flex: 1 1 100%;
   }
@@ -4442,9 +4427,6 @@ button.console-stat:hover:not(:disabled) {
 }
 
 @media (max-width: 520px) {
-  .console-statusbar__metrics {
-    grid-template-columns: minmax(0, 1fr);
-  }
   .console-stat {
     padding: 0;
     border-right: 0;
@@ -4888,7 +4870,11 @@ button.console-stat:hover:not(:disabled) {
 }
 
 /* ---------- responsive ---------- */
-@media (max-width: 1120px) {
+/* Four metrics across is right in a full-width panel and cramped in the
+   half-width column of a `.compact-grid-2col`, which is where most of these
+   render. The viewport cannot tell those apart — at 1500px both were four
+   across, one of them at 129px per tile. The container can. */
+@container (max-width: 620px) {
   .stability-tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -4927,6 +4913,9 @@ button.console-stat:hover:not(:disabled) {
    pointer-events here is only the visual backstop. */
 .stale-gate {
   position: relative;
+  /* Seals the veil's z-index into this box: it only ever has to beat the
+     content it covers, never anything on the page. */
+  isolation: isolate;
 }
 
 .stale-gate.is-stale .stale-gate__content {
@@ -4937,10 +4926,26 @@ button.console-stat:hover:not(:disabled) {
   transition: filter 0.18s ease, opacity 0.18s ease;
 }
 
+/* Recomputing is a sub-second state under auto-run, so it veils more lightly
+   than the stale gate: enough that no one reads the old numbers as current,
+   not so much that the panel appears to reload on every slider release. */
+.stale-gate.is-recomputing .stale-gate__content {
+  filter: blur(1.5px) saturate(0.75);
+  opacity: 0.72;
+}
+
+.stale-gate.is-recomputing .stale-gate__cta small {
+  display: block;
+  max-width: 44ch;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: center;
+}
+
 .stale-gate__veil {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 2;
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -6512,14 +6517,11 @@ button.console-stat:hover:not(:disabled) {
 
 /* Three buttons on every row made the table scroll sideways on anything narrower
    than a desktop, and repeated the same three words down the page. A disclosure
-   costs one click for an action taken rarely and gives the numbers the width. */
-.row-menu {
-  position: relative;
-  display: inline-block;
-}
-
-.row-menu > summary {
-  list-style: none;
+   costs one click for an action taken rarely and gives the numbers the width.
+   The panel is a top-layer `popover` (see components/common/RowMenu.tsx) — no
+   z-index, because the problem was never depth: it was the `overflow: auto` on
+   the table wrapper, which clips regardless of z-index. */
+.row-menu__trigger {
   cursor: pointer;
   padding: 2px 9px;
   border-radius: 7px;
@@ -6531,29 +6533,37 @@ button.console-stat:hover:not(:disabled) {
   user-select: none;
 }
 
-.row-menu > summary::-webkit-details-marker { display: none; }
+.row-menu__trigger:hover { color: var(--text-primary); }
 
-.row-menu > summary:hover { color: var(--text-primary); }
-
-.row-menu > summary:focus-visible {
+.row-menu__trigger:focus-visible {
   outline: 2px solid var(--series-1);
   outline-offset: 2px;
 }
 
+/* NOTE the split: `display` is set ONLY inside `:popover-open`.
+   The UA stylesheet hides a closed popover with `[popover] { display: none }`,
+   and author styles beat the UA origin regardless of specificity — so a plain
+   `display: flex` here silently defeats the hiding rule and every row's menu
+   renders at once, stacked over the table. That is what happened; the browser
+   check caught it, and `tests/layering.test.ts` now pins it. */
 .row-menu__items {
-  position: absolute;
-  right: 0;
-  z-index: 20;
-  display: flex;
+  position: fixed;
+  /* Placed by RowMenu. The UA default centres a popover, which would put every
+     row's menu in the middle of the screen for the frame before JS runs. */
+  inset: auto;
   flex-direction: column;
   gap: 4px;
   min-width: 132px;
-  margin-top: 4px;
+  margin: 0;
   padding: 6px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--surface-1);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-sm), 0 10px 25px -5px rgba(9, 13, 18, 0.28);
+}
+
+.row-menu__items:popover-open {
+  display: flex;
 }
 
 .row-menu__items button {
@@ -8712,11 +8722,15 @@ button.data-trust-action > i {
 .codebase-filelist {
   overflow: auto;
   scrollbar-width: thin;
+  /* Same reason as the reliability matrix: `overflow` is not a stacking
+     context, so without this the two sticky tiers below compete with page
+     chrome instead of only with each other. */
+  isolation: isolate;
 }
 
 .codebase-filelist__summary {
   position: sticky;
-  z-index: 3;
+  z-index: 2;
   top: 0;
   display: flex;
   align-items: center;
@@ -8741,8 +8755,11 @@ button.data-trust-action > i {
 
 .codebase-filegroup h3 {
   position: sticky;
-  z-index: 2;
-  top: 39px;
+  z-index: 1;
+  /* Docked under the summary bar above. Measured by CodebaseExplorer's
+     ResizeObserver rather than hand-counted — the old literal 39px was wrong
+     the moment the summary wrapped onto two lines. */
+  top: var(--codebase-summary-h, 39px);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -10283,38 +10300,7 @@ button.data-trust-action > i {
   gap: 14px;
 }
 
-.developer-cp-bar {
-  display: grid;
-  grid-template-columns: minmax(160px, 1.2fr) minmax(130px, 0.8fr) minmax(150px, 1fr) minmax(120px, 0.65fr) auto auto;
-  align-items: center;
-  gap: 0;
-  min-width: 0;
-  padding: 11px 14px;
-  border: 1px solid color-mix(in srgb, var(--developer-accent) 24%, var(--border));
-  border-radius: var(--radius);
-  background:
-    linear-gradient(110deg, color-mix(in srgb, var(--developer-accent) 6%, var(--surface-1)), var(--surface-1) 48%),
-    var(--surface-1);
-  box-shadow: var(--shadow-sm);
-}
 
-.developer-cp-bar > div {
-  display: grid;
-  min-width: 0;
-  gap: 1px;
-  padding: 0 13px;
-  border-right: 1px solid var(--border);
-}
-
-.developer-cp-bar > div:first-child {
-  padding-left: 0;
-}
-
-.developer-cp-bar > div:nth-child(4) {
-  border-right: 0;
-}
-
-.developer-cp-bar > div > span,
 .developer-cp-heading > div > span,
 .developer-cp-section-hero > div > span,
 .developer-cp-context > div:first-child > span,
@@ -10326,31 +10312,6 @@ button.data-trust-action > i {
   text-transform: uppercase;
 }
 
-.developer-cp-bar > div > strong {
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 11.5px;
-  font-weight: 680;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.developer-cp-bar code {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  font-weight: 600;
-}
-
-.developer-cp-bar > .developer-cp-status {
-  margin: 0 11px 0 6px;
-}
-
-.developer-cp-bar > button {
-  min-height: 31px;
-  padding: 5px 10px;
-  font-size: 10.5px;
-  white-space: nowrap;
-}
 
 .developer-cp-status {
   display: inline-flex;
@@ -11048,14 +11009,7 @@ button.data-trust-action > i {
 }
 
 @media (max-width: 1120px) {
-  .developer-cp-bar {
-    grid-template-columns: repeat(4, minmax(120px, 1fr));
-    row-gap: 10px;
-  }
 
-  .developer-cp-bar > .developer-cp-status {
-    margin-left: 0;
-  }
 
   .developer-cp-overview__grid {
     grid-template-columns: repeat(8, minmax(0, 1fr));
@@ -11078,13 +11032,7 @@ button.data-trust-action > i {
 }
 
 @media (max-width: 900px) {
-  .developer-cp-bar {
-    grid-template-columns: repeat(2, minmax(140px, 1fr)) auto auto;
-  }
 
-  .developer-cp-bar > div:nth-child(2) {
-    border-right: 0;
-  }
 
   .developer-cp-overview__grid {
     grid-template-columns: minmax(0, 1fr);
@@ -11133,27 +11081,7 @@ button.data-trust-action > i {
 }
 
 @media (max-width: 720px) {
-  .developer-cp-bar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 
-  .developer-cp-bar > div {
-    padding: 0 10px 0 0;
-  }
-
-  .developer-cp-bar > div:nth-child(2n) {
-    padding-right: 0;
-    padding-left: 10px;
-    border-right: 0;
-  }
-
-  .developer-cp-bar > .developer-cp-status {
-    margin: 0;
-  }
-
-  .developer-cp-bar > button {
-    width: 100%;
-  }
 
   .developer-cp-topology__nodes {
     grid-template-columns: minmax(0, 1fr);
@@ -11200,16 +11128,7 @@ button.data-trust-action > i {
 }
 
 @media (max-width: 520px) {
-  .developer-cp-bar {
-    grid-template-columns: minmax(0, 1fr);
-  }
 
-  .developer-cp-bar > div,
-  .developer-cp-bar > div:nth-child(2n) {
-    padding: 0 0 7px;
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
-  }
 
   .developer-cp-context__facts {
     grid-template-columns: minmax(0, 1fr);
@@ -11318,10 +11237,19 @@ button.data-trust-action > i {
      1. SCATTER. Six page headers existed — the navy hero, `.page-heading`,
         `.data-cp-bar`, `.console-statusbar`, `.developer-cp-bar` and
         `.portfolio-statusbar` — each with its own metric shape, type ramp and
-        control placement. They are now one component (`PageHead`) rendering one
-        grammar: identity, the numbers that frame it, the controls that refresh
-        them. The bespoke bars' rules survive above only because deleting rules
-        that nothing renders is not worth the risk of missing a caller.
+        control placement. `PageHead` is the one grammar they are converging on:
+        identity, the numbers that frame it, the controls that refresh them.
+
+        CORRECTION, and the reason this paragraph is worth reading carefully:
+        this used to claim all six were retired and that their rules merely
+        "survive above". Four of them are still rendered — the navy hero,
+        `.page-heading`, `.data-cp-bar` and `.portfolio-statusbar` all have live
+        callers. Only `.console-statusbar` and `.developer-cp-bar` were dead, and
+        both have now been deleted; `.console-statusbar` had a hand-counted
+        `top: 63px` that would have docked behind the header the moment anything
+        rendered it again. `tests/dead-css.test.ts` measures which classes are
+        unreferenced instead of asserting it in prose, because prose drifts and
+        this paragraph is the proof.
 
      2. SCROLL. The tabs stacked a heading, a status bar, a rail, banners and a
         footer card before any content. The rail is now sticky, the head is one
@@ -11575,6 +11503,363 @@ button.page-insight:hover:not(:disabled) {
   color: var(--critical-text);
 }
 
+/* ---------- the term explainer ----------
+   A top-layer `popover`, positioned from JS. Like the launcher above it carries
+   no z-index: the top layer is what gets it out of the `overflow: auto` table
+   wrappers and cards it appears inside, which is something z-index cannot do. */
+
+.quant-tooltip-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: var(--space-1);
+  padding: 1px 5px;
+  border: 1px solid color-mix(in srgb, var(--series-1) 30%, transparent);
+  border-radius: var(--radius-sm);
+  background: var(--sky-1);
+  color: var(--series-1);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.quant-tooltip {
+  position: fixed;
+  width: 280px;
+  max-width: calc(100vw - 16px);
+  margin: 0;
+  padding: 10px 12px;
+  /* The top layer changes where this PAINTS, not where it sits in the DOM, so
+     it still inherits from its trigger's parent. That parent is often a stat
+     tile's label, which is uppercase and letter-spaced — and a definition
+     rendered in shouty tracked capitals is unreadable. Reset the inherited text
+     treatment rather than relying on every caller to be a neutral context. */
+  text-transform: none;
+  letter-spacing: normal;
+  text-align: left;
+  font-weight: 400;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm), 0 10px 25px -5px rgba(9, 13, 18, 0.3);
+  font-size: 11px;
+  line-height: 1.45;
+  /* Hover opens it; letting it take the pointer would make it flicker as the
+     cursor crosses the gap between trigger and panel. */
+  pointer-events: none;
+}
+
+.quant-tooltip__term {
+  display: block;
+  margin-bottom: var(--space-1);
+  color: var(--series-1);
+  font-size: 12px;
+}
+
+.quant-tooltip__definition {
+  margin-bottom: 6px;
+}
+
+.quant-tooltip__formula {
+  display: block;
+  margin-bottom: 6px;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--series-1);
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+
+.quant-tooltip__plain {
+  padding: 4px 8px;
+  border-left: 3px solid var(--status-good);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: color-mix(in srgb, var(--status-good) 12%, transparent);
+  color: var(--text-primary);
+  font-size: 10.5px;
+}
+
+/* ---------- the ⌘K launcher ----------
+   A `<dialog>` opened with showModal(), so it renders in the browser's top
+   layer. No z-index appears below and none is needed: the top layer is above
+   every stacking context on the page, which is the only thing that gets this
+   element out of `.workspace-header`'s backdrop-filter containing block.
+   Colours are tokens — the previous version hard-coded nine dark hexes and was
+   an unreadable slab in the light theme. */
+
+.command-bar {
+  width: min(620px, 92vw);
+  max-height: min(70vh, 560px);
+  margin: 0 auto;
+  /* `<dialog>` centres itself vertically by default; a launcher belongs in the
+     upper third, where the eye already is. */
+  margin-top: 12vh;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  box-shadow: 0 24px 60px -12px rgba(9, 13, 18, 0.45);
+  overflow: hidden;
+}
+
+.command-bar::backdrop {
+  background: color-mix(in srgb, var(--surface-0) 62%, rgba(9, 13, 18, 0.55));
+  backdrop-filter: blur(6px);
+}
+
+.command-bar__panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  max-height: inherit;
+}
+
+.command-bar__search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.command-bar__glyph {
+  color: var(--series-1);
+  font-size: 14px;
+}
+
+.command-bar__search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--sans);
+  font-size: 14px;
+}
+
+.command-bar__search input::placeholder {
+  color: var(--text-muted);
+}
+
+.command-bar kbd {
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.command-bar__results {
+  margin: 0;
+  padding: var(--space-2);
+  list-style: none;
+  overflow-y: auto;
+}
+
+.command-bar__results button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Hover and keyboard cursor are one state, so arrowing down and mousing over
+   cannot disagree about which row Enter would run. */
+.command-bar__results button.is-active {
+  background: var(--sky-1);
+  color: var(--series-1);
+}
+
+.command-bar__category {
+  flex: 0 0 auto;
+  min-width: 74px;
+  color: var(--text-muted);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.command-bar__label {
+  flex: 1;
+  min-width: 0;
+}
+
+.command-bar__empty {
+  padding: var(--space-4);
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.command-bar__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+/* ---------- stat tile ----------
+   Was five inline style objects in StatTile.tsx, including its own radius and
+   its own three-way colour switch — neither of which the theme test or the
+   density scale could see. */
+
+.stat-tile {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.stat-tile__label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: 2px;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.stat-tile__value {
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  /* Live figures repoll on a timer; without a fixed advance the whole row
+     shifts every time a digit changes width. `.num` supplies tabular figures,
+     this stops the tile itself resizing around them. */
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-tile__value.is-pos { color: var(--success-text); }
+.stat-tile__value.is-neg { color: var(--diverging-neg); }
+
+.stat-tile__note {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* ---------- experiment setup panel ----------
+   These were eleven inline `style={{…}}` objects in Controls.tsx. Inline styles
+   are invisible to the theme test, to the layering test and to anyone reading
+   the stylesheet to find out what a surface looks like — which is how a
+   hardcoded font size and a hardcoded colour survive a design pass. */
+
+.slider-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.slider-row .num {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.field-divider {
+  margin: var(--space-1) 0;
+  border: 0;
+  border-top: 1px solid var(--grid);
+}
+
+.sweep-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.sweep-heading .field {
+  margin: 0;
+}
+
+.sweep-count {
+  color: var(--series-1);
+  font-size: 12px;
+}
+
+/* The grid was thinned to the combo cap, which raises the multiple-testing
+   hurdle — worth a colour change, not just a footnote. */
+.sweep-count.is-thinned {
+  color: var(--warning-text);
+}
+
+.sweep-note {
+  margin-bottom: 10px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.param-caption {
+  color: var(--text-secondary);
+  font-size: 11.5px;
+}
+
+.param-caption.is-spaced {
+  padding-top: 6px;
+}
+
+/* ---------- scroll targets clear the sticky chrome ----------
+   Nothing in this file used `--chrome-total` before, so every anchor jump and
+   every programmatic `.focus()` scrolled its target to y=0 — underneath the
+   header and the rail, both of which are sticky and both of which are painted
+   over it. `openReliabilitySection(…, targetId)` in page.tsx is the clearest
+   case: it focuses an element the browser then hides behind two bars.
+
+   `scroll-padding-top` on the scroll root covers the elements not listed here;
+   `scroll-margin-top` covers the ones that are, including anything focused
+   rather than linked, which `scroll-padding` alone does not reach. */
+html {
+  scroll-padding-top: calc(var(--chrome-total) + var(--space-3));
+}
+
+.workspace-shell :is(h1, h2, h3, [id]),
+.workspace-subtab-panel,
+.card {
+  scroll-margin-top: calc(var(--chrome-total) + var(--space-3));
+}
+
+/* ---------- long surfaces skip off-screen layout ----------
+   These four run to thousands of rows between them. `content-visibility` lets
+   the browser skip layout and paint for the parts nobody is looking at.
+
+   `contain-intrinsic-size` is not optional here: without a size hint the
+   skipped content measures 0, the scrollbar jumps as you scroll into it, and an
+   anchor into a hidden row lands in the wrong place. The `auto` keyword makes
+   the browser remember the real size once it has rendered once, so the guess
+   only has to be close on the first pass. */
+.reliability-service-panel .table-wrap,
+.codebase-filelist,
+.console-trace-detail,
+.cockpit-blotter .table-wrap {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 600px;
+}
+
 /* ---------- the sticky section rail ---------- */
 
 .workspace-subtabs {
@@ -11601,7 +11886,7 @@ button.page-insight:hover:not(:disabled) {
 .workspace-subtabs::before {
   content: "";
   position: absolute;
-  z-index: -1;
+  z-index: var(--z-below);
   inset: 0 calc(var(--shell-pad) * -1);
   background: var(--surface-0);
 }
@@ -11649,6 +11934,39 @@ button.page-insight:hover:not(:disabled) {
   color: var(--text-muted);
   font-size: 10.5px;
   white-space: nowrap;
+}
+
+/* A switch on the rail, sized like the buttons beside it rather than like a
+   form control — it sits in a row of actions, not in a settings panel. */
+.rail-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.rail-toggle:has(input:checked) {
+  border-color: color-mix(in srgb, var(--series-1) 45%, var(--border));
+  background: var(--sky-1);
+  color: var(--series-1);
+}
+
+.rail-toggle:focus-within {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+
+.rail-toggle input {
+  margin: 0;
+  accent-color: var(--series-1);
 }
 
 /* Anything that pins itself inside a workspace clears both bars. */
@@ -13022,4 +13340,45 @@ button:active:not(:disabled) {
     repeating-linear-gradient(45deg, transparent, transparent 3px,
       color-mix(in srgb, var(--axis) 25%, transparent) 3px,
       color-mix(in srgb, var(--axis) 25%, transparent) 4px);
+}
+
+/* ---------- the live decision tape ----------
+   Postgres realtime, beside the polled blotter. The state chip is icon + word +
+   colour, never colour alone — the same rule the reliability console follows,
+   and the global reduced-motion rule strips animation with !important so a
+   pulsing dot could not have carried it anyway. */
+
+.desk-tape__state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.desk-tape__state i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.desk-tape__state.is-live { color: var(--success-text); }
+.desk-tape__state.is-connecting { color: var(--warning-text); }
+.desk-tape__state.is-unavailable { color: var(--critical-text); }
+.desk-tape__state.is-unconfigured { color: var(--text-muted); }
+
+/* One paint of the arriving row. `prefers-reduced-motion` strips this globally
+   with !important, so the row is still legible without it — the tint is the
+   emphasis, the transition is only the polish. */
+.desk-tape__row.is-fresh {
+  background: color-mix(in srgb, var(--series-1) 10%, transparent);
+  transition: background var(--dur) var(--ease);
 }

@@ -38,11 +38,11 @@ const STAGE_ICON: Record<StageId, typeof Database> = {
 };
 
 const STATE_STYLE: Record<StageState, { Icon: typeof Circle; word: string; hex: string }> = {
-  ok: { Icon: CircleCheck, word: "ok", hex: "#35c48f" },
-  active: { Icon: LoaderCircle, word: "active", hex: "#86adf5" },
-  attention: { Icon: TriangleAlert, word: "attention", hex: "#e8ab3d" },
-  halted: { Icon: OctagonX, word: "halted", hex: "#f0737c" },
-  idle: { Icon: Circle, word: "idle", hex: "#9fb0c7" },
+  ok: { Icon: CircleCheck, word: "ok", hex: "var(--hero-good)" },
+  active: { Icon: LoaderCircle, word: "active", hex: "var(--hero-info)" },
+  attention: { Icon: TriangleAlert, word: "attention", hex: "var(--hero-warn)" },
+  halted: { Icon: OctagonX, word: "halted", hex: "var(--hero-critical)" },
+  idle: { Icon: Circle, word: "idle", hex: "var(--hero-muted)" },
 };
 
 export default function DecisionLoopPipeline({ stages }: { stages: DecisionStage[] }) {
@@ -56,7 +56,7 @@ export default function DecisionLoopPipeline({ stages }: { stages: DecisionStage
       className="relative z-[1] min-w-0 flex-[1_1_600px] rounded-[13px] border border-white/15 bg-[rgba(5,17,34,0.36)] p-4 max-[900px]:w-full"
       aria-label="AlphaEngine decision loop"
     >
-      <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-[#8fd3ff]">Decision loop</span>
+      <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--hero-accent)]">Decision loop</span>
       <ol
         className="mt-2 flex list-none flex-nowrap items-stretch gap-x-1 p-0 max-[560px]:flex-wrap max-[560px]:gap-y-2"
         aria-label="Pipeline stages"
@@ -68,7 +68,7 @@ export default function DecisionLoopPipeline({ stages }: { stages: DecisionStage
           return (
             <li key={stage.id} className="flex min-w-0 flex-1 items-center gap-1 max-[560px]:flex-[1_1_100%]">
               <div className="grid min-w-0 flex-1 gap-0.5 rounded-[9px] border border-white/10 bg-[rgba(11,23,40,0.55)] px-2.5 py-1.5">
-                <span className="flex min-w-0 items-center gap-1.5 text-[11px] font-semibold text-[#e8eefb]">
+                <span className="flex min-w-0 items-center gap-1.5 text-[11px] font-semibold text-[var(--hero-text)]">
                   <StageIcon size={13} aria-hidden className="shrink-0" />
                   <span className="min-w-0 truncate">{stage.label}</span>
                   <span className="flex shrink-0 items-center gap-1 text-[10px] font-bold" style={{ color: style.hex }}>
@@ -76,18 +76,18 @@ export default function DecisionLoopPipeline({ stages }: { stages: DecisionStage
                     {style.word}
                   </span>
                 </span>
-                <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-[#a9c4e0]">
+                <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-[var(--hero-text-dim)]">
                   {stage.detail}
                 </span>
               </div>
               {index < stages.length - 1 && (
-                <ChevronRight size={12} aria-hidden className="shrink-0 text-[#74e7d0]/70" />
+                <ChevronRight size={12} aria-hidden className="shrink-0 text-[var(--hero-accent-2)]/70" />
               )}
             </li>
           );
         })}
       </ol>
-      <small className="mt-2 block text-[10px] text-[#a9c4e0]">Paper-only · observable · reproducible</small>
+      <small className="mt-2 block text-[10px] text-[var(--hero-text-dim)]">Paper-only · observable · reproducible</small>
     </div>
   );
 }

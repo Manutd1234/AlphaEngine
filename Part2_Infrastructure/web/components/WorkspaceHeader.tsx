@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyboardEvent, useRef, useState, useEffect } from "react";
+import { KeyboardEvent, useRef, useEffect } from "react";
 import LatencyChip from "@/components/header/LatencyChip";
 import KillSwitchControl, {
   type KillSwitchHaltState,
@@ -8,7 +8,6 @@ import KillSwitchControl, {
 } from "@/components/header/KillSwitchControl";
 import ThemeToggle from "@/components/ThemeToggle";
 import type { LatencyStats } from "@/components/systems/types";
-import CommandBar from "@/components/header/CommandBar";
 
 export type WorkspaceView =
   | "overview"
@@ -60,7 +59,6 @@ export default function WorkspaceHeader({
 }: WorkspaceHeaderProps) {
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const headerRef = useRef<HTMLElement | null>(null);
-  const [commandBarOpen, setCommandBarOpen] = useState(false);
 
   /**
    * Publishes the header's measured height as `--header-h`, which every sticky
@@ -86,12 +84,10 @@ export default function WorkspaceHeader({
     return () => observer.disconnect();
   }, []);
 
+  // ⌘K lives in `page.tsx` with the dialog it opens — see CommandBar's header
+  // for why the palette cannot render inside this element.
   useEffect(() => {
     const onKeyDown = (e: globalThis.KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setCommandBarOpen((prev) => !prev);
-      }
       if (e.altKey && e.key >= "1" && e.key <= "8") {
         e.preventDefault();
         const index = parseInt(e.key, 10) - 1;
@@ -188,14 +184,6 @@ export default function WorkspaceHeader({
         </button>
         <ThemeToggle />
       </div>
-
-      <CommandBar
-        open={commandBarOpen}
-        onClose={() => setCommandBarOpen(false)}
-        onSelectTab={(tabId) => onViewChange(tabId as WorkspaceView)}
-        onSymbolSelect={() => onViewChange("live")}
-        onToggleKillSwitch={() => onViewChange("risk")}
-      />
     </header>
   );
 }

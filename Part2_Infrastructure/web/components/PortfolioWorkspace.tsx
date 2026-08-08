@@ -20,6 +20,7 @@
 
 import { useState } from "react";
 
+import RowMenu from "@/components/common/RowMenu";
 import AllocationDonut from "@/components/portfolio/AllocationDonut";
 import AllocationPanel from "@/components/portfolio/AllocationPanel";
 import { BookChrome, BookFallback, BookSourceControl, CrossLinkTile } from "@/components/portfolio/BookChrome";
@@ -473,40 +474,39 @@ export default function PortfolioWorkspace({
                       </td>
                       <td>
                         {/* One disclosure rather than three buttons per row.
-                            `details` is used deliberately: it is keyboard
-                            operable and announced as expandable with no
-                            JavaScript, which a hand-rolled menu would have to
-                            re-implement and usually gets wrong. */}
-                        <details className="row-menu">
-                          <summary aria-label={`Actions for ${position.symbol}`}>
-                            <span aria-hidden>···</span>
-                          </summary>
-                          <div className="row-menu__items">
-                            <button
-                              type="button"
-                              onClick={() => onFocusSymbol(position.symbol, "live")}
-                              disabled={isStale}
-                              title={isStale ? "Reconnect the portfolio gateway before opening execution." : undefined}
-                            >
-                              Trade
-                            </button>
-                            <button type="button" onClick={() => onFocusSymbol(position.symbol, "research")}>
-                              Research
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setHandoff({
-                                kind: "flatten_symbol",
-                                symbol: position.symbol,
-                                side: position.side === "SHORT" ? "SHORT" : "LONG",
-                                notional: position.notional,
-                              })}
-                              title="Show the authenticated request that closes this position"
-                            >
-                              Close
-                            </button>
-                          </div>
-                        </details>
+                            `RowMenu` renders in the top layer so the last rows
+                            of this scroller are not clipped — see its header. */}
+                        <RowMenu label={`Actions for ${position.symbol}`}>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => onFocusSymbol(position.symbol, "live")}
+                            disabled={isStale}
+                            title={isStale ? "Reconnect the portfolio gateway before opening execution." : undefined}
+                          >
+                            Trade
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => onFocusSymbol(position.symbol, "research")}
+                          >
+                            Research
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => setHandoff({
+                              kind: "flatten_symbol",
+                              symbol: position.symbol,
+                              side: position.side === "SHORT" ? "SHORT" : "LONG",
+                              notional: position.notional,
+                            })}
+                            title="Show the authenticated request that closes this position"
+                          >
+                            Close
+                          </button>
+                        </RowMenu>
                       </td>
                     </tr>
                   ))}
