@@ -187,6 +187,11 @@ function deploymentEnvironment() {
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // node-oracledb loads its protocol implementation at runtime and is the
+  // largest dependency in the tree. Bundling it breaks the dynamic requires and
+  // inflates every function that merely imports the route graph; leaving it
+  // external keeps it in node_modules where the driver expects to find itself.
+  serverExternalPackages: ["oracledb"],
   // Keep framework-generated AI instruction files out of a candidate's
   // committed assessment tree. Repository guidance belongs at the repo root.
   agentRules: false,

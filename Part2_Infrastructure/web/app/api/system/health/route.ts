@@ -18,6 +18,7 @@ import {
   latencyStats,
   startedAt,
 } from "@/lib/observability";
+import { oracleReadiness } from "@/lib/oracle/health";
 import { openBBReadiness } from "@/lib/providers/openbb-health";
 import { validationTelemetry } from "@/lib/providers/contracts";
 import { quarantine } from "@/lib/providers/quarantine";
@@ -69,10 +70,14 @@ export async function GET(request: NextRequest) {
 
   const base = providerStatus();
   const configuredOpenBBUrl = process.env.OPENBB_API_URL?.trim() ?? "";
-  const [openBB, gatewaySnapshot, schemaEvidence] = await Promise.all([
+  const [openBB, oracle, gatewaySnapshot, schemaEvidence] = await Promise.all([
     configuredOpenBBUrl
       ? openBBReadiness(configuredOpenBBUrl)
       : Promise.resolve({ ready: false, statusDetail: "Not configured; set OPENBB_API_URL." }),
+    // Cached and short-timeout: this endpoint is polled, and an Always Free
+    // instance that has auto-stopped must not make every poll wait on a TCP
+    // connect that is never going to complete.
+    oracleReadiness(),
     callGateway<GatewayOpsSnapshot>("/api/ops/snapshot", {
       method: "GET",
       timeoutMs: OPS_SNAPSHOT_TIMEOUT_MS,
@@ -172,6 +177,11 @@ export async function GET(request: NextRequest) {
       ...venue,
       latency: latencyStats(`venue:${venue.id}`),
     })),
+    // The analytics plane, reported beside the market-data providers rather
+    // than inside them: it answers a different question (can the desk compute
+    // in-database risk and search its own research) and has no failover story,
+    // so a row in the provider matrix would imply a fallback that is not there.
+    oracle,
     // The readiness overlay is what stops the graph and the matrix disagreeing:
     // OpenBB can be configured (so dispatch will try it) and unreachable (so it
     // will time out and fall through). Both facts travel with the node.
