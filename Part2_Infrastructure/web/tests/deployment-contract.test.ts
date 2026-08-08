@@ -152,3 +152,103 @@ describe("CI keeps its network-free guarantee", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// The deploy pipeline's non-obvious corrections
+// ---------------------------------------------------------------------------
+
+const deployWorkflow = readFileSync(
+  fileURLToPath(new URL(".github/workflows/deploy.yml", root)), "utf8");
+
+describe("continuous deployment keeps the desk alive across a swap", () => {
+  it("lowercases the image path", () => {
+    /**
+     * `github.repository` is `Manutd1234/Developer_Analyst_Infra` — capitals in
+     * both halves. An OCI image reference may not contain them, and GHCR
+     * rejects the push with "invalid reference format", which reads like a
+     * syntax error in the workflow rather than a naming rule.
+     */
+    assert.match(
+      deployWorkflow,
+      /tr '\[:upper:\]' '\[:lower:\]'/,
+      "the image path is no longer lowercased — the push to GHCR will fail",
+    );
+    assert.doesNotMatch(
+      deployWorkflow,
+      /images:\s*\$\{\{\s*env\.REGISTRY\s*\}\}\/\$\{\{\s*github\.repository\s*\}\}/,
+      "github.repository is being used as an image path verbatim",
+    );
+  });
+
+  it("carries the audit volume across the container swap", () => {
+    /**
+     * The DuckDB decision log lives on a named volume. A deploy without `-v`
+     * gives the new container an empty /app/data — and DuckDB degrades to an
+     * unwritable SQLite fallback rather than crashing, so discarding every
+     * recorded decision looks exactly like a successful deploy.
+     */
+    assert.match(deployWorkflow, /-v "\$\{VOLUME\}:\/app\/data"/);
+    assert.match(deployWorkflow, /docker volume create "\$VOLUME"/);
+    // `docker rm` must never take the volume with it.
+    assert.doesNotMatch(deployWorkflow, /docker rm\s+(-v|--volumes)/);
+  });
+
+  it("publishes the port the container actually listens on", () => {
+    const dockerfile = readFileSync(
+      fileURLToPath(new URL("Part2_Infrastructure/docker/gateway.Dockerfile", root)), "utf8");
+    const exposed = /EXPOSE (\d+)/.exec(dockerfile)?.[1];
+    assert.equal(exposed, "8000", "the Dockerfile's EXPOSE moved");
+    assert.match(deployWorkflow, /PORT: "8000"/);
+    assert.match(deployWorkflow, /-p "\$\{PORT\}:8000"/);
+  });
+
+  it("gives the deploy job permission to pull what the build job pushed", () => {
+    // Job permissions do not inherit. Without this the GITHUB_TOKEN sent to the
+    // VM cannot read the package it just published.
+    const deployJob = deployWorkflow.slice(deployWorkflow.indexOf("\n  deploy:"));
+    assert.match(deployJob.slice(0, deployJob.indexOf("steps:")), /packages: read/);
+  });
+
+  it("does not interpolate secrets into the remote command line", () => {
+    // Interpolated secrets are substituted into the command the VM runs, where
+    // they sit in its process list and shell history. `envs:` avoids that.
+    // The remote script body only. The step's own `env:` block that follows it
+    // is where `${{ secrets.* }}` legitimately belongs — that is the mechanism
+    // being asserted, not a violation of it.
+    const start = deployWorkflow.indexOf("script: |");
+    const script = deployWorkflow.slice(start, deployWorkflow.indexOf("\n        env:", start));
+    assert.doesNotMatch(
+      script,
+      /\$\{\{\s*secrets\./,
+      "a secret is being interpolated into the SSH script — pass it through `envs:` instead",
+    );
+    assert.match(deployWorkflow, /envs: IMAGE,REGISTRY/);
+  });
+
+  it("verifies the deploy and can undo it", () => {
+    // A deploy that cannot be verified reports success over a dead desk.
+    assert.match(deployWorkflow, /State\.Health\.Status/);
+    assert.match(deployWorkflow, /Rolling back/);
+    assert.match(deployWorkflow, /start_container "\$PREVIOUS"/);
+  });
+
+  it("allows the gateway its shutdown window", () => {
+    // main.py writes a final gateway_stop risk event and closes the audit log
+    // on SIGTERM; the 10s default risks SIGKILL mid-write and a stranded WAL.
+    assert.match(deployWorkflow, /docker stop --time 20/);
+    const compose = readFileSync(fileURLToPath(new URL("docker-compose.yml", root)), "utf8");
+    assert.match(compose, /stop_grace_period: 20s/, "compose and deploy disagree on the window");
+  });
+
+  it("runs the suite before it ships anything", () => {
+    const build = deployWorkflow.slice(deployWorkflow.indexOf("\n  build:"));
+    assert.match(build.slice(0, build.indexOf("steps:")), /needs: verify/);
+  });
+
+  it("proves reachability from outside the VM", () => {
+    // Healthy on 127.0.0.1 says nothing about whether Vercel can reach it,
+    // which is the only thing that makes the web UI render live data.
+    assert.match(deployWorkflow, /reachable:/);
+    assert.match(deployWorkflow, /security list/i);
+  });
+});

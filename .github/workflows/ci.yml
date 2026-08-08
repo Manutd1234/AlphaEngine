@@ -121,11 +121,14 @@ jobs:
       - name: Are the secrets present?
         id: gate
         run: |
-          if [ -n "${{ secrets.ORACLE_CONN_STRING }}" ] && [ -n "${{ secrets.ORACLE_PASSWORD }}" ]; then
+          # The repository stores these as DB_* — the names the deployment
+          # runbook uses. The app reads ORACLE_*, so they are mapped at the step
+          # below rather than renamed in either place.
+          if [ -n "${{ secrets.DB_CONNECTION_STRING }}" ] && [ -n "${{ secrets.DB_PASSWORD }}" ]; then
             echo "oracle=yes" >> "$GITHUB_OUTPUT"
           else
             echo "oracle=no" >> "$GITHUB_OUTPUT"
-            echo "::notice::Oracle secrets absent — skipping the ADB probe."
+            echo "::notice::DB_CONNECTION_STRING / DB_PASSWORD absent — skipping the ADB probe."
           fi
           if [ -n "${{ secrets.SUPABASE_URL }}" ]; then
             echo "supabase=yes" >> "$GITHUB_OUTPUT"
@@ -145,8 +148,8 @@ jobs:
         if: steps.gate.outputs.oracle == 'yes'
         working-directory: Part2_Infrastructure/web
         env:
-          ORACLE_CONN_STRING: ${{ secrets.ORACLE_CONN_STRING }}
-          ORACLE_PASSWORD: ${{ secrets.ORACLE_PASSWORD }}
+          ORACLE_CONN_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+          ORACLE_PASSWORD: ${{ secrets.DB_PASSWORD }}
           ORACLE_USER: ${{ secrets.ORACLE_USER }}
         run: node scripts/verify-oracle.mjs
 

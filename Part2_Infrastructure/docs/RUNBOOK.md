@@ -204,3 +204,80 @@ timestamp and quietly halves the volatility a backtest measures.
 | Rejection spike | The order ticket's "fat finger" and "rate-limit burst" presets |
 | Provider outage | Systems tab → simulate an outage (self-expiring, bounded) |
 | End-to-end check | `python tools/synthetic_probe.py` — walks book → cost → risk gate → audit |
+
+---
+
+## Continuous deployment to the OCI VM
+
+`.github/workflows/deploy.yml` runs on every push to `main` that touches the
+gateway: suite → build → GHCR → SSH swap → health check → public reachability
+probe. The container runs `--restart unless-stopped`, so it survives a VM
+reboot and the desk is live without anyone opening a terminal.
+
+Only the **gateway** deploys this way. The web workspace and the OpenBB service
+are Vercel projects that deploy themselves from git.
+
+### Repository secrets
+
+| Secret | Used by | Notes |
+|---|---|---|
+| `SSH_HOST` | deploy | The VM's **public** IP. Also probed by the reachability job. |
+| `SSH_USER` | deploy | `opc` on Oracle Linux, `ubuntu` on Ubuntu images. |
+| `SSH_PRIVATE_KEY` | deploy | Whole PEM including the BEGIN/END lines. |
+| `WEB_API_TOKEN` | deploy | **Required.** Must equal `ALPHAENGINE_GATEWAY_TOKEN` in Vercel. |
+| `DB_CONNECTION_STRING` | `ci.yml` live-smoke | Oracle ADB. Not used by the gateway — see below. |
+| `DB_PASSWORD` | `ci.yml` live-smoke | Same. |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | deploy (optional) | Turns the Postgres mirror on. |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_USER_IDS` | deploy (optional) | Notification companion. |
+
+**`DB_*` are not passed to the gateway container.** The gateway is Python and
+has no Oracle client; `ORACLE_*` is read by the Next.js routes on Vercel, which
+is where those values belong. The workflow uses them only for the manual
+live-smoke job, which verifies the database directly.
+
+### Two things the pipeline cannot do for you
+
+**1. Point Vercel at the VM.** In the web project's environment variables:
+
+```
+ALPHAENGINE_GATEWAY_URL   = http://<SSH_HOST>:8000
+ALPHAENGINE_GATEWAY_TOKEN = <the same value as WEB_API_TOKEN>
+```
+
+Use the **public** address. `gatewayState()` in `web/lib/gateway.ts` classifies
+`127.0.0.1`, `10.x`, `192.168.x` and `172.16–31.x` as `loopback` in production
+and refuses them — a serverless function fetching a private address fetches
+nothing, and that failure once read as a gateway outage for a day.
+
+**2. Open the path.** Both layers, or it looks identical to a closed one:
+
+- OCI VCN security list: ingress TCP 22 and 8000.
+- The instance firewall: Oracle Linux images ship restrictive `iptables`.
+  `sudo firewall-cmd --permanent --add-port=8000/tcp && sudo firewall-cmd --reload`
+
+The `reachable` job probes `http://<SSH_HOST>:8000/health` from a GitHub runner
+and fails with this list if it cannot connect, so a half-open path is caught at
+deploy time rather than when someone opens the site.
+
+### On the bearer token travelling in clear
+
+Vercel reaches the gateway over plain HTTP, so `WEB_API_TOKEN` crosses the
+internet unencrypted. It is acceptable for a paper-trading case study — the
+token authorises reads and simulated orders, nothing else — but it is not a
+production posture. Terminating TLS in front of the container (Caddy will
+obtain a certificate automatically given a hostname) and switching
+`ALPHAENGINE_GATEWAY_URL` to `https://` removes it.
+
+### When a deploy fails
+
+The workflow rolls back to the previous image automatically and prints the new
+container's logs. The desk stays on the last good build.
+
+```bash
+docker logs --tail 100 alphaengine_gateway     # why the new image refused to start
+docker inspect --format '{{.Config.Image}}' alphaengine_gateway   # what is running now
+docker volume inspect alphaengine_audit        # the decision log, which survives every swap
+```
+
+Re-run without a code change from Actions → *Deploy gateway to OCI* → *Run
+workflow*.

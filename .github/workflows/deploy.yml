@@ -1,0 +1,345 @@
+# Continuous deployment of the risk gateway to the OCI compute instance.
+#
+# WHAT IS DEPLOYED, AND WHAT IS NOT
+#
+# This deploys ONE of the three units: the FastAPI risk gateway. The web
+# workspace and the OpenBB service are Vercel projects and deploy themselves
+# from git — putting them here would deploy them twice.
+#
+# The gateway is the piece that has to be always-on, and that is the whole
+# point of this file: the web UI's Portfolio, Risk, Execution and Reliability
+# tabs read it through a server-side proxy, and without it running they show
+# "gateway not configured" instead of a live book. Nobody should have to SSH in
+# and `docker compose up` before opening the site.
+#
+#   push to main ──> build ──> ghcr.io ──> ssh ──> pull, swap, verify
+#                                                        └─ roll back on failure
+#
+# ─── FIVE CORRECTIONS TO THE STANDARD PATTERN, each of which breaks it here ───
+#
+#  1. GHCR REQUIRES A LOWERCASE IMAGE PATH. `github.repository` is
+#     `Manutd1234/Developer_Analyst_Infra` — capitals in both halves. Pushing to
+#     `ghcr.io/Manutd1234/Developer_Analyst_Infra` fails with an opaque
+#     "invalid reference format". Lowercased in the `image` step below.
+#
+#  2. THE AUDIT VOLUME MUST SURVIVE THE SWAP. The DuckDB decision log lives on
+#     the named volume `alphaengine_audit`. A deploy that omits `-v` gives the
+#     new container a fresh empty /app/data and silently discards every recorded
+#     decision — and because DuckDB degrades to an unwritable SQLite fallback
+#     rather than crashing, it looks like it worked. See docker-compose.yml's
+#     header for why this is a named volume and not a bind mount.
+#
+#  3. THE CONTAINER LISTENS ON 8000, NOT 8080. Fixed in the Dockerfile's EXPOSE,
+#     HEALTHCHECK and CMD together, and `lib/gateway.ts`'s dev fallback assumes
+#     it. Publishing 80:8080 would bind a port nothing is listening on and every
+#     request would connection-refuse.
+#
+#  4. THE DEPLOY JOB NEEDS `packages: read`. Job permissions do not inherit from
+#     the build job. Without it the GITHUB_TOKEN sent to the VM cannot pull the
+#     image it just pushed.
+#
+#  5. SECRETS GO THROUGH `envs:`, NOT `${{ }}` INSIDE `script:`. Interpolated
+#     secrets are substituted into the remote command line, where they are
+#     visible in the VM's process list and shell history for the life of the
+#     command. `envs:` passes them as environment variables instead.
+#
+# ─── WHAT THIS DOES NOT DO ───────────────────────────────────────────────────
+#
+# It does not touch the Oracle Autonomous Database. The gateway is Python and
+# has no Oracle client; ORACLE_* is read by the Next.js routes on Vercel, which
+# is where those variables belong. `ci.yml`'s live-smoke job verifies the
+# database separately.
+
+name: Deploy gateway to OCI
+
+on:
+  push:
+    branches: ["main"]
+    # Only when something the image actually contains has changed. A web-only
+    # commit rebuilding and redeploying the gateway costs a container restart
+    # and, briefly, the desk.
+    paths:
+      - "Part2_Infrastructure/**"
+      - "!Part2_Infrastructure/web/**"
+      - "!Part2_Infrastructure/OpenBB_Service/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Redeploy the current image without a source change"
+        type: boolean
+        default: false
+
+concurrency:
+  # Never two deploys at once: the second would stop a container the first is
+  # still verifying, and both would report success.
+  group: deploy-gateway
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  CONTAINER: alphaengine_gateway
+  VOLUME: alphaengine_audit
+  PORT: "8000"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Gate: refuse to deploy a build the repository's own suite has not passed.
+  # ---------------------------------------------------------------------------
+  verify:
+    name: Suite passes before anything ships
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Part2_Infrastructure
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: Part2_Infrastructure/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: python -m pytest
+      # The committed OpenAPI snapshot is the contract the web project compiles
+      # against. Deploying a gateway whose schema has drifted from it breaks the
+      # other unit without touching it.
+      - name: API schema is up to date
+        run: python tools/export_openapi.py --check
+      - name: Money-path probe
+        run: python tools/synthetic_probe.py
+
+  build:
+    name: Build and push to GHCR
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.ref }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Correction 1. `${{ github.repository }}` carries the owner's and repo's
+      # original case; an OCI image reference may not.
+      - name: Lowercase the image path
+        id: image
+        run: |
+          ref="${REGISTRY}/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')/gateway"
+          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
+          echo "Image: ${ref}"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image.outputs.ref }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long
+
+      # Context is Part2_Infrastructure, not the repo root: the Dockerfile
+      # copies requirements and modules relative to that directory, and a root
+      # context would also drag the 1.6GB venv and node_modules into the build.
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./Part2_Infrastructure
+          file: ./Part2_Infrastructure/docker/gateway.Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Swap the container on the OCI VM
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read # Correction 4 — job permissions do not inherit.
+    steps:
+      # Fail here, loudly, rather than deploying a gateway the web project
+      # cannot authenticate against. REQUIRE_AUTH=1 below means every portfolio,
+      # order and research call needs this token, and it must equal the web
+      # project's ALPHAENGINE_GATEWAY_TOKEN on Vercel.
+      - name: Required secrets are present
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          WEB_API_TOKEN: ${{ secrets.WEB_API_TOKEN }}
+        run: |
+          missing=()
+          [ -n "$SSH_HOST" ]      || missing+=("SSH_HOST")
+          [ -n "$SSH_USER" ]      || missing+=("SSH_USER")
+          [ -n "$SSH_KEY" ]       || missing+=("SSH_PRIVATE_KEY")
+          [ -n "$WEB_API_TOKEN" ] || missing+=("WEB_API_TOKEN")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing repository secrets: ${missing[*]}"
+            echo "WEB_API_TOKEN must equal ALPHAENGINE_GATEWAY_TOKEN in the Vercel project."
+            echo "Generate one with: openssl rand -hex 32"
+            exit 1
+          fi
+
+      - name: Pull, swap, verify, roll back on failure
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 10m
+          # Correction 5 — passed as environment variables, so none of these
+          # appears in the VM's process list or shell history.
+          envs: IMAGE,REGISTRY,CONTAINER,VOLUME,PORT,GH_ACTOR,GH_TOKEN,WEB_API_TOKEN,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,TELEGRAM_BOT_TOKEN,TELEGRAM_ALLOWED_USER_IDS
+          script_stop: true
+          script: |
+            set -euo pipefail
+
+            echo "==> Logging in to ${REGISTRY}"
+            printf '%s' "$GH_TOKEN" | docker login "$REGISTRY" -u "$GH_ACTOR" --password-stdin
+
+            echo "==> Recording the running image so a failure can be undone"
+            PREVIOUS="$(docker inspect --format '{{.Config.Image}}' "$CONTAINER" 2>/dev/null || true)"
+            echo "    previous: ${PREVIOUS:-<none>}"
+
+            echo "==> Pulling ${IMAGE}"
+            docker pull "$IMAGE"
+
+            # Correction 2 — the audit volume is named and is NOT removed with
+            # the container, so the decision log survives. Creating it up front
+            # makes the first deploy behave like every later one.
+            docker volume create "$VOLUME" >/dev/null
+
+            # 0600, owned by the SSH user, outside the image and outside any
+            # `docker inspect` output. Written fresh each deploy so a rotated
+            # secret takes effect without manual cleanup.
+            echo "==> Writing the runtime environment"
+            ENV_FILE="$HOME/.alphaengine.env"
+            umask 077
+            {
+              echo "ENVIRONMENT=production"
+              echo "REQUIRE_AUTH=1"
+              echo "DATA_DIR=/app/data"
+              echo "DB_PATH=/app/data/alphaengine.duckdb"
+              echo "WEB_API_TOKEN=${WEB_API_TOKEN}"
+              [ -n "${SUPABASE_URL:-}" ]              && echo "SUPABASE_URL=${SUPABASE_URL}"
+              [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ] && echo "SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}"
+              [ -n "${SUPABASE_URL:-}" ]              && echo "SUPABASE_MIRROR_ENABLED=1"
+              [ -n "${TELEGRAM_BOT_TOKEN:-}" ]        && echo "TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}"
+              [ -n "${TELEGRAM_ALLOWED_USER_IDS:-}" ] && echo "TELEGRAM_ALLOWED_USER_IDS=${TELEGRAM_ALLOWED_USER_IDS}"
+            } > "$ENV_FILE"
+
+            start_container() {
+              docker run -d \
+                --name "$CONTAINER" \
+                --restart unless-stopped \
+                --stop-timeout 20 \
+                -p "${PORT}:8000" \
+                --env-file "$ENV_FILE" \
+                -v "${VOLUME}:/app/data" \
+                --log-driver json-file \
+                --log-opt max-size=10m \
+                --log-opt max-file=3 \
+                "$1" >/dev/null
+            }
+
+            echo "==> Stopping the current container"
+            # 20s, not the 10s default: main.py writes a final gateway_stop risk
+            # event and closes the audit log on SIGTERM. SIGKILL mid-write
+            # strands a .duckdb.wal.
+            docker stop --time 20 "$CONTAINER" 2>/dev/null || true
+            docker rm "$CONTAINER" 2>/dev/null || true
+
+            echo "==> Starting ${IMAGE}"
+            start_container "$IMAGE"
+
+            # The image declares its own HEALTHCHECK, so this waits on Docker's
+            # verdict rather than re-implementing one. A deploy that cannot be
+            # verified is worse than no deploy: it reports success and leaves a
+            # dead desk.
+            echo "==> Waiting for the container to report healthy"
+            HEALTHY=false
+            for _ in $(seq 1 30); do
+              STATUS="$(docker inspect --format '{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null || echo starting)"
+              if [ "$STATUS" = "healthy" ]; then HEALTHY=true; break; fi
+              if [ "$STATUS" = "unhealthy" ]; then break; fi
+              sleep 4
+            done
+
+            if [ "$HEALTHY" != true ]; then
+              echo "::error::New container did not become healthy. Recent logs:"
+              docker logs --tail 60 "$CONTAINER" 2>&1 || true
+              docker rm -f "$CONTAINER" 2>/dev/null || true
+              if [ -n "$PREVIOUS" ]; then
+                echo "==> Rolling back to ${PREVIOUS}"
+                start_container "$PREVIOUS"
+                echo "Rolled back. The desk is on the previous image."
+              else
+                echo "::error::No previous image to roll back to — the gateway is down."
+              fi
+              exit 1
+            fi
+
+            echo "==> Healthy. Confirming the port answers"
+            curl -fsS "http://127.0.0.1:${PORT}/health" >/dev/null
+
+            # Always Free instances have a small boot volume, and one image per
+            # push fills it within weeks. Untagged layers only — this never
+            # touches the audit volume.
+            echo "==> Reclaiming space"
+            docker image prune -f --filter "until=168h" >/dev/null || true
+
+            echo "==> Deployed $(docker inspect --format '{{.Config.Image}}' "$CONTAINER")"
+        env:
+          IMAGE: ${{ needs.build.outputs.image }}:sha-${{ github.sha }}
+          REGISTRY: ${{ env.REGISTRY }}
+          CONTAINER: ${{ env.CONTAINER }}
+          VOLUME: ${{ env.VOLUME }}
+          PORT: ${{ env.PORT }}
+          GH_ACTOR: ${{ github.actor }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WEB_API_TOKEN: ${{ secrets.WEB_API_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ALLOWED_USER_IDS: ${{ secrets.TELEGRAM_ALLOWED_USER_IDS }}
+
+  # ---------------------------------------------------------------------------
+  # Prove it from the outside. The deploy job checked 127.0.0.1 from inside the
+  # VM; that says nothing about whether Vercel can reach it, which is the only
+  # thing that makes the web UI work. A green deploy with a closed security list
+  # is the failure this catches.
+  # ---------------------------------------------------------------------------
+  reachable:
+    name: The desk is reachable from the internet
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Public health probe
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          PORT: ${{ env.PORT }}
+        run: |
+          url="http://${SSH_HOST}:${PORT}/health"
+          echo "Probing ${url} from a GitHub runner"
+          if curl -fsS --max-time 15 "$url" >/dev/null; then
+            echo "Reachable. The Vercel workspace will render live gateway data."
+          else
+            echo "::error::The gateway is healthy on the VM but not reachable from outside."
+            echo "Check the OCI VCN security list (ingress TCP ${PORT}) AND the instance"
+            echo "firewall — Oracle images ship restrictive iptables, and opening one"
+            echo "without the other looks exactly like this."
+            exit 1
+          fi
