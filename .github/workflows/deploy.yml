@@ -23,7 +23,9 @@
 #     "invalid reference format". Lowercased in the `image` step below.
 #
 #  2. THE AUDIT VOLUME MUST SURVIVE THE SWAP. The DuckDB decision log lives on
-#     the named volume `alphaengine_audit`. A deploy that omits `-v` gives the
+#     the named volume `alphaengine_alphaengine_audit` — compose prefixes with
+#     its project name, and using the unprefixed name silently mounts an empty
+#     one. A deploy that omits `-v` gives the
 #     new container a fresh empty /app/data and silently discards every recorded
 #     decision — and because DuckDB degrades to an unwritable SQLite fallback
 #     rather than crashing, it looks like it worked. See docker-compose.yml's
@@ -79,7 +81,14 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   CONTAINER: alphaengine_gateway
-  VOLUME: alphaengine_audit
+  # NOT `alphaengine_audit`. docker compose prefixes volumes with the project
+  # name, and docker-compose.yml declares `name: alphaengine` — so the volume it
+  # created, and the one holding the live decision log, is
+  # `alphaengine` + `_` + `alphaengine_audit`. Deploying against the unprefixed
+  # name mounts a DIFFERENT, empty volume: the history is not deleted, it is
+  # orphaned, and the desk comes back with a blank audit trail that looks
+  # exactly like a clean install. Verified on the running VM before this was set.
+  VOLUME: alphaengine_alphaengine_audit
   PORT: "8000"
 
 jobs:

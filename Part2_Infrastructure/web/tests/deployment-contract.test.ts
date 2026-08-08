@@ -189,6 +189,23 @@ describe("continuous deployment keeps the desk alive across a swap", () => {
      */
     assert.match(deployWorkflow, /-v "\$\{VOLUME\}:\/app\/data"/);
     assert.match(deployWorkflow, /docker volume create "\$VOLUME"/);
+    /**
+     * The name must carry compose's project prefix. docker-compose.yml declares
+     * `name: alphaengine` and a volume `alphaengine_audit`, so what exists on
+     * the host is `alphaengine_alphaengine_audit`. Deploying against the
+     * unprefixed name mounts a different, empty volume — the history is
+     * orphaned rather than deleted, and the desk returns with a blank audit
+     * trail indistinguishable from a clean install.
+     */
+    const compose = readFileSync(fileURLToPath(new URL("docker-compose.yml", root)), "utf8");
+    const project = /^name:\s*(\S+)/m.exec(compose)?.[1];
+    const declared = /^volumes:\s*\n\s{2}(\w+):/m.exec(compose)?.[1];
+    assert.ok(project && declared, "compose no longer declares a project name and a volume");
+    assert.match(
+      deployWorkflow,
+      new RegExp(`VOLUME: ${project}_${declared}\\b`),
+      `the deploy must mount ${project}_${declared} — the name compose actually creates`,
+    );
     // `docker rm` must never take the volume with it.
     assert.doesNotMatch(deployWorkflow, /docker rm\s+(-v|--volumes)/);
   });
