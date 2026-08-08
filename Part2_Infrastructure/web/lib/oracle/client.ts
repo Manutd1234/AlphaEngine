@@ -35,6 +35,7 @@ export interface OracleFailure {
     | "oracle_unreachable"
     | "oracle_timeout"
     | "oracle_busy"
+    | "oracle_schema_missing"
     | "oracle_invalid_payload";
   /** Safe to render. Never contains the connect string, host, user or ORA text. */
   error: string;
@@ -98,6 +99,20 @@ function classify(error: unknown): OracleFailure {
     return {
       code: "oracle_busy",
       error: "The database has no session available right now. This usually clears in seconds.",
+      status: 503,
+    };
+  }
+  // Credentials are good, the instance answered, the objects are not there.
+  // Without this the default below reports "could not be reached", which sends
+  // you to the OCI console to check an instance that is running perfectly —
+  // `verify-oracle.mjs` already distinguishes these two and the runtime must
+  // agree with it.
+  if (["00942", "04043", "06550"].includes(ora)) {
+    return {
+      code: "oracle_schema_missing",
+      error:
+        "The database answered, but the AlphaEngine objects do not exist. Apply "
+        + "oracle/01_schema.sql and oracle/02_monte_carlo.sql to this database.",
       status: 503,
     };
   }

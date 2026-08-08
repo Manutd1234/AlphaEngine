@@ -244,6 +244,23 @@ describe("the client is configuration-safe by default", () => {
     assert.match(appUserSql, /GRANT EXECUTE ON run_monte_carlo_portfolio/i);
   });
 
+  it("a missing schema is not reported as an unreachable database", () => {
+    /**
+     * ORA-00942 means the credentials worked, the instance answered, and the
+     * objects are simply not there. Falling through to "could not be reached"
+     * sends an operator to the OCI console to check an instance that is running
+     * perfectly. `verify-oracle.mjs` already draws this distinction; the
+     * runtime classifier has to agree with it or the two tools disagree about
+     * the same database.
+     */
+    const client = readFileSync(
+      fileURLToPath(new URL("../lib/oracle/client.ts", import.meta.url)), "utf8");
+    assert.match(client, /"00942"/, "table-not-found is no longer classified");
+    assert.match(client, /oracle_schema_missing/);
+    assert.match(client, /oracle\/01_schema\.sql/,
+      "the message should name the file that fixes it");
+  });
+
   it("no failure message can leak connection material", () => {
     const failure = notConfigured("Research search");
     for (const secret of ["tcps://", "adb.", "oraclecloud", "password="]) {
