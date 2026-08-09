@@ -1,0 +1,78 @@
+# Keep the Always Free Autonomous Database awake.
+#
+# WHY THIS IS A JOB AND NOT A SETTING
+#
+# There is no "do not auto-stop" switch on an Always Free ADB. The instance
+# stops itself after 7 consecutive days without a connection and is reclaimed
+# after ~90, and the only thing that resets that timer is a session. So the
+# mechanism is simply to connect, on a schedule, forever.
+#
+# WHY IT IS NOT PART OF ci.yml
+#
+# `ci.yml`'s header states the rule this obeys: a red build must mean the code
+# broke, never that a service was slow or asleep. A keepalive is the opposite —
+# it is *only* ever reporting on a service. Failing here notifies whoever owns
+# the database without ever blocking a merge or a deploy.
+#
+# WHAT A RED RUN MEANS
+#
+# The database is configured and did not answer. Most often it has already
+# stopped, in which case the job's own output says so and names the one place
+# it can be restarted. Restarting it is the only manual step; from then on this
+# keeps it up.
+
+name: Keep Oracle ADB awake
+
+on:
+  schedule:
+    # Daily, well inside the 7-day idle window, so six consecutive failures can
+    # go unnoticed and the instance still survives. 02:17 rather than the hour:
+    # scheduled runs queue behind the top-of-hour surge and can be delayed by
+    # tens of minutes, and there is no reason to join it.
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  # A run that overlaps its predecessor tells you nothing new and holds a second
+  # session open on an instance whose session count is the free tier's tightest
+  # limit.
+  group: oracle-keepalive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    name: Connect once, reset the idle timer
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Part2_Infrastructure
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Thin mode: pure Python wire protocol, so no Instant Client download and
+      # no LD_LIBRARY_PATH. Also the same mode the web routes use, which means
+      # a pass here proves their path and not merely the network.
+      - run: pip install oracledb
+
+      - name: Secrets present?
+        id: gate
+        run: |
+          if [ -n "${{ secrets.DB_CONNECTION_STRING }}" ] && [ -n "${{ secrets.DB_PASSWORD }}" ]; then
+            echo "ready=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=no" >> "$GITHUB_OUTPUT"
+            echo "::notice::DB_CONNECTION_STRING / DB_PASSWORD absent — nothing to keep awake."
+          fi
+
+      - name: Ping
+        if: steps.gate.outputs.ready == 'yes'
+        env:
+          # The repository stores these under DB_*; the app reads ORACLE_*.
+          # Mapped here rather than renamed on either side.
+          ORACLE_CONN_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+          ORACLE_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          ORACLE_USER: ${{ secrets.ORACLE_USER }}
+        run: python tools/oracle_keepalive.py
