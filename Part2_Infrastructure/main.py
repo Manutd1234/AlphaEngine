@@ -24,6 +24,8 @@ import asyncio
 import contextlib
 import hmac
 import logging
+import time
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -39,7 +41,7 @@ from fastapi import (
     WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -434,6 +436,74 @@ async def replace_order(
 @app.get("/api/risk/state", response_model=RiskState, tags=["B · Risk"])
 async def risk_state(_actor: str = Depends(trader_identity)) -> RiskState:
     return get_gateway().state()
+
+
+@app.get("/api/stream/desk", tags=["B · Risk"])
+async def stream_desk(_actor: str = Depends(trader_identity)) -> StreamingResponse:
+    """Server-sent events: the risk state, pushed when it changes.
+
+    The desk's equity, drawdown and kill-switch status were reaching the browser
+    by polling every 4–15 seconds against a book the gateway re-marks every
+    second. Most of those requests returned a number the client already had, and
+    the ones that mattered arrived late.
+
+    **Emits on change, not on a timer.** A tick whose payload is identical to
+    the last one sends nothing, so an idle desk costs one heartbeat every 15s
+    rather than a full state payload every second. The comparison is on the
+    serialised body, which is exactly what a client would have to diff anyway.
+
+    **Every event carries a monotonic `seq`.** Same reasoning as
+    `/api/system/events`: a reconnecting client can tell "nothing happened while
+    I was gone" from "I missed something", and a UI that cannot tell those apart
+    will eventually show a stale number as if it were live. SSE's own
+    `Last-Event-ID` carries it back automatically on reconnect.
+
+    **Heartbeats are SSE comments** (`: ping`), which every EventSource
+    implementation discards silently. They exist so an idle connection is not
+    reaped by an intermediary that cannot tell a healthy quiet stream from a
+    dead one.
+
+    Not consumed by the browser directly — the page is HTTPS and this gateway is
+    plain HTTP, which no browser will mix. `web/app/api/stream/desk` proxies it.
+    """
+    gateway = get_gateway()
+
+    async def emit() -> AsyncIterator[str]:
+        seq = 0
+        last_body: str | None = None
+        last_beat = time.monotonic()
+        # Matches the mark-to-market cadence. Polling this faster cannot produce
+        # a newer number, it can only re-send the same one.
+        interval = max(0.1, settings.risk_monitor_interval_s)
+        try:
+            while True:
+                body = gateway.state().model_dump_json()
+                now = time.monotonic()
+                if body != last_body:
+                    seq += 1
+                    last_body = body
+                    last_beat = now
+                    yield f"id: {seq}\nevent: risk\ndata: {body}\n\n"
+                elif now - last_beat >= 15.0:
+                    last_beat = now
+                    yield ": ping\n\n"
+                await asyncio.sleep(interval)
+        except asyncio.CancelledError:
+            # The client went away. Nothing to clean up — no subscription, no
+            # buffer — but swallow it so a disconnect is not logged as an error.
+            raise
+
+    return StreamingResponse(
+        emit(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            # Long-lived streams are the one thing nginx-style proxies buffer by
+            # default, which turns a push into a batch delivered at close.
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 @app.get("/api/portfolio", tags=["B · Risk"])
