@@ -30,17 +30,26 @@ Part2_Infrastructure/web/.turbo
 # slim the web project's upload starved the OpenBB project's own git build —
 # "No FastAPI entrypoint found", because its entrypoint had been ignored out of
 # its build context. Only paths that NO project reads may be listed.
-Part1_Data_Handling
+#
+# EVERY PATTERN HERE IS ROOT-ANCHORED (a leading `/`). Without it, gitignore
+# syntax matches at ANY depth — `oracle` (no slash) silently matched not only
+# the top-level `oracle/` SQL directory but also `web/lib/oracle/` and
+# `web/app/api/oracle/`, deleting two live API routes from the Vercel build
+# with no error until something else happened to import the one that broke.
+# `web/lib/oracle/health.ts` was the only reason it surfaced as a build error
+# at all; the routes themselves would have vanished into silent 404s. An
+# anchor only ever *narrows* what a pattern drops, so this is a pure fix.
+/Part1_Data_Handling
 Part2_Infrastructure/data
 Part2_Infrastructure/tests
 Part2_Infrastructure/notebooks
 Part2_Infrastructure/templates
 Part2_Infrastructure/modules
 Part2_Infrastructure/docker
-docker-compose.yml
-supabase
-oracle
-.github
+/docker-compose.yml
+/supabase
+/oracle
+/.github
 
 # ── local state, links and secrets ───────────────────────────────────────────
 .vercel

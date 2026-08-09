@@ -9,16 +9,22 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const root = new URL("../../../", import.meta.url);
+const rootPath = fileURLToPath(root);
 const vercelignore = readFileSync(fileURLToPath(new URL(".vercelignore", root)), "utf8");
 const compose = readFileSync(fileURLToPath(new URL("docker-compose.yml", root)), "utf8");
 
 describe("vercel upload scope excludes the non-web deployment trees", () => {
-  for (const entry of ["Part2_Infrastructure/docker", "docker-compose.yml", "supabase"]) {
+  // Root-anchored (`/oracle`, not `oracle`) is the point of this list, not
+  // incidental — see the collision test below for why.
+  for (const entry of ["Part2_Infrastructure/docker", "/docker-compose.yml", "/supabase"]) {
     it(`drops ${entry}`, () => {
       assert.ok(
         vercelignore.split("\n").some((line) => line.trim() === entry),
@@ -26,6 +32,69 @@ describe("vercel upload scope excludes the non-web deployment trees", () => {
       );
     });
   }
+});
+
+describe("no .vercelignore pattern can ever drop a path the web project needs", () => {
+  /**
+   * This is the test the actual incident needed and nothing before it caught.
+   * `oracle` (no leading slash) was gitignore-legal, present, and reviewed —
+   * it just matches at ANY depth, so it silently deleted `web/lib/oracle/`
+   * and `web/app/api/oracle/` from every Vercel build alongside the intended
+   * top-level `oracle/` SQL directory. A literal-string test on the drop-list
+   * (above) cannot catch this, because the dangerous line reads exactly like
+   * a correct one; it has to actually be evaluated as gitignore syntax
+   * against the real tree, which is what this does.
+   *
+   * `git check-ignore` only ever consults a real `.gitignore` in a real
+   * working tree — there is no way to hand it an arbitrary file and ask "does
+   * this match that". So the check runs the pattern set in a throwaway repo,
+   * against every path this project actually ships.
+   */
+  it("every tracked path under Part2_Infrastructure/web/ survives the drop-list", () => {
+    const tracked = execFileSync("git", ["ls-files", "Part2_Infrastructure/web"], {
+      cwd: rootPath,
+      encoding: "utf8",
+    }).trim().split("\n").filter(Boolean);
+    assert.ok(tracked.length > 100, "git ls-files returned suspiciously few web paths — is this running from the repo?");
+
+    const scratch = mkdtempSync(path.join(tmpdir(), "vercelignore-collision-"));
+    try {
+      execFileSync("git", ["init", "-q", scratch]);
+      writeFileSync(path.join(scratch, ".gitignore"), vercelignore);
+      for (const rel of tracked) {
+        const full = path.join(scratch, rel);
+        mkdirSync(path.dirname(full), { recursive: true });
+        writeFileSync(full, "");
+      }
+
+      // Exit 1 with empty stdout means nothing matched — the passing case.
+      // Exit 0 means at least one path was dropped; its name is on stdout.
+      let matched = "";
+      try {
+        matched = execFileSync("git", ["check-ignore", "--stdin"], {
+          cwd: scratch,
+          input: tracked.join("\n"),
+          encoding: "utf8",
+        });
+      } catch (error) {
+        const failure = error as { status?: number; stdout?: string };
+        if (failure.status !== 1) {
+          matched = failure.stdout ?? "";
+          if (!matched) throw error;
+        }
+      }
+
+      const dropped = matched.split("\n").map((line) => line.trim()).filter(Boolean);
+      assert.deepEqual(
+        dropped,
+        [],
+        `.vercelignore silently drops path(s) the web project ships: ${dropped.join(", ")} — `
+          + "add a leading `/` to whichever pattern matched, so it only fires at the repo root",
+      );
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("the compose file and the web proxy agree on the gateway port", () => {
