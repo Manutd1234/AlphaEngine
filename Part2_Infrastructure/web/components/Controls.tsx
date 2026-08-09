@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { paramGrid } from "@/lib/engine";
+import { RESEARCH_SYMBOLS } from "@/lib/research-symbols";
 import {
   INTERVALS,
   MAX_COMBOS,
@@ -12,11 +13,6 @@ import {
   SweepRequest,
 } from "@/lib/types";
 
-const SYMBOLS = [
-  "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT",
-  "DOGEUSDT", "AVAXUSDT", "LINKUSDT", "DOTUSDT", "LTCUSDT", "TRXUSDT",
-  "AAPL", "NVDA", "MSFT",
-];
 
 function Slider({
   label,
@@ -218,7 +214,12 @@ export default function Controls({
               spellCheck={false}
             />
             <datalist id="research-symbols">
-              {SYMBOLS.map((s) => <option key={s} value={s} />)}
+              {/* The issuer and sector ride along as the option label: a roster
+                  of 30 tickers is only navigable if a reader can tell AVGO
+                  from AVAX without leaving the field. */}
+              {RESEARCH_SYMBOLS.map((s) => (
+                <option key={s.symbol} value={s.symbol}>{`${s.name} · ${s.sector}`}</option>
+              ))}
             </datalist>
           </div>
           <div>
