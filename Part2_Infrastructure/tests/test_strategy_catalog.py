@@ -48,6 +48,7 @@ CATALOGUE = [
     "price_channel", "ema_slope",
     "bollinger_breakout", "zscore_reversion",
     "atr_breakout", "keltner_breakout", "supertrend", "atr_trailing_stop",
+    "obv_trend", "volume_breakout", "mfi_reversion",
 ]
 
 
@@ -63,12 +64,19 @@ def bars() -> pd.DataFrame:
     trend = 100 * np.cumprod(1 + rng.normal(0.0015, 0.012, 400))
     flat = trend[-1] * np.cumprod(1 + rng.normal(0.0, 0.010, 400))
     close = pd.Series(np.concatenate([trend, flat]))
+    # Volume VARIES, and must. A constant series makes every volume-confirmation
+    # model untestable by construction — `volume > mean(volume)` is never true,
+    # so the strategy reports as never trading when the fixture is what never
+    # moved. Lognormal with a mild correlation to the size of the price move,
+    # which is the one property these models actually read.
+    moves = np.abs(np.concatenate([[0.0], np.diff(close.to_numpy()) / close.to_numpy()[:-1]]))
+    volume = np.exp(rng.normal(0, 0.4, len(close))) * (1 + 8 * moves) * 1_000
     return pd.DataFrame({
         "open": close,
         "close": close,
         "high": close * 1.006,
         "low": close * 0.994,
-        "volume": pd.Series(np.ones(len(close))),
+        "volume": pd.Series(volume),
     })
 
 

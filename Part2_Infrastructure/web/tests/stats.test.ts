@@ -192,13 +192,15 @@ describe("engine invariants", () => {
     const c = Float64Array.from(bars.map((b) => b.c));
     const h = Float64Array.from(bars.map((b) => b.h));
     const l = Float64Array.from(bars.map((b) => b.l));
-    const full = buildPosition("ma_cross", bars, c, h, l, 10, 40, "long_only");
+    const v = Float64Array.from(bars.map((b) => b.v));
+    const full = buildPosition("ma_cross", bars, c, h, l, v, 10, 40, "long_only");
     const head = buildPosition(
       "ma_cross",
       bars.slice(0, 800),
       c.slice(0, 800),
       h.slice(0, 800),
       l.slice(0, 800),
+      v.slice(0, 800),
       10,
       40,
       "long_only",

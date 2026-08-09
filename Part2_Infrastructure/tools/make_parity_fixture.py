@@ -54,6 +54,9 @@ CASES = [
     ("ETHUSDT", "4h", "keltner_breakout", "long_only"),
     ("BTCUSDT", "1h", "supertrend", "long_only"),
     ("ETHUSDT", "1d", "atr_trailing_stop", "long_only"),
+    ("BTCUSDT", "4h", "obv_trend", "long_only"),
+    ("ETHUSDT", "4h", "volume_breakout", "long_only"),
+    ("BTCUSDT", "1h", "mfi_reversion", "long_only"),
 ]
 COMBOS = [(5, 20), (10, 50), (20, 100), (35, 180)]
 #: The second axis is a standard-deviation multiple for these, not a period.

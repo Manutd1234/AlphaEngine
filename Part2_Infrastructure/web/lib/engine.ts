@@ -104,6 +104,7 @@ function longState(
   close: Float64Array,
   high: Float64Array,
   low: Float64Array,
+  volume: Float64Array,
   fast: number,
   slow: number,
 ): Uint8Array {
@@ -295,6 +296,67 @@ function longState(
     return out;
   }
 
+  if (strategy === "obv_trend") {
+    // On-balance volume: cumulative volume signed by direction. It answers
+    // whether a price move carried participation, which price alone cannot say.
+    const obv = new Float64Array(n);
+    let acc = 0;
+    for (let i = 1; i < n; i++) {
+      acc += Math.sign(close[i] - close[i - 1]) * volume[i];
+      obv[i] = acc;
+    }
+    const obvMa = sma(obv, Math.max(2, fast));
+    for (let i = 0; i < n; i++) out[i] = obv[i] > obvMa[i] ? 1 : 0;
+    return out;
+  }
+
+  if (strategy === "volume_breakout") {
+    // A breakout only counts if volume confirms it — breakouts on thin
+    // participation are the ones that fail.
+    const upper = shift1(rollingMax(close, fast));
+    const volMa = sma(volume, Math.max(2, slow));
+    const trend = sma(close, fast);
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      if (!Number.isNaN(upper[i]) && !Number.isNaN(volMa[i]) && close[i] > upper[i] && volume[i] > volMa[i]) {
+        state = 1;
+      }
+      if (!Number.isNaN(trend[i]) && close[i] < trend[i]) state = 0; // exit overrides
+      out[i] = state;
+    }
+    return out;
+  }
+
+  if (strategy === "mfi_reversion") {
+    // Money-flow index: RSI weighted by dollar volume, so a move on heavy
+    // participation counts for more than the same move on none.
+    const period = Math.max(2, fast);
+    const typical = new Float64Array(n);
+    for (let i = 0; i < n; i++) typical[i] = (high[i] + low[i] + close[i]) / 3;
+    const pos = new Float64Array(n);
+    const neg = new Float64Array(n);
+    for (let i = 1; i < n; i++) {
+      const flow = typical[i] * volume[i];
+      if (typical[i] > typical[i - 1]) pos[i] = flow;
+      else if (typical[i] < typical[i - 1]) neg[i] = flow;
+    }
+    const exitMa = sma(close, slow);
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      if (i < period) { out[i] = 0; continue; }
+      let p = 0;
+      let g = 0;
+      for (let j = i - period + 1; j <= i; j++) { p += pos[j]; g += neg[j]; }
+      const mfi = g > 0 ? 100 - 100 / (1 + p / g) : NaN;
+      if (!Number.isNaN(mfi) && mfi < 20) state = 1;
+      if ((!Number.isNaN(mfi) && mfi > 80) || (!Number.isNaN(exitMa[i]) && close[i] < exitMa[i])) {
+        state = 0; // exit overrides
+      }
+      out[i] = state;
+    }
+    return out;
+  }
+
   if (strategy === "atr_breakout") {
     // Volatility-aware: a move only signals if it is large relative to how much
     // this instrument has been moving. A fixed percentage says the same thing
@@ -415,6 +477,7 @@ export function buildPosition(
   close: Float64Array,
   high: Float64Array,
   low: Float64Array,
+  volume: Float64Array,
   fast: number,
   slow: number,
   direction: Direction,
@@ -422,7 +485,7 @@ export function buildPosition(
   const n = close.length;
   const pos = new Float64Array(n);
   const flat = direction === "long_short" ? -1 : 0;
-  const isLong = longState(strategy, close, high, low, fast, slow);
+  const isLong = longState(strategy, close, high, low, volume, fast, slow);
 
   let state = 0;
   let prevLong = 0;
@@ -499,6 +562,7 @@ export function runCombo(
   close: Float64Array,
   high: Float64Array,
   low: Float64Array,
+  volume: Float64Array,
   pxRet: Float64Array,
   req: ComboRequest,
   fast: number,
@@ -514,7 +578,7 @@ export function runCombo(
   const chargesHolding = model.fundingBpsPer8h !== 0 || model.borrowBpsAnnual !== 0;
   const ann = barsPerYear(req.interval);
 
-  const pos = buildPosition(req.strategy, bars, close, high, low, fast, slow, req.direction);
+  const pos = buildPosition(req.strategy, bars, close, high, low, volume, fast, slow, req.direction);
 
   const returns = new Float64Array(n);
   const equity = new Float64Array(n);
@@ -675,12 +739,17 @@ function columns(bars: Bar[]) {
   const close = new Float64Array(n);
   const high = new Float64Array(n);
   const low = new Float64Array(n);
+  // Volume was carried on the Bar and dropped here. The volume-confirmation
+  // family needs it, and a strategy silently reading zeros would look like a
+  // model that never confirms rather than one that was never given the data.
+  const volume = new Float64Array(n);
   for (let i = 0; i < n; i++) {
     close[i] = bars[i].c;
     high[i] = bars[i].h;
     low[i] = bars[i].l;
+    volume[i] = bars[i].v;
   }
-  return { close, high, low, pxRet: pctChange(close) };
+  return { close, high, low, volume, pxRet: pctChange(close) };
 }
 
 // --------------------------------------------------------------------------- //
@@ -716,7 +785,7 @@ export function walkForward(
     let bestIs = combos[0];
     let bestSharpe = -Infinity;
     for (const [f, s] of combos) {
-      const { result } = runCombo(train, tr.close, tr.high, tr.low, tr.pxRet, req, f, s, adv);
+      const { result } = runCombo(train, tr.close, tr.high, tr.low, tr.volume, tr.pxRet, req, f, s, adv);
       if (result.sharpe > bestSharpe) {
         bestSharpe = result.sharpe;
         bestIs = [f, s];
@@ -727,12 +796,12 @@ export function walkForward(
     // cannot separate "this choice was right" from "this fold was easy for
     // everything". The winner's rank among its peers can.
     const te = columns(test);
-    const oos = runCombo(test, te.close, te.high, te.low, te.pxRet, req, bestIs[0], bestIs[1], adv);
+    const oos = runCombo(test, te.close, te.high, te.low, te.volume, te.pxRet, req, bestIs[0], bestIs[1], adv);
     for (let k = 0; k < oos.returns.length; k++) oosReturns.push(oos.returns[k]);
 
     const oosSharpes = combos.map(([f, s2]) => ({
       combo: [f, s2] as [number, number],
-      sharpe: runCombo(test, te.close, te.high, te.low, te.pxRet, req, f, s2, adv).result.sharpe,
+      sharpe: runCombo(test, te.close, te.high, te.low, te.volume, te.pxRet, req, f, s2, adv).result.sharpe,
     }));
     oosSharpes.sort((a, b) => b.sharpe - a.sharpe);
     const rankIndex = oosSharpes.findIndex((e) => e.combo[0] === bestIs[0] && e.combo[1] === bestIs[1]);
@@ -774,7 +843,7 @@ export function runSweep(
   if (!combos.length) throw new Error("Empty parameter grid — fast must be less than slow.");
   if (bars.length < 200) throw new Error(`Not enough data: ${bars.length} bars.`);
 
-  const { close, high, low, pxRet } = columns(bars);
+  const { close, high, low, volume, pxRet } = columns(bars);
   const ann = barsPerYear(req.interval);
 
   // Sized once on the whole series and reused for every combination and every
@@ -784,7 +853,7 @@ export function runSweep(
   const adv = averageDailyVolume(bars, req.interval);
 
   const runs: ComboRun[] = combos.map(([f, s]) =>
-    runCombo(bars, close, high, low, pxRet, req, f, s, adv),
+    runCombo(bars, close, high, low, volume, pxRet, req, f, s, adv),
   );
   const results = runs.map((r) => r.result);
 

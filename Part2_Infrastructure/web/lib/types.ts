@@ -23,7 +23,10 @@ export type Strategy =
   | "atr_breakout"
   | "keltner_breakout"
   | "supertrend"
-  | "atr_trailing_stop";
+  | "atr_trailing_stop"
+  | "obv_trend"
+  | "volume_breakout"
+  | "mfi_reversion";
 
 /**
  * Families, for grouping the picker.
@@ -35,7 +38,7 @@ export type Strategy =
  * held back until the request carries named parameters, because encoding a
  * 1.5x multiplier as the integer 15 makes a slider that lies about its units.
  */
-export type StrategyFamily = "Trend" | "Breakout" | "Mean reversion" | "Momentum";
+export type StrategyFamily = "Trend" | "Breakout" | "Mean reversion" | "Momentum" | "Volume";
 
 export const STRATEGY_FAMILY: Record<Strategy, StrategyFamily> = {
   ma_cross: "Trend",
@@ -61,6 +64,9 @@ export const STRATEGY_FAMILY: Record<Strategy, StrategyFamily> = {
   keltner_breakout: "Breakout",
   supertrend: "Trend",
   atr_trailing_stop: "Trend",
+  obv_trend: "Volume",
+  volume_breakout: "Volume",
+  mfi_reversion: "Volume",
 };
 export type Direction = "long_only" | "long_short";
 
@@ -477,6 +483,9 @@ export const STRATEGY_LABELS: Record<Strategy, string> = {
   keltner_breakout: "Keltner channel breakout",
   supertrend: "Supertrend",
   atr_trailing_stop: "ATR trailing stop (chandelier)",
+  obv_trend: "On-balance volume trend",
+  volume_breakout: "Volume-confirmed breakout",
+  mfi_reversion: "Money-flow index reversion",
 };
 
 /** What `fast` and `slow` actually mean for each model — shown in the UI so the
@@ -505,6 +514,9 @@ export const PARAM_MEANING: Record<Strategy, { fast: string; slow: string }> = {
   keltner_breakout: { fast: "EMA & ATR period", slow: "Channel width (ATRs)" },
   supertrend: { fast: "ATR period", slow: "Band distance (ATRs)" },
   atr_trailing_stop: { fast: "ATR & trend period", slow: "Stop distance (ATRs)" },
+  obv_trend: { fast: "OBV smoothing period", slow: "Unused (kept for grid shape)" },
+  volume_breakout: { fast: "Breakout lookback", slow: "Volume average period" },
+  mfi_reversion: { fast: "MFI period", slow: "Exit SMA period" },
 };
 
 /**
@@ -541,6 +553,9 @@ export const CHART_SERIES: Record<Strategy, { fast: string | null; slow: string 
   keltner_breakout: { fast: "Upper channel", slow: "Channel mid" },
   supertrend: { fast: "Upper band", slow: "Lower band" },
   atr_trailing_stop: { fast: "Trailing stop", slow: "Trend SMA" },
+  obv_trend: { fast: null, slow: "OBV average" },
+  volume_breakout: { fast: "Breakout high", slow: "Trend SMA" },
+  mfi_reversion: { fast: null, slow: "Exit SMA" },
 };
 
 export const BARS_PER_YEAR: Record<string, number> = {

@@ -371,6 +371,37 @@ def build_signals(strategy: str, df: pd.DataFrame, fast: int, slow: int) -> tupl
         raw[close >= upper] = 1.0
         raw[close <= lower] = 0.0
         long = raw.ffill().fillna(0.0) > 0
+    elif strategy == "obv_trend":
+        # On-balance volume: cumulative volume signed by the day's direction.
+        # It answers whether a price move carried participation behind it, which
+        # a price-only trend model cannot see.
+        direction = np.sign(close.diff().fillna(0.0))
+        obv = (direction * df["volume"]).cumsum()
+        long = obv > obv.rolling(max(2, fast)).mean()
+    elif strategy == "volume_breakout":
+        # A breakout only counts if volume confirms it. Breakouts on thin
+        # participation are the ones that fail, and this is the cheapest
+        # available filter for that.
+        upper = close.rolling(fast).max().shift(1)
+        vol_ma = df["volume"].rolling(max(2, slow)).mean()
+        raw = pd.Series(np.nan, index=close.index)
+        raw[(close > upper) & (df["volume"] > vol_ma)] = 1.0
+        raw[close < close.rolling(fast).mean()] = 0.0
+        long = raw.ffill().fillna(0.0) > 0
+    elif strategy == "mfi_reversion":
+        # Money-flow index: RSI weighted by dollar volume, so a move on heavy
+        # participation counts for more than the same move on none.
+        typical = (df["high"] + df["low"] + close) / 3.0
+        flow = typical * df["volume"]
+        delta = typical.diff()
+        positive = flow.where(delta > 0, 0.0).rolling(max(2, fast)).sum()
+        negative = flow.where(delta < 0, 0.0).rolling(max(2, fast)).sum()
+        mfi = 100 - 100 / (1 + positive / negative.replace(0, np.nan))
+        exit_ma = close.rolling(slow).mean()
+        raw = pd.Series(np.nan, index=close.index)
+        raw[mfi < 20] = 1.0
+        raw[(mfi > 80) | (close < exit_ma)] = 0.0
+        long = raw.ffill().fillna(0.0) > 0
     elif strategy == "atr_breakout":
         # Volatility-aware breakout: a move is only a signal if it is large
         # relative to how much this instrument has been moving lately. A fixed

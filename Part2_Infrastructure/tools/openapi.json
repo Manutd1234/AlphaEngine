@@ -177,7 +177,10 @@
               "atr_breakout",
               "keltner_breakout",
               "supertrend",
-              "atr_trailing_stop"
+              "atr_trailing_stop",
+              "obv_trend",
+              "volume_breakout",
+              "mfi_reversion"
             ],
             "title": "Strategy",
             "type": "string"

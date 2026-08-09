@@ -60,14 +60,16 @@ function columns(bars: Bar[]) {
   const close = new Float64Array(n);
   const high = new Float64Array(n);
   const low = new Float64Array(n);
+  const volume = new Float64Array(n);
   const pxRet = new Float64Array(n);
   for (let i = 0; i < n; i++) {
     close[i] = bars[i].c;
     high[i] = bars[i].h;
     low[i] = bars[i].l;
+    volume[i] = bars[i].v;
   }
   for (let i = 1; i < n; i++) pxRet[i] = close[i - 1] !== 0 ? close[i] / close[i - 1] - 1 : 0;
-  return { close, high, low, pxRet };
+  return { close, high, low, volume, pxRet };
 }
 
 /** Relative closeness, with an absolute floor so near-zero values don't blow up. */
@@ -87,12 +89,12 @@ describe("TypeScript engine reproduces the Python reference", () => {
     // runs the Python path, long after the TypeScript one was reviewed.
     const strategies = new Set(fixture.cases.map((c) => c.strategy));
     assert.deepEqual([...strategies].sort(), [
-      "atr_breakout", "atr_trailing_stop", "bollinger_breakout", "breakout_sma",
-      "donchian", "donchian_mid",
-      "ema_cross", "ema_slope", "keltner_breakout",
-      "ma_cross", "macd_cross", "momentum", "ppo_cross", "price_channel",
-      "roc_trend", "rsi_reversion", "rsi_trend", "stochastic",
-      "supertrend", "triple_ma", "trix_cross", "williams_r", "zscore_reversion",
+      "atr_breakout", "atr_trailing_stop", "bollinger_breakout",
+      "breakout_sma", "donchian", "donchian_mid", "ema_cross", "ema_slope",
+      "keltner_breakout", "ma_cross", "macd_cross", "mfi_reversion",
+      "momentum", "obv_trend", "ppo_cross", "price_channel", "roc_trend",
+      "rsi_reversion", "rsi_trend", "stochastic", "supertrend", "triple_ma",
+      "trix_cross", "volume_breakout", "williams_r", "zscore_reversion"
     ]);
     assert.ok(fixture.cases.some((c) => c.direction === "long_short"));
     for (const c of fixture.cases) {
@@ -119,6 +121,7 @@ describe("TypeScript engine reproduces the Python reference", () => {
             cols.close,
             cols.high,
             cols.low,
+            cols.volume,
             cols.pxRet,
             req,
             exp.fast,

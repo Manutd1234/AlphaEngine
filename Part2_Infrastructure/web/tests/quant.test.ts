@@ -79,14 +79,16 @@ describe("the cost model is inert until a researcher switches it on", () => {
     const c = new Float64Array(n);
     const h = new Float64Array(n);
     const l = new Float64Array(n);
+    const v = new Float64Array(n);
     const r = new Float64Array(n);
     for (let i = 0; i < n; i++) {
       c[i] = bars[i].c;
       h[i] = bars[i].h;
       l[i] = bars[i].l;
+      v[i] = bars[i].v;
     }
     for (let i = 1; i < n; i++) r[i] = c[i - 1] !== 0 ? c[i] / c[i - 1] - 1 : 0;
-    return { close: c, high: h, low: l, pxRet: r };
+    return { close: c, high: h, low: l, volume: v, pxRet: r };
   })();
 
   const base = {
@@ -113,9 +115,9 @@ describe("the cost model is inert until a researcher switches it on", () => {
   });
 
   it("a request that omits the friction group reproduces the bare request exactly", () => {
-    const bare = runCombo(bars, cols.close, cols.high, cols.low, cols.pxRet, base, 10, 40);
+    const bare = runCombo(bars, cols.close, cols.high, cols.low, cols.volume, cols.pxRet, base, 10, 40);
     const explicit = runCombo(
-      bars, cols.close, cols.high, cols.low, cols.pxRet,
+      bars, cols.close, cols.high, cols.low, cols.volume, cols.pxRet,
       { ...base, impactCoefficient: 0, orderNotional: 0, fundingBpsPer8h: 0, borrowBpsAnnual: 0 },
       10, 40,
       averageDailyVolume(bars, "4h"),
@@ -127,9 +129,9 @@ describe("the cost model is inert until a researcher switches it on", () => {
   });
 
   it("a non-zero friction actually changes the answer, so the switch is real", () => {
-    const bare = runCombo(bars, cols.close, cols.high, cols.low, cols.pxRet, base, 10, 40);
+    const bare = runCombo(bars, cols.close, cols.high, cols.low, cols.volume, cols.pxRet, base, 10, 40);
     const charged = runCombo(
-      bars, cols.close, cols.high, cols.low, cols.pxRet,
+      bars, cols.close, cols.high, cols.low, cols.volume, cols.pxRet,
       { ...base, fundingBpsPer8h: 3 },
       10, 40,
     );

@@ -108,7 +108,8 @@ describe("chart overlay matches the model that was actually traded", () => {
     const low = Float64Array.from(bars.map((b) => b.l));
     for (const strategy of ["ma_cross", "donchian", "rsi_reversion"] as Strategy[]) {
       const out = runFor(strategy);
-      const pos = buildPosition(strategy, bars, close, high, low, out.best.fast, out.best.slow, "long_only");
+      const vol = Float64Array.from(bars.map((b) => b.v));
+      const pos = buildPosition(strategy, bars, close, high, low, vol, out.best.fast, out.best.slow, "long_only");
       const pt = out.series[10];
       const i = bars.findIndex((b) => b.t === pt.t);
       assert.equal(pt.position, pos[i], `${strategy} position drifted from the engine`);
