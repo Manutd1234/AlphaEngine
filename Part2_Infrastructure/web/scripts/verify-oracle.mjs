@@ -249,7 +249,17 @@ try {
 
 try {
   const { rows } = await connection.execute(
-    "SELECT COUNT(*) AS total, COUNT(embedding) AS embedded FROM strategy_research_rag",
+    // NOT `COUNT(embedding)`. A VECTOR cannot be passed to an aggregate —
+    // Oracle rejects it with ORA-22849, which reads like the column is missing
+    // rather than like the function is wrong. `IS NOT NULL` is a predicate, is
+    // supported, and counts the same thing.
+    //
+    // Counting actual vectors rather than trusting `embedding_status`: the
+    // status is what the writer *claimed*, and this check exists to notice when
+    // those two disagree.
+    "SELECT COUNT(*) AS total, "
+    + "COUNT(CASE WHEN embedding IS NOT NULL THEN 1 END) AS embedded "
+    + "FROM strategy_research_rag",
     [],
     { outFormat: oracledb.OUT_FORMAT_OBJECT },
   );
