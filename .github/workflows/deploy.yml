@@ -241,7 +241,7 @@ jobs:
           command_timeout: 10m
           # Correction 5 — passed as environment variables, so none of these
           # appears in the VM's process list or shell history.
-          envs: IMAGE,REGISTRY,CONTAINER,VOLUME,PORT,GH_ACTOR,GH_TOKEN,WEB_API_TOKEN,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,TELEGRAM_BOT_TOKEN,TELEGRAM_ALLOWED_USER_IDS
+          envs: IMAGE,REGISTRY,CONTAINER,VOLUME,PORT,GH_ACTOR,GH_TOKEN,WEB_API_TOKEN,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,TELEGRAM_BOT_TOKEN,TELEGRAM_ALLOWED_USER_IDS,TELEGRAM_CONTROL_USER_IDS,TELEGRAM_ALERT_CHAT_IDS
           script_stop: true
           script: |
             set -euo pipefail
@@ -262,11 +262,38 @@ jobs:
             docker volume create "$VOLUME" >/dev/null
 
             # 0600, owned by the SSH user, outside the image and outside any
-            # `docker inspect` output. Written fresh each deploy so a rotated
-            # secret takes effect without manual cleanup.
+            # `docker inspect` output.
+            #
+            # MERGED, NOT OVERWRITTEN, and that distinction is load-bearing.
+            # This file is the container's entire configuration, but CI only
+            # knows the subset of it that exists as a repository secret. A
+            # deploy that truncated and rewrote it would silently drop every
+            # variable configured directly on the VM — which at the time of
+            # writing is most of them: the Telegram bot token, the Supabase
+            # mirror credentials, RESEARCH_RAG_ENABLED, SYMBOLS, VENUES. The
+            # container would come back healthy, pass its health check, pass
+            # the external reachability probe, and have quietly lost its bot
+            # and its mirror. Nothing would report it.
+            #
+            # So: CI-supplied values win (rotation works), and anything already
+            # on the box that CI has no secret for survives untouched.
             echo "==> Writing the runtime environment"
             ENV_FILE="$HOME/.alphaengine.env"
+            # Where the pre-CI container was configured from. Seeds the first
+            # deploy so the cutover from hand-managed to CI-managed keeps the
+            # settings the desk is already running with.
+            LEGACY_ENV="$HOME/alphaengine/Part2_Infrastructure/.env"
             umask 077
+
+            PRESERVED="$(mktemp)"
+            OVERLAY="$(mktemp)"
+            trap 'rm -f "$PRESERVED" "$OVERLAY"' EXIT
+            if   [ -f "$ENV_FILE" ];   then cp "$ENV_FILE"   "$PRESERVED"
+            elif [ -f "$LEGACY_ENV" ]; then cp "$LEGACY_ENV" "$PRESERVED"
+                                            echo "    seeding from ${LEGACY_ENV}"
+            else                            : > "$PRESERVED"
+            fi
+
             {
               echo "ENVIRONMENT=production"
               echo "REQUIRE_AUTH=1"
@@ -278,7 +305,29 @@ jobs:
               [ -n "${SUPABASE_URL:-}" ]              && echo "SUPABASE_MIRROR_ENABLED=1"
               [ -n "${TELEGRAM_BOT_TOKEN:-}" ]        && echo "TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}"
               [ -n "${TELEGRAM_ALLOWED_USER_IDS:-}" ] && echo "TELEGRAM_ALLOWED_USER_IDS=${TELEGRAM_ALLOWED_USER_IDS}"
-            } > "$ENV_FILE"
+              # Both of these gate a FAIL-CLOSED check in the bot, so omitting
+              # them does not loosen anything — it locks the desk out of its own
+              # controls. Without TELEGRAM_CONTROL_USER_IDS, `_may_control()`
+              # denies everyone and nobody can /halt, /resume or /flatten from
+              # Telegram on the deployed VM. Without TELEGRAM_ALERT_CHAT_IDS, a
+              # drawdown breach or a venue going dark reaches only whoever
+              # happened to run /subscribe on that container, and a restart
+              # loses even them.
+              [ -n "${TELEGRAM_CONTROL_USER_IDS:-}" ] && echo "TELEGRAM_CONTROL_USER_IDS=${TELEGRAM_CONTROL_USER_IDS}"
+              [ -n "${TELEGRAM_ALERT_CHAT_IDS:-}" ]   && echo "TELEGRAM_ALERT_CHAT_IDS=${TELEGRAM_ALERT_CHAT_IDS}"
+            } > "$OVERLAY"
+
+            # Overlay first (so it wins), then any KEY= line from the preserved
+            # file whose key the overlay did not set. Comment and blank lines
+            # are dropped by the key-shaped match rather than carried over.
+            awk -F= '
+              NR==FNR { if ($0 ~ /^[A-Za-z_][A-Za-z0-9_]*=/) seen[$1]=1; print; next }
+              /^[A-Za-z_][A-Za-z0-9_]*=/ && !($1 in seen) { print }
+            ' "$OVERLAY" "$PRESERVED" > "$ENV_FILE"
+
+            # Names only — this must never print a value into the build log.
+            echo "    $(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$ENV_FILE") variables:"
+            echo "    $(cut -d= -f1 "$ENV_FILE" | grep -E '^[A-Za-z_]' | sort | tr '\n' ' ')"
 
             start_container() {
               docker run -d \
@@ -354,6 +403,8 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_ALLOWED_USER_IDS: ${{ secrets.TELEGRAM_ALLOWED_USER_IDS }}
+          TELEGRAM_CONTROL_USER_IDS: ${{ secrets.TELEGRAM_CONTROL_USER_IDS }}
+          TELEGRAM_ALERT_CHAT_IDS: ${{ secrets.TELEGRAM_ALERT_CHAT_IDS }}
 
   # ---------------------------------------------------------------------------
   # Prove it from the outside. The deploy job checked 127.0.0.1 from inside the

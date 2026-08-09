@@ -311,6 +311,41 @@ describe("continuous deployment keeps the desk alive across a swap", () => {
     assert.match(deployWorkflow, /envs: IMAGE,REGISTRY/);
   });
 
+  it("merges the runtime environment instead of overwriting it", () => {
+    /**
+     * The env file is the container's whole configuration, but CI only knows
+     * the part of it that exists as a repository secret. When this was written
+     * the VM was running 17 variables and CI had a secret for exactly one, so
+     * a truncating rewrite would have dropped the Telegram bot token, the
+     * Supabase mirror credentials and RESEARCH_RAG_ENABLED — and the container
+     * would still have come back healthy, passed its health check and passed
+     * the external reachability probe. A deploy that silently disables three
+     * subsystems and reports success is the failure this guards.
+     *
+     * The awk merge is asserted directly: CI's values are written first so
+     * they win, and any key the overlay did not set is carried over.
+     */
+    assert.match(deployWorkflow, /seen\[\$1\]=1/, "the env-file merge is gone — a deploy would truncate VM-only configuration");
+    assert.match(deployWorkflow, /!\(\$1 in seen\)/);
+    assert.match(deployWorkflow, /LEGACY_ENV=/, "the first deploy no longer seeds from the hand-managed .env");
+
+    // The overlay must be built into its own file, never straight over the
+    // destination — `> "$ENV_FILE"` before the merge would destroy the very
+    // thing being preserved.
+    assert.match(deployWorkflow, /\}\s*>\s*"\$OVERLAY"/);
+
+    // Reporting the result must stay names-only. `cat`-ing the merged file
+    // would put a bot token and a service-role key into a build log that
+    // anyone with read access to the repository can retrieve.
+    const script = deployWorkflow.slice(deployWorkflow.indexOf("script: |"));
+    assert.doesNotMatch(
+      script,
+      /cat "\$ENV_FILE"/,
+      "the merged env file is being printed to the build log — it holds live credentials",
+    );
+    assert.match(script, /cut -d= -f1 "\$ENV_FILE"/, "the summary should print variable names only");
+  });
+
   it("verifies the deploy and can undo it", () => {
     // A deploy that cannot be verified reports success over a dead desk.
     assert.match(deployWorkflow, /State\.Health\.Status/);
