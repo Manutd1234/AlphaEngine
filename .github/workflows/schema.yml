@@ -53,7 +53,12 @@ jobs:
       # Thin mode: a pure-Python implementation of the wire protocol, so no
       # Instant Client download and no LD_LIBRARY_PATH. It is also the same mode
       # the web routes use, which means a success here proves their path.
-      - run: pip install oracledb
+      # httpx comes from `modules.research_rag`, which the backfill imports for
+      # `render_backtest_card`. The Oracle and Supabase corpora must be built
+      # from byte-identical card text or their vectors are not comparable, so
+      # that renderer is imported rather than restated — and importing it pulls
+      # the module's own dependency.
+      - run: pip install oracledb httpx
 
       - name: Parse the DDL
         run: python tools/apply_oracle_schema.py --dry-run
@@ -108,7 +113,6 @@ jobs:
       # this is the same job on a fresh database and on a current one.
       - name: Index the desk's backtest history
         if: steps.gate.outputs.ready == 'yes' && !inputs.dry_run
-        continue-on-error: true
         env:
           ORACLE_CONN_STRING: ${{ secrets.DB_CONNECTION_STRING }}
           ORACLE_PASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -121,9 +125,11 @@ jobs:
           # not comparable to those, and would rank confident nonsense.
           ALPHAENGINE_GATEWAY_URL: http://149.118.48.255:8000
           WEB_API_TOKEN: ${{ secrets.WEB_API_TOKEN }}
-        # `continue-on-error` because the corpus is downstream of the schema:
-        # a gateway that is momentarily unreachable must not turn a successful
-        # DDL apply into a red run.
+        # NOT `continue-on-error`. It was, and it reported this step as a
+        # success while the script died on a missing import — the corpus stayed
+        # empty and the run stayed green, which is the failure shape this whole
+        # repository keeps tripping over. The workflow is manual, so a red run
+        # blocks nothing and is the only way anyone finds out.
         run: python tools/backfill_oracle_rag.py --limit 200
 
   supabase:
