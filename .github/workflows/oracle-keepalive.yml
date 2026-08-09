@@ -1,11 +1,17 @@
-# Keep the Always Free Autonomous Database awake.
+# Keep the Autonomous Database awake, and notice when it is not.
 #
 # WHY THIS IS A JOB AND NOT A SETTING
 #
-# There is no "do not auto-stop" switch on an Always Free ADB. The instance
-# stops itself after 7 consecutive days without a connection and is reclaimed
-# after ~90, and the only thing that resets that timer is a session. So the
-# mechanism is simply to connect, on a schedule, forever.
+# There is no "do not auto-stop" switch. An Always Free ADB stops itself after
+# 7 consecutive days without a connection and is reclaimed after ~90; the only
+# thing that resets that timer is a session. So the mechanism is simply to
+# connect, on a schedule, forever.
+#
+# A paid ADB does not auto-stop, and this job does not assume which tier is in
+# use — that is not visible from a connection. On a paid instance the daily
+# connect costs nothing and still answers the question the job is really for:
+# is the database reachable today, or did someone stop it three weeks ago and
+# nobody noticed until a panel went blank.
 #
 # WHY IT IS NOT PART OF ci.yml
 #

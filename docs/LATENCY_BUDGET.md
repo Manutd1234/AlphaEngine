@@ -90,9 +90,11 @@ constraint is elsewhere.
 
 Disabling the cyclic garbage collector (`gc.freeze()` + `gc.disable()`) around
 the same workload changed p50 not at all and p99 by ~0.1 µs. The tail beyond
-p99.9 is scheduler preemption on a shared-tenancy VM, and the only things that
-move it are CPU pinning, real-time priority and a dedicated instance — none of
-which an Always Free shape offers. Python is not the constraint at this scale.
+p99.9 is scheduler preemption, and the only things that move it are CPU
+pinning, real-time priority and a host that is not shared. The gateway runs on
+`VM.Standard3.Flex` (2 OCPU, Xeon 8358) — a virtualised shape, so the hypervisor
+schedules against neighbours regardless of what the guest asks for. Python is
+not the constraint at this scale; the hypervisor is.
 
 ### 2.3 The network to the venue — measured, and it dominates everything
 
@@ -129,9 +131,15 @@ against the ~1.08× available from the compute.
 
 **This is not yet done, and the number above is an expectation, not a
 measurement.** The plan is probe-first: stand up an instance, run the same
-`time_connect` probe, and migrate only if it confirms. It is also a spend
-decision — Always Free is locked to the home region, so this is a new paid
-instance, not a migration.
+`time_connect` probe, and migrate only if it confirms.
+
+The tenancy already runs a paid shape (`VM.Standard3.Flex`), not a free one, so
+this is not a question of starting to pay — it is subscribing the tenancy to a
+second region and provisioning there. Tokyo is reachable two ways, and the probe
+should cover both: OCI's own `ap-tokyo-1`, or an AWS instance in
+`ap-northeast-1` itself. The second is likely to win, because `ap-northeast-1`
+is where the venue already is and the last hop becomes a VPC hop rather than a
+peering one — but that is a hypothesis, and the probe exists to settle it.
 
 Bybit resolves through CloudFront and needs the same probe. If the two venues do
 not co-locate in one region, cross-exchange arbitrage is bounded by whichever is
