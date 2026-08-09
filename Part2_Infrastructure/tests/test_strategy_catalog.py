@@ -19,7 +19,18 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.backtester import build_signals
+from modules.backtester import FREE_SECOND_AXIS, build_signals
+
+
+def _second_axis(strategy: str) -> float:
+    """A period for most models, a sigma multiple for the few with a free axis.
+
+    Passing 40 to a strategy whose second parameter is a standard-deviation
+    multiple asks for a 40-sigma band, which nothing ever crosses — the test
+    would report a broken strategy when the caller was the one confused.
+    """
+    free = FREE_SECOND_AXIS.get(strategy)
+    return 2.0 if free else 40
 
 CATALOGUE = [
     "ma_cross", "ema_cross", "macd_cross",
@@ -28,6 +39,7 @@ CATALOGUE = [
     "momentum", "roc_trend",
     "triple_ma", "ppo_cross", "trix_cross", "rsi_trend",
     "price_channel", "ema_slope",
+    "bollinger_breakout", "zscore_reversion",
 ]
 
 
@@ -54,7 +66,7 @@ def bars() -> pd.DataFrame:
 
 @pytest.mark.parametrize("strategy", CATALOGUE)
 def test_every_strategy_takes_at_least_one_round_trip(strategy: str, bars: pd.DataFrame):
-    entries, exits = build_signals(strategy, bars, 10, 40)
+    entries, exits = build_signals(strategy, bars, 10, _second_axis(strategy))
     assert entries.sum() > 0, f"{strategy} never entered — it cannot lose money or make any"
     assert exits.sum() > 0, f"{strategy} entered and never exited"
 
@@ -66,7 +78,7 @@ def test_entries_and_exits_alternate(strategy: str, bars: pd.DataFrame):
     Two entries with no exit between them would double-count a position in any
     engine that trusts the pair, and the vectorised path does.
     """
-    entries, exits = build_signals(strategy, bars, 10, 40)
+    entries, exits = build_signals(strategy, bars, 10, _second_axis(strategy))
     events = sorted(
         [(i, "entry") for i in np.flatnonzero(entries.to_numpy())]
         + [(i, "exit") for i in np.flatnonzero(exits.to_numpy())]
@@ -85,9 +97,10 @@ def test_no_lookahead_a_bar_cannot_depend_on_its_own_future(strategy: str, bars:
     cheap to lose: one un-shifted `rolling().max()` reads the current bar's own
     high, and the result looks like a brilliant strategy.
     """
-    full_entries, _ = build_signals(strategy, bars, 10, 40)
+    second = _second_axis(strategy)
+    full_entries, _ = build_signals(strategy, bars, 10, second)
     cut = len(bars) - 50
-    partial_entries, _ = build_signals(strategy, bars.iloc[:cut].copy(), 10, 40)
+    partial_entries, _ = build_signals(strategy, bars.iloc[:cut].copy(), 10, second)
 
     # Compare only where both are defined, ignoring the warm-up region.
     a = full_entries.to_numpy()[:cut][100:]

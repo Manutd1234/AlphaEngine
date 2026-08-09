@@ -171,7 +171,9 @@
               "trix_cross",
               "rsi_trend",
               "price_channel",
-              "ema_slope"
+              "ema_slope",
+              "bollinger_breakout",
+              "zscore_reversion"
             ],
             "title": "Strategy",
             "type": "string"

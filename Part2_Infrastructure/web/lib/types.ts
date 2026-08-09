@@ -17,7 +17,9 @@ export type Strategy =
   | "trix_cross"
   | "rsi_trend"
   | "price_channel"
-  | "ema_slope";
+  | "ema_slope"
+  | "bollinger_breakout"
+  | "zscore_reversion";
 
 /**
  * Families, for grouping the picker.
@@ -49,6 +51,8 @@ export const STRATEGY_FAMILY: Record<Strategy, StrategyFamily> = {
   ema_slope: "Trend",
   price_channel: "Breakout",
   rsi_trend: "Momentum",
+  bollinger_breakout: "Breakout",
+  zscore_reversion: "Mean reversion",
 };
 export type Direction = "long_only" | "long_short";
 
@@ -457,6 +461,8 @@ export const STRATEGY_LABELS: Record<Strategy, string> = {
   ppo_cross: "Percentage price oscillator",
   trix_cross: "TRIX signal crossover",
   rsi_trend: "RSI trend continuation",
+  bollinger_breakout: "Bollinger band breakout",
+  zscore_reversion: "Z-score mean reversion",
   price_channel: "Price channel breakout",
   ema_slope: "EMA slope",
 };
@@ -479,6 +485,8 @@ export const PARAM_MEANING: Record<Strategy, { fast: string; slow: string }> = {
   ppo_cross: { fast: "Fast EMA span", slow: "Slow EMA span" },
   trix_cross: { fast: "TRIX EMA span", slow: "Signal SMA period" },
   rsi_trend: { fast: "RSI period", slow: "Trend-filter SMA period" },
+  bollinger_breakout: { fast: "Band SMA period", slow: "Band width (σ)" },
+  zscore_reversion: { fast: "Z-score lookback", slow: "Entry threshold (σ)" },
   price_channel: { fast: "Breakout lookback", slow: "Exit-channel lookback" },
   ema_slope: { fast: "EMA span", slow: "Slope lookback (bars)" },
 };
@@ -509,6 +517,8 @@ export const CHART_SERIES: Record<Strategy, { fast: string | null; slow: string 
   ppo_cross: { fast: null, slow: "Slow EMA" },
   trix_cross: { fast: null, slow: "TRIX signal" },
   rsi_trend: { fast: null, slow: "Trend SMA" },
+  bollinger_breakout: { fast: "Upper band", slow: "Band mid" },
+  zscore_reversion: { fast: null, slow: "Rolling mean" },
   price_channel: { fast: "Channel high", slow: "Channel low" },
   ema_slope: { fast: null, slow: "EMA" },
 };

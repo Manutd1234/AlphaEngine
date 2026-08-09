@@ -295,6 +295,35 @@ function longState(
     return out;
   }
 
+  if (strategy === "bollinger_breakout") {
+    // `slow` is band width in standard deviations — a real float, swept
+    // 1.0..3.0 by 0.25 from its own axis rather than borrowed from a period grid.
+    const period = Math.max(2, Math.trunc(fast));
+    const mid = sma(close, period);
+    const sd = rollingStd(close, period);
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      if (!Number.isNaN(mid[i]) && !Number.isNaN(sd[i]) && close[i] > mid[i] + sd[i] * slow) state = 1;
+      if (!Number.isNaN(mid[i]) && close[i] < mid[i]) state = 0; // exit overrides
+      out[i] = state;
+    }
+    return out;
+  }
+
+  if (strategy === "zscore_reversion") {
+    const period = Math.max(2, Math.trunc(fast));
+    const mean = sma(close, period);
+    const sd = rollingStd(close, period);
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      const z = sd[i] > 0 ? (close[i] - mean[i]) / sd[i] : NaN;
+      if (!Number.isNaN(z) && z < -slow) state = 1;
+      if (!Number.isNaN(z) && z > 0) state = 0; // exit overrides
+      out[i] = state;
+    }
+    return out;
+  }
+
   if (strategy === "ema_slope") {
     const e = ema(close, fast);
     for (let i = 0; i < n; i++) {
@@ -544,11 +573,40 @@ export function runCombo(
 // --------------------------------------------------------------------------- //
 // Grid
 // --------------------------------------------------------------------------- //
+/**
+ * Strategies whose SECOND parameter is not a lookback period.
+ *
+ * Must match `FREE_SECOND_AXIS` in `modules/backtester.py` — the two engines
+ * are compared combination by combination, so a grid that differs is not a
+ * disagreement about the model, it is the two of them answering about
+ * different parameters entirely.
+ *
+ * The `f < s` filter is right when both axes are periods and nonsense
+ * otherwise: a band width of 2.0σ against a 20-bar mean fails `20 < 2.0`, so
+ * every combination was discarded and the strategy silently took no trades.
+ */
+const FREE_SECOND_AXIS: Partial<Record<Strategy, [number, number, number]>> = {
+  bollinger_breakout: [1.0, 3.0, 0.25],
+  zscore_reversion: [1.0, 3.0, 0.25],
+};
+
+/** Inclusive, float-safe: index multiplication rather than repeated addition,
+ *  which at step 0.25 drifts to 2.7499999999999996 and shows the reader a
+ *  different number than the slider they moved. */
+function axis(low: number, high: number, step: number): number[] {
+  if (step <= 0) return [low];
+  const count = Math.floor((high - low) / step + 1e-9) + 1;
+  return Array.from({ length: Math.max(1, count) }, (_, i) => Number((low + i * step).toFixed(10)));
+}
+
 export function paramGrid(req: SweepRequest): Array<[number, number]> {
   const combos: Array<[number, number]> = [];
-  for (let f = req.fastMin; f <= req.fastMax; f += req.fastStep) {
-    for (let s = req.slowMin; s <= req.slowMax; s += req.slowStep) {
-      if (f < s) combos.push([f, s]);
+  const free = FREE_SECOND_AXIS[req.strategy];
+  const fasts = axis(req.fastMin, req.fastMax, req.fastStep);
+  const slows = free ? axis(free[0], free[1], free[2]) : axis(req.slowMin, req.slowMax, req.slowStep);
+  for (const f of fasts) {
+    for (const s of slows) {
+      if (free || f < s) combos.push([f, s]);
     }
   }
   if (combos.length > MAX_COMBOS) {

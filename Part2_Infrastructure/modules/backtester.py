@@ -183,6 +183,23 @@ def _synthetic_ohlcv(symbol: str, interval: str, bars: int) -> pd.DataFrame:
 # --------------------------------------------------------------------------- #
 # Signals
 # --------------------------------------------------------------------------- #
+#: Strategies whose SECOND parameter is not a lookback period.
+#:
+#: The grid used to filter every pair with `fast < slow`, which is right when
+#: both axes are periods and nonsense otherwise. A Bollinger band width of 2.0
+#: sigma against a 20-bar mean fails `20 < 2.0`, so every combination was
+#: discarded and the strategy silently took zero trades — it looked like a bad
+#: model rather than an unsatisfiable constraint.
+#:
+#: Each entry is (minimum, maximum, step) for the second axis, in its own real
+#: units. Floats, because a sigma multiple of 1.5 is a sigma multiple of 1.5 and
+#: encoding it as the integer 15 makes a slider that lies.
+FREE_SECOND_AXIS: dict[str, tuple[float, float, float]] = {
+    "bollinger_breakout": (1.0, 3.0, 0.25),   # band width in standard deviations
+    "zscore_reversion": (1.0, 3.0, 0.25),     # entry threshold in standard deviations
+}
+
+
 def build_signals(strategy: str, df: pd.DataFrame, fast: int, slow: int) -> tuple[pd.Series, pd.Series]:
     """Return (entries, exits) boolean series for one parameter pair.
 
@@ -192,6 +209,20 @@ def build_signals(strategy: str, df: pd.DataFrame, fast: int, slow: int) -> tupl
       rsi_reversion fast = RSI period, slow = trend filter / exit MA period
     """
     close = df["close"]
+
+    # Periods are integers wherever they are used as a rolling window, and the
+    # parameters now arrive as floats: `ParamResult.fast` was widened so a
+    # sigma multiple could be expressed, and pydantic coerces 5 to 5.0 on the
+    # way through. `pandas.rolling(5.0)` refuses outright — "window must be an
+    # integer 0 or greater" — so walk-forward failed for every period strategy
+    # while the sweep itself passed, because the sweep is handed the grid's own
+    # ints and walk-forward is handed a value that has been through the schema.
+    #
+    # Coerced here rather than at each call site: this is the one place that
+    # knows which of the two parameters is a window.
+    fast = int(fast)
+    if strategy not in FREE_SECOND_AXIS:
+        slow = int(slow)
 
     if strategy == "ma_cross":
         f = close.rolling(fast).mean()
@@ -318,6 +349,26 @@ def build_signals(strategy: str, df: pd.DataFrame, fast: int, slow: int) -> tupl
         raw[close >= upper] = 1.0
         raw[close <= lower] = 0.0
         long = raw.ffill().fillna(0.0) > 0
+    elif strategy == "bollinger_breakout":
+        # `slow` is the band width in standard deviations — a real float now,
+        # swept 1.0..3.0 by 0.25 from FREE_SECOND_AXIS rather than borrowed from
+        # a period grid. `fast` remains the lookback.
+        period = max(2, int(fast))
+        mid = close.rolling(period).mean()
+        band = close.rolling(period).std(ddof=0) * float(slow)
+        raw = pd.Series(np.nan, index=close.index)
+        raw[close > mid + band] = 1.0
+        raw[close < mid] = 0.0
+        long = raw.ffill().fillna(0.0) > 0
+    elif strategy == "zscore_reversion":
+        period = max(2, int(fast))
+        mean = close.rolling(period).mean()
+        sd = close.rolling(period).std(ddof=0).replace(0, np.nan)
+        z = (close - mean) / sd
+        raw = pd.Series(np.nan, index=close.index)
+        raw[z < -float(slow)] = 1.0
+        raw[z > 0] = 0.0
+        long = raw.ffill().fillna(0.0) > 0
     elif strategy == "ema_slope":
         e = close.ewm(span=fast, adjust=False).mean()
         long = (e - e.shift(slow)) > 0
@@ -328,10 +379,42 @@ def build_signals(strategy: str, df: pd.DataFrame, fast: int, slow: int) -> tupl
     return (long & ~prev), (~long & prev)
 
 
-def param_grid(req: BacktestRequest) -> list[tuple[int, int]]:
-    fasts = range(req.fast_min, req.fast_max + 1, req.fast_step)
-    slows = range(req.slow_min, req.slow_max + 1, req.slow_step)
-    combos = [(f, s) for f in fasts for s in slows if f < s]
+def _axis(low: float, high: float, step: float) -> list[float]:
+    """Inclusive range that tolerates a float step.
+
+    `range` is integer-only and `numpy.arange` accumulates error — at step 0.25
+    it lands on 2.7499999999999996 and a reader comparing a slider to a result
+    sees two different numbers. Multiplying an integer index avoids both.
+    """
+    if step <= 0:
+        return [low]
+    count = int(math.floor((high - low) / step + 1e-9)) + 1
+    values = [round(low + index * step, 10) for index in range(max(1, count))]
+    # Integral axes stay ints. `pandas.rolling()` rejects a float window
+    # outright — "window must be an integer 0 or greater" — so returning 5.0
+    # where 5 was meant breaks every period-based strategy. It surfaced only as
+    # a logged warning from walk-forward, because the parity fixture passes
+    # literal ints and never exercised the generated grid.
+    if all(float(v).is_integer() for v in (low, high, step)):
+        return [int(v) for v in values]
+    return values
+
+
+def param_grid(req: BacktestRequest) -> list[tuple[float, float]]:
+    fasts = _axis(req.fast_min, req.fast_max, req.fast_step)
+
+    free = FREE_SECOND_AXIS.get(req.strategy)
+    if free is not None:
+        # The request's slow_* fields describe a period sweep the UI generated
+        # for a period axis. For these strategies the second axis has its own
+        # units, so the registry supplies the range and the ordering constraint
+        # does not apply — the two numbers are not comparable quantities.
+        slows = _axis(*free)
+        combos = [(f, s) for f in fasts for s in slows]
+    else:
+        slows = _axis(req.slow_min, req.slow_max, req.slow_step)
+        combos = [(f, s) for f in fasts for s in slows if f < s]
+
     if len(combos) > settings.backtest_max_combos:
         step = math.ceil(len(combos) / settings.backtest_max_combos)
         combos = combos[::step]

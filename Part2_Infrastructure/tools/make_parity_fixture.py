@@ -48,8 +48,13 @@ CASES = [
     ("BTCUSDT", "4h", "rsi_trend", "long_only"),
     ("ETHUSDT", "4h", "price_channel", "long_only"),
     ("BTCUSDT", "1h", "ema_slope", "long_only"),
+    ("BTCUSDT", "4h", "bollinger_breakout", "long_only"),
+    ("ETHUSDT", "4h", "zscore_reversion", "long_only"),
 ]
 COMBOS = [(5, 20), (10, 50), (20, 100), (35, 180)]
+#: The second axis is a standard-deviation multiple for these, not a period.
+#: Sweeping them at 20..180 sigma would exercise a band nothing ever crosses.
+FREE_COMBOS = [(10, 1.5), (20, 2.0), (20, 2.5), (40, 3.0)]
 BARS = 1200
 
 
@@ -65,9 +70,11 @@ def main() -> int:
             symbol=symbol, interval=interval, strategy=strategy,
             direction=direction, bars=BARS, fee_bps=6, slippage_bps=2,
         )
-        results, _ = NumpyEngine().run(df, COMBOS, req)
+        combos = FREE_COMBOS if strategy in ("bollinger_breakout", "zscore_reversion") else COMBOS
+        results, _ = NumpyEngine().run(df, combos, req)
 
         payload["cases"].append({
+            "combos": combos,
             "symbol": symbol,
             "interval": interval,
             "strategy": strategy,

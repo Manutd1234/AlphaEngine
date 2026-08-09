@@ -351,6 +351,7 @@ class BacktestRequest(BaseModel):
         "momentum", "roc_trend",
         "triple_ma", "ppo_cross", "trix_cross", "rsi_trend",
         "price_channel", "ema_slope",
+        "bollinger_breakout", "zscore_reversion",
     ] = Field(
         default="ma_cross", description="Signal family. Each interprets fast/slow as its own two parameters.")
     fast_min: int = Field(default=5, ge=2, le=400, description="Lower bound of the fast-parameter sweep.")
@@ -386,8 +387,12 @@ class BacktestRequest(BaseModel):
 
 
 class ParamResult(BaseModel):
-    fast: int
-    slow: int
+    # float, not int. Most strategies sweep two lookback periods, but a few
+    # take a standard-deviation multiple on the second axis, and 2.5 sigma is
+    # not expressible as an integer without lying about the units. Widening the
+    # field costs nothing: every period value is still an exact float.
+    fast: float
+    slow: float
     total_return: float
     cagr: float
     sharpe: float
@@ -407,8 +412,8 @@ class WalkForwardFold(BaseModel):
     train_end: str
     test_start: str
     test_end: str
-    chosen_fast: int
-    chosen_slow: int
+    chosen_fast: float
+    chosen_slow: float
     is_sharpe: float
     oos_sharpe: float
     oos_return: float
