@@ -295,17 +295,33 @@ jobs:
             # simply absent can never end the deploy.
             PRESERVED="${ENV_FILE}.preserved"
             OVERLAY="${ENV_FILE}.overlay"
-            rm -f "$PRESERVED" "$OVERLAY"
+            MERGED="${ENV_FILE}.next"
+            rm -f "$PRESERVED" "$OVERLAY" "$MERGED"
 
+            # BOTH prior sources, in precedence order, never one or the other.
+            #
+            # An earlier version chose between them with if/elif, and a failed
+            # deploy turned that into data loss. The merge ended in
+            # `awk … > "$ENV_FILE"`, and the shell truncates a redirect target
+            # before the command runs — so when awk failed, it left a 0-byte
+            # file behind. The next deploy saw a file, treated it as prior
+            # state, preserved nothing from it, and started a container with 5
+            # variables instead of 18. The bot, the Supabase mirror and the RAG
+            # indexer all went quiet, and every signal still said success.
+            #
+            # Concatenating both and letting the first occurrence of each key
+            # win makes the hand-managed .env a permanent floor: whatever CI
+            # does not supply and the live file has lost falls back to it, so a
+            # partial or truncated file repairs itself on the next deploy
+            # instead of persisting.
+            : > "$PRESERVED"
             if [ -f "$ENV_FILE" ]; then
-              cp "$ENV_FILE" "$PRESERVED"
-            elif [ -f "$LEGACY_ENV" ]; then
-              cp "$LEGACY_ENV" "$PRESERVED"
-              echo "    seeding from ${LEGACY_ENV}"
-            else
-              : > "$PRESERVED"
+              cat "$ENV_FILE" >> "$PRESERVED"
             fi
-            echo "    preserved $(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$PRESERVED" || true) existing variable(s)"
+            if [ -f "$LEGACY_ENV" ]; then
+              cat "$LEGACY_ENV" >> "$PRESERVED"
+            fi
+            echo "    carrying forward $(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$PRESERVED" || true) existing line(s)"
 
             put() {
               if [ -n "${2:-}" ]; then
@@ -354,7 +370,22 @@ jobs:
             # has LF endings, which is exactly why this could not be reproduced
             # by running it there directly. One line has no interior newlines to
             # be rewritten, so the transport cannot corrupt it.
-            awk -F= 'NR==FNR{if($0~/^[A-Za-z_][A-Za-z0-9_]*=/)s[$1]=1;print;next} /^[A-Za-z_][A-Za-z0-9_]*=/&&!($1 in s){s[$1]=1;print}' "$OVERLAY" "$PRESERVED" > "$ENV_FILE"
+            #
+            # Written to a scratch path and moved into place only on success.
+            # Redirecting straight onto $ENV_FILE truncates it before awk runs,
+            # so any failure here would destroy the configuration this whole
+            # block exists to protect — which is exactly how the 0-byte file
+            # above came to exist.
+            awk -F= '/^[A-Za-z_][A-Za-z0-9_]*=/&&!($1 in s){s[$1]=1;print}' "$OVERLAY" "$PRESERVED" > "$MERGED"
+
+            # Never install an env file that lost the token the desk needs to
+            # answer the web project at all. Cheap, and it is the one variable
+            # whose absence turns every portfolio and order call into a 401.
+            if ! grep -q '^WEB_API_TOKEN=' "$MERGED"; then
+              echo "::error::merged env is missing WEB_API_TOKEN — refusing to install it"
+              exit 1
+            fi
+            mv "$MERGED" "$ENV_FILE"
             rm -f "$PRESERVED" "$OVERLAY"
 
             # Names only — this must never print a value into the build log.

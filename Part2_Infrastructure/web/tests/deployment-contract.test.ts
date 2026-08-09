@@ -352,16 +352,42 @@ describe("continuous deployment keeps the desk alive across a swap", () => {
     assert.deepEqual(overlayWrites, [],
       "a bare `[ -n … ] && echo` is back in the remote script; use put() so the exit status cannot end the deploy");
 
-    // Reporting the result must stay names-only. `cat`-ing the merged file
-    // would put a bot token and a service-role key into a build log that
-    // anyone with read access to the repository can retrieve.
+    // Reporting the result must stay names-only. `cat`-ing the merged file to
+    // stdout would put a bot token and a service-role key into a build log
+    // that anyone with read access to the repository can retrieve. Reading it
+    // into another file is fine and is how the merge carries values forward —
+    // so this looks for a `cat` with no redirect, not for `cat` at all.
     const body = deployWorkflow.slice(deployWorkflow.indexOf("script: |"));
     assert.doesNotMatch(
       body,
-      /cat "\$ENV_FILE"/,
-      "the merged env file is being printed to the build log — it holds live credentials",
+      /cat "\$(ENV_FILE|LEGACY_ENV)"(?!\s*>)/,
+      "the env file is being printed to the build log — it holds live credentials",
     );
     assert.match(body, /cut -d= -f1 "\$ENV_FILE"/, "the summary should print variable names only");
+
+    /**
+     * The merge must land atomically.
+     *
+     * `awk … > "$ENV_FILE"` truncates the destination before awk runs, so a
+     * failing merge leaves a 0-byte file that the *next* deploy reads as valid
+     * prior state. That is not hypothetical: it happened, and the following
+     * deploy started the gateway with 5 variables instead of 18 — no bot, no
+     * Supabase mirror, no RAG indexer — while every check reported success.
+     * Writing to a scratch path and moving it into place means a failed merge
+     * leaves the previous configuration untouched.
+     */
+    // Comment-stripped: the prose above this block quotes the very command it
+    // forbids (`awk … > "$ENV_FILE"`) to explain why, and matching against the
+    // explanation instead of the code is a way to fail on documentation.
+    const code = body.split("\n").filter((line) => !line.trim().startsWith("#")).join("\n");
+    assert.match(code, /> "\$MERGED"/, "the merge writes straight onto the live env file again");
+    assert.match(code, /mv "\$MERGED" "\$ENV_FILE"/);
+    assert.doesNotMatch(code, /awk[^\n]*> "\$ENV_FILE"/, "awk redirects onto the live env file");
+    assert.match(
+      body,
+      /grep -q '\^WEB_API_TOKEN=' "\$MERGED"/,
+      "nothing checks the merged file still has WEB_API_TOKEN before installing it",
+    );
   });
 
   it("embeds no multi-line quoted program in the remote script", () => {
