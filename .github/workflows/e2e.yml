@@ -1,0 +1,68 @@
+# End-to-end smoke against everything that is actually deployed.
+#
+# WHY THIS EXISTS SEPARATELY FROM ci.yml
+#
+# `ci.yml` proves the code is correct and is deliberately network-free — its own
+# header states the rule: a red build must mean the code broke, never that a
+# service was slow. This is the opposite job. It contacts the live gateway, the
+# live Vercel deployment and the live databases, and answers the one question no
+# offline suite can: with everything deployed exactly as it is right now, does
+# the whole path work?
+#
+# That question matters because every deployment failure this repository has
+# actually had passed the full offline suite first — a directory excluded from
+# the Vercel upload, an image that pushed but never swapped, a database that
+# requires a wallet, an env file truncated to five variables. All green locally.
+#
+# MANUAL AND SCHEDULED, NEVER ON PUSH. It must never gate a merge, because a
+# venue outage or an idle database is not a reason to block a code change.
+
+name: End-to-end smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Twice a day. Frequent enough that a silent regression is caught the same
+    # day; rare enough that it is not a load source of its own.
+    - cron: "23 6,18 * * *"
+
+concurrency:
+  group: e2e-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Every deployed surface
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Part2_Infrastructure
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Probe
+        env:
+          # The authenticated checks are skipped rather than failed when this is
+          # absent, so a fork gets a useful partial run instead of a red one.
+          WEB_API_TOKEN: ${{ secrets.WEB_API_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: python tools/e2e_smoke.py --full
+
+      # Written to the run summary so a failure is legible from the Actions
+      # list without opening the log — the report names its own fix per check.
+      - name: Summary
+        if: always()
+        env:
+          WEB_API_TOKEN: ${{ secrets.WEB_API_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          {
+            echo '```'
+            python tools/e2e_smoke.py --full 2>&1 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

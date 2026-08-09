@@ -3,6 +3,7 @@
   "files": [
     ".github/workflows/ci.yml",
     ".github/workflows/deploy.yml",
+    ".github/workflows/e2e.yml",
     ".github/workflows/oracle-keepalive.yml",
     ".github/workflows/schema.yml",
     ".gitignore",
@@ -118,6 +119,7 @@
     "Part2_Infrastructure/tools/apply_oracle_schema.py",
     "Part2_Infrastructure/tools/backfill_research_rag.py",
     "Part2_Infrastructure/tools/check_repo_complete.sh",
+    "Part2_Infrastructure/tools/e2e_smoke.py",
     "Part2_Infrastructure/tools/export_openapi.py",
     "Part2_Infrastructure/tools/make_parity_fixture.py",
     "Part2_Infrastructure/tools/make_risk_fixture.py",
