@@ -13,7 +13,7 @@
  *   • returns compound on equity, i.e. constant-fraction (100%) sizing.
  */
 
-import { pctChange, rollingMax, rollingMin, rsi, shift1, sma } from "./indicators";
+import { ema, pctChange, rollingMax, rollingMin, rsi, shift1, sma } from "./indicators";
 import { monteCarloBands } from "./montecarlo";
 import { regimeReport } from "./regimes";
 import {
@@ -126,6 +126,113 @@ function longState(
     for (let i = 0; i < n; i++) {
       if (!Number.isNaN(upper[i]) && close[i] > upper[i]) state = 1;
       if (!Number.isNaN(lower[i]) && close[i] < lower[i]) state = 0; // exit overrides
+      out[i] = state;
+    }
+    return out;
+  }
+
+  if (strategy === "ema_cross") {
+    const f = ema(close, fast);
+    const s = ema(close, slow);
+    for (let i = 0; i < n; i++) out[i] = f[i] > s[i] ? 1 : 0;
+    return out;
+  }
+
+  if (strategy === "macd_cross") {
+    // Signal fixed at the conventional 9: the request carries two parameters,
+    // and a third axis for a value nobody tunes multiplies every sweep by nine.
+    const macd = new Float64Array(n);
+    const f = ema(close, fast);
+    const s = ema(close, slow);
+    for (let i = 0; i < n; i++) macd[i] = f[i] - s[i];
+    const signal = ema(macd, 9);
+    for (let i = 0; i < n; i++) out[i] = macd[i] > signal[i] ? 1 : 0;
+    return out;
+  }
+
+  if (strategy === "momentum") {
+    // 12-1: return to `slow` bars ago, skipping the most recent `fast`, because
+    // short-horizon reversal is the documented contaminant of momentum.
+    for (let i = 0; i < n; i++) {
+      if (i < slow) { out[i] = 0; continue; }
+      const past = close[i - slow];
+      const recent = close[i - fast];
+      out[i] = past > 0 && recent / past - 1 > 0 ? 1 : 0;
+    }
+    return out;
+  }
+
+  if (strategy === "donchian_mid") {
+    const upper = shift1(rollingMax(high, fast));
+    const lower = shift1(rollingMin(low, fast));
+    const exitMa = sma(close, slow);
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      const mid = (upper[i] + lower[i]) / 2;
+      if (!Number.isNaN(mid) && close[i] > mid) state = 1;
+      if (!Number.isNaN(exitMa[i]) && close[i] < exitMa[i]) state = 0; // exit overrides
+      out[i] = state;
+    }
+    return out;
+  }
+
+  if (strategy === "roc_trend") {
+    const trend = sma(close, slow);
+    for (let i = 0; i < n; i++) {
+      if (i < fast || Number.isNaN(trend[i])) { out[i] = 0; continue; }
+      const roc = close[i - fast] > 0 ? close[i] / close[i - fast] - 1 : NaN;
+      out[i] = roc > 0 && close[i] > trend[i] ? 1 : 0;
+    }
+    return out;
+  }
+
+  if (strategy === "williams_r") {
+    const highN = rollingMax(high, fast);
+    const lowN = rollingMin(low, fast);
+    const exitMa = sma(close, slow);
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      const span = highN[i] - lowN[i];
+      const wr = span > 0 ? (-100 * (highN[i] - close[i])) / span : NaN;
+      if (!Number.isNaN(wr) && wr < -80) state = 1;
+      if ((!Number.isNaN(wr) && wr > -20) || (!Number.isNaN(exitMa[i]) && close[i] < exitMa[i])) {
+        state = 0; // exit overrides
+      }
+      out[i] = state;
+    }
+    return out;
+  }
+
+  if (strategy === "stochastic") {
+    const highN = rollingMax(high, fast);
+    const lowN = rollingMin(low, fast);
+    const k = new Float64Array(n).fill(NaN);
+    for (let i = 0; i < n; i++) {
+      const span = highN[i] - lowN[i];
+      if (span > 0) k[i] = (100 * (close[i] - lowN[i])) / span;
+    }
+    const d = sma(k, Math.max(2, slow));
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      // Oversold arms the long; %D is the exit confirmation, not an entry gate.
+      // `k < 20 && k > d` is the crossing instant and almost never coincides —
+      // it took zero trades over 600 bars.
+      if (!Number.isNaN(k[i]) && k[i] < 20) state = 1;
+      if ((!Number.isNaN(k[i]) && k[i] > 80) || (!Number.isNaN(d[i]) && k[i] < d[i])) state = 0;
+      out[i] = state;
+    }
+    return out;
+  }
+
+  if (strategy === "breakout_sma") {
+    const upper = shift1(rollingMax(close, fast));
+    const trend = sma(close, slow);
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      if (!Number.isNaN(upper[i]) && !Number.isNaN(trend[i]) && close[i] > upper[i] && close[i] > trend[i]) {
+        state = 1;
+      }
+      if (!Number.isNaN(trend[i]) && close[i] < trend[i]) state = 0; // exit overrides
       out[i] = state;
     }
     return out;

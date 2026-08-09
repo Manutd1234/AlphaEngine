@@ -217,6 +217,69 @@ def build_signals(strategy: str, df: pd.DataFrame, fast: int, slow: int) -> tupl
         raw[rsi < 30] = 1.0
         raw[(rsi > 55) | (close < trend)] = 0.0
         long = raw.ffill().fillna(0.0) > 0
+    elif strategy == "ema_cross":
+        f = close.ewm(span=fast, adjust=False).mean()
+        s = close.ewm(span=slow, adjust=False).mean()
+        long = f > s
+    elif strategy == "macd_cross":
+        # Signal period fixed at the conventional 9. The request carries two
+        # parameters, and inventing a third axis for a value nobody tunes would
+        # multiply every sweep by nine for no information.
+        macd = close.ewm(span=fast, adjust=False).mean() - close.ewm(span=slow, adjust=False).mean()
+        long = macd > macd.ewm(span=9, adjust=False).mean()
+    elif strategy == "momentum":
+        # Classic 12-1: measure the return to `slow` bars ago but skip the most
+        # recent `fast`, because short-horizon reversal is the documented
+        # contaminant of a momentum signal.
+        past = close.shift(slow)
+        recent = close.shift(fast)
+        long = (recent / past - 1.0) > 0
+    elif strategy == "donchian_mid":
+        upper = df["high"].rolling(fast).max().shift(1)
+        lower = df["low"].rolling(fast).min().shift(1)
+        mid = (upper + lower) / 2.0
+        exit_ma = close.rolling(slow).mean()
+        raw = pd.Series(np.nan, index=close.index)
+        raw[close > mid] = 1.0
+        raw[close < exit_ma] = 0.0
+        long = raw.ffill().fillna(0.0) > 0
+    elif strategy == "roc_trend":
+        roc = close.pct_change(fast)
+        trend = close.rolling(slow).mean()
+        long = (roc > 0) & (close > trend)
+    elif strategy == "williams_r":
+        high_n = df["high"].rolling(fast).max()
+        low_n = df["low"].rolling(fast).min()
+        span = (high_n - low_n).replace(0, np.nan)
+        wr = -100 * (high_n - close) / span
+        exit_ma = close.rolling(slow).mean()
+        raw = pd.Series(np.nan, index=close.index)
+        raw[wr < -80] = 1.0
+        raw[(wr > -20) | (close < exit_ma)] = 0.0
+        long = raw.ffill().fillna(0.0) > 0
+    elif strategy == "stochastic":
+        high_n = df["high"].rolling(fast).max()
+        low_n = df["low"].rolling(fast).min()
+        span = (high_n - low_n).replace(0, np.nan)
+        k = 100 * (close - low_n) / span
+        d = k.rolling(max(2, slow)).mean()
+        raw = pd.Series(np.nan, index=close.index)
+        # Oversold arms the long; %D is the exit confirmation, not an entry
+        # gate. Requiring `k < 20 AND k > d` at the same instant is the crossing
+        # moment itself and almost never coincides — it produced a strategy that
+        # took zero trades over 600 bars, which is not a conservative model, it
+        # is a broken one. Same shape as rsi_reversion above, for the same
+        # reason recorded there.
+        raw[k < 20] = 1.0
+        raw[(k > 80) | (k < d)] = 0.0
+        long = raw.ffill().fillna(0.0) > 0
+    elif strategy == "breakout_sma":
+        upper = close.rolling(fast).max().shift(1)
+        trend = close.rolling(slow).mean()
+        raw = pd.Series(np.nan, index=close.index)
+        raw[(close > upper) & (close > trend)] = 1.0
+        raw[close < trend] = 0.0
+        long = raw.ffill().fillna(0.0) > 0
     else:
         raise ValueError(f"unknown strategy: {strategy}")
 

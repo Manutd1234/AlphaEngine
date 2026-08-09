@@ -110,6 +110,7 @@
     "Part2_Infrastructure/tests/test_research.py",
     "Part2_Infrastructure/tests/test_risk_proxy.py",
     "Part2_Infrastructure/tests/test_session_rollover.py",
+    "Part2_Infrastructure/tests/test_strategy_catalog.py",
     "Part2_Infrastructure/tests/test_supabase_mirror.py",
     "Part2_Infrastructure/tests/test_supabase_schema.py",
     "Part2_Infrastructure/tests/test_tca_engine.py",

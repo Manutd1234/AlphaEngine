@@ -16,11 +16,28 @@ export function sma(values: Float64Array, window: number): Float64Array {
   const n = values.length;
   const out = new Float64Array(n).fill(NaN);
   if (window <= 0 || window > n) return out;
+
+  // NaN is counted, not summed. The running sum is what makes this O(n), but a
+  // NaN added into it poisons every later value — the sum never returns to a
+  // number. pandas' `rolling(w).mean()` yields NaN only while the window still
+  // CONTAINS one and recovers after, and these two engines are checked against
+  // each other to the cent.
+  //
+  // No caller hit this until an oscillator was smoothed: every earlier input
+  // was a price series with no gaps. It cost a 13-vs-2 trade-count divergence
+  // that the parity fixture caught and nothing else would have.
   let sum = 0;
+  let nans = 0;
   for (let i = 0; i < n; i++) {
-    sum += values[i];
-    if (i >= window) sum -= values[i - window];
-    if (i >= window - 1) out[i] = sum / window;
+    if (Number.isNaN(values[i])) nans++;
+    else sum += values[i];
+
+    if (i >= window) {
+      const leaving = values[i - window];
+      if (Number.isNaN(leaving)) nans--;
+      else sum -= leaving;
+    }
+    if (i >= window - 1) out[i] = nans > 0 ? NaN : sum / window;
   }
   return out;
 }
@@ -90,6 +107,28 @@ export function pctChange(values: Float64Array): Float64Array {
   for (let i = 1; i < n; i++) {
     const prev = values[i - 1];
     out[i] = prev !== 0 ? values[i] / prev - 1 : 0;
+  }
+  return out;
+}
+
+/**
+ * Exponential moving average, `adjust=False` — the recursive form pandas uses
+ * when `adjust=False`, seeded with the first value.
+ *
+ * The seeding matters for parity: pandas' adjusted EMA weights the early window
+ * differently, and a TypeScript implementation that seeds with an SMA drifts
+ * from the Python engine for the first few hundred bars. Both engines run the
+ * same recursion from the same first value.
+ */
+export function ema(values: Float64Array, span: number): Float64Array {
+  const out = new Float64Array(values.length).fill(NaN);
+  if (values.length === 0 || span < 1) return out;
+  const alpha = 2 / (span + 1);
+  let prev = values[0];
+  out[0] = prev;
+  for (let i = 1; i < values.length; i++) {
+    prev = alpha * values[i] + (1 - alpha) * prev;
+    out[i] = prev;
   }
   return out;
 }

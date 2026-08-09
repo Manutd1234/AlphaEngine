@@ -25,11 +25,23 @@ from modules.schemas import BacktestRequest  # noqa: E402
 
 OUT = ROOT / "web" / "tests" / "fixtures" / "parity.json"
 
+# Every strategy in the catalogue, on live bars. A model present in one engine
+# and subtly different in the other fails only when someone runs the Python
+# path, long after the TypeScript one was reviewed — and the two are supposed
+# to be the same model.
 CASES = [
     ("BTCUSDT", "4h", "ma_cross", "long_only"),
     ("ETHUSDT", "1h", "donchian", "long_only"),
     ("BTCUSDT", "1d", "rsi_reversion", "long_only"),
     ("ETHUSDT", "4h", "ma_cross", "long_short"),
+    ("BTCUSDT", "4h", "ema_cross", "long_only"),
+    ("BTCUSDT", "4h", "macd_cross", "long_only"),
+    ("ETHUSDT", "4h", "donchian_mid", "long_only"),
+    ("BTCUSDT", "1h", "breakout_sma", "long_only"),
+    ("ETHUSDT", "1d", "williams_r", "long_only"),
+    ("BTCUSDT", "4h", "stochastic", "long_only"),
+    ("ETHUSDT", "4h", "momentum", "long_only"),
+    ("BTCUSDT", "1h", "roc_trend", "long_only"),
 ]
 COMBOS = [(5, 20), (10, 50), (20, 100), (35, 180)]
 BARS = 1200

@@ -344,7 +344,12 @@ class BacktestRequest(BaseModel):
     interval: str = Field(default="1h", description="Bar size: 15m, 1h, 4h or 1d.")
     bars: int = Field(default=1500, ge=200, le=5000,
                       description="History depth in bars. Fewer than ~500 makes walk-forward folds too short to read.")
-    strategy: Literal["ma_cross", "donchian", "rsi_reversion"] = Field(
+    strategy: Literal[
+        "ma_cross", "ema_cross", "macd_cross",
+        "donchian", "donchian_mid", "breakout_sma",
+        "rsi_reversion", "williams_r", "stochastic",
+        "momentum", "roc_trend",
+    ] = Field(
         default="ma_cross", description="Signal family. Each interprets fast/slow as its own two parameters.")
     fast_min: int = Field(default=5, ge=2, le=400, description="Lower bound of the fast-parameter sweep.")
     fast_max: int = Field(default=40, ge=2, le=400, description="Upper bound of the fast-parameter sweep.")

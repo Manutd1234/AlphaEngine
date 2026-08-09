@@ -82,9 +82,15 @@ function near(actual: number, expected: number, rel: number, abs: number, what: 
 
 describe("TypeScript engine reproduces the Python reference", () => {
   it("fixture covers every strategy and both directions on live data", () => {
-    assert.equal(fixture.cases.length, 4);
+    // Every strategy the API accepts, not a sample of them. A model that exists
+    // in both engines and differs subtly between them fails only when someone
+    // runs the Python path, long after the TypeScript one was reviewed.
     const strategies = new Set(fixture.cases.map((c) => c.strategy));
-    assert.deepEqual([...strategies].sort(), ["donchian", "ma_cross", "rsi_reversion"]);
+    assert.deepEqual([...strategies].sort(), [
+      "breakout_sma", "donchian", "donchian_mid", "ema_cross", "ma_cross",
+      "macd_cross", "momentum", "roc_trend", "rsi_reversion", "stochastic",
+      "williams_r",
+    ]);
     assert.ok(fixture.cases.some((c) => c.direction === "long_short"));
     for (const c of fixture.cases) {
       assert.equal(c.source, "binance_rest", `${c.symbol} fixture is not live market data`);

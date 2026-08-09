@@ -156,8 +156,16 @@
             "description": "Signal family. Each interprets fast/slow as its own two parameters.",
             "enum": [
               "ma_cross",
+              "ema_cross",
+              "macd_cross",
               "donchian",
-              "rsi_reversion"
+              "donchian_mid",
+              "breakout_sma",
+              "rsi_reversion",
+              "williams_r",
+              "stochastic",
+              "momentum",
+              "roc_trend"
             ],
             "title": "Strategy",
             "type": "string"

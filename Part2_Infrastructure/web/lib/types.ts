@@ -1,6 +1,43 @@
 /** Shared contracts between the API routes and the UI. */
 
-export type Strategy = "ma_cross" | "donchian" | "rsi_reversion";
+export type Strategy =
+  | "ma_cross"
+  | "ema_cross"
+  | "macd_cross"
+  | "donchian"
+  | "donchian_mid"
+  | "breakout_sma"
+  | "rsi_reversion"
+  | "williams_r"
+  | "stochastic"
+  | "momentum"
+  | "roc_trend";
+
+/**
+ * Families, for grouping the picker.
+ *
+ * Every strategy here takes exactly two integer parameters, which is why they
+ * fit the existing request shape unchanged. That is not a coincidence — it is
+ * the selection criterion. Models needing a third axis (Ichimoku) or a
+ * non-integer one (Bollinger's standard-deviation multiple) are deliberately
+ * held back until the request carries named parameters, because encoding a
+ * 1.5x multiplier as the integer 15 makes a slider that lies about its units.
+ */
+export type StrategyFamily = "Trend" | "Breakout" | "Mean reversion" | "Momentum";
+
+export const STRATEGY_FAMILY: Record<Strategy, StrategyFamily> = {
+  ma_cross: "Trend",
+  ema_cross: "Trend",
+  macd_cross: "Trend",
+  donchian: "Breakout",
+  donchian_mid: "Breakout",
+  breakout_sma: "Breakout",
+  rsi_reversion: "Mean reversion",
+  williams_r: "Mean reversion",
+  stochastic: "Mean reversion",
+  momentum: "Momentum",
+  roc_trend: "Momentum",
+};
 export type Direction = "long_only" | "long_short";
 
 export interface Bar {
@@ -394,16 +431,32 @@ export const INTERVALS = ["15m", "1h", "4h", "1d"] as const;
 
 export const STRATEGY_LABELS: Record<Strategy, string> = {
   ma_cross: "Moving-average crossover",
+  ema_cross: "EMA crossover",
+  macd_cross: "MACD signal crossover",
   donchian: "Donchian breakout",
+  donchian_mid: "Donchian mid-band",
+  breakout_sma: "Trend-filtered breakout",
   rsi_reversion: "RSI mean reversion",
+  williams_r: "Williams %R reversion",
+  stochastic: "Stochastic oscillator",
+  momentum: "Momentum (skip-recent)",
+  roc_trend: "Rate of change with trend filter",
 };
 
 /** What `fast` and `slow` actually mean for each model — shown in the UI so the
  *  sliders are not two unlabelled numbers. */
 export const PARAM_MEANING: Record<Strategy, { fast: string; slow: string }> = {
   ma_cross: { fast: "Fast SMA period", slow: "Slow SMA period" },
+  ema_cross: { fast: "Fast EMA span", slow: "Slow EMA span" },
+  macd_cross: { fast: "Fast EMA span", slow: "Slow EMA span" },
   donchian: { fast: "Breakout lookback", slow: "Trailing-exit lookback" },
+  donchian_mid: { fast: "Channel lookback", slow: "Exit SMA period" },
+  breakout_sma: { fast: "Breakout lookback", slow: "Trend-filter SMA period" },
   rsi_reversion: { fast: "RSI period", slow: "Trend-filter SMA period" },
+  williams_r: { fast: "%R lookback", slow: "Exit SMA period" },
+  stochastic: { fast: "%K lookback", slow: "%D smoothing" },
+  momentum: { fast: "Bars skipped (recent)", slow: "Momentum lookback" },
+  roc_trend: { fast: "Rate-of-change lookback", slow: "Trend-filter SMA period" },
 };
 
 /**
@@ -416,8 +469,18 @@ export const PARAM_MEANING: Record<Strategy, { fast: string; slow: string }> = {
  */
 export const CHART_SERIES: Record<Strategy, { fast: string | null; slow: string }> = {
   ma_cross: { fast: "Fast SMA", slow: "Slow SMA" },
+  ema_cross: { fast: "Fast EMA", slow: "Slow EMA" },
+  // MACD and the oscillators live on their own scale; drawing them against
+  // price would flatten the price axis into a line.
+  macd_cross: { fast: null, slow: "Slow EMA" },
   donchian: { fast: "Breakout high", slow: "Trailing low" },
+  donchian_mid: { fast: "Channel high", slow: "Exit SMA" },
+  breakout_sma: { fast: "Breakout high", slow: "Trend SMA" },
   rsi_reversion: { fast: null, slow: "Trend SMA" },
+  williams_r: { fast: null, slow: "Exit SMA" },
+  stochastic: { fast: null, slow: "Exit SMA" },
+  momentum: { fast: null, slow: "Lookback SMA" },
+  roc_trend: { fast: null, slow: "Trend SMA" },
 };
 
 export const BARS_PER_YEAR: Record<string, number> = {
