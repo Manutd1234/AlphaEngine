@@ -43,6 +43,20 @@ import time
 from apply_oracle_schema import _advise
 
 
+def _shred(wallet_dir: str | None) -> None:
+    """Remove the decoded key material.
+
+    The runner is ephemeral, so this is belt and braces — but a private key
+    written to disk should be removed by whatever wrote it, not left to the
+    platform's cleanup, which is a promise this code cannot verify.
+    """
+    if not wallet_dir:
+        return
+    import shutil
+
+    shutil.rmtree(wallet_dir, ignore_errors=True)
+
+
 def main() -> int:
     connect_string = (os.environ.get("ORACLE_CONN_STRING") or "").strip()
     password = os.environ.get("ORACLE_PASSWORD") or ""
@@ -58,12 +72,44 @@ def main() -> int:
         print("python-oracledb is not installed:  pip install oracledb", file=sys.stderr)
         return 1
 
+    # Mutual TLS, when the database demands it. An ADB permits walletless TLS
+    # only once it has a network ACL or a private endpoint; with "secure access
+    # from everywhere" Oracle requires mTLS, and then the wallet is the only way
+    # in. Thin mode reads `ewallet.pem` alone, so the secret is one base64 blob
+    # rather than the whole downloaded zip.
+    wallet_kwargs: dict[str, str] = {}
+    wallet_dir: str | None = None
+    wallet_b64 = (os.environ.get("ORACLE_WALLET_PEM_B64") or "").strip()
+    if wallet_b64:
+        import base64
+        import tempfile
+
+        try:
+            pem = base64.b64decode(wallet_b64, validate=True).decode("utf-8")
+        except Exception:
+            print("ORACLE_WALLET_PEM_B64 is not valid base64.", file=sys.stderr)
+            return 1
+        if "-----BEGIN" not in pem:
+            print("ORACLE_WALLET_PEM_B64 does not decode to a PEM.", file=sys.stderr)
+            return 1
+        # mkdtemp is 0700 by definition; the key inside it is written 0600.
+        wallet_dir = tempfile.mkdtemp(prefix="alphaengine-wallet-")
+        pem_path = os.path.join(wallet_dir, "ewallet.pem")
+        with open(os.open(pem_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as handle:
+            handle.write(pem)
+        wallet_kwargs["wallet_location"] = wallet_dir
+        wallet_password = os.environ.get("ORACLE_WALLET_PASSWORD")
+        if wallet_password:
+            wallet_kwargs["wallet_password"] = wallet_password
+
     print(f"python-oracledb {oracledb.__version__}, thin mode: {oracledb.is_thin_mode()}")
-    print(f"Connecting as {user}\n")
+    print(f"Connecting as {user}{' with a wallet (mTLS)' if wallet_kwargs else ' walletless'}\n")
 
     started = time.perf_counter()
     try:
-        connection = oracledb.connect(user=user, password=password, dsn=connect_string)
+        connection = oracledb.connect(
+            user=user, password=password, dsn=connect_string, **wallet_kwargs
+        )
     except Exception as error:  # noqa: BLE001 — the taxonomy is the whole point
         advice = _advise(error)
         print(f"unreachable — {advice}", file=sys.stderr)
@@ -84,6 +130,7 @@ def main() -> int:
                 "such service to hand the connection to.",
                 file=sys.stderr,
             )
+        _shred(wallet_dir)
         return 1
 
     with connection:
@@ -91,6 +138,7 @@ def main() -> int:
         cursor.execute("SELECT 1 FROM DUAL")
         cursor.fetchone()
     elapsed_ms = (time.perf_counter() - started) * 1000
+    _shred(wallet_dir)
 
     print(f"reachable — SELECT 1 answered in {elapsed_ms:.0f}ms; the idle timer is reset.")
     return 0

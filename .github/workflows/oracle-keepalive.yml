@@ -81,4 +81,8 @@ jobs:
           ORACLE_CONN_STRING: ${{ secrets.DB_CONNECTION_STRING }}
           ORACLE_PASSWORD: ${{ secrets.DB_PASSWORD }}
           ORACLE_USER: ${{ secrets.ORACLE_USER }}
+          # Only needed while the database requires mutual TLS, which it does
+          # until it is given a network ACL. Absent means walletless.
+          ORACLE_WALLET_PEM_B64: ${{ secrets.ORACLE_WALLET_PEM_B64 }}
+          ORACLE_WALLET_PASSWORD: ${{ secrets.ORACLE_WALLET_PASSWORD }}
         run: python tools/oracle_keepalive.py

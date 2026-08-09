@@ -27,6 +27,8 @@ import type oracledbTypes from "oracledb";
 export const ORACLE_CONN_ENV = "ORACLE_CONN_STRING";
 export const ORACLE_PASSWORD_ENV = "ORACLE_PASSWORD";
 export const ORACLE_USER_ENV = "ORACLE_USER";
+export const ORACLE_WALLET_ENV = "ORACLE_WALLET_PEM_B64";
+export const ORACLE_WALLET_PASSWORD_ENV = "ORACLE_WALLET_PASSWORD";
 
 export interface OracleFailure {
   code:
@@ -36,6 +38,8 @@ export interface OracleFailure {
     | "oracle_timeout"
     | "oracle_busy"
     | "oracle_schema_missing"
+    | "oracle_wallet_invalid"
+    | "oracle_service_unknown"
     | "oracle_invalid_payload";
   /** Safe to render. Never contains the connect string, host, user or ORA text. */
   error: string;
@@ -48,6 +52,9 @@ export interface OracleConfig {
   user: string;
   password: string;
   connectString: string;
+  /** Base64 `ewallet.pem`, present only when the database requires mutual TLS. */
+  walletPemB64?: string;
+  walletPassword?: string;
 }
 
 /**
@@ -59,7 +66,17 @@ export function oracleConfig(env: NodeJS.ProcessEnv = process.env): OracleConfig
   const connectString = env[ORACLE_CONN_ENV]?.trim();
   const password = env[ORACLE_PASSWORD_ENV];
   if (!connectString || !password) return null;
-  return { user: env[ORACLE_USER_ENV]?.trim() || "ADMIN", password, connectString };
+  return {
+    user: env[ORACLE_USER_ENV]?.trim() || "ADMIN",
+    password,
+    connectString,
+    // Optional, and its absence is the common case. An Autonomous Database only
+    // permits TLS without a wallet once it has a network ACL or a private
+    // endpoint; with "secure access from everywhere" Oracle forces mutual TLS,
+    // and then a wallet is not a preference but the only way to connect.
+    walletPemB64: env[ORACLE_WALLET_ENV]?.trim() || undefined,
+    walletPassword: env[ORACLE_WALLET_PASSWORD_ENV] || undefined,
+  };
 }
 
 export function notConfigured(what: string): OracleFailure {
@@ -85,6 +102,38 @@ function classify(error: unknown): OracleFailure {
   const message = String((error as Error)?.message ?? "");
   const ora = /ORA-(\d{5})/.exec(message)?.[1] ?? "";
 
+  // Mutual TLS, and it is worth its own branch because every neighbouring
+  // failure sends you somewhere useless. A missing or wrong wallet surfaces as
+  // a certificate or handshake error, which reads like a network fault; the
+  // actual fix is a secret, and the actual cause is that this database has no
+  // network ACL, so Oracle will not permit walletless TLS at all.
+  if (
+    message === "wallet_pem_invalid"
+    || ["29024", "29061", "28759", "28860"].includes(ora)
+    || /wallet|mutual tls|mtls|certificate|handshake|self.?signed/i.test(message)
+  ) {
+    return {
+      code: "oracle_wallet_invalid",
+      error:
+        `This database requires mutual TLS. Set ${ORACLE_WALLET_ENV} to the base64 of `
+        + `ewallet.pem from its wallet, and ${ORACLE_WALLET_PASSWORD_ENV} to the wallet `
+        + "password — or give the database a network ACL and turn mutual TLS off.",
+      status: 502,
+    };
+  }
+  // Service name absent from the listener. Distinct from unreachable: the
+  // instance answered and refused to route, which is a stopped database or a
+  // service name that does not exist — never a password.
+  if (["12514", "12506", "12154"].includes(ora)) {
+    return {
+      code: "oracle_service_unknown",
+      error:
+        `The listener answered but has no such service. Check the service name in `
+        + `${ORACLE_CONN_ENV} against the console's connection strings, and that the `
+        + "database is not stopped.",
+      status: 502,
+    };
+  }
   // Wrong password, expired password, locked account.
   if (["01017", "28000", "28001", "01005"].includes(ora)) {
     return {
@@ -141,6 +190,46 @@ function classify(error: unknown): OracleFailure {
  */
 let poolPromise: Promise<oracledbTypes.Pool> | null = null;
 
+/** Resolved wallet directory for this instance, created at most once. */
+let walletDirPromise: Promise<string> | null = null;
+
+/**
+ * Writes `ewallet.pem` somewhere the driver can read it, and returns the directory.
+ *
+ * Thin mode reads the PEM only — none of the `.sso`, `.p12` or `.jks` files in
+ * the downloaded wallet — so the secret carries one base64 blob rather than a
+ * zip. It is written per instance rather than baked into the image because it is
+ * a **private key**: in an env var it is rotatable and scoped to the deployment,
+ * whereas in the repository it would be permanent and public.
+ *
+ * `mkdtemp` creates the directory `0700` by definition — owner-only, which is
+ * why no mode is passed — and the PEM is written `0600` inside it. The path is
+ * never logged. On Vercel this lands in the function's own writable `/tmp`,
+ * private to that instance and discarded with it.
+ */
+async function walletDirectory(config: OracleConfig): Promise<string> {
+  if (walletDirPromise) return walletDirPromise;
+  walletDirPromise = (async () => {
+    const { mkdtemp, writeFile } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+
+    const dir = await mkdtemp(join(tmpdir(), "alphaengine-wallet-"));
+    const pem = Buffer.from(config.walletPemB64 as string, "base64").toString("utf8");
+    // A truncated or non-base64 secret decodes to something that is not a PEM,
+    // and the driver's error for that is far less obvious than this one.
+    if (!pem.includes("-----BEGIN")) {
+      throw new Error("wallet_pem_invalid");
+    }
+    await writeFile(join(dir, "ewallet.pem"), pem, { mode: 0o600 });
+    return dir;
+  })().catch((error) => {
+    walletDirPromise = null;
+    throw error;
+  });
+  return walletDirPromise;
+}
+
 async function getPool(config: OracleConfig): Promise<oracledbTypes.Pool> {
   if (poolPromise) return poolPromise;
   poolPromise = (async () => {
@@ -149,10 +238,22 @@ async function getPool(config: OracleConfig): Promise<oracledbTypes.Pool> {
     const oracledb = (await import("oracledb")).default;
     oracledb.fetchAsString = [oracledb.CLOB];
     oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
+
+    // Only when the database demands it. Passing a wallet to an instance that
+    // accepts walletless TLS is harmless but pointless, and leaving these
+    // undefined keeps the walletless path exactly as it was.
+    const mutualTls = config.walletPemB64
+      ? {
+        walletLocation: await walletDirectory(config),
+        walletPassword: config.walletPassword,
+      }
+      : {};
+
     return oracledb.createPool({
       user: config.user,
       password: config.password,
       connectString: config.connectString,
+      ...mutualTls,
       poolMin: 0,
       poolMax: 2,
       poolTimeout: 30,
