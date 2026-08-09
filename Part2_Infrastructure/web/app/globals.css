@@ -13444,3 +13444,60 @@ button:active:not(:disabled) {
   margin: var(--space-3) 0 0;
   font-size: 0.9em;
 }
+
+/* ── Quality score ─────────────────────────────────────────────────────────
+   The composite 0-100 and its breakdown. The bars deliberately reuse
+   `.console-meter--wide` rather than declaring a third meter grammar; only the
+   layout around them is new. */
+
+.quality-card { container-type: inline-size; }
+
+.quality-total {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.quality-total > strong { font-size: 2rem; line-height: 1; }
+.quality-total > small { color: var(--text-secondary); }
+.quality-total.is-good > strong { color: var(--success-text); }
+.quality-total.is-warning > strong { color: var(--warning-text); }
+.quality-total.is-critical > strong { color: var(--critical-text); }
+
+.quality-breakdown {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+/* Two columns only when the card itself is wide — this panel appears both full
+   width and inside `.compact-grid-2col`, and the viewport cannot tell them
+   apart. */
+@container (min-width: 620px) {
+  .quality-breakdown { grid-template-columns: 1fr 1fr; column-gap: var(--space-4); }
+}
+
+.quality-row__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: 4px;
+}
+/* Fixed width and tabular figures so the contribution column stays a column as
+   values change. */
+.quality-row__points {
+  font-variant-numeric: tabular-nums;
+  min-width: 7ch;
+  text-align: right;
+}
+.quality-breakdown small { display: block; margin-top: 4px; font-size: 0.85em; }
+
+.quality-gate-note {
+  margin: var(--space-3) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+  font-size: 0.9em;
+  color: var(--text-secondary);
+}

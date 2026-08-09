@@ -20,6 +20,7 @@ import SignalDAGViewer from "@/components/research/SignalDAGViewer";
 import ExperimentHistory from "@/components/research/ExperimentHistory";
 import FactorPanel from "@/components/research/FactorPanel";
 import PromotionPanel from "@/components/research/PromotionPanel";
+import QualityScorePanel from "@/components/research/QualityScorePanel";
 import ResearchCorpus from "@/components/research/ResearchCorpus";
 import RegimePanel from "@/components/research/RegimePanel";
 import SizingPanel from "@/components/research/SizingPanel";
@@ -1109,6 +1110,10 @@ export default function Page() {
                         targetInterval={req.interval}
                         onRerun={() => run()}
                       >
+                        {/* Above the gate, not beside it. The score ranks and
+                            the gate vetoes; side by side they read as two
+                            rival verdicts on the same run. */}
+                        <QualityScorePanel data={data} />
                         <div className="compact-grid-2col">
                           <PromotionPanel
                             gate={data.promotion}

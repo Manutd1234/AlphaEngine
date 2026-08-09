@@ -33,6 +33,8 @@
  * tell contradictory stories about the same run.
  */
 
+import type { SweepResponse } from "@/lib/types";
+
 export interface QualityInput {
   deflatedSharpeRatio: number;
   sharpe: number;
@@ -197,6 +199,41 @@ function verdictFor(total: number, incomplete: boolean): string {
   if (total >= 55) return `Worth a closer look.${caveat}`;
   if (total >= 35) return `Weak — several categories are dragging.${caveat}`;
   return `Poor on its own history.${caveat}`;
+}
+
+/**
+ * The one place a sweep response becomes a score input.
+ *
+ * Lives here rather than in the panel because the mapping is where the score
+ * gets quietly corrupted. The leak the tests caught was not in the arithmetic —
+ * it was a category reading the in-sample Sharpe when an out-of-sample one
+ * existed. A mapping done inline at the render site is a mapping no test can
+ * reach, and this one is now covered by the same file that covers the weights.
+ *
+ * `data.benchmark` is buy-and-hold on the SAME symbol, which is the only
+ * benchmark this engine computes today. Slice 7d replaces it with a
+ * user-selected instrument; until then the "versus benchmark" category is
+ * asking "did the timing beat holding it", not "did it beat the market", and
+ * the panel says so rather than letting the label imply otherwise.
+ */
+export function qualityInputFromSweep(data: SweepResponse): QualityInput {
+  return {
+    deflatedSharpeRatio: data.deflatedSharpeRatio,
+    sharpe: data.best.sharpe,
+    maxDrawdown: data.best.maxDrawdown,
+    calmar: data.best.calmar,
+    totalReturn: data.best.totalReturn,
+    winRate: data.best.winRate,
+    trades: data.best.trades,
+    // Null when walk-forward was switched off, and null is load-bearing: the
+    // robustness category scores zero and says why, rather than being dropped
+    // from the denominator so the total flatters an unvalidated run.
+    medianEfficiency: data.walkForwardReport.medianEfficiency,
+    overfittingProbability: data.walkForwardReport.overfittingProbability,
+    walkForwardOosSharpe: data.walkForwardOosSharpe,
+    benchmarkSharpe: data.benchmark.sharpe,
+    benchmarkTotalReturn: data.benchmark.totalReturn,
+  };
 }
 
 /** The weights, exported so the UI can render the breakdown without restating them. */

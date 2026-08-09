@@ -8,9 +8,30 @@
  */
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
-import { QUALITY_WEIGHTS, QualityInput, qualityScore } from "@/lib/quality-score";
+import {
+  QUALITY_WEIGHTS,
+  QualityInput,
+  qualityInputFromSweep,
+  qualityScore,
+} from "@/lib/quality-score";
+import type { SweepResponse } from "@/lib/types";
+
+const read = (relative: string) =>
+  readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
+
+/** Comment-free view: the assertions below quote constructs they forbid. */
+const code = (source: string) =>
+  source
+    .split("\n")
+    .filter((line) => {
+      const t = line.trim();
+      return !t.startsWith("*") && !t.startsWith("//") && !t.startsWith("/*");
+    })
+    .join("\n");
 
 const solid: QualityInput = {
   deflatedSharpeRatio: 0.96, sharpe: 1.8, maxDrawdown: -0.12, calmar: 2.4,
@@ -103,5 +124,139 @@ describe("it describes history and does not predict", () => {
       assert.ok(c.detail.length > 0, `${c.id} has no detail`);
       assert.match(c.detail, /[0-9]/, `${c.id} detail cites no measured value`);
     }
+  });
+});
+
+// --------------------------------------------------------------------------
+// The mapping from a sweep response, and the panel that renders it
+// --------------------------------------------------------------------------
+
+/** Only the fields `qualityInputFromSweep` reads; the rest is irrelevant here. */
+function sweep(over: Record<string, unknown> = {}): SweepResponse {
+  return {
+    deflatedSharpeRatio: 0.9,
+    walkForwardOosSharpe: 1.1,
+    best: {
+      sharpe: 2.7, maxDrawdown: -0.18, calmar: 1.9, totalReturn: 0.44,
+      winRate: 0.51, trades: 41,
+    },
+    walkForwardReport: { medianEfficiency: 0.7, overfittingProbability: 0.2 },
+    benchmark: { sharpe: 0.6, totalReturn: 0.25 },
+    ...over,
+  } as unknown as SweepResponse;
+}
+
+describe("the mapping from a sweep response is where the score gets corrupted", () => {
+  it("reads each field from the place that owns it", () => {
+    const input = qualityInputFromSweep(sweep());
+    assert.equal(input.deflatedSharpeRatio, 0.9);   // top level, not best
+    assert.equal(input.sharpe, 2.7);                // best, not the report
+    assert.equal(input.walkForwardOosSharpe, 1.1);
+    assert.equal(input.maxDrawdown, -0.18);
+    assert.equal(input.trades, 41);
+    assert.equal(input.benchmarkSharpe, 0.6);
+  });
+
+  it("never substitutes the in-sample Sharpe for the out-of-sample one", () => {
+    // The exact leak that scored an overfit run 55. `best.sharpe` is 2.7 and
+    // the OOS Sharpe is 1.1 — if these are ever conflated the benchmark
+    // category collects full marks on a number walk-forward disagreed with.
+    const input = qualityInputFromSweep(sweep());
+    assert.notEqual(input.walkForwardOosSharpe, input.sharpe);
+  });
+
+  it("carries an absent walk-forward through as null, not zero", () => {
+    // Zero is a measurement. Null is the absence of one, and only null makes
+    // the robustness category say "unmeasured" instead of "measured as bad".
+    const input = qualityInputFromSweep(sweep({
+      walkForwardOosSharpe: null,
+      walkForwardReport: { medianEfficiency: null, overfittingProbability: null },
+    }));
+    assert.equal(input.medianEfficiency, null);
+    assert.equal(input.overfittingProbability, null);
+    assert.equal(qualityScore(input).incomplete, true);
+  });
+
+  it("the benchmark it maps is the one the engine actually computed", () => {
+    // Buy-and-hold on the same symbol, until Slice 7d lands a selectable one.
+    // Pinning this stops the field silently becoming something else while the
+    // panel's copy still says "buy-and-hold".
+    const input = qualityInputFromSweep(sweep({ benchmark: { sharpe: 0.31, totalReturn: 0.07 } }));
+    assert.equal(input.benchmarkSharpe, 0.31);
+    assert.equal(input.benchmarkTotalReturn, 0.07);
+  });
+});
+
+describe("the panel renders the score rather than a second version of it", () => {
+  const panel = read("../components/research/QualityScorePanel.tsx");
+  const page = read("../app/page.tsx");
+  const css = read("../app/globals.css");
+
+  it("is mounted, and above the promotion gate", () => {
+    // A score module nothing renders is the defect this closes. Order matters
+    // too: the score ranks, the gate vetoes, and side by side they read as two
+    // rival verdicts on one run.
+    assert.match(page, /import QualityScorePanel/);
+    const mount = page.indexOf("<QualityScorePanel data={data} />");
+    const gate = page.indexOf("<PromotionPanel");
+    assert.ok(mount > 0, "QualityScorePanel is never mounted");
+    assert.ok(mount < gate, "the score renders below the gate it is supposed to lead");
+  });
+
+  it("uses the exported weights instead of restating them", () => {
+    // Six numbers hand-typed into JSX is six numbers that drift from the module
+    // the moment a weight is retuned.
+    for (const weight of Object.values(QUALITY_WEIGHTS)) {
+      assert.doesNotMatch(
+        code(panel), new RegExp(`weight[^\\n]*\\b${weight}\\b`),
+        `the panel hard-codes the weight ${weight}`,
+      );
+    }
+    assert.match(code(panel), /category\.weight/);
+  });
+
+  it("shows each category's weighted contribution, not its raw score", () => {
+    // A row reading 92 beside a total of 61 makes a reader distrust the
+    // arithmetic rather than the run.
+    assert.match(code(panel), /category\.score \* category\.weight\) \/ 100/);
+  });
+
+  it("shows the breakdown without a disclosure hiding it", () => {
+    // The hazard of one number is that it travels further than its caveats.
+    assert.doesNotMatch(code(panel), /<details/);
+    assert.match(code(panel), /score\.categories\.map/);
+    assert.match(code(panel), /score\.verdict/);
+  });
+
+  it("names the promotion gate as a footnote rather than a rival headline", () => {
+    assert.match(code(panel), /gate\.passed/);
+    assert.match(code(panel), /promotion criteria met/);
+  });
+
+  it("says which benchmark the benchmark category used", () => {
+    // "Versus benchmark" reads as "versus the market" to anyone who has met the
+    // phrase elsewhere, and today it is buy-and-hold on the same symbol.
+    assert.match(code(panel), /buy-and-hold/);
+    assert.match(code(panel), /data\.request\.symbol/);
+  });
+
+  it("reuses the existing meter grammar instead of declaring a third", () => {
+    assert.match(code(panel), /console-meter console-meter--wide/);
+  });
+
+  it("gives each bar an accessible reading of its own value", () => {
+    // A bare coloured bar is invisible to a screen reader and to anyone who
+    // cannot separate the three tones.
+    assert.match(code(panel), /aria-label=/);
+  });
+
+  it("survives both themes and both column widths", () => {
+    const block = css.slice(css.indexOf("/* ── Quality score"));
+    assert.deepEqual(block.match(/#[0-9a-fA-F]{3,8}\b/g) ?? [], [],
+      "hard-coded colours would be a dark-only slab in light mode");
+    // The panel appears full-width and inside `.compact-grid-2col`; only its own
+    // width can decide whether the breakdown fits two columns.
+    assert.match(block, /container-type:\s*inline-size/);
+    assert.match(block, /@container/);
   });
 });
