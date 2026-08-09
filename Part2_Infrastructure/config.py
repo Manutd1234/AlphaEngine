@@ -155,6 +155,14 @@ class Settings:
     # Long enough that a day of trading is a few hundred rows, short enough to
     # show the shape of an intraday drawdown.
     equity_snapshot_interval_s: float = field(default_factory=lambda: _env_float("EQUITY_SNAPSHOT_INTERVAL_S", 60.0))
+    #: How often the book is marked to market and the drawdown breaker checked.
+    #:
+    #: This is the desk's reaction time to its own losses, and it was 5s. The
+    #: work on each tick is arithmetic over an in-memory book — no I/O, no
+    #: database — so 1s costs almost nothing and the breaker trips up to four
+    #: seconds sooner. It also sets the floor for how fresh any pushed P&L can
+    #: be: streaming faster than this only delivers the same number more often.
+    risk_monitor_interval_s: float = field(default_factory=lambda: _env_float("RISK_MONITOR_INTERVAL_S", 1.0))
     # Taker fee applied to paper fills, in bps.
     paper_fee_bps: float = field(default_factory=lambda: _env_float("PAPER_FEE_BPS", 4.0))
     # Maker fee, for a resting order that was filled *by* someone crossing the

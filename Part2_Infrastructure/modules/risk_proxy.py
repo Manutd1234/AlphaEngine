@@ -207,6 +207,10 @@ class RiskGateway:
         # that patches `settings` before constructing the proxy still sees its
         # own symbols.
         self._whitelist: frozenset[str] = frozenset(s.upper() for s in settings.symbols)
+        #: Latched so the drawdown warning fires on entering the band, not on
+        #: every tick spent inside it. Cleared at the rollover with everything
+        #: else that is scoped to a session.
+        self._drawdown_warned: bool = False
         self.positions: dict[str, PositionState] = {}
         self.start_of_day_equity = settings.starting_equity_usd
         self.session_date = _utcnow().strftime("%Y-%m-%d")
@@ -578,10 +582,18 @@ class RiskGateway:
             self.audit.record_equity_snapshot(self.state())
 
     async def _monitor_loop(self) -> None:
-        """Marks the book to market and trips the breaker without human input."""
+        """Marks the book to market and trips the breaker without human input.
+
+        Runs at `RISK_MONITOR_INTERVAL_S` (1s), not the 5s it used to. Every
+        step below is arithmetic over an in-memory book, so the cost of the
+        faster tick is negligible and the breaker reacts four seconds sooner.
+        The two genuinely expensive things it can do — the session rollover's
+        durable write and the equity snapshot — are gated on their own
+        intervals, so raising the tick rate does not raise their rate.
+        """
         last_snapshot = 0.0
         while True:
-            await asyncio.sleep(5)
+            await asyncio.sleep(max(0.05, settings.risk_monitor_interval_s))
             try:
                 try:
                     self._roll_session_if_needed()
@@ -619,16 +631,34 @@ class RiskGateway:
                 if self.kill.active:
                     continue
                 dd = self.daily_drawdown_pct()
-                if dd >= settings.max_daily_drawdown_pct:
+                limit = settings.max_daily_drawdown_pct
+                if dd >= limit:
                     await self.trigger_kill(
-                        reason=f"AUTO: daily drawdown {dd:.2%} >= limit {settings.max_daily_drawdown_pct:.2%}",
+                        reason=f"AUTO: daily drawdown {dd:.2%} >= limit {limit:.2%}",
                         actor="circuit-breaker",
                     )
-                elif dd >= settings.max_daily_drawdown_pct * 0.8:
+                # Edge-triggered, with hysteresis. This used to alert on every
+                # tick the drawdown spent above 80% of the limit — roughly 720
+                # Telegram messages an hour at the old 5s cadence, and the tick
+                # is now 1s. A warning that repeats every second is not a
+                # warning; it is why the next real one goes unread.
+                #
+                # Rearming lower than it fires (70% vs 80%) is what stops a
+                # drawdown hovering on the threshold from flapping the alert
+                # once a second. The same shape the venue-feed watchdog uses.
+                elif dd >= limit * 0.8:
+                    if not self._drawdown_warned:
+                        self._drawdown_warned = True
+                        await self._alert(
+                            "warning",
+                            f"⚠️ Drawdown warning: {dd:.2%} of {limit:.2%} daily limit used "
+                            f"({dd / limit:.0%} of budget).",
+                        )
+                elif dd < limit * 0.7 and self._drawdown_warned:
+                    self._drawdown_warned = False
                     await self._alert(
-                        "warning",
-                        f"⚠️ Drawdown warning: {dd:.2%} of {settings.max_daily_drawdown_pct:.2%} daily limit used "
-                        f"({dd / settings.max_daily_drawdown_pct:.0%} of budget).",
+                        "info",
+                        f"✅ Drawdown recovered: {dd:.2%} of {limit:.2%} daily limit used.",
                     )
             except asyncio.CancelledError:
                 raise
@@ -690,6 +720,10 @@ class RiskGateway:
         for pos in self.positions.values():
             pos.realized_pnl = 0.0
         self.start_of_day_equity = baseline
+        # The warning latch is scoped to a session like everything else here.
+        # Left set, a desk that ended yesterday in the warning band would start
+        # today already "warned" and stay silent through its first real breach.
+        self._drawdown_warned = False
 
         # A DAY order that reaches the boundary has *expired* — it did exactly
         # what its time-in-force promised, and the blotter should say so. It has
