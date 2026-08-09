@@ -80,7 +80,15 @@ export async function oracleReadiness(
         label: "Oracle Autonomous DB (vector search, in-database VaR)",
         configured: true,
         ready: true,
-        statusDetail: "Answered SELECT 1 over walletless TLS.",
+        // Says which TLS mode actually connected rather than asserting one.
+        // This read "walletless TLS" unconditionally, written when that was the
+        // only mode the client had. It survived the addition of mutual TLS and
+        // then told an operator the opposite of the truth on a panel whose
+        // entire job is telling states apart — and "walletless" is exactly the
+        // word someone greps for when a wallet is the thing they suspect.
+        statusDetail: oracleConfig(env)?.walletPemB64
+          ? "Answered SELECT 1 over mutual TLS, using the configured wallet."
+          : "Answered SELECT 1 over walletless TLS.",
         latencyMs: ping.data,
         checkedAt,
         reason: null,
