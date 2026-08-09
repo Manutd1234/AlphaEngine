@@ -1124,6 +1124,75 @@
         "title": "ResearchRagAnomalyMatch",
         "type": "object"
       },
+      "ResearchRagEmbedRequest": {
+        "description": "Text to embed with the same model that embedded the corpus.\n\nBounds mirror `supabase/functions/embed-research` exactly \u2014 1..32 texts of\n1..8000 characters. Rejecting here rather than forwarding an oversized batch\nturns a 400 from an edge function the caller cannot see into a validation\nerror naming the field.",
+        "properties": {
+          "texts": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 32,
+            "minItems": 1,
+            "title": "Texts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "texts"
+        ],
+        "title": "ResearchRagEmbedRequest",
+        "type": "object"
+      },
+      "ResearchRagEmbedResponse": {
+        "description": "Vectors in request order, or `state: unavailable` with none.\n\nThere is no partial success: a caller that received some vectors would have\nto track which positions failed to pair them with the right text, and a\nmisaligned embedding ranks confident nonsense rather than erroring.",
+        "properties": {
+          "dimensions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dimensions"
+          },
+          "embeddings": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "title": "Embeddings",
+            "type": "array"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "state": {
+            "enum": [
+              "ok",
+              "unavailable"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "ResearchRagEmbedResponse",
+        "type": "object"
+      },
       "ResearchRagMatch": {
         "properties": {
           "body": {
@@ -4099,6 +4168,82 @@
           }
         },
         "summary": "Openbb Quote",
+        "tags": [
+          "C \u00b7 Research"
+        ]
+      }
+    },
+    "/api/research/rag/embed": {
+      "post": {
+        "description": "Embed text with the same model that embedded the corpus.\n\nExists so the Oracle vector-search route can embed a query without becoming\na second embedding vendor. Vectors are comparable only within one model, so\na query embedded by anything other than the `gte-small` session in\n`supabase/functions/embed-research` would return confident, meaningless\nneighbours \u2014 a failure indistinguishable from success.\n\n`state: unavailable` rather than an error when the index is not configured\nor the service did not answer, matching the search route: \"not configured\"\nand \"found nothing\" are different facts and neither is an exception.",
+        "operationId": "research_rag_embed_api_research_rag_embed_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResearchRagEmbedRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchRagEmbedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Research Rag Embed",
         "tags": [
           "C \u00b7 Research"
         ]

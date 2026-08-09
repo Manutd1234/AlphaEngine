@@ -474,6 +474,42 @@ class ResearchRagSearchRequest(BaseModel):
     kind: Literal["backtest_run", "execution_summary", "risk_incident"] | None = None
 
 
+class ResearchRagEmbedRequest(BaseModel):
+    """Text to embed with the same model that embedded the corpus.
+
+    Bounds mirror `supabase/functions/embed-research` exactly — 1..32 texts of
+    1..8000 characters. Rejecting here rather than forwarding an oversized batch
+    turns a 400 from an edge function the caller cannot see into a validation
+    error naming the field.
+    """
+
+    texts: list[str] = Field(min_length=1, max_length=32)
+
+    @field_validator("texts")
+    @classmethod
+    def _bounded_texts(cls, v: list[str]) -> list[str]:
+        for text in v:
+            if not text.strip():
+                raise ValueError("texts may not be blank")
+            if len(text) > 8000:
+                raise ValueError("each text is limited to 8000 characters")
+        return v
+
+
+class ResearchRagEmbedResponse(BaseModel):
+    """Vectors in request order, or `state: unavailable` with none.
+
+    There is no partial success: a caller that received some vectors would have
+    to track which positions failed to pair them with the right text, and a
+    misaligned embedding ranks confident nonsense rather than erroring.
+    """
+
+    state: Literal["ok", "unavailable"]
+    embeddings: list[list[float]] = Field(default_factory=list)
+    model: str | None = None
+    dimensions: int | None = None
+
+
 class ResearchRagMatch(BaseModel):
     id: str
     kind: str

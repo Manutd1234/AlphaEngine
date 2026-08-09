@@ -179,23 +179,44 @@ class ResearchRag:
             self._client = None
 
     # -- embedding --------------------------------------------------------- #
-    async def _embed(self, text: str) -> list[float] | None:
-        """One vector, or None — the caller records 'pending', never zeros."""
-        if not self._client:
+    async def embed_many(self, texts: list[str]) -> list[list[float]] | None:
+        """Vectors for every text in one call, or None if any of it is unusable.
+
+        All-or-nothing on purpose. A partial result would leave the caller
+        pairing vectors with the wrong texts unless it also tracked which
+        positions failed, and a silently misaligned embedding is the failure
+        mode this whole module is built to avoid: it returns confident
+        neighbours that mean nothing.
+
+        One round trip. `embed-research` accepts up to 32 texts and the write
+        path used to send them one at a time, so a backfill of N documents cost
+        N round trips to a function that could have taken them in batches.
+        """
+        if not self._client or not texts:
             return None
         try:
             response = await self._client.post(
-                "/functions/v1/embed-research", json={"texts": [text]}
+                "/functions/v1/embed-research", json={"texts": texts}
             )
             if response.status_code >= 300:
                 return None
             embeddings = response.json().get("embeddings") or []
-            vector = embeddings[0] if embeddings else None
-            if not vector or len(vector) != EMBEDDING_DIMENSIONS:
+            if len(embeddings) != len(texts):
                 return None
-            return vector
+            # A dimension mismatch means the corpus and this query were embedded
+            # by different models. Refusing is the only safe answer: vectors are
+            # comparable only within one model, and a 1536-dim query against a
+            # 384-dim index does not error, it ranks nonsense.
+            if any(not v or len(v) != EMBEDDING_DIMENSIONS for v in embeddings):
+                return None
+            return embeddings
         except httpx.HTTPError:
             return None
+
+    async def _embed(self, text: str) -> list[float] | None:
+        """One vector, or None — the caller records 'pending', never zeros."""
+        vectors = await self.embed_many([text])
+        return vectors[0] if vectors else None
 
     # -- write path (all through the bounded queue) ------------------------ #
     def _submit(self, document: dict[str, Any]) -> None:

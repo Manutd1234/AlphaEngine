@@ -51,7 +51,7 @@ from modules.jobs import get_queue
 from modules.metrics import RequestTimingMiddleware, render_metrics
 from modules.operations import OperationsSnapshot, build_operations_snapshot
 from modules.portfolio import build_equity_history, build_portfolio
-from modules.research_rag import get_rag
+from modules.research_rag import EMBEDDING_DIMENSIONS, EMBEDDING_MODEL, get_rag
 from modules.risk_proxy import get_gateway
 from modules.schemas import (
     BacktestRequest,
@@ -63,6 +63,8 @@ from modules.schemas import (
     OrderTimeline,
     ReduceOnlyRequest,
     ReplaceRequest,
+    ResearchRagEmbedRequest,
+    ResearchRagEmbedResponse,
     ResearchRagSearchRequest,
     ResearchRagSearchResponse,
     ResearchRagStatus,
@@ -515,6 +517,34 @@ async def research_rag_search(
     """
     result = await get_rag().search(req.query, match_count=req.match_count, kind=req.kind)
     return ResearchRagSearchResponse(**result)
+
+
+@app.post("/api/research/rag/embed", tags=["C · Research"])
+async def research_rag_embed(
+    req: ResearchRagEmbedRequest, _actor: str = Depends(trader_identity)
+) -> ResearchRagEmbedResponse:
+    """Embed text with the same model that embedded the corpus.
+
+    Exists so the Oracle vector-search route can embed a query without becoming
+    a second embedding vendor. Vectors are comparable only within one model, so
+    a query embedded by anything other than the `gte-small` session in
+    `supabase/functions/embed-research` would return confident, meaningless
+    neighbours — a failure indistinguishable from success.
+
+    `state: unavailable` rather than an error when the index is not configured
+    or the service did not answer, matching the search route: "not configured"
+    and "found nothing" are different facts and neither is an exception.
+    """
+    rag = get_rag()
+    vectors = await rag.embed_many(req.texts)
+    if vectors is None:
+        return ResearchRagEmbedResponse(state="unavailable")
+    return ResearchRagEmbedResponse(
+        state="ok",
+        embeddings=vectors,
+        model=EMBEDDING_MODEL,
+        dimensions=EMBEDDING_DIMENSIONS,
+    )
 
 
 @app.get("/api/research/rag/status", tags=["C · Research"])

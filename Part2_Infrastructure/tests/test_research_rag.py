@@ -130,6 +130,92 @@ class TestUnavailableIsAState:
         assert "supabase.co" not in text and "sb_secret" not in text
 
 
+class TestEmbedEndpoint:
+    """The route the Oracle vector search calls to embed its query.
+
+    Its absence is what made `/api/oracle/research` return `embed_failed` on
+    every request: the Next.js route posted to `/api/research/rag/embed` and the
+    gateway had only `/search` and `/status`. Nothing failed loudly — the search
+    simply reported that it could not embed, forever, which is a state the UI
+    renders honestly and therefore nobody investigated.
+    """
+
+    def test_embed_reports_unavailable_rather_than_raising(self):
+        reset_rag()
+        rag = get_rag()
+        assert rag.enabled is False
+        assert asyncio.run(rag.embed_many(["donchian drawdown"])) is None
+
+    def test_embed_many_is_one_round_trip_not_one_per_text(self):
+        """The write path used to send texts one at a time.
+
+        `embed-research` accepts 32 per call, so a backfill of N documents cost
+        N round trips to a function that could have taken them in batches.
+        """
+        sent: list[dict] = []
+
+        class _Response:
+            status_code = 200
+
+            @staticmethod
+            def json():
+                return {"embeddings": [[0.1] * EMBEDDING_DIMENSIONS] * 3}
+
+        class _Client:
+            async def post(self, path, json):  # noqa: A002 — httpx's own kwarg name
+                sent.append(json)
+                return _Response()
+
+        rag = ResearchRag()
+        rag._client = _Client()
+        vectors = asyncio.run(rag.embed_many(["a", "b", "c"]))
+
+        assert vectors is not None and len(vectors) == 3
+        assert len(sent) == 1, "three texts became three HTTP calls"
+        assert sent[0]["texts"] == ["a", "b", "c"]
+
+    def test_a_short_batch_is_refused_rather_than_misaligned(self):
+        """Partial results are the dangerous case, not the error case.
+
+        If the service returns two vectors for three texts, pairing them by
+        index silently attaches the wrong vector to the third document. That
+        does not raise and does not look wrong — it returns confident
+        neighbours that mean nothing, which is the exact failure this module's
+        never-write-a-zero-vector rule exists to prevent.
+        """
+        class _Response:
+            status_code = 200
+
+            @staticmethod
+            def json():
+                return {"embeddings": [[0.1] * EMBEDDING_DIMENSIONS] * 2}
+
+        class _Client:
+            async def post(self, path, json):  # noqa: A002
+                return _Response()
+
+        rag = ResearchRag()
+        rag._client = _Client()
+        assert asyncio.run(rag.embed_many(["a", "b", "c"])) is None
+
+    def test_a_wrong_dimension_is_refused(self):
+        """A 1536-dim query against a 384-dim index ranks nonsense, silently."""
+        class _Response:
+            status_code = 200
+
+            @staticmethod
+            def json():
+                return {"embeddings": [[0.1] * 1536]}
+
+        class _Client:
+            async def post(self, path, json):  # noqa: A002
+                return _Response()
+
+        rag = ResearchRag()
+        rag._client = _Client()
+        assert asyncio.run(rag.embed_many(["a"])) is None
+
+
 class TestSchemaAgreement:
     def test_vector_dimensions_match_the_migration(self):
         sql = (MIGRATIONS / "20260808120400_pgvector_research_documents.sql").read_text()
