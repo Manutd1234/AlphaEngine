@@ -285,45 +285,70 @@ jobs:
             LEGACY_ENV="$HOME/alphaengine/Part2_Infrastructure/.env"
             umask 077
 
-            PRESERVED="$(mktemp)"
-            OVERLAY="$(mktemp)"
-            trap 'rm -f "$PRESERVED" "$OVERLAY"' EXIT
-            if   [ -f "$ENV_FILE" ];   then cp "$ENV_FILE"   "$PRESERVED"
-            elif [ -f "$LEGACY_ENV" ]; then cp "$LEGACY_ENV" "$PRESERVED"
-                                            echo "    seeding from ${LEGACY_ENV}"
-            else                            : > "$PRESERVED"
-            fi
+            # Deliberately plain: no `trap`, no `{ … } > file` group, and no
+            # bare trailing `[ -n x ] && echo` as the last statement of a
+            # block. Each of those is a construct whose exit status under
+            # `set -e` depends on the shell and on how the runner feeds the
+            # script in, and this step runs through an SSH action rather than
+            # directly in bash. Appending line by line to a named file has no
+            # such ambiguity, and `put` always returns 0 so a variable that is
+            # simply absent can never end the deploy.
+            PRESERVED="${ENV_FILE}.preserved"
+            OVERLAY="${ENV_FILE}.overlay"
+            rm -f "$PRESERVED" "$OVERLAY"
 
-            {
-              echo "ENVIRONMENT=production"
-              echo "REQUIRE_AUTH=1"
-              echo "DATA_DIR=/app/data"
-              echo "DB_PATH=/app/data/alphaengine.duckdb"
-              echo "WEB_API_TOKEN=${WEB_API_TOKEN}"
-              [ -n "${SUPABASE_URL:-}" ]              && echo "SUPABASE_URL=${SUPABASE_URL}"
-              [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ] && echo "SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}"
-              [ -n "${SUPABASE_URL:-}" ]              && echo "SUPABASE_MIRROR_ENABLED=1"
-              [ -n "${TELEGRAM_BOT_TOKEN:-}" ]        && echo "TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}"
-              [ -n "${TELEGRAM_ALLOWED_USER_IDS:-}" ] && echo "TELEGRAM_ALLOWED_USER_IDS=${TELEGRAM_ALLOWED_USER_IDS}"
-              # Both of these gate a FAIL-CLOSED check in the bot, so omitting
-              # them does not loosen anything — it locks the desk out of its own
-              # controls. Without TELEGRAM_CONTROL_USER_IDS, `_may_control()`
-              # denies everyone and nobody can /halt, /resume or /flatten from
-              # Telegram on the deployed VM. Without TELEGRAM_ALERT_CHAT_IDS, a
-              # drawdown breach or a venue going dark reaches only whoever
-              # happened to run /subscribe on that container, and a restart
-              # loses even them.
-              [ -n "${TELEGRAM_CONTROL_USER_IDS:-}" ] && echo "TELEGRAM_CONTROL_USER_IDS=${TELEGRAM_CONTROL_USER_IDS}"
-              [ -n "${TELEGRAM_ALERT_CHAT_IDS:-}" ]   && echo "TELEGRAM_ALERT_CHAT_IDS=${TELEGRAM_ALERT_CHAT_IDS}"
-            } > "$OVERLAY"
+            if [ -f "$ENV_FILE" ]; then
+              cp "$ENV_FILE" "$PRESERVED"
+            elif [ -f "$LEGACY_ENV" ]; then
+              cp "$LEGACY_ENV" "$PRESERVED"
+              echo "    seeding from ${LEGACY_ENV}"
+            else
+              : > "$PRESERVED"
+            fi
+            echo "    preserved $(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$PRESERVED" || true) existing variable(s)"
+
+            put() {
+              if [ -n "${2:-}" ]; then
+                printf '%s=%s\n' "$1" "$2" >> "$OVERLAY"
+              fi
+              return 0
+            }
+
+            : > "$OVERLAY"
+            put ENVIRONMENT "production"
+            put REQUIRE_AUTH "1"
+            put DATA_DIR "/app/data"
+            put DB_PATH "/app/data/alphaengine.duckdb"
+            put WEB_API_TOKEN "${WEB_API_TOKEN:-}"
+            put SUPABASE_URL "${SUPABASE_URL:-}"
+            put SUPABASE_SERVICE_ROLE_KEY "${SUPABASE_SERVICE_ROLE_KEY:-}"
+            if [ -n "${SUPABASE_URL:-}" ]; then put SUPABASE_MIRROR_ENABLED "1"; fi
+            put TELEGRAM_BOT_TOKEN "${TELEGRAM_BOT_TOKEN:-}"
+            put TELEGRAM_ALLOWED_USER_IDS "${TELEGRAM_ALLOWED_USER_IDS:-}"
+            # Both of these gate a FAIL-CLOSED check in the bot, so omitting
+            # them does not loosen anything — it locks the desk out of its own
+            # controls. Without TELEGRAM_CONTROL_USER_IDS, `_may_control()`
+            # denies everyone and nobody can /halt, /resume or /flatten from
+            # Telegram on the deployed VM. Without TELEGRAM_ALERT_CHAT_IDS, a
+            # drawdown breach or a venue going dark reaches only whoever
+            # happened to run /subscribe on that container, and a restart
+            # loses even them.
+            put TELEGRAM_CONTROL_USER_IDS "${TELEGRAM_CONTROL_USER_IDS:-}"
+            put TELEGRAM_ALERT_CHAT_IDS "${TELEGRAM_ALERT_CHAT_IDS:-}"
+            echo "    overlaying $(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$OVERLAY" || true) CI-supplied variable(s)"
 
             # Overlay first (so it wins), then any KEY= line from the preserved
             # file whose key the overlay did not set. Comment and blank lines
-            # are dropped by the key-shaped match rather than carried over.
+            # are dropped by the key-shaped match rather than carried over, and
+            # `seen[$1]=1` in the second rule also collapses duplicate keys
+            # already present in the preserved file — the hand-managed .env has
+            # PUBLIC_URL twice, and passing both through would leave the winner
+            # decided by whichever the container's env parser read last.
             awk -F= '
               NR==FNR { if ($0 ~ /^[A-Za-z_][A-Za-z0-9_]*=/) seen[$1]=1; print; next }
-              /^[A-Za-z_][A-Za-z0-9_]*=/ && !($1 in seen) { print }
+              /^[A-Za-z_][A-Za-z0-9_]*=/ && !($1 in seen) { seen[$1]=1; print }
             ' "$OVERLAY" "$PRESERVED" > "$ENV_FILE"
+            rm -f "$PRESERVED" "$OVERLAY"
 
             # Names only — this must never print a value into the build log.
             echo "    $(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$ENV_FILE") variables:"

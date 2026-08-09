@@ -332,7 +332,25 @@ describe("continuous deployment keeps the desk alive across a swap", () => {
     // The overlay must be built into its own file, never straight over the
     // destination — `> "$ENV_FILE"` before the merge would destroy the very
     // thing being preserved.
-    assert.match(deployWorkflow, /\}\s*>\s*"\$OVERLAY"/);
+    assert.match(deployWorkflow, /printf '%s=%s\\n' "\$1" "\$2" >> "\$OVERLAY"/);
+
+    /**
+     * `put` must swallow the absent case itself.
+     *
+     * The first version of this wrote the overlay as a `{ … } > "$OVERLAY"`
+     * group whose last statement was `[ -n "${VAR:-}" ] && echo …`. When that
+     * variable was absent the group's exit status was 1, and the deploy died
+     * there — silently, with no stderr, immediately after the preceding echo.
+     * It behaved correctly in bash on the same VM when run directly, so the
+     * status only mattered through the SSH action's own execution path. The
+     * shape is the bug, not the shell: an unconditional `return 0` means a
+     * variable nobody configured can never end a deploy.
+     */
+    assert.match(deployWorkflow, /put\(\)\s*\{[\s\S]*?return 0[\s\S]*?\}/,
+      "put() no longer force-returns 0 — an absent optional secret can abort the deploy again");
+    const overlayWrites = deployWorkflow.match(/^\s*\[ -n "\$\{[A-Z_]+:-\}" \]\s+&&\s+echo/gm) ?? [];
+    assert.deepEqual(overlayWrites, [],
+      "a bare `[ -n … ] && echo` is back in the remote script; use put() so the exit status cannot end the deploy");
 
     // Reporting the result must stay names-only. `cat`-ing the merged file
     // would put a bot token and a service-role key into a build log that
