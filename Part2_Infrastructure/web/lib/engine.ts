@@ -41,6 +41,7 @@ import {
 import {
   BARS_PER_YEAR,
   Bar,
+  type DataSource,
   Direction,
   MAX_COMBOS,
   ParamResult,
@@ -835,7 +836,7 @@ export function walkForward(
 export function runSweep(
   bars: Bar[],
   req: SweepRequest,
-  dataSource: "binance" | "synthetic",
+  dataSource: DataSource,
   warnings: string[] = [],
 ): SweepResponse {
   const t0 = Date.now();

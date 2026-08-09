@@ -11,12 +11,17 @@
  * immediately; adding keys extends coverage to equities, fundamentals, news and
  * the open web rather than switching anything on.
  *
- * It is a thin wrapper over the existing `venues`/`marketdata` code rather than
- * a reimplementation — that module already handles host failover, the whole-batch
- * 400 on an unknown symbol, and the pagination budget.
+ * It is a thin wrapper over the existing `binance-klines`/`venues` code rather
+ * than a reimplementation — those modules already handle host failover, the
+ * whole-batch 400 on an unknown symbol, and the pagination budget.
+ *
+ * The klines fetcher is imported from `binance-klines` rather than `marketdata`
+ * on purpose: `marketdata.loadBars` now routes equities through the registry,
+ * and the registry imports this file, so reaching back into `marketdata` here
+ * would close an import cycle through three modules.
  */
 
-import { fetchBinanceKlines } from "../marketdata";
+import { fetchBinanceKlines } from "../binance-klines";
 import { fetchBinanceTickers } from "../venues";
 import { pctChange } from "./parse";
 import { Adapter, AssetClass, FetchCtx, OhlcvBar, ProviderError, Quote } from "./types";

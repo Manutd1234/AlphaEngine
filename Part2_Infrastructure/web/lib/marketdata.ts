@@ -1,199 +1,26 @@
 /**
- * OHLCV loading for the serverless routes.
+ * OHLCV loading for the serverless routes — the routing policy, not a fetcher.
  *
- * Binance's public klines endpoint is called server-side rather than from the
- * browser: it avoids CORS entirely, keeps the per-IP rate limit pooled at the
- * function rather than spread across users' networks, and lets Vercel's CDN
- * cache identical requests.
+ * Upstream calls happen server-side rather than from the browser: it avoids
+ * CORS entirely, keeps per-IP rate limits pooled at the function rather than
+ * spread across users' networks, and lets Vercel's CDN cache identical
+ * requests.
  *
- * If it is unreachable (region-blocked, rate-limited, offline preview) we fall
- * back to a deterministic synthetic series so the portal still demonstrates the
- * research workflow. Every response says which one it used, and the UI shows a
- * banner — synthetic data is never passed off as market data.
+ * Where the bars come from is decided by what the symbol is. Crypto pairs go
+ * straight to Binance's public klines (`binance-klines.ts`); equities and FX go
+ * through the multi-provider registry. If neither can answer we fall back to a
+ * deterministic synthetic series so the portal still demonstrates the research
+ * workflow, and every response says which one it used. Until this commit the
+ * routing step did not exist, so three of the fifteen symbols on offer could
+ * never return real prices at all — `loadBars` below records how.
  */
 
-import { recordUpstream } from "./observability";
+import { fetchBinanceKlines } from "./binance-klines";
+import { getBars } from "./providers/registry";
+import { classify } from "./providers/symbols";
+import type { Attempt } from "./providers/types";
 import { mulberry32, seedFromString } from "./random";
-import { Bar, BARS_PER_YEAR } from "./types";
-
-const BINANCE_HOSTS = [
-  "https://api.binance.com",
-  "https://data-api.binance.vision", // public market-data mirror, no auth
-];
-
-/**
- * Index of the host that last answered.
- *
- * Same reasoning as `lib/venues.ts`: a region-blocked primary fails on *every*
- * request, not occasionally, so a fixed order makes each klines page pay a full
- * failed round trip before the mirror answers. In production `api.binance.com`
- * returns HTTP 451 from the serverless region while the mirror serves normally.
- * Kept local rather than shared because these two modules must not import each
- * other — `venues.ts` is in the client bundle and this one is server-only.
- */
-let preferredBinanceHost = 0;
-
-function binanceHosts(): string[] {
-  return preferredBinanceHost === 0
-    ? [...BINANCE_HOSTS]
-    : [BINANCE_HOSTS[preferredBinanceHost], ...BINANCE_HOSTS.filter((_, i) => i !== preferredBinanceHost)];
-}
-
-/**
- * Timeouts, because a *stalled* upstream is worse than a dead one.
- *
- * A refused connection fails in milliseconds and we fall through to the next
- * host. A host that completes the TCP handshake and then sends nothing has no
- * bound other than undici's 300s header timeout — across two hosts and a
- * sequential pagination loop that is ~10 minutes, far past any serverless
- * limit. The function is killed before the synthetic fallback can run, so the
- * caller gets a platform 504 with no JSON body instead of a degraded result.
- *
- * Two bounds are needed: per-request (a single stalled socket) and overall
- * (many slow-but-not-stalled requests in the pagination loop).
- */
-const FETCH_TIMEOUT_MS = 8_000;
-const OVERALL_BUDGET_MS = 20_000;
-
-async function withTimeout(
-  run: (signal: AbortSignal) => Promise<Response>,
-  ms = FETCH_TIMEOUT_MS,
-): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), ms);
-  try {
-    return await run(controller.signal);
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-export async function fetchBinanceKlines(
-  symbol: string,
-  interval: string,
-  bars: number,
-): Promise<Bar[]> {
-  let lastError: unknown = null;
-  const startedAt = Date.now();
-
-  for (const host of binanceHosts()) {
-    try {
-      const out: Bar[] = [];
-      let endTime: number | undefined;
-
-      while (out.length < bars) {
-        if (Date.now() - startedAt > OVERALL_BUDGET_MS) {
-          throw new Error(`klines pagination exceeded ${OVERALL_BUDGET_MS}ms budget`);
-        }
-        const limit = Math.min(1000, bars - out.length);
-        const params = new URLSearchParams({
-          symbol: symbol.toUpperCase(),
-          interval,
-          limit: String(limit),
-        });
-        if (endTime) params.set("endTime", String(endTime));
-
-        const url = `${host}/api/v3/klines?${params}`;
-        const pageStartedAt = Date.now();
-        let res: Response;
-        try {
-          res = await withTimeout((signal) =>
-            fetch(url, {
-              signal,
-              // Cache identical grids at the edge for a minute — a sweep does not
-              // need second-fresh history, and it keeps us inside the rate limit.
-              next: { revalidate: 60 },
-            }),
-          );
-        } catch (err) {
-          // A stalled host is the failure this file's timeouts exist for, so it
-          // is the one the telemetry must not be silent about. Without this the
-          // health matrix reports a 0% error rate for `venue:binance` while
-          // every klines request is burning its full 8s and falling back to
-          // synthetic bars.
-          const message = err instanceof Error ? err.message : String(err);
-          const timedOut = err instanceof Error && err.name === "AbortError";
-          recordUpstream({
-            provider: "binance",
-            url,
-            status: null,
-            ms: Date.now() - pageStartedAt,
-            ok: false,
-            error: timedOut ? `timed out after ${FETCH_TIMEOUT_MS}ms` : message,
-            latencyKey: "venue:binance",
-          });
-          throw err;
-        }
-        if (!res.ok) {
-          // Reported per page, not per call to this function: a sweep that
-          // paginates six times and fails on the fifth is six upstream calls,
-          // and a trace that collapses them cannot show which page broke.
-          recordUpstream({
-            provider: "binance",
-            url,
-            status: res.status,
-            ms: Date.now() - pageStartedAt,
-            ok: false,
-            error: `HTTP ${res.status}`,
-            latencyKey: "venue:binance",
-          });
-          throw new Error(`${host} responded ${res.status}`);
-        }
-
-        let chunk: unknown[][];
-        try {
-          chunk = (await res.json()) as unknown[][];
-        } catch (err) {
-          // HTTP 200 carrying a non-JSON body — a captive portal, a CDN
-          // interstitial, a region block served as HTML. Reported rather than
-          // swallowed, because it is indistinguishable from a healthy host in
-          // every other signal we collect.
-          recordUpstream({
-            provider: "binance",
-            url,
-            status: res.status,
-            ms: Date.now() - pageStartedAt,
-            ok: false,
-            error: "expected JSON, got a non-JSON body",
-            latencyKey: "venue:binance",
-          });
-          throw err;
-        }
-        recordUpstream({
-          provider: "binance",
-          url,
-          status: res.status,
-          ms: Date.now() - pageStartedAt,
-          ok: true,
-          payload: chunk,
-          latencyKey: "venue:binance",
-        });
-        if (!chunk.length) break;
-
-        const parsed: Bar[] = chunk.map((k) => ({
-          t: Number(k[0]),
-          o: Number(k[1]),
-          h: Number(k[2]),
-          l: Number(k[3]),
-          c: Number(k[4]),
-          v: Number(k[5]),
-        }));
-        out.unshift(...parsed);
-        endTime = parsed[0].t - 1;
-        if (chunk.length < limit) break;
-      }
-
-      if (out.length >= Math.min(bars, 200)) {
-        preferredBinanceHost = Math.max(0, BINANCE_HOSTS.indexOf(host));
-        return out.slice(-bars);
-      }
-      lastError = new Error(`only ${out.length} bars available`);
-    } catch (err) {
-      lastError = err;
-    }
-  }
-  throw lastError instanceof Error ? lastError : new Error("klines fetch failed");
-}
+import { Bar, BARS_PER_YEAR, type DataSource } from "./types";
 
 /** Deterministic GBM with a regime shift, seeded off the symbol so the same
  *  request always reproduces the same series and results stay comparable. */
@@ -248,21 +75,127 @@ export function syntheticBars(symbol: string, interval: string, bars: number): B
   return out;
 }
 
+/** The registry options `loadBars` passes straight through. */
+type RegistryOptions = Parameters<typeof getBars>[3];
+
+export interface LoadedBars {
+  bars: Bar[];
+  source: DataSource;
+  warnings: string[];
+}
+
+function fellBackToSynthetic(symbol: string, interval: string, bars: number, why: string): LoadedBars {
+  return {
+    bars: syntheticBars(symbol, interval, bars),
+    source: "synthetic",
+    warnings: [
+      `Could not load live market data (${why}). ` +
+        `This run uses a deterministic synthetic price series — the workflow is real, the prices are not.`,
+    ],
+  };
+}
+
+/**
+ * Every provider that was asked and declined, in the words it used.
+ *
+ * `dispatch` attaches this to the error it throws precisely so the caller can
+ * say "Alpha Vantage is not configured, FMP declined intraday" rather than
+ * "unavailable". A missing API key and a rate limit are different problems with
+ * different fixes, and collapsing them into one sentence means neither gets
+ * fixed.
+ */
+function whyNoProvider(err: unknown): string {
+  const attempts = (err as { attempts?: Attempt[] }).attempts;
+  if (!attempts?.length) return err instanceof Error ? err.message : String(err);
+  return attempts.map((a) => `${a.provider}: ${a.reason}${a.detail ? ` (${a.detail})` : ""}`).join("; ");
+}
+
+/**
+ * OHLCV for a backtest, routed by what the symbol actually is.
+ *
+ * THE BUG THIS CLOSES
+ *
+ * This function used to call Binance's klines endpoint for every symbol, and
+ * fall back to a synthetic random walk on failure. AAPL, NVDA and MSFT have
+ * been selectable in the UI the whole time, and Binance cannot ever answer for
+ * them, so those three always took the fallback: every equity backtest this
+ * portal has ever run was computed on invented prices, while four configured
+ * providers sat in the registry able to serve them.
+ *
+ * The label was honest — the result did say `synthetic` and the banner did
+ * appear. What was wrong is the diagnosis. The fallback exists for
+ * "region-blocked, rate-limited, offline preview", and it reported the outage
+ * wording for what was a routing mistake, so the message a user got said the
+ * market was unreachable rather than that the request had been sent somewhere
+ * that could never answer it. A warning that misnames the cause is how a
+ * fixable problem survives: nobody goes looking for a router in an outage.
+ *
+ * WHY CRYPTO STILL TAKES THE DIRECT PATH
+ *
+ * `fetchBinanceKlines` pages backwards until it has the full window; a backtest
+ * asks for up to 2000 bars and the klines endpoint returns 1000 at a time. The
+ * registry's binance adapter calls this same function, so routing crypto
+ * through the façade would work — but it would also put crypto behind a shared
+ * circuit breaker and a failover chain whose other members decline intraday
+ * data, converting a transient quote-side failure into a synthetic backtest.
+ * The façade earns its keep where there is genuinely more than one provider;
+ * for crypto klines there is one, and it is this.
+ */
 export async function loadBars(
   symbol: string,
   interval: string,
   bars: number,
-): Promise<{ bars: Bar[]; source: "binance" | "synthetic"; warnings: string[] }> {
+  /**
+   * Forwarded to the registry. Exists so a test can supply an empty environment
+   * and a scratch cache — without it the equity path's behaviour depends on
+   * whichever API keys happen to be set on the machine running the suite, which
+   * is the same as not testing it.
+   */
+  opts: RegistryOptions = {},
+): Promise<LoadedBars> {
+  if (classify(symbol) === "crypto") {
+    try {
+      return { bars: await fetchBinanceKlines(symbol, interval, bars), source: "binance", warnings: [] };
+    } catch (err) {
+      return fellBackToSynthetic(symbol, interval, bars, (err as Error).message);
+    }
+  }
+
+  // Equities and FX: the multi-provider façade, which already carries quota
+  // accounting, a circuit breaker, failover across four vendors and the
+  // fatal/warn bar contract. Reused rather than reimplemented — a fifth ad-hoc
+  // equity fetcher is how the first four stopped agreeing with each other.
   try {
-    return { bars: await fetchBinanceKlines(symbol, interval, bars), source: "binance", warnings: [] };
-  } catch (err) {
+    const sourced = await getBars(symbol, interval, bars, opts);
+    const warnings: string[] = [];
+
+    // A short window is a legitimate answer (young listing, small free tier),
+    // but silently running a 2000-bar sweep on 250 bars changes every statistic
+    // downstream, so it is said out loud rather than inferred from a chart.
+    if (sourced.data.length < bars) {
+      warnings.push(
+        `${sourced.provenance.label} returned ${sourced.data.length} of the ${bars} bars requested — `
+          + `every statistic below is measured on the shorter window.`,
+      );
+    }
+    // End-of-day vendors are fine for a daily backtest and wrong for an
+    // intraday one, and only the provenance knows which tier answered.
+    if (sourced.provenance.delayed) {
+      warnings.push(
+        `${sourced.provenance.label} serves delayed or end-of-day data. `
+          + `Treat the most recent bars as indicative rather than live.`,
+      );
+    }
+    for (const violation of sourced.provenance.contract?.violations ?? []) {
+      warnings.push(`Data contract — ${violation.check}: ${violation.message}`);
+    }
+
     return {
-      bars: syntheticBars(symbol, interval, bars),
-      source: "synthetic",
-      warnings: [
-        `Could not load live market data (${(err as Error).message}). ` +
-          `This run uses a deterministic synthetic price series — the workflow is real, the prices are not.`,
-      ],
+      bars: sourced.data.map((b) => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v })),
+      source: sourced.provenance.provider as DataSource,
+      warnings,
     };
+  } catch (err) {
+    return fellBackToSynthetic(symbol, interval, bars, whyNoProvider(err));
   }
 }

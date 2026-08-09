@@ -174,9 +174,37 @@ export interface SeriesPoint {
   drawdown: number;
 }
 
+/**
+ * Which feed a sweep's prices came from.
+ *
+ * A closed union rather than a bare string, and every provider adapter's id is
+ * a member. That is deliberate: a new adapter that can serve bars will not
+ * compile until it is named here, and `marketdata-routing.test.ts` asserts the
+ * two lists agree in both directions — so a vendor cannot start answering
+ * backtests under a name the UI has never heard of.
+ *
+ * `synthetic` is a first-class member and always was: the fallback names
+ * itself, so the run header and the banner have never disagreed about which
+ * prices were real. The union was widened for the other half of that problem —
+ * AAPL was routed to Binance's klines endpoint, which cannot ever answer it, so
+ * an equity had exactly two reachable states, `synthetic` and `synthetic`.
+ * Naming the four vendors that can serve equities is what gives the label
+ * something to say.
+ */
+export const DATA_SOURCES = [
+  "binance",
+  "fmp",
+  "tiingo",
+  "massive",
+  "alphavantage",
+  "openbb",
+  "synthetic",
+] as const;
+export type DataSource = (typeof DATA_SOURCES)[number];
+
 export interface SweepResponse {
   request: SweepRequest;
-  dataSource: "binance" | "synthetic";
+  dataSource: DataSource;
   bars: number;
   periodStart: string;
   periodEnd: string;
