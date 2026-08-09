@@ -54,18 +54,31 @@ EMBEDDING_MODEL = "gte-small"
 
 #: Cosine similarity below which a document is not offered as a match.
 #:
-#: `match_research_documents` has always taken `min_similarity` and defaulted it
-#: to 0.0, and no caller ever passed it — so the top N came back however
-#: unrelated they were. With a small corpus that is not a rare edge case: ask
-#: about something the desk has never done and it confidently returns its three
-#: least-unrelated backtests.
+#: `match_research_documents` has taken `min_similarity` since it was written and
+#: defaulted it to 0.0, and no caller ever passed it. The Oracle query had no
+#: floor at all. Both returned their N nearest rows however far away those were.
 #:
-#: 0.35 is deliberately permissive. It removes the clearly-unrelated without
-#: silencing a thin corpus, and the panel shows every score so a reader can
-#: judge a weak match rather than being told one does not exist. Tightening it
-#: is a decision for the eval harness, not for taste — a floor chosen by feel is
-#: how retrieval quietly starts hiding evidence.
-RAG_MIN_SIMILARITY = 0.35
+#: 0.76 is MEASURED, not chosen. The first attempt used 0.35 on the reasoning
+#: that cosine similarity runs 0-1 and a third is generous — and it filtered
+#: nothing, because gte-small's absolute range is compressed near the top. Six
+#: queries against the live index, one backtest card in the corpus:
+#:
+#:     moving average crossover BTCUSDT sharpe drawdown   0.898
+#:     backtest sharpe ratio                              0.891
+#:     trading strategy                                   0.792
+#:     ---------------------------------------------- floor 0.76
+#:     quantum entanglement in medieval poetry            0.744
+#:     recipe for sourdough bread                         0.734
+#:     the weather in Lisbon on Tuesday                   0.733
+#:
+#: Unrelated text lands at ~0.735 whatever it is about, so the useful signal is
+#: the gap above that, not the absolute value. A generic but on-topic query
+#: ("trading strategy") sits at 0.792 and must survive; nonsense must not.
+#:
+#: Six queries and one document is a thin basis and this number will move. That
+#: is the eval harness's job — but a floor derived from three observed clusters
+#: beats one derived from what the range looks like it ought to be.
+RAG_MIN_SIMILARITY = 0.76
 
 ANOMALY_GATES = {"est_slippage", "daily_drawdown"}
 

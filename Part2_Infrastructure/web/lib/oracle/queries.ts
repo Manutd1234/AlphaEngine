@@ -86,17 +86,26 @@ export const DEFAULT_SIMULATIONS = 10_000;
 /**
  * Cosine similarity below which a document is not offered as a match.
  *
- * The Supabase side has always had this as `min_similarity` and never had it
- * passed; the Oracle side had no floor at all, so it returned its N nearest
- * rows however far away they were. Ask about something the desk has never done
- * and it confidently answers with its least-unrelated backtests.
+ * MEASURED, not chosen. The first attempt used 0.35 and filtered nothing:
+ * gte-small's absolute cosine range is compressed near the top, so unrelated
+ * text still scores ~0.735. Against the live index:
  *
- * Must equal `RAG_MIN_SIMILARITY` in `modules/research_rag.py`. Two backends
- * answering the same question behind different floors do not disagree about
- * relevance — they disagree about the question, and the comparison the
- * two-backend design exists to make stops meaning anything.
+ *     moving average crossover BTCUSDT sharpe drawdown   0.898
+ *     backtest sharpe ratio                              0.891
+ *     trading strategy                                   0.792
+ *     ---------------------------------------------- floor 0.76
+ *     quantum entanglement in medieval poetry            0.744
+ *     recipe for sourdough bread                         0.734
+ *     the weather in Lisbon on Tuesday                   0.733
+ *
+ * The useful signal is the gap above the noise floor, not the absolute value.
+ *
+ * Must equal `RAG_MIN_SIMILARITY` in `modules/research_rag.py` — pinned by
+ * test. Two backends filtering at different thresholds are not disagreeing
+ * about relevance, they are answering different questions, and the comparison
+ * the two-backend design exists to make stops meaning anything.
  */
-export const RAG_MIN_SIMILARITY = 0.35;
+export const RAG_MIN_SIMILARITY = 0.76;
 
 /** Cosine distance in [0, 2] → similarity in [0, 1], the shape the panel reads. */
 export function similarityFromDistance(distance: number): number {
