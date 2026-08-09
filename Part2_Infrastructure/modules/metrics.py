@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import math
 import time
+from bisect import bisect_left
 from typing import Any, Iterable
 
 from config import settings
@@ -284,6 +285,27 @@ def render_metrics() -> str:
             help="Responses with a 5xx status, by route.", type="counter", labels=(("route", route),),
         )
 
+    # -- Pre-trade decision latency ------------------------------------------- #
+    # Microseconds, not milliseconds. This is the one path in the system that
+    # operates below a millisecond, and rendering it in ms would report every
+    # healthy decision as 0.05 and every quantile as indistinguishable.
+    decisions = decision_latency_summary()
+    if decisions["samples"]:
+        for quantile, key in (("0.5", "p50"), ("0.99", "p99"), ("0.999", "p999"), ("0.9999", "p9999")):
+            out.metric(
+                "decision_latency_us", decisions[key],
+                help="Pre-trade risk decision latency, all samples since start.",
+                labels=(("quantile", quantile),),
+            )
+        out.metric(
+            "decision_latency_max_us", decisions["max"],
+            help="Slowest pre-trade risk decision since start.",
+        )
+    out.metric(
+        "decision_samples_total", decisions["samples"],
+        help="Pre-trade decisions measured since start.", type="counter",
+    )
+
     # -- Audit / observability ------------------------------------------------ #
     audit = get_audit()
     out.metric(
@@ -394,6 +416,109 @@ def request_latency_summary() -> dict[str, dict[str, float]]:
             "errors": _errors.get(route, 0),
         }
     return out
+
+
+# --------------------------------------------------------------------------- #
+# Pre-trade decision latency
+#
+# Separate from the request window above, and the separation is the point. That
+# one answers "is the HTTP tier healthy" over a 200-sample ring in milliseconds.
+# This one measures the desk's own risk decision — `RiskGateway.submit`, the
+# only part of this system that operates in microseconds — and it is judged on
+# its TAIL, not its middle. A 200-sample ring cannot express p99.9 at all: the
+# 99.9th percentile of 200 samples is just the maximum wearing a decimal point.
+#
+# So this is a log-linear histogram over the whole run, in the shape a latency
+# desk actually keeps one:
+#
+#   * every sample counted, never a sliding window — an outlier at 03:00 still
+#     shows at 09:00, because "we had a 4ms decision last night" is exactly the
+#     fact a window is designed to forget;
+#   * bounded memory regardless of volume, because it stores counts per bucket
+#     rather than samples;
+#   * no allocation on the record path. `bisect_left` over a preallocated list
+#     of edges allocates nothing, and the counter increment reuses CPython's
+#     small-int cache. A recorder that allocates is measuring its own garbage.
+#
+# ~12% bucket resolution (8 linear sub-buckets per power of two, 1us..~1s).
+# Deliberately coarse: reporting p99.9 to four significant figures from a
+# process that shares a core with two venue feed handlers would be inventing
+# precision the measurement does not have.
+# --------------------------------------------------------------------------- #
+
+def _build_edges() -> list[float]:
+    edges: list[float] = []
+    for power in range(21):  # 2^0 = 1us .. 2^20 ≈ 1.05s
+        base = float(1 << power)
+        step = base / 8.0
+        for sub in range(8):
+            edges.append(base + step * sub)
+    return edges
+
+
+#: Upper bound of each bucket, in microseconds. Ascending, so `bisect_left`
+#: finds the bucket in O(log n) without touching the heap.
+_DECISION_EDGES: list[float] = _build_edges()
+_decision_counts: list[int] = [0] * (len(_DECISION_EDGES) + 1)
+_decision_total: int = 0
+_decision_max_us: float = 0.0
+
+
+def observe_decision_latency(microseconds: float) -> None:
+    """Record one pre-trade decision. Called on the order path; must stay cheap."""
+    global _decision_total, _decision_max_us
+    if microseconds < 0 or microseconds != microseconds:  # NaN never compares equal
+        return
+    _decision_counts[bisect_left(_DECISION_EDGES, microseconds)] += 1
+    _decision_total += 1
+    if microseconds > _decision_max_us:
+        _decision_max_us = microseconds
+
+
+def reset_decision_latency() -> None:
+    """Drop every recorded decision (used by tests to isolate assertions)."""
+    global _decision_total, _decision_max_us
+    for index in range(len(_decision_counts)):
+        _decision_counts[index] = 0
+    _decision_total = 0
+    _decision_max_us = 0.0
+
+
+def _decision_quantile(target_rank: int) -> float:
+    seen = 0
+    for index, count in enumerate(_decision_counts):
+        seen += count
+        if seen >= target_rank:
+            # The bucket's upper edge, rounded up rather than interpolated
+            # between two buckets that may have had no samples between them.
+            #
+            # Clamped to the observed maximum, which is not cosmetic: the edge
+            # overestimates by up to the bucket width, so an unclamped p99.99
+            # reported 1152us against a real maximum of 1125us. A quantile above
+            # the slowest decision ever recorded is not a rounding artefact to
+            # explain in a footnote, it is a number that cannot be true.
+            if index >= len(_DECISION_EDGES):
+                return _decision_max_us
+            return min(_DECISION_EDGES[index], _decision_max_us)
+    return _decision_max_us
+
+
+def decision_latency_summary() -> dict[str, float]:
+    """p50/p99/p99.9/p99.99/max in microseconds, plus the sample count.
+
+    Quantiles are nearest-rank over bucket upper bounds, matching
+    ``_quantile`` above rather than introducing a second convention.
+    """
+    if _decision_total == 0:
+        return {"samples": 0, "p50": 0.0, "p99": 0.0, "p999": 0.0, "p9999": 0.0, "max": 0.0}
+    return {
+        "samples": _decision_total,
+        "p50": _decision_quantile(math.ceil(0.50 * _decision_total)),
+        "p99": _decision_quantile(math.ceil(0.99 * _decision_total)),
+        "p999": _decision_quantile(math.ceil(0.999 * _decision_total)),
+        "p9999": _decision_quantile(math.ceil(0.9999 * _decision_total)),
+        "max": _decision_max_us,
+    }
 
 
 class RequestTimingMiddleware:

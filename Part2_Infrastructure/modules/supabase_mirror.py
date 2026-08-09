@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import asdict
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -96,7 +97,7 @@ def decision_payload(
         "latency_ms": decision.latency_ms,
         "verdict": primary,
         "rejected_by": rejected,
-        "checks": [c.model_dump() for c in decision.checks],
+        "checks": [asdict(c) for c in decision.checks],
         "status": decision.status,
         "strategy_tag": request.strategy,
         "source": source,

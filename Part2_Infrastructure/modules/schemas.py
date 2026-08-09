@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
 
@@ -137,7 +138,31 @@ class OrderRequest(BaseModel):
         return v.strip().upper() if isinstance(v, str) else v
 
 
-class CheckResult(BaseModel):
+# One pre-trade gate's verdict.
+#
+# A stdlib dataclass rather than a `BaseModel`, and the only schema here that
+# is. Fifteen of these are constructed on every order, inside the timed section
+# of `RiskProxy.submit`, which made their construction the largest single
+# component of the desk's own decision latency:
+#
+#     pydantic BaseModel   8.79 us p50, 21.17 us p99.9   (15 checks)
+#     dataclass(slots)     2.58 us p50,  4.00 us p99.9
+#
+# Nothing is given up for that. Pydantic v2 accepts a stdlib dataclass as a
+# field type, so `RiskDecision.checks` serialises to identical JSON and
+# generates an identical JSON Schema.
+#
+# Written as a comment and NOT a docstring on purpose: a dataclass's docstring
+# becomes the `description` of its JSON Schema, so putting this here would
+# publish an internal note about microseconds into the OpenAPI contract every
+# client reads. `tools/export_openapi.py --check` catches that, which is how
+# this was found.
+#
+# What IS given up is `.model_dump()` — use `dataclasses.asdict`. There is no
+# validation either, which is the right trade only because every field is set
+# by this repository's own gate code and never by a request body.
+@dataclass(slots=True)
+class CheckResult:
     name: str
     passed: bool
     detail: str

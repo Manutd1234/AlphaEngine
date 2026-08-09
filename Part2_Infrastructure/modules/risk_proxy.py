@@ -45,6 +45,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Awaitable, Callable
 
 from config import settings
+from modules.metrics import observe_decision_latency
 from modules.schemas import (
     CheckResult,
     Fill,
@@ -200,6 +201,12 @@ class RiskGateway:
         self.audit = audit
         self.kill = KillSwitch()
         self.bucket = TokenBucket(settings.max_orders_per_sec, settings.rate_limit_burst)
+        # Built once. The whitelist gate runs on every order, and reading it
+        # from `settings` there meant rebuilding a list and re-uppercasing each
+        # configured symbol per order. Read here rather than at import so a test
+        # that patches `settings` before constructing the proxy still sees its
+        # own symbols.
+        self._whitelist: frozenset[str] = frozenset(s.upper() for s in settings.symbols)
         self.positions: dict[str, PositionState] = {}
         self.start_of_day_equity = settings.starting_equity_usd
         self.session_date = _utcnow().strftime("%Y-%m-%d")
@@ -1333,8 +1340,10 @@ class RiskGateway:
             add("kill_switch", not self.kill.active, self.kill.reason or "disengaged")
             # 2 — per-symbol halt
             add("symbol_halt", req.symbol not in self.kill.halted_symbols, f"{req.symbol} halt status")
-            # 3 — instrument whitelist
-            add("symbol_whitelist", req.symbol in [s.upper() for s in settings.symbols],
+            # 3 — instrument whitelist. Membership against a prebuilt frozenset;
+            # the list comprehension this replaced rebuilt and re-uppercased the
+            # configured symbols on every single order.
+            add("symbol_whitelist", req.symbol in self._whitelist,
                 f"{req.symbol} in {settings.symbols}")
             # 4 — idempotency: a retrying algo must not double-fire
             dup = bool(req.client_order_id and req.client_order_id in self._seen_set)
@@ -1474,6 +1483,11 @@ class RiskGateway:
             status = "REJECTED"
             decided_at = _utcnow()
             latency_ms = (time.perf_counter() - t0) * 1000
+            # `latency_ms` on the decision is a single sample and always will be
+            # — it belongs to that order. The histogram is what makes the tail
+            # visible: one slow decision is invisible in a mean and is the whole
+            # story in a p99.9.
+            observe_decision_latency(latency_ms * 1000.0)
 
             if accepted and qty and notional:
                 if req.client_order_id:

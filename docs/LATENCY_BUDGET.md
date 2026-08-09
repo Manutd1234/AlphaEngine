@@ -1,0 +1,214 @@
+# Latency budget
+
+Every number here was measured on the deployed system, with the method stated.
+Where something could not be measured, it says so rather than estimating.
+
+**The conclusion first.** The desk's own risk decision runs in ~50 µs. The market
+data it decides on is ~34 ms old when it arrives. The compute is **0.07 %** of the
+path, and no amount of further optimisation to it changes the system's latency in
+any way a trader could observe. The only lever that moves the number by orders of
+magnitude is moving the gateway to the region the matching engine is already in.
+
+---
+
+## What "latency" means here — two separate domains
+
+Conflating these is the most common way a latency claim becomes untrue.
+
+| | Trading path | Observability path |
+|---|---|---|
+| Question | tick → risk decision → order | what a human sees on screen |
+| Floor | network to the venue | a 16.7 ms display frame |
+| Achievable | 5–500 µs *for the decision* | ~1 s end-to-end |
+| Measured below | §2, §3 | §4 |
+
+A browser will never see microseconds, and it does not need to. The two are
+budgeted separately throughout, and the UI labels which numbers are pushed and
+which are polled rather than implying everything is live.
+
+---
+
+## 1. Measurement method, and what it excludes
+
+Timings come from `time.perf_counter_ns()` in-process, recorded into a
+log-linear histogram (`modules/metrics.py`, `observe_decision_latency`) with
+~12 % bucket resolution, and reported as p50 / p99 / p99.9 / p99.99 / max on
+`/metrics`. Never as a mean: the mean of a latency distribution is the one
+statistic that reliably hides the thing being measured.
+
+**What these numbers do not include, and cannot on this hardware.** There is no
+NIC hardware timestamping and no PTP time source on a cloud VM, so every figure
+below is *in-process*: it excludes the kernel network stack, the driver, and the
+wire. A true tick-to-trade measurement needs hardware neither Oracle Cloud nor
+AWS exposes at this tier. Published in-process numbers are therefore a floor on
+the real latency, never the real latency, and this document does not claim
+otherwise.
+
+Sample counts are stated with every figure. A p99.9 drawn from 200 samples is
+the maximum wearing a decimal point, which is why the decision histogram keeps
+every sample for the life of the process rather than a sliding window.
+
+---
+
+## 2. The trading path
+
+### 2.1 The pre-trade risk decision — measured
+
+`RiskGateway.submit` evaluates 15 gates under a lock and returns a decision.
+5 000 orders against a synthetic 50-level book, warmed, on the development
+machine:
+
+| | p50 | p99 | p99.9 | max |
+|---|---|---|---|---|
+| Before | 54.5 µs | 69.1 µs | 101.4 µs | 121.7 µs |
+| **After** | **50.3 µs** | **61.6 µs** | **90.9 µs** | **94.2 µs** |
+
+Two changes produced that, both measured before being adopted:
+
+* **`CheckResult` is a `@dataclass(slots=True)`, not a pydantic `BaseModel`.**
+  Fifteen are constructed inside the timed section of every order. In isolation
+  that swap is 8.79 µs → 2.58 µs p50 for the fifteen. Pydantic v2 accepts a
+  stdlib dataclass as a field type, so `RiskDecision` serialises to identical
+  JSON and generates an identical JSON Schema — the committed OpenAPI snapshot
+  is unchanged, which is the proof the API contract did not move.
+* **The instrument whitelist is a prebuilt `frozenset`.** It was a list
+  comprehension re-uppercasing every configured symbol per order.
+
+**The isolated gain was 6.2 µs; the end-to-end gain was 4.1 µs.** The difference
+is real and worth stating: `RiskDecision` now validates fifteen dataclasses at
+its own boundary, giving some of it back. A microbenchmark is a hypothesis about
+a system, and this one was 34 % optimistic.
+
+**What was deliberately not done.** Building the `detail` string only on failure
+measured a further 0.87 µs. It was rejected: passing checks would lose their
+detail, which the UI renders, and 0.87 µs against a 68 ms network is not worth a
+change to what the API reports. Likewise no Rust or C++ rewrite — 50 µs is
+already three orders of magnitude inside the 5–500 µs target band, and the
+constraint is elsewhere.
+
+### 2.2 The tail is the operating system, not the language
+
+Disabling the cyclic garbage collector (`gc.freeze()` + `gc.disable()`) around
+the same workload changed p50 not at all and p99 by ~0.1 µs. The tail beyond
+p99.9 is scheduler preemption on a shared-tenancy VM, and the only things that
+move it are CPU pinning, real-time priority and a dedicated instance — none of
+which an Always Free shape offers. Python is not the constraint at this scale.
+
+### 2.3 The network to the venue — measured, and it dominates everything
+
+From the OCI VM (`ap-singapore-2`, 2 vCPU Xeon 8358), TCP handshake = one round
+trip, five samples, steady state:
+
+| Endpoint | RTT | What it actually is |
+|---|---|---|
+| `api.binance.com` | 2.4 ms | CDN edge in Singapore — **not** the matching engine |
+| `api.bybit.com` | 2.1 ms | CDN edge in Singapore |
+| **`stream.binance.com`** | **68 ms** | **the market-data feed** |
+
+`stream.binance.com` resolves from the VM to `13.192.157.15` / `52.192.119.107` —
+AWS **ap-northeast-1, Tokyo**. The matching engine is in Tokyo. The gateway is in
+Singapore.
+
+The 2.4 ms figure is the trap. A REST endpoint answered by a local CDN PoP says
+nothing about where trading happens, and quoting it as "we are 2 ms from Binance"
+would be wrong by a factor of thirty.
+
+```
+ 68 000 µs   market data, Tokyo → Singapore     ← 1 353× the decision
+     50 µs   the risk decision
+```
+
+**Optimising the gate from 54.5 µs to 50.3 µs improved end-to-end by 0.006 %.**
+
+### 2.4 The only lever that matters
+
+Co-location, in the sense that applies to cloud-hosted crypto venues: an
+instance in AWS `ap-northeast-1`, where the matching engine already runs.
+Expected 68 ms → 0.1–0.5 ms same-AZ, 0.5–2 ms cross-AZ — a ~150× improvement
+against the ~1.08× available from the compute.
+
+**This is not yet done, and the number above is an expectation, not a
+measurement.** The plan is probe-first: stand up an instance, run the same
+`time_connect` probe, and migrate only if it confirms. It is also a spend
+decision — Always Free is locked to the home region, so this is a new paid
+instance, not a migration.
+
+Bybit resolves through CloudFront and needs the same probe. If the two venues do
+not co-locate in one region, cross-exchange arbitrage is bounded by whichever is
+further, and that is a finding to publish rather than hide.
+
+### 2.5 What is out of scope, and why
+
+* **FPGA** — no crypto venue rents an FPGA feed-handler path, and with the
+  decision at 50 µs against a millisecond-scale network there is nothing for one
+  to save.
+* **Microwave** — microwave links exist between physical exchange datacentres
+  because the great-circle path beats fibre. Binance and Bybit are *inside AWS*;
+  there is no microwave route into a cloud region, and the relevant distance is
+  a VPC hop.
+* **Kernel bypass** — DPDK and Solarflare need hardware this instance does not
+  expose. The nearest available equivalents (ENA busy-polling, `SO_BUSY_POLL`,
+  cluster placement groups) are worth doing *after* co-location, not before.
+
+---
+
+## 3. Reading the numbers on a live desk
+
+```bash
+curl -s http://<gateway>:8000/metrics | grep decision_latency
+```
+
+```
+alphaengine_decision_latency_us{quantile="0.5"}     52
+alphaengine_decision_latency_us{quantile="0.99"}    80
+alphaengine_decision_latency_us{quantile="0.999"}  144
+alphaengine_decision_latency_max_us                237
+alphaengine_decision_samples_total                5200
+```
+
+Microseconds, not milliseconds — in ms every healthy decision reports as `0.05`
+and every quantile becomes indistinguishable. `decision_samples_total` exists at
+zero before the first order so a dashboard has a series to draw; the quantiles
+are simply absent until something has been measured, because quantiles of
+nothing are not zeros.
+
+---
+
+## 4. The observability path
+
+Separate budget, and much less demanding.
+
+* **The order book is already optimal.** The browser opens its own WebSocket
+  directly to Binance and Bybit (`web/lib/livebook.ts`), receiving 100 ms depth
+  snapshots and publishing to React at 5 Hz. One hop, no backend. Routing this
+  through the gateway would make it slower, not faster.
+* **Portfolio, P&L and risk are the stale ones**, and the cause is server-side:
+  the gateway re-marks the book every 5 s (`risk_proxy.py`, `_monitor_loop`),
+  and the browser polls at 4 s / 5 s / 15 s. Worst case ≈ 20 s.
+* **The fix is ordered.** Tightening the poll before the 5 s recompute would
+  deliver the same stale number more often. The recompute is split first, then
+  the transport.
+* **A browser cannot open an `EventSource` to the gateway directly.** The page
+  is HTTPS and the gateway is `http://…:8000`; that is blocked as mixed content
+  with no override. Streaming is therefore proxied through a Vercel route
+  handler, costing ~25 ms — measured, and irrelevant against a 1 s recompute.
+
+Measured from a development machine to the gateway: 21–27 ms total, 9–13 ms TCP
+connect. Vercel serves the web project from `sin1`, the same city as the VM.
+
+---
+
+## 5. Summary
+
+| Hop | Measured | Notes |
+|---|---|---|
+| Risk decision (15 gates) | **50.3 µs** p50 | in-process; excludes kernel and wire |
+| Decision tail | 90.9 µs p99.9 | scheduler jitter, not GC |
+| Market data → gateway | **68 ms** RTT | Tokyo → Singapore; **the constraint** |
+| Gateway → browser (dev machine) | 21–27 ms | |
+| Book recompute | 5 s | server-side; the observability floor |
+| Browser order book | 100 ms | direct from venue, already optimal |
+
+The honest headline: **the decision is fast, the system is not, and the gap is
+entirely geography.** A sub-millisecond claim about this deployment would be true
+of the gate and false of everything the gate depends on.

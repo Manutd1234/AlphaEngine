@@ -27,6 +27,7 @@ from __future__ import annotations
 import json
 import logging
 import threading
+from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -574,7 +575,7 @@ class AuditLog:
                 fill.fee_usd if fill else None,
                 fill.slippage_bps if fill else None,
                 fill.venue if fill else None,
-                json.dumps([c.model_dump() for c in decision.checks]),
+                json.dumps([asdict(c) for c in decision.checks]),
                 source,
                 getattr(decision, "status", None),
                 getattr(decision, "time_in_force", None),
