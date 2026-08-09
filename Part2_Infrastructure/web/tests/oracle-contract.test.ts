@@ -282,3 +282,42 @@ describe("cosine distance maps to the similarity the panel renders", () => {
     }
   });
 });
+
+describe("both indexes answer behind the same relevance floor", () => {
+  /**
+   * `min_similarity` existed on the Supabase function from the start and was
+   * never passed by any caller, so the top N came back however unrelated they
+   * were. The Oracle side had no floor at all. Ask about something the desk has
+   * never done and both would confidently return their least-unrelated rows.
+   *
+   * The two constants must agree. Two backends filtering at different
+   * thresholds do not disagree about relevance — they are answering different
+   * questions, and the disagreement the two-backend design exists to surface
+   * stops meaning anything.
+   */
+  it("the TypeScript and Python floors are the same number", () => {
+    const ts = /export const RAG_MIN_SIMILARITY = ([0-9.]+)/.exec(
+      readFileSync(fileURLToPath(new URL("../lib/oracle/queries.ts", import.meta.url)), "utf8"),
+    )?.[1];
+    const py = /^RAG_MIN_SIMILARITY = ([0-9.]+)/m.exec(
+      readFileSync(fileURLToPath(new URL("../../modules/research_rag.py", import.meta.url)), "utf8"),
+    )?.[1];
+    assert.ok(ts && py, "one of the two floors is missing");
+    assert.equal(Number(ts), Number(py), "the Oracle and Supabase relevance floors have drifted");
+  });
+
+  it("Oracle filters on distance, and the route binds it", () => {
+    const queries = readFileSync(fileURLToPath(new URL("../lib/oracle/queries.ts", import.meta.url)), "utf8");
+    const route = readFileSync(
+      fileURLToPath(new URL("../app/api/oracle/research/route.ts", import.meta.url)), "utf8");
+    assert.match(queries, /<= :max_distance/, "the Oracle query has no relevance floor");
+    // A bind the SQL declares and the caller omits is ORA-01008 on every search.
+    assert.match(route, /max_distance:/, "the route does not bind :max_distance");
+  });
+
+  it("Supabase is actually passed its floor rather than defaulting to zero", () => {
+    const rag = readFileSync(fileURLToPath(new URL("../../modules/research_rag.py", import.meta.url)), "utf8");
+    const call = /"\/rest\/v1\/rpc\/match_research_documents",[\s\S]*?\}/.exec(rag)?.[0] ?? "";
+    assert.match(call, /min_similarity/, "the RPC call still relies on the 0.0 default");
+  });
+});

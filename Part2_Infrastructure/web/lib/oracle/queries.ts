@@ -45,10 +45,11 @@ export const RAG_SEARCH_SQL = `
     FROM ${RAG_TABLE}
    WHERE embedding_status = 'ready'
      AND (:kind IS NULL OR kind = :kind)
+     AND VECTOR_DISTANCE(embedding, TO_VECTOR(:query_vector), COSINE) <= :max_distance
    ORDER BY distance ASC
    FETCH FIRST :match_count ROWS ONLY`;
 
-export const RAG_SEARCH_BINDS = ["query_vector", "kind", "match_count"] as const;
+export const RAG_SEARCH_BINDS = ["query_vector", "kind", "match_count", "max_distance"] as const;
 
 /**
  * Terminal-value Monte Carlo VaR. See oracle/02_monte_carlo.sql for why this
@@ -81,6 +82,21 @@ export const MONTE_CARLO_OUT_BINDS = ["var_99", "expected", "paths_used"] as con
  */
 export const MAX_SIMULATIONS = 50_000;
 export const DEFAULT_SIMULATIONS = 10_000;
+
+/**
+ * Cosine similarity below which a document is not offered as a match.
+ *
+ * The Supabase side has always had this as `min_similarity` and never had it
+ * passed; the Oracle side had no floor at all, so it returned its N nearest
+ * rows however far away they were. Ask about something the desk has never done
+ * and it confidently answers with its least-unrelated backtests.
+ *
+ * Must equal `RAG_MIN_SIMILARITY` in `modules/research_rag.py`. Two backends
+ * answering the same question behind different floors do not disagree about
+ * relevance — they disagree about the question, and the comparison the
+ * two-backend design exists to make stops meaning anything.
+ */
+export const RAG_MIN_SIMILARITY = 0.35;
 
 /** Cosine distance in [0, 2] → similarity in [0, 1], the shape the panel reads. */
 export function similarityFromDistance(distance: number): number {

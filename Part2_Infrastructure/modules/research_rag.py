@@ -52,6 +52,21 @@ log = logging.getLogger("alphaengine.rag")
 EMBEDDING_DIMENSIONS = 384
 EMBEDDING_MODEL = "gte-small"
 
+#: Cosine similarity below which a document is not offered as a match.
+#:
+#: `match_research_documents` has always taken `min_similarity` and defaulted it
+#: to 0.0, and no caller ever passed it — so the top N came back however
+#: unrelated they were. With a small corpus that is not a rare edge case: ask
+#: about something the desk has never done and it confidently returns its three
+#: least-unrelated backtests.
+#:
+#: 0.35 is deliberately permissive. It removes the clearly-unrelated without
+#: silencing a thin corpus, and the panel shows every score so a reader can
+#: judge a weak match rather than being told one does not exist. Tightening it
+#: is a decision for the eval harness, not for taste — a floor chosen by feel is
+#: how retrieval quietly starts hiding evidence.
+RAG_MIN_SIMILARITY = 0.35
+
 ANOMALY_GATES = {"est_slippage", "daily_drawdown"}
 
 
@@ -352,6 +367,7 @@ class ResearchRag:
                 json={
                     "query_embedding": vector,
                     "match_count": match_count,
+                    "min_similarity": RAG_MIN_SIMILARITY,
                     "filter_kind": kind,
                 },
             )

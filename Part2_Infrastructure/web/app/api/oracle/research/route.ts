@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withOracle } from "@/lib/oracle/client";
 import {
   EMBEDDING_DIMENSIONS,
+  RAG_MIN_SIMILARITY,
   RAG_SEARCH_SQL,
   RESEARCH_KINDS,
   similarityFromDistance,
@@ -101,6 +102,8 @@ export async function POST(request: NextRequest) {
       query_vector: JSON.stringify(vector),
       kind,
       match_count: matchCount,
+      // Cosine distance is 1 - similarity, so the floor becomes a ceiling here.
+      max_distance: 1 - RAG_MIN_SIMILARITY,
     });
     return query_.rows ?? [];
   });
