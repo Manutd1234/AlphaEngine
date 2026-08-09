@@ -26,6 +26,8 @@ CATALOGUE = [
     "donchian", "donchian_mid", "breakout_sma",
     "rsi_reversion", "williams_r", "stochastic",
     "momentum", "roc_trend",
+    "triple_ma", "ppo_cross", "trix_cross", "rsi_trend",
+    "price_channel", "ema_slope",
 ]
 
 

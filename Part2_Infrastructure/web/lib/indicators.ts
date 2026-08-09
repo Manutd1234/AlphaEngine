@@ -132,3 +132,37 @@ export function ema(values: Float64Array, span: number): Float64Array {
   }
   return out;
 }
+
+/**
+ * Rolling population standard deviation (`ddof=0`), matching
+ * `pandas.rolling().std(ddof=0)`.
+ *
+ * ddof matters: pandas defaults to the SAMPLE deviation (ddof=1) and this uses
+ * the population one, so the Python side must pass `ddof=0` explicitly. On a
+ * 20-bar window the two differ by ~2.6%, which is enough to move a Bollinger
+ * band across a price and change a trade — the parity fixture would catch it,
+ * but only after someone spent an afternoon on it.
+ *
+ * Two-pass per window rather than the sum-of-squares shortcut: on price series
+ * the mean is large relative to the deviation, and `E[x²] - E[x]²` loses most
+ * of its significant digits to cancellation exactly there.
+ */
+export function rollingStd(values: Float64Array, window: number): Float64Array {
+  const n = values.length;
+  const out = new Float64Array(n).fill(NaN);
+  if (window <= 0 || window > n) return out;
+  for (let i = window - 1; i < n; i++) {
+    let sum = 0;
+    let bad = false;
+    for (let j = i - window + 1; j <= i; j++) {
+      if (Number.isNaN(values[j])) { bad = true; break; }
+      sum += values[j];
+    }
+    if (bad) continue;
+    const mean = sum / window;
+    let acc = 0;
+    for (let j = i - window + 1; j <= i; j++) acc += (values[j] - mean) ** 2;
+    out[i] = Math.sqrt(acc / window);
+  }
+  return out;
+}

@@ -11,7 +11,13 @@ export type Strategy =
   | "williams_r"
   | "stochastic"
   | "momentum"
-  | "roc_trend";
+  | "roc_trend"
+  | "triple_ma"
+  | "ppo_cross"
+  | "trix_cross"
+  | "rsi_trend"
+  | "price_channel"
+  | "ema_slope";
 
 /**
  * Families, for grouping the picker.
@@ -37,6 +43,12 @@ export const STRATEGY_FAMILY: Record<Strategy, StrategyFamily> = {
   stochastic: "Mean reversion",
   momentum: "Momentum",
   roc_trend: "Momentum",
+  triple_ma: "Trend",
+  ppo_cross: "Trend",
+  trix_cross: "Trend",
+  ema_slope: "Trend",
+  price_channel: "Breakout",
+  rsi_trend: "Momentum",
 };
 export type Direction = "long_only" | "long_short";
 
@@ -441,6 +453,12 @@ export const STRATEGY_LABELS: Record<Strategy, string> = {
   stochastic: "Stochastic oscillator",
   momentum: "Momentum (skip-recent)",
   roc_trend: "Rate of change with trend filter",
+  triple_ma: "Triple moving average",
+  ppo_cross: "Percentage price oscillator",
+  trix_cross: "TRIX signal crossover",
+  rsi_trend: "RSI trend continuation",
+  price_channel: "Price channel breakout",
+  ema_slope: "EMA slope",
 };
 
 /** What `fast` and `slow` actually mean for each model — shown in the UI so the
@@ -457,6 +475,12 @@ export const PARAM_MEANING: Record<Strategy, { fast: string; slow: string }> = {
   stochastic: { fast: "%K lookback", slow: "%D smoothing" },
   momentum: { fast: "Bars skipped (recent)", slow: "Momentum lookback" },
   roc_trend: { fast: "Rate-of-change lookback", slow: "Trend-filter SMA period" },
+  triple_ma: { fast: "Fast SMA period", slow: "Slow SMA period" },
+  ppo_cross: { fast: "Fast EMA span", slow: "Slow EMA span" },
+  trix_cross: { fast: "TRIX EMA span", slow: "Signal SMA period" },
+  rsi_trend: { fast: "RSI period", slow: "Trend-filter SMA period" },
+  price_channel: { fast: "Breakout lookback", slow: "Exit-channel lookback" },
+  ema_slope: { fast: "EMA span", slow: "Slope lookback (bars)" },
 };
 
 /**
@@ -481,6 +505,12 @@ export const CHART_SERIES: Record<Strategy, { fast: string | null; slow: string 
   stochastic: { fast: null, slow: "Exit SMA" },
   momentum: { fast: null, slow: "Lookback SMA" },
   roc_trend: { fast: null, slow: "Trend SMA" },
+  triple_ma: { fast: "Fast SMA", slow: "Slow SMA" },
+  ppo_cross: { fast: null, slow: "Slow EMA" },
+  trix_cross: { fast: null, slow: "TRIX signal" },
+  rsi_trend: { fast: null, slow: "Trend SMA" },
+  price_channel: { fast: "Channel high", slow: "Channel low" },
+  ema_slope: { fast: null, slow: "EMA" },
 };
 
 export const BARS_PER_YEAR: Record<string, number> = {

@@ -13,7 +13,7 @@
  *   • returns compound on equity, i.e. constant-fraction (100%) sizing.
  */
 
-import { ema, pctChange, rollingMax, rollingMin, rsi, shift1, sma } from "./indicators";
+import { ema, pctChange, rollingMax, rollingMin, rollingStd, rsi, shift1, sma } from "./indicators";
 import { monteCarloBands } from "./montecarlo";
 import { regimeReport } from "./regimes";
 import {
@@ -234,6 +234,71 @@ function longState(
       }
       if (!Number.isNaN(trend[i]) && close[i] < trend[i]) state = 0; // exit overrides
       out[i] = state;
+    }
+    return out;
+  }
+
+  if (strategy === "triple_ma") {
+    // Middle leg derived, not a third parameter: the geometric mean keeps the
+    // three periods evenly spaced on a log scale at no extra sweep axis.
+    const midPeriod = Math.max(2, Math.round(Math.sqrt(fast * slow)));
+    const f = sma(close, fast);
+    const m = sma(close, midPeriod);
+    const sl = sma(close, slow);
+    for (let i = 0; i < n; i++) out[i] = f[i] > m[i] && m[i] > sl[i] ? 1 : 0;
+    return out;
+  }
+
+  if (strategy === "ppo_cross") {
+    const fastEma = ema(close, fast);
+    const slowEma = ema(close, slow);
+    const ppo = new Float64Array(n).fill(NaN);
+    for (let i = 0; i < n; i++) {
+      if (slowEma[i] !== 0) ppo[i] = ((fastEma[i] - slowEma[i]) / slowEma[i]) * 100;
+    }
+    const signal = ema(ppo, 9);
+    for (let i = 0; i < n; i++) out[i] = ppo[i] > signal[i] ? 1 : 0;
+    return out;
+  }
+
+  if (strategy === "trix_cross") {
+    const e3 = ema(ema(ema(close, fast), fast), fast);
+    const trix = new Float64Array(n).fill(NaN);
+    for (let i = 1; i < n; i++) {
+      if (e3[i - 1] !== 0) trix[i] = (e3[i] / e3[i - 1] - 1) * 100;
+    }
+    const sig = sma(trix, Math.max(2, slow));
+    for (let i = 0; i < n; i++) out[i] = trix[i] > sig[i] ? 1 : 0;
+    return out;
+  }
+
+  if (strategy === "rsi_trend") {
+    // Momentum reading of RSI — the opposite of rsi_reversion, deliberately
+    // both in the catalogue: which is right is a property of the regime.
+    const r = rsi(close, fast);
+    const trend = sma(close, slow);
+    for (let i = 0; i < n; i++) {
+      out[i] = !Number.isNaN(r[i]) && r[i] > 55 && !Number.isNaN(trend[i]) && close[i] > trend[i] ? 1 : 0;
+    }
+    return out;
+  }
+
+  if (strategy === "price_channel") {
+    const upper = shift1(rollingMax(close, fast));
+    const lower = shift1(rollingMin(close, slow));
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      if (!Number.isNaN(upper[i]) && close[i] >= upper[i]) state = 1;
+      if (!Number.isNaN(lower[i]) && close[i] <= lower[i]) state = 0; // exit overrides
+      out[i] = state;
+    }
+    return out;
+  }
+
+  if (strategy === "ema_slope") {
+    const e = ema(close, fast);
+    for (let i = 0; i < n; i++) {
+      out[i] = i >= slow && e[i] - e[i - slow] > 0 ? 1 : 0;
     }
     return out;
   }

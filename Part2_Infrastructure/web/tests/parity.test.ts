@@ -87,9 +87,10 @@ describe("TypeScript engine reproduces the Python reference", () => {
     // runs the Python path, long after the TypeScript one was reviewed.
     const strategies = new Set(fixture.cases.map((c) => c.strategy));
     assert.deepEqual([...strategies].sort(), [
-      "breakout_sma", "donchian", "donchian_mid", "ema_cross", "ma_cross",
-      "macd_cross", "momentum", "roc_trend", "rsi_reversion", "stochastic",
-      "williams_r",
+      "breakout_sma", "donchian", "donchian_mid", "ema_cross", "ema_slope",
+      "ma_cross", "macd_cross", "momentum", "ppo_cross", "price_channel",
+      "roc_trend", "rsi_reversion", "rsi_trend", "stochastic",
+      "triple_ma", "trix_cross", "williams_r",
     ]);
     assert.ok(fixture.cases.some((c) => c.direction === "long_short"));
     for (const c of fixture.cases) {

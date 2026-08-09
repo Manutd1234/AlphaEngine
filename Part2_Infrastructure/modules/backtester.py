@@ -280,6 +280,47 @@ def build_signals(strategy: str, df: pd.DataFrame, fast: int, slow: int) -> tupl
         raw[(close > upper) & (close > trend)] = 1.0
         raw[close < trend] = 0.0
         long = raw.ffill().fillna(0.0) > 0
+    elif strategy == "triple_ma":
+        # The middle leg is derived, not a third parameter: the geometric mean
+        # keeps the three periods evenly spaced on a log scale, which is how a
+        # trend ladder is meant to be spaced and costs no extra sweep axis.
+        mid_period = max(2, int(round((fast * slow) ** 0.5)))
+        f = close.rolling(fast).mean()
+        m = close.rolling(mid_period).mean()
+        sl = close.rolling(slow).mean()
+        long = (f > m) & (m > sl)
+    elif strategy == "ppo_cross":
+        fast_ema = close.ewm(span=fast, adjust=False).mean()
+        slow_ema = close.ewm(span=slow, adjust=False).mean()
+        ppo = (fast_ema - slow_ema) / slow_ema.replace(0, np.nan) * 100
+        long = ppo > ppo.ewm(span=9, adjust=False).mean()
+    elif strategy == "trix_cross":
+        e1 = close.ewm(span=fast, adjust=False).mean()
+        e2 = e1.ewm(span=fast, adjust=False).mean()
+        e3 = e2.ewm(span=fast, adjust=False).mean()
+        trix = e3.pct_change() * 100
+        long = trix > trix.rolling(max(2, slow)).mean()
+    elif strategy == "rsi_trend":
+        # Momentum reading of RSI, the opposite of rsi_reversion: strength above
+        # the midline is treated as continuation rather than as something to
+        # fade. Both are in the catalogue on purpose — which one is right is a
+        # property of the regime, and the sweep is how you find out.
+        delta = close.diff()
+        gain = delta.clip(lower=0).ewm(alpha=1 / fast, adjust=False).mean()
+        loss = (-delta.clip(upper=0)).ewm(alpha=1 / fast, adjust=False).mean()
+        r = 100 - 100 / (1 + gain / loss.replace(0, np.nan))
+        trend = close.rolling(slow).mean()
+        long = (r > 55) & (close > trend)
+    elif strategy == "price_channel":
+        upper = close.rolling(fast).max().shift(1)
+        lower = close.rolling(slow).min().shift(1)
+        raw = pd.Series(np.nan, index=close.index)
+        raw[close >= upper] = 1.0
+        raw[close <= lower] = 0.0
+        long = raw.ffill().fillna(0.0) > 0
+    elif strategy == "ema_slope":
+        e = close.ewm(span=fast, adjust=False).mean()
+        long = (e - e.shift(slow)) > 0
     else:
         raise ValueError(f"unknown strategy: {strategy}")
 

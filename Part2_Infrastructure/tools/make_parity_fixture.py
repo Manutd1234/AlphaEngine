@@ -42,6 +42,12 @@ CASES = [
     ("BTCUSDT", "4h", "stochastic", "long_only"),
     ("ETHUSDT", "4h", "momentum", "long_only"),
     ("BTCUSDT", "1h", "roc_trend", "long_only"),
+    ("BTCUSDT", "4h", "triple_ma", "long_only"),
+    ("ETHUSDT", "4h", "ppo_cross", "long_only"),
+    ("BTCUSDT", "1d", "trix_cross", "long_only"),
+    ("BTCUSDT", "4h", "rsi_trend", "long_only"),
+    ("ETHUSDT", "4h", "price_channel", "long_only"),
+    ("BTCUSDT", "1h", "ema_slope", "long_only"),
 ]
 COMBOS = [(5, 20), (10, 50), (20, 100), (35, 180)]
 BARS = 1200
