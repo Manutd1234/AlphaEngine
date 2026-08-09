@@ -340,14 +340,21 @@ jobs:
             # Overlay first (so it wins), then any KEY= line from the preserved
             # file whose key the overlay did not set. Comment and blank lines
             # are dropped by the key-shaped match rather than carried over, and
-            # `seen[$1]=1` in the second rule also collapses duplicate keys
-            # already present in the preserved file — the hand-managed .env has
+            # `s[$1]=1` in the second rule also collapses duplicate keys already
+            # present in the preserved file — the hand-managed .env has
             # PUBLIC_URL twice, and passing both through would leave the winner
             # decided by whichever the container's env parser read last.
-            awk -F= '
-              NR==FNR { if ($0 ~ /^[A-Za-z_][A-Za-z0-9_]*=/) seen[$1]=1; print; next }
-              /^[A-Za-z_][A-Za-z0-9_]*=/ && !($1 in seen) { seen[$1]=1; print }
-            ' "$OVERLAY" "$PRESERVED" > "$ENV_FILE"
+            #
+            # ON ONE LINE, DELIBERATELY. As a multi-line program this failed in
+            # CI with `awk: line 2: syntax error at or near ?` — the `?` being
+            # how awk prints a carriage return. The script arrives over the SSH
+            # action with CRLF endings, and while bash tolerates a stray CR at
+            # the end of a command, awk does not tolerate one inside its program
+            # text. The same program runs cleanly on the same VM when the file
+            # has LF endings, which is exactly why this could not be reproduced
+            # by running it there directly. One line has no interior newlines to
+            # be rewritten, so the transport cannot corrupt it.
+            awk -F= 'NR==FNR{if($0~/^[A-Za-z_][A-Za-z0-9_]*=/)s[$1]=1;print;next} /^[A-Za-z_][A-Za-z0-9_]*=/&&!($1 in s){s[$1]=1;print}' "$OVERLAY" "$PRESERVED" > "$ENV_FILE"
             rm -f "$PRESERVED" "$OVERLAY"
 
             # Names only — this must never print a value into the build log.

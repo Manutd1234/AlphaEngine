@@ -325,8 +325,8 @@ describe("continuous deployment keeps the desk alive across a swap", () => {
      * The awk merge is asserted directly: CI's values are written first so
      * they win, and any key the overlay did not set is carried over.
      */
-    assert.match(deployWorkflow, /seen\[\$1\]=1/, "the env-file merge is gone — a deploy would truncate VM-only configuration");
-    assert.match(deployWorkflow, /!\(\$1 in seen\)/);
+    assert.match(deployWorkflow, /s\[\$1\]=1/, "the env-file merge is gone — a deploy would truncate VM-only configuration");
+    assert.match(deployWorkflow, /!\(\$1 in s\)/);
     assert.match(deployWorkflow, /LEGACY_ENV=/, "the first deploy no longer seeds from the hand-managed .env");
 
     // The overlay must be built into its own file, never straight over the
@@ -355,13 +355,48 @@ describe("continuous deployment keeps the desk alive across a swap", () => {
     // Reporting the result must stay names-only. `cat`-ing the merged file
     // would put a bot token and a service-role key into a build log that
     // anyone with read access to the repository can retrieve.
-    const script = deployWorkflow.slice(deployWorkflow.indexOf("script: |"));
+    const body = deployWorkflow.slice(deployWorkflow.indexOf("script: |"));
     assert.doesNotMatch(
-      script,
+      body,
       /cat "\$ENV_FILE"/,
       "the merged env file is being printed to the build log — it holds live credentials",
     );
-    assert.match(script, /cut -d= -f1 "\$ENV_FILE"/, "the summary should print variable names only");
+    assert.match(body, /cut -d= -f1 "\$ENV_FILE"/, "the summary should print variable names only");
+  });
+
+  it("embeds no multi-line quoted program in the remote script", () => {
+    /**
+     * The script reaches the VM through the SSH action with CRLF endings.
+     * bash tolerates a trailing carriage return; an interpreter reading a
+     * quoted program does not, and the merge awk failed in CI with
+     * `awk: line 2: syntax error at or near ?` — `?` being how awk prints a
+     * CR. It ran perfectly when the same file was placed on the same VM with
+     * LF endings, so the bug existed only in transit and could not be
+     * reproduced by testing there.
+     *
+     * Counting quote parity per line catches any future `awk '…`, `sed '…` or
+     * `python -c '…` that spans lines, which is the whole class.
+     */
+    const script = deployWorkflow.slice(
+      deployWorkflow.indexOf("script: |"),
+      deployWorkflow.indexOf("\n        env:", deployWorkflow.indexOf("script: |")),
+    );
+    // Comment lines are dropped first. The shell never interprets them, but
+    // they are full of English apostrophes ("the container's own health check")
+    // and counting those would flag the prose that explains the very hazard
+    // this checks for.
+    const unbalanced = script
+      .split("\n")
+      .map((line, index) => ({ line, index }))
+      .filter(({ line }) => !line.trim().startsWith("#"))
+      .filter(({ line }) => (line.split("'").length - 1) % 2 === 1);
+
+    assert.deepEqual(
+      unbalanced.map(({ index, line }) => `line ${index}: ${line.trim().slice(0, 60)}`),
+      [],
+      "a single-quoted program spans lines in the remote script — put it on one line, "
+        + "or CRLF in transit will corrupt it",
+    );
   });
 
   it("verifies the deploy and can undo it", () => {
