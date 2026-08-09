@@ -17,6 +17,7 @@ import PriceChart from "@/components/PriceChart";
 import ReliabilityConsole, { RELIABILITY_SECTION_IDS, type ReliabilitySection } from "@/components/ReliabilityConsole";
 import RiskWorkspace, { RISK_SECTION_IDS, type RiskSection } from "@/components/RiskWorkspace";
 import SignalDAGViewer from "@/components/research/SignalDAGViewer";
+import StrategyDocCard from "@/components/research/StrategyDocCard";
 import ExperimentHistory from "@/components/research/ExperimentHistory";
 import FactorPanel from "@/components/research/FactorPanel";
 import BenchmarkPanel from "@/components/research/BenchmarkPanel";
@@ -483,6 +484,21 @@ export default function Page() {
 
   const updateRequest = useCallback((next: SweepRequest) => {
     setReq(next);
+    setResearchDirty(true);
+    setInspect(null);
+    setInspectionData(null);
+  }, []);
+
+  /**
+   * Switching strategy from the doc card's "compare against" links.
+   *
+   * Shares `updateRequest`'s bookkeeping rather than calling `setReq` directly:
+   * a changed strategy invalidates the displayed result exactly as a changed
+   * symbol does, and a path that forgot `setResearchDirty` would leave the old
+   * sweep on screen under the new strategy's name.
+   */
+  const updateStrategy = useCallback((strategy: SweepRequest["strategy"]) => {
+    setReq((current) => ({ ...current, strategy }));
     setResearchDirty(true);
     setInspect(null);
     setInspectionData(null);
@@ -1020,6 +1036,15 @@ export default function Page() {
                             />
                           </div>
                         </div>
+
+                        {/* Outside nothing, but placed after the charts: the
+                            card explains the rule the two charts above just
+                            drew, and a reader who understood them from the
+                            picture does not need to stop and read it first. */}
+                        <StrategyDocCard
+                          strategy={displayedResult.request.strategy}
+                          onSelect={updateStrategy}
+                        />
 
                         {/* Lineage belongs with the result it produced. It used
                             to sit above the section rail, where it pushed the

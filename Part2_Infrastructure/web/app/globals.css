@@ -13526,3 +13526,47 @@ button:active:not(:disabled) {
    highlight on the headline number teaches the eye that every run has one. */
 .benchmark-grid dd.is-emphasis { color: var(--success-text); }
 .benchmark-grid small { display: block; font-size: 0.8em; margin-top: 2px; }
+
+/* ── Strategy documentation card ───────────────────────────────────────────
+   Sits under the controls and changes with the picker. "When it fails" is
+   styled with the same prominence as "when it works" on purpose — a catalogue
+   that only describes each model's good conditions reads as twenty-six good
+   ideas rather than twenty-six trade-offs. */
+
+.strategy-doc { container-type: inline-size; }
+
+.strategy-doc__grid {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+}
+@container (min-width: 560px) {
+  .strategy-doc__grid { grid-template-columns: 1fr 1fr; column-gap: var(--space-4); }
+}
+.strategy-doc__grid dt {
+  font-size: 0.8em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+.strategy-doc__grid dd {
+  margin: 0;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+/* A left rule rather than coloured body text: tinting a paragraph costs
+   contrast in one theme or the other, and the marker carries the meaning
+   without touching legibility. */
+.strategy-doc__grid .is-works,
+.strategy-doc__grid .is-fails {
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--border);
+}
+.strategy-doc__grid .is-works { border-left-color: var(--status-good); }
+.strategy-doc__grid .is-fails { border-left-color: var(--status-critical); }
+
+.strategy-doc__similar {
+  margin: var(--space-3) 0 0;
+  font-size: 0.85em;
+}
