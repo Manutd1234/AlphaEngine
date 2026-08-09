@@ -20,6 +20,7 @@ import SignalDAGViewer from "@/components/research/SignalDAGViewer";
 import ExperimentHistory from "@/components/research/ExperimentHistory";
 import FactorPanel from "@/components/research/FactorPanel";
 import PromotionPanel from "@/components/research/PromotionPanel";
+import ResearchCorpus from "@/components/research/ResearchCorpus";
 import RegimePanel from "@/components/research/RegimePanel";
 import SizingPanel from "@/components/research/SizingPanel";
 import StabilityPanel from "@/components/research/StabilityPanel";
@@ -1089,6 +1090,14 @@ export default function Page() {
                           turnoverPerYear={data.tail.annualisedTurnover}
                         />
                       </StaleGate>
+                      {/*
+                        Outside the StaleGate on purpose. The corpus answers
+                        "has this desk seen anything like this before", which is
+                        a question about history — it does not go stale when the
+                        current sweep's parameters change, and veiling it would
+                        imply the past results had.
+                      */}
+                      <ResearchCorpus />
                     </WorkspaceSubtabPanel>
 
                     <WorkspaceSubtabPanel workspaceId="research" tabId="decision" activeId={researchSection}>

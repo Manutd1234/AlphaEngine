@@ -13382,3 +13382,65 @@ button:active:not(:disabled) {
   background: color-mix(in srgb, var(--series-1) 10%, transparent);
   transition: background var(--dur) var(--ease);
 }
+
+/* ── Research corpus (vector search) ─────────────────────────────────────────
+   Token-driven throughout: this panel renders in both themes and a hard-coded
+   colour here is a dark-only slab in light mode. Laid out with a container
+   query rather than a viewport one, because the panel sits in a one- and a
+   two-column context and only its own width decides whether the controls fit
+   on a line.                                                                */
+.research-corpus { container-type: inline-size; }
+
+.corpus-search {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin: var(--space-3) 0;
+}
+.corpus-search input[type="search"] { flex: 1 1 18rem; min-width: 0; }
+.corpus-search select { flex: 0 0 auto; }
+
+@container (max-width: 30rem) {
+  /* Stacked rather than wrapped: a search field sharing a line with a select
+     and a button at this width leaves none of them usable. */
+  .corpus-search { flex-direction: column; align-items: stretch; }
+  .corpus-search input[type="search"] { flex: 1 1 auto; }
+}
+
+.corpus-results {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+.corpus-results > li {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  background: var(--surface-2);
+}
+
+.corpus-result__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.corpus-result__title { font-weight: 600; }
+/* Fixed width so a column of scores stays aligned as values change, and
+   tabular figures so the digits do not shift under it. */
+.corpus-result__score {
+  font-variant-numeric: tabular-nums;
+  min-width: 4ch;
+  text-align: right;
+  color: var(--text-dim);
+}
+.corpus-result__meta { font-size: 0.85em; margin-top: 2px; }
+.corpus-result__body {
+  /* The card text is what was embedded, newlines and all — rendering it as a
+     paragraph would collapse the label/value structure the vector saw. */
+  white-space: pre-wrap;
+  margin: var(--space-3) 0 0;
+  font-size: 0.9em;
+}
