@@ -19,6 +19,7 @@ import RiskWorkspace, { RISK_SECTION_IDS, type RiskSection } from "@/components/
 import SignalDAGViewer from "@/components/research/SignalDAGViewer";
 import ExperimentHistory from "@/components/research/ExperimentHistory";
 import FactorPanel from "@/components/research/FactorPanel";
+import BenchmarkPanel from "@/components/research/BenchmarkPanel";
 import PromotionPanel from "@/components/research/PromotionPanel";
 import QualityScorePanel from "@/components/research/QualityScorePanel";
 import ResearchCorpus from "@/components/research/ResearchCorpus";
@@ -1085,6 +1086,15 @@ export default function Page() {
                           <FactorPanel report={data.factors} />
                           <RegimePanel regimes={data.regimes} />
                         </div>
+                        {/* Next to the factor decomposition because they are
+                            the same question asked two ways: what explains
+                            these returns. FactorPanel builds its factors from
+                            this symbol's own series; this one uses another
+                            instrument entirely. */}
+                        <BenchmarkPanel
+                          comparison={data.benchmarkComparison}
+                          requested={data.request.benchmarkSymbol}
+                        />
                         <TearSheet
                           tail={data.tail}
                           interval={data.request.interval}

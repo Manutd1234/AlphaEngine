@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { paramGrid } from "@/lib/engine";
-import { RESEARCH_SYMBOLS } from "@/lib/research-symbols";
+import { defaultBenchmark, RESEARCH_SYMBOLS } from "@/lib/research-symbols";
 import {
   INTERVALS,
   MAX_COMBOS,
@@ -221,6 +221,29 @@ export default function Controls({
                 <option key={s.symbol} value={s.symbol}>{`${s.name} · ${s.sector}`}</option>
               ))}
             </datalist>
+          </div>
+          <div>
+            <label className="field" htmlFor="benchmark">
+              Benchmark
+            </label>
+            {/* A select, not a datalist: unlike the traded symbol this is a
+                comparison the reader has to be able to name, and an
+                unrecognised ticker here produces a silently absent alpha
+                rather than a failed run. "None" is a real choice — the
+                same-symbol buy-and-hold comparison is computed either way. */}
+            <select
+              id="benchmark"
+              value={req.benchmarkSymbol ?? ""}
+              onChange={(e) => patch({ benchmarkSymbol: e.target.value || undefined })}
+            >
+              <option value="">None — buy-and-hold only</option>
+              {RESEARCH_SYMBOLS.filter((s) => s.symbol !== req.symbol).map((s) => (
+                <option key={s.symbol} value={s.symbol}>
+                  {`${s.symbol} — ${s.name}`}
+                  {s.symbol === defaultBenchmark(req.symbol) ? " (suggested)" : ""}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="field" htmlFor="interval">

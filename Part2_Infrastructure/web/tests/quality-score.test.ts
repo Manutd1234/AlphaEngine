@@ -134,6 +134,7 @@ describe("it describes history and does not predict", () => {
 /** Only the fields `qualityInputFromSweep` reads; the rest is irrelevant here. */
 function sweep(over: Record<string, unknown> = {}): SweepResponse {
   return {
+    request: { symbol: "BTCUSDT" },
     deflatedSharpeRatio: 0.9,
     walkForwardOosSharpe: 1.1,
     best: {
@@ -177,13 +178,34 @@ describe("the mapping from a sweep response is where the score gets corrupted", 
     assert.equal(qualityScore(input).incomplete, true);
   });
 
-  it("the benchmark it maps is the one the engine actually computed", () => {
-    // Buy-and-hold on the same symbol, until Slice 7d lands a selectable one.
-    // Pinning this stops the field silently becoming something else while the
-    // panel's copy still says "buy-and-hold".
+  it("falls back to the same-symbol comparison when no benchmark was chosen", () => {
     const input = qualityInputFromSweep(sweep({ benchmark: { sharpe: 0.31, totalReturn: 0.07 } }));
     assert.equal(input.benchmarkSharpe, 0.31);
     assert.equal(input.benchmarkTotalReturn, 0.07);
+    // And says so. A category labelled "versus benchmark" that silently means
+    // "versus holding the same thing" is read as the stronger claim every time.
+    assert.match(input.benchmarkLabel ?? "", /buy-and-hold on BTCUSDT/);
+  });
+
+  it("prefers the external benchmark when the run computed one", () => {
+    const input = qualityInputFromSweep(sweep({
+      benchmark: { sharpe: 0.31, totalReturn: 0.07 },
+      benchmarkComparison: { symbol: "SPY", sharpe: 0.88, totalReturn: 0.42, alignedBars: 400 },
+    }));
+    assert.equal(input.benchmarkSharpe, 0.88);
+    assert.equal(input.benchmarkTotalReturn, 0.42);
+    assert.equal(input.benchmarkLabel, "SPY");
+  });
+
+  it("names the benchmark inside the category detail, not just the input", () => {
+    // The detail line is what a reader sees. A correct input feeding a detail
+    // that still says "buy-and-hold" would be the same defect one layer down.
+    const withSpy = qualityScore(qualityInputFromSweep(sweep({
+      benchmarkComparison: { symbol: "SPY", sharpe: 0.5, totalReturn: 0.2, alignedBars: 400 },
+    })));
+    const detail = withSpy.categories.find((c) => c.id === "benchmark")!.detail;
+    assert.match(detail, /SPY/);
+    assert.doesNotMatch(detail, /buy-and-hold/);
   });
 });
 

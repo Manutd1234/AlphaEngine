@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runSweep } from "@/lib/engine";
 import { loadBars } from "@/lib/marketdata";
 import { seedFromString } from "@/lib/random";
-import { DEFAULT_REQUEST, INTERVALS, SweepRequest } from "@/lib/types";
+import { type Bar, DEFAULT_REQUEST, INTERVALS, STRATEGY_LABELS, SweepRequest } from "@/lib/types";
 import { APP_COMMIT } from "@/lib/version";
 
 export const runtime = "nodejs";
@@ -12,11 +12,27 @@ export const runtime = "nodejs";
 // plan limit is rejected at build time, which is a deployment failure that
 // cannot be reproduced locally.
 
-const STRATEGIES = new Set(["ma_cross", "donchian", "rsi_reversion"]);
-// Keep the research context aligned with the data workspace. Equity symbols
-// may contain a class suffix (BRK.B) and short tickers must not silently fall
-// back to BTCUSDT. The current research loader is crypto-first, so unsupported
-// instruments return an explicitly labelled synthetic fallback instead.
+/**
+ * Derived from the label map, never listed again.
+ *
+ * This was a hand-written set of three, and it stayed three while the engines
+ * grew to twenty-six. Every strategy added after the first three was accepted
+ * by the UI, computed correctly by both engines, and then silently replaced
+ * with `ma_cross` here on the way in — twenty-three of twenty-six, coerced at
+ * the door. The bug was invisible because the coercion is by design: an
+ * unrecognised strategy falls back rather than 400s, so a stale whitelist looks
+ * exactly like a client sending nonsense.
+ *
+ * `STRATEGY_LABELS` is a `Record<Strategy, string>`, so its keys ARE the union
+ * at runtime. Deriving from it means the two cannot drift again — there is no
+ * second list to forget.
+ */
+const STRATEGIES = new Set(Object.keys(STRATEGY_LABELS));
+
+// Equity symbols may carry a class suffix (BRK.B) and short tickers must not
+// silently fall back to BTCUSDT. `loadBars` routes on asset class, so an equity
+// reaches the equity providers and only falls back to a labelled synthetic
+// series when none of them can answer.
 const SYMBOL_RE = /^[A-Z0-9.\-]{1,20}$/;
 
 function clamp(v: unknown, lo: number, hi: number, fallback: number): number {
@@ -29,6 +45,12 @@ function clampFloat(v: unknown, lo: number, hi: number, fallback: number): numbe
   const n = Number(v);
   if (!Number.isFinite(n)) return fallback;
   return Math.min(hi, Math.max(lo, n));
+}
+
+function benchmarkOf(raw: unknown, symbol: string): string | undefined {
+  const candidate = String(raw ?? "").trim().toUpperCase();
+  if (!candidate || candidate === symbol) return undefined;
+  return SYMBOL_RE.test(candidate) ? candidate : undefined;
 }
 
 /** Never trust the client with grid bounds — an unbounded sweep is a free way to
@@ -60,6 +82,12 @@ function sanitise(body: Partial<SweepRequest>): SweepRequest {
     folds: clamp(body.folds, 2, 10, DEFAULT_REQUEST.folds),
     walkForward: body.walkForward !== false,
 
+    // Absent, blank and "same as the traded symbol" all mean no comparison.
+    // The third is the one worth catching here rather than downstream: a
+    // regression of a series on itself has a beta of exactly 1, an R² of 1 and
+    // an alpha of 0, which is a perfectly well-formed way of saying nothing.
+    benchmarkSymbol: benchmarkOf(body.benchmarkSymbol, symbol),
+
     // Microstructure frictions. Every one defaults to 0, which is what keeps an
     // unconfigured request arithmetically identical to the Python reference —
     // `clampFloat` returns the fallback for absent, non-numeric and non-finite
@@ -78,7 +106,28 @@ export async function POST(request: NextRequest) {
   try {
     const req = sanitise((await request.json()) as Partial<SweepRequest>);
     const { bars, source, warnings } = await loadBars(req.symbol, req.interval, req.bars);
-    const result = runSweep(bars, req, source, warnings);
+
+    // The benchmark is loaded through the same routing as the traded symbol, so
+    // an index ETF needs no special case and a benchmark that cannot be served
+    // degrades the same way the primary does — with a stated reason rather than
+    // a missing panel.
+    let benchmarkBars: Bar[] | null = null;
+    if (req.benchmarkSymbol) {
+      const loaded = await loadBars(req.benchmarkSymbol, req.interval, req.bars);
+      if (loaded.source === "synthetic") {
+        // A synthetic benchmark would produce an alpha against a random walk,
+        // which is worse than no alpha: it is a number that looks measured.
+        warnings.push(
+          `Benchmark ${req.benchmarkSymbol} could not be loaded, so no alpha or beta was computed. `
+            + loaded.warnings.join(" "),
+        );
+      } else {
+        benchmarkBars = loaded.bars;
+        warnings.push(...loaded.warnings);
+      }
+    }
+
+    const result = runSweep(bars, req, source, warnings, benchmarkBars);
     // Environment concerns stay out of the pure engine: the route stamps the
     // build identity and, for synthetic data, the generator seed.
     return NextResponse.json({

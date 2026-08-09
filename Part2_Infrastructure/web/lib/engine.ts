@@ -13,6 +13,7 @@
  *   • returns compound on equity, i.e. constant-fraction (100%) sizing.
  */
 
+import { compareToBenchmark } from "./benchmark";
 import { atr, ema, pctChange, rollingMax, rollingMin, rollingStd, rsi, shift1, sma } from "./indicators";
 import { monteCarloBands } from "./montecarlo";
 import { regimeReport } from "./regimes";
@@ -838,6 +839,15 @@ export function runSweep(
   req: SweepRequest,
   dataSource: DataSource,
   warnings: string[] = [],
+  /**
+   * The external benchmark's bars, already loaded by the caller.
+   *
+   * Passed in rather than fetched here so the engine stays pure and the parity
+   * fixture keeps calling it with three arguments. Absent means "not
+   * requested", which the response distinguishes from "requested and could not
+   * be aligned".
+   */
+  benchmarkBars: Bar[] | null = null,
 ): SweepResponse {
   const t0 = Date.now();
   const combos = paramGrid(req);
@@ -1051,6 +1061,9 @@ export function runSweep(
       sharpe: annualisedSharpe(pxRet, ann),
       maxDrawdown: maxDrawdown(bhEquity),
     },
+    benchmarkComparison: benchmarkBars && req.benchmarkSymbol
+      ? compareToBenchmark(series, benchmarkBars, req.interval, req.benchmarkSymbol)
+      : null,
     results,
     topResults: sorted.slice(0, 15),
     deflatedSharpeRatio: dsr,

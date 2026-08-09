@@ -87,10 +87,17 @@ export default function QualityScorePanel({ data }: QualityScorePanelProps) {
         <span className="num">{data.combosTested}</span> combinations makes the best raw Sharpe a
         biased estimate of the next one.{" "}
         {/* Named, not implied. "Versus benchmark" reads as "versus the market"
-            to anyone who has used the phrase elsewhere, and it is not that yet. */}
-        &ldquo;Versus benchmark&rdquo; compares against buy-and-hold on{" "}
-        <span className="num">{data.request.symbol}</span> itself — the alternative that costs one
-        trade and no research.
+            to anyone who has used the phrase elsewhere, and for a run with no
+            benchmark selected it is the same symbol held. */}
+        {data.benchmarkComparison
+          ? <>&ldquo;Versus benchmark&rdquo; compares against{" "}
+              <span className="num">{data.benchmarkComparison.symbol}</span>, over the{" "}
+              <span className="num">{data.benchmarkComparison.alignedBars}</span> bars the two
+              series share.</>
+          : <>&ldquo;Versus benchmark&rdquo; compares against buy-and-hold on{" "}
+              <span className="num">{data.request.symbol}</span> itself — the alternative that
+              costs one trade and no research. Select a benchmark in the controls to compare
+              against another instrument instead.</>}
       </p>
 
       <p className="quality-gate-note">

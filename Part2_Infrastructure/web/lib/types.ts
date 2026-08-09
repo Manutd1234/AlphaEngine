@@ -1,5 +1,9 @@
 /** Shared contracts between the API routes and the UI. */
 
+import type { BenchmarkComparison } from "./benchmark";
+
+export type { BenchmarkComparison };
+
 export type Strategy =
   | "ma_cross"
   | "ema_cross"
@@ -95,6 +99,16 @@ export interface SweepRequest {
   direction: Direction;
   folds: number;
   walkForward: boolean;
+  /**
+   * An external instrument to measure alpha and beta against.
+   *
+   * Optional, and its absence is not a default: when unset the response's
+   * `benchmarkComparison` is null and the UI says the comparison was not
+   * requested, rather than quietly substituting one. The same-symbol
+   * buy-and-hold comparison in `benchmark` is unaffected either way — the two
+   * answer different questions and both stay.
+   */
+  benchmarkSymbol?: string;
   /**
    * Bars discarded between each training window and its test window.
    *
@@ -219,7 +233,19 @@ export interface SweepResponse {
   combosTested: number;
   durationMs: number;
   best: ParamResult;
+  /** Buy-and-hold on the SAME symbol — "did the timing add anything". */
   benchmark: { totalReturn: number; sharpe: number; maxDrawdown: number };
+  /**
+   * Alpha, beta and tracking error against an external instrument.
+   *
+   * Null for three distinguishable reasons, all of which the panel names: no
+   * benchmark was requested, the benchmark's bars could not be loaded, or fewer
+   * than `MIN_ALIGNED_BARS` timestamps survived the join. The third is the one
+   * worth surfacing — two vendors on different bar conventions produce an empty
+   * intersection, and an empty intersection through a regression looks like a
+   * missing feature rather than a data problem.
+   */
+  benchmarkComparison?: BenchmarkComparison | null;
   results: ParamResult[];
   topResults: ParamResult[];
   deflatedSharpeRatio: number;

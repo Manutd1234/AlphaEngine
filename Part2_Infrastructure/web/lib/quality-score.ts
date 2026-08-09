@@ -50,6 +50,15 @@ export interface QualityInput {
   walkForwardOosSharpe: number | null;
   benchmarkSharpe: number;
   benchmarkTotalReturn: number;
+  /**
+   * What the two numbers above describe, in the reader's words.
+   *
+   * Carried rather than inferred: "versus benchmark" reads as "versus the
+   * market" to anyone who has met the phrase elsewhere, and for most runs it is
+   * buy-and-hold on the same symbol. A category that cannot say which one it
+   * used is a category that will be read as the stronger claim every time.
+   */
+  benchmarkLabel?: string;
 }
 
 export interface QualityCategory {
@@ -150,9 +159,13 @@ export function qualityScore(input: QualityInput): QualityScore {
     // no out-of-sample counterpart to discount it with.
     score: sharpeEdge * 0.7 + returnEdge * 0.3,
     weight: 15,
-    detail: input.walkForwardOosSharpe !== null
-      ? `OOS Sharpe edge ${(effectiveSharpe - input.benchmarkSharpe).toFixed(2)} vs buy-and-hold`
-      : `Sharpe edge ${(effectiveSharpe - input.benchmarkSharpe).toFixed(2)} vs buy-and-hold (in-sample)`,
+    detail: (() => {
+      const against = input.benchmarkLabel ?? "buy-and-hold";
+      const edge = (effectiveSharpe - input.benchmarkSharpe).toFixed(2);
+      return input.walkForwardOosSharpe !== null
+        ? `OOS Sharpe edge ${edge} vs ${against}`
+        : `Sharpe edge ${edge} vs ${against} (in-sample)`;
+    })(),
   });
 
   // ── Trade quality, 8 ──────────────────────────────────────────────────────
@@ -210,13 +223,22 @@ function verdictFor(total: number, incomplete: boolean): string {
  * existed. A mapping done inline at the render site is a mapping no test can
  * reach, and this one is now covered by the same file that covers the weights.
  *
- * `data.benchmark` is buy-and-hold on the SAME symbol, which is the only
- * benchmark this engine computes today. Slice 7d replaces it with a
- * user-selected instrument; until then the "versus benchmark" category is
- * asking "did the timing beat holding it", not "did it beat the market", and
- * the panel says so rather than letting the label imply otherwise.
+ * WHICH BENCHMARK
+ *
+ * An external one when the run requested it and enough bars aligned; otherwise
+ * buy-and-hold on the same symbol. The two ask different questions — "did it
+ * beat the market" versus "did the timing beat holding it" — and the category
+ * is worth more when it is the first. Which one was used is returned alongside,
+ * so the panel states it rather than letting the label imply the stronger
+ * reading.
+ *
+ * Silently preferring the external one is safe in one direction only: it can
+ * never be substituted when absent, because `benchmarkComparison` is null for
+ * three distinguishable reasons and none of them is "the same-symbol figure is
+ * close enough".
  */
 export function qualityInputFromSweep(data: SweepResponse): QualityInput {
+  const external = data.benchmarkComparison ?? null;
   return {
     deflatedSharpeRatio: data.deflatedSharpeRatio,
     sharpe: data.best.sharpe,
@@ -231,8 +253,9 @@ export function qualityInputFromSweep(data: SweepResponse): QualityInput {
     medianEfficiency: data.walkForwardReport.medianEfficiency,
     overfittingProbability: data.walkForwardReport.overfittingProbability,
     walkForwardOosSharpe: data.walkForwardOosSharpe,
-    benchmarkSharpe: data.benchmark.sharpe,
-    benchmarkTotalReturn: data.benchmark.totalReturn,
+    benchmarkSharpe: external?.sharpe ?? data.benchmark.sharpe,
+    benchmarkTotalReturn: external?.totalReturn ?? data.benchmark.totalReturn,
+    benchmarkLabel: external ? external.symbol : `buy-and-hold on ${data.request.symbol}`,
   };
 }
 

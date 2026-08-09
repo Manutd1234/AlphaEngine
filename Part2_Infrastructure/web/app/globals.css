@@ -13501,3 +13501,28 @@ button:active:not(:disabled) {
   font-size: 0.9em;
   color: var(--text-secondary);
 }
+
+/* ── Versus benchmark ──────────────────────────────────────────────────────
+   Alpha/beta against an external instrument. Its own grid rather than a reuse
+   of `.quality-breakdown` because these are six independent readings, not six
+   parts of one total — sharing the layout would imply they add up. */
+
+.benchmark-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+}
+.benchmark-grid dt {
+  font-size: 0.85em;
+  color: var(--text-secondary);
+}
+.benchmark-grid dd {
+  margin: 2px 0 0;
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+/* Only a statistically distinguishable alpha is emphasised. An unconditional
+   highlight on the headline number teaches the eye that every run has one. */
+.benchmark-grid dd.is-emphasis { color: var(--success-text); }
+.benchmark-grid small { display: block; font-size: 0.8em; margin-top: 2px; }
