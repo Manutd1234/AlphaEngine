@@ -30,7 +30,14 @@ def _second_axis(strategy: str) -> float:
     would report a broken strategy when the caller was the one confused.
     """
     free = FREE_SECOND_AXIS.get(strategy)
-    return 2.0 if free else 40
+    if free is None:
+        return 40
+    # The declared MINIMUM, not a fixed 2.0. Each free axis has its own units
+    # and its own sensible span — a 2.0 setting is a wide Bollinger band and an
+    # almost unreachable single-bar ATR breakout. The question this test asks is
+    # "can this strategy trade anywhere in the range its author declared", and
+    # the low end is the most permissive point in that range.
+    return free[0]
 
 CATALOGUE = [
     "ma_cross", "ema_cross", "macd_cross",
@@ -40,6 +47,7 @@ CATALOGUE = [
     "triple_ma", "ppo_cross", "trix_cross", "rsi_trend",
     "price_channel", "ema_slope",
     "bollinger_breakout", "zscore_reversion",
+    "atr_breakout", "keltner_breakout", "supertrend", "atr_trailing_stop",
 ]
 
 

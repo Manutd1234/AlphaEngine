@@ -19,7 +19,11 @@ export type Strategy =
   | "price_channel"
   | "ema_slope"
   | "bollinger_breakout"
-  | "zscore_reversion";
+  | "zscore_reversion"
+  | "atr_breakout"
+  | "keltner_breakout"
+  | "supertrend"
+  | "atr_trailing_stop";
 
 /**
  * Families, for grouping the picker.
@@ -53,6 +57,10 @@ export const STRATEGY_FAMILY: Record<Strategy, StrategyFamily> = {
   rsi_trend: "Momentum",
   bollinger_breakout: "Breakout",
   zscore_reversion: "Mean reversion",
+  atr_breakout: "Breakout",
+  keltner_breakout: "Breakout",
+  supertrend: "Trend",
+  atr_trailing_stop: "Trend",
 };
 export type Direction = "long_only" | "long_short";
 
@@ -465,6 +473,10 @@ export const STRATEGY_LABELS: Record<Strategy, string> = {
   zscore_reversion: "Z-score mean reversion",
   price_channel: "Price channel breakout",
   ema_slope: "EMA slope",
+  atr_breakout: "ATR breakout",
+  keltner_breakout: "Keltner channel breakout",
+  supertrend: "Supertrend",
+  atr_trailing_stop: "ATR trailing stop (chandelier)",
 };
 
 /** What `fast` and `slow` actually mean for each model — shown in the UI so the
@@ -489,6 +501,10 @@ export const PARAM_MEANING: Record<Strategy, { fast: string; slow: string }> = {
   zscore_reversion: { fast: "Z-score lookback", slow: "Entry threshold (σ)" },
   price_channel: { fast: "Breakout lookback", slow: "Exit-channel lookback" },
   ema_slope: { fast: "EMA span", slow: "Slope lookback (bars)" },
+  atr_breakout: { fast: "ATR period", slow: "Breakout size (ATRs)" },
+  keltner_breakout: { fast: "EMA & ATR period", slow: "Channel width (ATRs)" },
+  supertrend: { fast: "ATR period", slow: "Band distance (ATRs)" },
+  atr_trailing_stop: { fast: "ATR & trend period", slow: "Stop distance (ATRs)" },
 };
 
 /**
@@ -521,6 +537,10 @@ export const CHART_SERIES: Record<Strategy, { fast: string | null; slow: string 
   zscore_reversion: { fast: null, slow: "Rolling mean" },
   price_channel: { fast: "Channel high", slow: "Channel low" },
   ema_slope: { fast: null, slow: "EMA" },
+  atr_breakout: { fast: null, slow: "Prior close" },
+  keltner_breakout: { fast: "Upper channel", slow: "Channel mid" },
+  supertrend: { fast: "Upper band", slow: "Lower band" },
+  atr_trailing_stop: { fast: "Trailing stop", slow: "Trend SMA" },
 };
 
 export const BARS_PER_YEAR: Record<string, number> = {

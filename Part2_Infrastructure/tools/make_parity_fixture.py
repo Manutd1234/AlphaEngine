@@ -50,11 +50,20 @@ CASES = [
     ("BTCUSDT", "1h", "ema_slope", "long_only"),
     ("BTCUSDT", "4h", "bollinger_breakout", "long_only"),
     ("ETHUSDT", "4h", "zscore_reversion", "long_only"),
+    ("BTCUSDT", "4h", "atr_breakout", "long_only"),
+    ("ETHUSDT", "4h", "keltner_breakout", "long_only"),
+    ("BTCUSDT", "1h", "supertrend", "long_only"),
+    ("ETHUSDT", "1d", "atr_trailing_stop", "long_only"),
 ]
 COMBOS = [(5, 20), (10, 50), (20, 100), (35, 180)]
 #: The second axis is a standard-deviation multiple for these, not a period.
 #: Sweeping them at 20..180 sigma would exercise a band nothing ever crosses.
-FREE_COMBOS = [(10, 1.5), (20, 2.0), (20, 2.5), (40, 3.0)]
+FREE_COMBOS = [(10, 0.5), (14, 1.0), (20, 1.5), (20, 2.0)]
+#: Mirrors FREE_SECOND_AXIS in the engine — these sweep their own units.
+FREE_AXIS_STRATEGIES = {
+    "bollinger_breakout", "zscore_reversion",
+    "atr_breakout", "keltner_breakout", "supertrend", "atr_trailing_stop",
+}
 BARS = 1200
 
 
@@ -70,7 +79,7 @@ def main() -> int:
             symbol=symbol, interval=interval, strategy=strategy,
             direction=direction, bars=BARS, fee_bps=6, slippage_bps=2,
         )
-        combos = FREE_COMBOS if strategy in ("bollinger_breakout", "zscore_reversion") else COMBOS
+        combos = FREE_COMBOS if strategy in FREE_AXIS_STRATEGIES else COMBOS
         results, _ = NumpyEngine().run(df, combos, req)
 
         payload["cases"].append({

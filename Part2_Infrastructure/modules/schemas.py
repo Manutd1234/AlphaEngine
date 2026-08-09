@@ -352,6 +352,7 @@ class BacktestRequest(BaseModel):
         "triple_ma", "ppo_cross", "trix_cross", "rsi_trend",
         "price_channel", "ema_slope",
         "bollinger_breakout", "zscore_reversion",
+        "atr_breakout", "keltner_breakout", "supertrend", "atr_trailing_stop",
     ] = Field(
         default="ma_cross", description="Signal family. Each interprets fast/slow as its own two parameters.")
     fast_min: int = Field(default=5, ge=2, le=400, description="Lower bound of the fast-parameter sweep.")

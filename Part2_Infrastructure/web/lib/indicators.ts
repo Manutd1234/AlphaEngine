@@ -166,3 +166,31 @@ export function rollingStd(values: Float64Array, window: number): Float64Array {
   }
   return out;
 }
+
+/**
+ * Average true range, Wilder-smoothed — the recursion `pandas.ewm(alpha=1/n,
+ * adjust=False)` performs.
+ *
+ * True range takes the widest of three spans, not the bar's own high-low: a gap
+ * through the previous close is real movement the bar's range cannot see.
+ */
+export function atr(
+  high: Float64Array, low: Float64Array, close: Float64Array, period: number,
+): Float64Array {
+  const n = close.length;
+  const out = new Float64Array(n).fill(NaN);
+  if (n === 0) return out;
+  const alpha = 1 / Math.max(1, period);
+  let prev = high[0] - low[0];
+  out[0] = prev;
+  for (let i = 1; i < n; i++) {
+    const tr = Math.max(
+      high[i] - low[i],
+      Math.abs(high[i] - close[i - 1]),
+      Math.abs(low[i] - close[i - 1]),
+    );
+    prev = alpha * tr + (1 - alpha) * prev;
+    out[i] = prev;
+  }
+  return out;
+}

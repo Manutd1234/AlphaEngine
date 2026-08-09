@@ -13,7 +13,7 @@
  *   • returns compound on equity, i.e. constant-fraction (100%) sizing.
  */
 
-import { ema, pctChange, rollingMax, rollingMin, rollingStd, rsi, shift1, sma } from "./indicators";
+import { atr, ema, pctChange, rollingMax, rollingMin, rollingStd, rsi, shift1, sma } from "./indicators";
 import { monteCarloBands } from "./montecarlo";
 import { regimeReport } from "./regimes";
 import {
@@ -290,6 +290,56 @@ function longState(
     for (let i = 0; i < n; i++) {
       if (!Number.isNaN(upper[i]) && close[i] >= upper[i]) state = 1;
       if (!Number.isNaN(lower[i]) && close[i] <= lower[i]) state = 0; // exit overrides
+      out[i] = state;
+    }
+    return out;
+  }
+
+  if (strategy === "atr_breakout") {
+    // Volatility-aware: a move only signals if it is large relative to how much
+    // this instrument has been moving. A fixed percentage says the same thing
+    // about a calm market and a panicking one.
+    const a = atr(high, low, close, fast);
+    for (let i = 1; i < n; i++) out[i] = close[i] > close[i - 1] + slow * a[i] ? 1 : 0;
+    return out;
+  }
+
+  if (strategy === "keltner_breakout") {
+    const mid = ema(close, Math.max(2, fast));
+    const a = atr(high, low, close, fast);
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      if (!Number.isNaN(mid[i]) && close[i] > mid[i] + slow * a[i]) state = 1;
+      if (!Number.isNaN(mid[i]) && close[i] < mid[i]) state = 0; // exit overrides
+      out[i] = state;
+    }
+    return out;
+  }
+
+  if (strategy === "supertrend") {
+    const a = atr(high, low, close, fast);
+    let state = 0;
+    for (let i = 1; i < n; i++) {
+      const hl2 = (high[i - 1] + low[i - 1]) / 2;
+      const upper = hl2 + slow * a[i - 1];
+      const lower = hl2 - slow * a[i - 1];
+      if (!Number.isNaN(upper) && close[i] > upper) state = 1;
+      if (!Number.isNaN(lower) && close[i] < lower) state = 0; // exit overrides
+      out[i] = state;
+    }
+    return out;
+  }
+
+  if (strategy === "atr_trailing_stop") {
+    // Chandelier exit: the stop IS the model — entry is simply "trend is up".
+    const a = atr(high, low, close, fast);
+    const trend = sma(close, Math.max(2, fast));
+    const peak = rollingMax(close, Math.max(2, fast));
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      if (!Number.isNaN(trend[i]) && close[i] > trend[i]) state = 1;
+      const stop = peak[i] - slow * a[i];
+      if (!Number.isNaN(stop) && close[i] < stop) state = 0; // exit overrides
       out[i] = state;
     }
     return out;
@@ -588,6 +638,10 @@ export function runCombo(
 const FREE_SECOND_AXIS: Partial<Record<Strategy, [number, number, number]>> = {
   bollinger_breakout: [1.0, 3.0, 0.25],
   zscore_reversion: [1.0, 3.0, 0.25],
+  atr_breakout: [0.5, 3.0, 0.25],
+  keltner_breakout: [0.5, 3.0, 0.25],
+  supertrend: [1.0, 4.0, 0.5],
+  atr_trailing_stop: [1.0, 4.0, 0.5],
 };
 
 /** Inclusive, float-safe: index multiplication rather than repeated addition,

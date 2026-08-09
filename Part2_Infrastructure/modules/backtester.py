@@ -197,7 +197,29 @@ def _synthetic_ohlcv(symbol: str, interval: str, bars: int) -> pd.DataFrame:
 FREE_SECOND_AXIS: dict[str, tuple[float, float, float]] = {
     "bollinger_breakout": (1.0, 3.0, 0.25),   # band width in standard deviations
     "zscore_reversion": (1.0, 3.0, 0.25),     # entry threshold in standard deviations
+    "atr_breakout": (0.5, 3.0, 0.25),         # breakout size in ATRs
+    "keltner_breakout": (0.5, 3.0, 0.25),     # channel width in ATRs
+    "supertrend": (1.0, 4.0, 0.5),            # band distance in ATRs
+    "atr_trailing_stop": (1.0, 4.0, 0.5),     # stop distance in ATRs
 }
+
+
+def _atr(df: pd.DataFrame, period: int) -> pd.Series:
+    """Average true range, Wilder-smoothed.
+
+    True range takes the widest of the three spans rather than the bar's own
+    high-low, because a gap through the previous close is real movement the
+    bar's own range cannot see. Wilder's `ewm(alpha=1/n)` rather than a simple
+    mean is what every published ATR means, and the TypeScript side uses the
+    same recursion so the two agree.
+    """
+    prev_close = df["close"].shift(1)
+    true_range = pd.concat([
+        df["high"] - df["low"],
+        (df["high"] - prev_close).abs(),
+        (df["low"] - prev_close).abs(),
+    ], axis=1).max(axis=1)
+    return true_range.ewm(alpha=1 / max(1, period), adjust=False).mean()
 
 
 def build_signals(strategy: str, df: pd.DataFrame, fast: int, slow: int) -> tuple[pd.Series, pd.Series]:
@@ -348,6 +370,40 @@ def build_signals(strategy: str, df: pd.DataFrame, fast: int, slow: int) -> tupl
         raw = pd.Series(np.nan, index=close.index)
         raw[close >= upper] = 1.0
         raw[close <= lower] = 0.0
+        long = raw.ffill().fillna(0.0) > 0
+    elif strategy == "atr_breakout":
+        # Volatility-aware breakout: a move is only a signal if it is large
+        # relative to how much this instrument has been moving lately. A fixed
+        # percentage threshold says the same thing about a calm market and a
+        # panicking one.
+        atr = _atr(df, fast)
+        long = close > (close.shift(1) + float(slow) * atr)
+    elif strategy == "keltner_breakout":
+        mid = close.ewm(span=max(2, fast), adjust=False).mean()
+        atr = _atr(df, fast)
+        raw = pd.Series(np.nan, index=close.index)
+        raw[close > mid + float(slow) * atr] = 1.0
+        raw[close < mid] = 0.0
+        long = raw.ffill().fillna(0.0) > 0
+    elif strategy == "supertrend":
+        atr = _atr(df, fast)
+        hl2 = (df["high"] + df["low"]) / 2.0
+        upper = hl2 + float(slow) * atr
+        lower = hl2 - float(slow) * atr
+        raw = pd.Series(np.nan, index=close.index)
+        raw[close > upper.shift(1)] = 1.0
+        raw[close < lower.shift(1)] = 0.0
+        long = raw.ffill().fillna(0.0) > 0
+    elif strategy == "atr_trailing_stop":
+        # Chandelier exit: ride the trend, leave when price falls a multiple of
+        # ATR below the highest close since entry. The stop is the whole model —
+        # entry is simply "the trend is up".
+        atr = _atr(df, fast)
+        trend = close.rolling(max(2, fast)).mean()
+        stop = close.rolling(max(2, fast)).max() - float(slow) * atr
+        raw = pd.Series(np.nan, index=close.index)
+        raw[close > trend] = 1.0
+        raw[close < stop] = 0.0
         long = raw.ffill().fillna(0.0) > 0
     elif strategy == "bollinger_breakout":
         # `slow` is the band width in standard deviations — a real float now,

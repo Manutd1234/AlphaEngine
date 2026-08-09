@@ -173,7 +173,11 @@
               "price_channel",
               "ema_slope",
               "bollinger_breakout",
-              "zscore_reversion"
+              "zscore_reversion",
+              "atr_breakout",
+              "keltner_breakout",
+              "supertrend",
+              "atr_trailing_stop"
             ],
             "title": "Strategy",
             "type": "string"
