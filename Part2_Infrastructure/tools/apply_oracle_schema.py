@@ -120,10 +120,30 @@ def main() -> int:
     print(f"python-oracledb {oracledb.__version__}, thin mode: {oracledb.is_thin_mode()}")
     print(f"Connecting as {user} over {'tcps' if 'tcps' in connect_string.lower() else 'TCP'}\n")
 
+    # Mutual TLS when the database requires it, which it does until it is given
+    # a network ACL. Thin mode reads `ewallet.pem` alone, so the secret is one
+    # base64 blob rather than the whole downloaded wallet.
+    wallet_kwargs: dict[str, str] = {}
+    wallet_dir: str | None = None
+    wallet_b64 = (os.environ.get("ORACLE_WALLET_PEM_B64") or "").strip()
+    if wallet_b64:
+        import base64
+        import tempfile
+
+        pem = base64.b64decode(wallet_b64, validate=True).decode("utf-8")
+        wallet_dir = tempfile.mkdtemp(prefix="alphaengine-wallet-")
+        with open(os.open(os.path.join(wallet_dir, "ewallet.pem"),
+                          os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as handle:
+            handle.write(pem)
+        wallet_kwargs["wallet_location"] = wallet_dir
+        if os.environ.get("ORACLE_WALLET_PASSWORD"):
+            wallet_kwargs["wallet_password"] = os.environ["ORACLE_WALLET_PASSWORD"]
+        print("Using the configured wallet (mutual TLS)")
+
     failures = 0
     try:
         connection = oracledb.connect(
-            user=user, password=password, dsn=connect_string
+            user=user, password=password, dsn=connect_string, **wallet_kwargs
         )
     except Exception as error:  # noqa: BLE001 — the taxonomy is the whole point
         print(f"could not connect: {_advise(error)}", file=sys.stderr)
@@ -154,6 +174,12 @@ def main() -> int:
             print()
 
         connection.commit()
+
+    # The decoded private key does not outlive the process that wrote it.
+    if wallet_dir:
+        import shutil
+
+        shutil.rmtree(wallet_dir, ignore_errors=True)
 
     if failures:
         print(f"{failures} statement(s) failed.", file=sys.stderr)

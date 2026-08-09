@@ -76,6 +76,11 @@ jobs:
           ORACLE_CONN_STRING: ${{ secrets.DB_CONNECTION_STRING }}
           ORACLE_PASSWORD: ${{ secrets.DB_PASSWORD }}
           ORACLE_USER: ${{ secrets.ORACLE_USER }}
+          # Without these the apply cannot connect at all: an ADB permits
+          # walletless TLS only once it has a network ACL, so mutual TLS is the
+          # default and the wallet is the only way in.
+          ORACLE_WALLET_PEM_B64: ${{ secrets.ORACLE_WALLET_PEM_B64 }}
+          ORACLE_WALLET_PASSWORD: ${{ secrets.ORACLE_WALLET_PASSWORD }}
         run: python tools/apply_oracle_schema.py
 
       # Proves the objects the routes bind against actually resolve. Applying
@@ -88,9 +93,38 @@ jobs:
           ORACLE_CONN_STRING: ${{ secrets.DB_CONNECTION_STRING }}
           ORACLE_PASSWORD: ${{ secrets.DB_PASSWORD }}
           ORACLE_USER: ${{ secrets.ORACLE_USER }}
+          ORACLE_WALLET_PEM_B64: ${{ secrets.ORACLE_WALLET_PEM_B64 }}
+          ORACLE_WALLET_PASSWORD: ${{ secrets.ORACLE_WALLET_PASSWORD }}
         run: |
           npm ci
           node scripts/verify-oracle.mjs
+
+      # An empty corpus answers every query with "nothing similar is recorded",
+      # which the UI renders honestly and which therefore nobody investigates.
+      # Applying the schema without ever populating it is how the Oracle vector
+      # search stayed complete, correct and permanently useless.
+      #
+      # Idempotent: MERGE on the table's own (kind, source_ref) unique key, so
+      # this is the same job on a fresh database and on a current one.
+      - name: Index the desk's backtest history
+        if: steps.gate.outputs.ready == 'yes' && !inputs.dry_run
+        continue-on-error: true
+        env:
+          ORACLE_CONN_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+          ORACLE_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          ORACLE_USER: ${{ secrets.ORACLE_USER }}
+          ORACLE_WALLET_PEM_B64: ${{ secrets.ORACLE_WALLET_PEM_B64 }}
+          ORACLE_WALLET_PASSWORD: ${{ secrets.ORACLE_WALLET_PASSWORD }}
+          # Reads the history over the gateway's audit API and embeds through
+          # its embed route, so the vectors come from the same gte-small session
+          # that embedded the Supabase corpus. A vector from any other model is
+          # not comparable to those, and would rank confident nonsense.
+          ALPHAENGINE_GATEWAY_URL: http://149.118.48.255:8000
+          WEB_API_TOKEN: ${{ secrets.WEB_API_TOKEN }}
+        # `continue-on-error` because the corpus is downstream of the schema:
+        # a gateway that is momentarily unreachable must not turn a successful
+        # DDL apply into a red run.
+        run: python tools/backfill_oracle_rag.py --limit 200
 
   supabase:
     name: Supabase migrations and functions
