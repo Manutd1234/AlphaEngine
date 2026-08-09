@@ -180,7 +180,34 @@ if (!connectString || !password) {
   process.exit(1);
 }
 
-record("configuration", true, `user ${user}, walletless ${/tcps/i.test(connectString) ? "tcps" : "NON-TLS — check the descriptor"}`);
+// Mutual TLS when a wallet is configured. An Autonomous Database permits
+// walletless TLS only once it has a network ACL or a private endpoint; with
+// "secure access from everywhere" Oracle requires mTLS, and then the wallet is
+// not a preference but the only way to connect. Thin mode reads `ewallet.pem`
+// alone, so the secret is one base64 blob rather than the downloaded zip.
+const walletPemB64 = process.env.ORACLE_WALLET_PEM_B64?.trim();
+const walletPassword = process.env.ORACLE_WALLET_PASSWORD;
+let walletLocation;
+if (walletPemB64) {
+  const { mkdtempSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const pem = Buffer.from(walletPemB64, "base64").toString("utf8");
+  if (!pem.includes("-----BEGIN")) {
+    record("configuration", false, "ORACLE_WALLET_PEM_B64 does not decode to a PEM");
+    process.exit(1);
+  }
+  // mkdtemp is 0700 by definition; the key inside it is written 0600.
+  walletLocation = mkdtempSync(join(tmpdir(), "alphaengine-wallet-"));
+  writeFileSync(join(walletLocation, "ewallet.pem"), pem, { mode: 0o600 });
+}
+
+record(
+  "configuration",
+  true,
+  `user ${user}, ${walletLocation ? "mutual TLS (wallet configured)" : "walletless"} ` +
+    `${/tcps/i.test(connectString) ? "tcps" : "NON-TLS — check the descriptor"}`,
+);
 if (!/tcps/i.test(connectString)) {
   console.log("        the blueprint's guardrail requires tcps:// on 1521; this descriptor is not TLS");
 }
@@ -200,8 +227,14 @@ try {
 let connection;
 try {
   const started = Date.now();
-  connection = await oracledb.getConnection({ user, password, connectString });
-  record("connect", true, `${Date.now() - started}ms, walletless TLS, no Instant Client`);
+  connection = await oracledb.getConnection({
+    user, password, connectString,
+    ...(walletLocation ? { walletLocation, walletPassword } : {}),
+  });
+  record(
+    "connect", true,
+    `${Date.now() - started}ms, ${walletLocation ? "mutual" : "walletless"} TLS, no Instant Client`,
+  );
 } catch (error) {
   record("connect", false, advise(error));
   process.exit(1);
