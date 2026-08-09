@@ -274,6 +274,13 @@ export function checkQuote(provider: string, quote: Quote, now = Date.now()): Co
 // Bars
 // --------------------------------------------------------------------------
 
+/**
+ * Largest tolerated gap, as a multiple of the median bar spacing.
+ *
+ * Exported so the test that pins it can cite the same number the check uses.
+ */
+export const MAX_GAP_MULTIPLE = 4.5;
+
 export function checkBars(
   provider: string,
   bars: OhlcvBar[],
@@ -366,15 +373,27 @@ export function checkBars(
   // The threshold is the *largest* gap as a multiple of the median, not a count
   // of gaps, because a count cannot separate the two cases that matter. Daily
   // equity bars have a 3x gap every single weekend and are complete; one 16x
-  // hole in a 24/7 crypto series is missing data. Strictly greater than 3x
-  // keeps the weekend and catches the hole.
+  // hole in a 24/7 crypto series is missing data.
+  //
+  // 3x was the original threshold and it fired on every US equity daily series
+  // this app can load — measured, not theorised: AAPL from Massive reports a
+  // largest gap of exactly 4.0x the median, because a holiday Monday makes a
+  // four-day weekend and there are roughly nine of those a year. A check that
+  // warns "bars are missing" on every complete equity series is a check a
+  // reader learns to scroll past, which costs more than the hole it was
+  // written to catch.
+  //
+  // 4.5x keeps every exchange holiday (the longest routine US market closure is
+  // Thursday→Monday at 4 days) and still catches a genuine hole, which starts
+  // at a full missing week — 7x on daily bars, and larger on anything intraday
+  // where the median spacing is smaller.
   if (bars.length >= 5) {
     const spacings: number[] = [];
     for (let i = 1; i < bars.length; i++) spacings.push(bars[i].t - bars[i - 1].t);
     const sorted = [...spacings].sort((a, b) => a - b);
     const median = sorted[Math.floor(sorted.length / 2)];
     const largest = Math.max(...spacings);
-    if (median > 0 && largest > median * 3) {
+    if (median > 0 && largest > median * MAX_GAP_MULTIPLE) {
       violations.push({
         check: "bars.no_gaps",
         severity: "warn",

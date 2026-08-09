@@ -207,6 +207,49 @@ describe("bar series are checked for the defects a backtest cannot see", () => {
     assert.ok(!result.violations.some((v) => v.check === "bars.no_gaps"));
   });
 
+  it("does not mistake an exchange holiday for missing data either", () => {
+    // MEASURED, not theorised. The threshold was 3x, which passes the weekend
+    // test above and then fires on every real US equity series: AAPL from
+    // Massive reports a largest gap of exactly 4.0x the median, because a
+    // holiday Monday makes a four-day weekend and there are about nine of those
+    // a year. A warning that appears on every complete equity series is one a
+    // reader learns to scroll past.
+    const day = 86_400_000;
+    const series: OhlcvBar[] = [];
+    let t = Date.UTC(2026, 0, 5); // a Monday
+    for (let week = 0; week < 10; week++) {
+      // Week 4 loses its Monday to a public holiday: Thursday close to the
+      // following Tuesday open is four days.
+      const sessions = week === 4 ? 4 : 5;
+      if (week === 4) t += day;
+      for (let d = 0; d < sessions; d++) {
+        series.push({ t, o: 100, h: 101, l: 99, c: 100.5, v: 1000 });
+        t += day;
+      }
+      t += 2 * day;
+    }
+    const result = checkBars("massive", series, series.length);
+    const gap = result.violations.find((v) => v.check === "bars.no_gaps");
+    assert.equal(gap, undefined, `a public holiday was reported as missing data: ${gap?.message}`);
+  });
+
+  it("still catches a hole a holiday cannot explain", () => {
+    // The threshold has to stay useful. A full missing week is 7x on daily
+    // bars, comfortably above the 4.5x a long weekend reaches.
+    const day = 86_400_000;
+    const series: OhlcvBar[] = [];
+    let t = Date.UTC(2026, 0, 5);
+    for (let i = 0; i < 60; i++) {
+      series.push({ t, o: 100, h: 101, l: 99, c: 100.5, v: 1000 });
+      t += i === 30 ? 9 * day : day;
+    }
+    const result = checkBars("massive", series, series.length);
+    assert.ok(
+      result.violations.some((v) => v.check === "bars.no_gaps"),
+      "a nine-day hole in a daily series was not reported",
+    );
+  });
+
   it("treats an empty series as a failure with nothing evaluated", () => {
     const result = checkBars("binance", [], 100);
     assert.equal(result.passed, false);
