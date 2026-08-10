@@ -13462,6 +13462,33 @@ html.is-vt .view-panel {
 }
 
 @media (max-width: 520px) {
+  .workspace-subtabs__actions {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  /* The base tab-button rule is more specific than the older phone hide, so
+     repeat the intended rule at equal specificity. */
+  .workspace-subtabs button.workspace-subtabs__advance {
+    display: none;
+  }
+
+  .page-heading__actions {
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .page-heading__actions > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .page-heading__actions .freshness-stamp {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   .codex-grid {
     grid-template-columns: minmax(0, 1fr);
   }
