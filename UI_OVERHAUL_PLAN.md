@@ -20,7 +20,7 @@ makes running sweeps feel like winning.
 | 4 | Research journey: gate reveal, verdict moment, rail progress | shipped |
 | 5 | Live-data theatre: tick flashes, order-gate cascade, book motion | shipped |
 | 6 | Charts alive: line draw-in, heatmap wavefront, honest MC cone | shipped |
-| 7 | Navigation: View Transitions, ⌘K fuzzy search + recents | pending |
+| 7 | Navigation: View Transitions, ⌘K fuzzy search + recents | shipped |
 | 8 | Consolidation, honesty sweep, tour finalisation | pending |
 
 ---

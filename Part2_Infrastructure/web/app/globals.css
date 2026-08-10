@@ -13276,3 +13276,39 @@ button:active:not(:disabled) {
   animation: heat-cell-in var(--dur-slow) var(--ease-out) both;
   animation-delay: var(--wave-delay, 0ms);
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Navigation (Slice 7)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* View Transitions: the sticky header is the stable frame — naming it keeps
+   it out of the root cross-fade, so a tab switch reads as content changing
+   under fixed chrome. Progressive: engines without the API keep panel-in. */
+.workspace-header {
+  view-transition-name: workspace-header;
+}
+
+/* While a view transition runs, the cross-fade IS the entry animation;
+   letting panel-in also fire would double-animate the incoming panel. */
+html.is-vt .view-panel {
+  animation: none;
+}
+
+/* The palette enters at 0.98→1 — @starting-style, since <dialog> mounts into
+   the top layer on showModal(). */
+.command-bar[open] {
+  transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+}
+
+@starting-style {
+  .command-bar[open] {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+/* Selection movement stays INSTANT — palette latency is felt in single
+   milliseconds, and the global button transition would smear it. */
+.command-bar__results button {
+  transition: none;
+}

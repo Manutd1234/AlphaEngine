@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 import Controls from "@/components/Controls";
 import DataConsole, { DATA_SECTION_IDS, type DataSection } from "@/components/DataConsole";
@@ -36,7 +37,7 @@ import NextStepFooter from "@/components/common/NextStepFooter";
 import StatTile from "@/components/StatTile";
 import { ResultsTable, WalkForwardTable } from "@/components/Tables";
 import Verdict from "@/components/Verdict";
-import CommandBar from "@/components/header/CommandBar";
+import CommandBar, { type Command } from "@/components/header/CommandBar";
 import WorkspaceHeader, { NAV_ITEMS, type WorkspaceView } from "@/components/WorkspaceHeader";
 import WorkspaceIntro from "@/components/WorkspaceIntro";
 import WorkspaceOverview from "@/components/WorkspaceOverview";
@@ -47,12 +48,15 @@ import { fmt, pct, signedPct, usd } from "@/lib/format";
 import { REFERENCE_EQUITY } from "@/lib/portfolio";
 import { useBook } from "@/lib/use-book";
 import { useSystemHealth } from "@/lib/use-system-health";
+import { RESEARCH_SYMBOLS } from "@/lib/research-symbols";
 import {
   DEFAULT_REQUEST,
   ParamResult,
+  STRATEGY_FAMILY,
   STRATEGY_LABELS,
   SweepRequest,
   SweepResponse,
+  type Strategy,
 } from "@/lib/types";
 import {
   addExperiment,
@@ -198,20 +202,48 @@ export default function Page() {
   // second source of truth.
   const book = useBook();
   const systems = useSystemHealth(req.symbol);
-  const navigate = useCallback((next: WorkspaceView, replace = false) => {
-    setView(next);
-    if (next === "data") setDataSection("overview");
-    if (next === "reliability") setReliabilitySection("overview");
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      url.hash = next;
-      window.history[replace ? "replaceState" : "pushState"]({}, "", url);
+  const navigate = useCallback((
+    next: WorkspaceView,
+    replace = false,
+    /** A nested section applied atomically with the tab switch (⌘K commands). */
+    detail?: { apply: () => void; hash: string },
+  ) => {
+    const apply = () => {
+      setView(next);
+      if (next === "data") setDataSection("overview");
+      if (next === "reliability") setReliabilitySection("overview");
+      detail?.apply();
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.hash = detail?.hash ?? next;
+        window.history[replace ? "replaceState" : "pushState"]({}, "", url);
+      }
+    };
+    if (typeof document === "undefined") {
+      apply();
+      return;
+    }
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!reduced && "startViewTransition" in document) {
+      // Progressive, Chromium — the same posture rise-in already takes. The
+      // sticky header carries view-transition-name: workspace-header, so the
+      // swap reads as content changing under a stable frame. `is-vt`
+      // suppresses panel-in for the swap (the cross-fade replaces it), and
+      // the scroll reset moves INSIDE the callback as `auto` so it cannot
+      // race the snapshot.
+      document.documentElement.classList.add("is-vt");
+      const transition = document.startViewTransition(() => {
+        flushSync(apply);
+        window.scrollTo({ top: 0, behavior: "auto" });
+      });
+      transition.finished.finally(() => document.documentElement.classList.remove("is-vt"));
+    } else {
+      apply();
       // Tabs are a lateral move between desk surfaces, not a continuation of
       // the one being left. Landing halfway down the new tab — which is what
       // happens when the scroll position carries over from a long surface like
       // the blotter — hides the page heading and the section rail, so the tab
       // reads as broken until you scroll up. Reset to the top of the workspace.
-      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
     }
   }, []);
@@ -603,6 +635,91 @@ export default function Page() {
     () => new Set(strategyProgress(experiments).keys()),
     [experiments],
   );
+
+  /**
+   * Everything ⌘K can reach, built where the lists already live. The palette
+   * holds no routing knowledge of its own: all 8 tabs, every rail section,
+   * all 46 strategies, every research symbol and the kill switch flow from
+   * this one memo. Labels for the five workspaces whose section objects are
+   * private mirror their rails verbatim.
+   */
+  const commands = useMemo<Command[]>(() => {
+    const list: Command[] = NAV_ITEMS.map((item, index) => ({
+      id: `tab-${item.id}`,
+      label: `${item.accessibleLabel ?? item.label} — ${item.role}`,
+      category: "Workspace",
+      hotkey: `Alt+${index + 1}`,
+      action: () => navigate(item.id),
+    }));
+
+    const section = (
+      view: WorkspaceView,
+      tab: string,
+      id: string,
+      label: string,
+      apply: () => void,
+    ) => {
+      list.push({
+        id: `sec-${view}-${id}`,
+        label: `${tab} → ${label}`,
+        category: "Section",
+        action: () => navigate(view, false, { apply, hash: `${view}/${id}` }),
+      });
+    };
+    for (const s of RESEARCH_SECTIONS) {
+      section("research", "Research", s.id, `${s.label} — ${s.description}`, () => setResearchSection(s.id));
+    }
+    for (const s of EXECUTION_SECTIONS) {
+      section("live", "Execution", s.id, `${s.label} — ${s.description}`, () => setExecutionSection(s.id));
+    }
+    const PORTFOLIO_LABELS = { overview: "Overview — Book snapshot & equity", positions: "Positions — Holdings & exposure", allocation: "Allocation — Targets & rebalancing", performance: "Performance — Attribution & costs" } as const;
+    for (const id of PORTFOLIO_SECTION_IDS) {
+      section("portfolio", "Portfolio", id, PORTFOLIO_LABELS[id], () => setPortfolioSection(id));
+    }
+    const RISK_LABELS = { limits: "Limits — Headroom & concentration", model: "VaR & model — Loss estimates & drivers", scenarios: "Stress tests — Forward shock damage", controls: "Controls — Halt & flatten handoffs" } as const;
+    for (const id of RISK_SECTION_IDS) {
+      section("risk", "Risk", id, RISK_LABELS[id], () => setRiskSection(id));
+    }
+    const DATA_LABELS = { overview: "Overview & Trust", quality: "Quality & Incidents", lineage: "Lineage & Payloads", providers: "Providers & Capacity", queue: "Work Queue — mocked, session-only" } as const;
+    for (const id of DATA_SECTION_IDS) {
+      section("data", "Data", id, DATA_LABELS[id], () => setDataSection(id));
+    }
+    const RELIABILITY_LABELS = { overview: "Telemetry & SLIs", services: "Services & Circuits", events: "Logs & Traces", controls: "Remediation" } as const;
+    for (const id of RELIABILITY_SECTION_IDS) {
+      section("reliability", "Reliability", id, RELIABILITY_LABELS[id], () => setReliabilitySection(id));
+    }
+    const DEVELOPER_LABELS = { overview: "Overview — Topology & readiness", quality: "CI / CD — Pipelines & test gates", apis: "API & Schema — Contract drift", codebase: "Code & Diffs — Repository paths", work: "Task Queue — Engineering work" } as const;
+    for (const id of DEVELOPER_SECTION_IDS) {
+      section("developer", "Developer", id, DEVELOPER_LABELS[id], () => setDeveloperSection(id));
+    }
+
+    for (const strategy of Object.keys(STRATEGY_LABELS) as Strategy[]) {
+      list.push({
+        id: `model-${strategy}`,
+        label: `Model: ${STRATEGY_LABELS[strategy]} — ${STRATEGY_FAMILY[strategy]}`,
+        category: "Model",
+        action: () => {
+          updateStrategy(strategy);
+          navigate("research", false, { apply: () => setResearchSection("summary"), hash: "research/summary" });
+        },
+      });
+    }
+    for (const s of RESEARCH_SYMBOLS) {
+      list.push({
+        id: `sym-${s.symbol}`,
+        label: `${s.symbol} — ${s.name} · ${s.sector}`,
+        category: "Symbol",
+        action: () => { updateSymbol(s.symbol); navigate("live"); },
+      });
+    }
+    list.push({
+      id: "act-kill",
+      label: "Kill switch — halt and flatten",
+      category: "Risk control",
+      action: () => navigate("risk", false, { apply: () => setRiskSection("controls"), hash: "risk/controls" }),
+    });
+    return list;
+  }, [navigate, updateStrategy, updateSymbol]);
   const shown = displayedResult?.best;
   const tiles = useMemo(() => {
     if (!displayedResult || !shown) return null;
@@ -711,9 +828,7 @@ export default function Page() {
       <CommandBar
         open={commandBarOpen}
         onClose={() => setCommandBarOpen(false)}
-        onSelectTab={(tabId) => navigate(tabId)}
-        onSymbolSelect={(symbol) => { updateSymbol(symbol); navigate("live"); }}
-        onToggleKillSwitch={() => navigate("risk")}
+        commands={commands}
       />
 
       <main id="workspace-content" className="workspace-shell" tabIndex={-1}>
