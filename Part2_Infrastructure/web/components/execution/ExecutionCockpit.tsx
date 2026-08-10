@@ -296,14 +296,17 @@ export default function ExecutionCockpit({
         </div>
       )}
 
-      <PnlStrip
-        book={effectiveBook}
-        mode={mode}
-        problem={problem}
-        lastSyncAt={lastSyncAt}
-        onRefresh={() => void refresh()}
-        onEnterSandbox={unconfigured ? () => setSandboxOff(false) : undefined}
-      />
+      {(section === "trade" || mode === "outage") && (
+        <PnlStrip
+          book={effectiveBook}
+          mode={mode}
+          problem={problem}
+          lastSyncAt={lastSyncAt}
+          onRefresh={() => void refresh()}
+          onEnterSandbox={unconfigured ? () => setSandboxOff(false) : undefined}
+          compact={section === "trade"}
+        />
+      )}
 
       <WorkspaceSubtabPanel workspaceId="execution" tabId="trade" activeId={section}>
         <div className="cockpit-grid cockpit-grid--ticket">

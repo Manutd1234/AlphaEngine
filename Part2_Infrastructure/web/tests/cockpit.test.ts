@@ -301,6 +301,10 @@ const liveMarket = readFileSync(
   fileURLToPath(new URL("../components/LiveMarket.tsx", import.meta.url)),
   "utf8",
 );
+const pnlStrip = readFileSync(
+  fileURLToPath(new URL("../components/execution/PnlStrip.tsx", import.meta.url)),
+  "utf8",
+);
 const page = readFileSync(
   fileURLToPath(new URL("../app/page.tsx", import.meta.url)),
   "utf8",
@@ -372,6 +376,13 @@ describe("execution spends vertical space only where the active task needs it", 
     assert.match(liveMarket, /section === "trade"[\s\S]*?compactMarketContext/);
     assert.match(liveMarket, /className="execution-market-strip"/);
     assert.match(liveMarket, /\{marketContext\}/);
+  });
+
+  it("shows a compact book strip on Trade without repeating it on healthy analysis sections", () => {
+    assert.match(cockpit, /section === "trade" \|\| mode === "outage"/);
+    assert.match(cockpit, /compact=\{section === "trade"\}/);
+    assert.match(pnlStrip, /cockpit-strip--compact/);
+    assert.match(pnlStrip, /!compact \? \(/);
   });
 });
 

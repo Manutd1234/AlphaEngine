@@ -32,9 +32,19 @@ interface PnlStripProps {
   onRefresh: () => void;
   /** Present only when the deployment has no gateway — re-enters the sandbox. */
   onEnterSandbox?: () => void;
+  /** Trade keeps only decision-critical figures in one row; other desks own the detail. */
+  compact?: boolean;
 }
 
-export default function PnlStrip({ book, mode, problem, lastSyncAt, onRefresh, onEnterSandbox }: PnlStripProps) {
+export default function PnlStrip({
+  book,
+  mode,
+  problem,
+  lastSyncAt,
+  onRefresh,
+  onEnterSandbox,
+  compact = false,
+}: PnlStripProps) {
   if (!book) {
     // Two different absences. "No gateway in this deployment" is an
     // architectural fact with nothing to retry — a Retry button there is a
@@ -76,7 +86,7 @@ export default function PnlStrip({ book, mode, problem, lastSyncAt, onRefresh, o
   const tone = drawdown.utilisation >= 0.8 ? "neg" : drawdown.utilisation >= 0.5 ? "warn" : "pos";
 
   return (
-    <div className={`card cockpit-strip${book.trading_halted ? " cockpit-strip--halted" : ""}`}>
+    <div className={`card cockpit-strip${compact ? " cockpit-strip--compact" : ""}${book.trading_halted ? " cockpit-strip--halted" : ""}`}>
       <div className="cockpit-strip__status">
         <span className={`pill ${book.trading_halted ? "pill--stop" : "pill--live"}`}>
           {book.trading_halted ? "HALTED" : mode === "sandbox" ? "SANDBOX" : "TRADING"}
@@ -105,22 +115,26 @@ export default function PnlStrip({ book, mode, problem, lastSyncAt, onRefresh, o
             <small>{pct(book.equity.daily_return, 2)}</small>
           </dd>
         </div>
-        <div>
-          <dt>Realised / open</dt>
-          <dd>
-            <span className={sign(book.equity.realized_pnl)}>{usd(book.equity.realized_pnl)}</span>
-            {" / "}
-            <span className={sign(book.equity.unrealized_pnl)}>{usd(book.equity.unrealized_pnl)}</span>
-          </dd>
-        </div>
+        {!compact ? (
+          <div>
+            <dt>Realised / open</dt>
+            <dd>
+              <span className={sign(book.equity.realized_pnl)}>{usd(book.equity.realized_pnl)}</span>
+              {" / "}
+              <span className={sign(book.equity.unrealized_pnl)}>{usd(book.equity.unrealized_pnl)}</span>
+            </dd>
+          </div>
+        ) : null}
         <div>
           <dt>Gross / net</dt>
           <dd>{usd(book.exposure.gross)} <small>net {usd(book.exposure.net)}</small></dd>
         </div>
-        <div>
-          <dt>Positions</dt>
-          <dd>{book.exposure.positions.length} <small>{fmt(book.exposure.leverage, 2)}x</small></dd>
-        </div>
+        {!compact ? (
+          <div>
+            <dt>Positions</dt>
+            <dd>{book.exposure.positions.length} <small>{fmt(book.exposure.leverage, 2)}x</small></dd>
+          </div>
+        ) : null}
         <div className="cockpit-strip__budget">
           <dt>Drawdown budget</dt>
           <dd className={`cockpit-strip__gauge is-${tone}`}>

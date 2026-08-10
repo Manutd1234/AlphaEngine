@@ -5641,6 +5641,64 @@ button.console-stat:hover:not(:disabled) {
   background: color-mix(in srgb, var(--status-critical) 6%, var(--surface-1));
 }
 
+.cockpit-strip--compact {
+  margin-bottom: var(--space-3);
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.cockpit-strip--compact .cockpit-strip__status {
+  flex-wrap: nowrap;
+}
+
+.cockpit-strip--compact .cockpit-strip__sync {
+  display: none;
+}
+
+.cockpit-strip--compact .cockpit-strip__metrics {
+  grid-template-columns: repeat(4, minmax(100px, 1fr));
+  gap: var(--space-3);
+}
+
+.cockpit-strip--compact .cockpit-strip__metrics dt {
+  font-size: 9px;
+}
+
+.cockpit-strip--compact .cockpit-strip__metrics dd {
+  margin-top: 1px;
+  font-size: 12px;
+}
+
+.cockpit-strip--compact .cockpit-strip__metrics dd small {
+  display: inline;
+  margin: 0 0 0 4px;
+  font-size: 9.5px;
+}
+
+.cockpit-strip--compact .cockpit-strip__budget {
+  grid-column: auto;
+  min-width: 140px;
+}
+
+.cockpit-strip--compact .cockpit-meter {
+  height: 4px;
+  margin-top: 3px;
+}
+
+@media (max-width: 980px) {
+  .cockpit-strip--compact {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+
+  .cockpit-strip--compact .cockpit-strip__metrics {
+    overflow-x: auto;
+  }
+}
+
 .cockpit-strip--offline {
   flex-direction: row;
   align-items: center;
