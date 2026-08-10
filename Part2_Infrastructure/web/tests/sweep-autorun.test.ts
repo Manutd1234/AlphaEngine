@@ -71,7 +71,7 @@ describe("the sweep commits on the DOM's change event, not React's onChange", ()
     assert.match(controls, /panelRef/, "the panel root ref is gone");
     assert.match(
       controls,
-      /className="card sidebar experiment-panel" ref=\{panelRef\}/,
+      /<div(?=[^>]*className="card sidebar experiment-panel")(?=[^>]*ref=\{panelRef\})[^>]*>/,
       "the change listener's ref is no longer on the panel root, so controls outside "
         + "that subtree stop committing",
     );

@@ -133,6 +133,12 @@ describe("dense role workspaces expose accessible feature sections", () => {
     }
   });
 
+  it("opens each internally scrolled Research section at its own beginning", () => {
+    assert.match(page, /const researchContentRef = useRef<HTMLDivElement \| null>/);
+    assert.match(page, /researchContentRef\.current\.scrollTop = 0/);
+    assert.match(page, /className="research-content" ref=\{researchContentRef\}/);
+  });
+
   it("splits every dense role workspace into focused feature groups", () => {
     for (const section of ["trade", "liquidity", "routing", "activity", "summary", "parameters", "walkforward", "attribution", "decision", "runs"]) {
       assert.ok(page.includes(`id: "${section}"`), `page is missing the ${section} subtab`);

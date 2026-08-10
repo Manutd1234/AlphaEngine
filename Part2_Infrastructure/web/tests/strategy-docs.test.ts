@@ -132,7 +132,9 @@ describe("the card does not restate what other maps own", () => {
 
   it("is mounted and follows the selected strategy", () => {
     assert.match(page, /import StrategyDocCard/);
-    assert.match(page, /<StrategyDocCard[\s\S]{0,120}displayedResult\.request\.strategy/);
+    // The codex now remains mounted outside the result gate. Follow the live
+    // picker rather than a possibly stale displayed run.
+    assert.match(page, /<StrategyDocCard[\s\S]{0,120}strategy=\{req\.strategy\}/);
   });
 
   it("switching strategy from the card invalidates the displayed run", () => {

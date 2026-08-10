@@ -137,6 +137,7 @@ export default function Controls({
   tried?: ReadonlySet<Strategy>;
 }) {
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const [setupExpanded, setSetupExpanded] = useState(false);
 
   /**
    * Auto-run, driven by the DOM's own notion of "the user has finished".
@@ -198,13 +199,35 @@ export default function Controls({
     : null;
 
   return (
-    <div className="card sidebar experiment-panel" ref={panelRef}>
-      <h2>Experiment setup</h2>
-      <p className="sub">
-        Each control re-runs the sweep the moment you settle on a value — on release for a slider,
-        on blur for a typed field. Turn <strong>Auto</strong> off on the section rail to hold it.
-      </p>
-      <div className="stack">
+    <div
+      id="research-experiment-setup"
+      className="card sidebar experiment-panel"
+      data-expanded={setupExpanded}
+      ref={panelRef}
+    >
+      <div className="experiment-panel__heading">
+        <div>
+          <h2>Experiment setup</h2>
+          <p className="sub">
+            {req.symbol} · {req.interval} · {STRATEGY_LABELS[req.strategy]} · {combos} combos
+          </p>
+        </div>
+        <button
+          type="button"
+          className="experiment-panel__toggle"
+          aria-controls="research-experiment-controls"
+          aria-expanded={setupExpanded}
+          onClick={() => setSetupExpanded((expanded) => !expanded)}
+        >
+          {setupExpanded ? "Hide setup" : "Edit setup"}
+        </button>
+      </div>
+      <div id="research-experiment-controls" className="experiment-panel__body">
+        <p className="sub experiment-panel__help">
+          Each control re-runs the sweep the moment you settle on a value — on release for a slider,
+          on blur for a typed field. Turn <strong>Auto</strong> off on the section rail to hold it.
+        </p>
+        <div className="stack">
         <div className="row">
           <div>
             {/* A combobox, not a `<datalist>`. A datalist filters its options
@@ -467,6 +490,7 @@ export default function Controls({
         <button className="primary" onClick={onRun} disabled={running}>
           {running ? "Running sweep…" : "Run sweep now"}
         </button>
+        </div>
       </div>
     </div>
   );

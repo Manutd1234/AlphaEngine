@@ -65,8 +65,8 @@ export default function WorkspaceHeader({
    * Publishes the header's measured height as `--header-h`, which every sticky
    * offset in the workspace is expressed against.
    *
-   * A constant does not work here. Below 900px the eight role tabs wrap onto
-   * their own row and the bar goes from 57px to ~120px. A section rail
+   * A constant does not work here. Below 900px the eight role tabs become a
+   * compact workspace selector and the bar changes height. A section rail
    * docked to a hardcoded 56px simply disappeared behind the header in both
    * cases — navigation present in the DOM and invisible on screen.
    */
@@ -169,6 +169,21 @@ export default function WorkspaceHeader({
             </button>
           ))}
         </nav>
+
+        <label className="workspace-switcher">
+          <span>Workspace</span>
+          <select
+            value={view}
+            aria-label="Choose AlphaEngine workspace"
+            onChange={(event) => onViewChange(event.target.value as WorkspaceView)}
+          >
+            {NAV_ITEMS.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label} — {item.role}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <div className="header-spacer" />
 

@@ -81,10 +81,10 @@ const RESEARCH_SECTIONS = [
   { id: "summary", label: "Summary", description: "Verdict & performance" },
   { id: "parameters", label: "Parameters", description: "Stability & ranking" },
   { id: "walkforward", label: "Walk-forward", description: "Out-of-sample evidence" },
-  { id: "attribution", label: "Attribution", description: "Factors & tail behavior" },
+  { id: "attribution", label: "Attribution", description: "Factors, tail & lineage" },
   { id: "decision", label: "Decision", description: "Promotion & sizing" },
   { id: "runs", label: "Runs", description: "Experiment history" },
-  { id: "codex", label: "Codex", description: "All 46 models, by family" },
+  { id: "codex", label: "Codex", description: "Models & strategy guide" },
 ] as const;
 
 const EXECUTION_SECTIONS = [
@@ -183,6 +183,7 @@ export default function Page() {
   const [experiments, setExperiments] = useState<ExperimentRecord[]>([]);
   const activeRun = useRef<AbortController | null>(null);
   const runSeq = useRef(0);
+  const researchContentRef = useRef<HTMLDivElement | null>(null);
   // Auto-run state. `autoRun` is the user's switch; `autoSuspended` is the
   // reason we turned it off for them, shown once and cleared when they turn it
   // back on. Hydrated from localStorage in an effect, never during render.
@@ -193,16 +194,6 @@ export default function Page() {
     key: string;
     text: string;
   } | null>(null);
-  // Rail progress: sections opened this session, marked ✓ on their rails.
-  // Per-session on purpose — never persisted, so a fresh tab starts honest.
-  const [visitedResearch, setVisitedResearch] = useState<readonly ResearchSection[]>([]);
-  const [visitedExecution, setVisitedExecution] = useState<readonly ExecutionSection[]>([]);
-  useEffect(() => {
-    setVisitedResearch((seen) => (seen.includes(researchSection) ? seen : [...seen, researchSection]));
-  }, [researchSection]);
-  useEffect(() => {
-    setVisitedExecution((seen) => (seen.includes(executionSection) ? seen : [...seen, executionSection]));
-  }, [executionSection]);
   // The request the newest run was started with. `sameRequest` against this is
   // what makes the idle fallback, the `change` commit and ⌘Enter idempotent
   // instead of three requests for one edit.
@@ -326,6 +317,13 @@ export default function Page() {
     url.hash = `${workspace}/${next}`;
     window.history.pushState({}, "", url);
   }, []);
+
+  // Each evidence section should open at its own beginning. The desktop
+  // workbench deliberately gives this shared pane the scroll, so without this
+  // reset Summary's scrollTop would carry into Parameters or Attribution.
+  useEffect(() => {
+    if (researchContentRef.current) researchContentRef.current.scrollTop = 0;
+  }, [researchSection]);
 
   const changeResearchSection = useCallback((next: ResearchSection) => {
     setResearchSection(next);
@@ -1160,10 +1158,8 @@ export default function Page() {
               activeId={researchSection}
               onChange={changeResearchSection}
               secondary={["runs", "codex"]}
-              visited={visitedResearch}
               actions={
                 <>
-                  <span className="rail-meta num">{req.symbol} · {req.interval}</span>
                   <label className="rail-toggle" title="Re-run the sweep whenever a control settles">
                     <input
                       type="checkbox"
@@ -1219,7 +1215,7 @@ export default function Page() {
                 tried={triedStrategies}
               />
 
-              <div className="research-content">
+              <div className="research-content" ref={researchContentRef}>
                 <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
                   {resultAnnouncement && (
                     <span key={resultAnnouncement.key}>{resultAnnouncement.text}</span>
@@ -1353,20 +1349,6 @@ export default function Page() {
                           </div>
                         </div>
 
-                        {/* Outside nothing, but placed after the charts: the
-                            card explains the rule the two charts above just
-                            drew, and a reader who understood them from the
-                            picture does not need to stop and read it first. */}
-                        <StrategyDocCard
-                          strategy={displayedResult.request.strategy}
-                          onSelect={updateStrategy}
-                        />
-
-                        {/* Lineage belongs with the result it produced. It used
-                            to sit above the section rail, where it pushed the
-                            rail and every verdict below the fold on the tab
-                            people open first. */}
-                        <SignalDAGViewer />
                       </StaleGate>
                     </WorkspaceSubtabPanel>
 
@@ -1441,6 +1423,10 @@ export default function Page() {
                           interval={data.request.interval}
                           turnoverPerYear={data.tail.annualisedTurnover}
                         />
+                        {/* The execution lineage is supporting evidence, not a
+                            second summary. Keeping it with attribution shortens
+                            the decision-first landing section substantially. */}
+                        <SignalDAGViewer />
                       </StaleGate>
                       {/*
                         Outside the StaleGate on purpose. The corpus answers
@@ -1526,6 +1512,10 @@ export default function Page() {
                     the data gate: the codex is about the catalogue, not the
                     current sweep, so it neither goes stale nor needs a run. */}
                 <WorkspaceSubtabPanel workspaceId="research" tabId="codex" activeId={researchSection}>
+                  <StrategyDocCard
+                    strategy={req.strategy}
+                    onSelect={updateStrategy}
+                  />
                   <StrategyCodex
                     records={experiments}
                     activeStrategy={req.strategy}
@@ -1559,12 +1549,6 @@ export default function Page() {
               tabs={EXECUTION_SECTIONS}
               activeId={executionSection}
               onChange={changeExecutionSection}
-              visited={visitedExecution}
-              actions={
-                <span className="rail-meta num">
-                  {side} {req.symbol} · {usd(notional, 0)}
-                </span>
-              }
             />
             <LiveMarket
               symbol={req.symbol}
