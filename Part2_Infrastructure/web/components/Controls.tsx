@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import SymbolCombobox from "@/components/SymbolCombobox";
 import { paramGrid } from "@/lib/engine";
 import { defaultBenchmark, RESEARCH_SYMBOLS } from "@/lib/research-symbols";
 import {
@@ -202,25 +203,16 @@ export default function Controls({
       <div className="stack">
         <div className="row">
           <div>
-            <label className="field" htmlFor="symbol">
-              Symbol
-            </label>
-            <input
-              id="symbol"
-              list="research-symbols"
+            {/* A combobox, not a `<datalist>`. A datalist filters its options
+                against the input's current value, so a full box showed exactly
+                one suggestion and the roster could only be browsed by deleting
+                the symbol first. Not a `<select>` either: unlisted tickers
+                (ATOMUSDT, SUIUSDT, any equity the providers carry) backtest
+                correctly and a select would silently drop them. */}
+            <SymbolCombobox
               value={req.symbol}
-              onChange={(e) => patch({ symbol: e.target.value.toUpperCase() })}
-              onBlur={(e) => patch({ symbol: e.target.value.trim().toUpperCase() || "BTCUSDT" })}
-              spellCheck={false}
+              onCommit={(symbol) => patch({ symbol })}
             />
-            <datalist id="research-symbols">
-              {/* The issuer and sector ride along as the option label: a roster
-                  of 30 tickers is only navigable if a reader can tell AVGO
-                  from AVAX without leaving the field. */}
-              {RESEARCH_SYMBOLS.map((s) => (
-                <option key={s.symbol} value={s.symbol}>{`${s.name} · ${s.sector}`}</option>
-              ))}
-            </datalist>
           </div>
           <div>
             <label className="field" htmlFor="benchmark">

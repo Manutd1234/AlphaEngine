@@ -76,7 +76,9 @@ function lineOf(index: number): number {
 
 describe("the stacking ladder is ordered and complete", () => {
   const tokens = rootTokens();
-  const ladder = ["--z-below", "--z-sticky-cell", "--z-rail", "--z-header", "--z-overlay", "--z-skip"];
+  const ladder = [
+    "--z-below", "--z-sticky-cell", "--z-popover", "--z-rail", "--z-header", "--z-overlay", "--z-skip",
+  ];
 
   it("declares every rung", () => {
     for (const name of ladder) {

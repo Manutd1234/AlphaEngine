@@ -116,6 +116,7 @@
      positioned overlay that cannot use the top layer. */
   --z-below: -1;        /* the rail's bleed band, ::before backdrops           */
   --z-sticky-cell: 5;   /* sticky thead / pinned column, inside its own scroller */
+  --z-popover: 20;      /* in-flow dropdown (.symbol-combo__list) — under the rail */
   --z-rail: 30;         /* .workspace-subtabs                                  */
   --z-header: 50;       /* .workspace-header                                   */
   --z-overlay: 60;      /* positioned overlays with no top-layer option        */
@@ -12771,4 +12772,119 @@ button:active:not(:disabled) {
   padding-left: var(--space-4);
   font-size: 0.85em;
   color: var(--text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   Symbol combobox
+   --------------------------------------------------------------------------
+   Replaces an `<input list>` whose native datalist filtered against the field's
+   own value, so a populated box could only ever show one suggestion. The list
+   below is ours, so "open shows everything" is a decision rather than a fight
+   with the platform.
+   -------------------------------------------------------------------------- */
+.symbol-combo {
+  position: relative;
+}
+
+.symbol-combo__field {
+  display: flex;
+  align-items: stretch;
+}
+
+/* The input keeps every inherited field style; only the right edge changes so
+   the caret button reads as part of the same control. */
+.symbol-combo__field input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: 0;
+}
+
+.symbol-combo__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-left: 0;
+  border-top-right-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.symbol-combo__toggle:hover {
+  color: var(--text-primary);
+}
+
+.symbol-combo__list {
+  position: absolute;
+  /* Above the panel's own content, below the rail and the header. A dropdown
+     that outranked the header would paint over the sticky chrome the moment
+     the sidebar scrolled — which is the failure the named ladder exists to
+     prevent, and the reason a bare number was rejected here. */
+  z-index: var(--z-popover);
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  /* Roughly eight rows. The roster is 32 and growing, and a list that runs off
+     the panel is worse than the datalist this replaces. */
+  max-height: 17rem;
+  margin: 0;
+  padding: var(--space-1);
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-2, 0 8px 24px rgb(0 0 0 / 12%));
+}
+
+.symbol-combo__list button {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
+  align-items: baseline;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* One highlight, driven by the keyboard cursor, so arrowing and hovering cannot
+   show two different "current" rows at once. */
+.symbol-combo__list button.is-active {
+  background: var(--sky-1);
+  color: var(--series-1);
+}
+
+.symbol-combo__ticker {
+  font-weight: 600;
+}
+
+.symbol-combo__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.symbol-combo__sector {
+  color: var(--text-tertiary, var(--text-secondary));
+  font-size: 11px;
+}
+
+.symbol-combo__empty {
+  padding: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
 }

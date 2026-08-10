@@ -239,6 +239,7 @@
     "Part2_Infrastructure/web/components/research/WalkForwardTimeline.tsx",
     "Part2_Infrastructure/web/components/RiskWorkspace.tsx",
     "Part2_Infrastructure/web/components/StatTile.tsx",
+    "Part2_Infrastructure/web/components/SymbolCombobox.tsx",
     "Part2_Infrastructure/web/components/systems/ConsoleChrome.tsx",
     "Part2_Infrastructure/web/components/systems/CrossSourceCheck.tsx",
     "Part2_Infrastructure/web/components/systems/FailoverGraph.tsx",

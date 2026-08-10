@@ -13,6 +13,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { filterSymbols } from "@/components/SymbolCombobox";
 import { classify } from "@/lib/providers/symbols";
 import { candidatesFor } from "@/lib/providers/registry";
 import {
@@ -25,6 +26,29 @@ const controls = readFileSync(
   fileURLToPath(new URL("../components/Controls.tsx", import.meta.url)),
   "utf8",
 );
+
+const combobox = readFileSync(
+  fileURLToPath(new URL("../components/SymbolCombobox.tsx", import.meta.url)),
+  "utf8",
+);
+
+/**
+ * Source with comments removed, for assertions about what the code DOES.
+ *
+ * Written after an assertion that `<select` is absent failed against the file's
+ * own doc comment explaining why a `<select>` would be wrong. Grepping raw
+ * source conflates prose with code: a file that documents the option it
+ * rejected reads, to a regex, exactly like a file that took it. These files are
+ * heavily commented by design, so this is the difference between a test that
+ * checks the implementation and one that checks the explanation of it.
+ */
+function code(source: string): string {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, "")   // block and JSX comments
+    .replace(/^\s*\/\/.*$/gm, "");      // whole-line // comments
+}
+
+const comboboxCode = code(combobox);
 
 describe("every offered symbol has somewhere to be served from", () => {
   it("at least one adapter covers each entry's asset class", () => {
@@ -121,19 +145,114 @@ describe("the default benchmark is a comparison, not a formality", () => {
 describe("the control renders the roster rather than its own copy", () => {
   it("imports the list instead of restating it", () => {
     assert.match(controls, /from "@\/lib\/research-symbols"/);
+    assert.match(combobox, /from "@\/lib\/research-symbols"/);
     assert.doesNotMatch(controls, /const SYMBOLS = \[/, "Controls kept a second roster");
+    assert.doesNotMatch(combobox, /const SYMBOLS = \[/, "the combobox kept a second roster");
   });
 
   it("shows the issuer, not just the ticker", () => {
-    // 30 tickers is only navigable if a reader can tell AVGO from AVAX in place.
-    assert.match(controls, /s\.name/);
-    assert.match(controls, /s\.sector/);
+    // 32 tickers is only navigable if a reader can tell AVGO from AVAX in place.
+    assert.match(combobox, /s\.name/);
+    assert.match(combobox, /s\.sector/);
   });
 
-  it("stays a datalist, so the field is still free text", () => {
-    // The roster is a set of suggestions known to work, never a whitelist —
-    // anything the providers can serve should still run.
-    assert.match(controls, /<datalist id="research-symbols">/);
-    assert.match(controls, /list="research-symbols"/);
+  it("keeps the field free text, so the roster stays suggestions not a whitelist", () => {
+    // This used to assert `<datalist>`, which was pinning the IMPLEMENTATION as
+    // a proxy for the property. The datalist had to go — it filters its options
+    // against the field's own value, so a populated box showed exactly one
+    // suggestion and the roster could only be browsed by clearing the field
+    // first. The property it stood for is the one that matters and it survives:
+    // anything the providers can serve still runs, listed or not.
+    assert.match(comboboxCode, /type="text"/, "the symbol field is no longer free text");
+    assert.doesNotMatch(comboboxCode, /<select/, "a select would drop every unlisted ticker");
+    // Enter on an unmatched query commits what was typed rather than rejecting it.
+    assert.match(comboboxCode, /Press Enter to use it anyway/);
+  });
+
+  it("opens on the full roster rather than on what is already in the box", () => {
+    // The reported bug, asserted directly. `justOpened` suppresses the query on
+    // open so every symbol is listed even though the field is populated; any
+    // keystroke clears it and normal typeahead filtering resumes.
+    assert.match(comboboxCode, /justOpened \? "" : draft/);
+    assert.match(comboboxCode, /onMouseDown=\{\(\) => \{ if \(!open\) openList\(\); \}\}/);
+  });
+
+  it("is reachable and operable without a mouse", () => {
+    // A custom listbox that only responds to clicks is a regression against the
+    // native control it replaced, which was fully keyboard-operable for free.
+    for (const key of ["ArrowDown", "ArrowUp", "Enter", "Escape", "Tab"]) {
+      assert.match(comboboxCode, new RegExp(`"${key}"`), `${key} is unhandled`);
+    }
+    assert.match(comboboxCode, /role="combobox"/);
+    assert.match(comboboxCode, /role="listbox"/);
+    assert.match(comboboxCode, /role="option"/);
+    assert.match(comboboxCode, /aria-expanded/);
+    assert.match(comboboxCode, /aria-activedescendant/);
+  });
+
+  it("re-emits a native change so the panel's one listener still auto-runs", () => {
+    // `Controls` auto-runs from a single native `change` listener on the panel
+    // root. React's onChange is the `input` event, and a value set by clicking
+    // a listbox row fires no native `change` at all — so without this a pick
+    // would update the symbol and then wait out the 700ms idle fallback. The
+    // old `<datalist>` got this for free.
+    assert.match(comboboxCode, /new Event\("change", \{ bubbles: true \}\)/);
+    // Dispatched from an effect keyed on the committed `value`, never inline in
+    // commit(): the listener closes over `req`, so firing before the parent has
+    // re-rendered hands it the request from before the pick.
+    assert.match(comboboxCode, /\}, \[value\]\);/, "the change is not sequenced on the committed value");
+    assert.doesNotMatch(
+      comboboxCode,
+      /onCommit\(clean\);\s*inputRef\.current\?\.dispatchEvent/,
+      "the change is dispatched inline, before the parent has the new symbol",
+    );
+  });
+
+  it("does not re-run the sweep when the symbol did not change", () => {
+    // Opening the list and clicking away commits the value already there. That
+    // is browsing, not an edit, and firing a sweep for it would make reading
+    // the roster cost a backtest.
+    assert.match(comboboxCode, /if \(clean !== value\.toUpperCase\(\)\) pending\.current = clean;/);
+  });
+
+  it("strips comments before asserting on code, and the stripper works", () => {
+    // Guards the helper itself. A stripper that silently returned its input
+    // would make every assertion above pass against prose again, which is the
+    // exact failure it was written to remove.
+    assert.doesNotMatch(comboboxCode, /WHY NOT JUST A/, "block comments survived the stripper");
+    assert.ok(comboboxCode.length < combobox.length, "the stripper removed nothing");
+    assert.match(combobox, /<select>/, "the rationale for not using a select was deleted");
+  });
+});
+
+describe("filtering the roster", () => {
+  it("returns everything for an empty query — the whole point of the fix", () => {
+    assert.equal(filterSymbols("").length, RESEARCH_SYMBOLS.length);
+    assert.equal(filterSymbols("   ").length, RESEARCH_SYMBOLS.length);
+  });
+
+  it("still returns everything when the query is the current symbol's own text", () => {
+    // The datalist's exact failure: a full box collapsed the list to one row.
+    // Filtering is suppressed on open, but even when it is not, a ticker
+    // substring must not be the only thing that can match.
+    assert.ok(filterSymbols("BTCUSDT").length >= 1);
+    assert.ok(filterSymbols("").length > filterSymbols("BTCUSDT").length);
+  });
+
+  it("finds a symbol by issuer or sector, not just by ticker", () => {
+    // Someone who knows the company but not the ticker has to be able to get
+    // there, or a 32-row roster is a 32-row memory test.
+    assert.ok(filterSymbols("Bitcoin").some((s) => s.symbol === "BTCUSDT"));
+    assert.ok(filterSymbols("Crypto").length >= 12);
+  });
+
+  it("is case-insensitive", () => {
+    assert.deepEqual(filterSymbols("btc"), filterSymbols("BTC"));
+  });
+
+  it("returns nothing for an unlisted ticker rather than guessing", () => {
+    // ATOMUSDT backtests correctly and is deliberately not on the roster. The
+    // list must be empty so the "use it anyway" affordance is what shows.
+    assert.deepEqual(filterSymbols("ZZZZZZ"), []);
   });
 });
