@@ -15,7 +15,9 @@
  * `alignedBars` is reported at all.
  */
 
+import { atLeast } from "@/lib/complexity";
 import { fmt, pct } from "@/lib/format";
+import { useComplexity } from "@/lib/use-complexity";
 import type { BenchmarkComparison } from "@/lib/types";
 
 interface BenchmarkPanelProps {
@@ -28,6 +30,7 @@ interface BenchmarkPanelProps {
 const SIGNIFICANT_P = 0.05;
 
 export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanelProps) {
+  const tier = useComplexity();
   if (!comparison) {
     return (
       <div className="card">
@@ -119,13 +122,15 @@ export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanel
         </div>
       </dl>
 
-      <p className="research-note">
+      {atLeast(tier, "full") ? (
+        <p className="research-note">
         The t-statistics are plain OLS. Strategy returns are heteroskedastic and mildly
         autocorrelated, so a Newey&ndash;West correction would widen these standard errors — the
         significance shown here is, if anything, generous. Stated rather than assumed away, and the
         reason a significant alpha is described as &ldquo;not explained by {comparison.symbol}&rdquo;
         rather than as real.
-      </p>
+        </p>
+      ) : null}
     </div>
   );
 }

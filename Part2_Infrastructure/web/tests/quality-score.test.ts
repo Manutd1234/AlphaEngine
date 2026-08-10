@@ -243,11 +243,22 @@ describe("the panel renders the score rather than a second version of it", () =>
     assert.match(code(panel), /category\.score \* category\.weight\) \/ 100/);
   });
 
-  it("shows the breakdown without a disclosure hiding it", () => {
-    // The hazard of one number is that it travels further than its caveats.
-    assert.doesNotMatch(code(panel), /<details/);
+  it("keeps the verdict and its caveats out of any disclosure", () => {
+    // This assertion used to forbid `<details>` outright, on the grounds that
+    // the hazard of one number is that it travels further than its caveats.
+    // The detail-level tiers made that too blunt: Guided collapses the
+    // six-category breakdown behind a summary that names it, which is a
+    // different thing from hiding it, and `complexity.test.ts` pins that the
+    // summary has to say what is inside.
+    //
+    // What must never be collapsible is narrower and more important — the
+    // total, and the verdict sentence that carries the walk-forward warning
+    // ("the total is a floor, not a verdict"). A score whose caveat is behind a
+    // click is a score that gets screenshotted without it.
+    const beforeDisclosure = code(panel).slice(0, code(panel).indexOf("<details"));
+    assert.match(beforeDisclosure, /score\.total/);
+    assert.match(beforeDisclosure, /score\.verdict/);
     assert.match(code(panel), /score\.categories\.map/);
-    assert.match(code(panel), /score\.verdict/);
   });
 
   it("names the promotion gate as a footnote rather than a rival headline", () => {

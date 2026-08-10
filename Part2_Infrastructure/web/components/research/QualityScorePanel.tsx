@@ -19,8 +19,10 @@
  * rather than restating its count as a rival headline.
  */
 
+import { atLeast } from "@/lib/complexity";
 import { qualityInputFromSweep, qualityScore, type QualityCategory } from "@/lib/quality-score";
 import type { SweepResponse } from "@/lib/types";
+import { useComplexity } from "@/lib/use-complexity";
 
 interface QualityScorePanelProps {
   data: SweepResponse;
@@ -39,6 +41,12 @@ function toneFor(score: number): "good" | "warning" | "critical" {
 export default function QualityScorePanel({ data }: QualityScorePanelProps) {
   const score = qualityScore(qualityInputFromSweep(data));
   const gate = data.promotion;
+  const tier = useComplexity();
+  // Guided collapses the six-category breakdown behind a summary that names it.
+  // The total and the verdict never collapse: a score with no reasoning beside
+  // it is the failure this panel was built to prevent, so the reasoning is one
+  // labelled click away and never absent.
+  const breakdownOpen = atLeast(tier, "standard");
 
   return (
     <div className="card quality-card">
@@ -55,6 +63,10 @@ export default function QualityScorePanel({ data }: QualityScorePanelProps) {
 
       <p className="sub">{score.verdict}</p>
 
+      <details className="quality-disclosure" open={breakdownOpen}>
+        <summary>
+          How the {score.total} was reached — six weighted categories
+        </summary>
       <ul className="quality-breakdown">
         {score.categories.map((category) => (
           <li key={category.id}>
@@ -79,8 +91,10 @@ export default function QualityScorePanel({ data }: QualityScorePanelProps) {
           </li>
         ))}
       </ul>
+      </details>
 
-      <p className="research-note">
+      {atLeast(tier, "full") ? (
+        <p className="research-note">
         Weighted from statistics this run already produced — nothing here is a forecast. The
         risk-adjusted category leads on the <strong>Deflated</strong> Sharpe rather than the raw
         one, and robustness carries 20 points of its own, because a grid search over{" "}
@@ -98,7 +112,8 @@ export default function QualityScorePanel({ data }: QualityScorePanelProps) {
               <span className="num">{data.request.symbol}</span> itself — the alternative that
               costs one trade and no research. Select a benchmark in the controls to compare
               against another instrument instead.</>}
-      </p>
+        </p>
+      ) : null}
 
       <p className="quality-gate-note">
         <span aria-hidden>{gate.eligible ? "✓" : "✕"}</span>{" "}

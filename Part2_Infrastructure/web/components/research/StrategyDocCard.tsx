@@ -18,7 +18,9 @@
  * labelled another on the slider four pixels away.
  */
 
+import { atLeast } from "@/lib/complexity";
 import { STRATEGY_DOCS } from "@/lib/strategy-docs";
+import { useComplexity } from "@/lib/use-complexity";
 import { PARAM_MEANING, STRATEGY_FAMILY, STRATEGY_LABELS, type Strategy } from "@/lib/types";
 
 interface StrategyDocCardProps {
@@ -30,6 +32,12 @@ interface StrategyDocCardProps {
 export default function StrategyDocCard({ strategy, onSelect }: StrategyDocCardProps) {
   const doc = STRATEGY_DOCS[strategy];
   const params = PARAM_MEANING[strategy];
+  const tier = useComplexity();
+  // Guided keeps "when it works" and "when it fails" — the two a reader can act
+  // on without knowing the indicator — and collapses the rule and the parameter
+  // glossary. Both stay reachable under a labelled summary; a beginner tier that
+  // deleted the formula would leave nothing to grow into.
+  const mechanicsOpen = atLeast(tier, "standard");
 
   return (
     <div className="card strategy-doc">
@@ -43,10 +51,6 @@ export default function StrategyDocCard({ strategy, onSelect }: StrategyDocCardP
       <p className="sub">{doc.summary}</p>
 
       <dl className="strategy-doc__grid">
-        <div>
-          <dt>The rule</dt>
-          <dd>{doc.formula}</dd>
-        </div>
         <div className="is-works">
           <dt>When it works</dt>
           <dd>{doc.whenItWorks}</dd>
@@ -55,16 +59,26 @@ export default function StrategyDocCard({ strategy, onSelect }: StrategyDocCardP
           <dt>When it fails</dt>
           <dd>{doc.whenItFails}</dd>
         </div>
-        <div>
-          <dt>Parameters</dt>
-          <dd>
-            {/* From PARAM_MEANING, which the sliders also read. */}
-            <strong>fast</strong> — {params.fast}
-            <br />
-            <strong>slow</strong> — {params.slow}
-          </dd>
-        </div>
       </dl>
+
+      <details className="strategy-doc__mechanics" open={mechanicsOpen}>
+        <summary>The rule, and what its two parameters mean</summary>
+        <dl className="strategy-doc__grid">
+          <div>
+            <dt>The rule</dt>
+            <dd>{doc.formula}</dd>
+          </div>
+          <div>
+            <dt>Parameters</dt>
+            <dd>
+              {/* From PARAM_MEANING, which the sliders also read. */}
+              <strong>fast</strong> — {params.fast}
+              <br />
+              <strong>slow</strong> — {params.slow}
+            </dd>
+          </div>
+        </dl>
+      </details>
 
       <p className="strategy-doc__similar">
         <span className="muted">Compare against:</span>{" "}
@@ -82,12 +96,14 @@ export default function StrategyDocCard({ strategy, onSelect }: StrategyDocCardP
         ))}
       </p>
 
-      <p className="research-note">
+      {atLeast(tier, "full") ? (
+        <p className="research-note">
         Both engines apply the same convention this description assumes: signals form on one bar and
         execute on the next, and on a bar where entry and exit both fire, the exit wins. Written down
         because a rule read as &ldquo;buy the crossover&rdquo; and a rule that also flattens on the
         same bar are different strategies with the same name.
-      </p>
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -13570,3 +13570,22 @@ button:active:not(:disabled) {
   margin: var(--space-3) 0 0;
   font-size: 0.85em;
 }
+
+/* ── Detail-level disclosures ──────────────────────────────────────────────
+   Guided collapses these; Standard and Full open them. The summary always
+   names what is inside — a collapsed control with a generic label reads as a
+   feature that does not exist, which is the one thing the tier system must
+   never communicate. */
+
+.quality-disclosure > summary,
+.strategy-doc__mechanics > summary {
+  cursor: pointer;
+  font-size: 0.85em;
+  color: var(--text-secondary);
+  padding: var(--space-2) 0;
+  list-style-position: inside;
+}
+.quality-disclosure > summary:hover,
+.strategy-doc__mechanics > summary:hover { color: var(--text-primary); }
+.quality-disclosure[open] > summary,
+.strategy-doc__mechanics[open] > summary { margin-bottom: 2px; }
