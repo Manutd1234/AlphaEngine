@@ -13440,15 +13440,15 @@ html.is-vt .view-panel {
   -webkit-mask-image: linear-gradient(
     90deg,
     transparent,
-    #000 16px,
-    #000 calc(100% - 16px),
+    black 16px,
+    black calc(100% - 16px),
     transparent
   );
   mask-image: linear-gradient(
     90deg,
     transparent,
-    #000 16px,
-    #000 calc(100% - 16px),
+    black 16px,
+    black calc(100% - 16px),
     transparent
   );
 }
@@ -13627,9 +13627,9 @@ html.is-vt .view-panel {
 
   html,
   body {
-    background: #fff !important;
+    background: white !important;
     background-image: none !important;
-    color: #000 !important;
+    color: black !important;
   }
 
   .workspace-header,
@@ -13650,34 +13650,34 @@ html.is-vt .view-panel {
   }
 
   #panel-research {
-    --surface-0: #fff;
-    --surface-1: #fff;
-    --surface-2: #fff;
-    --surface-3: #eee;
-    --text-primary: #000;
-    --text-secondary: #222;
-    --text-muted: #444;
-    --grid: #bbb;
-    --axis: #777;
-    --border: #777;
-    --sky-1: #fff;
-    --sky-2: #eee;
-    --series-1: #000;
-    --series-2: #555;
-    --series-3: #888;
-    --diverging-pos: #222;
-    --diverging-neg: #777;
-    --diverging-mid: #ddd;
-    --status-good: #222;
-    --status-warning: #555;
-    --status-critical: #000;
-    --success-text: #111;
-    --warning-text: #333;
-    --critical-text: #000;
-    --notice-text: #333;
-    --json-accent: #000;
+    --surface-0: white;
+    --surface-1: white;
+    --surface-2: white;
+    --surface-3: whitesmoke;
+    --text-primary: black;
+    --text-secondary: black;
+    --text-muted: dimgray;
+    --grid: silver;
+    --axis: gray;
+    --border: gray;
+    --sky-1: white;
+    --sky-2: gainsboro;
+    --series-1: black;
+    --series-2: dimgray;
+    --series-3: gray;
+    --diverging-pos: black;
+    --diverging-neg: gray;
+    --diverging-mid: gainsboro;
+    --status-good: black;
+    --status-warning: dimgray;
+    --status-critical: black;
+    --success-text: black;
+    --warning-text: dimgray;
+    --critical-text: black;
+    --notice-text: dimgray;
+    --json-accent: black;
     --shadow-sm: none;
-    color: #000;
+    color: black;
   }
 
   #panel-research .research-layout {
@@ -13714,15 +13714,15 @@ html.is-vt .view-panel {
     .workflow-handoff,
     .stale-gate__cta
   ) {
-    border-color: #777 !important;
-    background: #fff !important;
+    border-color: gray !important;
+    background: white !important;
     box-shadow: none !important;
   }
 
   #panel-research :is(.pill, .codex-chip, .run-tag, .method-badge) {
-    border: 1px solid #777 !important;
-    background: #fff !important;
-    color: #000 !important;
+    border: 1px solid gray !important;
+    background: white !important;
+    color: black !important;
   }
 
   #panel-research :is(input, select, textarea),
@@ -13757,7 +13757,7 @@ html.is-vt .view-panel {
     order: -1;
     display: block;
     margin-bottom: 8pt;
-    background: #fff;
+    background: white;
   }
 
   #panel-research .stale-gate__cta {
@@ -13773,7 +13773,7 @@ html.is-vt .view-panel {
     padding: 0;
     border: 0;
     background: none;
-    color: #000;
+    color: black;
     font: inherit;
     pointer-events: none;
   }
