@@ -109,7 +109,7 @@ export interface ValidationTelemetry extends ValidationCounts {
   byProvider: Record<string, ValidationCounts>;
 }
 
-export type GuardMode = "token" | "open-dev" | "locked";
+export type GuardMode = "token" | "open-dev" | "open-demo" | "locked";
 
 /**
  * Authoritative operations snapshot emitted by the FastAPI gateway.

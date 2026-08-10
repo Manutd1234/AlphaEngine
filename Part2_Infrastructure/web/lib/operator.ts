@@ -58,12 +58,40 @@ export type GuardMode =
   | "token"
   /** No token, but this is not a production build — actions are open. */
   | "open-dev"
+  /** Production, deliberately opened for a demo deployment — see below. */
+  | "open-demo"
   /** Production with no token configured — actions are refused outright. */
   | "locked";
 
 export const OPERATOR_TOKEN_ENV = "ALPHAENGINE_OPERATOR_TOKEN";
 
+/**
+ * The deliberate escape hatch from closed-by-default.
+ *
+ * Set to the literal string `"1"` and every operator surface — the order
+ * ticket, risk actions, remediation — works for anyone who can reach the URL,
+ * no token asked. That is the correct configuration for exactly one situation:
+ * a paper-trading assessment demo whose reviewers must be able to click Send
+ * without being handed a credential first, and it is survivable only because
+ * of the property the module doc states — nothing an operator can do here is
+ * permanent. Orders are paper and capped by the gateway's own gates, the kill
+ * switch is reversible, purged caches refill, simulated outages expire.
+ *
+ * It is an exact-match on "1", not truthiness, for the same reason the strategy
+ * whitelist is derived rather than listed: `ALPHAENGINE_OPERATOR_OPEN=false`
+ * set by someone reasoning from other ecosystems must not open the gate.
+ *
+ * What it does NOT expose: the Python gateway's own credential. Server routes
+ * still authenticate to the gateway with `ALPHAENGINE_GATEWAY_TOKEN`, which
+ * never leaves the server — this flag opens the portal's door, not the vault's.
+ */
+export const OPERATOR_OPEN_ENV = "ALPHAENGINE_OPERATOR_OPEN";
+
 export function guardMode(env: NodeJS.ProcessEnv = process.env): GuardMode {
+  // Checked before the token so the two set together still mean "open" — the
+  // flag is the more explicit statement of intent, and a demo that starts
+  // demanding tokens because someone also configured one is a confusing demo.
+  if (env[OPERATOR_OPEN_ENV]?.trim() === "1") return "open-demo";
   if (env[OPERATOR_TOKEN_ENV]?.trim()) return "token";
   return env.NODE_ENV === "production" ? "locked" : "open-dev";
 }
@@ -87,13 +115,13 @@ export function authorise(
   env: NodeJS.ProcessEnv = process.env,
 ): GuardRejection | null {
   const mode = guardMode(env);
-  if (mode === "open-dev") return null;
+  if (mode === "open-dev" || mode === "open-demo") return null;
   if (mode === "locked") {
     return {
       status: 503,
       code: "operator_actions_disabled",
       error: "Operator actions are disabled in this environment.",
-      hint: `Set ${OPERATOR_TOKEN_ENV} on the server to enable them. Read-only system telemetry stays available without it.`,
+      hint: `Set ${OPERATOR_TOKEN_ENV} on the server to enable them, or ${OPERATOR_OPEN_ENV}=1 to open them without a token on a demo deployment. Read-only system telemetry stays available without either.`,
     };
   }
 

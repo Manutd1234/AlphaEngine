@@ -294,12 +294,30 @@ export default function OrderTicket({
           type="button"
           className="primary-action"
           disabled={busy || disabled || !(notional > 0) || limitInvalid}
+          title={
+            limitInvalid
+              ? "Limit orders need a price — the grey number in the field is the current mark, not a value."
+              : !(notional > 0) ? "Set a notional first." : undefined
+          }
           onClick={() => void submit()}
         >
           {busy
             ? "Submitting…"
             : `Send ${side} ${symbol}${orderType === "LIMIT" && limitPrice ? ` @ ${fmt(limitPrice, mid != null ? priceDp(mid) : 2)}` : ""}`}
         </button>
+
+        {/* This ticket's whole stance is "a rejection is the answer, not an
+            error" — so a disabled Send with no stated reason is a bug in that
+            stance, and it was reported as exactly that ("why does this not
+            work?"). The placeholder shows the mark to type against, which
+            reads as a filled-in value at a glance; when it is the reason the
+            button is dead, say so in text, not only in a hover title. */}
+        {limitInvalid && !busy && !disabled ? (
+          <p className="cockpit-ticket__hint">
+            Type a limit price to enable Send — the grey {mid != null ? fmt(mid, priceDp(mid)) : ""}{" "}
+            is the current mark shown as a hint, not a filled-in value. Or switch back to Market.
+          </p>
+        ) : null}
 
         {bandBps != null && bandBps > 500 ? (
           <p className="cockpit-ticket__hint">

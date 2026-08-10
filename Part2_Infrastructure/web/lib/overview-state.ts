@@ -182,7 +182,7 @@ export type KillConfirmWord = "HALT" | "RESUME";
 export interface KillSwitchGateInput {
   typed: string;
   halted: boolean;
-  guard: "token" | "open-dev" | "locked";
+  guard: "token" | "open-dev" | "open-demo" | "locked";
   token: string;
   /** null before the panel's probe of GET /api/gateway/risk has answered. */
   gatewayConnected: boolean | null;

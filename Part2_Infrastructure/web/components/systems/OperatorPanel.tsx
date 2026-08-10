@@ -202,6 +202,17 @@ export default function OperatorPanel({
         </p>
       )}
 
+      {guard === "open-demo" && (
+        <p className="console-note">
+          <strong>Demo deployment: operator actions are open to anyone with this URL.</strong> No
+          token is asked — orders, risk actions and remediation all work directly. That is a
+          deliberate setting (<code>ALPHAENGINE_OPERATOR_OPEN=1</code>) for a paper-trading
+          assessment, survivable because nothing here is permanent: orders are paper and capped by
+          the gateway&rsquo;s gates, the kill switch reverses, purged caches refill. Unset the flag
+          to require a token again.
+        </p>
+      )}
+
       {lastResult && <OperatorActionResult result={lastResult} />}
 
       <div className="operator-group-heading">

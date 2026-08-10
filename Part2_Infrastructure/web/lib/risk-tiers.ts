@@ -79,11 +79,20 @@ export interface OperatorBlockedInput {
   sandbox?: boolean;
   halted?: boolean;
   busy?: boolean;
+  /**
+   * The server's guard mode. A token is demanded only when the server would
+   * demand one — on an open-demo or open-dev deployment this control must not
+   * ask for a credential the server will never check. Omitted means "token",
+   * the strictest reading, so a caller that has not probed yet fails closed.
+   */
+  guard?: "token" | "open-dev" | "open-demo" | "locked";
 }
 
 export function operatorBlockedReason(input: OperatorBlockedInput): string | null {
   if (input.busy) return "Operation in progress...";
   if (input.sandbox) return "Sandbox mode — live operator controls disabled";
-  if (!input.operatorToken) return "Operator authentication required";
+  if (input.guard === "locked") return "Operator actions are disabled on this deployment";
+  const tokenRequired = (input.guard ?? "token") === "token";
+  if (tokenRequired && !input.operatorToken) return "Operator authentication required";
   return null;
 }
