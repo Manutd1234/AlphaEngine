@@ -13,9 +13,11 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import DepthChart from "@/components/DepthChart";
 import DislocationStrip from "@/components/DislocationStrip";
 import StatTile from "@/components/StatTile";
+import SymbolCombobox from "@/components/SymbolCombobox";
 import { LiveMidContext } from "@/components/execution/live-mid-context";
 import { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import { liveTca, useLiveBook } from "@/lib/livebook";
+import { classify } from "@/lib/providers/symbols";
 import { SYMBOLS, type Side, type Ticker } from "@/lib/venues";
 import { compact, fmt, priceDp, signedPct, usd } from "@/lib/format";
 import { STRATEGY_LABELS, type SweepResponse } from "@/lib/types";
@@ -28,6 +30,14 @@ const STATUS_STYLE = {
   stale: { icon: "▲", label: "stale" },
   error: { icon: "✕", label: "down" },
 } as const;
+
+interface QuotePreview {
+  price: number;
+  changePct: number | null;
+  asOf: string;
+  source: string;
+  delayed: boolean;
+}
 
 export type ExecutionSection = "trade" | "liquidity" | "routing" | "activity";
 
@@ -62,6 +72,7 @@ export default function LiveMarket({
   children,
 }: LiveMarketProps) {
   const liveSupported = (SYMBOLS as readonly string[]).includes(symbol);
+  const paperEquity = classify(symbol) === "equity";
   const snap = useLiveBook(symbol, liveSupported);
   // What-if constraints for the probe only: null include-list means every
   // venue, and an empty cap string means uncapped, so the default call is
@@ -78,16 +89,17 @@ export default function LiveMarket({
   );
   const dp = snap?.consolidatedMid ? priceDp(snap.consolidatedMid) : 2;
   const [tickerBySymbol, setTickerBySymbol] = useState<Record<string, Ticker>>({});
+  const [quotePreview, setQuotePreview] = useState<QuotePreview | null>(null);
+  const [quotePreviewPending, setQuotePreviewPending] = useState(false);
   // Direction of each symbol's last real price change, for the tick flash.
   // Redundant emphasis only: the signed 24h% with its sign glyph sits beside
   // the price, which is what the no-colour-only rule requires.
   const [tickDirection, setTickDirection] = useState<Record<string, "up" | "down">>({});
   const prevTickers = useRef<Record<string, Ticker>>({});
   const activeTicker = tickerBySymbol[symbol];
-  const activeChange = activeTicker?.changePct24h ?? null;
-  const activeLast = activeTicker?.last ?? snap?.consolidatedMid ?? null;
+  const activeChange = paperEquity ? quotePreview?.changePct ?? null : activeTicker?.changePct24h ?? null;
+  const activeLast = paperEquity ? quotePreview?.price ?? null : activeTicker?.last ?? snap?.consolidatedMid ?? null;
   const liveVenues = snap?.venues.filter((venue) => venue.status === "live").length ?? 0;
-  const selectableSymbols = liveSupported ? SYMBOLS : [symbol, ...SYMBOLS];
 
   // The ticket (rendered as children) reads the mid for its price-band hint.
   const wrappedChildren = (
@@ -136,6 +148,55 @@ export default function LiveMarket({
       window.clearInterval(timer);
     };
   }, []);
+
+  useEffect(() => {
+    if (!paperEquity) {
+      setQuotePreview(null);
+      setQuotePreviewPending(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setQuotePreview(null);
+    setQuotePreviewPending(true);
+    void fetch(`/api/quote?symbols=${encodeURIComponent(symbol)}`, {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((body: unknown) => {
+        if (!body || controller.signal.aborted) return;
+        const row = (body as {
+          quotes?: Array<{
+            data?: { price?: unknown; changePct?: unknown; asOf?: unknown; delayed?: unknown };
+            provenance?: { label?: unknown; provider?: unknown; delayed?: unknown };
+          }>;
+        }).quotes?.[0];
+        const price = Number(row?.data?.price);
+        const asOf = typeof row?.data?.asOf === "string" ? row.data.asOf : "";
+        if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(Date.parse(asOf))) return;
+        const changePct = Number(row?.data?.changePct);
+        const label = typeof row?.provenance?.label === "string"
+          ? row.provenance.label
+          : typeof row?.provenance?.provider === "string" ? row.provenance.provider : "Provider";
+        setQuotePreview({
+          price,
+          changePct: Number.isFinite(changePct) ? changePct : null,
+          asOf,
+          source: label,
+          delayed: row?.data?.delayed === true || row?.provenance?.delayed === true,
+        });
+      })
+      .catch(() => {
+        // The order route performs its own authoritative lookup. A preview
+        // failure leaves the ticket available and never supplies a price.
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setQuotePreviewPending(false);
+      });
+
+    return () => controller.abort();
+  }, [paperEquity, symbol]);
 
   const ladder = (rows: [number, number][], kind: "bid" | "ask") => {
     const top = rows.slice(0, 12);
@@ -259,14 +320,14 @@ export default function LiveMarket({
 
   const compactMarketContext = (
     <section className="execution-market-strip" aria-label={`${symbol} market context`}>
-      <label>
-        <span>Instrument</span>
-        <select value={symbol} onChange={(event) => onSymbolChange(event.target.value)}>
-          {selectableSymbols.map((candidate) => (
-            <option key={candidate} value={candidate}>{candidate}</option>
-          ))}
-        </select>
-      </label>
+      <div style={{ flex: "0 1 220px", minWidth: 180 }}>
+        <SymbolCombobox
+          id="execution-symbol"
+          label="Trade instrument"
+          value={symbol}
+          onCommit={onSymbolChange}
+        />
+      </div>
       <dl>
         <div>
           <dt>Last</dt>
@@ -277,18 +338,40 @@ export default function LiveMarket({
             </small>
           </dd>
         </div>
-        <div>
-          <dt>L2 mid</dt>
-          <dd className="num">{snap?.consolidatedMid == null ? "—" : fmt(snap.consolidatedMid, dp)}</dd>
-        </div>
-        <div>
-          <dt>Spread</dt>
-          <dd className="num">{snap?.spreadBps == null ? "—" : `${fmt(snap.spreadBps, 2)} bps`}</dd>
-        </div>
+        {paperEquity ? (
+          <>
+            <div>
+              <dt>Reference</dt>
+              <dd>
+                {quotePreview?.source ?? (quotePreviewPending ? "Checking…" : "Unavailable")}
+                {quotePreview ? <small className="muted">{quotePreview.delayed ? "delayed" : "provider quote"}</small> : null}
+              </dd>
+            </div>
+            <div>
+              <dt>Execution</dt>
+              <dd>Paper MARKET<small className="muted">no L2 routing</small></dd>
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <dt>L2 mid</dt>
+              <dd className="num">{snap?.consolidatedMid == null ? "—" : fmt(snap.consolidatedMid, dp)}</dd>
+            </div>
+            <div>
+              <dt>Spread</dt>
+              <dd className="num">{snap?.spreadBps == null ? "—" : `${fmt(snap.spreadBps, 2)} bps`}</dd>
+            </div>
+          </>
+        )}
       </dl>
-      <span className={`execution-market-strip__status${liveVenues > 0 ? " is-live" : ""}`}>
+      <span className={`execution-market-strip__status${liveVenues > 0 || quotePreview ? " is-live" : ""}`}>
         <i aria-hidden />
-        {!liveSupported ? "Quote only" : snap ? `${liveVenues} venues live` : "Connecting"}
+        {paperEquity
+          ? quotePreview
+            ? `Covered US ticker · as of ${new Date(quotePreview.asOf).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+            : quotePreviewPending ? "Checking equity coverage" : "Equity quote unavailable"
+          : !liveSupported ? "Quote only" : snap ? `${liveVenues} venues live` : "Connecting"}
       </span>
     </section>
   );

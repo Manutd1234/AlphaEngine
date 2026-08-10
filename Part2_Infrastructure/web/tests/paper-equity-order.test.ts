@@ -9,6 +9,8 @@ import {
 import type { Quote, Sourced } from "../lib/providers/types";
 
 const ROUTE = readFileSync(new URL("../app/api/gateway/orders/route.ts", import.meta.url), "utf8");
+const LIVE_MARKET = readFileSync(new URL("../components/LiveMarket.tsx", import.meta.url), "utf8");
+const TICKET = readFileSync(new URL("../components/execution/OrderTicket.tsx", import.meta.url), "utf8");
 
 function quote(overrides: Partial<Quote> = {}): Sourced<Quote> {
   return {
@@ -94,5 +96,26 @@ describe("order route equity enrichment boundary", () => {
   it("leaves crypto orders on the existing L2 gateway path", () => {
     assert.match(ROUTE, /classify\(String\(order\.symbol\)\) === "equity"/);
     assert.match(ROUTE, /callGateway<Record<string, unknown>>\("\/api\/orders"/);
+  });
+});
+
+describe("covered equity execution UI", () => {
+  it("accepts curated or free-text tickers without expanding the page", () => {
+    assert.match(LIVE_MARKET, /<SymbolCombobox/);
+    assert.match(LIVE_MARKET, /id="execution-symbol"/);
+    assert.match(LIVE_MARKET, /onCommit=\{onSymbolChange\}/);
+    assert.match(LIVE_MARKET, /execution-market-strip/);
+  });
+
+  it("previews provider provenance but leaves authoritative pricing to the order route", () => {
+    assert.match(LIVE_MARKET, /fetch\(`\/api\/quote\?symbols=/);
+    assert.match(LIVE_MARKET, /Covered US ticker/);
+    assert.match(LIVE_MARKET, /no L2 routing/);
+  });
+
+  it("keeps equity orders MARKET-only in the ticket", () => {
+    assert.match(TICKET, /classify\(symbol\) === "equity"/);
+    assert.match(TICKET, /disabled=\{paperEquity && option === "LIMIT"\}/);
+    assert.match(TICKET, /MARKET only; no L2 routing is claimed/);
   });
 });

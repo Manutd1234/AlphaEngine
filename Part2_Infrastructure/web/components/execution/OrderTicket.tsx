@@ -26,6 +26,7 @@ import { useLiveMid } from "@/components/execution/live-mid-context";
 import { type GateCheck, type SandboxDecision, type SandboxOrder } from "@/lib/blotter";
 import { fmt, priceDp, usd } from "@/lib/format";
 import { operatorHeaders } from "@/lib/risk-control";
+import { classify } from "@/lib/providers/symbols";
 import { strategiesByFamily } from "@/lib/strategy-progress";
 import { STRATEGY_LABELS, type Strategy } from "@/lib/types";
 
@@ -120,6 +121,7 @@ export default function OrderTicket({
   // also work when present, but rejections can arrive without one.
   const decisionSeq = useRef(0);
   const mid = useLiveMid();
+  const paperEquity = classify(symbol) === "equity";
 
   const symbolHalted = halted || haltedSymbols.includes(symbol);
   const disabled = mode === "outage";
@@ -128,6 +130,7 @@ export default function OrderTicket({
     && !paperOrderDefaultAvailable
     && !operatorToken?.trim();
   const limitInvalid = orderType === "LIMIT" && !(limitPrice != null && limitPrice > 0);
+  const equityLimitUnsupported = paperEquity && orderType === "LIMIT";
   const bandBps = orderType === "LIMIT" && limitPrice && mid
     ? (Math.abs(limitPrice - mid) / mid) * 1e4
     : null;
@@ -219,7 +222,9 @@ export default function OrderTicket({
         <div>
           <h3>Order ticket</h3>
           <p className="muted">
-            Every order is judged by the gateway&apos;s pre-trade gates. A rejection is the answer, not an error.
+            {paperEquity
+              ? `${symbol} uses a server-verified provider quote and a disclosed paper model. MARKET only; no L2 routing is claimed.`
+              : "Every order is judged by the gateway's pre-trade gates. A rejection is the answer, not an error."}
           </p>
         </div>
         <button type="button" className="icon" onClick={onOpenResearch}>
@@ -294,6 +299,8 @@ export default function OrderTicket({
               key={option}
               type="button"
               aria-pressed={orderType === option}
+              disabled={paperEquity && option === "LIMIT"}
+              title={paperEquity && option === "LIMIT" ? "Equity paper orders are MARKET-only because no equity L2 book is connected." : undefined}
               onClick={() => onOrderTypeChange(option)}
             >
               {option === "MARKET" ? "Market" : "Limit"}
@@ -375,10 +382,12 @@ export default function OrderTicket({
         <button
           type="button"
           className="primary-action"
-          disabled={busy || disabled || credentialMissing || !(notional > 0) || limitInvalid}
+          disabled={busy || disabled || credentialMissing || !(notional > 0) || limitInvalid || equityLimitUnsupported}
           title={
             credentialMissing
               ? "Enter the operator credential above to enable live order submission."
+              : equityLimitUnsupported
+              ? "Covered US equity paper orders are MARKET-only; no L2 book is available for a resting limit."
               : limitInvalid
               ? "Limit orders need a price — the grey number in the field is the current mark, not a value."
               : !(notional > 0) ? "Set a notional first." : undefined
