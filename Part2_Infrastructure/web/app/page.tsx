@@ -25,6 +25,7 @@ import BenchmarkPanel from "@/components/research/BenchmarkPanel";
 import PromotionPanel from "@/components/research/PromotionPanel";
 import QualityScorePanel from "@/components/research/QualityScorePanel";
 import ResearchCorpus from "@/components/research/ResearchCorpus";
+import StrategyCodex from "@/components/research/StrategyCodex";
 import RegimePanel from "@/components/research/RegimePanel";
 import SizingPanel from "@/components/research/SizingPanel";
 import StabilityPanel from "@/components/research/StabilityPanel";
@@ -63,12 +64,13 @@ import {
   saveExperiments,
   type ExperimentRecord,
 } from "@/lib/experiments";
+import { strategyProgress } from "@/lib/strategy-progress";
 import { APP_COMMIT } from "@/lib/version";
 import type { Side } from "@/lib/venues";
 
 const VIEWS: WorkspaceView[] = NAV_ITEMS.map((item) => item.id);
 
-type ResearchSection = "summary" | "parameters" | "walkforward" | "attribution" | "decision" | "runs";
+type ResearchSection = "summary" | "parameters" | "walkforward" | "attribution" | "decision" | "runs" | "codex";
 
 const RESEARCH_SECTIONS = [
   { id: "summary", label: "Summary", description: "Verdict & performance" },
@@ -77,6 +79,7 @@ const RESEARCH_SECTIONS = [
   { id: "attribution", label: "Attribution", description: "Factors & tail behavior" },
   { id: "decision", label: "Decision", description: "Promotion & sizing" },
   { id: "runs", label: "Runs", description: "Experiment history" },
+  { id: "codex", label: "Codex", description: "All 46 models, by family" },
 ] as const;
 
 const EXECUTION_SECTIONS = [
@@ -585,6 +588,11 @@ export default function Page() {
     () => data !== null && experiments.some((record) => sameRequest(record.request, data.request)),
     [data, experiments],
   );
+  /** For the picker's "— run" marks: same projection the codex renders. */
+  const triedStrategies = useMemo(
+    () => new Set(strategyProgress(experiments).keys()),
+    [experiments],
+  );
   const shown = displayedResult?.best;
   const tiles = useMemo(() => {
     if (!displayedResult || !shown) return null;
@@ -889,7 +897,7 @@ export default function Page() {
               tabs={RESEARCH_SECTIONS}
               activeId={researchSection}
               onChange={changeResearchSection}
-              secondary={["runs"]}
+              secondary={["runs", "codex"]}
               actions={
                 <>
                   <span className="rail-meta num">{req.symbol} · {req.interval}</span>
@@ -945,10 +953,14 @@ export default function Page() {
                 onRun={() => run()}
                 onCommit={commitRequest}
                 running={running}
+                tried={triedStrategies}
               />
 
               <div className="research-content">
-                {!data && RESEARCH_SECTIONS.map((section) => (
+                {/* The codex is deliberately missing from this empty-state
+                    map — it renders below, runless: a reference library that
+                    demands a completed sweep is wrong. */}
+                {!data && RESEARCH_SECTIONS.filter((section) => section.id !== "codex").map((section) => (
                   <WorkspaceSubtabPanel
                     key={section.id}
                     workspaceId="research"
@@ -1237,6 +1249,20 @@ export default function Page() {
                     </WorkspaceSubtabPanel>
                   </>
                 )}
+
+                {/* Reference material, outside both the empty-state map and
+                    the data gate: the codex is about the catalogue, not the
+                    current sweep, so it neither goes stale nor needs a run. */}
+                <WorkspaceSubtabPanel workspaceId="research" tabId="codex" activeId={researchSection}>
+                  <StrategyCodex
+                    records={experiments}
+                    activeStrategy={req.strategy}
+                    onSelect={(strategy) => {
+                      updateStrategy(strategy);
+                      changeResearchSection("summary");
+                    }}
+                  />
+                </WorkspaceSubtabPanel>
               </div>
             </div>
             <NextStepFooter currentView="research" onNavigate={navigate} />

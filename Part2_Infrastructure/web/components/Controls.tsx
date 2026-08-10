@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import SymbolCombobox from "@/components/SymbolCombobox";
 import { paramGrid } from "@/lib/engine";
 import { defaultBenchmark, RESEARCH_SYMBOLS } from "@/lib/research-symbols";
+import { strategiesByFamily } from "@/lib/strategy-progress";
 import {
   INTERVALS,
   MAX_COMBOS,
@@ -124,6 +125,7 @@ export default function Controls({
   onRun,
   onCommit,
   running,
+  tried,
 }: {
   req: SweepRequest;
   setReq: (r: SweepRequest) => void;
@@ -131,6 +133,8 @@ export default function Controls({
   /** The user has settled on a value — see the `change` listener below. */
   onCommit: () => void;
   running: boolean;
+  /** Strategies in this browser's run log, marked "— run" in the picker. */
+  tried?: ReadonlySet<Strategy>;
 }) {
   const panelRef = useRef<HTMLDivElement | null>(null);
 
@@ -262,10 +266,18 @@ export default function Controls({
             value={req.strategy}
             onChange={(e) => patch({ strategy: e.target.value as Strategy })}
           >
-            {(Object.keys(STRATEGY_LABELS) as Strategy[]).map((s) => (
-              <option key={s} value={s}>
-                {STRATEGY_LABELS[s]}
-              </option>
+            {/* The first rendering STRATEGY_FAMILY has ever had: 46 flat
+                options grouped into the seven families the codex browses.
+                "— run" mirrors the codex's explored-state, derived from the
+                same log. */}
+            {[...strategiesByFamily()].map(([family, strategies]) => (
+              <optgroup key={family} label={family}>
+                {strategies.map((s) => (
+                  <option key={s} value={s}>
+                    {STRATEGY_LABELS[s]}{tried?.has(s) ? " — run" : ""}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </div>
