@@ -1231,6 +1231,17 @@
             "title": "Kind",
             "type": "string"
           },
+          "lexical_rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lexical Rank"
+          },
           "metrics": {
             "additionalProperties": true,
             "title": "Metrics",
@@ -1274,6 +1285,17 @@
           "title": {
             "title": "Title",
             "type": "string"
+          },
+          "vector_rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vector Rank"
           }
         },
         "required": [

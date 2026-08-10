@@ -2,16 +2,20 @@
 --
 -- `supabase db push` applies DDL to Postgres and says nothing to PostgREST,
 -- which serves `/rest/v1/rpc/*` from a schema cache it builds at startup. A
--- function added by a migration is therefore invisible over HTTP until
--- something reloads that cache — and the symptom is a 404 for an RPC that
+-- function added by a migration can therefore be invisible over HTTP until
+-- something reloads that cache, and the symptom is a 404 for an RPC that
 -- exists, is callable in SQL, and passes every offline contract test.
 --
--- Diagnosed rather than assumed: after 20260810090000 applied cleanly, a live
--- query to `match_research_documents_hybrid` still came back with the dense
--- function's columns, which is exactly what the caller's 404 fallback does. The
--- fallback worked as designed and made the failure quiet, which is the right
--- behaviour during a rollout and the reason this went unnoticed for one deploy.
+-- HONEST PROVENANCE: this was written to fix a live symptom it did not cause.
+-- After 20260810090000 applied, a live query still came back without the hybrid
+-- function's rank columns, and the 404 fallback was the obvious suspect. It was
+-- the wrong suspect — `ResearchRagMatch` had no fields for those columns and
+-- pydantic drops unknown keys, so the RPC was answering correctly and the
+-- response model was discarding half the answer. The two failures are
+-- indistinguishable from outside, which is what made the guess plausible.
 --
--- This is the documented signal, and it is idempotent, so it is safe as a
--- standing final migration rather than a one-off repair.
+-- Kept anyway, because the hazard it addresses is real, undetectable from the
+-- test suite (every contract test here is offline and passes either way), and
+-- the statement is idempotent. It stands as a final migration rather than a
+-- one-off repair.
 notify pgrst, 'reload schema';

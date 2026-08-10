@@ -536,6 +536,20 @@ class ResearchRagMatch(BaseModel):
     body: str
     metrics: dict[str, Any] = Field(default_factory=dict)
     similarity: float
+    #: Where each retriever placed this document, 1-based. Both are None on the
+    #: dense-only path — which is a real state during a rollout, not an error.
+    #:
+    #: Carried through so a reader can be told WHY a document surfaced.
+    #: "matched the ticker exactly" and "semantically similar" are different
+    #: claims about the same result, and a panel that cannot distinguish them
+    #: presents a lexical hit and a paraphrase match as equally confident.
+    #:
+    #: These were the fields whose absence made hybrid retrieval look broken
+    #: after it shipped: pydantic drops unknown keys, so the RPC was returning
+    #: both ranks and the response model was silently discarding them. The live
+    #: symptom was identical to the 404 fallback, which cost a wrong diagnosis.
+    vector_rank: int | None = None
+    lexical_rank: int | None = None
 
 
 class ResearchRagSearchResponse(BaseModel):
