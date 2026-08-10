@@ -138,7 +138,7 @@ export default function OracleVarPanel({
           <div className="tiles stability-tiles">
             <div className="stat-tile">
               <div className="stat-tile__label">Oracle VaR 99</div>
-              <div className="num stat-tile__value is-neg">{usd(result.var99, 0)}</div>
+              <div className="num stat-tile__value" data-tone="neg">{usd(result.var99, 0)}</div>
               <div className="stat-tile__note">{result.pathsUsed.toLocaleString()} paths · {horizonDays}d</div>
             </div>
             <div className="stat-tile">
@@ -148,7 +148,10 @@ export default function OracleVarPanel({
             </div>
             <div className="stat-tile">
               <div className="stat-tile__label">Divergence</div>
-              <div className={`num stat-tile__value ${divergence !== null && Math.abs(divergence) > 0.15 ? "is-neg" : ""}`}>
+              <div
+                className="num stat-tile__value"
+                data-tone={divergence !== null && Math.abs(divergence) > 0.15 ? "neg" : undefined}
+              >
                 {divergence === null ? "—" : `${divergence > 0 ? "+" : ""}${fmt(divergence * 100, 1)}%`}
               </div>
               <div className="stat-tile__note">simulated vs closed form</div>

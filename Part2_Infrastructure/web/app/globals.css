@@ -10891,29 +10891,14 @@ button.page-insight:hover:not(:disabled) {
   align-items: center;
   gap: var(--space-1);
   margin-bottom: 2px;
-  color: var(--text-muted);
-  font-size: 10.5px;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
 }
 
 .stat-tile__value {
-  color: var(--text-primary);
   font-size: 22px;
-  font-weight: 650;
-  letter-spacing: -0.02em;
   /* Live figures repoll on a timer; without a fixed advance the whole row
      shifts every time a digit changes width. `.num` supplies tabular figures,
      this stops the tile itself resizing around them. */
   font-variant-numeric: tabular-nums;
-}
-
-.stat-tile__value.is-pos { color: var(--success-text); }
-.stat-tile__value.is-neg { color: var(--diverging-neg); }
-
-.stat-tile__note {
-  color: var(--text-muted);
-  font-size: 11px;
 }
 
 /* SVG outlines are painted inconsistently across engines. A stroke keeps the
@@ -13397,6 +13382,7 @@ html.is-vt .view-panel {
   border-top: 1px solid var(--grid);
 }
 
+.stat-tile__label,
 .verdict-metric__label {
   font-size: 10.5px;
   text-transform: uppercase;
@@ -13404,17 +13390,23 @@ html.is-vt .view-panel {
   color: var(--text-muted);
 }
 
+.stat-tile__value,
 .verdict-metric__value {
-  font-size: 24px;
   font-weight: 650;
   letter-spacing: -0.02em;
   color: var(--text-primary);
 }
 
+.verdict-metric__value { font-size: 24px; }
+
+.stat-tile__value[data-tone="pos"] { color: var(--success-text); }
+.stat-tile__value[data-tone="neg"] { color: var(--critical-text); }
+.stat-tile__value[data-tone="muted"] { color: var(--text-muted); }
 .verdict-metric__value[data-tone="warn"] { color: var(--warning-text); }
 .verdict-metric__value[data-tone="critical"] { color: var(--critical-text); }
 .verdict-metric__value[data-tone="verdict"] { color: var(--verdict-text); }
 
+.stat-tile__note,
 .verdict-metric__note {
   font-size: 11px;
   color: var(--text-muted);

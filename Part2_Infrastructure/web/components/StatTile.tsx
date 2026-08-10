@@ -22,14 +22,13 @@ export default function StatTile({
    */
   explain?: { definition: string; formula?: string; plainEnglish: string };
 }) {
-  const toneClass = tone === "pos" ? "is-pos" : tone === "neg" ? "is-neg" : undefined;
   return (
     <div className="stat-tile">
       <div className="stat-tile__label">
         {label}
         {explain && <QuantEducationalTooltip term={label} {...explain} />}
       </div>
-      <div className={["num", "stat-tile__value", toneClass].filter(Boolean).join(" ")}>
+      <div className="num stat-tile__value" data-tone={tone}>
         {value}
       </div>
       {note && <div className="stat-tile__note">{note}</div>}
