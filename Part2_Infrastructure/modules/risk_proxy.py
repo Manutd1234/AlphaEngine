@@ -212,6 +212,9 @@ class RiskGateway:
         #: else that is scoped to a session.
         self._drawdown_warned: bool = False
         self.positions: dict[str, PositionState] = {}
+        # Last trusted server-side equity quote per held symbol. Crypto marks
+        # still come from Module A and always take precedence in ``mark``.
+        self._paper_marks: dict[str, float] = {}
         self.start_of_day_equity = settings.starting_equity_usd
         self.session_date = _utcnow().strftime("%Y-%m-%d")
         # Realized P&L banked by sessions that have already closed.
@@ -502,6 +505,11 @@ class RiskGateway:
             price = finite_number(row, "fill_price", positive=True)
             fee = finite_number(row, "fee_usd", positive=False)
             restored.setdefault(symbol, PositionState(symbol)).apply_fill(side, quantity, price, fee)
+            if symbol not in self._whitelist:
+                # The audit's accepted fill is the durable fallback mark after
+                # a restart. The next equity order replaces it with a fresh
+                # provider quote before any new exposure is accepted.
+                self._paper_marks[symbol] = price
 
         self.positions.update(restored)
         if fills:
@@ -746,7 +754,8 @@ class RiskGateway:
 
     # -- accounting ------------------------------------------------------- #
     def mark(self, symbol: str) -> float | None:
-        return self.tca.last_price(symbol) if self.tca else None
+        live = self.tca.last_price(symbol) if self.tca else None
+        return live or self._paper_marks.get(symbol)
 
     def realized_pnl(self) -> float:
         """*This session's* realized P&L — closed sessions live in ``carried_realized_pnl``.
@@ -1377,8 +1386,25 @@ class RiskGateway:
             # 3 — instrument whitelist. Membership against a prebuilt frozenset;
             # the list comprehension this replaced rebuilt and re-uppercased the
             # configured symbols on every single order.
-            add("symbol_whitelist", req.symbol in self._whitelist,
-                f"{req.symbol} in {settings.symbols}")
+            paper_equity = req.paper_execution is not None
+            add("symbol_whitelist", req.symbol in self._whitelist or paper_equity,
+                f"{req.symbol} in the live L2 universe or backed by a trusted paper-equity quote")
+            if paper_equity:
+                add(
+                    "paper_execution_model",
+                    req.order_type == "MARKET",
+                    "quote-based paper equity execution supports MARKET orders only; no L2 liquidity is claimed",
+                )
+                quote_age_s = (_utcnow() - req.paper_execution.as_of).total_seconds()
+                quote_fresh = -60.0 <= quote_age_s <= settings.paper_equity_quote_max_age_s
+                add(
+                    "reference_freshness",
+                    quote_fresh,
+                    f"{req.paper_execution.source} quote age {max(quote_age_s, 0.0):.0f}s"
+                    + (" (delayed)" if req.paper_execution.delayed else ""),
+                    observed=max(quote_age_s, 0.0),
+                    limit=settings.paper_equity_quote_max_age_s,
+                )
             # 4 — idempotency: a retrying algo must not double-fire
             dup = bool(req.client_order_id and req.client_order_id in self._seen_set)
             add("duplicate_order", not dup, f"client_order_id={req.client_order_id or '-'}")
@@ -1388,7 +1414,7 @@ class RiskGateway:
                 observed=self.bucket.observed_rate(), limit=settings.max_orders_per_sec)
 
             # 6 — price discovery. No mark => no risk assessment => reject.
-            mark = self.mark(req.symbol)
+            mark = req.paper_execution.price if paper_equity else self.mark(req.symbol)
             ref_price = req.limit_price or mark
             has_price = ref_price is not None and ref_price > 0
             add("price_available", bool(has_price), f"mark={mark}" if mark else "no live mark price")
@@ -1479,7 +1505,16 @@ class RiskGateway:
 
             # 12 — liquidity: does the live book support this size at a sane cost?
             # Measured on the *routed* execution, because that is what will fill.
-            if self.tca and notional:
+            if paper_equity and notional:
+                model_slippage = settings.paper_equity_slippage_bps
+                add(
+                    "est_slippage",
+                    model_slippage <= settings.max_est_slippage_bps,
+                    f"{model_slippage:.2f}bps fixed paper-equity model; no exchange depth asserted",
+                    observed=model_slippage,
+                    limit=settings.max_est_slippage_bps,
+                )
+            elif self.tca and notional:
                 est = self.tca.route_estimate(req.symbol, req.side, notional)
                 if est is None:
                     add("est_slippage", False, "no routable liquidity")
@@ -1532,6 +1567,8 @@ class RiskGateway:
 
                 if marketable:
                     status = "FILLED"
+                    if req.paper_execution:
+                        self._paper_marks[req.symbol] = req.paper_execution.price
                     fill = self._paper_fill(req, qty, notional, mark)
                     position = self.positions.setdefault(req.symbol, PositionState(req.symbol))
                     position.apply_fill(req.side, fill.quantity, fill.price, fill.fee_usd)
@@ -1600,6 +1637,20 @@ class RiskGateway:
         flatters itself. Here the fill price is the actual VWAP of the smart
         route, so paper PnL carries the same cost structure as live trading.
         """
+        if req.paper_execution:
+            slippage_bps = settings.paper_equity_slippage_bps
+            direction = 1.0 if req.side == "BUY" else -1.0
+            price = req.paper_execution.price * (1.0 + direction * slippage_bps / 1e4)
+            return Fill(
+                price=price,
+                quantity=notional / price,
+                notional=notional,
+                fee_usd=notional * settings.paper_fee_bps / 1e4,
+                slippage_bps=round(slippage_bps, 3),
+                venue=f"PAPER_EQUITY/{req.paper_execution.source}",
+                simulated=True,
+            )
+
         venue = "PAPER"
         price = mark or req.limit_price or 0.0
         slippage_bps = 0.0
@@ -1697,6 +1748,7 @@ class RiskGateway:
             # resurrect the old fills on the next process restart.
             self.audit.record_book_reset(actor)
         self.positions.clear()
+        self._paper_marks.clear()
         self.orders_accepted = 0
         self.orders_rejected = 0
         self._seen_client_ids.clear()

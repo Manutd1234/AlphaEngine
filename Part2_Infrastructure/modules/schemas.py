@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
@@ -94,6 +95,36 @@ class TCAReport(BaseModel):
 # --------------------------------------------------------------------------- #
 # Module B — Risk
 # --------------------------------------------------------------------------- #
+class PaperExecutionReference(BaseModel):
+    """Trusted quote evidence for a paper equity order.
+
+    The public web route obtains this server-side and the authenticated gateway
+    consumes it. Browsers never choose the price or the provenance fields.
+    """
+
+    asset_class: Literal["equity"] = "equity"
+    price: float = Field(gt=0)
+    as_of: datetime
+    source: str = Field(min_length=1, max_length=80)
+    currency: Literal["USD"] = "USD"
+    delayed: bool = False
+
+    @field_validator("as_of")
+    @classmethod
+    def _timestamp_has_timezone(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("paper execution quote timestamp must include a timezone")
+        return value
+
+    @field_validator("source")
+    @classmethod
+    def _source_is_readable(cls, value: str) -> str:
+        cleaned = " ".join(value.split())
+        if not cleaned:
+            raise ValueError("paper execution quote source is required")
+        return cleaned
+
+
 class OrderRequest(BaseModel):
     symbol: str
     side: Side
@@ -103,6 +134,10 @@ class OrderRequest(BaseModel):
     limit_price: float | None = Field(default=None, gt=0)
     strategy: str = "manual"
     client_order_id: str | None = None
+    # Internal server-to-server evidence. The Vercel order route ignores any
+    # browser-supplied value and constructs this only after a provider quote
+    # passes its own data contract.
+    paper_execution: PaperExecutionReference | None = None
     # No default here on purpose: the sensible one differs by order type, and a
     # single field default cannot say so. `submit` resolves None to GTC for a
     # LIMIT and IOC for a MARKET, which makes every client that never sends the
@@ -125,6 +160,8 @@ class OrderRequest(BaseModel):
         # and quietly rewriting it to IOC would answer a question nobody asked.
         if self.order_type == "MARKET" and self.time_in_force in {"GTC", "DAY"}:
             raise ValueError("a MARKET order cannot rest — use GTC or DAY with a LIMIT price")
+        if self.paper_execution and not re.fullmatch(r"[A-Z]{1,5}(?:[.-][A-Z]{1,2})?", self.symbol):
+            raise ValueError("paper equity symbols must be a US-style ticker, e.g. AAPL or BRK.B")
         return self
 
     @field_validator("side", mode="before")

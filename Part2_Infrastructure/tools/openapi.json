@@ -882,6 +882,16 @@
             "title": "Order Type",
             "type": "string"
           },
+          "paper_execution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaperExecutionReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "quantity": {
             "anyOf": [
               {
@@ -966,6 +976,51 @@
           "events"
         ],
         "title": "OrderTimeline",
+        "type": "object"
+      },
+      "PaperExecutionReference": {
+        "description": "Trusted quote evidence for a paper equity order.\n\nThe public web route obtains this server-side and the authenticated gateway\nconsumes it. Browsers never choose the price or the provenance fields.",
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "asset_class": {
+            "const": "equity",
+            "default": "equity",
+            "title": "Asset Class",
+            "type": "string"
+          },
+          "currency": {
+            "const": "USD",
+            "default": "USD",
+            "title": "Currency",
+            "type": "string"
+          },
+          "delayed": {
+            "default": false,
+            "title": "Delayed",
+            "type": "boolean"
+          },
+          "price": {
+            "exclusiveMinimum": 0.0,
+            "title": "Price",
+            "type": "number"
+          },
+          "source": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "price",
+          "as_of",
+          "source"
+        ],
+        "title": "PaperExecutionReference",
         "type": "object"
       },
       "Position": {

@@ -165,6 +165,16 @@ class Settings:
     risk_monitor_interval_s: float = field(default_factory=lambda: _env_float("RISK_MONITOR_INTERVAL_S", 1.0))
     # Taker fee applied to paper fills, in bps.
     paper_fee_bps: float = field(default_factory=lambda: _env_float("PAPER_FEE_BPS", 4.0))
+    # Equity orders use a trusted quote rather than an exchange ladder. Keep the
+    # model explicit and conservative: this is simulated execution, never L2.
+    paper_equity_slippage_bps: float = field(
+        default_factory=lambda: _env_float("PAPER_EQUITY_SLIPPAGE_BPS", 8.0)
+    )
+    # A weekend close remains usable for a paper demonstration, but a quote
+    # older than a week is not evidence a risk engine should size against.
+    paper_equity_quote_max_age_s: float = field(
+        default_factory=lambda: _env_float("PAPER_EQUITY_QUOTE_MAX_AGE_S", 604_800.0)
+    )
     # Maker fee, for a resting order that was filled *by* someone crossing the
     # spread rather than by crossing it. Charging a resting fill the taker fee
     # would report a cost the desk did not pay.
