@@ -102,10 +102,83 @@ function sanitise(body: Partial<SweepRequest>): SweepRequest {
   };
 }
 
+/**
+ * The engine's floor, restated here so the failure can name its own cause.
+ *
+ * `runSweep` throws `Not enough data: 3 bars.` and the route used to return that
+ * verbatim. It is a true sentence that helps nobody: it reports the symptom
+ * (three bars) without the cause (this vendor has almost no intraday history
+ * for equities) or the fix (ask for daily). A reader sees a broken app rather
+ * than a data limit they can work around in one click.
+ *
+ * That is the same failure the equity routing bug had — a message that named
+ * the wrong thing, so a fixable problem looked like an outage. Kept in step
+ * with `engine.ts` by `backtest-route.test.ts`, which reads both literals.
+ */
+const MIN_BARS = 200;
+
+/** Daily is only a suggestion when the caller was not already asking for it. */
+function interval1dWouldHelp(interval: string): boolean {
+  return interval !== "1d";
+}
+
+/**
+ * Why a window came back too short, in terms the reader can act on.
+ *
+ * Deliberately specific about the equity-intraday case, because that is the one
+ * a user hits by changing a dropdown and cannot otherwise diagnose: MSFT serves
+ * 400 daily bars and 6 four-hourly ones from the same provider on the same key.
+ */
+function explainShortWindow(
+  symbol: string,
+  interval: string,
+  source: string,
+  got: number,
+  asked: number,
+): string {
+  const head =
+    `${symbol} · ${interval} returned only ${got} bars from ${source}, and a sweep needs at least ${MIN_BARS}.`;
+
+  if (source === "synthetic") {
+    return `${head} No provider could serve this symbol, so nothing was measured.`;
+  }
+  if (interval !== "1d") {
+    // The actionable half. Free equity tiers carry a few days of intraday
+    // history and years of daily, so the same symbol works immediately one
+    // control away — which the old message gave no way to discover.
+    return `${head} Free equity tiers keep only a few days of intraday history `
+      + `but years of daily. Switch Interval to 1d for this symbol, or trade a crypto pair, `
+      + `which streams full intraday history from the venue.`;
+  }
+  return `${head} Ask for fewer bars, or pick a symbol with a longer listing history.`;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const req = sanitise((await request.json()) as Partial<SweepRequest>);
     const { bars, source, warnings } = await loadBars(req.symbol, req.interval, req.bars);
+
+    // Checked here rather than left to the engine's throw, because this is the
+    // only layer that knows WHICH provider answered and what was asked for.
+    // 422 rather than 400: the request was well-formed and the data was not
+    // there, and a client cannot fix a 400 by retrying with a different symbol.
+    if (bars.length < MIN_BARS) {
+      return NextResponse.json(
+        {
+          error: explainShortWindow(req.symbol, req.interval, source, bars.length, req.bars),
+          symbol: req.symbol,
+          interval: req.interval,
+          source,
+          barsReturned: bars.length,
+          barsRequired: MIN_BARS,
+          // The interval that would work, so the UI can offer it as an action
+          // rather than asking the reader to infer it from prose.
+          suggestedInterval: interval1dWouldHelp(req.interval) ? "1d" : null,
+          warnings,
+        },
+        { status: 422 },
+      );
+    }
 
     // The benchmark is loaded through the same routing as the traded symbol, so
     // an index ETF needs no special case and a benchmark that cannot be served

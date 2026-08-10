@@ -134,6 +134,16 @@ export default function Page() {
   const [running, setRunning] = useState(false);
   const [researchDirty, setResearchDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * An interval the failed request could succeed at, offered as one click.
+   *
+   * Set only from the 422 short-window response, which is the one failure a
+   * user causes by changing a dropdown: free equity tiers hold years of daily
+   * history and days of intraday, so MSFT · 4h dies at 6 bars while MSFT · 1d
+   * returns 400. The banner offering "Switch to 1d" is the difference between
+   * a data limit the reader can step around and what reads as a broken app.
+   */
+  const [errorFix, setErrorFix] = useState<string | null>(null);
   const [view, setView] = useState<WorkspaceView>("overview");
   const [side, setSide] = useState<Side>("BUY");
   const [notional, setNotional] = useState(100_000);
@@ -333,6 +343,7 @@ export default function Page() {
 
       setRunning(true);
       setError(null);
+      setErrorFix(null);
       if (!preserveInspect) {
         setInspect(null);
         setInspectionData(null);
@@ -347,7 +358,14 @@ export default function Page() {
           signal: controller.signal,
         });
         const json = await response.json();
-        if (!response.ok) throw new Error(json.error ?? `HTTP ${response.status}`);
+        if (!response.ok) {
+          // A 422 short-window response names the interval that would work;
+          // remember it so the error banner can offer the fix as an action.
+          if (sequence === runSeq.current) {
+            setErrorFix(typeof json.suggestedInterval === "string" ? json.suggestedInterval : null);
+          }
+          throw new Error(json.error ?? `HTTP ${response.status}`);
+        }
         if (sequence !== runSeq.current) return;
         if (preserveInspect) setInspectionData(json as SweepResponse);
         else setData(json as SweepResponse);
@@ -815,7 +833,24 @@ export default function Page() {
             {error && (
               <div className="banner error" role="alert">
                 <span aria-hidden>✕</span>
-                <div><strong>Sweep failed.</strong> {error}</div>
+                <div>
+                  <strong>Sweep failed.</strong> {error}
+                  {errorFix && (
+                    // Same idiom as "Inspect data health →" one banner down:
+                    // the fix is a click, not a sentence asking for one. The
+                    // run is explicit — `updateRequest` alone would leave the
+                    // rerun to the Auto toggle, and this button says "rerun".
+                    <button
+                      className="text-action"
+                      onClick={() => {
+                        updateRequest({ ...req, interval: errorFix });
+                        void run({ interval: errorFix });
+                      }}
+                    >
+                      Switch to {errorFix} and rerun →
+                    </button>
+                  )}
+                </div>
               </div>
             )}
             {data?.warnings.map((warning) => (
