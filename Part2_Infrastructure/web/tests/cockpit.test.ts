@@ -289,6 +289,33 @@ const auditRoute = readFileSync(
   fileURLToPath(new URL("../app/api/gateway/audit/route.ts", import.meta.url)),
   "utf8",
 );
+const orderTicket = readFileSync(
+  fileURLToPath(new URL("../components/execution/OrderTicket.tsx", import.meta.url)),
+  "utf8",
+);
+const cockpit = readFileSync(
+  fileURLToPath(new URL("../components/execution/ExecutionCockpit.tsx", import.meta.url)),
+  "utf8",
+);
+const page = readFileSync(
+  fileURLToPath(new URL("../app/page.tsx", import.meta.url)),
+  "utf8",
+);
+
+describe("token-guarded order entry has an in-context recovery path", () => {
+  it("keeps the operator credential in shared memory and exposes no storage path", () => {
+    assert.match(orderTicket, /type="password"/);
+    assert.match(orderTicket, /onOperatorTokenChange/);
+    assert.match(orderTicket, /Held in memory for this tab only/);
+    assert.doesNotMatch(orderTicket, /localStorage|sessionStorage|document\.cookie/);
+  });
+
+  it("wires the same credential state used by Reliability into Execution", () => {
+    assert.match(cockpit, /onOperatorTokenChange=\{onOperatorTokenChange\}/);
+    assert.match(page, /onOperatorTokenChange=\{systems\.setToken\}/);
+    assert.match(page, /operatorGuard=\{systems\.guard\}/);
+  });
+});
 
 describe("order submission stays behind the operator gate", () => {
   it("authorises before doing anything else", () => {

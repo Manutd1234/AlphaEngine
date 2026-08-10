@@ -89,6 +89,9 @@ export interface CockpitProps {
   onLimitPriceChange: (price: number | null) => void;
   /** Operator credential shared with the Reliability tab and the header. */
   operatorToken?: string;
+  operatorGuard?: "token" | "open-dev" | "open-demo" | "locked";
+  operatorTokenEnv?: string;
+  onOperatorTokenChange?: (token: string) => void;
   /** Strategy tag proposed by the research tab, when a run has been promoted. */
   researchStrategy?: string | null;
   /** Experiment id to stamp on the order so a fill can be traced to its idea. */
@@ -110,6 +113,9 @@ export default function ExecutionCockpit({
   onOrderTypeChange,
   onLimitPriceChange,
   operatorToken,
+  operatorGuard,
+  operatorTokenEnv,
+  onOperatorTokenChange,
   researchStrategy,
   researchExperimentId,
   onOpenResearch,
@@ -298,6 +304,9 @@ export default function ExecutionCockpit({
             onOrderTypeChange={onOrderTypeChange}
             onLimitPriceChange={onLimitPriceChange}
             operatorToken={operatorToken}
+            operatorGuard={operatorGuard}
+            operatorTokenEnv={operatorTokenEnv}
+            onOperatorTokenChange={onOperatorTokenChange}
             strategy={researchStrategy ?? null}
             experimentId={researchExperimentId ?? null}
             halted={effectiveBook?.trading_halted ?? false}

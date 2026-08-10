@@ -1561,6 +1561,9 @@ export default function Page() {
                 onOrderTypeChange={setOrderType}
                 onLimitPriceChange={setLimitPrice}
                 operatorToken={systems.token}
+                operatorGuard={systems.guard}
+                operatorTokenEnv={systems.tokenEnv}
+                onOperatorTokenChange={systems.setToken}
                 researchStrategy={activeResult ? activeResult.request.strategy : null}
                 researchExperimentId={null}
                 onOpenResearch={() => navigate("research")}

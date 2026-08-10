@@ -14,8 +14,9 @@
  *
  * Nothing here decides anything. Every order goes to the gateway and is judged
  * by the same gates a Telegram or console order faces; this component only
- * displays the verdict. The credential stays on the server — the browser calls
- * a same-origin route, never the gateway.
+ * displays the verdict. The gateway credential stays on the server. A separate
+ * operator credential, when required, is held only in this tab's memory and is
+ * sent to the same-origin route — never directly to the gateway.
  */
 
 import { useRef, useState, type CSSProperties } from "react";
@@ -37,11 +38,13 @@ interface OrderTicketProps {
   onOrderTypeChange: (orderType: "MARKET" | "LIMIT") => void;
   onLimitPriceChange: (price: number | null) => void;
   /**
-   * The operator credential from the Reliability tab. Live submissions carry
-   * it as a Bearer header — the route's write guard rejects without it on
-   * token-guarded deployments, which this ticket used to trigger silently.
+   * The operator credential shared with Reliability. Live submissions carry it
+   * as a Bearer header to the same-origin route.
    */
   operatorToken?: string;
+  operatorGuard?: "token" | "open-dev" | "open-demo" | "locked";
+  operatorTokenEnv?: string;
+  onOperatorTokenChange?: (token: string) => void;
   strategy: string | null;
   experimentId: string | null;
   halted: boolean;
@@ -89,8 +92,9 @@ const PRESETS: Preset[] = [
 
 export default function OrderTicket({
   symbol, side, notional, orderType, limitPrice, onSideChange, onNotionalChange,
-  onOrderTypeChange, onLimitPriceChange, operatorToken, strategy, experimentId,
-  halted, haltedSymbols, mode, judge, onSubmitted, onOpenResearch,
+  onOrderTypeChange, onLimitPriceChange, operatorToken, operatorGuard,
+  operatorTokenEnv, onOperatorTokenChange, strategy, experimentId, halted,
+  haltedSymbols, mode, judge, onSubmitted, onOpenResearch,
 }: OrderTicketProps) {
   const [busy, setBusy] = useState(false);
   // Local rather than lifted. `orderType` and `limitPrice` live in page.tsx so
@@ -98,7 +102,7 @@ export default function OrderTicket({
   // time-in-force from another panel, so lifting it would add a prop for no reader.
   const [timeInForce, setTimeInForce] = useState<"GTC" | "DAY" | "IOC">("GTC");
   const [decisions, setDecisions] = useState<Decision[]>([]);
-  const [error, setError] = useState<{ error: string; hint?: string } | null>(null);
+  const [error, setError] = useState<{ code?: string; error: string; hint?: string } | null>(null);
   // Monotonic per submit: the cascade's animation key. A decision id would
   // also work when present, but rejections can arrive without one.
   const decisionSeq = useRef(0);
@@ -106,6 +110,9 @@ export default function OrderTicket({
 
   const symbolHalted = halted || haltedSymbols.includes(symbol);
   const disabled = mode === "outage";
+  const credentialMissing = mode === "live"
+    && operatorGuard === "token"
+    && !operatorToken?.trim();
   const limitInvalid = orderType === "LIMIT" && !(limitPrice != null && limitPrice > 0);
   const bandBps = orderType === "LIMIT" && limitPrice && mid
     ? (Math.abs(limitPrice - mid) / mid) * 1e4
@@ -163,7 +170,11 @@ export default function OrderTicket({
         });
         const body = await response.json().catch(() => ({}));
         if (!response.ok) {
-          setError({ error: body.error ?? `The order route answered HTTP ${response.status}.`, hint: body.hint });
+          setError({
+            code: body.code,
+            error: body.error ?? `The order route answered HTTP ${response.status}.`,
+            hint: body.hint,
+          });
           failed = true;
           break;
         }
@@ -221,6 +232,31 @@ export default function OrderTicket({
           Sandbox: verdicts are computed in this browser by the gateway&apos;s own gate logic against
           the generated book. No order leaves this page.
         </p>
+      ) : null}
+
+      {mode === "live" && operatorGuard === "token" && onOperatorTokenChange ? (
+        <div className="cockpit-ticket__credential">
+          <label>
+            <span>Operator credential</span>
+            <input
+              type="password"
+              value={operatorToken ?? ""}
+              onChange={(event) => {
+                onOperatorTokenChange(event.target.value);
+                if (error?.code === "operator_auth_failed") setError(null);
+              }}
+              placeholder={operatorTokenEnv ?? "Operator token"}
+              autoComplete="off"
+              spellCheck={false}
+              aria-invalid={error?.code === "operator_auth_failed" || undefined}
+            />
+          </label>
+          <small className="muted">
+            {credentialMissing
+              ? "Required for live orders. Held in memory for this tab only."
+              : "Credential ready · held in memory for this tab only."}
+          </small>
+        </div>
       ) : null}
 
       <div className="cockpit-ticket__form">
@@ -300,9 +336,11 @@ export default function OrderTicket({
         <button
           type="button"
           className="primary-action"
-          disabled={busy || disabled || !(notional > 0) || limitInvalid}
+          disabled={busy || disabled || credentialMissing || !(notional > 0) || limitInvalid}
           title={
-            limitInvalid
+            credentialMissing
+              ? "Enter the operator credential above to enable live order submission."
+              : limitInvalid
               ? "Limit orders need a price — the grey number in the field is the current mark, not a value."
               : !(notional > 0) ? "Set a notional first." : undefined
           }
@@ -340,7 +378,7 @@ export default function OrderTicket({
             key={preset.id}
             type="button"
             className={`icon${preset.tone ? ` preset--${preset.tone}` : ""}`}
-            disabled={busy || disabled}
+            disabled={busy || disabled || credentialMissing}
             title={preset.hint}
             onClick={() => void submit(preset.repeat ?? 1, preset.notional, "preset")}
           >
