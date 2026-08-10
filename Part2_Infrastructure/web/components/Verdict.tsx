@@ -8,6 +8,8 @@
  * out-of-sample number next to the raw one and says plainly which way it went.
  */
 
+import { type CSSProperties } from "react";
+
 import { SweepResponse } from "@/lib/types";
 import { fmt, signedPct, trackRecordNote } from "@/lib/format";
 
@@ -59,7 +61,11 @@ export default function Verdict({ data }: { data: SweepResponse }) {
         </div>
       </div>
 
+      {/* The pill above answered instantly; the evidence assembles after it.
+          Keyed by data identity so only a new result replays the stagger —
+          re-renders and resizes leave settled metrics alone. */}
       <div
+        key={data.dataHash ?? "metrics"}
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
@@ -70,34 +76,40 @@ export default function Verdict({ data }: { data: SweepResponse }) {
         }}
       >
         <Metric
+          index={0}
           label="In-sample Sharpe"
           value={fmt(data.best.sharpe, 2)}
           note={`best of ${data.combosTested} combos`}
         />
         <Metric
+          index={1}
           label="Hurdle from the search"
           value={fmt(data.expectedMaxSharpe, 2)}
           note={`what ${data.combosTested} random trials would beat`}
         />
         <Metric
+          index={2}
           label="Probabilistic Sharpe (PSR)"
           value={fmt(psr, 3)}
           note="P(true Sharpe > 0) before the search penalty"
           emphasis={psr < 0.95 ? "var(--warning-text)" : undefined}
         />
         <Metric
+          index={3}
           label="Deflated Sharpe (DSR)"
           value={fmt(data.deflatedSharpeRatio, 3)}
           note="P(true Sharpe > 0) after paying for the search"
           emphasis={s.text}
         />
         <Metric
+          index={4}
           label={`Min track record (${Math.round((data.minTrackRecord?.confidence ?? 0.95) * 100)}%)`}
           value={trlDisplay.value}
           note={trlDisplay.note}
           emphasis={trlDisplay.met === false ? "var(--critical-text)" : undefined}
         />
         <Metric
+          index={5}
           label="Walk-forward OOS Sharpe"
           value={oos == null ? "—" : fmt(oos, 2)}
           note="on data the parameters never saw"
@@ -116,18 +128,21 @@ export default function Verdict({ data }: { data: SweepResponse }) {
 }
 
 function Metric({
+  index,
   label,
   value,
   note,
   emphasis,
 }: {
+  /** Position in the 40ms stagger. */
+  index: number;
   label: string;
   value: string;
   note: string;
   emphasis?: string;
 }) {
   return (
-    <div>
+    <div className="stagger-reveal" style={{ "--stagger-i": index } as CSSProperties}>
       <div style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)" }}>
         {label}
       </div>

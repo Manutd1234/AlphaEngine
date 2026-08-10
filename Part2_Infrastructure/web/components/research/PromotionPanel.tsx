@@ -8,6 +8,13 @@
  * absence of a warning means safety; showing the whole vector every time makes
  * the one red row the thing the eye goes to.
  *
+ * The reveal is evidence assembly, not celebration: the six gates stagger in
+ * keyed by the run's data identity, so a re-render is not a re-animate and a
+ * resize is not a re-animate — only a new result replays the sequence. When
+ * eligibility flips from blocked to clear, the hand-off button pulses exactly
+ * once. That pulse carries `--ease-pop`, the single overshoot easing in the
+ * product; its scarcity is deliberate and load-bearing.
+ *
  * The hand-off button is disabled until every gate clears, and it does exactly
  * one thing: carry the instrument into the Execution tab so the candidate can be
  * priced against a live book. It does not submit an order, size a position, or
@@ -15,6 +22,9 @@
  * research surface that could reach them would be the wrong shape of tool.
  */
 
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+
+import NumberTicker from "@/components/common/NumberTicker";
 import { fmt } from "@/lib/format";
 import type { PromotionGate } from "@/lib/types";
 
@@ -25,6 +35,8 @@ interface PromotionPanelProps {
   slow: number;
   strategyLabel: string;
   slippageBps: number;
+  /** The run's data identity — the reveal's animation key. */
+  dataHash?: string | null;
   blocked?: boolean;
   blockedReason?: string;
   onHandOff: () => void;
@@ -37,11 +49,21 @@ export default function PromotionPanel({
   slow,
   strategyLabel,
   slippageBps,
+  dataHash,
   blocked = false,
   blockedReason,
   onHandOff,
 }: PromotionPanelProps) {
   const failed = gate.total - gate.passed;
+
+  // The one-shot pulse: fires on the false→true edge only, and the class is
+  // removed on animationend so a re-render can never replay it.
+  const [pulse, setPulse] = useState(false);
+  const wasEligible = useRef(gate.eligible);
+  useEffect(() => {
+    if (!wasEligible.current && gate.eligible) setPulse(true);
+    wasEligible.current = gate.eligible;
+  }, [gate.eligible]);
 
   return (
     <div className="card promotion-card">
@@ -56,7 +78,8 @@ export default function PromotionPanel({
             color: gate.eligible ? "var(--success-text)" : "var(--critical-text)",
           }}
         >
-          <span aria-hidden>{gate.eligible ? "✓" : "✕"}</span> {gate.passed}/{gate.total} cleared
+          <span aria-hidden>{gate.eligible ? "✓" : "✕"}</span>{" "}
+          <NumberTicker value={gate.passed} />/{gate.total} cleared
         </span>
       </div>
 
@@ -66,9 +89,16 @@ export default function PromotionPanel({
           : `${failed} ${failed === 1 ? "gate blocks" : "gates block"} promotion. Each one names what it measured and why it exists.`}
       </p>
 
-      <ul className="promotion-list">
-        {gate.checks.map((check) => (
-          <li key={check.id} className={check.passed ? "is-pass" : "is-fail"}>
+      {/* Keyed by data identity: a new result remounts the list and replays
+          the assembly; anything else — hover, resize, parent re-render —
+          leaves the settled rows alone. */}
+      <ul className="promotion-list" key={dataHash ?? "run"} style={{ "--stagger-step": "70ms" } as CSSProperties}>
+        {gate.checks.map((check, index) => (
+          <li
+            key={check.id}
+            className={`stagger-reveal ${check.passed ? "is-pass" : "is-fail"}`}
+            style={{ "--stagger-i": index } as CSSProperties}
+          >
             <span className="promotion-mark" aria-hidden>
               {check.passed ? "✓" : "✕"}
             </span>
@@ -101,8 +131,9 @@ export default function PromotionPanel({
           </small>
         </div>
         <button
-          className="primary-action"
+          className={`primary-action${pulse ? " promotion-pulse" : ""}`}
           onClick={onHandOff}
+          onAnimationEnd={() => setPulse(false)}
           disabled={!gate.eligible || blocked}
           title={
             blocked

@@ -23,6 +23,12 @@ interface WorkspaceSubtabsProps<T extends string> {
    * reads as the actual sequence of the desk's job.
    */
   secondary?: readonly T[];
+  /**
+   * Sections opened this session: their step number cross-fades to a ✓.
+   * Deliberately per-session and never persisted — a marker that survives
+   * reload claims memory of a session that no longer exists.
+   */
+  visited?: readonly T[];
 }
 
 /**
@@ -46,6 +52,7 @@ export default function WorkspaceSubtabs<T extends string>({
   onChange,
   actions,
   secondary,
+  visited,
 }: WorkspaceSubtabsProps<T>) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
 
@@ -80,6 +87,7 @@ export default function WorkspaceSubtabs<T extends string>({
           const selected = tab.id === activeId;
           const step = steps.indexOf(tab);
           const isSecondary = step === -1;
+          const isVisited = !isSecondary && (visited?.includes(tab.id) ?? false);
           return (
             <button
               key={tab.id}
@@ -98,11 +106,20 @@ export default function WorkspaceSubtabs<T extends string>({
                  the tab's accessible NAME improves by losing it, going from
                  "Limits Headroom & concentration" to "Limits". */
               title={tab.description}
+              aria-label={isVisited ? `${tab.label}, visited` : undefined}
               onClick={() => onChange(tab.id)}
               onKeyDown={(event) => handleKeyDown(event, index)}
             >
               {!isSecondary && (
-                <span className="workspace-subtabs__step" aria-hidden>{step + 1}</span>
+                /* Number and ✓ occupy the same grid cell; visiting cross-fades
+                   between them. Glyph, never colour alone. */
+                <span
+                  className={`workspace-subtabs__step${isVisited ? " is-visited" : ""}`}
+                  aria-hidden
+                >
+                  <span className="workspace-subtabs__step-num">{step + 1}</span>
+                  <span className="workspace-subtabs__step-check">✓</span>
+                </span>
               )}
               <strong>{tab.label}</strong>
             </button>

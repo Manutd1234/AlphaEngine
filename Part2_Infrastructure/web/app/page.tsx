@@ -178,6 +178,16 @@ export default function Page() {
   const [autoRun, setAutoRun] = useState(true);
   const [autoSuspended, setAutoSuspended] = useState<string | null>(null);
   const [commandBarOpen, setCommandBarOpen] = useState(false);
+  // Rail progress: sections opened this session, marked ✓ on their rails.
+  // Per-session on purpose — never persisted, so a fresh tab starts honest.
+  const [visitedResearch, setVisitedResearch] = useState<readonly ResearchSection[]>([]);
+  const [visitedExecution, setVisitedExecution] = useState<readonly ExecutionSection[]>([]);
+  useEffect(() => {
+    setVisitedResearch((seen) => (seen.includes(researchSection) ? seen : [...seen, researchSection]));
+  }, [researchSection]);
+  useEffect(() => {
+    setVisitedExecution((seen) => (seen.includes(executionSection) ? seen : [...seen, executionSection]));
+  }, [executionSection]);
   // The request the newest run was started with. `sameRequest` against this is
   // what makes the idle fallback, the `change` commit and ⌘Enter idempotent
   // instead of three requests for one edit.
@@ -898,6 +908,7 @@ export default function Page() {
               activeId={researchSection}
               onChange={changeResearchSection}
               secondary={["runs", "codex"]}
+              visited={visitedResearch}
               actions={
                 <>
                   <span className="rail-meta num">{req.symbol} · {req.interval}</span>
@@ -1203,6 +1214,7 @@ export default function Page() {
                             symbol={data.request.symbol}
                             fast={data.best.fast}
                             slow={data.best.slow}
+                            dataHash={data.dataHash ?? null}
                             strategyLabel={STRATEGY_LABELS[data.request.strategy]}
                             slippageBps={data.request.slippageBps}
                             blocked={researchDirty || running || Boolean(inspect)}
@@ -1287,6 +1299,7 @@ export default function Page() {
               tabs={EXECUTION_SECTIONS}
               activeId={executionSection}
               onChange={changeExecutionSection}
+              visited={visitedExecution}
               actions={
                 <span className="rail-meta num">
                   {side} {req.symbol} · {usd(notional, 0)}

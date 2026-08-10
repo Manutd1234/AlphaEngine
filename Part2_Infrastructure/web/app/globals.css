@@ -13120,3 +13120,54 @@ button:active:not(:disabled) {
     justify-items: start;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Research journey — staggered evidence assembly (Slice 4)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* One stagger mechanism for every list that assembles: the element sets
+   --stagger-i (its position) and the container may set --stagger-step (the
+   interval; 40ms default, the promotion gate uses 70ms). The animation key is
+   ALWAYS data identity — the React key on the container — never width or
+   render count, so resize and re-render replay nothing. `both` holds rows
+   invisible until their turn; the reduce block collapses duration and delay,
+   so with motion off the whole list lands in one paint. */
+.stagger-reveal {
+  animation: rise-in var(--dur-slow) var(--ease-out) both;
+  animation-delay: calc(var(--stagger-i, 0) * var(--stagger-step, 40ms));
+}
+
+/* The gate-clear pulse: the SINGLE use of --ease-pop in the product. It fires
+   once on the eligibility edge (false→true) and the class is removed on
+   animationend. A second use of this easing anywhere is a review failure, not
+   a style choice — scarcity is what keeps the overshoot meaning something. */
+@keyframes gate-clear-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+.promotion-pulse {
+  animation: gate-clear-pulse var(--dur-slow) var(--ease-pop);
+}
+
+/* Rail progress: the step number and the ✓ share one grid cell and cross-fade
+   when the section has been opened this session. The state lives in React and
+   dies with the tab on purpose. */
+.workspace-subtabs__step-num,
+.workspace-subtabs__step-check {
+  grid-area: 1 / 1;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.workspace-subtabs__step-check {
+  opacity: 0;
+}
+
+.workspace-subtabs__step.is-visited .workspace-subtabs__step-num {
+  opacity: 0;
+}
+
+.workspace-subtabs__step.is-visited .workspace-subtabs__step-check {
+  opacity: 1;
+}
