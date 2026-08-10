@@ -144,3 +144,31 @@ Test-enforced properties every slice must keep green:
 House rules, enforced by review rather than test: no new npm dependencies, no emoji in UI, no
 colour-only meaning, honest labels ("mocked", "from this browser's run log"),
 `prefers-reduced-motion` respected everywhere.
+
+(`tests/motion.test.ts`, added in Slice 2, joined the ledger: one reduce block that collapses
+durations rather than deleting animations, no literal-duration transitions outside the token
+ladder, and NumberTicker's mount/reduce guards.)
+
+---
+
+## 5. Shipped versus deferred — the closing table
+
+Every slice shipped; the deliberately-not-done list in §3 held. What each slice left behind:
+
+| Shipped | Where to see it |
+|---|---|
+| Motion ladder (5 durations, 3 easings), one 1ms reduce contract | `globals.css` `:root`; the single `@media (prefers-reduced-motion: reduce)` block |
+| NumberTicker (change-only, width-reserving, reduce-guarded) | KpiDeck, promotion cleared-count, "decided in X ms", PnlStrip, portfolio equity |
+| Strategy Codex + `lib/strategy-progress.ts` + picker optgroups | Research → Codex; the Model select |
+| Gate assembly, verdict stagger, one `--ease-pop` pulse, rail ✓ | Research → Decision and Summary; the research/execution rails |
+| Tick flashes, order-gate cascade, `@starting-style` banner | Execution → Trade |
+| AnimatedPath (`pathLength=1`), opacity-only MC cone, heatmap wavefront | Research → Summary and Parameters |
+| View Transitions under a named stable header; `html.is-vt` suppression | any tab switch on Chromium |
+| ⌘K: unit-tested subsequence scorer, ~95 commands from `page.tsx`, recents | `lib/command-score.ts`; `tests/command-score.test.ts` |
+| Verdict converted to classes with `data-tone` over token pairs | `components/Verdict.tsx`; the `.verdict-*` block |
+
+| Deferred, deliberately | Why it stays deferred |
+|---|---|
+| StatTile / KpiDeck / PageMetric consolidation into one primitive | pixel parity nobody sees; bridge-test churn risk — Verdict's conversion was the cheap, high-value subset |
+| Chart library, animation library, achievement system, locked content, family colour tokens, persisted rail state | §3 — each negation still holds after eight slices |
+| Historical "twenty-six" prose in `benchmark.test.ts` / `route.ts` comments | those describe a past coercion bug at its historical size; rewriting history is its own dishonesty. Present-tense claims were updated to forty-six |

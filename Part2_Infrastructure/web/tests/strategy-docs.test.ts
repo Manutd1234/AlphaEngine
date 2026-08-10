@@ -1,7 +1,7 @@
 /**
  * The strategy catalogue's documentation.
  *
- * The picker went from three entries to twenty-six in four commits. Twenty-six
+ * The picker grew from three entries to forty-six. Forty-six
  * names with no explanation is not more capability — it is a longer list to try
  * at random until one scores well, which is exactly the search process the
  * Deflated Sharpe Ratio exists to punish.
@@ -9,7 +9,7 @@
  * So the assertions here are mostly about the failure half. It is the half that
  * goes unwritten, and it is the half that decides whether a reader can rule a
  * strategy out before running it. A `whenItFails` that says "may underperform in
- * certain conditions" is the same sentence twenty-six times and carries no
+ * certain conditions" is the same sentence forty-six times and carries no
  * information at all; several of these tests exist specifically to reject that.
  */
 

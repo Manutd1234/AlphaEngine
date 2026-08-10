@@ -4,14 +4,16 @@
  * What the selected strategy is, and when it stops working.
  *
  * Sits directly under the controls, next to the choice it explains. A reference
- * page listing all twenty-six would be read once and never again; a card that
+ * page listing all forty-six would be read once and never again; a card that
  * changes when the dropdown changes is read every time someone picks something
- * unfamiliar, which is the moment the explanation is worth anything.
+ * unfamiliar, which is the moment the explanation is worth anything. (The
+ * codex section is that reference page, and it exists for the opposite
+ * moment: browsing before choosing.)
  *
  * "When it fails" is given the same weight as "when it works", not a smaller
  * one. A catalogue that only describes the conditions each model was built for
- * reads as twenty-six good ideas, and the reason the picker needs documenting
- * at all is that they are twenty-six trade-offs.
+ * reads as forty-six good ideas, and the reason the picker needs documenting
+ * at all is that they are forty-six trade-offs.
  *
  * Parameter meanings are rendered from `PARAM_MEANING` rather than restated in
  * the prose, so a renamed axis cannot end up described one way here and

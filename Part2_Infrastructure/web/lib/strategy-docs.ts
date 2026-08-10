@@ -2,8 +2,8 @@
  * What each strategy is, and — the half that usually goes unwritten — when it
  * does not work.
  *
- * The picker went from three strategies to twenty-six in four commits. A
- * dropdown of twenty-six names with no explanation is not more capability, it
+ * The picker grew from three strategies to forty-six. A
+ * dropdown of forty-six names with no explanation is not more capability, it
  * is a longer list of things to try at random until one of them scores well,
  * which is precisely the search process the Deflated Sharpe Ratio exists to
  * punish. A reader who knows that Donchian breakout loses money in a range and
@@ -12,7 +12,7 @@
  *
  * `whenItFails` is mandatory and is never a hedge. Every entry names a specific
  * market condition, because "may underperform in some conditions" is the same
- * sentence for all twenty-six and therefore tells a reader nothing.
+ * sentence for all forty-six and therefore tells a reader nothing.
  *
  * `formula` is the rule as implemented — matching `longState` in `engine.ts` and
  * `build_signals` in `backtester.py`, including the detail both engines share

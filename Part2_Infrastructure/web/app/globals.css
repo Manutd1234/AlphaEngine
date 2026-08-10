@@ -12684,8 +12684,8 @@ button:active:not(:disabled) {
 /* ── Strategy documentation card ───────────────────────────────────────────
    Sits under the controls and changes with the picker. "When it fails" is
    styled with the same prominence as "when it works" on purpose — a catalogue
-   that only describes each model's good conditions reads as twenty-six good
-   ideas rather than twenty-six trade-offs. */
+   that only describes each model's good conditions reads as forty-six good
+   ideas rather than forty-six trade-offs. */
 
 .strategy-doc { container-type: inline-size; }
 
@@ -13311,4 +13311,111 @@ html.is-vt .view-panel {
    milliseconds, and the global button transition would smear it. */
 .command-bar__results button {
   transition: none;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Verdict — the last inline-styled surface, converted (Slice 8)
+   ══════════════════════════════════════════════════════════════════════════
+   One data-tone attribute on the card resolves BOTH custom properties every
+   descendant reads: the fill for washes and borders, the -text step for
+   anything rendered as text. Tones therefore ride the validated ladder and
+   the AA contract stays green by construction — a new tone that skipped the
+   -text step would have to be added here, visibly. */
+
+.verdict-card[data-tone="pass"] {
+  --verdict-fill: var(--status-good);
+  --verdict-text: var(--success-text);
+}
+
+.verdict-card[data-tone="marginal"] {
+  --verdict-fill: var(--status-warning);
+  --verdict-text: var(--warning-text);
+}
+
+.verdict-card[data-tone="fail"] {
+  --verdict-fill: var(--status-critical);
+  --verdict-text: var(--critical-text);
+}
+
+.verdict-card {
+  border-color: color-mix(in srgb, var(--verdict-fill) 45%, transparent);
+}
+
+.verdict-lead {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.verdict-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--verdict-fill) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--verdict-fill) 45%, transparent);
+  flex-shrink: 0;
+  color: var(--verdict-text);
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+}
+
+.verdict-headline {
+  flex: 1;
+  min-width: 240px;
+}
+
+.verdict-headline h3 {
+  font-size: 18px;
+  letter-spacing: -0.01em;
+  margin-bottom: 4px;
+}
+
+.verdict-headline p {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  max-width: 72ch;
+}
+
+.verdict-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--grid);
+}
+
+.verdict-metric__label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.verdict-metric__value {
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.verdict-metric__value[data-tone="warn"] { color: var(--warning-text); }
+.verdict-metric__value[data-tone="critical"] { color: var(--critical-text); }
+.verdict-metric__value[data-tone="verdict"] { color: var(--verdict-text); }
+
+.verdict-metric__note {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.verdict-benchmark {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 14px;
+  max-width: 80ch;
 }

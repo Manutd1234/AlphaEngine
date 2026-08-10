@@ -13,7 +13,11 @@ that loop made navigable.
   portal on `:3000`).
 
 **Keyboard access, everywhere:** `Alt+1` through `Alt+8` switch tabs in the order above.
-`⌘K` / `Ctrl+K` opens the command palette. On Research, `⌘Enter` runs the sweep and records it.
+`⌘K` / `Ctrl+K` opens the command palette — it fuzzy-matches every tab, every rail section,
+all 46 models ("hull" finds Hull trend) and every research symbol, and opens on this browser's
+recent commands when the query is empty. On Research, `⌘Enter` runs the sweep and records it.
+On Chromium, tab switches cross-fade under the fixed header via View Transitions; elsewhere,
+and always under reduced motion, they cut cleanly.
 
 ---
 
@@ -71,10 +75,17 @@ Decision the six-veto promotion gate beside position sizing; Runs the experiment
 from this browser only, capped at 60, deduplicated.
 
 **The moment worth showing:** the promotion gate clearing — six vetoes (DSR among them)
-evaluated one by one, and a Promote button that stays dead until every one clears. Also worth
-ten seconds: drag the fast/slow sliders and watch Auto re-run, then note the trail does *not*
-grow — auto-runs are deliberately not recorded, because the trail is an honest count of
-hypotheses, not keystrokes.
+staggering in one by one, the cleared-count ticking up, and a Promote button that stays dead
+until every gate clears, then pulses exactly once. That pulse is the single overshoot easing in
+the product, and its scarcity is the point. Also worth ten seconds: drag the fast/slow sliders
+and watch Auto re-run, then note the trail does *not* grow — auto-runs are deliberately not
+recorded, because the trail is an honest count of hypotheses, not keystrokes.
+
+**The Codex** (rail, after Runs): all 46 models in seven families, browsable before any run
+exists. Each card carries the summary, the first sentence of *when it fails*, and an
+explored-state chip — `●  best: PASS` versus `◌ not yet run` — derived live from this browser's
+run log and honestly regressing if you clear it. Nothing is locked; clicking a card selects the
+model and jumps to Summary. The picker mirrors it: seven optgroups, "— run" on tried models.
 
 ## Tab 3 — Execution (`#live`, Alt+3)
 
@@ -89,8 +100,12 @@ gateway. Liquidity is the consolidated Binance+Bybit L2 book; click a ladder pri
 limit order back on Trade. Routing & TCA prices the same order across venues against the routed
 execution, not the mid.
 
-**The moment worth showing:** a rejected preset's gate vector. A rejection that names its gate
-is the whole pre-trade thesis in one row. This is the guided demo of Module B.
+**The moment worth showing:** a rejected preset's gate vector — the checks now cascade in at
+40ms steps per decision, the verdict banner slides in, and "decided in X ms" counts up to its
+sub-millisecond figure. A rejection that names its gate is the whole pre-trade thesis in one
+row, and with motion off the failing gate is still findable instantly by its ✗ mark. This is
+the guided demo of Module B. The watchlist beside it flashes a directional wash on real price
+movement only — the signed 24h% next to each price stays the accessible signal.
 
 ## Tab 4 — Portfolio (`#portfolio`, Alt+4)
 
@@ -180,7 +195,9 @@ rather than hidden.
 
 ---
 
-*This tour is finalised in Slice 8 of [`UI_OVERHAUL_PLAN.md`](../UI_OVERHAUL_PLAN.md): as the
-overhaul ships, the moments it adds (the Strategy Codex, the order-gate cascade, ⌘K recents,
-view transitions) are appended to the tabs above, and the tour doubles as the acceptance
-script for the whole overhaul.*
+*All eight slices of [`UI_OVERHAUL_PLAN.md`](../UI_OVERHAUL_PLAN.md) are shipped, and their
+moments are woven into the tabs above: the Strategy Codex and the gate-clear pulse on Research,
+the order-gate cascade and tick flashes on Execution, drawing charts throughout, ⌘K fuzzy
+search with recents, and View Transitions between tabs. This tour doubles as the acceptance
+script: walking it end to end — once with motion on, once with the OS reduce-motion switch set —
+is the manual verification pass.*
