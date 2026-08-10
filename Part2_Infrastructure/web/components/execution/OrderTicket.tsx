@@ -60,8 +60,14 @@ interface OrderTicketProps {
   mode: "live" | "sandbox" | "outage";
   /** The sandbox desk's judge, present only in sandbox mode. */
   judge?: (order: SandboxOrder) => SandboxDecision;
-  onSubmitted: () => void;
+  onSubmitted: (result: OrderSubmissionResult) => void;
   onOpenResearch?: () => void;
+}
+
+export interface OrderSubmissionResult {
+  source: "live" | "sandbox";
+  decisions: number;
+  hasFill: boolean;
 }
 
 interface Decision {
@@ -130,7 +136,6 @@ export default function OrderTicket({
     // (fat-finger, burst) are pinned behaviours, not order drafts.
     const effectiveType = kind === "preset" ? "MARKET" : orderType;
     const collected: Decision[] = [];
-    let failed = false;
     try {
       for (let i = 0; i < count; i += 1) {
         const order = {
@@ -180,23 +185,25 @@ export default function OrderTicket({
             error: body.error ?? `The order route answered HTTP ${response.status}.`,
             hint: body.hint,
           });
-          failed = true;
           break;
         }
         collected.push({ ...(body.decision as Decision), order_type: effectiveType });
       }
-      // A mid-burst failure must not wipe the verdicts already collected, and
-      // a submit that produced nothing has nothing to tell the cockpit to
-      // refresh for — the old path did both.
-      if (collected.length) {
-        decisionSeq.current += 1;
-        setDecisions(collected);
-      }
-      if (collected.length && !failed) onSubmitted();
     } catch {
       setError({ error: "The order could not be submitted from this browser." });
     } finally {
       setBusy(false);
+      // A mid-burst transport failure must not discard earlier fills. The
+      // shared book and audit snapshot still changed before the failed request.
+      if (collected.length) {
+        decisionSeq.current += 1;
+        setDecisions(collected);
+        onSubmitted({
+          source: mode === "sandbox" ? "sandbox" : "live",
+          decisions: collected.length,
+          hasFill: collected.some((decision) => decision.accepted && decision.fill != null),
+        });
+      }
     }
   }
 

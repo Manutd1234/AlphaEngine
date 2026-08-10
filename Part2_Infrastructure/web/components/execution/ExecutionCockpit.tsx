@@ -54,7 +54,7 @@ import DeskTape from "./DeskTape";
 import ExecutionQuality from "./ExecutionQuality";
 import FillQualityHeatmap from "./FillQualityHeatmap";
 import OrderBlotter from "./OrderBlotter";
-import OrderTicket from "./OrderTicket";
+import OrderTicket, { type OrderSubmissionResult } from "./OrderTicket";
 import PnlStrip from "./PnlStrip";
 
 const REFRESH_MS = 4_000;
@@ -98,6 +98,8 @@ export interface CockpitProps {
   onStrategyChange: (strategy: Strategy) => void;
   /** Experiment id to stamp on the order so a fill can be traced to its idea. */
   researchExperimentId?: string | null;
+  /** Invalidates the shared Portfolio/Risk snapshot after a live decision. */
+  onOrderSettled?: (result: OrderSubmissionResult) => void;
   onOpenResearch?: () => void;
 }
 
@@ -121,6 +123,7 @@ export default function ExecutionCockpit({
   strategy,
   onStrategyChange,
   researchExperimentId,
+  onOrderSettled,
   onOpenResearch,
 }: CockpitProps) {
   const [book, setBook] = useState<PortfolioSnapshot | null>(null);
@@ -191,6 +194,14 @@ export default function ExecutionCockpit({
   }, []);
 
   const mode: CockpitMode = book ? "live" : unconfigured && !sandboxOff ? "sandbox" : "outage";
+
+  const handleSubmitted = useCallback((result: OrderSubmissionResult) => {
+    if (result.source !== "live") return;
+    // Cockpit owns its tape and verdict panels; Page owns the single book used
+    // by Portfolio and Risk. Both snapshots are invalidated from one decision.
+    void refresh();
+    onOrderSettled?.(result);
+  }, [onOrderSettled, refresh]);
 
   useEffect(() => {
     void refresh();
@@ -317,7 +328,7 @@ export default function ExecutionCockpit({
             haltedSymbols={effectiveBook?.halted_symbols ?? []}
             mode={mode}
             judge={mode === "sandbox" ? sandboxState.desk.judge : undefined}
-            onSubmitted={mode === "live" ? () => void refresh() : () => undefined}
+            onSubmitted={handleSubmitted}
             onOpenResearch={onOpenResearch}
           />
         </div>

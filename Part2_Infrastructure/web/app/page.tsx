@@ -210,6 +210,9 @@ export default function Page() {
   // second source of truth.
   const book = useBook();
   const systems = useSystemHealth(req.symbol);
+  const refreshBookAfterOrder = useCallback(() => {
+    void book.refresh(true);
+  }, [book.refresh]);
   const navigate = useCallback((
     next: WorkspaceView,
     replace = false,
@@ -1573,6 +1576,7 @@ export default function Page() {
                 strategy={executionStrategy}
                 onStrategyChange={setExecutionStrategy}
                 researchExperimentId={null}
+                onOrderSettled={refreshBookAfterOrder}
                 onOpenResearch={() => navigate("research")}
               />
             </LiveMarket>

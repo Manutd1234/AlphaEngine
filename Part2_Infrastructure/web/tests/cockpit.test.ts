@@ -339,6 +339,22 @@ describe("the execution strategy is an editable order intent", () => {
   });
 });
 
+describe("a settled live order invalidates the shared Portfolio and Risk book", () => {
+  it("reports every collected decision, including a fill before a later burst failure", () => {
+    assert.match(orderTicket, /finally \{[\s\S]*?if \(collected\.length\)/);
+    assert.doesNotMatch(orderTicket, /collected\.length && !failed/);
+    assert.match(orderTicket, /hasFill: collected\.some\(\(decision\) => decision\.accepted && decision\.fill != null\)/);
+  });
+
+  it("keeps sandbox local and refreshes both live snapshot owners", () => {
+    assert.match(cockpit, /if \(result\.source !== "live"\) return/);
+    assert.match(cockpit, /void refresh\(\)/);
+    assert.match(cockpit, /onOrderSettled\?\.\(result\)/);
+    assert.match(page, /void book\.refresh\(true\)/);
+    assert.match(page, /onOrderSettled=\{refreshBookAfterOrder\}/);
+  });
+});
+
 describe("order submission stays behind the operator gate", () => {
   it("authorises before doing anything else", () => {
     assert.match(ordersRoute, /authorise\(request\.headers\.get\("authorization"\)\)/);
