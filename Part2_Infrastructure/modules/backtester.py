@@ -518,7 +518,6 @@ def _state_machine(entry: np.ndarray, exit_: np.ndarray) -> np.ndarray:
 def _batch_two_state(
     strategy: str, df: pd.DataFrame, close: pd.Series, fast: float, slow: float
 ) -> pd.Series:
-    n = len(close)
     high, low, volume = df["high"], df["low"], df["volume"]
     idx = close.index
 
