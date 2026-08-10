@@ -433,7 +433,8 @@ credentials**, and the service-role key never leaves the gateway host.
 |---|---|---|---|
 | `WEB_API_TOKEN` | gateway auth | every authenticated gateway route (`hmac.compare_digest`) | gateway `.env` |
 | `ALPHAENGINE_GATEWAY_URL` / `_TOKEN` | web → gateway | the server-side portfolio/risk proxy; token must equal `WEB_API_TOKEN` | Vercel (server-side) |
-| `ALPHAENGINE_OPERATOR_TOKEN` *(optional)* | web order writes | absent = order submission locked in production (safe default) | Vercel (server-side) |
+| `ALPHAENGINE_OPERATOR_TOKEN` *(optional)* | web operator writes | absent = operator mutations locked in production (safe default) | Vercel (server-side) |
+| `ALPHAENGINE_PAPER_ORDER_DEFAULT` *(optional, exact `1`)* | new paper orders only | lets a missing browser credential use the server-held operator token; supplied credentials remain strict overrides | Vercel (server-side) |
 | `FMP_API_KEY` | [Financial Modeling Prep](https://financialmodelingprep.com) | equity quotes/fundamentals in the provider registry | Vercel (server-side) |
 | `TIINGO_API_KEY` | [Tiingo](https://www.tiingo.com) | equity/crypto bars | Vercel (server-side) |
 | `MASSIVE_API_KEY` | [Massive (Polygon)](https://polygon.io) | market aggregates | Vercel (server-side) |

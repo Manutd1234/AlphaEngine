@@ -388,9 +388,9 @@ describe("execution spends vertical space only where the active task needs it", 
 
 describe("order submission stays behind the operator gate", () => {
   it("authorises before doing anything else", () => {
-    assert.match(ordersRoute, /authorise\(request\.headers\.get\("authorization"\)\)/);
+    assert.match(ordersRoute, /authorisePaperOrder\(request\.headers\.get\("authorization"\)\)/);
     // Compare against the call site, not the import line.
-    const gateAt = ordersRoute.indexOf("authorise(request.headers");
+    const gateAt = ordersRoute.indexOf("authorisePaperOrder(request.headers");
     const submitAt = ordersRoute.indexOf("await callGateway");
     assert.ok(gateAt > 0 && submitAt > 0 && gateAt < submitAt, "the gate must come before the submission");
   });

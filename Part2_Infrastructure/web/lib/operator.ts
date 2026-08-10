@@ -66,6 +66,18 @@ export type GuardMode =
 export const OPERATOR_TOKEN_ENV = "ALPHAENGINE_OPERATOR_TOKEN";
 
 /**
+ * Paper-order-only convenience for a public assessment deployment.
+ *
+ * When this exact flag is `1` and the server has an operator token, a request
+ * with no Authorization header may submit a new paper order. The token never
+ * leaves the server. Any header the caller does provide is still authoritative
+ * and must validate normally; a wrong override never falls back to this path.
+ *
+ * This does not apply to risk controls, cancel/replace, or Systems remediation.
+ */
+export const PAPER_ORDER_DEFAULT_ENV = "ALPHAENGINE_PAPER_ORDER_DEFAULT";
+
+/**
  * The deliberate escape hatch from closed-by-default.
  *
  * Set to the literal string `"1"` and every operator surface — the order
@@ -138,6 +150,29 @@ export function authorise(
     };
   }
   return null;
+}
+
+/** Whether this deployment offers its server-held credential for new paper orders. */
+export function paperOrderDefaultAvailable(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return env[PAPER_ORDER_DEFAULT_ENV]?.trim() === "1" && guardMode(env) === "token";
+}
+
+/**
+ * Authorise only `POST /api/gateway/orders`.
+ *
+ * Header presence means explicit override, including an empty or malformed
+ * header. Only true absence may use the deployment default, which prevents a
+ * mistyped pasted token from being silently accepted under another identity.
+ */
+export function authorisePaperOrder(
+  presented: string | null,
+  env: NodeJS.ProcessEnv = process.env,
+): GuardRejection | null {
+  if (presented !== null) return authorise(presented, env);
+  if (paperOrderDefaultAvailable(env)) return null;
+  return authorise(null, env);
 }
 
 // --------------------------------------------------------------------------

@@ -196,6 +196,12 @@ deployment cannot have its data plane poked by a stranger. These mutations are
 explicitly instance-local provider-routing controls; the Python gateway kill
 switch remains on its authenticated trading surfaces.
 
+For an assessment deployment, `ALPHAENGINE_PAPER_ORDER_DEFAULT=1` may reuse the
+server-held operator token only for a missing credential on new paper orders.
+The secret is never returned to the browser. Any pasted credential is validated
+as a strict override, while kill/flatten, cancel/replace, and remediation remain
+explicitly token-gated.
+
 The four stable subtab IDs now present the incident workflow as **Telemetry &
 SLIs → Services & Circuits → Logs & Traces → Remediation**. The compact strip is
 the only repeated posture summary; the overview begins with active attention

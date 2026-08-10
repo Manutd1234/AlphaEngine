@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { callGateway, failureBody, gatewayBase } from "@/lib/gateway";
 import { emit } from "@/lib/observability";
-import { authorise, guardMode, OPERATOR_TOKEN_ENV } from "@/lib/operator";
+import {
+  authorisePaperOrder,
+  guardMode,
+  OPERATOR_TOKEN_ENV,
+  paperOrderDefaultAvailable,
+} from "@/lib/operator";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,8 +23,9 @@ export const dynamic = "force-dynamic";
  * kill switch is wrong for a ticket a trader sends repeatedly.
  *
  * What is shared is the operator gate: reaching the gateway and being allowed
- * to *move* something are separate questions, so a deployment that can read a
- * book still cannot send an order without `ALPHAENGINE_OPERATOR_TOKEN`.
+ * to *move* something are separate questions. A production deployment may opt
+ * into a server-held default for this paper-order route only; explicit caller
+ * credentials are still validated and every other mutation remains token-only.
  *
  * Every field is validated here and rejected — never coerced. A notional that
  * arrives as "1e9" or a side of "SIDEWAYS" is a 400; silently substituting a
@@ -85,7 +91,7 @@ function parseOrder(input: Record<string, unknown>): { order: Record<string, unk
 }
 
 export async function POST(request: NextRequest) {
-  const rejection = authorise(request.headers.get("authorization"));
+  const rejection = authorisePaperOrder(request.headers.get("authorization"));
   if (rejection) {
     // The authorisation boundary stays first — a config check ahead of it
     // would turn a bad credential's 401 into a 503. But when the guard is
@@ -153,7 +159,11 @@ export async function GET() {
   return NextResponse.json({
     sides: SIDES,
     orderTypes: TYPES,
-    guard: { mode: guardMode(), tokenEnv: OPERATOR_TOKEN_ENV },
+    guard: {
+      mode: guardMode(),
+      tokenEnv: OPERATOR_TOKEN_ENV,
+      paperOrderDefaultAvailable: paperOrderDefaultAvailable(),
+    },
     note:
       "Every order passes the gateway's pre-trade gates. A rejection is returned with HTTP 200 and the full "
       + "check vector, because a blocked order is a result, not a failure.",
