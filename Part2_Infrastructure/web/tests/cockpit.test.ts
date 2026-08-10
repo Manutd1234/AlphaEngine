@@ -317,6 +317,28 @@ describe("token-guarded order entry has an in-context recovery path", () => {
   });
 });
 
+describe("the execution strategy is an editable order intent", () => {
+  it("does not disappear when Research becomes stale", () => {
+    assert.match(page, /useState<Strategy>\(DEFAULT_REQUEST\.strategy\)/);
+    assert.match(page, /strategy=\{executionStrategy\}/);
+    assert.doesNotMatch(page, /researchStrategy=\{activeResult/);
+  });
+
+  it("lets promotion seed the sleeve and the ticket override it", () => {
+    assert.match(page, /setExecutionStrategy\(data\.request\.strategy\)/);
+    assert.match(page, /onStrategyChange=\{setExecutionStrategy\}/);
+    assert.match(orderTicket, /value=\{strategy\}/);
+    assert.match(orderTicket, /id="execution-strategy"/);
+    assert.match(orderTicket, /aria-describedby="execution-strategy-help"/);
+    assert.match(orderTicket, /onStrategyChange\(event\.target\.value as Strategy\)/);
+  });
+
+  it("always stamps the selected sleeve on the submitted order", () => {
+    assert.match(orderTicket, /const order = \{[\s\S]*?strategy,[\s\S]*?\};/);
+    assert.match(orderTicket, /STRATEGY_GROUPS\.map/);
+  });
+});
+
 describe("order submission stays behind the operator gate", () => {
   it("authorises before doing anything else", () => {
     assert.match(ordersRoute, /authorise\(request\.headers\.get\("authorization"\)\)/);

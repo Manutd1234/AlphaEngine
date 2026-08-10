@@ -47,6 +47,7 @@ import {
 } from "@/lib/blotter";
 import { sandboxBook } from "@/lib/portfolio";
 import { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
+import type { Strategy } from "@/lib/types";
 
 import AlertFeed from "./AlertFeed";
 import DeskTape from "./DeskTape";
@@ -92,8 +93,9 @@ export interface CockpitProps {
   operatorGuard?: "token" | "open-dev" | "open-demo" | "locked";
   operatorTokenEnv?: string;
   onOperatorTokenChange?: (token: string) => void;
-  /** Strategy tag proposed by the research tab, when a run has been promoted. */
-  researchStrategy?: string | null;
+  /** Execution-owned strategy sleeve; promotion may seed it, the ticket may override it. */
+  strategy: Strategy;
+  onStrategyChange: (strategy: Strategy) => void;
   /** Experiment id to stamp on the order so a fill can be traced to its idea. */
   researchExperimentId?: string | null;
   onOpenResearch?: () => void;
@@ -116,7 +118,8 @@ export default function ExecutionCockpit({
   operatorGuard,
   operatorTokenEnv,
   onOperatorTokenChange,
-  researchStrategy,
+  strategy,
+  onStrategyChange,
   researchExperimentId,
   onOpenResearch,
 }: CockpitProps) {
@@ -307,7 +310,8 @@ export default function ExecutionCockpit({
             operatorGuard={operatorGuard}
             operatorTokenEnv={operatorTokenEnv}
             onOperatorTokenChange={onOperatorTokenChange}
-            strategy={researchStrategy ?? null}
+            strategy={strategy}
+            onStrategyChange={onStrategyChange}
             experimentId={researchExperimentId ?? null}
             halted={effectiveBook?.trading_halted ?? false}
             haltedSymbols={effectiveBook?.halted_symbols ?? []}

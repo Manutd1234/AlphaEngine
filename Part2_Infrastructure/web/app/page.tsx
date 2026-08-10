@@ -160,6 +160,9 @@ export default function Page() {
   // panels stay mounted, so the draft survives the jump.
   const [orderType, setOrderType] = useState<"MARKET" | "LIMIT">("MARKET");
   const [limitPrice, setLimitPrice] = useState<number | null>(null);
+  // Execution owns its intent. Research promotion seeds it deliberately, while
+  // changing a research dropdown does not silently retag an order draft.
+  const [executionStrategy, setExecutionStrategy] = useState<Strategy>(DEFAULT_REQUEST.strategy);
   const [researchSection, setResearchSection] = useState<ResearchSection>("summary");
   const [showMcBands, setShowMcBands] = useState(true);
   const [executionSection, setExecutionSection] = useState<ExecutionSection>("trade");
@@ -1453,7 +1456,10 @@ export default function Page() {
                               : inspect
                                 ? "Return to the full parameter sweep before promotion."
                                 : "Wait for the active research run to finish."}
-                            onHandOff={() => navigate("live")}
+                            onHandOff={() => {
+                              setExecutionStrategy(data.request.strategy);
+                              navigate("live");
+                            }}
                           />
                           <SizingPanel
                             best={data.best}
@@ -1564,7 +1570,8 @@ export default function Page() {
                 operatorGuard={systems.guard}
                 operatorTokenEnv={systems.tokenEnv}
                 onOperatorTokenChange={systems.setToken}
-                researchStrategy={activeResult ? activeResult.request.strategy : null}
+                strategy={executionStrategy}
+                onStrategyChange={setExecutionStrategy}
                 researchExperimentId={null}
                 onOpenResearch={() => navigate("research")}
               />

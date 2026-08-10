@@ -5733,6 +5733,27 @@ button.console-stat:hover:not(:disabled) {
   width: 100%;
 }
 
+.cockpit-ticket__form select {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 30px 7px 10px;
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.cockpit-ticket__form .cockpit-ticket__strategy {
+  flex: 1.4 1 230px;
+  min-width: min(230px, 100%);
+}
+
+.cockpit-ticket__strategy small {
+  font-size: 10.5px;
+  line-height: 1.25;
+}
+
 .cockpit-ticket__presets {
   display: flex;
   gap: 8px;

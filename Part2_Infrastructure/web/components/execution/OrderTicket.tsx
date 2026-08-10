@@ -26,6 +26,8 @@ import { useLiveMid } from "@/components/execution/live-mid-context";
 import { type GateCheck, type SandboxDecision, type SandboxOrder } from "@/lib/blotter";
 import { fmt, priceDp, usd } from "@/lib/format";
 import { operatorHeaders } from "@/lib/risk-control";
+import { strategiesByFamily } from "@/lib/strategy-progress";
+import { STRATEGY_LABELS, type Strategy } from "@/lib/types";
 
 interface OrderTicketProps {
   symbol: string;
@@ -45,7 +47,8 @@ interface OrderTicketProps {
   operatorGuard?: "token" | "open-dev" | "open-demo" | "locked";
   operatorTokenEnv?: string;
   onOperatorTokenChange?: (token: string) => void;
-  strategy: string | null;
+  strategy: Strategy;
+  onStrategyChange: (strategy: Strategy) => void;
   experimentId: string | null;
   halted: boolean;
   haltedSymbols: string[];
@@ -90,11 +93,13 @@ const PRESETS: Preset[] = [
   { id: "burst", label: "Rate-limit burst", hint: "Twelve $1k orders — the token bucket stops the tail.", notional: 1_000, repeat: 12, tone: "notice" },
 ];
 
+const STRATEGY_GROUPS = [...strategiesByFamily()];
+
 export default function OrderTicket({
   symbol, side, notional, orderType, limitPrice, onSideChange, onNotionalChange,
   onOrderTypeChange, onLimitPriceChange, operatorToken, operatorGuard,
-  operatorTokenEnv, onOperatorTokenChange, strategy, experimentId, halted,
-  haltedSymbols, mode, judge, onSubmitted, onOpenResearch,
+  operatorTokenEnv, onOperatorTokenChange, strategy, onStrategyChange,
+  experimentId, halted, haltedSymbols, mode, judge, onSubmitted, onOpenResearch,
 }: OrderTicketProps) {
   const [busy, setBusy] = useState(false);
   // Local rather than lifted. `orderType` and `limitPrice` live in page.tsx so
@@ -137,7 +142,7 @@ export default function OrderTicket({
           // LIMIT only. The gateway rejects a resting MARKET order with a 422
           // rather than coercing it, so sending one would be asking for an error.
           ...(effectiveType === "LIMIT" ? { time_in_force: timeInForce } : {}),
-          ...(strategy ? { strategy } : {}),
+          strategy,
           // Stamping the experiment id is what later lets a fill in the
           // blotter be traced back to the run that argued for it.
           ...(experimentId ? { client_order_id: `${experimentId}-${Date.now()}-${i}` } : {}),
@@ -207,11 +212,9 @@ export default function OrderTicket({
             Every order is judged by the gateway&apos;s pre-trade gates. A rejection is the answer, not an error.
           </p>
         </div>
-        {strategy ? (
-          <button type="button" className="icon" onClick={onOpenResearch}>
-            tagged {strategy}
-          </button>
-        ) : null}
+        <button type="button" className="icon" onClick={onOpenResearch}>
+          Sleeve · {STRATEGY_LABELS[strategy]}
+        </button>
       </header>
 
       {symbolHalted ? (
@@ -285,6 +288,30 @@ export default function OrderTicket({
             </button>
           ))}
         </div>
+
+        <label className="cockpit-ticket__strategy" htmlFor="execution-strategy">
+          <span>Strategy sleeve</span>
+          <select
+            id="execution-strategy"
+            value={strategy}
+            onChange={(event) => onStrategyChange(event.target.value as Strategy)}
+            aria-describedby="execution-strategy-help"
+            title="This tag groups the order in Portfolio attribution; any resulting position updates aggregate Risk."
+          >
+            {STRATEGY_GROUPS.map(([family, strategies]) => (
+              <optgroup key={family} label={family}>
+                {strategies.map((candidate) => (
+                  <option key={candidate} value={candidate}>
+                    {STRATEGY_LABELS[candidate]}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+          <small id="execution-strategy-help" className="muted">
+            Tags this paper order; it does not run the model automatically.
+          </small>
+        </label>
 
         {orderType === "LIMIT" && (
           <div className="seg seg--type" role="group" aria-label="Time in force">
