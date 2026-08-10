@@ -353,6 +353,13 @@ describe("a settled live order invalidates the shared Portfolio and Risk book", 
     assert.match(page, /void book\.refresh\(true\)/);
     assert.match(page, /onOrderSettled=\{refreshBookAfterOrder\}/);
   });
+
+  it("surfaces the selected sleeve's audited activity in both destination tabs", () => {
+    assert.match(page, /row\.strategy === executionStrategy/);
+    assert.match(page, /STRATEGY_LABELS\[executionStrategy\]/);
+    assert.equal((page.match(/label: "Execution sleeve"/g) ?? []).length, 2);
+    assert.match(page, /aggregate book risk below/);
+  });
 });
 
 describe("order submission stays behind the operator gate", () => {

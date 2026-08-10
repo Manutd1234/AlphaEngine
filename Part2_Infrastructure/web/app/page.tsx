@@ -210,6 +210,12 @@ export default function Page() {
   // second source of truth.
   const book = useBook();
   const systems = useSystemHealth(req.symbol);
+  const selectedSleeveAttribution = book.book?.attribution.by_strategy.find(
+    (row) => row.strategy === executionStrategy,
+  ) ?? null;
+  const selectedSleeveDetail = selectedSleeveAttribution
+    ? `${selectedSleeveAttribution.filled} accepted · ${selectedSleeveAttribution.orders} orders`
+    : "no audited orders yet";
   const refreshBookAfterOrder = useCallback(() => {
     void book.refresh(true);
   }, [book.refresh]);
@@ -993,6 +999,12 @@ export default function Page() {
                   detail: book.risk ? `${book.risk.observations} aligned bars` : "no assumptions substituted",
                   tone: book.risk ? "good" : "warn",
                 },
+                {
+                  label: "Execution sleeve",
+                  value: STRATEGY_LABELS[executionStrategy],
+                  detail: selectedSleeveDetail,
+                  tone: selectedSleeveAttribution?.filled ? "good" : "accent",
+                },
               ]}
             />
             <PortfolioWorkspace
@@ -1040,6 +1052,12 @@ export default function Page() {
                     ? `${book.varValidation.zone} validation · ${book.varValidation.observations} obs`
                     : "historical VaR 95 · 1 day",
                   tone: book.varValidation?.zone === "red" ? "critical" : book.varValidation?.zone === "yellow" ? "warn" : "accent",
+                },
+                {
+                  label: "Execution sleeve",
+                  value: STRATEGY_LABELS[executionStrategy],
+                  detail: `${selectedSleeveDetail} · aggregate book risk below`,
+                  tone: selectedSleeveAttribution?.filled ? "good" : "accent",
                 },
               ]}
             />
