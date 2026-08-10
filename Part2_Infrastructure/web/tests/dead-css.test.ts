@@ -115,8 +115,19 @@ describe("the stylesheet does not grow more dead rules", () => {
    * Measured, not aspirational. Lower this whenever you delete a block; raising
    * it means someone added CSS for markup that does not exist, which is how this
    * file reached 13k lines in the first place.
+   *
+   * 54 -> 29 by deleting 152 rule blocks (672 lines) whose EVERY selector class
+   * was unreferenced. The 29 that remain are not survivors of an oversight:
+   * each appears only in a selector it SHARES with a class that is still
+   * rendered — `.decision-metrics span, .system-summary-grid span` is one rule
+   * and deleting the dead half means rewriting the live one. That is a
+   * different, riskier edit than removing a whole block, and it is worth doing
+   * deliberately rather than in a sweep.
+   *
+   * So this number is now close to a floor rather than a backlog, which is why
+   * the staleness guard below is tighter than the twelve it started with.
    */
-  const BASELINE = 54;
+  const BASELINE = 29;
 
   it(`has at most ${BASELINE} unreferenced classes`, () => {
     assert.ok(
@@ -130,7 +141,7 @@ describe("the stylesheet does not grow more dead rules", () => {
     // A baseline far above reality stops being a ratchet. If a deletion pass has
     // brought this well under, tighten the number in the same commit.
     assert.ok(
-      unreferenced.length >= BASELINE - 12,
+      unreferenced.length >= BASELINE - 6,
       `only ${unreferenced.length} unreferenced classes remain — lower BASELINE to `
         + `${unreferenced.length} so it keeps ratcheting.`,
     );
