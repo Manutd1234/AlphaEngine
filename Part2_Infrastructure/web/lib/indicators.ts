@@ -194,3 +194,142 @@ export function atr(
   }
   return out;
 }
+
+/**
+ * Linearly weighted moving average — weight `i+1` on the i-th bar of the window.
+ *
+ * Its own primitive rather than three call sites because the weight vector is
+ * the part that gets written backwards. Hull, KST and Coppock all need it and
+ * all three would otherwise carry their own copy, which is three chances for
+ * one of them to weight the OLDEST bar most heavily and look plausible.
+ *
+ * `pandas` has no `rolling().wma()`, so the Python reference walks the same
+ * window in the same direction with the same accumulation order.
+ */
+export function wma(values: Float64Array, window: number): Float64Array {
+  const n = values.length;
+  const out = new Float64Array(n).fill(NaN);
+  const period = Math.max(1, Math.round(window));
+  const denominator = (period * (period + 1)) / 2;
+  for (let i = period - 1; i < n; i++) {
+    let total = 0;
+    let usable = true;
+    for (let k = 0; k < period; k++) {
+      const value = values[i - period + 1 + k];
+      if (Number.isNaN(value)) { usable = false; break; }
+      total += value * (k + 1);
+    }
+    out[i] = usable ? total / denominator : NaN;
+  }
+  return out;
+}
+
+/**
+ * Bars since the highest value in the trailing window, 0 when it is this bar.
+ *
+ * Ties resolve to the MOST RECENT occurrence, which is the convention Aroon is
+ * defined with and the opposite of what `argmax` returns. On a flat series every
+ * bar ties, and the two conventions differ by the whole window length.
+ */
+export function barsSinceMax(values: Float64Array, window: number): Float64Array {
+  const n = values.length;
+  const out = new Float64Array(n).fill(NaN);
+  const period = Math.max(1, Math.round(window));
+  for (let i = period - 1; i < n; i++) {
+    let best = -Infinity;
+    let at = i;
+    for (let j = i - period + 1; j <= i; j++) {
+      if (!Number.isNaN(values[j]) && values[j] >= best) { best = values[j]; at = j; }
+    }
+    out[i] = i - at;
+  }
+  return out;
+}
+
+/** Mirror of `barsSinceMax`; ties again resolve to the most recent bar. */
+export function barsSinceMin(values: Float64Array, window: number): Float64Array {
+  const n = values.length;
+  const out = new Float64Array(n).fill(NaN);
+  const period = Math.max(1, Math.round(window));
+  for (let i = period - 1; i < n; i++) {
+    let best = Infinity;
+    let at = i;
+    for (let j = i - period + 1; j <= i; j++) {
+      if (!Number.isNaN(values[j]) && values[j] <= best) { best = values[j]; at = j; }
+    }
+    out[i] = i - at;
+  }
+  return out;
+}
+
+/** Rolling sum. Two-pass per window, matching `rollingStd`'s reasoning: a
+ *  running total never recovers from a NaN, and pandas does. */
+export function rollingSum(values: Float64Array, window: number): Float64Array {
+  const n = values.length;
+  const out = new Float64Array(n).fill(NaN);
+  const period = Math.max(1, Math.round(window));
+  for (let i = period - 1; i < n; i++) {
+    let total = 0;
+    let usable = true;
+    for (let j = i - period + 1; j <= i; j++) {
+      if (Number.isNaN(values[j])) { usable = false; break; }
+      total += values[j];
+    }
+    out[i] = usable ? total : NaN;
+  }
+  return out;
+}
+
+/** Double EMA: `2·EMA − EMA(EMA)`. Built from `ema`, so parity comes free. */
+export function dema(values: Float64Array, span: number): Float64Array {
+  const one = ema(values, span);
+  const two = ema(one, span);
+  const out = new Float64Array(values.length);
+  for (let i = 0; i < values.length; i++) out[i] = 2 * one[i] - two[i];
+  return out;
+}
+
+/** Triple EMA: `3·EMA − 3·EMA(EMA) + EMA(EMA(EMA))`. */
+export function tema(values: Float64Array, span: number): Float64Array {
+  const one = ema(values, span);
+  const two = ema(one, span);
+  const three = ema(two, span);
+  const out = new Float64Array(values.length);
+  for (let i = 0; i < values.length; i++) out[i] = 3 * one[i] - 3 * two[i] + three[i];
+  return out;
+}
+
+/**
+ * Zero-lag EMA: an EMA of the series with its own lag subtracted back out.
+ *
+ * `lag = (span − 1) / 2` rounded down, which is the published definition. The
+ * de-lagged input is `2·close − close[lag]`, an extrapolation — so it overshoots
+ * at a turn, and that is the trade it makes for reacting sooner.
+ */
+export function zlema(values: Float64Array, span: number): Float64Array {
+  const n = values.length;
+  const lag = Math.floor((Math.max(1, Math.round(span)) - 1) / 2);
+  const adjusted = new Float64Array(n);
+  for (let i = 0; i < n; i++) adjusted[i] = i >= lag ? 2 * values[i] - values[i - lag] : values[i];
+  return ema(adjusted, span);
+}
+
+/**
+ * Hull MA: `WMA(2·WMA(n/2) − WMA(n), √n)`.
+ *
+ * Both sub-periods use FLOOR, not rounding, and that is a cross-language
+ * decision rather than a stylistic one. `Math.round(2.5)` is 3 and Python's
+ * `round(2.5)` is 2 — banker's rounding, round-half-to-even — so an odd `n`
+ * gave the two engines different half-periods and a different indicator with
+ * the same name. It surfaced as exactly one failing parity combination out of
+ * 193, on `hull_trend` at n=5, which is the only place the halving lands on
+ * a .5 within the swept range.
+ */
+export function hma(values: Float64Array, window: number): Float64Array {
+  const period = Math.max(2, Math.round(window));
+  const half = wma(values, Math.max(1, Math.floor(period / 2)));
+  const full = wma(values, period);
+  const diff = new Float64Array(values.length);
+  for (let i = 0; i < values.length; i++) diff[i] = 2 * half[i] - full[i];
+  return wma(diff, Math.max(1, Math.floor(Math.sqrt(period))));
+}

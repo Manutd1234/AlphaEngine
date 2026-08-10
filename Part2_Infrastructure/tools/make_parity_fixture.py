@@ -59,6 +59,25 @@ CASES = [
     ("BTCUSDT", "1h", "mfi_reversion", "long_only"),
     ("BTCUSDT", "1h", "linreg_forecast", "long_only"),
     ("ETHUSDT", "4h", "linreg_forecast", "long_short"),
+    ("BTCUSDT", "1h", "dema_cross", "long_only"),
+    ("ETHUSDT", "4h", "tema_cross", "long_only"),
+    ("BTCUSDT", "4h", "zlema_cross", "long_short"),
+    ("ETHUSDT", "1d", "hull_trend", "long_only"),
+    ("BTCUSDT", "1h", "vwap_trend", "long_only"),
+    ("ETHUSDT", "1h", "cci_reversion", "long_only"),
+    ("BTCUSDT", "4h", "awesome_cross", "long_only"),
+    ("ETHUSDT", "4h", "cmo_trend", "long_only"),
+    ("BTCUSDT", "1h", "stoch_rsi_x", "long_only"),
+    ("ETHUSDT", "1h", "dpo_reversion", "long_only"),
+    ("BTCUSDT", "1d", "bollinger_pctb", "long_only"),
+    ("ETHUSDT", "4h", "stddev_channel", "long_short"),
+    ("BTCUSDT", "4h", "chaikin_volatility", "long_only"),
+    ("ETHUSDT", "1d", "ulcer_filter", "long_only"),
+    ("BTCUSDT", "1h", "cmf_trend", "long_only"),
+    ("ETHUSDT", "1h", "force_index", "long_only"),
+    ("BTCUSDT", "4h", "eom_trend", "long_only"),
+    ("ETHUSDT", "4h", "aroon_cross", "long_only"),
+    ("BTCUSDT", "1h", "vortex_cross", "long_short"),
 ]
 COMBOS = [(5, 20), (10, 50), (20, 100), (35, 180)]
 #: The second axis is a standard-deviation multiple for these, not a period.
@@ -68,6 +87,18 @@ FREE_COMBOS = [(10, 0.5), (14, 1.0), (20, 1.5), (20, 2.0)]
 FREE_AXIS_STRATEGIES = {
     "bollinger_breakout", "zscore_reversion",
     "atr_breakout", "keltner_breakout", "supertrend", "atr_trailing_stop",
+    "dpo_reversion", "stddev_channel",
+}
+#: Second batch, whose free axes are levels rather than sigma multiples — an
+#: oscillator threshold, a %B position, an ulcer index. One shared set of sigma
+#: combos cannot serve a CCI threshold of 100 and a %B level of 0.15.
+LEVEL_COMBOS = {
+    "cci_reversion":  [(10, 75), (14, 100), (20, 125), (20, 150)],
+    "cmo_trend":      [(9, 20), (14, 30), (20, 40), (20, 50)],
+    "bollinger_pctb": [(20, 0.05), (20, 0.15), (30, 0.2), (14, 0.3)],
+    "ulcer_filter":   [(14, 4.0), (20, 6.0), (30, 8.0), (20, 10.0)],
+    "cmf_trend":      [(20, 0.0), (20, 0.05), (14, 0.1), (30, 0.15)],
+    "aroon_cross":    [(14, 50), (25, 60), (25, 70), (14, 80)],
 }
 #: The fitted strategy: first axis is a training window (60+ bars, not 5) and
 #: the second is a threshold in residual sigma. Both differ from the parametric
@@ -91,7 +122,9 @@ def main() -> int:
             symbol=symbol, interval=interval, strategy=strategy,
             direction=direction, bars=BARS, fee_bps=6, slippage_bps=2,
         )
-        if strategy in FITTED_STRATEGIES:
+        if strategy in LEVEL_COMBOS:
+            combos = LEVEL_COMBOS[strategy]
+        elif strategy in FITTED_STRATEGIES:
             combos = FITTED_COMBOS
         elif strategy in FREE_AXIS_STRATEGIES:
             combos = FREE_COMBOS

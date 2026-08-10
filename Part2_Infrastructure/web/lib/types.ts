@@ -31,6 +31,25 @@ export type Strategy =
   | "obv_trend"
   | "volume_breakout"
   | "mfi_reversion"
+  | "dema_cross"
+  | "tema_cross"
+  | "zlema_cross"
+  | "hull_trend"
+  | "vwap_trend"
+  | "cci_reversion"
+  | "awesome_cross"
+  | "cmo_trend"
+  | "stoch_rsi_x"
+  | "dpo_reversion"
+  | "bollinger_pctb"
+  | "stddev_channel"
+  | "chaikin_volatility"
+  | "ulcer_filter"
+  | "cmf_trend"
+  | "force_index"
+  | "eom_trend"
+  | "aroon_cross"
+  | "vortex_cross"
   | "linreg_forecast";
 
 /**
@@ -50,7 +69,7 @@ export type Strategy =
  * cheapest way to stop a reader treating estimated coefficients as tuned ones.
  */
 export type StrategyFamily =
-  | "Trend" | "Breakout" | "Mean reversion" | "Momentum" | "Volume" | "Fitted";
+  | "Trend" | "Breakout" | "Mean reversion" | "Momentum" | "Volume" | "Volatility" | "Fitted";
 
 export const STRATEGY_FAMILY: Record<Strategy, StrategyFamily> = {
   ma_cross: "Trend",
@@ -79,6 +98,25 @@ export const STRATEGY_FAMILY: Record<Strategy, StrategyFamily> = {
   obv_trend: "Volume",
   volume_breakout: "Volume",
   mfi_reversion: "Volume",
+  dema_cross: "Trend",
+  tema_cross: "Trend",
+  zlema_cross: "Trend",
+  hull_trend: "Trend",
+  vwap_trend: "Volume",
+  cci_reversion: "Mean reversion",
+  awesome_cross: "Momentum",
+  cmo_trend: "Momentum",
+  stoch_rsi_x: "Mean reversion",
+  dpo_reversion: "Mean reversion",
+  bollinger_pctb: "Mean reversion",
+  stddev_channel: "Breakout",
+  chaikin_volatility: "Volatility",
+  ulcer_filter: "Volatility",
+  cmf_trend: "Volume",
+  force_index: "Volume",
+  eom_trend: "Volume",
+  aroon_cross: "Momentum",
+  vortex_cross: "Trend",
   linreg_forecast: "Fitted",
 };
 export type Direction = "long_only" | "long_short";
@@ -549,6 +587,25 @@ export const STRATEGY_LABELS: Record<Strategy, string> = {
   obv_trend: "On-balance volume trend",
   volume_breakout: "Volume-confirmed breakout",
   mfi_reversion: "Money-flow index reversion",
+  dema_cross: "Double EMA crossover",
+  tema_cross: "Triple EMA crossover",
+  zlema_cross: "Zero-lag EMA crossover",
+  hull_trend: "Hull moving average slope",
+  vwap_trend: "Rolling VWAP trend",
+  cci_reversion: "CCI mean reversion",
+  awesome_cross: "Awesome oscillator crossover",
+  cmo_trend: "Chande momentum trend",
+  stoch_rsi_x: "Stochastic RSI",
+  dpo_reversion: "Detrended price oscillator",
+  bollinger_pctb: "Bollinger %B reversion",
+  stddev_channel: "Standard-deviation channel",
+  chaikin_volatility: "Chaikin volatility expansion",
+  ulcer_filter: "Ulcer index regime filter",
+  cmf_trend: "Chaikin money flow",
+  force_index: "Force index",
+  eom_trend: "Ease of movement",
+  aroon_cross: "Aroon crossover",
+  vortex_cross: "Vortex indicator crossover",
   linreg_forecast: "Linear regression forecast",
 };
 
@@ -581,6 +638,25 @@ export const PARAM_MEANING: Record<Strategy, { fast: string; slow: string }> = {
   obv_trend: { fast: "OBV smoothing period", slow: "Unused (kept for grid shape)" },
   volume_breakout: { fast: "Breakout lookback", slow: "Volume average period" },
   mfi_reversion: { fast: "MFI period", slow: "Exit SMA period" },
+  dema_cross: { fast: "Fast DEMA span", slow: "Slow DEMA span" },
+  tema_cross: { fast: "Fast TEMA span", slow: "Slow TEMA span" },
+  zlema_cross: { fast: "Fast ZLEMA span", slow: "Slow ZLEMA span" },
+  hull_trend: { fast: "Hull MA period", slow: "Slope lookback (bars)" },
+  vwap_trend: { fast: "VWAP lookback", slow: "Exit SMA period" },
+  cci_reversion: { fast: "CCI period", slow: "Entry threshold (|CCI|)" },
+  awesome_cross: { fast: "Fast median-price SMA", slow: "Slow median-price SMA" },
+  cmo_trend: { fast: "CMO period", slow: "Entry threshold (|CMO|)" },
+  stoch_rsi_x: { fast: "RSI period", slow: "Ranking window" },
+  dpo_reversion: { fast: "Detrend period", slow: "Entry threshold (σ)" },
+  bollinger_pctb: { fast: "Band SMA period", slow: "Entry level (%B)" },
+  stddev_channel: { fast: "Channel period", slow: "Channel width (σ)" },
+  chaikin_volatility: { fast: "Spread EMA period", slow: "Rate-of-change lookback" },
+  ulcer_filter: { fast: "Ulcer window", slow: "Maximum ulcer index" },
+  cmf_trend: { fast: "CMF period", slow: "Entry threshold (CMF)" },
+  force_index: { fast: "Force EMA period", slow: "Trend-filter SMA period" },
+  eom_trend: { fast: "EOM smoothing period", slow: "Trend-filter SMA period" },
+  aroon_cross: { fast: "Aroon period", slow: "Entry threshold (Aroon)" },
+  vortex_cross: { fast: "Vortex period", slow: "Exit SMA period" },
   linreg_forecast: { fast: "Training window (bars)", slow: "Entry threshold (residual σ)" },
 };
 
@@ -624,6 +700,25 @@ export const CHART_SERIES: Record<Strategy, { fast: string | null; slow: string 
   // The forecast lives in return space, not price space: there is no level
   // to draw. The 20-bar mean one of its features is measured against is the
   // one line on this chart that means anything for it.
+  dema_cross: { fast: "Fast DEMA", slow: "Slow DEMA" },
+  tema_cross: { fast: "Fast TEMA", slow: "Slow TEMA" },
+  zlema_cross: { fast: "Fast ZLEMA", slow: "Slow ZLEMA" },
+  hull_trend: { fast: null, slow: "Hull MA" },
+  vwap_trend: { fast: null, slow: "Exit SMA" },
+  cci_reversion: { fast: null, slow: "Exit SMA (50)" },
+  awesome_cross: { fast: null, slow: "Slow median SMA" },
+  cmo_trend: { fast: null, slow: "Trend reference" },
+  stoch_rsi_x: { fast: null, slow: "RSI range" },
+  dpo_reversion: { fast: null, slow: "Detrend SMA" },
+  bollinger_pctb: { fast: null, slow: "Band midline" },
+  stddev_channel: { fast: null, slow: "Channel midline" },
+  chaikin_volatility: { fast: null, slow: "Trend SMA (50)" },
+  ulcer_filter: { fast: null, slow: "Trend SMA (50)" },
+  cmf_trend: { fast: null, slow: "Trend reference" },
+  force_index: { fast: null, slow: "Trend SMA" },
+  eom_trend: { fast: null, slow: "Trend SMA" },
+  aroon_cross: { fast: null, slow: "Aroon reference" },
+  vortex_cross: { fast: null, slow: "Exit SMA" },
   linreg_forecast: { fast: null, slow: "Feature mean (20)" },
 };
 

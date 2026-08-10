@@ -62,6 +62,25 @@ CATALOGUE = [
     "bollinger_breakout", "zscore_reversion",
     "atr_breakout", "keltner_breakout", "supertrend", "atr_trailing_stop",
     "obv_trend", "volume_breakout", "mfi_reversion",
+    "dema_cross",
+    "tema_cross",
+    "zlema_cross",
+    "hull_trend",
+    "vwap_trend",
+    "cci_reversion",
+    "awesome_cross",
+    "cmo_trend",
+    "stoch_rsi_x",
+    "dpo_reversion",
+    "bollinger_pctb",
+    "stddev_channel",
+    "chaikin_volatility",
+    "ulcer_filter",
+    "cmf_trend",
+    "force_index",
+    "eom_trend",
+    "aroon_cross",
+    "vortex_cross",
     "linreg_forecast",
 ]
 
@@ -85,11 +104,27 @@ def bars() -> pd.DataFrame:
     # which is the one property these models actually read.
     moves = np.abs(np.concatenate([[0.0], np.diff(close.to_numpy()) / close.to_numpy()[:-1]]))
     volume = np.exp(rng.normal(0, 0.4, len(close))) * (1 + 8 * moves) * 1_000
+    # The close must NOT sit at the midpoint of its bar, and this is the second
+    # time that has mattered. `high = close * 1.006, low = close * 0.994` puts it
+    # exactly halfway every bar, which makes the money-flow multiplier
+    # ((close - low) - (high - close)) / (high - low) identically zero — so
+    # `cmf_trend` reported as never trading when the fixture was what never
+    # moved. Same shape of blind spot as the constant-volume one this file
+    # already carries a note about: a fixture that is symmetric in a dimension
+    # an indicator reads makes that indicator untestable by construction.
+    #
+    # The close is placed at a varying position inside each bar, correlated with
+    # the bar's own direction, which is the one property these models read.
+    direction = np.sign(np.concatenate([[0.0], np.diff(close.to_numpy())]))
+    position = 0.5 + 0.35 * direction * rng.uniform(0.4, 1.0, len(close))
+    span = close.to_numpy() * 0.012
+    low_series = close.to_numpy() - span * position
+    high_series = low_series + span
     return pd.DataFrame({
         "open": close,
         "close": close,
-        "high": close * 1.006,
-        "low": close * 0.994,
+        "high": pd.Series(np.maximum(high_series, close.to_numpy())),
+        "low": pd.Series(np.minimum(low_series, close.to_numpy())),
         "volume": pd.Series(volume),
     })
 

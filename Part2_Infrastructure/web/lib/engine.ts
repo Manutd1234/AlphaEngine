@@ -14,7 +14,10 @@
  */
 
 import { compareToBenchmark } from "./benchmark";
-import { atr, ema, pctChange, rollingMax, rollingMin, rollingStd, rsi, shift1, sma } from "./indicators";
+import {
+  atr, barsSinceMax, barsSinceMin, dema, ema, hma, pctChange, rollingMax, rollingMin,
+  rollingStd, rollingSum, rsi, shift1, sma, tema, zlema,
+} from "./indicators";
 import { monteCarloBands } from "./montecarlo";
 import { regimeReport } from "./regimes";
 import {
@@ -438,6 +441,366 @@ function longState(
     return out;
   }
 
+
+
+  // ── Moving-average variants ─────────────────────────────────────────────
+  // Each trades lag for overshoot differently. Running them against `ma_cross`
+  // on the same symbol is the cheapest way to find out which end of that
+  // trade-off the instrument rewards.
+
+  if (strategy === "dema_cross") {
+    const f = dema(close, fast);
+    const s = dema(close, slow);
+    for (let i = 0; i < n; i++) out[i] = f[i] > s[i] ? 1 : 0;
+    return out;
+  }
+
+  if (strategy === "tema_cross") {
+    const f = tema(close, fast);
+    const s = tema(close, slow);
+    for (let i = 0; i < n; i++) out[i] = f[i] > s[i] ? 1 : 0;
+    return out;
+  }
+
+  if (strategy === "zlema_cross") {
+    const f = zlema(close, fast);
+    const s = zlema(close, slow);
+    for (let i = 0; i < n; i++) out[i] = f[i] > s[i] ? 1 : 0;
+    return out;
+  }
+
+  if (strategy === "hull_trend") {
+    const h = hma(close, fast);
+    for (let i = 0; i < n; i++) {
+      out[i] = i >= slow && !Number.isNaN(h[i]) && !Number.isNaN(h[i - slow]) && h[i] > h[i - slow] ? 1 : 0;
+    }
+    return out;
+  }
+
+  if (strategy === "vwap_trend") {
+    // Rolling VWAP, not session VWAP: a 24/7 instrument has no session, and a
+    // session anchor on crypto is an arbitrary UTC boundary dressed as a level.
+    const pv = new Float64Array(n);
+    for (let i = 0; i < n; i++) pv[i] = ((high[i] + low[i] + close[i]) / 3) * volume[i];
+    const pvSum = rollingSum(pv, fast);
+    const vSum = rollingSum(volume, fast);
+    const exitMa = sma(close, slow);
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      const vwap = vSum[i] > 0 ? pvSum[i] / vSum[i] : NaN;
+      if (!Number.isNaN(vwap) && close[i] > vwap) state = 1;
+      if (!Number.isNaN(exitMa[i]) && close[i] < exitMa[i]) state = 0; // exit overrides
+      out[i] = state;
+    }
+    return out;
+  }
+
+  // ── Oscillators ─────────────────────────────────────────────────────────
+
+  if (strategy === "cci_reversion") {
+    // Lambert's constant 0.015 scales CCI so roughly 70-80% of readings fall
+    // within ±100. It is empirical, not derived, and it is written here rather
+    // than folded into the threshold so the threshold keeps its usual units.
+    const typical = new Float64Array(n);
+    for (let i = 0; i < n; i++) typical[i] = (high[i] + low[i] + close[i]) / 3;
+    const meanTp = sma(typical, fast);
+    const exitMa = sma(close, 50);
+    const period = Math.max(1, Math.round(fast));
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      let cci = NaN;
+      if (i >= period - 1 && !Number.isNaN(meanTp[i])) {
+        let deviation = 0;
+        for (let j = i - period + 1; j <= i; j++) deviation += Math.abs(typical[j] - meanTp[i]);
+        deviation /= period;
+        if (deviation > 0) cci = (typical[i] - meanTp[i]) / (0.015 * deviation);
+      }
+      if (!Number.isNaN(cci) && cci < -slow) state = 1;
+      if ((!Number.isNaN(cci) && cci > 0) || (!Number.isNaN(exitMa[i]) && close[i] < exitMa[i])) {
+        state = 0; // exit overrides
+      }
+      out[i] = state;
+    }
+    return out;
+  }
+
+  if (strategy === "awesome_cross") {
+    // Median price, not close: the Awesome Oscillator is defined on (H+L)/2,
+    // and substituting the close makes a different indicator with the same name.
+    const median = new Float64Array(n);
+    for (let i = 0; i < n; i++) median[i] = (high[i] + low[i]) / 2;
+    const f = sma(median, fast);
+    const s = sma(median, slow);
+    for (let i = 0; i < n; i++) {
+      out[i] = !Number.isNaN(f[i]) && !Number.isNaN(s[i]) && f[i] > s[i] ? 1 : 0;
+    }
+    return out;
+  }
+
+  if (strategy === "cmo_trend") {
+    // Chande momentum: (up − down) / (up + down). Unlike RSI it is not smoothed,
+    // so it swings the full −100..100 far more often — the thresholds that suit
+    // RSI are much too tight here.
+    const period = Math.max(1, Math.round(fast));
+    const gain = new Float64Array(n);
+    const loss = new Float64Array(n);
+    for (let i = 1; i < n; i++) {
+      const delta = close[i] - close[i - 1];
+      if (delta > 0) gain[i] = delta;
+      else loss[i] = -delta;
+    }
+    const gainSum = rollingSum(gain, period);
+    const lossSum = rollingSum(loss, period);
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      const total = gainSum[i] + lossSum[i];
+      const cmo = total > 0 ? (100 * (gainSum[i] - lossSum[i])) / total : NaN;
+      if (!Number.isNaN(cmo) && cmo > slow) state = 1;
+      if (!Number.isNaN(cmo) && cmo < -slow) state = 0; // exit overrides
+      out[i] = state;
+    }
+    return out;
+  }
+
+  if (strategy === "stoch_rsi_x") {
+    // RSI's own position within its recent range. Two lookbacks that mean
+    // different things: `fast` is the RSI period, `slow` the window RSI is
+    // ranked inside. It reaches its extremes far more often than RSI does,
+    // which is the point and also why it needs the tighter exit below.
+    const r = rsi(close, fast);
+    const hi = rollingMax(r, slow);
+    const lo = rollingMin(r, slow);
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      const span = hi[i] - lo[i];
+      const k = span > 0 ? (r[i] - lo[i]) / span : NaN;
+      if (!Number.isNaN(k) && k < 0.2) state = 1;
+      if (!Number.isNaN(k) && k > 0.8) state = 0; // exit overrides
+      out[i] = state;
+    }
+    return out;
+  }
+
+  if (strategy === "dpo_reversion") {
+    // Detrended price: close minus an SMA shifted back by half its period plus
+    // one. The shift is what removes the trend rather than lagging it, and it
+    // is also why DPO is NOT a real-time indicator in its textbook form — this
+    // implementation shifts FORWARD only, so no future bar is read.
+    const shiftBy = Math.floor(Math.max(1, Math.round(fast)) / 2) + 1;
+    const trend = sma(close, fast);
+    const sd = rollingStd(close, fast);
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      const base = i >= shiftBy ? trend[i - shiftBy] : NaN;
+      const dpo = !Number.isNaN(base) && sd[i] > 0 ? (close[i] - base) / sd[i] : NaN;
+      if (!Number.isNaN(dpo) && dpo < -slow) state = 1;
+      if (!Number.isNaN(dpo) && dpo > 0) state = 0; // exit overrides
+      out[i] = state;
+    }
+    return out;
+  }
+
+  // ── Bands and volatility ────────────────────────────────────────────────
+
+  if (strategy === "bollinger_pctb") {
+    // %B is where the close sits between the bands: 0 at the lower, 1 at the
+    // upper. Bounded like an oscillator, but built from the same bands the
+    // breakout strategy trades — so running the two against each other says
+    // which side of the band this instrument rewards.
+    const mid = sma(close, fast);
+    const sd = rollingStd(close, fast);
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      const width = 4 * sd[i];
+      const pctB = width > 0 ? (close[i] - (mid[i] - 2 * sd[i])) / width : NaN;
+      if (!Number.isNaN(pctB) && pctB < slow) state = 1;
+      if (!Number.isNaN(pctB) && pctB > 0.5) state = 0; // exit overrides
+      out[i] = state;
+    }
+    return out;
+  }
+
+  if (strategy === "stddev_channel") {
+    const mid = sma(close, fast);
+    const sd = rollingStd(close, fast);
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      const upper = mid[i] + slow * sd[i];
+      if (!Number.isNaN(upper) && close[i] > upper) state = 1;
+      if (!Number.isNaN(mid[i]) && close[i] < mid[i]) state = 0; // exit overrides
+      out[i] = state;
+    }
+    return out;
+  }
+
+  if (strategy === "chaikin_volatility") {
+    // Rate of change of the smoothed high-low spread. Rising volatility is
+    // traded as a continuation signal here, which is the opposite of the
+    // squeeze reading — both are defensible and the backtest is the argument.
+    const spread = new Float64Array(n);
+    for (let i = 0; i < n; i++) spread[i] = high[i] - low[i];
+    const smoothed = ema(spread, fast);
+    const trend = sma(close, 50);
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      const past = i >= Math.round(slow) ? smoothed[i - Math.round(slow)] : NaN;
+      const change = past > 0 ? smoothed[i] / past - 1 : NaN;
+      if (!Number.isNaN(change) && change > 0 && !Number.isNaN(trend[i]) && close[i] > trend[i]) state = 1;
+      if (!Number.isNaN(trend[i]) && close[i] < trend[i]) state = 0; // exit overrides
+      out[i] = state;
+    }
+    return out;
+  }
+
+  if (strategy === "ulcer_filter") {
+    // The Ulcer Index is the root-mean-square drawdown over the window — it
+    // penalises depth AND duration, which a maximum drawdown cannot. Used here
+    // as a regime filter: hold the trend only while the recent pain is low.
+    const period = Math.max(1, Math.round(fast));
+    const peak = rollingMax(close, period);
+    const squared = new Float64Array(n).fill(NaN);
+    for (let i = 0; i < n; i++) {
+      if (!Number.isNaN(peak[i]) && peak[i] > 0) {
+        const drawdown = (100 * (close[i] - peak[i])) / peak[i];
+        squared[i] = drawdown * drawdown;
+      }
+    }
+    const meanSquared = sma(squared, period);
+    const trend = sma(close, 50);
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      const ulcer = Number.isNaN(meanSquared[i]) ? NaN : Math.sqrt(meanSquared[i]);
+      if (!Number.isNaN(ulcer) && ulcer < slow && !Number.isNaN(trend[i]) && close[i] > trend[i]) state = 1;
+      if ((!Number.isNaN(ulcer) && ulcer > slow * 2) || (!Number.isNaN(trend[i]) && close[i] < trend[i])) {
+        state = 0; // exit overrides
+      }
+      out[i] = state;
+    }
+    return out;
+  }
+
+  // ── Volume ──────────────────────────────────────────────────────────────
+
+  if (strategy === "cmf_trend") {
+    // Chaikin Money Flow: volume weighted by where the close landed inside the
+    // bar. A close at the high on heavy volume counts fully positive; a close
+    // at the midpoint counts zero however large the volume.
+    const mfv = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      const span = high[i] - low[i];
+      mfv[i] = span > 0 ? (((close[i] - low[i]) - (high[i] - close[i])) / span) * volume[i] : 0;
+    }
+    const mfvSum = rollingSum(mfv, fast);
+    const volSum = rollingSum(volume, fast);
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      const cmf = volSum[i] > 0 ? mfvSum[i] / volSum[i] : NaN;
+      if (!Number.isNaN(cmf) && cmf > slow) state = 1;
+      if (!Number.isNaN(cmf) && cmf < 0) state = 0; // exit overrides
+      out[i] = state;
+    }
+    return out;
+  }
+
+  if (strategy === "force_index") {
+    // Price change multiplied by volume: direction and conviction in one
+    // number. Unbounded and scale-dependent, so it is compared against zero
+    // rather than a level — a threshold in force units means nothing across
+    // instruments.
+    const force = new Float64Array(n);
+    for (let i = 1; i < n; i++) force[i] = (close[i] - close[i - 1]) * volume[i];
+    const smoothed = ema(force, fast);
+    const trend = sma(close, slow);
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      if (smoothed[i] > 0 && !Number.isNaN(trend[i]) && close[i] > trend[i]) state = 1;
+      if (smoothed[i] < 0 || (!Number.isNaN(trend[i]) && close[i] < trend[i])) state = 0; // exit overrides
+      out[i] = state;
+    }
+    return out;
+  }
+
+  if (strategy === "eom_trend") {
+    // Ease of Movement: how far the midpoint moved per unit of volume. High
+    // when price travels on little volume, which is the definition of a market
+    // nobody is defending.
+    const raw = new Float64Array(n);
+    for (let i = 1; i < n; i++) {
+      const midMove = (high[i] + low[i]) / 2 - (high[i - 1] + low[i - 1]) / 2;
+      const span = high[i] - low[i];
+      // Scaled by 1e6 for the same reason every published version does: the
+      // ratio is otherwise a number with six leading zeros.
+      raw[i] = volume[i] > 0 && span > 0 ? (midMove / (volume[i] / 1e6 / span)) : 0;
+    }
+    const smoothed = sma(raw, fast);
+    const trend = sma(close, slow);
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      if (!Number.isNaN(smoothed[i]) && smoothed[i] > 0 && !Number.isNaN(trend[i]) && close[i] > trend[i]) state = 1;
+      if ((!Number.isNaN(smoothed[i]) && smoothed[i] < 0) || (!Number.isNaN(trend[i]) && close[i] < trend[i])) {
+        state = 0; // exit overrides
+      }
+      out[i] = state;
+    }
+    return out;
+  }
+
+  // ── Directional ─────────────────────────────────────────────────────────
+
+  if (strategy === "aroon_cross") {
+    // How recently the window's high and low were set, as a percentage. It
+    // measures TIME rather than price, which is why it can turn while price is
+    // still flat — and why it is the one indicator here that says something
+    // about a range that is about to end.
+    const period = Math.max(1, Math.round(fast));
+    const sinceHigh = barsSinceMax(high, period);
+    const sinceLow = barsSinceMin(low, period);
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      const up = Number.isNaN(sinceHigh[i]) ? NaN : (100 * (period - sinceHigh[i])) / period;
+      const down = Number.isNaN(sinceLow[i]) ? NaN : (100 * (period - sinceLow[i])) / period;
+      if (!Number.isNaN(up) && up > slow && up > down) state = 1;
+      if (!Number.isNaN(down) && down > slow && down > up) state = 0; // exit overrides
+      out[i] = state;
+    }
+    return out;
+  }
+
+  if (strategy === "vortex_cross") {
+    // Two directed movements — this high against the previous low and vice
+    // versa — each normalised by true range. Unlike a crossover of two averages
+    // of the same series, the two lines here are built from different data, so
+    // their crossing is not an artefact of smoothing.
+    const period = Math.max(1, Math.round(fast));
+    const vmPlus = new Float64Array(n);
+    const vmMinus = new Float64Array(n);
+    const trueRange = new Float64Array(n);
+    for (let i = 1; i < n; i++) {
+      vmPlus[i] = Math.abs(high[i] - low[i - 1]);
+      vmMinus[i] = Math.abs(low[i] - high[i - 1]);
+      trueRange[i] = Math.max(
+        high[i] - low[i],
+        Math.abs(high[i] - close[i - 1]),
+        Math.abs(low[i] - close[i - 1]),
+      );
+    }
+    const plusSum = rollingSum(vmPlus, period);
+    const minusSum = rollingSum(vmMinus, period);
+    const trSum = rollingSum(trueRange, period);
+    const exitMa = sma(close, slow);
+    let state = 0;
+    for (let i = 0; i < n; i++) {
+      const viPlus = trSum[i] > 0 ? plusSum[i] / trSum[i] : NaN;
+      const viMinus = trSum[i] > 0 ? minusSum[i] / trSum[i] : NaN;
+      if (!Number.isNaN(viPlus) && !Number.isNaN(viMinus) && viPlus > viMinus) state = 1;
+      if ((!Number.isNaN(viPlus) && !Number.isNaN(viMinus) && viPlus < viMinus)
+        || (!Number.isNaN(exitMa[i]) && close[i] < exitMa[i])) {
+        state = 0; // exit overrides
+      }
+      out[i] = state;
+    }
+    return out;
+  }
 
   if (strategy === "linreg_forecast") {
     return linregForecast(close, fast, slow);
@@ -880,6 +1243,20 @@ const FREE_SECOND_AXIS: Partial<Record<Strategy, [number, number, number]>> = {
   // combination against ~0.4 ms for the parametric ones — a 77-combination grid
   // would take a second where every other sweep takes forty milliseconds.
   linreg_forecast: [0.0, 1.0, 0.2],
+
+  // Added with the second strategy batch. Each of these reads its second
+  // parameter as a LEVEL rather than a lookback — an oscillator threshold, a
+  // sigma multiple, a %B position, an ulcer index. Sweeping them over the
+  // request's 20..200 period axis would ask for a 200-sigma band or a %B of
+  // 200, and every combination would be discarded in silence.
+  cci_reversion: [50, 200, 25],
+  cmo_trend: [20, 60, 10],
+  dpo_reversion: [0.5, 2.5, 0.25],
+  bollinger_pctb: [0.0, 0.4, 0.05],
+  stddev_channel: [1.0, 3.0, 0.25],
+  ulcer_filter: [2.0, 12.0, 2.0],
+  cmf_trend: [0.0, 0.2, 0.025],
+  aroon_cross: [50, 90, 10],
 };
 
 /**

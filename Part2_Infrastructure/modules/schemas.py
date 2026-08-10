@@ -354,6 +354,10 @@ class BacktestRequest(BaseModel):
         "bollinger_breakout", "zscore_reversion",
         "atr_breakout", "keltner_breakout", "supertrend", "atr_trailing_stop",
         "obv_trend", "volume_breakout", "mfi_reversion",
+        "dema_cross", "tema_cross", "zlema_cross", "hull_trend", "vwap_trend",
+        "cci_reversion", "awesome_cross", "cmo_trend", "stoch_rsi_x", "dpo_reversion",
+        "bollinger_pctb", "stddev_channel", "chaikin_volatility", "ulcer_filter",
+        "cmf_trend", "force_index", "eom_trend", "aroon_cross", "vortex_cross",
         "linreg_forecast",
     ] = Field(
         default="ma_cross", description="Signal family. Each interprets fast/slow as its own two parameters.")

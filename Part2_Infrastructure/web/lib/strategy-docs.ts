@@ -81,7 +81,7 @@ export const STRATEGY_DOCS: Record<Strategy, StrategyDoc> = {
       "Markets that break out and keep going — crypto and commodities more than large-cap equities. It is a small number of large winners and a long tail of small losses.",
     whenItFails:
       "Range-bound markets, where every new high is the top of the range. Win rate collapses below 40% and the winners that pay for it never arrive.",
-    similar: ["price_channel", "breakout_sma", "volume_breakout"],
+    similar: ["aroon_cross", "price_channel", "breakout_sma", "volume_breakout"],
   },
   donchian_mid: {
     summary:
@@ -132,7 +132,7 @@ export const STRATEGY_DOCS: Record<Strategy, StrategyDoc> = {
     whenItWorks: "Sideways markets with regular swings between support and resistance.",
     whenItFails:
       "Strong trends. %K pins above 80 for the whole advance, so the model spends the trend flat and re-enters at the top.",
-    similar: ["williams_r", "rsi_reversion", "mfi_reversion"],
+    similar: ["stoch_rsi_x", "williams_r", "rsi_reversion", "mfi_reversion"],
   },
   momentum: {
     summary:
@@ -270,7 +270,7 @@ export const STRATEGY_DOCS: Record<Strategy, StrategyDoc> = {
       "Persistent trends. The ratchet means the exit level follows the move up and never gives ground back.",
     whenItFails:
       "Sideways markets, where the ratchet works against it: the band is dragged in behind price and then crossed by ordinary noise.",
-    similar: ["atr_trailing_stop", "keltner_breakout", "triple_ma"],
+    similar: ["vortex_cross", "atr_trailing_stop", "keltner_breakout", "triple_ma"],
   },
   atr_trailing_stop: {
     summary:
@@ -292,7 +292,7 @@ export const STRATEGY_DOCS: Record<Strategy, StrategyDoc> = {
       "Where volume leads price. Accumulation shows in OBV before it shows in the close, which is the entire premise.",
     whenItFails:
       "Ranges, where up and down closes alternate: OBV oscillates around its own average and crosses it on noise. And separately — the failure that has nothing to do with the market — any instrument whose reported volume is unreliable. Crypto is the standard example, with wash trading and venue-specific reporting, and OBV is only ever as good as the volume feed under it.",
-    similar: ["volume_breakout", "mfi_reversion", "ma_cross"],
+    similar: ["vwap_trend", "volume_breakout", "mfi_reversion", "ma_cross"],
   },
   volume_breakout: {
     summary: "A price breakout that must be confirmed by unusual volume.",
@@ -302,7 +302,7 @@ export const STRATEGY_DOCS: Record<Strategy, StrategyDoc> = {
       "Separating real breakouts from drift. A move on ordinary volume is one participant; a move on twice the average is a change of opinion.",
     whenItFails:
       "Thin sessions and holidays, where volume itself is the anomaly. It also inherits every problem with the volume feed that `obv_trend` has.",
-    similar: ["donchian", "obv_trend", "breakout_sma"],
+    similar: ["eom_trend", "donchian", "obv_trend", "breakout_sma"],
   },
   mfi_reversion: {
     summary: "RSI weighted by money flow — price and volume in one oscillator.",
@@ -313,6 +313,215 @@ export const STRATEGY_DOCS: Record<Strategy, StrategyDoc> = {
     whenItFails:
       "The same way RSI reversion fails, plus a volume feed that can be wrong. A downtrend on rising volume pins MFI low for as long as the selling lasts.",
     similar: ["rsi_reversion", "williams_r", "obv_trend"],
+  },
+  dema_cross: {
+    summary:
+      "Two exponential averages with most of their own lag subtracted back out.",
+    formula:
+      "DEMA = 2·EMA(n) − EMA(EMA(n)). Long while the fast DEMA is above the slow one. Subtracting the double-smoothed series removes roughly half the lag an EMA carries.",
+    whenItWorks:
+      "Trends that reverse before a plain EMA crossover has finished turning. It is the same trade as `ema_cross` with the reaction time moved forward.",
+    whenItFails:
+      "Choppy markets, harder than either simpler average. Removing lag removes the smoothing that was suppressing the whipsaws, and every false turn now arrives earlier and in full.",
+    similar: ["ema_cross", "tema_cross", "zlema_cross"],
+  },
+  tema_cross: {
+    summary:
+      "The same lag correction applied a third time, faster still and correspondingly twitchier.",
+    formula:
+      "TEMA = 3·EMA − 3·EMA(EMA) + EMA(EMA(EMA)). Long while the fast TEMA is above the slow one.",
+    whenItWorks:
+      "Fast-moving instruments where a DEMA is still late. Among the least-lagging averages that remain smooth enough to cross cleanly.",
+    whenItFails:
+      "Volatile ranges. Each extra correction amplifies short-term noise, so TEMA overshoots at every turn and crosses back within a few bars.",
+    similar: ["dema_cross", "ema_cross", "hull_trend"],
+  },
+  zlema_cross: {
+    summary:
+      "An EMA fed a de-lagged input rather than a de-lagged output.",
+    formula:
+      "Feeds `2·close − close[(n−1)/2]` into a normal EMA. That input is an extrapolation of the recent move, which is what cancels the lag — and what makes it overshoot.",
+    whenItWorks:
+      "Steady trends. The extrapolation is right whenever the recent direction continues, which is most of the time inside a trend.",
+    whenItFails:
+      "Sharp reversals, where the extrapolation points exactly the wrong way. It is confidently early in the wrong direction at precisely the turn.",
+    similar: ["ema_cross", "dema_cross", "tema_cross"],
+  },
+  hull_trend: {
+    summary:
+      "Hull's average, which is unusually smooth and unusually fast at the same time.",
+    formula:
+      "HMA = WMA(2·WMA(n/2) − WMA(n), √n). Long while the HMA is above its own value `slow` bars ago — a slope rule, not a crossover.",
+    whenItWorks:
+      "Medium-term trends. The construction genuinely does buy smoothness and responsiveness together rather than trading one for the other.",
+    whenItFails:
+      "Sideways markets. A very smooth line still has a slope, and a flat market's slope oscillates around zero, so the rule flips repeatedly on moves too small to pay for themselves.",
+    similar: ["ema_slope", "tema_cross", "triple_ma"],
+  },
+  vwap_trend: {
+    summary:
+      "Trade above the volume-weighted average price, exit below a trend line.",
+    formula:
+      "Rolling VWAP over `fast` bars from typical price × volume; long while the close is above it, flat below SMA(slow). Rolling rather than session-anchored: a 24/7 instrument has no session, and a UTC boundary is not one.",
+    whenItWorks:
+      "Instruments where participants genuinely reference VWAP — large-cap equities most of all, since execution desks are measured against it.",
+    whenItFails:
+      "Thin or erratic volume. VWAP is a volume-weighted level, so a few outsized prints drag it somewhere no one traded.",
+    similar: ["obv_trend", "ma_cross", "cmf_trend"],
+  },
+  cci_reversion: {
+    summary:
+      "The Commodity Channel Index, read as an overextension signal.",
+    formula:
+      "CCI = (typical price − SMA) / (0.015 × mean absolute deviation). Long below −`slow`, flat above 0 or under a 50-bar SMA. The 0.015 is Lambert's empirical constant, chosen so most readings fall inside ±100.",
+    whenItWorks:
+      "Range-bound markets with recurring extremes. Mean absolute deviation is less distorted by one outlier bar than a standard deviation, so the bands stay usable through a shock.",
+    whenItFails:
+      "Sustained trends, the same way every reversion rule fails: CCI can hold below −100 for the whole descent, and the trend filter is the only thing preventing a series of losing entries.",
+    similar: ["rsi_reversion", "zscore_reversion", "dpo_reversion"],
+  },
+  awesome_cross: {
+    summary:
+      "Bill Williams' oscillator: two averages of the median price rather than the close.",
+    formula:
+      "AO = SMA(median price, fast) − SMA(median price, slow), traded as a sign change. Median price is (H+L)/2 — substituting the close makes a different indicator with the same name.",
+    whenItWorks:
+      "Instruments with meaningful intrabar range. Using the bar's midpoint rather than its close makes it less sensitive to where the last print happened to land.",
+    whenItFails:
+      "Low-range bars, where the median and the close converge and this becomes an ordinary SMA crossover with extra steps.",
+    similar: ["ma_cross", "macd_cross", "cmo_trend"],
+  },
+  cmo_trend: {
+    summary:
+      "Chande's momentum oscillator, read as direction rather than exhaustion.",
+    formula:
+      "CMO = 100 × (up moves − down moves) / (up + down) over `fast` bars. Long above +`slow`, flat below −`slow`. Unlike RSI it is unsmoothed, so it reaches its extremes far more often.",
+    whenItWorks:
+      "Markets with persistent directional pressure. Being unsmoothed means it registers a regime change sooner than RSI does.",
+    whenItFails:
+      "Anything choppy. Without smoothing it crosses its thresholds constantly, which is why the entry and exit levels here are symmetric and far apart rather than RSI's 30/70.",
+    similar: ["rsi_trend", "momentum", "awesome_cross"],
+  },
+  stoch_rsi_x: {
+    summary:
+      "RSI's position inside its own recent range — an oscillator of an oscillator.",
+    formula:
+      "%K = (RSI − min RSI) / (max RSI − min RSI) over the ranking window. Long below 0.2, flat above 0.8. `fast` is the RSI period; `slow` is the window RSI is ranked inside.",
+    whenItWorks:
+      "Instruments whose RSI never reaches classical extremes. Re-ranking it locally makes a signal out of a range that would otherwise sit permanently between 40 and 60.",
+    whenItFails:
+      "Trends, and worse than plain RSI. Re-scaling to a local range guarantees extremes appear, so it produces confident oversold readings all the way down.",
+    similar: ["rsi_reversion", "stochastic", "williams_r"],
+  },
+  dpo_reversion: {
+    summary:
+      "Price with its own trend removed, traded against the residual.",
+    formula:
+      "DPO = (close − SMA shifted back by n/2+1), scaled by the rolling standard deviation. Long below −`slow`σ, flat above 0. The shift is what removes the trend instead of lagging it.",
+    whenItWorks:
+      "Cyclical instruments. Detrending is what makes a cycle visible when a persistent drift would otherwise dominate the signal.",
+    whenItFails:
+      "Regime changes. The detrending window assumes the cycle length is roughly stable, and a market that switches from a 20-bar rhythm to a 60-bar one leaves DPO measuring the wrong thing entirely.",
+    similar: ["zscore_reversion", "cci_reversion", "bollinger_pctb"],
+  },
+  bollinger_pctb: {
+    summary:
+      "Where the close sits between the Bollinger bands, as a number from 0 to 1.",
+    formula:
+      "%B = (close − lower band) / (upper − lower), with 2σ bands over `fast` bars. Long below `slow`, flat above 0.5. Same bands as the breakout strategy, opposite side of the trade.",
+    whenItWorks:
+      "Mean-reverting instruments. Because it is bounded, the entry level means the same thing across instruments and across volatility regimes, which a raw price distance does not.",
+    whenItFails:
+      "Strong trends, where %B pins near 0 for the whole decline. Running this against `bollinger_breakout` on the same symbol is the cheapest way to learn which side that instrument rewards.",
+    similar: ["bollinger_breakout", "zscore_reversion", "stddev_channel"],
+  },
+  stddev_channel: {
+    summary:
+      "A breakout measured in standard deviations of price rather than of returns.",
+    formula:
+      "Long when the close exceeds SMA(fast) + `slow`σ; flat back below the midline. The exit at the mean rather than the lower band is deliberate — it gives back less of a move that fails.",
+    whenItWorks:
+      "Volatility expansions from a quiet base. The threshold scales with the instrument's own recent dispersion, so it means the same thing across regimes.",
+    whenItFails:
+      "Trending markets with a rising mean. The midline chases price upward, so the exit tightens exactly as the trend matures and cuts the position early.",
+    similar: ["bollinger_breakout", "keltner_breakout", "bollinger_pctb"],
+  },
+  chaikin_volatility: {
+    summary:
+      "Rising volatility traded as a continuation signal, not a warning.",
+    formula:
+      "Rate of change of an EMA of the high-low spread over `slow` bars; long when it is rising and price is above a 50-bar SMA. The trend filter is what makes expansion bullish rather than merely eventful.",
+    whenItWorks:
+      "Breakouts from compression, where an expanding range and an upward trend genuinely coincide.",
+    whenItFails:
+      "Volatility spikes at a top. A crash expands the range violently, and without the trend filter this would read a collapse as a signal to buy.",
+    similar: ["atr_breakout", "keltner_breakout", "ulcer_filter"],
+  },
+  ulcer_filter: {
+    summary:
+      "Hold the trend only while recent losses have been shallow and short.",
+    formula:
+      "The Ulcer Index is the root-mean-square drawdown from the rolling peak. Long while it is below `slow` and price is above a 50-bar SMA; flat above twice that or below the SMA.",
+    whenItWorks:
+      "Avoiding the worst of a decline. Unlike maximum drawdown, the Ulcer Index penalises duration as well as depth, so a long grinding loss registers where a single sharp dip does not.",
+    whenItFails:
+      "V-shaped recoveries. The index stays elevated for as long as the drawdown persists, so it keeps the position flat through the first and best part of the rebound.",
+    similar: ["atr_trailing_stop", "chaikin_volatility", "supertrend"],
+  },
+  cmf_trend: {
+    summary:
+      "Volume weighted by where inside the bar the close landed.",
+    formula:
+      "Money-flow multiplier = ((close − low) − (high − close)) / (high − low), times volume, summed over `fast` bars and divided by total volume. Long above `slow`, flat below 0.",
+    whenItWorks:
+      "Detecting accumulation. A close at the high on heavy volume counts fully; a close at the midpoint counts zero however large the volume, which is what separates conviction from mere activity.",
+    whenItFails:
+      "Gapping instruments. The multiplier only sees inside the bar, so an overnight gap — the most informative move an equity makes — contributes nothing at all.",
+    similar: ["obv_trend", "mfi_reversion", "force_index"],
+  },
+  force_index: {
+    summary:
+      "Price change multiplied by volume: direction and conviction in one number.",
+    formula:
+      "Force = (close − previous close) × volume, smoothed by an EMA over `fast` bars. Long while it is positive and price is above SMA(slow).",
+    whenItWorks:
+      "Confirming that a move has participation behind it. A large move on small volume and a small move on large volume are different events, and this is the simplest statistic that separates them.",
+    whenItFails:
+      "Low-volume drift, where the smoothed force hovers either side of zero and the sign flips on bars that barely moved. And structurally: force is unbounded and scales with both price and volume, so it cannot be compared across instruments or across a period where either changed by an order of magnitude — which is why this reads its sign rather than a level.",
+    similar: ["obv_trend", "cmf_trend", "volume_breakout"],
+  },
+  eom_trend: {
+    summary:
+      "How far price travelled per unit of volume — the market nobody is defending.",
+    formula:
+      "Ease of Movement = midpoint change / (volume / range), smoothed over `fast` bars, scaled by 1e6 so the number is readable. Long while positive and above SMA(slow).",
+    whenItWorks:
+      "Spotting moves through thin resistance. A large advance on little volume is exactly the condition this was built to name.",
+    whenItFails:
+      "Thin, illiquid markets — every bar there is a large move on little volume, so the indicator sits permanently elevated and never says anything. It measures a ratio, and a ratio with a vanishing denominator is noise amplified rather than a signal. The same happens in a low-volatility range for the opposite reason: the numerator goes to zero and the sign flips on rounding.",
+    similar: ["force_index", "cmf_trend", "obv_trend"],
+  },
+  aroon_cross: {
+    summary:
+      "The only indicator here that measures TIME rather than price.",
+    formula:
+      "Aroon Up = (period − bars since the window's high) / period × 100, and the mirror for Down. Long when Up exceeds `slow` and leads Down. Ties resolve to the most recent bar, which is the definition and the opposite of what an argmax returns.",
+    whenItWorks:
+      "Identifying a range that is about to end. Because it counts bars rather than distance, it can turn while price is still flat — which no price-based indicator can do.",
+    whenItFails:
+      "Choppy markets that keep setting marginal new extremes. Each one resets the count, so both lines stay high and the crossover fires repeatedly on nothing.",
+    similar: ["donchian", "price_channel", "ema_slope"],
+  },
+  vortex_cross: {
+    summary:
+      "Two directed movements built from different data, so their crossing is not a smoothing artefact.",
+    formula:
+      "VI+ = Σ|high − previous low| / Σ true range; VI− = Σ|low − previous high| / Σ true range, over `fast` bars. Long while VI+ leads VI−, flat below SMA(slow).",
+    whenItWorks:
+      "Trend initiation. Unlike a crossover of two averages of the same series — where the crossing is partly an artefact of the smoothing — these two lines measure genuinely different quantities.",
+    whenItFails:
+      "Range-bound markets, where the two lines hug each other and cross on noise. True range in the denominator also means a single volatile bar can flip both at once.",
+    similar: ["supertrend", "atr_breakout", "triple_ma"],
   },
   linreg_forecast: {
     summary:

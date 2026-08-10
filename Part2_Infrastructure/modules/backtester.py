@@ -209,6 +209,19 @@ FREE_SECOND_AXIS: dict[str, tuple[float, float, float]] = {
     # 77-combination grid would take a second where every other sweep takes
     # forty milliseconds. Six thresholds is enough to see the shape.
     "linreg_forecast": (0.0, 1.0, 0.2),
+
+    # Second batch. Each reads its second parameter as a LEVEL rather than a
+    # lookback — an oscillator threshold, a sigma multiple, a %B position, an
+    # ulcer index. Sweeping them over the request's 20..200 period axis would
+    # ask for a 200-sigma band, and every combination would be discarded.
+    "cci_reversion": (50.0, 200.0, 25.0),
+    "cmo_trend": (20.0, 60.0, 10.0),
+    "dpo_reversion": (0.5, 2.5, 0.25),
+    "bollinger_pctb": (0.0, 0.4, 0.05),
+    "stddev_channel": (1.0, 3.0, 0.25),
+    "ulcer_filter": (2.0, 12.0, 2.0),
+    "cmf_trend": (0.0, 0.2, 0.025),
+    "aroon_cross": (50.0, 90.0, 10.0),
 }
 
 #: Strategies whose FIRST axis is not the request's period sweep either.
@@ -387,6 +400,305 @@ def _linreg_forecast(close: np.ndarray, window: float, threshold_sd: float) -> n
     return out
 
 
+
+
+# --------------------------------------------------------------------------- #
+# Shared primitives for the second strategy batch
+# --------------------------------------------------------------------------- #
+def _wma(values: pd.Series, window: int) -> pd.Series:
+    """Linearly weighted moving average — weight ``i+1`` on the i-th window bar.
+
+    `pandas` has no `rolling().wma()`, so this walks the window in the same
+    direction and accumulates in the same order as `wma` in `web/lib/indicators.ts`.
+    Written once because the weight vector is the part that gets reversed, and
+    three call sites would be three chances to weight the oldest bar most.
+    """
+    period = max(1, int(round(window)))
+    weights = np.arange(1, period + 1, dtype=float)
+    denominator = weights.sum()
+    return values.rolling(period).apply(
+        lambda w: float(np.dot(w, weights) / denominator), raw=True
+    )
+
+
+def _bars_since_max(values: pd.Series, window: int) -> pd.Series:
+    """Bars since the window's highest value; ties resolve to the MOST RECENT.
+
+    That tie rule is Aroon's definition and the opposite of ``argmax``. On a flat
+    series every bar ties and the two conventions differ by the whole window.
+    """
+    period = max(1, int(round(window)))
+    return values.rolling(period).apply(
+        lambda w: float(len(w) - 1 - int(np.max(np.flatnonzero(w == np.max(w))))), raw=True
+    )
+
+
+def _bars_since_min(values: pd.Series, window: int) -> pd.Series:
+    period = max(1, int(round(window)))
+    return values.rolling(period).apply(
+        lambda w: float(len(w) - 1 - int(np.max(np.flatnonzero(w == np.min(w))))), raw=True
+    )
+
+
+def _ema(values: pd.Series, span: float) -> pd.Series:
+    """`adjust=False`, matching `ema` in the TypeScript engine bar for bar."""
+    return values.ewm(span=max(1, int(round(span))), adjust=False).mean()
+
+
+def _dema(values: pd.Series, span: float) -> pd.Series:
+    one = _ema(values, span)
+    return 2 * one - _ema(one, span)
+
+
+def _tema(values: pd.Series, span: float) -> pd.Series:
+    one = _ema(values, span)
+    two = _ema(one, span)
+    return 3 * one - 3 * two + _ema(two, span)
+
+
+def _zlema(values: pd.Series, span: float) -> pd.Series:
+    """De-lagged EMA. The adjustment extrapolates, so it overshoots at a turn."""
+    period = max(1, int(round(span)))
+    lag = (period - 1) // 2
+    adjusted = 2 * values - values.shift(lag)
+    adjusted.iloc[:lag] = values.iloc[:lag]
+    return _ema(adjusted, period)
+
+
+def _hma(values: pd.Series, window: float) -> pd.Series:
+    """Hull MA. Both sub-periods FLOOR rather than round.
+
+    A cross-language decision, not a stylistic one. ``round(2.5)`` is 2 in
+    Python (banker's rounding) and 3 in JavaScript, so an odd ``n`` gave the two
+    engines different half-periods and a different indicator under the same
+    name. It surfaced as exactly one failing parity combination out of 193 — at
+    n=5, the only point in the swept range where the halving lands on a .5.
+    """
+    period = max(2, int(window))
+    half = _wma(values, max(1, period // 2))
+    full = _wma(values, period)
+    return _wma(2 * half - full, max(1, int(math.sqrt(period))))
+
+
+
+
+#: The second strategy batch, dispatched together because each is a self
+#: contained state machine rather than a mask over the whole series. Written as
+#: explicit loops in the same order as `longState` in web/lib/engine.ts — the
+#: two engines are compared combination by combination, and a vectorised
+#: shortcut here that rounds differently is a parity failure that reads like a
+#: modelling disagreement.
+_BATCH_TWO = {
+    "dema_cross", "tema_cross", "zlema_cross", "hull_trend", "vwap_trend",
+    "cci_reversion", "awesome_cross", "cmo_trend", "stoch_rsi_x", "dpo_reversion",
+    "bollinger_pctb", "stddev_channel", "chaikin_volatility", "ulcer_filter",
+    "cmf_trend", "force_index", "eom_trend", "aroon_cross", "vortex_cross",
+}
+
+
+def _state_machine(entry: np.ndarray, exit_: np.ndarray) -> np.ndarray:
+    """Latch entries, and let an exit win on a bar where both fire.
+
+    The convention every strategy in this module shares, factored out here
+    because nineteen hand-written loops is nineteen chances to write the two
+    assignments in the wrong order — which turns RSI reversion from 2 trades
+    into 70 and looks like a better strategy.
+    """
+    out = np.zeros(len(entry), dtype=bool)
+    state = False
+    for i in range(len(entry)):
+        if entry[i]:
+            state = True
+        if exit_[i]:
+            state = False
+        out[i] = state
+    return out
+
+
+def _batch_two_state(
+    strategy: str, df: pd.DataFrame, close: pd.Series, fast: float, slow: float
+) -> pd.Series:
+    n = len(close)
+    high, low, volume = df["high"], df["low"], df["volume"]
+    idx = close.index
+
+    if strategy in ("dema_cross", "tema_cross", "zlema_cross"):
+        fn = {"dema_cross": _dema, "tema_cross": _tema, "zlema_cross": _zlema}[strategy]
+        return fn(close, fast) > fn(close, slow)
+
+    if strategy == "hull_trend":
+        h = _hma(close, fast)
+        return (h > h.shift(int(slow))).fillna(False)
+
+    if strategy == "vwap_trend":
+        typical = (high + low + close) / 3.0
+        period = max(1, int(round(fast)))
+        vwap = (typical * volume).rolling(period).sum() / volume.rolling(period).sum()
+        exit_ma = close.rolling(int(slow)).mean()
+        return pd.Series(
+            _state_machine((close > vwap).to_numpy(), (close < exit_ma).to_numpy()), index=idx
+        )
+
+    if strategy == "cci_reversion":
+        period = max(1, int(round(fast)))
+        typical = (high + low + close) / 3.0
+        mean_tp = typical.rolling(period).mean()
+        deviation = typical.rolling(period).apply(
+            lambda w: float(np.abs(w - w.mean()).mean()), raw=True
+        )
+        cci = (typical - mean_tp) / (0.015 * deviation.replace(0.0, np.nan))
+        exit_ma = close.rolling(50).mean()
+        return pd.Series(
+            _state_machine((cci < -slow).to_numpy(), ((cci > 0) | (close < exit_ma)).to_numpy()),
+            index=idx,
+        )
+
+    if strategy == "awesome_cross":
+        median = (high + low) / 2.0
+        return median.rolling(int(fast)).mean() > median.rolling(int(slow)).mean()
+
+    if strategy == "cmo_trend":
+        period = max(1, int(round(fast)))
+        delta = close.diff()
+        gain = delta.clip(lower=0).fillna(0.0)
+        loss = (-delta.clip(upper=0)).fillna(0.0)
+        gain_sum = gain.rolling(period).sum()
+        loss_sum = loss.rolling(period).sum()
+        total = gain_sum + loss_sum
+        cmo = 100.0 * (gain_sum - loss_sum) / total.replace(0.0, np.nan)
+        return pd.Series(
+            _state_machine((cmo > slow).to_numpy(), (cmo < -slow).to_numpy()), index=idx
+        )
+
+    if strategy == "stoch_rsi_x":
+        period, window = max(1, int(round(fast))), max(1, int(round(slow)))
+        delta = close.diff()
+        gain = delta.clip(lower=0).ewm(alpha=1 / period, adjust=False).mean()
+        loss = (-delta.clip(upper=0)).ewm(alpha=1 / period, adjust=False).mean()
+        rsi = 100 - 100 / (1 + gain / loss.replace(0, np.nan))
+        hi, lo = rsi.rolling(window).max(), rsi.rolling(window).min()
+        k = (rsi - lo) / (hi - lo).replace(0.0, np.nan)
+        return pd.Series(_state_machine((k < 0.2).to_numpy(), (k > 0.8).to_numpy()), index=idx)
+
+    if strategy == "dpo_reversion":
+        period = max(1, int(round(fast)))
+        shift_by = period // 2 + 1
+        base = close.rolling(period).mean().shift(shift_by)
+        sd = close.rolling(period).std(ddof=0)
+        dpo = (close - base) / sd.replace(0.0, np.nan)
+        return pd.Series(_state_machine((dpo < -slow).to_numpy(), (dpo > 0).to_numpy()), index=idx)
+
+    if strategy == "bollinger_pctb":
+        period = max(1, int(round(fast)))
+        mid = close.rolling(period).mean()
+        sd = close.rolling(period).std(ddof=0)
+        pct_b = (close - (mid - 2 * sd)) / (4 * sd).replace(0.0, np.nan)
+        return pd.Series(
+            _state_machine((pct_b < slow).to_numpy(), (pct_b > 0.5).to_numpy()), index=idx
+        )
+
+    if strategy == "stddev_channel":
+        period = max(1, int(round(fast)))
+        mid = close.rolling(period).mean()
+        sd = close.rolling(period).std(ddof=0)
+        return pd.Series(
+            _state_machine((close > mid + slow * sd).to_numpy(), (close < mid).to_numpy()), index=idx
+        )
+
+    if strategy == "chaikin_volatility":
+        smoothed = _ema(high - low, fast)
+        past = smoothed.shift(int(round(slow)))
+        change = smoothed / past.replace(0.0, np.nan) - 1.0
+        trend = close.rolling(50).mean()
+        return pd.Series(
+            _state_machine(((change > 0) & (close > trend)).to_numpy(), (close < trend).to_numpy()),
+            index=idx,
+        )
+
+    if strategy == "ulcer_filter":
+        period = max(1, int(round(fast)))
+        peak = close.rolling(period).max()
+        drawdown = 100.0 * (close - peak) / peak.replace(0.0, np.nan)
+        ulcer = np.sqrt((drawdown ** 2).rolling(period).mean())
+        trend = close.rolling(50).mean()
+        return pd.Series(
+            _state_machine(
+                ((ulcer < slow) & (close > trend)).to_numpy(),
+                ((ulcer > slow * 2) | (close < trend)).to_numpy(),
+            ),
+            index=idx,
+        )
+
+    if strategy == "cmf_trend":
+        period = max(1, int(round(fast)))
+        span = (high - low).replace(0.0, np.nan)
+        mfv = (((close - low) - (high - close)) / span * volume).fillna(0.0)
+        cmf = mfv.rolling(period).sum() / volume.rolling(period).sum().replace(0.0, np.nan)
+        return pd.Series(_state_machine((cmf > slow).to_numpy(), (cmf < 0).to_numpy()), index=idx)
+
+    if strategy == "force_index":
+        force = (close.diff() * volume).fillna(0.0)
+        smoothed = _ema(force, fast)
+        trend = close.rolling(int(slow)).mean()
+        return pd.Series(
+            _state_machine(
+                ((smoothed > 0) & (close > trend)).to_numpy(),
+                ((smoothed < 0) | (close < trend)).to_numpy(),
+            ),
+            index=idx,
+        )
+
+    if strategy == "eom_trend":
+        mid_move = ((high + low) / 2.0).diff()
+        span = (high - low).replace(0.0, np.nan)
+        raw = (mid_move / (volume / 1e6 / span)).fillna(0.0)
+        raw.iloc[0] = 0.0
+        smoothed = raw.rolling(max(1, int(round(fast)))).mean()
+        trend = close.rolling(int(slow)).mean()
+        return pd.Series(
+            _state_machine(
+                ((smoothed > 0) & (close > trend)).to_numpy(),
+                ((smoothed < 0) | (close < trend)).to_numpy(),
+            ),
+            index=idx,
+        )
+
+    if strategy == "aroon_cross":
+        period = max(1, int(round(fast)))
+        up = 100.0 * (period - _bars_since_max(high, period)) / period
+        down = 100.0 * (period - _bars_since_min(low, period)) / period
+        return pd.Series(
+            _state_machine(
+                ((up > slow) & (up > down)).to_numpy(),
+                ((down > slow) & (down > up)).to_numpy(),
+            ),
+            index=idx,
+        )
+
+    # vortex_cross
+    period = max(1, int(round(fast)))
+    vm_plus = (high - low.shift(1)).abs().fillna(0.0)
+    vm_minus = (low - high.shift(1)).abs().fillna(0.0)
+    prev_close = close.shift(1)
+    true_range = pd.concat(
+        [high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1
+    ).max(axis=1).fillna(0.0)
+    vm_plus.iloc[0] = 0.0
+    vm_minus.iloc[0] = 0.0
+    true_range.iloc[0] = 0.0
+    tr_sum = true_range.rolling(period).sum().replace(0.0, np.nan)
+    vi_plus = vm_plus.rolling(period).sum() / tr_sum
+    vi_minus = vm_minus.rolling(period).sum() / tr_sum
+    exit_ma = close.rolling(int(slow)).mean()
+    return pd.Series(
+        _state_machine(
+            (vi_plus > vi_minus).to_numpy(),
+            ((vi_plus < vi_minus) | (close < exit_ma)).to_numpy(),
+        ),
+        index=idx,
+    )
+
+
 def build_signals(strategy: str, df: pd.DataFrame, fast: int, slow: int) -> tuple[pd.Series, pd.Series]:
     """Return (entries, exits) boolean series for one parameter pair.
 
@@ -411,6 +723,11 @@ def build_signals(strategy: str, df: pd.DataFrame, fast: int, slow: int) -> tupl
         fast = int(fast)
     if strategy not in FREE_SECOND_AXIS:
         slow = int(slow)
+
+    if strategy in _BATCH_TWO:
+        long = _batch_two_state(strategy, df, close, float(fast), float(slow))
+        prev = long.shift(1, fill_value=False)
+        return (long & ~prev), (~long & prev)
 
     if strategy == "linreg_forecast":
         long = pd.Series(_linreg_forecast(close.to_numpy(), fast, slow) > 0, index=close.index)
