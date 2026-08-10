@@ -115,6 +115,40 @@ export function bandPath(
   return `${d}Z`;
 }
 
+/**
+ * A line that draws itself once per result.
+ *
+ * `pathLength={1}` normalises every path to unit length, so one stylesheet
+ * rule (stroke-dashoffset 1 → 0 over `--dur-draw`) fits every line in the
+ * app regardless of geometry. The animation key is **data identity**, chosen
+ * by the caller (dataHash, or series length + last timestamp) — never width:
+ * `useMeasuredWidth` re-renders on every drag, and a width-keyed path would
+ * replay its draw on resize. A resize only rewrites `d` on the same node,
+ * and a finished animation does not rerun.
+ */
+export function AnimatedPath({
+  drawKey,
+  delayMs = 0,
+  style,
+  className,
+  ...path
+}: React.SVGProps<SVGPathElement> & {
+  /** Remounts the path — and replays the draw — when the DATA changes. */
+  drawKey: string | number;
+  /** Offset into the draw sequence (the benchmark races 120ms behind). */
+  delayMs?: number;
+}) {
+  return (
+    <path
+      key={drawKey}
+      pathLength={1}
+      className={className ? `chart-draw ${className}` : "chart-draw"}
+      style={{ ...style, "--draw-delay": `${delayMs}ms` } as React.CSSProperties}
+      {...path}
+    />
+  );
+}
+
 /** Recessive hairline grid + axis labels. Never dashed. */
 export function Grid({
   yTicks,

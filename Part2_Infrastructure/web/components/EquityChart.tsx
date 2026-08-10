@@ -19,6 +19,7 @@ import { useMemo } from "react";
 import { MonteCarloBands, SeriesPoint } from "@/lib/types";
 import { fmt, pct, shortDate, dateTime, signedPct } from "@/lib/format";
 import {
+  AnimatedPath,
   DEFAULT_MARGIN,
   Grid,
   Tooltip,
@@ -106,6 +107,9 @@ export default function EquityChart({
   const point = index != null ? series[index] : null;
   const last = series[series.length - 1];
   const total = EQ_H + DD_H;
+  // The draw's animation key: data identity, never width — a drag-resize
+  // rewrites `d` on the same node and replays nothing.
+  const drawKey = `${series.length}-${last?.t ?? 0}`;
 
   return (
     <div ref={ref}>
@@ -142,22 +146,29 @@ export default function EquityChart({
         <Grid yTicks={L.eqTicks} yScale={L.yEq} x0={x0} x1={x1} format={(v) => `${fmt(v, 2)}×`} />
 
         {mc && (
-          <>
+          /* The cone FADES — opacity only, never scale. A scaling cone would
+             briefly draw a narrower uncertainty band than was computed; the
+             animation would lie about the statistics. */
+          <g className="chart-fade" key={drawKey}>
             <path d={L.outerBand} fill="var(--series-1)" opacity={0.1} />
             <path d={L.innerBand} fill="var(--series-1)" opacity={0.16} />
             <path d={L.medianLine} fill="none" stroke="var(--series-1)" strokeWidth={1} opacity={0.5} />
-          </>
+          </g>
         )}
 
-        <path
+        {/* The benchmark races 120ms behind the strategy: the delay is what
+            makes the draw read as a comparison rather than two lines. */}
+        <AnimatedPath
+          drawKey={drawKey}
+          delayMs={120}
           d={L.buyHoldLine}
           fill="none"
           stroke="var(--series-2)"
           strokeWidth={1.6}
-          strokeDasharray="none"
           opacity={0.85}
         />
-        <path
+        <AnimatedPath
+          drawKey={drawKey}
           d={L.equityLine}
           fill="none"
           stroke="var(--series-1)"
@@ -205,7 +216,9 @@ export default function EquityChart({
         <XAxis points={series.map((p) => p.t)} y={L.ddBottom} x0={x0} x1={x1} format={shortDate} />
 
         {point && index != null && (
-          <>
+          /* Opacity transition on entry only; POSITION stays instant — a
+             lagging crosshair misreports which bar you are on. */
+          <g className="chart-hover">
             <line
               x1={L.xScale(index)}
               x2={L.xScale(index)}
@@ -261,7 +274,7 @@ export default function EquityChart({
                 },
               ]}
             />
-          </>
+          </g>
         )}
       </svg>
     </div>

@@ -13220,3 +13220,59 @@ button:active:not(:disabled) {
     transform: translateY(6px);
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Charts alive (Slice 6)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* AnimatedPath (chart-kit): every line normalised to pathLength=1, so this
+   one rule draws all of them. The React key is data identity — a resize
+   rewrites `d` on the same node and this finished animation never reruns. */
+@keyframes chart-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+.chart-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: chart-draw var(--dur-draw) var(--ease-out) forwards;
+  animation-delay: var(--draw-delay, 0ms);
+}
+
+/* The Monte Carlo cone FADES — opacity only, never scale: a scaling cone
+   would briefly draw a narrower uncertainty band than was computed, and the
+   animation would lie about the statistics. Ends at each path's own
+   attribute opacity, so the band weights stay exactly as validated. */
+@keyframes chart-fade {
+  from { opacity: 0; }
+}
+
+.chart-fade {
+  animation: chart-fade var(--dur-reveal) var(--ease-out) both;
+}
+
+/* Crosshair and tooltip: opacity on entry only. Position is deliberately NOT
+   transitioned — a lagging crosshair misreports which bar you are on, and
+   correctness beats smoothness. */
+.chart-hover {
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+@starting-style {
+  .chart-hover {
+    opacity: 0;
+  }
+}
+
+/* Heatmap wavefront: cells arrive along the diagonal — (row+col) × 12ms via
+   --wave-delay, capped in the component — restating the panel's message:
+   this grid was searched. Keyed by sweep identity; hover and resize replay
+   nothing. */
+@keyframes heat-cell-in {
+  from { opacity: 0; }
+}
+
+.heatmap-cell {
+  animation: heat-cell-in var(--dur-slow) var(--ease-out) both;
+  animation-delay: var(--wave-delay, 0ms);
+}

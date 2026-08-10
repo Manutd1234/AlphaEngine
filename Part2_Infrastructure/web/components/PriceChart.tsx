@@ -12,6 +12,7 @@
 import { CHART_SERIES, SeriesPoint, Strategy } from "@/lib/types";
 import { fmt, priceDp, shortDate, dateTime } from "@/lib/format";
 import {
+  AnimatedPath,
   DEFAULT_MARGIN,
   Grid,
   Tooltip,
@@ -130,7 +131,10 @@ export default function PriceChart({
           format={shortDate}
         />
 
-        <path
+        {/* Only the close draws itself in — the MA overlays are derived from
+            it and arriving with it would read as three separate events. */}
+        <AnimatedPath
+          drawKey={`${series.length}-${last?.t ?? 0}`}
           d={linePath(series.map((p, i) => ({ x: xScale(i), y: yScale(p.close) })))}
           fill="none"
           stroke="var(--series-1)"
@@ -164,7 +168,9 @@ export default function PriceChart({
         </text>
 
         {point && index != null && (
-          <>
+          /* Opacity on entry only; position stays instant — a lagging
+             crosshair misreports which bar you are on. */
+          <g className="chart-hover">
             <line
               x1={xScale(index)}
               x2={xScale(index)}
@@ -198,7 +204,7 @@ export default function PriceChart({
                 },
               ]}
             />
-          </>
+          </g>
         )}
       </svg>
     </div>

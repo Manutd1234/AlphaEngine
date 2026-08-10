@@ -185,6 +185,11 @@ export default function Heatmap({
         role="img"
         aria-label={`Sharpe ratio across ${results.length} parameter combinations`}
       >
+        {/* The wavefront restates the panel's actual message — this grid was
+            SEARCHED, cell by cell, along the diagonal. Keyed by the sweep's
+            identity (grid size + winner), so hover, selection and resize
+            replay nothing. */}
+        <g key={`${results.length}:${best.fast}/${best.slow}:${best.sharpe}`}>
         {fasts.map((f, fi) =>
           slows.map((s, si) => {
             const r = lookup.get(`${f}:${s}`);
@@ -198,6 +203,7 @@ export default function Heatmap({
             return (
               <rect
                 key={`${f}-${s}`}
+                className="heatmap-cell"
                 x={padL + si * cellW + gap}
                 y={padT + fi * cellH + gap}
                 width={Math.max(1, cellW - gap * 2)}
@@ -214,7 +220,12 @@ export default function Heatmap({
                 stroke={isSel || isBest ? "var(--text-primary)" : "none"}
                 strokeWidth={isSel ? 2 : isBest ? 1.4 : 0}
                 strokeDasharray={isBest && !isSel ? "3 2" : undefined}
-                style={{ cursor: onSelect ? "pointer" : "default" }}
+                style={{
+                  cursor: onSelect ? "pointer" : "default",
+                  /* Diagonal wavefront: (row+col) × 12ms, capped at 360ms so
+                     a large grid finishes before the reader stops waiting. */
+                  "--wave-delay": `${Math.min((fi + si) * 12, 360)}ms`,
+                } as React.CSSProperties}
                 tabIndex={onSelect ? 0 : undefined}
                 role={onSelect ? "button" : undefined}
                 aria-label={
@@ -247,6 +258,7 @@ export default function Heatmap({
             );
           }),
         )}
+        </g>
 
         {fasts.map((f, fi) => (
           <text
