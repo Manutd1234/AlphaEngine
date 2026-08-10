@@ -101,22 +101,38 @@ not the constraint at this scale; the hypervisor is.
 From the OCI VM (`ap-singapore-2`, 2 vCPU Xeon 8358), TCP handshake = one round
 trip, five samples, steady state:
 
-| Endpoint | RTT | What it actually is |
-|---|---|---|
-| `api.binance.com` | 2.4 ms | CDN edge in Singapore — **not** the matching engine |
-| `api.bybit.com` | 2.1 ms | CDN edge in Singapore |
-| **`stream.binance.com`** | **68 ms** | **the market-data feed** |
+Re-measured with `tools/colocation_probe.py`, which reports two figures per
+endpoint: the TCP handshake, and a round trip to the venue's server clock — a
+dynamic response no CDN edge can serve from cache.
 
-`stream.binance.com` resolves from the VM to `13.192.157.15` / `52.192.119.107` —
-AWS **ap-northeast-1, Tokyo**. The matching engine is in Tokyo. The gateway is in
-Singapore.
+| Endpoint | TCP connect | Origin RTT | What it actually is |
+|---|---|---|---|
+| `api.binance.com` | 1.6 ms | **72.7 ms** | CloudFront edge; Binance is in Tokyo |
+| `api.bybit.com` | 1.5 ms | **6.2 ms** | CloudFront edge; Bybit origin is near |
+| **`stream.binance.com`** | **69.1 ms** | — | raw EC2, `ap-northeast-1` — no edge to hide behind |
+| `stream.bybit.com` | 1.6 ms | — | CloudFront; WebSocket, so no clock to probe |
+| `data-api.binance.vision` | 68.5 ms | 71.0 ms | the public mirror, also Tokyo |
 
-The 2.4 ms figure is the trap. A REST endpoint answered by a local CDN PoP says
-nothing about where trading happens, and quoting it as "we are 2 ms from Binance"
-would be wrong by a factor of thirty.
+**The connect column is the trap, and the earlier version of this document fell
+into it.** It recorded `api.binance.com` at 2.4 ms and called it a CDN edge —
+correct as far as it went, and then it left the order-entry path budgeted at
+2.4 ms anyway. The origin column is the correction: **order entry to Binance is
+72.7 ms, not 2.4 ms.** A handshake that terminates at a PoP two milliseconds
+away says nothing about where the order is matched, and the whole reason the
+probe now measures a server clock is that nothing else distinguishes the two.
+
+`stream.binance.com` resolves from the VM to `13.112.200.49` / `13.114.181.92` —
+AWS **ap-northeast-1, Tokyo**, with no CDN in front, which is why its connect
+time and its origin distance are the same number.
+
+**And the finding that was not in the plan: Bybit's origin answers in 6.2 ms
+from the existing Singapore VM — 11.7× closer than Binance, for no spend at
+all.** Both venues are already wired into this gateway.
 
 ```
- 68 000 µs   market data, Tokyo → Singapore     ← 1 353× the decision
+ 72 700 µs   order entry to Binance, origin     ← 1 446× the decision  (was budgeted at 2 400)
+ 69 100 µs   market data from Binance           ← 1 374× the decision
+  6 160 µs   order entry to Bybit, origin       ←   123× the decision
      50 µs   the risk decision
 ```
 
@@ -129,7 +145,16 @@ instance in AWS `ap-northeast-1`, where the matching engine already runs.
 Expected 68 ms → 0.1–0.5 ms same-AZ, 0.5–2 ms cross-AZ — a ~150× improvement
 against the ~1.08× available from the compute.
 
-**This is not yet done, and the number above is an expectation, not a
+**There is now a cheaper option that was not in the original analysis, because
+it only became visible once the origin was measured separately from the edge.**
+Routing to Bybit rather than Binance takes the round trip from ~70 ms to 6.2 ms
+— an 11.4× improvement, available today, on the existing instance, for nothing.
+It does not reach the 0.1–0.5 ms a same-region instance would, and it changes
+which venue the desk trades, which is a business decision rather than an
+infrastructure one. It is recorded here because a spend decision should be taken
+against the best free alternative, not against the status quo.
+
+**Tokyo co-location is not yet done, and the number above is an expectation, not a
 measurement.** The plan is probe-first: stand up an instance, run the same
 `time_connect` probe, and migrate only if it confirms.
 
@@ -212,7 +237,9 @@ connect. Vercel serves the web project from `sin1`, the same city as the VM.
 |---|---|---|
 | Risk decision (15 gates) | **50.3 µs** p50 | in-process; excludes kernel and wire |
 | Decision tail | 90.9 µs p99.9 | scheduler jitter, not GC |
-| Market data → gateway | **68 ms** RTT | Tokyo → Singapore; **the constraint** |
+| Market data → gateway | **69.1 ms** RTT | Binance, Tokyo → Singapore; **the constraint** |
+| Order entry → venue | **72.7 ms** origin RTT | Binance; 1.6 ms to the CDN edge, which is not where it matches |
+| Order entry → Bybit | **6.2 ms** origin RTT | the free alternative, measured on the same host |
 | Gateway → browser (dev machine) | 21–27 ms | |
 | Book recompute | 5 s | server-side; the observability floor |
 | Browser order book | 100 ms | direct from venue, already optimal |
