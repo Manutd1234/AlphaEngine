@@ -12787,32 +12787,36 @@ button:active:not(:disabled) {
 }
 
 .symbol-combo__field {
+  position: relative;
   display: flex;
-  align-items: stretch;
 }
 
-/* The input keeps every inherited field style; only the right edge changes so
-   the caret button reads as part of the same control. */
+/* The caret OVERLAYS the input rather than sitting beside it.
+   As a flex sibling it consumed ~24px of a cell that `.row`'s `flex: 1` had
+   already cut to roughly 110px in this sidebar, and `BTCUSDT` — seven
+   characters, the default symbol — no longer fit. A field that cannot show its
+   own value is a worse control than the one this replaced, so the button is
+   positioned and the input simply reserves padding for it. */
 .symbol-combo__field input {
   flex: 1 1 auto;
   min-width: 0;
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-  border-right: 0;
+  padding-right: 22px;
 }
 
 .symbol-combo__toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 var(--space-2);
-  border: 1px solid var(--border);
-  border-left: 0;
-  border-top-right-radius: var(--radius-sm);
-  border-bottom-right-radius: var(--radius-sm);
-  background: var(--surface-2);
+  width: 20px;
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1;
   cursor: pointer;
 }
@@ -12830,7 +12834,14 @@ button:active:not(:disabled) {
   z-index: var(--z-popover);
   top: calc(100% + 2px);
   left: 0;
-  right: 0;
+  /* WIDER THAN THE FIELD, deliberately.
+     `right: 0` tied the list to a ~110px cell and three columns collapsed into
+     each other — the ticker rendered on top of the sector, unreadable. The list
+     is absolutely positioned, so it is free to be wider than the control that
+     opens it, which is what every native select does. `max-width` keeps it
+     inside the sidebar on the narrowest layout. */
+  min-width: 15rem;
+  max-width: min(22rem, 92vw);
   /* Roughly eight rows. The roster is 32 and growing, and a list that runs off
      the panel is worse than the datalist this replaces. */
   max-height: 17rem;
@@ -12844,9 +12855,14 @@ button:active:not(:disabled) {
   box-shadow: var(--shadow-2, 0 8px 24px rgb(0 0 0 / 12%));
 }
 
+/* Flex, not grid. The grid this replaces used `minmax(0, auto)` on the outer
+   two columns, which at the list's old width let both overflow their tracks and
+   paint over the middle one — the ticker and the sector rendered on top of each
+   other. Flex with an explicit shrink order says which text gives way: the
+   issuer name truncates, the ticker and the sector never do, because those two
+   are what the row is for. */
 .symbol-combo__list button {
-  display: grid;
-  grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
+  display: flex;
   align-items: baseline;
   gap: var(--space-2);
   width: 100%;
@@ -12867,20 +12883,34 @@ button:active:not(:disabled) {
   color: var(--series-1);
 }
 
+/* The ticker is the identifier being chosen — it never shrinks and never wraps. */
 .symbol-combo__ticker {
+  flex: 0 0 auto;
   font-weight: 600;
+  white-space: nowrap;
 }
 
+/* The only element allowed to give way. `min-width: 0` is required for
+   `text-overflow` to work on a flex child — without it the name refuses to
+   shrink below its content and pushes the sector out of the row instead. */
 .symbol-combo__name {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-secondary);
 }
 
+/* Right-aligned and fixed: the sector is what makes the roster scannable by
+   category, so it holds its place at the end of every row. */
 .symbol-combo__sector {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-left: var(--space-2);
   color: var(--text-tertiary, var(--text-secondary));
   font-size: 11px;
+  white-space: nowrap;
 }
 
 .symbol-combo__empty {
