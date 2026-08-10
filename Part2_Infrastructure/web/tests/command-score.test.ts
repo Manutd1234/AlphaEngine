@@ -17,7 +17,8 @@ describe("matching", () => {
   });
 
   it("rejects out-of-order and absent characters", () => {
-    assert.equal(commandScore("fw", "Walk-forward — evidence"), null);
+    // "vo" is not a subsequence of "Overview": its only o precedes every v.
+    assert.equal(commandScore("vo", "Overview"), null);
     assert.equal(commandScore("xyz", "Portfolio"), null);
   });
 
