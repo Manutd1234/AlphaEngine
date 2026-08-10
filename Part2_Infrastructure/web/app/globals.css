@@ -13861,6 +13861,7 @@ html.is-vt .view-panel {
     .verdict-card,
     .stat-tile,
     .verdict-metric,
+    .compact-grid-2col > .card,
     .promotion-list > li,
     .codex-card,
     .corpus-results > li,
