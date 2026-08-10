@@ -13419,3 +13419,79 @@ html.is-vt .view-panel {
   margin-top: 14px;
   max-width: 80ch;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Forced colours — meaning survives when decorative washes are removed
+   ══════════════════════════════════════════════════════════════════════════ */
+
+@media (forced-colors: active) {
+  /* These already own a border; restate it in a system colour so their
+     grouping remains visible after color-mix backgrounds are discarded. */
+  .verdict-card,
+  .codex-family,
+  .codex-monogram,
+  .codex-card,
+  .cockpit-verdict,
+  .promotion-list > li {
+    border-color: CanvasText;
+  }
+
+  /* Wash-led chips and transient highlights need a real edge in High
+     Contrast. Their words and glyphs still carry the state without colour. */
+  .verdict-pill,
+  .codex-chip,
+  .market-watchlist__price[data-tick],
+  .pill,
+  .page-status,
+  .desk-tape__state,
+  .latency-chip,
+  .developer-cp-status,
+  .data-cp-status,
+  .method-badge,
+  .friction-badge,
+  .allocation-override-chip {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .codex-chip {
+    padding: 1px 4px;
+    border-radius: var(--radius-sm);
+  }
+
+  .codex-card.is-active {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+    box-shadow: none;
+  }
+
+  /* The cumulative width remains readable even when its tint is suppressed. */
+  .ladder-row > span[aria-hidden] {
+    border: 1px solid CanvasText;
+  }
+
+  /* Charts adopt the user's ink colour; their geometry and labels carry the
+     series distinctions when High Contrast collapses the authored palette. */
+  .card svg {
+    color: CanvasText;
+  }
+
+  svg path[stroke],
+  svg line[stroke],
+  svg polyline[stroke],
+  svg circle[stroke] {
+    stroke: currentColor;
+  }
+
+  /* These are the only two surfaces where preserving authored colour is
+     preserving data, not decoration. Both retain text or labels as a twin. */
+  .heatmap-cell,
+  .ladder-row > span[aria-hidden] {
+    forced-color-adjust: none;
+  }
+
+  .heatmap-cell:focus-visible {
+    stroke: CanvasText;
+  }
+}
