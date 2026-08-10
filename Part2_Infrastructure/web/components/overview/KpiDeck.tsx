@@ -16,6 +16,7 @@
 
 import { type ReactNode } from "react";
 
+import NumberTicker from "@/components/common/NumberTicker";
 import Sparkline from "@/components/overview/Sparkline";
 import { fmt, signedPct, usd } from "@/lib/format";
 import { downsample, latencyTone } from "@/lib/overview-state";
@@ -30,12 +31,15 @@ function KpiCard({
   note,
   spark,
   mono = true,
+  titleText,
 }: {
   label: string;
   value: ReactNode;
   note: ReactNode;
   spark?: ReactNode;
   mono?: boolean;
+  /** Hover text when `value` is JSX (NumberTicker) rather than a plain string. */
+  titleText?: string;
 }) {
   return (
     <div className="grid min-w-0 gap-0.5 rounded-[12px] border border-border bg-surface-1 px-4 py-3.5 shadow-card">
@@ -52,7 +56,7 @@ function KpiCard({
         /* Narrow decks truncate "Moving-average crossover · 30/200" past the
            parameters, which are the half worth reading. The full string stays
            available on hover. */
-        title={typeof value === "string" ? value : undefined}
+        title={typeof value === "string" ? value : titleText}
         className={`min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[14px] leading-[1.25] ${mono ? "num" : ""}`}
       >
         {value}
@@ -94,8 +98,17 @@ export default function KpiDeck({
   const summary = systems.health?.summary;
 
   // ---- research candidate ------------------------------------------------
-  const candidateValue = shown
+  const candidateTitle = shown
     ? `${STRATEGY_LABELS[shown.request.strategy]} · ${shown.best.fast}/${shown.best.slow}`
+    : STRATEGY_LABELS[request.strategy];
+  // The parameters tick when a sweep lands on a new winner; the label never
+  // animates — a strategy name has no intermediate values.
+  const candidateValue = shown
+    ? (
+      <>
+        {STRATEGY_LABELS[shown.request.strategy]} · <NumberTicker value={shown.best.fast} />/<NumberTicker value={shown.best.slow} />
+      </>
+    )
     : STRATEGY_LABELS[request.strategy];
   const candidateNote = running
     ? "sweep in progress"
@@ -108,7 +121,11 @@ export default function KpiDeck({
 
   // ---- OOS validation ----------------------------------------------------
   const oos = shown?.walkForwardOosSharpe ?? null;
-  const oosValue = shown ? (oos == null ? "Not available" : fmt(oos, 2)) : running ? "Running" : "Pending";
+  const oosValue = shown
+    ? oos == null
+      ? "Not available"
+      : <NumberTicker value={oos} format={(v) => fmt(v, 2)} />
+    : running ? "Running" : "Pending";
   const trl = shown?.minTrackRecord?.vsZero ?? null;
   const oosNote = shown
     ? trl
@@ -136,7 +153,9 @@ export default function KpiDeck({
   const p99History = systems.latencyHistory
     .map((p) => p.p99)
     .filter((v): v is number => v != null);
-  const dataValue = summary ? `${summary.ready}/${summary.total} ready` : "Checking";
+  const dataValue = summary
+    ? <><NumberTicker value={summary.ready} />/{summary.total} ready</>
+    : "Checking";
   const dataNote = systems.healthError
     ? `unreachable — snapshot from ${systems.updatedAt?.toLocaleTimeString() ?? "earlier"}`
     : summary
@@ -155,6 +174,7 @@ export default function KpiDeck({
         value={candidateValue}
         note={candidateNote}
         mono={false}
+        titleText={candidateTitle}
         spark={
           equitySpark.length >= 2 ? (
             <Sparkline
@@ -168,7 +188,12 @@ export default function KpiDeck({
         }
       />
       <KpiCard label="Out-of-sample Sharpe" value={oosValue} note={oosNote} />
-      <KpiCard label="Order intent" value={`${side} ${usd(notional, 0)}`} note={intentNote} />
+      <KpiCard
+        label="Order intent"
+        value={<>{side} <NumberTicker value={notional} format={(v) => usd(v, 0)} /></>}
+        note={intentNote}
+        titleText={`${side} ${usd(notional, 0)}`}
+      />
       <KpiCard
         label="Data plane"
         value={dataValue}
