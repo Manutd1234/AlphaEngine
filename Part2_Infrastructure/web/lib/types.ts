@@ -264,6 +264,30 @@ export const DATA_SOURCES = [
 ] as const;
 export type DataSource = (typeof DATA_SOURCES)[number];
 
+/**
+ * Did these bars come from a measurement, as opposed to a generator?
+ *
+ * The one distinction risk maths is allowed to care about. A covariance, a VaR
+ * or an ADV computed on the synthetic fallback is an invented number wearing a
+ * measured one's clothes — but WHICH real venue or vendor answered is a
+ * latency preference, not a data-quality tier, and code has no business
+ * branching on it.
+ *
+ * This predicate exists because that rule was once written as
+ * `source !== "binance"` — an allowlist of the only venue that existed when
+ * the line was written. The day a second venue started serving bars, the Risk
+ * tab silently dropped every crypto symbol from the covariance and reported
+ * "not enough price history" for a book with four hundred real observations
+ * behind it. Green tests, plausible message, wrong claim — the house defect.
+ * A named predicate over the closed union is how the intent survives the next
+ * venue.
+ */
+export function isMeasuredSource(source: unknown): source is Exclude<DataSource, "synthetic"> {
+  return typeof source === "string"
+    && source !== "synthetic"
+    && (DATA_SOURCES as readonly string[]).includes(source);
+}
+
 export interface SweepResponse {
   request: SweepRequest;
   dataSource: DataSource;

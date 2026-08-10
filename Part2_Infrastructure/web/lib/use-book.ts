@@ -46,7 +46,7 @@ import {
 } from "@/lib/portfolio-risk";
 import { sessionReturn } from "@/lib/pnl-attribution";
 import { averageDailyVolume } from "@/lib/quant";
-import { BARS_PER_YEAR, type Bar } from "@/lib/types";
+import { BARS_PER_YEAR, isMeasuredSource, type Bar } from "@/lib/types";
 
 export interface BookError {
   code?: string;
@@ -95,7 +95,7 @@ export interface BookView {
   referenceSymbol: string;
   /** The newest daily bar per symbol, so a consumer can verify its own alignment. */
   sessionBars: SessionBars;
-  /** Bar open-times, index-aligned with `returns[symbol]`. Same binance-only rule. */
+  /** Bar open-times, index-aligned with `returns[symbol]`. Same measured-source rule. */
   barTimes: Record<string, number[]>;
   /** Quote-currency ADV per symbol, measured from the same bars as `returns`. */
   advBySymbol: AdvBySymbol;
@@ -318,9 +318,13 @@ export function useBook(): BookView {
           const body = await response.json();
           const bars: Bar[] = body.bars ?? [];
           // Synthetic bars would silently become a covariance estimate. A book's
-          // risk must not be measured against invented prices, so that source is
-          // dropped rather than used.
-          if (body.source !== "binance" || bars.length < 21) return empty;
+          // risk must not be measured against invented prices, so that source
+          // is dropped rather than used. Dropped by the NAMED predicate, not by
+          // venue: this line used to read `source !== "binance"`, and the day
+          // bars started arriving from Bybit it rejected every crypto symbol —
+          // the Risk tab reported "not enough price history" against 400 real
+          // daily bars, forever, with every test green.
+          if (!isMeasuredSource(body.source) || bars.length < 21) return empty;
           // Returns and their bar times are built in one pass so `times[k]` is
           // by construction the open of the bar whose close produced
           // `series[k]`. Every downstream x-axis rests on that alignment, and it
