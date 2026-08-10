@@ -1,5 +1,9 @@
 # UI Overhaul Plan — eight slices to an Apple-grade, engaging research workspace
 
+> All eight slices are shipped. The successor is
+> [`UI_REFINEMENT_PLAN.md`](UI_REFINEMENT_PLAN.md) — the second pass, from overhauled to
+> instrument-grade: keyboard steering, announcements, ⌘K verbs, forced colors, print.
+
 **The conclusion first.** The workspace's engine outgrew its chrome: 46 strategies hide behind a
 flat dropdown, the promotion gate — the most dramatic moment in the product — renders as a static
 list, and a 12,900-line design system contains exactly three animations. This plan adds

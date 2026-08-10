@@ -64,7 +64,8 @@ architecture, the design arguments, and what is implemented versus mocked.
 **→ [`docs/FEATURE_TOUR.md`](docs/FEATURE_TOUR.md)** — the guided walkthrough of the whole
 platform, tab by tab, with the zero-config / keyed / gateway-backed capability map and the
 verify-it-yourself E2E checklist. **[`docs/UI_IMPROVEMENTS.md`](docs/UI_IMPROVEMENTS.md)** is
-the UI audit behind [`UI_OVERHAUL_PLAN.md`](UI_OVERHAUL_PLAN.md).
+the UI audit behind [`UI_OVERHAUL_PLAN.md`](UI_OVERHAUL_PLAN.md) (shipped, eight slices);
+**[`UI_REFINEMENT_PLAN.md`](UI_REFINEMENT_PLAN.md)** is the successor plan for the next pass.
 
 ## 🛠️ Tech Stack
 
