@@ -3,7 +3,12 @@
 import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { nextThemeMode, resolveThemeMode, type ThemeMode } from "@/lib/theme";
+import {
+  applyDocumentThemeMode,
+  resolveDocumentThemeMode,
+  toggleDocumentThemeMode,
+  type ThemeMode,
+} from "@/lib/theme";
 
 /**
  * Dark mode uses its own selected palette steps, not an inverted light mode, so
@@ -13,42 +18,16 @@ export default function ThemeToggle() {
   const [mode, setMode] = useState<ThemeMode | null>(null);
 
   useEffect(() => {
-    const stamped = document.documentElement.dataset.theme;
-    let saved: string | null = null;
-    try {
-      saved = localStorage.getItem("alphaengine-theme");
-    } catch {
-      // A blocked storage API should not make the visible control unusable.
-    }
-    const resolved = resolveThemeMode(
-      stamped,
-      saved,
-      window.matchMedia("(prefers-color-scheme: dark)").matches,
-    );
-    document.documentElement.dataset.theme = resolved;
-    try {
-      localStorage.setItem("alphaengine-theme", resolved);
-    } catch {
-      // The document palette still changes for this session.
-    }
-    setMode(resolved);
+    const root = document.documentElement;
+    const syncMode = () => setMode(resolveDocumentThemeMode());
+    const observer = new MutationObserver(syncMode);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+    setMode(applyDocumentThemeMode(resolveDocumentThemeMode()));
+    return () => observer.disconnect();
   }, []);
 
   const toggle = () => {
-    const root = document.documentElement;
-    const current = resolveThemeMode(
-      root.dataset.theme,
-      mode,
-      window.matchMedia("(prefers-color-scheme: dark)").matches,
-    );
-    const next = nextThemeMode(current);
-    root.dataset.theme = next;
-    try {
-      localStorage.setItem("alphaengine-theme", next);
-    } catch {
-      // Keep the control functional even when persistence is unavailable.
-    }
-    setMode(next);
+    setMode(toggleDocumentThemeMode());
   };
 
   const label = mode === null ? "Theme" : mode === "dark" ? "Dark mode" : "Light mode";

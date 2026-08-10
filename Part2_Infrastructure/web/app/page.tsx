@@ -69,6 +69,7 @@ import {
   type ExperimentRecord,
 } from "@/lib/experiments";
 import { strategyProgress } from "@/lib/strategy-progress";
+import { toggleDocumentThemeMode } from "@/lib/theme";
 import { APP_COMMIT } from "@/lib/version";
 import type { Side } from "@/lib/venues";
 
@@ -643,6 +644,35 @@ export default function Page() {
     () => data !== null && experiments.some((record) => sameRequest(record.request, data.request)),
     [data, experiments],
   );
+  const copyLinkToView = useCallback(() => {
+    const sectionByView: Partial<Record<WorkspaceView, string>> = {
+      portfolio: portfolioSection,
+      risk: riskSection,
+      research: researchSection,
+      live: executionSection,
+      data: dataSection,
+      reliability: reliabilitySection,
+      developer: developerSection,
+    };
+    const url = new URL(window.location.href);
+    const section = sectionByView[view];
+    url.hash = section ? `${view}/${section}` : view;
+    if (navigator.clipboard) {
+      void navigator.clipboard.writeText(url.toString()).catch(() => {
+        // Clipboard access can be denied by browser policy. The command must
+        // not turn that environmental refusal into an unhandled rejection.
+      });
+    }
+  }, [
+    dataSection,
+    developerSection,
+    executionSection,
+    portfolioSection,
+    reliabilitySection,
+    researchSection,
+    riskSection,
+    view,
+  ]);
   /** For the picker's "— run" marks: same projection the codex renders. */
   const triedStrategies = useMemo(
     () => new Set(strategyProgress(experiments).keys()),
@@ -731,8 +761,65 @@ export default function Page() {
       category: "Risk control",
       action: () => navigate("risk", false, { apply: () => setRiskSection("controls"), hash: "risk/controls" }),
     });
+    // Navigation stays the empty-query index. Unused verbs sit after it; once
+    // used, CommandBar's existing recents projection promotes them above it.
+    list.push(
+      {
+        id: "action-run-sweep",
+        label: "Run sweep",
+        category: "Action",
+        hotkey: "⌘↵",
+        action: () => {
+          navigate("research");
+          void run();
+        },
+      },
+      {
+        id: "action-pin-run",
+        label: running
+          ? "Pin run — sweep in progress"
+          : currentPinned
+            ? "Pin run — already pinned"
+            : data
+              ? "Pin run"
+              : "Pin run — no completed result",
+        category: "Action",
+        action: () => {
+          if (data && !currentPinned && !running) pinRun();
+        },
+      },
+      {
+        id: "action-toggle-mc-band",
+        label: `${showMcBands ? "Hide" : "Show"} Monte Carlo band`,
+        category: "Action",
+        action: () => setShowMcBands((visible) => !visible),
+      },
+      {
+        id: "action-toggle-theme",
+        label: "Toggle theme",
+        category: "Action",
+        action: toggleDocumentThemeMode,
+      },
+      {
+        id: "action-copy-link",
+        label: "Copy link to this view",
+        category: "Action",
+        action: copyLinkToView,
+      },
+    );
     return list;
-  }, [navigate, updateStrategy, updateSymbol]);
+  }, [
+    copyLinkToView,
+    currentPinned,
+    data,
+    navigate,
+    pinRun,
+    run,
+    running,
+    showMcBands,
+    updateStrategy,
+    updateSymbol,
+  ]);
   const shown = displayedResult?.best;
   const tiles = useMemo(() => {
     if (!displayedResult || !shown) return null;
