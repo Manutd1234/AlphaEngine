@@ -183,8 +183,10 @@ export default function Page() {
   const [autoRun, setAutoRun] = useState(true);
   const [autoSuspended, setAutoSuspended] = useState<string | null>(null);
   const [commandBarOpen, setCommandBarOpen] = useState(false);
-  const [resultAnnouncement, setResultAnnouncement] = useState("");
-  const announcedDataHash = useRef<string | null>(null);
+  const [resultAnnouncement, setResultAnnouncement] = useState<{
+    key: string;
+    text: string;
+  } | null>(null);
   // Rail progress: sections opened this session, marked ✓ on their rails.
   // Per-session on purpose — never persisted, so a fresh tab starts honest.
   const [visitedResearch, setVisitedResearch] = useState<readonly ResearchSection[]>([]);
@@ -415,8 +417,20 @@ export default function Page() {
           throw new Error(json.error ?? `HTTP ${response.status}`);
         }
         if (sequence !== runSeq.current) return;
-        if (preserveInspect) setInspectionData(json as SweepResponse);
-        else setData(json as SweepResponse);
+        const completed = json as SweepResponse;
+        if (preserveInspect) {
+          setInspectionData(completed);
+        } else {
+          setData(completed);
+          // The dataset hash prevents render noise from masquerading as a new
+          // result; the accepted-run sequence distinguishes two real sweeps
+          // over the same bars. Replacing the keyed span also guarantees a DOM
+          // mutation when two sweeps happen to produce the same sentence.
+          setResultAnnouncement({
+            key: `${completed.dataHash}:${sequence}`,
+            text: `Sweep complete: ${completed.verdict.level.toUpperCase()} — DSR ${fmt(completed.deflatedSharpeRatio, 2)}, ${completed.combosTested} combinations`,
+          });
+        }
         setResearchDirty(false);
         // Measured end to end, not from the engine's own duration: what makes
         // auto-run unpleasant is the wait the user experiences, which includes
@@ -493,17 +507,6 @@ export default function Page() {
       // Preference is a convenience; failing to persist it must not break the run.
     }
   }, [autoRun]);
-
-  // Announce a completed sweep as one atomic result. The visual verdict builds
-  // its six metrics in sequence; putting aria-live on that card would read six
-  // partial updates instead of the decision the evidence supports.
-  useEffect(() => {
-    if (!data?.dataHash || data.dataHash === announcedDataHash.current) return;
-    announcedDataHash.current = data.dataHash;
-    setResultAnnouncement(
-      `Sweep complete: ${data.verdict.level.toUpperCase()} — DSR ${fmt(data.deflatedSharpeRatio, 2)}, ${data.combosTested} combinations`,
-    );
-  }, [data]);
 
   /**
    * The idle fallback described at `IDLE_COMMIT_MS`.
@@ -770,7 +773,12 @@ export default function Page() {
         category: "Action",
         hotkey: "⌘↵",
         action: () => {
-          navigate("research");
+          if (view !== "research" || researchSection !== "summary") {
+            navigate("research", false, {
+              apply: () => setResearchSection("summary"),
+              hash: "research/summary",
+            });
+          }
           void run();
         },
       },
@@ -814,11 +822,13 @@ export default function Page() {
     data,
     navigate,
     pinRun,
+    researchSection,
     run,
     running,
     showMcBands,
     updateStrategy,
     updateSymbol,
+    view,
   ]);
   const shown = displayedResult?.best;
   const tiles = useMemo(() => {
@@ -1184,7 +1194,9 @@ export default function Page() {
 
               <div className="research-content">
                 <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-                  {resultAnnouncement}
+                  {resultAnnouncement && (
+                    <span key={resultAnnouncement.key}>{resultAnnouncement.text}</span>
+                  )}
                 </p>
                 {/* The codex is deliberately missing from this empty-state
                     map — it renders below, runless: a reference library that

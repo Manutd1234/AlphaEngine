@@ -229,7 +229,7 @@ export default function Heatmap({
         viewBox={`0 0 ${width} ${height}`}
         width="100%"
         height={height}
-        role="img"
+        role={onSelect ? "group" : "img"}
         aria-label={`Sharpe ratio across ${results.length} parameter combinations`}
       >
         {/* The wavefront restates the panel's actual message — this grid was

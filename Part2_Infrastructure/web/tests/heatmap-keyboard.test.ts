@@ -40,6 +40,11 @@ describe("the heatmap is a roving keyboard grid", () => {
     assert.match(heatmap, /onSelect\?\.\(r\)/);
   });
 
+  it("does not flatten interactive cells under atomic image semantics", () => {
+    assert.match(heatmap, /role=\{onSelect \? "group" : "img"\}/);
+    assert.doesNotMatch(heatmap, /role="img"/);
+  });
+
   it("paints SVG focus with the shared focus colour", () => {
     assert.match(css, /\.heatmap-cell:focus-visible\s*\{[^}]*stroke:\s*var\(--series-1\)/s);
     assert.match(css, /\.heatmap-cell:focus-visible\s*\{[^}]*stroke-width:\s*3/s);
@@ -47,9 +52,9 @@ describe("the heatmap is a roving keyboard grid", () => {
 });
 
 describe("completed sweeps announce one atomic verdict", () => {
-  it("keys the announcement to data identity", () => {
-    assert.match(page, /data\.dataHash === announcedDataHash\.current/);
-    assert.match(page, /announcedDataHash\.current = data\.dataHash/);
+  it("keys the announcement to data identity and the accepted run", () => {
+    assert.match(page, /key: `\$\{completed\.dataHash\}:\$\{sequence\}`/);
+    assert.match(page, /<span key=\{resultAnnouncement\.key\}>/);
   });
 
   it("uses one polite, atomic live region outside the staggered Verdict", () => {
