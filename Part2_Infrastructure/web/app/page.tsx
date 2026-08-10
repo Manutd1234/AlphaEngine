@@ -182,6 +182,8 @@ export default function Page() {
   const [autoRun, setAutoRun] = useState(true);
   const [autoSuspended, setAutoSuspended] = useState<string | null>(null);
   const [commandBarOpen, setCommandBarOpen] = useState(false);
+  const [resultAnnouncement, setResultAnnouncement] = useState("");
+  const announcedDataHash = useRef<string | null>(null);
   // Rail progress: sections opened this session, marked ✓ on their rails.
   // Per-session on purpose — never persisted, so a fresh tab starts honest.
   const [visitedResearch, setVisitedResearch] = useState<readonly ResearchSection[]>([]);
@@ -490,6 +492,17 @@ export default function Page() {
       // Preference is a convenience; failing to persist it must not break the run.
     }
   }, [autoRun]);
+
+  // Announce a completed sweep as one atomic result. The visual verdict builds
+  // its six metrics in sequence; putting aria-live on that card would read six
+  // partial updates instead of the decision the evidence supports.
+  useEffect(() => {
+    if (!data?.dataHash || data.dataHash === announcedDataHash.current) return;
+    announcedDataHash.current = data.dataHash;
+    setResultAnnouncement(
+      `Sweep complete: ${data.verdict.level.toUpperCase()} — DSR ${fmt(data.deflatedSharpeRatio, 2)}, ${data.combosTested} combinations`,
+    );
+  }, [data]);
 
   /**
    * The idle fallback described at `IDLE_COMMIT_MS`.
@@ -1083,6 +1096,9 @@ export default function Page() {
               />
 
               <div className="research-content">
+                <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+                  {resultAnnouncement}
+                </p>
                 {/* The codex is deliberately missing from this empty-state
                     map — it renders below, runless: a reference library that
                     demands a completed sweep is wrong. */}

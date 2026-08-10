@@ -10916,6 +10916,14 @@ button.page-insight:hover:not(:disabled) {
   font-size: 11px;
 }
 
+/* SVG outlines are painted inconsistently across engines. A stroke keeps the
+   heatmap's single roving keyboard position visible in either theme. */
+.heatmap-cell:focus-visible {
+  stroke: var(--series-1);
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
 /* ---------- experiment setup panel ----------
    These were eleven inline `style={{…}}` objects in Controls.tsx. Inline styles
    are invisible to the theme test, to the layering test and to anyone reading

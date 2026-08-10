@@ -25,7 +25,7 @@ import { CellKind, ParamResult, StabilityCell } from "@/lib/types";
 import { SHARPE_RAMP_DARK, SHARPE_RAMP_LIGHT, divergingScale } from "@/lib/colormap";
 import { fmt, pct } from "@/lib/format";
 import { useMeasuredWidth } from "./chart-kit";
-import { useEffect, useState } from "react";
+import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 
 /**
  * Categorical fill for the neighbourhood view.
@@ -63,6 +63,10 @@ export default function Heatmap({
   const [ref, width] = useMeasuredWidth<HTMLDivElement>();
   const [hover, setHover] = useState<ParamResult | null>(null);
   const [isDark, setIsDark] = useState(false);
+  const [focusedCell, setFocusedCell] = useState<string | null>(() =>
+    selected ? `${selected.fast}:${selected.slow}` : `${best.fast}:${best.slow}`,
+  );
+  const cellRefs = useRef(new Map<string, SVGRectElement>());
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -86,6 +90,49 @@ export default function Heatmap({
   const absMax = Math.max(...results.map((r) => Math.abs(r.sharpe)), 0.1);
   const kinds = new Map((stability ?? []).map((c) => [`${c.fast}:${c.slow}`, c]));
   const showKinds = mode === "stability" && kinds.size > 0;
+  const selectedKey = selected ? `${selected.fast}:${selected.slow}` : null;
+  const bestKey = `${best.fast}:${best.slow}`;
+  const rovingKey = focusedCell && lookup.has(focusedCell)
+    ? focusedCell
+    : selectedKey && lookup.has(selectedKey)
+      ? selectedKey
+      : lookup.has(bestKey)
+        ? bestKey
+        : `${results[0]?.fast}:${results[0]?.slow}`;
+
+  const focusAt = (fastIndex: number, slowIndex: number): boolean => {
+    const key = `${fasts[fastIndex]}:${slows[slowIndex]}`;
+    if (!lookup.has(key)) return false;
+    setFocusedCell(key);
+    cellRefs.current.get(key)?.focus();
+    return true;
+  };
+
+  const steerCell = (event: KeyboardEvent<SVGRectElement>, fastIndex: number, slowIndex: number) => {
+    if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+      return;
+    }
+    event.preventDefault();
+
+    if (event.key === "Home" || event.key === "End") {
+      const start = event.key === "Home" ? 0 : slows.length - 1;
+      const step = event.key === "Home" ? 1 : -1;
+      for (let nextSlow = start; nextSlow >= 0 && nextSlow < slows.length; nextSlow += step) {
+        if (focusAt(fastIndex, nextSlow)) return;
+      }
+      return;
+    }
+
+    const fastStep = event.key === "ArrowUp" ? -1 : event.key === "ArrowDown" ? 1 : 0;
+    const slowStep = event.key === "ArrowLeft" ? -1 : event.key === "ArrowRight" ? 1 : 0;
+    let nextFast = fastIndex + fastStep;
+    let nextSlow = slowIndex + slowStep;
+    while (nextFast >= 0 && nextFast < fasts.length && nextSlow >= 0 && nextSlow < slows.length) {
+      if (focusAt(nextFast, nextSlow)) return;
+      nextFast += fastStep;
+      nextSlow += slowStep;
+    }
+  };
 
   const ramp = isDark ? SHARPE_RAMP_DARK : SHARPE_RAMP_LIGHT;
   const sharpeColor = divergingScale(absMax, ramp);
@@ -203,6 +250,11 @@ export default function Heatmap({
             return (
               <rect
                 key={`${f}-${s}`}
+                ref={(node) => {
+                  const key = `${f}:${s}`;
+                  if (node) cellRefs.current.set(key, node);
+                  else cellRefs.current.delete(key);
+                }}
                 className="heatmap-cell"
                 x={padL + si * cellW + gap}
                 y={padT + fi * cellH + gap}
@@ -226,7 +278,7 @@ export default function Heatmap({
                      a large grid finishes before the reader stops waiting. */
                   "--wave-delay": `${Math.min((fi + si) * 12, 360)}ms`,
                 } as React.CSSProperties}
-                tabIndex={onSelect ? 0 : undefined}
+                tabIndex={onSelect ? (`${f}:${s}` === rovingKey ? 0 : -1) : undefined}
                 role={onSelect ? "button" : undefined}
                 aria-label={
                   showKinds
@@ -235,14 +287,19 @@ export default function Heatmap({
                 }
                 onPointerEnter={() => setHover(r)}
                 onPointerLeave={() => setHover(null)}
-                onFocus={() => setHover(r)}
+                onFocus={() => {
+                  setFocusedCell(`${f}:${s}`);
+                  setHover(r);
+                }}
                 onBlur={() => setHover(null)}
                 onClick={() => onSelect?.(r)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
                     onSelect?.(r);
+                    return;
                   }
+                  steerCell(event, fi, si);
                 }}
               >
                 <title>
