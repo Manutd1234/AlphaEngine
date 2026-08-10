@@ -61,6 +61,11 @@ failing.
 **→ [`Part2_Infrastructure/README.md`](Part2_Infrastructure/README.md)** for the
 architecture, the design arguments, and what is implemented versus mocked.
 
+**→ [`docs/FEATURE_TOUR.md`](docs/FEATURE_TOUR.md)** — the guided walkthrough of the whole
+platform, tab by tab, with the zero-config / keyed / gateway-backed capability map and the
+verify-it-yourself E2E checklist. **[`docs/UI_IMPROVEMENTS.md`](docs/UI_IMPROVEMENTS.md)** is
+the UI audit behind [`UI_OVERHAUL_PLAN.md`](UI_OVERHAUL_PLAN.md).
+
 ## 🛠️ Tech Stack
 
 Versions are as deployed/locked on 2026-08-08 — read from the running

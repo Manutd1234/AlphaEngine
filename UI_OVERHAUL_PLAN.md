@@ -14,7 +14,7 @@ makes running sweeps feel like winning.
 
 | Slice | Deliverable | Status |
 |---|---|---|
-| 1 | This plan + `docs/UI_IMPROVEMENTS.md` + `docs/FEATURE_TOUR.md` | in progress |
+| 1 | This plan + `docs/UI_IMPROVEMENTS.md` + `docs/FEATURE_TOUR.md` | shipped |
 | 2 | Motion foundation: tokens, one reduced-motion contract, NumberTicker | pending |
 | 3 | Strategy Codex: 46 strategies, 7 families, explored-state | pending |
 | 4 | Research journey: gate reveal, verdict moment, rail progress | pending |
