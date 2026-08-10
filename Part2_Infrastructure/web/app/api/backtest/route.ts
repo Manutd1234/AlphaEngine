@@ -55,17 +55,56 @@ function benchmarkOf(raw: unknown, symbol: string): string | undefined {
 
 /** Never trust the client with grid bounds — an unbounded sweep is a free way to
  *  burn the function's whole time budget. */
-function sanitise(body: Partial<SweepRequest>): SweepRequest {
+/**
+ * Sanitise, and CONFESS every substitution.
+ *
+ * Symbol, interval and strategy all fall back to defaults on unrecognised
+ * input rather than 400ing — deliberate rollout safety, and the trap that has
+ * now fired twice. The stale three-strategy whitelist silently replaced 23
+ * strategies with ma_cross for months. Then a probe sent `tsmom` — a name this
+ * catalogue does not use — got `ma_cross` back, printed its own input instead
+ * of the server's echo, and reported a PASS for a strategy that had never run.
+ * Both times the response was well-formed, plausible, and answering a
+ * different question than the one asked.
+ *
+ * The fallback stays — a research portal that 400s on a typo is worse than one
+ * that degrades. What must not stay is the silence: every substitution is now
+ * a warning in the response, rendered in the same banner as every other data
+ * caveat, so a caller who asked for one thing and got another is told so in
+ * the result itself rather than left to diff the echoed request.
+ */
+function sanitise(body: Partial<SweepRequest>): { req: SweepRequest; coercions: string[] } {
   const symbol = String(body.symbol ?? DEFAULT_REQUEST.symbol).toUpperCase();
   const interval = String(body.interval ?? DEFAULT_REQUEST.interval);
   const strategy = String(body.strategy ?? DEFAULT_REQUEST.strategy);
+
+  const coercions: string[] = [];
+  // Only when the caller actually supplied a value: an omitted field taking
+  // the default is the contract working, not a substitution.
+  if (body.symbol !== undefined && !SYMBOL_RE.test(symbol)) {
+    coercions.push(
+      `Symbol "${String(body.symbol)}" is not a valid ticker — this ran ${DEFAULT_REQUEST.symbol} instead.`,
+    );
+  }
+  if (body.interval !== undefined && !(INTERVALS as readonly string[]).includes(interval)) {
+    coercions.push(
+      `Interval "${String(body.interval)}" is not offered — this ran ${DEFAULT_REQUEST.interval} instead.`,
+    );
+  }
+  if (body.strategy !== undefined && !STRATEGIES.has(strategy)) {
+    coercions.push(
+      `Strategy "${String(body.strategy)}" is not in the catalogue — this ran `
+        + `${STRATEGY_LABELS[DEFAULT_REQUEST.strategy]} instead. `
+        + `The catalogue lists ${STRATEGIES.size} strategies under lib/types.ts STRATEGY_LABELS.`,
+    );
+  }
 
   const fastMin = clamp(body.fastMin, 2, 400, DEFAULT_REQUEST.fastMin);
   const fastMax = Math.max(fastMin + 1, clamp(body.fastMax, 3, 400, DEFAULT_REQUEST.fastMax));
   const slowMin = clamp(body.slowMin, 3, 800, DEFAULT_REQUEST.slowMin);
   const slowMax = Math.max(slowMin + 1, clamp(body.slowMax, 4, 800, DEFAULT_REQUEST.slowMax));
 
-  return {
+  const req: SweepRequest = {
     symbol: SYMBOL_RE.test(symbol) ? symbol : DEFAULT_REQUEST.symbol,
     interval: (INTERVALS as readonly string[]).includes(interval) ? interval : DEFAULT_REQUEST.interval,
     bars: clamp(body.bars, 300, 5000, DEFAULT_REQUEST.bars),
@@ -100,6 +139,7 @@ function sanitise(body: Partial<SweepRequest>): SweepRequest {
     fundingBpsPer8h: clampFloat(body.fundingBpsPer8h, -50, 50, 0),
     borrowBpsAnnual: clampFloat(body.borrowBpsAnnual, 0, 5000, 0),
   };
+  return { req, coercions };
 }
 
 /**
@@ -155,8 +195,11 @@ function explainShortWindow(
 
 export async function POST(request: NextRequest) {
   try {
-    const req = sanitise((await request.json()) as Partial<SweepRequest>);
+    const { req, coercions } = sanitise((await request.json()) as Partial<SweepRequest>);
     const { bars, source, warnings } = await loadBars(req.symbol, req.interval, req.bars);
+    // First in the list: "this ran a different strategy than you asked for"
+    // outranks every data caveat that follows it.
+    warnings.unshift(...coercions);
 
     // Checked here rather than left to the engine's throw, because this is the
     // only layer that knows WHICH provider answered and what was asked for.

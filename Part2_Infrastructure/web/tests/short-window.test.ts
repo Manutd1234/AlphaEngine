@@ -76,6 +76,42 @@ describe("the failure names cause and fix, machine-readably", () => {
   });
 });
 
+describe("a substitution is confessed, never silent", () => {
+  /**
+   * The trap has fired twice. A stale whitelist replaced 23 strategies with
+   * ma_cross for months. Then a probe sent "tsmom" — a name this catalogue
+   * does not use — got ma_cross back, printed its own input instead of the
+   * server's echo, and reported a PASS for a strategy that never ran. The
+   * fallback is deliberate; the silence was the defect.
+   */
+  it("an unknown strategy is reported in warnings", () => {
+    assert.match(route, /is not in the catalogue — this ran/);
+  });
+
+  it("an invalid symbol and interval are reported too", () => {
+    assert.match(route, /is not a valid ticker — this ran/);
+    assert.match(route, /is not offered — this ran/);
+  });
+
+  it("only actual substitutions are confessed, not omitted fields", () => {
+    // An omitted field taking its default is the contract working. Warning on
+    // it would bury the one substitution that matters under three that do not.
+    for (const field of ["symbol", "interval", "strategy"]) {
+      assert.match(
+        route,
+        new RegExp(`body\\.${field} !== undefined`),
+        `${field} coercion does not distinguish omitted from invalid`,
+      );
+    }
+  });
+
+  it("coercions lead the warning list", () => {
+    // "This ran a different strategy than you asked for" outranks every data
+    // caveat that follows it.
+    assert.match(route, /warnings\.unshift\(\.\.\.coercions\)/);
+  });
+});
+
 describe("the banner turns the fix into a click", () => {
   it("offers the suggested interval as an action", () => {
     assert.match(page, /Switch to \{errorFix\} and rerun/);
