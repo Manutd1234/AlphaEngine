@@ -13589,3 +13589,58 @@ button:active:not(:disabled) {
 .strategy-doc__mechanics > summary:hover { color: var(--text-primary); }
 .quality-disclosure[open] > summary,
 .strategy-doc__mechanics[open] > summary { margin-bottom: 2px; }
+
+/* ── Combine favourites ────────────────────────────────────────────────────
+   Selection list and the method comparison. The in-sample column is
+   deliberately muted: it flatters every method by construction, and giving it
+   the same weight as the holdout column is how a reader ends up choosing on
+   it. */
+
+.favourites-list {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.favourites-list label {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  cursor: pointer;
+  font-size: 0.9em;
+}
+.favourites-list input:disabled + span { opacity: 0.5; }
+
+.favourites-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+}
+
+.favourites-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+  margin-top: var(--space-3);
+}
+.favourites-table th,
+.favourites-table td {
+  padding: 6px var(--space-2);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.favourites-table th.num,
+.favourites-table td.num { text-align: right; }
+.favourites-table td.is-pos { color: var(--success-text); }
+.favourites-table td.is-neg { color: var(--critical-text); }
+
+.favourites-warnings {
+  margin: var(--space-3) 0 0;
+  padding-left: var(--space-4);
+  font-size: 0.85em;
+  color: var(--text-secondary);
+}

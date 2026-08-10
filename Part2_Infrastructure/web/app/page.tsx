@@ -20,6 +20,7 @@ import SignalDAGViewer from "@/components/research/SignalDAGViewer";
 import StrategyDocCard from "@/components/research/StrategyDocCard";
 import ExperimentHistory from "@/components/research/ExperimentHistory";
 import FactorPanel from "@/components/research/FactorPanel";
+import FavouritesPanel from "@/components/research/FavouritesPanel";
 import BenchmarkPanel from "@/components/research/BenchmarkPanel";
 import PromotionPanel from "@/components/research/PromotionPanel";
 import QualityScorePanel from "@/components/research/QualityScorePanel";
@@ -1193,6 +1194,11 @@ export default function Page() {
                           setExperiments((current) => annotateExperiment(current, id, annotation))}
                         onImport={(merged) => setExperiments(saveExperiments(merged))}
                       />
+                      {/* Below the log it draws from, not beside it: choosing
+                          favourites is something a reader does after reading
+                          the history, and a combine control above the runs it
+                          combines has nothing to point at yet. */}
+                      <FavouritesPanel records={experiments} />
                     </WorkspaceSubtabPanel>
                   </>
                 )}
