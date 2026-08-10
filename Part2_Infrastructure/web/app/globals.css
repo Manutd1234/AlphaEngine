@@ -13421,10 +13421,131 @@ html.is-vt .view-panel {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
+   Narrow screens and paper — explicit affordances for the dense evidence UI
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* The padding gives the permanent mask empty space to fade at either end, so
+   the first and last tab remain fully legible while clipped tabs advertise the
+   horizontal rail. The late, attribute-scoped flex rules intentionally replace
+   the legacy <=620px wrapping grid: a fade cannot explain a rail that no longer
+   scrolls. */
+.workspace-subtabs__rail[data-scroll-affordance="horizontal"] {
+  display: flex;
+  grid-template-columns: none;
+  overflow-x: auto;
+  padding-inline: 16px;
+  scroll-padding-inline: 16px;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-inline: contain;
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 16px,
+    #000 calc(100% - 16px),
+    transparent
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 16px,
+    #000 calc(100% - 16px),
+    transparent
+  );
+}
+
+.workspace-subtabs__rail[data-scroll-affordance="horizontal"] > button {
+  flex: 0 0 auto;
+  text-align: left;
+  white-space: nowrap;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+@media (max-width: 520px) {
+  .codex-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .codex-family__head {
+    flex-wrap: nowrap;
+  }
+
+  .codex-family__head > div {
+    min-width: 0;
+  }
+
+  .codex-family__thesis {
+    overflow-wrap: anywhere;
+  }
+
+  .codex-family__progress {
+    flex: 0 1 132px;
+    min-width: 0;
+    margin-left: auto;
+    justify-items: end;
+    text-align: right;
+  }
+
+  .cockpit-checks li {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .cockpit-checks__name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .cockpit-checks__detail {
+    flex: 1 1 100%;
+    padding-left: 17px;
+    overflow-wrap: anywhere;
+  }
+
+  .verdict-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .verdict-metric {
+    min-width: 0;
+  }
+
+  .market-watchlist__item {
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  }
+
+  .market-watchlist__price {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* A 360px minimum track is wider than the 347px content box on a 375px
+     viewport once the shell gutters are applied. */
+  .compact-grid-2col {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
    Forced colours — meaning survives when decorative washes are removed
    ══════════════════════════════════════════════════════════════════════════ */
 
 @media (forced-colors: active) {
+  /* Edge masks can erase system-colour text. High Contrast gets a visible
+     scrollbar instead of the decorative fade. */
+  .workspace-subtabs__rail[data-scroll-affordance="horizontal"] {
+    -webkit-mask-image: none;
+    mask-image: none;
+    scrollbar-width: auto;
+  }
+
+  .workspace-subtabs__rail[data-scroll-affordance="horizontal"]::-webkit-scrollbar {
+    display: block;
+  }
+
   /* These already own a border; restate it in a system colour so their
      grouping remains visible after color-mix backgrounds are discarded. */
   .verdict-card,
@@ -13493,5 +13614,248 @@ html.is-vt .view-panel {
 
   .heatmap-cell:focus-visible {
     stroke: CanvasText;
+  }
+}
+
+/* Research doubles as its own evidence pack. Printing reveals every Research
+   subpanel, removes only application chrome and true editing controls, and
+   maps the screen palette to ink while leaving data-bearing cells intact. */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    background-image: none !important;
+    color: #000 !important;
+  }
+
+  .workspace-header,
+  .skip-link,
+  .command-bar,
+  .workspace-footer,
+  #panel-research > .workspace-subtabs,
+  #panel-research .experiment-panel,
+  #panel-research > .next-step-footer {
+    display: none !important;
+  }
+
+  .workspace-shell {
+    width: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+  }
+
+  #panel-research {
+    --surface-0: #fff;
+    --surface-1: #fff;
+    --surface-2: #fff;
+    --surface-3: #eee;
+    --text-primary: #000;
+    --text-secondary: #222;
+    --text-muted: #444;
+    --grid: #bbb;
+    --axis: #777;
+    --border: #777;
+    --sky-1: #fff;
+    --sky-2: #eee;
+    --series-1: #000;
+    --series-2: #555;
+    --series-3: #888;
+    --diverging-pos: #222;
+    --diverging-neg: #777;
+    --diverging-mid: #ddd;
+    --status-good: #222;
+    --status-warning: #555;
+    --status-critical: #000;
+    --success-text: #111;
+    --warning-text: #333;
+    --critical-text: #000;
+    --notice-text: #333;
+    --json-accent: #000;
+    --shadow-sm: none;
+    color: #000;
+  }
+
+  #panel-research .research-layout {
+    display: block;
+  }
+
+  #panel-research .research-content {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* The data attribute scopes the hidden override to Research. Other mounted
+     workspace panels retain their normal screen/print visibility contract. */
+  #panel-research .workspace-subtab-panel[data-workspace-id="research"] {
+    display: block !important;
+    margin: 0 0 16pt;
+    padding: 0;
+  }
+
+  #panel-research .workspace-subtab-panel[data-workspace-id="research"]
+    + .workspace-subtab-panel[data-workspace-id="research"] {
+    break-before: page;
+  }
+
+  #panel-research :is(
+    .card,
+    .research-provenance,
+    .verdict-card,
+    .verdict-pill,
+    .codex-family,
+    .codex-card,
+    .corpus-results > li,
+    .promotion-list > li,
+    .workflow-handoff,
+    .stale-gate__cta
+  ) {
+    border-color: #777 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+  }
+
+  #panel-research :is(.pill, .codex-chip, .run-tag, .method-badge) {
+    border: 1px solid #777 !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  #panel-research :is(input, select, textarea),
+  #panel-research .chart-toggle,
+  #panel-research .corpus-search,
+  #panel-research .history-toolbar,
+  #panel-research .run-actions,
+  #panel-research .run-annotate,
+  #panel-research .favourites-actions,
+  #panel-research .promotion-handoff button,
+  #panel-research .research-data-handoff button,
+  #panel-research .research-empty-section button {
+    display: none !important;
+  }
+
+  #panel-research details:not([open]) > :not(summary) {
+    display: block !important;
+  }
+
+  #panel-research .stale-gate.is-stale {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #panel-research .stale-gate.is-stale .stale-gate__content {
+    filter: none !important;
+    opacity: 1 !important;
+  }
+
+  #panel-research .stale-gate__veil {
+    position: static;
+    order: -1;
+    display: block;
+    margin-bottom: 8pt;
+    background: #fff;
+  }
+
+  #panel-research .stale-gate__cta {
+    position: static;
+    display: block;
+    margin: 0;
+    padding: 8pt;
+    text-align: left;
+  }
+
+  #panel-research .stale-gate__cta button {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #000;
+    font: inherit;
+    pointer-events: none;
+  }
+
+  #panel-research .research-provenance dd:has(code[title]) {
+    overflow: visible;
+    white-space: normal;
+  }
+
+  #panel-research .research-provenance code[title] {
+    font-size: 0;
+    white-space: normal;
+  }
+
+  #panel-research .research-provenance code[title]::after {
+    content: attr(title);
+    font-size: 7pt;
+    overflow-wrap: anywhere;
+  }
+
+  #panel-research :is(.table-wrap, .table-scroll, .signal-workflow__track) {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  #panel-research table {
+    width: 100%;
+    min-width: 0 !important;
+    border-collapse: collapse;
+    font-size: 8pt;
+  }
+
+  #panel-research thead {
+    display: table-header-group;
+  }
+
+  #panel-research tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  #panel-research .monthly-grid {
+    table-layout: fixed;
+    font-size: 7pt;
+  }
+
+  #panel-research .monthly-grid :is(th, td) {
+    padding: 2px !important;
+  }
+
+  #panel-research .monthly-cell > span {
+    min-width: 0;
+    padding: 2px;
+  }
+
+  #panel-research :is(
+    .research-provenance,
+    .verdict-card,
+    .stat-tile,
+    .verdict-metric,
+    .promotion-list > li,
+    .codex-card,
+    .corpus-results > li,
+    svg
+  ) {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  #panel-research svg {
+    max-width: 100%;
+  }
+
+  #panel-research *,
+  #panel-research *::before,
+  #panel-research *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  #panel-research .chart-draw {
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0 !important;
   }
 }

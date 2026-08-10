@@ -79,6 +79,7 @@ export default function WorkspaceSubtabs<T extends string>({
     <nav className="workspace-subtabs" aria-label={label}>
       <div
         className="workspace-subtabs__rail"
+        data-scroll-affordance="horizontal"
         role="tablist"
         aria-label={label}
         aria-orientation="horizontal"
@@ -168,6 +169,7 @@ export function WorkspaceSubtabPanel<T extends string>({
     <section
       id={`${workspaceId}-subpanel-${tabId}`}
       className={["workspace-subtab-panel", className].filter(Boolean).join(" ")}
+      data-workspace-id={workspaceId}
       role="tabpanel"
       aria-labelledby={`${workspaceId}-subtab-${tabId}`}
       hidden={activeId !== tabId}
