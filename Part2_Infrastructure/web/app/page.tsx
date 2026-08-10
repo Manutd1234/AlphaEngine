@@ -154,7 +154,10 @@ export default function Page() {
   const [errorFix, setErrorFix] = useState<string | null>(null);
   const [view, setView] = useState<WorkspaceView>("overview");
   const [side, setSide] = useState<Side>("BUY");
-  const [notional, setNotional] = useState(100_000);
+  // Start inside the gateway's $50k per-order cap so the primary demo action
+  // can fill and immediately change Portfolio/Risk. Larger rejection presets
+  // remain available on the ticket for exercising the gates deliberately.
+  const [notional, setNotional] = useState(25_000);
   // The order draft beyond side/notional, lifted like they are so the ladder
   // (liquidity subtab) can stage a limit the ticket (trade subtab) picks up —
   // panels stay mounted, so the draft survives the jump.

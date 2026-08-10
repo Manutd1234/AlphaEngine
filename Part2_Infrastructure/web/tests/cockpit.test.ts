@@ -357,6 +357,11 @@ describe("the execution strategy is an editable order intent", () => {
 });
 
 describe("a settled live order invalidates the shared Portfolio and Risk book", () => {
+  it("starts with a fillable notional instead of tripping the per-order cap", () => {
+    assert.match(page, /const \[notional, setNotional\] = useState\(25_000\)/);
+    assert.doesNotMatch(page, /const \[notional, setNotional\] = useState\(100_000\)/);
+  });
+
   it("reports every collected decision, including a fill before a later burst failure", () => {
     assert.match(orderTicket, /finally \{[\s\S]*?if \(collected\.length\)/);
     assert.doesNotMatch(orderTicket, /collected\.length && !failed/);
