@@ -49,6 +49,7 @@ from config import BASE_DIR, settings
 from modules import research
 from modules.audit import get_audit
 from modules.backtester import VECTORBT_AVAILABLE, run_backtest
+from modules.equity_quote import EquityQuoteUnavailable, fetch_paper_equity_reference, is_equity_symbol
 from modules.jobs import get_queue
 from modules.metrics import RequestTimingMiddleware, render_metrics
 from modules.operations import OperationsSnapshot, build_operations_snapshot
@@ -355,6 +356,23 @@ async def ws_book(ws: WebSocket, symbol: str) -> None:
 async def submit_order(order: OrderRequest, actor: str = Depends(trader_identity)) -> RiskDecision:
     """The only way an order reaches a venue. Returns the full check vector for
     both accepted and rejected orders — a rejection is a result, not an error."""
+    if (
+        order.paper_execution is None
+        and settings.paper_equity_quote_url
+        and is_equity_symbol(order.symbol)
+    ):
+        try:
+            reference = await fetch_paper_equity_reference(
+                order.symbol,
+                settings.paper_equity_quote_url,
+                timeout_s=settings.paper_equity_quote_timeout_s,
+            )
+            order = order.model_copy(update={"paper_execution": reference})
+        except EquityQuoteUnavailable as exc:
+            # Submit unchanged. The gateway's normal whitelist and
+            # price-availability checks produce the evidence-rich rejection;
+            # a provider outage never turns into a guessed fill.
+            log.warning("paper equity quote unavailable for %s: %s", order.symbol, exc)
     return await get_gateway().submit(order, source=actor)
 
 

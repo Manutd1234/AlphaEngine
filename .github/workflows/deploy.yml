@@ -335,6 +335,7 @@ jobs:
             put REQUIRE_AUTH "1"
             put DATA_DIR "/app/data"
             put DB_PATH "/app/data/alphaengine.duckdb"
+            put PAPER_EQUITY_QUOTE_URL "https://alphaengine-workspace.vercel.app/api/quote"
             put WEB_API_TOKEN "${WEB_API_TOKEN:-}"
             put SUPABASE_URL "${SUPABASE_URL:-}"
             put SUPABASE_SERVICE_ROLE_KEY "${SUPABASE_SERVICE_ROLE_KEY:-}"

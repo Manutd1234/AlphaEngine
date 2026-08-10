@@ -175,6 +175,13 @@ class Settings:
     paper_equity_quote_max_age_s: float = field(
         default_factory=lambda: _env_float("PAPER_EQUITY_QUOTE_MAX_AGE_S", 604_800.0)
     )
+    # Optional server-side quote bridge for clients that predate the enriched
+    # order contract. The production workflow points this at the web portal's
+    # validated provider facade; empty keeps unknown symbols fail-closed.
+    paper_equity_quote_url: str = field(default_factory=lambda: _env("PAPER_EQUITY_QUOTE_URL", ""))
+    paper_equity_quote_timeout_s: float = field(
+        default_factory=lambda: _env_float("PAPER_EQUITY_QUOTE_TIMEOUT_S", 5.0)
+    )
     # Maker fee, for a resting order that was filled *by* someone crossing the
     # spread rather than by crossing it. Charging a resting fill the taker fee
     # would report a cost the desk did not pay.

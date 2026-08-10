@@ -1115,7 +1115,7 @@ Every value in `config.py` is env-overridable; see `.env.example`. Defaults matc
 the assessment brief: **$50k** max order, **5 orders/sec**, **5%** daily drawdown,
 **$100k** TCA probe size.
 
-The resting book and paper-equity adapter add five of their own:
+The resting book and paper-equity adapter add seven of their own:
 
 | Variable | Default | What it sets |
 |---|---|---|
@@ -1124,6 +1124,8 @@ The resting book and paper-equity adapter add five of their own:
 | `PAPER_MAKER_FEE_BPS` | `1.0` | what a resting fill pays, against the taker `PAPER_FEE_BPS` (`4.0`) |
 | `PAPER_EQUITY_SLIPPAGE_BPS` | `8.0` | explicit cost applied to a server-verified equity quote; this model never claims L2 routing |
 | `PAPER_EQUITY_QUOTE_MAX_AGE_S` | `604800` | oldest trusted equity quote the gateway will size a paper MARKET order against |
+| `PAPER_EQUITY_QUOTE_URL` | empty | optional validated quote facade for authenticated clients that predate the enriched order envelope |
+| `PAPER_EQUITY_QUOTE_TIMEOUT_S` | `5.0` | fail-closed timeout for that server-side quote lookup |
 
 `requirements.txt` is the full set (verified on Python 3.11 – 3.14, including
 vectorbt + numba on 3.14). If numba will not build on your platform, use
