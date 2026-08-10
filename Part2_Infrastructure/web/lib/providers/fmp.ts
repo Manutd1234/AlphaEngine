@@ -48,7 +48,8 @@ export const fmp: Adapter = {
     keyEnv: "FMP_API_KEY",
     baseUrlEnv: "FMP_BASE_URL",
     quota: { calls: 250, window: "day", reserve: 0.2 },
-    rank: { quote: 1, bars: 3, fundamentals: 1, news: 4 },
+    // bars 3 -> 4: see the note in massive.ts. Relative order preserved.
+    rank: { quote: 1, bars: 4, fundamentals: 1, news: 4 },
     signup: "Free key at financialmodelingprep.com — 250 requests/day.",
   },
 

@@ -22,6 +22,7 @@ import {
 } from "../observability";
 import { alphavantage } from "./alphavantage";
 import { binance } from "./binance";
+import { bybit } from "./bybit";
 import { checkBars, checkQuote } from "./contracts";
 import { firecrawl } from "./firecrawl";
 import { fmp } from "./fmp";
@@ -53,6 +54,7 @@ import {
 } from "./types";
 
 export const ADAPTERS: Adapter[] = [
+  bybit,
   binance,
   fmp,
   tiingo,

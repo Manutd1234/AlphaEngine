@@ -140,11 +140,24 @@ const BINANCE_HOSTS = ["https://api.binance.com", "https://data-api.binance.visi
  *
  * Binance has had host failover since the beginning; Bybit had a single host,
  * and that asymmetry stayed invisible until the systems console started
- * measuring per-venue error rates. In production Bybit answers **HTTP 403** to
+ * measuring per-venue error rates. At that time Bybit answered **HTTP 403** to
  * every request from the serverless region — a 100% error rate — while the same
- * call from a laptop succeeds in 62ms. One venue silently dropping out turns
+ * call from a laptop succeeded in 62ms. One venue silently dropping out turns
  * "consolidated cross-venue depth" into single-venue depth, and the routing
  * numbers built on it into a single-venue quote wearing a cross-venue label.
+ *
+ * THAT IS NO LONGER TRUE, and the correction is worth more than the deletion
+ * would be. Re-measured against production over five consecutive calls, Bybit
+ * answered every one — and answered faster than Binance every time:
+ *
+ *     BINANCE  ok  77-90 ms        BYBIT  ok  9-11 ms
+ *
+ * So the failover pair below is no longer the workaround it was written as; it
+ * is ordinary redundancy on the venue that is now the nearer of the two. The
+ * original finding is kept rather than overwritten because a fact that flipped
+ * silently once can flip back, and a reader who sees only today's numbers has
+ * no reason to keep checking. `lib/bybit-klines.ts` depends on this being true
+ * and re-verifies it on every request rather than trusting this comment.
  */
 const BYBIT_HOSTS = ["https://api.bybit.com", "https://api.bytick.com"];
 

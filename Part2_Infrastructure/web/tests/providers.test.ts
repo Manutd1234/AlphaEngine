@@ -122,11 +122,17 @@ test("isValidSymbol accepts class shares and rejects injection shapes", () => {
 
 test("candidatesFor orders by rank and filters by asset", () => {
   const eq = candidatesFor("bars", "equity").map((a) => a.meta.id);
-  // Massive is ranked 1 for bars; Binance (rank 0) is crypto-only so absent.
-  assert.ok(!eq.includes("binance"));
+  // Massive leads the equity bars chain. Its rank moved 1 -> 2 when Bybit was
+  // inserted ahead of Binance for crypto and every rank below shifted by one;
+  // the assertion is on the resulting ORDER rather than the literal, which is
+  // what should survive that kind of renumbering.
+  assert.ok(!eq.includes("binance"), "a crypto-only venue reached the equity chain");
+  assert.ok(!eq.includes("bybit"), "a crypto-only venue reached the equity chain");
   assert.equal(eq[0], "massive");
   const cr = candidatesFor("quote", "crypto").map((a) => a.meta.id);
-  assert.equal(cr[0], "binance"); // keyless baseline first
+  assert.equal(cr[0], "binance"); // keyless baseline first — Bybit serves bars only
+  const crBars = candidatesFor("bars", "crypto").map((a) => a.meta.id);
+  assert.equal(crBars[0], "bybit"); // the nearer origin: 6.2ms vs 72.7ms
 });
 
 // --------------------------------------------------------------------------

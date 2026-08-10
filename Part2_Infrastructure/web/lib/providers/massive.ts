@@ -69,7 +69,14 @@ export const massive: Adapter = {
     baseUrlEnv: "MASSIVE_BASE_URL",
     // A burst cap, not a volume cap: 5/minute on the free tier.
     quota: { calls: 5, window: "minute", reserve: 0.2 },
-    rank: { quote: 3, bars: 1, news: 3, fundamentals: 2 },
+    // bars shifted 1 -> 2 when Bybit was inserted at the head of the crypto
+    // chain. Every bars rank below Bybit moved up by exactly one, so the
+    // relative order of the equity chain is unchanged and Massive is still
+    // first for equities. Renumbered rather than tied: `candidatesFor` sorts,
+    // and equal ranks resolve by position in the ADAPTERS array — a keyed
+    // vendor and a keyless venue silently swapping places based on an import
+    // list is not a decision anyone would find later.
+    rank: { quote: 3, bars: 2, news: 3, fundamentals: 2 },
     signup: "Free key at massive.com — 5 requests/minute, end-of-day data.",
   },
 

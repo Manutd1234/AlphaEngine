@@ -65,7 +65,12 @@ describe("a fallback says which door was closed", () => {
     assert.ok(warning, "the synthetic fallback produced no warning at all");
 
     for (const adapter of ADAPTERS.filter((a) => a.meta.capabilities.includes("bars"))) {
-      if (adapter.meta.id === "binance") continue; // crypto-only, correctly not asked
+      // Skipped by asset class, not by name. This was `id === "binance"` — a
+      // hardcoded exception that silently became wrong the moment a second
+      // crypto-only venue joined the registry, and failed here demanding that
+      // an equity warning name a venue that cannot trade equities. The reason
+      // was always "crypto-only, correctly not asked"; now it says so.
+      if (!adapter.meta.assets.includes("equity")) continue;
       assert.match(
         warning, new RegExp(adapter.meta.id),
         `${adapter.meta.id} could have served this and the warning does not mention it`,

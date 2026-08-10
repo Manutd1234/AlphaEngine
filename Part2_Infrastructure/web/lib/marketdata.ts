@@ -16,6 +16,7 @@
  */
 
 import { fetchBinanceKlines } from "./binance-klines";
+import { fetchBybitKlines } from "./bybit-klines";
 import { getBars } from "./providers/registry";
 import { classify } from "./providers/symbols";
 import type { Attempt } from "./providers/types";
@@ -78,10 +79,77 @@ export function syntheticBars(symbol: string, interval: string, bars: number): B
 /** The registry options `loadBars` passes straight through. */
 type RegistryOptions = Parameters<typeof getBars>[3];
 
+/**
+ * The crypto venue chain, fastest origin first.
+ *
+ * Ordered by measured round trip to each venue's server clock, not by
+ * preference or by which was integrated first — see the note on `loadBars`.
+ * Exported so a test can assert the ORDER rather than merely that both venues
+ * are present: the whole point of this change is which one is tried first, and
+ * a reordering would otherwise be invisible to the suite.
+ */
+export interface CryptoVenue {
+  source: DataSource;
+  label: string;
+  fetch: (symbol: string, interval: string, bars: number) => Promise<Bar[]>;
+}
+
+export const CRYPTO_VENUES: CryptoVenue[] = [
+  { source: "bybit", label: "Bybit", fetch: fetchBybitKlines },
+  { source: "binance", label: "Binance", fetch: fetchBinanceKlines },
+];
+
 export interface LoadedBars {
   bars: Bar[];
   source: DataSource;
   warnings: string[];
+}
+
+/**
+ * Walk the crypto venue chain, first venue that answers wins.
+ *
+ * Split out of `loadBars` and given an injectable chain for one reason: the
+ * fallback is otherwise impossible to test. Every symbol the application offers
+ * is listed on both venues, so no real request can make Bybit decline and
+ * Binance answer — which would leave the entire failover path unexercised until
+ * the day it was needed. That is exactly the shape of the defects this codebase
+ * keeps producing, and an untested fallback is worse than no fallback, because
+ * it is a promise nobody has checked.
+ *
+ * It is not decorative. Bybit answered HTTP 403 to every serverless request for
+ * months (see `venues.ts`), and 247 of Binance's USDT pairs are absent from
+ * Bybit today — so both an outage and a coverage miss are live possibilities
+ * the moment the symbol list grows past its current allowlist.
+ */
+export async function loadCryptoBars(
+  symbol: string,
+  interval: string,
+  bars: number,
+  chain: CryptoVenue[] = CRYPTO_VENUES,
+): Promise<LoadedBars> {
+  const attempts: string[] = [];
+  for (const venue of chain) {
+    try {
+      const loaded = await venue.fetch(symbol, interval, bars);
+      return {
+        bars: loaded,
+        source: venue.source,
+        // The fallback is reported, never silent. A sweep that ran on Binance
+        // because Bybit declined is a different measurement from one that ran
+        // on Bybit — different venue, different book, different last price —
+        // and a reader comparing two runs has to be able to see that.
+        warnings: attempts.length
+          ? [
+              `${venue.label} served these bars after ${attempts.join("; ")}. `
+                + `Prices are this venue's, so they will differ slightly from a run on the other.`,
+            ]
+          : [],
+      };
+    } catch (err) {
+      attempts.push(`${venue.label} declined (${(err as Error).message})`);
+    }
+  }
+  return fellBackToSynthetic(symbol, interval, bars, attempts.join("; "));
 }
 
 function fellBackToSynthetic(symbol: string, interval: string, bars: number, why: string): LoadedBars {
@@ -140,6 +208,32 @@ function whyNoProvider(err: unknown): string {
  * data, converting a transient quote-side failure into a synthetic backtest.
  * The façade earns its keep where there is genuinely more than one provider;
  * for crypto klines there is one, and it is this.
+ *
+ * WHY BYBIT IS TRIED FIRST
+ *
+ * Because it is measurably nearer, and for no other reason. Both venues front
+ * their REST API with a CDN, so both handshakes terminate a millisecond and a
+ * half away and look identical; a round trip to each venue's *server clock* —
+ * which no edge can serve from cache — separates them:
+ *
+ *     api.bybit.com      origin   6.2 ms
+ *     api.binance.com    origin  72.7 ms
+ *
+ * From the Vercel serverless region the same asymmetry measures ~8x (Bybit
+ * 9-11 ms against Binance 77-90 ms over five consecutive production calls).
+ * Every bar this application loads pays that difference once per page, and a
+ * 5000-bar sweep is five pages.
+ *
+ * Binance is not removed, it is demoted. It remains the fallback because it is
+ * the deeper venue with the longer history, and because a chain of two real
+ * venues is what stops a single venue's bad afternoon from being served as a
+ * synthetic random walk. The order is a latency preference, not a judgement
+ * about data quality — and `source` reports which one actually answered, so a
+ * reader is never left to infer it.
+ *
+ * The one thing this must never become is a silent substitution. Bybit and
+ * Binance do not list identical pairs, and a symbol Bybit does not carry has to
+ * fall through to Binance rather than return a short series that looks fine.
  */
 export async function loadBars(
   symbol: string,
@@ -154,11 +248,7 @@ export async function loadBars(
   opts: RegistryOptions = {},
 ): Promise<LoadedBars> {
   if (classify(symbol) === "crypto") {
-    try {
-      return { bars: await fetchBinanceKlines(symbol, interval, bars), source: "binance", warnings: [] };
-    } catch (err) {
-      return fellBackToSynthetic(symbol, interval, bars, (err as Error).message);
-    }
+    return loadCryptoBars(symbol, interval, bars);
   }
 
   // Equities and FX: the multi-provider façade, which already carries quota

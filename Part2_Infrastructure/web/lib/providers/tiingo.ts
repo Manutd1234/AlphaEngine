@@ -61,7 +61,8 @@ export const tiingo: Adapter = {
     keyEnv: "TIINGO_API_KEY",
     baseUrlEnv: "TIINGO_BASE_URL",
     quota: { calls: 1_000, window: "day", reserve: 0.15 },
-    rank: { quote: 2, bars: 2, news: 1 },
+    // bars 2 -> 3: see the note in massive.ts. Relative order preserved.
+    rank: { quote: 2, bars: 3, news: 1 },
     signup: "Free key at tiingo.com — 1,000 requests/day, personal use.",
   },
 

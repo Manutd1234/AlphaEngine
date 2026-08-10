@@ -154,6 +154,58 @@ which venue the desk trades, which is a business decision rather than an
 infrastructure one. It is recorded here because a spend decision should be taken
 against the best free alternative, not against the status quo.
 
+### 2.5 The free half, taken — research bars now load from Bybit
+
+The research path has been switched; the trading path has not, and the
+distinction is the point.
+
+**What changed.** `lib/marketdata.loadBars` used to send every crypto symbol to
+Binance klines. It now walks a two-venue chain, Bybit first, Binance second,
+synthetic last — `lib/bybit-klines.ts`, registered as an ordinary keyless
+provider in `lib/providers/bybit.ts` so it appears in the health matrix like
+every other upstream. Measured end to end, 600 × 1h bars of `BTCUSDT`:
+
+| | bars | wall clock |
+|---|---|---|
+| Bybit | 600 | **112 ms** |
+| Binance | 600 | 147 ms |
+
+and across all twelve crypto symbols the portal offers, warm, **17–23 ms each,
+all twelve served by Bybit**. From the Vercel serverless region the per-call gap
+is larger than from a laptop — five consecutive production probes measured
+Bybit at 9–11 ms against Binance at 77–90 ms, roughly 8×.
+
+**What did not change.** `venues.ts` still walks the merged cross-venue ladder
+by price for execution, and the gateway still streams both feeds. Bybit's spot
+book is thinner than Binance's on most pairs, so *nearer is not deeper* — this
+is a latency decision about where history is read, not a routing decision about
+where an order should go. Conflating the two is the mistake this whole document
+exists to prevent.
+
+**Two things worth recording because they were both wrong in the repository.**
+
+The first: `venues.ts` carried a comment stating Bybit answered **HTTP 403** to
+every request from the serverless region — a 100 % error rate. That was true
+when written and is no longer; five consecutive production calls all returned a
+book, faster than Binance every time. The comment has been corrected rather than
+deleted, because a fact that flipped silently once can flip back.
+
+The second: the two venues order their klines **oppositely** — Binance
+ascending, Bybit descending. A reversed series does not crash, does not warn,
+and produces a complete backtest of every strategy run backwards through
+history. `parseBybitPage` sorts rather than reverses, and `fetchBybitKlines`
+re-checks monotonicity before returning, because a comment asking the next
+reader to remember is not a control. Cross-checked against Binance on 600
+aligned bars: **median close difference 0.46 bps, p95 1.58 bps, max 3.15 bps** —
+which is what two spot venues quoting one instrument should look like, and
+nothing like what a reversed or misaligned series would.
+
+**Coverage, and why the fallback is load-bearing rather than decorative.** Of
+Binance's 489 USDT pairs, 247 are absent from Bybit. Every symbol the portal
+currently offers is on both, so no real request can exercise the failover —
+which is why the chain is injectable and the fallback is tested with a stubbed
+venue rather than left as an untested promise.
+
 **Tokyo co-location is not yet done, and the number above is an expectation, not a
 measurement.** The plan is probe-first: stand up an instance, run the same
 `time_connect` probe, and migrate only if it confirms.

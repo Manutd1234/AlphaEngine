@@ -40,7 +40,12 @@ export const binance: Adapter = {
     // Weight-based, not call-based, and generous enough that a dashboard cannot
     // realistically exhaust it. Left unmetered rather than modelled wrongly.
     quota: null,
-    rank: { quote: 0, bars: 0 },
+    // Still first for quotes, second to Bybit for bars — Bybit's origin answers
+    // in 6.2 ms against this one's 72.7 ms, and a bars request is up to five
+    // paginated calls. Written as an explicit 1 rather than left tied at 0:
+    // `candidatesFor` sorts, and a tie would make the winner depend on position
+    // in the ADAPTERS array, which is not where this decision should live.
+    rank: { quote: 0, bars: 1 },
     signup: "No key required — public market data.",
   },
 

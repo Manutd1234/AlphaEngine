@@ -253,6 +253,7 @@ export interface SeriesPoint {
  * something to say.
  */
 export const DATA_SOURCES = [
+  "bybit",
   "binance",
   "fmp",
   "tiingo",
