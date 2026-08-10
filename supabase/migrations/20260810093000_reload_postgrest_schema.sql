@@ -1,0 +1,17 @@
+-- Tell PostgREST that the schema changed.
+--
+-- `supabase db push` applies DDL to Postgres and says nothing to PostgREST,
+-- which serves `/rest/v1/rpc/*` from a schema cache it builds at startup. A
+-- function added by a migration is therefore invisible over HTTP until
+-- something reloads that cache — and the symptom is a 404 for an RPC that
+-- exists, is callable in SQL, and passes every offline contract test.
+--
+-- Diagnosed rather than assumed: after 20260810090000 applied cleanly, a live
+-- query to `match_research_documents_hybrid` still came back with the dense
+-- function's columns, which is exactly what the caller's 404 fallback does. The
+-- fallback worked as designed and made the failure quiet, which is the right
+-- behaviour during a rollout and the reason this went unnoticed for one deploy.
+--
+-- This is the documented signal, and it is idempotent, so it is safe as a
+-- standing final migration rather than a one-off repair.
+notify pgrst, 'reload schema';
