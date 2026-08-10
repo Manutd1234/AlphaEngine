@@ -13724,11 +13724,6 @@ html.is-vt .view-panel {
     padding: 0;
   }
 
-  #panel-research .workspace-subtab-panel[data-workspace-id="research"]
-    + .workspace-subtab-panel[data-workspace-id="research"] {
-    break-before: page;
-  }
-
   #panel-research :is(
     .card,
     .research-provenance,
@@ -13756,9 +13751,13 @@ html.is-vt .view-panel {
   #panel-research .chart-toggle,
   #panel-research .corpus-search,
   #panel-research .history-toolbar,
+  #panel-research .research-seg,
   #panel-research .run-actions,
   #panel-research .run-annotate,
   #panel-research .favourites-actions,
+  #panel-research .research-facts .text-action,
+  #panel-research .strategy-doc__similar,
+  #panel-research .research-corpus > p.muted:has(.linklike),
   #panel-research .promotion-handoff button,
   #panel-research .research-data-handoff button,
   #panel-research .research-empty-section button {
@@ -13826,6 +13825,26 @@ html.is-vt .view-panel {
     max-height: none !important;
   }
 
+  #panel-research .signal-workflow__track {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  #panel-research .signal-workflow__stage,
+  #panel-research .signal-workflow__node {
+    min-width: 0;
+    width: 100%;
+  }
+
+  #panel-research .signal-workflow__node {
+    height: 100%;
+  }
+
+  #panel-research .signal-workflow__arrow {
+    display: none;
+  }
+
   #panel-research table {
     width: 100%;
     min-width: 0 !important;
@@ -13835,6 +13854,13 @@ html.is-vt .view-panel {
 
   #panel-research thead {
     display: table-header-group;
+  }
+
+  #research-subpanel-runs > .card:first-child > .table-wrap > table
+    > :is(thead, tbody) > tr > :is(th, td):first-child,
+  #research-subpanel-runs > .card:first-child > .table-wrap > table
+    > :is(thead, tbody) > tr > :is(th, td):last-child {
+    display: none;
   }
 
   #panel-research tr {
@@ -13862,6 +13888,10 @@ html.is-vt .view-panel {
     .stat-tile,
     .verdict-metric,
     .compact-grid-2col > .card,
+    .quality-card,
+    .promotion-card,
+    .research-corpus,
+    .signal-workflow,
     .promotion-list > li,
     .codex-card,
     .corpus-results > li,
@@ -13869,6 +13899,16 @@ html.is-vt .view-panel {
   ) {
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+
+  #panel-research :is(
+    .section-heading,
+    .portfolio-card-heading,
+    .regime-windows-heading,
+    .codex-family__head
+  ) {
+    break-after: avoid-page;
+    page-break-after: avoid;
   }
 
   #panel-research svg {
