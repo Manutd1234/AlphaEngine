@@ -8,6 +8,8 @@ import {
   OPERATOR_TOKEN_ENV,
   paperOrderDefaultAvailable,
 } from "@/lib/operator";
+import { buildPaperExecutionReference } from "@/lib/paper-equity";
+import { classify, getQuote } from "@/lib/providers/registry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -117,7 +119,42 @@ export async function POST(request: NextRequest) {
   if (!("order" in parsed)) {
     return NextResponse.json(parsed, { status: 400 });
   }
-  const { order } = parsed;
+  let { order } = parsed;
+
+  // Equities do not have Binance/Bybit L2 in the gateway. Obtain a provider
+  // quote here, on the trusted server, and attach the gateway's narrow paper
+  // execution envelope. parseOrder deliberately ignored any browser field with
+  // this name, so a caller cannot choose its own mark or provenance.
+  if (classify(String(order.symbol)) === "equity") {
+    try {
+      const sourced = await getQuote(String(order.symbol), {
+        priority: "interactive",
+        env: process.env,
+      });
+      order = {
+        ...order,
+        paper_execution: buildPaperExecutionReference(String(order.symbol), sourced),
+      };
+    } catch (quoteError) {
+      emit({
+        level: "warn",
+        source: "PaperEquity",
+        message: `${String(order.symbol)} could not obtain a trusted USD quote`,
+        fields: {
+          symbol: String(order.symbol),
+          reason: quoteError instanceof Error ? quoteError.message : "quote unavailable",
+        },
+      });
+      return NextResponse.json(
+        {
+          code: "equity_quote_unavailable",
+          error: `A trusted USD quote for ${String(order.symbol)} is unavailable, so the paper order was not sent.`,
+          hint: "Try another covered US ticker or retry after the market-data provider recovers.",
+        },
+        { status: 503 },
+      );
+    }
+  }
 
   const result = await callGateway<Record<string, unknown>>("/api/orders", {
     subject: "order submission",
