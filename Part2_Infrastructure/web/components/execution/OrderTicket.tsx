@@ -46,6 +46,8 @@ interface OrderTicketProps {
   operatorToken?: string;
   operatorGuard?: "token" | "open-dev" | "open-demo" | "locked";
   operatorTokenEnv?: string;
+  /** True means a blank field uses the server-held credential for this route. */
+  paperOrderDefaultAvailable?: boolean;
   onOperatorTokenChange?: (token: string) => void;
   strategy: Strategy;
   onStrategyChange: (strategy: Strategy) => void;
@@ -104,7 +106,7 @@ const STRATEGY_GROUPS = [...strategiesByFamily()];
 export default function OrderTicket({
   symbol, side, notional, orderType, limitPrice, onSideChange, onNotionalChange,
   onOrderTypeChange, onLimitPriceChange, operatorToken, operatorGuard,
-  operatorTokenEnv, onOperatorTokenChange, strategy, onStrategyChange,
+  operatorTokenEnv, paperOrderDefaultAvailable, onOperatorTokenChange, strategy, onStrategyChange,
   experimentId, halted, haltedSymbols, mode, judge, onSubmitted, onOpenResearch,
 }: OrderTicketProps) {
   const [busy, setBusy] = useState(false);
@@ -123,6 +125,7 @@ export default function OrderTicket({
   const disabled = mode === "outage";
   const credentialMissing = mode === "live"
     && operatorGuard === "token"
+    && !paperOrderDefaultAvailable
     && !operatorToken?.trim();
   const limitInvalid = orderType === "LIMIT" && !(limitPrice != null && limitPrice > 0);
   const bandBps = orderType === "LIMIT" && limitPrice && mid
@@ -247,7 +250,7 @@ export default function OrderTicket({
       {mode === "live" && operatorGuard === "token" && onOperatorTokenChange ? (
         <div className="cockpit-ticket__credential">
           <label>
-            <span>Operator credential</span>
+            <span>{paperOrderDefaultAvailable ? "Credential override (optional)" : "Operator credential"}</span>
             <input
               type="password"
               value={operatorToken ?? ""}
@@ -262,9 +265,11 @@ export default function OrderTicket({
             />
           </label>
           <small className="muted">
-            {credentialMissing
-              ? "Required for live orders. Held in memory for this tab only."
-              : "Credential ready · held in memory for this tab only."}
+            {operatorToken?.trim()
+              ? "Override ready · held in memory for this tab only."
+              : paperOrderDefaultAvailable
+                ? "Using the deployment credential. Paste a token to override this request."
+                : "Required for live orders. Held in memory for this tab only."}
           </small>
         </div>
       ) : null}

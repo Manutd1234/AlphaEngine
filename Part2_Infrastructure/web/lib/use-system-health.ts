@@ -45,6 +45,8 @@ export interface SystemHealthView {
 
   guard: GuardMode;
   tokenEnv: string;
+  /** A missing credential may use the server-held default for new paper orders only. */
+  paperOrderDefaultAvailable: boolean;
   token: string;
   setToken: (token: string) => void;
   busyAction: string | null;
@@ -224,6 +226,7 @@ export function useSystemHealth(workspaceSymbol: string): SystemHealthView {
     setRoute,
     guard: health?.guard.mode ?? "locked",
     tokenEnv: health?.guard.tokenEnv ?? "ALPHAENGINE_OPERATOR_TOKEN",
+    paperOrderDefaultAvailable: health?.guard.paperOrderDefaultAvailable === true,
     token,
     setToken,
     busyAction,

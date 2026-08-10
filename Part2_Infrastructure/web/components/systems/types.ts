@@ -247,7 +247,12 @@ export interface SystemHealth {
   schemaVersion?: 2;
   fetchedAt: string;
   instance: { id: string; startedAt: string; uptimeMs: number; scope: string };
-  guard: { mode: GuardMode; tokenEnv: string };
+  guard: {
+    mode: GuardMode;
+    tokenEnv: string;
+    /** Optional during rolling deploys; never contains the credential itself. */
+    paperOrderDefaultAvailable?: boolean;
+  };
   summary: {
     total: number;
     configured: number;

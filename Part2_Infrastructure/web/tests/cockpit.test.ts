@@ -323,6 +323,15 @@ describe("token-guarded order entry has an in-context recovery path", () => {
     assert.match(page, /onOperatorTokenChange=\{systems\.setToken\}/);
     assert.match(page, /operatorGuard=\{systems\.guard\}/);
   });
+
+  it("uses the deployment credential by default and keeps pasted tokens strict overrides", () => {
+    assert.match(page, /paperOrderDefaultAvailable=\{systems\.paperOrderDefaultAvailable\}/);
+    assert.match(cockpit, /paperOrderDefaultAvailable=\{paperOrderDefaultAvailable\}/);
+    assert.match(orderTicket, /!paperOrderDefaultAvailable[\s\S]*?!operatorToken\?\.trim\(\)/);
+    assert.match(orderTicket, /Credential override \(optional\)/);
+    assert.match(orderTicket, /Using the deployment credential/);
+    assert.match(orderTicket, /operatorHeaders\(operatorToken\)/);
+  });
 });
 
 describe("the execution strategy is an editable order intent", () => {

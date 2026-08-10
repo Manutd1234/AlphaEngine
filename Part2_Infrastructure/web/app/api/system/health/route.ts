@@ -8,7 +8,12 @@ import {
   gatewayOpenApiEvidence,
 } from "@/lib/delivery-readiness";
 import { callGateway } from "@/lib/gateway";
-import { guardMode, CACHE_PREFIXES, OPERATOR_TOKEN_ENV } from "@/lib/operator";
+import {
+  guardMode,
+  CACHE_PREFIXES,
+  OPERATOR_TOKEN_ENV,
+  paperOrderDefaultAvailable,
+} from "@/lib/operator";
 import {
   activeOutages,
   cacheStats,
@@ -159,6 +164,7 @@ export async function GET(request: NextRequest) {
     guard: {
       mode: guardMode(),
       tokenEnv: OPERATOR_TOKEN_ENV,
+      paperOrderDefaultAvailable: paperOrderDefaultAvailable(),
     },
     summary: {
       total: providers.length,

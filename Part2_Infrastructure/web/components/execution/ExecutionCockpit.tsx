@@ -92,6 +92,7 @@ export interface CockpitProps {
   operatorToken?: string;
   operatorGuard?: "token" | "open-dev" | "open-demo" | "locked";
   operatorTokenEnv?: string;
+  paperOrderDefaultAvailable?: boolean;
   onOperatorTokenChange?: (token: string) => void;
   /** Execution-owned strategy sleeve; promotion may seed it, the ticket may override it. */
   strategy: Strategy;
@@ -119,6 +120,7 @@ export default function ExecutionCockpit({
   operatorToken,
   operatorGuard,
   operatorTokenEnv,
+  paperOrderDefaultAvailable,
   onOperatorTokenChange,
   strategy,
   onStrategyChange,
@@ -323,6 +325,7 @@ export default function ExecutionCockpit({
             operatorToken={operatorToken}
             operatorGuard={operatorGuard}
             operatorTokenEnv={operatorTokenEnv}
+            paperOrderDefaultAvailable={paperOrderDefaultAvailable}
             onOperatorTokenChange={onOperatorTokenChange}
             strategy={strategy}
             onStrategyChange={onStrategyChange}

@@ -1590,6 +1590,7 @@ export default function Page() {
                 operatorToken={systems.token}
                 operatorGuard={systems.guard}
                 operatorTokenEnv={systems.tokenEnv}
+                paperOrderDefaultAvailable={systems.paperOrderDefaultAvailable}
                 onOperatorTokenChange={systems.setToken}
                 strategy={executionStrategy}
                 onStrategyChange={setExecutionStrategy}
