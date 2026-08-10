@@ -297,6 +297,10 @@ const cockpit = readFileSync(
   fileURLToPath(new URL("../components/execution/ExecutionCockpit.tsx", import.meta.url)),
   "utf8",
 );
+const liveMarket = readFileSync(
+  fileURLToPath(new URL("../components/LiveMarket.tsx", import.meta.url)),
+  "utf8",
+);
 const page = readFileSync(
   fileURLToPath(new URL("../app/page.tsx", import.meta.url)),
   "utf8",
@@ -359,6 +363,15 @@ describe("a settled live order invalidates the shared Portfolio and Risk book", 
     assert.match(page, /STRATEGY_LABELS\[executionStrategy\]/);
     assert.equal((page.match(/label: "Execution sleeve"/g) ?? []).length, 2);
     assert.match(page, /aggregate book risk below/);
+  });
+});
+
+describe("execution spends vertical space only where the active task needs it", () => {
+  it("keeps the full watchlist on market-analysis sections and compacts Trade", () => {
+    assert.match(liveMarket, /section === "liquidity" \|\| section === "routing"/);
+    assert.match(liveMarket, /section === "trade"[\s\S]*?compactMarketContext/);
+    assert.match(liveMarket, /className="execution-market-strip"/);
+    assert.match(liveMarket, /\{marketContext\}/);
   });
 });
 

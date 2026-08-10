@@ -83,6 +83,11 @@ export default function LiveMarket({
   // the price, which is what the no-colour-only rule requires.
   const [tickDirection, setTickDirection] = useState<Record<string, "up" | "down">>({});
   const prevTickers = useRef<Record<string, Ticker>>({});
+  const activeTicker = tickerBySymbol[symbol];
+  const activeChange = activeTicker?.changePct24h ?? null;
+  const activeLast = activeTicker?.last ?? snap?.consolidatedMid ?? null;
+  const liveVenues = snap?.venues.filter((venue) => venue.status === "live").length ?? 0;
+  const selectableSymbols = liveSupported ? SYMBOLS : [symbol, ...SYMBOLS];
 
   // The ticket (rendered as children) reads the mid for its price-band hint.
   const wrappedChildren = (
@@ -252,10 +257,52 @@ export default function LiveMarket({
     </section>
   );
 
+  const compactMarketContext = (
+    <section className="execution-market-strip" aria-label={`${symbol} market context`}>
+      <label>
+        <span>Instrument</span>
+        <select value={symbol} onChange={(event) => onSymbolChange(event.target.value)}>
+          {selectableSymbols.map((candidate) => (
+            <option key={candidate} value={candidate}>{candidate}</option>
+          ))}
+        </select>
+      </label>
+      <dl>
+        <div>
+          <dt>Last</dt>
+          <dd className="num">
+            {activeLast == null ? "—" : fmt(activeLast, priceDp(activeLast))}
+            <small className={activeChange == null ? "muted" : activeChange >= 0 ? "pos" : "neg"}>
+              {activeChange == null ? "24h pending" : `24h ${signedPct(activeChange)}`}
+            </small>
+          </dd>
+        </div>
+        <div>
+          <dt>L2 mid</dt>
+          <dd className="num">{snap?.consolidatedMid == null ? "—" : fmt(snap.consolidatedMid, dp)}</dd>
+        </div>
+        <div>
+          <dt>Spread</dt>
+          <dd className="num">{snap?.spreadBps == null ? "—" : `${fmt(snap.spreadBps, 2)} bps`}</dd>
+        </div>
+      </dl>
+      <span className={`execution-market-strip__status${liveVenues > 0 ? " is-live" : ""}`}>
+        <i aria-hidden />
+        {!liveSupported ? "Quote only" : snap ? `${liveVenues} venues live` : "Connecting"}
+      </span>
+    </section>
+  );
+
+  const marketContext = section === "liquidity" || section === "routing"
+    ? instrumentPanel
+    : section === "trade"
+      ? compactMarketContext
+      : null;
+
   if (!liveSupported) {
     return (
       <>
-        {instrumentPanel}
+        {marketContext}
         {wrappedChildren}
         {(["liquidity", "routing"] as const).map((tabId) => (
           <WorkspaceSubtabPanel key={tabId} workspaceId="execution" tabId={tabId} activeId={section}>
@@ -286,7 +333,7 @@ export default function LiveMarket({
 
   return (
     <>
-      {instrumentPanel}
+      {marketContext}
       {wrappedChildren}
 
       <WorkspaceSubtabPanel workspaceId="execution" tabId="liquidity" activeId={section}>
