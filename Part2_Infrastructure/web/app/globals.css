@@ -1264,6 +1264,13 @@ button.icon {
   background: var(--series-1);
   color: #fff;
 }
+/* The stress panel's fifth segment: inert until a hand shock exists. Dimmed,
+   never hidden — an absent control reads as a missing feature, and this one is
+   the only place the seg control can say "the numbers below are yours". */
+.seg button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
 
 /* ---------- tables ---------- */
 .table-wrap {

@@ -174,6 +174,26 @@ export default function StressTest({
             {s.label}
           </button>
         ))}
+        {/* The segment control must always show WHICH shocks produced the
+            numbers below. Moving a slider unpresses every named scenario —
+            correct, the numbers are no longer the preset's — but a control with
+            no lit segment reads as broken state, not as a fifth state. So the
+            fifth state is a segment: lit exactly when hand shocks are active,
+            disabled (not absent) otherwise, per the same rule that keeps
+            Guided-tier controls visible-but-collapsed rather than missing. */}
+        <button
+          type="button"
+          className="stress-scenarios__custom"
+          aria-pressed={manualActive}
+          disabled={!manualActive}
+          title={
+            manualActive
+              ? `Scoring your ${manualSymbols.length} hand shock${manualSymbols.length === 1 ? "" : "s"} — clear them to return to “${scenario.label}”.`
+              : "Move a slider below to set a hand shock; this lights up when one is active."
+          }
+        >
+          Hand shocks
+        </button>
       </div>
 
       <p className="sub">
