@@ -239,7 +239,7 @@ export const STRATEGY_DOCS: Record<Strategy, StrategyDoc> = {
       "Genuinely stationary series. This is the single-instrument shape of the pairs-trading rule, without the pair.",
     whenItFails:
       "Anything trending. A price making new lows has a mean that follows it down, so z returns to zero without price returning anywhere — the rule reports a successful reversion after a permanent loss.",
-    similar: ["rsi_reversion", "bollinger_breakout", "williams_r"],
+    similar: ["linreg_forecast", "rsi_reversion", "bollinger_breakout", "williams_r"],
   },
   atr_breakout: {
     summary: "A breakout sized in the instrument's own volatility.",
@@ -313,5 +313,16 @@ export const STRATEGY_DOCS: Record<Strategy, StrategyDoc> = {
     whenItFails:
       "The same way RSI reversion fails, plus a volume feed that can be wrong. A downtrend on rising volume pins MFI low for as long as the selling lasts.",
     similar: ["rsi_reversion", "williams_r", "obv_trend"],
+  },
+  linreg_forecast: {
+    summary:
+      "The only model here that estimates its own rule: an ordinary least-squares forecast of the next bar's return, refitted as it goes.",
+    formula:
+      "Regress next-bar return on three features known at the bar — the 1-bar return, the 5-bar return, and the close's deviation from its 20-bar mean — over a trailing window of `fast` bars. Long when the forecast exceeds `slow` × the fit's own residual standard error; flat when the forecast turns negative. Refit every 20 bars: a coefficient set that changes every bar is fitting the last observation.",
+    whenItWorks:
+      "Series with genuine short-horizon autocorrelation, and it will find either sign of it — the coefficients decide whether the last move is continued or faded, rather than the user deciding in advance.",
+    whenItFails:
+      "Regime changes, which is the failure specific to being fitted. Coefficients estimated across a trending window keep predicting a trend into the range that follows, and the model is confidently wrong for a full window before the next refit corrects it. Compare its in-sample and out-of-sample Sharpe rather than reading the coefficients — a fit that only worked in-sample is the thing this strategy is most likely to be.",
+    similar: ["zscore_reversion", "momentum", "roc_trend"],
   },
 };

@@ -30,19 +30,27 @@ export type Strategy =
   | "atr_trailing_stop"
   | "obv_trend"
   | "volume_breakout"
-  | "mfi_reversion";
+  | "mfi_reversion"
+  | "linreg_forecast";
 
 /**
  * Families, for grouping the picker.
  *
- * Every strategy here takes exactly two integer parameters, which is why they
- * fit the existing request shape unchanged. That is not a coincidence — it is
- * the selection criterion. Models needing a third axis (Ichimoku) or a
- * non-integer one (Bollinger's standard-deviation multiple) are deliberately
- * held back until the request carries named parameters, because encoding a
- * 1.5x multiplier as the integer 15 makes a slider that lies about its units.
+ * Every strategy takes exactly two parameters, which is why they fit the
+ * existing request shape unchanged. That is the selection criterion, not a
+ * coincidence: models needing a third axis (Ichimoku) are held back until the
+ * request carries named parameters, because folding a third value into one of
+ * the two existing ones makes a slider that lies about its units. Fractional
+ * axes were the first relaxation of that rule and named axes will be the next.
+ *
+ * "Fitted" is the one family that is different in kind rather than in method.
+ * Every other strategy applies a fixed rule the user chose; `linreg_forecast`
+ * estimates its coefficients from the data, so its two parameters control the
+ * FIT (window, threshold) rather than the rule. Grouping it separately is the
+ * cheapest way to stop a reader treating estimated coefficients as tuned ones.
  */
-export type StrategyFamily = "Trend" | "Breakout" | "Mean reversion" | "Momentum" | "Volume";
+export type StrategyFamily =
+  | "Trend" | "Breakout" | "Mean reversion" | "Momentum" | "Volume" | "Fitted";
 
 export const STRATEGY_FAMILY: Record<Strategy, StrategyFamily> = {
   ma_cross: "Trend",
@@ -71,6 +79,7 @@ export const STRATEGY_FAMILY: Record<Strategy, StrategyFamily> = {
   obv_trend: "Volume",
   volume_breakout: "Volume",
   mfi_reversion: "Volume",
+  linreg_forecast: "Fitted",
 };
 export type Direction = "long_only" | "long_short";
 
@@ -540,6 +549,7 @@ export const STRATEGY_LABELS: Record<Strategy, string> = {
   obv_trend: "On-balance volume trend",
   volume_breakout: "Volume-confirmed breakout",
   mfi_reversion: "Money-flow index reversion",
+  linreg_forecast: "Linear regression forecast",
 };
 
 /** What `fast` and `slow` actually mean for each model — shown in the UI so the
@@ -571,6 +581,7 @@ export const PARAM_MEANING: Record<Strategy, { fast: string; slow: string }> = {
   obv_trend: { fast: "OBV smoothing period", slow: "Unused (kept for grid shape)" },
   volume_breakout: { fast: "Breakout lookback", slow: "Volume average period" },
   mfi_reversion: { fast: "MFI period", slow: "Exit SMA period" },
+  linreg_forecast: { fast: "Training window (bars)", slow: "Entry threshold (residual σ)" },
 };
 
 /**
@@ -610,6 +621,10 @@ export const CHART_SERIES: Record<Strategy, { fast: string | null; slow: string 
   obv_trend: { fast: null, slow: "OBV average" },
   volume_breakout: { fast: "Breakout high", slow: "Trend SMA" },
   mfi_reversion: { fast: null, slow: "Exit SMA" },
+  // The forecast lives in return space, not price space: there is no level
+  // to draw. The 20-bar mean one of its features is measured against is the
+  // one line on this chart that means anything for it.
+  linreg_forecast: { fast: null, slow: "Feature mean (20)" },
 };
 
 export const BARS_PER_YEAR: Record<string, number> = {

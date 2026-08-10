@@ -180,7 +180,8 @@
               "atr_trailing_stop",
               "obv_trend",
               "volume_breakout",
-              "mfi_reversion"
+              "mfi_reversion",
+              "linreg_forecast"
             ],
             "title": "Strategy",
             "type": "string"

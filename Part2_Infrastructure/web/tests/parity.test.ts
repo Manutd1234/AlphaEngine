@@ -91,7 +91,7 @@ describe("TypeScript engine reproduces the Python reference", () => {
     assert.deepEqual([...strategies].sort(), [
       "atr_breakout", "atr_trailing_stop", "bollinger_breakout",
       "breakout_sma", "donchian", "donchian_mid", "ema_cross", "ema_slope",
-      "keltner_breakout", "ma_cross", "macd_cross", "mfi_reversion",
+      "keltner_breakout", "linreg_forecast", "ma_cross", "macd_cross", "mfi_reversion",
       "momentum", "obv_trend", "ppo_cross", "price_channel", "roc_trend",
       "rsi_reversion", "rsi_trend", "stochastic", "supertrend", "triple_ma",
       "trix_cross", "volume_breakout", "williams_r", "zscore_reversion"

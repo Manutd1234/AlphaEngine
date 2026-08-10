@@ -57,6 +57,8 @@ CASES = [
     ("BTCUSDT", "4h", "obv_trend", "long_only"),
     ("ETHUSDT", "4h", "volume_breakout", "long_only"),
     ("BTCUSDT", "1h", "mfi_reversion", "long_only"),
+    ("BTCUSDT", "1h", "linreg_forecast", "long_only"),
+    ("ETHUSDT", "4h", "linreg_forecast", "long_short"),
 ]
 COMBOS = [(5, 20), (10, 50), (20, 100), (35, 180)]
 #: The second axis is a standard-deviation multiple for these, not a period.
@@ -67,6 +69,13 @@ FREE_AXIS_STRATEGIES = {
     "bollinger_breakout", "zscore_reversion",
     "atr_breakout", "keltner_breakout", "supertrend", "atr_trailing_stop",
 }
+#: The fitted strategy: first axis is a training window (60+ bars, not 5) and
+#: the second is a threshold in residual sigma. Both differ from the parametric
+#: grid, and a 5-bar window would fit four coefficients to one observation.
+#: Thresholds deliberately straddle zero-trade territory — a combination that
+#: never fires still has to agree across engines about firing zero times.
+FITTED_COMBOS = [(60, 0.0), (90, 0.2), (150, 0.6), (240, 1.0)]
+FITTED_STRATEGIES = {"linreg_forecast"}
 BARS = 1200
 
 
@@ -82,7 +91,12 @@ def main() -> int:
             symbol=symbol, interval=interval, strategy=strategy,
             direction=direction, bars=BARS, fee_bps=6, slippage_bps=2,
         )
-        combos = FREE_COMBOS if strategy in FREE_AXIS_STRATEGIES else COMBOS
+        if strategy in FITTED_STRATEGIES:
+            combos = FITTED_COMBOS
+        elif strategy in FREE_AXIS_STRATEGIES:
+            combos = FREE_COMBOS
+        else:
+            combos = COMBOS
         results, _ = NumpyEngine().run(df, combos, req)
 
         payload["cases"].append({

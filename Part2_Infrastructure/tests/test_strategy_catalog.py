@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from modules.backtester import FREE_SECOND_AXIS, build_signals
+from modules.backtester import FREE_FIRST_AXIS, FREE_SECOND_AXIS, build_signals
 
 
 def _second_axis(strategy: str) -> float:
@@ -39,6 +39,19 @@ def _second_axis(strategy: str) -> float:
     # the low end is the most permissive point in that range.
     return free[0]
 
+
+def _first_axis(strategy: str) -> float:
+    """A lookback for most models, a training window for the fitted one.
+
+    Same reasoning as `_second_axis` one axis over. Passing 10 to a strategy
+    whose first parameter is the training window of a four-coefficient
+    regression asks it to fit four parameters to ten observations — the answer
+    would be a strategy that trades on noise, and the test would be measuring
+    the caller's confusion rather than the model.
+    """
+    free = FREE_FIRST_AXIS.get(strategy)
+    return 10 if free is None else free[0]
+
 CATALOGUE = [
     "ma_cross", "ema_cross", "macd_cross",
     "donchian", "donchian_mid", "breakout_sma",
@@ -49,6 +62,7 @@ CATALOGUE = [
     "bollinger_breakout", "zscore_reversion",
     "atr_breakout", "keltner_breakout", "supertrend", "atr_trailing_stop",
     "obv_trend", "volume_breakout", "mfi_reversion",
+    "linreg_forecast",
 ]
 
 
@@ -82,7 +96,7 @@ def bars() -> pd.DataFrame:
 
 @pytest.mark.parametrize("strategy", CATALOGUE)
 def test_every_strategy_takes_at_least_one_round_trip(strategy: str, bars: pd.DataFrame):
-    entries, exits = build_signals(strategy, bars, 10, _second_axis(strategy))
+    entries, exits = build_signals(strategy, bars, _first_axis(strategy), _second_axis(strategy))
     assert entries.sum() > 0, f"{strategy} never entered — it cannot lose money or make any"
     assert exits.sum() > 0, f"{strategy} entered and never exited"
 
@@ -94,7 +108,7 @@ def test_entries_and_exits_alternate(strategy: str, bars: pd.DataFrame):
     Two entries with no exit between them would double-count a position in any
     engine that trusts the pair, and the vectorised path does.
     """
-    entries, exits = build_signals(strategy, bars, 10, _second_axis(strategy))
+    entries, exits = build_signals(strategy, bars, _first_axis(strategy), _second_axis(strategy))
     events = sorted(
         [(i, "entry") for i in np.flatnonzero(entries.to_numpy())]
         + [(i, "exit") for i in np.flatnonzero(exits.to_numpy())]
@@ -113,10 +127,10 @@ def test_no_lookahead_a_bar_cannot_depend_on_its_own_future(strategy: str, bars:
     cheap to lose: one un-shifted `rolling().max()` reads the current bar's own
     high, and the result looks like a brilliant strategy.
     """
-    second = _second_axis(strategy)
-    full_entries, _ = build_signals(strategy, bars, 10, second)
+    first, second = _first_axis(strategy), _second_axis(strategy)
+    full_entries, _ = build_signals(strategy, bars, first, second)
     cut = len(bars) - 50
-    partial_entries, _ = build_signals(strategy, bars.iloc[:cut].copy(), 10, second)
+    partial_entries, _ = build_signals(strategy, bars.iloc[:cut].copy(), first, second)
 
     # Compare only where both are defined, ignoring the warm-up region.
     a = full_entries.to_numpy()[:cut][100:]
