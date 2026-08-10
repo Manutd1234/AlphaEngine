@@ -167,3 +167,96 @@ class TestSandboxIsolation:
         # It is deployed --no-verify-jwt and it writes rows.
         assert '"Access-Control-Allow-Origin": "*"' not in self.EDGE_FN
         assert "ALLOWED_ORIGINS" in self.EDGE_FN
+
+
+class TestHybridRetrieval:
+    """The lexical half of retrieval, and the caller that has to agree with it.
+
+    Hybrid search exists because this corpus is keyed by exactly the tokens a
+    sentence embedder handles worst: `BTCUSDT`, a job id, an eight-character
+    `data_hash`, a parameter pair like `20/100`. A dense retriever blurs them
+    and a lexical one is exact on them, so the answer is both, fused.
+
+    Everything here is parsed from the committed SQL and the committed Python.
+    A renamed argument on either side is a red test rather than a 404 at
+    runtime that falls back to dense-only search and looks like nothing
+    happened.
+    """
+
+    SEARCH_RPC = "match_research_documents_hybrid"
+
+    def _rag_source(self) -> str:
+        return (Path(__file__).resolve().parent.parent / "modules" / "research_rag.py").read_text()
+
+    def test_the_hybrid_function_exists(self):
+        assert f"function public.{self.SEARCH_RPC}" in ALL_SQL
+
+    def test_the_caller_sends_exactly_the_arguments_the_function_declares(self):
+        block = ALL_SQL[ALL_SQL.index(f"function public.{self.SEARCH_RPC}"):]
+        # To `\n)\nreturns`, not to the first `)` — the first one closes
+        # `extensions.vector(384)` and truncating there reports a one-argument
+        # function. The first draft of this test did exactly that and "passed"
+        # by comparing against a set of one.
+        signature = block[: block.index("\n)\nreturns")]
+        declared = set(re.findall(r"^\s{2}(\w+)\s", signature, re.MULTILINE))
+        assert len(declared) >= 4, f"the signature parser found only {declared}"
+        # `rrf_k` has a default and the caller deliberately does not send it —
+        # the constant is the published one and overriding it per call would
+        # make two searches incomparable.
+        required = declared - {"rrf_k"}
+
+        source = self._rag_source()
+        call = source[source.index(f'rpc/{self.SEARCH_RPC}'):]
+        sent = set(re.findall(r'"(\w+)":', call[: call.index("}")]))
+        assert required == sent, (
+            f"the hybrid RPC declares {sorted(required)} and the caller sends {sorted(sent)}"
+        )
+
+    def test_the_tsvector_is_generated_not_triggered(self):
+        # A trigger-maintained column drifts the moment a row is written by a
+        # path that forgets the trigger, and this table has two writers. A
+        # generated column has no code path that can skip it.
+        assert "generated always as" in ALL_SQL
+        assert "search_tsv" in ALL_SQL
+        assert re.search(r"create index[^;]*search_tsv[^;]*using gin", ALL_SQL, re.S | re.I) \
+            or re.search(r"using gin \(search_tsv\)", ALL_SQL, re.I)
+
+    def test_the_title_outweighs_the_body(self):
+        # `setweight` is what makes a query matching a title outrank the same
+        # query matching one mention deep in a body. Without it `ts_rank_cd` has
+        # no way to know which it saw.
+        assert "setweight(to_tsvector('english', coalesce(title, '')), 'A')" in ALL_SQL
+        assert "setweight(to_tsvector('english', coalesce(body, '')), 'B')" in ALL_SQL
+
+    def test_fusion_never_penalises_a_retriever_that_returned_nothing(self):
+        # `coalesce(..., 0)` rather than a large penalty. Penalising absence
+        # turns the fusion into an AND across two retrievers with very different
+        # recall, and the lexical side returns nothing at all for a paraphrase —
+        # deleting exactly the results the dense retriever was added to find.
+        assert "coalesce(1.0 / (rrf_k + v.v_rank), 0)" in ALL_SQL
+        assert "coalesce(1.0 / (rrf_k + l.l_rank), 0)" in ALL_SQL
+
+    def test_the_candidate_pool_is_wider_than_the_result(self):
+        # Fusing two top-5 lists can only surface documents already top-5 in one
+        # of them, which defeats the purpose: a document ranked 8th by both is a
+        # better answer than one ranked 1st by neither.
+        block = ALL_SQL[ALL_SQL.index(f"function public.{self.SEARCH_RPC}"):]
+        assert "limit 50" in block
+
+    def test_a_missing_migration_falls_back_but_a_failure_does_not(self):
+        # 404 is a real state during a rollout and the only case where serving
+        # the dense function instead is right. Any other failure must return
+        # nothing rather than quietly serving worse results under the same
+        # label — that is the same "silent substitution" the two-backend design
+        # elsewhere in this repo explicitly refuses.
+        source = self._rag_source()
+        assert "status_code != 404" in source
+        assert "predates the migration" in source
+
+    def test_an_exact_lexical_match_is_not_filtered_by_the_dense_floor(self):
+        # The relevance floor was measured against cosine similarity. A document
+        # surfaced by an exact ticker or job-id match is relevant even when its
+        # cosine score is unremarkable, which is the entire reason lexical
+        # retrieval was added.
+        source = self._rag_source()
+        assert 'r.get("lexical_rank") is not None' in source

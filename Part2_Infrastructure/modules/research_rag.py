@@ -371,9 +371,54 @@ class ResearchRag:
         vector: list[float],
         match_count: int = 3,
         kind: str | None = None,
+        query_text: str | None = None,
     ) -> list[dict[str, Any]]:
+        """Hybrid when a query string is available, dense-only otherwise.
+
+        The hybrid RPC fuses the vector ranking with a lexical one by Reciprocal
+        Rank Fusion. It exists because this corpus is keyed by exactly the tokens
+        a sentence embedder handles worst — ``BTCUSDT``, a job id, an eight-
+        character ``data_hash``, a parameter pair like ``20/100``. gte-small maps
+        those to whatever its subword tokeniser makes of them, so an exact job id
+        can rank below three documents about job ids in general.
+
+        NOT A FALLBACK CHAIN, EXCEPT WHERE THE MIGRATION HAS NOT RUN. A 404 from
+        the hybrid RPC means the deployment predates the migration, which is a
+        real state during a rollout and the only case where falling back to the
+        dense function is right. Any other failure returns nothing rather than
+        quietly serving worse results under the same label — the two functions
+        answer different questions and a silent substitution hides that.
+        """
         if not self._client:
             return []
+        if query_text:
+            try:
+                response = await self._client.post(
+                    "/rest/v1/rpc/match_research_documents_hybrid",
+                    json={
+                        "query_embedding": vector,
+                        "query_text": query_text,
+                        "match_count": match_count,
+                        "filter_kind": kind,
+                    },
+                )
+                if response.status_code < 300:
+                    # The relevance floor is applied here rather than inside the
+                    # function: a document surfaced by an exact lexical match is
+                    # relevant even when its cosine similarity is unremarkable,
+                    # which is the whole reason lexical retrieval was added.
+                    rows = list(response.json())
+                    return [
+                        r for r in rows
+                        if r.get("lexical_rank") is not None
+                        or float(r.get("similarity") or 0) >= RAG_MIN_SIMILARITY
+                    ]
+                if response.status_code != 404:
+                    return []
+                log.info("hybrid RPC absent (404) — deployment predates the migration")
+            except httpx.HTTPError:
+                return []
+
         try:
             response = await self._client.post(
                 "/rest/v1/rpc/match_research_documents",
@@ -401,7 +446,9 @@ class ResearchRag:
             return {"state": "embed_failed", "matches": []}
         return {
             "state": "ok",
-            "matches": await self._match(vector, match_count=match_count, kind=kind),
+            "matches": await self._match(
+                vector, match_count=match_count, kind=kind, query_text=query,
+            ),
         }
 
     def status(self) -> dict[str, Any]:

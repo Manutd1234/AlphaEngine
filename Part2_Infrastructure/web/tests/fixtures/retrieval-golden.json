@@ -1,0 +1,55 @@
+{
+  "note": "Hand-authored answer key. Read tests/retrieval-eval.test.ts before trusting a number computed from it — the limits are stated there, not hidden.",
+  "documents": {
+    "d1": "Backtest run BTCUSDT 1h ma_cross 20/100 — Sharpe 1.42, max drawdown -18.3%",
+    "d2": "Backtest run ETHUSDT 4h donchian 10/50 — Sharpe 0.88, max drawdown -31.0%",
+    "d3": "Backtest run BTCUSDT 1d rsi_reversion 14/50 — Sharpe -0.12, max drawdown -44.7%",
+    "d4": "Risk incident: drawdown breaker tripped at 82% of the daily limit",
+    "d5": "Execution summary job 7f3a91 — 42 fills, 3.1 bps average slippage",
+    "d6": "Backtest run AAPL 1d supertrend 14/3.0 — Sharpe 0.61, max drawdown -22.4%",
+    "d7": "Walk-forward report BTCUSDT 1h — median efficiency 0.71, PBO 20%",
+    "d8": "Risk incident: symbol whitelist rejected an order for DOGEUSDT"
+  },
+  "cases": [
+    {
+      "query": "bitcoin moving average crossover results",
+      "relevant": ["d1"],
+      "note": "Paraphrase. 'bitcoin' never appears literally — the dense retriever is the only one that can reach d1, and lexical returns nothing.",
+      "vectorRanking": ["d1", "d3", "d7", "d2", "d6"],
+      "lexicalRanking": []
+    },
+    {
+      "query": "job 7f3a91",
+      "relevant": ["d5"],
+      "note": "Exact identifier. The subword tokeniser shreds it, so the dense retriever ranks d5 fourth; lexical finds it immediately. This case is why hybrid exists.",
+      "vectorRanking": ["d4", "d8", "d1", "d5", "d2"],
+      "lexicalRanking": ["d5"]
+    },
+    {
+      "query": "BTCUSDT drawdown",
+      "relevant": ["d1", "d3", "d7"],
+      "note": "Both retrievers contribute. Lexical matches the ticker exactly; dense reaches the walk-forward report that never uses the word 'drawdown'.",
+      "vectorRanking": ["d3", "d1", "d7", "d4", "d6"],
+      "lexicalRanking": ["d1", "d3", "d7", "d8"]
+    },
+    {
+      "query": "risk incident breaker",
+      "relevant": ["d4"],
+      "vectorRanking": ["d4", "d8", "d5", "d7", "d1"],
+      "lexicalRanking": ["d4", "d8"]
+    },
+    {
+      "query": "supertrend equity backtest",
+      "relevant": ["d6"],
+      "vectorRanking": ["d6", "d1", "d2", "d3", "d7"],
+      "lexicalRanking": ["d6"]
+    },
+    {
+      "query": "strategies that lost money",
+      "relevant": ["d3"],
+      "note": "Neither retriever is good here: 'lost money' appears nowhere and the negative Sharpe is a number, not a phrase. Kept BECAUSE it is a failure — an answer key containing only queries the system answers well measures nothing.",
+      "vectorRanking": ["d1", "d2", "d6", "d3", "d7"],
+      "lexicalRanking": []
+    }
+  ]
+}
