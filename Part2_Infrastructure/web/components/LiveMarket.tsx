@@ -8,7 +8,7 @@
  * `/api/depth` and `/api/tca` for non-browser callers.
  */
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import DepthChart from "@/components/DepthChart";
 import DislocationStrip from "@/components/DislocationStrip";
@@ -78,6 +78,11 @@ export default function LiveMarket({
   );
   const dp = snap?.consolidatedMid ? priceDp(snap.consolidatedMid) : 2;
   const [tickerBySymbol, setTickerBySymbol] = useState<Record<string, Ticker>>({});
+  // Direction of each symbol's last real price change, for the tick flash.
+  // Redundant emphasis only: the signed 24h% with its sign glyph sits beside
+  // the price, which is what the no-colour-only rule requires.
+  const [tickDirection, setTickDirection] = useState<Record<string, "up" | "down">>({});
+  const prevTickers = useRef<Record<string, Ticker>>({});
 
   // The ticket (rendered as children) reads the mid for its price-band hint.
   const wrappedChildren = (
@@ -98,7 +103,19 @@ export default function LiveMarket({
         });
         if (!response.ok) return;
         const body = await response.json() as { tickers?: Ticker[] };
-        setTickerBySymbol(Object.fromEntries((body.tickers ?? []).map((ticker) => [ticker.symbol, ticker])));
+        const next = Object.fromEntries((body.tickers ?? []).map((ticker) => [ticker.symbol, ticker]));
+        // Flash on change only. The price element is keyed by its value, so
+        // an unchanged poll remounts nothing and replays nothing.
+        const moved: Record<string, "up" | "down"> = {};
+        for (const [tickerSymbol, ticker] of Object.entries(next)) {
+          const was = prevTickers.current[tickerSymbol]?.last;
+          if (was != null && ticker.last != null && ticker.last !== was) {
+            moved[tickerSymbol] = ticker.last > was ? "up" : "down";
+          }
+        }
+        prevTickers.current = next;
+        setTickerBySymbol(next);
+        if (Object.keys(moved).length) setTickDirection((prev) => ({ ...prev, ...moved }));
       } catch (watchlistError) {
         if ((watchlistError as Error).name !== "AbortError") {
           // The L2 stream remains authoritative for the active symbol. A failed
@@ -191,7 +208,11 @@ export default function LiveMarket({
               aria-label={`${watchSymbol}, ${ticker?.last == null ? "price pending" : `last ${fmt(ticker.last, priceDp(ticker.last))}`}, ${change == null ? "24 hour change pending" : `${signedPct(change)} over 24 hours`}`}
             >
               <span className="market-watchlist__symbol">{watchSymbol}</span>
-              <strong className="num">
+              <strong
+                className="num market-watchlist__price"
+                key={ticker?.last ?? "pending"}
+                data-tick={tickDirection[watchSymbol]}
+              >
                 {ticker?.last == null ? "—" : fmt(ticker.last, priceDp(ticker.last))}
               </strong>
               <small className={`num${change == null ? "" : change >= 0 ? " pos" : " neg"}`}>

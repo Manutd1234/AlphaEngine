@@ -13171,3 +13171,52 @@ button:active:not(:disabled) {
 .workspace-subtabs__step.is-visited .workspace-subtabs__step-check {
   opacity: 1;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Live-data theatre (Slice 5)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Watchlist tick flash: one 600ms wash behind a price that actually changed.
+   The element is keyed by its value, so the animation runs exactly once per
+   real movement — never on poll, render or resize. Direction is redundant
+   emphasis: the signed 24h% beside it is the accessible signal. */
+@keyframes tick-flash-up {
+  from { background-color: color-mix(in srgb, var(--status-good) 24%, transparent); }
+  to { background-color: transparent; }
+}
+
+@keyframes tick-flash-down {
+  from { background-color: color-mix(in srgb, var(--status-critical) 22%, transparent); }
+  to { background-color: transparent; }
+}
+
+/* Negative margins mirror the padding so the wash has a box to paint without
+   moving the number it paints behind. */
+.market-watchlist__price {
+  border-radius: 5px;
+  padding: 1px 4px;
+  margin: -1px -4px;
+}
+
+.market-watchlist__price[data-tick="up"] {
+  animation: tick-flash-up 600ms var(--ease-out);
+}
+
+.market-watchlist__price[data-tick="down"] {
+  animation: tick-flash-down 600ms var(--ease-out);
+}
+
+/* The verdict banner is conditionally rendered — @starting-style is exactly
+   the feature for animating an element's insertion without JS choreography.
+   The gate rows inside it use the shared .stagger-reveal at the 40ms default,
+   capped in the component at index 12 (480ms). */
+.cockpit-verdict {
+  transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+}
+
+@starting-style {
+  .cockpit-verdict {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}

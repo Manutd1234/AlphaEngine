@@ -13,6 +13,7 @@
  * further can this go".
  */
 
+import NumberTicker from "@/components/common/NumberTicker";
 import { fmt, pct, sign, usd } from "@/lib/format";
 
 interface Book {
@@ -93,12 +94,15 @@ export default function PnlStrip({ book, mode, problem, lastSyncAt, onRefresh, o
       <dl className="cockpit-strip__metrics">
         <div>
           <dt>Equity</dt>
-          <dd>{usd(book.equity.current)}</dd>
+          {/* 15s poll: at most one tick per poll, and only when the book
+              actually moved — NumberTicker is inert on identical values. */}
+          <dd><NumberTicker value={book.equity.current} format={(v) => usd(v)} /></dd>
         </div>
         <div>
           <dt>Day P&amp;L</dt>
           <dd className={sign(book.equity.daily_pnl)}>
-            {usd(book.equity.daily_pnl)} <small>{pct(book.equity.daily_return, 2)}</small>
+            <NumberTicker value={book.equity.daily_pnl} format={(v) => usd(v)} />{" "}
+            <small>{pct(book.equity.daily_return, 2)}</small>
           </dd>
         </div>
         <div>

@@ -18,8 +18,9 @@
  * a same-origin route, never the gateway.
  */
 
-import { useState } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 
+import NumberTicker from "@/components/common/NumberTicker";
 import { useLiveMid } from "@/components/execution/live-mid-context";
 import { type GateCheck, type SandboxDecision, type SandboxOrder } from "@/lib/blotter";
 import { fmt, priceDp, usd } from "@/lib/format";
@@ -98,6 +99,9 @@ export default function OrderTicket({
   const [timeInForce, setTimeInForce] = useState<"GTC" | "DAY" | "IOC">("GTC");
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [error, setError] = useState<{ error: string; hint?: string } | null>(null);
+  // Monotonic per submit: the cascade's animation key. A decision id would
+  // also work when present, but rejections can arrive without one.
+  const decisionSeq = useRef(0);
   const mid = useLiveMid();
 
   const symbolHalted = halted || haltedSymbols.includes(symbol);
@@ -168,7 +172,10 @@ export default function OrderTicket({
       // A mid-burst failure must not wipe the verdicts already collected, and
       // a submit that produced nothing has nothing to tell the cockpit to
       // refresh for — the old path did both.
-      if (collected.length) setDecisions(collected);
+      if (collected.length) {
+        decisionSeq.current += 1;
+        setDecisions(collected);
+      }
       if (collected.length && !failed) onSubmitted();
     } catch {
       setError({ error: "The order could not be submitted from this browser." });
@@ -357,7 +364,10 @@ export default function OrderTicket({
               <span className="muted">{burstAccepted} of {decisions.length} accepted</span>
             ) : null}
             {latest.latency_ms != null ? (
-              <span className="muted">decided in {fmt(latest.latency_ms, 2)} ms</span>
+              // Counting up to a sub-millisecond figure is the honest flex.
+              <span className="muted">
+                decided in <NumberTicker value={latest.latency_ms} format={(v) => fmt(v, 2)} /> ms
+              </span>
             ) : null}
           </div>
 
@@ -378,9 +388,17 @@ export default function OrderTicket({
           ) : null}
 
           {latest.checks?.length ? (
-            <ol className="cockpit-checks">
-              {latest.checks.map((check) => (
-                <li key={check.name} className={check.passed ? "is-pass" : "is-fail"}>
+            /* Keyed per decision so every submit replays the assembly of the
+               gate vector — and only a submit: re-renders and resizes leave
+               the settled rows alone. The stagger delay caps at 480ms so a
+               14-gate vector never makes a reader wait on the tail. */
+            <ol className="cockpit-checks" key={decisionSeq.current}>
+              {latest.checks.map((check, index) => (
+                <li
+                  key={check.name}
+                  className={`stagger-reveal ${check.passed ? "is-pass" : "is-fail"}`}
+                  style={{ "--stagger-i": Math.min(index, 12) } as CSSProperties}
+                >
                   <span className="cockpit-checks__mark" aria-hidden>{check.passed ? "✓" : "✗"}</span>
                   <span className="cockpit-checks__name">{check.name}</span>
                   {check.detail ? <span className="cockpit-checks__detail">{check.detail}</span> : null}

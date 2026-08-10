@@ -17,8 +17,8 @@ makes running sweeps feel like winning.
 | 1 | This plan + `docs/UI_IMPROVEMENTS.md` + `docs/FEATURE_TOUR.md` | shipped |
 | 2 | Motion foundation: tokens, one reduced-motion contract, NumberTicker | shipped |
 | 3 | Strategy Codex: 46 strategies, 7 families, explored-state | shipped |
-| 4 | Research journey: gate reveal, verdict moment, rail progress | pending |
-| 5 | Live-data theatre: tick flashes, order-gate cascade, book motion | pending |
+| 4 | Research journey: gate reveal, verdict moment, rail progress | shipped |
+| 5 | Live-data theatre: tick flashes, order-gate cascade, book motion | shipped |
 | 6 | Charts alive: line draw-in, heatmap wavefront, honest MC cone | pending |
 | 7 | Navigation: View Transitions, ⌘K fuzzy search + recents | pending |
 | 8 | Consolidation, honesty sweep, tour finalisation | pending |

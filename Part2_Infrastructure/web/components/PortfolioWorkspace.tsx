@@ -20,6 +20,7 @@
 
 import { useState } from "react";
 
+import NumberTicker from "@/components/common/NumberTicker";
 import RowMenu from "@/components/common/RowMenu";
 import AllocationDonut from "@/components/portfolio/AllocationDonut";
 import AllocationPanel from "@/components/portfolio/AllocationPanel";
@@ -278,7 +279,7 @@ export default function PortfolioWorkspace({
         <section className="portfolio-metrics" aria-label="Portfolio summary">
           <div>
             <span>Equity</span>
-            <strong className="num">{usd(book.equity.current, 0)}</strong>
+            <strong className="num"><NumberTicker value={book.equity.current} format={(v) => usd(v, 0)} /></strong>
             <small>start {usd(book.equity.start_of_day, 0)}</small>
           </div>
           <div>
