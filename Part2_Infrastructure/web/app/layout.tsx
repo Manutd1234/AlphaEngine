@@ -1,10 +1,30 @@
 import type { Metadata, Viewport } from "next";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import { headers } from "next/headers";
 
 import "./globals.css";
 // Must come AFTER globals.css: tailwind.css ships unlayered utilities that win
 // specificity ties by source order (see the cascade note in that file).
 import "./tailwind.css";
+
+/** Self-hosted variable fonts. next/font downloads the WOFF2 at build time and
+ *  serves it from /_next/static on this origin — no runtime request to Google,
+ *  no third-party connection, one variable file per family instead of a file
+ *  per weight. `display: "swap"` keeps text on the metric-matched fallback
+ *  while the font arrives, and the generated fallback metrics make that swap
+ *  layout-stable. The `variable` names are consumed by the `--sans`/`--mono`
+ *  stacks in globals.css — the single binding point every surface reads. */
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-sans",
+});
+
+const jetBrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-mono",
+});
 
 const TITLE = "AlphaEngine — Quant Operating System (Developer Case Study)";
 const DESCRIPTION =
@@ -69,7 +89,11 @@ try {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${inter.variable} ${jetBrainsMono.variable}`}
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
       </head>
