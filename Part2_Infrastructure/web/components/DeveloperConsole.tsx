@@ -19,6 +19,7 @@ import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSu
 import CategoryBars from "@/components/charts/CategoryBars";
 import PageHead from "@/components/workspace/PageHead";
 import type { DeveloperWorkItem } from "@/lib/developer-work";
+import { DEVELOPER_SECTIONS, type DeveloperSection } from "@/lib/sections";
 import { DEPLOYABLES, GITHUB_SOURCE_ROOT, REPOSITORY_STATS } from "@/lib/repository-catalog";
 import type { SystemHealthView } from "@/lib/use-system-health";
 import { APP_COMMIT, APP_DEPLOYMENT_ENV, IS_VERCEL_DEPLOYMENT } from "@/lib/version";
@@ -33,16 +34,7 @@ const RUNTIME_LABEL = APP_DEPLOYMENT_ENV === "production"
       ? "Local production build"
       : "Local development";
 
-export type DeveloperSection = "overview" | "codebase" | "work" | "apis" | "quality";
-
-/** IDs stay stable for saved workspace state; labels and order are the product IA. */
-const DEVELOPER_SECTIONS = [
-  { id: "overview", label: "Overview", description: "Topology, readiness & delivery posture" },
-  { id: "quality", label: "CI / CD", description: "Pipelines, test gates & artifacts" },
-  { id: "apis", label: "API & Schema", description: "Routes, payloads & contract drift" },
-  { id: "codebase", label: "Code & Diffs", description: "Repository paths & change custody" },
-  { id: "work", label: "Task Queue", description: "Engineering-impact work" },
-] as const;
+export { type DeveloperSection } from "@/lib/sections";
 
 type ControlTone = "good" | "warn" | "bad" | "off" | "info";
 

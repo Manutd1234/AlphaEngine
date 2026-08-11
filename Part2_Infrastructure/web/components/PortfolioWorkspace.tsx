@@ -34,6 +34,7 @@ import { compact, fmt, pct, signedPct, usd } from "@/lib/format";
 import { buildPnlWaterfall } from "@/lib/pnl-attribution";
 import { proposeAllocation } from "@/lib/portfolio-risk";
 import { bookStatus } from "@/lib/portfolio";
+import { PORTFOLIO_SECTIONS, type PortfolioSection } from "@/lib/sections";
 import type { BookView } from "@/lib/use-book";
 
 export type PortfolioFocusDestination = "research" | "live" | "data";
@@ -49,15 +50,7 @@ export interface PortfolioWorkspaceProps {
   onSectionChange: (section: PortfolioSection) => void;
 }
 
-export const PORTFOLIO_SECTION_IDS = ["overview", "positions", "allocation", "performance"] as const;
-export type PortfolioSection = (typeof PORTFOLIO_SECTION_IDS)[number];
-
-const PORTFOLIO_SECTIONS = [
-  { id: "overview", label: "Overview", description: "Book snapshot & equity" },
-  { id: "positions", label: "Positions", description: "Holdings & exposure" },
-  { id: "allocation", label: "Allocation", description: "Targets & rebalancing" },
-  { id: "performance", label: "Performance", description: "Attribution & costs" },
-] as const;
+export { PORTFOLIO_SECTION_IDS, type PortfolioSection } from "@/lib/sections";
 
 /** Positions shown in the overview summary before it defers to the full table. */
 const SUMMARY_ROWS = 5;

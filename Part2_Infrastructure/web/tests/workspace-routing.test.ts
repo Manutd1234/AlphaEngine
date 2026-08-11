@@ -36,6 +36,17 @@ const styles = read("../app/globals.css");
 const subtabs = read("../components/WorkspaceSubtabs.tsx");
 const riskWorkspace = read("../components/RiskWorkspace.tsx");
 const portfolioWorkspace = read("../components/PortfolioWorkspace.tsx");
+const liveMarket = read("../components/LiveMarket.tsx");
+const executionCockpit = read("../components/execution/ExecutionCockpit.tsx");
+const sectionsSource = read("../lib/sections.ts");
+
+/** Section ids for a workspace, in rail order, from the lib/sections literal. */
+function sectionIdsFor(workspace: string): string[] {
+  const start = sectionsSource.indexOf(`export const ${workspace}_SECTIONS`);
+  assert.ok(start >= 0, `lib/sections.ts defines no ${workspace}_SECTIONS`);
+  const block = sectionsSource.slice(start, sectionsSource.indexOf("] as const", start));
+  return [...block.matchAll(/\{\s*id:\s*"([a-z]+)"/g)].map((match) => match[1]);
+}
 const dataConsole = read("../components/DataConsole.tsx");
 const reliabilityConsole = read("../components/ReliabilityConsole.tsx");
 const developerConsole = read("../components/DeveloperConsole.tsx");
@@ -140,46 +151,27 @@ describe("dense role workspaces expose accessible feature sections", () => {
   });
 
   it("splits every dense role workspace into focused feature groups", () => {
-    for (const section of ["trade", "liquidity", "routing", "activity", "summary", "parameters", "walkforward", "attribution", "decision", "runs"]) {
-      assert.ok(page.includes(`id: "${section}"`), `page is missing the ${section} subtab`);
-    }
-    for (const section of ["limits", "model", "scenarios", "controls"]) {
-      assert.ok(riskWorkspace.includes(`id: "${section}"`), `risk is missing the ${section} subtab`);
-    }
-    for (const section of ["overview", "positions", "allocation", "performance"]) {
-      assert.ok(
-        portfolioWorkspace.includes(`id: "${section}"`),
-        `portfolio is missing the ${section} subtab`,
-      );
-      assert.ok(
-        portfolioWorkspace.includes(`tabId="${section}"`),
-        `portfolio is missing the ${section} panel`,
-      );
-    }
-    for (const section of ["overview", "quality", "lineage", "providers", "queue"]) {
-      assert.ok(dataConsole.includes(`id: "${section}"`), `data is missing the ${section} subtab`);
-      assert.ok(dataConsole.includes(`tabId="${section}"`), `data is missing the ${section} panel`);
-    }
-    for (const section of ["overview", "services", "events", "controls"]) {
-      assert.ok(
-        reliabilityConsole.includes(`id: "${section}"`),
-        `reliability is missing the ${section} subtab`,
-      );
-      assert.ok(
-        reliabilityConsole.includes(`tabId="${section}"`),
-        `reliability is missing the ${section} panel`,
-      );
-    }
-    for (const section of ["overview", "codebase", "work", "apis", "quality"]) {
-      assert.ok(
-        developerConsole.includes(`id: "${section}"`),
-        `developer is missing the ${section} subtab`,
-      );
-      assert.ok(
-        developerConsole.includes(`tabId="${section}"`),
-        `developer is missing the ${section} panel`,
-      );
-    }
+    // Section definitions live in lib/sections.ts — the single source the
+    // rails, palette and hash whitelist read. The invariant pinned here is the
+    // other half of the contract: every DEFINED section has a rendered panel
+    // in the component(s) that own that workspace.
+    const expectPanels = (workspace: string, sources: string[], label: string) => {
+      const ids = sectionIdsFor(workspace);
+      assert.ok(ids.length >= 3, `${label} defines too few sections (${ids.length})`);
+      for (const id of ids) {
+        assert.ok(
+          sources.some((source) => source.includes(`tabId="${id}"`)),
+          `${label} is missing the ${id} panel`,
+        );
+      }
+    };
+    expectPanels("RESEARCH", [page], "research");
+    expectPanels("EXECUTION", [page, liveMarket, executionCockpit], "execution");
+    expectPanels("PORTFOLIO", [portfolioWorkspace], "portfolio");
+    expectPanels("RISK", [riskWorkspace], "risk");
+    expectPanels("DATA", [dataConsole], "data");
+    expectPanels("RELIABILITY", [reliabilityConsole], "reliability");
+    expectPanels("DEVELOPER", [developerConsole], "developer");
 
     // The board has a native keyboard alternative to dragging and announces
     // moves without stealing focus. Hidden pipeline panels remain mounted, so

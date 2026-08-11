@@ -4,19 +4,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
 import Controls from "@/components/Controls";
-import DataConsole, { DATA_SECTION_IDS, type DataSection } from "@/components/DataConsole";
-import DeveloperConsole, { type DeveloperSection } from "@/components/DeveloperConsole";
+import DataConsole from "@/components/DataConsole";
+import DeveloperConsole from "@/components/DeveloperConsole";
 import EquityChart from "@/components/EquityChart";
 import ExecutionCockpit from "@/components/execution/ExecutionCockpit";
-import LiveMarket, { type ExecutionSection } from "@/components/LiveMarket";
-import PortfolioWorkspace, {
-  PORTFOLIO_SECTION_IDS,
-  type PortfolioFocusDestination,
-  type PortfolioSection,
-} from "@/components/PortfolioWorkspace";
+import LiveMarket from "@/components/LiveMarket";
+import PortfolioWorkspace, { type PortfolioFocusDestination } from "@/components/PortfolioWorkspace";
 import PriceChart from "@/components/PriceChart";
-import ReliabilityConsole, { RELIABILITY_SECTION_IDS, type ReliabilitySection } from "@/components/ReliabilityConsole";
-import RiskWorkspace, { RISK_SECTION_IDS, type RiskSection } from "@/components/RiskWorkspace";
+import ReliabilityConsole from "@/components/ReliabilityConsole";
+import RiskWorkspace from "@/components/RiskWorkspace";
 import SignalDAGViewer from "@/components/research/SignalDAGViewer";
 import StrategyDocCard from "@/components/research/StrategyDocCard";
 import ExperimentHistory from "@/components/research/ExperimentHistory";
@@ -47,6 +43,15 @@ import { createInitialDeveloperWorkItems, type DeveloperWorkItem } from "@/lib/d
 import { fmt, pct, signedPct, usd } from "@/lib/format";
 import { mcSeedFor } from "@/lib/montecarlo";
 import { REFERENCE_EQUITY } from "@/lib/portfolio";
+import {
+  DATA_SECTIONS, DATA_SECTION_IDS, type DataSection,
+  DEVELOPER_SECTIONS, DEVELOPER_SECTION_IDS, type DeveloperSection,
+  EXECUTION_SECTIONS, EXECUTION_SECTION_IDS, type ExecutionSection,
+  PORTFOLIO_SECTIONS, PORTFOLIO_SECTION_IDS, type PortfolioSection,
+  RELIABILITY_SECTIONS, RELIABILITY_SECTION_IDS, type ReliabilitySection,
+  RESEARCH_SECTIONS, RESEARCH_SECTION_IDS, type ResearchSection,
+  RISK_SECTIONS, RISK_SECTION_IDS, type RiskSection,
+} from "@/lib/sections";
 import { useBook } from "@/lib/use-book";
 import { useSystemHealth } from "@/lib/use-system-health";
 import { RESEARCH_SYMBOLS } from "@/lib/research-symbols";
@@ -76,35 +81,8 @@ import type { Side } from "@/lib/venues";
 
 const VIEWS: WorkspaceView[] = NAV_ITEMS.map((item) => item.id);
 
-type ResearchSection = "summary" | "parameters" | "walkforward" | "attribution" | "decision" | "runs" | "codex";
-
-const RESEARCH_SECTIONS = [
-  { id: "summary", label: "Summary", description: "Verdict & performance" },
-  { id: "parameters", label: "Parameters", description: "Stability & ranking" },
-  { id: "walkforward", label: "Walk-forward", description: "Out-of-sample evidence" },
-  { id: "attribution", label: "Attribution", description: "Factors, tail & lineage" },
-  { id: "decision", label: "Decision", description: "Promotion & sizing" },
-  { id: "runs", label: "Runs", description: "Experiment history" },
-  { id: "codex", label: "Codex", description: "Models & strategy guide" },
-] as const;
-
-const EXECUTION_SECTIONS = [
-  { id: "trade", label: "Trade", description: "Ticket & pre-trade gates" },
-  { id: "liquidity", label: "Liquidity", description: "Depth & consolidated book" },
-  { id: "routing", label: "Routing & TCA", description: "Cost & venue allocation" },
-  { id: "activity", label: "Activity", description: "Quality, fills & alerts" },
-] as const;
-
-/** Section ids, for validating a hash before it is trusted as state. */
-const RESEARCH_SECTION_IDS = RESEARCH_SECTIONS.map((s) => s.id) as readonly ResearchSection[];
-const EXECUTION_SECTION_IDS = EXECUTION_SECTIONS.map((s) => s.id) as readonly ExecutionSection[];
-const DEVELOPER_SECTION_IDS = [
-  "overview",
-  "codebase",
-  "work",
-  "apis",
-  "quality",
-] as const satisfies readonly DeveloperSection[];
+// Section definitions live in lib/sections.ts — the rails, the palette and
+// the hash whitelist all read the same arrays.
 
 /**
  * The console used to be one "Systems" tab. Anyone holding a link to it lands on
@@ -737,31 +715,28 @@ export default function Page() {
         action: () => navigate(view, false, { apply, hash: `${view}/${id}` }),
       });
     };
+    // One pattern for all workspaces, read from lib/sections — the palette can
+    // no longer drift from the rails in label or order.
     for (const s of RESEARCH_SECTIONS) {
       section("research", "Research", s.id, `${s.label} — ${s.description}`, () => setResearchSection(s.id));
     }
     for (const s of EXECUTION_SECTIONS) {
       section("live", "Execution", s.id, `${s.label} — ${s.description}`, () => setExecutionSection(s.id));
     }
-    const PORTFOLIO_LABELS = { overview: "Overview — Book snapshot & equity", positions: "Positions — Holdings & exposure", allocation: "Allocation — Targets & rebalancing", performance: "Performance — Attribution & costs" } as const;
-    for (const id of PORTFOLIO_SECTION_IDS) {
-      section("portfolio", "Portfolio", id, PORTFOLIO_LABELS[id], () => setPortfolioSection(id));
+    for (const s of PORTFOLIO_SECTIONS) {
+      section("portfolio", "Portfolio", s.id, `${s.label} — ${s.description}`, () => setPortfolioSection(s.id));
     }
-    const RISK_LABELS = { limits: "Limits — Headroom & concentration", model: "VaR & model — Loss estimates & drivers", montecarlo: "Monte Carlo — Terminal distribution & tail", scenarios: "Stress tests — Forward shock damage", controls: "Controls — Halt & flatten handoffs" } as const;
-    for (const id of RISK_SECTION_IDS) {
-      section("risk", "Risk", id, RISK_LABELS[id], () => setRiskSection(id));
+    for (const s of RISK_SECTIONS) {
+      section("risk", "Risk", s.id, `${s.label} — ${s.description}`, () => setRiskSection(s.id));
     }
-    const DATA_LABELS = { overview: "Overview & Trust", quality: "Quality & Incidents", lineage: "Lineage & Payloads", providers: "Providers & Capacity", queue: "Work Queue — mocked, session-only" } as const;
-    for (const id of DATA_SECTION_IDS) {
-      section("data", "Data", id, DATA_LABELS[id], () => setDataSection(id));
+    for (const s of DATA_SECTIONS) {
+      section("data", "Data", s.id, `${s.label} — ${s.description}`, () => setDataSection(s.id));
     }
-    const RELIABILITY_LABELS = { overview: "Telemetry & SLIs", services: "Services & Circuits", events: "Logs & Traces", controls: "Remediation" } as const;
-    for (const id of RELIABILITY_SECTION_IDS) {
-      section("reliability", "Reliability", id, RELIABILITY_LABELS[id], () => setReliabilitySection(id));
+    for (const s of RELIABILITY_SECTIONS) {
+      section("reliability", "Reliability", s.id, `${s.label} — ${s.description}`, () => setReliabilitySection(s.id));
     }
-    const DEVELOPER_LABELS = { overview: "Overview — Topology & readiness", quality: "CI / CD — Pipelines & test gates", apis: "API & Schema — Contract drift", codebase: "Code & Diffs — Repository paths", work: "Task Queue — Engineering work" } as const;
-    for (const id of DEVELOPER_SECTION_IDS) {
-      section("developer", "Developer", id, DEVELOPER_LABELS[id], () => setDeveloperSection(id));
+    for (const s of DEVELOPER_SECTIONS) {
+      section("developer", "Developer", s.id, `${s.label} — ${s.description}`, () => setDeveloperSection(s.id));
     }
 
     for (const strategy of Object.keys(STRATEGY_LABELS) as Strategy[]) {

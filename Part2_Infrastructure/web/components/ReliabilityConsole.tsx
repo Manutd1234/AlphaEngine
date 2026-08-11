@@ -25,18 +25,10 @@ import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSu
 import { fmt } from "@/lib/format";
 import { LATENCY_MIN_SAMPLES, latencyTone } from "@/lib/overview-state";
 import { deriveReliabilityPosture, type ReliabilityStatus } from "@/lib/reliability";
+import { RELIABILITY_SECTIONS, type ReliabilitySection } from "@/lib/sections";
 import type { SystemHealthView } from "@/lib/use-system-health";
 
-export type ReliabilitySection = "overview" | "services" | "events" | "controls";
-
-export const RELIABILITY_SECTION_IDS: ReliabilitySection[] = ["overview", "services", "events", "controls"];
-
-const RELIABILITY_SECTIONS = [
-  { id: "overview", label: "Telemetry & SLIs", description: "Signals, scope & active impact" },
-  { id: "services", label: "Services & Circuits", description: "Providers, venues & failover" },
-  { id: "events", label: "Logs & Traces", description: "Cross-origin event investigation" },
-  { id: "controls", label: "Remediation", description: "Guarded, scoped operator actions" },
-] as const;
+export { RELIABILITY_SECTION_IDS, type ReliabilitySection } from "@/lib/sections";
 
 export interface ReliabilityConsoleProps {
   view: SystemHealthView;

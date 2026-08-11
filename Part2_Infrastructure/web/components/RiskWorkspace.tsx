@@ -26,6 +26,7 @@ import MonteCarloDistribution, { type McDriver } from "@/components/risk/MonteCa
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import { fmt, pct, usd } from "@/lib/format";
 import { type LimitTone, limitRows, limitTone } from "@/lib/portfolio";
+import { RISK_SECTIONS, type RiskSection } from "@/lib/sections";
 import type { BookView } from "@/lib/use-book";
 
 export interface RiskWorkspaceProps {
@@ -42,16 +43,7 @@ export interface RiskWorkspaceProps {
   onSectionChange: (section: RiskSection) => void;
 }
 
-export const RISK_SECTION_IDS = ["limits", "model", "montecarlo", "scenarios", "controls"] as const;
-export type RiskSection = (typeof RISK_SECTION_IDS)[number];
-
-const RISK_SECTIONS = [
-  { id: "limits", label: "Limits", description: "Headroom & concentration" },
-  { id: "model", label: "VaR & model", description: "Loss estimates & drivers" },
-  { id: "montecarlo", label: "Monte Carlo", description: "Terminal distribution & tail" },
-  { id: "scenarios", label: "Stress tests", description: "Forward shock damage" },
-  { id: "controls", label: "Controls", description: "Halt & flatten handoffs" },
-] as const;
+export { RISK_SECTION_IDS, type RiskSection } from "@/lib/sections";
 
 const TONE_TEXT: Record<LimitTone, string | undefined> = {
   good: undefined,

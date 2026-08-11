@@ -26,18 +26,10 @@ import PageHead from "@/components/workspace/PageHead";
 import type { DataWorkItem } from "@/lib/data-work-queue";
 import { deriveDataTrust } from "@/lib/data-trust";
 import { fmt } from "@/lib/format";
+import { DATA_SECTIONS, type DataSection } from "@/lib/sections";
 import type { SystemHealthView } from "@/lib/use-system-health";
 
-export const DATA_SECTION_IDS = ["overview", "quality", "lineage", "providers", "queue"] as const;
-export type DataSection = (typeof DATA_SECTION_IDS)[number];
-
-const DATA_SECTIONS = [
-  { id: "overview", label: "Overview & Trust", description: "Freshness, validation & next action" },
-  { id: "quality", label: "Quality & Incidents", description: "Reconcile, contracts & quarantine" },
-  { id: "lineage", label: "Lineage & Payloads", description: "Trace source, cache & coercion" },
-  { id: "providers", label: "Providers & Capacity", description: "Failover, quota & reserve" },
-  { id: "queue", label: "Work Queue", description: "Mocked, session-only workflow" },
-] as const;
+export { DATA_SECTION_IDS, type DataSection } from "@/lib/sections";
 
 interface DataBarMetric {
   label: string;

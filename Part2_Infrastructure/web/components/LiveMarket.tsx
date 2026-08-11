@@ -18,6 +18,7 @@ import { LiveMidContext } from "@/components/execution/live-mid-context";
 import { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import { liveTca, useLiveBook } from "@/lib/livebook";
 import { classify } from "@/lib/providers/symbols";
+import { type ExecutionSection } from "@/lib/sections";
 import { SYMBOLS, type Side, type Ticker } from "@/lib/venues";
 import { compact, fmt, priceDp, signedPct, usd } from "@/lib/format";
 import { STRATEGY_LABELS, type SweepResponse } from "@/lib/types";
@@ -39,7 +40,7 @@ interface QuotePreview {
   delayed: boolean;
 }
 
-export type ExecutionSection = "trade" | "liquidity" | "routing" | "activity";
+export { type ExecutionSection } from "@/lib/sections";
 
 interface LiveMarketProps {
   symbol: string;
