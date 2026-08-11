@@ -533,9 +533,16 @@ jobs:
               caddy:2-alpine >/dev/null
 
             echo "==> Confirming TLS answers locally"
+            # --connect-to, not a bare 127.0.0.1 URL: the site block is keyed
+            # to the public IP, and OCI instances cannot hairpin their own
+            # public address — so dial loopback while presenting the public-IP
+            # identity in the URL. (No SNI is sent for IP literals; Caddy
+            # matches on the Host header, which this shape gets right.)
             TLS_OK=false
             for _ in $(seq 1 15); do
-              if curl -skf --max-time 5 "https://127.0.0.1:8443/health" >/dev/null; then TLS_OK=true; break; fi
+              if curl -skf --max-time 5 \
+                  --connect-to "${PUBLIC_IP}:8443:127.0.0.1:8443" \
+                  "https://${PUBLIC_IP}:8443/health" >/dev/null; then TLS_OK=true; break; fi
               sleep 2
             done
             if [ "$TLS_OK" != true ]; then
