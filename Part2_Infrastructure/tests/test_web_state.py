@@ -163,6 +163,14 @@ class TestQuota:
         (quota,) = view.quota
         assert quota.spent == 1
 
+    def test_reset_without_new_spend_leaves_an_explicit_zero(self):
+        """An absent counter cannot propagate a reset; a zero can."""
+        state = WebOpsState()
+        sync(state, "a", quota=[WebQuotaSpend(provider="fmp", window="2026-08-11", spent=9)])
+        view = sync(state, "b", quota_reset=[WebQuotaReset(provider="fmp", window="2026-08-11")])
+        (quota,) = view.quota
+        assert quota.spent == 0
+
 
 class TestInstances:
     def test_instance_registry_is_capped(self):

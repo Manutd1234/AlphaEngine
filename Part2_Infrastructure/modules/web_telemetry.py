@@ -171,20 +171,29 @@ class WebOpsState:
         if stalest_key is not None:
             del self._samples[stalest_key]
 
+    def _make_quota_room(self, key: tuple[str, str]) -> None:
+        if key not in self._quota and len(self._quota) >= QUOTA_CAP:
+            # Insertion order is oldest-window-first, which is the right
+            # eviction order for calendar-labelled counters.
+            oldest = next(iter(self._quota))
+            del self._quota[oldest]
+
     def _ingest_quota(self, spends: list[WebQuotaSpend], resets: list[WebQuotaReset]) -> None:
         # Resets apply first: an instance that resets and immediately re-spends
-        # in one sync means "start the window from this spend".
+        # in one sync means "start the window from this spend". A reset leaves
+        # an explicit zero rather than deleting the counter — an absent entry
+        # cannot tell other instances to drop their stale high-water marks,
+        # and hydrating "missing means zero" would erase real spend records
+        # whenever this process restarts.
         for reset in resets:
-            self._quota.pop((reset.provider, reset.window), None)
+            key = (reset.provider, reset.window)
+            self._make_quota_room(key)
+            self._quota[key] = 0
         for spend in spends:
             if spend.spent <= 0:
                 continue
             key = (spend.provider, spend.window)
-            if key not in self._quota and len(self._quota) >= QUOTA_CAP:
-                # Insertion order is oldest-window-first, which is the right
-                # eviction order for calendar-labelled counters.
-                oldest = next(iter(self._quota))
-                del self._quota[oldest]
+            self._make_quota_room(key)
             self._quota[key] = self._quota.get(key, 0) + spend.spent
 
     def _ingest_outages(self, set_commands: list[WebOutageCommand], cleared: list[str], now_ms: float) -> None:
