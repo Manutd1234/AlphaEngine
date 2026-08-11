@@ -470,6 +470,86 @@ jobs:
           TELEGRAM_CONTROL_USER_IDS: ${{ secrets.TELEGRAM_CONTROL_USER_IDS }}
           TELEGRAM_ALERT_CHAT_IDS: ${{ secrets.TELEGRAM_ALERT_CHAT_IDS }}
 
+      # -----------------------------------------------------------------------
+      # TLS termination (FEAT-077). README has claimed "Caddy — Automatic HTTPS"
+      # since the architecture diagram was drawn; this step makes it true. A
+      # Caddy sidecar on the host network terminates TLS on :8443 with its
+      # internal CA (Let's Encrypt cannot issue for a bare IP here, and the
+      # trust root is pinned by the one client that matters — the Vercel
+      # project) and proxies to the gateway on 127.0.0.1:8000. Additive: :8000
+      # keeps serving until the web flips ALPHAENGINE_GATEWAY_URL, so this can
+      # never take the desk down. The root CA is a PUBLIC certificate and is
+      # printed in the log on purpose — docs/TLS_FLIP.md is the checklist that
+      # consumes it.
+      # -----------------------------------------------------------------------
+      - name: TLS sidecar — Caddy with a pinned internal CA on :8443
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 5m
+          envs: PUBLIC_IP
+          script_stop: true
+          script: |
+            set -euo pipefail
+
+            echo "==> Writing the Caddyfile"
+            mkdir -p "$HOME/.alphaengine.caddy"
+            CADDYFILE="$HOME/.alphaengine.caddy/Caddyfile"
+            # printf per line, not a heredoc: this script arrives over the SSH
+            # action with CRLF endings (see the awk note above), and a stray CR
+            # inside a heredoc body would land in the Caddyfile, where Caddy
+            # reports it as an unrecognized directive.
+            : > "$CADDYFILE"
+            printf '{\n' >> "$CADDYFILE"
+            printf '  admin off\n' >> "$CADDYFILE"
+            printf '  auto_https disable_redirects\n' >> "$CADDYFILE"
+            printf '}\n' >> "$CADDYFILE"
+            printf '%s:8443 {\n' "$PUBLIC_IP" >> "$CADDYFILE"
+            printf '  tls internal\n' >> "$CADDYFILE"
+            printf '  reverse_proxy 127.0.0.1:8000\n' >> "$CADDYFILE"
+            printf '}\n' >> "$CADDYFILE"
+
+            echo "==> Starting Caddy"
+            # /data holds the internal CA — a named volume so the root the web
+            # pins survives container replacement. Recreated every deploy so a
+            # Caddyfile change actually applies.
+            docker volume create alphaengine_caddy_data >/dev/null
+            docker volume create alphaengine_caddy_config >/dev/null
+            docker pull caddy:2-alpine >/dev/null
+            docker stop alphaengine_caddy 2>/dev/null || true
+            docker rm alphaengine_caddy 2>/dev/null || true
+            docker run -d \
+              --name alphaengine_caddy \
+              --restart unless-stopped \
+              --network host \
+              -v "$CADDYFILE:/etc/caddy/Caddyfile:ro" \
+              -v alphaengine_caddy_data:/data \
+              -v alphaengine_caddy_config:/config \
+              --log-driver json-file \
+              --log-opt max-size=5m \
+              --log-opt max-file=2 \
+              caddy:2-alpine >/dev/null
+
+            echo "==> Confirming TLS answers locally"
+            TLS_OK=false
+            for _ in $(seq 1 15); do
+              if curl -skf --max-time 5 "https://127.0.0.1:8443/health" >/dev/null; then TLS_OK=true; break; fi
+              sleep 2
+            done
+            if [ "$TLS_OK" != true ]; then
+              echo "::error::Caddy did not serve /health over TLS. Recent logs:"
+              docker logs --tail 40 alphaengine_caddy 2>&1 || true
+              exit 1
+            fi
+            echo "TLS terminates on :8443 and proxies to the gateway."
+
+            echo "==> Root CA (PUBLIC certificate — paste into the web flip, see docs/TLS_FLIP.md)"
+            docker exec alphaengine_caddy cat /data/caddy/pki/authorities/local/root.crt
+        env:
+          PUBLIC_IP: ${{ secrets.SSH_HOST }}
+
   # ---------------------------------------------------------------------------
   # Prove it from the outside. The deploy job checked 127.0.0.1 from inside the
   # VM; that says nothing about whether Vercel can reach it, which is the only
@@ -496,4 +576,18 @@ jobs:
             echo "firewall — Oracle images ship restrictive iptables, and opening one"
             echo "without the other looks exactly like this."
             exit 1
+          fi
+
+          # Advisory until the operator opens 8443 in the security list — the
+          # TLS sidecar proved itself from inside the VM already, and a closed
+          # ingress port must not fail a deploy that changed something else.
+          # -k on purpose: a GitHub runner does not hold the pinned internal
+          # CA; reachability is the question here, trust is the web's.
+          tls_url="https://${SSH_HOST}:8443/health"
+          echo "Probing ${tls_url} from a GitHub runner"
+          if curl -skf --max-time 15 "$tls_url" >/dev/null; then
+            echo "TLS endpoint reachable from the internet — docs/TLS_FLIP.md finishes the flip."
+          else
+            echo "::notice::TCP 8443 is not reachable externally yet. Open it in the OCI"
+            echo "::notice::security list + instance firewall, then follow docs/TLS_FLIP.md."
           fi

@@ -192,6 +192,11 @@ const nextConfig = {
   // inflates every function that merely imports the route graph; leaving it
   // external keeps it in node_modules where the driver expects to find itself.
   serverExternalPackages: ["oracledb"],
+  // The gateway's pinned TLS root (certs/gateway-ca.pem, a PUBLIC certificate)
+  // is consumed by Node itself via NODE_EXTRA_CA_CERTS, so no import pulls it
+  // into any function bundle — it must be traced in explicitly or the flip in
+  // docs/TLS_FLIP.md points the env var at a file that was never deployed.
+  outputFileTracingIncludes: { "/**": ["./certs/*.pem"] },
   // Keep framework-generated AI instruction files out of a candidate's
   // committed assessment tree. Repository guidance belongs at the repo root.
   agentRules: false,

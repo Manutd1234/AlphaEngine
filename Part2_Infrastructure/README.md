@@ -417,7 +417,7 @@ service carries no pinned version.
 | Component | Version | Role in AlphaEngine |
 |---|---|---|
 | **[Docker](https://www.docker.com)** | `29.7.2` | Two-stage `python:3.12-slim` image ([`docker/gateway.Dockerfile`](docker/gateway.Dockerfile)), non-root uid 10001, stdlib health probe, compose file at the repo root. `tests/test_container_contract.py` rejects any secret-shaped literal in the committed files. |
-| **[Caddy](https://caddyserver.com)** | `2.6.2` | TLS termination on the VM with automatic Let's Encrypt issuance; the gateway token never crosses the internet in cleartext. |
+| **[Caddy](https://caddyserver.com)** | `2-alpine` | TLS termination on the VM: the deploy workflow runs a Caddy sidecar on `:8443` with its **internal CA** (a bare IP gets no public issuance; the single client that matters pins the root instead — [`docs/TLS_FLIP.md`](../docs/TLS_FLIP.md)), so the gateway token need not cross the internet in cleartext. |
 | **[Supabase CLI](https://supabase.com/docs/guides/cli)** | `2.112.0` | Migration push via the IPv4 session pooler (the direct DB host is IPv6-only) and edge-function deploys. |
 | **[Oracle Cloud](https://www.oracle.com/cloud/)** | managed | The always-on host (Singapore). Region is load-bearing: US egress gets Binance HTTP 451 / Bybit 403 (§11). |
 | **[Vercel](https://vercel.com)** | managed | Two serverless projects (web portal, OpenBB service) from one repo with different Root Directories, region `sin1`. Artifact custody via an Ed25519-signed build attestation against a trust root pinned in reviewed source (`web/lib/artifact-trust.mjs`). |
@@ -1353,9 +1353,11 @@ OCI instance:
 3. `git clone` → `cp Part2_Infrastructure/.env.example Part2_Infrastructure/.env`
    and set `WEB_API_TOKEN` (fresh `openssl rand -hex 32`), `REQUIRE_AUTH=1` →
    `docker compose up -d --build`.
-4. **HTTPS**: point a domain at the instance and run Caddy in front
-   (`caddy reverse-proxy --from your-domain.com --to 127.0.0.1:8000`) — the
-   gateway token must not cross the internet in cleartext.
+4. **HTTPS**: the deploy workflow already runs the Caddy TLS sidecar on
+   `:8443` (internal CA, pinned by the web project) — follow
+   [`docs/TLS_FLIP.md`](../docs/TLS_FLIP.md) to open the port and flip
+   `ALPHAENGINE_GATEWAY_URL`. With a domain, swap `tls internal` for
+   automatic issuance.
 5. On Vercel set `ALPHAENGINE_GATEWAY_URL=https://your-domain.com` and
    `ALPHAENGINE_GATEWAY_TOKEN` to the same `WEB_API_TOKEN`, redeploy. This is
    the step that switches Portfolio/Risk from the labelled sandbox to the
