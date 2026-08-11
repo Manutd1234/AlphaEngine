@@ -23,6 +23,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import DonutChart, { type DonutSlice } from "@/components/common/DonutChart";
 import type { ActionResponse, GuardMode, ProviderRow } from "./types";
 
 export interface ActionOptions {
@@ -153,6 +154,27 @@ export default function OperatorPanel({
     onAction(action, options);
   };
 
+  /**
+   * What is actually remediable right now.
+   *
+   * Every figure below is read from the same provider snapshot the actions
+   * operate on, so the summary cannot describe a system the buttons will not
+   * find. There is deliberately no history chart here: this instance keeps no
+   * durable remediation ledger, and a "resolutions over time" line would have
+   * to invent its own past.
+   */
+  const rows = providers ?? [];
+  const openCircuits = rows.filter((row) => row.circuitOpen).length;
+  const simulated = rows.filter((row) => row.simulatedOutage).length;
+  const unconfigured = rows.filter((row) => !row.configured).length;
+  const healthy = rows.filter((row) => row.configured && !row.circuitOpen && !row.simulatedOutage).length;
+  const scopeSlices: DonutSlice[] = [
+    { label: "routing normally", value: healthy, colour: "var(--status-good)" },
+    { label: "circuit open", value: openCircuits, colour: "var(--status-critical)" },
+    { label: "simulated outage", value: simulated, colour: "var(--status-warning)" },
+    { label: "not configured", value: unconfigured, colour: "var(--axis)" },
+  ];
+
   return (
     <div className="card console-card console-actions">
       <div className="section-heading compact">
@@ -162,6 +184,33 @@ export default function OperatorPanel({
         </div>
         <span className="section-note">Routing instance only · preview required for disruptive actions.</span>
       </div>
+
+      <section className="remediation-scope" aria-label="What these controls would act on">
+        <DonutChart
+          slices={scopeSlices}
+          centreValue={rows.length ? String(rows.length) : undefined}
+          centreLabel="providers"
+          ariaLabel="Provider routing states in this instance, which is the scope these controls act on."
+          emptyNote="No provider snapshot yet — the controls have nothing to describe."
+        />
+        <dl className="remediation-scope__facts">
+          <div>
+            <dt>Open circuits</dt>
+            <dd className="num">{openCircuits}</dd>
+            <small>{openCircuits ? "closing one asks the provider again" : "nothing held open"}</small>
+          </div>
+          <div>
+            <dt>Simulated outages</dt>
+            <dd className="num">{simulated}</dd>
+            <small>{simulated ? "operator-caused, cleared on demand" : "none active"}</small>
+          </div>
+          <div>
+            <dt>Not configured</dt>
+            <dd className="num">{unconfigured}</dd>
+            <small>{unconfigured ? "a missing key, not a failure" : "every provider has a key"}</small>
+          </div>
+        </dl>
+      </section>
 
       <div className="banner warn console-control-scope" role="note">
         <span aria-hidden>!</span>

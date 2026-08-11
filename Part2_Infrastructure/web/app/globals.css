@@ -12119,6 +12119,56 @@ h4 {
   gap: var(--space-5);
 }
 
+/* What the controls below would act on, drawn from the same provider snapshot
+   they mutate — so the picture cannot describe a system the buttons will not
+   find. There is deliberately no history chart: this instance keeps no durable
+   remediation ledger, and a resolutions-over-time line would invent its past. */
+.remediation-scope {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-5);
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.remediation-scope__facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.remediation-scope__facts dt {
+  color: var(--text-muted);
+  font-size: 9.5px;
+  font-weight: 750;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.remediation-scope__facts dd {
+  margin: 3px 0 2px;
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 650;
+}
+
+.remediation-scope__facts small {
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+@media (max-width: 900px) {
+  .remediation-scope,
+  .remediation-scope__facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 900px) {
   .data-trust-composition {
     grid-template-columns: minmax(0, 1fr);
