@@ -1843,15 +1843,20 @@ tbody tr[tabindex]:focus-visible {
 
 /* ---------- overview ---------- */
 
+/* The hero's scale lives here and nowhere else. It used to be decided by three
+   same-specificity rules in three sections of this file, and the last one won —
+   which is how a 36px headline shipped as 28px and a phone rule authored at
+   27px rendered at 21px. */
 .overview-hero {
   position: relative;
   overflow: hidden;
-  min-height: 160px;
-  padding: 26px 30px;
+  min-height: 264px;
+  padding: 30px 34px 26px;
   border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   color: #fff;
   background: var(--hero-plane);
+  box-shadow: 0 18px 44px -28px color-mix(in srgb, var(--text-primary) 45%, transparent);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1870,16 +1875,87 @@ tbody tr[tabindex]:focus-visible {
 .overview-hero h1 {
   max-width: 720px;
   margin-top: 6px;
-  font-size: clamp(25px, 2.8vw, 36px);
-  line-height: 1.07;
-  letter-spacing: -0.02em;
+  font-size: clamp(28px, 3.2vw, 42px);
+  line-height: 1.05;
+  letter-spacing: -0.025em;
 }
 
 .overview-hero p {
-  max-width: 690px;
+  max-width: 640px;
   margin-top: 8px;
   color: var(--hero-text-dim);
-  font-size: 14px;
+  font-size: 15px;
+}
+
+/* The live band. A second full-width row inside the hero's own flex-wrap, so
+   the headline and the stage pipeline keep their row and these sit under both.
+   Every figure is already polled by the page — the strip adds no fetch. */
+.overview-hero__stats {
+  flex: 1 0 100%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.overview-hero__stat {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.overview-hero__stat span {
+  color: var(--hero-accent);
+  font-size: 9.5px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.overview-hero__stat strong {
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overview-hero__stat small {
+  overflow: hidden;
+  color: var(--hero-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overview-hero__stat-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+@media (max-width: 900px) {
+  .overview-hero__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .overview-hero {
+    min-height: 0;
+    padding: 20px 18px;
+  }
+  .overview-hero__stats {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+  .overview-hero__stat strong {
+    font-size: 19px;
+  }
 }
 
 
@@ -3243,12 +3319,6 @@ a.text-action {
   .venue-status {
     width: 100%;
     min-width: 0;
-  }
-  .overview-hero {
-    padding: 24px 20px;
-  }
-  .overview-hero h1 {
-    font-size: 27px;
   }
   .page-actions,
   .page-actions button,
@@ -11518,24 +11588,6 @@ html {
   gap: var(--space-4);
 }
 
-.overview-hero {
-  min-height: 0;
-  padding: 18px 22px;
-  border-radius: var(--radius-lg);
-  gap: var(--space-5);
-}
-
-.overview-hero h1 {
-  margin-top: 4px;
-  font-size: clamp(22px, 2.1vw, 29px);
-  line-height: 1.08;
-}
-
-.overview-hero p {
-  margin-top: 6px;
-  font-size: 12.5px;
-}
-
 .attention-board,
 .overview-section {
   margin-top: 0;
@@ -12204,10 +12256,6 @@ h4 {
 .overview-hero h1,
 .overview-hero p {
   max-width: none;
-}
-
-.overview-hero h1 {
-  font-size: clamp(21px, 1.9vw, 28px);
 }
 
 /* ---------- signal execution workflow ---------- */

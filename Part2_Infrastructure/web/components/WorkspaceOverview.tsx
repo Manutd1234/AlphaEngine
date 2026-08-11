@@ -17,10 +17,11 @@ import AuditTrail from "@/components/overview/AuditTrail";
 import DecisionLoopPipeline from "@/components/overview/DecisionLoopPipeline";
 import KpiDeck from "@/components/overview/KpiDeck";
 import RoleCards, { type RoleContext } from "@/components/overview/RoleCards";
+import Sparkline from "@/components/overview/Sparkline";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import { STRATEGY_LABELS, SweepRequest, SweepResponse } from "@/lib/types";
-import { fmt } from "@/lib/format";
-import { deriveDecisionLoop } from "@/lib/overview-state";
+import { fmt, signedPct, usd } from "@/lib/format";
+import { deriveDecisionLoop, downsample } from "@/lib/overview-state";
 import { OVERVIEW_SECTIONS, type OverviewSection } from "@/lib/sections";
 import type { Side } from "@/lib/venues";
 import type { WorkspaceView } from "@/components/WorkspaceHeader";
@@ -144,6 +145,19 @@ export default function WorkspaceOverview({
     }
   })();
 
+  /**
+   * The hero band. Four figures the desk asks for before anything else, all
+   * from state this component already receives — the strip adds no request.
+   * Each carries its own provenance and its own honest empty state, because a
+   * dash with no explanation reads as breakage rather than as absence.
+   */
+  const equity = book.book?.equity ?? null;
+  const equitySpark = downsample(book.equityTrack.map((p) => p.equity), 64);
+  const dayTone = equity ? (equity.daily_pnl >= 0 ? "up" : "down") : null;
+  const risk = book.risk;
+  const latency = summary?.latency ?? null;
+  const latencyMeasured = latency?.p99 != null && (latency.n ?? 0) >= 20;
+
   const context: RoleContext = {
     symbol: request.symbol,
     candidate,
@@ -173,6 +187,59 @@ export default function WorkspaceOverview({
           </button>
         </div>
         <DecisionLoopPipeline stages={stages} />
+
+        <div className="overview-hero__stats">
+          <div className="overview-hero__stat">
+            <span>Equity</span>
+            <strong className="num">{equity ? usd(equity.current, 0) : "—"}</strong>
+            <div className="overview-hero__stat-line">
+              <small>
+                {equity ? `start ${usd(equity.start_of_day, 0)} · gateway snapshot` : "book connecting"}
+              </small>
+              {equitySpark.length >= 2 ? (
+                <Sparkline
+                  variant="area"
+                  points={equitySpark}
+                  width={90}
+                  height={26}
+                  ariaLabel={`Equity through the session, ending at ${usd(equitySpark[equitySpark.length - 1], 0)}`}
+                />
+              ) : null}
+            </div>
+          </div>
+
+          <div className="overview-hero__stat">
+            <span>Day P&amp;L</span>
+            <strong className="num">
+              {equity ? `${equity.daily_pnl >= 0 ? "+" : "−"}${usd(Math.abs(equity.daily_pnl), 0)}` : "—"}
+            </strong>
+            <small>
+              {equity ? `${signedPct(equity.daily_return)} · ${dayTone} on the session` : "book connecting"}
+            </small>
+          </div>
+
+          <div className="overview-hero__stat">
+            <span>VaR 95 · 1 day</span>
+            <strong className="num">{risk ? usd(risk.var95, 0) : "—"}</strong>
+            <small>
+              {risk
+                ? `CVaR ${usd(risk.cvar95, 0)}${book.varValidation ? ` · zone ${book.varValidation.zone}` : ""} · backtested in this browser`
+                : "needs price history"}
+            </small>
+          </div>
+
+          <div className="overview-hero__stat">
+            <span>Data plane p99</span>
+            <strong className="num">
+              {latencyMeasured ? `${Math.round(latency!.p99!)}ms` : "—"}
+            </strong>
+            <small>
+              {latencyMeasured
+                ? `${summary?.ready ?? 0}/${summary?.total ?? 0} routes ready${systems.degraded ? ` · ${systems.degraded} degraded` : ""} · measured from this browser's polls`
+                : "fewer than 20 polls measured"}
+            </small>
+          </div>
+        </div>
       </section>
 
       {/* The hero (and its pipeline) stays above the rail the way BookChrome
