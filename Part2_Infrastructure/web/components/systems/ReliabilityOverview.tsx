@@ -21,6 +21,10 @@ interface ReliabilityOverviewProps {
   view: SystemHealthView;
   onOpenSection: (section: ReliabilityDrilldown) => void;
   onOpenData: () => void;
+  /** `attention` is triage and the incident path; `planes` is what the system
+   *  depends on and what the snapshot can prove. One derivation, two
+   *  locations — the tab was a single screen of five stacked card-sections. */
+  part?: "attention" | "planes";
 }
 
 interface AttentionItem {
@@ -99,7 +103,10 @@ export default function ReliabilityOverview({
   view,
   onOpenSection,
   onOpenData,
+  part = "attention",
 }: ReliabilityOverviewProps) {
+  const showAttention = part === "attention";
+  const showPlanes = part === "planes";
   const { health, healthError } = view;
   const providers = health?.providers ?? [];
   const summary = health?.summary;
@@ -238,9 +245,14 @@ export default function ReliabilityOverview({
 
   return (
     <div className="reliability-overview">
-      <LatencyTrend history={view.latencyHistory} />
+      {/* One derivation, two locations — `hidden` rather than a conditional
+          render so the attention list and the digests are computed once and
+          cannot disagree between the sections that show them. */}
+      <div hidden={!showAttention}>
+        <LatencyTrend history={view.latencyHistory} />
+      </div>
 
-      <div className="reliability-overview__split">
+      <div className="reliability-overview__split" hidden={!showAttention}>
         <section className="card reliability-attention" aria-labelledby="reliability-attention-title">
           <div className="section-heading compact">
             <div>
@@ -321,7 +333,7 @@ export default function ReliabilityOverview({
         </section>
       </div>
 
-      <section className="card reliability-dependency-digest" aria-labelledby="reliability-provider-api-title">
+      <section className="card reliability-dependency-digest" aria-labelledby="reliability-provider-api-title" hidden={!showPlanes}>
         <div className="section-heading compact">
           <div>
             <span className="page-kicker">Research data plane</span>
@@ -361,7 +373,7 @@ export default function ReliabilityOverview({
       </section>
 
       {platform ? (
-        <section className="card reliability-platform" aria-labelledby="reliability-platform-title">
+        <section className="card reliability-platform" aria-labelledby="reliability-platform-title" hidden={!showPlanes}>
           <div className="section-heading compact">
             <div>
               <span className="page-kicker">Authoritative gateway</span>
@@ -469,7 +481,7 @@ export default function ReliabilityOverview({
         </section>
       ) : null}
 
-      <section className="card reliability-evidence" aria-labelledby="reliability-evidence-title">
+      <section className="card reliability-evidence" aria-labelledby="reliability-evidence-title" hidden={!showPlanes}>
         <div className="section-heading compact">
           <div>
             <span className="page-kicker">Evidence boundary</span>

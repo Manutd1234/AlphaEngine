@@ -185,6 +185,16 @@ export default function ReliabilityConsole({
           view={view}
           onOpenSection={openDrilldown}
           onOpenData={openData}
+          part="attention"
+        />
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="reliability" tabId="planes" activeId={section}>
+        <ReliabilityOverview
+          view={view}
+          onOpenSection={openDrilldown}
+          onOpenData={openData}
+          part="planes"
         />
       </WorkspaceSubtabPanel>
 

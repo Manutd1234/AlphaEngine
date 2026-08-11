@@ -81,7 +81,8 @@ export type DataSection = (typeof DATA_SECTIONS)[number]["id"];
 export const DATA_SECTION_IDS = DATA_SECTIONS.map((s) => s.id) as readonly DataSection[];
 
 export const RELIABILITY_SECTIONS = [
-  { id: "overview", label: "Telemetry & SLIs", description: "Signals, scope & active impact" },
+  { id: "overview", label: "Attention & SLIs", description: "Triage, signals & incident path" },
+  { id: "planes", label: "Dependencies", description: "Provider APIs, platform & evidence" },
   { id: "services", label: "Services & Circuits", description: "Providers, venues & failover" },
   { id: "events", label: "Logs & Traces", description: "Cross-origin event investigation" },
   { id: "controls", label: "Remediation", description: "Guarded, scoped operator actions" },
