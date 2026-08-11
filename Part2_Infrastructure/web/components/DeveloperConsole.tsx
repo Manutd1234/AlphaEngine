@@ -10,7 +10,7 @@
  * CI conclusion, schema comparison, or signed artifact.
  */
 
-import type { CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 
 import CodebaseExplorer from "@/components/developer/CodebaseExplorer";
 import DeveloperApiCatalog, { API_OPERATIONS } from "@/components/developer/DeveloperApiCatalog";
@@ -18,8 +18,12 @@ import DeveloperWorkQueue from "@/components/developer/DeveloperWorkQueue";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import CategoryBars from "@/components/charts/CategoryBars";
 import PageHead from "@/components/workspace/PageHead";
+import { canonicalJson } from "@/lib/canonical-json";
 import type { DeveloperWorkItem } from "@/lib/developer-work";
+import { mcParityFixture, MC_PARITY_PATHS } from "@/lib/mc-parity";
+import { MC_PARITY_REFERENCE_JSON, MC_PARITY_REFERENCE_SHA256 } from "@/lib/mc-parity-reference.generated";
 import { DEVELOPER_SECTIONS, type DeveloperSection } from "@/lib/sections";
+import { useMcDistribution } from "@/lib/use-mc-distribution";
 import { DEPLOYABLES, GITHUB_SOURCE_ROOT, REPOSITORY_STATS } from "@/lib/repository-catalog";
 import type { SystemHealthView } from "@/lib/use-system-health";
 import { APP_COMMIT, APP_DEPLOYMENT_ENV, IS_VERCEL_DEPLOYMENT } from "@/lib/version";
@@ -113,6 +117,13 @@ const SCHEMA_GATES = [
     impact: "Not connected",
     tone: "warn" as const,
   },
+  {
+    object: "Monte Carlo numerics",
+    baseline: "Committed reference",
+    candidate: "Node · this instance",
+    impact: "Not connected",
+    tone: "warn" as const,
+  },
 ] as const;
 
 function StatusPill({ state, compact = false, role }: { state: ControlState; compact?: boolean; role?: "cell" }) {
@@ -169,6 +180,22 @@ function schemaCompatibilityState(view: SystemHealthView): ControlState {
   return { label: "Unverified", detail: evidence.detail, tone: "warn" };
 }
 
+function numericsParityState(view: SystemHealthView): ControlState {
+  if (!view.health) return { label: "Checking", detail: "Waiting for delivery evidence.", tone: "info" };
+  const evidence = view.health.delivery?.numerics;
+  if (!evidence) {
+    return { label: "Unverified", detail: "This health route does not expose numerics parity evidence yet.", tone: "warn" };
+  }
+  if (evidence.state === "match") {
+    return {
+      label: "Byte-exact",
+      detail: `${evidence.detail} sha256 ${evidence.expectedDigest.slice(0, 12)}…`,
+      tone: "good",
+    };
+  }
+  return { label: "Drift detected", detail: evidence.detail, tone: "bad" };
+}
+
 function artifactCustodyState(view: SystemHealthView): ControlState {
   if (!view.health) return { label: "Checking", detail: "Waiting for artifact evidence.", tone: "info" };
   const evidence = view.health.delivery?.artifact;
@@ -217,9 +244,16 @@ function PipelineStrip() {
 
 function SchemaGateTable({ view, compact = false }: { view: SystemHealthView; compact?: boolean }) {
   const liveSchema = schemaCompatibilityState(view);
-  const rows = SCHEMA_GATES.map((row) => row.object === "Production schema"
-    ? { ...row, impact: liveSchema.label, tone: liveSchema.tone, detail: liveSchema.detail }
-    : { ...row, detail: `${row.baseline} → ${row.candidate}` });
+  const liveNumerics = numericsParityState(view);
+  const rows = SCHEMA_GATES.map((row) => {
+    if (row.object === "Production schema") {
+      return { ...row, impact: liveSchema.label, tone: liveSchema.tone, detail: liveSchema.detail };
+    }
+    if (row.object === "Monte Carlo numerics") {
+      return { ...row, impact: liveNumerics.label, tone: liveNumerics.tone, detail: liveNumerics.detail };
+    }
+    return { ...row, detail: `${row.baseline} → ${row.candidate}` };
+  });
   return (
     <div className={`developer-cp-table${compact ? " is-compact" : ""}`} role="table" aria-label="Schema compatibility gates">
       <div className="developer-cp-table__row is-head" role="row">
@@ -483,6 +517,71 @@ function DeveloperPipelines({ view }: { view: SystemHealthView }) {
   );
 }
 
+/**
+ * The third runtime of the numerics-parity claim: the committed reference was
+ * authored offline, the server recomputes it per instance (the table row
+ * above), and this button recomputes it in the visitor's own browser — same
+ * Blob worker the Risk tab simulates with, same canonical serialisation,
+ * compared byte for byte. Nothing is sent anywhere; the comparison is local.
+ */
+function McBrowserParityCheck() {
+  const [runNonce, setRunNonce] = useState(0);
+  const requested = runNonce > 0;
+  // `nonce` changes request identity so "Run again" genuinely re-runs; the
+  // math ignores it, so the result bytes stay comparable.
+  const request = useMemo(() => (requested ? { ...mcParityFixture(), nonce: runNonce } : null), [requested, runNonce]);
+  const simulation = useMcDistribution(request);
+
+  let state: ControlState;
+  if (!requested) {
+    state = {
+      label: "Not run",
+      detail: "Runs entirely in this tab; nothing is uploaded.",
+      tone: "off",
+    };
+  } else if (simulation.status === "error") {
+    state = { label: "Failed", detail: simulation.error ?? "The simulation did not complete.", tone: "bad" };
+  } else if (simulation.status !== "done" || !simulation.result) {
+    state = { label: "Running", detail: "Simulating in this browser…", tone: "info" };
+  } else if (canonicalJson(simulation.result) === MC_PARITY_REFERENCE_JSON) {
+    state = {
+      label: "Byte-exact",
+      detail: `This browser (${simulation.engine === "worker" ? "worker thread" : "main thread"}) reproduced sha256 ${MC_PARITY_REFERENCE_SHA256.slice(0, 12)}… exactly.`,
+      tone: "good",
+    };
+  } else {
+    state = {
+      label: "Differs",
+      detail: "This browser's result does not match the committed reference — a real cross-engine numerics finding worth reporting.",
+      tone: "bad",
+    };
+  }
+
+  return (
+    <section className="card developer-cp-schema-card">
+      <div className="developer-cp-heading">
+        <div><span>Numerics custody</span><h2>Run the parity check in this browser</h2></div>
+        <StatusPill state={state} />
+      </div>
+      <p className="developer-cp-disclosure">
+        The committed reference, this deployment&apos;s Node runtime and your browser&apos;s worker all
+        recompute the same {MC_PARITY_PATHS.toLocaleString()}-path bootstrap simulation; agreement is
+        byte-for-byte on the canonical JSON, not &quot;close enough&quot;. {state.detail}
+      </p>
+      <div className="developer-cp-section-hero__actions">
+        <button
+          type="button"
+          className="primary-action"
+          onClick={() => setRunNonce((nonce) => nonce + 1)}
+          disabled={requested && simulation.status === "running"}
+        >
+          {requested && simulation.status === "running" ? "Simulating…" : requested ? "Run again" : "Run in this browser"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function DeveloperInterfaces({ view }: { view: SystemHealthView }) {
   const liveSchema = schemaCompatibilityState(view);
   return (
@@ -495,6 +594,7 @@ function DeveloperInterfaces({ view }: { view: SystemHealthView }) {
         <div className="developer-cp-heading"><div><span>Breaking-change guard</span><h2>Schema compatibility</h2></div><StatusPill state={liveSchema} /></div>
         <SchemaGateTable view={view} />
       </section>
+      <McBrowserParityCheck />
       <DeveloperApiCatalog />
     </div>
   );

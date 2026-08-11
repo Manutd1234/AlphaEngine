@@ -4,6 +4,7 @@ import {
   evaluateArtifactCustody,
   evaluateBuildTraceability,
   gatewayOpenApiEvidence,
+  mcParityEvidence,
 } from "@/lib/delivery-readiness";
 import { callGateway } from "@/lib/gateway";
 import {
@@ -238,6 +239,9 @@ export async function buildSystemHealthSnapshot(priority: Priority): Promise<Sys
     validation: validationTelemetry.snapshot(),
     delivery: {
       schema: schemaEvidence,
+      // The numerics gate: this instance recomputed the committed Monte Carlo
+      // fixture. Cached after the first poll — determinism is the claim.
+      numerics: mcParityEvidence(),
       build: evaluateBuildTraceability(APP_DEPLOYMENT_ENV, buildCommit),
       artifact: evaluateArtifactCustody({
         deploymentEnvironment: APP_DEPLOYMENT_ENV,

@@ -1,7 +1,10 @@
 import { createHash, createPublicKey, verify } from "node:crypto";
 
+import { canonicalJson } from "@/lib/canonical-json";
 import { COMMITTED_GATEWAY_OPENAPI_SHA256 } from "@/lib/gateway-openapi-digest.generated";
 import { callGateway, gatewayState } from "@/lib/gateway";
+import { computeMcParityJson, MC_PARITY_HORIZON_BARS, MC_PARITY_PATHS } from "@/lib/mc-parity";
+import { MC_PARITY_REFERENCE_SHA256 } from "@/lib/mc-parity-reference.generated";
 
 export { COMMITTED_GATEWAY_OPENAPI_SHA256 } from "@/lib/gateway-openapi-digest.generated";
 
@@ -18,51 +21,9 @@ const OPENAPI_MAX_BYTES = 512 * 1024;
 const OPENAPI_CACHE_MS = 5 * 60_000;
 const OPENAPI_FAILURE_CACHE_MS = 15_000;
 
-function canonicalise(value: unknown, ancestors: Set<object>): string {
-  if (value === null) return "null";
-
-  switch (typeof value) {
-    case "string":
-    case "boolean":
-      return JSON.stringify(value)!;
-    case "number":
-      if (!Number.isFinite(value)) throw new TypeError("canonical JSON requires finite numbers");
-      return JSON.stringify(value)!;
-    case "object": {
-      if (ancestors.has(value)) throw new TypeError("canonical JSON cannot contain cycles");
-      ancestors.add(value);
-      try {
-        if (Array.isArray(value)) {
-          const entries = Array.from({ length: value.length }, (_, index) => {
-            if (!(index in value)) throw new TypeError("canonical JSON cannot contain sparse arrays");
-            return canonicalise(value[index], ancestors);
-          });
-          return `[${entries.join(",")}]`;
-        }
-
-        const prototype = Object.getPrototypeOf(value);
-        if (prototype !== Object.prototype && prototype !== null) {
-          throw new TypeError("canonical JSON requires plain objects");
-        }
-
-        const object = value as Record<string, unknown>;
-        const fields = Object.keys(object)
-          .sort()
-          .map((key) => `${JSON.stringify(key)}:${canonicalise(object[key], ancestors)}`);
-        return `{${fields.join(",")}}`;
-      } finally {
-        ancestors.delete(value);
-      }
-    }
-    default:
-      throw new TypeError(`canonical JSON cannot represent ${typeof value}`);
-  }
-}
-
-/** Stable JSON encoding: object keys sort recursively; array order is retained. */
-export function canonicalJson(value: unknown): string {
-  return canonicalise(value, new Set());
-}
+// Moved to its own isomorphic module so the browser's parity check serialises
+// with the exact same code; re-exported so existing imports keep working.
+export { canonicalJson } from "@/lib/canonical-json";
 
 /** SHA-256 of the stable UTF-8 JSON encoding, expressed as lowercase hex. */
 export function canonicalJsonSha256(value: unknown): string {
@@ -146,6 +107,53 @@ export function compareGatewayOpenApi(input: GatewayOpenApiInput): GatewayOpenAp
       ? "The live gateway OpenAPI contract matches the committed contract."
       : "The live gateway OpenAPI contract differs from the committed contract.",
   };
+}
+
+// ---------------------------------------------------------------------------
+// Numerics parity — the Monte Carlo engine, checked against its own reference
+// ---------------------------------------------------------------------------
+
+export interface McParityEvidence {
+  kind: "mc_parity";
+  state: "match" | "mismatch";
+  passed: boolean;
+  algorithm: typeof HASH_ALGORITHM;
+  expectedDigest: string;
+  observedDigest: string;
+  paths: number;
+  horizonBars: number;
+  detail: string;
+}
+
+let mcParityCache: McParityEvidence | null = null;
+
+/**
+ * Recompute the committed parity fixture on this Node instance and compare.
+ *
+ * Cached per instance after the first call: the simulation is deterministic,
+ * so recomputing per poll would spend milliseconds proving the same bytes.
+ * The browser leg of the same claim runs in the Developer console, against
+ * the same committed reference.
+ */
+export function mcParityEvidence(): McParityEvidence {
+  if (mcParityCache) return mcParityCache;
+  const observedJson = computeMcParityJson();
+  const observedDigest = createHash(HASH_ALGORITHM).update(observedJson, "utf8").digest("hex");
+  const matches = observedDigest === MC_PARITY_REFERENCE_SHA256;
+  mcParityCache = {
+    kind: "mc_parity",
+    state: matches ? "match" : "mismatch",
+    passed: matches,
+    algorithm: HASH_ALGORITHM,
+    expectedDigest: MC_PARITY_REFERENCE_SHA256,
+    observedDigest,
+    paths: MC_PARITY_PATHS,
+    horizonBars: MC_PARITY_HORIZON_BARS,
+    detail: matches
+      ? `This instance reproduced the committed ${MC_PARITY_PATHS}-path simulation byte for byte.`
+      : "This instance's Monte Carlo engine no longer reproduces the committed reference — the numerics drifted.",
+  };
+  return mcParityCache;
 }
 
 interface GatewayOpenApiCacheEntry {

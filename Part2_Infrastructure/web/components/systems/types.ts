@@ -335,6 +335,18 @@ export interface SystemHealth {
       observedDigest: string | null;
       detail: string;
     };
+    /** Cross-engine Monte Carlo parity; absent on deployments predating it. */
+    numerics?: {
+      kind: "mc_parity";
+      state: "match" | "mismatch";
+      passed: boolean;
+      algorithm: "sha256";
+      expectedDigest: string;
+      observedDigest: string;
+      paths: number;
+      horizonBars: number;
+      detail: string;
+    };
     build: {
       kind: "build_traceability";
       state: "traceable" | "unverified";
