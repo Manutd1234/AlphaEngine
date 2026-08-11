@@ -1,17 +1,20 @@
 /**
  * Runs the terminal-distribution Monte Carlo off the main thread.
  *
- * A dedicated worker is the normal path; if constructing one throws (an old
- * browser, a locked-down webview), the same simulation runs on the main
- * thread in small chunks with a yield between them — slower and honest about
- * it via `engine`, never a different answer: chunk boundaries do not change
- * the draw stream.
+ * The worker is constructed from a Blob of the stringified simulation factory
+ * (see lib/mc-distribution.ts for why bundled worker entries are not an
+ * option under Turbopack). If constructing it throws (a locked-down webview,
+ * a CSP that bans blob workers), the same simulation runs on the main thread
+ * in small chunks with a yield between them — slower and honest about it via
+ * `engine`, never a different answer: chunk boundaries do not change the draw
+ * stream, and both paths execute the same factory.
  */
 
 import { useEffect, useRef, useState } from "react";
 
 import {
   createMcSimulation,
+  mcWorkerSource,
   type McDistributionRequest,
   type McDistributionResult,
   type McWorkerMessage,
@@ -49,6 +52,7 @@ export function useMcDistribution(request: McDistributionRequest | null): McDist
     setState({ status: "running", progress: { done: 0, total: request.paths }, result: null, error: null, engine: "worker" });
 
     let worker: Worker | null = null;
+    let workerUrl: string | null = null;
     let cancelled = false;
 
     const finish = (result: McDistributionResult, engine: "worker" | "main-thread") => {
@@ -82,7 +86,8 @@ export function useMcDistribution(request: McDistributionRequest | null): McDist
     };
 
     try {
-      worker = new Worker(new URL("./workers/mc-distribution.worker.ts", import.meta.url));
+      workerUrl = URL.createObjectURL(new Blob([mcWorkerSource()], { type: "text/javascript" }));
+      worker = new Worker(workerUrl);
       worker.onmessage = (event: MessageEvent<McWorkerMessage>) => {
         if (current !== generation.current) return;
         const message = event.data;
@@ -110,6 +115,7 @@ export function useMcDistribution(request: McDistributionRequest | null): McDist
     return () => {
       cancelled = true;
       worker?.terminate();
+      if (workerUrl) URL.revokeObjectURL(workerUrl);
     };
   }, [request]);
 

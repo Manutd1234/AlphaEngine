@@ -4,19 +4,19 @@
  * Same drivers, different question from `montecarlo.ts`: the band resamples
  * the winner's realised per-bar returns to draw a cone *along* the historical
  * sample, while this simulates a forward horizon and keeps only where each
- * path *ends* — the distribution VaR-style loss markers are read from. It
- * deliberately shares the stationary bootstrap and the seeded PRNG, so the
- * two never disagree about what the driver distribution is.
+ * path *ends* — the distribution VaR-style loss markers are read from.
  *
- * Pure and chunk-steppable: the worker steps it between progress posts and
- * the main-thread fallback steps it between yields, and chunk boundaries must
- * not change the draw stream — the PRNG advances identically either way.
+ * Why everything is inlined in one factory: the simulation must run in a
+ * dedicated worker, and Turbopack (Next 16.3) emits `new Worker(new URL(...))`
+ * targets as raw assets rather than compiled entries — so the worker is built
+ * from a Blob whose source is this factory, stringified. A stringified
+ * function cannot reach imports. The factory is therefore fully
+ * self-contained, and it is the ONE implementation: the worker, the
+ * main-thread fallback and the tests all call the same code.
+ * `tests/mc-distribution.test.ts` pins the inlined PRNG and bootstrap
+ * draw-for-draw against `lib/random` and `lib/montecarlo`, so the band and
+ * this distribution cannot quietly disagree about the driver stream.
  */
-
-import { stationaryBootstrapIndices } from "./montecarlo";
-import { percentile } from "./quant";
-import { mulberry32 } from "./random";
-import { histogramBins } from "./stats";
 
 export interface McDistributionRequest {
   /** The winner's realised per-bar returns — `SweepResponse.bestRunReturns`. */
@@ -29,6 +29,8 @@ export interface McDistributionRequest {
   seed: number;
   /** Book equity in dollars; outcomes are reported as $ P&L against it. */
   equity: number;
+  /** Ignored by the math — changes request identity to force a re-run. */
+  nonce?: number;
 }
 
 export interface McDistributionResult {
@@ -64,67 +66,155 @@ export const MC_DIST_MIN_PATHS = 100;
 export const MC_DIST_MAX_PATHS = 100_000;
 export const MC_DIST_HISTOGRAM_BINS = 32;
 
-export function createMcSimulation(req: McDistributionRequest): McSimulation {
-  const returns = req.returns.filter((r) => Number.isFinite(r));
-  const n = returns.length;
-  if (n === 0) throw new Error("The driver distribution is empty.");
-  const horizonBars = Math.max(1, Math.floor(req.horizonBars));
-  const paths = Math.min(MC_DIST_MAX_PATHS, Math.max(MC_DIST_MIN_PATHS, Math.floor(req.paths)));
-  const equity = req.equity;
-  // Same block-length heuristic as the band — the driver's autocorrelation
-  // does not change with the question being asked of it.
-  const meanBlockLength = Math.min(100, Math.max(5, Math.round(Math.sqrt(n))));
-  const rand = mulberry32(req.seed);
-  const drivers = Float64Array.from(returns);
-  const outcomes = new Float64Array(paths);
-  let done = 0;
+/**
+ * Self-contained builder — no references to module scope, see the module doc.
+ * The inlined helpers are exact copies of `mulberry32` (lib/random.ts),
+ * `stationaryBootstrapIndices` (lib/montecarlo.ts), `percentile`
+ * (lib/quant.ts) and `histogramBins` (lib/stats.ts); the parity test fails
+ * the build if any of them drifts from its original.
+ */
+export function mcSimulationFactory(): (req: McDistributionRequest) => McSimulation {
+  const MIN_PATHS = 100;
+  const MAX_PATHS = 100_000;
+  const BINS = 32;
 
-  return {
-    total: paths,
-    get done() {
-      return done;
-    },
-    step(count: number): number {
-      const until = Math.min(paths, done + Math.max(1, Math.floor(count)));
-      for (; done < until; done++) {
-        const idx = stationaryBootstrapIndices(horizonBars, meanBlockLength, rand);
-        let multiple = 1;
-        for (let i = 0; i < horizonBars; i++) multiple *= 1 + drivers[idx[i] % n];
-        outcomes[done] = equity * (multiple - 1);
-      }
-      return done;
-    },
-    finish(): McDistributionResult {
-      if (done !== paths) throw new Error("finish() before the simulation completed");
-      const pnl = Array.from(outcomes);
-      const sorted = [...pnl].sort((a, b) => a - b);
-      const mean = pnl.reduce((acc, v) => acc + v, 0) / paths;
-      const losses = pnl.filter((v) => v < 0).length;
-      return {
-        paths,
-        horizonBars,
-        seed: req.seed,
-        equity,
-        meanBlockLength,
-        pnl: {
-          mean,
-          p50: percentile(sorted, 50),
-          best: sorted[sorted.length - 1],
-          worst: sorted[0],
-        },
-        loss: {
-          p50: -percentile(sorted, 50),
-          p95: -percentile(sorted, 5),
-          p99: -percentile(sorted, 1),
-        },
-        probLoss: losses / paths,
-        histogram: histogramBins(pnl, MC_DIST_HISTOGRAM_BINS),
-      };
-    },
+  const mulberry32 = (seed: number): (() => number) => {
+    let state = (seed >>> 0) || 1;
+    return () => {
+      state |= 0;
+      state = (state + 0x6d2b79f5) | 0;
+      let t = Math.imul(state ^ (state >>> 15), 1 | state);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  };
+
+  const bootstrapIndices = (n: number, meanBlockLength: number, rand: () => number): Uint32Array => {
+    const out = new Uint32Array(n);
+    if (n === 0) return out;
+    const pNew = 1 / Math.max(1, meanBlockLength);
+    let cur = Math.floor(rand() * n);
+    out[0] = cur;
+    for (let i = 1; i < n; i++) {
+      cur = rand() < pNew ? Math.floor(rand() * n) : (cur + 1) % n;
+      out[i] = cur;
+    }
+    return out;
+  };
+
+  const percentileOf = (sorted: number[], p: number): number => {
+    if (!sorted.length) return 0;
+    const rank = Math.ceil((p / 100) * sorted.length);
+    return sorted[Math.min(sorted.length - 1, Math.max(0, rank - 1))];
+  };
+
+  const histogram = (values: number[], binCount: number) => {
+    const finite = values.filter((v) => Number.isFinite(v));
+    if (!finite.length) return null;
+    const lo = Math.min(...finite);
+    const hi = Math.max(...finite);
+    if (hi === lo) return { edges: [lo, hi], counts: [finite.length] };
+    const bins = Math.max(1, Math.floor(binCount));
+    const width = (hi - lo) / bins;
+    const edges = Array.from({ length: bins + 1 }, (_, i) => lo + i * width);
+    const counts = new Array<number>(bins).fill(0);
+    for (const v of finite) {
+      const idx = Math.min(bins - 1, Math.floor((v - lo) / width));
+      counts[idx] += 1;
+    }
+    return { edges, counts };
+  };
+
+  return (req: McDistributionRequest): McSimulation => {
+    const returns = req.returns.filter((r) => Number.isFinite(r));
+    const n = returns.length;
+    if (n === 0) throw new Error("The driver distribution is empty.");
+    const horizonBars = Math.max(1, Math.floor(req.horizonBars));
+    const paths = Math.min(MAX_PATHS, Math.max(MIN_PATHS, Math.floor(req.paths)));
+    const equity = req.equity;
+    // Same block-length heuristic as the band — the driver's autocorrelation
+    // does not change with the question being asked of it.
+    const meanBlockLength = Math.min(100, Math.max(5, Math.round(Math.sqrt(n))));
+    const rand = mulberry32(req.seed);
+    const drivers = Float64Array.from(returns);
+    const outcomes = new Float64Array(paths);
+    let done = 0;
+
+    return {
+      total: paths,
+      get done() {
+        return done;
+      },
+      step(count: number): number {
+        const until = Math.min(paths, done + Math.max(1, Math.floor(count)));
+        for (; done < until; done++) {
+          const idx = bootstrapIndices(horizonBars, meanBlockLength, rand);
+          let multiple = 1;
+          for (let i = 0; i < horizonBars; i++) multiple *= 1 + drivers[idx[i] % n];
+          outcomes[done] = equity * (multiple - 1);
+        }
+        return done;
+      },
+      finish(): McDistributionResult {
+        if (done !== paths) throw new Error("finish() before the simulation completed");
+        const pnl = Array.from(outcomes);
+        const sorted = [...pnl].sort((a, b) => a - b);
+        const mean = pnl.reduce((acc, v) => acc + v, 0) / paths;
+        const losses = pnl.filter((v) => v < 0).length;
+        return {
+          paths,
+          horizonBars,
+          seed: req.seed,
+          equity,
+          meanBlockLength,
+          pnl: {
+            mean,
+            p50: percentileOf(sorted, 50),
+            best: sorted[sorted.length - 1],
+            worst: sorted[0],
+          },
+          loss: {
+            p50: -percentileOf(sorted, 50),
+            p95: -percentileOf(sorted, 5),
+            p99: -percentileOf(sorted, 1),
+          },
+          probLoss: losses / paths,
+          histogram: histogram(pnl, BINS),
+        };
+      },
+    };
   };
 }
+
+export const createMcSimulation = mcSimulationFactory();
 
 export type McWorkerMessage =
   | { type: "progress"; done: number; total: number }
   | { type: "result"; result: McDistributionResult }
   | { type: "error"; error: string };
+
+/**
+ * The worker program, composed from the SAME stringified factory — there is
+ * no second implementation to drift. Consumed as a Blob URL by the hook.
+ */
+export function mcWorkerSource(): string {
+  return `"use strict";
+// Some compilers (esbuild keepNames, tsx in tests) inject __name(fn, "fn")
+// calls into function bodies. The stringified factory carries them into a
+// scope where the helper does not exist — define it as the identity.
+const __name = (target) => target;
+const createMcSimulation = (${mcSimulationFactory.toString()})();
+const CHUNK = 500;
+self.onmessage = (event) => {
+  try {
+    const sim = createMcSimulation(event.data);
+    while (sim.done < sim.total) {
+      sim.step(CHUNK);
+      self.postMessage({ type: "progress", done: sim.done, total: sim.total });
+    }
+    self.postMessage({ type: "result", result: sim.finish() });
+  } catch (err) {
+    self.postMessage({ type: "error", error: err && err.message ? err.message : "The simulation failed." });
+  }
+};`;
+}
