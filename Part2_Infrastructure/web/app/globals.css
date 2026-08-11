@@ -1491,7 +1491,11 @@ tbody tr[tabindex]:focus-visible {
   display: flex;
   align-items: center;
   gap: 8px;
-  overflow-x: hidden;
+  /* `clip`, not `hidden`: hidden forces overflow-y to compute to auto, which
+     turns this bar into a scroll container. The kill-switch panel anchors
+     inside it and focuses its confirm input on open, so the browser scrolled
+     the bar internally and the brand, tabs and chips vanished off-screen. */
+  overflow-x: clip;
 }
 
 .brand-lockup {
