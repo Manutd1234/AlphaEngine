@@ -58,6 +58,12 @@ export interface SystemHealthView {
    * the silent-401 class this codebase has already shipped twice.
    */
   operatorReady: boolean;
+  /**
+   * Server-checked state of the entered token, so the badge can say "checked
+   * and valid" instead of guessing. Verified against GET /api/system/actions,
+   * which validates without spending anything.
+   */
+  tokenStatus: "none" | "checking" | "valid" | "rejected";
   busyAction: string | null;
   actionResult: ActionResponse | null;
   runAction: (action: string, options?: ActionOptions) => Promise<void>;
@@ -83,6 +89,9 @@ export interface SystemHealthView {
   latencyHistory: LatencyHistoryPoint[];
 }
 
+/** Per-tab by design: sessionStorage survives a reload, dies with the tab. */
+const TOKEN_STORAGE_KEY = "alphaengine-operator-token";
+
 export function useSystemHealth(workspaceSymbol: string): SystemHealthView {
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
@@ -91,11 +100,60 @@ export function useSystemHealth(workspaceSymbol: string): SystemHealthView {
   const [route, setRoute] = useState<string>("");
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [actionResult, setActionResult] = useState<ActionResponse | null>(null);
-  const [token, setToken] = useState("");
+  const [token, setTokenState] = useState("");
+  const [tokenStatus, setTokenStatus] = useState<"none" | "checking" | "valid" | "rejected">("none");
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [latencyHistory, setLatencyHistory] = useState<LatencyHistoryPoint[]>([]);
   const sequence = useRef(0);
+  const tokenCheckSequence = useRef(0);
   const { sockets, reconnectAll } = useWireTap();
+
+  // Hydrate after mount, not in the initializer: the page is server-rendered
+  // and the stored value must not create a hydration mismatch.
+  useEffect(() => {
+    try {
+      const stored = window.sessionStorage.getItem(TOKEN_STORAGE_KEY);
+      if (stored) setTokenState(stored);
+    } catch {
+      // Blocked storage must not break the console; the token just starts empty.
+    }
+  }, []);
+
+  const setToken = useCallback((next: string) => {
+    setTokenState(next);
+    try {
+      if (next) window.sessionStorage.setItem(TOKEN_STORAGE_KEY, next);
+      else window.sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+    } catch {
+      // Still usable for this render's lifetime without persistence.
+    }
+  }, []);
+
+  // Verify the entered token against the read-only actions catalogue, debounced
+  // so half-typed credentials don't fire a request per keystroke. The result
+  // drives the badge only — every action still sends and re-checks the header.
+  useEffect(() => {
+    const current = ++tokenCheckSequence.current;
+    if (!token.trim()) {
+      setTokenStatus("none");
+      return;
+    }
+    setTokenStatus("checking");
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch("/api/system/actions", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        const body = (await response.json().catch(() => ({}))) as { credential?: string };
+        if (current !== tokenCheckSequence.current) return;
+        setTokenStatus(body.credential === "valid" ? "valid" : "rejected");
+      } catch {
+        if (current === tokenCheckSequence.current) setTokenStatus("checking");
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [token]);
 
   /** Browser-side log line. Merged into the trace console alongside server lines. */
   const logLocal = useCallback(
@@ -256,6 +314,7 @@ export function useSystemHealth(workspaceSymbol: string): SystemHealthView {
     token,
     setToken,
     operatorReady,
+    tokenStatus,
     busyAction,
     actionResult,
     runAction,

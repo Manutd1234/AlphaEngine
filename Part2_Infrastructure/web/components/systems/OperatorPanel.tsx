@@ -55,6 +55,10 @@ interface OperatorPanelProps {
   lastResult: ActionResponse | null;
   token: string;
   onTokenChange: (token: string) => void;
+  /** Open mode with a server token set — typing a credential can elevate the tab. */
+  tokenOverrideAvailable?: boolean;
+  /** Server-checked state of the entered token; drives the badge, not the gate. */
+  tokenStatus?: "none" | "checking" | "valid" | "rejected";
   onAction: (action: string, options?: ActionOptions) => void;
 }
 
@@ -107,6 +111,8 @@ export default function OperatorPanel({
   lastResult,
   token,
   onTokenChange,
+  tokenOverrideAvailable = false,
+  tokenStatus = "none",
   onAction,
 }: OperatorPanelProps) {
   const [purgeScope, setPurgeScope] = useState<string>("all");
@@ -178,20 +184,58 @@ export default function OperatorPanel({
         </div>
       )}
 
-      {guard === "token" && (
+      {(guard === "token" || tokenOverrideAvailable) && (
         <label className="console-token">
-          <span>Operator token</span>
-          <input
-            type="password"
-            value={token}
-            onChange={(event) => onTokenChange(event.target.value)}
-            placeholder={tokenEnv}
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <small className="muted">
-            Held in memory for this tab only — never written to storage, never logged.
+          <span>
+            {guard === "token"
+              ? "Operator token"
+              : "Operator token — optional, overrides demo mode for this tab"}
+          </span>
+          <div className="console-token__row">
+            <input
+              type="password"
+              value={token}
+              onChange={(event) => onTokenChange(event.target.value)}
+              placeholder={tokenEnv}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            {token !== "" && (
+              <button
+                type="button"
+                className="console-node__action"
+                onClick={() => onTokenChange("")}
+                title="Forget the token and return this tab to its default identity."
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <small className="muted" role="status">
+            {tokenStatus === "valid" ? (
+              <span style={{ color: "var(--success-text)" }}>
+                <span aria-hidden>✓</span> Authenticated operator — the credential was checked and
+                every action from this tab carries it.
+              </span>
+            ) : tokenStatus === "rejected" ? (
+              <span style={{ color: "var(--critical-text)" }}>
+                <span aria-hidden>✕</span> The operator credential was rejected — actions will fail
+                until it is fixed or cleared.
+              </span>
+            ) : tokenStatus === "checking" ? (
+              "Checking the credential…"
+            ) : guard === "open-demo" ? (
+              "Demo operator (open) — actions work without a credential; type one to act as the authenticated operator."
+            ) : (
+              "Kept in this tab's session storage — survives a reload, gone when the tab closes; never logged."
+            )}
           </small>
+          {token !== "" && tokenStatus !== "none" && (
+            <small className="muted">
+              Kept in this tab&rsquo;s session storage — survives a reload, gone when the tab
+              closes; never logged.
+            </small>
+          )}
         </label>
       )}
 
@@ -208,8 +252,9 @@ export default function OperatorPanel({
           token is asked — orders, risk actions and remediation all work directly. That is a
           deliberate setting (<code>ALPHAENGINE_OPERATOR_OPEN=1</code>) for a paper-trading
           assessment, survivable because nothing here is permanent: orders are paper and capped by
-          the gateway&rsquo;s gates, the kill switch reverses, purged caches refill. Unset the flag
-          to require a token again.
+          the gateway&rsquo;s gates, the kill switch reverses, purged caches refill. A typed
+          credential is still checked and is authoritative for this tab. Unset the flag to require
+          a token again.
         </p>
       )}
 

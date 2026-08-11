@@ -4139,6 +4139,14 @@ button.console-stat:hover:not(:disabled) {
   font-size: 10.5px;
 }
 
+/* Input + Clear side by side; the input keeps the full remaining width. */
+.console-token__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
 .console-actions .banner {
   margin-top: 14px;
 }

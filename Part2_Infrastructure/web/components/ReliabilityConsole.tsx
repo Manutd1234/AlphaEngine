@@ -239,6 +239,8 @@ export default function ReliabilityConsole({
           lastResult={actionResult}
           token={token}
           onTokenChange={setToken}
+          tokenOverrideAvailable={health?.guard.tokenOverrideAvailable === true}
+          tokenStatus={view.tokenStatus}
           onAction={runAction}
         />
       </WorkspaceSubtabPanel>
