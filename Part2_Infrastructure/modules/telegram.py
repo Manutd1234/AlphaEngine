@@ -113,6 +113,33 @@ def _finite(value: Any) -> float | None:
     return number if math.isfinite(number) else None
 
 
+def _median(values: list[float]) -> float | None:
+    """The middle observation.
+
+    Reported beside means throughout the market cards: one halt or one auction
+    print drags an average somewhere no bar actually traded, and a reader
+    comparing today against "the average" would be comparing against a value
+    the instrument never had.
+    """
+    usable = sorted(value for value in values if value is not None and value == value)
+    if not usable:
+        return None
+    middle = len(usable) // 2
+    if len(usable) % 2:
+        return usable[middle]
+    return (usable[middle - 1] + usable[middle]) / 2
+
+
+def _stdev(values: list[float]) -> float | None:
+    """Sample standard deviation; None below two observations."""
+    usable = [value for value in values if value is not None and value == value]
+    if len(usable) < 2:
+        return None
+    mean = sum(usable) / len(usable)
+    variance = sum((value - mean) ** 2 for value in usable) / (len(usable) - 1)
+    return math.sqrt(variance)
+
+
 def _money(value: Any, signed: bool = False) -> str:
     number = _finite(value)
     if number is None:
@@ -1689,7 +1716,35 @@ class TelegramBot:
         last = _finite(rows[-1].get("close"))
         change = (last / first - 1) if first and last is not None else None
         direction = "UP" if change is not None and change > 0 else "DOWN" if change is not None and change < 0 else "FLAT"
-        lines = [f"First close <code>{_number(first)}</code>", f"Last close  <code>{_number(last)}</code>", f"Return      <code>{_percent(change, signed=True)}</code>", f"Direction   <code>{direction}</code>"]
+        closes = [value for row in rows if (value := _finite(row.get("close"))) is not None]
+        # Per-bar returns, so the headline move can be read against the noise
+        # it happened in rather than in isolation.
+        steps = [
+            closes[index] / closes[index - 1] - 1
+            for index in range(1, len(closes))
+            if closes[index - 1]
+        ]
+        sigma = _stdev(steps) if len(steps) > 1 else None
+        drift = (sum(steps) / len(steps)) if steps else None
+        lines = [
+            f"First close <code>{_number(first)}</code>",
+            f"Last close  <code>{_number(last)}</code>",
+            f"Return      <code>{_percent(change, signed=True)}</code>",
+            f"Direction   <code>{direction}</code>",
+            f"Per-bar σ   <code>{_percent(sigma)}</code> · mean <code>{_percent(drift, signed=True)}</code>",
+        ]
+        if sigma and change is not None:
+            # How many bar-sized moves the whole period amounts to. Under one,
+            # the move is inside the instrument's ordinary noise.
+            ratio = abs(change) / (sigma * max(1, len(steps)) ** 0.5)
+            flag = "🟢" if ratio >= 2 else "🟡" if ratio >= 1 else "⚪"
+            lines.append(
+                f"Signal      {flag} <code>{_number(ratio)}σ</code> of the period's own noise"
+            )
+            lines.append(
+                "<i>Under 1σ the move is ordinary variation for this instrument "
+                "over this many bars — a direction, not yet evidence.</i>"
+            )
         await self.send_message(chat_id, text_card(f"📈 {symbol} trend · {interval}", f"{len(rows)} DELAYED BARS", lines, source="OpenBB / yfinance", next_commands=f"/range {symbol} {interval} {count} · /volume {symbol} {interval} {count}"))
 
     async def _cmd_range(self, args, chat_id, actor) -> None:
@@ -1703,7 +1758,34 @@ class TelegramBot:
             return
         high, low = max(highs), min(lows)
         width = (high / low - 1) if low else None
-        lines = [f"High        <code>{_number(high)}</code>", f"Low         <code>{_number(low)}</code>", f"Range width <code>{_percent(width)}</code>", f"Observations <code>{len(rows)}</code>"]
+        # Each bar's own high-low span, so today's range can be read against
+        # what this instrument's ranges usually look like.
+        spans = [
+            (h / low_value - 1)
+            for row in rows
+            if (h := _finite(row.get("high"))) is not None
+            and (low_value := _finite(row.get("low")))
+        ]
+        typical = _median(spans) if spans else None
+        widest = max(spans) if spans else None
+        lines = [
+            f"High        <code>{_number(high)}</code>",
+            f"Low         <code>{_number(low)}</code>",
+            f"Range width <code>{_percent(width)}</code> across the window",
+            f"Typical bar <code>{_percent(typical)}</code> · widest <code>{_percent(widest)}</code>",
+            f"Observations <code>{len(rows)}</code>",
+        ]
+        if typical and spans:
+            latest = spans[-1]
+            flag = "🔴" if latest >= typical * 2 else "🟡" if latest >= typical * 1.5 else "🟢"
+            lines.append(
+                f"Latest bar  {flag} <code>{_percent(latest)}</code> · "
+                f"<code>{_number(latest / typical)}x</code> the median span"
+            )
+            lines.append(
+                "<i>A bar much wider than the median is where slippage estimates "
+                "built on calm conditions stop holding.</i>"
+            )
         await self.send_message(chat_id, text_card(f"↕️ {symbol} range · {interval}", "DELAYED", lines, source="OpenBB / yfinance", next_commands=f"/bars {symbol} {interval} 5"))
 
     async def _cmd_volume(self, args, chat_id, actor) -> None:
@@ -1716,7 +1798,25 @@ class TelegramBot:
             return
         average = sum(volumes) / len(volumes)
         ratio = volumes[-1] / average if average else None
-        lines = [f"Latest  <code>{_number(volumes[-1], 0)}</code>", f"Average <code>{_number(average, 0)}</code>", f"Ratio   <code>{_number(ratio)}x</code>", f"Bars    <code>{len(volumes)}</code>"]
+        median = _median(volumes)
+        quietest, busiest = min(volumes), max(volumes)
+        rank = sum(1 for value in volumes if value <= volumes[-1]) / len(volumes)
+        lines = [
+            f"Latest  <code>{_number(volumes[-1], 0)}</code>",
+            f"Average <code>{_number(average, 0)}</code> · median <code>{_number(median, 0)}</code>",
+            f"Ratio   <code>{_number(ratio)}x</code> the mean",
+            f"Range   <code>{_number(quietest, 0)}</code> … <code>{_number(busiest, 0)}</code>",
+            f"Bars    <code>{len(volumes)}</code>",
+        ]
+        flag = "🟢" if rank >= 0.8 else "🟡" if rank >= 0.5 else "⚪"
+        lines.append(
+            f"Percentile {flag} <code>{_percent(rank)}</code> of bars in this window "
+            "traded less"
+        )
+        lines.append(
+            "<i>The median sits beside the mean because one halt or one auction "
+            "print drags an average somewhere no bar actually was.</i>"
+        )
         await self.send_message(chat_id, text_card(f"🔊 {symbol} volume · {interval}", "DELAYED", lines, source="OpenBB / yfinance", next_commands=f"/trend {symbol} {interval} {count}"))
 
     async def _cmd_news(self, args, chat_id, actor) -> None:

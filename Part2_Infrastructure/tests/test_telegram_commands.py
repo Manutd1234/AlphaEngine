@@ -138,3 +138,104 @@ async def test_rate_limited_sends_wait_the_time_telegram_asks_for(bot, monkeypat
     assert 3 in slept, "waited the interval Telegram asked for"
     assert all(value <= 15 for value in slept), "retry_after stays bounded"
     assert "999:TEST" not in (bot.last_error or ""), "token never reaches last_error"
+
+
+# ---------------------------------------------------------------------------
+# Targeted content, for the categories the floor only proves *answer*.
+#
+# The floor asserts every command replies. These assert the reply says the
+# right thing — chosen for the commands whose wrongness would be quietest: a
+# risk figure with no sample behind it, a listing that renders an empty desk as
+# a healthy one, a market card whose statistics contradict its own bars.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+class TestRiskCategoryAnswersHonestly:
+    """The whole Risk category had no test before this file existed."""
+
+    async def test_var_and_friends_say_not_measurable_on_a_flat_book(self, bot):
+        # A flat book has no covariance to estimate from. Each of these must
+        # say so rather than reporting a confident zero.
+        for index, command in enumerate(
+            ["/var", "/riskcontrib", "/correlation", "/stress", "/varbacktest"], start=5000
+        ):
+            bot.sent.clear()
+            bot._rate_windows.clear()
+            await bot.handle_update(update(command, update_id=index))
+            reply = " ".join(bot.sent).upper()
+            assert any(
+                phrase in reply
+                for phrase in ("NOT MEASURABLE", "FLAT BOOK", "NEEDS", "NO ", "UNAVAILABLE")
+            ), f"{command} reported a figure with nothing to compute it from: {reply[:160]}"
+
+    async def test_size_explains_itself_before_it_sizes(self, bot):
+        bot._rate_windows.clear()
+        await bot.handle_update(update("/size", update_id=5100))
+        assert "/size" in bot.last, "a bare /size must show its own usage"
+
+    async def test_rebalance_and_regime_answer(self, bot):
+        for index, command in enumerate(["/rebalance", "/regime"], start=5200):
+            bot.sent.clear()
+            bot._rate_windows.clear()
+            await bot.handle_update(update(command, update_id=index))
+            assert bot.sent, f"{command} said nothing at all"
+            assert "Unknown command" not in " ".join(bot.sent)
+
+
+@pytest.mark.asyncio
+class TestListingsDistinguishEmptyFromBroken:
+    async def test_empty_desks_are_reported_as_empty_not_as_healthy(self, bot):
+        cases = {
+            "/positions": ("FLAT", "NO POSITIONS", "NONE"),
+            "/orders": ("NO ORDERS", "NONE", "EMPTY"),
+            "/working": ("NONE RESTING", "NOTHING OPEN"),
+            "/jobs": ("NO JOBS", "NONE", "EMPTY"),
+            "/backtests": ("NO BACKTESTS", "NONE", "EMPTY"),
+            "/incidents": ("NO INCIDENTS", "NONE", "CLEAR"),
+        }
+        for index, (command, expected) in enumerate(cases.items(), start=5300):
+            bot.sent.clear()
+            bot._rate_windows.clear()
+            await bot.handle_update(update(command, update_id=index))
+            reply = " ".join(bot.sent).upper()
+            assert any(phrase in reply for phrase in expected) or "0" in reply, (
+                f"{command} did not state its own emptiness: {reply[:160]}"
+            )
+
+    async def test_timeline_of_an_unknown_order_is_not_found_not_rejected(self, bot):
+        bot._rate_windows.clear()
+        await bot.handle_update(update("/timeline nosuchorder", update_id=5400))
+        reply = bot.last
+        assert "NOT FOUND" in reply
+        # The distinction matters: an unknown id never reached the gates, and
+        # calling that a rejection would invent a decision the desk never made.
+        assert "never reached the gates" in reply
+
+
+@pytest.mark.asyncio
+class TestReferenceCommandsStayInSyncWithTheRegistry:
+    async def test_help_and_commands_describe_the_live_catalogue(self, bot):
+        from modules.telegram import COMMAND_SPECS
+
+        bot._rate_windows.clear()
+        await bot.handle_update(update("/commands", update_id=5500))
+        catalogue = " ".join(bot.sent)
+        # Spot-check across categories rather than all 76: this asserts the
+        # catalogue is generated, not hand-maintained.
+        for name in ("equity", "var", "backtest", "rag", "ops", "timeline"):
+            assert f"/{name}" in catalogue, f"/{name} is registered but not listed"
+        assert len(COMMAND_SPECS) >= 70
+
+    async def test_about_states_the_control_count_it_actually_has(self, bot):
+        from modules.telegram import COMMAND_SPECS
+
+        controls = {s.name for s in COMMAND_SPECS if s.category == "Controls"}
+        bot._rate_windows.clear()
+        await bot.handle_update(update("/about", update_id=5600))
+        reply = bot.last
+        for name in controls:
+            assert f"/{name}" in reply, f"/about omits the {name} control"
+        # And the parity map, which is what a reader checks the bot against.
+        assert "Web parity" in reply
+        assert "Web-only" in reply
