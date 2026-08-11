@@ -36,11 +36,17 @@ const DESCRIPTION =
 /** Static, not generateMetadata: reading request headers just to learn the
  *  host forces every request through dynamic rendering. The base comes from
  *  the deployment environment instead, so the route stays prerenderable and
- *  the relative image URLs below resolve against it. */
+ *  the relative image URLs below resolve against it. The canonical production
+ *  alias is the last production resort because prebuilt CLI deploys pull an
+ *  env with neither variable set — without it the shipped OG tags would read
+ *  localhost, and nothing would fail visibly. */
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL
   ?? (process.env.VERCEL_PROJECT_PRODUCTION_URL
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : undefined)
+  ?? (process.env.NODE_ENV === "production"
+    ? "https://developer-analyst-infra.vercel.app"
     : "http://localhost:3000");
 
 export const metadata: Metadata = {
