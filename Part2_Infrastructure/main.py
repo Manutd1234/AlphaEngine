@@ -80,6 +80,7 @@ from modules.schemas import (
 from modules.supabase_mirror import get_mirror
 from modules.tca_engine import get_engine
 from modules.telegram import get_bot
+from modules.web_telemetry import WebStateSyncRequest, WebStateView, get_web_ops
 
 logging.basicConfig(
     level=logging.INFO,
@@ -277,6 +278,21 @@ async def operations_snapshot(_actor: str = Depends(trader_identity)) -> Operati
         bot=get_bot(),
         mirror=get_mirror(),
     )
+
+
+@app.post("/api/ops/web-state/sync", response_model=WebStateView, tags=["meta"])
+async def web_state_sync(
+    request: WebStateSyncRequest,
+    _actor: str = Depends(trader_identity),
+) -> WebStateView:
+    """Merge one web instance's telemetry deltas and return the shared view.
+
+    The Vercel workspace runs on rotating serverless instances whose in-memory
+    ledgers disagree; this gateway is the one long-lived process they share.
+    Push and pull happen in a single round trip so a health poll pays exactly
+    one extra request. Observability only — no trading state passes this way.
+    """
+    return get_web_ops().sync(request)
 
 
 @app.get("/api/config", tags=["meta"])

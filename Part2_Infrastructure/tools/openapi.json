@@ -2397,6 +2397,318 @@
         "title": "VenueBook",
         "type": "object"
       },
+      "WebLatencyBatch": {
+        "properties": {
+          "key": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/WebLatencySample"
+            },
+            "maxItems": 240,
+            "title": "Samples",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "WebLatencyBatch",
+        "type": "object"
+      },
+      "WebLatencyKeyView": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "samples": {
+            "items": {
+              "$ref": "#/components/schemas/WebLatencySample"
+            },
+            "title": "Samples",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "WebLatencyKeyView",
+        "type": "object"
+      },
+      "WebLatencySample": {
+        "properties": {
+          "ms": {
+            "maximum": 600000.0,
+            "minimum": 0.0,
+            "title": "Ms",
+            "type": "number"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "ts": {
+            "description": "Epoch milliseconds, client clock",
+            "minimum": 0.0,
+            "title": "Ts",
+            "type": "number"
+          }
+        },
+        "required": [
+          "ts",
+          "ms",
+          "ok"
+        ],
+        "title": "WebLatencySample",
+        "type": "object"
+      },
+      "WebOutageCommand": {
+        "properties": {
+          "expires_at": {
+            "description": "Epoch milliseconds; clamped to the outage ceiling",
+            "minimum": 0.0,
+            "title": "Expires At",
+            "type": "number"
+          },
+          "note": {
+            "default": "operator-simulated outage",
+            "maxLength": 200,
+            "title": "Note",
+            "type": "string"
+          },
+          "provider": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Provider",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "expires_at"
+        ],
+        "title": "WebOutageCommand",
+        "type": "object"
+      },
+      "WebOutageView": {
+        "properties": {
+          "expires_at": {
+            "title": "Expires At",
+            "type": "number"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "expires_at",
+          "note"
+        ],
+        "title": "WebOutageView",
+        "type": "object"
+      },
+      "WebQuotaReset": {
+        "properties": {
+          "provider": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Provider",
+            "type": "string"
+          },
+          "window": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Window",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "window"
+        ],
+        "title": "WebQuotaReset",
+        "type": "object"
+      },
+      "WebQuotaSpend": {
+        "description": "Delta spend since the instance's last successful sync \u2014 not a total.",
+        "properties": {
+          "provider": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Provider",
+            "type": "string"
+          },
+          "spent": {
+            "maximum": 100000.0,
+            "minimum": 0.0,
+            "title": "Spent",
+            "type": "integer"
+          },
+          "window": {
+            "description": "Calendar window label, e.g. 2026-08-11",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Window",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "window",
+          "spent"
+        ],
+        "title": "WebQuotaSpend",
+        "type": "object"
+      },
+      "WebQuotaView": {
+        "properties": {
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "spent": {
+            "title": "Spent",
+            "type": "integer"
+          },
+          "window": {
+            "title": "Window",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "window",
+          "spent"
+        ],
+        "title": "WebQuotaView",
+        "type": "object"
+      },
+      "WebStateSyncRequest": {
+        "properties": {
+          "instance": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Instance",
+            "type": "string"
+          },
+          "latency": {
+            "items": {
+              "$ref": "#/components/schemas/WebLatencyBatch"
+            },
+            "maxItems": 64,
+            "title": "Latency",
+            "type": "array"
+          },
+          "outages_cleared": {
+            "description": "Provider ids; \"*\" clears all",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 32,
+            "title": "Outages Cleared",
+            "type": "array"
+          },
+          "outages_set": {
+            "items": {
+              "$ref": "#/components/schemas/WebOutageCommand"
+            },
+            "maxItems": 16,
+            "title": "Outages Set",
+            "type": "array"
+          },
+          "quota": {
+            "items": {
+              "$ref": "#/components/schemas/WebQuotaSpend"
+            },
+            "maxItems": 64,
+            "title": "Quota",
+            "type": "array"
+          },
+          "quota_reset": {
+            "items": {
+              "$ref": "#/components/schemas/WebQuotaReset"
+            },
+            "maxItems": 16,
+            "title": "Quota Reset",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "instance"
+        ],
+        "title": "WebStateSyncRequest",
+        "type": "object"
+      },
+      "WebStateView": {
+        "properties": {
+          "instances": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Instances",
+            "type": "array"
+          },
+          "latency": {
+            "items": {
+              "$ref": "#/components/schemas/WebLatencyKeyView"
+            },
+            "title": "Latency",
+            "type": "array"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "outages": {
+            "items": {
+              "$ref": "#/components/schemas/WebOutageView"
+            },
+            "title": "Outages",
+            "type": "array"
+          },
+          "quota": {
+            "items": {
+              "$ref": "#/components/schemas/WebQuotaView"
+            },
+            "title": "Quota",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "window_seconds": {
+            "title": "Window Seconds",
+            "type": "number"
+          }
+        },
+        "required": [
+          "observed_at",
+          "window_seconds"
+        ],
+        "title": "WebStateView",
+        "type": "object"
+      },
       "WorkingOrder": {
         "description": "An order resting on the book right now.\n\nTerminal decisions live in ``/api/audit/orders``. This is only what is still\nopen, which is the set a desk can actually still act on.",
         "properties": {
@@ -3277,6 +3589,82 @@
           }
         },
         "summary": "Operations Snapshot",
+        "tags": [
+          "meta"
+        ]
+      }
+    },
+    "/api/ops/web-state/sync": {
+      "post": {
+        "description": "Merge one web instance's telemetry deltas and return the shared view.\n\nThe Vercel workspace runs on rotating serverless instances whose in-memory\nledgers disagree; this gateway is the one long-lived process they share.\nPush and pull happen in a single round trip so a health poll pays exactly\none extra request. Observability only \u2014 no trading state passes this way.",
+        "operationId": "web_state_sync_api_ops_web_state_sync_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebStateSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebStateView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Web State Sync",
         "tags": [
           "meta"
         ]

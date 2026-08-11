@@ -40,6 +40,7 @@ def test_every_client_facing_route_is_published(schema):
         "/health",
         "/metrics",
         "/api/ops/snapshot",
+        "/api/ops/web-state/sync",
         "/api/config",
         "/api/book/{symbol}",
         "/api/tca/{symbol}",
