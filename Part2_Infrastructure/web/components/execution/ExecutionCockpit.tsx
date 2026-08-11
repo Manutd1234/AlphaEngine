@@ -257,10 +257,16 @@ export default function ExecutionCockpit({
     return (
       <>
         <WorkspaceSubtabPanel workspaceId="execution" tabId="trade" activeId={section}>
-          <div className="card cockpit-placeholder">Connecting to the risk gateway…</div>
+          <div className="card cockpit-placeholder" aria-busy="true">
+            <p>Connecting to the risk gateway…</p>
+            <div className="skeleton" style={{ height: 120, marginTop: 10 }} aria-hidden />
+          </div>
         </WorkspaceSubtabPanel>
         <WorkspaceSubtabPanel workspaceId="execution" tabId="activity" activeId={section}>
-          <div className="card cockpit-placeholder">Loading orders, fills and risk events…</div>
+          <div className="card cockpit-placeholder" aria-busy="true">
+            <p>Loading orders, fills and risk events…</p>
+            <div className="skeleton" style={{ height: 120, marginTop: 10 }} aria-hidden />
+          </div>
         </WorkspaceSubtabPanel>
       </>
     );

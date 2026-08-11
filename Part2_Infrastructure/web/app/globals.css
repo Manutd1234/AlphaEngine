@@ -848,7 +848,7 @@ a:not([class]):active {
 }
 
 .console-percentile-guide p {
-  max-width: 92ch;
+  max-width: 74ch;
   color: var(--text-secondary);
   font-size: 10.5px;
   line-height: 1.45;
@@ -1904,85 +1904,6 @@ button.primary-action {
 button.primary-action:hover:not(:disabled) {
   border-color: #4a7ff0;
   background: #3570ea;
-}
-
-.decision-metrics {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  margin: 12px 0 0;
-}
-
-.decision-metrics > div {
-  min-width: 0;
-  padding: 14px 16px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface-1);
-  box-shadow: var(--shadow-sm);
-  display: grid;
-}
-
-.decision-metrics > div:last-child {
-  border-right: 1px solid var(--border);
-}
-
-
-.attention-list {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-
-
-.attention-item.is-critical::before { background: var(--status-critical); }
-.attention-item.is-warning::before { background: var(--status-warning); }
-.attention-item.is-ready::before { background: var(--status-good); }
-
-
-
-
-.attention-item.is-critical .attention-item__status { color: var(--critical-text); }
-.attention-item.is-critical .attention-item__status i { background: var(--status-critical); }
-.attention-item.is-warning .attention-item__status { color: var(--warning-text); }
-.attention-item.is-warning .attention-item__status i { background: var(--status-warning); }
-.attention-item.is-ready .attention-item__status { color: var(--success-text); }
-.attention-item.is-ready .attention-item__status i { background: var(--status-good); }
-
-
-
-
-
-
-.decision-metrics span,
-.system-summary-grid span {
-  color: var(--text-muted);
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-}
-
-.decision-metrics strong {
-  overflow: hidden;
-  margin-top: 5px;
-  font-size: 14px;
-  line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.decision-metrics small,
-.system-summary-grid small {
-  overflow: hidden;
-  margin-top: 4px;
-  color: var(--text-muted);
-  font-size: 10.5px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .overview-section {
@@ -3177,9 +3098,6 @@ a.text-action {
     width: 100%;
     grid-auto-columns: minmax(0, 1fr);
   }
-  .attention-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   .portfolio-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3271,12 +3189,6 @@ a.text-action {
     min-height: 145px;
     padding: 22px;
   }
-  .decision-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .attention-list {
-    grid-template-columns: minmax(0, 1fr);
-  }
   .workflow-handoff {
     align-items: flex-start;
     flex-direction: column;
@@ -3315,9 +3227,6 @@ a.text-action {
   }
   .page-heading__insights::-webkit-scrollbar {
     display: none;
-  }
-  .decision-metrics {
-    grid-template-columns: minmax(0, 1fr);
   }
   .market-context-card__heading {
     align-items: flex-start;
@@ -4430,7 +4339,7 @@ button.console-stat:hover:not(:disabled) {
   font-size: 11px;
   line-height: 1.6;
   color: var(--text-muted);
-  max-width: 84ch;
+  max-width: 74ch;
 }
 
 .research-window {
@@ -7001,7 +6910,7 @@ button.console-stat:hover:not(:disabled) {
 }
 
 .data-trust-hero p {
-  max-width: 82ch;
+  max-width: 74ch;
   margin: 6px 0 0;
   color: var(--text-secondary);
   font-size: 11.5px;
@@ -10797,7 +10706,7 @@ button.data-trust-action > i {
 }
 
 .page-heading p {
-  max-width: 82ch;
+  max-width: 74ch;
   margin-top: 3px;
   color: var(--text-secondary);
   font-size: 12.5px;
@@ -11906,12 +11815,6 @@ button.primary-action:disabled {
   color: #fff;
 }
 
-/* Exception board: one open item should read as a full-width statement rather
-   than a third of a row with two empty thirds beside it. */
-.attention-list {
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-}
-
 /* ---------- type scale ---------- */
 
 /*
@@ -12819,9 +12722,10 @@ button:active:not(:disabled) {
 }
 
 .fill-quality-heatmap__grid td.num {
-  /* The ramp midpoint is near-white; ink stays readable across the whole
-     range because |slippage| rarely exceeds a few bps of tint. */
-  color: #18181b;
+  /* The ramp midpoint sits near the theme's own plane (near-white light,
+     graphite dark), so the theme ink stays readable across the whole range —
+     |slippage| rarely exceeds a few bps of tint. */
+  color: var(--text-primary);
   border-radius: 3px;
 }
 

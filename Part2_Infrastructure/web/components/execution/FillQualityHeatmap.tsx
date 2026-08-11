@@ -9,16 +9,19 @@
  * mediocre all day. Signed slippage on a diverging ramp: red cells cost, blue
  * cells beat the reference price.
  *
- * Cells are drawn only where fills exist, and the panel refuses to render at
- * all below a minimum sample — an hour×venue grid interpolated from four fills
- * would be a picture of noise wearing the authority of a heatmap. Same
- * honesty rule as everything else on this desk: absence is shown as absence.
+ * Cells are drawn only where fills exist, and the grid refuses to render below
+ * a minimum sample — an hour×venue grid interpolated from four fills would be
+ * a picture of noise wearing the authority of a heatmap. Below the floor the
+ * panel says how far along the collection is rather than vanishing: a surface
+ * that silently disappears reads as broken, not as honest. It stays silent
+ * only when the audit log is unreachable, where a "collecting" line would be
+ * a promise nothing is working to keep.
  */
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { BlotterRow } from "@/lib/blotter";
-import { SHARPE_RAMP_LIGHT, divergingScale } from "@/lib/colormap";
+import { SHARPE_RAMP_DARK, SHARPE_RAMP_LIGHT, divergingScale } from "@/lib/colormap";
 import { fmt } from "@/lib/format";
 
 /** Below this many priced fills the grid is noise, not evidence. */
@@ -40,7 +43,7 @@ export default function FillQualityHeatmap({
     const fills = rows.filter(
       (row) => row.accepted && row.slippageBps != null && row.venue,
     );
-    if (fills.length < MIN_FILLS) return null;
+    if (fills.length < MIN_FILLS) return { fillCount: fills.length, grid: null };
 
     const venues = [...new Set(fills.map((row) => row.venue as string))].sort();
     const grid = new Map<string, Cell>();
@@ -59,7 +62,9 @@ export default function FillQualityHeatmap({
         grid.set(key, { mean: row.slippageBps as number, count: 1 });
       }
     }
-    if (hours.size < 2 || venues.length === 0) return null;
+    if (hours.size < 2 || venues.length === 0) {
+      return { fillCount: fills.length, grid: null };
+    }
 
     const hourList = [...hours].sort((a, b) => a - b);
     const absMax = Math.max(
@@ -69,9 +74,43 @@ export default function FillQualityHeatmap({
     return { venues, hourList, grid, absMax, fillCount: fills.length };
   }, [rows]);
 
-  if (!view) return null;
+  // Same theme resolution as components/Heatmap.tsx: the toggle stamps
+  // data-theme, the OS preference fills in when it hasn't.
+  const [isDark, setIsDark] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const resolveTheme = () => {
+      const resolved = document.documentElement.dataset.theme ?? (media.matches ? "dark" : "light");
+      setIsDark(resolved === "dark");
+    };
+    const observer = new MutationObserver(resolveTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    media.addEventListener("change", resolveTheme);
+    resolveTheme();
+    return () => {
+      observer.disconnect();
+      media.removeEventListener("change", resolveTheme);
+    };
+  }, []);
 
-  const colour = divergingScale(view.absMax, SHARPE_RAMP_LIGHT);
+  if (!view.grid) {
+    if (source === "unavailable") return null;
+    return (
+      <section className="card fill-quality-heatmap">
+        <header className="section-heading compact">
+          <div>
+            <h3>Fill quality by hour and venue</h3>
+            <p className="muted" role="status">
+              collecting priced fills · n={view.fillCount} of {MIN_FILLS}, across
+              at least 2 UTC hours
+            </p>
+          </div>
+        </header>
+      </section>
+    );
+  }
+
+  const colour = divergingScale(view.absMax, isDark ? SHARPE_RAMP_DARK : SHARPE_RAMP_LIGHT);
 
   return (
     <section className="card fill-quality-heatmap">
