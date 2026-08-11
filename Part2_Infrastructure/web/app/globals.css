@@ -108,7 +108,14 @@
      tabs wrap onto their own row. Every sticky offset reads this, never the
      design constant above. */
   --header-h: var(--chrome-header);
-  --chrome-total: calc(var(--header-h) + var(--chrome-rail));
+  /* The rail's MEASURED height, published by WorkspaceSubtabs the same way the
+     header publishes its own. The constant above is a desk-width design value;
+     on a phone the rail becomes a picker plus a wrapped actions row and stands
+     around 130px. Every offset below trusted the constant, so anchor jumps and
+     programmatic focus landed underneath the chrome by ~80px — including the
+     reliability deep-link the comment at the scroll-padding rule names. */
+  --rail-h: var(--chrome-rail);
+  --chrome-total: calc(var(--header-h) + var(--rail-h));
 
   /* The stacking ladder. Every `z-index` in this file resolves to one of these
      six — `tests/layering.test.ts` fails the build on a raw number, because a
@@ -277,6 +284,12 @@
 }
 
 html {
+  /* A page-level horizontal scrollbar is always a bug here — the wide surfaces
+     all have their own scroll containers. `clip` rather than `hidden` because
+     `hidden` would silently make every ancestor a scroll container and break
+     `position: sticky` inside them; the sheet already documents that choice
+     for the header utility row. */
+  overflow-x: clip;
   /* Safari paints a grey-blue rectangle over every tapped control. The focus
      and active states already answer the tap, and the flash reads as a
      rendering fault on dark surfaces. */
@@ -321,6 +334,10 @@ body {
 
 body {
   min-height: 100vh;
+  /* svh, not dvh: the small viewport is stable, while dvh reflows the whole
+     tree every time the mobile URL bar slides. vh first so a browser without
+     the unit keeps the old behaviour rather than losing the floor. */
+  min-height: 100svh;
 }
 
 ::selection {
@@ -1859,7 +1876,8 @@ tbody tr[tabindex]:focus-visible {
 
 .workspace-shell {
   width: min(1680px, 100%);
-  min-height: calc(100vh - 63px);
+  /* No min-height here: 63px matched no header this app has shipped in a long
+     time, and the authoritative rule further down measures --header-h. */
   margin: 0 auto;
   padding: 20px 24px 56px;
 }
@@ -10818,6 +10836,7 @@ button.data-trust-action > i {
 .workspace-shell {
   width: min(1680px, 100%);
   min-height: calc(100vh - var(--header-h));
+  min-height: calc(100svh - var(--header-h));
   margin: 0 auto;
   padding: var(--space-4) var(--shell-pad) var(--space-6);
 }
@@ -12305,7 +12324,8 @@ h4 {
    they produced came into view. Give it its own scroll instead. */
 @media (min-width: 901px) {
   .research-layout .sidebar {
-    max-height: calc(100vh - var(--header-h) - var(--chrome-rail) - var(--space-5));
+    max-height: calc(100vh - var(--header-h) - var(--rail-h) - var(--space-5));
+    max-height: calc(100svh - var(--header-h) - var(--rail-h) - var(--space-5));
     overflow-y: auto;
     overscroll-behavior: contain;
   }
@@ -14273,17 +14293,6 @@ html.is-vt .view-panel {
     background-color: var(--surface-1);
     color: var(--text-primary);
     font: 680 12px/1.2 var(--sans);
-  }
-
-  .workspace-subtabs__picker small {
-    grid-column: 2;
-    min-width: 0;
-    overflow: hidden;
-    color: var(--text-muted);
-    font-size: 9.5px;
-    line-height: 1.25;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .workspace-subtabs__actions {

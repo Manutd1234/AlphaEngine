@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyboardEvent, ReactNode, useRef } from "react";
+import { KeyboardEvent, ReactNode, useEffect, useRef } from "react";
 
 export interface WorkspaceSubtab<T extends string> {
   id: T;
@@ -46,6 +46,33 @@ export default function WorkspaceSubtabs<T extends string>({
   secondary,
 }: WorkspaceSubtabsProps<T>) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
+  const railRef = useRef<HTMLElement | null>(null);
+
+  /**
+   * Publishes the rail's measured height as `--rail-h`.
+   *
+   * The mirror of what WorkspaceHeader does for `--header-h`, and for the same
+   * reason: `--chrome-rail` is a 40px desk-width constant, but below 620px the
+   * rail becomes a native picker with its own actions row and stands around
+   * 130px. Every sticky offset and every `scroll-margin-top` read the constant,
+   * so a deep link scrolled its target to a position the chrome then covered.
+   * Exactly one rail is mounted at a time — view panels are conditional
+   * renders — so there is no contention over the variable.
+   */
+  useEffect(() => {
+    const node = railRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const publish = () => {
+      document.documentElement.style.setProperty(
+        "--rail-h",
+        `${Math.round(node.getBoundingClientRect().height)}px`,
+      );
+    };
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
   const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
 
   const revealTab = (index: number) => {
@@ -72,7 +99,7 @@ export default function WorkspaceSubtabs<T extends string>({
     // Three distinct accessible names on purpose: the landmark, the tablist
     // and the mobile select used to share one string, so a screen-reader
     // rotor listed three identically-named controls.
-    <nav className="workspace-subtabs" aria-label={`${label} navigation`}>
+    <nav className="workspace-subtabs" aria-label={`${label} navigation`} ref={railRef}>
       <div className="workspace-subtabs__navigation">
         <div className="workspace-subtabs__rail-shell">
           <div
@@ -122,7 +149,10 @@ export default function WorkspaceSubtabs<T extends string>({
               <option key={tab.id} value={tab.id}>{tab.label}</option>
             ))}
           </select>
-          <small>{activeTab?.description}</small>
+          {/* The description row is gone from the phone picker: it cost a line
+              of a chrome budget already eating 40% of a small screen, and the
+              same text is one tap away in the palette and present on every
+              desk-width rail button. */}
         </label>
       </div>
       {actions && (

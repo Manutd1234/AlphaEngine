@@ -21,6 +21,10 @@ import { fileURLToPath } from "node:url";
 
 const cssPath = fileURLToPath(new URL("../app/globals.css", import.meta.url));
 const css = readFileSync(cssPath, "utf8");
+const subtabs = readFileSync(
+  fileURLToPath(new URL("../components/WorkspaceSubtabs.tsx", import.meta.url)),
+  "utf8",
+);
 
 /** Comment bodies blanked, newlines kept — declarations only, lines intact. */
 const declarations = css.replace(/\/\*[\s\S]*?\*\//g, (block) =>
@@ -126,5 +130,47 @@ describe("coarse pointers get 44px", () => {
       /maximum-scale|user-scalable/,
       "pinch-zoom must stay available",
     );
+  });
+});
+
+// --------------------------------------------------------------------------
+// 5 — sticky chrome is measured, never assumed
+// --------------------------------------------------------------------------
+
+describe("chrome offsets are measured", () => {
+  it("the rail publishes its own height, and --chrome-total reads it", () => {
+    // `--chrome-rail` is a 40px desk-width constant; the phone rail is a
+    // picker plus an actions row and stands around 130px. Every anchor jump
+    // trusted the constant, so deep links landed under the chrome.
+    assert.match(
+      subtabs,
+      /--rail-h[\s\S]{0,400}ResizeObserver/,
+      "WorkspaceSubtabs must publish --rail-h from a ResizeObserver",
+    );
+    assert.match(
+      declarations,
+      /--chrome-total: calc\(var\(--header-h\) \+ var\(--rail-h\)\)/,
+      "--chrome-total must read the measured rail, not the constant",
+    );
+    assert.match(
+      declarations,
+      /--rail-h: var\(--chrome-rail\)/,
+      "the constant stays as the pre-measurement fallback",
+    );
+  });
+
+  it("nothing sizes layout on bare 100vh without an svh companion", () => {
+    // vh resolves to the LARGE viewport on iOS, so a 100vh page is always
+    // taller than the screen and every view carries phantom scroll.
+    for (const match of declarations.matchAll(/(min-height|max-height|height): calc\(100vh[^;]*;/g)) {
+      const index = match.index ?? 0;
+      const following = declarations.slice(index, index + 260);
+      const line = declarations.slice(0, index).split("\n").length;
+      assert.match(
+        following,
+        /100svh/,
+        `globals.css:${line} sizes on 100vh with no svh line after it`,
+      );
+    }
   });
 });
