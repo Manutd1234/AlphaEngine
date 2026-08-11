@@ -11974,8 +11974,25 @@ h4 {
    levels and a column of empty plane under it. This pair stretches, the chart
    is told the taller height, and the ladder scrolls inside the card rather
    than setting it. */
-.liquidity-pair {
+.liquidity-pair,
+.portfolio-chart-pair {
   align-items: stretch;
+}
+
+/* The session path and its decomposition carry different amounts of caveat
+   text — those caveats are load-bearing and stay visible. What they must not
+   do is leave the shorter card floating with a ragged bottom edge, so the
+   cards stretch and the equity card's fact row settles onto the shared
+   baseline instead of stranding plane beneath it. */
+.portfolio-chart-pair > .card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.portfolio-chart-pair > .card > .allocation-facts {
+  margin-top: auto;
+  padding-top: var(--space-3);
 }
 
 .liquidity-pair > .card {

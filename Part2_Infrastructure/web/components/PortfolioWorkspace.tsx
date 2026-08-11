@@ -311,7 +311,11 @@ export default function PortfolioWorkspace({
           </div>
         </section>
 
-        <div className="compact-grid-2col">
+        {/* One session read two ways — the path and its decomposition. Both
+            charts are drawn at the same height and the cards share a bottom
+            edge, so the pair reads as one statement rather than two panels
+            that happened to land side by side. */}
+        <div className="compact-grid-2col portfolio-chart-pair">
           <EquityCurve
             periods={periods}
             backfilled={historyBackfilled}

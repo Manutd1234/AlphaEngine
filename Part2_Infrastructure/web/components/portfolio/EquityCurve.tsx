@@ -72,7 +72,7 @@ export default function EquityCurve({
     );
   }
 
-  const height = 210;
+  const height = 260;
   const m = { ...DEFAULT_MARGIN, right: 64, left: 62, bottom: 28 };
   const x0 = m.left;
   const x1 = Math.max(x0 + 40, width - m.right);

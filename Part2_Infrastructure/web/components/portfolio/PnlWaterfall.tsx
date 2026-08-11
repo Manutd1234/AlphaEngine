@@ -39,7 +39,7 @@ interface PnlWaterfallProps {
   generated: boolean;
 }
 
-const HEIGHT = 250;
+const HEIGHT = 260;
 
 const BASIS_WORD: Record<PnlLeg["basis"], string> = {
   measured: "measured",
