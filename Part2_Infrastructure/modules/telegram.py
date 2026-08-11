@@ -25,6 +25,7 @@ import time
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -121,11 +122,11 @@ def generate_series_chart_png(symbol: str, closes: list[float], interval: str, s
     """
     One symbol's close series, drawn from the bars the caller actually fetched.
 
-    Deliberately separate from `generate_chart_png("quote", ...)`, which titles
-    itself "Real-Time Market Quote" and plots `64200 + sin(i * 0.3) * 450`. That
-    is a decorative curve with a factual caption, and on a desk tool it is worse
-    than no chart: a reader cannot tell it apart from a real one. Everything
-    below is plotted from `closes` or not plotted at all.
+    This replaced a generator that titled itself "Real-Time Market Quote" and
+    plotted `64200 + sin(i * 0.3) * 450` — a decorative curve under a factual
+    caption, which on a desk tool is worse than no chart because a reader
+    cannot tell it apart from a real one. That generator has since been
+    deleted. Everything below is plotted from `closes` or not plotted at all.
     """
     fig, ax = plt.subplots(figsize=(6, 3.2), dpi=120)
     _style_axes(fig, ax)
@@ -148,12 +149,42 @@ def generate_series_chart_png(symbol: str, closes: list[float], interval: str, s
     return _finish(fig)
 
 
-_CI_JOBS: list[dict[str, Any]] = [
-    {"name": "Gateway", "count": 342},
-    {"name": "Web workspace", "count": 680},
-    {"name": "OpenBB service", "count": 13},
-    {"name": "Repository audit", "count": None},
-]
+"""The gates the deploy workflow actually runs before it will ship a build.
+
+This replaced three hardcoded assertion counts (342/680/13) that drifted the
+moment anyone added a test — including the tests added to cover this very
+module. A number nobody updates is worse than no number, because it keeps
+looking authoritative. These are names, not counts: they are checkable against
+`.github/workflows/deploy.yml` by reading it.
+"""
+_VERIFY_GATES: tuple[str, ...] = (
+    "ruff check .",
+    "python -m pytest",
+    "tools/export_openapi.py --check",
+    "tools/synthetic_probe.py",
+)
+
+
+def _committed_route_counts() -> list[tuple[str, float]]:
+    """Routes per tag, parsed from the committed OpenAPI snapshot.
+
+    Real committed data that updates itself when a route lands, rather than a
+    figure maintained by hand. Returns an empty list when the snapshot is not
+    in the image, so the caller can say so rather than draw a lie.
+    """
+    snapshot = Path(__file__).resolve().parent.parent / "tools" / "openapi.json"
+    try:
+        document = json.loads(snapshot.read_text())
+    except (OSError, ValueError):
+        return []
+    counts: dict[str, int] = {}
+    for operations in document.get("paths", {}).values():
+        for operation in operations.values():
+            if not isinstance(operation, dict):
+                continue
+            for tag in operation.get("tags", ["untagged"]):
+                counts[str(tag)] = counts.get(str(tag), 0) + 1
+    return sorted(((tag, float(n)) for tag, n in counts.items()), key=lambda row: -row[1])
 
 
 def generate_bars_chart_png(
@@ -194,10 +225,10 @@ def generate_depth_chart_png(symbol: str, bids: list[tuple[float, float]], asks:
     """
     The real consolidated ladder as cumulative depth either side of the mid.
 
-    `generate_chart_png("depth", ...)` drew a fixed shape that never touched a
-    venue. This one draws the rungs it was handed and returns None when there
-    are none, because "no live book" is a fact the caption should carry rather
-    than something a picture papers over.
+    The generator this replaced drew a fixed shape that never touched a venue.
+    This one draws the rungs it was handed and returns None when there are
+    none, because "no live book" is a fact the caption should carry rather than
+    something a picture papers over.
     """
     if len(bids) < 2 or len(asks) < 2:
         return None
@@ -252,128 +283,6 @@ def generate_drawdown_chart_png(symbol: str, closes: list[float]) -> bytes | Non
     ax.set_title(f"{symbol} drawdown from running peak · worst {min(drawdown):.2f}%", color='#f8fafc', fontsize=10, fontweight='bold')
     ax.set_ylabel("Drawdown (%)", color='#94a3b8', fontsize=8)
     return _finish(fig)
-
-
-def generate_chart_png(chart_type: str, symbol: str = "BTCUSDT") -> bytes:
-    """Generate high-contrast visual PNG charts for Telegram 8-tab cards."""
-    fig, ax = plt.subplots(figsize=(6, 3.2), dpi=120)
-    fig.patch.set_facecolor('#0f172a')
-    ax.set_facecolor('#1e293b')
-    ax.tick_params(colors='#94a3b8', labelsize=8)
-    for spine in ax.spines.values():
-        spine.set_color('#334155')
-
-    if chart_type == "quote":
-        x = list(range(24))
-        y = [64200 + math.sin(i * 0.3) * 450 + i * 25 for i in range(24)]
-        ax.plot(x, y, color='#00e676', linewidth=2, label=f'{symbol} 24h Trend')
-        ax.fill_between(x, y, color='#00e676', alpha=0.15)
-        ax.set_title(f"Real-Time Market Quote — {symbol}", color='#f8fafc', fontsize=10, fontweight='bold')
-        ax.set_ylabel("Price (USDT)", color='#94a3b8', fontsize=8)
-        ax.set_xlabel("Hours (24h)", color='#94a3b8', fontsize=8)
-        ax.legend(facecolor='#1e293b', edgecolor='#334155', labelcolor='#f8fafc', fontsize=8)
-
-    elif chart_type == "tca":
-        venues = ['Binance (55%)', 'Bybit (30%)', 'OKX (15%)']
-        splits = [55, 30, 15]
-        colors = ['#00e5ff', '#38bdf8', '#818cf8']
-        ax.pie(splits, labels=venues, colors=colors, startangle=140, textprops=dict(color='#f8fafc', fontsize=8))
-        ax.set_title(f"TCA Smart Router Venue Split — {symbol}", color='#f8fafc', fontsize=10, fontweight='bold')
-
-    elif chart_type == "openbb":
-        providers = ['Polygon', 'Alpha V.', 'FMP', 'OpenBB', 'Fred', 'YFinance']
-        ready = [1, 1, 1, 1, 1, 1]
-        ax.bar(providers, ready, color='#00e676', width=0.5)
-        ax.set_title("OpenBB Financial Data Providers (100% Ready)", color='#f8fafc', fontsize=10, fontweight='bold')
-        ax.set_ylabel("Status", color='#94a3b8', fontsize=8)
-
-    elif chart_type == "status":
-        components = ['Gateway', 'Web UI', 'Postgres', 'Redis', 'Telegram']
-        latency_ms = [0.4, 1.2, 0.8, 0.2, 12.0]
-        ax.bar(components, latency_ms, color='#00e5ff', width=0.5)
-        ax.set_title("System Health & Infrastructure RTT Latency (ms)", color='#f8fafc', fontsize=10, fontweight='bold')
-        ax.set_ylabel("Latency (ms)", color='#94a3b8', fontsize=8)
-
-    elif chart_type == "whoami" or chart_type == "version":
-        modules = ['FastAPI', 'Next.js', 'Pytest', 'Jest', 'Telegram']
-        scores = [100, 100, 100, 100, 100]
-        ax.barh(modules, scores, color='#ffd600', height=0.45)
-        ax.set_title("AlphaEngine Build & Security Clearance Verified", color='#f8fafc', fontsize=10, fontweight='bold')
-        ax.set_xlabel("Clearance Status %", color='#94a3b8', fontsize=8)
-
-    elif chart_type == "risk_control":
-        controls = ['Hard Limits', 'Drawdown', 'Collars', 'Kill Switch']
-        status = [100, 100, 100, 100]
-        ax.bar(controls, status, color='#00e676', width=0.5)
-        ax.set_title("Pre-Trade Risk Control Guard Ladder Active", color='#f8fafc', fontsize=10, fontweight='bold')
-        ax.set_ylabel("Guard Operational %", color='#94a3b8', fontsize=8)
-
-    elif chart_type == "equity":
-        x = list(range(30))
-        y1 = [100.0 + (i**1.1) + math.sin(i)*1.5 for i in range(30)]
-        y2 = [100.0 + (i*0.4) for i in range(30)]
-        ax.plot(x, y1, color='#38bdf8', linewidth=2, label='Strategy (Sharpe 2.14)')
-        ax.plot(x, y2, color='#64748b', linewidth=1.5, linestyle='--', label='Benchmark')
-        ax.set_title(f"Equity Curve & Outperformance — {symbol}", color='#f8fafc', fontsize=10, fontweight='bold')
-        ax.set_ylabel("Portfolio Value ($k)", color='#94a3b8', fontsize=8)
-        ax.legend(facecolor='#1e293b', edgecolor='#334155', labelcolor='#f8fafc', fontsize=8)
-
-    elif chart_type == "depth":
-        bids_x = [64500 - i*10 for i in range(20)]
-        bids_y = [sum(range(1, i+2))*0.15 for i in range(20)]
-        asks_x = [64505 + i*10 for i in range(20)]
-        asks_y = [sum(range(1, i+2))*0.14 for i in range(20)]
-        ax.plot(bids_x, bids_y, color='#22c55e', linewidth=2, label='Bids')
-        ax.fill_between(bids_x, bids_y, color='#22c55e', alpha=0.2)
-        ax.plot(asks_x, asks_y, color='#ef4444', linewidth=2, label='Asks')
-        ax.fill_between(asks_x, asks_y, color='#ef4444', alpha=0.2)
-        ax.set_title(f"L2 Consolidated Book Depth — {symbol}", color='#f8fafc', fontsize=10, fontweight='bold')
-        ax.set_ylabel("Cumulative Size", color='#94a3b8', fontsize=8)
-        ax.legend(facecolor='#1e293b', edgecolor='#334155', labelcolor='#f8fafc', fontsize=8)
-
-    elif chart_type == "allocation":
-        labels = ['BTC (42%)', 'ETH (28%)', 'SOL (15%)', 'Cash (15%)']
-        sizes = [42, 28, 15, 15]
-        colors = ['#38bdf8', '#818cf8', '#f59e0b', '#10b981']
-        ax.pie(sizes, labels=labels, colors=colors, startangle=140, textprops=dict(color='#f8fafc', fontsize=8))
-        ax.set_title("Portfolio Sleeve Allocation", color='#f8fafc', fontsize=10, fontweight='bold')
-
-    elif chart_type == "var":
-        import numpy as np
-        data = np.random.normal(0.001, 0.015, 500)
-        ax.hist(data, bins=25, color='#38bdf8', alpha=0.7, edgecolor='#0284c7')
-        ax.axvline(-0.025, color='#f59e0b', linestyle='--', linewidth=1.5, label='95% VaR (-$25k)')
-        ax.axvline(-0.038, color='#ef4444', linestyle='-', linewidth=2, label='99% VaR (-$38k)')
-        ax.set_title("Parametric & Historical VaR Loss Distribution", color='#f8fafc', fontsize=10, fontweight='bold')
-        ax.legend(facecolor='#1e293b', edgecolor='#334155', labelcolor='#f8fafc', fontsize=8)
-
-    elif chart_type == "latency":
-        providers = ['Binance', 'Bybit', 'OKX', 'Coinbase', 'Deribit']
-        latencies = [12, 18, 24, 31, 15]
-        colors = ['#22c55e', '#22c55e', '#22c55e', '#f59e0b', '#22c55e']
-        ax.bar(providers, latencies, color=colors, width=0.5)
-        ax.set_title("Provider Feed Latency (P99 ms)", color='#f8fafc', fontsize=10, fontweight='bold')
-        ax.set_ylabel("Latency (ms)", color='#94a3b8', fontsize=8)
-
-    elif chart_type == "ci":
-        suites = ['Gateway', 'Web UI', 'OpenBB', 'Risk']
-        passed = [342, 680, 13, 45]
-        ax.barh(suites, passed, color='#38bdf8', height=0.45)
-        ax.set_title("CI/CD Test Coverage & Gates (1,080 Passed)", color='#f8fafc', fontsize=10, fontweight='bold')
-        ax.set_xlabel("Unit & Contract Assertions", color='#94a3b8', fontsize=8)
-
-    else:
-        metrics = ['Research', 'Trade', 'Portfolio', 'Risk', 'Data', 'SRE', 'Dev']
-        scores = [98, 100, 95, 99, 97, 100, 100]
-        ax.bar(metrics, scores, color='#818cf8', width=0.5)
-        ax.set_title("Platform Operational Readiness Score", color='#f8fafc', fontsize=10, fontweight='bold')
-        ax.set_ylabel("Readiness %", color='#94a3b8', fontsize=8)
-
-    plt.tight_layout()
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png', facecolor=fig.get_facecolor(), edgecolor='none')
-    plt.close(fig)
-    return buf.getvalue()
 
 
 def split_telegram_html(text: str, limit: int = _TELEGRAM_MESSAGE_LIMIT) -> list[str]:
@@ -1300,7 +1209,7 @@ class TelegramBot:
             f"Volatility  <code>{_percent(vol)}</code> annualised",
             f"Max drawdown <code>{_percent(worst)}</code>",
             "<i>Descriptive statistics of the price series only — this is not a "
-            "backtest and carries no verdict. Run /backtest for a scored candidate.</i>",
+            "backtest and carries no verdict. /backtests lists scored candidates the desk has already run.</i>",
         ]
         charts = [(f"{symbol}-price", generate_series_chart_png(symbol, closes, "1d", "OpenBB / yfinance"))]
         drawdown = generate_drawdown_chart_png(symbol, closes)
@@ -1309,7 +1218,7 @@ class TelegramBot:
 
         await self.send_media_group(chat_id, charts, caption=text_card(
             f"🔬 Research · {esc(symbol)}", "MEASURED", lines,
-            source="OpenBB / yfinance", next_commands=f"/backtest {symbol} · /quote {symbol}",
+            source="OpenBB / yfinance", next_commands=f"/backtests · /quote {symbol}",
         ))
 
     async def _cmd_tab_execution(self, args, chat_id, actor) -> None:
@@ -1424,26 +1333,29 @@ class TelegramBot:
         ))
 
     async def _cmd_tab_developer(self, args, chat_id, actor) -> None:
+        routes = _committed_route_counts()
         lines = [
             f"Build          <code>{esc(settings.version)}</code> · <code>{esc(settings.environment)}</code>",
-            f"Configured gates <code>{sum(job['count'] for job in _CI_JOBS if job['count'])}</code> assertions",
+            f"Verify gates   <code>{len(_VERIFY_GATES)}</code> must pass before a deploy ships",
         ]
-        for job in _CI_JOBS:
-            count = job["count"]
+        lines.extend(f"<code>{esc(gate)}</code>" for gate in _VERIFY_GATES)
+        if routes:
             lines.append(
-                f"<code>{esc(job['name']):<16}</code> "
-                + (f"<code>{count}</code> checks" if count else "<code>tree audit</code>")
+                f"API surface    <code>{int(sum(n for _, n in routes))}</code> operations "
+                f"across <code>{len(routes)}</code> modules"
             )
+        else:
+            lines.append("API surface    <code>snapshot not in this image</code>")
         lines.append(
             "<i>These are the gates committed in this repository, not the conclusion "
             "of the last run — GitHub Actions remains the authority for that.</i>"
         )
         chart = generate_bars_chart_png(
-            "Automated checks by CI job (configured)",
-            [job["name"] for job in _CI_JOBS],
-            [float(job["count"]) if job["count"] else None for job in _CI_JOBS],
-            "Assertions", horizontal=True, value_fmt="{:,.0f}",
-        )
+            "API surface by module (committed OpenAPI snapshot)",
+            [tag for tag, _ in routes],
+            [count for _, count in routes],
+            "Operations", horizontal=True, value_fmt="{:,.0f}",
+        ) if routes else None
         await self.send_media_group(chat_id, [("ci", chart)] if chart else [], caption=text_card(
             "💻 Developer", "CONFIGURED", lines,
             source="Committed CI configuration", next_commands="/version · /commands",
@@ -1459,9 +1371,9 @@ class TelegramBot:
         text = format_for_telegram(report)
         positions = report.get("exposure", {}).get("positions", []) or []
 
-        # Was `generate_chart_png("allocation")` — a fixed three-slice pie that
-        # never read the book it was captioning. These are the book's own
-        # notionals and its own daily P&L per symbol.
+        # This replaced a fixed three-slice pie that never read the book it was
+        # captioning. These are the book's own notionals and its own daily P&L
+        # per symbol.
         charts: list[tuple[str, bytes]] = []
         allocation = generate_bars_chart_png(
             "Allocation by symbol (USD notional)",
@@ -2816,8 +2728,19 @@ class TelegramBot:
             "watches": sum(len(subscriber.get("watches", [])) for subscriber in self._subscribers()),
             "alerts_sent": self.alerts_sent,
             "allowlist_configured": bool(self.allowed_user_ids),
-            "read_only": True,
-            "text_only": True,
+            # These two read `True` for a long time after they stopped being
+            # true: /halt, /resume and /flatten mutate risk state, and the
+            # chart commands send photos. A health endpoint that misreports the
+            # blast radius of its own commands is worse than one that omits it,
+            # so the shape now describes what the bot can actually do.
+            "read_only": False,
+            "text_only": False,
+            "controls": {
+                "commands": 3,
+                "gated": True,
+                "control_allowlist_configured": bool(self.control_user_ids),
+            },
+            "charts": "real-data-only",
             "last_error": self.last_error,
         }
 

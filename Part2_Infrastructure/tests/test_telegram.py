@@ -488,9 +488,18 @@ class TestRenderingAndSafety:
         assert all("<b>" not in chunk and "</b>" not in chunk for chunk in chunks)
 
     def test_health_declares_separation_contract(self, bot):
+        # This test used to assert read_only/text_only were True, which locked
+        # a false contract into CI: the control commands mutate risk state and
+        # the chart commands send photos. The contract that matters is not
+        # "the bot cannot act" — it is "acting is separately gated".
         health = bot.health()
-        assert health["read_only"] is True
-        assert health["text_only"] is True
+        assert health["read_only"] is False
+        assert health["text_only"] is False
+        assert health["controls"]["gated"] is True
+        assert health["controls"]["commands"] == 3
+        assert health["controls"]["control_allowlist_configured"] == bool(
+            bot.control_user_ids
+        )
 
     @pytest.mark.asyncio
     async def test_transport_error_never_echoes_token(self, bot):
@@ -703,6 +712,49 @@ class TestMultiSymbolParsingAndDrawing:
             "1,080 CI PASSED",
         ]:
             assert fabricated not in source, f"fabricated desk figure is back: {fabricated}"
+
+    def test_no_chart_generator_invents_its_own_data(self):
+        """Every `generate_*_png` must plot what it was handed.
+
+        The module shipped a `generate_chart_png` that drew
+        `64200 + sin(i * 0.3) * 450` under the caption "Real-Time Market
+        Quote" — a decorative curve a reader could not tell apart from a
+        measurement. It has been deleted; this keeps the shape of that mistake
+        out. AST rather than substring, so the prose above (which names the
+        banned calls) cannot fail its own rule.
+        """
+        import ast
+        import importlib
+        from pathlib import Path
+
+        import modules.telegram as telegram_module
+
+        modules_to_scan = [telegram_module]
+        # The generators may live in their own module; scan it too when it is
+        # there, so extracting them cannot quietly escape this rule.
+        try:
+            modules_to_scan.append(importlib.import_module("modules.telegram_charts"))
+        except ModuleNotFoundError:
+            pass
+
+        banned = {"random", "sin", "cos", "uniform", "randn", "normal"}
+        for module in modules_to_scan:
+            tree = ast.parse(Path(module.__file__).read_text())
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.FunctionDef):
+                    continue
+                if not (node.name.startswith("generate_") and node.name.endswith("_png")):
+                    continue
+                for inner in ast.walk(node):
+                    if isinstance(inner, ast.Call) and isinstance(inner.func, ast.Attribute):
+                        assert inner.func.attr not in banned, (
+                            f"{module.__name__}.{node.name} synthesises data "
+                            f"with {inner.func.attr}()"
+                        )
+
+        assert not hasattr(telegram_module, "generate_chart_png"), (
+            "generate_chart_png drew fake desk data under factual captions"
+        )
 
     def test_symbol_parsing_stops_at_the_asset_argument(self, bot):
         assert bot._symbols(["btcusdt", "ethusdt", "solusdt"]) == ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
