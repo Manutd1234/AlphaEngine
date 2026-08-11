@@ -199,8 +199,8 @@ export function formatLatencyChip(
     return {
       value: "p99 —",
       caveat:
-        `warming up — needs ${LATENCY_MIN_SAMPLES}+ measured samples on this instance `
-        + `(n=${latency?.n ?? 0}); every health poll measures the gateway path, so this fills`,
+        `warming up — needs ${LATENCY_MIN_SAMPLES}+ measured samples in the shared 15-minute pool `
+        + `(n=${latency?.n ?? 0}); every instance's health polls feed the gateway-merged ledger, so this fills`,
     };
   }
   return {

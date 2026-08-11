@@ -2,7 +2,8 @@
 
 /**
  * The header's p99 chip. One number, one dot, and — load-bearing — the caveat:
- * these are per-instance upstream REST percentiles over a 15-minute window,
+ * these are upstream REST percentiles over the gateway-merged 15-minute pool
+ * (falling back to this instance's own window when the ledger sync is down),
  * and a p99 over a handful of calls is not a p99, so small samples render as
  * an em dash with a "warming up" note rather than a confident figure.
  *

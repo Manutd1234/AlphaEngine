@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { sharedOpsStatus } from "@/lib/observability";
 import { openBBReadiness } from "@/lib/providers/openbb-health";
 import { capabilityMatrix, providerStatus } from "@/lib/providers/registry";
 
@@ -101,11 +102,14 @@ export async function GET() {
         .filter((p) => p.configured && p.quota && p.quota.remaining <= 0)
         .map((p) => p.id),
     },
-    // State lives in the function instance's memory, so on a multi-instance
-    // deployment these counters describe *this* instance. Said plainly in the
-    // payload rather than buried in a README, because a reader comparing two
-    // responses will otherwise think the numbers are wrong.
-    scope: "per-instance (in-memory ledger; swap Store for Vercel KV to share)",
+    // Ledger reads consult the gateway-merged overlay when it is fresh (this
+    // route does not sync itself — the health poll does, and the overlay it
+    // installs is module-shared). Said plainly in the payload rather than
+    // buried in a README, because a reader comparing two responses needs the
+    // reason they agree — or no longer do — in the responses themselves.
+    scope: sharedOpsStatus().backed
+      ? "gateway-shared ledger (merged across instances)"
+      : "per-instance (in-memory fallback — the gateway ledger sync is unavailable)",
     capabilities,
     providers,
   });

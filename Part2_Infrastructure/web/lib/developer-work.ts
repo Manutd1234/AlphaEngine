@@ -27,19 +27,31 @@ type DeveloperWorkSeed = Omit<DeveloperWorkItem, "openedAt"> & { ageHours: numbe
  * keeps all edits in the current browser session.
  */
 const DEVELOPER_WORK_SEEDS: readonly DeveloperWorkSeed[] = [
-  // The previous seed here reported a deep-link bug that has been fixed —
-  // a demo whose own tracker claims a working feature is broken reads as
-  // neglect. Seeds must describe work that is genuinely open.
+  // Seeds must describe work that is genuinely open, and "done" rows must be
+  // genuinely done: BUG-204 shipped when the telemetry ledgers moved behind
+  // the gateway's /api/ops/web-state/sync channel — instances now converge on
+  // one merged truth instead of each lambda keeping its own.
   {
     id: "BUG-204",
     kind: "bug",
     priority: "P1",
-    status: "progress",
+    status: "done",
     title: "Latency ledger is per-instance, so p99 pins at 'collecting' on serverless",
-    summary: "Each lambda keeps its own in-memory samples; move the ledger behind the gateway so the health poll reads one shared truth.",
+    summary: "Fixed: every health poll syncs deltas with the gateway's shared web-ops ledger and reads the cross-instance merge back.",
     owner: "Ian",
     area: "Web shell",
     ageHours: 9,
+  },
+  {
+    id: "FEAT-077",
+    kind: "feature",
+    priority: "P1",
+    status: "planned",
+    title: "Terminate TLS in front of the gateway",
+    summary: "The gateway serves plain HTTP on :8000, so the web-to-gateway token crosses the network in cleartext; put Caddy (or equivalent) in the deploy and flip ALPHAENGINE_GATEWAY_URL to https.",
+    owner: "Ian",
+    area: "Infrastructure",
+    ageHours: 6,
   },
   {
     id: "FEAT-074",

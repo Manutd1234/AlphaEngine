@@ -54,11 +54,10 @@ const DIRECT_VENUES = [
 /**
  * Everything the systems console needs in one payload — shared by
  * `GET /api/system/health` and by `POST /api/system/actions`, which returns the
- * snapshot the *acting* instance sees. That embedding is what makes operator
- * actions coherent on serverless: the ledgers are per-instance module memory,
- * so a follow-up poll routed to a different lambda can report a world where the
- * action never happened. The response of the action itself is the one read
- * guaranteed to come from the instance that applied it.
+ * snapshot the *acting* instance sees. The embedding gives an operator action a
+ * zero-latency read from the instance that applied it; the gateway ledger sync
+ * below is what then makes every *other* instance agree within one sync,
+ * instead of reporting a world where the action never happened.
  */
 export async function buildSystemHealthSnapshot(priority: Priority): Promise<SystemHealth> {
   const buildCommit = process.env.ALPHAENGINE_BUILD_COMMIT_SHA ?? APP_COMMIT;

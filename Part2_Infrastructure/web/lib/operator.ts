@@ -420,7 +420,7 @@ export async function applyAction(
         action: action.action,
         summary: `${action.provider} is held out of routing for ${seconds}s.`,
         caveat:
-          "Requests now fail over to the next-ranked provider and report reason `simulated_outage`. It restores itself — no cleanup required.",
+          "Requests now fail over to the next-ranked provider and report reason `simulated_outage` — on every instance, once each syncs the shared ledger. It restores itself — no cleanup required.",
         data: { provider: action.provider, expiresAt: record.expiresAt },
       };
     }
@@ -455,7 +455,7 @@ export async function applyAction(
         summary: `Cleared ${action.provider}'s local counter (was ${cleared}/${adapter.meta.quota.calls} this ${adapter.meta.quota.window}).`,
         // The single most important sentence in this file.
         caveat:
-          "This resets OUR ledger, not the vendor's meter. The provider still believes it has served those calls, and further requests may be rejected upstream or billed.",
+          "This resets OUR ledger (the deployment-shared counter, via the gateway), not the vendor's meter. The provider still believes it has served those calls, and further requests may be rejected upstream or billed.",
         data: { provider: action.provider, cleared },
       };
     }
@@ -484,8 +484,9 @@ export async function applyAction(
       log(action, "telemetry buffers cleared");
       return {
         action: action.action,
-        summary: "Cleared the event ring, latency samples and cache counters.",
-        caveat: "Simulated outages and circuit-breaker state are untouched — those are behaviour, not observation.",
+        summary: "Cleared this instance's event ring, latency buffers and cache counters.",
+        caveat:
+          "Simulated outages and circuit-breaker state are untouched — those are behaviour, not observation. The gateway-merged ledger keeps other instances' samples, so pooled numbers return on the next sync.",
       };
     }
   }

@@ -82,9 +82,9 @@ export interface SystemHealthView {
   /**
    * Client-side ring of p99 observations, one per poll that actually carried
    * new upstream samples — the server keeps aggregates, not history, so the
-   * sparkline's memory lives here. Per-tab by design (the server's stats are
-   * already per-instance); a fresh tab starts empty and the "warming up" tone
-   * covers it.
+   * sparkline's memory lives here. Per-tab by design; a fresh tab starts
+   * empty and the "warming up" tone covers it. (The aggregates themselves are
+   * gateway-merged across instances since the shared ledger sync.)
    */
   latencyHistory: LatencyHistoryPoint[];
 }

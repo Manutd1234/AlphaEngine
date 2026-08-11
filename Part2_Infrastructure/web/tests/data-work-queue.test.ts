@@ -58,7 +58,7 @@ describe("the data operations work queue", () => {
 
     const developerSource = createInitialDeveloperWorkItems(NOW);
     const developerMoved = moveDeveloperWorkItem(developerSource, "BUG-204", "review");
-    assert.equal(developerSource.find((item) => item.id === "BUG-204")?.status, "progress");
+    assert.equal(developerSource.find((item) => item.id === "BUG-204")?.status, "done");
     assert.equal(developerMoved.find((item) => item.id === "BUG-204")?.status, "review");
     assert.equal(developerMoved.length, developerSource.length);
   });
@@ -70,7 +70,7 @@ describe("the data operations work queue", () => {
     assert.equal(nextDataWorkId("bug", items), "BUG-095");
 
     const developerItems = createInitialDeveloperWorkItems(NOW);
-    assert.equal(nextDeveloperWorkId("feature", developerItems), "FEAT-077");
+    assert.equal(nextDeveloperWorkId("feature", developerItems), "FEAT-078");
     assert.equal(nextDeveloperWorkId("bug", developerItems), "BUG-205");
     assert.equal(nextDeveloperWorkId("ticket", developerItems), "TKT-413");
   });

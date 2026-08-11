@@ -156,7 +156,12 @@ Remediation**. SLIs with error budgets, provider circuit breakers, cross-origin 
 investigation, and guarded remediation actions (cache purge, simulated outage — both expire).
 
 **The moment worth showing:** the provider-health drilldown the header's latency chip links to
-— the same chip visible on every tab resolves here to per-provider circuits.
+— the same chip visible on every tab resolves here to per-provider circuits. The numbers under
+it are **fleet truth, not lambda truth**: every serverless instance syncs its latency samples,
+quota spend and outage flags with the gateway's shared web-ops ledger each poll, so a
+simulated outage binds instances that never saw the click and the p99 pool survives instance
+rotation (`instance.scope` in `/api/system/health` names which mode you are reading, and
+degrades honestly to "per-instance" if the gateway is unreachable).
 
 ## Tab 8 — Developer (`#developer`, Alt+8)
 

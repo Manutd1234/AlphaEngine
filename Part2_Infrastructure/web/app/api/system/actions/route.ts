@@ -67,10 +67,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const result = await applyAction(parsed.action);
-    // The ledgers this action just mutated are per-instance module memory. A
-    // follow-up poll can land on a different lambda and report a world where
-    // the action never happened — so the response itself carries the snapshot
-    // of the instance that applied it, the one read guaranteed to agree.
+    // The response carries the acting instance's own snapshot: a zero-latency
+    // read guaranteed to reflect the action. Building it also runs the gateway
+    // ledger sync, which is what pushes the mutation to every other instance —
+    // a follow-up poll on a different lambda agrees after its next sync.
     const health = await buildSystemHealthSnapshot("interactive");
     return NextResponse.json(
       {
