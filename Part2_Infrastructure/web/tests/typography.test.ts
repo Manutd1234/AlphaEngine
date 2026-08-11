@@ -130,7 +130,30 @@ describe("the token stacks bind the fonts", () => {
 });
 
 // --------------------------------------------------------------------------
-// 3 — nothing else loads type
+// 3 — the tracking floor
+// --------------------------------------------------------------------------
+
+describe("letter-spacing suits the faces that render it", () => {
+  it("no tracking tighter than -0.03em anywhere in the sheet", () => {
+    // The display headings once carried -0.045em and the mono readiness ring
+    // -0.06em — squeezes tuned for SF Pro and SF Mono, roughly twice what
+    // Inter's own metrics ask at those sizes, and enough to make JetBrains
+    // Mono digits touch. A face swap makes old tracking wrong without
+    // anything failing visibly, so the floor is pinned here.
+    const declarations = css.replace(/\/\*[\s\S]*?\*\//g, (block) =>
+      block.replace(/[^\n]/g, " "));
+    for (const match of declarations.matchAll(/letter-spacing:\s*(-[\d.]+)em/g)) {
+      const line = declarations.slice(0, match.index).split("\n").length;
+      assert.ok(
+        Number(match[1]) >= -0.03,
+        `globals.css:${line} letter-spacing ${match[1]}em is tighter than the -0.03em floor`,
+      );
+    }
+  });
+});
+
+// --------------------------------------------------------------------------
+// 4 — nothing else loads type
 // --------------------------------------------------------------------------
 
 describe("next/font owns font delivery", () => {

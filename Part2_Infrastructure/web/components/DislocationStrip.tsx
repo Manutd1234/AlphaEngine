@@ -60,8 +60,10 @@ export default function DislocationStrip({
     <div className={`dislocation-strip ${marginal ? "marginal" : "hit"}`}>
       <span className="disloc-tag">{marginal ? "Crossed — thin" : "Crossed"}</span>
       <span className="disloc-legs">
-        Buy <strong>{dislocation.buyVenue}</strong> {fmt(dislocation.buyPrice, 2)} → sell{" "}
-        <strong>{dislocation.sellVenue}</strong> {fmt(dislocation.sellPrice, 2)}
+        Buy <strong>{dislocation.buyVenue}</strong>{" "}
+        <span className="num">{fmt(dislocation.buyPrice, 2)}</span> → sell{" "}
+        <strong>{dislocation.sellVenue}</strong>{" "}
+        <span className="num">{fmt(dislocation.sellPrice, 2)}</span>
       </span>
       <span className="disloc-edge num">
         {fmt(dislocation.edgeBps, 1)} bps · {usd(dislocation.grossEdgeUsd, 2)} gross on{" "}

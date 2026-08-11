@@ -1154,7 +1154,7 @@ a {
   }
 
   .console-log__line {
-    grid-template-columns: 78px 42px 28px minmax(120px, 1fr);
+    grid-template-columns: 80px 42px 28px minmax(120px, 1fr);
     min-width: 0;
   }
 
@@ -1682,7 +1682,7 @@ tbody tr[tabindex]:focus-visible {
 
 .latency-chip__copy small {
   color: var(--text-muted);
-  font-size: 8px;
+  font-size: 9.5px;
   font-weight: 750;
   letter-spacing: .075em;
   text-transform: uppercase;
@@ -1874,7 +1874,7 @@ tbody tr[tabindex]:focus-visible {
   margin-top: 6px;
   font-size: clamp(25px, 2.8vw, 36px);
   line-height: 1.07;
-  letter-spacing: -0.045em;
+  letter-spacing: -0.02em;
 }
 
 .overview-hero p {
@@ -2165,7 +2165,7 @@ button.primary-action:hover:not(:disabled) {
   margin-top: 2px;
   font-size: clamp(18px, 1.8vw, 22px);
   line-height: 1.12;
-  letter-spacing: -0.035em;
+  letter-spacing: -0.018em;
 }
 
 .page-heading p {
@@ -6698,7 +6698,7 @@ button.console-stat:hover:not(:disabled) {
 
 .allocation-trades li {
   display: grid;
-  grid-template-columns: 44px 90px 90px minmax(0, 1fr);
+  grid-template-columns: 44px minmax(90px, auto) 90px minmax(0, 1fr);
   align-items: baseline;
   gap: 10px;
   font-family: var(--mono);
@@ -6997,7 +6997,7 @@ button.console-stat:hover:not(:disabled) {
 .data-trust-hero h2 {
   margin-top: 3px;
   font-size: clamp(21px, 2.3vw, 30px);
-  letter-spacing: -0.035em;
+  letter-spacing: -0.02em;
 }
 
 .data-trust-hero p {
@@ -8070,7 +8070,7 @@ button.data-trust-action > i {
 
 @media (max-width: 520px) {
   .console-log__line {
-    grid-template-columns: 78px 42px 28px minmax(120px, 1fr);
+    grid-template-columns: 80px 42px 28px minmax(120px, 1fr);
     min-width: 0;
   }
 
@@ -8712,7 +8712,7 @@ button.data-trust-action > i {
   padding: 9px 11px;
   background: var(--surface-2);
   color: var(--text-muted);
-  font-size: 8.5px;
+  font-size: 9.5px;
   letter-spacing: 0.06em;
   text-align: left;
   text-transform: uppercase;
@@ -8783,7 +8783,7 @@ button.data-trust-action > i {
   width: fit-content;
   padding: 3px 6px;
   border-radius: 5px;
-  font-size: 8px;
+  font-size: 9.5px;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -8834,7 +8834,7 @@ button.data-trust-action > i {
 .developer-work__table td:nth-child(3) small {
   margin-top: 4px;
   color: var(--text-muted);
-  font-size: 8.5px;
+  font-size: 9.5px;
 }
 
 .developer-work__table select {
@@ -8897,7 +8897,7 @@ button.data-trust-action > i {
 .developer-api-catalog__groups button span {
   color: var(--text-muted);
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 9.5px;
 }
 
 .developer-api-catalog__list {
@@ -10023,7 +10023,7 @@ button.data-trust-action > i {
   background: var(--surface-2);
   color: var(--text-secondary);
   font-family: var(--mono);
-  font-size: 8.5px;
+  font-size: 9.5px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -10095,7 +10095,7 @@ button.data-trust-action > i {
   font-family: var(--mono);
   font-size: 29px;
   font-weight: 650;
-  letter-spacing: -0.06em;
+  letter-spacing: -0.01em;
   line-height: 1;
 }
 
@@ -10320,7 +10320,7 @@ button.data-trust-action > i {
   min-height: 27px;
   padding-top: 0;
   color: var(--text-muted);
-  font-size: 8px;
+  font-size: 9.5px;
   font-weight: 750;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -10345,7 +10345,7 @@ button.data-trust-action > i {
   overflow: hidden;
   color: var(--text-secondary);
   font-family: var(--mono);
-  font-size: 8.5px;
+  font-size: 9.5px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -10468,7 +10468,7 @@ button.data-trust-action > i {
   font-family: var(--mono);
   font-size: 26px;
   font-weight: 600;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.01em;
 }
 
 .developer-cp-change-summary section > small {
@@ -10795,7 +10795,7 @@ button.data-trust-action > i {
   margin-top: 1px;
   font-size: clamp(19px, 1.7vw, 23px);
   line-height: 1.14;
-  letter-spacing: -0.035em;
+  letter-spacing: -0.018em;
 }
 
 .page-heading p {
@@ -11915,7 +11915,7 @@ button.primary-action:disabled {
 h1 {
   font-size: 23px;
   line-height: 1.15;
-  letter-spacing: -0.032em;
+  letter-spacing: -0.018em;
 }
 
 h2 {
