@@ -78,6 +78,11 @@ export default function WorkspaceOverview({
     bookPresent: book.book !== null,
     bookSandbox: Boolean(book.book?.sandbox),
     bookStale: book.isStale,
+    // Null while the first probe is still in flight: useBook reports "error"
+    // for the no-book-no-error initial state, and a verdict must not be
+    // rendered before anything was actually measured.
+    bookConnection: book.book || book.error ? book.connectionState : null,
+    bookErrorCode: book.error?.code ?? null,
     riskUtilisation: book.book?.risk_budget.binding_constraint?.[1] ?? null,
     bindingConstraint: book.book?.risk_budget.binding_constraint?.[0] ?? null,
     varZone: book.varValidation?.zone ?? null,

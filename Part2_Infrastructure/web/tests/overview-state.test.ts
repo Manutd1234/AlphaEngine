@@ -30,6 +30,8 @@ const CLEAR: DecisionLoopInputs = {
   bookPresent: true,
   bookSandbox: false,
   bookStale: false,
+  bookConnection: "live",
+  bookErrorCode: null,
   riskUtilisation: 0.2,
   bindingConstraint: "gross_exposure",
   varZone: "green",
@@ -43,6 +45,40 @@ const stage = (inputs: DecisionLoopInputs, id: string) => {
   assert.ok(found, `stage ${id} missing`);
   return found!;
 };
+
+describe("failure is distinguishable from loading", () => {
+  it("a health poll that never succeeded reads unreachable, not checking", () => {
+    const s = stage({ ...CLEAR, healthPresent: false, healthError: true }, "data");
+    assert.equal(s.state, "attention");
+    assert.match(s.detail, /unreachable/);
+  });
+
+  it("the very first health fetch still reads as checking", () => {
+    const s = stage({ ...CLEAR, healthPresent: false, healthError: false }, "data");
+    assert.equal(s.state, "idle");
+  });
+
+  it("a failing gateway probe names its failure on risk and execution", () => {
+    const failing = {
+      ...CLEAR,
+      bookPresent: false,
+      bookConnection: "error" as const,
+      bookErrorCode: "gateway_misconfigured",
+    };
+    assert.match(stage(failing, "risk").detail, /misconfigured/);
+    assert.equal(stage(failing, "risk").state, "attention");
+    assert.match(
+      stage({ ...failing, bookErrorCode: null }, "execution").detail,
+      /unreachable/,
+    );
+  });
+
+  it("the first gateway probe, with no verdict yet, still reads connecting", () => {
+    const probing = { ...CLEAR, bookPresent: false, bookConnection: null, bookErrorCode: null };
+    assert.equal(stage(probing, "risk").state, "idle");
+    assert.equal(stage(probing, "execution").state, "idle");
+  });
+});
 
 describe("deriveDecisionLoop", () => {
   it("all-clear inputs derive ok across the loop", () => {

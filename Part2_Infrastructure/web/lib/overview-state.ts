@@ -41,6 +41,13 @@ export interface DecisionLoopInputs {
   bookPresent: boolean;
   bookSandbox: boolean;
   bookStale: boolean;
+  /**
+   * `useBook`'s typed connection state and error code. Before these were
+   * threaded through, a gateway 503ing on every poll rendered as "connecting
+   * to gateway" forever — failure was indistinguishable from loading.
+   */
+  bookConnection: "live" | "stale" | "unconfigured" | "error" | null;
+  bookErrorCode: string | null;
   /** risk_budget.binding_constraint[1] — utilisation of the tightest limit. */
   riskUtilisation: number | null;
   bindingConstraint: string | null;
@@ -56,11 +63,31 @@ export interface DecisionLoopInputs {
 export const RISK_ATTENTION_UTILISATION = 0.7;
 export const RISK_CRITICAL_UTILISATION = 0.9;
 
+/** What the risk/execution stages say when the gateway probe FAILED (vs is loading). */
+function gatewayFailureDetail(code: string | null): string {
+  switch (code) {
+    case "gateway_misconfigured":
+      return "gateway misconfigured — see Reliability";
+    case "gateway_auth_failed":
+      return "gateway auth failed";
+    case "gateway_not_configured":
+      return "gateway not configured";
+    default:
+      return "gateway unreachable";
+  }
+}
+
 export function deriveDecisionLoop(i: DecisionLoopInputs): DecisionStage[] {
   const data: DecisionStage = (() => {
     const base = { id: "data" as const, label: "Data" };
     if (i.healthError && i.healthPresent) {
       return { ...base, state: "attention" as const, detail: "health poll failed — showing last snapshot" };
+    }
+    if (i.healthError && !i.healthPresent) {
+      // A poll that has NEVER succeeded is a failure, not a loading state —
+      // the old condition required a prior snapshot before it would say so,
+      // which meant a dead data plane read as "checking" forever.
+      return { ...base, state: "attention" as const, detail: "data plane unreachable — retrying" };
     }
     if (!i.healthPresent) return { ...base, state: "idle" as const, detail: "checking data plane" };
     if (i.quarantineSize > 0) {
@@ -88,7 +115,12 @@ export function deriveDecisionLoop(i: DecisionLoopInputs): DecisionStage[] {
   const risk: DecisionStage = (() => {
     const base = { id: "risk" as const, label: "Risk" };
     const sandboxSuffix = i.bookSandbox ? " · sandbox book" : "";
-    if (!i.bookPresent) return { ...base, state: "idle" as const, detail: "connecting to gateway" };
+    if (!i.bookPresent) {
+      if (i.bookConnection === "error") {
+        return { ...base, state: "attention" as const, detail: gatewayFailureDetail(i.bookErrorCode) };
+      }
+      return { ...base, state: "idle" as const, detail: "connecting to gateway" };
+    }
     // The halt belongs to execution, but risk owns the decision that fired it.
     if (i.tradingHalted) return { ...base, state: "attention" as const, detail: "kill switch active" };
     if (i.bookStale) return { ...base, state: "attention" as const, detail: "book refresh failing — writes disabled" };
@@ -116,7 +148,12 @@ export function deriveDecisionLoop(i: DecisionLoopInputs): DecisionStage[] {
     if (i.haltedSymbolCount > 0) {
       return { ...base, state: "attention" as const, detail: `${i.haltedSymbolCount} symbol${i.haltedSymbolCount === 1 ? "" : "s"} halted` };
     }
-    if (!i.bookPresent) return { ...base, state: "idle" as const, detail: "connecting to gateway" };
+    if (!i.bookPresent) {
+      if (i.bookConnection === "error") {
+        return { ...base, state: "attention" as const, detail: gatewayFailureDetail(i.bookErrorCode) };
+      }
+      return { ...base, state: "idle" as const, detail: "connecting to gateway" };
+    }
     const fill = i.fillRate != null ? ` · ${Math.round(i.fillRate * 100)}% fill` : "";
     return { ...base, state: "ok" as const, detail: `paper gates active${fill}${i.bookSandbox ? " · sandbox" : ""}` };
   })();
