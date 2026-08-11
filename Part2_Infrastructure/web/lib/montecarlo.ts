@@ -44,6 +44,16 @@ export function stationaryBootstrapIndices(
   return out;
 }
 
+/**
+ * Seed derived from the data identity and the winning parameters. Exported so
+ * the engine's band and the Risk tab's terminal-distribution worker draw from
+ * the same stream for the same run — rerunning the same sweep draws the same
+ * cone, a different winner draws a fresh one.
+ */
+export function mcSeedFor(dataHash: string, fast: number, slow: number): number {
+  return (parseInt(dataHash.slice(0, 8), 16) ^ Math.imul(fast, 0x9e3779b1) ^ slow) >>> 0;
+}
+
 export function monteCarloBands(
   returns: Float64Array,
   sampleIndices: number[],

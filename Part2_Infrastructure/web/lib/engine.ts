@@ -18,7 +18,7 @@ import {
   atr, barsSinceMax, barsSinceMin, dema, ema, hma, pctChange, rollingMax, rollingMin,
   rollingStd, rollingSum, rsi, shift1, sma, tema, zlema,
 } from "./indicators";
-import { monteCarloBands } from "./montecarlo";
+import { mcSeedFor, monteCarloBands } from "./montecarlo";
 import { regimeReport } from "./regimes";
 import {
   type CostModel,
@@ -1544,10 +1544,7 @@ export function runSweep(
   // changed, which is what keeps the parity fixture meaningful.
   const dataHash = datasetFingerprint(bars);
 
-  // Seeded off the data identity and the winning parameters: rerunning the
-  // same sweep draws the same cone, a different winner draws a fresh one.
-  const mcSeed =
-    (parseInt(dataHash.slice(0, 8), 16) ^ Math.imul(best.fast, 0x9e3779b1) ^ best.slow) >>> 0;
+  const mcSeed = mcSeedFor(dataHash, best.fast, best.slow);
   const monteCarlo = monteCarloBands(bestRun.returns, sampleIdx, mcSeed);
 
   const regimes = regimeReport(bars, close, bestRun.returns, bestRun.position, req.interval);
@@ -1649,6 +1646,7 @@ export function runSweep(
     costs,
     minTrackRecord,
     monteCarlo,
+    bestRunReturns: Array.from(bestRun.returns),
     regimes,
   };
 }

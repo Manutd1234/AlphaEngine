@@ -364,6 +364,14 @@ export interface SweepResponse {
   };
   /** Bootstrap resampling envelope around the winner's equity curve. */
   monteCarlo: MonteCarloBands;
+  /**
+   * The winner's realised per-bar returns — the exact driver distribution the
+   * band resampled, shipped so the Risk tab's terminal-distribution Monte
+   * Carlo runs on the same drivers in a worker. Plain array, not Float64Array:
+   * typed arrays serialise to objects (same reason as MonteCarloBands).
+   * Optional so cached older payloads stay valid during a rolling deploy.
+   */
+  bestRunReturns?: number[];
   /** Performance conditioned on market regime — where the returns came from. */
   regimes: RegimeReport;
   /** Build identity of the code that ran the sweep; stamped by the route. */
