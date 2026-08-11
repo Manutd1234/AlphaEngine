@@ -164,7 +164,15 @@ export default function OrderBlotter({ rows, focusSymbol, onOpenResearch, source
                     key={row.orderId}
                     className={row.accepted ? "" : "is-rejected"}
                     onClick={() => setExpanded(open ? null : row.orderId)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setExpanded(open ? null : row.orderId);
+                      }
+                    }}
+                    tabIndex={0}
                     aria-expanded={open}
+                    style={{ cursor: "pointer" }}
                   >
                     <td>{time(row.ts)}</td>
                     <td>{row.symbol}</td>
