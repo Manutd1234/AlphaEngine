@@ -1,0 +1,111 @@
+/**
+ * The interaction contract.
+ *
+ * Every fact pinned here was false once, and its absence was invisible in
+ * review: three <a> primary actions rendered as bare text because the control
+ * rule was element-qualified to `button`; bare links had no hover in a
+ * fourteen-thousand-line sheet; disabled fields dressed exactly like enabled
+ * ones; every card stacked a shadow on its 1px border through two competing
+ * `.card` declarations; and nothing anywhere sized a control for a fingertip.
+ * None of those regressions fails a build or a glance — which is the whole
+ * case for pinning them.
+ *
+ * Regex over one hand-written stylesheet, per the justification in
+ * `theme.test.ts`.
+ */
+
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
+
+const cssPath = fileURLToPath(new URL("../app/globals.css", import.meta.url));
+const css = readFileSync(cssPath, "utf8");
+
+/** Comment bodies blanked, newlines kept — declarations only, lines intact. */
+const declarations = css.replace(/\/\*[\s\S]*?\*\//g, (block) =>
+  block.replace(/[^\n]/g, " "));
+
+// --------------------------------------------------------------------------
+// 1 — links respond
+// --------------------------------------------------------------------------
+
+describe("links respond", () => {
+  it("bare anchors have hover and active states", () => {
+    assert.match(declarations, /a:not\(\[class\]\):hover/);
+    assert.match(declarations, /a:not\(\[class\]\):active/);
+  });
+
+  it("the primary action styles anchors as well as buttons", () => {
+    assert.match(
+      declarations,
+      /\na\.primary-action \{/,
+      "anchors never pass through the button element rule — they need their own chrome",
+    );
+    assert.match(
+      declarations,
+      /button\.primary-action,\s*\na\.primary-action \{/,
+      "the shared fill/border rule must name both forms",
+    );
+  });
+});
+
+// --------------------------------------------------------------------------
+// 2 — disabled fields say so
+// --------------------------------------------------------------------------
+
+describe("disabled fields say so", () => {
+  it("input, select and textarea share the button's disabled treatment", () => {
+    assert.match(
+      declarations,
+      /input:disabled,\s*\nselect:disabled,\s*\ntextarea:disabled \{/,
+    );
+  });
+});
+
+// --------------------------------------------------------------------------
+// 3 — elevation is reserved for what floats
+// --------------------------------------------------------------------------
+
+describe("elevation is reserved for what floats", () => {
+  it("no .card rule carries a box-shadow", () => {
+    // Two .card declarations coexist by design (base + density); the shadow
+    // once survived in both because neither knew about the other.
+    for (const match of declarations.matchAll(/\n\.card \{/g)) {
+      const index = match.index ?? 0;
+      const block = declarations.slice(index, declarations.indexOf("}", index));
+      const line = declarations.slice(0, index).split("\n").length + 1;
+      assert.doesNotMatch(
+        block,
+        /box-shadow/,
+        `globals.css:${line} — .card regained a shadow; borders carry separation`,
+      );
+    }
+  });
+});
+
+// --------------------------------------------------------------------------
+// 4 — coarse pointers get 44px
+// --------------------------------------------------------------------------
+
+describe("coarse pointers get 44px", () => {
+  const blocks = [...declarations.matchAll(/@media \(pointer: coarse\)/g)];
+
+  it("declares exactly one coarse block", () => {
+    assert.equal(
+      blocks.length,
+      1,
+      "one block keeps the touch contract auditable — a second would fork it",
+    );
+  });
+
+  it("raises the control floor and the rail token together", () => {
+    const body = declarations.slice(blocks[0].index ?? 0);
+    assert.match(body, /min-height: 44px/);
+    assert.match(
+      body,
+      /--chrome-rail:/,
+      "the rail must grow through its token so sticky offsets stay measured",
+    );
+  });
+});
