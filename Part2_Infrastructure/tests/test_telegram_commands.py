@@ -239,3 +239,40 @@ class TestReferenceCommandsStayInSyncWithTheRegistry:
         # And the parity map, which is what a reader checks the bot against.
         assert "Web parity" in reply
         assert "Web-only" in reply
+
+
+def test_every_command_a_reply_points_at_actually_exists():
+    """No card may send a reader to a command that is not registered.
+
+    This is the /backtest defect generalised. That one was advertised in a
+    card body and a Next chain with no spec behind it, so a reader following
+    the prompt reached the unknown-command path — the worst kind of dead end,
+    because the product itself suggested it.
+
+    Scans the module source for every `/name` token inside a `next_commands=`
+    argument and requires each to resolve. Source-scan rather than runtime,
+    so a chain on a rarely-reached branch is covered too.
+    """
+    import re
+    from pathlib import Path
+
+    import modules.telegram as telegram_module
+    from modules.telegram import COMMAND_SPECS
+
+    known = {spec.name for spec in COMMAND_SPECS}
+    for spec in COMMAND_SPECS:
+        known.update(spec.aliases or ())
+
+    source = Path(telegram_module.__file__).read_text()
+    dangling: list[str] = []
+    # `next_commands="..."` and f-string variants; the value runs to the
+    # closing quote of that argument.
+    for match in re.finditer(r'next_commands=f?"([^"]*)"', source):
+        for token in re.findall(r"/([a-z][a-z0-9_]*)", match.group(1)):
+            if token not in known:
+                dangling.append(token)
+
+    assert not dangling, (
+        "Next chains point at commands that do not exist: "
+        + ", ".join(sorted(set(dangling)))
+    )
