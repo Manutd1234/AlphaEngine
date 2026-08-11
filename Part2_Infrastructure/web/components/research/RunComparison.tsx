@@ -109,7 +109,7 @@ export default function RunComparison({ a, b, onClose }: RunComparisonProps) {
       )}
 
       <h3 className="run-comparison__subhead">What it did to the result</h3>
-      <div className="table-wrap">
+      <div className="table-wrap table-wrap--clamped">
         <table>
           <caption className="sr-only">Metric values for both runs and the change between them.</caption>
           <thead>

@@ -110,7 +110,7 @@ export default function AuditTrail({ active }: { active: boolean }) {
 
       {state.kind === "ready" && state.rows.length > 0 && (
         <>
-          <div className="table-wrap" style={{ maxHeight: "min(420px, 55vh)", overflowY: "auto" }}>
+          <div className="table-wrap table-wrap--clamped">
             <table>
               <caption className="sr-only">
                 Gateway order audit rows, most recent first: time, symbol, side, quantity, fill

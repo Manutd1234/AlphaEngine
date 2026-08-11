@@ -1315,6 +1315,13 @@ button.icon {
 .table-wrap {
   overflow-x: auto;
 }
+
+/* Long evidence lists scroll inside their card, not the page — the reference
+   idiom is min(px, vh) so a short viewport still sees the card's footer. */
+.table-wrap--clamped {
+  max-height: min(480px, 60vh);
+  overflow-y: auto;
+}
 table {
   width: 100%;
   border-collapse: collapse;
@@ -2115,12 +2122,14 @@ button.primary-action:hover:not(:disabled) {
 /* Compact & bounded inner scrolling containers */
 .compact-grid-2col {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  /* min(100%, …) so a track can never demand more than its container — the
+     bare 360px floor overflowed narrow phones instead of collapsing. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
   gap: 12px;
 }
 .compact-grid-3col {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 12px;
 }
 

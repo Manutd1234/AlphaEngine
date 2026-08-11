@@ -18,7 +18,7 @@ export function ResultsTable({
   selected?: { fast: number; slow: number } | null;
 }) {
   return (
-    <div className="table-wrap">
+    <div className="table-wrap table-wrap--clamped">
       <table>
         <caption className="sr-only">
           Top 15 parameter combinations ranked by annualised Sharpe ratio

@@ -340,7 +340,7 @@ export default function PortfolioWorkspace({
           </div>
 
           {largest.length ? (
-            <div className="table-wrap">
+            <div className="table-wrap table-wrap--clamped">
               <table>
                 <caption className="sr-only">
                   The {largest.length} largest positions by notional. The full book is in the Positions section.
@@ -422,7 +422,7 @@ export default function PortfolioWorkspace({
           </div>
 
           {positions.length ? (
-            <div className="table-wrap">
+            <div className="table-wrap table-wrap--clamped">
               <table>
                 <caption className="sr-only">Current portfolio positions and their measured risk contributions</caption>
                 <thead>
@@ -565,7 +565,7 @@ export default function PortfolioWorkspace({
             </span>
           </div>
           {strategies.length ? (
-            <div className="table-wrap">
+            <div className="table-wrap table-wrap--clamped">
               <table>
                 <caption className="sr-only">Order activity and performance attributed by strategy</caption>
                 <thead>
