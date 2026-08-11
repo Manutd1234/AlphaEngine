@@ -252,6 +252,8 @@ export interface SystemHealth {
     tokenEnv: string;
     /** Optional during rolling deploys; never contains the credential itself. */
     paperOrderDefaultAvailable?: boolean;
+    /** Open mode with a server token set — typing a credential can elevate the tab. */
+    tokenOverrideAvailable?: boolean;
   };
   summary: {
     total: number;

@@ -116,18 +116,50 @@ export interface GuardRejection {
 }
 
 /**
- * Decide whether this caller may mutate. `null` means yes.
- *
- * The comparison is constant-time and length-checked first, because
+ * Constant-time credential compare, length-checked first, because
  * `timingSafeEqual` throws on a length mismatch — and a thrown comparison is
  * both a 500 and a length oracle.
+ */
+function credentialMatches(supplied: string, expected: string): boolean {
+  const a = Buffer.from(supplied);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/** Never echoes what was presented, not even a prefix. */
+const CREDENTIAL_REJECTED: GuardRejection = {
+  status: 401,
+  code: "operator_auth_failed",
+  error: "The operator credential was rejected.",
+};
+
+/**
+ * Decide whether this caller may mutate. `null` means yes.
+ *
+ * In the open modes a missing header uses the open door, but a *presented*
+ * credential is an explicit override and is authoritative: it validates
+ * against the server token or fails with the same 401 token mode gives. A
+ * wrong credential must never be silently downgraded to the open door — an
+ * operator who typed a token needs to know it was checked, or the override
+ * means nothing. (Same principle `authorisePaperOrder` already states.)
  */
 export function authorise(
   presented: string | null,
   env: NodeJS.ProcessEnv = process.env,
 ): GuardRejection | null {
   const mode = guardMode(env);
-  if (mode === "open-dev" || mode === "open-demo") return null;
+  if (mode === "open-dev" || mode === "open-demo") {
+    if (presented === null) return null;
+    const expected = env[OPERATOR_TOKEN_ENV]?.trim() ?? "";
+    if (!expected) {
+      return {
+        ...CREDENTIAL_REJECTED,
+        hint: `No ${OPERATOR_TOKEN_ENV} is configured on this deployment, so a presented credential cannot validate. Omit it to act in the open ${mode === "open-demo" ? "demo" : "dev"} mode.`,
+      };
+    }
+    const supplied = presented.replace(/^Bearer\s+/i, "").trim();
+    return credentialMatches(supplied, expected) ? null : CREDENTIAL_REJECTED;
+  }
   if (mode === "locked") {
     return {
       status: 503,
@@ -139,17 +171,26 @@ export function authorise(
 
   const expected = env[OPERATOR_TOKEN_ENV]!.trim();
   const supplied = (presented ?? "").replace(/^Bearer\s+/i, "").trim();
-  const a = Buffer.from(supplied);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) {
-    // Never echo what was presented, not even a prefix.
-    return {
-      status: 401,
-      code: "operator_auth_failed",
-      error: "The operator credential was rejected.",
-    };
-  }
-  return null;
+  return credentialMatches(supplied, expected) ? null : CREDENTIAL_REJECTED;
+}
+
+/**
+ * Who an already-authorised call is acting as. Only meaningful after
+ * `authorise` returned null: any surviving presented credential validated,
+ * and absence means the open door admitted the call.
+ */
+export function operatorIdentity(presented: string | null): "operator" | "demo" {
+  return presented === null ? "demo" : "operator";
+}
+
+/**
+ * Whether typing a credential can elevate a call in the current mode — the
+ * UI renders the optional override field only when it would actually work.
+ */
+export function tokenOverrideAvailable(env: NodeJS.ProcessEnv = process.env): boolean {
+  const mode = guardMode(env);
+  return (mode === "open-demo" || mode === "open-dev")
+    && Boolean(env[OPERATOR_TOKEN_ENV]?.trim());
 }
 
 /** Whether this deployment offers its server-held credential for new paper orders. */

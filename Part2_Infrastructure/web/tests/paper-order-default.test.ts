@@ -73,7 +73,9 @@ describe("the deployment credential is a paper-order-only default", () => {
     assert.doesNotMatch(riskRoute, /authorisePaperOrder/);
     assert.doesNotMatch(actionsRoute, /authorisePaperOrder/);
     assert.match(riskRoute, /authorise\(request\.headers\.get\("authorization"\)\)/);
-    assert.match(actionsRoute, /authorise\(request\.headers\.get\("authorization"\)\)/);
+    // The actions route binds the header first so it can also stamp identity.
+    assert.match(actionsRoute, /const presented = request\.headers\.get\("authorization"\)/);
+    assert.match(actionsRoute, /authorise\(presented\)/);
   });
 
   it("exposes status, never a browser credential", () => {

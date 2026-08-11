@@ -21,6 +21,8 @@ import { describe, it } from "node:test";
 import {
   authorise,
   guardMode,
+  operatorIdentity,
+  tokenOverrideAvailable,
   OPERATOR_OPEN_ENV,
   OPERATOR_TOKEN_ENV,
 } from "@/lib/operator";
@@ -73,11 +75,49 @@ describe("the flag is the more explicit statement of intent", () => {
   });
 });
 
-describe("open-demo authorises without a credential", () => {
-  it("no header, wrong header, any header — all pass", () => {
-    const env = { ...prod, [OPERATOR_OPEN_ENV]: "1" };
+describe("open modes admit absence but check any presented credential", () => {
+  // The original contract let any header pass in open-demo. That made a typed
+  // credential meaningless — an operator overriding the open door needs to
+  // know the override was checked. Presence now means authoritative override,
+  // the same principle authorisePaperOrder always had.
+  it("no header passes through the open door", () => {
+    const env = { ...prod, [OPERATOR_OPEN_ENV]: "1", [OPERATOR_TOKEN_ENV]: "secret" };
     assert.equal(authorise(null, env), null);
-    assert.equal(authorise("Bearer wrong", env), null);
+  });
+
+  it("a valid credential passes as an explicit override", () => {
+    const env = { ...prod, [OPERATOR_OPEN_ENV]: "1", [OPERATOR_TOKEN_ENV]: "secret" };
+    assert.equal(authorise("Bearer secret", env), null);
+  });
+
+  it("a wrong credential is rejected, never downgraded to the open door", () => {
+    const env = { ...prod, [OPERATOR_OPEN_ENV]: "1", [OPERATOR_TOKEN_ENV]: "secret" };
+    const rejection = authorise("Bearer wrong", env);
+    assert.ok(rejection);
+    assert.equal(rejection.status, 401);
+    assert.equal(rejection.code, "operator_auth_failed");
+  });
+
+  it("a credential with no server token to check it against is rejected with the reason", () => {
+    const env = { ...prod, [OPERATOR_OPEN_ENV]: "1" };
+    const rejection = authorise("Bearer anything", env);
+    assert.ok(rejection);
+    assert.equal(rejection.status, 401);
+    assert.match(rejection.hint!, new RegExp(OPERATOR_TOKEN_ENV));
+  });
+
+  it("the override is offered only when it can actually validate", () => {
+    assert.equal(
+      tokenOverrideAvailable({ ...prod, [OPERATOR_OPEN_ENV]: "1", [OPERATOR_TOKEN_ENV]: "secret" }),
+      true,
+    );
+    assert.equal(tokenOverrideAvailable({ ...prod, [OPERATOR_OPEN_ENV]: "1" }), false);
+    assert.equal(tokenOverrideAvailable({ ...prod, [OPERATOR_TOKEN_ENV]: "secret" }), false);
+  });
+
+  it("identity names who acted once authorised", () => {
+    assert.equal(operatorIdentity(null), "demo");
+    assert.equal(operatorIdentity("Bearer secret"), "operator");
   });
 
   it("locked mode names both ways out", () => {

@@ -11,6 +11,7 @@ import {
   CACHE_PREFIXES,
   OPERATOR_TOKEN_ENV,
   paperOrderDefaultAvailable,
+  tokenOverrideAvailable,
 } from "@/lib/operator";
 import {
   activeOutages,
@@ -151,6 +152,7 @@ export async function buildSystemHealthSnapshot(priority: Priority): Promise<Sys
       mode: guardMode(),
       tokenEnv: OPERATOR_TOKEN_ENV,
       paperOrderDefaultAvailable: paperOrderDefaultAvailable(),
+      tokenOverrideAvailable: tokenOverrideAvailable(),
     },
     summary: {
       total: providers.length,
