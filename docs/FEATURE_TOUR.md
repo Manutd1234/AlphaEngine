@@ -188,6 +188,14 @@ list doubles as a checklist for a manual tour:
 10. Market data — a real bar series comes back.
 11. Backtest — a sweep runs end to end and returns a verdict.
 
+**The five-minute ops drill.** `python3 tools/e2e_smoke.py --drill` adds two *mutating but
+reversible* proofs on top of the read-only probes: it simulates a provider outage and asserts
+at least three dependent surfaces react in one round trip (provider matrix, incident row,
+failover graph, health summary) before restoring the provider, then trips the gateway kill
+switch, confirms the live book reports `trading_halted`, and resumes. Everything is paper-only;
+the outage self-expires in 60 seconds even if the restore step is interrupted. This is the
+push-button version of the demo a reviewer would otherwise click through by hand.
+
 **The Oracle keepalive caveat:** the VaR panel reading "unavailable" usually means the
 Always-Free Autonomous Database has auto-stopped from inactivity — `tools/oracle_keepalive.py`
 exists for exactly this. It is the known operational sharp edge of the free tier, documented
