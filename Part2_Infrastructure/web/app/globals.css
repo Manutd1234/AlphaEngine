@@ -11969,6 +11969,29 @@ h4 {
   align-items: start;
 }
 
+/* Two readings of one book. `align-items: start` above is right for panels of
+   genuinely different length, but here it left a 210px chart beside 570px of
+   levels and a column of empty plane under it. This pair stretches, the chart
+   is told the taller height, and the ladder scrolls inside the card rather
+   than setting it. */
+.liquidity-pair {
+  align-items: stretch;
+}
+
+.liquidity-pair > .card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.liquidity-pair__book {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  font-family: var(--mono);
+}
+
 .portfolio-statusbar.is-sandbox > div:first-child {
   max-width: 104ch;
 }

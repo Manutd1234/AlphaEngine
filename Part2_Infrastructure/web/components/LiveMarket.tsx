@@ -440,7 +440,10 @@ export default function LiveMarket({
         />
       </div>
 
-      <div className="compact-grid-2col">
+      {/* The curve and the ladder are the same book read two ways, so they
+          share one baseline: the chart takes the ladder's height instead of
+          sitting 210px tall beside 570px of levels. */}
+      <div className="compact-grid-2col liquidity-pair">
         <div className="card">
           <h2>Cumulative depth</h2>
           <p className="sub">
@@ -451,6 +454,7 @@ export default function LiveMarket({
             bids={snap?.merged.bids ?? []}
             asks={snap?.merged.asks ?? []}
             mid={snap?.consolidatedMid ?? null}
+            height={430}
           />
         </div>
 
@@ -460,7 +464,7 @@ export default function LiveMarket({
             Every venue&apos;s levels merged and sorted by price — the book a smart router actually
             walks. Click a level to stage it as a limit order in the ticket.
           </p>
-          <div style={{ fontFamily: "var(--mono)" }}>
+          <div className="liquidity-pair__book">
             <div
               style={{
                 display: "grid",

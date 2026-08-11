@@ -17,6 +17,8 @@ import { compact, fmt, priceDp } from "@/lib/format";
 import { DEFAULT_MARGIN, Grid, Tooltip, linearScale, ticks, useMeasuredWidth } from "./chart-kit";
 import { useState } from "react";
 
+/** Default height. Callers that sit beside a taller panel pass their own so the
+ *  pair lands on one baseline instead of leaving a column half empty. */
 const HEIGHT = 210;
 
 interface Point {
@@ -58,10 +60,12 @@ export default function DepthChart({
   bids,
   asks,
   mid,
+  height = HEIGHT,
 }: {
   bids: Level[];
   asks: Level[];
   mid: number | null;
+  height?: number;
 }) {
   const [ref, width] = useMeasuredWidth<HTMLDivElement>();
   const [hover, setHover] = useState<{ x: number; price: number; bid: number; ask: number } | null>(null);
@@ -69,7 +73,7 @@ export default function DepthChart({
   const m = { ...DEFAULT_MARGIN, right: 20 };
   const x0 = m.left;
   const x1 = Math.max(x0 + 10, width - m.right);
-  const y0 = HEIGHT - m.bottom;
+  const y0 = height - m.bottom;
   const y1 = m.top;
 
   const bidPts = cumulative(bids);
@@ -77,7 +81,7 @@ export default function DepthChart({
 
   if (!bidPts.length || !askPts.length || !mid) {
     return (
-      <div ref={ref} style={{ height: HEIGHT, display: "grid", placeItems: "center", color: "var(--text-muted)", fontSize: 13 }}>
+      <div ref={ref} style={{ height, display: "grid", placeItems: "center", color: "var(--text-muted)", fontSize: 13 }}>
         waiting for book…
       </div>
     );
@@ -121,9 +125,9 @@ export default function DepthChart({
       </div>
 
       <svg
-        viewBox={`0 0 ${width} ${HEIGHT}`}
+        viewBox={`0 0 ${width} ${height}`}
         width="100%"
-        height={HEIGHT}
+        height={height}
         role="img"
         aria-label="Cumulative order book depth on each side of the mid price"
         onPointerMove={onMove}
