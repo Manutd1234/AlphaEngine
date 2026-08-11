@@ -562,6 +562,36 @@ jobs:
             fi
             echo "TLS terminates on :8443 and proxies to the gateway."
 
+            # The gateway's own port needs no rule here — Docker's -p publish
+            # path bypasses the INPUT chain — but Caddy runs on the host
+            # network, so Oracle's restrictive default firewall drops :8443
+            # even after the security list opens. Opened by the deploy because
+            # the deploy is what put a listener there; idempotent, and
+            # advisory on failure so an exotic sudo setup cannot kill a green
+            # deploy over an ingress nicety.
+            echo "==> Opening 8443 in the instance firewall (idempotent)"
+            if command -v firewall-cmd >/dev/null 2>&1; then
+              if sudo -n firewall-cmd --permanent --add-port=8443/tcp >/dev/null 2>&1 \
+                  && sudo -n firewall-cmd --reload >/dev/null 2>&1; then
+                echo "firewalld: 8443 open"
+              else
+                echo "::notice::firewalld present but could not be configured non-interactively — open 8443 by hand"
+              fi
+            elif command -v iptables >/dev/null 2>&1; then
+              if sudo -n iptables -C INPUT -p tcp --dport 8443 -j ACCEPT 2>/dev/null; then
+                echo "iptables: 8443 already open"
+              elif sudo -n iptables -I INPUT -p tcp --dport 8443 -j ACCEPT 2>/dev/null; then
+                echo "iptables: 8443 opened"
+              else
+                echo "::notice::iptables present but could not be configured non-interactively — open 8443 by hand"
+              fi
+              sudo -n netfilter-persistent save >/dev/null 2>&1 \
+                || sudo -n sh -c 'iptables-save > /etc/iptables/rules.v4' 2>/dev/null \
+                || echo "::notice::could not persist the iptables rule — it lasts until reboot"
+            else
+              echo "::notice::no known firewall tool found; if 8443 stays closed, check the instance firewall by hand"
+            fi
+
             echo "==> Root CA (PUBLIC certificate — paste into the web flip, see docs/TLS_FLIP.md)"
             docker exec alphaengine_caddy cat /data/caddy/pki/authorities/local/root.crt
         env:
