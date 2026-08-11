@@ -289,10 +289,6 @@ body {
 
 body {
   min-height: 100vh;
-  background-image:
-    radial-gradient(circle at 8% -10%, color-mix(in srgb, var(--series-1) 7%, transparent), transparent 28rem),
-    radial-gradient(circle at 96% 8%, color-mix(in srgb, var(--series-3) 5%, transparent), transparent 24rem);
-  background-attachment: fixed;
 }
 
 ::selection {
@@ -356,7 +352,6 @@ a:not([class]):active {
   border-radius: var(--radius);
   padding: 20px;
   margin-bottom: 16px;
-  box-shadow: var(--shadow-sm);
 }
 .card > h2 {
   font-size: 12px;
@@ -1856,28 +1851,11 @@ tbody tr[tabindex]:focus-visible {
   border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 16px;
   color: #fff;
-  background:
-    radial-gradient(circle at 82% 12%, rgba(82, 145, 255, 0.34), transparent 30%),
-    radial-gradient(circle at 92% 90%, rgba(17, 169, 135, 0.22), transparent 28%),
-    linear-gradient(135deg, #0b1728 0%, var(--hero-plane) 58%, #123255 100%);
-  box-shadow: 0 18px 45px rgba(12, 27, 48, 0.16);
+  background: var(--hero-plane);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 32px;
-}
-
-.overview-hero::after {
-  content: "";
-  position: absolute;
-  top: -115px;
-  right: -40px;
-  width: 340px;
-  height: 340px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
-  box-shadow: 0 0 0 54px rgba(255, 255, 255, 0.025), 0 0 0 108px rgba(255, 255, 255, 0.018);
-  pointer-events: none;
 }
 
 .overview-hero > * {
@@ -2047,7 +2025,6 @@ button.primary-action:hover:not(:disabled) {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface-1);
-  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
 }
@@ -2132,7 +2109,6 @@ button.primary-action:hover:not(:disabled) {
   border-radius: var(--radius);
   padding: 14px 16px;
   margin-bottom: 12px;
-  box-shadow: var(--shadow-sm);
 }
 .card > h2 {
   font-size: 11px;
@@ -2317,7 +2293,6 @@ button.primary-action:hover:not(:disabled) {
   border: 1px solid color-mix(in srgb, var(--series-1) 28%, var(--border));
   border-radius: var(--radius);
   background: linear-gradient(110deg, color-mix(in srgb, var(--series-1) 9%, var(--surface-1)), var(--surface-1));
-  box-shadow: var(--shadow-sm);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2461,7 +2436,6 @@ a.text-action {
 
 .instrument-panel {
   padding: 16px;
-  box-shadow: var(--shadow-sm);
 }
 
 .execution-market-strip {
@@ -2472,7 +2446,6 @@ a.text-action {
   border: 1px solid color-mix(in srgb, var(--series-1) 22%, var(--border));
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--series-1) 4%, var(--surface-1));
-  box-shadow: var(--shadow-sm);
   display: flex;
   align-items: center;
   gap: var(--space-4);
@@ -2675,16 +2648,12 @@ a.text-action {
   border-color: color-mix(in srgb, var(--series-1) 50%, var(--border));
   background: color-mix(in srgb, var(--series-1) 8%, var(--surface-1));
   color: var(--text-primary);
-  transform: translateY(-1px);
 }
 
 .market-watchlist__item[aria-pressed="true"] {
   border-color: color-mix(in srgb, var(--series-1) 80%, var(--border));
   color: #ffffff;
-  background:
-    radial-gradient(circle at 90% 8%, color-mix(in srgb, var(--status-good) 22%, transparent), transparent 42%),
-    linear-gradient(135deg, color-mix(in srgb, var(--series-1) 82%, #000), color-mix(in srgb, var(--series-1) 60%, #000));
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--series-1) 25%, transparent);
+  background: color-mix(in srgb, var(--series-1) 82%, #000);
 }
 
 .market-watchlist__symbol {
@@ -2889,7 +2858,6 @@ a.text-action {
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface-1);
-  box-shadow: var(--shadow-sm);
   display: grid;
 }
 
@@ -5321,7 +5289,6 @@ button.console-stat:hover:not(:disabled) {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface-1);
-  box-shadow: var(--shadow-sm);
 }
 
 /* The constraint that vetoes everything else gets a rail, not just a word. */
@@ -6460,7 +6427,6 @@ button.console-stat:hover:not(:disabled) {
   padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: var(--surface-2);
 }
 
 .var-validation__head {
@@ -6950,7 +6916,6 @@ button.console-stat:hover:not(:disabled) {
   background:
     linear-gradient(110deg, color-mix(in srgb, var(--data-accent) 6%, var(--surface-1)), var(--surface-1) 48%),
     var(--surface-1);
-  box-shadow: var(--shadow-sm);
 }
 
 .data-cp-bar.is-stale {
@@ -7650,7 +7615,6 @@ button.data-trust-action > i {
   border-left-width: 3px;
   border-radius: 10px;
   background: var(--surface-1);
-  box-shadow: 0 2px 8px rgba(17, 35, 64, 0.04);
 }
 
 .data-work-card.is-p0 { border-left-color: var(--status-critical); }
@@ -10668,7 +10632,6 @@ button.data-trust-action > i {
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
 }
 
 .next-step-footer__content {
@@ -11664,11 +11627,6 @@ html {
   font-size: 12.5px;
 }
 
-.overview-hero::after {
-  top: -140px;
-  right: -60px;
-}
-
 .attention-board,
 .overview-section {
   margin-top: 0;
@@ -12319,13 +12277,10 @@ h4 {
   box-shadow: 0 10px 20px -20px color-mix(in srgb, var(--text-primary) 55%, transparent);
 }
 
-/* ---------- the plane ---------- */
-
-body {
-  background-image:
-    radial-gradient(circle at 6% -12%, color-mix(in srgb, var(--sky-2) 62%, transparent), transparent 30rem),
-    radial-gradient(circle at 98% 4%, color-mix(in srgb, var(--surface-3) 70%, transparent), transparent 26rem);
-}
+/* ---------- the plane ----------
+   One token, painted once at the top of the sheet. The decorative radial
+   washes that used to sit here promised depth the flat graphite ground no
+   longer claims. */
 
 /* ---------- hero: four stages, one row ---------- */
 
@@ -12333,10 +12288,6 @@ body {
   align-items: center;
   flex-wrap: wrap;
   gap: 18px 26px;
-  background:
-    radial-gradient(circle at 84% 10%, rgba(104, 172, 255, 0.38), transparent 32%),
-    radial-gradient(circle at 94% 92%, rgba(23, 190, 152, 0.24), transparent 28%),
-    linear-gradient(135deg, #0b1728 0%, #123a63 56%, #16548c 100%);
 }
 
 /* Capped so the stage row gets the width it needs. Uncapped, the copy claimed
@@ -12518,23 +12469,19 @@ body {
   }
 }
 
-/* Interactive surfaces respond. Only the ones that actually do something on
-   click get the lift — a card that rises under the cursor and then ignores it
-   is worse than one that never moved. */
+/* Interactive surfaces respond in line and wash, not in space — a card that
+   levitates promises a drag the cursor cannot make good on. */
 .role-card,
-.attention-item,
 .market-watchlist__item,
 button.page-insight,
 .pipeline-card--action {
-  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease),
-    border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
 }
 
 .role-card:hover,
 .pipeline-card--action:hover:not(:disabled) {
-  transform: translateY(-3px);
   border-color: color-mix(in srgb, var(--series-1) 34%, var(--border));
-  box-shadow: 0 18px 34px -26px color-mix(in srgb, var(--text-primary) 70%, transparent);
+  background: color-mix(in srgb, var(--series-1) 4%, var(--surface-1));
 }
 
 
@@ -12600,26 +12547,17 @@ button:active:not(:disabled) {
  *
  * `:hover:not(:disabled)` is specificity (0,3,0) and the selected state is
  * (0,2,0), so hover replaced the deep blue fill with a near-white tint — while
- * the descendant colour rule (l.2671) kept the label, price and change at
+ * the descendant colour rule kept the label, price and change at
  * `#ffffff !important`. White on near-white: the tile you were pointing at was
- * the one you could not read, and it kept its selected glow while doing it.
+ * the one you could not read.
  *
- * Selection outranks hover here. Hover still responds, but through elevation —
- * the one channel that cannot collide with the fill.
+ * Selection outranks hover here. Hover still responds, but through fill depth —
+ * one step deeper into the same flat blue, which cannot collide with the fill.
  */
 .market-watchlist__item[aria-pressed="true"]:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--series-1) 92%, var(--border));
   color: #ffffff;
-  background:
-    radial-gradient(circle at 90% 8%, color-mix(in srgb, var(--status-good) 26%, transparent), transparent 42%),
-    linear-gradient(135deg, color-mix(in srgb, var(--series-1) 88%, #000), color-mix(in srgb, var(--series-1) 66%, #000));
-  box-shadow: 0 8px 20px -4px color-mix(in srgb, var(--series-1) 38%, transparent);
-}
-
-/* An unselected tile lifted 1px with no shadow under it, which reads as a
-   rendering glitch rather than a hover. */
-.market-watchlist__item:hover:not(:disabled) {
-  box-shadow: 0 8px 18px -12px color-mix(in srgb, var(--text-primary) 55%, transparent);
+  background: color-mix(in srgb, var(--series-1) 88%, #000);
 }
 
 /* "SLIPPAGE BPS" is 94px of tracked uppercase in a 93px column, so it wrapped
@@ -12791,7 +12729,7 @@ button:active:not(:disabled) {
 }
 
 .role-card:has(.role-card__action:active) {
-  transform: translateY(-1px);
+  transform: translateY(1px);
 }
 
 /* ---------- category bars ---------- */

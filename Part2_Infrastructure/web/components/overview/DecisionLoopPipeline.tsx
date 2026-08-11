@@ -53,7 +53,7 @@ export default function DecisionLoopPipeline({ stages }: { stages: DecisionStage
          ~70px taller than it needed to be. Every stage is now `flex-1 min-w-0`
          in a nowrap row, so they share the width and each detail line ellipses
          rather than pushing a sibling onto the next line. */
-      className="relative z-[1] min-w-0 flex-[1_1_600px] rounded-[13px] border border-white/15 bg-[rgba(5,17,34,0.36)] p-4 max-[900px]:w-full"
+      className="relative z-[1] min-w-0 flex-[1_1_600px] max-[900px]:w-full"
       aria-label="AlphaEngine decision loop"
     >
       <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--hero-accent)]">Decision loop</span>

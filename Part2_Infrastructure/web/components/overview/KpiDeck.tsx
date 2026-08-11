@@ -42,7 +42,7 @@ function KpiCard({
   titleText?: string;
 }) {
   return (
-    <div className="grid min-w-0 gap-0.5 rounded-[12px] border border-border bg-surface-1 px-4 py-3.5 shadow-card">
+    <div className="grid min-w-0 gap-0.5 rounded-[12px] border border-border bg-surface-1 px-4 py-3.5">
       <span className="text-[9.5px] font-bold uppercase tracking-[0.07em] text-text-muted">{label}</span>
       {/* The value owns its own row.
           It used to share one with the sparkline, and that row carried no
