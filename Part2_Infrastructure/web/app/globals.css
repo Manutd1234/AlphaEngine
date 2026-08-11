@@ -1547,7 +1547,7 @@ tbody tr[tabindex]:focus-visible {
   color: #fff;
   background:
     radial-gradient(circle at 22% 18%, rgba(255, 255, 255, 0.25), transparent 28%),
-    linear-gradient(145deg, #3478ff 0%, #2455d9 55%, #163790 100%);
+    linear-gradient(145deg, #3b82f6 0%, #2563eb 55%, #1e40af 100%);
   box-shadow: 0 8px 22px rgba(37, 99, 235, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
@@ -1592,8 +1592,8 @@ tbody tr[tabindex]:focus-visible {
   width: 10px;
   height: 2px;
   border-radius: 3px;
-  background: #74e7d0;
-  box-shadow: 0 0 7px rgba(116, 231, 208, 0.55);
+  background: #9ec9fb;
+  box-shadow: 0 0 7px rgba(158, 201, 251, 0.5);
 }
 
 .brand-mark__rails i:last-child {

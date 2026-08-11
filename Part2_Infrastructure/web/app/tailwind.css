@@ -34,7 +34,8 @@
  *  - Rare unbridged token: use the var shorthand, e.g. bg-(--diverging-mid).
  *  - Raw hex needs a comment. Sanctioned: #b3242e destructive red (contrast
  *    rationale beside .handoff-fire in globals.css) and the hero pipeline's
- *    fixed dark-step status map (the hero background is theme-invariant navy).
+ *    fixed dark-step status map (the hero background is theme-invariant
+ *    near-black graphite).
  */
 
 @layer theme, base, components, utilities;

@@ -5,7 +5,7 @@
  * Execution" text with four stages whose states derive from what the system
  * actually measured (lib/overview-state.ts) — no invented progress.
  *
- * Colour note: the hero behind this panel is a theme-invariant navy gradient,
+ * Colour note: the hero behind this panel is a theme-invariant graphite plane,
  * so the theme-flipping `--*-text` tokens are wrong here — their light-theme
  * values fail contrast on the dark plane. This map fixes the DARK-theme text
  * steps (asserted AA-clear against a visually equivalent surface by
