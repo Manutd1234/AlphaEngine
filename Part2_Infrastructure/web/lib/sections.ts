@@ -70,7 +70,8 @@ export type RiskSection = (typeof RISK_SECTIONS)[number]["id"];
 export const RISK_SECTION_IDS = RISK_SECTIONS.map((s) => s.id) as readonly RiskSection[];
 
 export const DATA_SECTIONS = [
-  { id: "overview", label: "Overview & Trust", description: "Freshness, validation & next action" },
+  { id: "overview", label: "Trust Summary", description: "Verdict, composition & boundary" },
+  { id: "feeds", label: "Feeds & Contracts", description: "Freshness, validation & next action" },
   { id: "quality", label: "Quality & Incidents", description: "Reconcile, contracts & quarantine" },
   { id: "lineage", label: "Lineage & Payloads", description: "Trace source, cache & coercion" },
   { id: "providers", label: "Providers & Capacity", description: "Failover, quota & reserve" },

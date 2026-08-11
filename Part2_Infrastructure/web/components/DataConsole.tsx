@@ -378,6 +378,20 @@ export default function DataConsole({
           probeError={currentProbeError}
           probeLoading={currentProbeLoading}
           onOpenSection={onSectionChange}
+          view="summary"
+        />
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="data" tabId="feeds" activeId={section}>
+        <DataTrustOverview
+          health={health}
+          healthError={view.healthError}
+          symbol={workspaceSymbol}
+          probe={currentProbe}
+          probeError={currentProbeError}
+          probeLoading={currentProbeLoading}
+          onOpenSection={onSectionChange}
+          view="feeds"
         />
       </WorkspaceSubtabPanel>
 

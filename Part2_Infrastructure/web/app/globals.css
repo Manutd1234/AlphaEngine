@@ -11995,6 +11995,89 @@ h4 {
   padding-top: var(--space-3);
 }
 
+/* ---------- composition ring ----------
+   The ring is the glance and the legend is the answer: arc length is the one
+   encoding readers systematically misjudge, so every slice prints its share
+   beside its swatch and colour never carries meaning alone. */
+.donut {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.donut__ring {
+  width: 132px;
+  height: 132px;
+}
+
+.donut__value {
+  fill: var(--text-primary);
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.donut__label {
+  fill: var(--text-muted);
+  font-size: 7px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.donut__legend {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.donut__legend li {
+  display: grid;
+  grid-template-columns: 9px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 11.5px;
+}
+
+.donut__legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+.donut__legend span {
+  overflow: hidden;
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.donut__legend strong {
+  color: var(--text-primary);
+  font-size: 11.5px;
+  font-weight: 650;
+}
+
+.donut-empty {
+  font-size: 11.5px;
+}
+
+.data-trust-composition {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-5);
+}
+
+@media (max-width: 900px) {
+  .data-trust-composition {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .liquidity-pair > .card {
   display: flex;
   flex-direction: column;

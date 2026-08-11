@@ -1,6 +1,7 @@
 "use client";
 
 import CategoryBars, { type BarRow } from "@/components/charts/CategoryBars";
+import DonutChart, { type DonutSlice } from "@/components/common/DonutChart";
 import type { InspectResponse, SystemHealth } from "@/components/systems/types";
 import {
   deriveDataTrust,
@@ -16,6 +17,9 @@ interface DataTrustOverviewProps {
   probeError?: string | null;
   probeLoading?: boolean;
   onOpenSection?: (section: DataTrustDestination) => void;
+  /** `summary` is the verdict, composition and boundary; `feeds` is the two
+   *  monitors and the operator path. One derivation, two locations. */
+  view?: "summary" | "feeds";
 }
 
 const TONE_GLYPH: Record<DataTrustTone, string> = {
@@ -41,6 +45,7 @@ export default function DataTrustOverview({
   probeError,
   probeLoading,
   onOpenSection,
+  view = "summary",
 }: DataTrustOverviewProps) {
   const trust = deriveDataTrust(health, { symbol, healthError, probe, probeError, probeLoading });
   const feeds = health?.platform?.market_data.feeds ?? [];
@@ -81,9 +86,40 @@ export default function DataTrustOverview({
     })
     .filter((row) => row.segments.some((segment) => segment.value > 0));
 
+  /**
+   * The composition ring. Same numbers as the per-capability bars, asked as
+   * one question instead of N: of everything this instance answered, how much
+   * was re-checked against a contract and how much was replayed from cache.
+   * Cache hits stay their own slice — folding them into "passed" would report
+   * contract coverage the instance never performed.
+   */
+  const provenanceTotals = provenanceRows.reduce(
+    (acc, row) => {
+      for (const segment of row.segments) {
+        acc[segment.label] = (acc[segment.label] ?? 0) + segment.value;
+      }
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+  const provenanceSlices: DonutSlice[] = [
+    { label: "served from cache", value: provenanceTotals["served from cache"] ?? 0, colour: "var(--series-3)" },
+    { label: "contract passed", value: provenanceTotals["fetched · contract passed"] ?? 0, colour: "var(--series-1)" },
+    { label: "flagged", value: provenanceTotals["fetched · flagged"] ?? 0, colour: "var(--status-warning)" },
+    { label: "not evaluated", value: provenanceTotals["fetched · not evaluated"] ?? 0, colour: "var(--axis)" },
+  ];
+  const provenanceAnswers = provenanceSlices.reduce((acc, slice) => acc + slice.value, 0);
+
+  const summary = view === "summary";
+  const feedsView = view === "feeds";
+
   return (
     <div className="data-trust-overview">
-      <section className={`card data-trust-hero is-${trust.verdict.tone}`} aria-labelledby="data-trust-heading">
+      {/* One derivation, two locations: the summary carries the verdict,
+          composition and boundary; feeds carries the two monitors and the
+          operator path. `hidden` rather than a conditional render so the
+          derived state above is computed once for both. */}
+      <section className={`card data-trust-hero is-${trust.verdict.tone}`} aria-labelledby="data-trust-heading" hidden={!summary}>
         <div>
           <span className="page-kicker">Market data quality / freshness monitor</span>
           <h2 id="data-trust-heading">{trust.verdict.label}</h2>
@@ -105,7 +141,7 @@ export default function DataTrustOverview({
           Each capability's bar is that proportion already — cache hits carry no
           contract check because nothing was fetched, and every fetch that did
           happen is shown as passed, flagged, or unevaluated. */}
-      <section className="card data-trust-provenance" aria-labelledby="trust-provenance-heading">
+      <section className="card data-trust-provenance" aria-labelledby="trust-provenance-heading" hidden={!summary}>
         <div className="portfolio-card-heading">
           <div>
             <span className="page-kicker">Evidence composition</span>
@@ -117,14 +153,25 @@ export default function DataTrustOverview({
               : "no validation window yet"}
           </span>
         </div>
-        <CategoryBars
-          ariaLabel="Per capability, how many answers were served from cache versus fetched and contract-checked."
-          rows={provenanceRows}
-          emptyNote="No capability has served a request on this instance yet, so there is nothing to attribute."
-        />
+        {/* The ring answers the whole question at a glance; the bars answer it
+            per capability. Same counters, two altitudes. */}
+        <div className="data-trust-composition">
+          <DonutChart
+            slices={provenanceSlices}
+            centreValue={provenanceAnswers ? String(provenanceAnswers) : undefined}
+            centreLabel="answers"
+            ariaLabel="Composition of every answer this instance served, by whether it was re-checked against a contract or replayed from cache."
+            emptyNote="Nothing served yet."
+          />
+          <CategoryBars
+            ariaLabel="Per capability, how many answers were served from cache versus fetched and contract-checked."
+            rows={provenanceRows}
+            emptyNote="No capability has served a request on this instance yet, so there is nothing to attribute."
+          />
+        </div>
       </section>
 
-      <section className="data-trust-section" aria-labelledby="trust-evidence-heading">
+      <section className="data-trust-section" aria-labelledby="trust-evidence-heading" hidden={!summary}>
         <div className="section-heading compact">
           <div>
             <span className="page-kicker">Decision evidence</span>
@@ -146,7 +193,7 @@ export default function DataTrustOverview({
         </div>
       </section>
 
-      <div className="data-trust-detail-grid">
+      <div className="data-trust-detail-grid" hidden={!feedsView}>
         <section className="card data-trust-monitor" aria-labelledby="feed-monitor-heading">
           <div className="section-heading compact">
             <div>
@@ -285,7 +332,7 @@ export default function DataTrustOverview({
         </section>
       </div>
 
-      <section className="data-trust-section" aria-labelledby="trust-actions-heading">
+      <section className="data-trust-section" aria-labelledby="trust-actions-heading" hidden={!feedsView}>
         <div className="section-heading compact">
           <div>
             <span className="page-kicker">Operator path</span>
@@ -311,7 +358,7 @@ export default function DataTrustOverview({
         </div>
       </section>
 
-      <section className="card data-trust-boundaries" aria-labelledby="trust-boundaries-heading">
+      <section className="card data-trust-boundaries" aria-labelledby="trust-boundaries-heading" hidden={!summary}>
         <div className="section-heading compact">
           <div>
             <span className="page-kicker">Assessment boundary</span>
