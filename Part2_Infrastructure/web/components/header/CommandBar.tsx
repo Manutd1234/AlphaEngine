@@ -209,7 +209,7 @@ export default function CommandBar({ open, onClose, commands }: CommandBarProps)
 
         <p className="command-bar__footer">
           <span><kbd>↑</kbd><kbd>↓</kbd> to move · <kbd>enter</kbd> to run</span>
-          <span>Alt+1–8 jumps to a workspace directly</span>
+          <span>Alt+1–8 jumps to a workspace · <kbd>?</kbd> shortcuts &amp; tour</span>
         </p>
       </div>
     </dialog>

@@ -34,6 +34,7 @@ import StatTile from "@/components/StatTile";
 import { ResultsTable, WalkForwardTable } from "@/components/Tables";
 import Verdict from "@/components/Verdict";
 import CommandBar, { type Command } from "@/components/header/CommandBar";
+import ShortcutsOverlay, { type TourStop } from "@/components/header/ShortcutsOverlay";
 import WorkspaceHeader, { NAV_ITEMS, type WorkspaceView } from "@/components/WorkspaceHeader";
 import WorkspaceIntro from "@/components/WorkspaceIntro";
 import WorkspaceOverview from "@/components/WorkspaceOverview";
@@ -179,6 +180,7 @@ export default function Page() {
   const [autoRun, setAutoRun] = useState(true);
   const [autoSuspended, setAutoSuspended] = useState<string | null>(null);
   const [commandBarOpen, setCommandBarOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [resultAnnouncement, setResultAnnouncement] = useState<{
     key: string;
     text: string;
@@ -579,6 +581,22 @@ export default function Page() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  /**
+   * "?" opens the shortcuts-and-tour overlay — unless the keystroke belongs
+   * to an editable target, where a question mark is just a question mark.
+   */
+  useEffect(() => {
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "?" || event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.isContentEditable || /^(?:INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
+      event.preventDefault();
+      setShortcutsOpen((prev) => !prev);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   /** ⌘/Ctrl+Enter runs the sweep from anywhere, and always records it. */
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
@@ -734,6 +752,35 @@ export default function Page() {
   );
 
   /**
+   * The eight-stop reviewer tour — one stop per workspace, in decision-loop
+   * order, each landing on a full `#view/section` deep link with the one
+   * moment worth showing named. Rendered by the "?" overlay.
+   */
+  const tourStops = useMemo<TourStop[]>(() => {
+    const stop = (
+      where: string,
+      moment: string,
+      viewId: WorkspaceView,
+      sectionId: string,
+      apply: () => void,
+    ): TourStop => ({
+      where,
+      moment,
+      visit: () => navigate(viewId, false, { apply, hash: `${viewId}/${sectionId}` }),
+    });
+    return [
+      stop("Overview → Decision loop", "The desk in one screen; every pipeline stage links into its tab — research reaches execution only through the risk gate.", "overview", "loop", () => setOverviewSection("loop")),
+      stop("Research → Summary", "The reproducibility capsule and the PASS/MARGINAL/FAIL verdict; drag a slider and the six-veto promotion gate re-clears.", "research", "summary", () => setResearchSection("summary")),
+      stop("Execution → Trade", "Fire the Fat finger $500k preset — the gate vector names the exact check that refused it, decided in ~0.2 ms.", "live", "trade", () => setExecutionSection("trade")),
+      stop("Portfolio → Overview", "The same book Risk reads; the covariance card says “Measured · N aligned bars”, never an assumption.", "portfolio", "overview", () => setPortfolioSection("overview")),
+      stop("Risk → Monte Carlo", "10,000 bootstrap paths against the live drawdown budget — the P95 loss verdict, in dollars.", "risk", "montecarlo", () => setRiskSection("montecarlo")),
+      stop("Data → Quality & Incidents", "Simulate a provider outage and watch the incident row, failover graph and consensus react — then self-restore.", "data", "quality", () => setDataSection("quality")),
+      stop("Reliability → Telemetry & SLIs", "Fleet-truth p99 and provider circuits — the latency chip in every header resolves here.", "reliability", "overview", () => setReliabilitySection("overview")),
+      stop("Developer → API & Schema", "OpenAPI drift against the committed digest, and the Monte Carlo parity check you can run in this browser.", "developer", "apis", () => setDeveloperSection("apis")),
+    ];
+  }, [navigate]);
+
+  /**
    * Everything ⌘K can reach, built where the lists already live. The palette
    * holds no routing knowledge of its own: all 8 tabs, every rail section,
    * all 46 strategies, every research symbol and the kill switch flow from
@@ -877,6 +924,13 @@ export default function Page() {
         category: "Action",
         action: copyLinkToView,
       },
+      {
+        id: "action-shortcuts",
+        label: "Shortcuts & reviewer tour — the five-minute walkthrough",
+        category: "Action",
+        hotkey: "?",
+        action: () => setShortcutsOpen(true),
+      },
     );
     return list;
   }, [
@@ -1002,6 +1056,12 @@ export default function Page() {
         open={commandBarOpen}
         onClose={() => setCommandBarOpen(false)}
         commands={commands}
+      />
+
+      <ShortcutsOverlay
+        open={shortcutsOpen}
+        onClose={() => setShortcutsOpen(false)}
+        stops={tourStops}
       />
 
       <main id="workspace-content" className="workspace-shell" tabIndex={-1}>
