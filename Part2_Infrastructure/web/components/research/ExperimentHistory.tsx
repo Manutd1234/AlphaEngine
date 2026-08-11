@@ -193,7 +193,7 @@ export default function ExperimentHistory({
             </div>
           )}
 
-          <div className="table-wrap">
+          <div className="table-wrap" tabIndex={0}>
             <table>
               <caption className="sr-only">
                 Saved research runs with in-sample Sharpe, deflated Sharpe, out-of-sample Sharpe,

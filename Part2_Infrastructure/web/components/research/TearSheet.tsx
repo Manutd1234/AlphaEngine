@@ -116,7 +116,7 @@ export default function TearSheet({
       {years.length === 0 ? (
         <p className="sub">No completed month in this window.</p>
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0}>
           <table className="monthly-grid">
             <caption className="sr-only">
               Strategy return by calendar month and year, with an annual total.

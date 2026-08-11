@@ -115,7 +115,7 @@ export default function FactorPanel({ report }: { report: FactorReport | null })
         </div>
       )}
 
-      <div className="table-wrap" style={{ marginTop: 14 }}>
+      <div className="table-wrap" tabIndex={0} style={{ marginTop: 14 }}>
         <table>
           <caption className="sr-only">
             Factor loadings with t-statistics, p-values and a bar showing relative magnitude.
@@ -188,7 +188,7 @@ export default function FactorPanel({ report }: { report: FactorReport | null })
 
       <details style={{ marginTop: 12 }}>
         <summary>Factor correlations and method</summary>
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0}>
           <table>
             <caption className="sr-only">Pairwise correlation between the regressors.</caption>
             <thead>

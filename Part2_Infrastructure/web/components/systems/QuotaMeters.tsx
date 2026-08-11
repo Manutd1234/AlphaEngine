@@ -133,7 +133,7 @@ export default function QuotaMeters({ providers, cacheByCapability, cacheEntries
       {capabilities.length === 0 ? (
         <p className="muted console-empty">No cache lookups on this instance yet.</p>
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0}>
           <table>
             <caption className="sr-only">Cache hit rate per capability.</caption>
             <thead>

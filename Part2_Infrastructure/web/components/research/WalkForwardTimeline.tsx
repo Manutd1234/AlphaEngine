@@ -222,7 +222,7 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
         </div>
       </div>
 
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0}>
         <table>
           <caption className="sr-only">
             Per-fold walk-forward results: training and testing windows, chosen parameters,

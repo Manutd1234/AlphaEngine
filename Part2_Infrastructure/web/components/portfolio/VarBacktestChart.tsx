@@ -290,7 +290,7 @@ export default function VarBacktestChart({
             checking — a model that is never breached is usually one that is too wide.
           </p>
         ) : (
-          <div className="table-wrap">
+          <div className="table-wrap" tabIndex={0}>
             <table>
               <caption className="sr-only">
                 Every day whose realised loss exceeded the rolling 95% value-at-risk forecast.

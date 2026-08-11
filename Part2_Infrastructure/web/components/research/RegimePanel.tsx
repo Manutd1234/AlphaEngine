@@ -63,7 +63,7 @@ export default function RegimePanel({ regimes }: { regimes: RegimeReport }) {
         </span>
       </div>
 
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0}>
         <table>
           <caption className="sr-only">
             Strategy performance conditioned on trend and volatility regimes

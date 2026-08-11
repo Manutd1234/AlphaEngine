@@ -41,7 +41,7 @@ export default function RiskContributions({ contributions }: RiskContributionsPr
         Sums to the book&apos;s total volatility, so it answers what to cut — not what is largest.
       </p>
 
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0}>
         <table>
           <caption className="sr-only">
             Per-position share of notional against share of portfolio volatility, with standalone

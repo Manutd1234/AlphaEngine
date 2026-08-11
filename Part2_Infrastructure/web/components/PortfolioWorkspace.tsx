@@ -643,7 +643,7 @@ export default function PortfolioWorkspace({
               </div>
               <span>{symbolFlow.length} instrument{symbolFlow.length === 1 ? "" : "s"} touched</span>
             </div>
-            <div className="table-wrap">
+            <div className="table-wrap" tabIndex={0}>
               <table>
                 <caption className="sr-only">Order flow attributed by instrument</caption>
                 <thead>

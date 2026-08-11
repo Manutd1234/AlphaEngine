@@ -124,7 +124,7 @@ export default function FillQualityHeatmap({
           </p>
         </div>
       </header>
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0}>
         <table className="fill-quality-heatmap__grid">
           <thead>
             <tr>

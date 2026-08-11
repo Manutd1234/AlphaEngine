@@ -315,7 +315,7 @@ export default function StressTest({
         </div>
       )}
 
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0}>
         <table>
           <caption className="sr-only">
             Per-position impact under the selected scenario, showing which moves were shocked
@@ -369,7 +369,7 @@ export default function StressTest({
       </div>
 
       <h3 className="stress-subhead">Every scenario, ranked by loss</h3>
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0}>
         <table>
           <caption className="sr-only">
             Projected profit and loss for each named scenario against the current book.

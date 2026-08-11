@@ -292,7 +292,7 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
       {/* One light-mode categorical slot sits below 3:1 against the surface, so
           the palette obliges a non-colour reading of the same figures. The table
           is also where the caveats live in words rather than as a shape. */}
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0}>
         <table>
           <caption className="sr-only">
             Each leg of the day&apos;s P&amp;L, what it was measured from, and why any missing leg is missing.

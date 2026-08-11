@@ -647,7 +647,7 @@ export default function LiveMarket({
 
         {tca ? (
           <>
-            <div className="table-wrap" style={{ marginBottom: 14 }}>
+            <div className="table-wrap" tabIndex={0} style={{ marginBottom: 14 }}>
               <table>
                 <caption className="sr-only">Execution estimate per venue</caption>
                 <thead>

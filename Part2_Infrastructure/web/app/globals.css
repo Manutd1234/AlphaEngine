@@ -296,6 +296,52 @@ html {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* A scroll container nobody can focus is unreachable by keyboard and by every
+   switch device: the rows are readable, the columns past the fold are not. */
+.table-wrap:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: -2px;
+}
+
+/* Freeze the identity column on the two wide tables that scroll sideways
+   without one. The reliability matrix has had this since it shipped; these two
+   were left scrolling their own row labels off the screen, which turns a
+   comparison table into a column of numbers belonging to nobody. The opaque
+   background is not optional — without it the scrolled cells bleed through. */
+.developer-work__table th[scope="row"],
+.developer-work__table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: var(--z-sticky-cell);
+  background: var(--surface-1);
+}
+
+.developer-cp-jobs__row > :first-child {
+  position: sticky;
+  left: 0;
+  z-index: var(--z-sticky-cell);
+  background: var(--surface-1);
+}
+
+/* Priority+ under 600px, on the two tables a desk reads record-by-record
+   rather than comparing rows: the verdict, the instrument, the side, the size
+   and the slippage stay; venue, fill, latency and tag go. The comparison
+   grids (reliability, jobs) deliberately keep every column and scroll with a
+   frozen first column instead — hiding a column there would break the
+   row-to-row read they exist for. */
+@media (max-width: 600px) {
+  .cockpit-blotter table th:nth-child(5),
+  .cockpit-blotter table td:nth-child(5),
+  .cockpit-blotter table th:nth-child(6),
+  .cockpit-blotter table td:nth-child(6),
+  .cockpit-blotter table th:nth-child(8),
+  .cockpit-blotter table td:nth-child(8),
+  .cockpit-blotter table th:nth-child(10),
+  .cockpit-blotter table td:nth-child(10) {
+    display: none;
+  }
+}
+
 /* ---------- thumb-reach navigation ----------
    Hidden entirely above 620px: a desk has eight tabs in the header and needs
    no second navigation. Below it, four destinations plus the palette, which is
@@ -10325,7 +10371,12 @@ button.data-trust-action > i {
 
 .developer-cp-pipeline-card {
   grid-column: 1 / -1;
-  overflow: hidden;
+  /* The six-stage strip inside carries a 660px min-width that is never reset.
+     `hidden` swallowed it silently, so on a phone stages 4 to 6 were clipped
+     and unreachable — the only place in the app where content was lost rather
+     than reflowed. */
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .developer-cp-pipeline {
@@ -13891,7 +13942,7 @@ button:active:not(:disabled) {
 
 /* While a view transition runs, the cross-fade IS the entry animation;
    letting panel-in also fire would double-animate the incoming panel. */
-html.is-vt .view-panel {
+html:active-view-transition .view-panel {
   animation: none;
 }
 

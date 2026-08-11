@@ -208,7 +208,7 @@ export default function CrossSourceCheck({ symbol }: CrossSourceCheckProps) {
           )}
 
           {answering > 0 && (
-            <div className="table-wrap">
+            <div className="table-wrap" tabIndex={0}>
               <table>
                 <caption className="sr-only">
                   Per-source price, absolute market-data timestamp, deviation from the median in basis

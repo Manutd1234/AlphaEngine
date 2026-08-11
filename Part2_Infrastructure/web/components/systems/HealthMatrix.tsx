@@ -151,7 +151,7 @@ export default function HealthMatrix({
           : "Every mutation is recorded in the event stream."}
       </p>
 
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0}>
         <table className="console-matrix">
           <caption className="sr-only">
             Provider health: status, circuit-breaker state, latency percentiles, quota consumption
@@ -313,7 +313,7 @@ export default function HealthMatrix({
               have no failover chain and no breaker. Measured separately.
             </small>
           </p>
-          <div className="table-wrap">
+          <div className="table-wrap" tabIndex={0}>
             <table>
               <caption className="sr-only">Latency of the exchange clients that bypass the provider registry.</caption>
               <thead>

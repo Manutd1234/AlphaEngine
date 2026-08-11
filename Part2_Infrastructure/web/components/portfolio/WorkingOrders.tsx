@@ -207,7 +207,7 @@ export default function WorkingOrders({
               : "Nothing is resting. Every accepted order so far crossed the spread and filled immediately."}
         </p>
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0}>
           <table>
             <caption className="sr-only">
               Orders resting on the book, with the capital each commits and how far it sits from the mark.

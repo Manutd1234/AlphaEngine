@@ -44,7 +44,7 @@ export default function DeskTape({ symbol }: { symbol: string }) {
           {describeTape(state, rows.length)}
         </p>
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0}>
           <table>
             <caption className="sr-only">
               Decisions streamed from the Postgres mirror since this page opened, newest first.

@@ -200,7 +200,7 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
         </div>
       )}
 
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0}>
         <table>
           <caption className="sr-only">
             Current and proposed weight per position, with the drift between them.

@@ -85,7 +85,7 @@ export default function RunComparison({ a, b, onClose }: RunComparisonProps) {
           change in the underlying data.
         </p>
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0}>
           <table>
             <caption className="sr-only">Request fields that differ between the two runs.</caption>
             <thead>

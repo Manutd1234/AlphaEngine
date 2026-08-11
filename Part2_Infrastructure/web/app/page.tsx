@@ -259,16 +259,16 @@ export default function Page() {
     if (!reduced && "startViewTransition" in document) {
       // Progressive, Chromium — the same posture rise-in already takes. The
       // sticky header carries view-transition-name: workspace-header, so the
-      // swap reads as content changing under a stable frame. `is-vt`
-      // suppresses panel-in for the swap (the cross-fade replaces it), and
-      // the scroll reset moves INSIDE the callback as `auto` so it cannot
-      // race the snapshot.
-      document.documentElement.classList.add("is-vt");
-      const transition = document.startViewTransition(() => {
+      // swap reads as content changing under a stable frame. `panel-in` is
+      // suppressed for the duration by the `:active-view-transition` rule in
+      // globals.css — the platform's own hook, which replaced a hand-added
+      // `is-vt` class this function used to add and remove itself. The scroll
+      // reset stays INSIDE the callback as `auto` so it cannot race the
+      // snapshot.
+      document.startViewTransition(() => {
         flushSync(apply);
         window.scrollTo({ top: 0, behavior: "auto" });
       });
-      transition.finished.finally(() => document.documentElement.classList.remove("is-vt"));
     } else {
       apply();
       // Tabs are a lateral move between desk surfaces, not a continuation of

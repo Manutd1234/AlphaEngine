@@ -70,7 +70,7 @@ export default function FactorRiskPanel({
         </div>
       </div>
 
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0}>
         <table>
           <thead>
             <tr>

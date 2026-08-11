@@ -85,7 +85,7 @@ export function WalkForwardTable({ data }: { data: SweepResponse }) {
     );
   }
   return (
-    <div className="table-wrap">
+    <div className="table-wrap" tabIndex={0}>
       <table>
         <caption className="sr-only">
           Walk-forward folds: parameters chosen in-sample, scored out-of-sample

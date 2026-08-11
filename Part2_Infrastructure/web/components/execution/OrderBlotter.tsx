@@ -139,7 +139,7 @@ export default function OrderBlotter({ rows, focusSymbol, onOpenResearch, source
               : "No orders yet. Send one from the ticket above and it will appear here."}
         </p>
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0}>
           <table>
             <caption className="sr-only">Filtered execution order blotter</caption>
             <thead>

@@ -65,7 +65,7 @@ export default function LiquidityPanel({ positions, advMap }: LiquidityPanelProp
         </div>
       </div>
 
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0}>
         <table>
           <thead>
             <tr>

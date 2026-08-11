@@ -90,7 +90,7 @@ export default function CorrelationMatrix({ model, worst, observations }: Correl
         <small>hue is the sign, depth is the strength, and every cell prints its own number</small>
       </div>
 
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0}>
         <table className="corr-matrix" onPointerLeave={() => setCross(null)}>
           <caption className="sr-only">
             Pairwise return correlation between held instruments, {symbols.length} by {symbols.length}.

@@ -136,7 +136,7 @@ export default function RiskWorkspace({
                 sentence. What they compress away is the arithmetic, so this is
                 the table rather than a second set of the same bars — which is
                 what it used to be. */}
-            <div className="table-wrap">
+            <div className="table-wrap" tabIndex={0}>
               <table>
                 <caption className="sr-only">
                   Each pre-trade constraint with its current usage, its limit, the headroom left, and

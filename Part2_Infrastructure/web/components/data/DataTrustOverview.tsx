@@ -206,7 +206,7 @@ export default function DataTrustOverview({
           </div>
 
           {feeds.length ? (
-            <div className="table-wrap">
+            <div className="table-wrap" tabIndex={0}>
               <table>
                 <caption className="sr-only">Gateway market-feed freshness and update evidence.</caption>
                 <thead>
@@ -287,7 +287,7 @@ export default function DataTrustOverview({
           </div>
 
           {providerValidation.length ? (
-            <div className="table-wrap">
+            <div className="table-wrap" tabIndex={0}>
               <table>
                 <caption className="sr-only">Bounded contract-validation evidence by provider.</caption>
                 <thead>
