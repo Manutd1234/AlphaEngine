@@ -43,6 +43,10 @@ interface WorkspaceHeaderProps {
   healthUnreachable: boolean;
   halt: KillSwitchHaltState | null;
   riskControl: KillSwitchRiskControl;
+  /** Opens the command palette. Without a control here the palette, the
+   *  reviewer tour and the shortcut map were keyboard-only — i.e. absent on
+   *  every phone and tablet. */
+  onOpenCommandBar: () => void;
 }
 
 export default function WorkspaceHeader({
@@ -50,6 +54,7 @@ export default function WorkspaceHeader({
   onViewChange,
   onOpenProviderHealth,
   onOpenTailLatency,
+  onOpenCommandBar,
   latency,
   degraded,
   providersReady,
@@ -196,6 +201,16 @@ export default function WorkspaceHeader({
 
         <div className="header-spacer" />
 
+        <button
+          type="button"
+          className="header-command-button"
+          onClick={onOpenCommandBar}
+          aria-label="Open the command palette. Keyboard shortcut Command K"
+          aria-keyshortcuts="Meta+K Control+K"
+        >
+          <span aria-hidden>⌘K</span>
+          <span className="header-command-button__label">Search</span>
+        </button>
         <LatencyChip latency={latency} onOpenReliability={onOpenTailLatency} />
         <KillSwitchControl halt={halt} riskControl={riskControl} />
         <button

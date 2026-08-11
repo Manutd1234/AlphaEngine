@@ -276,6 +276,38 @@
   padding: 0;
 }
 
+html {
+  /* Safari paints a grey-blue rectangle over every tapped control. The focus
+     and active states already answer the tap, and the flash reads as a
+     rendering fault on dark surfaces. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The palette's only entry point was ⌘K, which meant the palette, the
+   reviewer tour and the shortcut map did not exist on a touch device. */
+.header-command-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 0 11px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.header-command-button span[aria-hidden] {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 1380px) {
+  .header-command-button__label {
+    display: none;
+  }
+}
+
 html,
 body {
   background: var(--surface-0);
@@ -14423,10 +14455,25 @@ html.is-vt .view-panel {
     align-items: center;
   }
 
+  /* 16px is the whole fix for iOS focus-zoom, and the only one that does not
+     break pinch-zoom: Safari magnifies the page on focus for anything smaller
+     and does not zoom back out, so the two selects that ARE the mobile
+     navigation left the reader stranded at 1.3x. The 44px work above stopped
+     one property short of this. */
   select,
   textarea,
   input:not([type="range"]):not([type="checkbox"]):not([type="radio"]) {
     min-height: 44px;
+    font-size: 16px;
+  }
+
+  /* The chrome selects are deliberately small on a desk; on a fingertip they
+     take the floor above and give the padding back so the header and rail do
+     not grow with them. */
+  .workspace-switcher select,
+  .workspace-subtabs__picker select {
+    padding-block: 4px;
+    font-size: 16px;
   }
 
   input[type="checkbox"],

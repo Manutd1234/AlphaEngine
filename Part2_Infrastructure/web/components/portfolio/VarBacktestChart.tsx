@@ -132,6 +132,10 @@ export default function VarBacktestChart({
             + `forecast${validation ? `, against ${validation.expectedExceptions} expected` : ""}.`
           }
           {...crosshair.handlers}
+          /* The crosshair is pointer-driven, so without this a finger dragging
+             to scroll the page scrubs the chart instead. Matches the other
+             three charts that already take pointer input. */
+          style={{ touchAction: "pan-y" }}
         >
           <Grid yTicks={ticks(lo, hi, 5)} yScale={yScale} x0={x0} x1={x1} format={(v) => usd(v, 0)} />
 

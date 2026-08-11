@@ -168,7 +168,7 @@ export default function KillSwitchControl({
           role="dialog"
           aria-modal="false"
           aria-labelledby="kill-switch-title"
-          className="absolute right-0 top-[calc(100%+10px)] z-[60] w-[340px] max-w-[calc(100vw-24px)] rounded-card border border-border bg-surface-1 p-4 shadow-card"
+          className="absolute right-0 top-[calc(100%+10px)] z-[60] w-[min(340px,calc(100vw-28px))] rounded-card border border-border bg-surface-1 p-4 shadow-card"
         >
           <span className="page-kicker">Circuit breaker</span>
           <h3 id="kill-switch-title" className="mt-0.5 text-[15px]">

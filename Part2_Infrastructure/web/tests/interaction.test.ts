@@ -108,4 +108,23 @@ describe("coarse pointers get 44px", () => {
       "the rail must grow through its token so sticky offsets stay measured",
     );
   });
+
+  it("sizes fields at 16px so iOS never zooms on focus", () => {
+    // Safari magnifies the page when a field smaller than 16px takes focus and
+    // does not zoom back out. The two selects that ARE the mobile navigation
+    // were 12px, so tapping the nav left the reader stranded at 1.3x. The
+    // viewport export deliberately does not set maximum-scale — suppressing
+    // pinch-zoom to dodge this would break WCAG 1.4.4 to fix a typo-sized bug.
+    const body = declarations.slice(blocks[0].index ?? 0);
+    assert.match(
+      body,
+      /select,\s*\n\s*textarea,\s*\n\s*input:not[^{]*\{[^}]*font-size: 16px/,
+      "the field rule inside the coarse block must set font-size: 16px",
+    );
+    assert.doesNotMatch(
+      declarations,
+      /maximum-scale|user-scalable/,
+      "pinch-zoom must stay available",
+    );
+  });
 });

@@ -101,8 +101,15 @@ export default function QuantEducationalTooltip({
         aria-expanded={open}
         aria-describedby={open ? popoverId : undefined}
         onClick={() => setOpen((prev) => !prev)}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
+        /* Hover-to-open only where hover exists. iOS synthesises
+           mouseenter → click for a single tap, so the two handlers cancelled
+           each other and the tooltip never opened on a phone at all. */
+        onMouseEnter={() => {
+          if (window.matchMedia("(hover: hover)").matches) setOpen(true);
+        }}
+        onMouseLeave={() => {
+          if (window.matchMedia("(hover: hover)").matches) setOpen(false);
+        }}
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
       >
