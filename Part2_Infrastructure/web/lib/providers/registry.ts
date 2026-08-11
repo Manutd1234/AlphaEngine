@@ -278,6 +278,18 @@ export async function consensusQuote(
         attempts.push({ provider: id, reason: "not_configured", detail: adapter.meta.keyEnv });
         return null;
       }
+      // Checked here, not left to the pinned dispatch's throw: the catch below
+      // would record the outage as "failed", and a fault an operator caused
+      // deliberately must never be reported as one they did not.
+      const outage = outageFor(id);
+      if (outage) {
+        attempts.push({
+          provider: id,
+          reason: "simulated_outage",
+          detail: `restores in ${Math.max(0, Math.ceil((outage.expiresAt - Date.now()) / 1000))}s`,
+        });
+        return null;
+      }
       try {
         // Each leg goes through `dispatch` pinned to itself, so it still gets
         // the cache, the breaker and the quota ledger — a consensus check must
