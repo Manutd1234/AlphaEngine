@@ -47,6 +47,7 @@ import {
 } from "@/lib/blotter";
 import { sandboxBook } from "@/lib/portfolio";
 import { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
+import type { ExecutionSection } from "@/lib/sections";
 import type { Strategy } from "@/lib/types";
 
 import AlertFeed from "./AlertFeed";
@@ -83,7 +84,7 @@ export interface CockpitProps {
   notional: number;
   orderType: "MARKET" | "LIMIT";
   limitPrice: number | null;
-  section: "trade" | "liquidity" | "routing" | "activity";
+  section: ExecutionSection;
   onSideChange: (side: "BUY" | "SELL") => void;
   onNotionalChange: (notional: number) => void;
   onOrderTypeChange: (orderType: "MARKET" | "LIMIT") => void;
@@ -262,6 +263,12 @@ export default function ExecutionCockpit({
             <div className="skeleton" style={{ height: 120, marginTop: 10 }} aria-hidden />
           </div>
         </WorkspaceSubtabPanel>
+        <WorkspaceSubtabPanel workspaceId="execution" tabId="quality" activeId={section}>
+          <div className="card cockpit-placeholder" aria-busy="true">
+            <p>Measuring realised execution cost…</p>
+            <div className="skeleton" style={{ height: 120, marginTop: 10 }} aria-hidden />
+          </div>
+        </WorkspaceSubtabPanel>
         <WorkspaceSubtabPanel workspaceId="execution" tabId="activity" activeId={section}>
           <div className="card cockpit-placeholder" aria-busy="true">
             <p>Loading orders, fills and risk events…</p>
@@ -346,7 +353,10 @@ export default function ExecutionCockpit({
         </div>
       </WorkspaceSubtabPanel>
 
-      <WorkspaceSubtabPanel workspaceId="execution" tabId="activity" activeId={section}>
+      {/* Two reading modes, and they were sharing a section. Quality is the
+          analysis — what execution cost against the model. The blotter below
+          is the record: what was actually sent, what landed, what alerted. */}
+      <WorkspaceSubtabPanel workspaceId="execution" tabId="quality" activeId={section}>
         <ExecutionQuality
           summary={summary}
           symbol={symbol}
@@ -356,6 +366,9 @@ export default function ExecutionCockpit({
         />
         {/* Renders only above its own sample floor — see the component. */}
         <FillQualityHeatmap rows={effectiveOrders} source={feedSource} />
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="execution" tabId="activity" activeId={section}>
         <OrderBlotter rows={effectiveOrders} focusSymbol={symbol} onOpenResearch={onOpenResearch} source={feedSource} />
         {/* After the blotter, deliberately: the blotter is the complete
             polled record and the tape is the stream of what has just

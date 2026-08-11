@@ -43,7 +43,10 @@ export const EXECUTION_SECTIONS = [
   { id: "trade", label: "Trade", description: "Ticket & pre-trade gates" },
   { id: "liquidity", label: "Liquidity", description: "Depth & consolidated book" },
   { id: "routing", label: "Routing & TCA", description: "Cost & venue allocation" },
-  { id: "activity", label: "Activity", description: "Quality, fills & alerts" },
+  { id: "quality", label: "Fill quality", description: "Realised cost vs model" },
+  // Label reads "Blotter" now; the id stays `activity` because it is a
+  // public deep link.
+  { id: "activity", label: "Blotter", description: "Orders, tape & alerts" },
 ] as const;
 export type ExecutionSection = (typeof EXECUTION_SECTIONS)[number]["id"];
 export const EXECUTION_SECTION_IDS =
