@@ -38,6 +38,7 @@ const riskWorkspace = read("../components/RiskWorkspace.tsx");
 const portfolioWorkspace = read("../components/PortfolioWorkspace.tsx");
 const liveMarket = read("../components/LiveMarket.tsx");
 const executionCockpit = read("../components/execution/ExecutionCockpit.tsx");
+const workspaceOverview = read("../components/WorkspaceOverview.tsx");
 const sectionsSource = read("../lib/sections.ts");
 
 /** Section ids for a workspace, in rail order, from the lib/sections literal. */
@@ -165,6 +166,7 @@ describe("dense role workspaces expose accessible feature sections", () => {
         );
       }
     };
+    expectPanels("OVERVIEW", [workspaceOverview], "overview");
     expectPanels("RESEARCH", [page], "research");
     expectPanels("EXECUTION", [page, liveMarket, executionCockpit], "execution");
     expectPanels("PORTFOLIO", [portfolioWorkspace], "portfolio");

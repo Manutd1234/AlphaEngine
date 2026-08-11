@@ -47,6 +47,7 @@ import {
   DATA_SECTIONS, DATA_SECTION_IDS, type DataSection,
   DEVELOPER_SECTIONS, DEVELOPER_SECTION_IDS, type DeveloperSection,
   EXECUTION_SECTIONS, EXECUTION_SECTION_IDS, type ExecutionSection,
+  OVERVIEW_SECTIONS, OVERVIEW_SECTION_IDS, type OverviewSection,
   PORTFOLIO_SECTIONS, PORTFOLIO_SECTION_IDS, type PortfolioSection,
   RELIABILITY_SECTIONS, RELIABILITY_SECTION_IDS, type ReliabilitySection,
   RESEARCH_SECTIONS, RESEARCH_SECTION_IDS, type ResearchSection,
@@ -145,6 +146,7 @@ export default function Page() {
   // Execution owns its intent. Research promotion seeds it deliberately, while
   // changing a research dropdown does not silently retag an order draft.
   const [executionStrategy, setExecutionStrategy] = useState<Strategy>(DEFAULT_REQUEST.strategy);
+  const [overviewSection, setOverviewSection] = useState<OverviewSection>("loop");
   const [researchSection, setResearchSection] = useState<ResearchSection>("summary");
   const [showMcBands, setShowMcBands] = useState(true);
   const [mcRunNonce, setMcRunNonce] = useState(0);
@@ -245,6 +247,10 @@ export default function Page() {
       const hashView = workspace as WorkspaceView;
       if (VIEWS.includes(hashView)) {
         setView(hashView);
+        if (hashView === "overview") {
+          const requested = nestedSection as OverviewSection;
+          setOverviewSection(OVERVIEW_SECTION_IDS.includes(requested) ? requested : "loop");
+        }
         if (hashView === "data") {
           const requested = nestedSection as DataSection;
           setDataSection(DATA_SECTION_IDS.includes(requested) ? requested : "overview");
@@ -304,6 +310,11 @@ export default function Page() {
   useEffect(() => {
     if (researchContentRef.current) researchContentRef.current.scrollTop = 0;
   }, [researchSection]);
+
+  const changeOverviewSection = useCallback((next: OverviewSection) => {
+    setOverviewSection(next);
+    pushSection("overview", next);
+  }, [pushSection]);
 
   const changeResearchSection = useCallback((next: ResearchSection) => {
     setResearchSection(next);
@@ -652,6 +663,7 @@ export default function Page() {
   );
   const copyLinkToView = useCallback(() => {
     const sectionByView: Partial<Record<WorkspaceView, string>> = {
+      overview: overviewSection,
       portfolio: portfolioSection,
       risk: riskSection,
       research: researchSection,
@@ -673,6 +685,7 @@ export default function Page() {
     dataSection,
     developerSection,
     executionSection,
+    overviewSection,
     portfolioSection,
     reliabilitySection,
     researchSection,
@@ -717,6 +730,9 @@ export default function Page() {
     };
     // One pattern for all workspaces, read from lib/sections — the palette can
     // no longer drift from the rails in label or order.
+    for (const s of OVERVIEW_SECTIONS) {
+      section("overview", "Overview", s.id, `${s.label} — ${s.description}`, () => setOverviewSection(s.id));
+    }
     for (const s of RESEARCH_SECTIONS) {
       section("research", "Research", s.id, `${s.label} — ${s.description}`, () => setResearchSection(s.id));
     }
@@ -968,6 +984,8 @@ export default function Page() {
               systems={systems}
               onNavigate={navigate}
               onRun={() => void run()}
+              section={overviewSection}
+              onSectionChange={changeOverviewSection}
             />
             <NextStepFooter currentView="overview" onNavigate={navigate} />
           </section>

@@ -13,12 +13,15 @@
  * derives from the same call, one screen higher.
  */
 
+import AuditTrail from "@/components/overview/AuditTrail";
 import DecisionLoopPipeline from "@/components/overview/DecisionLoopPipeline";
 import KpiDeck from "@/components/overview/KpiDeck";
 import RoleCards, { type RoleContext } from "@/components/overview/RoleCards";
+import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import { STRATEGY_LABELS, SweepRequest, SweepResponse } from "@/lib/types";
 import { fmt } from "@/lib/format";
 import { deriveDecisionLoop } from "@/lib/overview-state";
+import { OVERVIEW_SECTIONS, type OverviewSection } from "@/lib/sections";
 import type { Side } from "@/lib/venues";
 import type { WorkspaceView } from "@/components/WorkspaceHeader";
 import type { BookView } from "@/lib/use-book";
@@ -37,6 +40,8 @@ interface WorkspaceOverviewProps {
   systems: SystemHealthView;
   onNavigate: (view: WorkspaceView) => void;
   onRun: () => void;
+  section: OverviewSection;
+  onSectionChange: (section: OverviewSection) => void;
 }
 
 export default function WorkspaceOverview({
@@ -51,6 +56,8 @@ export default function WorkspaceOverview({
   systems,
   onNavigate,
   onRun,
+  section,
+  onSectionChange,
 }: WorkspaceOverviewProps) {
   const summary = systems.health?.summary;
   const capabilitiesDown = systems.health
@@ -163,42 +170,61 @@ export default function WorkspaceOverview({
         <DecisionLoopPipeline stages={stages} />
       </section>
 
-      <KpiDeck
-        request={request}
-        result={result}
-        running={running}
-        researchStale={researchStale}
-        staleResult={staleResult}
-        side={side}
-        notional={notional}
-        book={book}
-        systems={systems}
+      {/* The hero (and its pipeline) stays above the rail the way BookChrome
+          does on Portfolio/Risk — it is the workspace's identity, not a
+          section. The three sections below it are real locations. */}
+      <WorkspaceSubtabs
+        workspaceId="overview"
+        label="Overview sections"
+        tabs={OVERVIEW_SECTIONS}
+        activeId={section}
+        onChange={onSectionChange}
       />
 
-      <section className="overview-section">
-        <div className="section-heading">
-          <div>
-            <span className="page-kicker">Workspaces</span>
-            <h2>One tab per desk role</h2>
-          </div>
-          <span className="section-note">
-            Each role owns its surface; every action still lands in the same audit log.
-          </span>
-        </div>
-
-        {/* Ordered the way work moves — an idea is researched, executed, held,
-            and constrained — then the three roles that keep that possible. */}
-        <RoleCards
-          context={context}
-          onNavigate={onNavigate}
-          onRun={onRun}
+      <WorkspaceSubtabPanel workspaceId="overview" tabId="loop" activeId={section}>
+        <KpiDeck
+          request={request}
+          result={result}
           running={running}
           researchStale={researchStale}
-          onRefreshBook={() => void book.refresh(true)}
-          bookRefreshing={book.refreshing}
-          onRefreshHealth={() => void systems.refresh(false)}
+          staleResult={staleResult}
+          side={side}
+          notional={notional}
+          book={book}
+          systems={systems}
         />
-      </section>
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="overview" tabId="desks" activeId={section}>
+        <section className="overview-section">
+          <div className="section-heading">
+            <div>
+              <span className="page-kicker">Workspaces</span>
+              <h2>One tab per desk role</h2>
+            </div>
+            <span className="section-note">
+              Each role owns its surface; every action still lands in the same audit log.
+            </span>
+          </div>
+
+          {/* Ordered the way work moves — an idea is researched, executed, held,
+              and constrained — then the three roles that keep that possible. */}
+          <RoleCards
+            context={context}
+            onNavigate={onNavigate}
+            onRun={onRun}
+            running={running}
+            researchStale={researchStale}
+            onRefreshBook={() => void book.refresh(true)}
+            bookRefreshing={book.refreshing}
+            onRefreshHealth={() => void systems.refresh(false)}
+          />
+        </section>
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="overview" tabId="audit" activeId={section}>
+        <AuditTrail active={section === "audit"} />
+      </WorkspaceSubtabPanel>
     </div>
   );
 }
