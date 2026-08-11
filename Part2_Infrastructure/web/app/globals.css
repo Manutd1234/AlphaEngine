@@ -7514,10 +7514,11 @@ button.data-trust-action > i {
 
 .data-workboard__board {
   display: grid;
-  /* The gap carries the flow connector between stages, so it is wider than a
-     plain column gutter would need to be. */
-  grid-template-columns: repeat(4, minmax(245px, 1fr));
-  gap: 26px;
+  /* The gutter is where the flow lives, so it is wider than a plain column gap
+     and the columns are correspondingly narrower — the transition between
+     stages earns its space from the cards rather than from the canvas. */
+  grid-template-columns: repeat(4, minmax(212px, 1fr));
+  gap: 44px;
   padding-bottom: 4px;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
@@ -7527,7 +7528,7 @@ button.data-trust-action > i {
 .data-work-column {
   position: relative;
   min-width: 0;
-  padding: 10px;
+  padding: 8px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: color-mix(in srgb, var(--surface-2) 82%, var(--surface-1));
@@ -7535,28 +7536,36 @@ button.data-trust-action > i {
 
 /* Work moves left to right — intake, ready, in progress, resolved — and the
    board should say so rather than leaving four parallel lists that happen to
-   sit in that order. The rule and chevron are decoration over a heading that
-   already names each stage, so they stay out of the accessibility tree. */
+   sit in that order. A hairline and a 7px chevron said it too quietly to
+   register at a glance; the rule is now a 2px accent track carrying a filled
+   marker. Both are decoration over headings that already name every stage, so
+   they stay out of the accessibility tree. */
 .data-work-column:not(:last-child)::before {
   content: "";
   position: absolute;
-  top: 25px;
-  right: -26px;
-  width: 26px;
-  border-top: 1px dashed color-mix(in srgb, var(--axis) 70%, transparent);
+  top: 27px;
+  right: -44px;
+  width: 44px;
+  border-top: 2px solid color-mix(in srgb, var(--series-1) 38%, var(--border));
   pointer-events: none;
 }
 
 .data-work-column:not(:last-child)::after {
-  content: "";
+  content: "→";
   position: absolute;
-  top: 21px;
-  right: -12px;
-  width: 7px;
-  height: 7px;
-  border-top: 2px solid var(--axis);
-  border-right: 2px solid var(--axis);
-  transform: rotate(45deg);
+  top: 15px;
+  right: -35px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid color-mix(in srgb, var(--series-1) 45%, var(--border));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--series-1) 13%, var(--surface-1));
+  color: var(--series-1);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
   pointer-events: none;
 }
 
@@ -7617,7 +7626,7 @@ button.data-trust-action > i {
 .data-work-column__list {
   display: grid;
   align-content: start;
-  gap: 8px;
+  gap: 7px;
   min-height: 90px;
   margin: 0;
   padding: 0;
@@ -7627,8 +7636,8 @@ button.data-trust-action > i {
 .data-work-card {
   position: relative;
   display: grid;
-  gap: 7px;
-  padding: 10px 10px 9px 12px;
+  gap: 6px;
+  padding: 8px 8px 7px 10px;
   border: 1px solid var(--border);
   border-left-width: 3px;
   border-radius: 10px;
@@ -7878,8 +7887,11 @@ button.data-trust-action > i {
     width: fit-content;
   }
 
+  /* Below the desk width the board scrolls sideways rather than squeezing four
+     stages into a phone's worth of canvas. The columns take their comfortable
+     width back and the gutter keeps carrying the flow. */
   .data-workboard__board {
-    grid-template-columns: repeat(4, minmax(260px, 1fr));
+    grid-template-columns: repeat(4, minmax(238px, 1fr));
   }
 }
 
