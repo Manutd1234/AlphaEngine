@@ -21,8 +21,10 @@ import {
   instanceId,
   latencyStats,
   recordLatency,
+  sharedOpsStatus,
   startedAt,
 } from "@/lib/observability";
+import { syncSharedOpsState } from "@/lib/ops-sync";
 import { oracleReadiness } from "@/lib/oracle/health";
 import { openBBReadiness } from "@/lib/providers/openbb-health";
 import { validationTelemetry } from "@/lib/providers/contracts";
@@ -60,6 +62,13 @@ const DIRECT_VENUES = [
  */
 export async function buildSystemHealthSnapshot(priority: Priority): Promise<SystemHealth> {
   const buildCommit = process.env.ALPHAENGINE_BUILD_COMMIT_SHA ?? APP_COMMIT;
+
+  // First, deliberately serial: everything below reads the ledgers, so the
+  // cross-instance overlay must be as fresh as this snapshot claims to be.
+  // An unreachable gateway resolves quickly and the reads fall back to the
+  // per-instance buckets, which `instance.scope` then discloses.
+  await syncSharedOpsState();
+  const sharedOps = sharedOpsStatus();
 
   const base = providerStatus();
   const configuredOpenBBUrl = process.env.OPENBB_API_URL?.trim() ?? "";
@@ -155,8 +164,12 @@ export async function buildSystemHealthSnapshot(priority: Priority): Promise<Sys
       uptimeMs: Date.now() - startedAt,
       // Repeated in every telemetry payload rather than documented once. A
       // reader comparing two responses from two instances needs to see the
-      // reason they differ in the responses themselves.
-      scope: "per-instance (in-memory ledger; swap Store for Vercel KV to share)",
+      // reason they agree — or the reason they no longer do — in the
+      // responses themselves.
+      scope: sharedOps.backed
+        ? `gateway-shared ledger (${sharedOps.instances.length} ${sharedOps.instances.length === 1 ? "instance" : "instances"} reporting in the last 15m)`
+        : "per-instance (in-memory fallback — the gateway ledger sync is unavailable)",
+      shared: sharedOps,
     },
     guard: {
       mode: guardMode(),

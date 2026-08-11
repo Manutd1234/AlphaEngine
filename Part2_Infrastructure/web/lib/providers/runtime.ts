@@ -40,6 +40,8 @@ import {
   outageFor,
   recordCacheLookup,
   recordLatency,
+  recordQuotaReset,
+  recordQuotaSpend,
   recordUpstream,
   redact,
 } from "../observability";
@@ -278,7 +280,11 @@ export function quotaBlock(
 export function spendQuota(adapter: Adapter, s: Store = store): void {
   const q = adapter.meta.quota;
   if (!q) return;
-  s.incr(`quota:${adapter.meta.id}:${windowKey(q.window)}`, WINDOW_MS[q.window]);
+  const window = windowKey(q.window);
+  s.incr(`quota:${adapter.meta.id}:${window}`, WINDOW_MS[q.window]);
+  // Queue the delta for the gateway's shared ledger so other instances stop
+  // believing they have budget this instance already spent.
+  recordQuotaSpend(adapter.meta.id, window);
 }
 
 /**
@@ -294,10 +300,46 @@ export function spendQuota(adapter: Adapter, s: Store = store): void {
 export function resetQuota(adapter: Adapter, s: Store = store): number {
   const q = adapter.meta.quota;
   if (!q) return 0;
-  const key = `quota:${adapter.meta.id}:${windowKey(q.window)}`;
+  const window = windowKey(q.window);
+  const key = `quota:${adapter.meta.id}:${window}`;
   const used = s.get<number>(key) ?? 0;
   s.del(key);
+  // Without this the next sync would hydrate the shared total straight back.
+  recordQuotaReset(adapter.meta.id, window);
   return used;
+}
+
+/**
+ * Install the gateway-merged spend totals as this instance's counters.
+ *
+ * The shared total *replaces* the local count rather than taking the max: the
+ * total already contains everything this instance pushed, and replacement is
+ * what lets an operator's quota reset propagate instead of every instance
+ * re-asserting its stale high-water mark. Spends made between push and
+ * response are under-counted until the next sync — convergence, not a race
+ * worth a lock. The window's expiry is preserved so hydration never slides a
+ * calendar window forward.
+ */
+export function hydrateQuotaLedger(
+  entries: Array<{ provider: string; window: string; spent: number }>,
+  s: Store = store,
+): void {
+  for (const { provider, window, spent } of entries.slice(0, 64)) {
+    const key = `quota:${provider}:${window}`;
+    if (spent <= 0) {
+      s.del(key);
+      continue;
+    }
+    const remaining = s.ttl(key);
+    s.set(key, spent, remaining ?? fallbackWindowTtl(window));
+  }
+}
+
+/** Infer a conservative TTL from the calendar label's own shape. */
+function fallbackWindowTtl(window: string): number {
+  if (window.includes("T")) return WINDOW_MS.minute;
+  if (window.length === 7) return WINDOW_MS.month;
+  return WINDOW_MS.day;
 }
 
 // --------------------------------------------------------------------------

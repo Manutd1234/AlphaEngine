@@ -16,21 +16,32 @@ import { describe, it } from "node:test";
 
 import {
   EventRing,
+  SHARED_STALE_MS,
+  type SharedOpsViewWire,
   activeOutages,
+  applySharedOpsState,
   captureBody,
   clearAllOutages,
+  clearOutage,
   clearSecrets,
   emit,
   eventsSince,
   latencyStats,
+  outageFor,
   percentile,
   recordLatency,
+  recordQuotaReset,
+  recordQuotaSpend,
   redact,
   redactUrl,
   registerSecret,
   resetTelemetry,
+  restorePendingOps,
+  sharedOpsStatus,
   simulateOutage,
+  takePendingOps,
 } from "../lib/observability";
+import { isSharedOpsView } from "../lib/ops-sync";
 import {
   CACHE_PREFIXES,
   authorise,
@@ -45,6 +56,7 @@ import {
   breakerOpen,
   breakerSnapshot,
   dispatch,
+  hydrateQuotaLedger,
   recordFailure,
   resetBreaker,
 } from "../lib/providers/runtime";
@@ -575,5 +587,142 @@ describe("events carry the origin they were produced at", () => {
     const [line] = eventsSince(0);
     assert.deepEqual(Object.keys(line.fields), ["present"], "absent and null were collapsed");
     resetTelemetry({ events: true });
+  });
+});
+
+describe("the shared ledger sync: queues, overlay, and honest fallback", () => {
+  const view = (overrides: Partial<SharedOpsViewWire> = {}): SharedOpsViewWire => ({
+    schema_version: 1,
+    observed_at: new Date().toISOString(),
+    window_seconds: 900,
+    instances: ["remote-1", "remote-2"],
+    latency: [],
+    outages: [],
+    quota: [],
+    ...overrides,
+  });
+
+  it("drains recorded samples into the sync body and clears the queue", () => {
+    resetTelemetry({ latency: true, shared: true });
+    recordLatency("shared-key", 100, true);
+    recordLatency("shared-key", 200, false);
+    const body = takePendingOps();
+    const batch = body.latency.find((b) => b.key === "shared-key");
+    assert.equal(batch?.samples.length, 2);
+    assert.deepEqual(takePendingOps().latency, [], "a second drain must be empty");
+    resetTelemetry({ latency: true, shared: true });
+  });
+
+  it("a failed push restores the drained body without losing newer deltas", () => {
+    resetTelemetry({ latency: true, shared: true });
+    recordLatency("k", 10, true);
+    const body = takePendingOps();
+    recordLatency("k", 20, true); // recorded while the push was in flight
+    restorePendingOps(body);
+    const retry = takePendingOps();
+    const samples = retry.latency.find((b) => b.key === "k")?.samples ?? [];
+    assert.deepEqual(samples.map((s) => s.ms), [10, 20], "restored samples come back oldest-first");
+    resetTelemetry({ latency: true, shared: true });
+  });
+
+  it("a fresh overlay becomes the read model, supplemented by post-drain samples", () => {
+    resetTelemetry({ latency: true, shared: true });
+    const drainedAt = Date.now() - 1_000;
+    applySharedOpsState(
+      view({
+        latency: [{ key: "merged", samples: [
+          { ts: drainedAt - 5_000, ms: 50, ok: true },
+          { ts: drainedAt - 4_000, ms: 60, ok: true },
+        ] }],
+      }),
+      drainedAt,
+    );
+    recordLatency("merged", 70, true); // after the drain — not yet pushed
+    const stats = latencyStats("merged");
+    assert.equal(stats.n, 3, "two merged samples plus one local supplement");
+    assert.equal(stats.max, 70);
+    resetTelemetry({ latency: true, shared: true });
+  });
+
+  it("a stale overlay is not believed: reads fall back to the local bucket", () => {
+    resetTelemetry({ latency: true, shared: true });
+    applySharedOpsState(
+      view({ latency: [{ key: "old", samples: [{ ts: Date.now(), ms: 999, ok: true }] }] }),
+      Date.now(),
+    );
+    const later = Date.now() + SHARED_STALE_MS + 1_000;
+    assert.equal(latencyStats("old", later).n, 0, "the overlay aged out and nothing local exists");
+    assert.equal(sharedOpsStatus(later).backed, false);
+    resetTelemetry({ latency: true, shared: true });
+  });
+
+  it("an outage set by another instance blocks routing here", () => {
+    resetTelemetry({ shared: true, outages: true });
+    applySharedOpsState(
+      view({ outages: [{ provider: "remote-outage", expires_at: Date.now() + 60_000, note: "drill" }] }),
+      Date.now(),
+    );
+    assert.equal(outageFor("remote-outage")?.note, "drill");
+    assert.ok(activeOutages().some((o) => o.provider === "remote-outage"));
+    resetTelemetry({ shared: true, outages: true });
+  });
+
+  it("clearing locally also clears the overlay and queues the command — no resurrection", () => {
+    resetTelemetry({ shared: true, outages: true });
+    applySharedOpsState(
+      view({ outages: [{ provider: "p", expires_at: Date.now() + 60_000, note: "n" }] }),
+      Date.now(),
+    );
+    assert.ok(outageFor("p"));
+    assert.equal(clearOutage("p"), true, "an overlay-only outage is still a known outage");
+    assert.equal(outageFor("p"), null, "cleared, not waiting for the next sync to disagree");
+    const body = takePendingOps();
+    assert.deepEqual(body.outages_cleared, ["p"]);
+    resetTelemetry({ shared: true, outages: true });
+  });
+
+  it("set-after-clear in one batch keeps the set", () => {
+    resetTelemetry({ shared: true, outages: true });
+    simulateOutage("flip", 30_000);
+    clearOutage("flip");
+    simulateOutage("flip", 30_000);
+    const body = takePendingOps();
+    assert.equal(body.outages_set.length, 1);
+    assert.deepEqual(body.outages_cleared, [], "the newer set must not ride with a stale clear");
+    clearAllOutages();
+    resetTelemetry({ shared: true, outages: true });
+  });
+
+  it("quota deltas accumulate per window and a reset supersedes them", () => {
+    resetTelemetry({ shared: true });
+    recordQuotaSpend("fmp", "2026-08-11");
+    recordQuotaSpend("fmp", "2026-08-11");
+    recordQuotaReset("fmp", "2026-08-11");
+    const body = takePendingOps();
+    assert.deepEqual(body.quota, [], "spend before a reset is meaningless to push");
+    assert.deepEqual(body.quota_reset, [{ provider: "fmp", window: "2026-08-11" }]);
+    resetTelemetry({ shared: true });
+  });
+
+  it("hydration replaces local counters and an explicit zero deletes one", () => {
+    const s = new MemoryStore();
+    s.incr("quota:fmp:2026-08-11", 86_400_000);
+    hydrateQuotaLedger(
+      [
+        { provider: "fmp", window: "2026-08-11", spent: 7 },
+        { provider: "tiingo", window: "2026-08-11", spent: 0 },
+      ],
+      s,
+    );
+    assert.equal(s.get("quota:fmp:2026-08-11"), 7, "shared total replaces the local count");
+    assert.equal(s.get("quota:tiingo:2026-08-11"), undefined, "zero means a propagated reset");
+  });
+
+  it("the sync response validator refuses shapes the overlay cannot hold", () => {
+    assert.equal(isSharedOpsView(view()), true);
+    assert.equal(isSharedOpsView({ ...view(), schema_version: 2 }), false);
+    assert.equal(isSharedOpsView({ ...view(), observed_at: "not-a-date" }), false);
+    assert.equal(isSharedOpsView({ ...view(), latency: "nope" }), false);
+    assert.equal(isSharedOpsView(null), false);
   });
 });

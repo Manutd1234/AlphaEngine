@@ -38,12 +38,16 @@
  * a real event in the data path and belongs on the same screen as a server-side
  * failover — but it must never be presented as though the server saw it.
  *
- * ── The honest limitation, restated ─────────────────────────────────────────
- * Same as the quota ledger in `providers/runtime.ts`: this is per *function
- * instance*. Two concurrent Vercel instances keep two rings, so counters are a
- * floor and the event stream is one instance's view. `instanceId` is surfaced in
- * every payload so a reader comparing two responses can see that immediately
- * rather than concluding the numbers are wrong.
+ * ── The honest limitation, and its repair ───────────────────────────────────
+ * The stores here are per *function instance*: two concurrent Vercel instances
+ * keep two ledgers. The repair is the gateway-backed sync at the bottom of this
+ * file — each instance pushes its deltas to the gateway's shared web-ops ledger
+ * and hydrates the merged view back, so latency percentiles, simulated outages
+ * and quota counters converge across instances within one sync. When the
+ * gateway is unreachable the overlay goes stale and every read falls back to
+ * the local per-instance truth, disclosed via `instance.scope` in the payload.
+ * The event ring stays deliberately per-instance (the events route reports
+ * whose ring you are reading).
  */
 
 // --------------------------------------------------------------------------
@@ -214,10 +218,12 @@ const LATENCY_WINDOW_MS = 15 * 60_000;
 const latencySamples = new Map<string, LatencySample[]>();
 
 export function recordLatency(key: string, ms: number, ok: boolean): void {
+  const sample = { ts: Date.now(), ms, ok };
   const bucket = latencySamples.get(key) ?? [];
-  bucket.push({ ts: Date.now(), ms, ok });
+  bucket.push(sample);
   if (bucket.length > LATENCY_CAPACITY) bucket.splice(0, bucket.length - LATENCY_CAPACITY);
   latencySamples.set(key, bucket);
+  queuePendingSample(key, sample);
 }
 
 /**
@@ -234,17 +240,33 @@ export function percentile(sorted: number[], p: number): number | null {
   return sorted[Math.min(sorted.length - 1, Math.max(0, rank - 1))];
 }
 
-export function latencyStats(key: string, now = Date.now()): LatencyStats {
+/**
+ * The samples a read should describe: the gateway-merged view when it is
+ * fresh, supplemented by whatever this instance recorded since it last synced;
+ * the local per-instance bucket when the overlay is stale or absent.
+ */
+function windowedSamples(key: string, now: number): LatencySample[] {
   const cutoff = now - LATENCY_WINDOW_MS;
-  const bucket = (latencySamples.get(key) ?? []).filter((s) => s.ts >= cutoff);
+  const local = latencySamples.get(key) ?? [];
+  if (!sharedFresh(now)) return local.filter((s) => s.ts >= cutoff);
+  const merged = (shared!.latency.get(key) ?? []).filter((s) => s.ts >= cutoff);
+  // Our own pushed samples came back inside the overlay; only what was
+  // recorded after the last drain is missing from it.
+  for (const s of local) if (s.ts > shared!.drainedAtMs && s.ts >= cutoff) merged.push(s);
+  return merged;
+}
+
+// Failures are included in the percentiles on purpose: a timeout is latency
+// the caller paid for and excluding it makes a dying provider look fast. The
+// error rate is reported alongside so the two are never confused.
+function statsOf(bucket: LatencySample[]): LatencyStats {
   if (!bucket.length) {
     return { n: 0, p50: null, p95: null, p99: null, max: null, errorRate: 0, lastAt: null };
   }
-  // Failures are included in the percentiles on purpose: a timeout is latency
-  // the caller paid for and excluding it makes a dying provider look fast. The
-  // error rate is reported alongside so the two are never confused.
   const sorted = bucket.map((s) => s.ms).sort((a, b) => a - b);
   const failures = bucket.filter((s) => !s.ok).length;
+  let lastAt = bucket[0].ts;
+  for (const s of bucket) if (s.ts > lastAt) lastAt = s.ts;
   return {
     n: bucket.length,
     p50: percentile(sorted, 50),
@@ -252,8 +274,12 @@ export function latencyStats(key: string, now = Date.now()): LatencyStats {
     p99: percentile(sorted, 99),
     max: sorted[sorted.length - 1],
     errorRate: failures / bucket.length,
-    lastAt: bucket[bucket.length - 1].ts,
+    lastAt,
   };
+}
+
+export function latencyStats(key: string, now = Date.now()): LatencyStats {
+  return statsOf(windowedSamples(key, now));
 }
 
 /** Every key that has at least one sample in the window. */
@@ -266,24 +292,11 @@ export function latencyKeys(now = Date.now()): string[] {
 
 /** p50 across every provider's window — the "is the data plane slow" number. */
 export function globalLatency(now = Date.now()): LatencyStats {
-  const cutoff = now - LATENCY_WINDOW_MS;
+  const keys = new Set<string>(latencySamples.keys());
+  if (sharedFresh(now)) for (const key of shared!.latency.keys()) keys.add(key);
   const all: LatencySample[] = [];
-  for (const bucket of latencySamples.values()) {
-    for (const sample of bucket) if (sample.ts >= cutoff) all.push(sample);
-  }
-  if (!all.length) {
-    return { n: 0, p50: null, p95: null, p99: null, max: null, errorRate: 0, lastAt: null };
-  }
-  const sorted = all.map((s) => s.ms).sort((a, b) => a - b);
-  return {
-    n: all.length,
-    p50: percentile(sorted, 50),
-    p95: percentile(sorted, 95),
-    p99: percentile(sorted, 99),
-    max: sorted[sorted.length - 1],
-    errorRate: all.filter((s) => !s.ok).length / all.length,
-    lastAt: Math.max(...all.map((s) => s.ts)),
-  };
+  for (const key of keys) all.push(...windowedSamples(key, now));
+  return statsOf(all);
 }
 
 // --------------------------------------------------------------------------
@@ -349,33 +362,259 @@ export function simulateOutage(provider: string, ttlMs = OUTAGE_MAX_MS, note = "
   const bounded = Math.min(OUTAGE_MAX_MS, Math.max(10_000, ttlMs));
   const record: SimulatedOutage = { provider, expiresAt: Date.now() + bounded, note };
   outages.set(provider, record);
+  // Mirror into the shared overlay and queue the command, so every other
+  // instance honours the outage after its next sync — and so a clear queued
+  // earlier in this same batch cannot cancel a newer set.
+  shared?.outages.set(provider, record);
+  pending.outageCleared = pending.outageCleared.filter((p) => p !== provider);
+  pending.outageSet = pending.outageSet.filter((o) => o.provider !== provider);
+  pending.outageSet.push(record);
   return record;
 }
 
 export function clearOutage(provider: string): boolean {
-  return outages.delete(provider);
+  const known = outages.delete(provider);
+  const knownShared = shared?.outages.delete(provider) ?? false;
+  pending.outageSet = pending.outageSet.filter((o) => o.provider !== provider);
+  if (!pending.outageCleared.includes(provider)) pending.outageCleared.push(provider);
+  return known || knownShared;
 }
 
 export function clearAllOutages(): number {
-  const n = outages.size;
+  const n = activeOutages().length;
   outages.clear();
+  shared?.outages.clear();
+  pending.outageSet = [];
+  pending.outageCleared = ["*"];
   return n;
 }
 
 export function outageFor(provider: string, now = Date.now()): SimulatedOutage | null {
   const record = outages.get(provider);
-  if (!record) return null;
-  if (record.expiresAt <= now) {
+  if (record) {
+    if (record.expiresAt > now) return record;
     outages.delete(provider);
-    return null;
   }
-  return record;
+  if (sharedFresh(now)) {
+    const remote = shared!.outages.get(provider);
+    if (remote) {
+      if (remote.expiresAt > now) return remote;
+      shared!.outages.delete(provider);
+    }
+  }
+  return null;
 }
 
 export function activeOutages(now = Date.now()): SimulatedOutage[] {
-  return [...outages.keys()]
+  const providers = new Set<string>(outages.keys());
+  if (sharedFresh(now)) for (const provider of shared!.outages.keys()) providers.add(provider);
+  return [...providers]
     .map((provider) => outageFor(provider, now))
     .filter((o): o is SimulatedOutage => o !== null);
+}
+
+// --------------------------------------------------------------------------
+// Shared operational state — the gateway-backed ledger sync
+// --------------------------------------------------------------------------
+//
+// The mechanics live in `lib/ops-sync.ts` (server-only, since it talks to the
+// gateway); this module owns the two data structures the sync moves between:
+// the *pending queues* of deltas this instance has produced since its last
+// successful push, and the *overlay* — the merged cross-instance view the
+// gateway returned. Reads above consult the overlay while it is fresh and fall
+// back to the local buckets when it is not, so a gateway outage degrades to
+// exactly the per-instance behaviour this file always had.
+
+/** Overlay older than this stops being believed. Two health polls' worth. */
+export const SHARED_STALE_MS = 90_000;
+
+const PENDING_SAMPLE_CAP = 480;
+
+export interface SharedLatencySampleWire {
+  ts: number;
+  ms: number;
+  ok: boolean;
+}
+
+/** Request body of `POST /api/ops/web-state/sync` — the gateway's wire shape. */
+export interface SharedOpsSyncBody {
+  schema_version: 1;
+  instance: string;
+  latency: Array<{ key: string; samples: SharedLatencySampleWire[] }>;
+  quota: Array<{ provider: string; window: string; spent: number }>;
+  quota_reset: Array<{ provider: string; window: string }>;
+  outages_set: Array<{ provider: string; expires_at: number; note: string }>;
+  outages_cleared: string[];
+}
+
+/** Response body of the same route. */
+export interface SharedOpsViewWire {
+  schema_version: 1;
+  observed_at: string;
+  window_seconds: number;
+  instances: string[];
+  latency: Array<{ key: string; samples: SharedLatencySampleWire[] }>;
+  outages: Array<{ provider: string; expires_at: number; note: string }>;
+  quota: Array<{ provider: string; window: string; spent: number }>;
+}
+
+const pending = {
+  samples: [] as Array<{ key: string; ts: number; ms: number; ok: boolean }>,
+  /** Delta spend per `${provider}|${window}` since the last successful push. */
+  quota: new Map<string, number>(),
+  quotaResets: [] as Array<{ provider: string; window: string }>,
+  outageSet: [] as SimulatedOutage[],
+  outageCleared: [] as string[],
+};
+
+let shared: {
+  fetchedAtMs: number;
+  /** When the request body now inside the overlay was drained locally. */
+  drainedAtMs: number;
+  observedAtMs: number;
+  windowSeconds: number;
+  instances: string[];
+  latency: Map<string, LatencySample[]>;
+  outages: Map<string, SimulatedOutage>;
+} | null = null;
+
+function sharedFresh(now: number): boolean {
+  return shared !== null && now - shared.fetchedAtMs <= SHARED_STALE_MS;
+}
+
+function queuePendingSample(key: string, sample: LatencySample): void {
+  pending.samples.push({ key, ...sample });
+  if (pending.samples.length > PENDING_SAMPLE_CAP) {
+    pending.samples.splice(0, pending.samples.length - PENDING_SAMPLE_CAP);
+  }
+}
+
+/** Called by the quota ledger (`providers/runtime.ts`) on every spend. */
+export function recordQuotaSpend(provider: string, window: string, spent = 1): void {
+  const key = `${provider}|${window}`;
+  pending.quota.set(key, (pending.quota.get(key) ?? 0) + spent);
+}
+
+/** Called by the quota ledger when an operator resets a window. */
+export function recordQuotaReset(provider: string, window: string): void {
+  pending.quota.delete(`${provider}|${window}`);
+  if (!pending.quotaResets.some((r) => r.provider === provider && r.window === window)) {
+    pending.quotaResets.push({ provider, window });
+  }
+}
+
+/**
+ * Drain every pending queue into a sync request body. The caller owns the
+ * result: on a failed push it hands the body to {@link restorePendingOps} so
+ * nothing is lost, on a successful one the returned overlay supersedes it.
+ */
+export function takePendingOps(): SharedOpsSyncBody {
+  const byKey = new Map<string, SharedLatencySampleWire[]>();
+  for (const { key, ts, ms, ok } of pending.samples) {
+    const bucket = byKey.get(key) ?? [];
+    bucket.push({ ts, ms, ok });
+    byKey.set(key, bucket);
+  }
+  const body: SharedOpsSyncBody = {
+    schema_version: 1,
+    instance: instanceId,
+    latency: [...byKey.entries()].map(([key, samples]) => ({ key, samples })),
+    quota: [...pending.quota.entries()].map(([key, spent]) => {
+      const [provider, window] = key.split("|");
+      return { provider, window, spent };
+    }),
+    quota_reset: pending.quotaResets.slice(),
+    outages_set: pending.outageSet.map((o) => ({
+      provider: o.provider,
+      expires_at: o.expiresAt,
+      note: o.note,
+    })),
+    outages_cleared: pending.outageCleared.slice(),
+  };
+  pending.samples = [];
+  pending.quota.clear();
+  pending.quotaResets = [];
+  pending.outageSet = [];
+  pending.outageCleared = [];
+  return body;
+}
+
+/**
+ * Put a drained body back after a failed push.
+ *
+ * Anything the instance did *after* the drain wins over what is being
+ * restored: a provider the operator has since re-outaged must not be
+ * re-queued as cleared, and vice versa.
+ */
+export function restorePendingOps(body: SharedOpsSyncBody): void {
+  const restored = body.latency.flatMap(({ key, samples }) =>
+    samples.map((s) => ({ key, ...s })),
+  );
+  pending.samples = [...restored, ...pending.samples].slice(-PENDING_SAMPLE_CAP);
+  for (const { provider, window, spent } of body.quota) {
+    const key = `${provider}|${window}`;
+    // A reset queued since the drain supersedes the older spend.
+    if (pending.quotaResets.some((r) => r.provider === provider && r.window === window)) continue;
+    pending.quota.set(key, (pending.quota.get(key) ?? 0) + spent);
+  }
+  for (const reset of body.quota_reset) {
+    if (!pending.quotaResets.some((r) => r.provider === reset.provider && r.window === reset.window)) {
+      pending.quotaResets.push(reset);
+    }
+  }
+  const clearedAll = pending.outageCleared.includes("*");
+  for (const o of body.outages_set) {
+    if (clearedAll || pending.outageCleared.includes(o.provider)) continue;
+    if (pending.outageSet.some((p) => p.provider === o.provider)) continue;
+    pending.outageSet.push({ provider: o.provider, expiresAt: o.expires_at, note: o.note });
+  }
+  for (const provider of body.outages_cleared) {
+    if (provider !== "*" && pending.outageSet.some((p) => p.provider === provider)) continue;
+    if (!pending.outageCleared.includes(provider)) pending.outageCleared.push(provider);
+  }
+}
+
+/** Install the gateway's merged view as the read overlay. */
+export function applySharedOpsState(view: SharedOpsViewWire, drainedAtMs: number, now = Date.now()): void {
+  const observedAtMs = Date.parse(view.observed_at);
+  shared = {
+    fetchedAtMs: now,
+    drainedAtMs,
+    observedAtMs: Number.isFinite(observedAtMs) ? observedAtMs : now,
+    windowSeconds: view.window_seconds,
+    instances: view.instances,
+    latency: new Map(
+      view.latency.map(({ key, samples }) => [
+        key,
+        samples.map((s) => ({ ts: s.ts, ms: s.ms, ok: s.ok })),
+      ]),
+    ),
+    outages: new Map(
+      view.outages
+        .filter((o) => o.expires_at > now)
+        .map((o) => [o.provider, { provider: o.provider, expiresAt: o.expires_at, note: o.note }]),
+    ),
+  };
+}
+
+export interface SharedOpsStatus {
+  /** True while the merged overlay is fresh enough to be the read model. */
+  backed: boolean;
+  instances: string[];
+  observedAt: string | null;
+  ageMs: number | null;
+  windowSeconds: number | null;
+}
+
+export function sharedOpsStatus(now = Date.now()): SharedOpsStatus {
+  if (!shared) return { backed: false, instances: [], observedAt: null, ageMs: null, windowSeconds: null };
+  return {
+    backed: sharedFresh(now),
+    instances: shared.instances,
+    observedAt: new Date(shared.observedAtMs).toISOString(),
+    ageMs: now - shared.fetchedAtMs,
+    windowSeconds: shared.windowSeconds,
+  };
 }
 
 // --------------------------------------------------------------------------
@@ -657,9 +896,28 @@ export function recordUpstream(record: UpstreamRecord, origin: EventOrigin = "se
 // Reset (operator action + test isolation)
 // --------------------------------------------------------------------------
 
-export function resetTelemetry(options: { events?: boolean; latency?: boolean; cache?: boolean; outages?: boolean } = {}): void {
+export function resetTelemetry(
+  options: { events?: boolean; latency?: boolean; cache?: boolean; outages?: boolean; shared?: boolean } = {},
+): void {
   if (options.events) events.clear();
-  if (options.latency) latencySamples.clear();
+  if (options.latency) {
+    // Clearing observation clears what *this instance* can see — its buckets,
+    // its unpushed queue, and its copy of the merged view. The gateway ledger
+    // keeps other instances' history and the next sync re-reads it; erasing
+    // the shared record from here would let one instance rewrite the fleet's.
+    latencySamples.clear();
+    pending.samples = [];
+    shared?.latency.clear();
+  }
   if (options.cache) cacheByCapability.clear();
   if (options.outages) outages.clear();
+  if (options.shared) {
+    // Test isolation: forget the overlay and every pending delta.
+    shared = null;
+    pending.samples = [];
+    pending.quota.clear();
+    pending.quotaResets = [];
+    pending.outageSet = [];
+    pending.outageCleared = [];
+  }
 }

@@ -246,7 +246,20 @@ export interface SystemHealth {
   /** Optional in the browser contract so an old route remains safe during a rolling deploy. */
   schemaVersion?: 2;
   fetchedAt: string;
-  instance: { id: string; startedAt: string; uptimeMs: number; scope: string };
+  instance: {
+    id: string;
+    startedAt: string;
+    uptimeMs: number;
+    scope: string;
+    /** Gateway-merged ledger state; absent on deployments predating the sync. */
+    shared?: {
+      backed: boolean;
+      instances: string[];
+      observedAt: string | null;
+      ageMs: number | null;
+      windowSeconds: number | null;
+    };
+  };
   guard: {
     mode: GuardMode;
     tokenEnv: string;
