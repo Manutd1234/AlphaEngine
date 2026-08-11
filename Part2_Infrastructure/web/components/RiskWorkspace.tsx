@@ -22,6 +22,7 @@ import HeadroomBar from "@/components/portfolio/HeadroomBar";
 import OracleVarPanel from "@/components/portfolio/OracleVarPanel";
 import RiskEngine from "@/components/portfolio/RiskEngine";
 import StressTest from "@/components/portfolio/StressTest";
+import MonteCarloDistribution, { type McDriver } from "@/components/risk/MonteCarloDistribution";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import { fmt, pct, usd } from "@/lib/format";
 import { type LimitTone, limitRows, limitTone } from "@/lib/portfolio";
@@ -33,16 +34,21 @@ export interface RiskWorkspaceProps {
   onOpenResearch: () => void;
   /** Operator credential shared with the Reliability tab and the header. */
   operatorToken?: string;
+  /** The research winner's drivers for the terminal distribution; null before a run. */
+  mcDriver: McDriver | null;
+  /** Bumped by the palette action to re-run the distribution. */
+  mcRunNonce: number;
   section: RiskSection;
   onSectionChange: (section: RiskSection) => void;
 }
 
-export const RISK_SECTION_IDS = ["limits", "model", "scenarios", "controls"] as const;
+export const RISK_SECTION_IDS = ["limits", "model", "montecarlo", "scenarios", "controls"] as const;
 export type RiskSection = (typeof RISK_SECTION_IDS)[number];
 
 const RISK_SECTIONS = [
   { id: "limits", label: "Limits", description: "Headroom & concentration" },
   { id: "model", label: "VaR & model", description: "Loss estimates & drivers" },
+  { id: "montecarlo", label: "Monte Carlo", description: "Terminal distribution & tail" },
   { id: "scenarios", label: "Stress tests", description: "Forward shock damage" },
   { id: "controls", label: "Controls", description: "Halt & flatten handoffs" },
 ] as const;
@@ -63,6 +69,8 @@ export default function RiskWorkspace({
   onOpenPortfolio,
   onOpenResearch,
   operatorToken,
+  mcDriver,
+  mcRunNonce,
   section,
   onSectionChange,
 }: RiskWorkspaceProps) {
@@ -231,6 +239,17 @@ export default function RiskWorkspace({
           equity={book.equity.current}
           annualVol={risk?.annualisedVolatility ?? null}
           sandbox={Boolean(book.sandbox)}
+        />
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="risk" tabId="montecarlo" activeId={section}>
+        <MonteCarloDistribution
+          driver={mcDriver}
+          equity={book.equity.current}
+          cushionUsd={book.risk_budget.daily_drawdown.cushion_usd}
+          sandbox={Boolean(book.sandbox)}
+          runNonce={mcRunNonce}
+          onOpenResearch={onOpenResearch}
         />
       </WorkspaceSubtabPanel>
 

@@ -45,6 +45,7 @@ import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSu
 import { createInitialDataWorkItems, type DataWorkItem } from "@/lib/data-work-queue";
 import { createInitialDeveloperWorkItems, type DeveloperWorkItem } from "@/lib/developer-work";
 import { fmt, pct, signedPct, usd } from "@/lib/format";
+import { mcSeedFor } from "@/lib/montecarlo";
 import { REFERENCE_EQUITY } from "@/lib/portfolio";
 import { useBook } from "@/lib/use-book";
 import { useSystemHealth } from "@/lib/use-system-health";
@@ -168,6 +169,7 @@ export default function Page() {
   const [executionStrategy, setExecutionStrategy] = useState<Strategy>(DEFAULT_REQUEST.strategy);
   const [researchSection, setResearchSection] = useState<ResearchSection>("summary");
   const [showMcBands, setShowMcBands] = useState(true);
+  const [mcRunNonce, setMcRunNonce] = useState(0);
   const [executionSection, setExecutionSection] = useState<ExecutionSection>("trade");
   const [dataSection, setDataSection] = useState<DataSection>("overview");
   const [reliabilitySection, setReliabilitySection] = useState<ReliabilitySection>("overview");
@@ -656,6 +658,16 @@ export default function Page() {
    * failed run, nothing is coming and it has to say so and offer the rerun.
    */
   const sweepIncoming = autoRun && !inspect && !error;
+  /** The Risk tab's terminal distribution resamples exactly what the band did. */
+  const mcDriver = useMemo(() => {
+    if (!displayedResult?.bestRunReturns?.length || !displayedResult.dataHash) return null;
+    return {
+      returns: displayedResult.bestRunReturns,
+      seed: mcSeedFor(displayedResult.dataHash, displayedResult.best.fast, displayedResult.best.slow),
+      label: `${STRATEGY_LABELS[displayedResult.request.strategy]} · ${displayedResult.best.fast}/${displayedResult.best.slow}`,
+      interval: displayedResult.request.interval,
+    };
+  }, [displayedResult]);
   const currentPinned = useMemo(
     () => data !== null && experiments.some((record) => sameRequest(record.request, data.request)),
     [data, experiments],
@@ -735,7 +747,7 @@ export default function Page() {
     for (const id of PORTFOLIO_SECTION_IDS) {
       section("portfolio", "Portfolio", id, PORTFOLIO_LABELS[id], () => setPortfolioSection(id));
     }
-    const RISK_LABELS = { limits: "Limits — Headroom & concentration", model: "VaR & model — Loss estimates & drivers", scenarios: "Stress tests — Forward shock damage", controls: "Controls — Halt & flatten handoffs" } as const;
+    const RISK_LABELS = { limits: "Limits — Headroom & concentration", model: "VaR & model — Loss estimates & drivers", montecarlo: "Monte Carlo — Terminal distribution & tail", scenarios: "Stress tests — Forward shock damage", controls: "Controls — Halt & flatten handoffs" } as const;
     for (const id of RISK_SECTION_IDS) {
       section("risk", "Risk", id, RISK_LABELS[id], () => setRiskSection(id));
     }
@@ -814,6 +826,18 @@ export default function Page() {
         label: `${showMcBands ? "Hide" : "Show"} Monte Carlo band`,
         category: "Action",
         action: () => setShowMcBands((visible) => !visible),
+      },
+      {
+        id: "action-run-mc-dist",
+        label: "Run Monte Carlo distribution",
+        category: "Action",
+        action: () => {
+          setMcRunNonce((nonce) => nonce + 1);
+          navigate("risk", false, {
+            apply: () => setRiskSection("montecarlo"),
+            hash: "risk/montecarlo",
+          });
+        },
       },
       {
         id: "action-toggle-theme",
@@ -1067,6 +1091,8 @@ export default function Page() {
               onOpenPortfolio={() => navigate("portfolio")}
               onOpenResearch={() => navigate("research")}
               operatorToken={systems.token}
+              mcDriver={mcDriver}
+              mcRunNonce={mcRunNonce}
               section={riskSection}
               onSectionChange={changeRiskSection}
             />
