@@ -973,6 +973,34 @@ a {
   margin: 12px 0 2px;
 }
 
+/* Incident rows for operator-simulated outages on Quality & Incidents. */
+.console-incident-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.console-incident-list__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 12.5px;
+}
+
+.console-incident-list__row small {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .console-action-result small {
   display: block;
   margin-top: 3px;

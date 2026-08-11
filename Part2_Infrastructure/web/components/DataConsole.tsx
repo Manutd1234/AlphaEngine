@@ -15,6 +15,7 @@ import DataWorkBoard from "@/components/data/DataWorkBoard";
 import CrossSourceCheck from "@/components/systems/CrossSourceCheck";
 import FailoverGraph from "@/components/systems/FailoverGraph";
 import { OperatorActionResult } from "@/components/systems/OperatorPanel";
+import OutageIncidents from "@/components/systems/OutageIncidents";
 import PipelineInspector from "@/components/systems/PipelineInspector";
 import QuarantinePanel from "@/components/systems/QuarantinePanel";
 import QuotaMeters from "@/components/systems/QuotaMeters";
@@ -389,6 +390,13 @@ export default function DataConsole({
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="data" tabId="quality" activeId={section}>
+        <OutageIncidents
+          outages={health?.outages ?? []}
+          providerLabels={Object.fromEntries(
+            (health?.providers ?? []).map((p) => [p.id, p.label]),
+          )}
+          onOpenProviders={() => onSectionChange("providers")}
+        />
         <div className="data-console-pair">
           <CrossSourceCheck symbol={workspaceSymbol} />
           <QuarantinePanel
