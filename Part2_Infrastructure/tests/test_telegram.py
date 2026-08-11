@@ -74,20 +74,9 @@ class StubBot(TelegramBot):
 # share one wiring. StubBot stays here — conftest imports it.
 
 
-@pytest.fixture(autouse=True)
-def telegram_lists():
-    saved = (
-        list(settings.telegram_allowed_user_ids),
-        list(settings.telegram_allowed_chat_ids),
-        list(settings.telegram_alert_chat_ids),
-    )
-    settings.telegram_allowed_user_ids[:] = [USER]
-    settings.telegram_allowed_chat_ids[:] = []
-    settings.telegram_alert_chat_ids[:] = []
-    yield
-    settings.telegram_allowed_user_ids[:] = saved[0]
-    settings.telegram_allowed_chat_ids[:] = saved[1]
-    settings.telegram_alert_chat_ids[:] = saved[2]
+# `telegram_lists` moved to conftest.py — every Telegram test file needs the
+# same authorised-user setup, and a module-scoped autouse fixture only reached
+# this one.
 
 
 def update(text: str, *, chat_id: str = CHAT, user_id: str = USER, update_id: int = 1) -> dict:
@@ -172,7 +161,9 @@ class TestRegistry:
         assert "/snapshot" in catalogue and "/digest" in catalogue
         quote_help = help_text("quote")
         assert "/quote SYMBOL" in quote_help and "/quote AAPL" in quote_help
-        assert "9 COMMANDS" in help_text("portfolio")
+        # Ten since /equity joined the category — the count is rendered from
+        # the registry, so this moves whenever a Portfolio command lands.
+        assert "10 COMMANDS" in help_text("portfolio")
 
 
 @pytest.mark.asyncio

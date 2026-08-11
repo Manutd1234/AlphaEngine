@@ -480,6 +480,11 @@ class HistoricalVaR:
     var95: float
     cvar95: float
     observations: int
+    # The replayed per-day P&L behind the quantiles above. Default-valued so no
+    # existing caller changes; it exists because the distribution is worth
+    # showing and recomputing it elsewhere would risk a second, disagreeing
+    # answer. Sorted ascending, i.e. worst first.
+    daily_pnl: tuple[float, ...] = ()
 
 
 def historical_var(
@@ -528,6 +533,7 @@ def historical_var(
         var95=-daily_pnl[k - 1],
         cvar95=-_mean(tail),
         observations=window,
+        daily_pnl=tuple(daily_pnl),
     )
 
 

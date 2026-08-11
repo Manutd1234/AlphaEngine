@@ -16,7 +16,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import html
-import io
 import json
 import logging
 import math
@@ -29,18 +28,61 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 
 from config import settings
+from modules.telegram_charts import (
+    generate_bars_chart_png,
+    generate_depth_chart_png,
+    generate_drawdown_chart_png,
+    generate_equity_chart_png,
+    generate_heatmap_png,
+    generate_histogram_png,
+    generate_series_chart_png,
+)
 
 log = logging.getLogger("alphaengine.telegram")
 
 _SYMBOL_RE = re.compile(r"^[A-Z0-9.\-]{1,20}$")
 _HTML_TAG_RE = re.compile(r"</?(?:b|i|code|pre|u|s)(?:\s[^>]*)?>", re.IGNORECASE)
 _TELEGRAM_ACTOR_RE = re.compile(r"^tg:([1-9][0-9]*):")
+"""The gates the deploy workflow actually runs before it will ship a build.
+
+This replaced three hardcoded assertion counts (342/680/13) that drifted the
+moment anyone added a test — including the tests added to cover this very
+module. A number nobody updates is worse than no number, because it keeps
+looking authoritative. These are names, not counts: they are checkable against
+`.github/workflows/deploy.yml` by reading it.
+"""
+_VERIFY_GATES: tuple[str, ...] = (
+    "ruff check .",
+    "python -m pytest",
+    "tools/export_openapi.py --check",
+    "tools/synthetic_probe.py",
+)
+
+
+def _committed_route_counts() -> list[tuple[str, float]]:
+    """Routes per tag, parsed from the committed OpenAPI snapshot.
+
+    Real committed data that updates itself when a route lands, rather than a
+    figure maintained by hand. Returns an empty list when the snapshot is not
+    in the image, so the caller can say so rather than draw a lie.
+    """
+    snapshot = Path(__file__).resolve().parent.parent / "tools" / "openapi.json"
+    try:
+        document = json.loads(snapshot.read_text())
+    except (OSError, ValueError):
+        return []
+    counts: dict[str, int] = {}
+    for operations in document.get("paths", {}).values():
+        for operation in operations.values():
+            if not isinstance(operation, dict):
+                continue
+            for tag in operation.get("tags", ["untagged"]):
+                counts[str(tag)] = counts.get(str(tag), 0) + 1
+    return sorted(((tag, float(n)) for tag, n in counts.items()), key=lambda row: -row[1])
+
+
 _TELEGRAM_MESSAGE_LIMIT = 3900
 
 # Telegram's published ceilings are ~30 sends a second overall and ~1 a second
@@ -108,190 +150,6 @@ def text_card(
     if next_commands:
         body.append(f"<i>Next: {esc(next_commands)}</i>")
     return "\n".join(body)
-
-
-def _style_axes(fig, ax) -> None:
-    """The shared dark canvas every bot chart is drawn on."""
-    fig.patch.set_facecolor('#0f172a')
-    ax.set_facecolor('#1e293b')
-    ax.tick_params(colors='#94a3b8', labelsize=8)
-    for spine in ax.spines.values():
-        spine.set_color('#334155')
-
-
-def _finish(fig) -> bytes:
-    plt.tight_layout()
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png', facecolor=fig.get_facecolor(), edgecolor='none')
-    plt.close(fig)
-    return buf.getvalue()
-
-
-def generate_series_chart_png(symbol: str, closes: list[float], interval: str, source: str) -> bytes:
-    """
-    One symbol's close series, drawn from the bars the caller actually fetched.
-
-    This replaced a generator that titled itself "Real-Time Market Quote" and
-    plotted `64200 + sin(i * 0.3) * 450` — a decorative curve under a factual
-    caption, which on a desk tool is worse than no chart because a reader
-    cannot tell it apart from a real one. That generator has since been
-    deleted. Everything below is plotted from `closes` or not plotted at all.
-    """
-    fig, ax = plt.subplots(figsize=(6, 3.2), dpi=120)
-    _style_axes(fig, ax)
-
-    xs = list(range(len(closes)))
-    first, last = closes[0], closes[-1]
-    rising = last >= first
-    colour = '#00e676' if rising else '#ff5252'
-    ax.plot(xs, closes, color=colour, linewidth=2)
-    ax.fill_between(xs, closes, min(closes), color=colour, alpha=0.15)
-    ax.axhline(first, color='#64748b', linewidth=1, linestyle='--', alpha=0.7)
-
-    move = ((last / first) - 1) * 100 if first else 0.0
-    ax.set_title(
-        f"{symbol} · {interval} · {move:+.2f}% over {len(closes)} bars",
-        color='#f8fafc', fontsize=10, fontweight='bold',
-    )
-    ax.set_ylabel("Close", color='#94a3b8', fontsize=8)
-    ax.set_xlabel(f"{source} · dashed line is the first close", color='#94a3b8', fontsize=8)
-    return _finish(fig)
-
-
-"""The gates the deploy workflow actually runs before it will ship a build.
-
-This replaced three hardcoded assertion counts (342/680/13) that drifted the
-moment anyone added a test — including the tests added to cover this very
-module. A number nobody updates is worse than no number, because it keeps
-looking authoritative. These are names, not counts: they are checkable against
-`.github/workflows/deploy.yml` by reading it.
-"""
-_VERIFY_GATES: tuple[str, ...] = (
-    "ruff check .",
-    "python -m pytest",
-    "tools/export_openapi.py --check",
-    "tools/synthetic_probe.py",
-)
-
-
-def _committed_route_counts() -> list[tuple[str, float]]:
-    """Routes per tag, parsed from the committed OpenAPI snapshot.
-
-    Real committed data that updates itself when a route lands, rather than a
-    figure maintained by hand. Returns an empty list when the snapshot is not
-    in the image, so the caller can say so rather than draw a lie.
-    """
-    snapshot = Path(__file__).resolve().parent.parent / "tools" / "openapi.json"
-    try:
-        document = json.loads(snapshot.read_text())
-    except (OSError, ValueError):
-        return []
-    counts: dict[str, int] = {}
-    for operations in document.get("paths", {}).values():
-        for operation in operations.values():
-            if not isinstance(operation, dict):
-                continue
-            for tag in operation.get("tags", ["untagged"]):
-                counts[str(tag)] = counts.get(str(tag), 0) + 1
-    return sorted(((tag, float(n)) for tag, n in counts.items()), key=lambda row: -row[1])
-
-
-def generate_bars_chart_png(
-    title: str,
-    labels: list[str],
-    values: list[float],
-    ylabel: str,
-    colours: list[str] | None = None,
-    horizontal: bool = False,
-    value_fmt: str = "{:.0f}",
-) -> bytes | None:
-    """A bar chart of whatever the caller measured. None when nothing was."""
-    pairs = [(label, value) for label, value in zip(labels, values, strict=False) if value is not None]
-    if not pairs:
-        return None
-    labels = [label for label, _ in pairs]
-    values = [float(value) for _, value in pairs]
-
-    fig, ax = plt.subplots(figsize=(6, 3.2), dpi=120)
-    _style_axes(fig, ax)
-    palette = colours or ['#38bdf8'] * len(values)
-    if horizontal:
-        ax.barh(labels, values, color=palette, height=0.5)
-        ax.set_xlabel(ylabel, color='#94a3b8', fontsize=8)
-        ax.invert_yaxis()
-        for index, value in enumerate(values):
-            ax.text(value, index, " " + value_fmt.format(value), color='#f8fafc', fontsize=8, va='center')
-    else:
-        ax.bar(labels, values, color=palette, width=0.5)
-        ax.set_ylabel(ylabel, color='#94a3b8', fontsize=8)
-        for index, value in enumerate(values):
-            ax.text(index, value, value_fmt.format(value), color='#f8fafc', fontsize=8, ha='center', va='bottom')
-    ax.set_title(title, color='#f8fafc', fontsize=10, fontweight='bold')
-    return _finish(fig)
-
-
-def generate_depth_chart_png(symbol: str, bids: list[tuple[float, float]], asks: list[tuple[float, float]]) -> bytes | None:
-    """
-    The real consolidated ladder as cumulative depth either side of the mid.
-
-    The generator this replaced drew a fixed shape that never touched a venue.
-    This one draws the rungs it was handed and returns None when there are
-    none, because "no live book" is a fact the caption should carry rather than
-    something a picture papers over.
-    """
-    if len(bids) < 2 or len(asks) < 2:
-        return None
-
-    fig, ax = plt.subplots(figsize=(6, 3.2), dpi=120)
-    _style_axes(fig, ax)
-
-    bid_prices, bid_cum = [], []
-    running = 0.0
-    for price, size in sorted(bids, key=lambda r: -r[0]):
-        running += price * size
-        bid_prices.append(price)
-        bid_cum.append(running)
-
-    ask_prices, ask_cum = [], []
-    running = 0.0
-    for price, size in sorted(asks, key=lambda r: r[0]):
-        running += price * size
-        ask_prices.append(price)
-        ask_cum.append(running)
-
-    ax.step(bid_prices, bid_cum, where='post', color='#00e676', linewidth=2, label='Bids')
-    ax.fill_between(bid_prices, bid_cum, step='post', color='#00e676', alpha=0.15)
-    ax.step(ask_prices, ask_cum, where='post', color='#ff5252', linewidth=2, label='Asks')
-    ax.fill_between(ask_prices, ask_cum, step='post', color='#ff5252', alpha=0.15)
-
-    mid = (bid_prices[0] + ask_prices[0]) / 2
-    ax.axvline(mid, color='#64748b', linewidth=1, linestyle='--', alpha=0.8)
-    ax.set_title(f"{symbol} consolidated depth · mid {mid:,.2f}", color='#f8fafc', fontsize=10, fontweight='bold')
-    ax.set_ylabel("Cumulative notional (USD)", color='#94a3b8', fontsize=8)
-    ax.set_xlabel("Price", color='#94a3b8', fontsize=8)
-    ax.legend(facecolor='#1e293b', edgecolor='#334155', labelcolor='#f8fafc', fontsize=8)
-    return _finish(fig)
-
-
-def generate_drawdown_chart_png(symbol: str, closes: list[float]) -> bytes | None:
-    """Peak-to-trough drawdown of the same closes the price chart drew."""
-    if len(closes) < 2:
-        return None
-    peak = closes[0]
-    drawdown = []
-    for close in closes:
-        peak = max(peak, close)
-        drawdown.append((close / peak - 1) * 100 if peak else 0.0)
-
-    fig, ax = plt.subplots(figsize=(6, 2.6), dpi=120)
-    _style_axes(fig, ax)
-    xs = list(range(len(drawdown)))
-    ax.plot(xs, drawdown, color='#ff5252', linewidth=1.6)
-    ax.fill_between(xs, drawdown, 0, color='#ff5252', alpha=0.18)
-    ax.axhline(0, color='#64748b', linewidth=1)
-    ax.set_title(f"{symbol} drawdown from running peak · worst {min(drawdown):.2f}%", color='#f8fafc', fontsize=10, fontweight='bold')
-    ax.set_ylabel("Drawdown (%)", color='#94a3b8', fontsize=8)
-    return _finish(fig)
 
 
 def split_telegram_html(text: str, limit: int = _TELEGRAM_MESSAGE_LIMIT) -> list[str]:
@@ -364,6 +222,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
 
     # Portfolio manager
     CommandSpec("portfolio", "Portfolio · Whole-book PM summary", "Portfolio", "/portfolio", "/portfolio", "_cmd_portfolio", ("bookstate",)),
+    CommandSpec("equity", "Portfolio · Persisted equity curve and period returns", "Portfolio", "/equity [LIMIT]", "/equity", "_cmd_equity", ("curve", "history")),
     CommandSpec("positions", "Portfolio · Open positions and marks", "Portfolio", "/positions [SYMBOL]", "/positions BTCUSDT", "_cmd_positions", ("toppositions", "position")),
     CommandSpec("pnl", "Portfolio · Realised and unrealised P&L", "Portfolio", "/pnl", "/pnl", "_cmd_pnl"),
     CommandSpec("exposure", "Portfolio · Gross, net and leverage", "Portfolio", "/exposure", "/exposure", "_cmd_exposure"),
@@ -1314,7 +1173,7 @@ class TelegramBot:
         for book in books:
             # `get_books` hands back the VenueBook schema, not the raw BookState:
             # the ladders are lists of BookLevel and the depth totals are already
-            # computed fields. Reaching for `.items()` and `depth_usd()` here is
+            # computed fields. Reaching for `.items()` and `depth_money()` here is
             # reaching for the internal type.
             synthetic = synthetic or bool(getattr(book, "synthetic", False))
             bids.extend((level.price, level.size) for level in book.bids)
@@ -1439,6 +1298,73 @@ class TelegramBot:
     # ------------------------------------------------------------------ #
     # Portfolio manager
     # ------------------------------------------------------------------ #
+    async def _cmd_equity(self, args, chat_id, actor) -> None:
+        """The persisted equity curve — the one series the bot never surfaced.
+
+        Reads `build_equity_history`, the same function behind
+        `GET /api/portfolio/history`, so the chat curve and the web curve are
+        the same snapshots rather than two derivations that can disagree.
+        """
+        from modules.portfolio import build_equity_history
+
+        limit = 500
+        if args and args[0].isdigit():
+            limit = max(2, min(2000, int(args[0])))
+
+        history = build_equity_history(self.audit, limit=limit)
+        points = history.get("points") or []
+        if not points:
+            await self.send_message(chat_id, text_card(
+                "📈 Equity curve", "NO SNAPSHOTS",
+                ["The gateway persists equity on a timer; none has been recorded yet.",
+                 "<i>This is an empty record, not a flat book.</i>"],
+                source="audit · equity_snapshots", next_commands="/portfolio · /pnl",
+            ))
+            return
+
+        periods = history.get("periods") or {}
+        bounded = set(periods.get("window_bounded") or [])
+
+        def _row(label: str, key: str) -> str:
+            period = periods.get(key) or {}
+            pnl, ret = period.get("pnl"), period.get("return")
+            if pnl is None:
+                return f"{label:<12} <code>not observed</code>"
+            flag = " <i>(window-bounded)</i>" if key in bounded else ""
+            return f"{label:<12} <code>{_money(pnl)}</code> · <code>{_percent(ret)}</code>{flag}"
+
+        latest = points[-1]
+        lines = [
+            f"Equity       <code>{_money(latest.get('equity'))}</code>",
+            _row("Day", "day"),
+            _row("Month", "month_to_date"),
+            _row("Inception", "since_first_snapshot"),
+            f"Peak         <code>{_money(periods.get('peak_equity'))}</code>",
+            f"Worst DD     <code>{_percent(periods.get('worst_daily_drawdown_pct'))}</code> intraday, against each day's own open",
+            f"Sampled      <code>{history.get('sample_count')}</code> snapshots every "
+            f"<code>{history.get('interval_s')}s</code>",
+        ]
+        if bounded:
+            lines.append(
+                "<i>Window-bounded periods start at the oldest snapshot retained, "
+                "not at the true period open — the gateway keeps no earlier mark.</i>"
+            )
+
+        charts: list[tuple[str, bytes]] = []
+        curve = generate_equity_chart_png(points, latest.get("start_of_day"))
+        if curve:
+            charts.append(("equity", curve))
+        drawdown = generate_drawdown_chart_png(
+            "EQUITY", [float(point["equity"]) for point in points if point.get("equity")],
+        )
+        if drawdown:
+            charts.append(("drawdown", drawdown))
+
+        await self.send_media_group(chat_id, charts, caption=text_card(
+            "📈 Equity curve", "PERSISTED", lines,
+            source="audit · equity_snapshots", next_commands="/portfolio · /var · /pnl",
+        ))
+
     async def _cmd_portfolio(self, args, chat_id, actor) -> None:
         from modules.portfolio import format_for_telegram
 
@@ -2073,7 +1999,23 @@ class TelegramBot:
         if risk.diversification_ratio:
             lines.append(f"Diversif.   <code>{_number(risk.diversification_ratio)}x</code> vs the weighted parts")
         lines.append("<i>The budget is advisory: VaR needs history, so it is reported and never used to block an order.</i>")
-        await self.send_message(chat_id, text_card("📉 Portfolio VaR", "LIVE BOOK", lines, source="quant_risk · parametric", next_commands="/riskcontrib · /correlation · /stress"))
+
+        # The distribution the two quantiles were read off. Drawn only when the
+        # empirical replay ran — the parametric figure alone has no sample to
+        # show, and a normal curve here would illustrate the assumption rather
+        # than the book.
+        charts: list[tuple[str, bytes]] = []
+        if empirical and empirical.daily_pnl:
+            histogram = generate_histogram_png(
+                f"Replayed daily P&L · {empirical.observations} observations",
+                list(empirical.daily_pnl),
+                "Daily P&L (USD)",
+                [("VaR 95", -empirical.var95, "#e8ab3d"), ("CVaR 95", -empirical.cvar95, "#f0737c")],
+            )
+            if histogram:
+                charts.append(("var-distribution", histogram))
+
+        await self.send_media_group(chat_id, charts, caption=text_card("📉 Portfolio VaR", "LIVE BOOK", lines, source="quant_risk · parametric", next_commands="/riskcontrib · /correlation · /stress"))
 
     async def _cmd_riskcontrib(self, args, chat_id, actor) -> None:
         from modules.quant_risk import portfolio_risk
@@ -2090,7 +2032,13 @@ class TelegramBot:
             tag = " hedge" if c.contribution_share < 0 else ""
             lines.append(f"{esc(c.symbol):<11} <code>{_percent(c.share_of_gross)}</code>  <code>{_percent(c.contribution_share)}</code>{tag}")
         lines.append("<i>Share of notional is not share of risk. A hedge contributes a negative amount.</i>")
-        await self.send_message(chat_id, text_card("🎯 Risk contribution", f"{risk.observations} {interval.upper()} BARS", lines, source="quant_risk", next_commands="/var · /correlation"))
+        chart = generate_bars_chart_png(
+            "Share of portfolio risk by symbol",
+            [c.symbol for c in risk.contributions],
+            [float(c.contribution_share) * 100 for c in risk.contributions],
+            "Risk contribution (%)", horizontal=True, value_fmt="{:,.1f}%",
+        )
+        await self.send_media_group(chat_id, [("risk-contribution", chart)] if chart else [], caption=text_card("🎯 Risk contribution", f"{risk.observations} {interval.upper()} BARS", lines, source="quant_risk", next_commands="/var · /correlation"))
 
     async def _cmd_correlation(self, args, chat_id, actor) -> None:
         interval = args[0] if args and args[0] in {"15m", "1h", "4h", "1d"} else "1d"
@@ -2111,7 +2059,14 @@ class TelegramBot:
         if worst[0] >= 0.8:
             lines.append(f"<i>⚠ {esc(worst[1])} and {esc(worst[2])} at {worst[0]:.2f} — close to one position of their combined size.</i>")
         lines.append(f"<i>Measured over {cov.observations} {interval} bars. Diversification is only real while these stay low.</i>")
-        await self.send_message(chat_id, text_card("🔗 Correlation", "LIVE BOOK", lines, source="quant_risk", next_commands="/riskcontrib · /var"))
+        # The text matrix stays: it is the accessible form, and it is what a
+        # reader quotes. The heatmap is the glance that finds the hot corner.
+        heatmap = generate_heatmap_png(
+            f"Correlation · {cov.observations} {interval} bars",
+            [symbol[:8] for symbol in cov.symbols],
+            [[float(value) for value in row] for row in cov.correlation],
+        )
+        await self.send_media_group(chat_id, [("correlation", heatmap)] if heatmap else [], caption=text_card("🔗 Correlation", "LIVE BOOK", lines, source="quant_risk", next_commands="/riskcontrib · /var"))
 
     async def _cmd_rebalance(self, args, chat_id, actor) -> None:
         """Target weights and the trades that would reach them. Read-only."""
@@ -2240,7 +2195,15 @@ class TelegramBot:
                 f"<i>{esc(', '.join(sorted(set(assumed))))} moved on the scenario's blanket shock, "
                 "not on a measured beta — an assumption, not a measurement.</i>"
             )
-        await self.send_message(chat_id, text_card(
+        # Losses as positive bars so the tallest bar is the worst outcome —
+        # the shape a reader expects from a stress chart.
+        chart = generate_bars_chart_png(
+            "Scenario loss on the book as it stands",
+            [result.label for result in results],
+            [-float(result.total_pnl) for result in results],
+            "Loss (USD)", horizontal=True, value_fmt="{:,.0f}",
+        )
+        await self.send_media_group(chat_id, [("stress", chart)] if chart else [], caption=text_card(
             "🌩 Stress test", "LIVE BOOK", lines,
             source="quant_risk · measured betas", next_commands="/var · /riskcontrib · /headroom"))
 
@@ -2327,8 +2290,12 @@ class TelegramBot:
         books = [
             {
                 "venue": b.venue, "ok": bool(b.mid), "best_bid": b.best_bid, "best_ask": b.best_ask,
-                "bids": [[lvl[0], lvl[1]] for lvl in (b.bids or [])[:1]],
-                "asks": [[lvl[0], lvl[1]] for lvl in (b.asks or [])[:1]],
+                # `get_books` returns BookLevel models, not (price, size)
+                # tuples. Subscripting them raised TypeError for anyone with
+                # two live venues — the exact condition the command exists for,
+                # which is why no reachable path ever exercised it.
+                "bids": [[lvl.price, lvl.size] for lvl in (b.bids or [])[:1]],
+                "asks": [[lvl.price, lvl.size] for lvl in (b.asks or [])[:1]],
             }
             for b in self.tca.get_books(symbol, depth=5)
         ]

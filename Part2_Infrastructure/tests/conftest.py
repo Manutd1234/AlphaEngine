@@ -134,3 +134,32 @@ def fake_market_data(monkeypatch):
     monkeypatch.setattr(research, "bars", bars)
     monkeypatch.setattr(research, "news", news)
     monkeypatch.setattr(research, "fundamentals", fundamentals)
+
+
+TELEGRAM_TEST_CHAT = "12345"
+TELEGRAM_TEST_USER = "7"
+
+
+@pytest.fixture(autouse=True)
+def telegram_lists():
+    """Authorise the test user for the duration of each test.
+
+    Autouse and global: the allowlists are module-level settings, so a test
+    that forgot to set them would exercise the refusal path while looking like
+    it exercised the command. Restored afterwards so the ordering of tests
+    cannot matter.
+    """
+    from config import settings
+
+    saved = (
+        list(settings.telegram_allowed_user_ids),
+        list(settings.telegram_allowed_chat_ids),
+        list(settings.telegram_alert_chat_ids),
+    )
+    settings.telegram_allowed_user_ids[:] = [TELEGRAM_TEST_USER]
+    settings.telegram_allowed_chat_ids[:] = []
+    settings.telegram_alert_chat_ids[:] = []
+    yield
+    settings.telegram_allowed_user_ids[:] = saved[0]
+    settings.telegram_allowed_chat_ids[:] = saved[1]
+    settings.telegram_alert_chat_ids[:] = saved[2]
