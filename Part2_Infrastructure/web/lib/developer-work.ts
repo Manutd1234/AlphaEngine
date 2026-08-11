@@ -27,13 +27,16 @@ type DeveloperWorkSeed = Omit<DeveloperWorkItem, "openedAt"> & { ageHours: numbe
  * keeps all edits in the current browser session.
  */
 const DEVELOPER_WORK_SEEDS: readonly DeveloperWorkSeed[] = [
+  // The previous seed here reported a deep-link bug that has been fixed —
+  // a demo whose own tracker claims a working feature is broken reads as
+  // neglect. Seeds must describe work that is genuinely open.
   {
     id: "BUG-204",
     kind: "bug",
     priority: "P1",
     status: "progress",
-    title: "Developer deep links do not restore the active subtab",
-    summary: "The top-level hash restores Developer, but a refresh returns the engineer to Overview.",
+    title: "Latency ledger is per-instance, so p99 pins at 'collecting' on serverless",
+    summary: "Each lambda keeps its own in-memory samples; move the ledger behind the gateway so the health poll reads one shared truth.",
     owner: "Ian",
     area: "Web shell",
     ageHours: 9,

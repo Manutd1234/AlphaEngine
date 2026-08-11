@@ -223,15 +223,6 @@ export default function RiskWorkspace({
           varSeries={varSeries}
           sandbox={Boolean(book.sandbox)}
         />
-        {/* Deliberately after the engine, not beside it: this is a check ON the
-            figures above, and reading it first would invert that. Both take the
-            same measured volatility, so a divergence is the method, not the
-            input. */}
-        <OracleVarPanel
-          equity={book.equity.current}
-          annualVol={risk?.annualisedVolatility ?? null}
-          sandbox={Boolean(book.sandbox)}
-        />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="risk" tabId="montecarlo" activeId={section}>
@@ -242,6 +233,15 @@ export default function RiskWorkspace({
           sandbox={Boolean(book.sandbox)}
           runNonce={mcRunNonce}
           onOpenResearch={onOpenResearch}
+        />
+        {/* The two Monte Carlos live together on purpose: a bootstrap of the
+            strategy's realised returns above, a GBM simulated in the database
+            below. They answer the same question two ways, and disagreement
+            between them is signal about the method, not an error. */}
+        <OracleVarPanel
+          equity={book.equity.current}
+          annualVol={risk?.annualisedVolatility ?? null}
+          sandbox={Boolean(book.sandbox)}
         />
       </WorkspaceSubtabPanel>
 

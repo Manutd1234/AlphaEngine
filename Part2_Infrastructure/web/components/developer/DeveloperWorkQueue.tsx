@@ -161,7 +161,7 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
         <div>
           <div className="developer-work__eyebrow">
             <span className="page-kicker">Engineering workflow</span>
-            <span className="pill">Session-only sample</span>
+            <span className="pill">Mocked · session-only</span>
           </div>
           <h2>Features, bugs &amp; current tickets</h2>
           <p className="sub">
