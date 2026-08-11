@@ -125,7 +125,12 @@ describe("the nav and the render tree describe the same workspace", () => {
   });
 
   it("the retired systems hash still lands somewhere real", () => {
-    const legacy = [...page.matchAll(/^\s*([a-z]+):\s*"([a-z]+)",$/gm)]
+    // Scoped to the LEGACY_VIEWS literal — a page-wide `key: "value"` scan
+    // also matches unrelated records (e.g. the per-workspace section ref).
+    const start = page.indexOf("const LEGACY_VIEWS");
+    assert.ok(start >= 0, "page.tsx no longer declares LEGACY_VIEWS");
+    const block = page.slice(start, page.indexOf("};", start));
+    const legacy = [...block.matchAll(/([a-z]+):\s*"([a-z]+)"/g)]
       .filter(([, , target]) => ids.includes(target));
     assert.ok(legacy.length > 0, "no legacy hash redirects survive");
     for (const [, from, to] of legacy) {
@@ -143,6 +148,24 @@ describe("dense role workspaces expose accessible feature sections", () => {
     for (const key of ["ArrowLeft", "ArrowRight", "Home", "End"]) {
       assert.ok(subtabs.includes(key), `nested tabs do not handle ${key}`);
     }
+  });
+
+  it("workspace switches write the full location, never a bare view", () => {
+    // A bare `#research` while the rail shows Strategies was the copy-link /
+    // reload desync. navigate() must read the live section at click time.
+    assert.match(page, /url\.hash = detail\?\.hash \?\? `\$\{next\}\/\$\{sectionByViewRef\.current\[next\]\}`/);
+    assert.ok(
+      !/if \(next === "data"\) setDataSection\("overview"\)/.test(page),
+      "the forced data reset is back — it hid the desync instead of fixing it",
+    );
+  });
+
+  it("Alt+1–8 reads physical key codes and never fires while typing", () => {
+    // macOS Option+digit produces "¡™£…", so an e.key range test never
+    // matches — the advertised shortcut was dead on every Mac.
+    assert.match(header, /e\.code/);
+    assert.ok(header.includes("Digit[1-8]"), "workspace shortcuts no longer match Digit codes");
+    assert.match(header, /isContentEditable/);
   });
 
   it("opens each internally scrolled Research section at its own beginning", () => {

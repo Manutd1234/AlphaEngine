@@ -69,7 +69,10 @@ export default function WorkspaceSubtabs<T extends string>({
   };
 
   return (
-    <nav className="workspace-subtabs" aria-label={label}>
+    // Three distinct accessible names on purpose: the landmark, the tablist
+    // and the mobile select used to share one string, so a screen-reader
+    // rotor listed three identically-named controls.
+    <nav className="workspace-subtabs" aria-label={`${label} navigation`}>
       <div className="workspace-subtabs__navigation">
         <div className="workspace-subtabs__rail-shell">
           <div
@@ -109,7 +112,7 @@ export default function WorkspaceSubtabs<T extends string>({
           <span>Section</span>
           <select
             value={activeId}
-            aria-label={label}
+            aria-label={`${label} — section picker`}
             onChange={(event) => {
               const next = tabs.find((tab) => tab.id === event.target.value);
               if (next) onChange(next.id);

@@ -195,6 +195,33 @@ export default function Page() {
   const refreshBookAfterOrder = useCallback(() => {
     void book.refresh(true);
   }, [book.refresh]);
+  /**
+   * Live section per workspace, readable from handlers created once. A ref,
+   * not state, because `navigate` must see the CURRENT section at click time
+   * to write a truthful hash — its useCallback would otherwise capture the
+   * mount-time values forever.
+   */
+  const sectionByViewRef = useRef<Record<WorkspaceView, string>>({
+    overview: "loop",
+    research: "summary",
+    live: "trade",
+    portfolio: "overview",
+    risk: "limits",
+    data: "overview",
+    reliability: "overview",
+    developer: "overview",
+  });
+  sectionByViewRef.current = {
+    overview: overviewSection,
+    research: researchSection,
+    live: executionSection,
+    portfolio: portfolioSection,
+    risk: riskSection,
+    data: dataSection,
+    reliability: reliabilitySection,
+    developer: developerSection,
+  };
+
   const navigate = useCallback((
     next: WorkspaceView,
     replace = false,
@@ -203,12 +230,14 @@ export default function Page() {
   ) => {
     const apply = () => {
       setView(next);
-      if (next === "data") setDataSection("overview");
-      if (next === "reliability") setReliabilitySection("overview");
       detail?.apply();
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href);
-        url.hash = detail?.hash ?? next;
+        // Always the FULL location. Bare `#research` while the rail shows
+        // Strategies was the desync: copy-link disagreed with reload, and a
+        // forced per-workspace reset (data/reliability used to snap back to
+        // overview) only hid it. Panels keep state; the URL tells the truth.
+        url.hash = detail?.hash ?? `${next}/${sectionByViewRef.current[next]}`;
         window.history[replace ? "replaceState" : "pushState"]({}, "", url);
       }
     };
@@ -360,17 +389,16 @@ export default function Page() {
   }, []);
 
   const openReliabilitySection = useCallback((next: ReliabilitySection, targetId?: string) => {
-    setView("reliability");
-    setReliabilitySection(next);
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      url.hash = `reliability/${next}`;
-      window.history.pushState({}, "", url);
-      if (targetId) {
-        window.requestAnimationFrame(() => document.getElementById(targetId)?.focus());
-      }
+    // Through `navigate`, not raw setView: this jump used to skip the view
+    // transition and the scroll reset every other workspace switch gets.
+    navigate("reliability", false, {
+      apply: () => setReliabilitySection(next),
+      hash: `reliability/${next}`,
+    });
+    if (typeof window !== "undefined" && targetId) {
+      window.requestAnimationFrame(() => document.getElementById(targetId)?.focus());
     }
-  }, []);
+  }, [navigate]);
 
   const run = useCallback(
     async (

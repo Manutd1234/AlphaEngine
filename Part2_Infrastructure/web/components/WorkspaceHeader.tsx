@@ -89,9 +89,18 @@ export default function WorkspaceHeader({
   // for why the palette cannot render inside this element.
   useEffect(() => {
     const onKeyDown = (e: globalThis.KeyboardEvent) => {
-      if (e.altKey && e.key >= "1" && e.key <= "8") {
+      // e.code, not e.key: on macOS Option+digit types "¡™£…" so a key-range
+      // test never matches and the advertised Alt+1–8 shortcut silently died
+      // on every Mac. Physical-key codes are layout- and modifier-stable.
+      if (e.altKey && !e.ctrlKey && !e.metaKey && /^Digit[1-8]$/.test(e.code)) {
+        // Never while typing — Alt+digit composes characters in text fields.
+        const target = e.target as HTMLElement | null;
+        if (target && (target.isContentEditable
+          || target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT")) {
+          return;
+        }
         e.preventDefault();
-        const index = parseInt(e.key, 10) - 1;
+        const index = Number(e.code.slice(5)) - 1;
         if (index >= 0 && index < NAV_ITEMS.length) {
           onViewChange(NAV_ITEMS[index].id);
         }
