@@ -9,6 +9,7 @@ import {
   OPERATOR_TOKEN_ENV,
 } from "@/lib/operator";
 import { instanceId } from "@/lib/observability";
+import { buildSystemHealthSnapshot } from "@/lib/system-health-snapshot";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,8 +64,13 @@ export async function POST(request: NextRequest) {
 
   try {
     const result = await applyAction(parsed.action);
+    // The ledgers this action just mutated are per-instance module memory. A
+    // follow-up poll can land on a different lambda and report a world where
+    // the action never happened — so the response itself carries the snapshot
+    // of the instance that applied it, the one read guaranteed to agree.
+    const health = await buildSystemHealthSnapshot("interactive");
     return NextResponse.json(
-      { ok: true, instance: instanceId, appliedAt: new Date().toISOString(), ...result },
+      { ok: true, instance: instanceId, appliedAt: new Date().toISOString(), ...result, health },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (err) {

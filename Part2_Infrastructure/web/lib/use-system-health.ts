@@ -11,8 +11,9 @@
  *
  * Operator writes live here too, deliberately: the token is entered on the
  * Reliability tab but an action fired anywhere must re-read state the same way,
- * and `runAction` re-fetches rather than patching a local copy — the server
- * decides what happened, not the button that asked.
+ * and `runAction` applies the snapshot embedded in the action response — the
+ * server decides what happened, not the button that asked, and the embedded
+ * read is the one guaranteed to come from the instance that applied it.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -108,6 +109,26 @@ export function useSystemHealth(workspaceSymbol: string): SystemHealthView {
     [],
   );
 
+  const applySnapshot = useCallback((snapshot: SystemHealth) => {
+    setHealth(snapshot);
+    setUpdatedAt(new Date());
+    setHealthError(null);
+    // Every successful read — the poll, the mount fetch and the snapshot an
+    // action response carries — feeds the ring; appendLatencyHistory drops
+    // observations with no new upstream samples. Failed polls append nothing.
+    const latency = snapshot.summary?.latency;
+    if (latency) {
+      setLatencyHistory((current) =>
+        appendLatencyHistory(current, {
+          t: Date.now(),
+          p99: latency.p99,
+          errorRate: latency.errorRate,
+          n: latency.n,
+          lastAt: latency.lastAt,
+        }));
+    }
+  }, []);
+
   const refresh = useCallback(
     async (quiet: boolean) => {
       const current = ++sequence.current;
@@ -121,23 +142,7 @@ export function useSystemHealth(workspaceSymbol: string): SystemHealthView {
           setHealthError((body as { error?: string }).error ?? `HTTP ${response.status}`);
           return;
         }
-        setHealth(body as SystemHealth);
-        setUpdatedAt(new Date());
-        setHealthError(null);
-        // Every successful read — the poll, the mount fetch and runAction's
-        // re-read — feeds the ring; appendLatencyHistory drops observations
-        // that carry no new upstream samples. Failed polls append nothing.
-        const latency = (body as SystemHealth).summary?.latency;
-        if (latency) {
-          setLatencyHistory((current) =>
-            appendLatencyHistory(current, {
-              t: Date.now(),
-              p99: latency.p99,
-              errorRate: latency.errorRate,
-              n: latency.n,
-              lastAt: latency.lastAt,
-            }));
-        }
+        applySnapshot(body as SystemHealth);
       } catch (err) {
         // Retain the last good snapshot, but never leave stale values painted as
         // current. A later successful tick clears this visible stale state.
@@ -146,7 +151,7 @@ export function useSystemHealth(workspaceSymbol: string): SystemHealthView {
         }
       }
     },
-    [],
+    [applySnapshot],
   );
 
   useEffect(() => {
@@ -196,15 +201,23 @@ export function useSystemHealth(workspaceSymbol: string): SystemHealthView {
         const body = (await response.json().catch(() => ({}))) as ActionResponse;
         setActionResult({ ...body, ok: response.ok && body.ok !== false });
         if (!response.ok) logLocal("error", body.error ?? `action failed (HTTP ${response.status})`);
-        // The action changed server state; re-read it rather than guessing.
-        await refresh(false);
+        if (response.ok && body.health) {
+          // The embedded snapshot comes from the instance that applied the
+          // action; a re-poll could route to a lambda that never saw it.
+          // Invalidate any in-flight poll so it cannot overwrite this read.
+          ++sequence.current;
+          applySnapshot(body.health);
+        } else {
+          // The action changed server state; re-read it rather than guessing.
+          await refresh(false);
+        }
       } catch (err) {
         setActionResult({ ok: false, error: err instanceof Error ? err.message : "action failed" });
       } finally {
         setBusyAction(null);
       }
     },
-    [token, refresh, logLocal],
+    [token, refresh, applySnapshot, logLocal],
   );
 
   const onReconnectSockets = useCallback(() => {

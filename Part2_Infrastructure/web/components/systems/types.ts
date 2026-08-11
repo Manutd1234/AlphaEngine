@@ -326,7 +326,9 @@ export interface SystemHealth {
       passed: boolean;
       deploymentEnvironment: string | null;
       commitIdentity: string | null;
-      provenanceDigest: string | null;
+      // Never sent for build evidence — the digest belongs to artifact custody.
+      // Typing it required here is what let the server and client drift apart.
+      provenanceDigest?: string | null;
       detail: string;
     };
     artifact?: {
@@ -417,6 +419,12 @@ export interface ActionResponse {
   summary?: string;
   caveat?: string;
   data?: Record<string, unknown>;
+  /**
+   * Post-action snapshot from the instance that applied the action. The client
+   * applies this instead of re-polling: a poll may route to a different lambda
+   * whose in-memory ledgers never saw the mutation.
+   */
+  health?: SystemHealth;
 }
 
 /** Human-readable labels for the reasons dispatch records against a skip. */

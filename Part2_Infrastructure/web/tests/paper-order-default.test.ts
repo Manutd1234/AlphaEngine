@@ -31,6 +31,12 @@ const healthRoute = readFileSync(
   fileURLToPath(new URL("../app/api/system/health/route.ts", import.meta.url)),
   "utf8",
 );
+// The payload itself moved to a lib shared with the actions route; the guard
+// exposure and the no-browser-credential rule follow the payload source.
+const healthSnapshot = readFileSync(
+  fileURLToPath(new URL("../lib/system-health-snapshot.ts", import.meta.url)),
+  "utf8",
+);
 const healthTypes = readFileSync(
   fileURLToPath(new URL("../components/systems/types.ts", import.meta.url)),
   "utf8",
@@ -72,10 +78,11 @@ describe("the deployment credential is a paper-order-only default", () => {
 
   it("exposes status, never a browser credential", () => {
     assert.match(ordersRoute, /paperOrderDefaultAvailable: paperOrderDefaultAvailable\(\)/);
-    assert.match(healthRoute, /paperOrderDefaultAvailable: paperOrderDefaultAvailable\(\)/);
+    assert.match(healthSnapshot, /paperOrderDefaultAvailable: paperOrderDefaultAvailable\(\)/);
     assert.match(healthTypes, /paperOrderDefaultAvailable\?: boolean/);
     assert.doesNotMatch(ordersRoute, /NEXT_PUBLIC_/);
     assert.doesNotMatch(healthRoute, /NEXT_PUBLIC_/);
+    assert.doesNotMatch(healthSnapshot, /NEXT_PUBLIC_/);
     assert.doesNotMatch(ordersRoute, /process\.env\[?\s*OPERATOR_TOKEN_ENV/);
   });
 });
