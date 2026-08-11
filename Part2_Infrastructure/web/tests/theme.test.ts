@@ -124,28 +124,28 @@ const AA_NORMAL = 4.5;
 /** Resolved palettes, kept here rather than re-parsed so the expectation is explicit. */
 const LIGHT = {
   "surface-1": "#ffffff",
-  // Beige, since the plane warmed up. Every role below is re-checked against it
-  // — --json-accent clears AA here by 0.09, so this value is not free to drift
-  // darker without moving the accent with it.
-  "surface-2": "#f7f2e8",
+  // Zinc, since the graphite repaint. Every role below is re-checked against
+  // it — --json-accent clears AA here by 0.20, so this value is not free to
+  // drift darker without moving the accent with it.
+  "surface-2": "#f4f4f5",
   "success-text": "#087552",
   "warning-text": "#85570b",
   "critical-text": "#b3242e",
   "notice-text": "#9a4415",
-  "text-secondary": "#526176",
-  "text-muted": "#5f6d82",
+  "text-secondary": "#52525b",
+  "text-muted": "#65656e",
   "json-accent": "#2563eb",
 } as const;
 
 const DARK = {
-  "surface-1": "#0f1c2c",
-  "surface-2": "#162438",
+  "surface-1": "#131316",
+  "surface-2": "#1a1a1f",
   "success-text": "#0ca30c",
   "warning-text": "#e8ab3d",
   "critical-text": "#f0737c",
   "notice-text": "#f08a5a",
-  "text-secondary": "#bdc8d8",
-  "text-muted": "#8190a7",
+  "text-secondary": "#b1b1b9",
+  "text-muted": "#8a8a94",
   "json-accent": "#5a9ceb",
 } as const;
 

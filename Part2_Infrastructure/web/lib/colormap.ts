@@ -27,7 +27,7 @@ export interface DivergingRamp {
 /** Mirrors --diverging-neg/mid/pos in the light theme (globals.css). */
 export const SHARPE_RAMP_LIGHT: DivergingRamp = {
   neg: [227, 73, 72], // #e34948
-  mid: [240, 239, 236], // #f0efec
+  mid: [240, 240, 241], // #f0f0f1
   pos: [37, 99, 235], // #2563eb
 };
 
