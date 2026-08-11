@@ -67,7 +67,7 @@ export default function NextStepFooter({ currentView, onNavigate }: NextStepFoot
       <div className="next-step-footer__content">
         <div className="next-step-footer__info">
           <span className="next-step-footer__kicker">Decision Loop Flow · {step.roleLabel}</span>
-          <h4 className="next-step-footer__title">{step.title}</h4>
+          <h3 className="next-step-footer__title">{step.title}</h3>
           <p className="next-step-footer__hint">{step.hint}</p>
         </div>
         <button

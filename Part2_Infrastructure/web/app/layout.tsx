@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
-import { headers } from "next/headers";
 
 import "./globals.css";
 // Must come AFTER globals.css: tailwind.css ships unlayered utilities that win
@@ -34,37 +33,38 @@ const DESCRIPTION =
   + "quant researchers, traders, portfolio managers, risk managers, developers, data engineers "
   + "and SREs — from strategy evidence to paper execution, risk validation and data lineage.";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const requestHeaders = await headers();
-  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? "localhost:3000";
-  const forwardedProtocol = requestHeaders.get("x-forwarded-proto");
-  const protocol = forwardedProtocol ?? (host.startsWith("localhost") ? "http" : "https");
-  let metadataBase: URL;
-  try {
-    metadataBase = new URL(`${protocol}://${host}`);
-  } catch {
-    metadataBase = new URL("http://localhost:3000");
-  }
-  const image = new URL("/og-alphaengine-v2.png", metadataBase).toString();
+/** Static, not generateMetadata: reading request headers just to learn the
+ *  host forces every request through dynamic rendering. The base comes from
+ *  the deployment environment instead, so the route stays prerenderable and
+ *  the relative image URLs below resolve against it. */
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL
+  ?? (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "http://localhost:3000");
 
-  return {
-    metadataBase,
+export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
     title: TITLE,
     description: DESCRIPTION,
-    openGraph: {
-      title: TITLE,
-      description: DESCRIPTION,
-      type: "website",
-      images: [{ url: image, width: 1200, height: 630, alt: "AlphaEngine — one operating context from signal to decision" }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: TITLE,
-      description: DESCRIPTION,
-      images: [image],
-    },
-  };
-}
+    type: "website",
+    images: [{
+      url: "/og-alphaengine-v2.png",
+      width: 1200,
+      height: 630,
+      alt: "AlphaEngine — one operating context from signal to decision",
+    }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+    images: ["/og-alphaengine-v2.png"],
+  },
+};
 
 export const viewport: Viewport = {
   width: "device-width",

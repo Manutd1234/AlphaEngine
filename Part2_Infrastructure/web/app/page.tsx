@@ -1751,16 +1751,17 @@ export default function Page() {
           </section>
         )}
 
-        <footer className="workspace-footer">
-          <span>AlphaEngine</span>
-          <p>
-            Educational case-study demonstration built for a developer assessment. Not a brokerage
-            or investment service: no accounts, no funds, no real orders, and no credentials are
-            requested from visitors. Execution is paper-only and remains gated by the risk gateway.
-            Not investment advice.
-          </p>
-        </footer>
       </main>
+
+      <footer className="workspace-footer">
+        <span>AlphaEngine</span>
+        <p>
+          Educational case-study demonstration built for a developer assessment. Not a brokerage
+          or investment service: no accounts, no funds, no real orders, and no credentials are
+          requested from visitors. Execution is paper-only and remains gated by the risk gateway.
+          Not investment advice.
+        </p>
+      </footer>
     </>
   );
 }
