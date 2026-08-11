@@ -112,13 +112,17 @@ class WebQuotaView(BaseModel):
 class WebStateView(BaseModel):
     # Additive optional fields only, like the operations snapshot: the web
     # validator pins version 1 and an older client must keep validating.
+    # The lists carry no defaults on purpose — ``sync`` always fills them, and
+    # a response field with a default publishes itself as optional in the
+    # OpenAPI contract, which would make every generated client hedge against
+    # an absence that cannot happen.
     schema_version: Literal[1] = 1
     observed_at: datetime
     window_seconds: float
-    instances: list[str] = Field(default_factory=list)
-    latency: list[WebLatencyKeyView] = Field(default_factory=list)
-    outages: list[WebOutageView] = Field(default_factory=list)
-    quota: list[WebQuotaView] = Field(default_factory=list)
+    instances: list[str]
+    latency: list[WebLatencyKeyView]
+    outages: list[WebOutageView]
+    quota: list[WebQuotaView]
 
 
 # --------------------------------------------------------------------------- #

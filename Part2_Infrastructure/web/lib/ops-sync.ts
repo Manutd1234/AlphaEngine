@@ -16,6 +16,7 @@
  */
 
 import { callGateway } from "@/lib/gateway";
+import type { GatewayOperations } from "@/lib/gateway-contract.generated";
 import {
   applySharedOpsState,
   recordLatency,
@@ -24,6 +25,9 @@ import {
   type SharedOpsViewWire,
 } from "@/lib/observability";
 import { hydrateQuotaLedger } from "@/lib/providers/runtime";
+
+/** The generated binding for this route, from the committed OpenAPI contract. */
+type SyncOperation = GatewayOperations["POST /api/ops/web-state/sync"];
 
 /** Short on purpose: the health poll pays this serially before its probes. */
 export const OPS_SYNC_TIMEOUT_MS = 1_500;
@@ -59,7 +63,10 @@ export function syncSharedOpsState(): Promise<void> {
 
 async function doSync(): Promise<void> {
   const drainedAtMs = Date.now();
-  const body = takePendingOps();
+  // `satisfies` the generated contract binding: if the gateway's request
+  // model and this body ever disagree, the compile fails before a deploy
+  // does — while the local type stays narrow for the restore path.
+  const body = takePendingOps() satisfies SyncOperation["request"];
   const result = await callGateway<SharedOpsViewWire>("/api/ops/web-state/sync", {
     method: "POST",
     body,

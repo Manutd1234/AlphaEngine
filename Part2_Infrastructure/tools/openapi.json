@@ -2704,7 +2704,11 @@
         },
         "required": [
           "observed_at",
-          "window_seconds"
+          "window_seconds",
+          "instances",
+          "latency",
+          "outages",
+          "quota"
         ],
         "title": "WebStateView",
         "type": "object"
