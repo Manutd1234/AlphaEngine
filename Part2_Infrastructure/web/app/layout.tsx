@@ -75,6 +75,11 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  /* Opting into the full screen means owning all four insets — which the
+     sticky header, the shell gutters and the bottom nav now pay. Without it
+     a notched phone in landscape puts the header's left edge under the
+     sensor housing. */
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#fafafa" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0b" },

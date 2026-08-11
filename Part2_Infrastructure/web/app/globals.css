@@ -296,6 +296,56 @@ html {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* ---------- thumb-reach navigation ----------
+   Hidden entirely above 620px: a desk has eight tabs in the header and needs
+   no second navigation. Below it, four destinations plus the palette, which is
+   where the other four desks live — eight 44px targets across a 390px screen
+   would leave no gap between them, and adjacent 48px targets are a row of
+   mis-taps. */
+.workspace-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 620px) {
+  .workspace-bottom-nav {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: var(--z-rail);
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 2px;
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    background: var(--surface-0);
+  }
+
+  .workspace-bottom-nav button {
+    min-height: 44px;
+    padding: 4px 2px;
+    border: 0;
+    border-top: 2px solid transparent;
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* Colour is not the only signal: the rule above the label and aria-current
+     both say which desk is open. */
+  .workspace-bottom-nav button.is-active {
+    border-top-color: var(--series-1);
+    color: var(--series-1);
+  }
+
+  /* The page must end above the bar rather than under it. The footer is a
+     sibling of <main>, not inside the shell, so the clearance goes on the
+     footer — the shell's own padding would never reach it. */
+  .workspace-footer {
+    padding-bottom: calc(var(--space-6) + 62px + env(safe-area-inset-bottom));
+  }
+}
+
 /* The palette's only entry point was ⌘K, which meant the palette, the
    reviewer tour and the shortcut map did not exist on a touch device. */
 .header-command-button {
@@ -10831,6 +10881,7 @@ button.data-trust-action > i {
 
 .workspace-header {
   z-index: var(--z-header);
+  padding-top: env(safe-area-inset-top);
 }
 
 .workspace-shell {
@@ -10839,6 +10890,11 @@ button.data-trust-action > i {
   min-height: calc(100svh - var(--header-h));
   margin: 0 auto;
   padding: var(--space-4) var(--shell-pad) var(--space-6);
+  /* After the shorthand, not before it: viewport-fit: cover hands the app the
+     notch, so the gutters have to pay for it in landscape. max() keeps the
+     desk padding wherever there is no inset to clear. */
+  padding-left: max(var(--shell-pad), env(safe-area-inset-left));
+  padding-right: max(var(--shell-pad), env(safe-area-inset-right));
 }
 
 .view-panel {

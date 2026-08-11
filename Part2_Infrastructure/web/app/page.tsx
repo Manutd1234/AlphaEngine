@@ -35,6 +35,7 @@ import { ResultsTable, WalkForwardTable } from "@/components/Tables";
 import Verdict from "@/components/Verdict";
 import CommandBar, { type Command } from "@/components/header/CommandBar";
 import ShortcutsOverlay, { type TourStop } from "@/components/header/ShortcutsOverlay";
+import WorkspaceBottomNav from "@/components/WorkspaceBottomNav";
 import WorkspaceHeader, { NAV_ITEMS, type WorkspaceView } from "@/components/WorkspaceHeader";
 import WorkspaceIntro from "@/components/WorkspaceIntro";
 import WorkspaceOverview from "@/components/WorkspaceOverview";
@@ -1755,6 +1756,12 @@ export default function Page() {
         )}
 
       </main>
+
+      <WorkspaceBottomNav
+        view={view}
+        onNavigate={navigate}
+        onOpenPalette={() => setCommandBarOpen(true)}
+      />
 
       <footer className="workspace-footer">
         <span>AlphaEngine</span>
