@@ -6865,6 +6865,15 @@ button.console-stat:hover:not(:disabled) {
   outline: none;
 }
 
+/* Any author `display` beats the UA's `[hidden] { display: none }`, so a
+   hidden grid or flex container stays on screen — which is how two feed
+   monitors kept rendering under a summary that had hidden them. The panel rule
+   below existed for exactly this reason; this generalises it so the attribute
+   means what it says everywhere. */
+[hidden] {
+  display: none !important;
+}
+
 .workspace-subtab-panel[hidden] {
   display: none !important;
 }
