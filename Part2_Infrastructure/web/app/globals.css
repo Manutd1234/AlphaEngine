@@ -12964,14 +12964,8 @@ button:active:not(:disabled) {
    falls back to a single column of twelve — about 100px, which is what the
    automated-checks card first rendered as, heading overprinting itself. It
    sits full-width under the schema and artifact pair. */
-.developer-cp-tests-card {
-  grid-column: 1 / -1;
-}
 
 @media (max-width: 1120px) {
-  .developer-cp-tests-card {
-    grid-column: 1 / -1;
-  }
 }
 
 /* ---------- fill-quality heatmap ---------- */

@@ -50,7 +50,8 @@ export const EXECUTION_SECTION_IDS =
   EXECUTION_SECTIONS.map((s) => s.id) as readonly ExecutionSection[];
 
 export const PORTFOLIO_SECTIONS = [
-  { id: "overview", label: "Overview", description: "Book snapshot & equity" },
+  { id: "overview", label: "Overview", description: "Alerts, headroom & exposure" },
+  { id: "equity", label: "Equity & P&L", description: "Session curve & attribution" },
   { id: "positions", label: "Positions", description: "Holdings & exposure" },
   { id: "allocation", label: "Allocation", description: "Targets & rebalancing" },
   { id: "performance", label: "Performance", description: "Attribution & costs" },
@@ -93,7 +94,8 @@ export const RELIABILITY_SECTION_IDS =
 
 // Rail order — the palette used to iterate a differently-ordered id list.
 export const DEVELOPER_SECTIONS = [
-  { id: "overview", label: "Overview", description: "Topology, readiness & delivery posture" },
+  { id: "overview", label: "Topology", description: "Runtime map & shared context" },
+  { id: "readiness", label: "Readiness", description: "Launch gates, schema & artifacts" },
   { id: "quality", label: "CI / CD", description: "Pipelines, test gates & artifacts" },
   { id: "apis", label: "API & Schema", description: "Routes, payloads & contract drift" },
   { id: "codebase", label: "Code & Diffs", description: "Repository paths & change custody" },

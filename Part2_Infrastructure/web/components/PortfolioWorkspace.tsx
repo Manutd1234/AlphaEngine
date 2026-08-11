@@ -311,22 +311,9 @@ export default function PortfolioWorkspace({
           </div>
         </section>
 
-        {/* One session read two ways — the path and its decomposition. Both
-            charts are drawn at the same height and the cards share a bottom
-            edge, so the pair reads as one statement rather than two panels
-            that happened to land side by side. */}
-        <div className="compact-grid-2col portfolio-chart-pair">
-          <EquityCurve
-            periods={periods}
-            backfilled={historyBackfilled}
-            points={equityTrack}
-            startOfDay={book.equity.start_of_day}
-            haltLevel={book.risk_budget.daily_drawdown.equity_at_halt}
-            generated={Boolean(book.sandbox)}
-          />
-
-          <PnlWaterfall waterfall={waterfall} generated={Boolean(book.sandbox)} />
-        </div>
+        <button type="button" className="text-action" onClick={() => openSection("equity")}>
+          Session equity curve &amp; P&amp;L attribution →
+        </button>
 
         {/* A summary, not a second copy: four columns against the full table's
             nine, and it defers rather than repeating the row actions. Both read
@@ -411,6 +398,25 @@ export default function PortfolioWorkspace({
             },
           ]}
         />
+      </WorkspaceSubtabPanel>
+
+      {/* One session read two ways — the path and its decomposition. They left
+          the overview because that section had grown to seven panels covering
+          alerts, headroom, charts, a positions preview and a risk cross-link;
+          the charts are the half a reader comes back to. */}
+      <WorkspaceSubtabPanel workspaceId="portfolio" tabId="equity" activeId={section}>
+        <div className="compact-grid-2col portfolio-chart-pair">
+          <EquityCurve
+            periods={periods}
+            backfilled={historyBackfilled}
+            points={equityTrack}
+            startOfDay={book.equity.start_of_day}
+            haltLevel={book.risk_budget.daily_drawdown.equity_at_halt}
+            generated={Boolean(book.sandbox)}
+          />
+
+          <PnlWaterfall waterfall={waterfall} generated={Boolean(book.sandbox)} />
+        </div>
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="portfolio" tabId="positions" activeId={section}>

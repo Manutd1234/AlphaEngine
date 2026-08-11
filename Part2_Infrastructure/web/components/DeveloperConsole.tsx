@@ -298,6 +298,11 @@ interface DeveloperOverviewProps {
   onOpenResearch: () => void;
   onOpenLive: () => void;
   onOpenReliability: () => void;
+  /** `topology` is the runtime map and shared context; `readiness` is the
+   *  launch gates with the schema and artifact evidence behind them. The
+   *  section carried seven cards, two of which restated the CI/CD and
+   *  API sections verbatim — those are gone rather than moved. */
+  part?: "topology" | "readiness";
 }
 
 function DeveloperOverview({
@@ -308,7 +313,10 @@ function DeveloperOverview({
   onOpenResearch,
   onOpenLive,
   onOpenReliability,
+  part = "topology",
 }: DeveloperOverviewProps) {
+  const showTopology = part === "topology";
+  const showReadiness = part === "readiness";
   const deploymentStates = DEPLOYABLES.map((deployable) => ({
     deployable,
     state: stateForDeployable(deployable.id, view),
@@ -351,7 +359,7 @@ function DeveloperOverview({
       )}
 
       <div className="developer-cp-overview__grid">
-        <section className="card developer-cp-topology">
+        <section className="card developer-cp-topology" hidden={!showTopology}>
           <div className="developer-cp-heading">
             <div><span>Runtime map</span><h2>Deployment topology</h2></div>
             <button className="text-action" type="button" onClick={() => onOpenSection("quality")}>Open CI / CD →</button>
@@ -379,7 +387,7 @@ function DeveloperOverview({
           </div>
         </section>
 
-        <section className="card developer-cp-readiness">
+        <section className="card developer-cp-readiness" hidden={!showReadiness}>
           <div className="developer-cp-heading"><div><span>Promotion gates</span><h2>Launch readiness</h2></div></div>
           <div
             className="developer-cp-readiness__ring"
@@ -404,40 +412,7 @@ function DeveloperOverview({
           </p>
         </section>
 
-        <section className="card developer-cp-pipeline-card">
-          <div className="developer-cp-heading">
-            <div><span>Delivery path</span><h2>CI pipeline</h2></div>
-            <a className="text-action" href={`${GITHUB_REPOSITORY_ROOT}/actions`} target="_blank" rel="noreferrer">Open Actions ↗</a>
-          </div>
-          <PipelineStrip />
-          <p className="developer-cp-disclosure">Stages are configured delivery evidence. GitHub Actions remains the authority for the current run conclusion.</p>
-        </section>
-
-        {/* The CI counts were prose inside the pipeline card — "342", "680",
-            "13" as three numbers in three sentences. Drawn against each other
-            they say the thing the sentences could not: nearly every test in
-            this delivery is in the web workspace, and the repository audit
-            contributes none because it asserts a tree rather than behaviour. */}
-        <section className="card developer-cp-tests-card">
-          <div className="developer-cp-heading">
-            <div><span>Verification weight</span><h2>Automated checks by job</h2></div>
-            <span className="section-note">committed gates · GitHub Actions is the authority</span>
-          </div>
-          <CategoryBars
-            ariaLabel="Number of automated checks contributed by each CI job."
-            rows={CI_JOBS.map((job) => ({
-              label: job.name,
-              note: job.count == null ? "tree audit" : `${job.count} checks`,
-              segments: [{ label: "automated checks", value: job.count ?? 0, color: "var(--series-1)" }],
-            }))}
-            emptyNote="No job reports a check count."
-          />
-          <p className="developer-cp-disclosure">
-            Counts are the gates configured in this repository, not the conclusion of the last run.
-          </p>
-        </section>
-
-        <section className="card developer-cp-schema-card">
+        <section className="card developer-cp-schema-card" hidden={!showReadiness}>
           <div className="developer-cp-heading">
             <div><span>Contract custody</span><h2>Schema diff</h2></div>
             <button className="text-action" type="button" onClick={() => onOpenSection("apis")}>Inspect routes →</button>
@@ -445,7 +420,7 @@ function DeveloperOverview({
           <SchemaGateTable view={view} compact />
         </section>
 
-        <section className="card developer-cp-artifact-card">
+        <section className="card developer-cp-artifact-card" hidden={!showReadiness}>
           <div className="developer-cp-heading">
             <div><span>Build custody</span><h2>Artifact lineage</h2></div>
             <StatusPill state={currentArtifact} compact />
@@ -454,7 +429,7 @@ function DeveloperOverview({
         </section>
       </div>
 
-      <section className="card developer-cp-context">
+      <section className="card developer-cp-context" hidden={!showTopology}>
         <div>
           <span>Shared desk context</span>
           <h2>Trace a change into the running workflow</h2>
@@ -696,6 +671,20 @@ export default function DeveloperConsole({
           onOpenResearch={onOpenResearch}
           onOpenLive={onOpenLive}
           onOpenReliability={onOpenReliability}
+          part="topology"
+        />
+      </WorkspaceSubtabPanel>
+
+      <WorkspaceSubtabPanel workspaceId="developer" tabId="readiness" activeId={section}>
+        <DeveloperOverview
+          view={view}
+          workspaceSymbol={workspaceSymbol}
+          workItems={workItems}
+          onOpenSection={openSection}
+          onOpenResearch={onOpenResearch}
+          onOpenLive={onOpenLive}
+          onOpenReliability={onOpenReliability}
+          part="readiness"
         />
       </WorkspaceSubtabPanel>
 
