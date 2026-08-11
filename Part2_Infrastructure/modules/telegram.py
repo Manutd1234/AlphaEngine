@@ -264,6 +264,8 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("jobs", "Research · Recent research jobs", "Research", "/jobs [COUNT]", "/jobs 10", "_cmd_jobs"),
     CommandSpec("job", "Research · Inspect one job", "Research", "/job JOB_ID", "/job abcd1234", "_cmd_job"),
     CommandSpec("backtests", "Research · Completed backtest history", "Research", "/backtests [COUNT]", "/backtests 10", "_cmd_backtests"),
+    CommandSpec("backtest", "Research · Queue a parameter sweep on the shared jobs engine", "Research", "/backtest SYMBOL [INTERVAL] [STRATEGY]", "/backtest BTCUSDT 1h ma_cross", "_cmd_backtest", ("sweep",)),
+    CommandSpec("rag", "Research · Similarity search over this desk's own runs and incidents", "Research", "/rag QUERY", "/rag momentum drawdown", "_cmd_rag", ("similar", "recall")),
     CommandSpec("strategies", "Research · Supported strategy catalogue", "Research", "/strategies", "/strategies", "_cmd_strategies"),
     CommandSpec("intervals", "Research · Supported market horizons", "Research", "/intervals", "/intervals", "_cmd_intervals"),
     CommandSpec("events", "Research · Recent risk/audit events", "Research", "/events [COUNT]", "/events 10", "_cmd_events"),
@@ -307,7 +309,8 @@ BOT_SHORT_DESCRIPTION = "Independent text alerts, portfolio and risk reads, and 
 BOT_DESCRIPTION = (
     "AlphaEngine Companion is separate from the web workspace. It provides text-only portfolio, "
     "OpenBB market data, execution analytics, research status and operational alerts. It cannot "
-    "open a position: there is no /order and no /backtest. Three controls (/halt, /resume, "
+    "open a position: there is no /order. Research can be queued with /backtest. "
+    "Three controls (/halt, /resume, "
     "/flatten) need a separate operator allow-list and a single-use code; /flatten closes "
     "positions through the same pre-trade gates as any order. "
     "Send /commands for the full catalogue."
@@ -928,7 +931,7 @@ class TelegramBot:
                     "Sixty-four of its commands only read. The three that do not — /halt, /resume, /flatten "
                     "— need the separate control allow-list and a single-use confirmation code.",
                     "/flatten enters closing orders, and they face the same pre-trade gates as any other order "
-                    "rather than going around them. There is no /order and no /backtest.",
+                    "rather than going around them. There is no /order; /backtest queues research, not trades.",
                 ],
                 source="AlphaEngine Telegram service",
                 next_commands="/commands · /status · /digest",
@@ -2481,6 +2484,126 @@ class TelegramBot:
             lines.append(f"Error <code>{esc(str(job.error)[:220])}</code>")
         await self.send_message(chat_id, text_card("🗂 Research job", job.status.upper(), lines, source="Job queue", next_commands="/jobs · /backtests"))
 
+    async def _cmd_backtest(self, args, chat_id, actor) -> None:
+        """Queue a sweep on the same jobs engine the API and the web use.
+
+        The boundary this crosses is research, not execution: it submits work
+        to `queue`, never an order to `gateway`. `/flatten` remains the only
+        command that can move the book, and it still goes through every
+        pre-trade gate to do it.
+        """
+        from modules.backtester import run_backtest
+        from modules.schemas import BacktestRequest
+
+        symbol = self._symbol(args)
+        rest = [token.lower() for token in args[1:]] if len(args) > 1 else []
+        interval = next((token for token in rest if token in {"15m", "1h", "4h", "1d"}), "1h")
+        strategy = next((token for token in rest if token not in {"15m", "1h", "4h", "1d"}), None)
+
+        try:
+            request = BacktestRequest(
+                symbol=symbol,
+                interval=interval,
+                **({"strategy": strategy} if strategy else {}),
+                notify_chat_id=str(chat_id),
+            )
+        except Exception as exc:  # pydantic states the allowed values itself
+            await self.send_message(chat_id, text_card(
+                "🧪 Backtest", "REJECTED",
+                [f"<code>{esc(str(exc)[:300])}</code>",
+                 "<i>/strategies lists every strategy this engine accepts.</i>"],
+                source="schemas.BacktestRequest", next_commands="/strategies · /intervals",
+            ))
+            return
+
+        record = self.queue.submit(
+            "backtest", run_backtest, request.model_dump(),
+            meta={"chat_id": str(chat_id), "symbol": request.symbol, "actor": actor},
+        )
+
+        subscribed = any(
+            str(sub.get("chat_id")) == str(chat_id) for sub in self._subscribers()
+        )
+        lines = [
+            f"Job         <code>{esc(record.job_id)}</code>",
+            f"Symbol      <code>{esc(request.symbol)}</code> · <code>{esc(request.interval)}</code>",
+            f"Strategy    <code>{esc(request.strategy)}</code>",
+            f"Backend     <code>{esc(record.backend)}</code>",
+            "",
+            "<i>The result pushes to this chat when it lands.</i>" if subscribed else
+            "<i>This chat is not subscribed, so nothing will be pushed — "
+            "run /subscribe, or poll with /job.</i>",
+        ]
+        await self.send_message(chat_id, text_card(
+            "🧪 Backtest queued", "ACCEPTED", lines,
+            source="jobs engine", next_commands=f"/job {record.job_id} · /backtests",
+        ))
+
+    async def _cmd_rag(self, args, chat_id, actor) -> None:
+        """Similarity search over the desk's own history, not the open web."""
+        from modules.research_rag import get_rag
+
+        query = " ".join(args).strip()
+        if not query:
+            await self.send_message(chat_id, text_card(
+                "🧠 Desk recall", "NEEDS A QUERY",
+                ["Describe what you are looking for, e.g. "
+                 "<code>/rag momentum drawdown</code>."],
+                source="research corpus", next_commands="/backtests · /incidents",
+            ))
+            return
+
+        result = await get_rag().search(query, match_count=3)
+        state = result.get("state")
+        if state == "unavailable":
+            await self.send_message(chat_id, text_card(
+                "🧠 Desk recall", "INDEX UNAVAILABLE",
+                ["The corpus is not configured or cannot be reached.",
+                 "<i>Unavailable is a state, not an empty result — this is not "
+                 "the same as finding nothing.</i>"],
+                source="research corpus", next_commands="/researchstatus",
+            ))
+            return
+        if state == "embed_failed":
+            await self.send_message(chat_id, text_card(
+                "🧠 Desk recall", "EMBEDDING FAILED",
+                ["The query could not be embedded, so nothing was searched.",
+                 "<i>Reported rather than returned as no matches.</i>"],
+                source="research corpus", next_commands="/researchstatus",
+            ))
+            return
+
+        matches = result.get("matches") or []
+        if not matches:
+            await self.send_message(chat_id, text_card(
+                "🧠 Desk recall", "NOTHING SIMILAR",
+                [f"Nothing in the corpus resembles <code>{esc(query)}</code>.",
+                 "<i>The index answered; it holds no comparable run or incident.</i>"],
+                source="research corpus", next_commands="/backtests",
+            ))
+            return
+
+        lines: list[str] = []
+        for match in matches:
+            similarity = _finite(match.get("similarity"))
+            lines.append(
+                f"<b>{esc(str(match.get('title') or match.get('kind') or 'record'))}</b>"
+                + (f" · <code>{similarity * 100:.0f}%</code>" if similarity is not None else "")
+            )
+            occurred = match.get("occurred_at")
+            detail = str(match.get("summary") or match.get("detail") or "").strip()
+            if detail:
+                lines.append(esc(detail[:220]))
+            if occurred:
+                lines.append(f"<i>{esc(str(occurred)[:19])}</i>")
+            lines.append("")
+        lines.append("<i>Similarity is over this account's own backtests, execution "
+                     "summaries and incidents — never the open web.</i>")
+        await self.send_message(chat_id, text_card(
+            f"🧠 Desk recall · {esc(query[:40])}", f"{len(matches)} MATCHES", lines,
+            source="research corpus · pgvector", next_commands="/backtests · /incidents",
+        ))
+
     async def _cmd_backtests(self, args, chat_id, actor) -> None:
         count = self._limit(args, 0, 10, 25)
         rows = self.audit.recent_backtests(count) if self.audit else []
@@ -2493,7 +2616,7 @@ class TelegramBot:
         await self.send_message(chat_id, text_card("🧪 Backtest history", "READ-ONLY AUDIT", lines, source="DuckDB audit log", next_commands="/strategies · /jobs"))
 
     async def _cmd_strategies(self, args, chat_id, actor) -> None:
-        lines = ["<code>ma_cross</code> — moving-average crossover", "<code>donchian</code> — channel breakout", "<code>rsi_reversion</code> — RSI mean reversion", "", "Research submission stays in the API/web research workflow; Telegram only reports status and results."]
+        lines = ["<code>ma_cross</code> — moving-average crossover", "<code>donchian</code> — channel breakout", "<code>rsi_reversion</code> — RSI mean reversion", "", "Queue one with <code>/backtest SYMBOL INTERVAL STRATEGY</code> — the same jobs engine the API and web use."]
         await self.send_message(chat_id, text_card("🧠 Strategy catalogue", "REFERENCE", lines, source="Backtest request schema", next_commands="/backtests · /researchstatus"))
 
     async def _cmd_intervals(self, args, chat_id, actor) -> None:

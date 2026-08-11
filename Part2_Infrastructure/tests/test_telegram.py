@@ -104,17 +104,31 @@ class TestRegistry:
         assert len(BOT_SHORT_DESCRIPTION) <= 120
         assert len(BOT_DESCRIPTION) <= 512
 
-    def test_the_companion_stays_text_only_and_never_links_a_web_ui(self):
+    def test_the_companion_never_links_a_web_ui_and_never_opens_a_position(self):
         """
-        Unchanged half of the original boundary. The bot gained risk controls,
-        but it is still a text client: it does not open, embed or link to the
-        web workspace, and it cannot queue work.
+        The boundary, restated after /backtest landed.
+
+        This used to assert the bot could not queue work at all. That half has
+        moved: /backtest submits to the same jobs engine the API and web use,
+        which is research, not trading. What has NOT moved is the part worth
+        defending — the bot opens no positions, and it is not a launcher for
+        the web workspace. So the assertion narrows to those two, and gains a
+        check that the new command really does queue rather than submit.
         """
         names = {spec.name for spec in COMMAND_SPECS}
-        assert names.isdisjoint({"app", "backtest"}), "no web-UI launch, no job submission"
+        assert "app" not in names, "no web-UI launch"
+        assert "order" not in names, "no position may be opened from chat"
+
         source = "\n".join([command_catalogue(), help_text(), BOT_DESCRIPTION]).lower()
         for forbidden in ("web_app", "telegram mini app", "vercel.app", "http://", "https://"):
             assert forbidden not in source
+
+        # Research goes to the queue; only the controls may reach the gateway.
+        import inspect
+
+        body = inspect.getsource(TelegramBot._cmd_backtest)
+        assert "self.queue.submit" in body
+        assert "gateway.submit" not in body, "/backtest must never place an order"
 
     def test_trading_controls_exist_but_are_gated(self):
         """
