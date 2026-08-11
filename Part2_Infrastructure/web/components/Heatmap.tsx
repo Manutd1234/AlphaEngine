@@ -40,8 +40,8 @@ const KIND_STYLE: Record<CellKind, { fill: string; darkFill: string; glyph: stri
   plateau: { fill: "#2f8f66", darkFill: "#35c48f", glyph: "▰", label: "plateau — neighbours hold up" },
   slope: { fill: "#c08a1f", darkFill: "#e8ab3d", glyph: "◪", label: "slope — degrading" },
   cliff: { fill: "#c2454f", darkFill: "#f0737c", glyph: "▲", label: "cliff — neighbours collapse" },
-  dead: { fill: "#8fa0b5", darkFill: "#40526a", glyph: "·", label: "no edge" },
-  isolated: { fill: "#c9d3e0", darkFill: "#22344b", glyph: "◌", label: "grid edge — cannot judge" },
+  dead: { fill: "#9a9aa1", darkFill: "#3f3f46", glyph: "·", label: "no edge" },
+  isolated: { fill: "#d4d4d8", darkFill: "#26262b", glyph: "◌", label: "grid edge — cannot judge" },
 };
 
 export default function Heatmap({

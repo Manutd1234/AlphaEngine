@@ -3993,22 +3993,22 @@ button.console-stat:hover:not(:disabled) {
 .console-log {
   color-scheme: dark;
 
-  --surface-1: #0f1c2c;
-  --surface-2: #162438;
-  --surface-3: #1c2d44;
-  --text-primary: #f6f8fb;
-  --text-secondary: #bdc8d8;
-  --text-muted: #8190a7;
-  --border: #22344b;
-  --grid: #1e3047;
+  --surface-1: #131316;
+  --surface-2: #1a1a1f;
+  --surface-3: #222228;
+  --text-primary: #f4f4f5;
+  --text-secondary: #b1b1b9;
+  --text-muted: #8a8a94;
+  --border: #26262b;
+  --grid: #202025;
 
   max-height: 340px;
   overflow: auto;
   padding: 10px 12px;
-  border: 1px solid #22344b;
+  border: 1px solid #26262b;
   border-radius: 10px;
-  background: #081321;
-  color: #cfd9e8;
+  background: #0a0a0b;
+  color: #d4d4d8;
   font-family: var(--mono);
   font-size: 10.5px;
   line-height: 1.65;
@@ -4021,7 +4021,7 @@ button.console-stat:hover:not(:disabled) {
 }
 
 .console-log__empty {
-  color: #9dabc0;
+  color: #a4a4ad;
   font-size: 11px;
 }
 
@@ -4042,7 +4042,7 @@ button.console-stat:hover:not(:disabled) {
 }
 
 .console-log__ts {
-  color: #8b9cb5;
+  color: #8a8a94;
   flex: 0 0 auto;
 }
 
@@ -4052,8 +4052,8 @@ button.console-stat:hover:not(:disabled) {
   font-weight: 700;
 }
 
-.console-log__level.is-debug { color: #7f8da2; }
-.console-log__level.is-info { color: #5aa2ee; }
+.console-log__level.is-debug { color: #85858f; }
+.console-log__level.is-info { color: #5a9ceb; }
 .console-log__level.is-warn { color: #e8ab3d; }
 .console-log__level.is-error { color: #f0737c; }
 
@@ -4061,8 +4061,8 @@ button.console-stat:hover:not(:disabled) {
   flex: 0 0 auto;
   padding: 0 4px;
   border-radius: 4px;
-  background: #162438;
-  color: #8190a7;
+  background: #1a1a1f;
+  color: #8a8a94;
   font-size: 9.5px;
 }
 
@@ -4072,11 +4072,11 @@ button.console-stat:hover:not(:disabled) {
 }
 
 .console-log__msg {
-  color: #dbe4f0;
+  color: #d4d4d8;
 }
 
 .console-log__fields {
-  color: #8b9cb5;
+  color: #8a8a94;
 }
 
 .console-log-jump {
@@ -5237,10 +5237,10 @@ button.console-stat:hover:not(:disabled) {
   color-scheme: dark;
   margin: 10px 0;
   padding: 12px;
-  border: 1px solid #22344b;
+  border: 1px solid #26262b;
   border-radius: 9px;
-  background: #081321;
-  color: #cfd9e8;
+  background: #0a0a0b;
+  color: #d4d4d8;
   font-family: var(--mono);
   font-size: 11px;
   line-height: 1.65;
@@ -5943,7 +5943,7 @@ button.console-stat:hover:not(:disabled) {
 
 .cockpit-ticket__credential input {
   min-width: 0;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--axis);
   border-radius: 8px;
   padding: 7px 10px;
   background: var(--surface-1);
@@ -6941,8 +6941,8 @@ button.console-stat:hover:not(:disabled) {
 
 
 .data-cp-status.is-good {
-  border-color: color-mix(in srgb, var(--status-healthy) 38%, var(--border));
-  background: color-mix(in srgb, var(--status-healthy) 7%, var(--surface-1));
+  border-color: color-mix(in srgb, var(--status-good) 38%, var(--border));
+  background: color-mix(in srgb, var(--status-good) 7%, var(--surface-1));
   color: var(--success-text);
 }
 
@@ -6990,7 +6990,7 @@ button.console-stat:hover:not(:disabled) {
     var(--surface-1);
 }
 
-.data-trust-hero.is-good { border-left-color: var(--status-healthy); }
+.data-trust-hero.is-good { border-left-color: var(--status-good); }
 .data-trust-hero.is-warn { border-left-color: var(--status-warning); }
 .data-trust-hero.is-bad { border-left-color: var(--status-critical); }
 
@@ -7063,7 +7063,7 @@ button.console-stat:hover:not(:disabled) {
   border-top: 3px solid var(--axis);
 }
 
-.data-trust-evidence.is-good { border-top-color: var(--status-healthy); }
+.data-trust-evidence.is-good { border-top-color: var(--status-good); }
 .data-trust-evidence.is-warn { border-top-color: var(--status-warning); }
 .data-trust-evidence.is-bad { border-top-color: var(--status-critical); }
 
@@ -7128,7 +7128,7 @@ button.console-stat:hover:not(:disabled) {
 }
 
 .data-trust-probe.is-good {
-  border-left-color: var(--status-healthy);
+  border-left-color: var(--status-good);
 }
 
 .data-trust-probe.is-bad {
@@ -12821,7 +12821,7 @@ button:active:not(:disabled) {
 .fill-quality-heatmap__grid td.num {
   /* The ramp midpoint is near-white; ink stays readable across the whole
      range because |slippage| rarely exceeds a few bps of tint. */
-  color: #122033;
+  color: #18181b;
   border-radius: 3px;
 }
 
@@ -12924,7 +12924,7 @@ button:active:not(:disabled) {
   font-variant-numeric: tabular-nums;
   min-width: 4ch;
   text-align: right;
-  color: var(--text-dim);
+  color: var(--text-muted);
 }
 .corpus-result__meta { font-size: 0.85em; margin-top: 2px; }
 .corpus-result__body {
