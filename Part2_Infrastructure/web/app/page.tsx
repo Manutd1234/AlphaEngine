@@ -1537,18 +1537,20 @@ export default function Page() {
                           interval={data.request.interval}
                           turnoverPerYear={data.tail.annualisedTurnover}
                         />
-                        {/* The execution lineage is supporting evidence, not a
-                            second summary. Keeping it with attribution shortens
-                            the decision-first landing section substantially. */}
-                        <SignalDAGViewer />
                       </StaleGate>
-                      {/*
-                        Outside the StaleGate on purpose. The corpus answers
-                        "has this desk seen anything like this before", which is
-                        a question about history — it does not go stale when the
-                        current sweep's parameters change, and veiling it would
-                        imply the past results had.
-                      */}
+                    </WorkspaceSubtabPanel>
+
+                    {/*
+                      Lineage answers "where did this signal come from and has
+                      the desk seen it before" — provenance, not decomposition.
+                      It carries no StaleGate at all: the signal path is the
+                      system's shape rather than this sweep's output, and the
+                      corpus answers a question about history, so veiling
+                      either when the current parameters change would imply the
+                      past had gone stale too.
+                    */}
+                    <WorkspaceSubtabPanel workspaceId="research" tabId="lineage" activeId={researchSection}>
+                      <SignalDAGViewer />
                       <ResearchCorpus />
                     </WorkspaceSubtabPanel>
 

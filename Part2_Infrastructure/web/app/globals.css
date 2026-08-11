@@ -13859,6 +13859,12 @@ html.is-vt .view-panel {
   background: transparent;
   color: var(--text-secondary);
   text-align: center;
+  /* Eight sections fit a full-width rail; a ninth, or a narrow window, has to
+     degrade to a truncated label rather than pushing its neighbours out of the
+     track. The scroll affordance below 820px is the real answer — this is the
+     band between. */
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 

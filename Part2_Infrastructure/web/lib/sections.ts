@@ -28,7 +28,8 @@ export const RESEARCH_SECTIONS = [
   { id: "summary", label: "Summary", description: "Verdict & performance" },
   { id: "parameters", label: "Parameters", description: "Stability & ranking" },
   { id: "walkforward", label: "Walk-forward", description: "Out-of-sample evidence" },
-  { id: "attribution", label: "Attribution", description: "Factors, tail & lineage" },
+  { id: "attribution", label: "Attribution", description: "Factors, regime & tail" },
+  { id: "lineage", label: "Lineage", description: "Signal path & desk memory" },
   { id: "decision", label: "Decision", description: "Promotion & sizing" },
   { id: "runs", label: "Runs", description: "Experiment history" },
   // Renamed from "Codex" — the id stays `codex` because ids are deep links.
