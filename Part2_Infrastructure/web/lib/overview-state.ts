@@ -198,7 +198,9 @@ export function formatLatencyChip(
   if (!latency || latency.p99 == null || latency.n < LATENCY_MIN_SAMPLES) {
     return {
       value: "p99 —",
-      caveat: `warming up — upstream latency needs ${LATENCY_MIN_SAMPLES}+ samples (n=${latency?.n ?? 0})`,
+      caveat:
+        `warming up — needs ${LATENCY_MIN_SAMPLES}+ measured samples on this instance `
+        + `(n=${latency?.n ?? 0}); every health poll measures the gateway path, so this fills`,
     };
   }
   return {

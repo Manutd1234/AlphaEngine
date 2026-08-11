@@ -20,6 +20,7 @@ import {
   globalLatency,
   instanceId,
   latencyStats,
+  recordLatency,
   startedAt,
 } from "@/lib/observability";
 import { oracleReadiness } from "@/lib/oracle/health";
@@ -62,6 +63,7 @@ export async function buildSystemHealthSnapshot(priority: Priority): Promise<Sys
 
   const base = providerStatus();
   const configuredOpenBBUrl = process.env.OPENBB_API_URL?.trim() ?? "";
+  const gatewayProbeStarted = Date.now();
   const [openBB, oracle, gatewaySnapshot, schemaEvidence] = await Promise.all([
     configuredOpenBBUrl
       ? openBBReadiness(configuredOpenBBUrl)
@@ -75,6 +77,14 @@ export async function buildSystemHealthSnapshot(priority: Priority): Promise<Sys
       timeoutMs: OPS_SNAPSHOT_TIMEOUT_MS,
       subject: "the operations snapshot",
       validate: isGatewayOpsSnapshot,
+    }).then((result) => {
+      // A real network round trip this poll just paid for — recorded so the
+      // latency pool has at least one genuine sample per poll on a fresh
+      // serverless instance. Deliberately NOT the cached oracle/openbb
+      // readiness reads: a cache hit measures nothing, and faking samples is
+      // exactly what the ledger's house rule forbids.
+      recordLatency("plane:gateway", Date.now() - gatewayProbeStarted, result.ok);
+      return result;
     }),
     gatewayOpenApiEvidence(),
   ]);
