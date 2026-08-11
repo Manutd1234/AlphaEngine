@@ -63,7 +63,7 @@ def test_reading_the_book_does_not_imply_stopping_the_desk(bot: TelegramBot):
 
 def test_control_commands_are_registered_in_their_own_category():
     controls = {s.name for s in COMMAND_SPECS if s.category == "Controls"}
-    assert controls == {"halt", "resume", "flatten"}
+    assert controls == {"halt", "resume", "flatten", "reduceonly", "resetbook"}
     # Kept out of the bootstrap set, which is reachable before authorisation.
     from modules.telegram import _BOOTSTRAP_COMMANDS
     assert not ({"/halt", "/resume", "/flatten"} & _BOOTSTRAP_COMMANDS)

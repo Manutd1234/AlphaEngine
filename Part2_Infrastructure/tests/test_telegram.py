@@ -135,16 +135,19 @@ class TestRegistry:
         The boundary that MOVED, stated explicitly.
 
         This test previously asserted the companion had no controls at all. It
-        now has three, and what replaces "they are absent" is not nothing — it
+        now has five, and what replaces "they are absent" is not nothing — it
         is the set of properties that make them safe to expose over chat. If a
         future change relaxes any of these, this fails rather than the change
         passing silently because the old assertion was simply deleted.
         """
         controls = {spec.name for spec in COMMAND_SPECS if spec.category == "Controls"}
-        assert controls == {"halt", "resume", "flatten"}
+        # Five since reduce-only (the soft halt) and the paper-book reset
+        # joined. What matters is not the count but that every one of them
+        # inherits the gating asserted below.
+        assert controls == {"halt", "resume", "flatten", "reduceonly", "resetbook"}
 
         # 1. Never reachable before authorisation.
-        assert not ({"/halt", "/resume", "/flatten"} & _BOOTSTRAP_COMMANDS)
+        assert not ({f"/{name}" for name in controls} & _BOOTSTRAP_COMMANDS)
 
         # 2. A second, narrower allow-list — reading the book does not imply
         #    being able to stop the desk, and it is empty by default.
