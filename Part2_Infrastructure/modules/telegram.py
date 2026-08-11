@@ -42,6 +42,15 @@ _SYMBOL_RE = re.compile(r"^[A-Z0-9.\-]{1,20}$")
 _HTML_TAG_RE = re.compile(r"</?(?:b|i|code|pre|u|s)(?:\s[^>]*)?>", re.IGNORECASE)
 _TELEGRAM_ACTOR_RE = re.compile(r"^tg:([1-9][0-9]*):")
 _TELEGRAM_MESSAGE_LIMIT = 3900
+
+# Telegram's published ceilings are ~30 sends a second overall and ~1 a second
+# to one chat. These sit just inside both: an album command is five sends in a
+# burst, and the 429 that earns costs more than the pause would have.
+_GLOBAL_SEND_GAP = 1 / 25
+_CHAT_SEND_GAP = 1.05
+# `retry_after` is honoured, but capped — a command must not be parked
+# indefinitely by one hostile or mistaken value.
+_MAX_RETRY_AFTER = 15.0
 _BOOTSTRAP_COMMANDS = {"/start", "/help", "/commands", "/about", "/whoami", "/version"}
 
 
@@ -540,6 +549,10 @@ class TelegramBot:
         self._seen_updates: set[int] = set()
         self._seen_update_order: deque[int] = deque(maxlen=2048)
         self._rate_windows: dict[str, deque[float]] = {}
+        # Outbound pacing. In-process and lost on restart, like the challenge
+        # dict and the dedup ring — a deploy simply starts the clock again.
+        self._next_global_send = 0.0
+        self._next_chat_send: dict[str, float] = {}
         # Pending control confirmations, keyed by user. Single-use and
         # time-boxed — see `_issue_challenge`. In-process on purpose: a restart
         # invalidating every pending kill-switch confirmation is the safe
@@ -574,22 +587,83 @@ class TelegramBot:
         """
         return bool(self.control_user_ids) and user_id in self.control_user_ids
 
-    async def api(self, method: str, **params) -> dict[str, Any]:
+    async def _pace(self, chat_id: str | int | None) -> None:
+        """Wait out the minimum gap before sending.
+
+        Telegram allows roughly 30 messages a second overall and about one a
+        second to a given chat. A command that answers with an album of four
+        charts plus a caption is five sends in a burst, so the limit is not
+        theoretical — and the 429 it earns costs more than the wait would have.
+        """
+        now = time.monotonic()
+        wait = max(0.0, self._next_global_send - now)
+        if chat_id is not None:
+            key = str(chat_id)
+            wait = max(wait, self._next_chat_send.get(key, 0.0) - now)
+        if wait > 0:
+            await asyncio.sleep(wait)
+        sent_at = time.monotonic()
+        self._next_global_send = sent_at + _GLOBAL_SEND_GAP
+        if chat_id is not None:
+            self._next_chat_send[str(chat_id)] = sent_at + _CHAT_SEND_GAP
+
+    async def _post(
+        self,
+        method: str,
+        *,
+        json_body: dict[str, Any] | None = None,
+        data: dict[str, Any] | None = None,
+        files: dict[str, Any] | None = None,
+        chat_id: str | int | None = None,
+        pace: bool = True,
+        attempts: int = 3,
+    ) -> dict[str, Any]:
+        """The one place a request reaches Telegram.
+
+        Paces sends, honours `retry_after` on a 429, and never lets the
+        token-bearing URL into a log line or `last_error`.
+        """
         if not self._client:
             self._client = httpx.AsyncClient(timeout=40.0)
-        try:
-            response = await self._client.post(f"{self.base}/{method}", json=params)
-            data = response.json()
-            if not data.get("ok"):
-                description = str(data.get("description") or "Telegram API refused the request")[:180]
+        for attempt in range(1, attempts + 1):
+            if pace:
+                await self._pace(chat_id)
+            try:
+                response = await self._client.post(
+                    f"{self.base}/{method}", json=json_body, data=data, files=files,
+                )
+                payload = response.json()
+                if payload.get("ok"):
+                    return payload
+                retry_after = payload.get("parameters", {}).get("retry_after")
+                if retry_after is not None and attempt < attempts:
+                    # Telegram tells us exactly how long it wants; capped so a
+                    # hostile or mistaken value cannot park a command forever.
+                    delay = min(float(retry_after), _MAX_RETRY_AFTER)
+                    log.warning("telegram %s rate limited; waiting %.1fs", method, delay)
+                    await asyncio.sleep(delay)
+                    continue
+                description = str(payload.get("description") or "Telegram API refused the request")[:180]
                 self.last_error = f"{method}: {description}"
                 log.warning("telegram %s failed: %s", method, description)
-            return data
-        except Exception as exc:  # never include the token-bearing request URL
-            error_kind = type(exc).__name__
-            self.last_error = f"{method}: transport {error_kind}"
-            log.error("telegram %s transport error (%s)", method, error_kind)
-            return {"ok": False, "description": f"transport {error_kind}"}
+                return payload
+            except Exception as exc:  # never include the token-bearing request URL
+                error_kind = type(exc).__name__
+                self.last_error = f"{method}: transport {error_kind}"
+                log.error("telegram %s transport error (%s)", method, error_kind)
+                return {"ok": False, "description": f"transport {error_kind}"}
+        return {"ok": False, "description": "rate limited"}
+
+    async def api(self, method: str, **params) -> dict[str, Any]:
+        # getUpdates is a 25-second long poll against our own consumer, not a
+        # send — pacing it would throttle the receive loop.
+        polling = method == "getUpdates"
+        return await self._post(
+            method,
+            json_body=params,
+            chat_id=params.get("chat_id"),
+            pace=not polling,
+        )
 
     async def send_message(self, chat_id: str | int, text: str) -> dict[str, Any]:
         result: dict[str, Any] = {"ok": True}
@@ -616,8 +690,9 @@ class TelegramBot:
                     data["caption"] = caption[:1000]
                     data["parse_mode"] = "HTML"
 
-                response = await self._client.post(f"{self.base}/sendPhoto", data=data, files=files)
-                res = response.json()
+                res = await self._post(
+                    "sendPhoto", data=data, files=files, chat_id=chat_id,
+                )
                 if res.get("ok"):
                     return res
                 log.warning("sendPhoto API call failed (%s), falling back to text message", res.get("description"))
@@ -668,12 +743,12 @@ class TelegramBot:
                 media.append(item)
                 files[key] = (f"{name}.png", blob, "image/png")
 
-            response = await self._client.post(
-                f"{self.base}/sendMediaGroup",
+            res = await self._post(
+                "sendMediaGroup",
                 data={"chat_id": str(chat_id), "media": json.dumps(media)},
                 files=files,
+                chat_id=chat_id,
             )
-            res = response.json()
             if res.get("ok"):
                 return res
             log.warning("sendMediaGroup failed (%s), falling back to sequential photos", res.get("description"))

@@ -5,14 +5,12 @@ from __future__ import annotations
 import re
 
 import pytest
-from conftest import deep_book, stub_feed
+from conftest import deep_book
 
 from config import settings
 from modules.audit import AuditLog
-from modules.jobs import JobQueue
-from modules.risk_proxy import RiskGateway, TokenBucket
 from modules.schemas import OrderRequest
-from modules.tca_engine import BookState, TCAEngine
+from modules.tca_engine import BookState
 from modules.telegram import (
     _BOOTSTRAP_COMMANDS,
     BOT_COMMANDS,
@@ -38,6 +36,7 @@ class StubBot(TelegramBot):
         self.token = "999:TEST"
         self.sent: list[str] = []
         self.api_calls: list[tuple[str, dict]] = []
+        self.albums: list[list[tuple[str, bytes]]] = []
 
     async def api(self, method, **params):
         self.api_calls.append((method, params))
@@ -53,19 +52,26 @@ class StubBot(TelegramBot):
         self.api_calls.append(("sendPhoto", {"chat_id": chat_id, "photo": photo_bytes, "caption": caption}))
         return {"ok": True}
 
+    async def send_media_group(self, chat_id, photos, caption=""):
+        # Captured here rather than per-test: without it the chart commands
+        # fall through to the real multipart sender, so every album test had
+        # to monkeypatch this method itself.
+        usable = [(name, blob) for name, blob in photos if blob]
+        self.albums.append(usable)
+        if caption:
+            self.sent.extend(split_telegram_html(caption))
+        self.api_calls.append(
+            ("sendMediaGroup", {"chat_id": chat_id, "photos": [name for name, _ in usable]})
+        )
+        return {"ok": True}
+
     @property
     def last(self) -> str:
         return self.sent[-1] if self.sent else ""
 
 
-@pytest.fixture
-def bot(tmp_path) -> StubBot:
-    tca = TCAEngine(symbols=["BTCUSDT"], venues=[])
-    tca.feeds = {"TEST": stub_feed("TEST", deep_book())}
-    audit = AuditLog(tmp_path / "telegram.duckdb")
-    gateway = RiskGateway(tca_engine=tca, audit=audit)
-    gateway.bucket = TokenBucket(1e6, 1_000_000)
-    return StubBot(gateway=gateway, tca=tca, queue=JobQueue(workers=1), audit=audit)
+# The `bot` fixture now lives in conftest.py so both Telegram test files
+# share one wiring. StubBot stays here — conftest imports it.
 
 
 @pytest.fixture(autouse=True)
@@ -676,12 +682,17 @@ class TestMultiSymbolCharts:
         assert "ETHUSDT" in bot.last
 
     async def test_album_degrades_to_a_single_photo_and_then_to_text(self, bot):
+        # Calls the production method explicitly: StubBot captures albums for
+        # every other test, and the degradation ladder is exactly the logic
+        # that capture would skip.
+        real = TelegramBot.send_media_group
+
         # One item is a plain photo, never an album; none at all is the card.
-        await bot.send_media_group(CHAT, [("BTCUSDT", b"\x89PNG")], caption="one chart")
+        await real(bot, CHAT, [("BTCUSDT", b"\x89PNG")], caption="one chart")
         assert any(method == "sendPhoto" for method, _ in bot.api_calls)
 
         bot.sent.clear()
-        await bot.send_media_group(CHAT, [], caption="no charts at all")
+        await real(bot, CHAT, [], caption="no charts at all")
         assert "no charts at all" in bot.last
 
 

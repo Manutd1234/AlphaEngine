@@ -50,3 +50,87 @@ def deep_book(symbol: str = "BTCUSDT", venue: str = "TEST", mid: float = 100.0, 
         asks=[(round(mid + i * 0.01, 4), size) for i in range(50)],
     )
     return book
+
+
+# ---------------------------------------------------------------------------
+# Telegram fixtures.
+#
+# These lived in `test_telegram.py`, which meant a second Telegram test file
+# could not use them — pytest only shares fixtures through conftest. They are
+# defined here so the registry floor in `test_telegram_commands.py` and the
+# suites in `test_telegram.py` exercise exactly the same bot.
+# ---------------------------------------------------------------------------
+
+import pytest  # noqa: E402
+
+
+@pytest.fixture
+def bot(tmp_path):
+    """A bot wired to real engines on a throwaway DuckDB, sending nowhere.
+
+    Real `TCAEngine`/`RiskGateway`/`AuditLog`/`JobQueue` on purpose: a stubbed
+    engine would let a handler pass a test and fail against the thing it
+    actually calls.
+    """
+    from test_telegram import StubBot
+
+    from modules.audit import AuditLog
+    from modules.jobs import JobQueue
+    from modules.risk_proxy import RiskGateway, TokenBucket
+    from modules.tca_engine import TCAEngine
+
+    tca = TCAEngine(symbols=["BTCUSDT"], venues=[])
+    tca.feeds = {"TEST": stub_feed("TEST", deep_book())}
+    audit = AuditLog(tmp_path / "telegram.duckdb")
+    gateway = RiskGateway(tca_engine=tca, audit=audit)
+    gateway.bucket = TokenBucket(1e6, 1_000_000)
+    return StubBot(gateway=gateway, tca=tca, queue=JobQueue(workers=1), audit=audit)
+
+
+@pytest.fixture
+def fake_market_data(monkeypatch):
+    """Deterministic OpenBB responses.
+
+    The registry floor dispatches every command, including the market ones. A
+    real provider call would make the suite depend on a vendor being up and on
+    a key being present, so the floor would report a network outage as a bot
+    defect.
+    """
+    from modules import research
+
+    async def status():
+        return {"ok": True, "provider": "yfinance", "detail": None}
+
+    async def quote(symbol, asset="equity"):
+        return {"ok": True, "data": {
+            "symbol": symbol, "price": 101.0, "change": 1.0, "change_percent": 1.0,
+            "open": 100.0, "high": 102.0, "low": 99.0, "volume": 1234,
+            "currency": "USD", "delayed": True,
+        }}
+
+    async def bars(symbol, asset, interval, limit):
+        rows = [
+            {"date": f"2026-08-{day:02d}", "open": 99 + day, "high": 101 + day,
+             "low": 98 + day, "close": 100 + day, "volume": 1000 * day}
+            for day in range(1, max(limit, 30) + 1)
+        ]
+        return {"ok": True, "data": rows[-limit:]}
+
+    async def news(symbols, limit):
+        return {"ok": True, "data": [
+            {"title": f"{symbols[0]} update {index}", "source": "Wire", "date": "2026-08-04"}
+            for index in range(limit)
+        ]}
+
+    async def fundamentals(symbol):
+        return {"ok": True, "data": {
+            "symbol": symbol, "name": "Example Corp", "exchange": "NMS",
+            "sector": "Technology", "industry": "Software", "market_cap": 1_000_000,
+            "pe_ratio": 20.0, "eps": 5.0, "beta": 1.1, "description": "A test company.",
+        }}
+
+    monkeypatch.setattr(research, "openbb_status_async", status)
+    monkeypatch.setattr(research, "quote", quote)
+    monkeypatch.setattr(research, "bars", bars)
+    monkeypatch.setattr(research, "news", news)
+    monkeypatch.setattr(research, "fundamentals", fundamentals)
