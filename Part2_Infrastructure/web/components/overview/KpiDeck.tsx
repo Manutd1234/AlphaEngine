@@ -1,7 +1,13 @@
 "use client";
 
 /**
- * The command center's KPI deck — four cards, every number real.
+ * The command center's KPI deck — eight cards, every number real.
+ *
+ * The first four answer "what is the desk deciding"; the second four answer
+ * "what is the desk carrying". They deliberately do not restate the hero band
+ * above them (equity, day P&L, VaR 95, p99): where the hero gives the headline
+ * figure, these give the shape behind it — the constraint that binds, the loss
+ * beyond the quantile, the concentration under the gross.
  *
  * `KpiCard` is the canonical overview tile going forward (the app already has
  * four divergent stat-tile patterns; new overview surfaces use this one, and
@@ -42,8 +48,8 @@ function KpiCard({
   titleText?: string;
 }) {
   return (
-    <div className="grid min-w-0 gap-0.5 rounded-[12px] border border-border bg-surface-1 px-4 py-3.5">
-      <span className="text-[9.5px] font-bold uppercase tracking-[0.07em] text-text-muted">{label}</span>
+    <div className="grid min-w-0 gap-0.5 rounded-[12px] border border-border bg-surface-1 px-4 py-4">
+      <span className="text-[10px] font-bold uppercase tracking-[0.07em] text-text-muted">{label}</span>
       {/* The value owns its own row.
           It used to share one with the sparkline, and that row carried no
           `min-w-0` — so as a grid item its automatic minimum size was its
@@ -57,12 +63,12 @@ function KpiCard({
            parameters, which are the half worth reading. The full string stays
            available on hover. */
         title={typeof value === "string" ? value : titleText}
-        className={`min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[14px] leading-[1.25] ${mono ? "num" : ""}`}
+        className={`min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[17px] leading-[1.25] ${mono ? "num" : ""}`}
       >
         {value}
       </strong>
       <div className="flex min-w-0 items-center justify-between gap-2">
-        <small className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[10.5px] text-text-muted">
+        <small className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-text-muted">
           {note}
         </small>
         {spark}
@@ -164,6 +170,13 @@ export default function KpiDeck({
         + `${systems.health?.quarantine?.size ? ` · ${systems.health.quarantine.size} quarantined` : ""}`
       : "checking data plane";
 
+  // ---- what the desk is carrying ----------------------------------------
+  const risk = book.risk;
+  const concentration = book.book?.concentration ?? null;
+  const budget = book.book?.risk_budget ?? null;
+  const [constraintName, constraintUse] = budget?.binding_constraint ?? [null, null];
+  const quarantined = systems.health?.quarantine?.size ?? 0;
+
   return (
     <section
       aria-label="Current decision context"
@@ -180,8 +193,8 @@ export default function KpiDeck({
             <Sparkline
               variant="area"
               points={equitySpark}
-              width={96}
-              height={30}
+              width={120}
+              height={34}
               ariaLabel={`Equity curve of the current candidate, ending at ${fmt(equitySpark[equitySpark.length - 1], 2)}×`}
             />
           ) : undefined
@@ -202,12 +215,61 @@ export default function KpiDeck({
           p99History.length >= 2 ? (
             <Sparkline
               points={p99History}
-              width={96}
-              height={30}
+              width={120}
+              height={34}
               tone={tone.tone === "bad" ? "critical" : tone.tone === "warn" ? "warn" : tone.tone === "muted" ? "muted" : "good"}
               ariaLabel={`Upstream p99 latency over recent polls, currently ${Math.round(p99History[p99History.length - 1])} milliseconds, ${tone.label}`}
             />
           ) : undefined
+        }
+      />
+
+      <KpiCard
+        label="Gross exposure"
+        value={exposure ? usd(exposure.gross, 0) : "—"}
+        note={
+          exposure
+            ? `net ${usd(exposure.net, 0)} · ${fmt(exposure.leverage, 2)}× leverage`
+            : "book connecting"
+        }
+      />
+      <KpiCard
+        label="Binding constraint"
+        value={
+          constraintName && constraintUse != null
+            ? `${Math.round(constraintUse * 100)}% used`
+            : "—"
+        }
+        note={
+          constraintName && headroom
+            ? `${constraintName.replace(/_/g, " ")} · ${usd(headroom.remaining, 0)} left of ${usd(headroom.limit, 0)}`
+            : constraintName
+              ? constraintName.replace(/_/g, " ")
+              : "no limit engaged yet"
+        }
+      />
+      <KpiCard
+        label="Loss beyond VaR"
+        value={risk ? usd(risk.cvar95, 0) : "—"}
+        note={
+          risk
+            ? `${signedPct(risk.annualisedVolatility)} annualised vol`
+              + `${book.varValidation ? ` · zone ${book.varValidation.zone}` : ""}`
+            : "needs price history"
+        }
+      />
+      <KpiCard
+        label="Book concentration"
+        value={
+          concentration
+            ? `${fmt(concentration.effective_positions, 1)} effective`
+            : "—"
+        }
+        note={
+          concentration
+            ? `${concentration.positions} held · largest ${Math.round(concentration.largest_share * 100)}%`
+              + `${quarantined ? ` · ${quarantined} feed quarantined` : ""}`
+            : "book connecting"
         }
       />
     </section>
