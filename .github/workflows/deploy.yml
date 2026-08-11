@@ -505,6 +505,11 @@ jobs:
             printf '{\n' >> "$CADDYFILE"
             printf '  admin off\n' >> "$CADDYFILE"
             printf '  auto_https disable_redirects\n' >> "$CADDYFILE"
+            # IP-literal clients (the Vercel fetch included) send no SNI at
+            # all — RFC 6066 forbids IP literals there — and Caddy selects
+            # certificates by SNI. Without a default, every handshake from an
+            # IP client fails with "no certificate available".
+            printf '  default_sni %s\n' "$PUBLIC_IP" >> "$CADDYFILE"
             printf '}\n' >> "$CADDYFILE"
             printf '%s:8443 {\n' "$PUBLIC_IP" >> "$CADDYFILE"
             printf '  tls internal\n' >> "$CADDYFILE"
@@ -546,7 +551,12 @@ jobs:
               sleep 2
             done
             if [ "$TLS_OK" != true ]; then
-              echo "::error::Caddy did not serve /health over TLS. Recent logs:"
+              echo "::error::Caddy did not serve /health over TLS."
+              echo "--- curl's own account of the handshake:"
+              curl -skv --max-time 5 \
+                --connect-to "${PUBLIC_IP}:8443:127.0.0.1:8443" \
+                "https://${PUBLIC_IP}:8443/health" 2>&1 | tail -12 || true
+              echo "--- recent Caddy logs:"
               docker logs --tail 40 alphaengine_caddy 2>&1 || true
               exit 1
             fi
