@@ -14,6 +14,7 @@ import DataTrustOverview from "@/components/data/DataTrustOverview";
 import DataWorkBoard from "@/components/data/DataWorkBoard";
 import CrossSourceCheck from "@/components/systems/CrossSourceCheck";
 import FailoverGraph from "@/components/systems/FailoverGraph";
+import { OperatorActionResult } from "@/components/systems/OperatorPanel";
 import PipelineInspector from "@/components/systems/PipelineInspector";
 import QuarantinePanel from "@/components/systems/QuarantinePanel";
 import QuotaMeters from "@/components/systems/QuotaMeters";
@@ -243,7 +244,8 @@ export default function DataConsole({
   onWorkItemsChange,
 }: DataConsoleProps) {
   const {
-    health, route, setRoute, guard, operatorReady, busyAction, runAction, effectivePollMs, logLocal,
+    health, route, setRoute, guard, operatorReady, busyAction, actionResult, runAction,
+    effectivePollMs, logLocal,
   } = view;
   const validation = health?.validation;
   const [probe, setProbe] = useState<InspectResponse | null>(null);
@@ -411,6 +413,10 @@ export default function DataConsole({
 
       <WorkspaceSubtabPanel workspaceId="data" tabId="providers" activeId={section}>
         <div className="data-console-stack">
+          {/* Actions fired from this panel must answer on this panel — the shared
+              hook state also mirrors into Reliability, but a 401 that only
+              reports two workspaces away is indistinguishable from nothing. */}
+          {actionResult && <OperatorActionResult result={actionResult} />}
           <div className="compact-grid-2col">
             <FailoverGraph
               routes={health?.routes ?? []}
