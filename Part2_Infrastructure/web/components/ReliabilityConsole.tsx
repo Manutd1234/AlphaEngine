@@ -80,6 +80,7 @@ export default function ReliabilityConsole({
     tokenEnv,
     token,
     setToken,
+    operatorReady,
     busyAction,
     actionResult,
     runAction,
@@ -206,7 +207,7 @@ export default function ReliabilityConsole({
           routes={health?.routes ?? []}
           venues={health?.venues ?? []}
           guard={guard}
-          operatorReady={guard === "open-dev" || (guard === "token" && Boolean(token.trim()))}
+          operatorReady={operatorReady}
           busyAction={busyAction}
           onAction={runAction}
           onInspectEvents={openEventsFor}

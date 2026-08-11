@@ -242,7 +242,9 @@ export default function DataConsole({
   workItems,
   onWorkItemsChange,
 }: DataConsoleProps) {
-  const { health, route, setRoute, guard, busyAction, runAction, effectivePollMs, logLocal } = view;
+  const {
+    health, route, setRoute, guard, operatorReady, busyAction, runAction, effectivePollMs, logLocal,
+  } = view;
   const validation = health?.validation;
   const [probe, setProbe] = useState<InspectResponse | null>(null);
   const [probeError, setProbeError] = useState<string | null>(null);
@@ -417,6 +419,7 @@ export default function DataConsole({
               cacheByCapability={health?.cache.byCapability ?? {}}
               priority={health?.routePriority ?? "interactive"}
               guard={guard}
+              operatorReady={operatorReady}
               busyAction={busyAction}
               onAction={runAction}
             />

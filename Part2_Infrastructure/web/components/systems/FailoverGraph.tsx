@@ -36,6 +36,8 @@ interface FailoverGraphProps {
   cacheByCapability: Record<string, { hitRate: number | null }>;
   priority: string;
   guard: GuardMode;
+  /** From SystemHealthView — false in token mode until a token is entered. */
+  operatorReady: boolean;
   busyAction: string | null;
   onAction: (action: string, options?: ActionOptions) => void;
 }
@@ -69,11 +71,20 @@ export default function FailoverGraph({
   cacheByCapability,
   priority,
   guard,
+  operatorReady,
   busyAction,
   onAction,
 }: FailoverGraphProps) {
   const route = routes.find((r) => routeKey(r) === selected) ?? routes[0] ?? null;
-  const locked = guard === "locked";
+  // Same gate as HealthMatrix: without it, token mode fired an unauthenticated
+  // POST from an enabled button and the 401 vanished — this panel renders no
+  // action result, so the only trace was a Reliability-side log line.
+  const locked = guard === "locked" || !operatorReady;
+  const lockNote = guard === "locked"
+    ? "Operator actions are disabled on this deployment."
+    : !operatorReady
+      ? "Enter the operator token in Reliability → Remediation before running provider actions."
+      : undefined;
   // The cache node sits inside *this* chain, so it must show this capability's
   // hit rate. The global figure belongs on the status tile, where it is labelled
   // as global — a quote chain reporting a rate driven mostly by bars lookups is
@@ -174,7 +185,7 @@ export default function FailoverGraph({
                       className="console-node__action"
                       onClick={() => onAction("clear_outage", { provider: node.provider })}
                       disabled={locked || busyAction !== null}
-                      title={locked ? "Operator actions are disabled on this deployment." : "Restore this provider now."}
+                      title={lockNote ?? "Restore this provider now."}
                     >
                       Restore
                     </button>
@@ -185,11 +196,10 @@ export default function FailoverGraph({
                       onClick={() => onAction("simulate_outage", { provider: node.provider, ttlMs: UI_OUTAGE_MS })}
                       disabled={locked || busyAction !== null || node.state !== "ready"}
                       title={
-                        locked
-                          ? "Operator actions are disabled on this deployment."
-                          : node.state === "ready"
+                        lockNote
+                          ?? (node.state === "ready"
                             ? "Simulate an outage here and watch the next request move down the chain."
-                            : "Only a routable provider can be knocked out."
+                            : "Only a routable provider can be knocked out.")
                       }
                     >
                       Simulate outage

@@ -49,6 +49,14 @@ export interface SystemHealthView {
   paperOrderDefaultAvailable: boolean;
   token: string;
   setToken: (token: string) => void;
+  /**
+   * Whether an operator action fired right now would carry a usable credential.
+   * Open modes count as ready — only token mode without a token is not. Every
+   * action button must gate on this, not on guard alone: an enabled button in
+   * token mode without a token posts an unauthenticated request and lands in
+   * the silent-401 class this codebase has already shipped twice.
+   */
+  operatorReady: boolean;
   busyAction: string | null;
   actionResult: ActionResponse | null;
   runAction: (action: string, options?: ActionOptions) => Promise<void>;
@@ -212,6 +220,11 @@ export function useSystemHealth(workspaceSymbol: string): SystemHealthView {
     [summary],
   );
 
+  const guardMode = health?.guard.mode ?? "locked";
+  const operatorReady =
+    guardMode === "open-demo" || guardMode === "open-dev"
+    || (guardMode === "token" && token.trim() !== "");
+
   return {
     health,
     healthError,
@@ -224,11 +237,12 @@ export function useSystemHealth(workspaceSymbol: string): SystemHealthView {
     effectivePollMs: paused ? 0 : pollMs,
     route,
     setRoute,
-    guard: health?.guard.mode ?? "locked",
+    guard: guardMode,
     tokenEnv: health?.guard.tokenEnv ?? "ALPHAENGINE_OPERATOR_TOKEN",
     paperOrderDefaultAvailable: health?.guard.paperOrderDefaultAvailable === true,
     token,
     setToken,
+    operatorReady,
     busyAction,
     actionResult,
     runAction,
