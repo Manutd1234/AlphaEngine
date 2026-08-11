@@ -7514,8 +7514,10 @@ button.data-trust-action > i {
 
 .data-workboard__board {
   display: grid;
+  /* The gap carries the flow connector between stages, so it is wider than a
+     plain column gutter would need to be. */
   grid-template-columns: repeat(4, minmax(245px, 1fr));
-  gap: 10px;
+  gap: 26px;
   padding-bottom: 4px;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
@@ -7523,11 +7525,39 @@ button.data-trust-action > i {
 }
 
 .data-work-column {
+  position: relative;
   min-width: 0;
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: color-mix(in srgb, var(--surface-2) 82%, var(--surface-1));
+}
+
+/* Work moves left to right — intake, ready, in progress, resolved — and the
+   board should say so rather than leaving four parallel lists that happen to
+   sit in that order. The rule and chevron are decoration over a heading that
+   already names each stage, so they stay out of the accessibility tree. */
+.data-work-column:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  top: 25px;
+  right: -26px;
+  width: 26px;
+  border-top: 1px dashed color-mix(in srgb, var(--axis) 70%, transparent);
+  pointer-events: none;
+}
+
+.data-work-column:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 21px;
+  right: -12px;
+  width: 7px;
+  height: 7px;
+  border-top: 2px solid var(--axis);
+  border-right: 2px solid var(--axis);
+  transform: rotate(45deg);
+  pointer-events: none;
 }
 
 .data-work-column.is-over-limit {
@@ -7883,7 +7913,15 @@ button.data-trust-action > i {
 
   .data-workboard__board {
     grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
     overflow-x: visible;
+  }
+
+  /* Stacked, the stages run down the page — a rightward chevron would point at
+     nothing. The heading order carries the sequence instead. */
+  .data-work-column:not(:last-child)::before,
+  .data-work-column:not(:last-child)::after {
+    content: none;
   }
 
   .data-workboard__toolbar {
