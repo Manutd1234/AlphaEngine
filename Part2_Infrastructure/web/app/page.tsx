@@ -56,6 +56,7 @@ import {
 import { useBook } from "@/lib/use-book";
 import { useSystemHealth } from "@/lib/use-system-health";
 import { RESEARCH_SYMBOLS } from "@/lib/research-symbols";
+import seedRunJson from "@/lib/seed-run.json";
 import {
   DEFAULT_REQUEST,
   ParamResult,
@@ -65,6 +66,8 @@ import {
   SweepResponse,
   type Strategy,
 } from "@/lib/types";
+
+const SEED_RUN = seedRunJson as unknown as SweepResponse;
 import {
   addExperiment,
   annotateExperiment,
@@ -116,7 +119,11 @@ const AUTO_RUN_BUDGET_MS = 1500;
 
 export default function Page() {
   const [req, setReq] = useState<SweepRequest>(DEFAULT_REQUEST);
-  const [data, setData] = useState<SweepResponse | null>(null);
+  // Seeded, clearly-labelled demo run: real bars (committed parity fixture),
+  // the real engine, computed ahead of time — so the first paint shows a real
+  // verdict and a real OOS Sharpe instead of skeletons. Its warning banner
+  // says exactly what it is, and the mount auto-sweep replaces it.
+  const [data, setData] = useState<SweepResponse | null>(SEED_RUN);
   const [inspectionData, setInspectionData] = useState<SweepResponse | null>(null);
   const [inspect, setInspect] = useState<ParamResult | null>(null);
   const [running, setRunning] = useState(false);
