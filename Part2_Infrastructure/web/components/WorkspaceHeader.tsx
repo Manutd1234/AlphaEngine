@@ -7,6 +7,7 @@ import KillSwitchControl, {
   type KillSwitchRiskControl,
 } from "@/components/header/KillSwitchControl";
 import AccountChip from "@/components/header/AccountChip";
+import TelegramCta from "@/components/header/TelegramCta";
 import ComplexityToggle from "@/components/ComplexityToggle";
 import ThemeToggle from "@/components/ThemeToggle";
 import type { LatencyStats } from "@/components/systems/types";
@@ -202,6 +203,7 @@ export default function WorkspaceHeader({
 
         <div className="header-spacer" />
 
+        <TelegramCta />
         <button
           type="button"
           className="header-command-button"
