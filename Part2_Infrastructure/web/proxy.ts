@@ -64,11 +64,31 @@ export default function proxy(request: NextRequest) {
   const { pathname, search, hash } = request.nextUrl;
   const desk = request.cookies.get(DESK_COOKIE)?.value;
 
-  // `/` is a signpost either way: to the desk with a session, to sign-in without.
+  /**
+   * The root ALWAYS shows sign-in, cookie or no cookie.
+   *
+   * It used to forward a visitor holding a pass straight to `/dashboard`, which
+   * seemed obviously right and was wrong in practice: the pass has no expiry, so
+   * it survives until the browser is fully closed — and Chrome's "continue where
+   * you left off" keeps session cookies alive across restarts too. The effect was
+   * that the shared link landed on the desk indefinitely after one guest entry,
+   * and "open the link and you are on the sign-in page" turned out to depend on
+   * the reader's browser state rather than on anything this app decides.
+   *
+   * So the entry point is unconditional. It costs a signed-out visitor one click
+   * they were going to make anyway, and it is worth more than that: the landing
+   * page is now the same for the first visit and the hundredth.
+   *
+   * Deep links are untouched, deliberately. `/dashboard#research/codex` still
+   * opens for anyone holding a pass, because bouncing it would break every link
+   * the desk shares of itself and would leave nowhere for "Continue as guest" to
+   * land. And someone with a live account session does not stall here: the login
+   * page mints their pass and forwards them, which is one repaint rather than a
+   * form they have to answer again.
+   */
   if (pathname === "/") {
-    const target = desk ? "/dashboard" : "/login";
     const url = request.nextUrl.clone();
-    url.pathname = target;
+    url.pathname = "/login";
     // The fragment rides along on its own — browsers reattach it across a 3xx —
     // but carrying the query string explicitly keeps `?step=verify` links intact.
     url.search = search;

@@ -98,17 +98,34 @@ describe("the desk is behind the guard", () => {
   });
 });
 
-describe("the root is a signpost", () => {
-  it("points a stranger at sign-in and a session at the desk", () => {
+describe("the root always shows sign-in", () => {
+  it("sends everyone to /login, pass or no pass", () => {
+    /**
+     * This used to forward a visitor holding a pass to /dashboard, and that is
+     * the behaviour being deliberately removed. The pass has no expiry, so it
+     * survives until the browser is fully closed — and "continue where you left
+     * off" keeps session cookies across restarts — so the shared link landed on
+     * the desk indefinitely after a single guest entry. Whether the entry point
+     * showed a sign-in page depended on the reader's browser state rather than on
+     * anything this app decides, which is the opposite of a deterministic landing.
+     */
     configureAuth(true);
-    assert.equal(
-      new URL(proxy(request("/")).headers.get("location")!).pathname,
-      "/login",
-    );
-    assert.equal(
-      new URL(proxy(request("/", "user-id")).headers.get("location")!).pathname,
-      "/dashboard",
-    );
+    for (const cookie of [undefined, "8f1c-user-id", "guest:abc"]) {
+      const response = proxy(request("/", cookie));
+      assert.equal(
+        new URL(response.headers.get("location")!).pathname,
+        "/login",
+        `root with cookie=${cookie ?? "none"} did not land on sign-in`,
+      );
+    }
+  });
+
+  it("does not bounce a deep link that already has a pass", () => {
+    // The other half of the rule. Bouncing /dashboard would break every link the
+    // desk shares of itself and leave nowhere for "Continue as guest" to land.
+    const response = proxy(request("/dashboard#research/codex", "user-id"));
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("location"), null);
   });
 
   it("carries the query string across the hop", () => {
