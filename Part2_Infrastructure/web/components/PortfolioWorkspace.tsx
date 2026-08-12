@@ -18,7 +18,7 @@
  * at once.
  */
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 
 import NumberTicker from "@/components/common/NumberTicker";
 import RowMenu from "@/components/common/RowMenu";
@@ -351,7 +351,17 @@ export default function PortfolioWorkspace({
                       <th scope="row">{position.symbol}</th>
                       <td className={position.side === "SHORT" ? "neg" : "pos"}>{position.side}</td>
                       <td>{usd(position.notional, 0)}</td>
-                      <td>{fmt(position.share_of_gross * 100, 1)}%</td>
+                      <td>
+                        {fmt(position.share_of_gross * 100, 1)}%
+                        {/* Ranks four positions at a glance; the number stays first
+                            and stays exact. Share of gross, so the fill is the
+                            share itself with no rescaling. */}
+                        <span
+                          className="cell-meter"
+                          aria-hidden
+                          style={{ "--fill": `${position.share_of_gross * 100}%` } as CSSProperties}
+                        />
+                      </td>
                       <td className={position.total_pnl >= 0 ? "pos" : "neg"}>{usd(position.total_pnl, 0)}</td>
                     </tr>
                   ))}
@@ -454,7 +464,17 @@ export default function PortfolioWorkspace({
                       <th scope="row">{position.symbol}</th>
                       <td className={position.side === "SHORT" ? "neg" : "pos"}>{position.side}</td>
                       <td>{usd(position.notional, 0)}</td>
-                      <td>{fmt(position.share_of_gross * 100, 1)}%</td>
+                      <td>
+                        {fmt(position.share_of_gross * 100, 1)}%
+                        {/* Ranks four positions at a glance; the number stays first
+                            and stays exact. Share of gross, so the fill is the
+                            share itself with no rescaling. */}
+                        <span
+                          className="cell-meter"
+                          aria-hidden
+                          style={{ "--fill": `${position.share_of_gross * 100}%` } as CSSProperties}
+                        />
+                      </td>
                       <td>{fmt(position.mark_price, position.mark_price < 10 ? 4 : 2)}</td>
                       <td className={position.total_pnl >= 0 ? "pos" : "neg"}>{usd(position.total_pnl, 0)}</td>
                       <td>

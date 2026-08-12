@@ -14,7 +14,7 @@
  * decision needs: equity, exposure and position count.
  */
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 
 import { BookChrome, BookFallback, BookSourceControl, CrossLinkTile } from "@/components/portfolio/BookChrome";
 import ExecutionHandoff, { type HandoffIntent } from "@/components/portfolio/ExecutionHandoff";
@@ -164,6 +164,13 @@ export default function RiskWorkspace({
                       <td className="num">{limitValue(row.headroom, row.headroomUnit)}</td>
                       <td className="num" style={{ color: TONE_TEXT[limitTone(row.utilisation)] }}>
                         {pct(row.utilisation, 1)}
+                        {/* The same figure, ranked. Inherits the tone colour above,
+                            so a constraint at cap reads red in both encodings. */}
+                        <span
+                          className="cell-meter"
+                          aria-hidden
+                          style={{ "--fill": `${Math.max(0, row.utilisation * 100)}%` } as CSSProperties}
+                        />
                       </td>
                     </tr>
                   ))}

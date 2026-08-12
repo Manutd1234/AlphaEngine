@@ -13865,6 +13865,40 @@ button:active:not(:disabled) {
    feature that does not exist, which is the one thing the tier system must
    never communicate. */
 
+/* ---------- in-cell meter ----------
+   A share or a utilisation read as a number is exact and slow to scan; the same
+   figure with a rule under it is both. Four rows of "41.9% / 27.9% / 18.4% /
+   12.1%" take a moment to rank, and the same four with bars rank themselves.
+
+   The number stays, and stays first. This is a second encoding of a value that
+   is already on screen, never a replacement for it — a bar alone cannot be read
+   aloud, copied, or trusted to a pixel, and the reading is what the desk is for.
+
+   Not `<progress>`: a meter inside a table cell has to inherit the row's colour
+   for its fill so the tone that marks "at cap" carries through, and progress
+   brings a UA appearance that fights that in every browser differently.
+   `currentColor` on a plain span does it in one line. aria-hidden because the
+   cell's own text is the accessible value; announcing it twice is noise. */
+.cell-meter {
+  display: block;
+  height: 3px;
+  margin-top: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  overflow: hidden;
+}
+
+.cell-meter::after {
+  content: "";
+  display: block;
+  height: 100%;
+  /* Clamped, so a utilisation over 100% — which the risk table can legitimately
+     show — fills the track rather than overflowing the cell. */
+  width: min(100%, var(--fill, 0%));
+  border-radius: inherit;
+  background: currentColor;
+}
+
 /* ---------- progressive disclosure ----------
    One class for "this is worth reading, and not on first paint".
 
