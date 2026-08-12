@@ -20,8 +20,11 @@ export default function manifest(): MetadataRoute.Manifest {
     // page before the desk reads as a broken install.
     start_url: "/dashboard",
     display: "standalone",
-    background_color: "#0a0a0b",
-    theme_color: "#0a0a0b",
+    // Both track dark --surface-0. The splash screen an installed app shows
+    // before its first paint is painted from background_color, so a stale value
+    // here is a near-black flash in front of a lighter desk on every launch.
+    background_color: "#18181b",
+    theme_color: "#18181b",
     icons: [
       { src: "/icon.svg", type: "image/svg+xml", sizes: "any", purpose: "any" },
       { src: "/apple-icon", type: "image/png", sizes: "180x180", purpose: "maskable" },

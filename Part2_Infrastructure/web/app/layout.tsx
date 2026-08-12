@@ -83,7 +83,10 @@ export const viewport: Viewport = {
   viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#fafafa" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0b" },
+    // Tracks --surface-0. A themeColor left behind after a palette move puts a
+    // near-black browser chrome above a lighter page — visible on iOS as a
+    // seam across the top of every screen.
+    { media: "(prefers-color-scheme: dark)", color: "#18181b" },
   ],
 };
 

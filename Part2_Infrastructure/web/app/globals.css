@@ -193,18 +193,18 @@
   :root:where(:not([data-theme="light"])) {
     color-scheme: dark;
 
-    --surface-1: #131316;
-    --surface-0: #0a0a0b;
-    --surface-2: #1a1a1f;
-    --surface-3: #222228;
+    --surface-1: #1f1f23;
+    --surface-0: #18181b;
+    --surface-2: #27272a;
+    --surface-3: #323238;
 
     --text-primary: #f4f4f5;
     --text-secondary: #b1b1b9;
-    --text-muted: #8a8a94;
+    --text-muted: #8d8d97;
 
-    --grid: #202025;
-    --axis: #3f3f46;
-    --border: #26262b;
+    --grid: #2a2a2d;
+    --axis: #47474d;
+    --border: #2f2f33;
 
     --series-1: #3987e5;
     --series-2: #d96e3e;
@@ -212,9 +212,9 @@
 
     --diverging-pos: #3987e5;
     --diverging-neg: #e66767;
-    --diverging-mid: #27272c;
+    --diverging-mid: #303034;
 
-    --success-text: #0ca30c;
+    --success-text: #0ca50c;
 
     /* The three status hues are the light-theme steps and were inherited
        unchanged into dark, where #159467 and #d99216 on #0f1c2c fall below AA
@@ -241,18 +241,18 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --surface-1: #131316;
-  --surface-0: #0a0a0b;
-  --surface-2: #1a1a1f;
-  --surface-3: #222228;
+  --surface-1: #1f1f23;
+  --surface-0: #18181b;
+  --surface-2: #27272a;
+  --surface-3: #323238;
 
   --text-primary: #f4f4f5;
   --text-secondary: #b1b1b9;
-  --text-muted: #8a8a94;
+  --text-muted: #8d8d97;
 
-  --grid: #202025;
-  --axis: #3f3f46;
-  --border: #26262b;
+  --grid: #2a2a2d;
+  --axis: #47474d;
+  --border: #2f2f33;
 
   --series-1: #3987e5;
   --series-2: #d96e3e;
@@ -260,9 +260,9 @@
 
   --diverging-pos: #3987e5;
   --diverging-neg: #e66767;
-  --diverging-mid: #27272c;
+  --diverging-mid: #303034;
 
-  --success-text: #0ca30c;
+  --success-text: #0ca50c;
 
   /* See the note in the prefers-color-scheme block above — same fix, same
      reason. These two dark blocks MUST stay identical: this one wins on
@@ -4310,23 +4310,31 @@ button.console-stat:hover:not(:disabled) {
 /* The dark plane. Tokens are redefined on the container rather than colours
    being hard-coded, so nested primitives resolve correctly; `color-scheme`
    is what keeps the OS scrollbar from rendering light over it.
-   The plane was #0a0a0b — the same value as dark --surface-0, which made the
-   log a void rather than an inset panel and drove the contrast between the
-   text and its own background past anything the type needed. Everything here
-   moved up one step together, so the row washes, the origin chips and the
-   selected-row tint keep the separation they were designed with. Debug grey
-   is the tightest at 4.93:1 and still clears AA. */
+
+   This plane RAISED itself above the card when dark --surface-0 was #0a0a0b: at
+   that depth a log painted the same value as the page read as a void rather than
+   an inset panel. Now that the page has moved up to zinc #18181b and the card to
+   #1f1f23, raising no longer separates anything — #1f1f25 against a #1f1f23 card
+   is a contrast of 1.002, which is to say invisible.
+
+   So it sinks instead, which is the better answer twice over. A terminal reads
+   naturally as recessed rather than raised, and going darker in a dark theme
+   INCREASES the contrast of the text on it: the tightest role here was 4.80:1
+   against the old raised plane and is 5.42:1 against this one. Separation from
+   the card is 1.128, which is what it was before the palette moved (1.131), and
+   the internal ladder — row washes, origin chips, selected-row tint — keeps the
+   steps it was designed with. */
 .console-log {
   color-scheme: dark;
 
-  --surface-1: #1f1f25;
-  --surface-2: #24242b;
-  --surface-3: #2e2e35;
+  --surface-1: #131317;
+  --surface-2: #191920;
+  --surface-3: #232329;
   --text-primary: #f4f4f5;
   --text-secondary: #b1b1b9;
   --text-muted: #8a8a94;
-  --border: #34343c;
-  --grid: #2a2a31;
+  --border: #2c2c34;
+  --grid: #212129;
 
   max-height: 340px;
   overflow: auto;

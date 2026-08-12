@@ -266,14 +266,18 @@ const LIGHT = {
 } as const;
 
 const DARK = {
-  "surface-1": "#131316",
-  "surface-2": "#1a1a1f",
-  "success-text": "#0ca30c",
+  // Zinc-900 and up, since the palette moved off near-black. The two roles below
+  // that carry a comment moved WITH the planes rather than being left behind:
+  // lightening a surface reduces the contrast of everything on it, and both were
+  // inside 0.15 of the AA floor at the new values before they were nudged.
+  "surface-1": "#1f1f23",
+  "surface-2": "#27272a",
+  "success-text": "#0ca50c",
   "warning-text": "#e8ab3d",
   "critical-text": "#f0737c",
   "notice-text": "#f08a5a",
   "text-secondary": "#b1b1b9",
-  "text-muted": "#8a8a94",
+  "text-muted": "#8d8d97",
   "json-accent": "#5a9ceb",
 } as const;
 
