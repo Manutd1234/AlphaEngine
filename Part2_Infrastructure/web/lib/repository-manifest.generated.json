@@ -410,6 +410,7 @@
     "Part2_Infrastructure/web/scripts/generate-seed-run.ts",
     "Part2_Infrastructure/web/scripts/start-dev-all.mjs",
     "Part2_Infrastructure/web/scripts/verify-oracle.mjs",
+    "Part2_Infrastructure/web/tests/account-schema.test.ts",
     "Part2_Infrastructure/web/tests/artifact-signing-key.test.ts",
     "Part2_Infrastructure/web/tests/auth.test.ts",
     "Part2_Infrastructure/web/tests/benchmark.test.ts",
@@ -510,6 +511,8 @@
     "supabase/migrations/20260812090000_authenticated_demo_realtime.sql",
     "supabase/migrations/20260812091000_close_authenticated_writes.sql",
     "supabase/migrations/20260812100000_user_preferences.sql",
+    "supabase/migrations/20260812110000_account_session_listing.sql",
+    "supabase/migrations/20260812110100_avatar_bucket.sql",
     "supabase/README.md",
     "supabase/seed.sql"
   ]
