@@ -206,6 +206,13 @@ let currentUser: string | null = null;
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 let dirty = false;
 let pulling = false;
+/**
+ * Bumped on every session transition. A `pull()` started under one account must
+ * not still be writing when that account is gone — it would apply the theme,
+ * detail level and last-open tab of the person who just signed out, and stamp
+ * their id as the last user.
+ */
+let generation = 0;
 
 function schedulePush(): void {
   if (!currentUser) return;
@@ -236,6 +243,7 @@ async function push(): Promise<void> {
 async function pull(userId: string): Promise<void> {
   const supabase = authClient();
   if (!supabase || pulling) return;
+  const startedAt = generation;
   pulling = true;
   try {
     const { data, error } = await supabase
@@ -257,6 +265,11 @@ async function pull(userId: string): Promise<void> {
       // complete, working state, so this is a degradation and not a failure.
       return;
     }
+
+    // The session changed while this round-trip was in flight. Everything
+    // below writes to shared local state, so it must not run for an account
+    // the browser has already left.
+    if (startedAt !== generation) return;
 
     const remote = isPrefPayload(data?.prefs) ? data.prefs.entries : {};
     const { apply, merged } = mergePrefEntries(readLocalEntries(), remote, { userChanged });
@@ -286,15 +299,35 @@ function onSession(info: SessionInfo): void {
   const next = info.status === "signed-in" ? info.userId : null;
   if (next === currentUser) return;
   currentUser = next;
+  generation += 1;
 
   if (!next) {
     if (pushTimer) clearTimeout(pushTimer);
     pushTimer = null;
+    // Nothing is owed to an account we have left; a stale dirty flag would
+    // make the next sign-in think it had a failed write to retry.
+    dirty = false;
     // Local values stay exactly as they are. Signing out is leaving an
     // account, not asking the browser to forget how you like the desk.
     return;
   }
   void pull(next);
+}
+
+/**
+ * Writes any preference still sitting behind the debounce, now.
+ *
+ * Sign-out drops the pending timer, so a change made in the last
+ * PUSH_DEBOUNCE_MS would be kept locally and never reach the account — sync
+ * that looks like it is working while quietly losing the last thing you did.
+ * Call this *before* ending the session: afterwards the JWT is gone and the
+ * write would be rejected.
+ */
+export async function flushPendingPrefs(): Promise<void> {
+  if (!pushTimer) return;
+  clearTimeout(pushTimer);
+  pushTimer = null;
+  await push();
 }
 
 /**

@@ -106,14 +106,28 @@ export function subscribeSession(listener: (info: SessionInfo) => void): () => v
   };
 }
 
+/**
+ * Ends the session. Deliberately does NOT navigate — this module is imported by
+ * the headless preference engine, which has no business redirecting anyone.
+ * The caller decides where to go, and must `await` this before it does: GoTrue
+ * removes the persisted session *after* its server round-trip, so a navigation
+ * that races it can unload the document with the token still in storage.
+ */
 export async function signOutUser(): Promise<void> {
   const supabase = authClient();
   if (!supabase) return;
   try {
+    // `signOut()` resolves with `{ error }` rather than throwing, so this catch
+    // only ever covers a genuine network throw. Either way GoTrue has already
+    // cleared the stored session — it calls removeCurrentSession() before
+    // returning any error that is not 404/401/403. A returned error means the
+    // server-side revoke of the refresh token failed, which nobody here can
+    // act on and which does not change that this browser is signed out.
     await supabase.auth.signOut();
   } catch {
-    // A failed network sign-out still clears local state below.
+    // Same conclusion: the local session is gone regardless.
   }
+  // Notifies listeners. It does not clear storage — GoTrue did that above.
   publish(SIGNED_OUT);
 }
 

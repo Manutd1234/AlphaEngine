@@ -20,10 +20,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { UserRound } from "lucide-react";
 
 import { signOutUser, useSession } from "@/lib/use-session";
+import { flushPendingPrefs } from "@/lib/user-prefs";
 
 export default function AccountChip() {
   const session = useSession();
   const [open, setOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const wrapper = useRef<HTMLSpanElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
 
@@ -99,13 +101,32 @@ export default function AccountChip() {
           </p>
           <button
             type="button"
+            disabled={signingOut}
             className="mt-3 w-full rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-[11.5px] font-semibold text-text-primary hover:bg-surface-2"
             onClick={() => {
-              close(false);
-              void signOutUser();
+              if (signingOut) return;
+              setSigningOut(true);
+              // The panel stays open so the button can say what is happening;
+              // the page is leaving in a moment anyway.
+              void (async () => {
+                // Before the token dies. A preference changed in the last
+                // PUSH_DEBOUNCE_MS is still behind the debounce, and signing
+                // out drops that timer — the write would be lost silently.
+                await flushPendingPrefs();
+                // Awaited, and that is the whole point: GoTrue clears the
+                // stored session only after its server round-trip, so
+                // navigating first can unload the document mid-flight and
+                // leave the token behind. The browser would come back signed
+                // in while this menu had just said otherwise.
+                await signOutUser();
+                // A full document navigation, not a router push: it discards
+                // the module-level singletons in use-session and user-prefs,
+                // so nothing account-shaped survives as stale UI.
+                window.location.assign("/login");
+              })();
             }}
           >
-            Sign out
+            {signingOut ? "Signing out…" : "Sign out"}
           </button>
         </div>
       )}
