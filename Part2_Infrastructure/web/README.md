@@ -14,9 +14,9 @@ to the browser. A separate stateless OpenBB service adds quotes, bars, news and
 fundamentals. Provider keys (also optional) extend coverage through the
 seven-provider registry — see [Data providers](#data-providers).
 
-The Telegram companion is a separate text-only notification client. The web
-workspace never embeds it or authenticates through it, and the bot never opens
-or controls this UI.
+The Telegram companion is a separate text-only notification client. The header
+carries a one-way deep link out to it, but the web workspace never embeds it and
+never authenticates through it, and the bot never opens or controls this UI.
 
 ---
 

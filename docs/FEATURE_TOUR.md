@@ -26,6 +26,9 @@ and always under reduced motion, they cut cleanly.
 The honest capability map, before the tour — because "does this need setup?" is the first
 question a visitor asks.
 
+Signing in is orthogonal to every tier below: it stores workspace preferences
+against an account and gates nothing. Each tier reads the same signed out.
+
 | Tier | What you get | Needs |
 |---|---|---|
 | **Zero-config** | Keyless Binance + Bybit market data: parameter sweeps, all 46 strategies, L2 depth, TCA, the full Research tab on crypto symbols | nothing |

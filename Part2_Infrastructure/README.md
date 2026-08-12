@@ -1211,7 +1211,7 @@ gaps a reviewer should expect to find, and why each is where it is:
 
 | Gap | Where it bites | Why it is not here |
 |---|---|---|
-| **RBAC and SSO** | Every role shares one gateway token; the only identity distinctions are that token, the Telegram read allow-list and the narrower control allow-list | Real role separation needs an identity provider and a session layer, which is a system in its own right. The *controls* that matter — who can halt, who can flatten — are already gated separately from who can read |
+| **RBAC and SSO** | Signing in establishes *who you are* for your own preferences and nothing else. Authority is still undifferentiated: every role shares one gateway token, and the only distinctions that gate an action are that token, the Telegram read allow-list and the narrower control allow-list | Real role separation needs the identity to reach the gateway and the risk controls, which is a system in its own right rather than a login page. The *controls* that matter — who can halt, who can flatten — are already gated separately from who can read |
 | **Orchestration** | No Airflow/Dagster: ingestion is supervised in-process and backfill is manual | A scheduler is the right answer at multi-desk scale and pure overhead at one process. The pieces it would schedule — validation, failover, staleness — exist and are testable without it |
 | **Log aggregation and tracing** | Logs are per-process; there is no request id threaded across the three units | The bounded trace ring and the pipeline inspector answer the debugging questions locally. Shipping logs needs somewhere to ship them |
 | **Margin, financing, liquidation** | Risk is notional-based: no leverage, funding or liquidation modelling | The paper book is unlevered and cash-settled, so a margin model would be arithmetic about a fiction |
@@ -1414,7 +1414,9 @@ different build than the one tested here.
 **Turn off Deployment Protection** only if this case-assessment URL must be
 public. Gateway and OpenBB credentials remain server-only in Vercel; the
 browser can access only the explicit same-origin proxy routes. Telegram is not
-an authentication path for this workspace.
+an authentication path for this workspace: the header's Telegram button is a
+one-way deep link out to the bot, and the bot answers to its own user
+allow-list rather than to anything a browser session says.
 
 ### Vercel — standalone OpenBB service (`OpenBB_Service/`)
 
@@ -1512,6 +1514,8 @@ not).
   fail-closed and exposes bootstrap help only.
 - Webhook mode requires a non-default high-entropy secret and validates
   `X-Telegram-Bot-Api-Secret-Token`. Polling mode needs no public endpoint.
+- The link between the web workspace and the bot runs one way only: the header
+  offers a deep link out to Telegram, and nothing comes back.
 - The Telegram companion cannot enqueue backtests, authenticate a browser, or
   open a web workspace. It *can* halt, resume and flatten — but only for user
   IDs in `TELEGRAM_CONTROL_USER_IDS`, only with a single-use user-bound
@@ -1524,8 +1528,13 @@ not).
   requires a deploy, and therefore a code review.
 - **Supabase posture:** `SUPABASE_SERVICE_ROLE_KEY` lives only in the gateway's
   environment — never on Vercel, never in the browser. RLS is enabled on every
-  table with **zero `anon` policies** (deny-by-default: the published anon key
-  can read nothing until an authenticated-user story ships). Every
+  table and is deny-by-default. `anon` holds exactly one policy — SELECT on
+  gateway-decided, unowned rows of the fixed demo desk, which is the public
+  decision tape — and nothing else; a signed-in user's own rows carry their
+  `user_id` and stay private. `authenticated` was audited against that same
+  standard when the login shipped: `record_alphaengine_decision` had kept its
+  bootstrap EXECUTE grant, which would have let any account forge
+  gateway-provenance rows into that public tape, and it is now revoked. Every
   `SECURITY DEFINER` function pins `SET search_path = public, pg_temp` — an
   unpinned definer function is a privilege-escalation footgun. `order_blotter`
   is append-only by trigger, not convention. `tests/test_supabase_schema.py`
