@@ -134,6 +134,65 @@ function assertUnserialised(body: unknown): unknown {
   return body;
 }
 
+/**
+ * The operating-system reason a connection never completed.
+ *
+ * `fetch` throws a flat `TypeError: fetch failed` and puts the real answer one
+ * level down in `cause`, so reading only the thrown error's message discards
+ * the single most useful fact available. Older shapes carry `code` directly, so
+ * both are checked.
+ *
+ * The value is a stable identifier like `ECONNREFUSED`, never a host or a
+ * credential — this boundary exists to keep those server-side, and the codes
+ * below say nothing the app's own reachability state does not already admit.
+ */
+export function transportCause(error: unknown): string | null {
+  const direct = (error as { code?: unknown })?.code;
+  if (typeof direct === "string") return direct;
+  const cause = (error as { cause?: unknown })?.cause;
+  const nested = (cause as { code?: unknown })?.code;
+  return typeof nested === "string" ? nested : null;
+}
+
+/**
+ * What each transport failure means for whoever has to fix it.
+ *
+ * Deliberately phrased as the next action rather than a restatement of the
+ * code. Anything unmapped still reports its code in the message above, which is
+ * enough to search for — an unknown code must not silence the diagnosis.
+ */
+export const TRANSPORT_HINTS: Record<string, string> = {
+  // The pinned-CA flip in docs/TLS_FLIP.md, unfinished or misconfigured.
+  UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
+    `The gateway's certificate is signed by a root this deployment does not trust. `
+    + `Point NODE_EXTRA_CA_CERTS at the bundled certs/gateway-ca.pem, or set ${GATEWAY_URL_ENV} back to the plaintext port.`,
+  SELF_SIGNED_CERT_IN_CHAIN:
+    `The gateway's certificate chain ends in a root this deployment does not trust — see docs/TLS_FLIP.md.`,
+  DEPTH_ZERO_SELF_SIGNED_CERT:
+    `The gateway presented a self-signed certificate with no chain — see docs/TLS_FLIP.md.`,
+  CERT_HAS_EXPIRED:
+    `The gateway's certificate has expired. Re-copy the root printed by the deploy workflow's TLS sidecar step.`,
+  ERR_TLS_CERT_ALTNAME_INVALID:
+    `The gateway's certificate does not cover the host ${GATEWAY_URL_ENV} names.`,
+  // An https:// URL aimed at the plaintext port is the mirror-image mistake,
+  // and it is the code OpenSSL actually emits for it — measured, not guessed.
+  // EPROTO is kept because other Node builds and proxy paths report that
+  // instead for the same handshake failure.
+  ERR_SSL_WRONG_VERSION_NUMBER:
+    `The server on that port is not speaking TLS. ${GATEWAY_URL_ENV} is https:// against the gateway's plaintext port — use the TLS port, or http:// for the plaintext one.`,
+  EPROTO:
+    `The TLS handshake failed. ${GATEWAY_URL_ENV} may be https:// against the gateway's plaintext port.`,
+  ECONNREFUSED:
+    `Nothing is listening on the port ${GATEWAY_URL_ENV} names. Check the gateway container and the port.`,
+  ENOTFOUND: `The host in ${GATEWAY_URL_ENV} does not resolve.`,
+  EAI_AGAIN: `DNS lookup for the host in ${GATEWAY_URL_ENV} failed temporarily.`,
+  ETIMEDOUT:
+    `The connection timed out before any response. Usually a firewall or cloud security list, not the gateway process.`,
+  EHOSTUNREACH: `No route to the gateway host — check the network path and any security list.`,
+  ENETUNREACH: `No route to the gateway network — check the network path and any security list.`,
+  ECONNRESET: `The gateway closed the connection mid-request.`,
+};
+
 export async function callGateway<T = unknown>(path: string, options: CallOptions = {}): Promise<GatewayResult<T>> {
   // Before the configuration check: a caller passing the wrong body type is a
   // programming error, and it must not stay hidden on deployments where the
@@ -232,14 +291,31 @@ export async function callGateway<T = unknown>(path: string, options: CallOption
     return { ok: true, data: payload as T };
   } catch (error) {
     const timedOut = error instanceof Error && error.name === "AbortError";
+    if (timedOut) {
+      return {
+        ok: false,
+        failure: {
+          code: "gateway_timeout",
+          error: `The risk gateway did not answer within ${timeoutMs}ms.`,
+          status: 504,
+        },
+      };
+    }
+    // Everything else used to collapse into one sentence. A certificate this
+    // deployment does not trust and a port with nothing behind it read
+    // identically, which is exactly how an unfinished TLS flip sat unnoticed
+    // while the gateway itself was healthy on both ports. The transport code
+    // costs nothing to carry and is the whole diagnosis.
+    const transport = transportCause(error);
     return {
       ok: false,
       failure: {
-        code: timedOut ? "gateway_timeout" : "gateway_unreachable",
-        error: timedOut
-          ? `The risk gateway did not answer within ${timeoutMs}ms.`
+        code: "gateway_unreachable",
+        error: transport
+          ? `The risk gateway is currently unreachable (${transport}).`
           : "The risk gateway is currently unreachable.",
-        status: timedOut ? 504 : 503,
+        hint: transport ? TRANSPORT_HINTS[transport] : undefined,
+        status: 503,
       },
     };
   } finally {

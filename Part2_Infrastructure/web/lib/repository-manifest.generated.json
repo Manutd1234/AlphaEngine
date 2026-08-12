@@ -443,6 +443,7 @@
     "Part2_Infrastructure/web/tests/forced-colors.test.ts",
     "Part2_Infrastructure/web/tests/format.test.ts",
     "Part2_Infrastructure/web/tests/gateway-contract.test.ts",
+    "Part2_Infrastructure/web/tests/gateway-transport.test.ts",
     "Part2_Infrastructure/web/tests/heatmap-keyboard.test.ts",
     "Part2_Infrastructure/web/tests/interaction.test.ts",
     "Part2_Infrastructure/web/tests/layering.test.ts",

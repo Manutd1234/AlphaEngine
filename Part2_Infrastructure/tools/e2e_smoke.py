@@ -214,6 +214,55 @@ def check_vercel_app() -> Result:
     return Result("vercel app", OK, f"200 in {ms:.0f}ms")
 
 
+def check_vercel_to_gateway() -> Result:
+    """The web→gateway hop, probed from outside instead of inferred.
+
+    Every other gateway check in this file runs from wherever this script
+    happens to execute — a GitHub runner, a laptop — and proves only that the
+    gateway answers *that* caller. The hop the workspace actually depends on is
+    Vercel's serverless function reaching the gateway, and nothing measured it.
+
+    That gap is not hypothetical. The deployment spent a day serving a healthy
+    gateway on both ports while every gateway-backed panel showed a degraded
+    card, because the function could not verify the gateway's pinned
+    certificate. `/health` was green from three other vantage points the whole
+    time.
+
+    So this asks the deployment itself, through a route that must traverse the
+    hop. A 200 is proof; anything else carries the reason back, now that
+    `lib/gateway.ts` names its transport failures.
+    """
+    status, body, ms = fetch(f"{VERCEL}/api/gateway/portfolio")
+    if status == 200:
+        return Result("vercel → gateway", OK, f"proxied the book in {ms:.0f}ms")
+
+    code = body.get("code") if isinstance(body, dict) else None
+    if code == "gateway_not_configured":
+        # A deployment with no gateway is a documented, complete state — the
+        # demo tier. Failing here would make a fork red for being a fork.
+        return Result(
+            "vercel → gateway", SKIP,
+            "no gateway configured on this deployment",
+        )
+
+    if isinstance(body, dict):
+        detail = body.get("error") or f"code {body.get('code')}"
+        hint = body.get("hint")
+    else:
+        # An HTML body means this is not the workspace at all. Echoing 120
+        # characters of markup buries that; naming it is the useful answer.
+        detail = "non-JSON response — is E2E_VERCEL_URL pointing at the workspace?"
+        hint = None
+    return Result(
+        "vercel → gateway", FAIL,
+        f"HTTP {status} · {detail}",
+        fix=hint or (
+            "The gateway may be reachable from here and unreachable from Vercel — check "
+            "ALPHAENGINE_GATEWAY_URL and NODE_EXTRA_CA_CERTS on the deployment, not the gateway host."
+        ),
+    )
+
+
 def check_vercel_health() -> Result:
     status, body, ms = fetch(f"{VERCEL}/api/system/health")
     if status != 200 or not isinstance(body, dict):
@@ -441,6 +490,10 @@ def main() -> int:
         ("infrastructure", lambda: check_decision_histogram(token)),
         ("web", check_vercel_app),
         ("web", check_vercel_health),
+        # Runs unauthenticated and always: the proxy holds the gateway token
+        # server-side, so this needs no secret — which is the point, since the
+        # hop it covers is the one that had no coverage at all.
+        ("web", check_vercel_to_gateway),
         ("data", check_market_data),
         ("data", check_backtest),
         ("databases", check_oracle),
