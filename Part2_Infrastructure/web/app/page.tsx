@@ -965,7 +965,11 @@ export default function Page() {
       },
       {
         id: "action-toggle-theme",
-        label: "Toggle theme",
+        // Names what it does now that Theme has three states. This verb flips
+        // the palette and sets it explicitly, so from System it lands on light
+        // or dark and stops following the machine — "Toggle theme" would not
+        // have said that, and the setting it silently replaced is in the gear.
+        label: "Switch to the light or dark palette",
         category: "Action",
         action: toggleDocumentThemeMode,
       },

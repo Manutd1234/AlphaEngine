@@ -88,14 +88,20 @@ export const viewport: Viewport = {
 };
 
 /** Applies the saved theme before first paint so the page never flashes the
- *  wrong palette. */
+ *  wrong palette.
+ *
+ *  Only an explicit choice is stamped. "system" — and an unset key, which has
+ *  always meant the same thing — deliberately stamps nothing, because an absent
+ *  `data-theme` is what lets the stylesheet's `prefers-color-scheme` block
+ *  answer, and keep answering when the OS flips while the tab is open. Stamping
+ *  a resolved palette here would freeze System at whatever the OS said during
+ *  this one page load. See `lib/theme.ts` for the matching rule on write. */
 const THEME_BOOTSTRAP = `
 try {
   var savedTheme = localStorage.getItem('alphaengine-theme');
-  var resolvedTheme = savedTheme === 'light' || savedTheme === 'dark'
-    ? savedTheme
-    : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  document.documentElement.dataset.theme = resolvedTheme;
+  if (savedTheme === 'light' || savedTheme === 'dark') {
+    document.documentElement.dataset.theme = savedTheme;
+  }
 } catch (e) {}
 `;
 

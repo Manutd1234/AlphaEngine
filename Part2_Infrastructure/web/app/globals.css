@@ -1892,8 +1892,9 @@ tbody tr[tabindex]:focus-visible {
 }
 
 /* The viewing preferences moved behind one gear, so this sizes the trigger the
-   theme and density buttons used to share. They still carry .theme-toggle
-   inside the panel, where the width rule would be wrong. */
+   theme and density buttons used to share. Inside the panel both are segmented
+   `.seg` groups now and carry no header class at all, which is why the old
+   `.theme-toggle` half of the rule below was dropped rather than left dangling. */
 .workspace-header__utility > .header-settings {
   display: inline-flex;
   align-items: center;
@@ -1903,7 +1904,6 @@ tbody tr[tabindex]:focus-visible {
   white-space: nowrap;
 }
 
-.theme-toggle span,
 .header-settings span {
   font-size: 10.5px;
   font-weight: 650;

@@ -101,7 +101,16 @@ export default function QuickSettings({
           role="dialog"
           aria-modal="false"
           aria-labelledby="quick-settings-title"
-          className="absolute right-0 top-[calc(100%+10px)] z-[60] w-[min(320px,calc(100vw-28px))] rounded-card border border-border bg-surface-1 p-4 shadow-card"
+          /* The height clamp is not cosmetic. This panel is absolutely
+             positioned inside a *sticky* header, so anything past the bottom of
+             the viewport cannot be scrolled to — the page scrolls, the header
+             does not, and the content is simply unreachable. Measured at
+             844x390 the System status row and its Open reliability button sat
+             253px below the fold. svh rather than dvh, per the note on `body`:
+             the small viewport is stable, while dvh reflows every time a mobile
+             URL bar slides. A browser without svh drops the declaration and
+             gets today's behaviour rather than a broken one. */
+          className="absolute right-0 top-[calc(100%+10px)] z-[60] max-h-[calc(100svh-var(--header-h,56px)-20px)] w-[min(320px,calc(100vw-28px))] overflow-y-auto rounded-card border border-border bg-surface-1 p-4 shadow-card"
         >
           <span className="page-kicker">Viewing preferences</span>
           <h3 id="quick-settings-title" className="mt-0.5 text-[15px]">
@@ -111,9 +120,15 @@ export default function QuickSettings({
             All four are about this browser. None of them change what the desk can do.
           </p>
 
-          <div className="mt-3 flex items-center justify-between gap-3">
+          {/* Stacked, like Detail level below it. The theme control grew from a
+              two-state button to three segments with a sentence under them, and
+              a three-segment group sharing a row with its own label is 288px of
+              panel doing two jobs badly. */}
+          <div className="mt-3">
             <span className="text-[11px] font-semibold text-text-secondary">Theme</span>
-            <ThemeToggle />
+            <div className="mt-1.5">
+              <ThemeToggle />
+            </div>
           </div>
 
           <div className="mt-3 border-t border-grid pt-3">

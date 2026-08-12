@@ -88,6 +88,26 @@ describe("the panel behaves like the house dropdown", () => {
   it("clamps to the viewport on a narrow screen", () => {
     assert.match(code(panel), /w-\[min\(320px,calc\(100vw-28px\)\)\]/);
   });
+
+  it("clamps to the viewport on a *short* screen, and scrolls rather than clipping", () => {
+    // The panel is absolute inside a sticky header, so content past the bottom
+    // of the viewport cannot be reached at all: the page scrolls and the header
+    // does not. Measured at 844x390, the System status row and its Open
+    // reliability button sat 253px below the fold with no way to get to them.
+    assert.match(code(panel), /max-h-\[calc\(100svh-var\(--header-h,56px\)-20px\)\]/);
+    assert.match(code(panel), /overflow-y-auto/);
+    // svh, not dvh — the same reasoning as the `body` min-height note: dvh
+    // reflows the whole tree every time a mobile URL bar slides.
+    assert.doesNotMatch(code(panel), /100dvh/);
+  });
+
+  it("keeps the fallback in the height clamp", () => {
+    // --header-h is published by a ResizeObserver, so it does not exist on the
+    // very first frame. Without the fallback the whole calc() is invalid then,
+    // which drops max-height entirely — the failure would only show on the
+    // first paint of a short screen.
+    assert.match(code(panel), /var\(--header-h,\s*56px\)/);
+  });
 });
 
 describe("density stays a preference, never a capability", () => {

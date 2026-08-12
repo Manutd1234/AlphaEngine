@@ -38,7 +38,7 @@ import { subscribeSession, type SessionInfo } from "./use-session";
 
 import { COMPLEXITY_STORAGE_KEY, isComplexity } from "./complexity";
 import { setComplexity } from "./use-complexity";
-import { THEME_STORAGE_KEY, applyDocumentThemeMode } from "./theme";
+import { THEME_STORAGE_KEY, applyDocumentThemePreference, isThemePreference } from "./theme";
 import { RECENTS_KEY } from "@/components/header/CommandBar";
 
 /** The research auto-run switch. Mirrors the literal in `app/page.tsx`. */
@@ -189,8 +189,12 @@ function applyRemoteValue(key: string, value: string): void {
     return;
   }
 
-  if (key === THEME_STORAGE_KEY && (value === "light" || value === "dark")) {
-    applyDocumentThemeMode(value);
+  // All three preferences, not just the two palettes. Narrowing this to
+  // light/dark stored a synced "system" and never applied it: the row was
+  // right, the merge was right, every test was green, and the screen kept the
+  // palette the other device had left behind.
+  if (key === THEME_STORAGE_KEY && isThemePreference(value)) {
+    applyDocumentThemePreference(value);
     return;
   }
   if (key === COMPLEXITY_STORAGE_KEY && isComplexity(value)) {
