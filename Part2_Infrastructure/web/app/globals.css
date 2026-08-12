@@ -7872,11 +7872,23 @@ button.data-trust-action > i {
      --wq-gap is the single source: the gap AND both connector offsets are
      derived from it, because they were three hardcoded numbers that had to
      agree and silently stopped agreeing the moment one of them moved. */
-  --wq-gap: 68px;
-  /* Capped rather than 1fr. On a desk-width screen the columns were ~257px and
-     kept growing; a queue card is a fixed amount of text, so the extra width
-     went to whitespace while the arrows stayed short. */
-  grid-template-columns: repeat(4, minmax(200px, 216px));
+  --wq-gap: 88px;
+  /* Bounded, not capped at 216px, and not 1fr either — both extremes were wrong
+     and the file has now tried both.
+
+     `1fr` grew the columns without limit, and the note that replaced it was
+     right about why that is bad: a queue card is a fixed amount of text, so the
+     extra width became whitespace inside the card while the arrows stayed short.
+     But 216px overcorrected. Four 216px columns plus three gutters occupy about
+     1068px of a ~1800px canvas, so the board sat in the middle of the panel with
+     wide empty margins at both sides and card titles wrapping to two lines —
+     "Review changePercent schema drift" and "Add perpetual funding-rate lineage"
+     both broke — while the space they needed was sitting unused beside them.
+
+     440px is where the reviewed wide board sat. Below ~1950px the tracks resolve
+     smaller than that and consume the side gutters; above it they stop, so an
+     ultrawide display does not stretch a queue card across half a metre. */
+  grid-template-columns: repeat(4, minmax(220px, 440px));
   gap: var(--wq-gap);
   /* `safe` matters: plain `center` on a scrollable grid makes the left edge of
      the first column unreachable once the tracks bottom out, because overflow
@@ -12581,7 +12593,23 @@ h4 {
 }
 
 /* Cards placed side by side size to their own content. Stretching the shorter
-   one to the taller one is how a 400px void appears under a chart. */
+   one to the taller one is how a 400px void appears under a chart.
+
+   This was re-examined against a requirement to make every row share an exact
+   height, and it survives — because the same requirement also asks for empty gap
+   blocks around cards to be eliminated, and on these rows the two cannot both be
+   had. Measured at 1440px: research/attribution pairs a 908px factor table with a
+   516px market-state table, risk/model runs 472/317/545, and data/quality pairs
+   190px against 384px. Every one of those pairs is TABLES, and none of them
+   scrolls internally, so stretching the shorter card cannot fill it with anything
+   — a table with three rows in a 384px card is three rows and 190px of nothing,
+   and a scroller has nothing to scroll.
+
+   Equal heights are achievable, and are enforced, exactly where the taller height
+   can be absorbed: .liquidity-pair and .portfolio-chart-pair below, where a chart
+   is told the height and draws into it, or a ladder scrolls inside the card
+   rather than setting it. That is the line — stretch what can fill, leave what
+   would only gain a void. */
 .compact-grid-2col,
 .data-console-pair {
   align-items: start;

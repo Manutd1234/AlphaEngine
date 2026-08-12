@@ -47,8 +47,15 @@ function KpiCard({
   /** Hover text when `value` is JSX (NumberTicker) rather than a plain string. */
   titleText?: string;
 }) {
+  /*
+   * rounded-card and the card padding tokens, not a literal 12px and py-4: this
+   * was the only tile in the app that hand-rolled the card look, and a radius
+   * differing from every other card by 2px reads as a rendering fault rather
+   * than a choice. --card-pad-tight is the house step-down for dense panels,
+   * which is exactly what a KPI deck is.
+   */
   return (
-    <div className="grid min-w-0 gap-0.5 rounded-[12px] border border-border bg-surface-1 px-4 py-4">
+    <div className="grid min-w-0 gap-0.5 rounded-card border border-border bg-surface-1 px-[var(--card-pad)] py-[var(--card-pad-tight)]">
       <span className="text-[10px] font-bold uppercase tracking-[0.07em] text-text-muted">{label}</span>
       {/* The value owns its own row.
           It used to share one with the sparkline, and that row carried no

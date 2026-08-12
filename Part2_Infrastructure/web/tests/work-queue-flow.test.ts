@@ -74,9 +74,42 @@ describe("the gutter and its connector share one number", () => {
   });
 });
 
-describe("columns are narrower than the canvas would make them", () => {
-  it("caps the track instead of letting it take the leftover space", () => {
-    assert.match(rule(".data-workboard__board"), /grid-template-columns:\s*repeat\(4, minmax\(200px, 216px\)\);/);
+describe("columns are bounded at both ends", () => {
+  it("neither takes all the leftover space nor leaves it empty", () => {
+    /**
+     * This pinned `minmax(200px, 216px)` as a literal, and both halves of that
+     * history matter.
+     *
+     * `1fr` came first and was replaced because a queue card is a fixed amount of
+     * text: the extra width became whitespace inside the card while the arrows
+     * stayed short. 216px then overcorrected — four columns and three gutters
+     * occupied about 1068px of a ~1800px canvas, so the board sat in the middle
+     * of the panel with wide empty margins and card titles wrapping to two lines
+     * while the space they needed sat unused beside them.
+     *
+     * So the assertion is the SHAPE rather than the numbers: a floor that keeps a
+     * card readable, and a ceiling that stops an ultrawide display stretching one
+     * across half a metre. A future adjustment inside those bounds should not have
+     * to edit a test.
+     */
+    const block = rule(".data-workboard__board");
+    const match = /grid-template-columns:\s*repeat\(4, minmax\((\d+)px, (\d+)px\)\);/.exec(block);
+    assert.ok(match, "the four-column track is gone or no longer bounded at both ends");
+    const [floor, ceiling] = [Number(match[1]), Number(match[2])];
+    assert.ok(floor >= 200, `floor ${floor}px is below a readable card`);
+    assert.ok(ceiling > floor, "a ceiling at or below the floor is a fixed width, not a range");
+    assert.ok(ceiling >= 380, `ceiling ${ceiling}px still leaves the desk-width canvas half empty`);
+    assert.ok(ceiling <= 520, `ceiling ${ceiling}px lets one card stretch across an ultrawide panel`);
+  });
+
+  it("the arrows are drawn from the same measurement as the gutter", () => {
+    // The connector width and the badge offset both derive from --wq-gap, which
+    // is what makes "longer arrows" a one-token change rather than three numbers
+    // that have to be kept in agreement.
+    const board = rule(".data-workboard__board");
+    const gap = /--wq-gap:\s*(\d+)px;/.exec(board);
+    assert.ok(gap, "--wq-gap is gone");
+    assert.ok(Number(gap[1]) >= 80, `a ${gap[1]}px gutter is too short to read as a flow`);
   });
 
   it("centres the run without stranding the first column", () => {
