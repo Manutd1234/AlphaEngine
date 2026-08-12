@@ -1885,16 +1885,20 @@ tbody tr[tabindex]:focus-visible {
   border-color: var(--border);
 }
 
-.workspace-header__utility > .theme-toggle {
+/* The viewing preferences moved behind one gear, so this sizes the trigger the
+   theme and density buttons used to share. They still carry .theme-toggle
+   inside the panel, where the width rule would be wrong. */
+.workspace-header__utility > .header-settings {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 104px;
+  min-width: 96px;
   gap: 6px;
   white-space: nowrap;
 }
 
-.theme-toggle span {
+.theme-toggle span,
+.header-settings span {
   font-size: 10.5px;
   font-weight: 650;
 }
@@ -14129,13 +14133,13 @@ html:active-view-transition .view-panel {
    viewing preferences and status prose while their labelled controls remain
    fully accessible through title and aria-label. */
 @media (min-width: 901px) and (max-width: 1380px) {
-  .workspace-header__utility > .theme-toggle {
+  .workspace-header__utility > .header-settings {
     width: 36px;
     min-width: 36px;
     padding-inline: 0;
   }
 
-  .workspace-header__utility > .theme-toggle span,
+  .workspace-header__utility > .header-settings span,
   .latency-chip__state {
     display: none;
   }

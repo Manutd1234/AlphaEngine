@@ -8,8 +8,7 @@ import KillSwitchControl, {
 } from "@/components/header/KillSwitchControl";
 import AccountChip from "@/components/header/AccountChip";
 import TelegramCta from "@/components/header/TelegramCta";
-import ComplexityToggle from "@/components/ComplexityToggle";
-import ThemeToggle from "@/components/ThemeToggle";
+import QuickSettings from "@/components/header/QuickSettings";
 import type { LatencyStats } from "@/components/systems/types";
 
 export type WorkspaceView =
@@ -226,8 +225,11 @@ export default function WorkspaceHeader({
           {healthLabel}
         </button>
         <AccountChip />
-        <ComplexityToggle />
-        <ThemeToggle />
+        <QuickSettings
+          healthLabel={healthLabel}
+          healthNeedsAttention={healthNeedsAttention}
+          onOpenReliability={onOpenProviderHealth}
+        />
       </div>
     </header>
   );
