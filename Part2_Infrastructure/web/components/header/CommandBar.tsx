@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { commandScore } from "@/lib/command-score";
+import { emitPrefChange } from "@/lib/pref-sync-bus";
 
 export interface Command {
   id: string;
@@ -24,8 +25,9 @@ interface CommandBarProps {
   commands: Command[];
 }
 
-/** Ids only, guarded exactly like the experiment log: storage may throw. */
-const RECENTS_KEY = "alphaengine.commandbar.recents";
+/** Ids only, guarded exactly like the experiment log: storage may throw.
+ *  Exported so the preference sync engine names this key rather than a copy. */
+export const RECENTS_KEY = "alphaengine.commandbar.recents";
 const RECENTS_MAX = 8;
 
 function loadRecents(): string[] {
@@ -44,6 +46,7 @@ function saveRecents(ids: string[]): void {
   } catch {
     // Private browsing or quota: recents are a convenience, never a failure.
   }
+  emitPrefChange(RECENTS_KEY);
 }
 
 /**

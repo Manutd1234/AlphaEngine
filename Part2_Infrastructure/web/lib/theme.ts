@@ -1,6 +1,9 @@
+import { emitPrefChange } from "./pref-sync-bus";
+
 export type ThemeMode = "light" | "dark";
 
-const THEME_STORAGE_KEY = "alphaengine-theme";
+/** Exported so the preference sync engine names the same key rather than a copy. */
+export const THEME_STORAGE_KEY = "alphaengine-theme";
 
 /** Resolve the explicit palette stamped on the document before hydration. */
 export function resolveThemeMode(
@@ -41,6 +44,7 @@ export function applyDocumentThemeMode(mode: ThemeMode): ThemeMode {
   } catch {
     // The document palette still changes for this session.
   }
+  emitPrefChange(THEME_STORAGE_KEY);
   return mode;
 }
 

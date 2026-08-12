@@ -82,6 +82,8 @@ import {
 } from "@/lib/experiments";
 import { strategyProgress } from "@/lib/strategy-progress";
 import { toggleDocumentThemeMode } from "@/lib/theme";
+import { emitPrefChange } from "@/lib/pref-sync-bus";
+import { WORKSPACE_LOCATION_KEY, startUserPrefsSync } from "@/lib/user-prefs";
 import { APP_COMMIT } from "@/lib/version";
 import type { Side } from "@/lib/venues";
 
@@ -326,6 +328,22 @@ export default function Page() {
         setView(LEGACY_VIEWS[workspace]);
       }
     };
+    // An empty hash is the only case a stored location may fill. A deep link is
+    // an explicit request, and a shared URL that resolved differently per
+    // visitor would be worse than not remembering at all.
+    if (!window.location.hash.slice(1)) {
+      try {
+        const stored: unknown = JSON.parse(window.localStorage.getItem(WORKSPACE_LOCATION_KEY) ?? "null");
+        const remembered = (stored as { view?: string } | null)?.view;
+        if (remembered && VIEWS.includes(remembered as WorkspaceView)) {
+          const sections = (stored as { sections?: Record<string, string> }).sections ?? {};
+          const section = sections[remembered];
+          window.history.replaceState({}, "", `#${remembered}${section ? `/${section}` : ""}`);
+        }
+      } catch {
+        // A malformed or blocked entry simply leaves the default view.
+      }
+    }
     readLocation();
     window.addEventListener("popstate", readLocation);
     window.addEventListener("hashchange", readLocation);
@@ -548,7 +566,39 @@ export default function Page() {
     } catch {
       // Preference is a convenience; failing to persist it must not break the run.
     }
+    emitPrefChange(AUTO_RUN_KEY);
   }, [autoRun]);
+
+  /**
+   * Mirrors preferences to the signed-in account, if there is one.
+   *
+   * Idempotent and a no-op while signed out, which is why it can start
+   * unconditionally rather than waiting for a session that may never arrive.
+   */
+  useEffect(() => {
+    startUserPrefsSync();
+  }, []);
+
+  /**
+   * Remembers where this account was last looking.
+   *
+   * Written on every move, restored only on the next visit — and only when the
+   * URL carries no hash of its own. A deep link is an explicit request for a
+   * particular view and must always win; restoring over one would make shared
+   * links resolve differently depending on who opened them.
+   */
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        WORKSPACE_LOCATION_KEY,
+        JSON.stringify({ view, sections: sectionByViewRef.current }),
+      );
+    } catch {
+      // ignored
+    }
+    emitPrefChange(WORKSPACE_LOCATION_KEY);
+  }, [view, overviewSection, researchSection, executionSection, dataSection,
+    reliabilitySection, developerSection, riskSection, portfolioSection]);
 
   /**
    * The idle fallback described at `IDLE_COMMIT_MS`.

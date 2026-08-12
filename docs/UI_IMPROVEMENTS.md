@@ -118,14 +118,19 @@ Each with its negation, because a list of omissions without reasons reads as a b
   sentence: they reward run *volume*, which is the multiple-testing behaviour the DSR gate
   exists to punish. Explored-state is a research ledger, not a score.
 - **No locked content.** Gating capability behind usage is the navigation fork the
-  complexity-tier system exists to prohibit; everything is reachable on first load.
+  complexity-tier system exists to prohibit; everything is reachable on first load. The
+  sign-in at `/login` is not an exception: it is optional, gates nothing, and the whole
+  desk stays browsable without an account.
 - **No seven new family colour tokens.** The theme test pins the dark-theme token blocks
   byte-for-byte; family identity comes from a monogram glyph, the printed name, and a
   `color-mix` accent derived from existing series tokens.
 - **No KpiDeck conversion off the Tailwind bridge.** Converting it buys pixel parity nobody
   sees and risks `tailwind-bridge` test churn; it adopts NumberTicker without restyling.
 - **No persisted rail-visited state.** A visited marker that survives reload claims memory of
-  a session that no longer exists; per-session state only.
+  a session that no longer exists; per-session state only. Scoped to *visited* markers: the
+  viewing preferences (theme, detail level, last-open tab) do persist, and sync to the
+  signed-in account, because a preference someone set is a fact about them rather than a
+  claim about a session.
 
 ---
 

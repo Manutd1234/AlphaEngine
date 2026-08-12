@@ -39,9 +39,13 @@ layer (off by default, server-side only); a stateless OpenBB research service.
 **Credential rule:** the browser bundle contains **zero backend env vars**.
 `ALPHAENGINE_GATEWAY_URL` must be `https://` (the proxy rejects `ws://` and any
 non-http(s) scheme, and rejects loopback/private hosts in production). The
-`NEXT_PUBLIC_SUPABASE_*` variables may be set but are **inert**: no code reads
-them until the deferred Realtime phase, and Next.js only inlines a
-`NEXT_PUBLIC_*` value where it is referenced.
+`NEXT_PUBLIC_SUPABASE_*` variables are public by design and now carry three
+browser surfaces: the decision tape, the optional sign-in at `/login`, and the
+preference sync that mirrors theme, detail level and last-open tab to the
+signed-in account. Unset remains safe — each of those reads as not configured
+and nothing else changes. `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME` is public for the
+same reason and, when unset, simply removes the header's Telegram button. The
+bot token, the service-role key and every gateway credential stay server-side.
 
 ---
 

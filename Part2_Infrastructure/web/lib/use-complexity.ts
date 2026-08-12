@@ -23,6 +23,7 @@ import {
   isComplexity,
   type Complexity,
 } from "./complexity";
+import { emitPrefChange } from "./pref-sync-bus";
 
 let current: Complexity = DEFAULT_COMPLEXITY;
 let hydrated = false;
@@ -46,6 +47,7 @@ export function setComplexity(tier: Complexity): void {
   } catch {
     // The session still honours the choice; only persistence is lost.
   }
+  emitPrefChange(COMPLEXITY_STORAGE_KEY);
   for (const listener of listeners) listener(tier);
 }
 
