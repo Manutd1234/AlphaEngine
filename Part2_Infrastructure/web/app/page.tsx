@@ -1096,6 +1096,18 @@ export default function Page() {
         providersReady={systems.health?.summary.ready ?? null}
         providersTotal={systems.health?.summary.total ?? null}
         healthUnreachable={Boolean(systems.healthError)}
+        /* One statement of provenance for the whole desk. The book is the right
+           source for it: it is the payload Portfolio, Risk, Execution and the
+           Overview KPIs all read, so if it is generated then most of what is on
+           screen is, and if it is live the writes are open. */
+        dataSource={{
+          provenance: book.provenance,
+          detail: book.error?.error ?? null,
+          onRetry: () => {
+            void book.refresh(true);
+            void systems.refresh(true);
+          },
+        }}
         halt={book.book
           ? {
               halted: book.book.trading_halted,

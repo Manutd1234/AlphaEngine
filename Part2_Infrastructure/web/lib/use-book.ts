@@ -25,11 +25,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  type DataTier,
+  type Provenance,
+  type TierCause,
+} from "@/lib/data-tier";
+import {
   type EquityPoint,
   type PortfolioPayload,
   sandboxBook,
   sandboxEquityPath,
 } from "@/lib/portfolio";
+import { probeGateway } from "@/lib/use-gateway-connection";
 import {
   type AllocationLimits,
   type CovarianceModel,
@@ -73,6 +79,15 @@ export interface BookView {
   refreshing: boolean;
   error: BookError | null;
   connectionState: BookConnectionState;
+  /**
+   * What the book on screen is made of, in the desk-wide vocabulary. Prefer this
+   * over `connectionState` in anything new: it has a word for generated data and
+   * it distinguishes a gateway that is absent by design from one that is broken.
+   */
+  tier: DataTier;
+  cause: TierCause | null;
+  /** Ready to hand to `describeTier` for a badge. */
+  provenance: Provenance;
   /** A book is on screen but the most recent refresh failed. Writes are disabled. */
   isStale: boolean;
   lastSuccessAt: Date | null;
@@ -155,18 +170,27 @@ export function useBook(): BookView {
     else setLoading(true);
 
     try {
-      const response = await fetch("/api/gateway/portfolio", { cache: "no-store" });
-      const body = await response.json().catch(() => ({}));
+      /**
+       * Through the connection manager, for the deadline it carries.
+       *
+       * This was a bare `fetch` with no AbortController, which is fine against a
+       * gateway that refuses — that fails in milliseconds — and unbounded
+       * against one that accepts the connection and then stops answering. The
+       * second is what a redeploying container actually does, and it left "book
+       * connecting" on screen for as long as the tab stayed open. Coalescing
+       * comes with it: Portfolio and Risk read this hook on the same tick.
+       */
+      const outcome = await probeGateway<PortfolioPayload>("/api/gateway/portfolio");
       if (current !== sequence.current) return;
-      if (!response.ok) {
+      if (!outcome.ok) {
         setError({
-          code: body.code,
-          error: body.error ?? `Portfolio request failed with HTTP ${response.status}.`,
-          hint: body.hint,
+          code: outcome.failure.code,
+          error: outcome.failure.message,
+          hint: outcome.failure.hint,
         });
         return;
       }
-      const payload = body as PortfolioPayload;
+      const payload = outcome.payload;
       setPortfolio(payload);
       setObserved((current) => {
         const equity = payload.equity.current;
@@ -260,16 +284,31 @@ export function useBook(): BookView {
     };
   }, [refresh, sandbox]);
 
-  // The deployed workspace has no gateway by design — it cannot host a
-  // long-lived WebSocket/DuckDB process. When the very first probe settles on
-  // exactly that state, enter the sandbox unprompted so a reviewer lands on a
-  // working, banner-labelled book instead of a setup card. Only for
-  // `gateway_not_configured`: an unreachable or misconfigured gateway is an
-  // incident, and auto-faking a book during an incident is the one thing this
-  // codebase exists to refuse.
+  /**
+   * Fill the book in when the first probe settles without one — for any reason.
+   *
+   * This used to admit only `gateway_not_configured`, on the grounds that
+   * "auto-faking a book during an incident is the one thing this codebase exists
+   * to refuse". That instinct was right about the danger and wrong about the
+   * remedy. Refusing produced a Portfolio tab that was a single GATEWAY
+   * UNAVAILABLE card and a Risk tab reading "Connecting / Pending / Pending" —
+   * so during an incident the desk showed nothing at all, which is not a safer
+   * failure than showing generated numbers, only a less useful one.
+   *
+   * What makes it safe is not the refusal, it is the labelling and the lock:
+   * `describeTier` reports an incident sandbox as "△ Sandbox · gateway incident"
+   * rather than the "◇ Sandbox · no gateway here" a configuration-absent desk
+   * gets, and `writesEnabled` is false in every tier but `live`, so the ticket,
+   * the kill switch and the operator actions stay disabled. A reader is told the
+   * numbers are generated and why, and cannot act on them either way.
+   *
+   * Only when there is nothing else: a cached payload is preferred over a
+   * generated one, which is why this waits on `portfolio` being null. And never
+   * over a human choice — `chose.current` is checked first, as always.
+   */
   useEffect(() => {
     if (loading || portfolio || chose.current) return;
-    if (error?.code === "gateway_not_configured") setSandboxState(true);
+    if (error) setSandboxState(true);
   }, [loading, portfolio, error]);
 
   // Daily closes for whatever the book holds. The gateway knows the positions
@@ -479,12 +518,35 @@ export function useBook(): BookView {
     ? error ? "stale" : "live"
     : error?.code === "gateway_not_configured" ? "unconfigured" : "error";
 
+  /**
+   * The same facts in the vocabulary every other surface now uses.
+   *
+   * `connectionState` stays — a dozen components read it, and "stale" carries a
+   * meaning for the book specifically — but it cannot describe the desk as a
+   * whole, because it has no word for "generated" and no way to distinguish an
+   * absent gateway from a broken one. Derived rather than stored so the two can
+   * never drift: a sandbox book is `sandbox` whatever the probe last said, real
+   * numbers with a failed refresh behind them are `cached`, and nothing else is
+   * `live`.
+   */
+  const tier: DataTier = sandbox ? "sandbox" : book ? (error ? "cached" : "live") : "sandbox";
+  const cause: TierCause | null = tier !== "sandbox"
+    ? null
+    : chose.current
+      ? "chosen"
+      : error && error.code !== "gateway_not_configured"
+        ? "incident"
+        : "not-configured";
+
   return {
     book,
     loading,
     refreshing,
     error,
     connectionState,
+    tier,
+    cause,
+    provenance: { tier, cause, lastGoodAt: lastSuccessAt },
     isStale: !sandbox && connectionState === "stale",
     lastSuccessAt,
     refresh,

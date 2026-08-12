@@ -9,7 +9,9 @@ import KillSwitchControl, {
 import AccountChip from "@/components/header/AccountChip";
 import TelegramCta from "@/components/header/TelegramCta";
 import QuickSettings from "@/components/header/QuickSettings";
+import DataTierBadge from "@/components/header/DataTierBadge";
 import type { LatencyStats } from "@/components/systems/types";
+import type { Provenance } from "@/lib/data-tier";
 
 export type WorkspaceView =
   | "overview"
@@ -42,6 +44,17 @@ interface WorkspaceHeaderProps {
   providersReady: number | null;
   providersTotal: number | null;
   healthUnreachable: boolean;
+  /**
+   * What the desk's numbers are made of, stated once for everything below.
+   * Optional so a surface that mounts the header without a book — the login
+   * page's chrome, a future embed — is not forced to invent a provenance.
+   */
+  dataSource?: {
+    provenance: Provenance;
+    retryInSeconds?: number | null;
+    detail?: string | null;
+    onRetry: () => void;
+  } | null;
   halt: KillSwitchHaltState | null;
   riskControl: KillSwitchRiskControl;
   /** Opens the command palette. Without a control here the palette, the
@@ -61,6 +74,7 @@ export default function WorkspaceHeader({
   providersReady,
   providersTotal,
   healthUnreachable,
+  dataSource = null,
   halt,
   riskControl,
 }: WorkspaceHeaderProps) {
@@ -216,6 +230,16 @@ export default function WorkspaceHeader({
           <span className="header-command-button__label">Search</span>
         </button>
         <LatencyChip latency={latency} onOpenReliability={onOpenTailLatency} />
+        {/* Before the kill switch on purpose: what the numbers are made of
+            decides whether the control beside it can be armed at all. */}
+        {dataSource && (
+          <DataTierBadge
+            provenance={dataSource.provenance}
+            retryInSeconds={dataSource.retryInSeconds}
+            detail={dataSource.detail}
+            onRetry={dataSource.onRetry}
+          />
+        )}
         <KillSwitchControl halt={halt} riskControl={riskControl} />
         <button
           type="button"
