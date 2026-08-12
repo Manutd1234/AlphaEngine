@@ -7683,9 +7683,22 @@ button.data-trust-action > i {
   display: grid;
   /* The gutter is where the flow lives, so it is wider than a plain column gap
      and the columns are correspondingly narrower — the transition between
-     stages earns its space from the cards rather than from the canvas. */
-  grid-template-columns: repeat(4, minmax(212px, 1fr));
-  gap: 44px;
+     stages earns its space from the cards rather than from the canvas.
+     --wq-gap is the single source: the gap AND both connector offsets are
+     derived from it, because they were three hardcoded numbers that had to
+     agree and silently stopped agreeing the moment one of them moved. */
+  --wq-gap: 68px;
+  /* Capped rather than 1fr. On a desk-width screen the columns were ~257px and
+     kept growing; a queue card is a fixed amount of text, so the extra width
+     went to whitespace while the arrows stayed short. */
+  grid-template-columns: repeat(4, minmax(200px, 216px));
+  gap: var(--wq-gap);
+  /* `safe` matters: plain `center` on a scrollable grid makes the left edge of
+     the first column unreachable once the tracks bottom out, because overflow
+     past the start edge cannot be scrolled to. Browsers that do not parse it
+     drop this line and keep the `start` above. */
+  justify-content: start;
+  justify-content: safe center;
   padding-bottom: 4px;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
@@ -7711,8 +7724,8 @@ button.data-trust-action > i {
   content: "";
   position: absolute;
   top: 27px;
-  right: -44px;
-  width: 44px;
+  right: calc(-1 * var(--wq-gap));
+  width: var(--wq-gap);
   border-top: 2px solid color-mix(in srgb, var(--series-1) 38%, var(--border));
   pointer-events: none;
 }
@@ -7721,7 +7734,9 @@ button.data-trust-action > i {
   content: "→";
   position: absolute;
   top: 15px;
-  right: -35px;
+  /* Half the badge (13px of 26px) back from the gutter's midpoint, so it stays
+     centred in the run whatever --wq-gap is. */
+  right: calc(-13px - var(--wq-gap) / 2);
   display: grid;
   place-items: center;
   width: 26px;
@@ -7745,8 +7760,8 @@ button.data-trust-action > i {
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 9px;
-  padding: 0 2px 9px;
+  margin-bottom: 8px;
+  padding: 0 2px 8px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -7793,7 +7808,7 @@ button.data-trust-action > i {
 .data-work-column__list {
   display: grid;
   align-content: start;
-  gap: 7px;
+  gap: 6px;
   min-height: 90px;
   margin: 0;
   padding: 0;
@@ -7803,18 +7818,88 @@ button.data-trust-action > i {
 .data-work-card {
   position: relative;
   display: grid;
-  gap: 6px;
-  padding: 8px 8px 7px 10px;
+  gap: 5px;
+  padding: 7px 8px 6px 9px;
   border: 1px solid var(--border);
   border-left-width: 3px;
   border-radius: 10px;
   background: var(--surface-1);
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
 }
 
 .data-work-card.is-p0 { border-left-color: var(--status-critical); }
 .data-work-card.is-p1 { border-left-color: var(--status-warning); }
 .data-work-card.is-p2 { border-left-color: var(--series-1); }
 .data-work-card.is-p3 { border-left-color: var(--axis); }
+
+/* Hover and keyboard focus lift the card, following .signal-workflow__node.
+   Three named sides, never the `border-color` shorthand: the left border is the
+   priority accent set immediately above at equal specificity, so a shorthand
+   here would wash P0 red into the same blue as P3. */
+.data-work-card:hover,
+.data-work-card:focus-within {
+  border-top-color: color-mix(in srgb, var(--series-1) 45%, var(--border));
+  border-right-color: color-mix(in srgb, var(--series-1) 45%, var(--border));
+  border-bottom-color: color-mix(in srgb, var(--series-1) 45%, var(--border));
+  box-shadow: 0 8px 18px -14px color-mix(in srgb, var(--series-1) 70%, transparent);
+  transform: translateY(-1px);
+}
+
+/* A moved card unmounts from one column and mounts in the next, so there is no
+   element to transition — this runs once on arrival instead. The component
+   clears the class on animationend, which is required rather than tidy: `both`
+   fill would otherwise pin the transform and swallow the hover lift until the
+   card next remounted. */
+.data-work-card.is-just-moved {
+  animation: rise-in var(--dur) var(--ease-out) both;
+}
+
+/* The live badge on an in-progress card. The word and the column it sits in
+   carry the meaning — the dot and its halo are decoration, which is what makes
+   the loop safe under the global reduced-motion clamp: that forces one 1ms
+   iteration, and this keyframe's final frame is the resting state, so it
+   degrades to the same static dot the desk tape uses. */
+.data-work-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  min-height: 19px;
+  padding: 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--series-1) 35%, var(--border));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--series-1) 9%, var(--surface-2));
+  color: var(--series-1);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.data-work-live i {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.data-work-live i::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  opacity: 0;
+  animation: wq-live-pulse 2400ms var(--ease-out) infinite;
+}
+
+@keyframes wq-live-pulse {
+  0% { transform: scale(0.55); opacity: 0.8; }
+  60%, 100% { transform: scale(1.6); opacity: 0; }
+}
 
 .data-work-card__topline {
   display: flex;
@@ -7890,7 +7975,7 @@ button.data-trust-action > i {
 
 .data-work-card__meta > div {
   min-width: 0;
-  padding: 5px 6px;
+  padding: 4px 6px;
   border-radius: 7px;
   background: var(--surface-2);
 }
@@ -7936,7 +8021,7 @@ button.data-trust-action > i {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-top: 7px;
+  padding-top: 6px;
   border-top: 1px solid var(--grid);
 }
 
@@ -8058,7 +8143,11 @@ button.data-trust-action > i {
      stages into a phone's worth of canvas. The columns take their comfortable
      width back and the gutter keeps carrying the flow. */
   .data-workboard__board {
-    grid-template-columns: repeat(4, minmax(238px, 1fr));
+    /* Scroll mode. The columns come down less than on the desk — they exist
+       for comfortable touch-scrolling here — and the shorter gutter bounds
+       how far the board runs sideways while still beating the old 44px. */
+    --wq-gap: 56px;
+    grid-template-columns: repeat(4, minmax(226px, 1fr));
   }
 }
 

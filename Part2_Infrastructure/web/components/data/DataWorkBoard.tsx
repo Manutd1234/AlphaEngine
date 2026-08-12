@@ -109,6 +109,8 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
   const [draft, setDraft] = useState<NewItemDraft>(DEFAULT_DRAFT);
   const [announcement, setAnnouncement] = useState("");
   const [now, setNow] = useState(() => Date.now());
+  /** The card that just arrived somewhere, so it can animate in exactly once. */
+  const [justMoved, setJustMoved] = useState<string | null>(null);
   const addItemButton = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
@@ -139,6 +141,7 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
       ? ` Warning: In progress is above its work-in-progress limit of ${progressLimit}.`
       : "";
     setAnnouncement(`${item.id} moved to ${STATUS_LABEL[status]}.${wipWarning}`);
+    setJustMoved(item.id);
     window.requestAnimationFrame(() => {
       document.getElementById(`data-work-status-${item.id}`)?.focus();
     });
@@ -167,6 +170,7 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
     setDraft(DEFAULT_DRAFT);
     setComposerOpen(false);
     setAnnouncement(`${id} added to Intake.`);
+    setJustMoved(id);
     window.requestAnimationFrame(() => addItemButton.current?.focus());
   };
 
@@ -175,6 +179,7 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
     onItemsChange(createInitialDataWorkItems(resetAt));
     setNow(resetAt);
     setAnnouncement("The sample work queue was reset.");
+    setJustMoved(null);
   };
 
   const clearFilters = () => {
@@ -370,9 +375,25 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
                   const sla = slaState(item, now);
                   return (
                     <li key={item.id}>
-                      <article className={`data-work-card is-${item.priority.toLocaleLowerCase()}`}>
+                      <article
+                        className={`data-work-card is-${item.priority.toLocaleLowerCase()}`
+                          + (justMoved === item.id ? " is-just-moved" : "")}
+                        onAnimationEnd={(event) => {
+                          // Named, because the live badge's halo also ends here
+                          // under reduced motion, where the global clamp turns
+                          // its loop into a single 1ms iteration.
+                          if (event.nativeEvent.animationName !== "rise-in") return;
+                          setJustMoved((current) => (current === item.id ? null : current));
+                        }}
+                      >
                         <div className="data-work-card__topline">
                           <span className={`data-work-kind is-${item.kind}`}>{KIND_LABEL[item.kind]}</span>
+                          {item.status === "progress" && (
+                            <span className="data-work-live">
+                              <i aria-hidden />
+                              Active
+                            </span>
+                          )}
                           <span className={`data-work-priority is-${item.priority.toLocaleLowerCase()}`}>
                             {item.priority}
                           </span>
