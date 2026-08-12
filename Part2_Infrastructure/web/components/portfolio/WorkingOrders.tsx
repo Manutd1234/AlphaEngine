@@ -24,6 +24,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { sandboxWorkingOrders, toWorkingOrder, type WorkingOrderRow } from "@/lib/blotter";
 import { fmt, usd } from "@/lib/format";
+import { probeGateway } from "@/lib/use-gateway-connection";
 
 export interface WorkingOrdersProps {
   /** Where the rows come from. The empty state must not blame a quiet desk for a missing gateway. */
@@ -80,24 +81,23 @@ export default function WorkingOrders({
   const load = useCallback(async () => {
     // Never `/api/gateway/portfolio` from a component — that snapshot has one
     // owner, `lib/use-book.ts`, so two tabs can never disagree about the book.
-    try {
-      const response = await fetch("/api/gateway/orders/working", { cache: "no-store" });
-      if (!response.ok) {
-        setError(`gateway returned ${response.status}`);
-        setLoaded(true);
-        return;
-      }
-      const body = await response.json();
-      const parsed = (Array.isArray(body?.rows) ? body.rows : [])
-        .map(toWorkingOrder)
-        .filter((row: WorkingOrderRow | null): row is WorkingOrderRow => row !== null);
-      setRows(parsed);
-      setError(null);
-    } catch {
-      setError("the working-order feed is unreachable");
-    } finally {
+    // Through the connection manager for its 2.5s deadline. This was a bare
+    // fetch: a gateway that accepted and never answered left `loaded` false and
+    // the panel on its skeleton for as long as the tab stayed open.
+    const outcome = await probeGateway<{ rows?: unknown[] }>("/api/gateway/orders/working");
+    if (!outcome.ok) {
+      setError(outcome.failure.timedOut
+        ? "the working-order feed did not answer in time"
+        : "the working-order feed is unreachable");
       setLoaded(true);
+      return;
     }
+    const parsed = (Array.isArray(outcome.payload?.rows) ? outcome.payload.rows : [])
+      .map(toWorkingOrder)
+      .filter((row: WorkingOrderRow | null): row is WorkingOrderRow => row !== null);
+    setRows(parsed);
+    setError(null);
+    setLoaded(true);
   }, []);
 
   useEffect(() => {

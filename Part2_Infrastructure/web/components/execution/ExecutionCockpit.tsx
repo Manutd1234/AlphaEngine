@@ -51,6 +51,7 @@ import type { ExecutionSection } from "@/lib/sections";
 import type { Strategy } from "@/lib/types";
 
 import AlertFeed from "./AlertFeed";
+import { probeGateway } from "@/lib/use-gateway-connection";
 import DeskTape from "./DeskTape";
 import ExecutionQuality from "./ExecutionQuality";
 import FillQualityHeatmap from "./FillQualityHeatmap";
@@ -149,61 +150,80 @@ export default function ExecutionCockpit({
   const [failures, setFailures] = useState(0);
   const sequence = useRef(0);
 
+  /**
+   * Three probes, each with a deadline.
+   *
+   * These were bare `fetch` calls inside a `Promise.all`, which is unbounded by
+   * construction: a gateway that accepts the connection and never answers left
+   * this `Promise.all` pending forever, so `loading` never cleared and the
+   * Trade, Fill quality and Blotter sections sat on "Connecting to the risk
+   * gateway…" for as long as the tab stayed open. The desk sweep found all three
+   * under its hang profile; nothing found them before, because a refused
+   * connection fails in milliseconds and looks fine.
+   *
+   * `probeGateway` also coalesces by URL, and /api/gateway/portfolio is exactly
+   * the route `useBook` polls for Portfolio and Risk — so the cockpit's copy of
+   * that request now joins the existing one instead of doubling it.
+   */
   const refresh = useCallback(async () => {
     const current = ++sequence.current;
-    try {
-      const [bookRes, orderRes, eventRes] = await Promise.all([
-        fetch("/api/gateway/portfolio", { cache: "no-store" }),
-        fetch(`/api/gateway/audit?feed=orders&limit=${BLOTTER_LIMIT}`, { cache: "no-store" }),
-        fetch(`/api/gateway/audit?feed=events&limit=${EVENT_LIMIT}`, { cache: "no-store" }),
-      ]);
+    const [bookOutcome, orderOutcome, eventOutcome] = await Promise.all([
+      probeGateway<PortfolioSnapshot>("/api/gateway/portfolio"),
+      probeGateway<{ rows?: unknown[] }>(`/api/gateway/audit?feed=orders&limit=${BLOTTER_LIMIT}`),
+      probeGateway<{ rows?: unknown[] }>(`/api/gateway/audit?feed=events&limit=${EVENT_LIMIT}`),
+    ]);
+    // Every outcome is resolved before this check, for the reason the previous
+    // version documented: returning between awaits lets a superseded response
+    // write over a newer one.
+    if (current !== sequence.current) return;
 
-      // Resolve every body BEFORE the staleness check: a `return` after any of
-      // these awaits with the check done earlier lets a superseded response
-      // write state over a newer one.
-      const [bookBody, orderBody, eventBody] = await Promise.all([
-        bookRes.json().catch(() => ({})),
-        orderRes.ok ? orderRes.json().catch(() => ({ rows: [] })) : Promise.resolve(null),
-        eventRes.ok ? eventRes.json().catch(() => ({ rows: [] })) : Promise.resolve(null),
-      ]);
-      if (current !== sequence.current) return;
-
-      if (!bookRes.ok) {
-        setProblem({
-          code: bookBody.code,
-          error: bookBody.error ?? `The gateway answered HTTP ${bookRes.status}.`,
-          hint: bookBody.hint,
-        });
-        setBook(null);
-        setUnconfigured(bookBody.code === "gateway_not_configured");
-        setFailures((n) => n + 1);
-      } else {
-        setBook(bookBody as PortfolioSnapshot);
-        setProblem(null);
-        setUnconfigured(false);
-        setFailures(0);
-      }
-
-      // The audit panels are allowed to be empty without taking the whole
-      // cockpit down: a gateway with no history yet is a working gateway.
-      if (orderBody) {
-        setOrders(((orderBody.rows ?? []) as unknown[]).map(toBlotterRow).filter((r): r is BlotterRow => r !== null));
-      }
-      if (eventBody) {
-        setEvents(((eventBody.rows ?? []) as unknown[]).map(toRiskEvent).filter((r): r is RiskEventRow => r !== null));
-      }
-      setLastSyncAt(new Date());
-    } catch {
-      if (current === sequence.current) {
-        setProblem({ error: "The cockpit could not reach its same-origin gateway routes." });
-        setFailures((n) => n + 1);
-      }
-    } finally {
-      if (current === sequence.current) setLoading(false);
+    if (!bookOutcome.ok) {
+      setProblem({
+        code: bookOutcome.failure.code,
+        error: bookOutcome.failure.message,
+        hint: bookOutcome.failure.hint,
+      });
+      setBook(null);
+      setUnconfigured(bookOutcome.failure.code === "gateway_not_configured");
+      setFailures((n) => n + 1);
+    } else {
+      setBook(bookOutcome.payload);
+      setProblem(null);
+      setUnconfigured(false);
+      setFailures(0);
     }
+
+    // The audit panels are allowed to be empty without taking the whole
+    // cockpit down: a gateway with no history yet is a working gateway.
+    if (orderOutcome.ok) {
+      setOrders(((orderOutcome.payload.rows ?? []) as unknown[])
+        .map(toBlotterRow).filter((r): r is BlotterRow => r !== null));
+    }
+    if (eventOutcome.ok) {
+      setEvents(((eventOutcome.payload.rows ?? []) as unknown[])
+        .map(toRiskEvent).filter((r): r is RiskEventRow => r !== null));
+    }
+    setLastSyncAt(new Date());
+    // Unconditional, and that is the fix: the old `finally` only ran because the
+    // fetches always settled, which under a hang they did not.
+    setLoading(false);
   }, []);
 
-  const mode: CockpitMode = book ? "live" : unconfigured && !sandboxOff ? "sandbox" : "outage";
+  /**
+   * A settled failure enters the sandbox, whatever the reason.
+   *
+   * This read `unconfigured && !sandboxOff`, so only a deployment with no
+   * gateway at all got a filled-in desk; a gateway that was refusing, hanging or
+   * returning 503 produced "outage" and three sections with nothing in them.
+   * That is the same doctrine `useBook` carried and the same correction: what
+   * makes generated data safe is that it is labelled and that writes are locked,
+   * not that we withhold it during an incident. `sandboxOff` still wins — it is
+   * the explicit "Live gateway" click — and `problem` is only set once a probe
+   * has actually settled, so this never pre-empts the first load.
+   */
+  const mode: CockpitMode = book
+    ? "live"
+    : problem && !sandboxOff ? "sandbox" : "outage";
 
   const handleSubmitted = useCallback((result: OrderSubmissionResult) => {
     if (result.source !== "live") return;

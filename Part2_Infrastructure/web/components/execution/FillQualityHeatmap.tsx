@@ -94,15 +94,29 @@ export default function FillQualityHeatmap({
   }, []);
 
   if (!view.grid) {
-    if (source === "unavailable") return null;
+    /**
+     * This was `if (source === "unavailable") return null` — the only surface on
+     * the desk that answered a missing feed by rendering nothing at all. On the
+     * Fill quality subtab that produced a blank plane below the heading: no
+     * card, no explanation, nothing to distinguish it from a section that had
+     * failed to mount.
+     *
+     * The state itself stays. It is reachable only by pressing "Live gateway" on
+     * a deployment that has none, which is an explicit request for real data —
+     * and answering an explicit request with generated data would override the
+     * one thing the desk never overrides. So the honest answer is a card that
+     * says which feed is missing and what would fill it, in the same shape the
+     * populated panel uses.
+     */
     return (
       <section className="card fill-quality-heatmap">
         <header className="section-heading compact">
           <div>
             <h3>Fill quality by hour and venue</h3>
             <p className="muted" role="status">
-              collecting priced fills · n={view.fillCount} of {MIN_FILLS}, across
-              at least 2 UTC hours
+              {source === "unavailable"
+                ? "no priced fills to grid · the audit feed has no source while Live gateway is selected"
+                : `collecting priced fills · n=${view.fillCount} of ${MIN_FILLS}, across at least 2 UTC hours`}
             </p>
           </div>
         </header>

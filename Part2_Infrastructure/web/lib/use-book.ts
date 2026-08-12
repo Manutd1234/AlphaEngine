@@ -249,8 +249,12 @@ export function useBook(): BookView {
   // opens the tab — and the period figures are derived from the same rows.
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/gateway/portfolio/history?limit=400", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
+    // Deadlined like every other read. The failure path here is deliberately
+    // silent — "a missing history endpoint is not an error worth showing" — but
+    // silent and unbounded are different things: without this, a hung gateway
+    // left this promise pending for the life of the tab.
+    probeGateway<{ points?: unknown[]; periods?: PeriodReturns }>("/api/gateway/portfolio/history?limit=400")
+      .then((outcome) => (outcome.ok ? outcome.payload : null))
       .then((body) => {
         if (cancelled || !body?.points?.length) return;
         const restored: EquityPoint[] = [];

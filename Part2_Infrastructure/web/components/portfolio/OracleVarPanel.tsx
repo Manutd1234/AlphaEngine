@@ -20,6 +20,13 @@ interface OracleVarUnavailable {
 type OracleVarResponse = OracleVarOk | OracleVarUnavailable;
 
 /**
+ * Longer than the gateway's 2.5s, on purpose: 20,000 in-database Monte Carlo
+ * paths take seconds when everything is working, and aborting at 2.5s would
+ * report a failure for work that was about to succeed.
+ */
+const ORACLE_DEADLINE_MS = 9000;
+
+/**
  * A second, independent VaR — computed inside Oracle 23ai rather than in this
  * browser.
  *
@@ -56,20 +63,40 @@ export default function OracleVarPanel({
   const run = useCallback(async () => {
     if (annualVol === null) return;
     setRunning(true);
+    /**
+     * A deadline of its own, and a longer one than the gateway's 2.5s.
+     *
+     * This request asks an Autonomous Database to run 20,000 Monte Carlo paths
+     * in-database; several seconds is a correct answer, not a failure, so the
+     * shared gateway budget would abort work that was about to succeed. But
+     * unbounded is still wrong: on Always-Free the ADB auto-stops, and a stopped
+     * instance can leave a connection open long enough that this panel spun on
+     * "running" indefinitely while the rest of Portfolio had already given up.
+     *
+     * Not routed through `probeGateway`: that coalesces by URL, which is right
+     * for reads of one resource and wrong here, where two panels asking for
+     * different horizons would be silently served each other's answer.
+     */
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ORACLE_DEADLINE_MS);
     try {
       const response = await fetch("/api/oracle/var", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ equity, sigma: annualVol, mu: 0.08, days: horizonDays, simulations: 20000 }),
+        signal: controller.signal,
       });
       setResult((await response.json()) as OracleVarResponse);
     } catch {
       setResult({
         state: "unavailable",
         code: "network",
-        error: "The request did not complete. The workspace may be offline.",
+        error: controller.signal.aborted
+          ? `The database did not answer within ${ORACLE_DEADLINE_MS / 1000}s. On Always-Free it may have auto-stopped; the parametric comparison beside this is unaffected.`
+          : "The request did not complete. The workspace may be offline.",
       });
     } finally {
+      clearTimeout(timer);
       setRunning(false);
     }
   }, [annualVol, equity, horizonDays]);

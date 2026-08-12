@@ -2,72 +2,63 @@
 
 /**
  * The audit trail the hero copy has always promised ("…reconcile to the same
- * audit trail") — read straight from the gateway's order audit feed, which
- * every paper order lands in whether it was accepted or refused. Until this
- * panel existed the feed had no surface anywhere in the UI.
+ * audit trail") — read from the gateway's order audit feed, which every paper
+ * order lands in whether it was accepted or refused. Until this panel existed
+ * the feed had no surface anywhere in the UI.
  *
- * Honest states over spinners: the gateway being unreachable is a terminal,
- * labelled condition here, never an endless "connecting".
+ * Honest states over spinners, and a filled table over an honest empty one. The
+ * unreachable state used to be terminal: a warning banner reading "this panel
+ * refuses to invent one", which made the Overview tab's third section a
+ * paragraph of apology on every deployment without a gateway — which is the
+ * public one. It now shows the same generated orders the Execution blotter
+ * shows, labelled as generated. Nothing is invented here that is not already on
+ * screen one tab away.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { fmt, usd } from "@/lib/format";
+import { type AuditRow, sandboxAuditRows } from "@/lib/fallbacks/audit";
+import { probeGateway } from "@/lib/use-gateway-connection";
 
-interface AuditRow {
-  ts: string;
-  order_id: string;
-  strategy: string | null;
-  symbol: string;
-  side: string;
-  order_type: string;
-  quantity: number;
-  notional: number | null;
-  accepted: boolean;
-  rejected_by: string | null;
-  reason: string | null;
-  latency_ms: number | null;
-  fill_price: number | null;
-  fee_usd: number | null;
-}
-
+/**
+ * No `"unreachable"` member.
+ *
+ * It was one, and it was the only state that rendered no table. `"generated"`
+ * replaces it: same rows, stated provenance. The live path is unchanged.
+ */
 type AuditState =
   | { kind: "loading" }
   | { kind: "ready"; rows: AuditRow[]; fetchedAt: Date }
-  | { kind: "unreachable"; detail: string };
+  | { kind: "generated"; rows: AuditRow[]; detail: string };
 
 const POLL_MS = 30_000;
 
-export default function AuditTrail({ active }: { active: boolean }) {
+export default function AuditTrail({ active, seed }: { active: boolean; seed?: number }) {
   const [state, setState] = useState<AuditState>({ kind: "loading" });
   const sequence = useRef(0);
 
   const refresh = useCallback(async () => {
     const current = ++sequence.current;
-    try {
-      const response = await fetch("/api/gateway/audit?limit=40", { cache: "no-store" });
-      const body = (await response.json().catch(() => ({}))) as {
-        rows?: AuditRow[];
-        error?: string;
-      };
-      if (current !== sequence.current) return;
-      if (!response.ok || !Array.isArray(body.rows)) {
-        setState({
-          kind: "unreachable",
-          detail: body.error ?? `The gateway audit feed answered HTTP ${response.status}.`,
-        });
-        return;
-      }
-      setState({ kind: "ready", rows: body.rows, fetchedAt: new Date() });
-    } catch (err) {
-      if (current === sequence.current) {
-        setState({
-          kind: "unreachable",
-          detail: err instanceof Error ? err.message : "The audit feed could not be reached.",
-        });
-      }
+    // Through the connection manager for its 2.5s deadline: this was a bare
+    // fetch, so a gateway that accepted and never answered left the skeleton
+    // below on screen indefinitely.
+    const outcome = await probeGateway<{ rows?: AuditRow[]; error?: string }>(
+      "/api/gateway/audit?limit=40",
+    );
+    if (current !== sequence.current) return;
+    if (!outcome.ok || !Array.isArray(outcome.payload.rows)) {
+      setState({
+        kind: "generated",
+        rows: sandboxAuditRows(undefined, seed),
+        detail: outcome.ok
+          ? "The gateway answered without an audit feed."
+          : outcome.failure.message,
+      });
+      return;
     }
-  }, []);
+    setState({ kind: "ready", rows: outcome.payload.rows, fetchedAt: new Date() });
+  }, [seed]);
 
   // Poll only while the panel is the visible one — hidden panels stay mounted
   // in this app, and an audit table nobody is looking at should cost nothing.
@@ -92,14 +83,20 @@ export default function AuditTrail({ active }: { active: boolean }) {
         </span>
       </div>
 
-      {state.kind === "loading" && <div className="skeleton" style={{ height: 220 }} />}
+      {state.kind === "loading" && (
+        // aria-busy, like the cockpit's placeholders: this panel is working, and
+        // without the attribute nothing outside it — a screen reader, the desk
+        // sweep — can tell the difference between "loading" and "empty".
+        <div className="skeleton" style={{ height: 220 }} aria-busy="true" aria-label="Loading the audit trail" />
+      )}
 
-      {state.kind === "unreachable" && (
+      {state.kind === "generated" && (
         <div className="banner warn" role="status">
-          <span aria-hidden>!</span>
+          <span aria-hidden>◇</span>
           <div>
-            <strong>Gateway unreachable — no audit rows to show.</strong> {state.detail}{" "}
-            The trail lives in the gateway&apos;s own ledger, so this panel refuses to invent one.
+            <strong>Generated ledger — these orders were not sent.</strong> {state.detail}{" "}
+            The rows below are the same simulated orders the Execution blotter shows, so the two
+            tabs still reconcile. Nothing here was recorded by a gateway.
           </div>
         </div>
       )}
@@ -108,7 +105,7 @@ export default function AuditTrail({ active }: { active: boolean }) {
         <p className="sub">No orders in the audit window yet — send a paper order from Execution.</p>
       )}
 
-      {state.kind === "ready" && state.rows.length > 0 && (
+      {state.kind !== "loading" && state.rows.length > 0 && (
         <>
           <div className="table-wrap table-wrap--clamped">
             <table>
@@ -158,8 +155,10 @@ export default function AuditTrail({ active }: { active: boolean }) {
             </table>
           </div>
           <p className="research-note">
-            {state.rows.length} most recent rows · read {state.fetchedAt.toLocaleTimeString()} ·
-            paper-only, recorded by the gateway itself.
+            {state.rows.length} most recent rows ·{" "}
+            {state.kind === "ready"
+              ? `read ${state.fetchedAt.toLocaleTimeString()} · paper-only, recorded by the gateway itself.`
+              : "generated for this session · paper-only, recorded by nothing."}
           </p>
         </>
       )}

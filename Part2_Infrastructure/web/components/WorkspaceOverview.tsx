@@ -295,7 +295,9 @@ export default function WorkspaceOverview({
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="overview" tabId="audit" activeId={section}>
-        <AuditTrail active={section === "audit"} />
+        {/* The same seed the rest of the desk generates from, so the audit
+            rows here are the orders the Execution blotter lists. */}
+        <AuditTrail active={section === "audit"} seed={book.seed} />
       </WorkspaceSubtabPanel>
     </div>
   );

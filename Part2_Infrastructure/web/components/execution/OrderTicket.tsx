@@ -177,6 +177,22 @@ export default function OrderTicket({
           continue;
         }
 
+        /**
+         * Deliberately NOT deadlined, unlike every read in this app.
+         *
+         * The pass that put a 2.5s budget on the gateway reads left this one
+         * alone on purpose. Aborting a read costs nothing — you did not learn
+         * the number, you try again. Aborting a *write* mid-flight tells you
+         * nothing about whether the order was accepted: the gateway may have
+         * booked it, logged it to the audit ledger and been unable to say so.
+         * A client that then reported "timed out" would be claiming an outcome
+         * it does not know, and a trader who resubmits on that basis sends the
+         * order twice.
+         *
+         * So this waits. The idempotency gate on the gateway side is what makes
+         * a deliberate retry safe, and the blotter is the authority on what
+         * actually happened.
+         */
         const response = await fetch("/api/gateway/orders", {
           method: "POST",
           // The route's write guard rejects tokenless requests on guarded
