@@ -8,8 +8,7 @@
  *  1. A second session-carrying client written into the tape client, which
  *     would flip the browser's Postgres role and empty the demo tape while it
  *     still reported itself live.
- *  2. An OTP step that mints a second identity instead of proving the first.
- *  3. A migration that publishes a signed-in user's own rows to anonymous
+ *  2. A migration that publishes a signed-in user's own rows to anonymous
  *     visitors, or leaves a SECURITY DEFINER writer reachable by anyone who
  *     can sign up.
  *
@@ -21,16 +20,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import {
-  OTP_RESEND_COOLDOWN_MS,
-  cooldownSeconds,
-  describeAuthError,
-  isCompleteOtp,
-  looksLikeEmail,
-  normaliseOtp,
-  resendCooldownRemaining,
-  resolveLoginStep,
-} from "../lib/auth-flow";
+import { describeAuthError, looksLikeEmail, resolveLoginStep } from "../lib/auth-flow";
 import {
   DEFAULT_AUTH_PERSISTENCE,
   isAuthPersistence,
@@ -136,9 +126,11 @@ describe("the login route reads its own URL", () => {
   });
 
   it("recognises each step", () => {
-    assert.equal(resolveLoginStep("?step=verify").step, "verify");
     assert.equal(resolveLoginStep("?step=reset").step, "reset");
     assert.equal(resolveLoginStep("?step=confirmed").step, "confirmed");
+    // The verification steps are gone with the gate they served.
+    assert.equal(resolveLoginStep("?step=verify").step, "signin");
+    assert.equal(resolveLoginStep("?step=verified").step, "signin");
   });
 
   it("a recovery type wins over a missing step", () => {
@@ -155,34 +147,10 @@ describe("the login route reads its own URL", () => {
 
   it("notices a PKCE code without consuming it", () => {
     assert.equal(resolveLoginStep("?code=abc123").hasCode, true);
-    assert.equal(resolveLoginStep("?step=verify").hasCode, false);
+    assert.equal(resolveLoginStep("?step=reset").hasCode, false);
   });
 });
 
-describe("the resend cooldown cannot be reset by reloading", () => {
-  it("counts down from the stored stamp", () => {
-    const now = 1_000_000;
-    assert.equal(resendCooldownRemaining(now, now), OTP_RESEND_COOLDOWN_MS);
-    assert.equal(resendCooldownRemaining(now - 20_000, now), OTP_RESEND_COOLDOWN_MS - 20_000);
-    assert.equal(resendCooldownRemaining(now - OTP_RESEND_COOLDOWN_MS, now), 0);
-  });
-
-  it("treats a missing or absurd stamp as ready", () => {
-    assert.equal(resendCooldownRemaining(null, 1_000), 0);
-    assert.equal(resendCooldownRemaining(Number.NaN, 1_000), 0);
-  });
-
-  it("a stamp from the future locks for one full window, not for hours", () => {
-    // A clock that jumped backwards must not strand someone behind a countdown
-    // measured in days.
-    assert.equal(resendCooldownRemaining(5_000_000, 1_000), OTP_RESEND_COOLDOWN_MS);
-  });
-
-  it("never renders a zero while still blocked", () => {
-    assert.equal(cooldownSeconds(1), 1);
-    assert.equal(cooldownSeconds(1_001), 2);
-  });
-});
 
 describe("errors say what to do about them", () => {
   it("an unconfigured provider reads as unconfigured, not broken", () => {
@@ -212,53 +180,8 @@ describe("field validation is cheap and local", () => {
     assert.ok(!looksLikeEmail(""));
   });
 
-  it("accepts a pasted code with spaces in it", () => {
-    assert.equal(normaliseOtp("123 456"), "123456");
-    assert.ok(isCompleteOtp("123 456"));
-    assert.ok(!isCompleteOtp("12345"));
-    assert.ok(!isCompleteOtp("abcdef"));
-  });
 });
 
-describe("the OAuth handshake is gated on proving the mailbox", () => {
-  it("marks the session pending before leaving for the provider", () => {
-    // Set after the redirect would be set never: the browser has already gone.
-    const oauth = code(screen).slice(code(screen).indexOf("const onProvider"));
-    const markIndex = oauth.indexOf("markOtpPending()");
-    const redirectIndex = oauth.indexOf("signInWithOAuth");
-    assert.ok(markIndex > 0 && markIndex < redirectIndex, "the marker must precede the redirect");
-  });
-
-  it("never creates a user from the verification step", () => {
-    // verifyOtp proves control of an existing mailbox. Allowing it to create
-    // one would turn the safety check into a second sign-up path.
-    assert.match(code(screen), /shouldCreateUser:\s*false/);
-  });
-
-  it("signs out rather than silently swapping identity", () => {
-    assert.match(code(screen), /before !== after/);
-    assert.match(code(screen), /signOutUser\(\)/);
-  });
-
-  it("password sign-in is never gated behind the code", () => {
-    const passwordBlock = code(screen).slice(code(screen).indexOf("signInWithPassword"));
-    assert.match(passwordBlock, /clearOtpPending\(\)/);
-  });
-
-  it("pending is not signed in", () => {
-    // The chip and the preference engine both branch on this. Collapsing it
-    // into "signed in" would claim an identity the app has not confirmed.
-    assert.match(session, /"otp-pending"/);
-    assert.match(code(session), /readOtpPending\(\)\s*\?\s*"otp-pending"\s*:\s*"signed-in"/);
-  });
-
-  it("all three providers ship wired, whatever the dashboard says", () => {
-    assert.match(code(screen), /"google"/);
-    assert.match(code(screen), /"github"/);
-    // Supabase registers Microsoft/Outlook as "azure".
-    assert.match(code(screen), /"azure"/);
-  });
-});
 
 describe("the login page survives a deployment with no Supabase", () => {
   it("renders an honest unconfigured state instead of throwing", () => {
@@ -381,51 +304,34 @@ describe("the page offers only providers that can actually complete", () => {
   });
 });
 
-describe("verification survives a project that cannot carry a code", () => {
-  it("sends the reader back to a step that means the link was opened", () => {
-    // Without emailRedirectTo the link resolves to the project's Site URL, and
-    // the reader lands on the dashboard still flagged unverified with nothing
-    // that can clear it.
-    assert.match(code(screen), /emailRedirectTo: `\$\{window\.location\.origin\}\/login\?step=verified`/);
+
+describe("a provider sign-in is finished when the provider says so", () => {
+  it("returns straight to the workspace", () => {
+    // GitHub has already verified the address it hands over. The removed step
+    // re-proved that fact and, on the built-in email sender, could not even be
+    // completed — template editing is gated behind custom SMTP, so the stock
+    // template carries no token to send.
+    assert.match(code(screen), /redirectTo: `\$\{window\.location\.origin\}\/`/);
   });
 
-  it("treats opening that link as discharging the gate", () => {
-    // Supabase locks email-template editing behind custom SMTP, so a default
-    // project's Magic Link mail carries a link and no {{ .Token }} at all.
-    // Clicking it proves the same mailbox the code would have.
-    const arrival = code(screen).slice(code(screen).indexOf('location.step === "verified"'));
-    assert.match(arrival.slice(0, 1200), /clearOtpPending\(\)/);
-    assert.match(arrival.slice(0, 1200), /goToWorkspace\(\)/);
+  it("keeps no verification state anywhere", () => {
+    const sources = [screen, session, read("../components/header/AccountChip.tsx"), read("../lib/auth-flow.ts")];
+    for (const source of sources) {
+      assert.doesNotMatch(code(source), /otp-pending|OTP_PENDING|markOtpPending|clearOtpPending/i);
+    }
   });
 
-  it("waits for the exchange rather than reading the session once", () => {
-    // detectSessionInUrl resolves asynchronously; a single read on mount would
-    // conclude the link had failed.
-    const arrival = code(screen).slice(code(screen).indexOf('location.step === "verified"'));
-    assert.match(arrival.slice(0, 1200), /onAuthStateChange/);
-    assert.match(arrival.slice(0, 1200), /setTimeout/);
+  it("leaves the session with four honest states", () => {
+    assert.match(code(session), /"unconfigured"/);
+    assert.match(code(session), /"loading"/);
+    assert.match(code(session), /"signed-out"/);
+    assert.match(code(session), /"signed-in"/);
+    assert.doesNotMatch(code(session), /"otp-pending"/);
   });
 
-  it("unsubscribes and clears its timer", () => {
-    const arrival = code(screen).slice(code(screen).indexOf('location.step === "verified"'));
-    assert.match(arrival.slice(0, 1600), /listener\.subscription\.unsubscribe\(\)/);
-    assert.match(arrival.slice(0, 1600), /clearTimeout\(timeout\)/);
-  });
-
-  it("does not promise a code it may be unable to deliver", () => {
-    // The blurb must lead with the link. A screen that says "enter the code we
-    // emailed you" on a project whose template has no token is unresolvable.
-    assert.match(screen, /Open the sign-in link/);
-    assert.doesNotMatch(screen, /Enter the six-digit code we emailed you/);
-  });
-
-  it("leaves the code box optional", () => {
-    const field = code(screen).slice(code(screen).indexOf('id="auth-otp"'));
-    assert.doesNotMatch(field.slice(0, 400), /required/);
-  });
-
-  it("still accepts a typed code when the template does carry one", () => {
-    assert.match(code(screen), /verifyOtp\(\{/);
-    assert.match(code(screen), /type: "email"/);
+  it("still verifies a recovery link, which is a different thing", () => {
+    // Password reset genuinely needs the emailed proof; that path is untouched.
+    assert.match(code(screen), /verifyOtp\(\{ token_hash/);
+    assert.match(code(screen), /type: "recovery"/);
   });
 });

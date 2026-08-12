@@ -2,32 +2,18 @@
  * The login flow's decisions, as pure functions.
  *
  * No React, no Supabase client, no DOM — so the node test runner can assert the
- * parts that are easy to get quietly wrong (which step a URL means, how long
- * until a resend is allowed, what an unconfigured provider should read as)
- * without a browser.
+ * parts that are easy to get quietly wrong (which step a URL means, what an
+ * unconfigured provider should read as) without a browser.
  *
- * The OTP gate is an app-level marker, not a Supabase concept. Supabase
- * considers you signed in the moment OAuth returns; this app additionally
- * requires proof of mailbox control before it treats that session as a full
- * identity, so the marker records "OAuth landed, code not yet verified" and
- * `use-session` reports `otp-pending` while it is set.
+ * There is deliberately no second verification step after a provider sign-in.
+ * An earlier design emailed a six-digit code to re-prove the mailbox that
+ * GitHub had just vouched for, which was redundant on its own terms and, on a
+ * project using Supabase's built-in email sender, impossible: template editing
+ * is gated behind custom SMTP, and the stock template carries no token to send.
+ * The provider's own verification is the verification.
  */
 
-/** Set immediately BEFORE redirecting to a provider; cleared on verify or sign-out. */
-export const OTP_PENDING_KEY = "alphaengine-auth-otp-pending";
-/** Epoch millis of the last OTP send, so a reload cannot reset the cooldown. */
-export const OTP_SENT_AT_KEY = "alphaengine-auth-otp-sent-at";
-
-/** Supabase's own inter-send minimum. Asking sooner earns a 429, not an email. */
-export const OTP_RESEND_COOLDOWN_MS = 60_000;
-
-export type LoginStep =
-  | "signin"
-  | "verify"
-  /** Landed here by opening the emailed sign-in link — mailbox proven. */
-  | "verified"
-  | "reset"
-  | "confirmed";
+export type LoginStep = "signin" | "reset" | "confirmed";
 
 export interface LoginLocation {
   step: LoginStep;
@@ -41,7 +27,7 @@ export interface LoginLocation {
   errorMessage: string | null;
 }
 
-const STEPS = new Set<LoginStep>(["signin", "verify", "verified", "reset", "confirmed"]);
+const STEPS = new Set<LoginStep>(["signin", "reset", "confirmed"]);
 
 /**
  * Reads the login route's query string. Both email-link shapes land here: PKCE
@@ -68,20 +54,6 @@ export function resolveLoginStep(search: string): LoginLocation {
   };
 }
 
-/** Milliseconds left before another OTP may be requested. 0 means "now". */
-export function resendCooldownRemaining(sentAt: number | null, now: number): number {
-  if (sentAt == null || !Number.isFinite(sentAt)) return 0;
-  // A clock that moved backwards (or a stored value from the future) must not
-  // lock the button for hours.
-  if (sentAt > now) return OTP_RESEND_COOLDOWN_MS;
-  return Math.max(0, OTP_RESEND_COOLDOWN_MS - (now - sentAt));
-}
-
-/** Whole seconds, for a countdown that never renders "0s" while still blocked. */
-export function cooldownSeconds(remainingMs: number): number {
-  return Math.ceil(remainingMs / 1000);
-}
-
 /**
  * Turns a Supabase error into something a reader can act on, while keeping the
  * original words. A provider nobody has configured yet is the expected state of
@@ -102,11 +74,11 @@ export function describeAuthError(error: { message?: string } | null | undefined
   if (lower.includes("email not confirmed")) {
     return "This account still needs its email confirmed. Check your inbox for the confirmation link.";
   }
-  if (lower.includes("token has expired") || lower.includes("expired")) {
-    return `${raw} — request a new code and try again.`;
+  if (lower.includes("expired")) {
+    return `${raw} — request a new link and try again.`;
   }
   if (lower.includes("rate limit") || lower.includes("too many requests")) {
-    return `${raw} — wait a minute before asking for another email.`;
+    return `${raw} — wait a minute before trying again.`;
   }
   if (lower.includes("user already registered")) {
     return "An account with that email already exists. Sign in instead, or reset the password.";
@@ -114,17 +86,8 @@ export function describeAuthError(error: { message?: string } | null | undefined
   return raw;
 }
 
-/** Cheap client-side shape check, so an obvious typo does not cost an email. */
+/** Cheap client-side shape check, so an obvious typo does not cost a request. */
 export function looksLikeEmail(value: string): boolean {
   const trimmed = value.trim();
   return trimmed.length >= 3 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
-}
-
-/** Six digits, as Supabase mints them; spaces tolerated because people paste. */
-export function normaliseOtp(value: string): string {
-  return value.replace(/\s+/g, "");
-}
-
-export function isCompleteOtp(value: string): boolean {
-  return /^\d{6}$/.test(normaliseOtp(value));
 }

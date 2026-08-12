@@ -1,43 +1,34 @@
 "use client";
 
 /**
- * The login screen — five forms on one route.
+ * The login screen — four forms on one route.
  *
- * Sign in, create account, forgot password, set a new password, and verify a
- * mailbox. They share an email field, a banner and a card, so they are modes of
- * one component rather than five routes; the URL still distinguishes the two
- * that arrive from an email link (`?step=reset`, `?step=verify`) because a link
- * has to land somewhere specific.
+ * Sign in, create account, forgot password, and set a new password. They share
+ * an email field, a banner and a card, so they are modes of one component
+ * rather than four routes; the URL still distinguishes the one that arrives
+ * from an email link (`?step=reset`), because a link has to land somewhere
+ * specific.
  *
- * The OAuth → OTP gate is the one unusual rule. Supabase treats a completed
- * OAuth handshake as a finished sign-in; this app additionally asks for a code
- * sent to the account's email before it calls that identity complete. The
- * marker is set before the redirect and cleared on a successful verify, which
- * means the provider round-trip cannot skip the step by returning early.
+ * A provider sign-in completes immediately. An earlier version emailed a
+ * six-digit code afterwards to re-prove the mailbox GitHub had just handed
+ * over, which was redundant on its own terms and impossible in practice on a
+ * project using Supabase's built-in sender: template editing is gated behind
+ * custom SMTP, so the stock template has no token to put in the mail. It was a
+ * step that could fail and could not succeed.
  *
- * Nothing here is a gate on the product. The workspace stays fully browsable
- * signed out — this page adds an identity, it does not guard the door.
+ * Nothing here gates the product. The workspace stays fully browsable signed
+ * out — this page adds an identity, it does not guard the door.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Provider } from "@supabase/supabase-js";
 
 import { authClient, authConfigured, fetchEnabledProviders } from "@/lib/auth-client";
-import {
-  OTP_SENT_AT_KEY,
-  OTP_RESEND_COOLDOWN_MS,
-  cooldownSeconds,
-  describeAuthError,
-  isCompleteOtp,
-  looksLikeEmail,
-  normaliseOtp,
-  resendCooldownRemaining,
-  resolveLoginStep,
-} from "@/lib/auth-flow";
+import { describeAuthError, looksLikeEmail, resolveLoginStep } from "@/lib/auth-flow";
 import { setAuthPersistence } from "@/lib/auth-storage";
-import { clearOtpPending, markOtpPending, refreshSession, signOutUser } from "@/lib/use-session";
+import { refreshSession } from "@/lib/use-session";
 
-type FormMode = "signin" | "signup" | "forgot" | "reset" | "verify";
+type FormMode = "signin" | "signup" | "forgot" | "reset";
 
 type BannerTone = "error" | "warn" | "context-change";
 
@@ -53,59 +44,28 @@ const PROVIDERS: { id: Provider; label: string }[] = [
   { id: "azure", label: "Outlook" },
 ];
 
-const MODE_COPY: Record<FormMode, { kicker: string; title: string; blurb: string }> = {
+const MODE_COPY: Record<FormMode, { title: string; blurb: string; submit: string }> = {
   signin: {
-    kicker: "Account",
     title: "Sign in",
-    blurb:
-      "Signing in stores your workspace preferences against your account. The desk itself is open — nothing here is behind a login.",
+    blurb: "Your workspace preferences follow your account. The desk itself is open to everyone.",
+    submit: "Sign in",
   },
   signup: {
-    kicker: "Account",
     title: "Create an account",
-    blurb: "Paper-only, educational, and free. No funds, no brokerage relationship, no card.",
+    blurb: "Paper-only and free. No funds, no brokerage relationship, no card.",
+    submit: "Create account",
   },
   forgot: {
-    kicker: "Account",
     title: "Reset your password",
-    blurb: "We will email a link that returns you here to choose a new one.",
+    blurb: "We will email a link that brings you back here to choose a new one.",
+    submit: "Email a reset link",
   },
   reset: {
-    kicker: "Account",
     title: "Choose a new password",
     blurb: "This link signed you in for the moment it takes to set a password.",
-  },
-  verify: {
-    kicker: "Account",
-    title: "Verify your email",
-    // Deliberately leads with the link. Supabase only allows editing email
-    // templates on projects with custom SMTP, and its stock Magic Link
-    // template carries a link and no {{ .Token }} — so on a default project
-    // the six-digit code does not exist, and promising one is a lie the
-    // reader cannot resolve. The link proves the same thing.
-    blurb:
-      "Open the sign-in link we just emailed you to finish. If your email also carries a six-digit code, you can enter it here instead.",
+    submit: "Set password",
   },
 };
-
-function readSentAt(): number | null {
-  try {
-    const raw = localStorage.getItem(OTP_SENT_AT_KEY);
-    if (!raw) return null;
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeSentAt(at: number): void {
-  try {
-    localStorage.setItem(OTP_SENT_AT_KEY, String(at));
-  } catch {
-    // Losing the stamp costs the countdown, not the send.
-  }
-}
 
 export default function LoginScreen() {
   const configured = authConfigured();
@@ -113,16 +73,12 @@ export default function LoginScreen() {
   const [mode, setMode] = useState<FormMode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [otp, setOtp] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [busy, setBusy] = useState(false);
   const [banner, setBanner] = useState<Banner | null>(null);
-  const [cooldownMs, setCooldownMs] = useState(0);
-  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   /** Provider ids this project has credentials for; null while unknown. */
   const [enabledProviders, setEnabledProviders] = useState<Set<string> | null>(null);
-  const autoSent = useRef(false);
 
   const copy = MODE_COPY[mode];
 
@@ -137,7 +93,6 @@ export default function LoginScreen() {
 
     if (location.errorMessage) {
       setBanner({ tone: "error", message: describeAuthError({ message: location.errorMessage }) });
-      clearOtpPending();
     }
 
     if (location.step === "confirmed") {
@@ -157,59 +112,6 @@ export default function LoginScreen() {
             if (error) setBanner({ tone: "error", message: describeAuthError(error) });
           });
       }
-      return;
-    }
-
-    if (location.step === "verified") {
-      // Opened the emailed link. That is proof of mailbox control, so it
-      // discharges the gate exactly as typing a code would — the difference is
-      // only which half of the email the reader used.
-      setMode("verify");
-      setBanner({ tone: "context-change", message: "Confirming your email…" });
-      if (!supabase) return;
-
-      let settled = false;
-      const complete = () => {
-        if (settled) return;
-        settled = true;
-        clearOtpPending();
-        refreshSession();
-        goToWorkspace();
-      };
-      // The PKCE exchange runs asynchronously inside the client, so the
-      // session may not exist yet on this tick. Watch for it rather than
-      // reading once and concluding the link failed.
-      const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (session?.user?.id) complete();
-      });
-      void supabase.auth.getSession().then(({ data }) => {
-        if (data.session?.user?.id) complete();
-      });
-      const timeout = window.setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        setBanner({
-          tone: "error",
-          message: "That sign-in link has expired or was already used. Send a new one below.",
-        });
-      }, 8000);
-
-      return () => {
-        window.clearTimeout(timeout);
-        listener.subscription.unsubscribe();
-      };
-    }
-
-    if (location.step === "verify") {
-      setMode("verify");
-      setCooldownMs(resendCooldownRemaining(readSentAt(), Date.now()));
-      if (supabase) {
-        void supabase.auth.getSession().then(({ data }) => {
-          const address = data.session?.user?.email ?? null;
-          setPendingEmail(address);
-          if (address) setEmail(address);
-        });
-      }
     }
   }, []);
 
@@ -228,60 +130,6 @@ export default function LoginScreen() {
     };
   }, []);
 
-  /** One timer for the resend countdown; it stops as soon as it reaches zero. */
-  useEffect(() => {
-    if (cooldownMs <= 0) return;
-    const timer = window.setInterval(() => {
-      setCooldownMs((remaining) => Math.max(0, remaining - 1000));
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [cooldownMs > 0]);
-
-  const sendOtp = useCallback(
-    async (address: string) => {
-      const supabase = authClient();
-      if (!supabase || !address) return;
-      setBusy(true);
-      const { error } = await supabase.auth.signInWithOtp({
-        email: address,
-        options: {
-          // Never mint a second identity from the verification step: this
-          // exists to prove the OAuth account's mailbox, not to create one.
-          shouldCreateUser: false,
-          // Without this the link resolves to the project's Site URL and drops
-          // the reader on the dashboard still flagged unverified, with no way
-          // to clear it. Returning to a step that means "you opened the link"
-          // is what lets the marker be cleared on arrival.
-          emailRedirectTo: `${window.location.origin}/login?step=verified`,
-        },
-      });
-      setBusy(false);
-      if (error) {
-        setBanner({ tone: "error", message: describeAuthError(error) });
-        return;
-      }
-      const now = Date.now();
-      writeSentAt(now);
-      setCooldownMs(OTP_RESEND_COOLDOWN_MS);
-      setBanner({
-        tone: "context-change",
-        message: `Email sent to ${address}. Open the link in it to finish.`,
-      });
-    },
-    [],
-  );
-
-  /** Auto-send once when the verify step opens with no live cooldown. */
-  useEffect(() => {
-    if (mode !== "verify" || !pendingEmail || autoSent.current) return;
-    if (resendCooldownRemaining(readSentAt(), Date.now()) > 0) {
-      autoSent.current = true;
-      return;
-    }
-    autoSent.current = true;
-    void sendOtp(pendingEmail);
-  }, [mode, pendingEmail, sendOtp]);
-
   const redirectTo = useMemo(
     () => (typeof window === "undefined" ? "" : `${window.location.origin}/login`),
     [],
@@ -297,15 +145,13 @@ export default function LoginScreen() {
     setBanner(null);
     setBusy(true);
     setAuthPersistence(remember ? "local" : "session");
-    // Set before the redirect: the browser leaves this page immediately, and
-    // the marker is what makes the return trip land on the verification step.
-    markOtpPending();
+    // Straight back to the workspace. The provider has already verified the
+    // address it hands over; there is nothing further for this app to check.
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: `${redirectTo}?step=verify` },
+      options: { redirectTo: `${window.location.origin}/` },
     });
     if (error) {
-      clearOtpPending();
       setBusy(false);
       setBanner({ tone: "error", message: describeAuthError(error) });
     }
@@ -316,42 +162,6 @@ export default function LoginScreen() {
     const supabase = authClient();
     if (!supabase) return;
     setBanner(null);
-
-    if (mode === "verify") {
-      const address = pendingEmail ?? email;
-      if (!isCompleteOtp(otp)) {
-        setBanner({ tone: "warn", message: "Enter the six-digit code from the email." });
-        return;
-      }
-      setBusy(true);
-      // Capture first: verifyOtp signs in whoever owns this address, and if
-      // that is somehow not the account OAuth just returned, the safe move is
-      // to end both rather than silently swap identities.
-      const before = (await supabase.auth.getSession()).data.session?.user?.id ?? null;
-      const { data, error } = await supabase.auth.verifyOtp({
-        email: address,
-        token: normaliseOtp(otp),
-        type: "email",
-      });
-      setBusy(false);
-      if (error) {
-        setBanner({ tone: "error", message: describeAuthError(error) });
-        return;
-      }
-      const after = data.user?.id ?? null;
-      if (before && after && before !== after) {
-        await signOutUser();
-        setBanner({
-          tone: "error",
-          message: "That code belongs to a different account. Signed out — please start again.",
-        });
-        return;
-      }
-      clearOtpPending();
-      refreshSession();
-      goToWorkspace();
-      return;
-    }
 
     if (mode === "reset") {
       if (password.length < 8) {
@@ -428,9 +238,6 @@ export default function LoginScreen() {
       setBanner({ tone: "error", message: describeAuthError(error) });
       return;
     }
-    // Password sign-in is already proof of the account; only the OAuth path
-    // carries the extra mailbox check.
-    clearOtpPending();
     refreshSession();
     goToWorkspace();
   };
@@ -439,19 +246,17 @@ export default function LoginScreen() {
     setMode(next);
     setBanner(null);
     setPassword("");
-    setOtp("");
   };
 
   if (!configured) {
     return (
-      <main className="mx-auto flex min-h-dvh w-full max-w-[440px] flex-col justify-center gap-3 px-5 py-10">
-        <span className="page-kicker">Account</span>
+      <main className="mx-auto flex min-h-dvh w-full max-w-[400px] flex-col justify-center gap-3 px-5 py-10">
         <h1 className="text-[22px]">Sign in</h1>
         <div className="banner warn" role="status">
           <span aria-hidden>◌</span>
           <div>
             Authentication is not configured in this deployment. The workspace is fully browsable
-            without an account — every tab, every panel.
+            without an account.
           </div>
         </div>
         <a href="/" className="primary-action text-center">
@@ -461,20 +266,18 @@ export default function LoginScreen() {
     );
   }
 
-  const showEmail = mode !== "reset";
-  const showPasswordField = mode === "signin" || mode === "signup" || mode === "reset";
-  const showRemember = mode === "signin" || mode === "signup";
   const offeredProviders = enabledProviders
     ? PROVIDERS.filter((provider) => enabledProviders.has(provider.id))
     : PROVIDERS;
   const showProviders = (mode === "signin" || mode === "signup") && offeredProviders.length > 0;
+  const showPasswordField = mode !== "forgot";
+  const showRemember = mode === "signin" || mode === "signup";
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-[440px] flex-col justify-center gap-4 px-5 py-10">
+    <main className="mx-auto flex min-h-dvh w-full max-w-[400px] flex-col justify-center gap-4 px-5 py-10">
       <div className="card p-5">
-        <span className="page-kicker">{copy.kicker}</span>
-        <h1 className="mt-0.5 text-[22px]">{copy.title}</h1>
-        <p className="mt-1.5 text-[12px] leading-snug text-text-secondary">{copy.blurb}</p>
+        <h1 className="text-[21px]">{copy.title}</h1>
+        <p className="mt-1 text-[12px] leading-snug text-text-secondary">{copy.blurb}</p>
 
         {banner && (
           <div className={`banner ${banner.tone} mt-3`} role={banner.tone === "error" ? "alert" : "status"}>
@@ -484,7 +287,7 @@ export default function LoginScreen() {
         )}
 
         <form className="mt-4 flex flex-col gap-3" onSubmit={(event) => void onSubmit(event)}>
-          {showEmail && (
+          {mode !== "reset" && (
             <div>
               <label className="block text-[11px] font-semibold text-text-secondary" htmlFor="auth-email">
                 Email
@@ -498,46 +301,9 @@ export default function LoginScreen() {
                 autoComplete="username"
                 autoCapitalize="none"
                 spellCheck={false}
-                readOnly={mode === "verify" && Boolean(pendingEmail)}
                 required
                 className="mt-1 w-full"
               />
-            </div>
-          )}
-
-          {mode === "verify" && (
-            <div>
-              <label className="block text-[11px] font-semibold text-text-secondary" htmlFor="auth-otp">
-                Six-digit code <span className="font-normal text-text-muted">(if your email has one)</span>
-              </label>
-              <input
-                id="auth-otp"
-                type="text"
-                inputMode="numeric"
-                value={otp}
-                onChange={(event) => setOtp(event.target.value)}
-                placeholder="000000"
-                autoComplete="one-time-code"
-                spellCheck={false}
-                className="mt-1 w-full font-mono tracking-[0.3em]"
-              />
-              <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px]">
-                <button
-                  type="button"
-                  className="bg-transparent p-0 text-[11px] font-semibold text-series-1 underline"
-                  disabled={busy || cooldownMs > 0}
-                  onClick={() => void sendOtp(pendingEmail ?? email)}
-                >
-                  {cooldownMs > 0 ? `Resend in ${cooldownSeconds(cooldownMs)}s` : "Resend email"}
-                </button>
-                <button
-                  type="button"
-                  className="bg-transparent p-0 text-[11px] text-text-muted underline"
-                  onClick={() => void signOutUser().then(() => switchMode("signin"))}
-                >
-                  Use a different account
-                </button>
-              </div>
             </div>
           )}
 
@@ -596,24 +362,14 @@ export default function LoginScreen() {
           )}
 
           <button type="submit" className="primary-action" disabled={busy}>
-            {busy
-              ? "Working…"
-              : mode === "signin"
-                ? "Sign in"
-                : mode === "signup"
-                  ? "Create account"
-                  : mode === "forgot"
-                    ? "Email a reset link"
-                    : mode === "reset"
-                      ? "Set password"
-                      : "Verify and continue"}
+            {busy ? "Working…" : copy.submit}
           </button>
         </form>
 
         {showProviders && (
           <>
             <p className="mt-4 mb-2 text-center text-[10.5px] uppercase tracking-[0.08em] text-text-muted">
-              or continue with
+              or
             </p>
             <div className="flex flex-col gap-2">
               {offeredProviders.map((provider) => (
@@ -628,15 +384,11 @@ export default function LoginScreen() {
                 </button>
               ))}
             </div>
-            <p className="mt-2 text-[10.5px] leading-snug text-text-muted">
-              After a provider sign-in we email a six-digit code to confirm the mailbox before the
-              account is complete.
-            </p>
           </>
         )}
 
         <div className="mt-4 border-t border-grid pt-3 text-[11.5px] text-text-secondary">
-          {mode === "signin" && (
+          {mode === "signin" ? (
             <>
               No account?{" "}
               <button
@@ -647,8 +399,7 @@ export default function LoginScreen() {
                 Create account
               </button>
             </>
-          )}
-          {(mode === "signup" || mode === "forgot" || mode === "verify") && (
+          ) : (
             <button
               type="button"
               className="bg-transparent p-0 text-[11.5px] font-semibold text-series-1 underline"

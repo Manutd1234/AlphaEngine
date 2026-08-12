@@ -225,9 +225,7 @@ describe("the workspace remembers where you were, and yields to a link", () => {
 });
 
 describe("syncing is a mirror, never a dependency", () => {
-  it("waits for a confirmed mailbox before writing anything", () => {
-    // otp-pending is a session Supabase considers complete and this app does
-    // not; writing preferences against it would claim the account early.
+  it("writes only for a signed-in account", () => {
     assert.match(code(engine), /info\.status === "signed-in" \? info\.userId : null/);
   });
 

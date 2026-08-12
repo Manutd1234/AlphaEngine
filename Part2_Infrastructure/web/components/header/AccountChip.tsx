@@ -11,9 +11,9 @@
  * never trapped) — the house pattern for panels inside the header, which is a
  * containing block and cannot host fixed-position children.
  *
- * `otp-pending` gets its own state on purpose. A provider round-trip that
- * completed but has not proved the mailbox is not signed in yet, and showing an
- * email address there would claim an identity the app has not confirmed.
+ * Three states only: absent when this deployment has no Supabase config, a
+ * plain link while signed out, and the dropdown once there is an identity to
+ * show.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -60,18 +60,6 @@ export default function AccountChip() {
       >
         <UserRound size={14} aria-hidden />
         <span className="max-[520px]:hidden">Sign in</span>
-      </a>
-    );
-  }
-
-  if (session.status === "otp-pending") {
-    return (
-      <a
-        href="/login?step=verify"
-        className="inline-flex items-center gap-1.5 rounded-[9px] border border-border px-2 py-1.5 text-[11px] font-semibold text-notice-text no-underline hover:bg-surface-2"
-      >
-        <UserRound size={14} aria-hidden />
-        <span className="max-[520px]:hidden">Verify email</span>
       </a>
     );
   }

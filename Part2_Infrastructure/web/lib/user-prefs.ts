@@ -283,8 +283,6 @@ async function pull(userId: string): Promise<void> {
 }
 
 function onSession(info: SessionInfo): void {
-  // `otp-pending` is deliberately excluded: the mailbox is not confirmed yet,
-  // so nothing should be written against that account.
   const next = info.status === "signed-in" ? info.userId : null;
   if (next === currentUser) return;
   currentUser = next;

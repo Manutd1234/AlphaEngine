@@ -8,11 +8,9 @@
  * header chip and the preference sync engine, and wrapping the tree in a
  * provider to move one email is more plumbing than the problem needs.
  *
- * Five states, because "signed in" is not binary here. After OAuth returns,
- * Supabase considers the session complete; this app does not, until the person
- * has proved they control the mailbox. `otp-pending` is that gap, and it reads
- * as *not yet* signed in everywhere it matters — the account chip offers to
- * finish verifying, and preference sync stays off.
+ * Four states. A provider sign-in is complete the moment it returns: GitHub has
+ * already verified the address it hands over, and an extra round trip to
+ * re-prove it added a failure mode without adding a fact.
  *
  * The first read happens in an effect, never during render: the session lives
  * in storage, and reading storage while rendering makes the server's HTML and
@@ -22,7 +20,6 @@
 import { useEffect, useState } from "react";
 
 import { authClient, authConfigured } from "./auth-client";
-import { OTP_PENDING_KEY, OTP_SENT_AT_KEY } from "./auth-flow";
 
 export type SessionStatus =
   /** No Supabase config in this deployment — login is absent, not broken. */
@@ -30,8 +27,6 @@ export type SessionStatus =
   /** Configured, first getSession() still in flight. */
   | "loading"
   | "signed-out"
-  /** OAuth completed; the emailed code has not been verified yet. */
-  | "otp-pending"
   | "signed-in";
 
 export interface SessionInfo {
@@ -49,34 +44,6 @@ let current: SessionInfo = authConfigured()
 let started = false;
 const listeners = new Set<(info: SessionInfo) => void>();
 
-function readOtpPending(): boolean {
-  try {
-    return localStorage.getItem(OTP_PENDING_KEY) === "1";
-  } catch {
-    // Storage blocked: treat the session at face value rather than stranding
-    // someone in a verification step they cannot leave.
-    return false;
-  }
-}
-
-export function markOtpPending(): void {
-  try {
-    localStorage.setItem(OTP_PENDING_KEY, "1");
-  } catch {
-    // Without the marker the OTP step is skipped — the OAuth session is still
-    // a real one, so this degrades to "less verification", never to a lockout.
-  }
-}
-
-export function clearOtpPending(): void {
-  try {
-    localStorage.removeItem(OTP_PENDING_KEY);
-    localStorage.removeItem(OTP_SENT_AT_KEY);
-  } catch {
-    // ignored
-  }
-}
-
 function publish(next: SessionInfo): void {
   current = next;
   for (const listener of listeners) listener(next);
@@ -85,7 +52,7 @@ function publish(next: SessionInfo): void {
 function fromSession(session: { user?: { id?: string; email?: string | null } } | null): SessionInfo {
   if (!session?.user?.id) return SIGNED_OUT;
   return {
-    status: readOtpPending() ? "otp-pending" : "signed-in",
+    status: "signed-in",
     email: session.user.email ?? null,
     userId: session.user.id,
   };
@@ -115,7 +82,7 @@ function ensureStarted(): void {
   });
 }
 
-/** Re-reads the OTP marker against the session already in hand. */
+/** Re-reads the session after a sign-in or sign-out completes elsewhere. */
 export function refreshSession(): void {
   const supabase = authClient();
   if (!supabase) return;
@@ -140,7 +107,6 @@ export function subscribeSession(listener: (info: SessionInfo) => void): () => v
 }
 
 export async function signOutUser(): Promise<void> {
-  clearOtpPending();
   const supabase = authClient();
   if (!supabase) return;
   try {
