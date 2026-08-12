@@ -315,17 +315,36 @@ const INSPECT = (phrases) => `(() => {
 // The sweep
 // ---------------------------------------------------------------------------
 
+/**
+ * Rendering axes, orthogonal to the fault profiles.
+ *
+ * A dead end is a data-flow state and shows up under any of these; what these
+ * catch is the other half of the claim — that the desk stays legible while it is
+ * degraded. Forced-colors is the sharpest of them, because it discards every
+ * colour the app chose, so anything that carried meaning in colour alone stops
+ * carrying it at all.
+ */
+const MEDIA = {
+  "dark": [{ name: "prefers-color-scheme", value: "dark" }],
+  "light": [{ name: "prefers-color-scheme", value: "light" }],
+  "reduce": [{ name: "prefers-reduced-motion", value: "reduce" }],
+  "forced": [{ name: "forced-colors", value: "active" }],
+};
+
 function parseArgs() {
   const args = process.argv.slice(2);
   const get = (name) => {
     const hit = args.find((a) => a.startsWith(`--${name}=`));
     return hit ? hit.slice(name.length + 3) : null;
   };
-  return { profile: get("profile"), tab: get("tab"), verbose: args.includes("--verbose") };
+  return {
+    profile: get("profile"), tab: get("tab"),
+    media: get("media"), verbose: args.includes("--verbose"),
+  };
 }
 
 async function main() {
-  const { profile: onlyProfile, tab: onlyTab, verbose } = parseArgs();
+  const { profile: onlyProfile, tab: onlyTab, media: onlyMedia, verbose } = parseArgs();
 
   const declared = Object.values(TABS).reduce((n, list) => n + list.length, 0);
   if (declared !== EXPECTED_SECTIONS) {
@@ -341,6 +360,15 @@ async function main() {
   await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 1440, height: 900, deviceScaleFactor: 1, mobile: false,
   });
+  if (onlyMedia) {
+    const features = MEDIA[onlyMedia];
+    if (!features) {
+      console.error(`unknown media "${onlyMedia}". known: ${Object.keys(MEDIA).join(", ")}`);
+      process.exitCode = 1;
+      return;
+    }
+    await cdp.send("Emulation.setEmulatedMedia", { features });
+  }
 
   let consoleErrors = [];
   cdp.on((msg) => {
@@ -510,7 +538,9 @@ async function main() {
 
   console.log(
     `\n${failed.length ? "FAIL" : "PASS"} — ${rows.length - failed.length}/${rows.length} cells`
-    + ` across ${byProfile.size} profile(s)`,
+    + ` across ${byProfile.size} profile(s)`
+    + (onlyMedia ? ` under ${onlyMedia}` : "")
+    + (onlyTab ? ` on ${onlyTab}` : ""),
   );
   // Never report a pass over a run that measured nothing: the panel walk in this
   // repo once reported PASS across 27 cells it had never opened.

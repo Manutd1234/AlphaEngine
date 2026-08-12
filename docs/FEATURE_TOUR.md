@@ -27,10 +27,18 @@ The honest capability map, before the tour — because "does this need setup?" i
 question a visitor asks.
 
 Signing in is orthogonal to every tier below: it stores workspace preferences
-against an account and gates nothing. Each tier reads the same signed out.
-`/profile` manages that account — display name, avatar, linked sign-in methods,
-active sessions and password — and grants no capability the desk does not
-already give an anonymous visitor.
+against an account and unlocks no capability. Every tier reads the same for a
+guest as for an account holder.
+
+The desk itself now sits at `/dashboard` behind a routing guard, so the question
+"who is this?" is answered before anything renders rather than after the whole
+shell has been painted at a stranger. That is a change of *timing*, not of
+access: `/login` offers **Continue as guest**, which opens the full workspace on
+a desk seeded for that browser, and a deployment with no Supabase credentials —
+the public one — is admitted as a guest automatically rather than being shown a
+form it cannot complete. `/profile` manages the account itself — display name,
+avatar, linked sign-in methods, active sessions and password — and grants no
+capability the desk does not already give a guest.
 
 | Tier | What you get | Needs |
 |---|---|---|

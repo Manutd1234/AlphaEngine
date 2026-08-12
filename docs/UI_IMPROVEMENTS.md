@@ -118,10 +118,20 @@ Each with its negation, because a list of omissions without reasons reads as a b
   sentence: they reward run *volume*, which is the multiple-testing behaviour the DSR gate
   exists to punish. Explored-state is a research ledger, not a score.
 - **No locked content.** Gating capability behind usage is the navigation fork the
-  complexity-tier system exists to prohibit; everything is reachable on first load. The
-  sign-in at `/login` is not an exception: it is optional, gates nothing, and the whole
-  desk stays browsable without an account. Nor is `/profile` — it manages the account
-  itself, and unlocks no desk capability.
+  complexity-tier system exists to prohibit; everything is reachable on first load.
+  `/profile` is no exception — it manages the account itself and unlocks no desk
+  capability.
+
+  This bullet used to add that the sign-in at `/login` "is optional, gates nothing, and
+  the whole desk stays browsable without an account". That was true until the desk moved
+  behind a routing guard at `/dashboard`, and the sentence is corrected rather than
+  quietly left standing. **Nobody is turned away, and no capability is behind an
+  account**: `/login` offers "Continue as guest", which mints a pass and opens the full
+  workspace on generated data, and a deployment with no Supabase credentials — which is
+  the public one — is granted that pass automatically by the guard rather than being sent
+  to a form that cannot help. What an account buys is preferences that follow you between
+  devices. What changed is only *when* the question is asked: before anything renders,
+  rather than after the whole shell has been painted at a stranger.
 - **No seven new family colour tokens.** The theme test pins the dark-theme token blocks
   byte-for-byte; family identity comes from a monogram glyph, the printed name, and a
   `color-mix` accent derived from existing series tokens.
