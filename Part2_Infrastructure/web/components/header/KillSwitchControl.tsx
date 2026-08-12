@@ -26,6 +26,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { OctagonX } from "lucide-react";
 
+import AnchoredPanel from "@/components/header/AnchoredPanel";
 import type { GuardMode } from "@/components/systems/types";
 import { killSwitchGate } from "@/lib/overview-state";
 import {
@@ -138,7 +139,7 @@ export default function KillSwitchControl({
   };
 
   return (
-    <span ref={wrapper} className="relative inline-flex">
+    <span ref={wrapper} className="header-anchor">
       <button
         ref={trigger}
         type="button"
@@ -164,13 +165,7 @@ export default function KillSwitchControl({
       </button>
 
       {open && (
-        <div
-          id="kill-switch-panel"
-          role="dialog"
-          aria-modal="false"
-          aria-labelledby="kill-switch-title"
-          className="absolute right-0 top-[calc(100%+10px)] z-[60] w-[min(340px,calc(100vw-28px))] rounded-card border border-border bg-surface-1 p-4 shadow-card"
-        >
+        <AnchoredPanel id="kill-switch-panel" labelledBy="kill-switch-title" width={340}>
           <span className="page-kicker">Circuit breaker</span>
           <h3 id="kill-switch-title" className="mt-0.5 text-[15px]">
             {halted ? "Resume trading" : "Halt trading"}
@@ -259,7 +254,7 @@ export default function KillSwitchControl({
               <div>{result.message}</div>
             </div>
           )}
-        </div>
+        </AnchoredPanel>
       )}
     </span>
   );

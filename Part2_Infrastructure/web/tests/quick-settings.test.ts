@@ -24,6 +24,20 @@ const panel = read("../components/header/QuickSettings.tsx");
 const density = read("../components/ComplexityToggle.tsx");
 const header = read("../components/WorkspaceHeader.tsx");
 const css = read("../app/globals.css");
+/**
+ * The shared header dropdown. Position, width and elevation used to be twelve
+ * Tailwind utilities repeated in this panel, the account menu and the kill
+ * switch; the assertions that pinned them here now read the one component and
+ * the one stylesheet rule that replaced all three copies.
+ */
+const dropdown = read("../components/header/AnchoredPanel.tsx");
+
+/** A single rule's body, so a property assertion cannot match some other rule. */
+const rule = (selector: string) => {
+  const start = css.indexOf(`\n${selector} {`);
+  assert.notEqual(start, -1, `${selector} is gone from the stylesheet`);
+  return css.slice(start, css.indexOf("\n}", start));
+};
 
 describe("the gear replaces the two loose buttons", () => {
   it("is rendered once, from the header", () => {
@@ -61,8 +75,10 @@ describe("the gear replaces the two loose buttons", () => {
 
 describe("the panel behaves like the house dropdown", () => {
   it("is a non-modal dialog, dismissed by Escape or a click away", () => {
-    assert.match(code(panel), /role="dialog"/);
-    assert.match(code(panel), /aria-modal="false"/);
+    // The dialog semantics belong to the shared dropdown; the dismissal stays
+    // here, because each of the three callers dismisses on its own terms.
+    assert.match(code(dropdown), /role="dialog"/);
+    assert.match(code(dropdown), /aria-modal="false"/);
     assert.match(code(panel), /event\.key === "Escape"/);
     assert.match(code(panel), /pointerdown/);
   });
@@ -81,12 +97,32 @@ describe("the panel behaves like the house dropdown", () => {
   });
 
   it("layers through the ladder, never an inline z-index", () => {
-    assert.match(code(panel), /z-\[60\]/);
-    assert.doesNotMatch(code(panel), /zIndex/);
+    // 60 was the right number by coincidence: it equals --z-overlay, but a
+    // reviewer reading `z-[60]` in a class string cannot tell which rung that
+    // is, and layering.test.ts — which reads the stylesheet — could not see it
+    // at all. Named, it is checked by both.
+    assert.match(rule(".anchored-panel"), /z-index:\s*var\(--z-overlay\)/);
+    assert.doesNotMatch(code(panel), /zIndex|z-\[\d+\]/);
   });
 
   it("clamps to the viewport on a narrow screen", () => {
-    assert.match(code(panel), /w-\[min\(320px,calc\(100vw-28px\)\)\]/);
+    // The desk width is a number at the call site; the clamp is the rule's.
+    assert.match(code(panel), /width=\{320\}/);
+    assert.match(rule(".anchored-panel"), /width:\s*min\(var\(--panel-w[^;]*calc\(100vw - 28px\)\)/);
+  });
+
+  it("stays on screen once the utility row wraps", () => {
+    /**
+     * The defect the clamp above never covered. Width was bounded by the
+     * viewport in all three copies of this pattern and the inline *offset* in
+     * none of them, so below the wrap breakpoint a panel anchored to its
+     * trigger's right edge extended left from wherever that trigger had landed
+     * — off the screen, and then clipped by the row's own `overflow-x: clip`.
+     * The panel was the right size in the wrong place.
+     */
+    const wrapped = css.slice(css.indexOf("@media (max-width: 1024px)"));
+    assert.match(wrapped, /\.header-anchor \{\s*position:\s*static/);
+    assert.match(wrapped, /inset-inline:\s*var\(--shell-pad\)/);
   });
 
   it("clamps to the viewport on a *short* screen, and scrolls rather than clipping", () => {
@@ -94,11 +130,13 @@ describe("the panel behaves like the house dropdown", () => {
     // of the viewport cannot be reached at all: the page scrolls and the header
     // does not. Measured at 844x390, the System status row and its Open
     // reliability button sat 253px below the fold with no way to get to them.
-    assert.match(code(panel), /max-h-\[calc\(100svh-var\(--header-h,56px\)-20px\)\]/);
-    assert.match(code(panel), /overflow-y-auto/);
+    // Only this panel needs it, so the variant is opt-in per call site.
+    assert.match(code(panel), /scroll\b/);
+    assert.match(rule(".anchored-panel--scroll"), /max-height:\s*calc\(100svh/);
+    assert.match(rule(".anchored-panel--scroll"), /overflow-y:\s*auto/);
     // svh, not dvh — the same reasoning as the `body` min-height note: dvh
     // reflows the whole tree every time a mobile URL bar slides.
-    assert.doesNotMatch(code(panel), /100dvh/);
+    assert.doesNotMatch(rule(".anchored-panel--scroll"), /100dvh/);
   });
 
   it("keeps the fallback in the height clamp", () => {
@@ -106,7 +144,7 @@ describe("the panel behaves like the house dropdown", () => {
     // very first frame. Without the fallback the whole calc() is invalid then,
     // which drops max-height entirely — the failure would only show on the
     // first paint of a short screen.
-    assert.match(code(panel), /var\(--header-h,\s*56px\)/);
+    assert.match(rule(".anchored-panel--scroll"), /var\(--header-h,\s*56px\)/);
   });
 });
 

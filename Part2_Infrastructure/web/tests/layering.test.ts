@@ -48,6 +48,18 @@ const componentsDir = fileURLToPath(new URL("../components", import.meta.url));
 const declarations = css.replace(/\/\*[\s\S]*?\*\//g, (block) =>
   block.replace(/[^\n]/g, " "));
 
+/**
+ * A component's code with comment bodies removed.
+ *
+ * Same justification as `declarations` above, and the same trap: this file's
+ * scans look for `z-[60]` and `zIndex:`, which is exactly the vocabulary a
+ * comment recording *why* a value was retired has to use. AnchoredPanel's
+ * header quotes the old string it replaced, and without this the component that
+ * fixed the defect would be reported as committing it.
+ */
+const source = (file: string) =>
+  readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
+
 function tsxFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((entry) => {
     const full = join(dir, entry);
@@ -180,12 +192,41 @@ describe("every z-index is named or provably local", () => {
     // number is invisible to the stylesheet and to every reviewer reading it.
     const offenders: string[] = [];
     for (const file of tsxFiles(componentsDir)) {
-      const source = readFileSync(file, "utf8");
-      for (const match of source.matchAll(/zIndex:\s*("?\d+"?)/g)) {
+      for (const match of source(file).matchAll(/zIndex:\s*("?\d+"?)/g)) {
         offenders.push(`${file.slice(componentsDir.length + 1)} — zIndex: ${match[1]}`);
       }
     }
     assert.deepEqual(offenders, [], `inline stacking:\n  ${offenders.join("\n  ")}`);
+  });
+
+  it("no component claims a layer through a Tailwind arbitrary value", () => {
+    /**
+     * The blind spot that let three header panels ship on `z-[60]`.
+     *
+     * The scan above looks for the `zIndex:` style prop and the ladder scan
+     * looks in globals.css, so a utility class carrying the same number was
+     * invisible to both — and 60 is `--z-overlay`, meaning all three panels
+     * were on the ladder by coincidence rather than by reference. A reviewer
+     * reading the class string cannot tell which rung that is.
+     *
+     * The same LOCAL_MAX band as the stylesheet scan above, for the same
+     * reason: `z-[1]` on a pipeline node over its connector and `z-[2]` on the
+     * KPI deck over its decorative backdrop are paint order between siblings
+     * inside one component, not a claim on the page's stack.
+     */
+    const offenders: string[] = [];
+    for (const file of tsxFiles(componentsDir)) {
+      for (const match of source(file).matchAll(/\bz-\[(\d+)\]/g)) {
+        if (Number(match[1]) <= LOCAL_MAX) continue;
+        offenders.push(`${file.slice(componentsDir.length + 1)} — z-[${match[1]}]`);
+      }
+    }
+    assert.deepEqual(
+      offenders,
+      [],
+      "a bare number in a class string is not on the ladder even when it happens to equal a "
+        + `rung. Use a stylesheet rule with var(--z-*):\n  ${offenders.join("\n  ")}`,
+    );
   });
 });
 

@@ -26,6 +26,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Settings2 } from "lucide-react";
 
 import ComplexityToggle from "@/components/ComplexityToggle";
+import AnchoredPanel from "@/components/header/AnchoredPanel";
 import ThemeToggle from "@/components/ThemeToggle";
 
 interface QuickSettingsProps {
@@ -79,7 +80,7 @@ export default function QuickSettings({
   }, [open, close]);
 
   return (
-    <span ref={wrapper} className="relative inline-flex">
+    <span ref={wrapper} className="header-anchor">
       <button
         ref={trigger}
         type="button"
@@ -96,21 +97,17 @@ export default function QuickSettings({
       </button>
 
       {open && (
-        <div
+        /* `scroll` is not cosmetic here. This panel is absolutely positioned
+           inside a *sticky* header, so anything past the bottom of the viewport
+           cannot be scrolled to — the page scrolls, the header does not, and
+           the content is simply unreachable. Measured at 844x390 the System
+           status row and its Open reliability button sat 253px below the fold.
+           It is the only one of the three panels tall enough to need it. */
+        <AnchoredPanel
           id="quick-settings-panel"
-          role="dialog"
-          aria-modal="false"
-          aria-labelledby="quick-settings-title"
-          /* The height clamp is not cosmetic. This panel is absolutely
-             positioned inside a *sticky* header, so anything past the bottom of
-             the viewport cannot be scrolled to — the page scrolls, the header
-             does not, and the content is simply unreachable. Measured at
-             844x390 the System status row and its Open reliability button sat
-             253px below the fold. svh rather than dvh, per the note on `body`:
-             the small viewport is stable, while dvh reflows every time a mobile
-             URL bar slides. A browser without svh drops the declaration and
-             gets today's behaviour rather than a broken one. */
-          className="absolute right-0 top-[calc(100%+10px)] z-[60] max-h-[calc(100svh-var(--header-h,56px)-20px)] w-[min(320px,calc(100vw-28px))] overflow-y-auto rounded-card border border-border bg-surface-1 p-4 shadow-card"
+          labelledBy="quick-settings-title"
+          width={320}
+          scroll
         >
           <span className="page-kicker">Viewing preferences</span>
           <h3 id="quick-settings-title" className="mt-0.5 text-[15px]">
@@ -184,7 +181,7 @@ export default function QuickSettings({
               Open reliability
             </button>
           </div>
-        </div>
+        </AnchoredPanel>
       )}
     </span>
   );

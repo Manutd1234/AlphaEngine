@@ -6,10 +6,10 @@
  *
  * Signed out it is a link, not a gate: the desk behind it is fully browsable,
  * and this offers preferences that follow the account rather than the browser.
- * Signed in it opens the same anchored dropdown the kill switch uses
- * (`role="dialog" aria-modal="false"`, Escape or click-away to dismiss, focus
- * never trapped) — the house pattern for panels inside the header, which is a
- * containing block and cannot host fixed-position children.
+ * Signed in it opens `AnchoredPanel` — the shared header dropdown, which owns
+ * position, width and elevation for all three of these controls. Dismissal
+ * stays here: Escape or click-away, focus returned to the trigger, and the
+ * panel deliberately left open while signing out so the button can narrate.
  *
  * Four states, and the fourth matters: absent when this deployment has no
  * Supabase config, a skeleton while the session probe is still out, a plain
@@ -25,6 +25,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { UserRound } from "lucide-react";
 
+import AnchoredPanel from "@/components/header/AnchoredPanel";
 import { signOutUser, useSession } from "@/lib/use-session";
 import { flushPendingPrefs } from "@/lib/user-prefs";
 
@@ -113,7 +114,7 @@ export default function AccountChip({ onOpenPreferences }: { onOpenPreferences: 
   const initials = initialsFrom(null, session.email);
 
   return (
-    <span ref={wrapper} className="relative inline-flex">
+    <span ref={wrapper} className="header-anchor">
       <button
         ref={trigger}
         type="button"
@@ -137,13 +138,7 @@ export default function AccountChip({ onOpenPreferences }: { onOpenPreferences: 
       </button>
 
       {open && (
-        <div
-          id="account-panel"
-          role="dialog"
-          aria-modal="false"
-          aria-labelledby="account-panel-title"
-          className="absolute right-0 top-[calc(100%+10px)] z-[60] w-[min(280px,calc(100vw-28px))] rounded-card border border-border bg-surface-1 p-4 shadow-card"
-        >
+        <AnchoredPanel id="account-panel" labelledBy="account-panel-title" width={280}>
           <span className="page-kicker">Account</span>
           <h3 id="account-panel-title" className="mt-0.5 text-[13px] break-words">
             {label}
@@ -217,7 +212,7 @@ export default function AccountChip({ onOpenPreferences }: { onOpenPreferences: 
           >
             {signingOut ? "Signing out…" : "Log out"}
           </button>
-        </div>
+        </AnchoredPanel>
       )}
     </span>
   );

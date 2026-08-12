@@ -1670,6 +1670,40 @@ tbody tr[tabindex]:focus-visible {
   overflow-x: clip;
 }
 
+/* The header's three dropdowns — account, settings, kill switch. One rule,
+   because it used to be three identical Tailwind strings and they drifted in
+   the way copies always do: all three clamped their *width* to the viewport
+   and none clamped their *inline offset*, so a 280px panel hanging off a
+   trigger near the left gutter opened off the edge of the screen. See
+   AnchoredPanel.tsx for what the component owns and what it does not. */
+.header-anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.anchored-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  /* --z-overlay is what the three `z-[60]` literals meant. Written as a token
+     it is also visible to layering.test.ts, which scans this stylesheet and
+     could never see the inline utilities. */
+  z-index: var(--z-overlay);
+  width: min(var(--panel-w, 300px), calc(100vw - 28px));
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+}
+
+.anchored-panel--scroll {
+  /* svh rather than dvh, per the note on `body`: the small viewport is stable
+     while dvh reflows the tree every time a mobile URL bar slides. */
+  max-height: calc(100svh - var(--header-h, 56px) - 20px);
+  overflow-y: auto;
+}
+
 .brand-lockup {
   border: 0;
   background: transparent;
@@ -12315,6 +12349,32 @@ h4 {
 @media (max-width: 1024px) {
   .workspace-header__utility {
     flex-wrap: wrap;
+    /* The containing block the panels below switch to. Declared here rather
+       than unconditionally so desk width keeps anchoring panels to their own
+       trigger, which is correct when the trigger is where the eye already is. */
+    position: relative;
+  }
+
+  /* Once the row wraps, a trigger is no longer near the right edge — and a
+     panel anchored to its trigger's right edge extends left from wherever that
+     trigger landed, which below ~700px is off the screen entirely. The width
+     clamp never helped: the panel was the right size in the wrong place, and
+     `overflow-x: clip` on the row then ate whatever crossed the boundary.
+     Dropping the wrapper to `static` hands the panel's containing block to the
+     row, so it spans the row's own gutters and is on screen by construction
+     instead of by arithmetic about where the trigger happened to wrap to.
+     CSS anchor positioning with position-try-fallbacks: flip-inline is the
+     modern answer to this and would suit the progressive posture the
+     scroll-driven reveals already take, but it is Chromium-only, so it could
+     only ever layer on top of a fix that already stands without it. */
+  .header-anchor {
+    position: static;
+  }
+
+  .anchored-panel {
+    right: auto;
+    inset-inline: var(--shell-pad);
+    width: auto;
   }
 }
 
