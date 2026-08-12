@@ -358,7 +358,22 @@ export default function DataTrustOverview({
         </div>
       </section>
 
+      {/*
+        Static documentation, and the only block on this tab that is not a
+        reading of the running system: it states what the data plane implements
+        and where the production gap is. Worth having and worth having last —
+        collapsed, it returns ~210px of the Trust Summary to evidence, and its
+        summary line still says exactly what is inside.
+
+        Deliberately NOT collapsed: anything above it. A feed's freshness, a
+        provider's readiness and the validation window are readings, and hiding a
+        reading changes what a visitor believes about the desk.
+      */}
       <section className="card data-trust-boundaries" aria-labelledby="trust-boundaries-heading" hidden={!summary}>
+        <details className="disclosure">
+          <summary>
+            Assessment boundary — what is implemented, and where the production gap is
+          </summary>
         <div className="section-heading compact">
           <div>
             <span className="page-kicker">Assessment boundary</span>
@@ -386,6 +401,7 @@ export default function DataTrustOverview({
             </ul>
           </article>
         </div>
+        </details>
       </section>
     </div>
   );

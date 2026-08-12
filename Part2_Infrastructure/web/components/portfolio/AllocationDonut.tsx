@@ -193,12 +193,18 @@ export default function AllocationDonut({
         </span>
       </div>
 
-      <p className="research-note">
-        Sized by gross notional, so a long and a short of equal size read as two concentrations
-        rather than cancelling to nothing. Effective positions is the inverse Herfindahl index — it
-        falls below the position count whenever the book is unevenly weighted, and it says nothing
-        about whether those positions move together. The correlation matrix does.
-      </p>
+      {/* Method, not measurement. The caveat it carries — that this says nothing
+          about whether the positions move together — is load-bearing, so the
+          summary carries it rather than hiding it behind a neutral label. */}
+      <details className="disclosure">
+        <summary>How this is sized, and what it does not tell you</summary>
+        <p className="research-note">
+          Sized by gross notional, so a long and a short of equal size read as two concentrations
+          rather than cancelling to nothing. Effective positions is the inverse Herfindahl index — it
+          falls below the position count whenever the book is unevenly weighted, and it says nothing
+          about whether those positions move together. The correlation matrix does.
+        </p>
+      </details>
     </div>
   );
 }

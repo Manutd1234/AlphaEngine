@@ -175,13 +175,20 @@ export default function RiskWorkspace({
               <div><span>Largest share</span><strong className="num">{fmt(book.concentration.largest_share * 100, 1)}%</strong></div>
               <div><span>Effective positions</span><strong className="num">{fmt(book.concentration.effective_positions, 1)}</strong></div>
             </div>
-            <p className="research-note">
-              Effective positions is 1 ÷ the Herfindahl index of the book&apos;s weights — the number
-              of equally-sized positions that would carry this much concentration.{" "}
-              {positions.length} position{positions.length === 1 ? "" : "s"} behaving like{" "}
-              {fmt(book.concentration.effective_positions, 1)} is a statement about how much of the
-              book is really one bet.
-            </p>
+            {/* The derivation, not the number. Both figures above stay visible;
+                what collapses is the explanation of how one of them is computed,
+                which a reader needs once and not on every visit. The summary
+                states what is inside so the choice to open it is informed. */}
+            <details className="disclosure">
+              <summary>How effective positions is derived</summary>
+              <p className="research-note">
+                Effective positions is 1 ÷ the Herfindahl index of the book&apos;s weights — the
+                number of equally-sized positions that would carry this much concentration.{" "}
+                {positions.length} position{positions.length === 1 ? "" : "s"} behaving like{" "}
+                {fmt(book.concentration.effective_positions, 1)} is a statement about how much of
+                the book is really one bet.
+              </p>
+            </details>
           </div>
 
           {/* The book, compressed to what a limit decision needs. Full positions

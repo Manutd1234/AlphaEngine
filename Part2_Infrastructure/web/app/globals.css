@@ -13805,6 +13805,25 @@ button:active:not(:disabled) {
    feature that does not exist, which is the one thing the tier system must
    never communicate. */
 
+/* ---------- progressive disclosure ----------
+   One class for "this is worth reading, and not on first paint".
+
+   Two panels already had their own version of this — the quality score's
+   breakdown and the strategy doc's mechanics — and the pattern generalises
+   exactly: a summary that STATES WHAT IS INSIDE rather than saying "details",
+   so a reader can decide without opening it.
+
+   What goes in one: derivations, methodology, and static documentation of what
+   the system does. What must never go in one: a number, a status, or anything a
+   reader would be wrong not to have seen. The test is whether hiding it changes
+   what someone believes about the desk — a formula does not, a limit does. */
+.disclosure {
+  margin-top: var(--space-2);
+  border-top: 1px solid var(--grid);
+  padding-top: var(--space-1);
+}
+
+.disclosure > summary,
 .quality-disclosure > summary,
 .strategy-doc__mechanics > summary {
   cursor: pointer;
@@ -13813,8 +13832,10 @@ button:active:not(:disabled) {
   padding: var(--space-2) 0;
   list-style-position: inside;
 }
+.disclosure > summary:hover,
 .quality-disclosure > summary:hover,
 .strategy-doc__mechanics > summary:hover { color: var(--text-primary); }
+.disclosure[open] > summary,
 .quality-disclosure[open] > summary,
 .strategy-doc__mechanics[open] > summary { margin-bottom: 2px; }
 
