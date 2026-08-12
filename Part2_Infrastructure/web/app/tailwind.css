@@ -33,9 +33,10 @@
  *    would desynchronise from the ThemeToggle.
  *  - Rare unbridged token: use the var shorthand, e.g. bg-(--diverging-mid).
  *  - Raw hex needs a comment. Sanctioned: #b3242e destructive red (contrast
- *    rationale beside .handoff-fire in globals.css) and the hero pipeline's
- *    fixed dark-step status map (the hero background is theme-invariant
- *    near-black graphite).
+ *    rationale beside .handoff-fire in globals.css), the hero pipeline's fixed
+ *    dark-step status map (the hero background is theme-invariant soft zinc,
+ *    #18181B), and the Telegram brand blues #229ED9/#0088cc in TelegramCta
+ *    (a brand mark on a theme-invariant tile; the white glyph carries 3.89:1).
  */
 
 @layer theme, base, components, utilities;

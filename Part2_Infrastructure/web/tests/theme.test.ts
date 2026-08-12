@@ -220,3 +220,107 @@ describe("the console never renders a fill-step status colour as text", () => {
     );
   });
 });
+
+// --------------------------------------------------------------------------
+// The fixed planes
+// --------------------------------------------------------------------------
+
+/**
+ * The hero and the log console are theme-invariant surfaces: they hold their
+ * own dark palette in light mode as well as dark, which is why their tokens
+ * live in `:root` alone and never appear in either dark block. That also meant
+ * nothing above checked them — the contrast contract covered the roles that
+ * flip with the theme and silently skipped the two planes that cannot.
+ *
+ * These assertions close that gap. They are the reason the planes could be
+ * lifted off near-black at all: every ratio below was recomputed against the
+ * new values rather than assumed to have survived.
+ */
+const HERO_PLANE = "#18181B";
+
+/** Every token the hero renders as text or as a status word. */
+const HERO_INK: Record<string, string> = {
+  "--hero-text": "#f4f4f5",
+  "--hero-text-dim": "#a9b0bd",
+  "--hero-accent": "#9ec9fb",
+  "--hero-accent-2": "#82b6f7",
+  "--hero-muted": "#8f939c",
+  "--hero-info": "#86adf5",
+  "--hero-good": "#35c48f",
+  "--hero-warn": "#e8ab3d",
+  "--hero-critical": "#f0737c",
+};
+
+describe("the command-centre hero is legible on its own plane", () => {
+  const root = tokensIn(blockAfter(":root {"));
+
+  it("declares the plane the ratios below are measured against", () => {
+    assert.equal(
+      root.get("--hero-plane"),
+      HERO_PLANE,
+      "--hero-plane moved in the stylesheet without this test being updated",
+    );
+  });
+
+  for (const [token, expected] of Object.entries(HERO_INK)) {
+    it(`${token} still matches the stylesheet and clears AA on the plane`, () => {
+      assert.equal(root.get(token), expected, `${token} changed without re-checking its contrast`);
+      const ratio = contrast(expected, HERO_PLANE);
+      assert.ok(
+        ratio >= AA_NORMAL,
+        `${token} is ${ratio.toFixed(2)}:1 on ${HERO_PLANE}, below ${AA_NORMAL}`,
+      );
+    });
+  }
+
+  it("stays out of both dark blocks, since it does not flip with the theme", () => {
+    // A hero token declared in a dark block would take the light value for
+    // anyone who has pressed the toggle — the failure the plane comment warns
+    // about, and the reason these live in :root alone.
+    for (const marker of ['@media (prefers-color-scheme: dark)', ':root[data-theme="dark"]']) {
+      const block = tokensIn(blockAfter(marker));
+      for (const token of ["--hero-plane", ...Object.keys(HERO_INK)]) {
+        assert.equal(block.has(token), false, `${token} must not be redeclared in ${marker}`);
+      }
+    }
+  });
+});
+
+describe("the log console is legible on its own plane", () => {
+  const plane = "#16161c";
+  /** Level colours and body ink, from the .console-log family. */
+  const ink: Record<string, string> = {
+    message: "#d4d4d8",
+    fields: "#8a8a94",
+    debug: "#85858f",
+    info: "#5a9ceb",
+    warn: "#e8ab3d",
+    error: "#f0737c",
+    source: "#35c48f",
+  };
+
+  it("paints the plane the ratios below assume", () => {
+    // Anchored to the line start: `.workspace-subtab-panel .console-log {`
+    // appears earlier in the sheet and carries only sizing.
+    const rule = css.slice(css.indexOf("\n.console-log {"));
+    assert.match(rule.slice(0, 900), new RegExp(`background:\\s*${plane};`));
+  });
+
+  for (const [role, hex] of Object.entries(ink)) {
+    it(`${role} clears AA on the console plane`, () => {
+      const ratio = contrast(hex, plane);
+      assert.ok(ratio >= AA_NORMAL, `${role} is ${ratio.toFixed(2)}:1 on ${plane}`);
+    });
+  }
+
+  it("the origin chip's own text clears AA on the chip, not just on the plane", () => {
+    // The chip sits a step above the plane, so the plane's ratio flatters it.
+    const ratio = contrast("#9a9aa4", "#24242b");
+    assert.ok(ratio >= AA_NORMAL, `origin text is ${ratio.toFixed(2)}:1 on its chip`);
+  });
+
+  it("the other terminal block shares the plane rather than inventing one", () => {
+    const rule = css.slice(css.indexOf(".handoff-request {"));
+    assert.match(rule.slice(0, 500), new RegExp(`background:\\s*${plane};`));
+  });
+});

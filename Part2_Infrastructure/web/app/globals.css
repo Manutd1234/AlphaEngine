@@ -158,25 +158,31 @@
 
   /* -------------------------------------------------------------------------
      The command-centre hero.
-     It is near-black graphite in BOTH themes — a deliberate fixed surface, not
-     a bug, so these do not appear in either dark block below. They are named
-     here because the same five values were otherwise repeated as bare hexes
-     across the hero's CSS and inside `DecisionLoopPipeline`'s Tailwind classes,
-     where nothing marked them as belonging to one surface and a theme sweep
-     would "fix" them into illegibility. Contrast is against --hero-plane, not
-     against --surface-1. The plane sits below dark --surface-1 so the hero
-     still reads as its own plane in dark mode.
+     It is soft zinc in BOTH themes — a deliberate fixed surface, not a bug, so
+     these do not appear in either dark block below. They are named here because
+     the same five values were otherwise repeated as bare hexes across the
+     hero's CSS and inside `DecisionLoopPipeline`'s Tailwind classes, where
+     nothing marked them as belonging to one surface and a theme sweep would
+     "fix" them into illegibility. Contrast is against --hero-plane, not against
+     --surface-1.
+     The plane was #101014, which read as near-black on a bright screen and made
+     the command centre a hole in the page rather than a panel on it. #18181B is
+     the same zinc family one step up — deliberately NOT a blue slate like
+     #0F172A, which would fight the blue accent ramp below and the brand mark.
+     It now sits just above dark --surface-1 (#131316) rather than below it, so
+     in dark mode the hero is separated from the cards by its hairline border
+     and shadow rather than by being darker than everything else.
      ------------------------------------------------------------------------- */
-  --hero-plane: #101014;
-  --hero-text: #f4f4f5;      /* 17.3:1 on --hero-plane */
-  --hero-text-dim: #a9b0bd;  /*  8.7:1 — supporting copy   */
-  --hero-accent: #9ec9fb;    /* 11.0:1 — kickers, labels   */
-  --hero-accent-2: #82b6f7;  /*  9.0:1 — flow connectors, on the accent ramp */
-  --hero-muted: #8f939c;     /*  6.2:1 — idle state        */
+  --hero-plane: #18181B;
+  --hero-text: #f4f4f5;      /* 16.1:1 on --hero-plane */
+  --hero-text-dim: #a9b0bd;  /*  8.1:1 — supporting copy   */
+  --hero-accent: #9ec9fb;    /* 10.3:1 — kickers, labels   */
+  --hero-accent-2: #82b6f7;  /*  8.4:1 — flow connectors, on the accent ramp */
+  --hero-muted: #8f939c;     /*  5.8:1 — idle state        */
   /* The status steps, in their DARK values, because the hero is a dark surface
      whatever the theme is. They deliberately equal --status-* from the dark
      blocks rather than referencing them: reading a token that flips with the
-     theme would give this surface the light steps, which fail on near-black. */
+     theme would give this surface the light steps, which fail on a dark plane. */
   --hero-info: #86adf5;
   --hero-good: #35c48f;
   --hero-warn: #e8ab3d;
@@ -4118,25 +4124,31 @@ button.console-stat:hover:not(:disabled) {
 
 /* The dark plane. Tokens are redefined on the container rather than colours
    being hard-coded, so nested primitives resolve correctly; `color-scheme`
-   is what keeps the OS scrollbar from rendering light over it. */
+   is what keeps the OS scrollbar from rendering light over it.
+   The plane was #0a0a0b — the same value as dark --surface-0, which made the
+   log a void rather than an inset panel and drove the contrast between the
+   text and its own background past anything the type needed. Everything here
+   moved up one step together, so the row washes, the origin chips and the
+   selected-row tint keep the separation they were designed with. Debug grey
+   is the tightest at 4.93:1 and still clears AA. */
 .console-log {
   color-scheme: dark;
 
-  --surface-1: #131316;
-  --surface-2: #1a1a1f;
-  --surface-3: #222228;
+  --surface-1: #1f1f25;
+  --surface-2: #24242b;
+  --surface-3: #2e2e35;
   --text-primary: #f4f4f5;
   --text-secondary: #b1b1b9;
   --text-muted: #8a8a94;
-  --border: #26262b;
-  --grid: #202025;
+  --border: #34343c;
+  --grid: #2a2a31;
 
   max-height: 340px;
   overflow: auto;
   padding: 10px 12px;
-  border: 1px solid #26262b;
+  border: 1px solid #34343c;
   border-radius: 10px;
-  background: #0a0a0b;
+  background: #16161c;
   color: #d4d4d8;
   font-family: var(--mono);
   font-size: 10.5px;
@@ -4190,8 +4202,11 @@ button.console-stat:hover:not(:disabled) {
   flex: 0 0 auto;
   padding: 0 4px;
   border-radius: 4px;
-  background: #1a1a1f;
-  color: #8a8a94;
+  background: #24242b;
+  /* Lifted with the chip beneath it. The old #8a8a94 lands at 4.51:1 on the
+     new background — passing on paper, and too close to the line for 9.5px
+     mono. #9a9aa4 restores 5.5:1. */
+  color: #9a9aa4;
   font-size: 9.5px;
 }
 
@@ -5366,9 +5381,11 @@ button.console-stat:hover:not(:disabled) {
   color-scheme: dark;
   margin: 10px 0;
   padding: 12px;
-  border: 1px solid #26262b;
+  /* Same plane as .console-log — this is the other terminal block in the app,
+     and the two should not read as different surfaces. */
+  border: 1px solid #34343c;
   border-radius: 9px;
-  background: #0a0a0b;
+  background: #16161c;
   color: #d4d4d8;
   font-family: var(--mono);
   font-size: 11px;
