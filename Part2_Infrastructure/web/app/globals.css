@@ -11113,7 +11113,10 @@ button.data-trust-action > i {
      outside this box, so y=0 in here is already below it. */
   scroll-padding-top: calc(var(--rail-h) + var(--space-3));
   margin: 0 auto;
-  padding: var(--space-4) var(--shell-pad) var(--space-6);
+  /* The bottom gutter was --space-6 to keep the last card clear of a document
+     edge that scrolled. Inside a bounded scroller the panel already ends where
+     the box ends, so 28px of it was buying nothing. */
+  padding: var(--space-4) var(--shell-pad) var(--space-4);
   /* After the shorthand, not before it: viewport-fit: cover hands the app the
      notch, so the gutters have to pay for it in landscape. max() keeps the
      desk padding wherever there is no inset to clear. */
@@ -11134,22 +11137,32 @@ button.data-trust-action > i {
   display: block;
 }
 
+/* The Data and Developer consoles stack eight and six blocks respectively, so
+   this one margin is multiplied more than any other rule in the file — 12px
+   became ~90px of pure separation on Data alone. 8px still separates them. */
 .data-control-plane > * + *,
 .developer-control-plane > * + * {
-  margin-top: var(--space-3);
+  margin-top: var(--space-2);
 }
 
 /* ---------- the shared page head ---------- */
 
+/* Every tab pays for this head, so its margins are worth 8px each rather than
+   12. Measured on the three tabs that overflowed a locked 900px viewport, the
+   repeated chrome inside a panel — this head, the rail, the next-step footer and
+   the panel's own sibling margins — came to about 200px before any content;
+   trimming it is what buys a section back. The row gap comes down with it. The
+   column gap does not: it separates the heading from its context block and at
+   8px they read as one column when the row wraps. */
 .page-heading {
   min-height: 0;
-  margin-bottom: var(--space-3);
-  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: var(--space-3) var(--space-5);
+  gap: var(--space-2) var(--space-5);
   flex-wrap: wrap;
 }
 
@@ -11844,7 +11857,7 @@ button.page-insight:hover:not(:disabled) {
   top: -1px;
   z-index: var(--z-rail);
   min-height: var(--chrome-rail);
-  margin: 0 0 var(--space-4);
+  margin: 0 0 var(--space-3);
   padding: 0;
   border: 0;
   border-bottom: 1px solid var(--border);
@@ -12045,10 +12058,13 @@ button.page-insight:hover:not(:disabled) {
 
 /* Was a full card with a 32px top margin, a 16/24 pad and three stacked lines —
    about 170px of chrome repeated on all eight tabs to carry one link. */
+/* The footer is one line of text and a button, and it was charging 90px for it:
+   20px of margin above, 20px of padding around, 48px of content. The content is
+   untouched — this is the surround. */
 .next-step-footer {
-  margin-top: var(--space-5);
+  margin-top: var(--space-3);
   margin-bottom: 0;
-  padding: 10px var(--space-4);
+  padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--series-1) 4%, var(--surface-1));
   border-color: color-mix(in srgb, var(--series-1) 22%, var(--border));
