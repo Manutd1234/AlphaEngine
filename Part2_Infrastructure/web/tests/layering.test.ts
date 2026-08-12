@@ -274,15 +274,27 @@ describe("sticky offsets come from the measured chrome, not a literal", () => {
   });
 
   it("the rail docks against that measurement", () => {
-    // `.workspace-subtabs` is declared twice — the base look early in the file
-    // and the sticky behaviour in the standardisation layer at the end. Find
-    // the block that actually pins it rather than whichever comes first.
+    /**
+     * The measurement moved rather than went away. The shell is the page's
+     * scroller now and its own height is `calc(100svh - var(--header-h))`, so
+     * the rail — sticky *inside* that shell — must not read `--header-h` a
+     * second time: its scrollport already begins below the header, and
+     * measuring it again would park the rail a full header's height down inside
+     * its own panel. shell-viewport.test.ts owns that pairing; what belongs
+     * here is that the rail still sits on the ladder and still docks against a
+     * measured box rather than a hand-counted page offset.
+     */
     const blocks = [...declarations.matchAll(/\n\.workspace-subtabs \{/g)]
       .map((match) => declarations.slice(match.index, css.indexOf("\n}", match.index)));
     const sticky = blocks.find((block) => /position:\s*sticky/.test(block));
     assert.ok(sticky, "no .workspace-subtabs rule makes the rail sticky any more");
-    assert.match(sticky, /top:\s*calc\(var\(--header-h\)/);
     assert.match(sticky, /z-index:\s*var\(--z-rail\)/);
+
+    const shell = [...declarations.matchAll(/\n\.workspace-shell \{/g)]
+      .map((match) => declarations.slice(match.index, css.indexOf("\n}", match.index)))
+      .find((block) => /overflow-y:\s*auto/.test(block));
+    assert.ok(shell, "the shell no longer scrolls, so nothing measures the header");
+    assert.match(shell, /calc\(100svh - var\(--header-h\)\)/);
   });
 });
 
@@ -332,13 +344,21 @@ describe("panels measure the container they are in", () => {
   });
 
   it("scroll targets clear the measured chrome", () => {
+    /**
+     * `--rail-h`, not `--chrome-total`, since the lock: the shell is the scroll
+     * container and y=0 inside it already sits below the header, so the rail is
+     * the only chrome still painted over arriving content. Both halves stay —
+     * `scroll-padding` on the container covers linked targets, `scroll-margin`
+     * on the targets covers anything merely focused, which is the case
+     * `openReliabilitySection` in page.tsx depends on.
+     */
     assert.match(
       declarations,
-      /scroll-padding-top:\s*calc\(var\(--chrome-total\)/,
-      "the scroll root no longer offsets for the sticky header and rail, so every anchor "
-        + "jump and programmatic focus lands underneath them",
+      /scroll-padding-top:\s*calc\(var\(--rail-h\)/,
+      "the scroll root no longer offsets for the sticky rail, so every anchor jump and "
+        + "programmatic focus lands underneath it",
     );
-    assert.match(declarations, /scroll-margin-top:\s*calc\(var\(--chrome-total\)/);
+    assert.match(declarations, /scroll-margin-top:\s*calc\(var\(--rail-h\)/);
   });
 
   it("every content-visibility target carries a size hint", () => {

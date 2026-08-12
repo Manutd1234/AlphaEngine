@@ -177,6 +177,16 @@ export default function Page() {
   const activeRun = useRef<AbortController | null>(null);
   const runSeq = useRef(0);
   const researchContentRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * The shell, which is the page's scroll container.
+   *
+   * The desk is viewport-locked, so `window.scrollTo` has nothing left to move:
+   * the document is exactly one viewport tall and every tab's content scrolls
+   * inside this element. A tab switch that still reset the window would appear
+   * to work — no error, no warning — while leaving the new tab parked halfway
+   * down wherever the last one had been read to.
+   */
+  const shellRef = useRef<HTMLElement | null>(null);
   // Auto-run state. `autoRun` is the user's switch; `autoSuspended` is the
   // reason we turned it off for them, shown once and cleared when they turn it
   // back on. Hydrated from localStorage in an effect, never during render.
@@ -269,7 +279,7 @@ export default function Page() {
       // snapshot.
       document.startViewTransition(() => {
         flushSync(apply);
-        window.scrollTo({ top: 0, behavior: "auto" });
+        shellRef.current?.scrollTo({ top: 0, behavior: "auto" });
       });
     } else {
       apply();
@@ -278,7 +288,7 @@ export default function Page() {
       // happens when the scroll position carries over from a long surface like
       // the blotter — hides the page heading and the section rail, so the tab
       // reads as broken until you scroll up. Reset to the top of the workspace.
-      window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
+      shellRef.current?.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
     }
   }, []);
 
@@ -1120,7 +1130,7 @@ export default function Page() {
         stops={tourStops}
       />
 
-      <main id="workspace-content" className="workspace-shell" tabIndex={-1}>
+      <main id="workspace-content" ref={shellRef} className="workspace-shell" tabIndex={-1}>
         {view === "overview" && (
           <section id="panel-overview" role="tabpanel" aria-labelledby="tab-overview" className="view-panel">
             <WorkspaceOverview

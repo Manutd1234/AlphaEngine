@@ -435,11 +435,20 @@ body {
 }
 
 body {
-  min-height: 100vh;
-  /* svh, not dvh: the small viewport is stable, while dvh reflows the whole
+  /* The desk is viewport-constrained: the page does not scroll, the active
+     panel does. `height` rather than `min-height` is the whole lock — the
+     document is exactly one viewport tall, so the only scrollbar on screen
+     belongs to the panel you are reading.
+     svh, not dvh: the small viewport is stable, while dvh reflows the whole
      tree every time the mobile URL bar slides. vh first so a browser without
-     the unit keeps the old behaviour rather than losing the floor. */
-  min-height: 100svh;
+     the unit keeps a viewport-sized floor rather than losing it. */
+  height: 100vh;
+  height: 100svh;
+  /* Belt to the braces above. The header and the shell already sum to exactly
+     one viewport, so nothing should reach this — but if anything ever does, a
+     clipped overflow is a visible bug, while a second scrollbar on the document
+     silently restores the behaviour this lock exists to remove. */
+  overflow: hidden;
 }
 
 ::selection {
@@ -11081,8 +11090,28 @@ button.data-trust-action > i {
 
 .workspace-shell {
   width: min(1680px, 100%);
-  min-height: calc(100vh - var(--header-h));
-  min-height: calc(100svh - var(--header-h));
+  /* The one scroller on the page. `height`, not `min-height`: the shell fills
+     exactly what the header leaves and the panel inside it scrolls, which is
+     what keeps the header and the section rail on screen structurally rather
+     than by two sticky offsets racing the document. --header-h is measured by a
+     ResizeObserver, so the wrapped 148px header is handled without a
+     breakpoint. */
+  height: calc(100vh - var(--header-h));
+  height: calc(100svh - var(--header-h));
+  overflow-y: auto;
+  /* Horizontal stays clipped for the same reason the document's is: every wide
+     surface in here carries its own scroller, so a horizontal scrollbar at this
+     level is always a bug. `clip` pairs with `auto` on the other axis; the
+     rail's bleed band reaches exactly the padding edge and so survives it. */
+  overflow-x: clip;
+  /* A scroll that reaches the end of this panel must not then start scrolling
+     the document behind it — with the body locked there is nothing to scroll,
+     but the chaining still shows as a rubber-band on the whole page. */
+  overscroll-behavior: contain;
+  /* This element is the scroll root for content now, so the anchor offset lives
+     here rather than on `html`. Only the rail needs clearing: the header is
+     outside this box, so y=0 in here is already below it. */
+  scroll-padding-top: calc(var(--rail-h) + var(--space-3));
   margin: 0 auto;
   padding: var(--space-4) var(--shell-pad) var(--space-6);
   /* After the shorthand, not before it: viewport-fit: cover hands the app the
@@ -11769,15 +11798,18 @@ button.page-insight:hover:not(:disabled) {
 
    `scroll-padding-top` on the scroll root covers the elements not listed here;
    `scroll-margin-top` covers the ones that are, including anything focused
-   rather than linked, which `scroll-padding` alone does not reach. */
-html {
-  scroll-padding-top: calc(var(--chrome-total) + var(--space-3));
-}
+   rather than linked, which `scroll-padding` alone does not reach.
 
+   Both offsets now clear the rail alone rather than `--chrome-total`. The shell
+   is the scroll container, so y=0 inside it is already below the header — only
+   the rail, which is sticky *within* the shell, still paints over arriving
+   content. Kept as an offset on the targets as well as the container because a
+   programmatic `.focus()` reaches scroll-margin and not scroll-padding, which
+   is the case `openReliabilitySection` depends on. */
 .workspace-shell :is(h1, h2, h3, [id]),
 .workspace-subtab-panel,
 .card {
-  scroll-margin-top: calc(var(--chrome-total) + var(--space-3));
+  scroll-margin-top: calc(var(--rail-h) + var(--space-3));
 }
 
 /* ---------- long surfaces skip off-screen layout ----------
@@ -11801,7 +11833,15 @@ html {
 
 .workspace-subtabs {
   position: sticky;
-  top: calc(var(--header-h) - 1px);
+  /* Was `calc(var(--header-h) - 1px)`, when this rail was sticky against the
+     document and had to clear a header painted over it. The shell is the
+     scroller now and its top edge already sits below the header, so the header
+     is no longer in this rail's scroll flow — measuring it here a second time
+     would park the rail a full header's height down inside its own panel. The
+     measurement did not disappear, it moved into the shell's height, which is
+     what `shell-viewport.test.ts` pins. -1px, not 0, so the rail's top edge
+     overlaps the scrollport and no seam shows between them. */
+  top: -1px;
   z-index: var(--z-rail);
   min-height: var(--chrome-rail);
   margin: 0 0 var(--space-4);
