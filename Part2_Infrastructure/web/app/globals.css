@@ -1820,15 +1820,24 @@ tbody tr[tabindex]:focus-visible {
   border-color: color-mix(in srgb, var(--status-warning) 42%, var(--border));
 }
 
-/* A feed that is actually arriving says so. Decoration over a glyph and a label
-   that already carry the state, and clamped by the single reduce block. */
+/* A feed that is actually arriving says so, in the SAME visual language as the
+   work board's live dot: an expanding ring, not a second invented effect. This
+   badge shipped with its own `tier-pulse` opacity fade, which meant the desk had
+   two animations for one meaning; the ring came first and reads better, so this
+   adopts it and that keyframe is gone. Decoration over a glyph and a label that
+   already carry the state, and clamped by the single reduce block. */
 .data-tier__dot.is-live {
-  animation: tier-pulse 2.4s var(--ease) infinite;
+  position: relative;
 }
 
-@keyframes tier-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
+.data-tier__dot.is-live::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  opacity: 0;
+  animation: live-pulse 2400ms var(--ease-out) infinite;
 }
 
 /* Measured, not guessed, and the measurement was a surprise: adding this chip
@@ -3461,7 +3470,12 @@ a.text-action {
  * only need the headline get this instead of a copy. It is visibly a summary —
  * dashed edge, muted heading — so nobody mistakes it for the real panel.
  */
+/* An interactive card — it links into another tab — so it answers the pointer.
+   It had no hover state at all, which made a whole clickable card the only
+   surface on the desk that gave no sign it could be clicked. */
 .cross-link-tile {
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
   border-style: dashed;
   background: color-mix(in srgb, var(--series-1) 3%, var(--surface-1));
 }
@@ -8098,10 +8112,13 @@ button.data-trust-action > i {
   border: 1px solid currentColor;
   border-radius: 50%;
   opacity: 0;
-  animation: wq-live-pulse 2400ms var(--ease-out) infinite;
+  animation: live-pulse 2400ms var(--ease-out) infinite;
 }
 
-@keyframes wq-live-pulse {
+/* Shared by the work board's live dot and the header's data-source badge. Named
+   for what it means rather than where it was first used, since it now has two
+   callers and a third would otherwise invent a third name. */
+@keyframes live-pulse {
   0% { transform: scale(0.55); opacity: 0.8; }
   60%, 100% { transform: scale(1.6); opacity: 0; }
 }
@@ -13126,7 +13143,14 @@ h4 {
     transform var(--dur-fast) var(--ease);
 }
 
-.signal-workflow__node:hover:not(:disabled) {
+/* The house lift, in one place with every surface that takes it.
+   `.data-work-card` declares the same three properties a few thousand lines up
+   and cannot join this list, because it sets three named border sides rather
+   than the shorthand — its left border is a priority accent that a shorthand
+   would wash out. The values are identical on purpose and the comment there says
+   so; a fourth copy is what this consolidation exists to prevent. */
+.signal-workflow__node:hover:not(:disabled),
+.cross-link-tile:hover {
   border-color: color-mix(in srgb, var(--series-1) 45%, var(--border));
   box-shadow: 0 8px 18px -14px color-mix(in srgb, var(--series-1) 70%, transparent);
   transform: translateY(-1px);

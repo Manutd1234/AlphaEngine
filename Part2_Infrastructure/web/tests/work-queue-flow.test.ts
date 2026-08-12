@@ -193,14 +193,20 @@ describe("the live badge is decoration over a word, never colour alone", () => {
   it("loops a halo rather than the dot itself", () => {
     // The dot stays put; only the ring animates, which is what survives the
     // reduced-motion clamp as a plain static dot.
-    assert.match(rule(".data-work-live i::after"), /animation:\s*wq-live-pulse/);
-    assert.match(css, /@keyframes wq-live-pulse/);
+    //
+    // `live-pulse`, not `wq-live-pulse`: the header's data-source badge now shows
+    // the same ring for the same meaning, and the keyframe is named for what it
+    // means rather than where it was first used. Two names for one animation was
+    // how the desk briefly had two visual languages for "this feed is live".
+    assert.match(rule(".data-work-live i::after"), /animation:\s*live-pulse/);
+    assert.match(css, /@keyframes live-pulse/);
+    assert.doesNotMatch(css, /@keyframes tier-pulse/, "the duplicate fade is gone");
   });
 
   it("rests at the same state the clamp forces it to", () => {
     // Reduced motion pins one 1ms iteration; the final frame must therefore be
     // the resting appearance, or the badge would freeze mid-pulse.
-    const frames = css.slice(css.indexOf("@keyframes wq-live-pulse"));
+    const frames = css.slice(css.indexOf("@keyframes live-pulse"));
     assert.match(frames.slice(0, 200), /60%,\s*100% \{[^}]*opacity:\s*0;/);
   });
 
