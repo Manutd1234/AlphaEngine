@@ -51,12 +51,17 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           # Pinned, not left to the script's default. The deployment answers on
-          # two aliases and the probe's built-in fallback names the other one —
-          # so this job was quietly measuring a host that no auth allow-list,
-          # OG tag or edge-function CORS entry knows about. The script's own
-          # header asks for a stale default to fail loudly; naming the host here
-          # is how it stops being a default at all.
-          E2E_VERCEL_URL: https://developer-analyst-infra.vercel.app
+          # two aliases and this is the canonical one: it is the Supabase Site
+          # URL, it heads the auth redirect allow-list, and it is the host the
+          # desk is actually shared as.
+          #
+          # This pin previously named the *other* alias. That was correct when
+          # it was written — that host was the one the OG tags and the edge
+          # function's CORS list knew — and it stopped being correct without
+          # anything failing, so the twice-daily smoke spent its runs measuring
+          # a URL nobody opens. Both aliases are live and both are allow-listed;
+          # what changed is which one is the address.
+          E2E_VERCEL_URL: https://alphaengine-workspace.vercel.app
         run: python tools/e2e_smoke.py --full
 
       # Written to the run summary so a failure is legible from the Actions
@@ -68,12 +73,17 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           # Pinned, not left to the script's default. The deployment answers on
-          # two aliases and the probe's built-in fallback names the other one —
-          # so this job was quietly measuring a host that no auth allow-list,
-          # OG tag or edge-function CORS entry knows about. The script's own
-          # header asks for a stale default to fail loudly; naming the host here
-          # is how it stops being a default at all.
-          E2E_VERCEL_URL: https://developer-analyst-infra.vercel.app
+          # two aliases and this is the canonical one: it is the Supabase Site
+          # URL, it heads the auth redirect allow-list, and it is the host the
+          # desk is actually shared as.
+          #
+          # This pin previously named the *other* alias. That was correct when
+          # it was written — that host was the one the OG tags and the edge
+          # function's CORS list knew — and it stopped being correct without
+          # anything failing, so the twice-daily smoke spent its runs measuring
+          # a URL nobody opens. Both aliases are live and both are allow-listed;
+          # what changed is which one is the address.
+          E2E_VERCEL_URL: https://alphaengine-workspace.vercel.app
         run: |
           {
             echo '```'

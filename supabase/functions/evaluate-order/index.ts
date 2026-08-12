@@ -41,9 +41,16 @@
 // from the edge before this code runs, and the caller cannot tell "not signed
 // in" from "function is down".
 
+// Both production aliases, because both are live and both answer. Naming only
+// one is how this list went stale: the deployment picked up a second address,
+// nothing here failed, and a browser call from the new host would simply have
+// been blocked with no clue as to why. localhost:3100 is here because :3000 is
+// often already taken on a developer machine.
 const ALLOWED_ORIGINS = new Set([
+  "https://alphaengine-workspace.vercel.app",
   "https://developer-analyst-infra.vercel.app",
   "http://localhost:3000",
+  "http://localhost:3100",
 ]);
 
 function corsHeaders(origin: string | null): Record<string, string> {

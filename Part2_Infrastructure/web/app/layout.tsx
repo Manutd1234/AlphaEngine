@@ -30,7 +30,7 @@ const DESCRIPTION =
   "An educational case-study demonstration of quant trading infrastructure, built for a "
   + "developer assessment. Not a brokerage or investment service: it opens no brokerage accounts, "
   + "holds no funds and sends no real orders, and its optional sign-in stores workspace "
-  + "preferences only. A connected workspace for "
+  + "preferences, a display name and an avatar — nothing else. A connected workspace for "
   + "quant researchers, traders, portfolio managers, risk managers, developers, data engineers "
   + "and SREs — from strategy evidence to paper execution, risk validation and data lineage.";
 
@@ -47,7 +47,7 @@ const SITE_URL =
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
     : undefined)
   ?? (process.env.NODE_ENV === "production"
-    ? "https://developer-analyst-infra.vercel.app"
+    ? "https://alphaengine-workspace.vercel.app"
     : "http://localhost:3000");
 
 export const metadata: Metadata = {

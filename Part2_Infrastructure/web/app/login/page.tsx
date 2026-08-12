@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import LoginScreen from "@/components/auth/LoginScreen";
 
 /**
- * The one route outside the workspace shell.
+ * One of the two routes outside the workspace shell; `/profile` is the other.
  *
  * A server component so it can carry its own metadata — noindex in particular:
  * a sign-in form is not a landing page, and the workspace it belongs to is the

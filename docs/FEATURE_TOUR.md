@@ -7,7 +7,7 @@ Developer** — because that is the order a desk makes decisions in, and the wor
 that loop made navigable.
 
 **Live URLs.**
-- Portal: <https://developer-analyst-infra.vercel.app>
+- Portal: <https://alphaengine-workspace.vercel.app> (also answers on `developer-analyst-infra.vercel.app`)
 - Gateway (OCI, Singapore): `http://149.118.48.255:8000` — `GET /health` answers keyless.
 - Local: `cd Part2_Infrastructure/web && npm run dev:all` starts both (gateway on `:8000`,
   portal on `:3000`).
@@ -28,6 +28,9 @@ question a visitor asks.
 
 Signing in is orthogonal to every tier below: it stores workspace preferences
 against an account and gates nothing. Each tier reads the same signed out.
+`/profile` manages that account — display name, avatar, linked sign-in methods,
+active sessions and password — and grants no capability the desk does not
+already give an anonymous visitor.
 
 | Tier | What you get | Needs |
 |---|---|---|

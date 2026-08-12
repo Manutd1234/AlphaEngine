@@ -120,7 +120,8 @@ Each with its negation, because a list of omissions without reasons reads as a b
 - **No locked content.** Gating capability behind usage is the navigation fork the
   complexity-tier system exists to prohibit; everything is reachable on first load. The
   sign-in at `/login` is not an exception: it is optional, gates nothing, and the whole
-  desk stays browsable without an account.
+  desk stays browsable without an account. Nor is `/profile` — it manages the account
+  itself, and unlocks no desk capability.
 - **No seven new family colour tokens.** The theme test pins the dark-theme token blocks
   byte-for-byte; family identity comes from a monogram glyph, the printed name, and a
   `color-mix` accent derived from existing series tokens.
