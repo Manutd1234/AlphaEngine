@@ -50,6 +50,13 @@ jobs:
           WEB_API_TOKEN: ${{ secrets.WEB_API_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          # Pinned, not left to the script's default. The deployment answers on
+          # two aliases and the probe's built-in fallback names the other one —
+          # so this job was quietly measuring a host that no auth allow-list,
+          # OG tag or edge-function CORS entry knows about. The script's own
+          # header asks for a stale default to fail loudly; naming the host here
+          # is how it stops being a default at all.
+          E2E_VERCEL_URL: https://developer-analyst-infra.vercel.app
         run: python tools/e2e_smoke.py --full
 
       # Written to the run summary so a failure is legible from the Actions
@@ -60,6 +67,13 @@ jobs:
           WEB_API_TOKEN: ${{ secrets.WEB_API_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          # Pinned, not left to the script's default. The deployment answers on
+          # two aliases and the probe's built-in fallback names the other one —
+          # so this job was quietly measuring a host that no auth allow-list,
+          # OG tag or edge-function CORS entry knows about. The script's own
+          # header asks for a stale default to fail loudly; naming the host here
+          # is how it stops being a default at all.
+          E2E_VERCEL_URL: https://developer-analyst-infra.vercel.app
         run: |
           {
             echo '```'

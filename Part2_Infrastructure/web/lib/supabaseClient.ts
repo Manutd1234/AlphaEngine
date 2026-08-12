@@ -18,6 +18,10 @@
  *
  * `null` when unconfigured, and every caller handles that. A deployment
  * without the two public variables loses the tape and nothing else.
+ *
+ * There is a second client now — `lib/auth-client.ts`, which holds the signed-in
+ * session. The two are separate on purpose; see the note beside `persistSession`
+ * below before considering merging them.
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -42,8 +46,12 @@ export function supabaseBrowser(): SupabaseClient | null {
   if (client) return client;
   client = createClient(url, anonKey, {
     auth: {
-      // No login story, so no session to keep. Persisting or refreshing one
-      // would write tokens to storage for an identity that never exists.
+      // Anonymous, permanently. Sessions live in `auth-client.ts`; this one
+      // must never acquire them, because the tape's rows arrive through a
+      // policy scoped `to anon` and RLS policies are role-scoped. A user JWT
+      // here would switch Realtime to `authenticated`, that policy would stop
+      // applying, and the tape would go empty while still reporting itself
+      // live — a silent failure rather than a visible one.
       persistSession: false,
       autoRefreshToken: false,
     },

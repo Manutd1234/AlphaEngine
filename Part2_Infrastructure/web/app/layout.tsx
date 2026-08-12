@@ -28,8 +28,9 @@ const jetBrainsMono = JetBrains_Mono({
 const TITLE = "AlphaEngine — Quant Operating System (Developer Case Study)";
 const DESCRIPTION =
   "An educational case-study demonstration of quant trading infrastructure, built for a "
-  + "developer assessment. Not a brokerage or investment service: it opens no accounts, holds "
-  + "no funds, collects no credentials and sends no real orders. A connected workspace for "
+  + "developer assessment. Not a brokerage or investment service: it opens no brokerage accounts, "
+  + "holds no funds and sends no real orders, and its optional sign-in stores workspace "
+  + "preferences only. A connected workspace for "
   + "quant researchers, traders, portfolio managers, risk managers, developers, data engineers "
   + "and SREs — from strategy evidence to paper execution, risk validation and data lineage.";
 

@@ -6,6 +6,7 @@ import KillSwitchControl, {
   type KillSwitchHaltState,
   type KillSwitchRiskControl,
 } from "@/components/header/KillSwitchControl";
+import AccountChip from "@/components/header/AccountChip";
 import ComplexityToggle from "@/components/ComplexityToggle";
 import ThemeToggle from "@/components/ThemeToggle";
 import type { LatencyStats } from "@/components/systems/types";
@@ -222,6 +223,7 @@ export default function WorkspaceHeader({
           <i aria-hidden />
           {healthLabel}
         </button>
+        <AccountChip />
         <ComplexityToggle />
         <ThemeToggle />
       </div>

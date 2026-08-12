@@ -13,9 +13,10 @@
  * types the literal word — HALT, or RESUME when already halted — and, on
  * token-guarded deployments, supplies the operator credential. That credential
  * is the same state the Reliability tab edits (`systems.token`), so a token
- * entered in either place arms both. There is no client-side RBAC: the app has
- * no user system, and "may this request change something" is answered
- * server-side by the operator guard.
+ * entered in either place arms both. There is no client-side RBAC: signing in
+ * establishes who you are for the sake of your own preferences, and answers
+ * nothing about authority — "may this request change something" is decided
+ * server-side by the operator guard, for signed-in and anonymous alike.
  *
  * After a successful action the panel re-reads server state (`onExecuted` →
  * book + health refresh) instead of setting an optimistic flag — the server

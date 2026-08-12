@@ -1767,8 +1767,9 @@ export default function Page() {
         <span>AlphaEngine</span>
         <p>
           Educational case-study demonstration built for a developer assessment. Not a brokerage
-          or investment service: no accounts, no funds, no real orders, and no credentials are
-          requested from visitors. Execution is paper-only and remains gated by the risk gateway.
+          or investment service: it opens no brokerage accounts, holds no funds and places no real
+          orders. Signing in is optional and stores workspace preferences only — the desk is fully
+          browsable without it. Execution is paper-only and remains gated by the risk gateway.
           Not investment advice.
         </p>
       </footer>
