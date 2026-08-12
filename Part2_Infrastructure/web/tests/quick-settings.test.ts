@@ -121,8 +121,14 @@ describe("the panel behaves like the house dropdown", () => {
      * The panel was the right size in the wrong place.
      */
     const wrapped = css.slice(css.indexOf("@media (max-width: 1024px)"));
+    // `static` is the whole mechanism: it hands the panel's containing block
+    // from the trigger to the row, so the offset below is measured from an edge
+    // that does not move when the row wraps.
     assert.match(wrapped, /\.header-anchor \{\s*position:\s*static/);
-    assert.match(wrapped, /inset-inline:\s*var\(--shell-pad\)/);
+    assert.match(wrapped, /right:\s*var\(--shell-pad\)/);
+    // The row's gutter, not its full width: spanning the gutters is also on
+    // screen but stretches a 320px panel to 984px at 1024px.
+    assert.doesNotMatch(wrapped, /\.anchored-panel \{[^}]*width:\s*auto/);
   });
 
   it("clamps to the viewport on a *short* screen, and scrolls rather than clipping", () => {

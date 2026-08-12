@@ -12371,10 +12371,14 @@ h4 {
     position: static;
   }
 
+  /* The row's gutter, not the row's full width. Stretching the panel to span
+     the gutters also keeps it on screen, but it made a 320px settings panel
+     984px wide at 1024px — the controls sprawl and it stops reading as a
+     dropdown at all. Anchoring the right edge to the gutter keeps the designed
+     width, and the base rule's `min(…, 100vw - 28px)` still takes over on a
+     phone, where it lands as an even 14px on both sides. */
   .anchored-panel {
-    right: auto;
-    inset-inline: var(--shell-pad);
-    width: auto;
+    right: var(--shell-pad);
   }
 }
 
