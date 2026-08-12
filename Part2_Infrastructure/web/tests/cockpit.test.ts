@@ -306,7 +306,7 @@ const pnlStrip = readFileSync(
   "utf8",
 );
 const page = readFileSync(
-  fileURLToPath(new URL("../app/page.tsx", import.meta.url)),
+  fileURLToPath(new URL("../app/dashboard/page.tsx", import.meta.url)),
   "utf8",
 );
 

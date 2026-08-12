@@ -187,7 +187,7 @@ describe("the statistics say what they claim to", () => {
 
 describe("the panel keeps the four absent cases apart", () => {
   const panel = read("../components/research/BenchmarkPanel.tsx");
-  const page = read("../app/page.tsx");
+  const page = read("../app/dashboard/page.tsx");
 
   it("is mounted in the attribution section", () => {
     assert.match(page, /import BenchmarkPanel/);

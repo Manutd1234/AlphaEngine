@@ -182,7 +182,7 @@ describe("density stays a preference, never a capability", () => {
   it("the workspace shell still never branches on the tier", () => {
     // A panel may ask; the router may not. A tier that changes which sections
     // exist is a navigation fork.
-    assert.doesNotMatch(read("../app/page.tsx"), /useComplexity|atLeast/);
+    assert.doesNotMatch(read("../app/dashboard/page.tsx"), /useComplexity|atLeast/);
   });
 });
 

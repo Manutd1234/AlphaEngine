@@ -32,7 +32,7 @@ const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
 
 const css = read("../app/globals.css");
-const page = read("../app/page.tsx");
+const page = read("../app/dashboard/page.tsx");
 
 /** Comment bodies blanked, newlines kept, so prose is not read as a rule. */
 const declarations = css.replace(/\/\*[\s\S]*?\*\//g, (block) =>

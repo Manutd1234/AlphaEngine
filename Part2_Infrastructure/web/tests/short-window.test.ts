@@ -26,7 +26,7 @@ const read = (rel: string) =>
 
 const route = read("../app/api/backtest/route.ts");
 const engine = read("../lib/engine.ts");
-const page = read("../app/page.tsx");
+const page = read("../app/dashboard/page.tsx");
 
 describe("the route's floor and the engine's floor are one number", () => {
   it("both say 200", () => {

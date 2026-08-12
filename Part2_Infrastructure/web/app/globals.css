@@ -1706,6 +1706,84 @@ tbody tr[tabindex]:focus-visible {
   box-shadow: var(--shadow-sm);
 }
 
+/* ---------- the sign-in page ----------
+   Its own shell, because it is the one surface outside the workspace that has to
+   stand on its own: no header, no rail, and — until this pass — no indication of
+   what was being signed into. The card keeps its 400px measure; what is new is
+   the masthead above it and a guest action below with real weight.
+
+   Not viewport-locked like the desk. This page is short, and `min-height` with
+   centred content is right for a form; the desk's `height` lock exists to give a
+   panel a bounded box to scroll inside, which nothing here needs. */
+.auth-shell {
+  width: min(400px, 100%);
+  min-height: 100dvh;
+  min-height: 100svh;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-4);
+}
+
+.auth-card {
+  padding: var(--space-5);
+}
+
+/* The lockup as a masthead rather than one chip in a crowded row. */
+.brand-lockup--lg {
+  align-self: center;
+  gap: 10px;
+}
+
+.brand-lockup--lg .brand-mark {
+  width: 38px;
+  height: 38px;
+  font-size: 20px;
+}
+
+.brand-lockup--lg .brand-copy strong {
+  font-size: 17px;
+}
+
+/* Inert on the sign-in page: it is the masthead, not a way back to anywhere. */
+.brand-lockup--static {
+  cursor: default;
+}
+
+.brand-lockup--static:hover {
+  background: transparent;
+}
+
+/* Equal in weight to the provider buttons above it, because it is an equally
+   real way into the desk — it was a low-contrast underlined link, which read as
+   a footnote to the form rather than an alternative to it. */
+.auth-guest {
+  width: 100%;
+  padding: 9px var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-1);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.auth-guest:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--series-1) 40%, var(--border));
+}
+
+.auth-guest__note {
+  margin: 0;
+  text-align: center;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
 /* ---------- data provenance badge ----------
    The header's statement of what the numbers below it are made of. Built like
    the other utility chips so it reads as chrome rather than as an alert: the

@@ -286,12 +286,24 @@ describe("the page offers only providers that can actually complete", () => {
     assert.match(code(client), /enabled === true/);
   });
 
-  it("treats an unknown answer as unknown, not as none", () => {
-    // A blocked or failing probe must not hide a working button; the failure
-    // path returns null and the caller keeps rendering every provider.
+  it("treats an unknown answer as unknown, and a pending one as pending", () => {
+    /**
+     * The original rule — "a blocked probe must not hide a working button" —
+     * still holds, and the way it was implemented did not. `null` meant BOTH
+     * "still asking" and "asked and failed", and both rendered every provider.
+     * On this project only GitHub is enabled, so the pending path drew Google and
+     * Outlook, and clicking either left the app for a Supabase URL reading
+     * "Unsupported provider: provider is not enabled". `signInWithOAuth` is a
+     * full-page redirect, so no in-page handler could have caught it.
+     *
+     * Three states now. The probe still fails open — `"unknown"` renders every
+     * provider — but a probe that has not answered yet renders none.
+     */
     assert.match(code(client), /return null;/);
-    assert.match(code(screen), /enabledProviders\s*\?\s*PROVIDERS\.filter/);
-    assert.match(code(screen), /: PROVIDERS;/);
+    assert.match(code(screen), /probePending/);
+    assert.match(code(screen), /probeFailed \? PROVIDERS : \[\]/);
+    // The old two-state shape must not come back.
+    assert.doesNotMatch(code(screen), /enabledProviders\s*\?\s*PROVIDERS\.filter/);
   });
 
   it("drops the whole block rather than leaving a headless divider", () => {
@@ -307,12 +319,18 @@ describe("the page offers only providers that can actually complete", () => {
 
 
 describe("a provider sign-in is finished when the provider says so", () => {
-  it("returns straight to the workspace", () => {
-    // GitHub has already verified the address it hands over. The removed step
-    // re-proved that fact and, on the built-in email sender, could not even be
-    // completed — template editing is gated behind custom SMTP, so the stock
-    // template carries no token to send.
-    assert.match(code(screen), /redirectTo: `\$\{window\.location\.origin\}\/`/);
+  it("returns through the callback, not straight to the workspace", () => {
+    /**
+     * The point of this assertion is unchanged: a provider sign-in is finished
+     * when the provider says so, and no second verification step is added. What
+     * changed is the landing place. It was the workspace itself, which now sits
+     * behind a routing guard — and an OAuth return has no desk cookie yet, so
+     * landing there bounced the visitor straight back to the form they had just
+     * completed. `/auth/callback` establishes the session, trades it for the
+     * pass, and only then enters the desk.
+     */
+    assert.match(code(screen), /redirectTo: `\$\{window\.location\.origin\}\/auth\/callback`/);
+    assert.doesNotMatch(code(screen), /redirectTo: `\$\{window\.location\.origin\}\/`/);
   });
 
   it("keeps no verification state anywhere", () => {

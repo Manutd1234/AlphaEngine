@@ -43,7 +43,7 @@ function read(relative: string): string {
 }
 
 const controls = read("../components/Controls.tsx");
-const page = read("../app/page.tsx");
+const page = read("../app/dashboard/page.tsx");
 const staleGate = read("../components/research/StaleGate.tsx");
 
 // --------------------------------------------------------------------------

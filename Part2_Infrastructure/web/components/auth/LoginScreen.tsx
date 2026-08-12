@@ -16,13 +16,17 @@
  * custom SMTP, so the stock template has no token to put in the mail. It was a
  * step that could fail and could not succeed.
  *
- * Nothing here gates the product. The workspace stays fully browsable signed
- * out — this page adds an identity, it does not guard the door.
+ * This page DOES guard the door now, and the sentence that used to sit here
+ * saying otherwise was true until the desk moved behind a routing guard. What is
+ * unchanged is that nobody is turned away: "Continue as guest" mints a pass and
+ * opens the full workspace on generated data. An account buys preferences that
+ * follow you between devices, not access.
  */
 
 import { useEffect, useMemo, useState } from "react";
 import type { Provider } from "@supabase/supabase-js";
 
+import BrandLockup from "@/components/common/BrandLockup";
 import { authClient, authConfigured, fetchEnabledProviders } from "@/lib/auth-client";
 import { describeAuthError, looksLikeEmail, resolveLoginStep } from "@/lib/auth-flow";
 import { setAuthPersistence } from "@/lib/auth-storage";
@@ -47,7 +51,7 @@ const PROVIDERS: { id: Provider; label: string }[] = [
 const MODE_COPY: Record<FormMode, { title: string; blurb: string; submit: string }> = {
   signin: {
     title: "Sign in",
-    blurb: "Your workspace preferences follow your account. The desk itself is open to everyone.",
+    blurb: "Sign in so preferences follow your account between devices — or open the desk as a guest below.",
     submit: "Sign in",
   },
   signup: {
@@ -76,9 +80,14 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [guestBusy, setGuestBusy] = useState(false);
   const [banner, setBanner] = useState<Banner | null>(null);
   /** Provider ids this project has credentials for; null while unknown. */
-  const [enabledProviders, setEnabledProviders] = useState<Set<string> | null>(null);
+  /**
+   * `null` = the probe has not answered. `"unknown"` = it answered by failing.
+   * A Set = the answer. The three are different and used to be two.
+   */
+  const [enabledProviders, setEnabledProviders] = useState<Set<string> | "unknown" | null>(null);
 
   const copy = MODE_COPY[mode];
 
@@ -116,27 +125,75 @@ export default function LoginScreen() {
   }, []);
 
   /**
-   * Ask the project which providers it can actually complete. Unresolved and
-   * failed probes both leave this null, and null renders every provider — a
-   * blocked request is not evidence that a provider is missing.
+   * Ask the project which providers it can actually complete.
+   *
+   * This used to fail OPEN: an unresolved or failed probe left the set null and
+   * null rendered every provider, reasoned as "a blocked request is not evidence
+   * that a provider is missing". Sound in the abstract, wrong here — this project
+   * has only GitHub enabled, so the null path offered Google and Outlook, and
+   * clicking either left the app entirely for a Supabase URL showing
+   * {"code":400,"error_code":"validation_failed","msg":"Unsupported provider:
+   * provider is not enabled"}. Because `signInWithOAuth` is a full-page redirect,
+   * no in-page error handling can rescue that; the only fix is not to offer the
+   * button until we know.
+   *
+   * So: `null` now means "still asking" and renders no provider buttons, and a
+   * probe that genuinely fails resolves to `"unknown"`, which renders them behind
+   * a warning that they may not be enabled. The original concern is preserved —
+   * a network hiccup does not permanently hide a working button — without
+   * presenting a button that cannot work as though it can.
    */
   useEffect(() => {
     let alive = true;
     void fetchEnabledProviders().then((enabled) => {
-      if (alive && enabled) setEnabledProviders(enabled);
+      if (!alive) return;
+      setEnabledProviders(enabled ?? "unknown");
     });
     return () => {
       alive = false;
     };
   }, []);
 
+  /**
+   * Every emailed link comes back through the callback, never straight to a page
+   * that renders the desk. `/login` was the old base and `/` the old OAuth
+   * target; both put a visitor in front of the workspace while the session was
+   * still being read out of the URL.
+   */
   const redirectTo = useMemo(
+    () => (typeof window === "undefined" ? "" : `${window.location.origin}/auth/callback`),
+    [],
+  );
+
+  /**
+   * The two emailed links that come back to THIS page rather than the callback.
+   *
+   * A password recovery link has to land on a form that asks for the new
+   * password, and a signup confirmation is an acknowledgement rather than a
+   * sign-in — routing either through the callback would either lose the form or
+   * report "this link did not complete" for a link that worked perfectly. Only
+   * links that are meant to establish a session go to `/auth/callback`.
+   */
+  const loginUrl = useMemo(
     () => (typeof window === "undefined" ? "" : `${window.location.origin}/login`),
     [],
   );
 
+  /**
+   * Into the desk, through the callback.
+   *
+   * This assigned "/" — the workspace itself — which now redirects by cookie, and
+   * a password sign-in has no cookie yet: the session is in localStorage and
+   * nothing has traded it for a desk pass. Going via the callback is what mints
+   * the pass, so this lands on the dashboard instead of bouncing back to the form
+   * the visitor just completed.
+   */
   const goToWorkspace = () => {
-    window.location.assign("/");
+    const next = new URLSearchParams(window.location.search).get("next");
+    const target = next && next.startsWith("/") && !next.startsWith("//")
+      ? `/auth/callback?next=${encodeURIComponent(next)}`
+      : "/auth/callback";
+    window.location.assign(target);
   };
 
   const onProvider = async (provider: Provider) => {
@@ -149,7 +206,7 @@ export default function LoginScreen() {
     // address it hands over; there is nothing further for this app to check.
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: `${window.location.origin}/` },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
     if (error) {
       setBusy(false);
@@ -188,7 +245,7 @@ export default function LoginScreen() {
     if (mode === "forgot") {
       setBusy(true);
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${redirectTo}?step=reset`,
+        redirectTo: `${loginUrl}?step=reset`,
       });
       setBusy(false);
       setBanner(
@@ -211,7 +268,7 @@ export default function LoginScreen() {
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
-        options: { emailRedirectTo: `${redirectTo}?step=confirmed` },
+        options: { emailRedirectTo: `${loginUrl}?step=confirmed` },
       });
       setBusy(false);
       if (error) {
@@ -242,40 +299,102 @@ export default function LoginScreen() {
     goToWorkspace();
   };
 
+  /**
+   * Mint a guest pass, then enter the desk.
+   *
+   * POST rather than a link, because the route that mints it is a POST — a GET
+   * would hand out guest passes to every link prefetcher and crawler that touched
+   * this page. The id comes back in the response so the sandbox seeds from the
+   * same value the cookie carries rather than minting a second one that would
+   * disagree with it.
+   *
+   * A failure still enters the desk. On a deployment with no auth the middleware
+   * grants a guest pass itself, so the only way this can fail is a transient
+   * network error, and stranding someone on the sign-in form for that would be
+   * worse than letting the guard sort it out on the next request.
+   */
+  const enterAsGuest = async () => {
+    setGuestBusy(true);
+    try {
+      const response = await fetch("/api/auth/guest", { method: "POST" });
+      const body = (await response.json().catch(() => null)) as { id?: string } | null;
+      if (body?.id) {
+        try {
+          sessionStorage.setItem("alphaengine-desk-guest", body.id);
+        } catch {
+          // Private mode. The desk falls back to its shared worked example.
+        }
+      }
+    } catch {
+      // See above: proceed regardless.
+    }
+    window.location.assign("/dashboard");
+  };
+
   const switchMode = (next: FormMode) => {
     setMode(next);
     setBanner(null);
     setPassword("");
   };
 
+  /**
+   * No auth in this deployment — which is the PUBLIC deployment's normal state,
+   * not an edge case, so this branch is the page most visitors will ever see.
+   *
+   * It shares the shell and the masthead with the configured page for exactly
+   * that reason. It previously had its own bare layout with no brand mark at all,
+   * which meant the most-visited version of the sign-in page was the one that
+   * looked least like the product. The guest action is the primary button here
+   * because it is the only way in, and the guard will admit them regardless.
+   */
   if (!configured) {
     return (
-      <main className="mx-auto flex min-h-dvh w-full max-w-[400px] flex-col justify-center gap-3 px-5 py-10">
-        <h1 className="text-[22px]">Sign in</h1>
-        <div className="banner warn" role="status">
-          <span aria-hidden>◌</span>
-          <div>
-            Authentication is not configured in this deployment. The workspace is fully browsable
-            without an account.
+      <main className="auth-shell">
+        <BrandLockup size="lg" />
+        <div className="card auth-card">
+          <h1 className="text-[21px]">Open the desk</h1>
+          <div className="banner warn mt-3" role="status">
+            <span aria-hidden>◌</span>
+            <div>
+              Accounts are not configured in this deployment, so there is nothing to sign in to.
+              The desk opens as a guest instead — the full workspace, on generated data.
+            </div>
           </div>
+          <button
+            type="button"
+            className="primary-action mt-3 w-full"
+            disabled={guestBusy}
+            onClick={() => void enterAsGuest()}
+          >
+            {guestBusy ? "Opening the desk…" : "Open the workspace"}
+          </button>
         </div>
-        <a href="/" className="primary-action text-center">
-          Open the workspace
-        </a>
+        <p className="auth-guest__note">
+          Every visitor gets a desk seeded just for their browser. Nothing is shared, and nothing
+          here reaches a real venue.
+        </p>
       </main>
     );
   }
 
-  const offeredProviders = enabledProviders
+  const probePending = enabledProviders === null;
+  const probeFailed = enabledProviders === "unknown";
+  const offeredProviders = enabledProviders instanceof Set
     ? PROVIDERS.filter((provider) => enabledProviders.has(provider.id))
-    : PROVIDERS;
-  const showProviders = (mode === "signin" || mode === "signup") && offeredProviders.length > 0;
+    // Only when the probe failed outright — never while it is still out.
+    : probeFailed ? PROVIDERS : [];
+  const showProviders = (mode === "signin" || mode === "signup")
+    && (offeredProviders.length > 0 || probePending);
   const showPasswordField = mode !== "forgot";
   const showRemember = mode === "signin" || mode === "signup";
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-[400px] flex-col justify-center gap-4 px-5 py-10">
-      <div className="card p-5">
+    <main className="auth-shell">
+      {/* The mark, which this page had none of: a bare form gave no indication of
+          what was being signed into. One component, shared with the header, so the
+          two can never drift into looking like different products. */}
+      <BrandLockup size="lg" />
+      <div className="card auth-card">
         <h1 className="text-[21px]">{copy.title}</h1>
         <p className="mt-1 text-[12px] leading-snug text-text-secondary">{copy.blurb}</p>
 
@@ -369,8 +488,26 @@ export default function LoginScreen() {
         {showProviders && (
           <>
             <p className="mt-4 mb-2 text-center text-[10.5px] uppercase tracking-[0.08em] text-text-muted">
-              or
+              {/* Not a bare "or" while the probe is out: a divider above nothing
+                  is the headless-section case, and saying what is being waited
+                  for costs one word. */}
+              {probePending ? "checking sign-in options" : "or"}
             </p>
+            {probeFailed && (
+              /**
+               * The buttons are drawn, and the warning is the price of drawing
+               * them. The probe failing is not evidence a provider is missing —
+               * that is why this fails open — but it is also not evidence one
+               * works, and this project has two providers that answer
+               * "provider is not enabled". Without this line, a reader clicking
+               * Google would leave the app for a page of raw JSON with no
+               * warning at all, which is the defect this whole branch exists to
+               * bound.
+               */
+              <p className="mb-2 text-center text-[10.5px] leading-snug text-text-muted">
+                We could not check which of these are enabled here, so one may not complete.
+              </p>
+            )}
             <div className="flex flex-col gap-2">
               {offeredProviders.map((provider) => (
                 <button
@@ -411,9 +548,21 @@ export default function LoginScreen() {
         </div>
       </div>
 
-      <a href="/" className="text-center text-[11.5px] text-text-secondary underline">
-        Continue without an account
-      </a>
+      {/* A first-class action, at the weight of the provider buttons above it.
+          It was a low-contrast underlined link to "/" — which worked only while
+          the desk was ungated, and now has to mint a real guest pass. */}
+      <button
+        type="button"
+        className="auth-guest"
+        disabled={guestBusy}
+        onClick={() => void enterAsGuest()}
+      >
+        {guestBusy ? "Opening the desk…" : "Continue as guest"}
+      </button>
+      <p className="auth-guest__note">
+        A guest desk is seeded just for this browser: the full workspace, generated data, no
+        account. Preferences will not follow you to another device.
+      </p>
     </main>
   );
 }

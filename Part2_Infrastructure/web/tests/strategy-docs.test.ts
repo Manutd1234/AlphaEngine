@@ -117,7 +117,7 @@ describe("cross-references go somewhere", () => {
 
 describe("the card does not restate what other maps own", () => {
   const card = read("../components/research/StrategyDocCard.tsx");
-  const page = read("../app/page.tsx");
+  const page = read("../app/dashboard/page.tsx");
 
   it("renders parameter meanings from PARAM_MEANING", () => {
     // Two descriptions of the same axis, four pixels apart, drifting.

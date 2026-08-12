@@ -32,6 +32,21 @@
  */
 
 const ORIGIN = process.env.SWEEP_ORIGIN ?? "http://localhost:3100";
+
+/**
+ * The desk, which is `/dashboard` since sign-in-first shipped.
+ *
+ * This swept `/#tab/section` and every cell reported "never hydrated" the moment
+ * the root became a signpost: the sweep was landing on the login page, which has
+ * no workspace shell to measure. Worth stating rather than just fixing, because a
+ * harness that silently measures the wrong page is the failure mode this file's
+ * own header warns about.
+ *
+ * On a deployment with no Supabase credentials the guard admits the sweep as a
+ * guest, so no cookie setup is needed here. Against a deployment WITH auth, run
+ * it with a desk cookie already in the browser profile.
+ */
+const DESK = `${ORIGIN}/dashboard`;
 const CDP = process.env.SWEEP_CDP ?? "http://127.0.0.1:9222";
 
 /** Every rail section, from lib/sections.ts. Kept in sync by hand — a missing
@@ -354,7 +369,7 @@ async function main() {
       // listens for. Reloading 43 times per profile turned a 2-minute run into
       // 20 and told us nothing extra.
       consoleErrors = [];
-      await cdp.send("Page.navigate", { url: `${ORIGIN}/#${tab}/${sections[0]}` });
+      await cdp.send("Page.navigate", { url: `${DESK}#${tab}/${sections[0]}` });
       const ready = await cdp.evaluate(HYDRATED);
       if (!ready) {
         rows.push({ profile: profileName, tab, section: sections[0], verdict: "NOT-READY", notes: "never hydrated" });

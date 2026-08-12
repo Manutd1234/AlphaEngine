@@ -62,8 +62,26 @@ class Result:
     data: dict[str, Any] = field(default_factory=dict)
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Surfaces a 3xx as the result instead of following it.
+
+    urlopen follows redirects transparently, which is what you want everywhere in
+    this file except when the redirect IS the thing being checked: the root now
+    answers 307 to /login for a visitor with no desk cookie, and a follower would
+    report the 200 from /login and never notice if the guard disappeared.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D102, ANN001
+        return None
+
+
 def fetch(
-    url: str, *, token: str | None = None, method: str = "GET", body: dict | None = None
+    url: str,
+    *,
+    token: str | None = None,
+    method: str = "GET",
+    body: dict | None = None,
+    allow_redirects: bool = True,
 ) -> tuple[int, Any, float]:
     """Returns (status, parsed-or-text, elapsed_ms). Never raises for HTTP status."""
     payload = json.dumps(body).encode() if body is not None else None
@@ -76,8 +94,20 @@ def fetch(
 
     # The gateway is plain HTTP; Vercel and Supabase are TLS. Default context.
     started = time.perf_counter()
+    opener = (
+        urllib.request.build_opener(
+            _NoRedirect, urllib.request.HTTPSHandler(context=ssl.create_default_context())
+        )
+        if not allow_redirects
+        else None
+    )
     try:
-        with urllib.request.urlopen(request, timeout=TIMEOUT, context=ssl.create_default_context()) as response:
+        open_url = opener.open if opener else (
+            lambda req, timeout: urllib.request.urlopen(
+                req, timeout=timeout, context=ssl.create_default_context()
+            )
+        )
+        with open_url(request, timeout=TIMEOUT) as response:
             raw = response.read().decode("utf-8", "replace")
             status = response.status
     except urllib.error.HTTPError as error:
@@ -205,13 +235,38 @@ def check_rag_embed(token: str | None) -> Result:
 
 
 def check_vercel_app() -> Result:
-    status, _, ms = fetch(f"{VERCEL}/")
+    """The app answers — via the sign-in page, which is now where "/" leads.
+
+    This asserted 200 on "/" and would have failed the whole smoke run the moment
+    the desk moved behind a routing guard: the root is a signpost now and answers
+    307 to /login for a visitor with no desk cookie, which is the correct
+    behaviour rather than an outage. Probing /login directly asserts the thing
+    that actually matters here — the app builds, renders and serves — without
+    depending on which side of the guard an unauthenticated probe lands on.
+    """
+    status, _, ms = fetch(f"{VERCEL}/login")
     if status != 200:
         return Result(
             "vercel app", FAIL, f"HTTP {status}",
             fix="Check the Vercel deployment log. A missing module here usually means .vercelignore dropped it.",
         )
     return Result("vercel app", OK, f"200 in {ms:.0f}ms")
+
+
+def check_vercel_root_redirect() -> Result:
+    """The guard is doing its job in production, not only in tests.
+
+    A regression here is silent and serious in one direction: if "/" starts
+    answering 200 again, the desk is being served to visitors with no session,
+    which is precisely what this pass moved it behind a guard to stop.
+    """
+    status, _, ms = fetch(f"{VERCEL}/", allow_redirects=False)
+    if status not in (301, 302, 303, 307, 308):
+        return Result(
+            "vercel root guard", FAIL, f"HTTP {status} (expected a redirect)",
+            fix="middleware.ts should send an unauthenticated / to /login. A 200 means the desk is being served ungated.",
+        )
+    return Result("vercel root guard", OK, f"{status} in {ms:.0f}ms")
 
 
 def check_vercel_to_gateway() -> Result:
@@ -489,6 +544,7 @@ def main() -> int:
         ("infrastructure", lambda: check_gateway_auth(token)),
         ("infrastructure", lambda: check_decision_histogram(token)),
         ("web", check_vercel_app),
+        ("web", check_vercel_root_redirect),
         ("web", check_vercel_health),
         # Runs unauthenticated and always: the proxy holds the gateway token
         # server-side, so this needs no secret — which is the point, since the

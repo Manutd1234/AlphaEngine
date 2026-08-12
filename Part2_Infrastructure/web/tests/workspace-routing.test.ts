@@ -30,7 +30,7 @@ function read(relative: string): string {
 }
 
 const header = read("../components/WorkspaceHeader.tsx");
-const page = read("../app/page.tsx");
+const page = read("../app/dashboard/page.tsx");
 const roleCards = read("../components/overview/RoleCards.tsx");
 const styles = read("../app/globals.css");
 const subtabs = read("../components/WorkspaceSubtabs.tsx");
@@ -216,7 +216,7 @@ describe("dense role workspaces expose accessible feature sections", () => {
       "Part1_Data_Handling/README.md",
       "Part2_Infrastructure/main.py",
       "Part2_Infrastructure/OpenBB_Service/app.py",
-      "Part2_Infrastructure/web/app/page.tsx",
+      "Part2_Infrastructure/web/app/dashboard/page.tsx",
       "Part2_Infrastructure/web/components/DeveloperConsole.tsx",
     ]) {
       assert.ok(repositoryManifest.files.includes(path), `repository catalog is missing ${path}`);

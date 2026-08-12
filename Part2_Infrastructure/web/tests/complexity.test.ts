@@ -86,7 +86,7 @@ describe("the wording never claims a capability is missing", () => {
 });
 
 describe("tiers change density, never navigation", () => {
-  const page = read("../app/page.tsx");
+  const page = read("../app/dashboard/page.tsx");
   const routing = read("./workspace-routing.test.ts");
 
   it("no tab or rail section is conditional on the tier", () => {

@@ -709,8 +709,10 @@ export default function ProfileScreen() {
 function Shell({ children }: { children: ReactNode }) {
   return (
     <main className="mx-auto w-full max-w-[760px] px-5 py-8">
+      {/* /dashboard, not "/": the root redirects by cookie now, so linking to it
+          from a page only a signed-in visitor can reach costs a needless hop. */}
       <a
-        href="/"
+        href="/dashboard"
         className="mb-4 inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-text-secondary no-underline hover:underline"
       >
         <ArrowLeft size={13} aria-hidden />

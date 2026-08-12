@@ -9,6 +9,7 @@ import KillSwitchControl, {
 import AccountChip from "@/components/header/AccountChip";
 import TelegramCta from "@/components/header/TelegramCta";
 import QuickSettings from "@/components/header/QuickSettings";
+import BrandLockup from "@/components/common/BrandLockup";
 import DataTierBadge from "@/components/header/DataTierBadge";
 import type { LatencyStats } from "@/components/systems/types";
 import type { Provenance } from "@/lib/data-tier";
@@ -161,16 +162,10 @@ export default function WorkspaceHeader({
   return (
     <header className="workspace-header" ref={headerRef}>
       <div className="workspace-header__utility workspace-header__primary">
-        <button className="brand-lockup" onClick={() => onViewChange("overview")} aria-label="Open AlphaEngine overview">
-          <span className="brand-mark" aria-hidden>
-            <span className="brand-mark__alpha">α</span>
-            <span className="brand-mark__rails"><i /><i /></span>
-          </span>
-          <span className="brand-copy">
-            <strong>AlphaEngine</strong>
-            <small>Quant operating system</small>
-          </span>
-        </button>
+        <BrandLockup
+          onClick={() => onViewChange("overview")}
+          label="Open AlphaEngine overview"
+        />
 
         <nav
           className="workspace-tabs"

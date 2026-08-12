@@ -37,7 +37,7 @@ const sqlCode = (source: string) => source.replace(/--[^\n]*/g, "");
 
 const engine = read("../lib/user-prefs.ts");
 const bus = read("../lib/pref-sync-bus.ts");
-const page = read("../app/page.tsx");
+const page = read("../app/dashboard/page.tsx");
 
 const MIGRATIONS_DIR = fileURLToPath(new URL("../../../supabase/migrations", import.meta.url));
 const migration = readdirSync(MIGRATIONS_DIR).find((name) => name.endsWith("_user_preferences.sql"));

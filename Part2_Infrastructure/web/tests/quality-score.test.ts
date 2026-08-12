@@ -211,7 +211,7 @@ describe("the mapping from a sweep response is where the score gets corrupted", 
 
 describe("the panel renders the score rather than a second version of it", () => {
   const panel = read("../components/research/QualityScorePanel.tsx");
-  const page = read("../app/page.tsx");
+  const page = read("../app/dashboard/page.tsx");
   const css = read("../app/globals.css");
 
   it("is mounted, and above the promotion gate", () => {

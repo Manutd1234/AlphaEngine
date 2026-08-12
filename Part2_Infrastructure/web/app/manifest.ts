@@ -15,7 +15,10 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "AlphaEngine",
     description:
       "Research evidence, portfolio risk, execution intent and data health in one operating context.",
-    start_url: "/",
+    // /dashboard, not "/": an installed app opening on the root would take a
+    // redirect on every launch, and a home-screen icon that flashes a sign-in
+    // page before the desk reads as a broken install.
+    start_url: "/dashboard",
     display: "standalone",
     background_color: "#0a0a0b",
     theme_color: "#0a0a0b",

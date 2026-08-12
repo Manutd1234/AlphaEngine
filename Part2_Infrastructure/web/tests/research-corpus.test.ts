@@ -18,7 +18,7 @@ const read = (relative: string) =>
 
 const panel = read("../components/research/ResearchCorpus.tsx");
 const hook = read("../lib/use-research-search.ts");
-const page = read("../app/page.tsx");
+const page = read("../app/dashboard/page.tsx");
 const css = read("../app/globals.css");
 
 /** Comment-free view: this file quotes the constructs it forbids. */
