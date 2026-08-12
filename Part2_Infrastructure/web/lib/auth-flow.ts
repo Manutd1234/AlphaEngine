@@ -21,7 +21,13 @@ export const OTP_SENT_AT_KEY = "alphaengine-auth-otp-sent-at";
 /** Supabase's own inter-send minimum. Asking sooner earns a 429, not an email. */
 export const OTP_RESEND_COOLDOWN_MS = 60_000;
 
-export type LoginStep = "signin" | "verify" | "reset" | "confirmed";
+export type LoginStep =
+  | "signin"
+  | "verify"
+  /** Landed here by opening the emailed sign-in link — mailbox proven. */
+  | "verified"
+  | "reset"
+  | "confirmed";
 
 export interface LoginLocation {
   step: LoginStep;
@@ -35,7 +41,7 @@ export interface LoginLocation {
   errorMessage: string | null;
 }
 
-const STEPS = new Set<LoginStep>(["signin", "verify", "reset", "confirmed"]);
+const STEPS = new Set<LoginStep>(["signin", "verify", "verified", "reset", "confirmed"]);
 
 /**
  * Reads the login route's query string. Both email-link shapes land here: PKCE

@@ -380,3 +380,52 @@ describe("the page offers only providers that can actually complete", () => {
     assert.doesNotMatch(code(screen), /\{PROVIDERS\.map\(/);
   });
 });
+
+describe("verification survives a project that cannot carry a code", () => {
+  it("sends the reader back to a step that means the link was opened", () => {
+    // Without emailRedirectTo the link resolves to the project's Site URL, and
+    // the reader lands on the dashboard still flagged unverified with nothing
+    // that can clear it.
+    assert.match(code(screen), /emailRedirectTo: `\$\{window\.location\.origin\}\/login\?step=verified`/);
+  });
+
+  it("treats opening that link as discharging the gate", () => {
+    // Supabase locks email-template editing behind custom SMTP, so a default
+    // project's Magic Link mail carries a link and no {{ .Token }} at all.
+    // Clicking it proves the same mailbox the code would have.
+    const arrival = code(screen).slice(code(screen).indexOf('location.step === "verified"'));
+    assert.match(arrival.slice(0, 1200), /clearOtpPending\(\)/);
+    assert.match(arrival.slice(0, 1200), /goToWorkspace\(\)/);
+  });
+
+  it("waits for the exchange rather than reading the session once", () => {
+    // detectSessionInUrl resolves asynchronously; a single read on mount would
+    // conclude the link had failed.
+    const arrival = code(screen).slice(code(screen).indexOf('location.step === "verified"'));
+    assert.match(arrival.slice(0, 1200), /onAuthStateChange/);
+    assert.match(arrival.slice(0, 1200), /setTimeout/);
+  });
+
+  it("unsubscribes and clears its timer", () => {
+    const arrival = code(screen).slice(code(screen).indexOf('location.step === "verified"'));
+    assert.match(arrival.slice(0, 1600), /listener\.subscription\.unsubscribe\(\)/);
+    assert.match(arrival.slice(0, 1600), /clearTimeout\(timeout\)/);
+  });
+
+  it("does not promise a code it may be unable to deliver", () => {
+    // The blurb must lead with the link. A screen that says "enter the code we
+    // emailed you" on a project whose template has no token is unresolvable.
+    assert.match(screen, /Open the sign-in link/);
+    assert.doesNotMatch(screen, /Enter the six-digit code we emailed you/);
+  });
+
+  it("leaves the code box optional", () => {
+    const field = code(screen).slice(code(screen).indexOf('id="auth-otp"'));
+    assert.doesNotMatch(field.slice(0, 400), /required/);
+  });
+
+  it("still accepts a typed code when the template does carry one", () => {
+    assert.match(code(screen), /verifyOtp\(\{/);
+    assert.match(code(screen), /type: "email"/);
+  });
+});

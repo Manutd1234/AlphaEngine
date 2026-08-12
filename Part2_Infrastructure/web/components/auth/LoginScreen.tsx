@@ -78,7 +78,13 @@ const MODE_COPY: Record<FormMode, { kicker: string; title: string; blurb: string
   verify: {
     kicker: "Account",
     title: "Verify your email",
-    blurb: "Enter the six-digit code we emailed you to finish signing in.",
+    // Deliberately leads with the link. Supabase only allows editing email
+    // templates on projects with custom SMTP, and its stock Magic Link
+    // template carries a link and no {{ .Token }} — so on a default project
+    // the six-digit code does not exist, and promising one is a lie the
+    // reader cannot resolve. The link proves the same thing.
+    blurb:
+      "Open the sign-in link we just emailed you to finish. If your email also carries a six-digit code, you can enter it here instead.",
   },
 };
 
@@ -154,6 +160,46 @@ export default function LoginScreen() {
       return;
     }
 
+    if (location.step === "verified") {
+      // Opened the emailed link. That is proof of mailbox control, so it
+      // discharges the gate exactly as typing a code would — the difference is
+      // only which half of the email the reader used.
+      setMode("verify");
+      setBanner({ tone: "context-change", message: "Confirming your email…" });
+      if (!supabase) return;
+
+      let settled = false;
+      const complete = () => {
+        if (settled) return;
+        settled = true;
+        clearOtpPending();
+        refreshSession();
+        goToWorkspace();
+      };
+      // The PKCE exchange runs asynchronously inside the client, so the
+      // session may not exist yet on this tick. Watch for it rather than
+      // reading once and concluding the link failed.
+      const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session?.user?.id) complete();
+      });
+      void supabase.auth.getSession().then(({ data }) => {
+        if (data.session?.user?.id) complete();
+      });
+      const timeout = window.setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        setBanner({
+          tone: "error",
+          message: "That sign-in link has expired or was already used. Send a new one below.",
+        });
+      }, 8000);
+
+      return () => {
+        window.clearTimeout(timeout);
+        listener.subscription.unsubscribe();
+      };
+    }
+
     if (location.step === "verify") {
       setMode("verify");
       setCooldownMs(resendCooldownRemaining(readSentAt(), Date.now()));
@@ -198,9 +244,16 @@ export default function LoginScreen() {
       setBusy(true);
       const { error } = await supabase.auth.signInWithOtp({
         email: address,
-        // Never mint a second identity from the verification step: this code
-        // exists to prove the OAuth account's mailbox, not to create one.
-        options: { shouldCreateUser: false },
+        options: {
+          // Never mint a second identity from the verification step: this
+          // exists to prove the OAuth account's mailbox, not to create one.
+          shouldCreateUser: false,
+          // Without this the link resolves to the project's Site URL and drops
+          // the reader on the dashboard still flagged unverified, with no way
+          // to clear it. Returning to a step that means "you opened the link"
+          // is what lets the marker be cleared on arrival.
+          emailRedirectTo: `${window.location.origin}/login?step=verified`,
+        },
       });
       setBusy(false);
       if (error) {
@@ -210,7 +263,10 @@ export default function LoginScreen() {
       const now = Date.now();
       writeSentAt(now);
       setCooldownMs(OTP_RESEND_COOLDOWN_MS);
-      setBanner({ tone: "context-change", message: `Code sent to ${address}.` });
+      setBanner({
+        tone: "context-change",
+        message: `Email sent to ${address}. Open the link in it to finish.`,
+      });
     },
     [],
   );
@@ -452,7 +508,7 @@ export default function LoginScreen() {
           {mode === "verify" && (
             <div>
               <label className="block text-[11px] font-semibold text-text-secondary" htmlFor="auth-otp">
-                Six-digit code
+                Six-digit code <span className="font-normal text-text-muted">(if your email has one)</span>
               </label>
               <input
                 id="auth-otp"
@@ -463,7 +519,6 @@ export default function LoginScreen() {
                 placeholder="000000"
                 autoComplete="one-time-code"
                 spellCheck={false}
-                required
                 className="mt-1 w-full font-mono tracking-[0.3em]"
               />
               <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px]">
@@ -473,7 +528,7 @@ export default function LoginScreen() {
                   disabled={busy || cooldownMs > 0}
                   onClick={() => void sendOtp(pendingEmail ?? email)}
                 >
-                  {cooldownMs > 0 ? `Resend in ${cooldownSeconds(cooldownMs)}s` : "Resend code"}
+                  {cooldownMs > 0 ? `Resend in ${cooldownSeconds(cooldownMs)}s` : "Resend email"}
                 </button>
                 <button
                   type="button"
