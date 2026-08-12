@@ -16,7 +16,7 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -547,10 +547,17 @@ describe("the account menu", () => {
     assert.doesNotMatch(code(chip), /duration-\[--|ease-\[--/);
   });
 
-  it("does not link to a page that does not exist yet", () => {
-    // View Profile arrives with the route it points at. A menu item that 404s
-    // for four commits is the same lie as an unconfigured provider button.
-    assert.doesNotMatch(code(chip), /href="\/profile"/);
+  it("links to /profile, and only because the route now exists", () => {
+    // This assertion was the inverse until the route landed: a menu item that
+    // 404s for four commits is the same lie as an unconfigured provider
+    // button. Kept as a pair rather than deleted, so the link and the page it
+    // points at cannot be separated again — removing the route without
+    // removing the item fails here.
+    assert.match(code(chip), /href="\/profile"/);
+    assert.ok(
+      existsSync(fileURLToPath(new URL("../app/profile/page.tsx", import.meta.url))),
+      "the account menu points at /profile but the route is gone",
+    );
   });
 
   it("opens the settings panel without taking over its state", () => {

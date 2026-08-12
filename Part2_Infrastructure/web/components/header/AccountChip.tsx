@@ -163,9 +163,20 @@ export default function AccountChip({ onOpenPreferences }: { onOpenPreferences: 
             Session active · preferences follow this account
           </p>
 
+          {/* A link, not a button: it is a destination, and middle-click and
+              open-in-new-tab should both work. Covered by the 44px touch rule
+              because `#account-panel a` was added to the single existing
+              `pointer: coarse` block rather than a second one. */}
+          <a
+            href="/profile"
+            className="mt-3 block w-full rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-left text-[11.5px] font-semibold text-text-primary no-underline transition-[background-color] duration-(--dur-fast) ease-(--ease) hover:bg-surface-2"
+          >
+            Account and security
+          </a>
+
           <button
             type="button"
-            className="mt-3 w-full rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-left text-[11.5px] font-semibold text-text-primary transition-[background-color] duration-(--dur-fast) ease-(--ease) hover:bg-surface-2"
+            className="mt-2 w-full rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-left text-[11.5px] font-semibold text-text-primary transition-[background-color] duration-(--dur-fast) ease-(--ease) hover:bg-surface-2"
             onClick={() => {
               close(false);
               onOpenPreferences();

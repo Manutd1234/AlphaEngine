@@ -380,6 +380,11 @@ function scan(body: string): { bailouts: number[]; hooks: { name: string; at: nu
 }
 
 const COMPONENTS = [
+  // Opted in explicitly: this check iterates a hard-coded list, so a new
+  // surface is invisible to it until someone adds the file. ProfileScreen is
+  // exactly the shape the check exists for — three independent async loads
+  // behind three early returns.
+  "../components/profile/ProfileScreen.tsx",
   "../components/PortfolioWorkspace.tsx",
   "../components/RiskWorkspace.tsx",
   "../components/DataConsole.tsx",
