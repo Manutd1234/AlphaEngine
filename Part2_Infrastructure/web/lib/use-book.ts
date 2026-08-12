@@ -29,12 +29,14 @@ import {
   type Provenance,
   type TierCause,
 } from "@/lib/data-tier";
+import { deskSeed } from "@/lib/desk-identity";
 import {
   type EquityPoint,
   type PortfolioPayload,
   sandboxBook,
   sandboxEquityPath,
 } from "@/lib/portfolio";
+import { useSession } from "@/lib/use-session";
 import { probeGateway } from "@/lib/use-gateway-connection";
 import {
   type AllocationLimits,
@@ -95,6 +97,14 @@ export interface BookView {
 
   sandbox: boolean;
   setSandbox: (on: boolean) => void;
+  /**
+   * This visitor's sandbox seed, so every surface that generates its own
+   * stand-in generates the *same* desk. Undefined on the server pass and until
+   * the first effect runs, which is deliberate — see the note where it is
+   * resolved. A consumer that generates from its own unseeded call would put a
+   * second, different fiction beside this one.
+   */
+  seed: number | undefined;
 
   /** Measured, not assumed — see `returns` below. */
   risk: PortfolioRisk | null;
@@ -130,6 +140,7 @@ export interface BookView {
 }
 
 export function useBook(): BookView {
+  const session = useSession();
   const [portfolio, setPortfolio] = useState<PortfolioPayload | null>(null);
   const [error, setError] = useState<BookError | null>(null);
   const [lastSuccessAt, setLastSuccessAt] = useState<Date | null>(null);
@@ -159,10 +170,29 @@ export function useBook(): BookView {
   const [historyBackfilled, setHistoryBackfilled] = useState(false);
   const sequence = useRef(0);
 
+  /**
+   * This visitor's seed, resolved after mount and never during render.
+   *
+   * `deskSeed` reads sessionStorage, which does not exist on the server pass. A
+   * seed read during render would therefore be `undefined` in the server HTML
+   * and a real number on hydration — React would paint one generated book and
+   * silently replace it with a different one, numbers and all, with no error to
+   * say why. Resolving it in an effect makes the first client render match the
+   * server's by construction, and the sandbox is normally entered by an effect
+   * anyway once a probe has failed.
+   */
+  const [seed, setSeed] = useState<number | undefined>(undefined);
+  useEffect(() => { setSeed(deskSeed(session.userId)); }, [session.userId]);
+
   // The sandbox replaces the payload entirely rather than patching gaps in it.
   // A book that is half real and half generated is the one thing worse than
   // either, because no banner can say which half you are reading.
-  const book: PortfolioPayload | null = sandbox ? sandboxBook() : portfolio;
+  //
+  // Memoised on the seed: this was regenerating the entire book on every render
+  // of every consumer, which was merely wasteful while it was a constant and
+  // becomes a new object identity per render now that it takes an argument.
+  const generated = useMemo(() => sandboxBook(undefined, seed), [seed]);
+  const book: PortfolioPayload | null = sandbox ? generated : portfolio;
 
   const refresh = useCallback(async (quiet = false) => {
     const current = ++sequence.current;
@@ -552,6 +582,7 @@ export function useBook(): BookView {
     refresh,
     sandbox,
     setSandbox,
+    seed,
     risk,
     covarianceModel,
     varValidation,

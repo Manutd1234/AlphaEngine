@@ -186,8 +186,8 @@ const SANDBOX_SLEEVE_PNL: Record<string, { realized: number; winRate: number; cl
  * attribution, and it would make the panel disagree between server render and
  * hydrate, which is the one property `sandboxEquityPath` exists to guarantee.
  */
-function sandboxSession(sessionDate: string, dailyPnl: number, net: number): SessionAttribution {
-  const fills = sandboxBlotter().filter((row) => row.status === "FILLED");
+function sandboxSession(sessionDate: string, dailyPnl: number, net: number, seed?: number): SessionAttribution {
+  const fills = sandboxBlotter(undefined, seed).filter((row) => row.status === "FILLED");
   const fees = fills.reduce((acc, row) => acc + (row.feeUsd ?? 0), 0);
   const slippageCost = fills.reduce(
     (acc, row) => acc + (row.notional ?? 0) * (row.slippageBps ?? 0) / 1e4,
@@ -226,9 +226,9 @@ function sandboxSession(sessionDate: string, dailyPnl: number, net: number): Ses
  * with zeros would have been worse: a symbol that traded and a symbol that did
  * not are different claims.
  */
-function sandboxSymbolFlow(): Array<Record<string, unknown>> {
+function sandboxSymbolFlow(seed?: number): Array<Record<string, unknown>> {
   const bySymbol = new Map<string, { orders: number; filled: number; rejected: number; fees: number; latency: number[] }>();
-  for (const row of sandboxBlotter()) {
+  for (const row of sandboxBlotter(undefined, seed)) {
     const slot = bySymbol.get(row.symbol)
       ?? { orders: 0, filled: 0, rejected: 0, fees: 0, latency: [] };
     slot.orders += 1;
@@ -535,7 +535,25 @@ export function sandboxEquityPath(
 }
 
 /** A realistic, clearly-flagged book. Always the same one. */
-export function sandboxBook(now = Date.parse("2026-08-04T12:00:00Z")): PortfolioPayload {
+/**
+ * A realistic, clearly-flagged book. The same one for a given seed.
+ *
+ * `seed` exists so two visitors to the same deployment get two self-consistent
+ * desks rather than one shared fiction — the isolation the brief asks for. It is
+ * threaded to the blotter rather than applied here, because this book's
+ * attribution is *derived* from those rows; seeding the two independently is how
+ * a PM reading attribution and a trader reading execution quality would come to
+ * disagree about the same generated day.
+ *
+ * Positions are deliberately NOT seeded. They are the desk's worked example —
+ * the concentration warning, the symbol at 90% of its cap, the drift that
+ * justifies rebalancing — and randomising them would sometimes generate a book
+ * with nothing worth looking at.
+ */
+export function sandboxBook(
+  now = Date.parse("2026-08-04T12:00:00Z"),
+  seed?: number,
+): PortfolioPayload {
   const positions = buildPositions();
   const gross = positions.reduce((acc, p) => acc + p.notional, 0);
   const net = positions.reduce((acc, p) => acc + (p.side === "LONG" ? p.notional : -p.notional), 0);
@@ -613,8 +631,8 @@ export function sandboxBook(now = Date.parse("2026-08-04T12:00:00Z")): Portfolio
           has_open_inventory: sleeve.open,
         };
       }),
-      by_symbol: sandboxSymbolFlow(),
-      session: sandboxSession(new Date(now).toISOString().slice(0, 10), dailyPnl, net),
+      by_symbol: sandboxSymbolFlow(seed),
+      session: sandboxSession(new Date(now).toISOString().slice(0, 10), dailyPnl, net, seed),
     },
     execution_quality: {},
     gateway: { environment: "sandbox", version: "mock", authoritative: false },

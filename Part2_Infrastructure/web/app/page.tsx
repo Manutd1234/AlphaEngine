@@ -1758,6 +1758,10 @@ export default function Page() {
               onPriceSelect={stageLimitFromLadder}
             >
               <ExecutionCockpit
+                /* One seed for the whole desk: the cockpit generates its own
+                   sandbox book and blotter, and an unseeded call here would put a
+                   second, different generated desk beside Portfolio's. */
+                seed={book.seed}
                 symbol={req.symbol}
                 side={side}
                 notional={notional}

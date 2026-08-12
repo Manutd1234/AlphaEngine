@@ -79,6 +79,12 @@ interface PortfolioSnapshot {
 export type CockpitMode = "live" | "sandbox" | "outage";
 
 export interface CockpitProps {
+  /**
+   * This visitor's sandbox seed, from `useBook` so there is one of them.
+   * Undefined is a valid value — the server pass and the first client render —
+   * and means the shared worked example.
+   */
+  seed?: number;
   symbol: string;
   side: "BUY" | "SELL";
   notional: number;
@@ -108,6 +114,7 @@ export interface CockpitProps {
 interface Unavailable { code?: string; error: string; hint?: string }
 
 export default function ExecutionCockpit({
+  seed,
   symbol,
   side,
   notional,
@@ -227,17 +234,23 @@ export default function ExecutionCockpit({
   }, [refresh, unconfigured, failures]);
 
   // The sandbox desk: one deterministic book, blotter and event stream, plus a
-  // local judge replaying the gateway's gates. Created once — the judge holds
-  // the rate bucket and idempotency set a burst preset needs.
+  // local judge replaying the gateway's gates. Rebuilt only when the seed
+  // resolves — the judge holds the rate bucket and idempotency set a burst
+  // preset needs, so it must not be recreated on every render.
+  //
+  // The seed comes from the book rather than being read again here. Generating
+  // from an unseeded call would put a second, different generated desk beside
+  // the one Portfolio and Risk are showing, which is exactly the disagreement
+  // the reconciliation tests exist to prevent.
   const sandboxState = useMemo(() => {
-    const generatedBook = sandboxBook();
+    const generatedBook = sandboxBook(undefined, seed);
     return {
       book: generatedBook as unknown as PortfolioSnapshot,
       desk: createSandboxDesk(generatedBook),
-      orders: sandboxBlotter(),
+      orders: sandboxBlotter(undefined, seed),
       events: sandboxRiskEvents(),
     };
-  }, []);
+  }, [seed]);
 
   const effectiveBook = mode === "sandbox" ? sandboxState.book : book;
   const effectiveOrders = mode === "sandbox" ? sandboxState.orders : orders;

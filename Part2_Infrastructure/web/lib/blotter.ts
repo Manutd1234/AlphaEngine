@@ -333,9 +333,27 @@ const REJECT_REASONS: Record<(typeof REJECT_GATES)[number], string> = {
  * figures exactly — an ExecutionQuality panel derived from these rows and a
  * PM attribution read from the book describe one desk, not two.
  */
-export function sandboxBlotter(now = Date.parse("2026-08-04T12:00:00Z")): BlotterRow[] {
+/**
+ * The `seed` argument, and why it is safe.
+ *
+ * Per-sleeve totals — order count, fill count, notional, fees — come from
+ * SANDBOX_SLEEVES and are constants. The stream only decides how those totals
+ * are *distributed* across individual fills, and which symbol, side, venue and
+ * timestamp each row carries; the last fill in every sleeve takes the remainder
+ * rather than its weighted share. So the reconciliation this desk depends on —
+ * these rows summing to the book's attribution table, to the cent — holds for
+ * any seed by construction, not by luck. `tests/sandbox-seed.test.ts` asserts
+ * that across several seeds rather than trusting this paragraph.
+ *
+ * The default is the original literal, so every existing caller and every
+ * pinned expectation in `sandbox-desk.test.ts` gets byte-identical output.
+ */
+export function sandboxBlotter(
+  now = Date.parse("2026-08-04T12:00:00Z"),
+  seed = 0xa1fae,
+): BlotterRow[] {
   const rows: BlotterRow[] = [];
-  const rand = mulberry32(0xa1fae);
+  const rand = mulberry32(seed);
 
   for (const sleeve of SANDBOX_SLEEVES) {
     // Split totals across fills on fixed weights so they sum back exactly.
