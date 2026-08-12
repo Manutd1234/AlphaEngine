@@ -4,8 +4,11 @@
  * The account control in the header — the only place the workspace admits it
  * now has a notion of "you".
  *
- * Signed out it is a link, not a gate: the desk behind it is fully browsable,
- * and this offers preferences that follow the account rather than the browser.
+ * Signed out it is a link to the sign-in page. The desk is behind a routing
+ * guard now, so the old sentence here — "not a gate: the desk behind it is fully
+ * browsable" — is no longer true as written; what remains true is that nobody is
+ * turned away, because the sign-in page offers a guest pass. An account buys
+ * preferences that follow you between devices rather than the browser.
  * Signed in it opens `AnchoredPanel` — the shared header dropdown, which owns
  * position, width and elevation for all three of these controls. Dismissal
  * stays here: Escape or click-away, focus returned to the trigger, and the
@@ -26,6 +29,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { UserRound } from "lucide-react";
 
 import AnchoredPanel from "@/components/header/AnchoredPanel";
+import { dropDeskPass } from "@/lib/desk-pass";
 import { signOutUser, useSession } from "@/lib/use-session";
 import { flushPendingPrefs } from "@/lib/user-prefs";
 
@@ -203,6 +207,17 @@ export default function AccountChip({ onOpenPreferences }: { onOpenPreferences: 
                 // leave the token behind. The browser would come back signed
                 // in while this menu had just said otherwise.
                 await signOutUser();
+                /**
+                 * And the desk pass, before leaving.
+                 *
+                 * Without this the cookie outlived the session: the guard kept
+                 * admitting a signed-out visitor on a pass that claimed an
+                 * account, while this menu had just told them they were signed
+                 * out. Awaited for the same reason `signOutUser()` is — a
+                 * navigation that races it can unload the document before the
+                 * request leaves.
+                 */
+                await dropDeskPass();
                 // A full document navigation, not a router push: it discards
                 // the module-level singletons in use-session and user-prefs,
                 // so nothing account-shaped survives as stale UI.

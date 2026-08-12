@@ -30,6 +30,7 @@ import BrandLockup from "@/components/common/BrandLockup";
 import { authClient, authConfigured, fetchEnabledProviders } from "@/lib/auth-client";
 import { describeAuthError, looksLikeEmail, resolveLoginStep } from "@/lib/auth-flow";
 import { setAuthPersistence } from "@/lib/auth-storage";
+import { mintDeskPass } from "@/lib/desk-pass";
 import { refreshSession } from "@/lib/use-session";
 
 type FormMode = "signin" | "signup" | "forgot" | "reset";
@@ -122,6 +123,36 @@ export default function LoginScreen() {
           });
       }
     }
+  }, []);
+
+  /**
+   * A visitor who is already signed in should not be looking at this form.
+   *
+   * The desk pass expires with the browser session; the Supabase session in
+   * localStorage does not. So a returning visitor arrives still signed in and
+   * with no pass, the guard sends them here, and they are shown a sign-in page
+   * for an account they are already using — which reads as the session having
+   * quietly failed. Minting the pass from the session they already have and
+   * continuing is the whole fix.
+   *
+   * Deliberately not gated on `sessionStatus`: this reads the token directly,
+   * because it needs the access token itself rather than the derived boolean, and
+   * a status of "signed-in" without a readable token is not something to act on.
+   */
+  useEffect(() => {
+    const supabase = authClient();
+    if (!supabase) return;
+    let alive = true;
+    void supabase.auth.getSession().then(async ({ data }) => {
+      const token = data.session?.access_token;
+      if (!alive || !token) return;
+      // A recovery link signs the visitor in for exactly as long as it takes to
+      // choose a new password. Redirecting them to the desk here would skip the
+      // form they came for.
+      if (resolveLoginStep(window.location.search).step === "reset") return;
+      if (await mintDeskPass(token)) goToWorkspace();
+    });
+    return () => { alive = false; };
   }, []);
 
   /**
