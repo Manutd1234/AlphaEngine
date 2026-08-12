@@ -22,7 +22,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Provider } from "@supabase/supabase-js";
 
-import { authClient, authConfigured } from "@/lib/auth-client";
+import { authClient, authConfigured, fetchEnabledProviders } from "@/lib/auth-client";
 import {
   OTP_SENT_AT_KEY,
   OTP_RESEND_COOLDOWN_MS,
@@ -114,6 +114,8 @@ export default function LoginScreen() {
   const [banner, setBanner] = useState<Banner | null>(null);
   const [cooldownMs, setCooldownMs] = useState(0);
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  /** Provider ids this project has credentials for; null while unknown. */
+  const [enabledProviders, setEnabledProviders] = useState<Set<string> | null>(null);
   const autoSent = useRef(false);
 
   const copy = MODE_COPY[mode];
@@ -163,6 +165,21 @@ export default function LoginScreen() {
         });
       }
     }
+  }, []);
+
+  /**
+   * Ask the project which providers it can actually complete. Unresolved and
+   * failed probes both leave this null, and null renders every provider — a
+   * blocked request is not evidence that a provider is missing.
+   */
+  useEffect(() => {
+    let alive = true;
+    void fetchEnabledProviders().then((enabled) => {
+      if (alive && enabled) setEnabledProviders(enabled);
+    });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   /** One timer for the resend countdown; it stops as soon as it reaches zero. */
@@ -391,7 +408,10 @@ export default function LoginScreen() {
   const showEmail = mode !== "reset";
   const showPasswordField = mode === "signin" || mode === "signup" || mode === "reset";
   const showRemember = mode === "signin" || mode === "signup";
-  const showProviders = mode === "signin" || mode === "signup";
+  const offeredProviders = enabledProviders
+    ? PROVIDERS.filter((provider) => enabledProviders.has(provider.id))
+    : PROVIDERS;
+  const showProviders = (mode === "signin" || mode === "signup") && offeredProviders.length > 0;
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[440px] flex-col justify-center gap-4 px-5 py-10">
@@ -541,7 +561,7 @@ export default function LoginScreen() {
               or continue with
             </p>
             <div className="flex flex-col gap-2">
-              {PROVIDERS.map((provider) => (
+              {offeredProviders.map((provider) => (
                 <button
                   key={provider.id}
                   type="button"

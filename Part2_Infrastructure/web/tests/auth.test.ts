@@ -351,3 +351,32 @@ describe("the migrations that ship with the login", () => {
     }
   });
 });
+
+describe("the page offers only providers that can actually complete", () => {
+  const client = read("../lib/auth-client.ts");
+
+  it("asks the project which providers hold credentials", () => {
+    // /auth/v1/settings is public and unauthenticated — it is what the hosted
+    // dashboard reads to decide the same thing.
+    assert.match(code(client), /auth\/v1\/settings/);
+    assert.match(code(client), /enabled === true/);
+  });
+
+  it("treats an unknown answer as unknown, not as none", () => {
+    // A blocked or failing probe must not hide a working button; the failure
+    // path returns null and the caller keeps rendering every provider.
+    assert.match(code(client), /return null;/);
+    assert.match(code(screen), /enabledProviders\s*\?\s*PROVIDERS\.filter/);
+    assert.match(code(screen), /: PROVIDERS;/);
+  });
+
+  it("drops the whole block rather than leaving a headless divider", () => {
+    // "or continue with" above nothing is worse than no section at all.
+    assert.match(code(screen), /offeredProviders\.length > 0/);
+  });
+
+  it("renders the filtered list, never the raw one", () => {
+    assert.match(code(screen), /\{offeredProviders\.map\(/);
+    assert.doesNotMatch(code(screen), /\{PROVIDERS\.map\(/);
+  });
+});

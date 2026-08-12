@@ -63,3 +63,38 @@ export function authClient(): SupabaseClient | null {
 export function authConfigured(): boolean {
   return Boolean(url && anonKey);
 }
+
+/**
+ * Which OAuth providers this project has actually been given credentials for.
+ *
+ * `/auth/v1/settings` is public and unauthenticated by design — it is what the
+ * hosted Supabase UI reads to decide which buttons to draw. We read it for the
+ * same reason: a provider nobody has configured returns "provider is not
+ * enabled" when clicked, and a button that fails every time is worse than one
+ * that is not there.
+ *
+ * Returns null when the probe fails, which callers must treat as "unknown"
+ * rather than "none". A blocked request is not evidence that a provider is
+ * missing, and hiding a working button because the network hiccuped would be
+ * the same lie in the other direction.
+ */
+export async function fetchEnabledProviders(): Promise<Set<string> | null> {
+  if (!url || !anonKey) return null;
+  try {
+    const response = await fetch(`${url}/auth/v1/settings`, {
+      headers: { apikey: anonKey },
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+    const body: unknown = await response.json();
+    const external = (body as { external?: Record<string, unknown> }).external;
+    if (!external || typeof external !== "object") return null;
+    return new Set(
+      Object.entries(external)
+        .filter(([, enabled]) => enabled === true)
+        .map(([name]) => name),
+    );
+  } catch {
+    return null;
+  }
+}
