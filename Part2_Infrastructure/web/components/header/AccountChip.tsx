@@ -16,6 +16,10 @@
  * link while signed out, and the dropdown once there is an identity to show.
  * Collapsing the probe into "signed out" is what made every page load flash a
  * Sign in button at people who were already signed in.
+ *
+ * The avatar is a monogram, not an image. Provider avatars and uploads arrive
+ * with the profile page that can actually manage them; until then there is no
+ * URL to render and a broken-image glyph would be worse than initials.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -24,7 +28,22 @@ import { UserRound } from "lucide-react";
 import { signOutUser, useSession } from "@/lib/use-session";
 import { flushPendingPrefs } from "@/lib/user-prefs";
 
-export default function AccountChip() {
+/**
+ * Initials from the display name if there is one, otherwise from the address.
+ * `ian.wangsa@x.com` → IW; `desk@x.com` → D. Never more than two characters,
+ * because the circle is 22px and a third is unreadable rather than informative.
+ */
+export function initialsFrom(name: string | null, email: string | null): string {
+  const source = (name ?? email ?? "").trim();
+  if (!source) return "?";
+  const local = source.includes("@") ? source.slice(0, source.indexOf("@")) : source;
+  const parts = local.split(/[.\-_+\s]+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  const letters = parts.length === 1 ? parts[0].slice(0, 1) : `${parts[0][0]}${parts[1][0]}`;
+  return letters.toLocaleUpperCase();
+}
+
+export default function AccountChip({ onOpenPreferences }: { onOpenPreferences: () => void }) {
   const session = useSession();
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -91,6 +110,7 @@ export default function AccountChip() {
   }
 
   const label = session.email ?? "Signed in";
+  const initials = initialsFrom(null, session.email);
 
   return (
     <span ref={wrapper} className="relative inline-flex">
@@ -102,10 +122,18 @@ export default function AccountChip() {
         aria-expanded={open}
         aria-controls="account-panel"
         aria-label={`Account menu for ${label}`}
-        className="inline-flex items-center gap-1.5 rounded-[9px] border border-transparent px-2 py-1.5 text-[11px] font-semibold text-text-secondary hover:border-border hover:bg-surface-2"
+        /* Monogram only. The address is up to 132px of the most crowded row in
+           the app, and it is already the panel's heading — carrying it twice
+           cost the Settings gear its place on screen. aria-label still names
+           the account, so nothing is lost to a screen reader. */
+        className="inline-flex items-center rounded-[9px] border border-transparent p-1 text-[11px] font-semibold text-text-secondary transition-[background-color,border-color] duration-(--dur-fast) ease-(--ease) hover:border-border hover:bg-surface-2"
       >
-        <UserRound size={14} aria-hidden />
-        <span className="max-w-[132px] truncate max-[900px]:hidden">{label}</span>
+        <span
+          aria-hidden
+          className="grid h-[22px] w-[22px] place-items-center rounded-[50%] bg-[color-mix(in_srgb,var(--series-1)_16%,var(--surface-2))] text-[9.5px] font-bold tracking-[0.02em] text-series-1"
+        >
+          {initials}
+        </span>
       </button>
 
       {open && (
@@ -120,13 +148,39 @@ export default function AccountChip() {
           <h3 id="account-panel-title" className="mt-0.5 text-[13px] break-words">
             {label}
           </h3>
-          <p className="mt-1 text-[11px] leading-snug text-text-secondary">
-            Workspace preferences follow this account.
+          {/*
+            Dot AND word. A coloured dot on its own carries no meaning for
+            anyone who cannot see the colour, and the house rule forbids it —
+            which is also why this cannot join the forced-colors allow-list.
+            "Session active" is the honest claim: it says this browser holds a
+            live session, not that the person is present.
+          */}
+          <p className="mt-1 flex items-center gap-1.5 text-[11px] text-text-secondary">
+            <i
+              aria-hidden
+              className="block h-[6px] w-[6px] rounded-[50%] bg-status-good shadow-[0_0_0_3px_color-mix(in_srgb,var(--status-good)_14%,transparent)]"
+            />
+            Session active · preferences follow this account
           </p>
+
+          <button
+            type="button"
+            className="mt-3 w-full rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-left text-[11.5px] font-semibold text-text-primary transition-[background-color] duration-(--dur-fast) ease-(--ease) hover:bg-surface-2"
+            onClick={() => {
+              close(false);
+              onOpenPreferences();
+            }}
+          >
+            Preferences
+          </button>
+
           <button
             type="button"
             disabled={signingOut}
-            className="mt-3 w-full rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-[11.5px] font-semibold text-text-primary hover:bg-surface-2"
+            /* Destructive, and it reads as destructive without relying on the
+               colour alone: the label says Log out and the border carries the
+               critical token, which survives forced-colors as a real border. */
+            className="mt-2 w-full rounded-[9px] border border-[color-mix(in_srgb,var(--status-critical)_45%,var(--border))] bg-surface-1 px-3 py-2 text-left text-[11.5px] font-semibold text-critical-text transition-[background-color] duration-(--dur-fast) ease-(--ease) hover:bg-[color-mix(in_srgb,var(--status-critical)_8%,var(--surface-1))]"
             onClick={() => {
               if (signingOut) return;
               setSigningOut(true);
@@ -150,7 +204,7 @@ export default function AccountChip() {
               })();
             }}
           >
-            {signingOut ? "Signing out…" : "Sign out"}
+            {signingOut ? "Signing out…" : "Log out"}
           </button>
         </div>
       )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyboardEvent, useRef, useEffect } from "react";
+import { KeyboardEvent, useRef, useEffect, useState } from "react";
 import LatencyChip from "@/components/header/LatencyChip";
 import KillSwitchControl, {
   type KillSwitchHaltState,
@@ -64,6 +64,8 @@ export default function WorkspaceHeader({
   halt,
   riskControl,
 }: WorkspaceHeaderProps) {
+  // Bumped by the account menu's Preferences item to open the settings panel.
+  const [settingsSignal, setSettingsSignal] = useState(0);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const headerRef = useRef<HTMLElement | null>(null);
 
@@ -224,11 +226,12 @@ export default function WorkspaceHeader({
           <i aria-hidden />
           {healthLabel}
         </button>
-        <AccountChip />
+        <AccountChip onOpenPreferences={() => setSettingsSignal((n) => n + 1)} />
         <QuickSettings
           healthLabel={healthLabel}
           healthNeedsAttention={healthNeedsAttention}
           onOpenReliability={onOpenProviderHealth}
+          openSignal={settingsSignal}
         />
       </div>
     </header>

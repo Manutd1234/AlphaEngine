@@ -32,12 +32,20 @@ interface QuickSettingsProps {
   healthLabel: string;
   healthNeedsAttention: boolean;
   onOpenReliability: () => void;
+  /**
+   * A counter, not a boolean. The account menu's Preferences item asks this
+   * panel to open, and asking twice in a row must work — a boolean would be
+   * already-true the second time. The panel keeps owning `open`, so its own
+   * dismissal logic and its aria-expanded binding are untouched.
+   */
+  openSignal?: number;
 }
 
 export default function QuickSettings({
   healthLabel,
   healthNeedsAttention,
   onOpenReliability,
+  openSignal = 0,
 }: QuickSettingsProps) {
   const [open, setOpen] = useState(false);
   const wrapper = useRef<HTMLSpanElement>(null);
@@ -47,6 +55,12 @@ export default function QuickSettings({
     setOpen(false);
     if (returnFocus) trigger.current?.focus();
   }, []);
+
+  // Zero is the initial value and means "nobody has asked yet", so it must not
+  // pop the panel open on first render.
+  useEffect(() => {
+    if (openSignal > 0) setOpen(true);
+  }, [openSignal]);
 
   useEffect(() => {
     if (!open) return;

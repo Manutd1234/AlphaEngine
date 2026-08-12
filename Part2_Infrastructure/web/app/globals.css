@@ -12289,6 +12289,35 @@ h4 {
   flex-shrink: 1;
 }
 
+/* The utility row wraps rather than clipping what it cannot fit.
+   ---------------------------------------------------------------
+   `overflow-x: clip` above keeps this bar from becoming a scroll container,
+   which is right — but it also means anything past the edge is silently eaten,
+   and what sits furthest right is the Settings gear. Once the account chip and
+   the Telegram CTA joined the row it overflowed between roughly 900px and
+   1550px, so the only route to theme and detail level was invisible at 1280px
+   and 1440px, two of the commonest laptop widths, with every test green and
+   nothing to see in a screenshot taken at 1600.
+
+   Most of that is paid for by the chip showing a monogram instead of the full
+   address, which reclaims about 140px and leaves the bar one row from 1050px
+   up. Below that the row genuinely cannot hold everything, so it wraps — the
+   same answer the ≤900px block already relies on, just starting earlier.
+
+   Not `flex-wrap: wrap` unconditionally: the spacer's `flex: 1` makes the line
+   overfull and wraps at widths that would otherwise have fitted, costing 24px
+   of height on a 1440px screen for nothing. And not by shrinking the tab strip,
+   which was tried and collapsed the eight primary labels to a few pixels each —
+   losing the nav to save the header is the wrong trade.
+
+   `--header-h` is measured by a ResizeObserver, so every sticky offset and
+   deep-link scroll margin follows the taller bar on its own. */
+@media (max-width: 1024px) {
+  .workspace-header__utility {
+    flex-wrap: wrap;
+  }
+}
+
 /* Cards placed side by side size to their own content. Stretching the shorter
    one to the taller one is how a 400px void appears under a chart. */
 .compact-grid-2col,
@@ -14669,8 +14698,14 @@ html:active-view-transition .view-panel {
     --chrome-rail: 50px;
   }
 
+  /* `a.primary-action` and not `a` is deliberate elsewhere, but the account and
+     settings panels put real navigation behind plain anchors — an unclassed
+     link in a dropdown is still a fingertip target. Addressed by panel id so
+     no new class is declared, which keeps the dead-CSS ratchet where it is. */
   button,
   a.primary-action,
+  #account-panel a,
+  #quick-settings-panel a,
   .rail-toggle,
   .text-action {
     min-height: 44px;

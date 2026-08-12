@@ -25,6 +25,7 @@ import {
   DEFAULT_AUTH_PERSISTENCE,
   isAuthPersistence,
 } from "../lib/auth-storage";
+import { initialsFrom } from "../components/header/AccountChip";
 
 const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
@@ -504,5 +505,101 @@ describe("the header does not guess while the probe is out", () => {
 
   it("keeps the unconfigured guard byte-identical", () => {
     assert.match(code(chip), /if \(session\.status === "unconfigured"\) return null;/);
+  });
+});
+
+describe("the account menu", () => {
+  const chip = read("../components/header/AccountChip.tsx");
+  const header = read("../components/WorkspaceHeader.tsx");
+  const panel = read("../components/header/QuickSettings.tsx");
+
+  it("shows a monogram, not an image that may not exist", () => {
+    // Provider avatars and uploads arrive with the profile page that can
+    // manage them. Until then there is no URL, and a broken-image glyph would
+    // be worse than initials.
+    assert.match(code(chip), /initialsFrom\(null, session\.email\)/);
+    assert.doesNotMatch(code(chip), /<img|avatar_url/);
+  });
+
+  it("derives sane initials", () => {
+    assert.equal(initialsFrom(null, "ian.wangsa@example.com"), "IW");
+    assert.equal(initialsFrom(null, "desk@example.com"), "D");
+    assert.equal(initialsFrom("Ian Wangsa", "x@y.com"), "IW");
+    assert.equal(initialsFrom(null, null), "?");
+    // Never three characters: the circle is 22px.
+    assert.ok(initialsFrom("a b c d", null).length <= 2);
+  });
+
+  it("states the session with a dot AND a word", () => {
+    // Colour alone carries nothing for a reader who cannot see it, and the
+    // house rule forbids it — which is also why this cannot be added to the
+    // forced-colors allow-list.
+    assert.match(code(chip), /Session active/);
+    const dot = code(chip).slice(code(chip).indexOf("Session active") - 400);
+    assert.match(dot.slice(0, 400), /aria-hidden/);
+  });
+
+  it("uses the token ladder for motion, in the shorthand that compiles", () => {
+    // `duration-[--dur-fast]` emits `transition-duration: --dur-fast`, which is
+    // invalid CSS — the transition silently does nothing while every test and
+    // the build stay green. The `(--var)` shorthand is the one that works.
+    assert.match(code(chip), /duration-\(--dur-fast\) ease-\(--ease\)/);
+    assert.doesNotMatch(code(chip), /duration-\[--|ease-\[--/);
+  });
+
+  it("does not link to a page that does not exist yet", () => {
+    // View Profile arrives with the route it points at. A menu item that 404s
+    // for four commits is the same lie as an unconfigured provider button.
+    assert.doesNotMatch(code(chip), /href="\/profile"/);
+  });
+
+  it("opens the settings panel without taking over its state", () => {
+    // QuickSettings keeps owning `open`, so its dismissal logic and its
+    // aria-expanded binding are untouched; a counter lets the same request be
+    // made twice in a row, which a boolean could not.
+    assert.match(code(chip), /onOpenPreferences\(\)/);
+    assert.match(code(header), /onOpenPreferences=\{\(\) => setSettingsSignal\(\(n\) => n \+ 1\)\}/);
+    assert.match(code(header), /openSignal=\{settingsSignal\}/);
+    assert.match(code(panel), /if \(openSignal > 0\) setOpen\(true\)/);
+    assert.match(code(panel), /aria-expanded=\{open\}/);
+  });
+
+  it("gives panel links a real touch target without a second coarse block", () => {
+    const css = read("../app/globals.css");
+    const coarse = css.slice(css.indexOf("@media (pointer: coarse)"));
+    assert.match(coarse.slice(0, 900), /#account-panel a/);
+    // Addressed by id, so no class is declared and the dead-CSS ratchet does
+    // not move.
+    assert.equal((css.match(/@media \(pointer: coarse\)/g) ?? []).length, 1);
+  });
+});
+
+describe("the header cannot clip its own controls", () => {
+  const css = read("../app/globals.css");
+  const chip = read("../components/header/AccountChip.tsx");
+
+  it("shows a monogram, not the whole address, in the busiest row", () => {
+    // The address was up to 132px of the most crowded row in the app, and it
+    // is already the panel's heading. Carrying it twice cost the Settings gear
+    // its place on screen at 1280px and 1440px.
+    assert.doesNotMatch(code(chip), /truncate max-\[900px\]:hidden/);
+    assert.match(code(chip), /aria-label=\{`Account menu for \$\{label\}`\}/);
+  });
+
+  it("wraps only in the band that cannot fit one row", () => {
+    // Unconditional wrap costs 24px of height at 1440px for nothing: the
+    // spacer's flex:1 makes the line overfull and wraps early.
+    assert.match(css, /@media \(max-width: 1024px\) \{\s*\.workspace-header__utility \{\s*flex-wrap: wrap;/);
+  });
+
+  it("does not shrink the tab strip to buy the room", () => {
+    // Tried and rejected: min-width:0 on a flex:1 strip collapsed the eight
+    // primary labels to a few pixels each.
+    assert.doesNotMatch(css, /\.workspace-tabs \{\s*min-width: 0;/);
+  });
+
+  it("introduces no 768px breakpoint", () => {
+    const widths = new Set([...css.matchAll(/@media \([^)]*?(\d+)px\)/g)].map((m) => Number(m[1])));
+    assert.equal(widths.has(768), false, "768px is not one of this stylesheet's widths");
   });
 });
