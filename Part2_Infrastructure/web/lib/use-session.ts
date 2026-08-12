@@ -17,7 +17,7 @@
  * the client's first paint disagree.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { authClient, authConfigured } from "./auth-client";
 
@@ -36,6 +36,17 @@ export interface SessionInfo {
 }
 
 const SIGNED_OUT: SessionInfo = { status: "signed-out", email: null, userId: null };
+
+/**
+ * How long the first session probe may take before we stop waiting.
+ *
+ * `getSession()` carries no timeout of its own. Blocked storage or a hung
+ * network leaves its promise pending forever — and because the page still
+ * renders and still returns 200, every automated check stays green while the
+ * header shimmers for the life of the tab. Falling back to signed-out is the
+ * safe reading: it grants nothing, and it offers an action.
+ */
+const SESSION_PROBE_TIMEOUT_MS = 8_000;
 
 let current: SessionInfo = authConfigured()
   ? { status: "loading", email: null, userId: null }
@@ -72,12 +83,33 @@ function ensureStarted(): void {
   }
   started = true;
 
+  // The initial probe resolves exactly once, whichever of the three paths
+  // below gets there first.
+  let settled = false;
+  const settle = (info: SessionInfo) => {
+    if (settled) return;
+    settled = true;
+    publish(info);
+  };
+
+  const timer = setTimeout(() => settle(SIGNED_OUT), SESSION_PROBE_TIMEOUT_MS);
+
   void supabase.auth
     .getSession()
-    .then(({ data }) => publish(fromSession(data.session)))
-    .catch(() => publish(SIGNED_OUT));
+    .then(({ data }) => {
+      clearTimeout(timer);
+      settle(fromSession(data.session));
+    })
+    .catch(() => {
+      clearTimeout(timer);
+      settle(SIGNED_OUT);
+    });
 
   supabase.auth.onAuthStateChange((_event, session) => {
+    // A real auth event always wins, including after the probe timed out —
+    // a slow answer that eventually arrives should still be believed.
+    clearTimeout(timer);
+    settled = true;
     publish(fromSession(session));
   });
 }
@@ -129,6 +161,38 @@ export async function signOutUser(): Promise<void> {
   }
   // Notifies listeners. It does not clear storage — GoTrue did that above.
   publish(SIGNED_OUT);
+}
+
+/** The shape the workspace consumes: identity, a boolean, and the raw status. */
+export interface AuthUser {
+  id: string;
+  email: string | null;
+}
+
+export interface AuthState {
+  user: AuthUser | null;
+  isAuthenticated: boolean;
+  sessionStatus: SessionStatus;
+}
+
+/**
+ * The session, in the shape most callers actually want.
+ *
+ * Built on the same module-level value and listener set rather than React
+ * context, deliberately: context re-renders every consumer on every change,
+ * which is the opposite of what a session read should cost. Subscribers here
+ * only re-render when `publish` runs, which is once per real transition.
+ */
+export function useAuth(): AuthState {
+  const info = useSession();
+  return useMemo(
+    () => ({
+      user: info.userId ? { id: info.userId, email: info.email } : null,
+      isAuthenticated: info.status === "signed-in",
+      sessionStatus: info.status,
+    }),
+    [info],
+  );
 }
 
 export function useSession(): SessionInfo {

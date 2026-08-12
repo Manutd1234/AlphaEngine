@@ -422,3 +422,87 @@ describe("an abandoned account cannot keep writing", () => {
     assert.doesNotMatch(signedOut.slice(0, 400), /removeItem|clear\(\)/);
   });
 });
+
+describe("the session probe cannot hang the header", () => {
+  it("bounds the first read with a timeout", () => {
+    // getSession() carries no timeout of its own. Blocked storage or a hung
+    // network leaves the promise pending forever — and because the page still
+    // renders and returns 200, every automated check stays green while the
+    // header shimmers for the life of the tab.
+    assert.match(code(session), /SESSION_PROBE_TIMEOUT_MS/);
+    assert.match(code(session), /setTimeout\(\(\) => settle\(SIGNED_OUT\)/);
+  });
+
+  it("resolves the probe exactly once", () => {
+    assert.match(code(session), /if \(settled\) return;/);
+    assert.match(code(session), /clearTimeout\(timer\)/);
+  });
+
+  it("lets a real auth event override a timed-out probe", () => {
+    // A slow answer that eventually arrives should still be believed, rather
+    // than being locked out by the fallback.
+    const onChange = code(session).slice(code(session).indexOf("onAuthStateChange"));
+    assert.match(onChange.slice(0, 320), /settled = true;/);
+    assert.match(onChange.slice(0, 320), /publish\(fromSession\(session\)\)/);
+  });
+
+  it("falls back to signed-out, not to a fifth state", () => {
+    // Signed-out grants nothing and offers an action, which is the safe
+    // reading of "we could not determine the session".
+    assert.match(code(session), /settle\(SIGNED_OUT\)/);
+    assert.doesNotMatch(code(session), /"unavailable"|"error"|"timeout"/);
+  });
+});
+
+describe("useAuth is the shape callers want, without context", () => {
+  it("exposes user, isAuthenticated and sessionStatus", () => {
+    assert.match(code(session), /export function useAuth\(\): AuthState/);
+    assert.match(code(session), /isAuthenticated: info\.status === "signed-in"/);
+    assert.match(code(session), /sessionStatus: info\.status/);
+  });
+
+  it("derives from the shared store rather than a provider", () => {
+    // React context re-renders every consumer on every change, which is the
+    // opposite of what reading a session should cost.
+    assert.match(code(session), /const info = useSession\(\);/);
+    assert.doesNotMatch(code(session), /createContext|useContext|Provider/);
+  });
+
+  it("memoises so a re-render does not churn the object identity", () => {
+    assert.match(code(session), /useMemo\(/);
+  });
+});
+
+describe("the header does not guess while the probe is out", () => {
+  const chip = read("../components/header/AccountChip.tsx");
+
+  it("renders a skeleton for loading, not a Sign in link", () => {
+    // The bug: every page load flashed a signed-out control at someone who was
+    // signed in, which is what made sign-out feel unreliable even when it
+    // worked.
+    assert.match(code(chip), /session\.status === "loading"/);
+    const loading = code(chip).slice(code(chip).indexOf('session.status === "loading"'));
+    const nextBranch = loading.indexOf('session.status === "signed-out"');
+    assert.match(loading.slice(0, nextBranch), /className="skeleton/);
+    assert.doesNotMatch(loading.slice(0, nextBranch), /href="\/login"/);
+  });
+
+  it("reuses the house skeleton rather than inventing a class", () => {
+    // .skeleton is already shimmer-animated, already clamped by the single
+    // reduced-motion block, and already referenced — a new class would cost a
+    // dead-CSS slot for nothing.
+    assert.match(code(chip), /skeleton block/);
+    assert.doesNotMatch(code(chip), /account-skeleton|chip-skeleton/);
+  });
+
+  it("occupies the same box as the control it replaces", () => {
+    // Otherwise the header reflows when the answer lands, which is the CLS
+    // this branch exists to prevent.
+    const loading = code(chip).slice(code(chip).indexOf('session.status === "loading"'));
+    assert.match(loading.slice(0, 700), /gap-1\.5 rounded-\[9px\] border border-transparent px-2 py-1\.5/);
+  });
+
+  it("keeps the unconfigured guard byte-identical", () => {
+    assert.match(code(chip), /if \(session\.status === "unconfigured"\) return null;/);
+  });
+});

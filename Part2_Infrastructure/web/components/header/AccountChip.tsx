@@ -11,9 +11,11 @@
  * never trapped) — the house pattern for panels inside the header, which is a
  * containing block and cannot host fixed-position children.
  *
- * Three states only: absent when this deployment has no Supabase config, a
- * plain link while signed out, and the dropdown once there is an identity to
- * show.
+ * Four states, and the fourth matters: absent when this deployment has no
+ * Supabase config, a skeleton while the session probe is still out, a plain
+ * link while signed out, and the dropdown once there is an identity to show.
+ * Collapsing the probe into "signed out" is what made every page load flash a
+ * Sign in button at people who were already signed in.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -54,7 +56,29 @@ export default function AccountChip() {
   // affordance that cannot work is worse than its absence.
   if (session.status === "unconfigured") return null;
 
-  if (session.status === "loading" || session.status === "signed-out") {
+  /**
+   * The probe has not answered yet, and we must not guess.
+   *
+   * This branch used to fall through to "Sign in", so every page load flashed
+   * a signed-out control at someone who was signed in — the reading that made
+   * sign-out feel unreliable even when it worked. The placeholder occupies the
+   * same box as the control that replaces it, so nothing reflows when the
+   * answer arrives, and it is bounded by SESSION_PROBE_TIMEOUT_MS so it can
+   * never shimmer forever.
+   */
+  if (session.status === "loading") {
+    return (
+      <span
+        aria-hidden
+        className="inline-flex items-center gap-1.5 rounded-[9px] border border-transparent px-2 py-1.5"
+      >
+        <span className="skeleton block h-[14px] w-[14px] rounded-[50%]" />
+        <span className="skeleton block h-[11px] w-[52px] max-[520px]:hidden" />
+      </span>
+    );
+  }
+
+  if (session.status === "signed-out") {
     return (
       <a
         href="/login"
