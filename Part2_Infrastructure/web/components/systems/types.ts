@@ -466,12 +466,20 @@ export const SKIP_LABEL: Record<string, string> = {
   failed: "failed",
 };
 
-/** Route-state presentation. Icon and word carry the meaning; colour reinforces. */
+/**
+ * Route-state presentation. Icon and word carry the meaning; colour reinforces.
+ *
+ * Typographic marks, not emoji. These were coloured circles, which meant the
+ * house rule against emoji in the UI was broken in the one map every routing
+ * surface reads from — so the violation appeared wherever a route state did.
+ * A mark inherits the surrounding text colour and renders in the app's own
+ * font; an emoji brings a vendor's palette with it and fights the theme.
+ */
 export const ROUTE_STATE_STYLE: Record<RouteState, { icon: string; label: string; tone: string }> = {
-  ready: { icon: "🟢", label: "ONLINE (Ready)", tone: "var(--success-text)" },
-  circuit_open: { icon: "🔴", label: "OFFLINE (Circuit Open)", tone: "var(--critical-text)" },
-  simulated_outage: { icon: "🟡", label: "DEGRADED (Simulated Outage)", tone: "var(--notice-text)" },
-  quota_exhausted: { icon: "🟡", label: "DEGRADED (Quota Spent)", tone: "var(--warning-text)" },
-  quota_reserved: { icon: "🟡", label: "DEGRADED (Quota Reserved)", tone: "var(--warning-text)" },
-  not_configured: { icon: "⚪", label: "NOT CONFIGURED", tone: "var(--text-secondary)" },
+  ready: { icon: "●", label: "ONLINE (Ready)", tone: "var(--success-text)" },
+  circuit_open: { icon: "✕", label: "OFFLINE (Circuit Open)", tone: "var(--critical-text)" },
+  simulated_outage: { icon: "▲", label: "DEGRADED (Simulated Outage)", tone: "var(--notice-text)" },
+  quota_exhausted: { icon: "▲", label: "DEGRADED (Quota Spent)", tone: "var(--warning-text)" },
+  quota_reserved: { icon: "▲", label: "DEGRADED (Quota Reserved)", tone: "var(--warning-text)" },
+  not_configured: { icon: "○", label: "NOT CONFIGURED", tone: "var(--text-secondary)" },
 };

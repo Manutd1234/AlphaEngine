@@ -13399,6 +13399,14 @@ h4 {
 .signal-workflow__node[data-state="absent"] .signal-workflow__meta em,
 .signal-workflow__node[data-state="unknown"] .signal-workflow__meta em { color: var(--text-muted); }
 
+/* Replaces an inline flex style on the heading row. */
+.health-matrix__counts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 /* ---------- liquidity / time-to-liquidate ---------- */
 
 /* The three facts above the table. Replaces four inline `style` objects the

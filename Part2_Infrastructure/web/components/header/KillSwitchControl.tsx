@@ -180,9 +180,9 @@ export default function KillSwitchControl({
             {gatewayConnected === null ? (
               <span className="text-text-muted">Checking gateway connection…</span>
             ) : gatewayConnected ? (
-              <span className="text-success-text"><span aria-hidden>🟢</span> GATEWAY ONLINE · guard: {riskControl.guardMode}</span>
+              <span className="text-success-text"><span aria-hidden>●</span> GATEWAY ONLINE · guard: {riskControl.guardMode}</span>
             ) : (
-              <span className="text-critical-text"><span aria-hidden>🔴</span> GATEWAY OFFLINE — Run <code className="font-mono">python -m uvicorn main:app --port 8000</code></span>
+              <span className="text-critical-text"><span aria-hidden>✕</span> GATEWAY OFFLINE — Run <code className="font-mono">python -m uvicorn main:app --port 8000</code></span>
             )}
             {halt?.sandbox && <span className="text-notice-text">· sandbox mode</span>}
           </p>

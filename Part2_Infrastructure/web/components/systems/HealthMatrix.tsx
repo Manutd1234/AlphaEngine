@@ -113,10 +113,14 @@ export default function HealthMatrix({
           <span className="page-kicker">Pipeline observability</span>
           <h2 id="reliability-provider-health-title">Upstream health &amp; circuit breakers</h2>
         </div>
-        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-          <span className="pill is-good">🟢 { (providers ?? []).filter((p) => p.ready && p.configured && !p.simulatedOutage).length } ONLINE</span>
-          <span className="pill is-warning">🟡 { (providers ?? []).filter((p) => p.configured && (!p.ready || p.simulatedOutage || (p.quota && p.quota.remaining <= 0))).length } DEGRADED</span>
-          <span className="pill">⚪ { (providers ?? []).filter((p) => !p.configured).length } NOT CONFIGURED</span>
+        {/* Glyphs, not emoji: the house vocabulary is the same five marks every
+            other status surface uses, and the rule against emoji in the UI is
+            documented in both prior UI plans. The colour still comes from the
+            pill tone, and the word still carries the meaning without it. */}
+        <div className="health-matrix__counts">
+          <span className="pill is-good"><span aria-hidden>●</span> { (providers ?? []).filter((p) => p.ready && p.configured && !p.simulatedOutage).length } online</span>
+          <span className="pill is-warning"><span aria-hidden>▲</span> { (providers ?? []).filter((p) => p.configured && (!p.ready || p.simulatedOutage || (p.quota && p.quota.remaining <= 0))).length } degraded</span>
+          <span className="pill"><span aria-hidden>○</span> { (providers ?? []).filter((p) => !p.configured).length } not configured</span>
         </div>
       </div>
 
