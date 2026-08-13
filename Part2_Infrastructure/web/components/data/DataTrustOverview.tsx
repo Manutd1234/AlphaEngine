@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Trust Summary, in three panes.
+ * Trust Summary in three panes, Feeds & Contracts in two.
  *
  * Two structural facts drive this file.
  *
@@ -22,6 +22,11 @@
  *    ResizeObserver and asserts exactly one rail is mounted, so a second would
  *    fight the first over every sticky offset in the app. Panes are conditional
  *    renders, never `hidden` — a switched-away pane must stop observing.
+ *
+ *    Both halves now carry a switcher, and each keeps its own state. `view`
+ *    decides which half an instance draws, and `DataConsole` mounts one
+ *    instance per section, so the pane a reader left in Summary is not the
+ *    pane they land on in Feeds & Contracts.
  */
 
 import { useState } from "react";
@@ -36,6 +41,7 @@ import {
   type DataTrustDestination,
   type DataTrustTone,
 } from "@/lib/data-trust";
+import { DATA_SECTIONS } from "@/lib/sections";
 
 import FeedThroughput from "./FeedThroughput";
 import InstanceScope from "./InstanceScope";
@@ -81,6 +87,42 @@ const TRUST_PANES: Array<{ id: TrustPane; label: string; hint: string }> = [
   },
 ];
 
+/**
+ * Two, and the section named them first. The rail label reads "Feeds &
+ * Contracts", so the panes are pre-named by the thing a reader clicked to get
+ * here. They also degrade separately: freshness comes from the gateway's venue
+ * feeds, contract evidence from this function instance, and one of those can be
+ * absent while the other is fully populated.
+ */
+type FeedsPane = "freshness" | "contracts";
+
+const FEEDS_PANES: Array<{ id: FeedsPane; label: string; hint: string }> = [
+  {
+    id: "freshness",
+    label: "Freshness",
+    hint: "How old each venue book is, how often it has reconnected, and whether the feed is upstream or synthetic",
+  },
+  {
+    id: "contracts",
+    label: "Contracts",
+    hint: "What the exact active quote was checked against, what this instance has aggregated by provider, and which evidence to open next",
+  },
+];
+
+/**
+ * The rail's own label for a destination.
+ *
+ * `DataTrustAction.destination` is a section id — `quality`, `lineage`,
+ * `providers` — and the rail above these buttons reads "Quality & Incidents",
+ * "Lineage & Payloads" and "Providers & Capacity". Printing the id named a
+ * destination the reader cannot find on screen. Ids are public deep links and
+ * never change, so every destination resolves; the id remains the fallback
+ * because a button that still routes correctly should not lose its caption.
+ */
+function destinationLabel(destination: DataTrustDestination): string {
+  return DATA_SECTIONS.find((section) => section.id === destination)?.label ?? destination;
+}
+
 function absoluteTime(value: string | null | undefined): string {
   if (!value) return "not observed";
   const parsed = Date.parse(value);
@@ -100,6 +142,7 @@ export default function DataTrustOverview({
   view = "summary",
 }: DataTrustOverviewProps) {
   const [pane, setPane] = useState<TrustPane>("verdict");
+  const [feedsPane, setFeedsPane] = useState<FeedsPane>("freshness");
   const trust = deriveDataTrust(health, { symbol, healthError, probe, probeError, probeLoading });
   const feeds = health?.platform?.market_data.feeds ?? [];
   const providerValidation = Object.entries(trust.validation?.byProvider ?? {})
@@ -467,72 +510,94 @@ export default function DataTrustOverview({
       )}
 
       {feedsView && (
-        <div className="data-trust-detail-grid">
-          <section className="card data-trust-monitor" aria-labelledby="feed-monitor-heading">
-            <div className="section-heading compact">
-              <div>
-                <span className="page-kicker">Freshness</span>
-                <h2 id="feed-monitor-heading">Observed market feeds</h2>
-              </div>
-              <span className="section-note">
-                gateway {trust.gatewaySource?.state?.replace("_", " ") ?? "not observed"}
-              </span>
+        <div className="seg" role="group" aria-label="Feeds and contracts view">
+          {FEEDS_PANES.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              aria-pressed={feedsPane === option.id}
+              title={option.hint}
+              onClick={() => setFeedsPane(option.id)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* The two monitors sat side by side in a two-column grid, which gave a
+          six-column feed table and a five-column provider table half the panel
+          each. One at a time, full width, and the operator path travels with
+          the contract evidence it is a response to. */}
+      {feedsView && feedsPane === "freshness" && (
+        <section className="card data-trust-monitor" aria-labelledby="feed-monitor-heading">
+          <div className="section-heading compact">
+            <div>
+              <span className="page-kicker">Freshness</span>
+              <h2 id="feed-monitor-heading">Observed market feeds</h2>
             </div>
+            <span className="section-note">
+              gateway {trust.gatewaySource?.state?.replace("_", " ") ?? "not observed"}
+            </span>
+          </div>
 
-            {feeds.length ? (
-              <div className="table-wrap" tabIndex={0}>
-                <table>
-                  <caption className="sr-only">Gateway market-feed freshness and update evidence.</caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">Venue</th>
-                      <th scope="col">State</th>
-                      <th scope="col">{symbol} age</th>
-                      <th scope="col">Updates</th>
-                      <th scope="col">Reconnects</th>
-                      <th scope="col">Mode</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {feeds.map((feed) => {
-                      const instrument = feed.symbols.find((row) => row.symbol === symbol);
-                      return (
-                        <tr key={feed.venue}>
-                          <td><strong>{feed.venue}</strong></td>
-                          <td>
-                            <span className={`data-trust-inline-state is-${feed.status === "up" ? "good" : feed.status === "down" ? "bad" : "warn"}`}>
-                              <span aria-hidden>{feed.status === "up" ? "●" : feed.status === "down" ? "✕" : "▲"}</span>
-                              {feed.status}
-                            </span>
-                          </td>
-                          <td className="num">
-                            {!instrument ? "not covered" : instrument.age_seconds == null ? "—" : `${instrument.age_seconds.toFixed(2)}s`}
-                          </td>
-                          <td className="num">{instrument?.updates_total?.toLocaleString() ?? "—"}</td>
-                          <td className="num">{feed.reconnects}</td>
-                          <td>{feed.synthetic ? "synthetic" : "upstream"}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="data-trust-empty">
-                <strong>No gateway feed evidence.</strong>
-                <p>
-                  The provider registry may still answer requests, but it cannot prove streaming feed
-                  freshness. Gateway source: {trust.gatewaySource?.state?.replace("_", " ") ?? "not exposed"}.
-                </p>
-              </div>
-            )}
+          {feeds.length ? (
+            <div className="table-wrap" tabIndex={0}>
+              <table>
+                <caption className="sr-only">Gateway market-feed freshness and update evidence.</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Venue</th>
+                    <th scope="col">State</th>
+                    <th scope="col">{symbol} age</th>
+                    <th scope="col">Updates</th>
+                    <th scope="col">Reconnects</th>
+                    <th scope="col">Mode</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {feeds.map((feed) => {
+                    const instrument = feed.symbols.find((row) => row.symbol === symbol);
+                    return (
+                      <tr key={feed.venue}>
+                        <td><strong>{feed.venue}</strong></td>
+                        <td>
+                          <span className={`data-trust-inline-state is-${feed.status === "up" ? "good" : feed.status === "down" ? "bad" : "warn"}`}>
+                            <span aria-hidden>{feed.status === "up" ? "●" : feed.status === "down" ? "✕" : "▲"}</span>
+                            {feed.status}
+                          </span>
+                        </td>
+                        <td className="num">
+                          {!instrument ? "not covered" : instrument.age_seconds == null ? "—" : `${instrument.age_seconds.toFixed(2)}s`}
+                        </td>
+                        <td className="num">{instrument?.updates_total?.toLocaleString() ?? "—"}</td>
+                        <td className="num">{feed.reconnects}</td>
+                        <td>{feed.synthetic ? "synthetic" : "upstream"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="data-trust-empty">
+              <strong>No gateway feed evidence.</strong>
+              <p>
+                The provider registry may still answer requests, but it cannot prove streaming feed
+                freshness. Gateway source: {trust.gatewaySource?.state?.replace("_", " ") ?? "not exposed"}.
+              </p>
+            </div>
+          )}
 
-            <p className="console-footnote">
-              Gateway observed at {absoluteTime(trust.gatewaySource?.observedAt)}. Feed ages belong to
-              each venue and symbol; the health response fetch time does not make an old feed fresh.
-            </p>
-          </section>
+          <p className="console-footnote">
+            Gateway observed at {absoluteTime(trust.gatewaySource?.observedAt)}. Feed ages belong to
+            each venue and symbol; the health response fetch time does not make an old feed fresh.
+          </p>
+        </section>
+      )}
 
+      {feedsView && feedsPane === "contracts" && (
+        <>
           <section className="card data-trust-monitor" aria-labelledby="contract-monitor-heading">
             <div className="section-heading compact">
               <div>
@@ -604,35 +669,33 @@ export default function DataTrustOverview({
               Aggregate counts reset with the health-route function instance and are not tied to {symbol}.
             </p>
           </section>
-        </div>
-      )}
 
-      {feedsView && (
-        <section className="data-trust-section" aria-labelledby="trust-actions-heading">
-          <div className="section-heading compact">
-            <div>
-              <span className="page-kicker">Operator path</span>
-              <h2 id="trust-actions-heading">Next evidence to inspect</h2>
+          <section className="data-trust-section" aria-labelledby="trust-actions-heading">
+            <div className="section-heading compact">
+              <div>
+                <span className="page-kicker">Operator path</span>
+                <h2 id="trust-actions-heading">Next evidence to inspect</h2>
+              </div>
+              <span className="section-note">read-only diagnostics</span>
             </div>
-            <span className="section-note">read-only diagnostics</span>
-          </div>
-          <div className="data-trust-actions">
-            {trust.actions.map((action) => (
-              <button
-                key={action.destination}
-                type="button"
-                className={`card data-trust-action is-${action.priority}`}
-                onClick={() => onOpenSection?.(action.destination)}
-                disabled={!onOpenSection}
-              >
-                <span>{action.priority}</span>
-                <strong>{action.label}</strong>
-                <small>{action.detail}</small>
-                <i aria-hidden>Open {action.destination} →</i>
-              </button>
-            ))}
-          </div>
-        </section>
+            <div className="data-trust-actions">
+              {trust.actions.map((action) => (
+                <button
+                  key={action.destination}
+                  type="button"
+                  className={`card data-trust-action is-${action.priority}`}
+                  onClick={() => onOpenSection?.(action.destination)}
+                  disabled={!onOpenSection}
+                >
+                  <span>{action.priority}</span>
+                  <strong>{action.label}</strong>
+                  <small>{action.detail}</small>
+                  <i aria-hidden>Open {destinationLabel(action.destination)} →</i>
+                </button>
+              ))}
+            </div>
+          </section>
+        </>
       )}
 
       {/*

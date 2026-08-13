@@ -61,6 +61,28 @@ import PnlStrip from "./PnlStrip";
 import SpreadDecomposition from "./SpreadDecomposition";
 import VenueMixDonut from "./VenueMixDonut";
 
+/**
+ * Fill quality was the densest section in the app: four analyses, three tables
+ * and three charts in one scroll, which is two readings stacked rather than one.
+ *
+ * Cost is the headline — what execution cost against the model, and the latency
+ * distribution behind it. Where is the attribution: which venue, which part of
+ * the spread, and at which hour. Splitting on that seam also stops
+ * `FillQualityHeatmap` from pushing the primary metric off screen; it draws only
+ * above its own sample floor, so on a short window it is a paragraph explaining
+ * how far along the collection is, and that paragraph does not belong between a
+ * trader and their fill rate.
+ *
+ * Two panes, not three: the decomposition and the venue mix answer one question
+ * between them and the pane below keeps them side by side.
+ */
+type QualityPane = "cost" | "where";
+
+const QUALITY_PANES: Array<{ id: QualityPane; label: string; hint: string }> = [
+  { id: "cost", label: "Cost", hint: "What execution cost against the model — fill rate, realised slippage, fees, and the tail of the decision-latency distribution" },
+  { id: "where", label: "Where", hint: "Which venue and which component of the spread the cost came from, and at which hour of the day" },
+];
+
 const REFRESH_MS = 4_000;
 const MAX_BACKOFF_MS = 60_000;
 /** 200, not 60: a nearest-rank p99 over 60 rows is just the maximum, and the
@@ -150,6 +172,13 @@ export default function ExecutionCockpit({
   /** Explicit opt-out: "Live gateway" pressed on a deployment that has none. */
   const [sandboxOff, setSandboxOff] = useState(false);
   const [failures, setFailures] = useState(0);
+  /**
+   * Above the loading bail-out below, with the rest of them, and a fixed
+   * default rather than one derived from the reader's complexity tier: a pane
+   * that opens somewhere different depending on a setting is a different
+   * screen for every reader, and Cost is the metric the section is named for.
+   */
+  const [qualityPane, setQualityPane] = useState<QualityPane>("cost");
   const sequence = useRef(0);
 
   /**
@@ -408,23 +437,52 @@ export default function ExecutionCockpit({
           analysis — what execution cost against the model. The blotter below
           is the record: what was actually sent, what landed, what alerted. */}
       <WorkspaceSubtabPanel workspaceId="execution" tabId="quality" activeId={section}>
-        <ExecutionQuality
-          summary={summary}
-          symbol={symbol}
-          symbolOrders={symbolOrders}
-          rows={effectiveOrders}
-          source={feedSource}
-        />
-        {/* What each fill cost, and where it was filled. Side by side because
-            they answer one question between them: the decomposition says how
-            much, the mix says where — and a spread that only looks bad on one
-            venue is a routing problem rather than a market one. */}
-        <div className="cockpit-grid">
-          <SpreadDecomposition rows={effectiveOrders} source={feedSource} />
-          <VenueMixDonut rows={effectiveOrders} source={feedSource} />
+        <div className="seg" role="group" aria-label="Fill quality view">
+          {QUALITY_PANES.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              aria-pressed={qualityPane === option.id}
+              title={option.hint}
+              onClick={() => setQualityPane(option.id)}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
-        {/* Renders only above its own sample floor — see the component. */}
-        <FillQualityHeatmap rows={effectiveOrders} source={feedSource} />
+
+        {/* Conditional renders, not `hidden`. Nothing here holds typed input to
+            preserve, and every panel below reads the same `effectiveOrders`
+            array the cockpit already polls — so a switched-away pane that
+            stayed mounted would buy nothing and keep three charts measuring
+            their own width behind something nobody is reading. */}
+        {qualityPane === "cost" && (
+          <ExecutionQuality
+            summary={summary}
+            symbol={symbol}
+            symbolOrders={symbolOrders}
+            rows={effectiveOrders}
+            source={feedSource}
+          />
+        )}
+
+        {qualityPane === "where" && (
+          <>
+            {/* What each fill cost, and where it was filled. Side by side
+                because they answer one question between them: the decomposition
+                says how much, the mix says where — and a spread that only looks
+                bad on one venue is a routing problem rather than a market one.
+                The cut goes above this pair, never through it. */}
+            <div className="cockpit-grid">
+              <SpreadDecomposition rows={effectiveOrders} source={feedSource} />
+              <VenueMixDonut rows={effectiveOrders} source={feedSource} />
+            </div>
+            {/* Renders only above its own sample floor — see the component. Its
+                two neighbours have no floor, so this pane still says something
+                on a short window rather than going quiet. */}
+            <FillQualityHeatmap rows={effectiveOrders} source={feedSource} />
+          </>
+        )}
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="execution" tabId="activity" activeId={section}>

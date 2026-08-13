@@ -50,7 +50,7 @@ export default function OutageIncidents({
           about whether the providers themselves are healthy.
         </p>
         {onOpenProviders && (
-          <button type="button" className="small" onClick={onOpenProviders}>
+          <button type="button" className="console-node__action" onClick={onOpenProviders}>
             Open providers &amp; capacity
           </button>
         )}
@@ -80,13 +80,25 @@ export default function OutageIncidents({
                 held out of routing · restores in {seconds}s
                 {outage.note && <small className="console-wrap"> {outage.note}</small>}
               </div>
-              <button type="button" className="console-node__action" onClick={onOpenProviders}>
-                Manage in Providers
-              </button>
             </li>
           );
         })}
       </ul>
+      {/* One button, not one per row. Every copy called `onOpenProviders` with
+          no argument, so a reader who chose the third row landed on the same
+          unfiltered failover graph as one who chose the first — a per-row
+          control that cannot carry the row is a repeat, and it read as though
+          each outage had its own destination. The empty state above already
+          offers exactly this one.
+
+          `console-node__action` is the class the per-row copies carried, and it
+          is what the same "go to the failover graph" control wears in
+          FailoverGraph and OperatorGuard. `small`, which both buttons on this
+          card used to name, has no rule anywhere in the stylesheet — it read as
+          a size and rendered as nothing. */}
+      <button type="button" className="console-node__action" onClick={onOpenProviders}>
+        Open providers &amp; capacity
+      </button>
     </div>
   );
 }

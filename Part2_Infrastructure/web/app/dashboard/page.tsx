@@ -44,6 +44,7 @@ import { createInitialDataWorkItems, type DataWorkItem } from "@/lib/data-work-q
 import { createInitialDeveloperWorkItems, type DeveloperWorkItem } from "@/lib/developer-work";
 import { fmt, pct, signedPct, usd } from "@/lib/format";
 import { mcSeedFor } from "@/lib/montecarlo";
+import type { StageId } from "@/lib/overview-state";
 import { REFERENCE_EQUITY } from "@/lib/portfolio";
 import {
   DATA_SECTIONS, DATA_SECTION_IDS, type DataSection,
@@ -121,6 +122,41 @@ const IDLE_COMMIT_MS = 700;
  */
 const AUTO_RUN_BUDGET_MS = 1500;
 
+/**
+ * Narrows a section id to one workspace's rail, or null when it does not belong
+ * to it.
+ *
+ * `readLocation` already resets an unrecognised id to the workspace default, so
+ * a cross-link naming a renamed section would land somewhere nobody chose while
+ * the URL claimed otherwise. Falling back to the plain tab switch instead keeps
+ * the two agreeing.
+ */
+function railSection<T extends string>(ids: readonly T[], section: string): T | null {
+  return (ids as readonly string[]).includes(section) ? (section as T) : null;
+}
+
+/**
+ * The two Attribution panes.
+ *
+ * The split the section's own four cards already implied: Factors and Benchmark
+ * are the same question asked two ways — what explains these returns — while
+ * Regimes and the tear sheet ask whether that explanation survives outside the
+ * window it was measured in.
+ */
+type AttributionPane = "explain" | "robustness";
+const ATTRIBUTION_PANES: { id: AttributionPane; label: string; hint: string }[] = [
+  {
+    id: "explain",
+    label: "Explain",
+    hint: "What the returns decompose into — this symbol's own factors, and the same question asked against another instrument",
+  },
+  {
+    id: "robustness",
+    label: "Robustness",
+    hint: "Whether that decomposition holds across regimes, and what the tail and the turnover cost",
+  },
+];
+
 export default function Page() {
   const [req, setReq] = useState<SweepRequest>(DEFAULT_REQUEST);
   // Seeded, clearly-labelled demo run: real bars (committed parity fixture),
@@ -171,6 +207,11 @@ export default function Page() {
   // five — pushed on change, and restored by `readLocation` on back/forward.
   const [riskSection, setRiskSection] = useState<RiskSection>("limits");
   const [portfolioSection, setPortfolioSection] = useState<PortfolioSection>("overview");
+  // A pane inside Attribution, not a section: it is not a deep link, so it is
+  // declared here with the section states purely to keep every hook above the
+  // render — the rule tests/workspace-routing.test.ts enforces per component.
+  // A fixed default, never a tier-derived one; both panes exist at every level.
+  const [attributionPane, setAttributionPane] = useState<AttributionPane>("explain");
   const [dataWorkItems, setDataWorkItems] = useState<DataWorkItem[]>(createInitialDataWorkItems);
   const [developerWorkItems, setDeveloperWorkItems] = useState<DeveloperWorkItem[]>(createInitialDeveloperWorkItems);
   const [experiments, setExperiments] = useState<ExperimentRecord[]>([]);
@@ -426,17 +467,96 @@ export default function Page() {
     }
   }, []);
 
+  /**
+   * A cross-link that names the panel it lands on.
+   *
+   * `navigate` on its own writes `${next}/${sectionByViewRef.current[next]}` —
+   * whichever section the reader last had open in that workspace — which is
+   * right for a tab click and wrong for a contextual link. A tile headed "VaR
+   * 95 · Gross headroom · Drawdown cushion" whose button says Open Risk has to
+   * open the panel explaining those numbers, not wherever Risk was left. So
+   * every link that knows which panel explains what it is quoting passes that
+   * panel here, and only the bare tab switches go through `navigate` alone.
+   *
+   * The id is checked against the same rail `lib/sections` defines, so the pairs
+   * cannot silently rot into hashes `readLocation` would reject; the pairs
+   * themselves are pinned by tests/desk-interconnect.test.ts.
+   */
+  const openSection = useCallback((next: WorkspaceView, section?: string) => {
+    const apply = ((): (() => void) | null => {
+      if (section === undefined) return null;
+      switch (next) {
+        case "overview": {
+          const id = railSection(OVERVIEW_SECTION_IDS, section);
+          return id === null ? null : () => setOverviewSection(id);
+        }
+        case "research": {
+          const id = railSection(RESEARCH_SECTION_IDS, section);
+          return id === null ? null : () => setResearchSection(id);
+        }
+        case "live": {
+          const id = railSection(EXECUTION_SECTION_IDS, section);
+          return id === null ? null : () => setExecutionSection(id);
+        }
+        case "portfolio": {
+          const id = railSection(PORTFOLIO_SECTION_IDS, section);
+          return id === null ? null : () => setPortfolioSection(id);
+        }
+        case "risk": {
+          const id = railSection(RISK_SECTION_IDS, section);
+          return id === null ? null : () => setRiskSection(id);
+        }
+        case "data": {
+          const id = railSection(DATA_SECTION_IDS, section);
+          return id === null ? null : () => setDataSection(id);
+        }
+        case "reliability": {
+          const id = railSection(RELIABILITY_SECTION_IDS, section);
+          return id === null ? null : () => setReliabilitySection(id);
+        }
+        case "developer": {
+          const id = railSection(DEVELOPER_SECTION_IDS, section);
+          return id === null ? null : () => setDeveloperSection(id);
+        }
+      }
+    })();
+    if (!apply) {
+      navigate(next);
+      return;
+    }
+    navigate(next, false, { apply, hash: `${next}/${section}` });
+  }, [navigate]);
+
+  /**
+   * Where each decision-loop stage explains the state it is showing.
+   *
+   * The reviewer tour has said for a while that "every pipeline stage links
+   * into its tab", and until now the four stages rendered as plain text — the
+   * one screen a reviewer is told to click was the one that did nothing. Each
+   * lands on the section the stage's own verdict is computed from, so "3
+   * providers degraded" opens the trust summary rather than wherever Data was
+   * last left.
+   */
+  const openLoopStage = useCallback((stage: StageId) => {
+    switch (stage) {
+      case "data": openSection("data", "overview"); break;
+      case "research": openSection("research", "summary"); break;
+      case "risk": openSection("risk", "limits"); break;
+      case "execution": openSection("live", "trade"); break;
+    }
+  }, [openSection]);
+
   const openReliabilitySection = useCallback((next: ReliabilitySection, targetId?: string) => {
     // Through `navigate`, not raw setView: this jump used to skip the view
-    // transition and the scroll reset every other workspace switch gets.
-    navigate("reliability", false, {
-      apply: () => setReliabilitySection(next),
-      hash: `reliability/${next}`,
-    });
+    // transition and the scroll reset every other workspace switch gets. It
+    // reaches it through `openSection` so the header chips and every other
+    // cross-link write their destination the same way; what stays local is the
+    // focus move onto the evidence the chip named.
+    openSection("reliability", next);
     if (typeof window !== "undefined" && targetId) {
       window.requestAnimationFrame(() => document.getElementById(targetId)?.focus());
     }
-  }, [navigate]);
+  }, [openSection]);
 
   const run = useCallback(
     async (
@@ -1156,11 +1276,12 @@ export default function Page() {
               book={book}
               systems={systems}
               onNavigate={navigate}
+              onOpenStage={openLoopStage}
               onRun={() => void run()}
               section={overviewSection}
               onSectionChange={changeOverviewSection}
             />
-            <NextStepFooter currentView="overview" onNavigate={navigate} />
+            <NextStepFooter currentView="overview" currentSection={overviewSection} onNavigate={openSection} />
           </section>
         )}
 
@@ -1202,12 +1323,16 @@ export default function Page() {
               view={book}
               workspaceSymbol={req.symbol}
               onFocusSymbol={focusPortfolioSymbol}
-              onOpenRisk={() => navigate("risk")}
+              /* The cross-link tile names the panel that explains its own four
+                 figures, so the shell routes to whatever it asked for; the
+                 fallback is Limits, where gross headroom, the drawdown cushion
+                 and the binding constraint are all computed. */
+              onOpenRisk={(section) => openSection("risk", section ?? "limits")}
               operatorToken={systems.token}
               section={portfolioSection}
               onSectionChange={changePortfolioSection}
             />
-            <NextStepFooter currentView="portfolio" onNavigate={navigate} />
+            <NextStepFooter currentView="portfolio" currentSection={portfolioSection} onNavigate={openSection} />
           </section>
         )}
 
@@ -1254,15 +1379,20 @@ export default function Page() {
             />
             <RiskWorkspace
               view={book}
-              onOpenPortfolio={() => navigate("portfolio")}
-              onOpenResearch={() => navigate("research")}
+              /* Same shape: the tile quoting equity, gross exposure and the
+                 position count names its own destination, and Overview is the
+                 fallback for a link that names none. Research is the book
+                 fallback's escape hatch when the book cannot be read at all, so
+                 it opens on the verdict. */
+              onOpenPortfolio={(section) => openSection("portfolio", section ?? "overview")}
+              onOpenResearch={() => openSection("research", "summary")}
               operatorToken={systems.token}
               mcDriver={mcDriver}
               mcRunNonce={mcRunNonce}
               section={riskSection}
               onSectionChange={changeRiskSection}
             />
-            <NextStepFooter currentView="risk" onNavigate={navigate} />
+            <NextStepFooter currentView="risk" currentSection={riskSection} onNavigate={openSection} />
           </section>
         )}
 
@@ -1318,7 +1448,11 @@ export default function Page() {
                 <span aria-hidden>!</span>
                 <div>
                   {warning}
-                  <button className="text-action" onClick={() => navigate("data")}>Inspect data health →</button>
+                  {/* These warnings are all about the bars the run used —
+                      which provider answered, what was coerced, whether the
+                      series was generated. Data ▸ Trust Summary is the verdict
+                      on exactly that. */}
+                  <button className="text-action" onClick={() => openSection("data", "overview")}>Inspect data health →</button>
                 </div>
               </div>
             ))}
@@ -1403,7 +1537,6 @@ export default function Page() {
                 setReq={updateRequest}
                 onRun={() => run()}
                 onCommit={commitRequest}
-                running={running}
                 tried={triedStrategies}
               />
 
@@ -1589,6 +1722,24 @@ export default function Page() {
                     </WorkspaceSubtabPanel>
 
                     <WorkspaceSubtabPanel workspaceId="research" tabId="attribution" activeId={researchSection}>
+                      {/* Above the gate, not inside it: `StaleGate` marks its
+                          content `inert`, so a switcher within it would take
+                          the section's other half out of reach entirely rather
+                          than merely showing it as stale. */}
+                      <div className="seg" role="group" aria-label="Attribution view">
+                        {ATTRIBUTION_PANES.map((option) => (
+                          <button
+                            key={option.id}
+                            type="button"
+                            aria-pressed={attributionPane === option.id}
+                            title={option.hint}
+                            onClick={() => setAttributionPane(option.id)}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+
                       <StaleGate
                         active={researchStale}
                         mode={sweepIncoming ? "recomputing" : "stale"}
@@ -1597,24 +1748,35 @@ export default function Page() {
                         targetInterval={req.interval}
                         onRerun={() => run()}
                       >
-                        <div className="compact-grid-2col">
-                          <FactorPanel report={data.factors} />
-                          <RegimePanel regimes={data.regimes} />
-                        </div>
                         {/* Next to the factor decomposition because they are
                             the same question asked two ways: what explains
                             these returns. FactorPanel builds its factors from
                             this symbol's own series; this one uses another
-                            instrument entirely. */}
-                        <BenchmarkPanel
-                          comparison={data.benchmarkComparison}
-                          requested={data.request.benchmarkSymbol}
-                        />
-                        <TearSheet
-                          tail={data.tail}
-                          interval={data.request.interval}
-                          turnoverPerYear={data.tail.annualisedTurnover}
-                        />
+                            instrument entirely. They were a screen apart under
+                            one heading with the regime and tail cards wedged
+                            between them; now the comparison is the pane. */}
+                        {attributionPane === "explain" && (
+                          <div className="compact-grid-2col">
+                            <FactorPanel report={data.factors} />
+                            <BenchmarkPanel
+                              comparison={data.benchmarkComparison}
+                              requested={data.request.benchmarkSymbol}
+                            />
+                          </div>
+                        )}
+                        {/* The other question: not what explains the returns
+                            but whether that explanation survives a change of
+                            regime, and what the tail and the turnover cost. */}
+                        {attributionPane === "robustness" && (
+                          <div className="compact-grid-2col">
+                            <RegimePanel regimes={data.regimes} />
+                            <TearSheet
+                              tail={data.tail}
+                              interval={data.request.interval}
+                              turnoverPerYear={data.tail.annualisedTurnover}
+                            />
+                          </div>
+                        )}
                       </StaleGate>
                     </WorkspaceSubtabPanel>
 
@@ -1664,9 +1826,16 @@ export default function Page() {
                               : inspect
                                 ? "Return to the full parameter sweep before promotion."
                                 : "Wait for the active research run to finish."}
+                            /* The sleeve is staged, so the reader is one step
+                               from sending it: land on the ticket that carries
+                               it. A bare `navigate("live")` handed a promoted
+                               candidate to whichever execution section was last
+                               read — the routing table or the blotter — which
+                               is the one handoff on the desk where the next
+                               action is unambiguous. */
                             onHandOff={() => {
                               setExecutionStrategy(data.request.strategy);
-                              navigate("live");
+                              openSection("live", "trade");
                             }}
                           />
                           <SizingPanel
@@ -1681,7 +1850,7 @@ export default function Page() {
                             <strong>Verify the inputs before approving the candidate.</strong>
                             <small>Open the data workspace with {data.request.symbol} still in context.</small>
                           </div>
-                          <button onClick={() => navigate("data")}>Trace market data</button>
+                          <button onClick={() => openSection("data", "overview")}>Trace market data</button>
                         </div>
                       </StaleGate>
                     </WorkspaceSubtabPanel>
@@ -1725,7 +1894,7 @@ export default function Page() {
                 </WorkspaceSubtabPanel>
               </div>
             </div>
-            <NextStepFooter currentView="research" onNavigate={navigate} />
+            <NextStepFooter currentView="research" currentSection={researchSection} onNavigate={openSection} />
           </section>
         )}
 
@@ -1756,8 +1925,12 @@ export default function Page() {
               notional={notional}
               onNotionalChange={setNotional}
               research={activeResult}
-              onOpenResearch={() => navigate("research")}
-              onOpenData={() => navigate("data")}
+              /* Both of these hang off the attached research context — "Review
+                 evidence" beside the model's cost budget, "Verify feed" beside
+                 the quote it was priced against — so they open the verdict and
+                 the feed contracts rather than the last section read there. */
+              onOpenResearch={() => openSection("research", "summary")}
+              onOpenData={() => openSection("data", "feeds")}
               section={executionSection}
               onPriceSelect={stageLimitFromLadder}
             >
@@ -1785,10 +1958,13 @@ export default function Page() {
                 onStrategyChange={setExecutionStrategy}
                 researchExperimentId={null}
                 onOrderSettled={refreshBookAfterOrder}
-                onOpenResearch={() => navigate("research")}
+                /* The ticket and the blotter both ask the same thing of
+                   Research — what evidence stands behind this sleeve — which
+                   is the Summary verdict. */
+                onOpenResearch={() => openSection("research", "summary")}
               />
             </LiveMarket>
-            <NextStepFooter currentView="live" onNavigate={navigate} />
+            <NextStepFooter currentView="live" currentSection={executionSection} onNavigate={openSection} />
           </section>
         )}
 
@@ -1799,13 +1975,13 @@ export default function Page() {
               workspaceSymbol={req.symbol}
               workspaceInterval={req.interval}
               onWorkspaceSymbolChange={updateSymbol}
-              onOpenReliability={() => navigate("reliability")}
+              onOpenReliability={() => openSection("reliability", "overview")}
               section={dataSection}
               onSectionChange={changeDataSection}
               workItems={dataWorkItems}
               onWorkItemsChange={setDataWorkItems}
             />
-            <NextStepFooter currentView="data" onNavigate={navigate} />
+            <NextStepFooter currentView="data" currentSection={dataSection} onNavigate={openSection} />
           </section>
         )}
 
@@ -1814,11 +1990,11 @@ export default function Page() {
             <ReliabilityConsole
               view={systems}
               workspaceSymbol={req.symbol}
-              onOpenData={() => navigate("data")}
+              onOpenData={() => openSection("data", "overview")}
               section={reliabilitySection}
               onSectionChange={changeReliabilitySection}
             />
-            <NextStepFooter currentView="reliability" onNavigate={navigate} />
+            <NextStepFooter currentView="reliability" currentSection={reliabilitySection} onNavigate={openSection} />
           </section>
         )}
 
@@ -1827,15 +2003,19 @@ export default function Page() {
             <DeveloperConsole
               view={systems}
               workspaceSymbol={req.symbol}
-              onOpenResearch={() => navigate("research")}
-              onOpenLive={() => navigate("live")}
-              onOpenReliability={() => navigate("reliability")}
+              /* The three shared-context links, each landing where its own
+                 noun is explained: "Research {symbol}" on the verdict for it,
+                 "Open live book" on the consolidated depth, "Open Reliability"
+                 on attention and the SLIs. */
+              onOpenResearch={() => openSection("research", "summary")}
+              onOpenLive={() => openSection("live", "liquidity")}
+              onOpenReliability={() => openSection("reliability", "overview")}
               section={developerSection}
               onSectionChange={changeDeveloperSection}
               workItems={developerWorkItems}
               onWorkItemsChange={setDeveloperWorkItems}
             />
-            <NextStepFooter currentView="developer" onNavigate={navigate} />
+            <NextStepFooter currentView="developer" currentSection={developerSection} onNavigate={openSection} />
           </section>
         )}
 

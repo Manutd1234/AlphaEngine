@@ -30,6 +30,17 @@ import {
 
 import type { DecisionStage, StageId, StageState } from "@/lib/overview-state";
 
+/**
+ * Each stage opens the section its own verdict is computed from.
+ *
+ * The reviewer tour has told readers that "every pipeline stage links into its
+ * tab" while these rendered as four `<div>`s: the first thing the tour asks a
+ * reviewer to click did nothing at all. Real `<button>`s rather than a click
+ * handler on the card, so the four stages are reachable by keyboard and are
+ * announced as controls; the destination itself belongs to the shell, which is
+ * the only place that knows how to write a location.
+ */
+
 const STAGE_ICON: Record<StageId, typeof Database> = {
   data: Database,
   research: FlaskConical,
@@ -45,7 +56,13 @@ const STATE_STYLE: Record<StageState, { Icon: typeof Circle; word: string; hex: 
   idle: { Icon: Circle, word: "idle", hex: "var(--hero-muted)" },
 };
 
-export default function DecisionLoopPipeline({ stages }: { stages: DecisionStage[] }) {
+export default function DecisionLoopPipeline({
+  stages,
+  onOpenStage,
+}: {
+  stages: DecisionStage[];
+  onOpenStage: (stage: StageId) => void;
+}) {
   return (
     <div
       /* Four stages, one row. The list used to wrap, which stranded Execution
@@ -67,7 +84,27 @@ export default function DecisionLoopPipeline({ stages }: { stages: DecisionStage
           const StateIcon = style.Icon;
           return (
             <li key={stage.id} className="flex min-w-0 flex-1 items-center gap-1 max-[560px]:flex-[1_1_100%]">
-              <div className="grid min-w-0 flex-1 gap-0.5 rounded-[9px] border border-white/10 bg-[rgba(11,23,40,0.55)] px-2.5 py-1.5">
+              {/* `font-normal` and `text-left` restore what the desk's base
+                  button rule would otherwise impose on the detail line; the
+                  rest of the chrome — cursor, focus ring, hover border — is
+                  inherited from that rule on purpose, so this reads as a
+                  control in the same voice as every other one. */}
+              <button
+                type="button"
+                onClick={() => onOpenStage(stage.id)}
+                title={`Open ${stage.label}`}
+                /* `border-white/10` compiled to nothing: `app/tailwind.css`
+                   strips the stock palette with `--color-*: initial` so that a
+                   stray `text-red-500` cannot creep in, which also means
+                   `white` is not a colour token. The bare `border` utility sets
+                   width and style only, so the colour fell through to the base
+                   `button { border: 1px solid var(--border) }` — and `--border`
+                   flips with the theme while this tile does not. In light theme
+                   that drew a near-white #e4e4e7 box on a fixed dark navy card.
+                   Written as an arbitrary value, the convention this sheet uses
+                   for anything the bridge does not carry. */
+                className="grid min-w-0 flex-1 gap-0.5 rounded-[9px] border border-[rgba(255,255,255,0.10)] bg-[rgba(11,23,40,0.55)] px-2.5 py-1.5 text-left font-normal"
+              >
                 <span className="flex min-w-0 items-center gap-1.5 text-[11px] font-semibold text-[var(--hero-text)]">
                   <StageIcon size={13} aria-hidden className="shrink-0" />
                   <span className="min-w-0 truncate">{stage.label}</span>
@@ -79,7 +116,7 @@ export default function DecisionLoopPipeline({ stages }: { stages: DecisionStage
                 <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-[var(--hero-text-dim)]">
                   {stage.detail}
                 </span>
-              </div>
+              </button>
               {index < stages.length - 1 && (
                 <ChevronRight size={12} aria-hidden className="shrink-0 text-[var(--hero-accent-2)]/70" />
               )}

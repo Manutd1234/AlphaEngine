@@ -26,12 +26,18 @@ import MonteCarloDistribution, { type McDriver } from "@/components/risk/MonteCa
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import { fmt, pct, usd } from "@/lib/format";
 import { type LimitTone, limitRows, limitTone } from "@/lib/portfolio";
-import { RISK_SECTIONS, type RiskSection } from "@/lib/sections";
+import { RISK_SECTIONS, type PortfolioSection, type RiskSection } from "@/lib/sections";
 import type { BookView } from "@/lib/use-book";
 
 export interface RiskWorkspaceProps {
   view: BookView;
-  onOpenPortfolio: () => void;
+  /**
+   * The section is optional so a caller that can only switch tabs stays valid.
+   * The cross-link tile names the panel that holds the full positions table; a
+   * handler that ignores the argument lands wherever the reader last was, which
+   * is the behaviour this argument exists to end.
+   */
+  onOpenPortfolio: (section?: PortfolioSection) => void;
   onOpenResearch: () => void;
   /** Operator credential shared with the Reliability tab and the header. */
   operatorToken?: string;
@@ -199,12 +205,17 @@ export default function RiskWorkspace({
           </div>
 
           {/* The book, compressed to what a limit decision needs. Full positions
-              table is one click away rather than duplicated here. */}
-          <CrossLinkTile
+              table is one click away rather than duplicated here — and the click
+              now names `positions`, which is where that table actually is.
+              `onNavigate` was a bare thunk, so "one click away" meant one click
+              to the Portfolio tab and then however many more it took to find the
+              section the reader had left it on. The label says where it lands. */}
+          <CrossLinkTile<PortfolioSection>
             kicker="Owned by the portfolio desk"
             title="Book under these limits"
-            actionLabel="Open Portfolio"
+            actionLabel="Open Portfolio positions"
             onNavigate={onOpenPortfolio}
+            targetSection="positions"
             metrics={[
               {
                 label: "Equity",

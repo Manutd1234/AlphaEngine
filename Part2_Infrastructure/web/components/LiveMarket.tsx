@@ -574,9 +574,38 @@ export default function LiveMarket({
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+        {/* Shortcuts into the notional field above, and now they say so.
+            They were five loose buttons in a bare flex div — no group, no name,
+            and no `aria-pressed`, so a screen reader met five unrelated actions
+            and could not tell which size the probe was actually running.
+
+            Not a `.seg`: five options against that control's two-or-three
+            budget, and `.seg button` is `flex: 1`, so a fifth segment buys the
+            grouping by abbreviating every label. A named group of toggles keeps
+            the full amounts.
+
+            The pressed state is carried by a mark rather than by a fill,
+            because `.icon` has no selected treatment and inventing one would
+            need a rule in globals.css. `aria-pressed` and the ✓ say the same
+            thing, so neither audience is reading state off colour — and when
+            the trader types an amount by hand, none is marked, which is honest:
+            the input, not this row, holds the value. */}
+        <div
+          role="group"
+          aria-label="Target notional shortcuts"
+          style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}
+        >
           {PROBE_SIZES.map((n) => (
-            <button key={n} className="icon" onClick={() => onNotionalChange(n)} style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>
+            <button
+              key={n}
+              type="button"
+              className="icon"
+              aria-pressed={notional === n}
+              title={`Set the target notional to $${compact(n)}`}
+              onClick={() => onNotionalChange(n)}
+              style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}
+            >
+              {notional === n ? <span aria-hidden>✓ </span> : null}
               ${compact(n)}
             </button>
           ))}
@@ -619,14 +648,38 @@ export default function LiveMarket({
           <div className="whatif-constraints__row">
             <div>
               <span className="field">Route through</span>
-              <div className="seg" role="group" aria-label="Venues included in the what-if route">
+              {/* Deliberately NOT a `.seg`, and that is a correction rather
+                  than a preference. Venue inclusion is a multi-select —
+                  `aria-pressed` is independent per venue, and every venue can be
+                  on at once — but it was rendered in the same segmented shell as
+                  the twenty-odd exclusive pickers beside it, including the
+                  routing preset directly above. A control that looks like a
+                  one-of-three teaches that turning Bybit on turns Binance off,
+                  which is the opposite of what it does.
+
+                  Same treatment as the notional shortcuts above this fieldset:
+                  a named group of independent toggles, each carrying its own
+                  state as a mark. ✓ included, ✕ excluded — the two readings
+                  are both spelled out, so the row reads as a set of switches at
+                  a glance and nothing rests on the raised-surface fill that
+                  makes a seg look exclusive. */}
+              <div
+                role="group"
+                aria-label="Venues included in the what-if route"
+                style={{ display: "flex", gap: 6, flexWrap: "wrap" }}
+              >
                 {(snap?.venues ?? []).map((v) => {
                   const on = includedVenues === null || includedVenues.includes(v.venue);
                   return (
                     <button
                       key={v.venue}
                       type="button"
+                      className="icon"
                       aria-pressed={on}
+                      title={on
+                        ? `Exclude ${v.venue} from the what-if route`
+                        : `Include ${v.venue} in the what-if route`}
+                      style={{ fontSize: 11.5 }}
                       onClick={() => {
                         const all = (snap?.venues ?? []).map((x) => x.venue);
                         const current = includedVenues ?? all;
@@ -636,10 +689,18 @@ export default function LiveMarket({
                         setIncludedVenues(next.length === all.length ? null : next);
                       }}
                     >
-                      {v.venue}
+                      <span aria-hidden>{on ? "✓" : "✕"}</span> {v.venue}
                     </button>
                   );
                 })}
+                {/* The seg rendered as an empty pill box before the first book
+                    arrived, which reads as a control with its options missing
+                    rather than as a probe with nothing to route yet. */}
+                {(snap?.venues ?? []).length === 0 && (
+                  <span className="muted" style={{ fontSize: 11.5 }}>
+                    No venue is streaming yet, so there is nothing to include or exclude.
+                  </span>
+                )}
               </div>
             </div>
             <div>

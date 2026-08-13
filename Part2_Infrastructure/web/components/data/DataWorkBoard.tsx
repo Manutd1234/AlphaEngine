@@ -6,7 +6,6 @@ import {
   DATA_WORK_KINDS,
   DATA_WORK_PRIORITIES,
   DATA_WORK_STATUSES,
-  createInitialDataWorkItems,
   filterAndSortDataWorkItems,
   moveDataWorkItem,
   nextDataWorkId,
@@ -123,6 +122,20 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
     [items, deferredQuery, kind, sort],
   );
 
+  /**
+   * The arrival flag is normally cleared by the card's own `animationend`. A
+   * card the filter removes never fires one, so the flag would outlive the move
+   * and the card would animate in a second time whenever the filter brought it
+   * back — announcing an arrival that happened several minutes and several
+   * keystrokes ago. Search and type are filtered here; status is not, so a move
+   * on its own never trips this.
+   */
+  useEffect(() => {
+    if (justMoved !== null && !visible.some((item) => item.id === justMoved)) {
+      setJustMoved(null);
+    }
+  }, [justMoved, visible]);
+
   const openItems = items.filter((item) => item.status !== "resolved");
   const urgentItems = openItems.filter((item) => item.priority === "P0" || item.priority === "P1");
   const slaRisk = openItems.filter((item) => {
@@ -172,14 +185,6 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
     setAnnouncement(`${id} added to Intake.`);
     setJustMoved(id);
     window.requestAnimationFrame(() => addItemButton.current?.focus());
-  };
-
-  const resetBoard = () => {
-    const resetAt = Date.now();
-    onItemsChange(createInitialDataWorkItems(resetAt));
-    setNow(resetAt);
-    setAnnouncement("The sample work queue was reset.");
-    setJustMoved(null);
   };
 
   const clearFilters = () => {
@@ -440,11 +445,17 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
 
       <div className="data-workboard__footer">
         <span>{visible.length} of {items.length} items shown</span>
+        {/* "Reset sample queue" stood here and restored the seeded items. It
+            demonstrated the mock rather than the workflow: the badge and the
+            scope paragraph above already say the queue is session-only, the
+            section head carries a Persistence metric reading None, and the
+            dashboard reseeds the same sample on every reload anyway — so this
+            was a control that looked like it acted on a ticket system and did
+            what closing the tab does. */}
         <div>
           {(query || kind !== "all" || sort !== "priority") && (
             <button type="button" onClick={clearFilters}>Clear filters</button>
           )}
-          <button type="button" onClick={resetBoard}>Reset sample queue</button>
         </div>
       </div>
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{announcement}</p>

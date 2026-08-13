@@ -6,7 +6,6 @@ import {
   DEVELOPER_WORK_KINDS,
   DEVELOPER_WORK_PRIORITIES,
   DEVELOPER_WORK_STATUSES,
-  createInitialDeveloperWorkItems,
   filterDeveloperWorkItems,
   moveDeveloperWorkItem,
   nextDeveloperWorkId,
@@ -73,22 +72,6 @@ const DEFAULT_DRAFT: WorkDraft = {
   area: "Developer portal",
 };
 
-function nextStatus(status: DeveloperWorkStatus): DeveloperWorkStatus {
-  if (status === "triage") return "planned";
-  if (status === "planned") return "progress";
-  if (status === "progress") return "review";
-  if (status === "review") return "done";
-  return "triage";
-}
-
-function nextActionLabel(item: DeveloperWorkItem): string {
-  if (item.status === "triage") return "Plan";
-  if (item.status === "planned") return item.kind === "bug" ? "Start fix" : "Start work";
-  if (item.status === "progress") return "Send to review";
-  if (item.status === "review") return item.kind === "bug" ? "Resolve" : item.kind === "feature" ? "Ship" : "Close";
-  return "Reopen";
-}
-
 function ageLabel(openedAt: number, now: number): string {
   const hours = Math.max(1, Math.floor((now - openedAt) / 3_600_000));
   if (hours < 24) return `${hours}h open`;
@@ -104,7 +87,7 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
   const [draft, setDraft] = useState<WorkDraft>(DEFAULT_DRAFT);
   const [announcement, setAnnouncement] = useState("");
   const [now] = useState(() => Date.now());
-  const firstAddButton = useRef<HTMLButtonElement | null>(null);
+  const newWorkButton = useRef<HTMLButtonElement | null>(null);
 
   const visibleItems = useMemo(
     () => filterDeveloperWorkItems(items, { query: deferredQuery, kind, status }),
@@ -115,11 +98,6 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
   const activeItems = items.filter((item) => item.status === "progress");
   const bugs = openItems.filter((item) => item.kind === "bug");
   const awaitingReview = items.filter((item) => item.status === "review");
-
-  const openComposer = (nextKind: DeveloperWorkKind) => {
-    setDraft((current) => ({ ...current, kind: nextKind }));
-    setComposerOpen(true);
-  };
 
   const move = (item: DeveloperWorkItem, next: DeveloperWorkStatus) => {
     if (item.status === next) return;
@@ -147,12 +125,7 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
     setDraft(DEFAULT_DRAFT);
     setComposerOpen(false);
     setAnnouncement(`${item.id} added to Triage.`);
-    window.requestAnimationFrame(() => firstAddButton.current?.focus());
-  };
-
-  const reset = () => {
-    onItemsChange(createInitialDeveloperWorkItems());
-    setAnnouncement("The sample Developer queue was reset.");
+    window.requestAnimationFrame(() => newWorkButton.current?.focus());
   };
 
   return (
@@ -183,12 +156,17 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
         required to modify the repository or close a real ticket.
       </div>
 
+      {/* One action with a three-way parameter, not three actions. Add feature,
+          Report bug and New ticket all opened this composer and differed only in
+          which value they pre-selected in its Type select — the control a reader
+          passes on the way to the title field, and the only one of the two that
+          could still change the kind once the form was open. The heading below
+          reads the same field, so the form still says which kind is being
+          captured. */}
       <div className="developer-work__actions" aria-label="Create engineering work">
-        <button ref={firstAddButton} type="button" className="primary" onClick={() => openComposer("feature")}>
-          + Add feature
+        <button ref={newWorkButton} type="button" className="primary" onClick={() => setComposerOpen(true)}>
+          New work
         </button>
-        <button type="button" onClick={() => openComposer("bug")}>Report bug</button>
-        <button type="button" onClick={() => openComposer("ticket")}>New ticket</button>
       </div>
 
       {composerOpen && (
@@ -282,7 +260,6 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
               <th>Work</th>
               <th>Area / owner</th>
               <th>Status</th>
-              <th><span className="sr-only">Next action</span></th>
             </tr>
           </thead>
           <tbody>
@@ -302,6 +279,11 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
                   <span>{item.owner}</span>
                   <small>{ageLabel(item.openedAt, now)}</small>
                 </td>
+                {/* The row's only status control, and it always was the only
+                    complete one. The next-status button in the column beside
+                    this one reached exactly one of the five transitions this
+                    select offers; a reader who wanted any other move — or who
+                    had just made the wrong one — came back here regardless. */}
                 <td>
                   <label>
                     <span className="sr-only">Status for {item.id}</span>
@@ -318,11 +300,6 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
                   </label>
                   <small>{STATUS_META.find((candidate) => candidate.id === item.status)?.description}</small>
                 </td>
-                <td>
-                  <button type="button" className={item.status === "review" ? "primary" : undefined} onClick={() => move(item, nextStatus(item.status))}>
-                    {nextActionLabel(item)}
-                  </button>
-                </td>
               </tr>
             ))}
           </tbody>
@@ -335,9 +312,11 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
         )}
       </div>
 
+      {/* No reset control. This queue is state in one browser tab and says so
+          two paragraphs above; reloading rebuilds it from the same fixture the
+          reset button called, so the control existed only to undo the demo. */}
       <div className="developer-work__footer">
         <span aria-live="polite">{announcement || `${visibleItems.length} items shown.`}</span>
-        <button type="button" onClick={reset}>Reset sample queue</button>
       </div>
     </div>
   );

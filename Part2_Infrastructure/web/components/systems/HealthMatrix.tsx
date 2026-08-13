@@ -16,6 +16,7 @@
  * someone into a wrong decision.
  */
 
+import RowMenu from "@/components/common/RowMenu";
 import { UI_OUTAGE_MS, type ActionOptions } from "@/components/systems/OperatorPanel";
 import { fmt } from "@/lib/format";
 import {
@@ -223,14 +224,16 @@ export default function HealthMatrix({
                   <td>{bestRank(provider, routes)}</td>
 
                   <td>
+                    {/* Only the READ moved behind the menu.
+                        `Logs` opens a filtered view and costs nothing; `Test`
+                        spends one real provider call, `Simulate` takes a live
+                        provider out of routing for two minutes, and `Reset`
+                        mutates a breaker on the server. A control that changes
+                        trading state states its cost beside the button — the
+                        paragraph above is its `aria-describedby` target — and a
+                        cost a reader has to open a menu to find is a cost they
+                        will meet after clicking. */}
                     <div className="console-row-actions">
-                      <button
-                        type="button"
-                        onClick={() => onInspectEvents(provider.id, provider.label)}
-                        title={`Open Logs & Traces filtered to ${provider.label}`}
-                      >
-                        Logs
-                      </button>
                       <button
                         type="button"
                         onClick={() => onAction("probe_provider", { provider: provider.id })}
@@ -288,6 +291,16 @@ export default function HealthMatrix({
                       >
                         Reset
                       </button>
+                      <RowMenu label={`More actions for ${provider.label}`}>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => onInspectEvents(provider.id, provider.label)}
+                          title={`Open Logs & Traces filtered to ${provider.label}`}
+                        >
+                          Logs
+                        </button>
+                      </RowMenu>
                     </div>
                   </td>
                 </tr>

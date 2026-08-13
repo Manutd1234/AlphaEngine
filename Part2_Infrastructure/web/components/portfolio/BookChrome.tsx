@@ -223,24 +223,40 @@ export function BookSourceControl({ view }: { view: BookView }) {
  * The compact cross-tab tile. Each role tab is self-sufficient — a PM should see
  * that the book is near a limit without opening the risk tab — but only one tab
  * owns the full panel, and this links to it rather than duplicating it.
+ *
+ * `onNavigate` used to be a bare thunk, which meant the tile could name the
+ * other TAB but not the panel inside it. Both call sites therefore landed on
+ * whichever section the reader happened to visit last — a tile quoting VaR and
+ * headroom could open Monte Carlo — and the destination was decided by history
+ * rather than by the numbers on the tile. `targetSection` is that missing half:
+ * the tile hands it to `onNavigate`, so a caller that can route to a section
+ * lands on the panel that explains the figures, and a caller that cannot simply
+ * ignores the argument and behaves exactly as it did before.
  */
-export interface CrossLinkTileProps {
+export interface CrossLinkTileProps<Section extends string = string> {
   kicker: string;
   title: string;
   actionLabel: string;
-  onNavigate: () => void;
+  /**
+   * The section id is optional on purpose: a `() => void` handler stays
+   * assignable, so no existing caller has to be rewritten to keep working.
+   */
+  onNavigate: (section?: Section) => void;
+  /** Which panel on the destination tab actually explains these metrics. */
+  targetSection?: Section;
   metrics: { label: string; value: string; note?: string; tone?: "pos" | "neg" | "warn" }[];
   children?: React.ReactNode;
 }
 
-export function CrossLinkTile({
+export function CrossLinkTile<Section extends string = string>({
   kicker,
   title,
   actionLabel,
   onNavigate,
+  targetSection,
   metrics,
   children,
-}: CrossLinkTileProps) {
+}: CrossLinkTileProps<Section>) {
   return (
     <div className="card cross-link-tile">
       <div className="portfolio-card-heading">
@@ -248,7 +264,7 @@ export function CrossLinkTile({
           <span className="page-kicker">{kicker}</span>
           <h2>{title}</h2>
         </div>
-        <button className="text-action" onClick={onNavigate}>{actionLabel} →</button>
+        <button className="text-action" onClick={() => onNavigate(targetSection)}>{actionLabel} →</button>
       </div>
       <div className="cross-link-metrics">
         {metrics.map((metric) => (

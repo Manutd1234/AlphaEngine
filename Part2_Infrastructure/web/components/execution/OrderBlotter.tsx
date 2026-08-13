@@ -3,10 +3,13 @@
 /**
  * The blotter: what was sent, what it cost, and what stopped it.
  *
- * Rejections are shown in the same table as fills rather than hidden behind a
- * filter. A desk's rejected flow is the more interesting half — it is where the
- * limits are actually binding — and separating the two invites the habit of
- * reading only the fills.
+ * This header used to say rejections were shown in the same table as fills
+ * rather than hidden behind a filter, because separating the two invites the
+ * habit of reading only the fills. `BlotterViews` overtook that: the two
+ * questions want different columns — a refusal has no venue and no fill price —
+ * so they are now two peer views, side by side in one seg rather than one
+ * default and one filter. The concern the old note recorded is answered by
+ * making the unfilled view as prominent as the filled one, not by merging them.
  *
  * Each row expands to the full check vector the gateway recorded at decision
  * time. That is the difference between an audit trail and a log: the answer to
@@ -23,6 +26,7 @@ import {
   rejectGateTags,
   strategyTags,
 } from "@/lib/blotter";
+import RowMenu from "@/components/common/RowMenu";
 import { download } from "@/lib/download";
 import { blotterToCsv } from "@/lib/export-csv";
 import { fmt, usd } from "@/lib/format";
@@ -34,21 +38,20 @@ interface OrderBlotterProps {
   /** Where the rows came from — the empty state must not blame a quiet desk for a missing source. */
   source?: "live" | "sandbox" | "unavailable";
   /**
-   * Which question this instance answers. Defaults to `all`, so the component
-   * still renders standalone exactly as it did; `BlotterViews` supplies one of
-   * the other two and owns the segmented control that chooses between them.
+   * Which question this instance answers, and REQUIRED, which is the part that
+   * changed.
+   *
+   * It used to default to `all` and carry its own four-button status seg, on the
+   * argument that the component still rendered standalone. There is no
+   * standalone caller: `BlotterViews` is the sole importer and it routes
+   * `active` to `WorkingOrders`, so only these two values ever arrive. Naming
+   * the two in the type puts that proof in the compiler rather than in a
+   * comment, and the seg — which nothing could ever have selected — is gone.
    */
-  view?: "all" | "fills" | "unfilled";
+  view: "fills" | "unfilled";
   /** Free-text search, owned by the parent so one box drives all three views. */
   query?: string;
 }
-
-const FILTERS: Array<{ id: BlotterStatusFilter; label: string }> = [
-  { id: "all", label: "All" },
-  { id: "accepted", label: "Fills" },
-  { id: "rejected", label: "Rejected" },
-  { id: "symbol", label: "This symbol" },
-];
 
 function time(ts: string): string {
   const parsed = Date.parse(ts.endsWith("Z") ? ts : `${ts}Z`);
@@ -58,16 +61,15 @@ function time(ts: string): string {
 }
 
 export default function OrderBlotter({
-  rows, focusSymbol, onOpenResearch, source = "live", view = "all", query = "",
+  rows, focusSymbol, onOpenResearch, source = "live", view, query = "",
 }: OrderBlotterProps) {
-  const [filter, setFilter] = useState<BlotterStatusFilter>("all");
   const [strategy, setStrategy] = useState<string | null>(null);
   const [gate, setGate] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  // A view fixes the status; only the standalone `all` form keeps its own seg.
-  const status: BlotterStatusFilter =
-    view === "fills" ? "accepted" : view === "unfilled" ? "unfilled" : filter;
+  // The view fixes the status outright — there is no third form left that could
+  // hold a status of its own.
+  const status: BlotterStatusFilter = view === "fills" ? "accepted" : "unfilled";
 
   const tags = useMemo(() => strategyTags(rows), [rows]);
   const gates = useMemo(() => rejectGateTags(rows), [rows]);
@@ -79,7 +81,7 @@ export default function OrderBlotter({
   );
 
   const exportStamp = () => {
-    const parts = ["alphaengine-blotter", source, view === "all" ? filter : view];
+    const parts = ["alphaengine-blotter", source, view];
     if (strategy) parts.push(strategy === UNTAGGED ? "untagged" : strategy);
     if (view === "unfilled" && gate) parts.push(gate);
     if (query.trim()) parts.push("search");
@@ -101,23 +103,6 @@ export default function OrderBlotter({
           </p>
         </div>
         <div className="blotter-toolbar">
-          {/* Only when this instance owns its own status. Under BlotterViews the
-              choice is made one level up, and a second seg saying the same thing
-              would let the two disagree. */}
-          {view === "all" && (
-            <div className="seg" role="group" aria-label="Filter blotter">
-              {FILTERS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  aria-pressed={filter === option.id}
-                  onClick={() => setFilter(option.id)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          )}
           {/* The gate codes are the answer this view exists to give, so they are
               a filter rather than only a column. Derived from the rows in hand,
               so a live gateway's own names appear unchanged. */}
@@ -147,24 +132,36 @@ export default function OrderBlotter({
               ))}
             </select>
           ) : null}
-          {/* Exports carry exactly the rows on screen — a file that silently
-              contained more than the filter selected would be a trap. */}
-          <button
-            type="button"
-            disabled={!visible.length}
-            title="Download the filtered rows as CSV"
-            onClick={() => download(`${exportStamp()}.csv`, blotterToCsv(visible), "text/csv")}
-          >
-            Export CSV
-          </button>
-          <button
-            type="button"
-            disabled={!visible.length}
-            title="Download the filtered rows as JSON"
-            onClick={() => download(`${exportStamp()}.json`, JSON.stringify(visible, null, 2), "application/json")}
-          >
-            Export JSON
-          </button>
+          {/* Two buttons for one action with a format parameter, so they
+              collapse into one disclosure. Both are read-only and repeatable,
+              which is what makes hiding them behind a click safe — a
+              destructive action must stay in sight.
+
+              Exports carry exactly the rows on screen — a file that silently
+              contained more than the filter selected would be a trap — and that
+              caveat travels with them: the menu's own name states the count it
+              is about to write, so a reader who has narrowed the table sees the
+              narrowed number before opening it. */}
+          <RowMenu label={`Export the rows on screen (${visible.length})`}>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={!visible.length}
+              title="Download exactly the rows on screen as CSV"
+              onClick={() => download(`${exportStamp()}.csv`, blotterToCsv(visible), "text/csv")}
+            >
+              Export CSV
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={!visible.length}
+              title="Download exactly the rows on screen as JSON"
+              onClick={() => download(`${exportStamp()}.json`, JSON.stringify(visible, null, 2), "application/json")}
+            >
+              Export JSON
+            </button>
+          </RowMenu>
         </div>
       </header>
 
@@ -192,7 +189,14 @@ export default function OrderBlotter({
                 {/* The columns follow the question. A fills view wants the
                     economics of the trade; an unfilled view wants the reason
                     there wasn't one, and every price column on it would be a
-                    row of dashes. */}
+                    row of dashes.
+
+                    The inner `view === "fills"` guards that used to sit in this
+                    branch went with the third view. Reaching here already meant
+                    `fills`, so they were constant, and the Latency column behind
+                    `view !== "fills"` was constant the other way — it had never
+                    once rendered. Tail latency is still measured, on the Fill
+                    quality subtab, which is where the distribution lives. */}
                 {view === "unfilled" ? (
                   <>
                     <th scope="col">Status</th>
@@ -201,12 +205,11 @@ export default function OrderBlotter({
                   </>
                 ) : (
                   <>
-                    {view === "fills" && <th scope="col" className="num">Qty</th>}
+                    <th scope="col" className="num">Qty</th>
                     <th scope="col">Venue</th>
                     <th scope="col" className="num">Fill</th>
-                    {view === "fills" && <th scope="col" className="num">Fee</th>}
+                    <th scope="col" className="num">Fee</th>
                     <th scope="col" className="num">Slip</th>
-                    {view !== "fills" && <th scope="col" className="num">Latency</th>}
                     <th scope="col">Verdict</th>
                   </>
                 )}
@@ -250,18 +253,11 @@ export default function OrderBlotter({
                       </>
                     ) : (
                       <>
-                        {view === "fills" && (
-                          <td className="num">{row.quantity != null ? fmt(row.quantity, 4) : "—"}</td>
-                        )}
+                        <td className="num">{row.quantity != null ? fmt(row.quantity, 4) : "—"}</td>
                         <td>{row.venue ?? "—"}</td>
                         <td className="num">{row.fillPrice != null ? usd(row.fillPrice, 2) : "—"}</td>
-                        {view === "fills" && (
-                          <td className="num">{row.feeUsd != null ? usd(row.feeUsd, 2) : "—"}</td>
-                        )}
+                        <td className="num">{row.feeUsd != null ? usd(row.feeUsd, 2) : "—"}</td>
                         <td className="num">{row.slippageBps != null ? `${fmt(row.slippageBps, 1)}bp` : "—"}</td>
-                        {view !== "fills" && (
-                          <td className="num">{row.latencyMs != null ? `${fmt(row.latencyMs, 2)}ms` : "—"}</td>
-                        )}
                         <td>
                           {/* Status, not `accepted`. A cancelled or expired order was
                               accepted and never filled — labelling it "filled" would
@@ -278,7 +274,15 @@ export default function OrderBlotter({
                   </tr>,
                   open ? (
                     <tr key={`${row.orderId}-detail`} className="detail-row">
-                      <td colSpan={view === "unfilled" ? 8 : view === "fills" ? 9 : 10}>
+                      {/* Counted off the header above, not guessed. The fills
+                          arm read 9 against 11 rendered columns, so the check
+                          vector stopped two columns short of the row it
+                          explains; the 10 beside it was the third view's width
+                          and could never be reached. Unfilled: Time, Symbol,
+                          Side, Notional, Status, Gate, Reason, Tag. Fills: the
+                          same first four, then Qty, Venue, Fill, Fee, Slip,
+                          Verdict, Tag. */}
+                      <td colSpan={view === "unfilled" ? 8 : 11}>
                         <div className="cockpit-detail">
                           <p>
                             <code>{row.orderId}</code>

@@ -459,73 +459,126 @@ function DeveloperOverview({
   );
 }
 
+/**
+ * CI / CD answered two questions in one scroll, and they have different
+ * sources. Pipeline reads build-time identity — the commit, the environment,
+ * whether a Vercel artifact exists — so it describes THIS build and changes on
+ * every deploy. Verification reads the committed job matrix and the runtime
+ * artifact lineage: what the gates prove, and which deployable each conclusion
+ * belongs to. A reader arriving from "Open CI / CD" on the topology card wants
+ * the first; a reader checking what shipped wants the second, and used to have
+ * to scroll a full pipeline strip past it.
+ */
+type QualityPane = "pipeline" | "verification";
+
+const QUALITY_PANES: Array<{ id: QualityPane; label: string; hint: string }> = [
+  { id: "pipeline", label: "Pipeline", hint: "The stages this commit travels, and how far the build in front of you actually got" },
+  { id: "verification", label: "Verification", hint: "What the configured gates prove, at what cost, and which artifact each conclusion belongs to" },
+];
+
 function DeveloperPipelines({ view }: { view: SystemHealthView }) {
+  const [pane, setPane] = useState<QualityPane>("pipeline");
   const totalTests = CI_JOBS.reduce((sum, job) => sum + (job.count ?? 0), 0);
   return (
-    <div className="developer-cp-stack">
-      <section className="card developer-cp-section-hero">
-        <div>
-          <span>Delivery workflow</span>
-          <h2>Pipeline execution and release custody</h2>
-          <p>Configured checks are visible here; the linked Actions run remains the source of truth for pending, passing, or failed state.</p>
-        </div>
-        <div className="developer-cp-section-hero__actions">
-          <StatusPill state={{ label: `${totalTests} tests`, detail: "Documented offline baseline across three suites.", tone: "info" }} />
-          <a className="text-action" href={`${GITHUB_REPOSITORY_ROOT}/actions`} target="_blank" rel="noreferrer">Open GitHub Actions ↗</a>
-        </div>
-      </section>
+    <>
+      {/* The switcher sits outside `.developer-cp-stack`, in the subtab panel's
+          own block flow, exactly as the Positions and Remediation switchers do.
+          Inside the stack it would be a grid item: `.developer-cp-artifact-card`
+          carries `grid-column: span 6` for the Readiness grid, and a six-column
+          span in a container with no explicit columns creates six implicit ones,
+          which lands the switcher in column 1 beside the first card rather than
+          above it. */}
+      <div className="seg" role="group" aria-label="CI / CD view">
+        {QUALITY_PANES.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            aria-pressed={pane === option.id}
+            title={option.hint}
+            onClick={() => setPane(option.id)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
 
-      <section className="card developer-cp-pipeline-card">
-        <div className="developer-cp-heading"><div><span>Current build path</span><h2>Commit {APP_COMMIT}</h2></div><StatusPill state={workspaceState(view)} /></div>
-        <PipelineStrip />
-      </section>
+      <div className="developer-cp-stack">
+        {/* Conditional renders, never `hidden` — the same rule Remediation
+            records. Nothing here polls, but a pane left mounted is a pane that
+            starts polling the day someone gives it a live source. */}
+        {pane === "pipeline" && (
+          <>
+            <section className="card developer-cp-section-hero">
+              <div>
+                <span>Delivery workflow</span>
+                <h2>Pipeline execution and release custody</h2>
+                <p>Configured checks are visible here; the linked Actions run remains the source of truth for pending, passing, or failed state.</p>
+              </div>
+              <div className="developer-cp-section-hero__actions">
+                <StatusPill state={{ label: `${totalTests} tests`, detail: "Documented offline baseline across three suites.", tone: "info" }} />
+                <a className="text-action" href={`${GITHUB_REPOSITORY_ROOT}/actions`} target="_blank" rel="noreferrer">Open GitHub Actions ↗</a>
+              </div>
+            </section>
 
-      <section className="card developer-cp-jobs">
-        <div className="developer-cp-heading"><div><span>Verification matrix</span><h2>Configured jobs</h2></div><span>Every push</span></div>
-        <div className="developer-cp-jobs__table" role="table" aria-label="Continuous integration jobs">
-          <div className="developer-cp-jobs__row is-head" role="row"><span role="columnheader">Job</span><span role="columnheader">Evidence</span><span role="columnheader">Command</span><span role="columnheader">Baseline</span></div>
-          {CI_JOBS.map((job) => (
-            <div className="developer-cp-jobs__row" role="row" key={job.name}>
-              <strong role="cell">{job.name}</strong><span role="cell">{job.evidence}</span><code role="cell">{job.command}</code><span role="cell">{job.count === null ? "tree audit" : `${job.count} tests`}</span>
-            </div>
-          ))}
-        </div>
+            <section className="card developer-cp-pipeline-card">
+              <div className="developer-cp-heading"><div><span>Current build path</span><h2>Commit {APP_COMMIT}</h2></div><StatusPill state={workspaceState(view)} /></div>
+              <PipelineStrip />
+            </section>
+          </>
+        )}
 
-        {/* The same four rows as bars, on one shared scale. `CategoryBars`'
-            own header names this exact caller — "CI test counts" — and the
-            import sat unused since it was written, which is its own small
-            evidence that nothing in this project catches a dead import.
+        {pane === "verification" && (
+          <>
+            <section className="card developer-cp-jobs">
+              <div className="developer-cp-heading"><div><span>Verification matrix</span><h2>Configured jobs</h2></div><span>Every push</span></div>
+              <div className="developer-cp-jobs__table" role="table" aria-label="Continuous integration jobs">
+                <div className="developer-cp-jobs__row is-head" role="row"><span role="columnheader">Job</span><span role="columnheader">Evidence</span><span role="columnheader">Command</span><span role="columnheader">Baseline</span></div>
+                {CI_JOBS.map((job) => (
+                  <div className="developer-cp-jobs__row" role="row" key={job.name}>
+                    <strong role="cell">{job.name}</strong><span role="cell">{job.evidence}</span><code role="cell">{job.command}</code><span role="cell">{job.count === null ? "tree audit" : `${job.count} tests`}</span>
+                  </div>
+                ))}
+              </div>
 
-            Worth drawing rather than only tabulating: the numbers span an
-            order of magnitude, and a column of right-aligned figures hides
-            that the web suite is most of the estate. The tree audit has no
-            count and is deliberately absent rather than plotted as zero. */}
-        <CategoryBars
-          rows={CI_JOBS.filter((job) => job.count !== null).map((job) => ({
-            label: job.name,
-            note: `${job.count} tests`,
-            segments: [{ label: "tests", value: job.count ?? 0, color: "var(--series-1)" }],
-          }))}
-          ariaLabel="Test count by continuous-integration suite"
-          emptyNote="No suite reports a documented baseline."
-        />
-      </section>
+              {/* The same four rows as bars, on one shared scale. `CategoryBars`'
+                  own header names this exact caller — "CI test counts" — and the
+                  import sat unused since it was written, which is its own small
+                  evidence that nothing in this project catches a dead import.
 
-      <section className="card developer-cp-artifact-card">
-        <div className="developer-cp-heading"><div><span>Artifact registry</span><h2>Deployable lineage</h2></div><span>Runtime-observed state</span></div>
-        <ArtifactLineage view={view} />
-        <p className="developer-cp-disclosure">Artifact custody passes only when the pinned Ed25519 signer attests the deployment&apos;s full commit, environment, and content-addressed build provenance. Downloadable release bundles and promotion records remain separate evidence.</p>
-      </section>
-    </div>
+                  Worth drawing rather than only tabulating: the numbers span an
+                  order of magnitude, and a column of right-aligned figures hides
+                  that the web suite is most of the estate. The tree audit has no
+                  count and is deliberately absent rather than plotted as zero. */}
+              <CategoryBars
+                rows={CI_JOBS.filter((job) => job.count !== null).map((job) => ({
+                  label: job.name,
+                  note: `${job.count} tests`,
+                  segments: [{ label: "tests", value: job.count ?? 0, color: "var(--series-1)" }],
+                }))}
+                ariaLabel="Test count by continuous-integration suite"
+                emptyNote="No suite reports a documented baseline."
+              />
+            </section>
+
+            <section className="card developer-cp-artifact-card">
+              <div className="developer-cp-heading"><div><span>Artifact registry</span><h2>Deployable lineage</h2></div><span>Runtime-observed state</span></div>
+              <ArtifactLineage view={view} />
+              <p className="developer-cp-disclosure">Artifact custody passes only when the pinned Ed25519 signer attests the deployment&apos;s full commit, environment, and content-addressed build provenance. Downloadable release bundles and promotion records remain separate evidence.</p>
+            </section>
+          </>
+        )}
+      </div>
+    </>
   );
 }
 
 /**
  * The third runtime of the numerics-parity claim: the committed reference was
- * authored offline, the server recomputes it per instance (the table row
- * above), and this button recomputes it in the visitor's own browser — same
- * Blob worker the Risk tab simulates with, same canonical serialisation,
- * compared byte for byte. Nothing is sent anywhere; the comparison is local.
+ * authored offline, the server recomputes it per instance (the "Monte Carlo
+ * numerics" row of the schema table, one pane away in Contracts), and this
+ * button recomputes it in the visitor's own browser — same Blob worker the Risk
+ * tab simulates with, same canonical serialisation, compared byte for byte.
+ * Nothing is sent anywhere; the comparison is local.
  */
 function McBrowserParityCheck() {
   const [runNonce, setRunNonce] = useState(0);
@@ -585,21 +638,78 @@ function McBrowserParityCheck() {
   );
 }
 
+/**
+ * API and Schema carried three questions in one scroll: which contracts are
+ * gated, what the route inventory is, and whether the numerics reproduce.
+ *
+ * Numerics is the third of those, and it stays here as its own pane rather
+ * than moving to Readiness beside artifact custody. Two reasons, one of them
+ * about meaning and one about the stylesheet.
+ *
+ * The browser run is one third of a three-way comparison. The other two — the
+ * committed reference and this deployment's Node runtime — are the "Monte
+ * Carlo numerics" row of the schema table, one pane away in Contracts. Moving
+ * the run to Readiness would separate the reading from the row it corroborates,
+ * and a reader who found a mismatch would then hold two sections in their head
+ * to say which runtime disagreed.
+ *
+ * And Readiness is a fixed twelve-column grid: its three cards are pinned by
+ * `grid-column` spans in globals.css, so a fourth would land alone on a row
+ * with half of it empty. Fixing that is a stylesheet edit, and this component
+ * does not own the stylesheet.
+ */
+type InterfacePane = "contracts" | "routes" | "numerics";
+
+const INTERFACE_PANES: Array<{ id: InterfacePane; label: string; hint: string }> = [
+  { id: "contracts", label: "Contracts", hint: "Which compatibility gates are automated against this commit, and which are still unverified" },
+  { id: "routes", label: "Routes", hint: "Every operation this runtime serves, searchable by path or purpose, with a curl for each" },
+  { id: "numerics", label: "Numerics", hint: "Recompute the committed Monte Carlo reference in this browser and compare it byte for byte" },
+];
+
 function DeveloperInterfaces({ view }: { view: SystemHealthView }) {
+  const [pane, setPane] = useState<InterfacePane>("contracts");
   const liveSchema = schemaCompatibilityState(view);
   return (
-    <div className="developer-cp-stack">
-      <section className="card developer-cp-section-hero">
-        <div><span>Contract intelligence</span><h2>API &amp; Schema</h2><p>Browse the current route inventory and see exactly which compatibility gates are automated versus still missing.</p></div>
-        <StatusPill state={{ label: `${API_OPERATIONS.length} operations`, detail: "Route handlers indexed from this runtime.", tone: "info" }} />
-      </section>
-      <section className="card developer-cp-schema-card">
-        <div className="developer-cp-heading"><div><span>Breaking-change guard</span><h2>Schema compatibility</h2></div><StatusPill state={liveSchema} /></div>
-        <SchemaGateTable view={view} />
-      </section>
-      <McBrowserParityCheck />
-      <DeveloperApiCatalog />
-    </div>
+    <>
+      {/* Outside the stack, for the reason recorded above `QUALITY_PANES`:
+          `.developer-cp-schema-card` spans six columns for the Readiness grid,
+          and a stack holding one of those is a six-column grid. */}
+      <div className="seg" role="group" aria-label="API and schema view">
+        {INTERFACE_PANES.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            aria-pressed={pane === option.id}
+            title={option.hint}
+            onClick={() => setPane(option.id)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="developer-cp-stack">
+        {/* Conditional renders, never `hidden`. Numerics owns a Blob worker, and
+            leaving it mounted behind another pane keeps a simulation the reader
+            cannot see holding a thread it cannot stop. */}
+        {pane === "contracts" && (
+          <>
+            <section className="card developer-cp-section-hero">
+              <div><span>Contract intelligence</span><h2>API &amp; Schema</h2><p>Browse the current route inventory and see exactly which compatibility gates are automated versus still missing.</p></div>
+              <StatusPill state={{ label: `${API_OPERATIONS.length} operations`, detail: "Route handlers indexed from this runtime.", tone: "info" }} />
+            </section>
+            <section className="card developer-cp-schema-card">
+              <div className="developer-cp-heading"><div><span>Breaking-change guard</span><h2>Schema compatibility</h2></div><StatusPill state={liveSchema} /></div>
+              <SchemaGateTable view={view} />
+            </section>
+          </>
+        )}
+
+        {pane === "routes" && <DeveloperApiCatalog />}
+
+        {pane === "numerics" && <McBrowserParityCheck />}
+      </div>
+    </>
   );
 }
 
@@ -655,6 +765,13 @@ export default function DeveloperConsole({
 
   return (
     <div className="developer-control-plane">
+      {/* No Refresh control on this head. It called `view.refresh(false)` —
+          the identical handler `ConsoleChrome` gives Reliability — against
+          `useSystemHealth`, which is one shared 30s poll for every console
+          that reads it. Pressing it could not produce a snapshot the poll was
+          not already about to fetch, and this tab's evidence is build-time
+          identity and committed job definitions, neither of which a refetch
+          can change. */}
       <PageHead
         kicker="Quant developer"
         title="Developer"
@@ -674,11 +791,6 @@ export default function DeveloperConsole({
           label: currentState.label,
           tone: currentState.tone === "bad" ? "critical" : currentState.tone === "good" ? "good" : currentState.tone === "warn" ? "warn" : "neutral",
         }}
-        actions={
-          <button type="button" onClick={() => void view.refresh(false)} disabled={view.busyAction !== null}>
-            Refresh health
-          </button>
-        }
       />
 
       <WorkspaceSubtabs

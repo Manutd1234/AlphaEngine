@@ -366,6 +366,17 @@ export default function ReliabilityOverview({
               <h2 id="reliability-response-title">Diagnose, correlate, recover</h2>
             </div>
           </div>
+          {/* Not the rail again. These three are the same destinations as the
+              three tabs one row above, and the temptation on noticing that is
+              to delete the card as duplication.
+
+              The rail is an index: five sections in a fixed order, none of
+              which says which one to open first, or that Logs is worth reading
+              before Remediation rather than after. This is a procedure — 01,
+              02, 03 — and the ordering is the information. An `<ol>` says that
+              in markup as well as in the numerals.
+
+              Delete it only when the rail itself can express a sequence. */}
           <ol className="reliability-response-steps">
             <li>
               <button type="button" onClick={() => onOpenSection("services")}>

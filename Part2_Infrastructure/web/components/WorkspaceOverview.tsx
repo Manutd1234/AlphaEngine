@@ -21,7 +21,7 @@ import Sparkline from "@/components/overview/Sparkline";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import { STRATEGY_LABELS, SweepRequest, SweepResponse } from "@/lib/types";
 import { fmt, signedPct, usd } from "@/lib/format";
-import { deriveDecisionLoop, downsample } from "@/lib/overview-state";
+import { deriveDecisionLoop, downsample, type StageId } from "@/lib/overview-state";
 import { OVERVIEW_SECTIONS, type OverviewSection } from "@/lib/sections";
 import type { Side } from "@/lib/venues";
 import type { WorkspaceView } from "@/components/WorkspaceHeader";
@@ -40,6 +40,8 @@ interface WorkspaceOverviewProps {
   book: BookView;
   systems: SystemHealthView;
   onNavigate: (view: WorkspaceView) => void;
+  /** Opens the section a pipeline stage's own verdict is computed from. */
+  onOpenStage: (stage: StageId) => void;
   onRun: () => void;
   section: OverviewSection;
   onSectionChange: (section: OverviewSection) => void;
@@ -56,6 +58,7 @@ export default function WorkspaceOverview({
   book,
   systems,
   onNavigate,
+  onOpenStage,
   onRun,
   section,
   onSectionChange,
@@ -186,7 +189,7 @@ export default function WorkspaceOverview({
             <span aria-hidden>→</span>
           </button>
         </div>
-        <DecisionLoopPipeline stages={stages} />
+        <DecisionLoopPipeline stages={stages} onOpenStage={onOpenStage} />
 
         <div className="overview-hero__stats">
           <div className="overview-hero__stat">
@@ -280,17 +283,13 @@ export default function WorkspaceOverview({
           </div>
 
           {/* Ordered the way work moves — an idea is researched, executed, held,
-              and constrained — then the three roles that keep that possible. */}
-          <RoleCards
-            context={context}
-            onNavigate={onNavigate}
-            onRun={onRun}
-            running={running}
-            researchStale={researchStale}
-            onRefreshBook={() => void book.refresh(true)}
-            bookRefreshing={book.refreshing}
-            onRefreshHealth={() => void systems.refresh(false)}
-          />
+              and constrained — then the three roles that keep that possible.
+
+              Six further props used to be threaded in here — a run handler, two
+              refresh callbacks and the flags that would have disabled them. The
+              launcher reads none of them: it has one button per card and always
+              has, so two of those callbacks were wired to no control at all. */}
+          <RoleCards context={context} onNavigate={onNavigate} />
         </section>
       </WorkspaceSubtabPanel>
 

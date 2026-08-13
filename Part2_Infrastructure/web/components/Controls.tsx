@@ -122,17 +122,26 @@ function NumberField({
 export default function Controls({
   req,
   setReq,
-  onRun,
   onCommit,
-  running,
   tried,
 }: {
   req: SweepRequest;
   setReq: (r: SweepRequest) => void;
+  /**
+   * Declared but not rendered here any more, and deliberately still separate
+   * from `onCommit`.
+   *
+   * This panel used to close with a "Run sweep now" button; the desk had three
+   * ways to start the same sweep visible at once, and this was the one that
+   * scrolled out of view with the controls above it. The distinction the two
+   * props draw is the mechanism, not the button: `onCommit` is the DOM's own
+   * `change`, `onRun` is an explicit request, and a component that collapsed
+   * them would put a request on every tick of a slider drag —
+   * `tests/sweep-autorun.test.ts` reads this signature for exactly that.
+   */
   onRun: () => void;
   /** The user has settled on a value — see the `change` listener below. */
   onCommit: () => void;
-  running: boolean;
   /** Strategies in this browser's run log, marked "— run" in the picker. */
   tried?: ReadonlySet<Strategy>;
 }) {
@@ -484,12 +493,12 @@ export default function Controls({
           </p>
         </details>
 
-        {/* Still here with auto-run on: it is the escape hatch for a field left
-            mid-edit, and the only control when Auto is off. ⌘/Ctrl+Enter does
-            the same thing from anywhere in the workspace. */}
-        <button className="primary" onClick={onRun} disabled={running}>
-          {running ? "Running sweep…" : "Run sweep now"}
-        </button>
+        {/* The "Run sweep now" button that used to close this panel is gone.
+            Three ways to start the same sweep were visible at once on Research
+            ▸ Summary — this one, "Run now" on the section rail, and ⌘/Ctrl+Enter
+            (which the palette also offers) — and this was the one that scrolled
+            away with the setup it sat under. The rail button survives scrolling
+            and stays beside the Auto switch that suspends it. */}
         </div>
       </div>
     </div>

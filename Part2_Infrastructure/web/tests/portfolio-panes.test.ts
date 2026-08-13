@@ -1,6 +1,11 @@
 /**
- * Two section splits, and the explanation that makes a truthful panel stop
- * looking broken.
+ * The Positions and Allocation splits, and the explanation that makes a
+ * truthful panel stop looking broken.
+ *
+ * Overview and Performance were split the same way afterwards; the assertions
+ * specific to those two live in `portfolio-section-panes.test.ts`. What is
+ * shared — that there is one rail and that every pane is a conditional render —
+ * is pinned here, over the whole file.
  *
  * Positions was eight cards in one scroll and Allocation four. Splitting them
  * has two failure modes worth pinning: a nested `<WorkspaceSubtabs>`, which
@@ -39,10 +44,13 @@ describe("the split uses the house in-panel pattern, not a second rail", () => {
     assert.equal((code(workspace).match(/<WorkspaceSubtabs\b/g) ?? []).length, 1);
   });
 
-  it("uses .seg role=group for both splits", () => {
+  it("uses .seg role=group for every split, in rail order", () => {
+    // Rail order, because the list is read off the source top to bottom and a
+    // group appearing out of order means a switcher has been rendered into the
+    // wrong section's panel.
     const groups = [...workspace.matchAll(/<div className="seg" role="group" aria-label="([^"]+)"/g)]
       .map((match) => match[1]);
-    assert.deepEqual(groups, ["Positions view", "Allocation view"]);
+    assert.deepEqual(groups, ["Overview view", "Positions view", "Allocation view", "Performance view"]);
   });
 
   it("keeps each split to three panes", () => {

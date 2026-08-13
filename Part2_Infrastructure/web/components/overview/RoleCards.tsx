@@ -87,12 +87,6 @@ export default function RoleCards({
 }: {
   context: RoleContext;
   onNavigate: (view: WorkspaceView) => void;
-  onRun?: () => void;
-  running?: boolean;
-  researchStale?: boolean;
-  onRefreshBook?: () => void;
-  bookRefreshing?: boolean;
-  onRefreshHealth?: () => void;
 }) {
   return (
     <div className="role-grid">

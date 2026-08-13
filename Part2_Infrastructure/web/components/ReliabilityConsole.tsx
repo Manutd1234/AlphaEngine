@@ -127,11 +127,19 @@ export default function ReliabilityConsole({
       ? "Checking"
       : POSTURE_LABEL[posture.overall];
 
-  const openDrilldown = (next: ReliabilityDrilldown, targetId?: string) => {
+  /**
+   * Focus follows the switch, or a keyboard reader is left on a control that no
+   * longer describes what is on screen.
+   *
+   * The optional anchor argument went with the two tile actions below: nothing
+   * in this component targets an element inside a section any more, and the two
+   * deep links that do — the header's latency chip and system-health button —
+   * are wired in `app/dashboard/page.tsx` because the header is global.
+   */
+  const openDrilldown = (next: ReliabilityDrilldown) => {
     onSectionChange(next);
     window.requestAnimationFrame(() => {
-      const target = targetId ? document.getElementById(targetId) : null;
-      (target ?? document.getElementById(`reliability-subtab-${next}`))?.focus();
+      document.getElementById(`reliability-subtab-${next}`)?.focus();
     });
   };
 
@@ -140,6 +148,16 @@ export default function ReliabilityConsole({
     latency?.p99 != null && (latency?.n ?? 0) >= LATENCY_MIN_SAMPLES,
   );
 
+  /**
+   * Numbers, not links. Two of these tiles carried their own "View every
+   * provider" and "Explain p99" actions, and the global header already wires
+   * its latency chip and system-health button to the same section and the same
+   * anchor — `openReliabilitySection("services", "reliability-provider-health")`
+   * and `("services", "reliability-latency-guide")` in `app/dashboard/page.tsx`.
+   * The header travels with the reader across every workspace, so the tile
+   * copies were a second route to one destination, visible only once you were
+   * already on this tab.
+   */
   const tiles: ConsoleTile[] = [
     {
       label: "Overall state",
@@ -166,8 +184,6 @@ export default function ReliabilityConsole({
         ? `${health.summary.configured} configured · ${health.summary.ready} routable`
         : "checking provider registry",
       tone: postureTone(posture?.paths.research.status),
-      actionLabel: "View every provider",
-      onClick: () => openDrilldown("services", "reliability-provider-health"),
     },
     {
       label: "Tail latency (p99)",
@@ -176,8 +192,6 @@ export default function ReliabilityConsole({
         ? `99% completed within this · ${latencyState.label} · n=${latency?.n ?? 0}`
         : `${latency?.n ?? 0}/${LATENCY_MIN_SAMPLES} samples · not a failure`,
       tone: latencyState.tone === "bad" ? "bad" : latencyState.tone === "warn" ? "warn" : "neutral",
-      actionLabel: "Explain p99",
-      onClick: () => openDrilldown("services", "reliability-latency-guide"),
     },
   ];
 

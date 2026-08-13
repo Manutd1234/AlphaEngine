@@ -1188,7 +1188,12 @@ a:not([class]):active {
 
 .console-incident-list__row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  /* Two tracks, not three. The trailing `auto` held a "Manage in Providers"
+     button repeated once per row, all of them calling the same handler; the
+     card header keeps the single instance. An empty track collapses to zero
+     width but its `gap` does not, so leaving it would keep 10px of phantom
+     margin on the right of every incident row. */
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
@@ -4253,11 +4258,13 @@ button.console-stat:hover:not(:disabled) {
   text-transform: uppercase;
 }
 
-.console-row-actions button:first-child:not(:disabled) {
-  border-color: color-mix(in srgb, var(--series-1) 30%, var(--border));
-  color: var(--series-1);
-  background: color-mix(in srgb, var(--series-1) 7%, var(--surface-1));
-}
+/* The accent on the first action in a health-matrix row is gone, deliberately.
+   It marked `Logs` — the one free read among five controls — as the obvious
+   thing to press. `Logs` has moved into the row's `···` menu, so first place
+   now belongs to `Test`, which spends a real provider call. Accenting the one
+   control that costs something is the inverse of what the rule was for, and a
+   row where nothing is accented is the honest arrangement when every visible
+   action changes state. */
 
 /* ---------- failover graph ---------- */
 .console-route-picker {
@@ -6720,6 +6727,23 @@ button.console-stat:hover:not(:disabled) {
   font-weight: 650;
 }
 
+/* The row menu, restored to the size it is everywhere else.
+   `:not()` takes the specificity of its argument, so the rule above weighs
+   (0,2,2) and beats `.row-menu__trigger` at (0,1,0) — the `···` and its items
+   were being shrunk to toolbar type. The popover is in the top layer but still
+   a DOM descendant of the toolbar, so the items are caught by the same rule. */
+.blotter-toolbar .row-menu__trigger {
+  padding: 2px 9px;
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.blotter-toolbar .row-menu__items button {
+  padding: 7px 10px;
+  font-size: 12.5px;
+  font-weight: 550;
+}
+
 /* The global control rule stretches selects to 100%, which pushed the export
    buttons onto a row of their own and squeezed the filter seg into wrapping. */
 .blotter-toolbar select {
@@ -7501,6 +7525,20 @@ button.console-stat:hover:not(:disabled) {
 .workspace-subtab-panel {
   min-width: 0;
   outline: none;
+}
+
+/* A pane switcher sitting directly in a section panel.
+   `.seg button` is `flex: 1`, so two or three options stretch the control
+   across the whole desk — a 1,200px-wide toggle for a two-word choice — and
+   `.card` carries `margin-bottom` but no `margin-top`, so the switcher ends up
+   flush against the pane it selects. Both were already solved twice locally,
+   by `.reliability-remediation-seg` and `.data-trust-overview > .seg`; this is
+   the same fix stated once, for every section that gained a switcher in this
+   pass and for Positions and Allocation, which had the defect already. No new
+   class name, so the dead-CSS budget is untouched. */
+.workspace-subtab-panel > .seg {
+  max-width: 420px;
+  margin-bottom: var(--space-3);
 }
 
 /* Any author `display` beats the UA's `[hidden] { display: none }`, so a
