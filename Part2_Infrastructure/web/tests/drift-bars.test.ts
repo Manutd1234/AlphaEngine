@@ -14,6 +14,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { placeDriftFigure } from "../components/portfolio/drift-label";
 import {
   buildCovariance,
   proposeAllocation,
@@ -134,5 +135,110 @@ describe("the panel keeps its statuses visible", () => {
     // The toggle's entire effect is the inputs in that table; collapsing it
     // makes the control look inert.
     assert.match(panel, /<details className="disclosure" open=\{override\}>/);
+  });
+});
+
+/**
+ * The figures beside the bars had no lane discipline, and it was invisible to
+ * every test here because they all read the component as text. `x(drift) ± 5`
+ * anchored outward puts the largest bar's figure past the plot edge — onto the
+ * symbol at one extreme, onto the current→target pair at the other, glyph over
+ * glyph. It fired for most of the drift-band slider's travel.
+ *
+ * These assert the geometry instead: no figure may enter the gutter that holds
+ * another label. That is the property, and it is checkable.
+ */
+describe("a drift figure never lands on another label", () => {
+  // The plot as the component lays it out at its default width.
+  const PLOT_LEFT = 88;
+  const PLOT_RIGHT = 470;
+  const ZERO = (PLOT_LEFT + PLOT_RIGHT) / 2;
+  const GAP = 5;
+  // "+10.4%" at roughly 6px per glyph in the mono face.
+  const FIGURE = 6 * 6;
+
+  /** Where the figure's box actually starts and ends, given its anchor. */
+  function box(placement: ReturnType<typeof placeDriftFigure>) {
+    return placement.anchor === "start"
+      ? { left: placement.x, right: placement.x + FIGURE }
+      : { left: placement.x - FIGURE, right: placement.x };
+  }
+
+  const place = (end: number, up: boolean) =>
+    placeDriftFigure({
+      end, zero: ZERO, up, figureWidth: FIGURE, gap: GAP,
+      plotLeft: PLOT_LEFT, plotRight: PLOT_RIGHT,
+    });
+
+  it("keeps a full-width add inside the plot, off the current-to-target pair", () => {
+    // The exact case that overprinted: the bar reaches the right edge.
+    const drawn = box(place(PLOT_RIGHT, true));
+    assert.ok(
+      drawn.right <= PLOT_RIGHT,
+      `figure ran ${drawn.right - PLOT_RIGHT}px past the plot into the right annotation`,
+    );
+  });
+
+  it("keeps a full-width trim inside the plot, off the symbol", () => {
+    const drawn = box(place(PLOT_LEFT, false));
+    assert.ok(
+      drawn.left >= PLOT_LEFT,
+      `figure ran ${PLOT_LEFT - drawn.left}px into the symbol gutter`,
+    );
+  });
+
+  it("holds for every bar length, in both directions", () => {
+    // The band moves continuously, so the property has to hold continuously —
+    // a single sampled width is how this shipped green the first time.
+    for (let step = 0; step <= 100; step += 1) {
+      const reach = (step / 100) * (PLOT_RIGHT - ZERO);
+      for (const up of [true, false]) {
+        const drawn = box(place(up ? ZERO + reach : ZERO - reach, up));
+        assert.ok(
+          drawn.left >= PLOT_LEFT && drawn.right <= PLOT_RIGHT,
+          `at ${step}% ${up ? "add" : "trim"} the figure left the plot: `
+          + `${drawn.left.toFixed(1)}–${drawn.right.toFixed(1)} outside ${PLOT_LEFT}–${PLOT_RIGHT}`,
+        );
+      }
+    }
+  });
+
+  it("still prefers the gutter beside the bar when there is room for it", () => {
+    // The fallback must be a fallback. A figure that always retreats to the
+    // axis is no longer attached to the bar it describes.
+    const short = place(ZERO + 20, true);
+    assert.equal(short.beyondBar, true);
+    assert.equal(short.x, ZERO + 20 + GAP);
+    assert.equal(short.anchor, "start");
+  });
+
+  it("falls back across the empty half of the row, never onto the fill", () => {
+    // A bar occupies one side of zero, so the other side is free. Placing the
+    // figure there avoids needing a colour that survives a diverging fill in
+    // both themes and in forced colours.
+    const long = place(PLOT_RIGHT, true);
+    assert.equal(long.beyondBar, false);
+    assert.equal(long.anchor, "end");
+    assert.ok(long.x <= ZERO, "the fallback figure was drawn over its own bar");
+  });
+
+  it("gives the axis headroom so the longest bar is not flush with the edge", () => {
+    // The root cause underneath the placement: linearScale maps the domain onto
+    // the whole range, so without padding the largest bar ends exactly on the
+    // plot edge and has no gutter to be placed in at all.
+    assert.match(chart, /const domain = extent \* 1\.08/);
+    assert.match(chart, /Math\.max\(driftBand \* 1\.25/);
+  });
+
+  it("leaves room for the capped marker rather than clipping it", () => {
+    // `12.3% → 39.2% capped` is about 120px at 9.5px mono; the margin was 116,
+    // so the marker whose whole job is to say the target was constrained ran
+    // past the viewBox.
+    const margin = chart.match(/const MARGIN = \{[^}]*right:\s*(\d+)/);
+    assert.ok(margin, "the chart stopped declaring a right margin");
+    assert.ok(
+      Number(margin[1]) >= 140,
+      `right margin ${margin[1]}px cannot hold the current-to-target pair plus " capped"`,
+    );
   });
 });

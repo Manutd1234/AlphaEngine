@@ -33,11 +33,26 @@
  */
 
 import { linearScale, useMeasuredWidth } from "@/components/chart-kit";
+import { placeDriftFigure } from "@/components/portfolio/drift-label";
 import { pct, signedPct, usd } from "@/lib/format";
 import type { RebalanceTrade, TargetWeight } from "@/lib/portfolio-risk";
 
-const MARGIN = { top: 14, right: 116, bottom: 34, left: 88 };
+/**
+ * The right margin holds `12.3% → 39.2% capped`, which at 9.5px in the mono
+ * face is about 120px. It was 116, so the marker ran past the viewBox and was
+ * clipped — the one annotation whose whole job is to say the target was not
+ * arrived at freely.
+ */
+const MARGIN = { top: 14, right: 150, bottom: 34, left: 88 };
 const ROW = 26;
+/** Between a bar end and its figure. */
+const LABEL_GAP = 5;
+/**
+ * Monospace advance at 10px, near enough. This decides only whether a label
+ * fits in the gutter beside its bar, so an approximation is the right tool —
+ * measuring text properly would mean a DOM round trip per row per render.
+ */
+const GLYPH = 6;
 
 export default function DriftBars({
   targets,
@@ -61,7 +76,17 @@ export default function DriftBars({
 
   const height = MARGIN.top + targets.length * ROW + MARGIN.bottom;
   const plotRight = Math.max(MARGIN.left + 60, width - MARGIN.right);
-  const domain = Math.max(driftBand * 1.25, ...targets.map((t) => Math.abs(t.drift)));
+  /**
+   * The extent the data actually needs, then a little more.
+   *
+   * Without the headroom the largest bar ends exactly on the plot edge, because
+   * `linearScale` maps the domain onto the full range — so its figure had
+   * nowhere to sit and printed over the row's other labels. An axis that
+   * extends slightly past its largest value is also simply how a bar chart is
+   * drawn; the floor at `driftBand * 1.25` still does its own job underneath.
+   */
+  const extent = Math.max(driftBand * 1.25, ...targets.map((t) => Math.abs(t.drift)));
+  const domain = extent * 1.08;
   const x = linearScale(-domain, domain, MARGIN.left, plotRight);
   const base = MARGIN.top + targets.length * ROW;
   const outside = targets.filter((t) => Math.abs(t.drift) >= driftBand).length;
@@ -118,6 +143,20 @@ export default function DriftBars({
           // rather than nothing: measured zero and absent are different claims.
           const span = Math.max(1, Math.abs(x(target.drift) - x(0)));
 
+          // Beyond the bar end where there is room, back at the axis where
+          // there is not. `drift-label.ts` carries the rule and the bug it
+          // closes; keeping it out here is what lets the geometry be asserted.
+          const figure = signedPct(target.drift, 1);
+          const placed = placeDriftFigure({
+            end: x(target.drift),
+            zero: x(0),
+            up,
+            figureWidth: figure.length * GLYPH,
+            gap: LABEL_GAP,
+            plotLeft: MARGIN.left,
+            plotRight,
+          });
+
           return (
             <g key={target.symbol}>
               <text x={MARGIN.left - 8} y={barY + 9} textAnchor="end" fontSize={11}
@@ -144,14 +183,14 @@ export default function DriftBars({
               </rect>
 
               <text
-                x={up ? x(target.drift) + 5 : x(target.drift) - 5}
+                x={placed.x}
                 y={barY + 9.5}
-                textAnchor={up ? "start" : "end"}
+                textAnchor={placed.anchor}
                 fontSize={10}
                 fontFamily="var(--mono)"
                 fill={inside ? "var(--text-muted)" : "var(--text-primary)"}
               >
-                {signedPct(target.drift, 1)}
+                {figure}
               </text>
 
               {/* Right margin: only where the two denominators agree. */}
