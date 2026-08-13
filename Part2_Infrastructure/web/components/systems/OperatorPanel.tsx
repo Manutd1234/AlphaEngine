@@ -159,9 +159,23 @@ export default function OperatorPanel({
    *
    * Every figure below is read from the same provider snapshot the actions
    * operate on, so the summary cannot describe a system the buttons will not
-   * find. There is deliberately no history chart here: this instance keeps no
-   * durable remediation ledger, and a "resolutions over time" line would have
-   * to invent its own past.
+   * find.
+   *
+   * This comment used to end "there is deliberately no history chart here: this
+   * instance keeps no durable remediation ledger, and a 'resolutions over time'
+   * line would have to invent its own past." The reasoning still holds; the
+   * inputs changed. `resetBreaker` now emits the closing transition it used to
+   * swallow, so open→closed pairs are observable and `RemediationLedger` below
+   * pairs them — a real ledger, but a bounded, per-instance, non-durable one:
+   * 600 events shared with dispatch and cache traffic, reset by redeploy and by
+   * Clear telemetry.
+   *
+   * That supports a count, a split between automatic and operator closures, and
+   * a distribution of how long circuits stayed open. It still does NOT support
+   * a trend, and the ledger renders that refusal rather than caveating a line:
+   * the longest outages lose their opening line to eviction first, so the
+   * surviving sample is biased short and a trend through it would slope toward
+   * a recovery time nobody achieved.
    */
   const rows = providers ?? [];
   const openCircuits = rows.filter((row) => row.circuitOpen).length;

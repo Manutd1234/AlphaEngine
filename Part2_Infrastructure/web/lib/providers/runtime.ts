@@ -452,7 +452,33 @@ export function recordFailure(id: string, s: Store = store): void {
 export function resetBreaker(id: string, s: Store = store): boolean {
   const had = s.get<BreakerState>(breakerKey(id));
   s.del(breakerKey(id));
-  return Boolean(had?.openedAt);
+  const wasHolding = Boolean(had?.openedAt);
+
+  /**
+   * Emit the TRANSITION, not just the action.
+   *
+   * Every other breaker state change writes a line — tripped, cooldown elapsed,
+   * probe succeeded — and this one wrote none. So an operator pressing "Close
+   * all circuits" produced no `closed` event, and anything pairing open→closed
+   * to measure a recovery would count every manual intervention as still open,
+   * forever. The remediation ledger cannot tell automatic recovery from manual
+   * without this line.
+   *
+   * Only when a circuit was actually holding: resetting a provider that was
+   * already closed is a no-op, and recording it as a recovery would inflate the
+   * count with events where nothing was wrong. `by` is what makes the
+   * auto-vs-operator split a measurement rather than a guess.
+   */
+  if (wasHolding) {
+    emit({
+      level: "info",
+      source: "Breaker",
+      message: `${id} circuit closed by operator`,
+      fields: { provider: id, state: "closed", by: "operator" },
+    });
+  }
+
+  return wasHolding;
 }
 
 // --------------------------------------------------------------------------

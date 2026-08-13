@@ -16119,3 +16119,26 @@ html:active-view-transition .view-panel {
     grid-column: 3;
   }
 }
+
+/* ---------- remediation ledger ---------- */
+
+.remediation-ledger__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+}
+
+.remediation-ledger__facts dt {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.remediation-ledger__facts dd {
+  margin: 2px 0 0;
+  font-size: 15px;
+  font-weight: 650;
+}

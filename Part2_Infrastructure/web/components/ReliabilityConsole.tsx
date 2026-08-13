@@ -19,6 +19,7 @@ import { useRef, useState } from "react";
 import HealthMatrix from "@/components/systems/HealthMatrix";
 import OperatorPanel, { OperatorActionResult } from "@/components/systems/OperatorPanel";
 import ReliabilityOverview, { type ReliabilityDrilldown } from "@/components/systems/ReliabilityOverview";
+import RemediationLedger from "@/components/systems/RemediationLedger";
 import TraceConsole from "@/components/systems/TraceConsole";
 import { ConsoleChrome, type ConsoleTile } from "@/components/systems/ConsoleChrome";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
@@ -245,6 +246,11 @@ export default function ReliabilityConsole({
           tokenStatus={view.tokenStatus}
           onAction={runAction}
         />
+        {/* A sibling, not a section inside OperatorPanel: that component is
+            already 570 lines and stays a pure controls surface with no poll
+            threaded through it. The tab now reads in order — what the controls
+            act on, what they cost, and what has actually happened. */}
+        <RemediationLedger active={section === "controls"} />
       </WorkspaceSubtabPanel>
     </>
   );
