@@ -19,7 +19,7 @@
  *     choice is visibly a choice.
  */
 
-import type { BlotterRow } from "./blotter";
+import type { BlotterRow, WorkingOrderRow } from "./blotter";
 
 type Cell = string | number | boolean | null | undefined;
 
@@ -80,6 +80,61 @@ export function blotterToCsv(rows: BlotterRow[]): string {
       r.feeUsd,
       r.quantity,
       r.orderType,
+      r.source,
+    ]),
+  );
+}
+
+/**
+ * The resting book's own columns.
+ *
+ * A SEPARATE constant, not extra members on BLOTTER_CSV_COLUMNS. Those 18 are
+ * pinned by tests/export-csv.test.ts and describe a terminal decision; a
+ * resting order has no verdict, no fill, no slippage and no latency, and
+ * exporting it through the same header would write four empty columns that a
+ * reader would take for missing data rather than for "not yet". `lib/blotter.ts`
+ * keeps the two row types apart for exactly this reason.
+ */
+export const WORKING_ORDER_CSV_COLUMNS = [
+  "accepted_at",
+  "order_id",
+  "client_order_id",
+  "symbol",
+  "side",
+  "order_type",
+  "time_in_force",
+  "quantity",
+  "limit_price",
+  "notional",
+  "mark_price",
+  "distance_bps",
+  "age_seconds",
+  "expires_at",
+  "strategy",
+  "source",
+] as const;
+
+export function workingOrdersToCsv(rows: WorkingOrderRow[]): string {
+  return toCsv(
+    [...WORKING_ORDER_CSV_COLUMNS],
+    rows.map((r) => [
+      r.acceptedAt,
+      r.orderId,
+      r.clientOrderId,
+      r.symbol,
+      r.side,
+      r.orderType,
+      r.timeInForce,
+      r.quantity,
+      r.limitPrice,
+      r.notional,
+      // Null stays empty rather than becoming 0: a mark that has not been
+      // observed and a distance of zero from it are different facts.
+      r.markPrice,
+      r.distanceBps,
+      r.ageSeconds,
+      r.expiresAt,
+      r.strategy,
       r.source,
     ]),
   );

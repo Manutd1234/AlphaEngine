@@ -51,6 +51,7 @@ import type { ExecutionSection } from "@/lib/sections";
 import type { Strategy } from "@/lib/types";
 
 import AlertFeed from "./AlertFeed";
+import BlotterViews from "./BlotterViews";
 import { probeGateway } from "@/lib/use-gateway-connection";
 import DeskTape from "./DeskTape";
 import ExecutionQuality from "./ExecutionQuality";
@@ -412,7 +413,19 @@ export default function ExecutionCockpit({
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="execution" tabId="activity" activeId={section}>
-        <OrderBlotter rows={effectiveOrders} focusSymbol={symbol} onOpenResearch={onOpenResearch} source={feedSource} />
+        <BlotterViews
+          rows={effectiveOrders}
+          focusSymbol={symbol}
+          source={feedSource}
+          active={section === "activity"}
+          operatorToken={operatorToken}
+          /* The cockpit's own refresh, not `onOrderSettled`: that one carries a
+             submission result and invalidates the shared book after a NEW order.
+             A cancel from this table changes the resting book, so what has to
+             re-read is this panel's poll. */
+          onChanged={() => void refresh()}
+          onOpenResearch={onOpenResearch}
+        />
         {/* After the blotter, deliberately: the blotter is the complete
             polled record and the tape is the stream of what has just
             landed. Reading the stream first would invite treating it as

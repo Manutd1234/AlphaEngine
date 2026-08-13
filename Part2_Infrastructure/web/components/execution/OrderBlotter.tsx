@@ -20,6 +20,7 @@ import {
   type BlotterRow,
   type BlotterStatusFilter,
   filterBlotterRows,
+  rejectGateTags,
   strategyTags,
 } from "@/lib/blotter";
 import { download } from "@/lib/download";
@@ -32,6 +33,14 @@ interface OrderBlotterProps {
   onOpenResearch?: () => void;
   /** Where the rows came from — the empty state must not blame a quiet desk for a missing source. */
   source?: "live" | "sandbox" | "unavailable";
+  /**
+   * Which question this instance answers. Defaults to `all`, so the component
+   * still renders standalone exactly as it did; `BlotterViews` supplies one of
+   * the other two and owns the segmented control that chooses between them.
+   */
+  view?: "all" | "fills" | "unfilled";
+  /** Free-text search, owned by the parent so one box drives all three views. */
+  query?: string;
 }
 
 const FILTERS: Array<{ id: BlotterStatusFilter; label: string }> = [
@@ -48,20 +57,32 @@ function time(ts: string): string {
     : new Date(parsed).toLocaleTimeString("en-GB", { hour12: false });
 }
 
-export default function OrderBlotter({ rows, focusSymbol, onOpenResearch, source = "live" }: OrderBlotterProps) {
+export default function OrderBlotter({
+  rows, focusSymbol, onOpenResearch, source = "live", view = "all", query = "",
+}: OrderBlotterProps) {
   const [filter, setFilter] = useState<BlotterStatusFilter>("all");
   const [strategy, setStrategy] = useState<string | null>(null);
+  const [gate, setGate] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
 
+  // A view fixes the status; only the standalone `all` form keeps its own seg.
+  const status: BlotterStatusFilter =
+    view === "fills" ? "accepted" : view === "unfilled" ? "unfilled" : filter;
+
   const tags = useMemo(() => strategyTags(rows), [rows]);
+  const gates = useMemo(() => rejectGateTags(rows), [rows]);
   const visible = useMemo(
-    () => filterBlotterRows(rows, { status: filter, focusSymbol, strategy }),
-    [rows, filter, focusSymbol, strategy],
+    () => filterBlotterRows(rows, {
+      status, focusSymbol, strategy, query, gate: view === "unfilled" ? gate : null,
+    }),
+    [rows, status, focusSymbol, strategy, query, gate, view],
   );
 
   const exportStamp = () => {
-    const parts = ["alphaengine-blotter", source, filter];
+    const parts = ["alphaengine-blotter", source, view === "all" ? filter : view];
     if (strategy) parts.push(strategy === UNTAGGED ? "untagged" : strategy);
+    if (view === "unfilled" && gate) parts.push(gate);
+    if (query.trim()) parts.push("search");
     parts.push(`${visible.length}rows`);
     parts.push(new Date().toISOString().slice(0, 10).replace(/-/g, ""));
     return parts.join("-");
@@ -80,18 +101,38 @@ export default function OrderBlotter({ rows, focusSymbol, onOpenResearch, source
           </p>
         </div>
         <div className="blotter-toolbar">
-          <div className="seg" role="group" aria-label="Filter blotter">
-            {FILTERS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                aria-pressed={filter === option.id}
-                onClick={() => setFilter(option.id)}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+          {/* Only when this instance owns its own status. Under BlotterViews the
+              choice is made one level up, and a second seg saying the same thing
+              would let the two disagree. */}
+          {view === "all" && (
+            <div className="seg" role="group" aria-label="Filter blotter">
+              {FILTERS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={filter === option.id}
+                  onClick={() => setFilter(option.id)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {/* The gate codes are the answer this view exists to give, so they are
+              a filter rather than only a column. Derived from the rows in hand,
+              so a live gateway's own names appear unchanged. */}
+          {view === "unfilled" && gates.length > 1 && (
+            <select
+              aria-label="Filter by rejection gate"
+              value={gate ?? ""}
+              onChange={(event) => setGate(event.target.value === "" ? null : event.target.value)}
+            >
+              <option value="">All reasons</option>
+              {gates.map(({ gate: name, count }) => (
+                <option key={name} value={name}>{name} ({count})</option>
+              ))}
+            </select>
+          )}
           {tags.length > 1 ? (
             <select
               aria-label="Filter by strategy tag"
@@ -148,11 +189,27 @@ export default function OrderBlotter({ rows, focusSymbol, onOpenResearch, source
                 <th scope="col">Symbol</th>
                 <th scope="col">Side</th>
                 <th scope="col" className="num">Notional</th>
-                <th scope="col">Venue</th>
-                <th scope="col" className="num">Fill</th>
-                <th scope="col" className="num">Slip</th>
-                <th scope="col" className="num">Latency</th>
-                <th scope="col">Verdict</th>
+                {/* The columns follow the question. A fills view wants the
+                    economics of the trade; an unfilled view wants the reason
+                    there wasn't one, and every price column on it would be a
+                    row of dashes. */}
+                {view === "unfilled" ? (
+                  <>
+                    <th scope="col">Status</th>
+                    <th scope="col">Gate</th>
+                    <th scope="col">Reason</th>
+                  </>
+                ) : (
+                  <>
+                    {view === "fills" && <th scope="col" className="num">Qty</th>}
+                    <th scope="col">Venue</th>
+                    <th scope="col" className="num">Fill</th>
+                    {view === "fills" && <th scope="col" className="num">Fee</th>}
+                    <th scope="col" className="num">Slip</th>
+                    {view !== "fills" && <th scope="col" className="num">Latency</th>}
+                    <th scope="col">Verdict</th>
+                  </>
+                )}
                 <th scope="col">Tag</th>
               </tr>
             </thead>
@@ -178,25 +235,50 @@ export default function OrderBlotter({ rows, focusSymbol, onOpenResearch, source
                     <td>{row.symbol}</td>
                     <td className={row.side === "BUY" ? "pos" : "neg"}>{row.side}</td>
                     <td className="num">{usd(row.notional)}</td>
-                    <td>{row.venue ?? "—"}</td>
-                    <td className="num">{row.fillPrice != null ? usd(row.fillPrice, 2) : "—"}</td>
-                    <td className="num">{row.slippageBps != null ? `${fmt(row.slippageBps, 1)}bp` : "—"}</td>
-                    <td className="num">{row.latencyMs != null ? `${fmt(row.latencyMs, 2)}ms` : "—"}</td>
-                    <td>
-                      {/* Status, not `accepted`. A cancelled or expired order was
-                          accepted and never filled — labelling it "filled" would
-                          claim a trade that did not happen. */}
-                      {row.status === "FILLED"
-                        ? <span className="pill pill--live">filled</span>
-                        : row.status === "REJECTED"
-                          ? <span className="pill pill--stop">{row.rejectedBy[0] ?? "rejected"}</span>
-                          : <span className="pill pill--warn">{row.status.toLowerCase()}</span>}
-                    </td>
+                    {view === "unfilled" ? (
+                      <>
+                        <td>
+                          {row.status === "REJECTED"
+                            ? <span className="pill pill--stop">rejected</span>
+                            : <span className="pill pill--warn">{row.status.toLowerCase()}</span>}
+                        </td>
+                        {/* Every gate that refused it, not just the first: an
+                            order can trip more than one, and showing one would
+                            imply the others passed. */}
+                        <td className="num">{row.rejectedBy.length ? row.rejectedBy.join(", ") : "—"}</td>
+                        <td className="muted">{row.reason ?? "—"}</td>
+                      </>
+                    ) : (
+                      <>
+                        {view === "fills" && (
+                          <td className="num">{row.quantity != null ? fmt(row.quantity, 4) : "—"}</td>
+                        )}
+                        <td>{row.venue ?? "—"}</td>
+                        <td className="num">{row.fillPrice != null ? usd(row.fillPrice, 2) : "—"}</td>
+                        {view === "fills" && (
+                          <td className="num">{row.feeUsd != null ? usd(row.feeUsd, 2) : "—"}</td>
+                        )}
+                        <td className="num">{row.slippageBps != null ? `${fmt(row.slippageBps, 1)}bp` : "—"}</td>
+                        {view !== "fills" && (
+                          <td className="num">{row.latencyMs != null ? `${fmt(row.latencyMs, 2)}ms` : "—"}</td>
+                        )}
+                        <td>
+                          {/* Status, not `accepted`. A cancelled or expired order was
+                              accepted and never filled — labelling it "filled" would
+                              claim a trade that did not happen. */}
+                          {row.status === "FILLED"
+                            ? <span className="pill pill--live">filled</span>
+                            : row.status === "REJECTED"
+                              ? <span className="pill pill--stop">{row.rejectedBy[0] ?? "rejected"}</span>
+                              : <span className="pill pill--warn">{row.status.toLowerCase()}</span>}
+                        </td>
+                      </>
+                    )}
                     <td className="muted">{row.strategy ?? "—"}</td>
                   </tr>,
                   open ? (
                     <tr key={`${row.orderId}-detail`} className="detail-row">
-                      <td colSpan={10}>
+                      <td colSpan={view === "unfilled" ? 8 : view === "fills" ? 9 : 10}>
                         <div className="cockpit-detail">
                           <p>
                             <code>{row.orderId}</code>

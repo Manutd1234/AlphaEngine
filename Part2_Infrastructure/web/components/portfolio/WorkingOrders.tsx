@@ -22,7 +22,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { sandboxWorkingOrders, toWorkingOrder, type WorkingOrderRow } from "@/lib/blotter";
+import { filterWorkingOrders, sandboxWorkingOrders, toWorkingOrder, type WorkingOrderRow } from "@/lib/blotter";
+import { download } from "@/lib/download";
+import { workingOrdersToCsv } from "@/lib/export-csv";
 import { fmt, usd } from "@/lib/format";
 import { probeGateway } from "@/lib/use-gateway-connection";
 
@@ -43,6 +45,17 @@ export interface WorkingOrdersProps {
   /** Re-read the book after a cancel actually changed something. */
   onChanged?: () => void;
   onFocusSymbol?: (symbol: string) => void;
+  /**
+   * Which surface the operator acted from.
+   *
+   * The cancel and amend reasons land in the gateway's append-only audit trail,
+   * and they were hardcoded to "the portfolio panel" — so an amend made from
+   * the execution blotter would be recorded as having happened somewhere else.
+   * A wrong provenance in an audit log is worse than a vague one.
+   */
+  origin?: string;
+  /** Free-text search, owned by the caller so one box can drive several tables. */
+  query?: string;
 }
 
 const POLL_MS = 5_000;
@@ -68,6 +81,8 @@ export default function WorkingOrders({
   operatorToken,
   onChanged,
   onFocusSymbol,
+  origin = "portfolio panel",
+  query = "",
 }: WorkingOrdersProps) {
   const [rows, setRows] = useState<WorkingOrderRow[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -159,6 +174,10 @@ export default function WorkingOrders({
     }
   }, [operatorToken, load, onChanged]);
 
+  // `visible` is what the table and the export show; `rows` stays the
+  // unfiltered truth so the committed total below still reports the whole
+  // resting book rather than whatever the search happens to match.
+  const visible = filterWorkingOrders(rows, query);
   const committed = rows.reduce((acc, row) => acc + row.notional, 0);
   const writesDisabled = sandbox || isStale || source === "unavailable";
 
@@ -171,11 +190,30 @@ export default function WorkingOrders({
           </span>
           <h2>Working orders</h2>
         </div>
-        <span>
-          {rows.length
-            ? `${usd(committed, 0)} across ${rows.length} order${rows.length === 1 ? "" : "s"}`
-            : "nothing resting"}
-        </span>
+        <div className="blotter-toolbar">
+          <span>
+            {rows.length
+              ? `${usd(committed, 0)} across ${rows.length} order${rows.length === 1 ? "" : "s"}`
+              : "nothing resting"}
+            {visible.length !== rows.length ? ` · showing ${visible.length}` : ""}
+          </span>
+          {/* Its own header, not the blotter's 18 columns: a resting order has
+              no verdict, no fill and no latency, and exporting it through that
+              contract would write four empty cells a reader would take for
+              missing data rather than for "not yet". */}
+          <button
+            type="button"
+            disabled={!visible.length}
+            title="Download the resting orders as CSV"
+            onClick={() => download(
+              `alphaengine-working-${source}-${visible.length}rows-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}.csv`,
+              workingOrdersToCsv(visible),
+              "text/csv",
+            )}
+          >
+            Export CSV
+          </button>
+        </div>
       </div>
 
       {sandbox && (
@@ -227,7 +265,7 @@ export default function WorkingOrders({
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
+              {visible.map((row) => (
                 <tr key={row.orderId} className={row.symbol === focusSymbol ? "is-best" : undefined}>
                   <th scope="row">
                     {clock(row.acceptedAt)}
@@ -274,7 +312,7 @@ export default function WorkingOrders({
                           disabled={busy === row.orderId || !Number.isFinite(Number(draftPrice))}
                           onClick={() => void mutate(
                             `/api/gateway/orders/${encodeURIComponent(row.orderId)}/replace`,
-                            { limit_price: Number(draftPrice), reason: "amended from the portfolio panel" },
+                            { limit_price: Number(draftPrice), reason: `amended from the ${origin}` },
                             row.orderId,
                           )}
                         >
@@ -306,7 +344,7 @@ export default function WorkingOrders({
                           }
                           onClick={() => void mutate(
                             `/api/gateway/orders/${encodeURIComponent(row.orderId)}/cancel`,
-                            { reason: "cancelled from the portfolio panel" },
+                            { reason: `cancelled from the ${origin}` },
                             row.orderId,
                           )}
                         >
