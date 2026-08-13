@@ -190,13 +190,16 @@ export default function LiquidityPanel({
         </table>
       </div>
 
-      <p className="research-note">
-        A horizon assumes the stated share of average daily volume is available every session, which
-        a stressed tape does not offer — read these as a floor, not a forecast. Positions with fewer
-        than {MIN_ADV_OBSERVATIONS} volume observations are banded{" "}
-        <strong>unmeasurable</strong> rather than estimated. Exit probes walk the live consolidated
-        book at the moment you press them.
-      </p>
+      <details className="disclosure">
+        <summary>Why a liquidation horizon is a floor rather than a forecast</summary>
+        <p className="research-note">
+          A horizon assumes the stated share of average daily volume is available every session,
+          which a stressed tape does not offer — read these as a floor, not a forecast. Positions
+          with fewer than {MIN_ADV_OBSERVATIONS} volume observations are banded{" "}
+          <strong>unmeasurable</strong> rather than estimated. Exit probes walk the live consolidated
+          book at the moment you press them.
+        </p>
+      </details>
     </div>
   );
 }

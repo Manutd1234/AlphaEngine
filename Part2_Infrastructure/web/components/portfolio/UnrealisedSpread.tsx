@@ -84,17 +84,27 @@ export default function UnrealisedSpread({
         })}
       </div>
 
+      {/* The figures stay visible; only the generalisation collapses. */}
       <p className="research-note">
         Total open P&amp;L is <strong className="num">{usd(spread.total, 0)}</strong>
         {spread.best && spread.worst && spread.best.symbol !== spread.worst.symbol ? (
           <>
             , between <strong>{spread.best.symbol}</strong> at {usd(spread.best.pnl, 0)} and{" "}
-            <strong>{spread.worst.symbol}</strong> at {usd(spread.worst.pnl, 0)}. A total near zero
-            with a wide spread is not a quiet book.
+            <strong>{spread.worst.symbol}</strong> at {usd(spread.worst.pnl, 0)}.
           </>
         ) : "."}
         {generated && " Generated book."}
       </p>
+
+      <details className="disclosure">
+        <summary>Why a small total can hide two large offsetting bets</summary>
+        <p className="research-note">
+          A total near zero with a wide spread is not a quiet book. Summing the column answers
+          &quot;what is the open P&amp;L&quot; but not &quot;how much is riding on it&quot; — a flat
+          book and two large positions cancelling each other report the same total, and only one of
+          them is quiet.
+        </p>
+      </details>
     </section>
   );
 }
