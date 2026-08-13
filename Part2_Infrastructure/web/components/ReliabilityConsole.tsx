@@ -17,6 +17,7 @@
 import { useRef, useState } from "react";
 
 import HealthMatrix from "@/components/systems/HealthMatrix";
+import BreakerStateMachine from "@/components/systems/BreakerStateMachine";
 import OperatorPanel, { OperatorActionResult } from "@/components/systems/OperatorPanel";
 import ReliabilityOverview, { type ReliabilityDrilldown } from "@/components/systems/ReliabilityOverview";
 import RemediationLedger from "@/components/systems/RemediationLedger";
@@ -246,10 +247,20 @@ export default function ReliabilityConsole({
           tokenStatus={view.tokenStatus}
           onAction={runAction}
         />
+        {/* How recovery works, before what it has done. `fetchedAt` is the
+            correct clock for the cooldown arithmetic specifically because the
+            breaker lives in THIS runtime rather than in the gateway — the
+            snapshot and the timestamp are produced by the same process, so the
+            subtraction never crosses a machine or the browser's clock. */}
+        <BreakerStateMachine
+          providers={health?.providers ?? null}
+          observedAt={health?.fetchedAt ?? null}
+        />
         {/* A sibling, not a section inside OperatorPanel: that component is
             already 570 lines and stays a pure controls surface with no poll
             threaded through it. The tab now reads in order — what the controls
-            act on, what they cost, and what has actually happened. */}
+            act on, what they cost, how recovery works, and what has actually
+            happened. */}
         <RemediationLedger active={section === "controls"} />
       </WorkspaceSubtabPanel>
     </>

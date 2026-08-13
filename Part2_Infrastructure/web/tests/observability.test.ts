@@ -347,7 +347,21 @@ describe("reading breaker state does not change it", () => {
 
     // breakerOpen is the dispatch path and *is* allowed to retire it.
     assert.equal(breakerOpen("x", s), false);
-    assert.equal(s.get("breaker:x"), undefined);
+
+    /**
+     * Retired means "no longer holding the provider out", not "erased".
+     *
+     * This used to assert the record was deleted outright. That delete was the
+     * bug: `breakerOpen` runs BEFORE the call, so by the time the probe
+     * succeeded there was nothing left to say a circuit had been open, and
+     * `recordSuccess` emitted no closing transition. Every automatically
+     * recovered circuit then read as still open forever in the remediation
+     * ledger. The failure count is still zeroed — a failed probe re-counts from
+     * one, exactly as documented — but the record survives to carry that fact.
+     */
+    assert.equal(breakerSnapshot("x", s).state, "closed", "the breaker still holds the provider out");
+    assert.equal(breakerSnapshot("x", s).failures, 0, "the failure count did not reset");
+    assert.equal(breakerOpen("x", s), false, "a retired breaker still skips the provider");
   });
 
   it("carries the failure count toward the trip while still closed", () => {

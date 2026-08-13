@@ -407,9 +407,12 @@ export default function OperatorPanel({
             </button>
           </div>
         </div>
+        {/* The COST stays inline. This file's own rule: costs are rendered next
+            to the buttons, not buried, because the person clicking is usually
+            the person who will be surprised by the bill. Only the scope — what
+            a control does not touch — collapses into the group note below. */}
         <small className="muted">
-          Drops matching entries only. Quota counters and breaker state are a different namespace and
-          are left alone — the next request for each purged key goes upstream and spends a real call.
+          The next request for each purged key goes upstream and spends a real call.
         </small>
       </div>
 
@@ -437,8 +440,7 @@ export default function OperatorPanel({
           </div>
         </div>
         <small className="muted">
-          A circuit that is still failing reopens after three more consecutive failures — closing it
-          asks the provider again, it does not declare it healthy.
+          Closing a circuit asks the provider again; it does not declare it healthy.
         </small>
       </div>
 
@@ -453,9 +455,8 @@ export default function OperatorPanel({
           </div>
         </div>
         <small className="muted">
-          Re-evaluates the environment this process already holds and drops the cached OpenBB
-          readiness verdict. It cannot import a changed <code>.env</code> from disk — Next.js reads
-          those once at boot, so that still needs a restart or a redeploy.
+          Re-evaluates the environment this process already holds. It cannot import a changed{" "}
+          <code>.env</code> from disk.
         </small>
       </div>
 
@@ -526,10 +527,25 @@ export default function OperatorPanel({
           </div>
         </div>
         <small className="muted">
-          Empties the server event ring, latency samples and cache counters. Circuit state and
-          simulated outages survive — those are behaviour, not observation.
+          Destroys this instance&rsquo;s investigation history. Behaviour survives.
         </small>
       </div>
+
+      <details className="disclosure">
+        <summary>What each server control touches, and what it deliberately leaves alone</summary>
+        <dl className="operator-scope-notes">
+          <dt>Purge cached responses</dt>
+          <dd>Drops matching entries only. Quota counters and breaker state are a different namespace and are left alone.</dd>
+          <dt>Restore routing</dt>
+          <dd>A circuit that is still failing reopens after three more consecutive failures.</dd>
+          <dt>Re-read provider configuration</dt>
+          <dd>Drops the cached OpenBB readiness verdict. Next.js reads <code>.env</code> once at boot, so a changed file still needs a restart or a redeploy.</dd>
+          <dt>Reset a quota ledger</dt>
+          <dd>Useful after an instance swap left the ledger pessimistic — not as a way to get more calls.</dd>
+          <dt>Clear telemetry buffers</dt>
+          <dd>Empties the server event ring, latency samples and cache counters. Circuit state and simulated outages survive — those are behaviour, not observation.</dd>
+        </dl>
+      </details>
 
       <div className="operator-group-heading is-session">
         <div>
@@ -550,8 +566,7 @@ export default function OperatorPanel({
           </div>
         </div>
         <small className="muted">
-          Browser-side. Drops and re-handshakes every exchange socket this tab owns, resetting the
-          backoff and the sequence guard rather than waiting one out.
+          Browser-side. Drops and re-handshakes every exchange socket this tab owns.
           {socketCount === 0 && " No socket is open — the wire tap opens them when it is on screen."}
         </small>
       </div>
@@ -573,11 +588,20 @@ export default function OperatorPanel({
           </div>
         </div>
         <small className="muted">
-          Browser-side. Unattended ticks are sent at <code>background</code> priority — fenced out of
-          each provider&apos;s interactive reserve — so a 1s debugging loop cannot spend the budget a
-          person needs later. Only an explicit <em>Refresh now</em> requests interactive priority.
+          Browser-side. Unattended ticks are sent at <code>background</code> priority, so a 1s
+          debugging loop cannot spend the budget a person needs later.
         </small>
       </div>
+
+      <details className="disclosure">
+        <summary>Why a browser-side control cannot change server state</summary>
+        <dl className="operator-scope-notes">
+          <dt>Reconnect WebSockets</dt>
+          <dd>Resets the backoff and the sequence guard rather than waiting one out. The sockets belong to this tab, so nothing on the server is touched.</dd>
+          <dt>Health snapshot cadence</dt>
+          <dd>Background priority is fenced out of each provider&rsquo;s interactive reserve. Only an explicit <em>Refresh now</em> requests interactive priority.</dd>
+        </dl>
+      </details>
 
     </div>
   );

@@ -352,6 +352,18 @@ export const BREAKER_COOLDOWN_MS = 60_000;
 interface BreakerState {
   failures: number;
   openedAt: number | null;
+  /**
+   * A cooldown has elapsed and the next call is the probe.
+   *
+   * This exists so an AUTOMATIC recovery is observable. `breakerOpen` used to
+   * delete the record outright when the cooldown expired, which reset the
+   * failure count correctly but also erased the only evidence that a circuit
+   * had been open — so the success that followed emitted nothing, and the
+   * remediation ledger showed every self-healed circuit as still open forever.
+   * The count still restarts from zero, which is the documented behaviour; only
+   * the memory of having been open survives it.
+   */
+  probing?: boolean;
 }
 
 function breakerKey(id: string) {
@@ -362,10 +374,12 @@ export function breakerOpen(id: string, s: Store = store): boolean {
   const st = s.get<BreakerState>(breakerKey(id));
   if (!st?.openedAt) return false;
   if (Date.now() - st.openedAt >= BREAKER_COOLDOWN_MS) {
-    // Half-open: let exactly one request through to probe. Clearing the state
-    // rather than tracking a separate half-open flag means a probe failure
-    // re-counts from one — slower to re-open, but it cannot get stuck open.
-    s.del(breakerKey(id));
+    // Half-open: let exactly one request through to probe. The failure count is
+    // zeroed rather than the record deleted, so a probe failure still re-counts
+    // from one — slower to re-open, and it cannot get stuck open — while the
+    // `probing` flag keeps the fact that this circuit WAS open available to the
+    // success that follows. Deleting it made every automatic recovery silent.
+    s.set(breakerKey(id), { failures: 0, openedAt: null, probing: true }, BREAKER_COOLDOWN_MS * 4);
     emit({
       level: "info",
       source: "Breaker",
@@ -422,7 +436,10 @@ export function breakerSnapshot(id: string, s: Store = store, now = Date.now()):
 export function recordSuccess(id: string, s: Store = store): void {
   const had = s.get<BreakerState>(breakerKey(id));
   s.del(breakerKey(id));
-  if (had?.openedAt) {
+  // `probing` as well as `openedAt`: by the time the probe returns, the
+  // dispatch gate has already zeroed the record, so `openedAt` is null on
+  // exactly the recoveries that matter — the automatic ones.
+  if (had?.openedAt || had?.probing) {
     emit({
       level: "info",
       source: "Breaker",
@@ -435,6 +452,9 @@ export function recordSuccess(id: string, s: Store = store): void {
 export function recordFailure(id: string, s: Store = store): void {
   const st = s.get<BreakerState>(breakerKey(id)) ?? { failures: 0, openedAt: null };
   const wasOpen = st.openedAt !== null;
+  // The probe answered, and it answered badly. Whatever happens next is a fresh
+  // count toward a fresh trip, not the tail of the old one.
+  st.probing = false;
   st.failures += 1;
   if (st.failures >= BREAKER_THRESHOLD) st.openedAt = Date.now();
   s.set(breakerKey(id), st, BREAKER_COOLDOWN_MS * 4);

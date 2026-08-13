@@ -25,6 +25,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import CategoryBars, { type BarRow } from "@/components/charts/CategoryBars";
+import DonutChart, { type DonutSlice } from "@/components/common/DonutChart";
 import type { TraceEvent } from "@/lib/observability";
 import { MIN_TRIPS_FOR_RATE, deriveRemediation } from "@/lib/remediation";
 
@@ -120,8 +121,42 @@ export default function RemediationLedger({ active }: { active: boolean }) {
         </p>
       ) : (
         <>
+          {/* The ring is gated on the SAME constant that withholds the rate.
+              `DonutChart` prints a rounded share beside every legend row, so an
+              ungated ring at one trip would print the exact "100%" the module
+              refuses two lines below — the sample size talking, not the desk. */}
+          {model.trips >= MIN_TRIPS_FOR_RATE && (
+            <div className="dependency-charts">
+              <div>
+                <span className="field">How each trip ended</span>
+                <DonutChart
+                  slices={[
+                    {
+                      label: "closed automatically",
+                      value: model.recoveredAutomatically,
+                      colour: "var(--status-good)",
+                    },
+                    {
+                      label: "closed by operator",
+                      value: model.recoveredByOperator,
+                      colour: "var(--series-1)",
+                    },
+                    { label: "still open", value: model.stillOpen, colour: "var(--status-critical)" },
+                  ] satisfies DonutSlice[]}
+                  total={model.trips}
+                  centreValue={String(model.trips)}
+                  centreLabel="paired trips"
+                  ariaLabel="Circuit trips by how each was closed"
+                  emptyNote="No circuit has tripped on this instance."
+                />
+              </div>
+            </div>
+          )}
+
           <dl className="remediation-ledger__facts">
-            <div><dt>Circuit trips</dt><dd className="num">{model.trips}</dd></div>
+            {model.trips < MIN_TRIPS_FOR_RATE && (
+              <div><dt>Circuit trips</dt><dd className="num">{model.trips}</dd></div>
+            )}
             <div>
               <dt>Closed again</dt>
               <dd className="num">
@@ -154,6 +189,8 @@ export default function RemediationLedger({ active }: { active: boolean }) {
             emptyNote="No provider has tripped."
           />
 
+          <details className="disclosure">
+            <summary>Every matched trip and closure, with times and how each was closed</summary>
           <div className="table-wrap" tabIndex={0}>
             <table>
               <caption className="sr-only">Matched circuit trips and recoveries</caption>
@@ -189,6 +226,7 @@ export default function RemediationLedger({ active }: { active: boolean }) {
               </tbody>
             </table>
           </div>
+          </details>
         </>
       )}
 
@@ -201,18 +239,32 @@ export default function RemediationLedger({ active }: { active: boolean }) {
         </p>
       )}
 
-      {/* The refusal, rendered where a reader would look for the chart. */}
+      {/* The refusal, rendered where a reader would look for the chart. The
+          headline stays on screen and the reasoning collapses — a one-line
+          refusal is read, and a 600-character one is skipped, so this makes the
+          refusal MORE prominent rather than less. */}
       <p className="research-note">
-        <strong>No MTTR trend is drawn.</strong> Pairing needs both the trip and its closure still
-        in this instance&rsquo;s {data?.cursor.capacity ?? 600}-event ring, which it shares with
-        dispatch, cache and quota traffic — and a long outage is the likeliest to lose its opening
-        line first. The surviving sample is therefore biased short, and a trend through it would
-        slope toward a recovery time nobody achieved.
+        <strong>No MTTR trend is drawn.</strong> The sample that survives a bounded ring is biased
+        short, so a trend through it would slope toward a recovery time nobody achieved.
         {truncated && " Lines have already been evicted here, so the counts above are a floor."}
-        {" "}This is a diagnostic for one function instance, reset by redeploy and by Clear
-        telemetry, and never an SLA. A closure is also not a fix: one successful probe closes a
-        circuit that may re-open three failures later.
       </p>
+
+      <details className="disclosure">
+        <summary>Why a bounded event ring biases the surviving sample short</summary>
+        <p className="research-note">
+          Pairing needs both the trip and its closure still in this instance&rsquo;s{" "}
+          {data?.cursor.capacity ?? 600}-event ring, which it shares with dispatch, cache and quota
+          traffic — and a long outage is the likeliest to lose its opening line first. So the
+          incidents that survive to be measured are disproportionately the ones that ended quickly.
+          That is a wrong answer rather than an imprecise one, and no caption fixes a chart whose
+          bias points the same way as the flattering conclusion.
+        </p>
+        <p className="research-note">
+          This is a diagnostic for one function instance, reset by redeploy and by Clear telemetry,
+          and never an SLA. A closure is also not a fix: one successful probe closes a circuit that
+          may re-open three failures later.
+        </p>
+      </details>
     </section>
   );
 }
