@@ -189,8 +189,11 @@ managers get a Kupiec VaR backtest and a kill switch but no margin or
 liquidation modelling. Point the user at that table rather than reciting it; the
 gaps column is the argument.
 
-Note if you cite that table's test counts: **they are stale.** Re-measure with
-the `verify` skill before quoting any number from it.
+That table's test counts were last re-measured against a green run on
+2026-08-14 — 691 gateway, 2,038 web across 513 suites, 13 service. Cite them if
+you must, but the standing rule outranks the sentence: **never quote a test
+count from prose.** Run the `verify` skill and read the number off the output.
+Every count in this repository has drifted at least once.
 
 ---
 

@@ -19,6 +19,14 @@ recent commands when the query is empty. On Research, `⌘Enter` runs the sweep 
 On Chromium, tab switches cross-fade under the fixed header via View Transitions; elsewhere,
 and always under reduced motion, they cut cleanly.
 
+**Where the rail lists below come from.** Every rail in this document is transcribed from
+`Part2_Infrastructure/web/lib/sections.ts`, which is the single definition the rails, the
+command palette, the hash whitelist and "Copy link to this view" all read. **43 sections across
+the eight tabs.** Three ids deliberately disagree with their labels, because the deep link came
+first and ids never change: view `live` renders "Execution", section `codex` renders
+"Strategies", section `activity` renders "Blotter". If a rail here disagrees with the app,
+`sections.ts` is right and this file is stale — fix it here, not there.
+
 ---
 
 ## What runs with no keys at all
@@ -44,7 +52,7 @@ capability the desk does not already give a guest.
 |---|---|---|
 | **Zero-config** | Keyless Binance + Bybit market data: parameter sweeps, all 46 strategies, L2 depth, TCA, the full Research tab on crypto symbols | nothing |
 | **Keyed** | Equities and benchmarks via FMP / Tiingo / Massive / AlphaVantage, with provider failover | API keys in env |
-| **Gateway-backed** | The live consolidated book, paper orders through 14 pre-trade gates, kill switch state, decision histograms | the OCI gateway reachable |
+| **Gateway-backed** | The live consolidated book, paper orders through the pre-trade gates — **17 defined, 15 reachable by any order** — kill switch state, decision histograms | the OCI gateway reachable |
 | **Operator-gated** | Actions that mutate: sending orders, halt/flatten, cache purges, simulated outages | see guard modes below |
 
 **The three guard modes** (`lib/operator.ts:90`, `guardMode()`):
@@ -66,11 +74,12 @@ capability the desk does not already give a guest.
 
 **The question it answers:** what is the state of the whole desk, right now, in one screen?
 
-**60 seconds:** land on the page. The KPI deck reads the book's equity, day P&L, tail risk and
-system latency from the same snapshots every other tab uses. Below it, the
-**DecisionLoopPipeline** draws the loop this tour follows — each stage is a link. The system
-strip at the top of every tab shows provider readiness and p99 latency; if the gateway is
-unreachable it says so here first.
+**60 seconds:** rail: **Decision loop → Desk roles → Audit trail**. Land on the page. The KPI
+deck reads the book's equity, day P&L, tail risk and system latency from the same snapshots
+every other tab uses. Below it, the **DecisionLoopPipeline** draws the loop this tour follows —
+each stage is a link. Desk roles gives one surface per role; Audit trail is every paper order,
+accounted. The system strip at the top of every tab shows provider readiness and p99 latency;
+if the gateway is unreachable it says so here first.
 
 **The moment worth showing:** the pipeline. It is the product's thesis as a diagram — research
 flows to execution only through a risk gate.
@@ -79,14 +88,16 @@ flows to execution only through a risk gate.
 
 **The question it answers:** is this strategy evidence, or noise that survived a search?
 
-**60 seconds:** the rail reads **Summary → Parameters → Walk-forward → Attribution → Decision →
-Runs**. A sweep auto-runs on load (BTCUSDT daily by default — zero-config tier). Summary opens
-with the reproducibility capsule (data hash, source, bar count, combos, runtime, build commit),
-the PASS/MARGINAL/FAIL verdict, and the equity chart with its Monte Carlo band. Parameters
-shows the stability heatmap — click any cell to inspect that pair without losing the sweep.
-Walk-forward is the out-of-sample table; Attribution the factor and regime decomposition;
-Decision the six-veto promotion gate beside position sizing; Runs the experiment trail, recorded
-from this browser only, capped at 60, deduplicated.
+**60 seconds:** the rail reads **Summary → Parameters → Walk-forward → Attribution → Lineage →
+Decision → Runs → Strategies**. A sweep auto-runs on load (BTCUSDT daily by default —
+zero-config tier). Summary opens with the reproducibility capsule (data hash, source, bar count,
+combos, runtime, build commit), the PASS/MARGINAL/FAIL verdict, and the equity chart with its
+Monte Carlo band. Parameters shows the stability heatmap — click any cell to inspect that pair
+without losing the sweep. Walk-forward is the out-of-sample table; Attribution the factor and
+regime decomposition. **Lineage** is the signal path and the desk's memory: the DAG from raw
+venue bars through the risk gateway to an execution report, beside the research corpus this
+desk has actually embedded. Decision holds the six-veto promotion gate beside position sizing;
+Runs the experiment trail, recorded from this browser only, capped at 60, deduplicated.
 
 **The moment worth showing:** the promotion gate clearing — six vetoes (DSR among them)
 staggering in one by one, the cleared-count ticking up, and a Promote button that stays dead
@@ -95,8 +106,9 @@ the product, and its scarcity is the point. Also worth ten seconds: drag the fas
 and watch Auto re-run, then note the trail does *not* grow — auto-runs are deliberately not
 recorded, because the trail is an honest count of hypotheses, not keystrokes.
 
-**The Codex** (rail, after Runs): all 46 models in seven families, browsable before any run
-exists. Each card carries the summary, the first sentence of *when it fails*, and an
+**Strategies** (the last rail entry, after Runs — the section id stays `codex` because ids are
+public deep links, so the rail reads "Strategies" and the URL still says `#research/codex`):
+all 46 models in seven families, browsable before any run exists. Each card carries the summary, the first sentence of *when it fails*, and an
 explored-state chip — `●  best: PASS` versus `◌ not yet run` — derived live from this browser's
 run log and honestly regressing if you clear it. Nothing is locked; clicking a card selects the
 model and jumps to Summary. The picker mirrors it: seven optgroups, "— run" on tried models.
@@ -105,14 +117,17 @@ model and jumps to Summary. The picker mirrors it: seven optgroups, "— run" on
 
 **The question it answers:** what would it cost to trade this, and what stops a bad order?
 
-**60 seconds:** rail: **Trade → Liquidity → Routing & TCA → Activity**. On Trade, the order
-ticket carries three presets — **Valid $25k** (passes every gate, fills on the live ladder),
-**Fat finger $500k** (blocked by the per-order notional cap), **Rate-limit burst** (twelve $1k
-orders; the token bucket stops the tail). Fire all three. Each decision comes back with its
-full gate vector — up to 14 checks with the one that failed named — decided in ~0.2 ms by the
-gateway. Liquidity is the consolidated Binance+Bybit L2 book; click a ladder price to stage a
-limit order back on Trade. Routing & TCA prices the same order across venues against the routed
-execution, not the mid.
+**60 seconds:** rail: **Trade → Liquidity → Routing & TCA → Fill quality → Blotter** (the last
+id is still `activity`, so the deep link reads `#live/activity` while the rail says "Blotter").
+On Trade, the order ticket carries three presets — **Valid $25k** (passes every gate, fills on
+the live ladder), **Fat finger $500k** (blocked by the per-order notional cap), **Rate-limit
+burst** (twelve $1k orders; the token bucket stops the tail). Fire all three. Each decision
+comes back with its full gate vector — **15 checks on any order path, with the one that failed
+named** — decided in ~0.2 ms by the gateway. Liquidity is the consolidated Binance+Bybit L2
+book; click a ladder price to stage a limit order back on Trade. Routing & TCA prices the same
+order across venues against the routed execution, not the mid. **Fill quality** closes the loop
+the other three open: realised cost against the cost the model predicted, which is the only
+honest test of a TCA number. Blotter is orders, tape and alerts.
 
 **The moment worth showing:** a rejected preset's gate vector — the checks now cascade in at
 40ms steps per decision, the verdict banner slides in, and "decided in X ms" counts up to its
@@ -121,12 +136,24 @@ row, and with motion off the failing gate is still findable instantly by its ✗
 the guided demo of Module B. The watchlist beside it flashes a directional wash on real price
 movement only — the signed 24h% next to each price stays the accessible signal.
 
+**Why the gate count has two numbers.** `modules/risk_proxy.py` defines **17** gates; a crypto
+order can reach **15** of them. The two it never reaches — `paper_execution_model` and
+`reference_freshness` — exist only for the paper-equity path, where an order is priced from a
+vendor quote rather than a live L2 ladder, and a quote can be stale or refuse to honour a
+resting `LIMIT` in a way a ladder cannot. Quote 15 when describing what an order goes through
+and 17 when describing what the module implements; the full table, with what each gate guards
+against, is in [`Part2_Infrastructure/README.md` §4](../Part2_Infrastructure/README.md).
+
 ## Tab 4 — Portfolio (`#portfolio`, Alt+4)
 
 **The question it answers:** what does the book hold, and which sleeve earned the P&L?
 
-**60 seconds:** rail: **Overview → Positions → Allocation → Performance**. Positions and
-Allocation each carry an in-panel `.seg` switcher rather than a longer rail — Positions splits
+**60 seconds:** rail: **Overview → Equity & P&L → Positions → Allocation → Performance**.
+Overview leads with alerts, headroom and exposure. **Equity & P&L** is the session curve drawn
+against the start-of-day mark and the level at which the drawdown breaker halts the desk, beside
+the P&L waterfall that says which sleeve earned it — and both are tagged generated when the book
+is the sandbox. Positions and Allocation each carry an in-panel `.seg` switcher rather than a
+longer rail — Positions splits
 into **Holdings · Shape · Exit**, Allocation into **Mix · Targets · Composition** — so a pane
 that needs a covariance can go quiet and say why instead of leaving a dead slab between two
 charts that are working. The book snapshot is the same one Risk reads — the intro card says so
@@ -141,9 +168,13 @@ rather than substituting an assumption.
 
 **The question it answers:** how much can we lose, and who can stop the desk?
 
-**60 seconds:** rail: **Limits → VaR & model → Stress tests → Controls**. Limits shows the
-binding constraint and its utilisation. VaR & model carries the validated loss estimate with
-its traffic-light backtest zone. Stress tests apply forward shocks by hand — drag the shock
+**60 seconds:** rail: **Limits → VaR & model → Monte Carlo → Stress tests → Controls**. Limits
+shows the binding constraint and its utilisation. VaR & model carries the validated loss
+estimate with its traffic-light backtest zone. **Monte Carlo** bootstraps the research winner's
+realised returns into a terminal-outcome distribution, computed in a dedicated worker so the
+main thread only draws it — and it sits deliberately *beside* the parametric VaR and the
+Oracle's in-database GBM simulation rather than inside either, because three loss estimates
+that disagree are signal, not error. Stress tests apply forward shocks by hand — drag the shock
 sliders and watch damage propagate through the book. Controls holds the kill switch and
 reduce-only mode.
 
@@ -155,14 +186,17 @@ historical replay.
 
 **The question it answers:** can the numbers upstream of every other tab be trusted?
 
-**60 seconds:** rail: **Overview & Trust → Quality & Incidents → Lineage & Payloads →
-Providers & Capacity → Work Queue**. The Trust summary is itself three switchable panes
-(**Verdict · Response · Composition**), so the posture, the response clocks and the contract
-re-checks are one derivation seen three ways rather than one very long scroll. Trust scores per
-source, freshness clocks, contract checks, and per-request lineage — which provider answered,
-what was cached, what got coerced.
-The Work Queue is labelled **"Mocked, session-only workflow"** — the honest-labels rule applied
-to a whole section.
+**60 seconds:** rail: **Trust Summary → Feeds & Contracts → Quality & Incidents → Lineage &
+Payloads → Providers & Capacity → Work Queue**. The Trust Summary is itself three switchable
+panes (**Verdict · Response · Composition**), so the posture, the response clocks and the
+contract re-checks are one derivation seen three ways rather than one very long scroll.
+**Feeds & Contracts** is the same derivation turned outward, per source: how fresh each feed
+is, whether its last payload validated, and — the part that makes it a section rather than a
+table — what to do next about the ones that did not. Quality & Incidents holds reconciliation,
+contract failures and quarantine; Lineage & Payloads is per-request provenance — which provider
+answered, what was cached, what got coerced; Providers & Capacity is failover, quota and
+reserve. The Work Queue is labelled **"Mocked, session-only workflow"** — the honest-labels
+rule applied to a whole section.
 
 **The moment worth showing:** lineage on the symbol you were just researching — the sweep's
 data hash traces back to a provider, a cache state and a validation pass.
@@ -171,11 +205,25 @@ data hash traces back to a provider, a cache state and a validation pass.
 
 **The question it answers:** is the platform up, and what degraded first?
 
-**60 seconds:** rail: **Telemetry & SLIs → Services & Circuits → Logs & Traces →
-Remediation**. SLIs with error budgets, provider circuit breakers, cross-origin event
-investigation, and guarded remediation actions (cache purge, simulated outage — both expire).
-Remediation splits across **Act · Recovery · History**: what you can do, how a tripped circuit
-comes back on its own, and which ones actually tripped here.
+**60 seconds:** rail: **Attention & SLIs → Dependencies → Services & Circuits → Logs & Traces →
+Remediation**. Attention & SLIs is triage first and telemetry second — what needs a human, then
+the signals and the path into an incident, with error budgets. Provider circuit breakers,
+cross-origin event investigation, and guarded remediation actions (cache purge, simulated
+outage — both expire) follow. Remediation splits across **Act · Recovery · History**: what you
+can do, how a tripped circuit comes back on its own, and which ones actually tripped here.
+
+**Dependencies** is the section worth stopping on, and it answers a question the other four
+cannot: *when something breaks, how much of the desk goes with it?* It draws the topology twice.
+`DependencyTree` is a nested list with CSS connectors rather than a graph — an indented outline
+at any width, so there is no breakpoint to get wrong, no coordinates to animate for reduced
+motion to strip, and no `forced-color-adjust` exemption to add. `DependencyMix` draws the same
+topology as composition, and its state ring exists to make one invariant legible: when the
+gateway stops answering, every component behind it flips to **`unknown` — never `down`** —
+because you cannot read a component's health through a dead transport. A gateway outage paints
+a large grey wedge here, not a large red one, and "one transport died" versus "six components
+failed" is readable without opening a row. That is `lib/dependency-graph.ts` drawn rather than
+described. Nothing on this panel is an availability figure: it is one snapshot of a live poll,
+and this system publishes no uptime percentage anywhere.
 
 **The moment worth showing:** the provider-health drilldown the header's latency chip links to
 — the same chip visible on every tab resolves here to per-provider circuits. The numbers under
@@ -189,13 +237,73 @@ degrades honestly to "per-instance" if the gateway is unreachable).
 
 **The question it answers:** how is this built, and does the running system match the repo?
 
-**60 seconds:** rail: **Overview → CI/CD → API & Schema → Code & Diffs → Task Queue**.
-Topology, the four network-free CI jobs (667 gateway + 1,976 web + 13 service tests — each
-figure is what its own runner prints, so re-run rather than trust the sentence), the 37-path
-OpenAPI contract with drift detection, and the repository manifest.
+**60 seconds:** rail: **Topology → Readiness → CI / CD → API & Schema → Code & Diffs → Task
+Queue**. Topology is the runtime map and the context the three deployment units share.
+**Readiness** is the gate in front of a release — launch gates, schema state and artifacts —
+and it is separate from CI / CD on purpose: a green pipeline says the code compiles and the
+tests pass, which is not the same claim as "this is safe to ship". CI / CD carries the four
+network-free jobs (**691 gateway + 2,038 web + 13 service tests** — each figure is what its own
+runner prints, so re-run rather than trust the sentence), API & Schema the committed OpenAPI
+contract with drift detection, Code & Diffs the repository manifest, Task Queue the
+engineering-impact work.
+
+**The three route figures, and why they disagree without contradicting.** State the basis or a
+reader will "correct" one of them into agreement with another:
+
+| Figure | Count | Basis |
+|---|---|---|
+| Route decorators in `main.py` | **43** | 29 `@app.get` + 13 `@app.post` + 1 `@app.websocket` |
+| Operations in the OpenAPI schema | **39** | the 43 less the WebSocket, which OpenAPI does not describe, and less the three HTML routes (`/`, `/app`, `/ui`) marked `include_in_schema=False` |
+| Paths in the OpenAPI schema | **38** | the 39 operations, less one — `/api/orders` serves both `GET` and `POST`, so two operations share one path |
+
+Re-derive rather than trust the table: `grep -cE '^@app\.' main.py` for the first, and
+`len(paths)` against the summed verb count in `tools/openapi.json` for the other two.
 
 **The moment worth showing:** API & Schema's contract drift check — the portal carries a
 committed digest of the gateway's OpenAPI and compares it against the live one.
+
+---
+
+## Telegram — the companion behind the Connect chip
+
+**The question it answers:** can the desk be read, and stopped, from a phone — without becoming
+a second way in?
+
+This is not a ninth tab. It is the one control a visitor meets on all eight of them: every
+header carries a **Connect** chip. The bot is
+[`@alpha_engine_nussif_bot`](https://t.me/alpha_engine_nussif_bot), and it is a companion, never
+an auth provider: a binding runs **one way**, from a web identity to a Telegram read, and the
+bot never authenticates the website.
+
+**What connecting does.** The chip mints a single-use token and hands it to Telegram as a deep
+link. Following it binds that chat to the web desk identity you already hold — an account, or
+the guest pass the workspace seeds for a browser, both work. The chip then reads **Connected**
+with a `✓` beside it; the mark sits outside the collapsing label so the state survives the
+narrow widths where the header hides the word, which is the no-colour-only-meaning rule applied
+to a chip. Account bindings are recorded against the account and do not age out; guest bindings
+are held by the gateway alone and do.
+
+**What a binding grants, exactly: read parity with a desk pass, and nothing more.** The same
+book, the same kill-switch state, the same risk reads a desk pass already shows you in the
+browser — which is why the binding is not an authentication bypass. It cannot reach the five
+controls. `/halt`, `/resume`, `/flatten`, `/reduceonly` and `/resetbook` answer to
+`TELEGRAM_CONTROL_USER_IDS` and nothing else — a separate allow-list, **empty by default**,
+changed only by someone with deploy access — plus a single-use typed confirmation code. A
+connected chat that is not on that list gets a refusal naming the allow-list rather than a
+silent no-op. `/flatten` is worth naming: it submits real closing `MARKET` orders through the
+same pre-trade gates as any other order, so it is gated as a control, not as a read.
+
+Reads themselves are fail-closed behind two named grants and only two —
+`TELEGRAM_ALLOWED_USER_IDS`, or a binding. With neither, the bot answers only bootstrap
+commands such as `/whoami`, so an operator can obtain their own Telegram user ID without
+already being trusted.
+
+**Setup:** `TELEGRAM_LINK_SECRET` must hold the *same value* on the gateway and on Vercel,
+because one process mints the token and a different process on a different host verifies it.
+Unset is fail-closed — the chip renders a refusal naming the missing secret rather than a link
+that cannot complete. `TELEGRAM_BOT_TOKEN` lives in the gateway's `.env` and nowhere else.
+Leave both empty and the gateway and workspace run unchanged. See
+[`SETUP.md` §Telegram](../SETUP.md).
 
 ---
 
@@ -238,8 +346,8 @@ rather than hidden.
 
 *All eight slices of the UI overhaul are shipped — the audit they answer is
 [`UI_IMPROVEMENTS.md`](UI_IMPROVEMENTS.md), and the plan that sequenced them is a working note
-kept outside this repository. Their moments are woven into the tabs above: the Strategy Codex
-and the gate-clear pulse on Research,
+kept outside this repository. Their moments are woven into the tabs above: the Strategies
+section and the gate-clear pulse on Research,
 the order-gate cascade and tick flashes on Execution, drawing charts throughout, ⌘K fuzzy
 search with recents, and View Transitions between tabs. This tour doubles as the acceptance
 script: walking it end to end — once with motion on, once with the OS reduce-motion switch set —

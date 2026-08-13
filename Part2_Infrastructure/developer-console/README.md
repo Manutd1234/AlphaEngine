@@ -27,9 +27,13 @@ Next.js build through `npm run build:vercel`, configured in `vercel.json`.
 
 - Passing CI never implies production readiness.
 - Pipeline runs, code diffs and gateway contracts on screen are illustrative
-  fixtures, labelled as such in the rendered UI. They carry no author, commit
-  hash or measured latency, because no CI, repository or schema provider is
-  connected to this app.
+  fixtures, labelled as such in the rendered UI. They carry no author, no commit
+  hash, no wall-clock timestamp, no job or run duration and no discovered-test
+  count, because no CI, repository or schema provider is connected to this app
+  and every one of those is a measurement. Where a figure cannot be derived the
+  surface reads *not available* and names what is missing; it is never filled
+  with a plausible one. `duration` is absent from the `PipelineRun` type rather
+  than blanked, so the shape cannot carry an invented number in the first place.
 - Stale, missing, or unreachable operational evidence never renders healthy.
 - The browser contains no provider, cloud, or broker credentials.
 - Deployment, rollback, halt, and reset controls are disabled until a gated,

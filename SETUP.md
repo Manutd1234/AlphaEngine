@@ -154,10 +154,10 @@ trusting the counts — they drift, and a number nobody re-measured is a number
 nobody should quote.
 
 ```bash
-# Gateway suite — 667 passed, 1 skipped
+# Gateway suite — 691 passed, 1 skipped
 cd Part2_Infrastructure && venv/bin/python -m pytest
 
-# Web suite — 1976 passed across 502 suites, no browser needed
+# Web suite — 2038 passed across 513 suites, no browser needed
 cd Part2_Infrastructure/web && npm test
 
 # Research service — 13 passed

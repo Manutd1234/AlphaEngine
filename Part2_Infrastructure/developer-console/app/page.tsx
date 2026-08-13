@@ -12,7 +12,10 @@ type PipelineRun = {
   // the field carries an obvious placeholder rather than a plausible digest.
   ref: string;
   title: string;
-  duration: string;
+  // `duration` is absent for the same reason `actor` and `timestamp` are: a
+  // wall-clock figure is a measurement, nothing here measures one, and a field
+  // that can hold "4m 12s" will eventually be filled with it. Removed from the
+  // type rather than blanked, so the shape cannot carry an invented number.
   status: "Passing" | "Failed" | "Running" | "Queued";
 };
 
@@ -46,16 +49,15 @@ const tabs: Array<{ id: TabId; label: string; count?: number }> = [
 
 // No CI provider is connected, so there is no run history to render. These rows
 // exist only to show the shape of the run viewer: they carry no author, no
-// commit hash and no wall-clock time, because inventing any of those would put
-// audit-shaped fiction on screen. The panel labels them as illustrative in the
-// rendered UI, not just here.
+// commit hash, no wall-clock time and no duration, because inventing any of
+// those would put audit-shaped fiction on screen. The panel labels them as
+// illustrative in the rendered UI, not just here.
 const pipelines: PipelineRun[] = [
   {
     id: "Example 1",
     branch: "main",
     ref: "example-ref-1",
     title: "Reproducibility preflight blocks promotion",
-    duration: "4m 12s",
     status: "Failed",
   },
   {
@@ -63,7 +65,6 @@ const pipelines: PipelineRun[] = [
     branch: "example-branch",
     ref: "example-ref-2",
     title: "Unit and integration suites pass",
-    duration: "6m 48s",
     status: "Passing",
   },
   {
@@ -71,7 +72,6 @@ const pipelines: PipelineRun[] = [
     branch: "main",
     ref: "example-ref-3",
     title: "Lint and type checks pass",
-    duration: "5m 03s",
     status: "Passing",
   },
   {
@@ -79,7 +79,6 @@ const pipelines: PipelineRun[] = [
     branch: "example-branch",
     ref: "example-ref-4",
     title: "Scheduled run waiting for a runner",
-    duration: "—",
     status: "Queued",
   },
 ];
@@ -442,7 +441,7 @@ function Pipelines() {
               <button key={run.id} className={`run-item ${selectedRun.id === run.id ? "selected" : ""}`} type="button" onClick={() => setSelectedRun(run)}>
                 <span className={`run-status-mark ${toneForStatus(run.status)}`} aria-hidden="true">{run.status === "Passing" ? "✓" : run.status === "Failed" ? "×" : "·"}</span>
                 <span className="run-main"><strong>{run.title}</strong><span><code>{run.ref}</code> on {run.branch}</span></span>
-                <span className="run-meta"><StatusPill label={run.status} dot={false} /><span>{run.duration}</span></span>
+                <span className="run-meta"><StatusPill label={run.status} dot={false} /></span>
               </button>
             )) : <div className="empty-state"><strong>No matching runs</strong><span>Clear the filter to see every illustrative run.</span></div>}
           </div>
@@ -459,17 +458,21 @@ function Pipelines() {
           </div>
           <div className="run-facts">
             <div><span>Reference</span><strong><code>{selectedRun.ref}</code></strong></div>
-            <div><span>Duration</span><strong>{selectedRun.duration}</strong></div>
+            <div><span>Duration</span><strong>Not recorded</strong></div>
             <div><span>Triggered by</span><strong>Not recorded</strong></div>
             <div><span>Environment</span><strong>Illustrative</strong></div>
           </div>
           <div className="jobs-section">
             <div className="subsection-title"><h3>Jobs</h3><span>4 checks · 1 attention item</span></div>
             <div className="job-list">
-              <div className="job-row"><span className="job-icon pass">✓</span><div><strong>Unit tests · Python 3.11</strong><span>661 tests discovered</span></div><span className="job-duration">1m 46s</span></div>
-              <div className="job-row"><span className="job-icon pass">✓</span><div><strong>Unit tests · Python 3.12</strong><span>661 tests discovered</span></div><span className="job-duration">1m 39s</span></div>
-              <div className="job-row selected"><span className="job-icon fail">×</span><div><strong>Git reproducibility preflight</strong><span>Bundle cannot be recreated from HEAD</span></div><span className="job-duration">08s</span></div>
-              <div className="job-row"><span className="job-icon pass">✓</span><div><strong>Ruff lint</strong><span>src · tests · scripts</span></div><span className="job-duration">24s</span></div>
+              {/* Job subtitles name what a job covers, never how much or how long.
+                  Both unit rows carried "661 tests discovered" and every row a
+                  duration; nothing in this app discovers a test or times a job, so
+                  the counts and the clocks are gone rather than refreshed. */}
+              <div className="job-row"><span className="job-icon pass">✓</span><div><strong>Unit tests · Python 3.11</strong><span>Test count not available — no CI provider connected</span></div><span className="job-duration">—</span></div>
+              <div className="job-row"><span className="job-icon pass">✓</span><div><strong>Unit tests · Python 3.12</strong><span>Test count not available — no CI provider connected</span></div><span className="job-duration">—</span></div>
+              <div className="job-row selected"><span className="job-icon fail">×</span><div><strong>Git reproducibility preflight</strong><span>Bundle cannot be recreated from HEAD</span></div><span className="job-duration">—</span></div>
+              <div className="job-row"><span className="job-icon pass">✓</span><div><strong>Ruff lint</strong><span>src · tests · scripts</span></div><span className="job-duration">—</span></div>
             </div>
           </div>
           <div className="log-section">
@@ -477,8 +480,14 @@ function Pipelines() {
               <div><h3>Git reproducibility preflight</h3><span>Illustrative step</span></div>
               <div><button type="button" className={showLogs ? "active" : ""} onClick={() => setShowLogs(!showLogs)}>{showLogs ? "Hide logs" : "Show logs"}</button><button type="button" title="Log export needs a connected CI provider" disabled>Download</button></div>
             </div>
+            {/* The log carried wall-clock timestamps and two commit-shaped digests
+                (`ec5ffb7a…850c83`, `1855aea9…4ff`) plus counts of verified and
+                untracked modules. None of it was measured, and a digest is the
+                most audit-shaped fiction on the page. What is left is the SHAPE
+                of the step — which checks run, in what order, and which one fails
+                the promotion — with every figure removed rather than replaced. */}
             {showLogs ? (
-              <pre className="log-viewer" aria-label="Illustrative pipeline log output"><code><span className="log-muted">16:05:12</span> verify local bundle against run_manifest.json{"\n"}<span className="log-ok">16:05:12 ✓</span> 29 implementation + 20 output digests verified{"\n"}<span className="log-error">16:05:13 ×</span> Git HEAD cannot reproduce the local bundle{"\n"}<span className="log-muted">         HEAD</span> ec5ffb7a…850c83 · inference.py{"\n"}<span className="log-muted">         manifest</span> 1855aea9…4ff · inference.py{"\n"}<span className="log-warn">16:05:13 !</span> 7 manifest-bound modules are untracked at HEAD{"\n"}<span className="log-error">16:05:13 error</span> freeze a clean commit before promotion</code></pre>
+              <pre className="log-viewer" aria-label="Illustrative pipeline log output"><code>verify local bundle against run_manifest.json{"\n"}<span className="log-ok">✓</span> implementation and output digests verified{"\n"}<span className="log-error">×</span> Git HEAD cannot reproduce the local bundle{"\n"}<span className="log-muted">  HEAD digest</span> not available — no repository provider connected{"\n"}<span className="log-muted">  manifest digest</span> not available — no artifact registry connected{"\n"}<span className="log-warn">!</span> manifest-bound modules are untracked at HEAD{"\n"}<span className="log-error">error</span> freeze a clean commit before promotion</code></pre>
             ) : null}
           </div>
         </article>
@@ -492,7 +501,9 @@ function Pipelines() {
         <div className="registry-scroll">
           <div className="registry-table" role="table" aria-label="Strategy artifacts">
             <div className="registry-row registry-head" role="row"><span>Artifact</span><span>Evidence window</span><span>Lineage</span><span>Custody</span><span>Status</span></div>
-            <div className="registry-row" role="row"><span className="artifact-name"><i>CR</i><span><strong>Core research bundle</strong><small>v3.2.1 · 20 manifest-bound outputs</small></span></span><span>1977–2014</span><code>570bd247…a22</code><span>Local · unsigned</span><StatusPill label="Blocked" tone="danger" /></div>
+            {/* The lineage cell held `570bd247…a22`, invented hex in a column
+                whose own footer says the Git SHA is unavailable. */}
+            <div className="registry-row" role="row"><span className="artifact-name"><i>CR</i><span><strong>Core research bundle</strong><small>v3.2.1 · 20 manifest-bound outputs</small></span></span><span>1977–2014</span><code>not available</code><span>Local · unsigned</span><StatusPill label="Blocked" tone="danger" /></div>
             <div className="registry-row" role="row"><span className="artifact-name"><i>VS</i><span><strong>Validation suite</strong><small>17 / 17 family · 10k bootstraps</small></span></span><span>1990–2014</span><code>seed 20260805</code><span>Research only</span><StatusPill label="Complete" tone="positive" /></div>
             <div className="registry-row" role="row"><span className="artifact-name"><i>BC</i><span><strong>Benchmark comparison</strong><small>13 complete · 0 errored</small></span></span><span>1990–2014</span><code>1k permutations</code><span>Descriptive only</span><StatusPill label="Complete" tone="positive" /></div>
             <div className="registry-row" role="row"><span className="artifact-name"><i>ETF</i><span><strong>ETF regime allocation</strong><small>11 symbols · sealed block</small></span></span><span>2006–2018</span><code>etf_regime_v1</code><span>Local · unbound</span><StatusPill label="Review" tone="warning" /></div>
@@ -637,7 +648,9 @@ function Changes() {
               </>
             )}
           </div>
-          <div className="diff-footer"><div><span>Git HEAD digest</span><code>{selectedFile.kind === "Changed" ? "ec5ffb7a…850c83" : "not tracked"}</code></div><div><span>Manifest digest</span><code>{selectedFile.kind === "Changed" ? "1855aea9…4ff" : "verified locally"}</code></div><button className="button button-primary" type="button" disabled>Freeze clean commit</button></div>
+          {/* Both digests were invented hex. The README promises the diffs carry no
+              commit hash; these were the two that made that promise false. */}
+          <div className="diff-footer"><div><span>Git HEAD digest</span><code>{selectedFile.kind === "Changed" ? "not available" : "not tracked"}</code></div><div><span>Manifest digest</span><code>{selectedFile.kind === "Changed" ? "not available" : "verified locally"}</code></div><button className="button button-primary" type="button" disabled>Freeze clean commit</button></div>
         </article>
       </div>
     </section>

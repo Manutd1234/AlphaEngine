@@ -89,7 +89,7 @@ npm install
 npm run dev        # http://localhost:3000 (Turbopack)
 npm run build      # Turbopack production build
 npm run typecheck  # tsc --noEmit
-npm test           # 1976 tests, no network required
+npm test           # 2,038 tests across 513 suites, no network required
 ```
 
 Built on **Next.js 16** with **Turbopack**, which is the default bundler for both
@@ -450,7 +450,11 @@ web/
 │   ├── globals.css           design tokens (palette, light + dark)
 │   ├── login/page.tsx        optional sign-in — outside the workspace shell
 │   ├── profile/page.tsx      account and security centre — the other one
-│   └── api/
+│   └── api/                  32 routes. Re-derive: find app/api -name route.ts
+│       │                     This list read 11 for a long time, having been
+│       │                     written when it was true and never rebuilt; every
+│       │                     route added since — the whole gateway proxy, auth,
+│       │                     Oracle and Telegram — was invisible here.
 │       ├── backtest/route.ts parameter sweep
 │       ├── depth/route.ts    live L2 books + consolidated ladder
 │       ├── tca/route.ts      VWAP, slippage, cross-venue route
@@ -461,7 +465,18 @@ web/
 │       ├── news/route.ts     normalised headlines
 │       ├── fundamentals/route.ts  company profile & valuation
 │       ├── research/route.ts open-web search + page-to-markdown (Firecrawl)
-│       └── providers/route.ts  supply-chain health: keys, quotas, breakers
+│       ├── providers/route.ts  supply-chain health: keys, quotas, breakers
+│       ├── favourites/route.ts pinned runs, per identity
+│       ├── auth/             guest · login · logout · session — 4 routes
+│       ├── gateway/          the risk gateway proxy — 7 routes
+│       │   ├── risk/route.ts   halt · resume · flatten, and the reachability probe
+│       │   ├── orders/         submit · working · [id]/cancel · [id]/replace
+│       │   ├── portfolio/      book, and history
+│       │   ├── audit/route.ts  the append-only log
+│       │   └── research/rag/route.ts  retrieval over the research corpus
+│       ├── oracle/           research · var — 2 routes, optional backend
+│       ├── system/           actions · events · health · inspect — 4 routes
+│       └── telegram/link/route.ts  mints the single-use Connect token
 ├── lib/
 │   ├── engine.ts             vectorised backtester — port of the Python reference
 │   ├── indicators.ts         O(n) SMA / rolling extremes / RSI kernels
@@ -482,7 +497,7 @@ web/
 │       └── …one adapter per vendor (binance, fmp, tiingo, massive,
 │            alphavantage, firecrawl, openbb)
 ├── components/               charts (hand-rolled SVG), controls, tables
-└── tests/                   1976 tests incl. cross-engine and risk-engine parity
+└── tests/                   2,038 tests incl. cross-engine and risk-engine parity
 ```
 
 **Why the sweep runs server-side.** Binance's public API is called from the

@@ -59,6 +59,12 @@ answers as fixtures, and the TypeScript suites assert it reproduces them. A VaR
 quoted on a phone cannot disagree with the one on the screen without a test
 failing.
 
+**→ [`SETUP.md`](SETUP.md)** to get it running — it starts with the zero-config
+path (three commands, no Python, no keys, no `.env`) and only then adds the
+gateway. Read it before creating a virtualenv: the name and location of that
+directory are load-bearing, and getting them wrong is the single most expensive
+mistake in this repository.
+
 **→ [`Part2_Infrastructure/README.md`](Part2_Infrastructure/README.md)** for the
 architecture, the design arguments, and what is implemented versus mocked.
 
@@ -70,7 +76,7 @@ independently shippable slices are all shipped and named in the tour. The two pl
 documents that sequenced and succeeded that work are working notes kept outside this
 repository; the audit and the tour are the parts worth reading.
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 Versions are as deployed/locked on 2026-08-08 — read from the running
 container, the lockfile and the live database. Full detail (every dependency's
@@ -91,7 +97,7 @@ container, the lockfile and the live database. Full detail (every dependency's
 | Component | Version | Role |
 |---|---|---|
 | **[Python](https://www.python.org)** | `3.12.13` | The gateway runtime. |
-| **[FastAPI](https://fastapi.tiangolo.com)** | `0.141.1` | 37 documented paths / 38 operations behind a committed OpenAPI contract. |
+| **[FastAPI](https://fastapi.tiangolo.com)** | `0.141.1` | 38 documented paths carrying 39 operations, behind a committed OpenAPI contract. (`main.py` declares 43 route decorators; the WebSocket and three `include_in_schema=False` HTML routes do not reach the schema, and `/api/orders` serves two verbs on one path.) |
 | **[Uvicorn](https://www.uvicorn.org)** | `0.52.1` | One stateful process by design — in-memory book + kill switch. |
 | **[NumPy](https://numpy.org)** | `2.5.1` | Reference engine for TCA, risk and backtesting; vectorbt optional. |
 | **[pandas](https://pandas.pydata.org)** | `3.0.5` | Bar/series handling across analytics. |
@@ -114,31 +120,32 @@ container, the lockfile and the live database. Full detail (every dependency's
 | **[Caddy](https://caddyserver.com)** | `2.6.2` | Automatic HTTPS in front of the gateway. |
 | **[Oracle Cloud](https://www.oracle.com/cloud/)** | managed | Always-on host, Singapore — region is load-bearing for venue egress. |
 | **[Vercel](https://vercel.com)** | managed | Two serverless projects from one repo; builds are Ed25519-attested against a trust root pinned in reviewed source. |
-| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free CI jobs: 667 gateway + 1,976 web + 13 service tests. |
+| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free CI jobs: 691 gateway + 2,038 web + 13 service tests. |
 
 ### Verify it end to end
 
 Everything runs offline: market data falls back to clearly-tagged synthetic books, the backtester uses its own NumPy engine, and every fixture is committed.
 
+**→ [`SETUP.md`](SETUP.md) is the running instructions** — prerequisites, the one
+virtualenv path the dev scripts accept, how to start the gateway and the
+workspace together, every environment variable, and troubleshooting. It is the
+file to read before the first command rather than after the first failure; this
+section only states what the suites report.
+
+From a tree that is already set up:
+
 ```bash
 cd Part2_Infrastructure
-python -m venv venv && venv/bin/pip install -r requirements-core.txt
-venv/bin/python -m pytest                            # 667 passed, 1 skipped
+venv/bin/python -m pytest                            # 691 passed, 1 skipped
 venv/bin/python tools/synthetic_probe.py             # book → cost → risk gate → audit
-(cd web && npm install && npm test)                  # 1,975 tests, incl. cross-engine parity
+(cd web && npm test)                                 # 2,038 tests across 513 suites
 (cd OpenBB_Service && ../venv/bin/python -m pytest)  # 13 passed
 ```
 
-Those three commands *are* the source of the three numbers — each figure is the
-count its own runner prints on the last line (`pytest` summary; `node --test`'s
+Those commands *are* the source of the three numbers — each figure is the count
+its own runner prints on the last line (`pytest` summary; `node --test`'s
 `ℹ pass`). Re-run them rather than trusting this paragraph: a test count quoted
 from memory goes stale the week after it is written.
-
-To run the complete platform concurrently:
-```bash
-cd Part2_Infrastructure/web && npm run dev:all
-```
-This launches both the **FastAPI Gateway (`http://127.0.0.1:8000`)** and **Next.js Desk Workspace (`http://localhost:3000`)** concurrently.
 
 `.github/workflows/ci.yml` runs the same three suites plus lint, the API
 contract snapshot, the committed-tree guard and the journey probe on every push.
@@ -150,6 +157,7 @@ contract snapshot, the committed-tree guard and the journey probe on every push.
 | Item | File |
 |---|---|
 | CV | `CV_Ian_Wangsa.pdf` — belongs at the root of this folder before zipping |
+| How to run any of it | [`SETUP.md`](SETUP.md) |
 | Part 1 notebook (HTML export) | `Part1_Data_Handling/Part1_Data_Handling.html` |
 | Part 1 notebook (source) | `Part1_Data_Handling/Part1_Data_Handling.ipynb` |
 | Part 2 code, docs and outputs | `Part2_Infrastructure/` |

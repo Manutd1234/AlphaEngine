@@ -5,7 +5,7 @@
 
 ---
 
-## 🎯 Assessment Proof-of-Concept & Thought Process
+## Assessment Proof-of-Concept & Thought Process
 
 1. **Alpha & Signal Utility**: Real-time cross-venue L2 order book depth (Binance + Bybit) prevents adverse selection. Pre-trade TCA estimates VWAP & slippage before order entry. Deflated Sharpe ratios (DSR) prevent backtest overfitting.
 2. **Implemented vs. Mocked Components**:
@@ -83,9 +83,9 @@ missing (§9 has the detail):
 | **Risk Manager** | *Is the model right, and will the limits hold?* | Kupiec VaR backtest, stress scenarios, reduce-only mode, kill switch | No margin or liquidation modelling |
 | **Data Engineer** | *Can I trust this data?* | Overview-first trust cockpit, provider registry, failover, data contracts, quarantine and lineage | No durable quality ledger, orchestration or backfill scheduler |
 | **DevOps / SRE** | *Is it healthy, and what do I do at 3am?* | `/health`, `/metrics`, systems console, alert rules, runbook | No log aggregation or distributed tracing |
-| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, parity suites, CI, 667 + 1,976 + 13 tests | No generated client, no property-based fuzzing |
+| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, parity suites, CI, 691 + 2,038 + 13 tests | No generated client, no property-based fuzzing |
 
-### 🎯 Quant Traders — *"Can I send this, and what will it cost?"*
+### Quant Traders — *"Can I send this, and what will it cost?"*
 
 | Need | Where |
 |---|---|
@@ -100,7 +100,7 @@ missing (§9 has the detail):
 | Leave a bid on the book instead of paying the spread | Resting `LIMIT` orders (`GTC`/`DAY`/`IOC`) that fill at their own limit when the consolidated touch crosses them, and can be cancelled or replaced: `GET /api/orders`, `POST /api/orders/{id}/cancel` |
 | Trace a fill back to the idea | Orders stamped with the strategy and experiment id; the blotter links back to the research run |
 
-### 📁 Portfolio Managers — *"Where am I exposed, and which limit binds first?"*
+### Portfolio Managers — *"Where am I exposed, and which limit binds first?"*
 
 | Need | Where |
 |---|---|
@@ -120,7 +120,7 @@ A trader's view answers a question about the *next order*; a PM's answers one
 about the *whole book*. The same numbers do not serve both, which is why
 `/api/portfolio` exists separately from `/api/risk/state`.
 
-### 🔬 Quant Researchers — *"Does this strategy actually work?"*
+### Quant Researchers — *"Does this strategy actually work?"*
 
 | Need | Where |
 |---|---|
@@ -144,7 +144,7 @@ The research portal will tell you a strategy **fails** even when the equity curv
 looks good. That is the feature: a +82% backtest with DSR 0.71 and negative
 out-of-sample Sharpe gets a red FAIL, not a green tick.
 
-### 🛡 Risk Managers — *"Is the model right, and will the limits hold?"*
+### Risk Managers — *"Is the model right, and will the limits hold?"*
 
 | Need | Where |
 |---|---|
@@ -163,7 +163,7 @@ Risk here is a live guardrail, not an end-of-day report: the breaker trips
 without a human, and every number a risk manager reads is the same number the
 gate used.
 
-### 🔧 Data Engineers — *"Can I trust this data?"*
+### Data Engineers — *"Can I trust this data?"*
 
 | Need | Where |
 |---|---|
@@ -188,7 +188,7 @@ scope and quality are visible at the point of use. The UI does not turn its
 instance-local evidence into a claim of durable orchestration or scheduled
 backfill.
 
-### 🚨 DevOps / SRE — *"Is it healthy, and what do I do at 3am?"*
+### DevOps / SRE — *"Is it healthy, and what do I do at 3am?"*
 
 | Need | Where |
 |---|---|
@@ -202,7 +202,7 @@ backfill.
 | A deploy that cannot ship a file that was never committed | `tools/check_repo_complete.sh` builds an export of HEAD, not the working tree |
 | CI on every push | `.github/workflows/ci.yml`: three suites, lint, the OpenAPI contract snapshot, the repo guard and the journey probe |
 
-### 🛠 Quant Developers — *"Can I change this safely?"*
+### Quant Developers — *"Can I change this safely?"*
 
 | Need | Where |
 |---|---|
@@ -211,7 +211,7 @@ backfill.
 | Documented tunables | `BacktestRequest` carries bounds *and* descriptions, so `/docs` doubles as the researcher's parameter registry |
 | Confidence that two implementations agree | Python↔TypeScript parity suites for the **backtest engine** and the **risk engine**, both driven by fixtures the Python reference emits |
 | To debug a request without guessing | Pipeline inspector down to raw vendor JSON; bounded trace ring with redaction; `/api/system/inspect` |
-| Tests that run anywhere | 667 gateway + 1,976 web + 13 service tests, all offline by construction — no network, no fixtures fetched at test time. Each figure is what its runner prints: `venv/bin/python -m pytest`, `(cd web && npm test)`, `venv/bin/python -m pytest OpenBB_Service/tests` |
+| Tests that run anywhere | 691 gateway + 2,038 web + 13 service tests, all offline by construction — no network, no fixtures fetched at test time. Each figure is what its runner prints: `venv/bin/python -m pytest`, `(cd web && npm test)`, `venv/bin/python -m pytest OpenBB_Service/tests` |
 | A lint gate that catches defects, not style | ruff with bugbear, async and bandit rules; `tsc --strict` on the web tier |
 | To add a provider or an endpoint without breaking things | Uniform `Adapter` interface with declared capabilities; the recipe is in §7 and in `web/README.md` |
 
@@ -257,7 +257,7 @@ gateway and its OpenBB adapter to the separate stateless service.
 cd web
 npm install
 npm run dev    # http://localhost:3000
-npm test       # 1,975 tests across 502 suites
+npm test       # 2,038 tests across 513 suites
 ```
 
 Live-feed endpoints (public, no key):
@@ -372,7 +372,7 @@ deployments. `ALPHAENGINE_GATEWAY_URL` points here; `OPENBB_API_URL` points to
 [`OpenBB_Service/`](OpenBB_Service/). The separation prevents slow research
 fetches and serverless scaling from sharing the gateway's mutable risk state.
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 Versions are what is **actually deployed or locked** as of 2026-08-08 — read
 from the running container, the lockfile and the live database, not from
@@ -394,7 +394,7 @@ service carries no pinned version.
 | Component | Version | Role in AlphaEngine |
 |---|---|---|
 | **[Python](https://www.python.org)** | `3.12.13` | The gateway runtime inside the container. |
-| **[FastAPI](https://fastapi.tiangolo.com)** | `0.141.1` | 37 documented paths carrying 38 operations. The OpenAPI schema is a committed contract (`tools/openapi.json`) whose SHA-256 the web build verifies at `prebuild`. `main.py` declares 42 route decorators; the four that never reach the schema are the `/ws/book/{symbol}` WebSocket, which OpenAPI does not describe, and the three HTML routes (`/`, `/app`, `/ui`) marked `include_in_schema=False`. |
+| **[FastAPI](https://fastapi.tiangolo.com)** | `0.141.1` | **38 documented paths carrying 39 operations.** The OpenAPI schema is a committed contract (`tools/openapi.json`) whose SHA-256 the web build verifies at `prebuild`. The three figures below look contradictory and are not — each is counted on a different basis, so state the basis rather than reconciling them into agreement. `main.py` declares **43 route decorators** (29 `@app.get` + 13 `@app.post` + 1 `@app.websocket`). Four never reach the schema: the `/ws/book/{symbol}` WebSocket, which OpenAPI does not describe, and the three HTML routes (`/`, `/app`, `/ui`) marked `include_in_schema=False` — leaving **39 operations**. Those 39 collapse onto **38 paths** because `/api/orders` serves two verbs: `POST` submits an order through the gates, `GET` lists the resting book. |
 | **[Uvicorn](https://www.uvicorn.org)** | `0.52.1` | **One process, no workers, by design** — the risk gateway holds a mutable in-memory book, a resting-order book, a token bucket and the kill switch; a second worker would fork the book and localise the halt. |
 | **[Pydantic](https://docs.pydantic.dev)** | `2.13.4` | Every API payload, risk decision and bot read-model shares one schema module (`modules/schemas.py`). |
 | **[httpx](https://www.python-httpx.org)** | `0.28.1` | All outbound HTTP, including the Supabase mirror — chosen over `supabase-py` to keep the import graph network-free for CI. |
@@ -422,9 +422,9 @@ service carries no pinned version.
 | **[Supabase CLI](https://supabase.com/docs/guides/cli)** | `2.112.0` | Migration push via the IPv4 session pooler (the direct DB host is IPv6-only) and edge-function deploys. |
 | **[Oracle Cloud](https://www.oracle.com/cloud/)** | managed | The always-on host (Singapore). Region is load-bearing: US egress gets Binance HTTP 451 / Bybit 403 (§11). |
 | **[Vercel](https://vercel.com)** | managed | Two serverless projects (web portal, OpenBB service) from one repo with different Root Directories, region `sin1`. Artifact custody via an Ed25519-signed build attestation against a trust root pinned in reviewed source (`web/lib/artifact-trust.mjs`). |
-| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free jobs (gateway, OpenBB, web, repo-audit): a red build means the code broke, never that an exchange was slow. 667 gateway + 1,976 web + 13 service tests. |
+| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free jobs (gateway, OpenBB, web, repo-audit): a red build means the code broke, never that an exchange was slow. 691 gateway + 2,038 web + 13 service tests. |
 
-### 🔑 API Keys & Secrets
+### API Keys & Secrets
 
 Every credential the platform reads, what it powers, and the only place it may
 live. The rule behind the table: **the browser bundle holds zero backend
@@ -452,7 +452,7 @@ credentials**, and the service-role key never leaves the gateway host.
 Free keys sitting in a dashboard that nothing reads are removed, not kept
 "just in case" — an unused credential is pure leak surface.
 
-### 🧠 RAG & ML
+### RAG & ML
 
 Semantic recall over what the desk already records — no new instrumentation,
 no paid inference, and nothing generated presented as measured.
@@ -1301,28 +1301,53 @@ Key risks and their mitigations, all implemented here:
 
 ## 10. Testing
 
+**29 suites**, counted as `tests/test_*.py`. The `tests/` directory holds 30 `.py`
+files: those 29 plus `conftest.py`, which is fixtures rather than a suite. Both
+figures are `ls`, not memory — `ls tests/test_*.py | wc -l` and
+`ls tests/*.py | wc -l`. No per-suite test counts are quoted below, because
+parametrised cases mean a file's `def test_` count is not the number it
+contributes to the 691.
+
+*Modules A, B and C — the engines*
+
 ```
-tests/test_tca_engine.py   book state, delta application, VWAP/slippage vs
-                           hand-computed ladders, routing, staleness
-tests/test_risk_proxy.py   every gate, token bucket, position accounting,
-                           automatic breaker, fill quality, gate/fill agreement
+tests/test_tca_engine.py   Module A: book state, delta application, VWAP and
+                           slippage against a hand-computed ladder, routing,
+                           staleness
+tests/test_risk_proxy.py   Module B: every gate, the token bucket, position
+                           accounting, the automatic breaker, fill quality,
+                           gate/fill agreement
 tests/test_working_orders.py
                            the resting book: the touch-crossing matcher, time in
                            force, maker pricing and fees, cancel and replace, and
                            the three invariants that empty the book
-tests/test_backtester.py   signal definitions, look-ahead check, cost accounting,
-                           engine agreement, DSR/PSR properties, noise-grid rejection
-tests/test_api.py          REST contract, rejection semantics, job lifecycle,
-                           webhook authentication and companion health
-tests/test_telegram.py     command registry, fail-closed user authorization,
-                           text rendering, OpenBB reads and transition alerts
-tests/test_portfolio.py    concentration maths, netting, binding constraint,
+tests/test_backtester.py   Module C: signal definitions, look-ahead check, cost
+                           accounting, engine agreement, DSR/PSR properties,
+                           noise-grid rejection
+tests/test_strategy_catalog.py
+                           every strategy in the catalogue actually trades, and
+                           both engines agree on it — a strategy that never fires
+                           fails silently otherwise
+tests/test_decision_latency.py
+                           the pre-trade decision histogram: the arithmetic, and
+                           that a decision is recorded at all
+tests/test_drawdown_alerts.py
+                           the drawdown warning fires on the edge, not on every
+                           tick
+tests/test_paper_equity.py paper equities use a trusted quote without pretending
+                           the quote is an L2 book
+tests/test_equity_quote.py the quote bridge trusts evidence, never a
+                           browser-supplied price
+```
+
+*Portfolio, risk and the session boundary*
+
+```
+tests/test_portfolio.py    concentration maths, netting, the binding constraint,
                            attribution wiring, realised P&L per strategy sleeve,
                            persisted equity history and period returns
-tests/test_research.py     OpenBB bridge: absence contract (ok:false, never 500),
-                           NaN-cleaning, field-alias resolution, input validation
 tests/test_quant_risk.py   covariance conventions, risk contributions, Kelly,
-                           regime, historical VaR, Kupiec backtest, scenario
+                           regime, historical VaR, the Kupiec backtest, scenario
                            propagation with measured betas, all four allocation
                            methods and the limits that clip them
 tests/test_rehydration.py  position replay from audited fills, reset boundaries,
@@ -1333,12 +1358,77 @@ tests/test_session_rollover.py
                            the drawdown budget resets against the new balance,
                            and the boundary survives a restart — including one
                            whose durable write failed, which must not roll
-tests/test_telegram_controls.py
-                           the gated controls: separate allow-list, single-use
-                           confirmation codes, expiry
+```
+
+*The API surface and its contracts*
+
+```
+tests/test_api.py          REST contract, client separation, rejection semantics,
+                           job lifecycle, webhook authentication, audit
+                           persistence
 tests/test_openapi_contract.py
-                           the committed API snapshot, so a contract change to
-                           two independently deployed clients cannot be silent
+                           the committed API snapshot, so a contract change
+                           reaching two independently deployed clients cannot be
+                           silent
+tests/test_stream_desk.py  the desk stream's four properties, asserted from the
+                           side that owns them rather than by reading `main.py`
+                           as text from the web repo
+tests/test_web_state.py    the shared web-ops ledger: merge semantics, bounds and
+                           the wire contract
+tests/test_jobs_security.py
+                           credential handling at the Celery process boundary
+```
+
+*Research and the corpus*
+
+```
+tests/test_research.py     OpenBB bridge: the absence contract (ok:false, never
+                           500), NaN-cleaning, field-alias resolution, input
+                           validation
+tests/test_research_rag.py the research index's honesty contract, verified
+                           offline
+```
+
+*Telegram — five suites, because it is the one companion that can change risk
+state*
+
+```
+tests/test_telegram.py     command registry, fail-closed user authorisation, text
+                           rendering, OpenBB reads and transition alerts
+tests/test_telegram_commands.py
+                           the registry floor: every command in the catalogue
+                           must actually answer, not merely be advertised
+tests/test_telegram_controls.py
+                           the five gated controls: a separate allow-list,
+                           single-use confirmation codes, expiry
+tests/test_telegram_link.py
+                           binding a chat to a web desk identity, and the narrow
+                           security question of why that binding is not an
+                           authentication bypass
+tests/test_telegram_charts.py
+                           every generator plots what it was handed, or returns
+                           None — the module once shipped a sine wave captioned
+                           as real data
+```
+
+*Persistence, packaging and deployment*
+
+```
+tests/test_supabase_mirror.py
+                           the mirror's contract: invisible to the order path,
+                           honest about losses
+tests/test_supabase_schema.py
+                           the committed Supabase SQL held in parity with
+                           `config.py`, offline
+tests/test_oracle_applier.py
+                           the Oracle schema applier splits the committed DDL
+                           correctly — PL/SQL blocks are where a naive splitter
+                           silently does the wrong thing
+tests/test_container_contract.py
+                           the committed container definition held to the
+                           promises its comments make; rejects any secret-shaped
+                           literal. Text analysis on purpose — CI is network-free
+                           and never builds the image
 ```
 
 The gateway test suite is deterministic and requires no external network: market
@@ -1525,10 +1615,10 @@ on different iterations and disagree by more than the fixture allows.
 Everything a reviewer needs to check runs offline:
 
 ```bash
-pytest                                    # 667 gateway + companion tests (1 skipped)
+pytest                                    # 691 gateway + companion tests (1 skipped)
 python tools/synthetic_probe.py           # end-to-end: book → cost → gate → audit
 cd OpenBB_Service && pytest               # 13 stateless service tests
-cd web && npm install && npm test         # 1,975 workspace tests, incl. both parity suites
+cd web && npm install && npm test         # 2,038 workspace tests, incl. both parity suites
 bash tools/check_repo_complete.sh         # builds the *committed* tree
 ```
 
