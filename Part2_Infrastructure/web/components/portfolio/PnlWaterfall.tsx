@@ -31,7 +31,7 @@ import {
   ticks,
   useMeasuredWidth,
 } from "@/components/chart-kit";
-import { compact, fmt, pct, usd } from "@/lib/format";
+import { compact, pct, usd } from "@/lib/format";
 import type { PnlLeg, PnlWaterfall as Waterfall } from "@/lib/pnl-attribution";
 
 interface PnlWaterfallProps {

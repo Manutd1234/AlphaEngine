@@ -96,6 +96,14 @@ type Preset = {
   tone?: "warn" | "notice";
 };
 
+/**
+ * Longer than `lib/gateway.ts`'s own 8s server-side deadline, deliberately: the
+ * proxy in front of the gateway should be the thing that gives up first, so a
+ * slow-but-alive decision still reaches the reader with its real verdict rather
+ * than being aborted by the browser into an ambiguous one.
+ */
+const ORDER_TIMEOUT_MS = 15_000;
+
 const PRESETS: Preset[] = [
   { id: "valid", label: "Valid $25k", hint: "Passes every gate and fills on the live ladder.", notional: 25_000 },
   { id: "fat-finger", label: "Fat finger $500k", hint: "Blocked by the per-order notional cap.", notional: 500_000, tone: "warn" },
@@ -195,6 +203,14 @@ export default function OrderTicket({
          */
         const response = await fetch("/api/gateway/orders", {
           method: "POST",
+          /**
+           * A deadline, because the comment above explains why this waits — and
+           * waiting forever is a different thing. Without it a hung gateway
+           * leaves the ticket spinning with no verdict and no way back, which is
+           * the one state an order form must never reach. The timeout is longer
+           * than the gateway's own so a slow-but-alive decision still lands.
+           */
+          signal: AbortSignal.timeout(ORDER_TIMEOUT_MS),
           // The route's write guard rejects tokenless requests on guarded
           // deployments — the credential rides the same header everywhere.
           headers: operatorHeaders(operatorToken),
@@ -211,8 +227,20 @@ export default function OrderTicket({
         }
         collected.push({ ...(body.decision as Decision), order_type: effectiveType });
       }
-    } catch {
-      setError({ error: "The order could not be submitted from this browser." });
+    } catch (cause) {
+      /**
+       * A timeout is not a transport failure, and saying so matters here more
+       * than anywhere else in the app: "could not be submitted" tells a reader
+       * nothing was sent, which for an abort is a claim this code cannot make.
+       * The request may well have reached the gateway and been decided.
+       */
+      const timedOut = cause instanceof DOMException && cause.name === "TimeoutError";
+      setError(timedOut
+        ? {
+          error: `No verdict within ${ORDER_TIMEOUT_MS / 1000}s. The order may still have been decided.`,
+          hint: "Check the blotter before resubmitting — the gateway's idempotency gate makes a deliberate retry safe.",
+        }
+        : { error: "The order could not be submitted from this browser." });
     } finally {
       setBusy(false);
       // A mid-burst transport failure must not discard earlier fills. The

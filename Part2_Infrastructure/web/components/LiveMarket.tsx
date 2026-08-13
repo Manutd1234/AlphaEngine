@@ -430,8 +430,19 @@ export default function LiveMarket({
           note={snap?.spreadBps != null && snap.spreadBps < 0 ? "crossed across venues" : "consolidated"}
           tone={snap?.spreadBps != null && snap.spreadBps < 0 ? "pos" : undefined}
         />
-        <StatTile label="Bid depth" value={`$${compact(snap?.depthUsdBid ?? 0)}`} note="within ±10 bps of mid" />
-        <StatTile label="Ask depth" value={`$${compact(snap?.depthUsdAsk ?? 0)}`} note="within ±10 bps of mid" />
+        {/* Dashed, not zeroed — matching the Spread tile beside them. An
+            absent snapshot rendered "$0 of depth", which reads as an empty
+            book rather than as an unread one. */}
+        <StatTile
+          label="Bid depth"
+          value={snap?.depthUsdBid == null ? "—" : `$${compact(snap.depthUsdBid)}`}
+          note={snap == null ? "no book snapshot" : "within ±10 bps of mid"}
+        />
+        <StatTile
+          label="Ask depth"
+          value={snap?.depthUsdAsk == null ? "—" : `$${compact(snap.depthUsdAsk)}`}
+          note={snap == null ? "no book snapshot" : "within ±10 bps of mid"}
+        />
         <StatTile
           label="Imbalance"
           value={snap?.imbalance == null ? "—" : `${(snap.imbalance * 100).toFixed(1)}%`}

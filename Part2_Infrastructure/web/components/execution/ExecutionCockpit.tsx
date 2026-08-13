@@ -56,7 +56,6 @@ import { probeGateway } from "@/lib/use-gateway-connection";
 import DeskTape from "./DeskTape";
 import ExecutionQuality from "./ExecutionQuality";
 import FillQualityHeatmap from "./FillQualityHeatmap";
-import OrderBlotter from "./OrderBlotter";
 import OrderTicket, { type OrderSubmissionResult } from "./OrderTicket";
 import PnlStrip from "./PnlStrip";
 import SpreadDecomposition from "./SpreadDecomposition";

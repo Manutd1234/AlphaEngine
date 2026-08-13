@@ -338,7 +338,9 @@ export default function StressTest({
                 <td>{pct(p.appliedMove, 1)}</td>
                 <td>
                   {p.viaBeta ? (
-                    <span className="muted">β {fmt(p.beta ?? 0, 2)}</span>
+                    // `?? 0` here printed "β 0.00" for a beta this panel could
+                    // not measure — the exact invention the header refuses.
+                    <span className="muted">{p.beta == null ? "β —" : `β ${fmt(p.beta, 2)}`}</span>
                   ) : p.symbol in manual ? (
                     <span className="muted" title="Set by hand on the slider above">pinned</span>
                   ) : p.appliedMove !== 0 ? (

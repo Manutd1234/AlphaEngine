@@ -1602,13 +1602,21 @@ tbody tr[tabindex]:focus-visible {
   border-color: color-mix(in srgb, var(--status-critical) 40%, transparent);
 }
 
+/* `list-style: none` is load-bearing, not tidiness. This rule was written for a
+   `<div>` and eleven call sites still use one — but four later switched to a
+   `<ul>`, and nothing else in the app suppresses the marker: the global reset
+   at the top of this file clears padding but not `list-style-type`, and
+   Tailwind preflight is deliberately never loaded. The result was a literal
+   bullet before every swatch: "• — Add to reach target". `.donut__legend`
+   already sets this; `.legend` had simply never needed it. */
 .legend {
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
+  margin-bottom: 10px;
+  list-style: none;
   font-size: 12px;
   color: var(--text-secondary);
-  margin-bottom: 10px;
 }
 .legend i {
   display: inline-block;

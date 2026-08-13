@@ -20,7 +20,7 @@ import { useRef, useState } from "react";
 
 import { download } from "@/lib/download";
 import { generatePythonScript } from "@/lib/export-python";
-import { fmt, pct, signedPct } from "@/lib/format";
+import { fmt, pct } from "@/lib/format";
 import { STRATEGY_LABELS, type SweepRequest } from "@/lib/types";
 import { exportExperiments, importExperiments, type ExperimentRecord } from "@/lib/experiments";
 import { APP_COMMIT } from "@/lib/version";

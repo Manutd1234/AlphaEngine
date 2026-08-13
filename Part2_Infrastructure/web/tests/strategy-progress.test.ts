@@ -18,7 +18,7 @@ import {
   strategiesByFamily,
   strategyProgress,
 } from "../lib/strategy-progress";
-import { STRATEGY_FAMILY, type Strategy } from "../lib/types";
+import { STRATEGY_FAMILY } from "../lib/types";
 
 /** The minimum of a record this module reads: strategy, verdict, savedAt. */
 function record(

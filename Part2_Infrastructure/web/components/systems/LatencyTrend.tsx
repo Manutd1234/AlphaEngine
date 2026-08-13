@@ -111,7 +111,12 @@ export default function LatencyTrend({ history }: { history: LatencyHistoryPoint
               role="img"
               aria-label={
                 `Upstream p99 latency across ${history.length} polls, peaking at ${view.peak} milliseconds`
-                + `, currently ${Math.round(view.latest.p99 ?? 0)} milliseconds`
+                // Withheld rather than zeroed: `?? 0` told a screen-reader user
+                // "currently 0 milliseconds" whenever p99 was unmeasured, which
+                // is the fastest latency imaginable and the opposite of true.
+                + (view.latest.p99 == null
+                  ? ", currently not measured"
+                  : `, currently ${Math.round(view.latest.p99)} milliseconds`)
                 + ` with an error rate of ${(view.latest.errorRate * 100).toFixed(1)} percent.`
               }
             >

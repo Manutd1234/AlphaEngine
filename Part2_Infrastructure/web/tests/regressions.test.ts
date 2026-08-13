@@ -12,7 +12,7 @@ import { clampFloat, clampInt, parseEnum, parseSymbol } from "../lib/params";
 import { buildPosition, runSweep } from "../lib/engine";
 import { syntheticBars } from "../lib/marketdata";
 import { buildTcaReport } from "../lib/venues";
-import { DEFAULT_REQUEST, INTERVALS, type Bar, type Strategy } from "../lib/types";
+import { DEFAULT_REQUEST, INTERVALS, type Strategy } from "../lib/types";
 import { rollingMax, rollingMin, shift1, sma } from "../lib/indicators";
 
 describe("param clamps are NaN-safe", () => {

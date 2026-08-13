@@ -38,7 +38,6 @@ import {
   BARS_PER_YEAR,
   type Bar,
   type CellKind,
-  type FactorLoading,
   type FoldEfficiency,
   type MonthlyReturn,
   type ParamResult,
