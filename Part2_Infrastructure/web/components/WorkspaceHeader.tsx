@@ -80,7 +80,16 @@ export default function WorkspaceHeader({
   riskControl,
 }: WorkspaceHeaderProps) {
   // Bumped by the account menu's Preferences item to open the settings panel.
+  /**
+   * The two panels ask each other to open, so the header holds both counters.
+   *
+   * Account → Preferences → Quick settings → back → Account is one menu with
+   * two pages as far as a reader is concerned; it was two dead ends because
+   * neither panel could reach the other and the only way back was to dismiss
+   * and press the avatar again.
+   */
   const [settingsSignal, setSettingsSignal] = useState(0);
+  const [accountSignal, setAccountSignal] = useState(0);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const headerRef = useRef<HTMLElement | null>(null);
 
@@ -245,12 +254,16 @@ export default function WorkspaceHeader({
           <i aria-hidden />
           {healthLabel}
         </button>
-        <AccountChip onOpenPreferences={() => setSettingsSignal((n) => n + 1)} />
+        <AccountChip
+          onOpenPreferences={() => setSettingsSignal((n) => n + 1)}
+          openSignal={accountSignal}
+        />
         <QuickSettings
           healthLabel={healthLabel}
           healthNeedsAttention={healthNeedsAttention}
           onOpenReliability={onOpenProviderHealth}
           openSignal={settingsSignal}
+          onBackToAccount={() => setAccountSignal((n) => n + 1)}
         />
       </div>
     </header>

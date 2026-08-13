@@ -585,8 +585,34 @@ describe("the account menu", () => {
     assert.match(code(chip), /onOpenPreferences\(\)/);
     assert.match(code(header), /onOpenPreferences=\{\(\) => setSettingsSignal\(\(n\) => n \+ 1\)\}/);
     assert.match(code(header), /openSignal=\{settingsSignal\}/);
-    assert.match(code(panel), /if \(openSignal > 0\) setOpen\(true\)/);
+    assert.match(code(panel), /if \(openSignal > 0\)/);
+    assert.match(code(panel), /setOpen\(true\)/);
     assert.match(code(panel), /aria-expanded=\{open\}/);
+  });
+
+  it("offers the way back, and only from the door it was opened by", () => {
+    /**
+     * Preferences closes the account menu on its way to Quick settings, so
+     * without a return path the only way back is to dismiss the panel and press
+     * the avatar again — two panels that cannot reach each other, which is how
+     * a two-page menu read as two dead ends.
+     *
+     * The condition is the part worth pinning. Quick settings has two doors —
+     * the header gear and Preferences — and a "back to Account" shown to
+     * someone who pressed the gear points at somewhere they have never been.
+     * So the control is gated on the opening having come from the account menu,
+     * and the gear resets that flag rather than leaving it set from last time.
+     */
+    assert.match(code(panel), /fromAccount && onBackToAccount/);
+    assert.match(code(panel), /setFromAccount\(true\)/, "the account door must set the flag");
+    assert.match(code(panel), /setFromAccount\(false\)/, "the gear must clear it");
+    assert.match(code(panel), /onBackToAccount\(\)/);
+
+    // Counters both ways, for the same reason the first one is a counter:
+    // Preferences -> back -> Preferences -> back must work on every lap.
+    assert.match(code(header), /onBackToAccount=\{\(\) => setAccountSignal\(\(n\) => n \+ 1\)\}/);
+    assert.match(code(header), /openSignal=\{accountSignal\}/);
+    assert.match(code(chip), /if \(openSignal > 0\) setOpen\(true\)/);
   });
 
   it("gives panel links a real touch target without a second coarse block", () => {

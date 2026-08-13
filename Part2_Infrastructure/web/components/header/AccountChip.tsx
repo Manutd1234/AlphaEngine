@@ -48,7 +48,20 @@ export function initialsFrom(name: string | null, email: string | null): string 
   return letters.toLocaleUpperCase();
 }
 
-export default function AccountChip({ onOpenPreferences }: { onOpenPreferences: () => void }) {
+export default function AccountChip({
+  onOpenPreferences,
+  openSignal = 0,
+}: {
+  onOpenPreferences: () => void;
+  /**
+   * Reopens this menu, for the return trip out of Quick settings.
+   *
+   * A counter rather than a boolean, matching QuickSettings' own signal: the
+   * user can go Preferences → back → Preferences → back, and a boolean would be
+   * already-true on the second lap.
+   */
+  openSignal?: number;
+}) {
   const session = useSession();
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -59,6 +72,11 @@ export default function AccountChip({ onOpenPreferences }: { onOpenPreferences: 
     setOpen(false);
     if (returnFocus) trigger.current?.focus();
   }, []);
+
+  // Zero means nobody has asked yet, so it must not open on first render.
+  useEffect(() => {
+    if (openSignal > 0) setOpen(true);
+  }, [openSignal]);
 
   useEffect(() => {
     if (!open) return;

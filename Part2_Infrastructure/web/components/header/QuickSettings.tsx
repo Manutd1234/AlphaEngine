@@ -23,7 +23,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Settings2 } from "lucide-react";
+import { ArrowLeft, Settings2 } from "lucide-react";
 
 import ComplexityToggle from "@/components/ComplexityToggle";
 import AnchoredPanel from "@/components/header/AnchoredPanel";
@@ -40,6 +40,15 @@ interface QuickSettingsProps {
    * dismissal logic and its aria-expanded binding are untouched.
    */
   openSignal?: number;
+  /**
+   * Reopens the account menu this panel was launched from.
+   *
+   * Optional, and the control that uses it is conditional, because there are two
+   * ways in here: the gear in the header, and Preferences inside the account
+   * menu. Offering "Back to account" to someone who pressed the gear would be a
+   * trail back to somewhere they have never been.
+   */
+  onBackToAccount?: () => void;
 }
 
 export default function QuickSettings({
@@ -47,8 +56,11 @@ export default function QuickSettings({
   healthNeedsAttention,
   onOpenReliability,
   openSignal = 0,
+  onBackToAccount,
 }: QuickSettingsProps) {
   const [open, setOpen] = useState(false);
+  /** Whether THIS opening came from the account menu, not the header gear. */
+  const [fromAccount, setFromAccount] = useState(false);
   const wrapper = useRef<HTMLSpanElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
 
@@ -60,7 +72,10 @@ export default function QuickSettings({
   // Zero is the initial value and means "nobody has asked yet", so it must not
   // pop the panel open on first render.
   useEffect(() => {
-    if (openSignal > 0) setOpen(true);
+    if (openSignal > 0) {
+      setFromAccount(true);
+      setOpen(true);
+    }
   }, [openSignal]);
 
   useEffect(() => {
@@ -85,7 +100,16 @@ export default function QuickSettings({
         ref={trigger}
         type="button"
         className="icon header-settings"
-        onClick={() => (open ? close(true) : setOpen(true))}
+        onClick={() => {
+          if (open) {
+            close(true);
+            return;
+          }
+          // Opened from the header itself, so there is no account menu behind
+          // this one to go back to.
+          setFromAccount(false);
+          setOpen(true);
+        }}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls="quick-settings-panel"
@@ -109,6 +133,23 @@ export default function QuickSettings({
           width={320}
           scroll
         >
+          {/* Only when there is somewhere to go back TO. Preferences closes the
+              account menu on its way here, so without this the way back is to
+              dismiss the panel and press the avatar again — which is how it
+              read as a dead end rather than as a second page of one menu. */}
+          {fromAccount && onBackToAccount && (
+            <button
+              type="button"
+              className="panel-back"
+              onClick={() => {
+                close(false);
+                onBackToAccount();
+              }}
+            >
+              <ArrowLeft size={12} aria-hidden />
+              Account
+            </button>
+          )}
           <span className="page-kicker">Viewing preferences</span>
           <h3 id="quick-settings-title" className="mt-0.5 text-[15px]">
             Quick settings
