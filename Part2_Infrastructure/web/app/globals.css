@@ -13382,10 +13382,33 @@ h4 {
   font-size: 10px;
 }
 
+/* Was unconditionally --success-text, which is what a panel that could only
+   ever say "active" needs. It now reports five states, so the colour follows
+   the reading — and never carries it alone: the glyph and the word are printed
+   beside each other in the markup, so this survives greyscale and forced
+   colours with the meaning intact. */
 .signal-workflow__meta em {
-  color: var(--success-text);
+  color: var(--text-secondary);
   font-style: normal;
   font-weight: 700;
+}
+
+.signal-workflow__node[data-state="ok"] .signal-workflow__meta em { color: var(--success-text); }
+.signal-workflow__node[data-state="degraded"] .signal-workflow__meta em { color: var(--warning-text); }
+.signal-workflow__node[data-state="down"] .signal-workflow__meta em { color: var(--critical-text); }
+.signal-workflow__node[data-state="absent"] .signal-workflow__meta em,
+.signal-workflow__node[data-state="unknown"] .signal-workflow__meta em { color: var(--text-muted); }
+
+/* The line that lets a reader check the state above rather than trust it. */
+.signal-workflow__source {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+.signal-workflow__source code {
+  font-family: var(--mono);
+  font-size: 10px;
 }
 
 .signal-workflow__arrow {

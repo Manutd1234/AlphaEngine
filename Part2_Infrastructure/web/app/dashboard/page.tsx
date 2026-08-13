@@ -1628,7 +1628,11 @@ export default function Page() {
                       past had gone stale too.
                     */}
                     <WorkspaceSubtabPanel workspaceId="research" tabId="lineage" activeId={researchSection}>
-                      <SignalDAGViewer />
+                      {/* Real state, not a hardcoded array: the panel reports
+                          what this deployment can observe, and says "not
+                          measured" for the one stage that runs in the browser
+                          and therefore has no server timing. */}
+                      <SignalDAGViewer health={systems.health} healthError={systems.healthError} />
                       <ResearchCorpus />
                     </WorkspaceSubtabPanel>
 

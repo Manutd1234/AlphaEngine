@@ -1,106 +1,96 @@
 "use client";
 
 /**
- * The signal execution workflow — raw depth in, routed order out.
+ * The signal path — depth in, paper order out, as far as this deployment can
+ * actually see it.
  *
- * Every colour here used to be a hardcoded hex from a dark palette (#090d12
- * strip, #111827 nodes, #38bdf8 labels) dropped inside a white card, so the
- * panel read as a foreign screenshot pasted into the page and inverted itself
- * against the theme. It now uses the house tokens like every other surface, so
- * it follows the light and dark palettes instead of fighting them.
+ * WHAT THIS PANEL USED TO SAY, and why replacing it mattered more than any
+ * chart on the roadmap: it rendered a hardcoded five-stage array claiming a
+ * "FIX Protocol Execution Engine … dispatching 35=D orders and auditing 35=8
+ * execution reports", a "Pre-Trade Risk Gateway (15 Gates)", and per-stage
+ * latencies of 0.2ms / 0.5ms / 0.8ms / 1.1ms. There is no FIX in this system —
+ * the gateway is FastAPI over REST to Binance and Bybit — the gate count
+ * appeared nowhere else in the repository, and the latencies were string
+ * literals. The status pill read `{STEPS.length}/{STEPS.length} stages active`
+ * in green, so it was 5/5 healthy by construction and could not report a fault
+ * if one occurred.
+ *
+ * It took no props and read no state, on the tab a reader opens to learn what
+ * the pipeline is, in a product whose every other surface refuses to draw an
+ * unmeasured number.
+ *
+ * Now every stage, state and figure comes from `deriveSignalPath`, which is a
+ * pure function over the health snapshot and is tested without a DOM. Colour
+ * never carries the meaning alone: each node prints a glyph and the state word
+ * beside it, and each names the wire field it was read from, so a reader can
+ * check the claim rather than take it.
  */
 
 import { useState } from "react";
 
-interface WorkflowStep {
-  id: string;
-  name: string;
-  category: "data" | "alpha" | "optimizer" | "risk" | "fix";
-  status: "active" | "passing" | "verified";
-  latency: string;
-  details: string;
-}
+import type { SystemHealth } from "@/components/systems/types";
+import {
+  deriveSignalPath,
+  STAGE_GLYPH,
+  STAGE_WORD,
+  summariseSignalPath,
+  type SignalStage,
+} from "@/lib/signal-path";
 
-const STEPS: WorkflowStep[] = [
-  {
-    id: "node-1",
-    name: "Binance & Bybit L2 Depth Stream",
-    category: "data",
-    status: "active",
-    latency: "0.2ms",
-    details: "Consolidated L2 websocket depth stack streaming 100ms snapshots across 12 symbol pairs.",
-  },
-  {
-    id: "node-2",
-    name: "Trend & Mean Reversion Alpha Signals",
-    category: "alpha",
-    status: "passing",
-    latency: "0.5ms",
-    details: "DSR-validated momentum signals generating real-time buy/sell allocation weights.",
-  },
-  {
-    id: "node-3",
-    name: "Euler Variance Portfolio Optimizer",
-    category: "optimizer",
-    status: "verified",
-    latency: "0.8ms",
-    details: "Risk-budget constrained Mean-Variance optimizer targeting max Sharpe ratio under leverage cap.",
-  },
-  {
-    id: "node-4",
-    name: "Pre-Trade Risk Gateway (15 Gates)",
-    category: "risk",
-    status: "verified",
-    latency: "0.2ms",
-    details: "15 hard limit checks (drawdown, max gross, price collar, fat finger, rate limit) evaluated in 0.2ms.",
-  },
-  {
-    id: "node-5",
-    name: "FIX Protocol Execution Engine",
-    category: "fix",
-    status: "active",
-    latency: "1.1ms",
-    details: "FIX 4.2 / 4.4 order execution engine dispatching 35=D orders and auditing 35=8 execution reports.",
-  },
-];
-
-export default function SignalDAGViewer() {
-  const [selected, setSelected] = useState<WorkflowStep | null>(null);
+export default function SignalDAGViewer({
+  health,
+  healthError,
+}: {
+  health: SystemHealth | null;
+  healthError: string | null;
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const stages = deriveSignalPath(health, healthError);
+  const summary = summariseSignalPath(stages);
+  const open: SignalStage | null = stages.find((s) => s.id === selected) ?? null;
 
   return (
     <div className="card signal-workflow">
       <div className="portfolio-card-heading">
         <div>
           <span className="page-kicker">Data lineage &amp; pipeline</span>
-          <h2>Signal Execution Workflow</h2>
+          <h2>Signal path</h2>
         </div>
-        <span className="pill is-good">{STEPS.length}/{STEPS.length} stages active</span>
+        {/* Counts by state, so this can go amber and red. The pill it replaces
+            printed the array's own length over itself and was green always. */}
+        <span className={`pill is-${summary.tone}`}>{summary.label}</span>
       </div>
 
       <p className="sub">
-        Quantitative signal lineage from the raw L2 depth stream through pre-trade risk validation to
-        FIX order routing. Select a stage to read what it does.
+        Consolidated depth through the pre-trade battery to a paper order, with each stage&rsquo;s
+        state read from the health snapshot rather than described. Select a stage for the reading
+        behind it. Orders are paper only: this desk holds no funds and reaches no real venue.
       </p>
 
-      <ol className="signal-workflow__track" aria-label="Signal execution stages">
-        {STEPS.map((step, index) => (
-          <li key={step.id} className="signal-workflow__stage">
+      <ol className="signal-workflow__track" aria-label="Signal path stages">
+        {stages.map((stage, index) => (
+          <li key={stage.id} className="signal-workflow__stage">
             <button
               type="button"
-              className={`signal-workflow__node${selected?.id === step.id ? " is-selected" : ""}`}
-              aria-pressed={selected?.id === step.id}
-              onClick={() => setSelected(selected?.id === step.id ? null : step)}
+              className={`signal-workflow__node${selected === stage.id ? " is-selected" : ""}`}
+              aria-pressed={selected === stage.id}
+              data-state={stage.state}
+              onClick={() => setSelected(selected === stage.id ? null : stage.id)}
             >
               <span className="signal-workflow__step">
-                Step {index + 1} · {step.category}
+                Step {index + 1} · {stage.role}
               </span>
-              <strong>{step.name}</strong>
+              <strong>{stage.name}</strong>
               <span className="signal-workflow__meta">
-                <span className="num">{step.latency}</span>
-                <em>✓ {step.status}</em>
+                {/* A stage nothing measures says so, rather than borrowing a
+                    plausible number from the stage next to it. */}
+                <span className="num">{stage.measured ?? "not measured"}</span>
+                <em>
+                  <span aria-hidden>{STAGE_GLYPH[stage.state]}</span> {STAGE_WORD[stage.state]}
+                </em>
               </span>
             </button>
-            {index < STEPS.length - 1 && (
+            {index < stages.length - 1 && (
               <span className="signal-workflow__arrow" aria-hidden>
                 →
               </span>
@@ -109,10 +99,15 @@ export default function SignalDAGViewer() {
         ))}
       </ol>
 
-      {selected && (
+      {open && (
         <div className="signal-workflow__detail" role="status">
-          <strong>{selected.name}</strong>
-          <p>{selected.details}</p>
+          <strong>{open.name}</strong>
+          <p>{open.detail}</p>
+          {/* The provenance line is the point of the panel: it lets a reader
+              verify the state above instead of trusting it. */}
+          <p className="signal-workflow__source">
+            Read from <code>{open.source}</code>
+          </p>
         </div>
       )}
     </div>
