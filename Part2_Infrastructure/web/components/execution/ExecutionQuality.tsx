@@ -18,7 +18,7 @@
  */
 
 import LatencyHistogram from "@/components/execution/LatencyHistogram";
-import type { BlotterRow, ExecutionSummary } from "@/lib/blotter";
+import { effectiveSpreadBps, priceImprovement, type BlotterRow, type ExecutionSummary } from "@/lib/blotter";
 import { fmt, pct, usd } from "@/lib/format";
 
 interface ExecutionQualityProps {
@@ -32,6 +32,7 @@ interface ExecutionQualityProps {
 }
 
 export default function ExecutionQuality({ summary, symbol, symbolOrders, rows = [], source = "live" }: ExecutionQualityProps) {
+  const improvement = priceImprovement(rows ?? []);
   const symbolFills = symbolOrders.filter((o) => o.accepted);
   const symbolSlippage = symbolFills
     .map((o) => o.slippageBps)
@@ -87,14 +88,39 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
               <span className="muted">on filled notional</span>
             </div>
             <div>
-              <dt>Gate latency</dt>
+              {/* "Median gate latency", not "median latency". This is time inside
+                  the pre-trade battery; no order-to-fill duration exists in the
+                  audit row, and dropping the qualifier to match a shorter label
+                  would be the one dishonest edit available on this panel. */}
+              <dt>Median gate latency</dt>
               <dd>{summary.p50LatencyMs != null ? `${fmt(summary.p50LatencyMs, 2)} ms` : "—"}</dd>
               <span className="muted">
                 p90 {summary.p90LatencyMs != null ? `${fmt(summary.p90LatencyMs, 2)} ms` : "—"} ·
                 p99 {summary.p99LatencyMs != null ? `${fmt(summary.p99LatencyMs, 2)} ms` : "—"}
               </span>
             </div>
+            <div>
+              <dt>Price improvement</dt>
+              <dd>{improvement.rate != null ? pct(improvement.rate, 0) : "—"}</dd>
+              <span className="muted">
+                {improvement.n
+                  ? <>{improvement.improved} of {improvement.n} beat the mid{improvement.meanBps != null ? ` · mean ${fmt(improvement.meanBps, 1)} bps` : ""}</>
+                  : "no priced fills"}
+              </span>
+            </div>
           </dl>
+
+          {/* Zero here is a correct reading of a generated desk, not a broken
+              panel, and saying so is cheaper than leaving a reader to wonder.
+              sandboxBlotter draws slippage strictly positive, so its fills are
+              taker-side by construction; a live gateway's maker fills carry
+              negative slippage by design (risk_proxy.py `_maker_fill`). */}
+          {source === "sandbox" && improvement.n > 0 && improvement.improved === 0 && (
+            <p className="muted cockpit-quality__caveat">
+              Sandbox fills are taker-side by construction, so none can beat the mid. On a live
+              gateway, resting fills price inside it and land here.
+            </p>
+          )}
 
           <div className="cockpit-quality__distribution">
             <span className="field">Gate latency distribution</span>
@@ -107,6 +133,24 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
               {source === "sandbox"
                 ? " Sandbox latencies are generated uniform 0.14–0.25 ms — the flat shape is the generator, not a gateway."
                 : ""}
+            </small>
+          </div>
+
+          {/* The distribution that is actually about fill quality. The one above
+              times the gate; this one times nothing — it measures what each fill
+              cost, which is the question this subtab is named for. */}
+          <div className="cockpit-quality__distribution">
+            <span className="field">Effective spread distribution</span>
+            <LatencyHistogram
+              values={rows.map(effectiveSpreadBps).filter((v): v is number => v != null)}
+              unit="bps"
+              unitLong="basis points"
+              noun="fills"
+              ariaLabel="Distribution of effective spread across fills"
+            />
+            <small className="muted">
+              Two times the absolute slippage of each fill, against the consolidated mid the gateway
+              priced its decision at.
             </small>
           </div>
 

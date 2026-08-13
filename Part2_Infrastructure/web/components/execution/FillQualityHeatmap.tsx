@@ -20,12 +20,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import type { BlotterRow } from "@/lib/blotter";
+import { MIN_PRICED_FILLS, type BlotterRow } from "@/lib/blotter";
 import { SHARPE_RAMP_DARK, SHARPE_RAMP_LIGHT, divergingScale } from "@/lib/colormap";
 import { fmt } from "@/lib/format";
 
-/** Below this many priced fills the grid is noise, not evidence. */
-const MIN_FILLS = 8;
+/* The floor lives in lib/blotter.ts now: three panels on this subtab report
+   against it, and a local copy is how one of them ends up disagreeing with the
+   other two about whether there is enough evidence to draw. */
+const MIN_FILLS = MIN_PRICED_FILLS;
 
 interface Cell {
   mean: number;

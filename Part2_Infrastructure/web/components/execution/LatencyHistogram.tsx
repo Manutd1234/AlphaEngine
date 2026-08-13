@@ -25,6 +25,9 @@ export default function LatencyHistogram({
   height = 64,
   ariaLabel,
   minSamples = LATENCY_MIN_SAMPLES,
+  unit = "ms",
+  unitLong = "milliseconds",
+  noun = "decisions",
 }: {
   values: number[];
   binCount?: number;
@@ -32,6 +35,15 @@ export default function LatencyHistogram({
   height?: number;
   ariaLabel: string;
   minSamples?: number;
+  /**
+   * The three strings that were "ms" / "milliseconds" / "decisions" inline.
+   * Defaulted so every existing call site is unchanged; supplied so the same
+   * bin-and-draw can plot the effective-spread distribution in bps rather than
+   * a second component that would drift from this one.
+   */
+  unit?: string;
+  unitLong?: string;
+  noun?: string;
 }) {
   const usable = values.filter((v) => Number.isFinite(v));
   if (usable.length < minSamples) {
@@ -63,7 +75,7 @@ export default function LatencyHistogram({
            the x scale stretches — viewport and viewBox heights match. */
         preserveAspectRatio="none"
         role="img"
-        aria-label={`${ariaLabel} — ${usable.length} decisions between ${fmt(lo, 2)} and ${fmt(hi, 2)} milliseconds`}
+        aria-label={`${ariaLabel} — ${usable.length} ${noun} between ${fmt(lo, 2)} and ${fmt(hi, 2)} ${unitLong}`}
       >
         {bins.counts.map((count, i) => (
           <rect
@@ -82,8 +94,8 @@ export default function LatencyHistogram({
         className="muted num"
         style={{ display: "flex", justifyContent: "space-between", fontSize: 10 }}
       >
-        <span>{fmt(lo, 2)} ms</span>
-        <span>{fmt(hi, 2)} ms</span>
+        <span>{fmt(lo, 2)} {unit}</span>
+        <span>{fmt(hi, 2)} {unit}</span>
       </div>
     </div>
   );

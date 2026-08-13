@@ -58,6 +58,8 @@ import FillQualityHeatmap from "./FillQualityHeatmap";
 import OrderBlotter from "./OrderBlotter";
 import OrderTicket, { type OrderSubmissionResult } from "./OrderTicket";
 import PnlStrip from "./PnlStrip";
+import SpreadDecomposition from "./SpreadDecomposition";
+import VenueMixDonut from "./VenueMixDonut";
 
 const REFRESH_MS = 4_000;
 const MAX_BACKOFF_MS = 60_000;
@@ -397,6 +399,14 @@ export default function ExecutionCockpit({
           rows={effectiveOrders}
           source={feedSource}
         />
+        {/* What each fill cost, and where it was filled. Side by side because
+            they answer one question between them: the decomposition says how
+            much, the mix says where — and a spread that only looks bad on one
+            venue is a routing problem rather than a market one. */}
+        <div className="cockpit-grid">
+          <SpreadDecomposition rows={effectiveOrders} source={feedSource} />
+          <VenueMixDonut rows={effectiveOrders} source={feedSource} />
+        </div>
         {/* Renders only above its own sample floor — see the component. */}
         <FillQualityHeatmap rows={effectiveOrders} source={feedSource} />
       </WorkspaceSubtabPanel>
