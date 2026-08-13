@@ -7606,6 +7606,14 @@ button.console-stat:hover:not(:disabled) {
   gap: 16px;
 }
 
+/* Trust Summary's in-panel switcher. Three `flex: 1` buttons across a
+   desk-width grid column push the labels a long way apart; capping the control
+   keeps it readable and leaves the panes the full width. The grid `gap` above
+   already spaces it from the pane below, so no margin here. */
+.data-trust-overview > .seg {
+  max-width: 420px;
+}
+
 .data-trust-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

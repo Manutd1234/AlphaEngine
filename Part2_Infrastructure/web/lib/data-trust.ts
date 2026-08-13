@@ -1,6 +1,8 @@
 import type {
   HealthSourceFreshness,
   InspectResponse,
+  LatencyStats,
+  RouteState,
   SystemHealth,
   ValidationTelemetry,
 } from "@/components/systems/types";
@@ -427,4 +429,358 @@ export function deriveTrustSlis(health: SystemHealth | null): TrustSli[] {
         : observedAgeMs < 60_000 ? "good" : observedAgeMs < 300_000 ? "warn" : "bad",
     },
   ];
+}
+
+// --------------------------------------------------------------------------
+// Snapshot-backed analytics
+//
+// WHY these sources and not the obvious ones.
+//
+// `validation.*`, `cache.byCapability`, `events.*` and `quarantine.*` are only
+// ever incremented inside `dispatch()` (lib/providers/runtime.ts), which runs
+// in the `/api/quote`-family lambdas. `/api/system/health` is answered by
+// `buildSystemHealthSnapshot` in a DIFFERENT serverless process with its own
+// module scope, so those four read ~0 on a fully warm, heavily-trafficked
+// deployment. That is not a cold start and no amount of traffic fixes it —
+// drawing more charts over them just produces more empty charts.
+//
+// Everything below reads the half of the payload that is BUILT DURING the
+// health request itself: the provider registry, the failover graph, the quota
+// ledger and the gateway's own ops snapshot. Those are populated on every poll,
+// on every instance, which is why the analytics moved onto them.
+// --------------------------------------------------------------------------
+
+/** A duration a person can read. `null` stays absent — never "0s". */
+export function humanDuration(ms: number | null | undefined): string {
+  if (ms == null || !Number.isFinite(ms)) return "n/a";
+  const seconds = Math.max(0, Math.round(ms / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3_600) return `${Math.round(seconds / 60)}m`;
+  if (seconds < 86_400) return `${(seconds / 3_600).toFixed(1)}h`;
+  return `${(seconds / 86_400).toFixed(1)}d`;
+}
+
+export interface InstanceScopeFact {
+  id: "scope" | "instances" | "uptime" | "observed";
+  label: string;
+  value: string;
+  detail: string;
+  tone: DataTrustTone;
+}
+
+/**
+ * Whose numbers these are.
+ *
+ * `instance.scope`, `instance.shared` and `instance.uptimeMs` have been on the
+ * wire and typed the whole time, and nothing rendered them. They are the single
+ * highest-value thing on this tab and not a chart: `scope` states outright
+ * whether the counters below were merged across the fleet through the gateway
+ * ledger or measured by this one lambda, and `uptimeMs` states how long that
+ * lambda has been alive. Together they turn "0 evaluated" from an alarm into an
+ * explained boundary.
+ */
+export function deriveInstanceScope(health: SystemHealth | null): InstanceScopeFact[] {
+  const instance = health?.instance ?? null;
+  const shared = instance?.shared ?? null;
+  const backed = shared?.backed ?? false;
+  const reporting = shared?.instances.length ?? 0;
+  const uptimeMs = instance ? instance.uptimeMs : null;
+
+  return [
+    {
+      id: "scope",
+      label: "Ledger scope",
+      value: !instance ? "not observed" : backed ? "Gateway-shared" : "Per-instance",
+      detail: instance?.scope
+        ?? "No health snapshot has arrived, so the measurement boundary is unknown.",
+      tone: !instance ? "unknown" : backed ? "good" : "warn",
+    },
+    {
+      id: "instances",
+      // Not "0" when the sync is down: an unmerged ledger is an unobserved
+      // fleet, not a fleet of none.
+      label: "Instances merged",
+      value: backed && reporting > 0 ? String(reporting) : "n/a",
+      detail: backed && reporting > 0
+        ? `${shared!.instances.slice(0, 4).join(", ")}${reporting > 4 ? ` +${reporting - 4} more` : ""}`
+          + `${shared!.windowSeconds ? ` · ${shared!.windowSeconds}s merge window` : ""}`
+        : instance
+          ? "The gateway ledger sync is unavailable, so every counter on this tab was measured by this lambda alone."
+          : "Waiting for the first health snapshot.",
+      tone: backed && reporting > 0 ? "good" : "unknown",
+    },
+    {
+      id: "uptime",
+      label: "This instance uptime",
+      value: humanDuration(uptimeMs),
+      detail: instance
+        ? `Instance ${instance.id}. Validation, cache, event and quarantine counters are incremented in the quote lambdas, not in this one, so they start empty here and stay empty.`
+        : "No instance identity has been reported.",
+      // A young instance is the honest explanation for a thin window, so it is
+      // flagged rather than presented as a healthy reading.
+      tone: uptimeMs == null ? "unknown" : uptimeMs < 300_000 ? "warn" : "good",
+    },
+    {
+      id: "observed",
+      label: "Ledger observed",
+      value: shared?.ageMs == null ? "n/a" : `${Math.max(0, Math.round(shared.ageMs / 1000))}s ago`,
+      detail: shared?.observedAt
+        ? `Shared ops state last merged at ${shared.observedAt}.`
+        : "No shared observation time — there is nothing to merge against.",
+      tone: shared?.ageMs == null ? "unknown" : shared.ageMs < 60_000 ? "good" : "warn",
+    },
+  ];
+}
+
+export interface SupplyCounts {
+  total: number;
+  ready: number;
+  circuitOpen: number;
+  quotaExhausted: number;
+  simulatedOutage: number;
+  notConfigured: number;
+  /** Configured, not blocked by circuit or quota, and still not routable. */
+  blocked: number;
+}
+
+/**
+ * Every provider counted EXACTLY ONCE.
+ *
+ * `summary.degraded`, `summary.exhausted` and `summary.simulated` are three
+ * independent id lists and a provider can appear in more than one of them, so a
+ * ring built from those three plus `ready` can sum past `total` — a composition
+ * chart whose slices do not partition its own denominator. Classifying each
+ * provider row by precedence is what makes the ring add up.
+ */
+export function deriveProviderSupply(health: SystemHealth | null): SupplyCounts {
+  const counts: SupplyCounts = {
+    total: 0,
+    ready: 0,
+    circuitOpen: 0,
+    quotaExhausted: 0,
+    simulatedOutage: 0,
+    notConfigured: 0,
+    blocked: 0,
+  };
+  for (const provider of health?.providers ?? []) {
+    counts.total += 1;
+    if (!provider.configured) counts.notConfigured += 1;
+    else if (provider.simulatedOutage) counts.simulatedOutage += 1;
+    else if (provider.circuitOpen || provider.breaker.state === "open") counts.circuitOpen += 1;
+    else if (provider.quota && provider.quota.remaining <= 0) counts.quotaExhausted += 1;
+    else if (provider.ready) counts.ready += 1;
+    else counts.blocked += 1;
+  }
+  return counts;
+}
+
+export interface FailoverDepthRow {
+  capability: string;
+  asset: string;
+  total: number;
+  ready: number;
+  byState: Record<RouteState, number>;
+  activeProvider: string | null;
+}
+
+const ROUTE_STATES: RouteState[] = [
+  "ready",
+  "quota_reserved",
+  "quota_exhausted",
+  "circuit_open",
+  "simulated_outage",
+  "not_configured",
+];
+
+/**
+ * How deep each failover chain actually is right now.
+ *
+ * `routes` is the richest structure on the wire — one ranked chain per
+ * capability × asset, each node carrying its own routing state — and the tab
+ * reduced all of it to the single scalar "9 route graphs". The question a chain
+ * answers is whether anything is behind the provider currently serving it, so
+ * the thinnest chains sort first.
+ */
+export function deriveFailoverDepth(health: SystemHealth | null): FailoverDepthRow[] {
+  return (health?.routes ?? [])
+    .map((route) => {
+      const byState = Object.fromEntries(ROUTE_STATES.map((state) => [state, 0])) as Record<RouteState, number>;
+      for (const node of route.nodes) byState[node.state] = (byState[node.state] ?? 0) + 1;
+      return {
+        capability: route.capability,
+        asset: route.asset,
+        total: route.nodes.length,
+        ready: byState.ready,
+        byState,
+        activeProvider: route.activeProvider,
+      };
+    })
+    .sort((left, right) =>
+      left.ready - right.ready
+      || left.capability.localeCompare(right.capability)
+      || left.asset.localeCompare(right.asset));
+}
+
+export interface QuotaHeadroomRow {
+  id: string;
+  label: string;
+  used: number;
+  limit: number;
+  remaining: number;
+  reserve: number;
+  window: string;
+  /** Shares of the window, summing to exactly 100 so rows stay comparable. */
+  spentPct: number;
+  freePct: number;
+  reservedPct: number;
+  tone: DataTrustTone;
+}
+
+/**
+ * Quota as a proportion, tightest first.
+ *
+ * Deliberately NOT the per-provider meters in `QuotaMeters` (Providers section),
+ * which are absolute counts with a window countdown: 5/5000 and 5/5 are the same
+ * bar there and opposite facts here. The reserve is carved out of the top of the
+ * window — background polling stops when `remaining <= reserve` — so it is drawn
+ * as its own band rather than as part of the free space, because a desk reading
+ * "245 left" is already being refused refreshes at 50 of them.
+ */
+export function deriveQuotaHeadroom(health: SystemHealth | null): QuotaHeadroomRow[] {
+  const rows: QuotaHeadroomRow[] = [];
+  for (const provider of health?.providers ?? []) {
+    const quota = provider.quota;
+    // A zero or missing limit is not a quota of nothing; it is no local ledger.
+    // Unconfigured providers are excluded even though the registry still
+    // reports their window: a budget that cannot be spent is not headroom, and
+    // a full green bar for a provider with no key is the most flattering
+    // possible way to draw a missing credential.
+    if (!provider.configured || !quota || quota.limit <= 0) continue;
+    const spent = Math.min(quota.limit, Math.max(0, quota.used));
+    const reserved = Math.min(Math.max(0, quota.remaining), Math.max(0, quota.reserve));
+    const spentPct = Math.round((spent / quota.limit) * 1000) / 10;
+    const reservedPct = Math.round((reserved / quota.limit) * 1000) / 10;
+    rows.push({
+      id: provider.id,
+      label: provider.label,
+      used: quota.used,
+      limit: quota.limit,
+      remaining: quota.remaining,
+      reserve: quota.reserve,
+      window: quota.window,
+      spentPct,
+      reservedPct,
+      // The remainder, not a third rounding: the three shares must total 100 or
+      // the bar overruns the track it is drawn in.
+      freePct: Math.max(0, Math.round((100 - spentPct - reservedPct) * 10) / 10),
+      tone: quota.remaining <= 0 ? "bad" : quota.remaining <= quota.reserve ? "warn" : "good",
+    });
+  }
+  return rows.sort((left, right) =>
+    (left.remaining - left.reserve) / left.limit - (right.remaining - right.reserve) / right.limit
+    || left.label.localeCompare(right.label));
+}
+
+export interface FeedBookRow {
+  symbol: string;
+  updateRateHz: number;
+  ageSeconds: number | null;
+  updatesTotal: number;
+  stale: boolean;
+}
+
+export interface FeedThroughputRow {
+  venue: string;
+  status: "up" | "degraded" | "stale" | "down";
+  connected: boolean;
+  synthetic: boolean;
+  reconnects: number;
+  uptimeSeconds: number;
+  updatesTotal: number;
+  /** Lifetime mean, or `null` when there is no uptime to divide by. */
+  meanRateHz: number | null;
+  books: FeedBookRow[];
+}
+
+/**
+ * The richest live dataset reaching this tab, and the one it rendered as a
+ * single decimal in a table cell.
+ *
+ * `update_rate_hz` and `uptime_seconds` are confirmed rendered nowhere else in
+ * the tree. The mean rate is derived rather than published: it ASSUMES every
+ * book was subscribed when the venue connected, which is why it is separated
+ * from the instantaneous rate instead of being averaged with it, and why the
+ * panel says so.
+ */
+export function deriveFeedThroughput(health: SystemHealth | null): FeedThroughputRow[] {
+  return (health?.platform?.market_data.feeds ?? []).map((feed) => {
+    const updatesTotal = feed.symbols.reduce((sum, book) => sum + (book.updates_total ?? 0), 0);
+    return {
+      venue: feed.venue,
+      status: feed.status,
+      connected: feed.connected,
+      synthetic: feed.synthetic,
+      reconnects: feed.reconnects,
+      uptimeSeconds: feed.uptime_seconds,
+      updatesTotal,
+      meanRateHz: feed.uptime_seconds > 0 ? updatesTotal / feed.uptime_seconds : null,
+      books: feed.symbols.map((book) => ({
+        symbol: book.symbol,
+        updateRateHz: book.update_rate_hz,
+        ageSeconds: book.age_seconds,
+        updatesTotal: book.updates_total,
+        stale: book.stale,
+      })),
+    };
+  });
+}
+
+export interface LatencySourceRef {
+  key: string;
+  label: string;
+  kind: "provider" | "venue" | "plane" | "unknown";
+  /** The published fifteen-minute aggregate, or `null` when none exists. */
+  stats: LatencyStats | null;
+  /** Why there is no aggregate, when there is none. */
+  note: string | null;
+}
+
+/**
+ * Resolve a latency-window series key to the source it measures.
+ *
+ * The bug this replaces: the panel matched `venue:*` and provider ids only, so
+ * `plane:gateway` — recorded on EVERY health poll by the health route itself,
+ * and therefore the densest line on the tab — fell through both branches and
+ * showed a permanent "—" beside a fully drawn sparkline. A stat chip that is
+ * blank no matter how much traffic a source gets reads as a broken source.
+ *
+ * `plane:*` keys genuinely have no published aggregate: only providers and
+ * venues carry `LatencyStats` on the wire. So the p95 is withheld and named
+ * `n/a`, and the sample count comes from the window's own per-bucket counts,
+ * which describe the same sample pool.
+ */
+export function resolveLatencySource(health: SystemHealth | null, key: string): LatencySourceRef {
+  if (key.startsWith("venue:")) {
+    const id = key.slice("venue:".length);
+    const venue = health?.venues.find((row) => row.id === id) ?? null;
+    return { key, label: id, kind: "venue", stats: venue?.latency ?? null, note: venue ? null : "venue not in this snapshot" };
+  }
+  if (key.startsWith("plane:")) {
+    const plane = key.slice("plane:".length);
+    return {
+      key,
+      label: `${plane} probe`,
+      kind: "plane",
+      stats: null,
+      note: "the health route's own call to the gateway; no fifteen-minute aggregate is published for it",
+    };
+  }
+  const provider = health?.providers.find((row) => row.id === key) ?? null;
+  return {
+    key,
+    label: provider?.label ?? key,
+    kind: provider ? "provider" : "unknown",
+    stats: provider?.latency ?? null,
+    note: provider ? null : "no provider, venue or plane in this snapshot owns this key",
+  };
 }
