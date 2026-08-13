@@ -45,8 +45,8 @@ jobs:
       run:
         working-directory: Part2_Infrastructure
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -137,7 +137,7 @@ jobs:
     if: inputs.target == 'both' || inputs.target == 'supabase'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Secrets present?
         id: gate
@@ -150,7 +150,11 @@ jobs:
             echo "::notice::Create a token at https://supabase.com/dashboard/account/tokens"
           fi
 
-      - uses: supabase/setup-cli@v1
+      # v3 installs the CLI from npm rather than from GitHub releases, and
+      # DROPS the `github-token` input. Safe here only because this step never
+      # passed one — `version: latest` is the whole configuration, and v3 still
+      # accepts it. Check that before bumping this again.
+      - uses: supabase/setup-cli@v3
         if: steps.gate.outputs.ready == 'yes'
         with:
           version: latest
