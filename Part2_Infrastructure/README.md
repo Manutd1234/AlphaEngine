@@ -1414,9 +1414,20 @@ different build than the one tested here.
 **Turn off Deployment Protection** only if this case-assessment URL must be
 public. Gateway and OpenBB credentials remain server-only in Vercel; the
 browser can access only the explicit same-origin proxy routes. Telegram is not
-an authentication path for this workspace: the header's Telegram button is a
-one-way deep link out to the bot, and the bot answers to its own user
-allow-list rather than to anything a browser session says.
+an authentication path for this workspace, and account linking does not make it
+one — the link runs one way. A web identity can authorise a *Telegram* read;
+nothing a Telegram user does is ever evidence about a web request, and the bot
+still answers to its own allow-list rather than to anything a browser session
+says.
+
+A binding also grants no more than a desk pass already does, and
+`POST /api/auth/guest` hands a pass to anyone who asks — so it moves the same
+shared book between transports it was already on rather than unlocking
+anything new. Control commands (`/halt`, `/flatten`, `/resetbook`) stay gated on
+`TELEGRAM_CONTROL_USER_IDS` alone and are never widened by a link. For an
+account the identity is proved by validating the Supabase JWT, never read off
+the unsigned desk cookie, which would otherwise let someone bind their chat to
+another person's row.
 
 ### Vercel — standalone OpenBB service (`OpenBB_Service/`)
 

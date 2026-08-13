@@ -206,6 +206,13 @@ async def trader_identity(
     bearer auth remains supported for direct clients. ``REQUIRE_AUTH=1`` turns
     the anonymous path into a 401. Telegram has its own user allow-list and
     never authenticates web requests.
+
+    Account linking does not weaken that, because it runs one way only: a web
+    identity can authorise a *Telegram* read, and nothing a Telegram user does
+    is ever evidence about a web request. A binding also grants no more than a
+    desk pass already does — and ``POST /api/auth/guest`` hands a pass to
+    anyone who asks — so it moves data between transports it was already on
+    rather than unlocking any. Control commands stay on their own allow-list.
     """
     presented = x_alphaengine_token.strip() if x_alphaengine_token else None
     if presented is None and authorization and authorization.startswith("Bearer "):

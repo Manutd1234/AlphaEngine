@@ -253,10 +253,41 @@ class Settings:
     telegram_mode: str = field(default_factory=lambda: _env("TELEGRAM_MODE", "auto").lower())
     telegram_api_base: str = field(default_factory=lambda: _env("TELEGRAM_API_BASE", "https://api.telegram.org"))
 
+    # ---- Telegram ↔ web account linking -----------------------------------
+    # Shared HMAC key held by BOTH the web app and this gateway. The web mints a
+    # one-time deep-link token for the desk pass it is already holding; the bot
+    # verifies it here. Never prefixed NEXT_PUBLIC_: a browser-readable key would
+    # let anyone mint a link for any identity.
+    #
+    # Empty is fail-closed and the /start handler says so on screen. Linking is a
+    # feature that is absent when unconfigured, never one that silently accepts
+    # unauthenticated tokens.
+    telegram_link_secret: str = field(default_factory=lambda: _env("TELEGRAM_LINK_SECRET"))
+    # A deep link is clicked within seconds of being minted; the window only has
+    # to survive the tap and the Telegram app cold-starting. Fifteen minutes is
+    # generous for that and short enough that a token leaked into a screenshot or
+    # a shared browser history is worthless by the time anyone reads it.
+    telegram_link_token_ttl_s: float = field(
+        default_factory=lambda: _env_float("TELEGRAM_LINK_TOKEN_TTL_S", 900.0)
+    )
+    # How long a GUEST binding keeps read parity. A guest desk pass is a browser
+    # session cookie, and the gateway cannot observe that cookie dying — so the
+    # binding carries its own expiry rather than pretending to track one it
+    # cannot see. Account bindings have a durable Supabase row and no timer.
+    telegram_guest_link_ttl_s: float = field(
+        default_factory=lambda: _env_float("TELEGRAM_GUEST_LINK_TTL_S", 43_200.0)
+    )
+
     # ---- Web UI auth -------------------------------------------------------
     # The gateway console and external web clients use a server-side bearer
     # token. Telegram is an independent notification client and is not an auth
     # provider for either web interface.
+    #
+    # Account linking (TELEGRAM_LINK_SECRET above) does not weaken that. It runs
+    # in the opposite direction: a *web* desk pass authorises a *Telegram* read,
+    # never the reverse. No Telegram identity, bound or otherwise, is ever
+    # accepted as a credential by a web request, and no binding touches
+    # TELEGRAM_CONTROL_USER_IDS.
     web_api_token: str = field(default_factory=lambda: _env("WEB_API_TOKEN", "alphaengine-dev-token"))
     require_auth: bool = field(default_factory=lambda: _env_bool("REQUIRE_AUTH", False))
 
@@ -272,6 +303,17 @@ class Settings:
         if self.telegram_mode in {"webhook", "polling"}:
             return self.telegram_mode
         return "webhook" if self.public_url.startswith("https://") else "polling"
+
+    @property
+    def telegram_link_enabled(self) -> bool:
+        """Whether desk-pass → Telegram linking may run at all.
+
+        The 32-character floor is the webhook secret's rule, for the same
+        reason: this key is the only thing standing between a stranger and a
+        token that claims to be someone else's desk pass, and a short one is
+        guessable offline because the verifier is a pure function.
+        """
+        return len(self.telegram_link_secret) >= 32
 
     @property
     def webhook_path(self) -> str:

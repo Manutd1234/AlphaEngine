@@ -172,7 +172,16 @@ _DDL = [
         subscribed_at TIMESTAMP,
         alerts        BOOLEAN,
         watches       VARCHAR,
-        user_id       VARCHAR
+        user_id       VARCHAR,
+        web_identity  VARCHAR,
+        linked_at     TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS telegram_link_tokens (
+        token_hash  VARCHAR,
+        redeemed_at TIMESTAMP,
+        expires_at  TIMESTAMP
     )
     """,
     """
@@ -192,6 +201,15 @@ _DDL = [
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+#: Sentinel for "leave whatever is already stored alone".
+#:
+#: ``upsert_subscriber`` is a DELETE-then-INSERT, so any column it does not
+#: carry forward is erased. ``/subscribe`` knows nothing about account linking
+#: and must not unbind a chat merely by touching its alert preference — which is
+#: exactly the defect a plain ``None`` default would have shipped.
+_KEEP: Any = object()
 
 
 def _audit_timestamp(value: Any, *, context: str) -> datetime:
@@ -256,6 +274,22 @@ class AuditLog:
             }
             if "user_id" not in subscriber_columns:
                 self._conn.execute("ALTER TABLE subscribers ADD COLUMN user_id VARCHAR")
+
+            # Which web desk pass bound this chat, and when. Same rule as the
+            # column above: existing rows stay NULL, and a NULL ``web_identity``
+            # grants nothing — a chat that predates linking is exactly as
+            # unbound as it was before the column existed.
+            #
+            # ``linked_at`` rides alongside because a guest binding has to
+            # expire. The desk pass it mirrors is a browser-session cookie the
+            # gateway cannot watch die, so the grant carries its own clock
+            # instead of an unbounded one nobody can revoke.
+            for column, sql_type in (("web_identity", "VARCHAR"), ("linked_at", "TIMESTAMP")):
+                if column not in subscriber_columns:
+                    self._conn.execute(
+                        f"ALTER TABLE subscribers ADD COLUMN {column} "  # noqa: S608
+                        f"{'TEXT' if self.backend == 'sqlite' and sql_type == 'TIMESTAMP' else sql_type}"
+                    )
 
             # Reproducibility metadata added after the first databases existed.
             # Older rows keep NULL rather than being back-filled with a guess: a
@@ -845,18 +879,94 @@ class AuditLog:
     # kill switch tripped because the alert list was in memory.
     def upsert_subscriber(self, chat_id: str, username: str | None,
                           alerts: bool = True, watches: list[dict] | None = None,
-                          *, user_id: str | None = None) -> None:
-        existing = self.get_subscriber(chat_id)
-        payload = json.dumps(watches if watches is not None else (existing or {}).get("watches", []))
+                          *, user_id: str | None = None,
+                          web_identity: Any = _KEEP, linked_at: Any = _KEEP) -> None:
+        existing = self.get_subscriber(chat_id) or {}
+        payload = json.dumps(watches if watches is not None else existing.get("watches", []))
         owner_id = str(user_id) if user_id is not None else None
+        identity = existing.get("web_identity") if web_identity is _KEEP else web_identity
+        bound_at = existing.get("linked_at") if linked_at is _KEEP else linked_at
         self._exec("DELETE FROM subscribers WHERE chat_id = ?", (str(chat_id),))
         self._exec(
             "INSERT INTO subscribers "
-            "(chat_id, username, subscribed_at, alerts, watches, user_id) "
-            "VALUES (?,?,?,?,?,?)",
+            "(chat_id, username, subscribed_at, alerts, watches, user_id, web_identity, linked_at) "
+            "VALUES (?,?,?,?,?,?,?,?)",
             (str(chat_id), username,
-             (existing or {}).get("subscribed_at") or _utcnow(), alerts, payload, owner_id),
+             existing.get("subscribed_at") or _utcnow(), alerts, payload, owner_id,
+             identity, bound_at),
         )
+
+    def web_bindings(self) -> list[dict[str, Any]]:
+        """Every chat bound to a web desk pass, with its Telegram owner and age.
+
+        ``linked_at`` is normalised here rather than by the caller, for the
+        reason ``_audit_timestamp`` exists: DuckDB returns a ``datetime`` and the
+        SQLite fallback returns the ISO string it was handed, and an expiry
+        policy comparing one against the other either raises or silently expires
+        nothing at all.
+
+        A row whose timestamp is missing or unreadable is dropped, not repaired.
+        A binding that cannot be aged is a binding that could never be revoked.
+        """
+        rows = self.query(
+            "SELECT chat_id, user_id, web_identity, linked_at FROM subscribers "
+            "WHERE web_identity IS NOT NULL AND user_id IS NOT NULL"
+        )
+        bindings: list[dict[str, Any]] = []
+        for row in rows:
+            try:
+                row["linked_at"] = _audit_timestamp(
+                    row.get("linked_at"), context="subscribers.linked_at"
+                )
+            except RuntimeError as exc:
+                log.error("dropping unreadable web binding: %s", exc)
+                continue
+            bindings.append(row)
+        return bindings
+
+    def claim_link_token(self, token_hash: str, expires_at: datetime) -> bool:
+        """Spend a one-time link token. ``False`` if it was already spent.
+
+        The read and the write are one critical section, which is the whole
+        point: two ``/start`` messages carrying the same token — a double tap, a
+        forwarded link — would otherwise both find an empty ledger and both
+        bind. ``_exec``/``query`` each take the lock themselves, so this cannot
+        be built from them without releasing it in between.
+
+        Only the hash is stored. The ledger outlives the token it describes, and
+        an audit file holding live credentials is a second place to leak them.
+
+        Expired rows are pruned on the way past: this table only has to remember
+        a token for as long as the token itself could still be presented.
+        """
+        if self._closed:
+            return False
+        now = _utcnow()
+        stamp = now.isoformat() if self.backend == "sqlite" else now
+        expiry = expires_at.isoformat() if self.backend == "sqlite" else expires_at
+        try:
+            with self._lock:
+                self._conn.execute(
+                    "DELETE FROM telegram_link_tokens WHERE expires_at < ?", (stamp,)
+                )
+                cursor = self._conn.execute(
+                    "SELECT count(*) FROM telegram_link_tokens WHERE token_hash = ?",
+                    (token_hash,),
+                )
+                already = int((cursor.fetchone() or [0])[0])
+                if not already:
+                    self._conn.execute(
+                        "INSERT INTO telegram_link_tokens VALUES (?,?,?)",
+                        (token_hash, stamp, expiry),
+                    )
+                if self.backend == "sqlite":
+                    self._conn.commit()
+            return not already
+        except Exception as exc:
+            # Fail closed. An unreadable ledger cannot prove a token is unspent,
+            # and "probably fine" is not a property a single-use token has.
+            log.error("link token claim failed: %s", exc)
+            return False
 
     def get_subscriber(self, chat_id: str) -> dict[str, Any] | None:
         rows = self.query("SELECT * FROM subscribers WHERE chat_id = ?", (str(chat_id),))

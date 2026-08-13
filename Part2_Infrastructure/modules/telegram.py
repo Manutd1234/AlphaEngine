@@ -5,25 +5,34 @@ not open a Mini App, authenticate the website, submit orders, alter the kill
 switch, or enqueue research. It reads the same authoritative gateway state and
 OpenBB provider layer, then renders compact phone-friendly text cards.
 
-Only notification preferences mutate through this module. Operational data is
-fail-closed behind ``TELEGRAM_ALLOWED_USER_IDS``; when no allow-list exists,
-the bot exposes only bootstrap commands such as ``/whoami`` so an operator can
-obtain their Telegram user ID safely.
+Operational data is fail-closed behind two named grants, and only two:
+``TELEGRAM_ALLOWED_USER_IDS``, and a chat bound to a web desk pass through the
+workspace's Connect button. With neither, the bot exposes only bootstrap
+commands such as ``/whoami`` so an operator can obtain their Telegram user ID
+safely. A binding grants READING and never control — ``/halt``, ``/resume``,
+``/flatten``, ``/reduceonly`` and ``/resetbook`` read
+``TELEGRAM_CONTROL_USER_IDS`` alone. See `TelegramBot._authorised` for why the
+second grant is not an authentication bypass.
 """
 
 from __future__ import annotations
 
 import asyncio
+import base64
 import contextlib
+import hashlib
+import hmac
 import html
 import json
 import logging
 import math
 import re
+import secrets
 import time
+import uuid
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +54,154 @@ log = logging.getLogger("alphaengine.telegram")
 _SYMBOL_RE = re.compile(r"^[A-Z0-9.\-]{1,20}$")
 _HTML_TAG_RE = re.compile(r"</?(?:b|i|code|pre|u|s)(?:\s[^>]*)?>", re.IGNORECASE)
 _TELEGRAM_ACTOR_RE = re.compile(r"^tg:([1-9][0-9]*):")
+
+
+def actor_user_id(actor: Any) -> str:
+    """The bare numeric Telegram user id inside a ``tg:<id>:<username>`` actor.
+
+    Empty string when the actor is not that shape, and every caller must treat
+    that as "no identity" rather than as a name. The composite exists because
+    the audit log wants a readable actor; every allow-list in this module
+    compares bare ids, and handing one of them the whole string is how `/halt`
+    spent months answering "not permitted" to the operators who configured it.
+    """
+    match = _TELEGRAM_ACTOR_RE.match(str(actor))
+    return match.group(1) if match else ""
+
+
+# --------------------------------------------------------------------------- #
+# Desk-pass → Telegram link tokens
+# --------------------------------------------------------------------------- #
+#
+# A ``t.me/<bot>?start=<token>`` payload may be at most 64 characters from
+# ``[A-Za-z0-9_-]``, which rules out anything JSON-shaped: a bare UUID in text
+# is already 36 of them. So the token is packed binary, then base64url'd —
+# 38 bytes in, 51 characters out, comfortably inside Telegram's ceiling:
+#
+#     version(1) ‖ kind(1) ‖ expires_at(4, big-endian) ‖ nonce(4) ‖ uuid(16)
+#     ‖ HMAC-SHA256(secret, everything above)[:12]
+#
+# Self-describing and signed rather than a handle into a table, because the two
+# ends are different processes on different hosts: the web app mints, the
+# gateway verifies, and they share a secret rather than a database. That also
+# gives the property the in-process `_challenges` dict cannot — a gateway
+# restart between the tap and the ``/start`` does not silently void the link.
+#
+# Single use is enforced where it has to be, at redemption, by a persisted
+# ledger in the audit store (``AuditLog.claim_link_token``). Minting writes
+# nothing, so a page that mints a fresh token on every hover costs one HMAC.
+_LINK_TOKEN_VERSION = 1
+LINK_KIND_ACCOUNT = "account"
+LINK_KIND_GUEST = "guest"
+_LINK_KIND_BYTE = {LINK_KIND_ACCOUNT: 1, LINK_KIND_GUEST: 2}
+_LINK_KIND_NAME = {value: name for name, value in _LINK_KIND_BYTE.items()}
+_LINK_MAC_BYTES = 12
+_LINK_PAYLOAD_BYTES = 26
+_LINK_TOKEN_BYTES = _LINK_PAYLOAD_BYTES + _LINK_MAC_BYTES
+_LINK_TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+@dataclass(frozen=True)
+class LinkToken:
+    """A verified link token: who minted it, on which side of the desk, and until when."""
+
+    kind: str
+    identity: str
+    expires_at: datetime
+
+    @property
+    def web_identity(self) -> str:
+        """The value stored against the binding — kind included, deliberately.
+
+        A guest UUID and an account UUID are both 16 bytes and neither carries
+        its own provenance. Storing ``guest:…`` alongside ``account:…`` means the
+        expiry policy can read the row rather than infer from a lookup that may
+        no longer be possible.
+        """
+        return f"{self.kind}:{self.identity}"
+
+
+def _b64url_encode(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def _b64url_decode(value: str) -> bytes:
+    return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+
+
+def _link_mac(payload: bytes, secret: str) -> bytes:
+    return hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).digest()[:_LINK_MAC_BYTES]
+
+
+def link_token_fingerprint(token: str) -> str:
+    """What the single-use ledger stores instead of the token itself."""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def mint_link_token(
+    kind: str,
+    identity: str,
+    secret: str,
+    ttl_s: float,
+    *,
+    now: float | None = None,
+    nonce: bytes | None = None,
+) -> str:
+    """Mint a deep-link token for a web identity. The web app is the usual minter.
+
+    Present here as well so the format has one executable definition on this
+    side of the wire, and so `tests/test_telegram_link.py` can pin the exact
+    bytes against the TypeScript minter's own vector.
+    """
+    if kind not in _LINK_KIND_BYTE:
+        raise ValueError(f"unknown link kind {kind!r}")
+    identity_bytes = uuid.UUID(identity).bytes
+    expires_at = int((time.time() if now is None else now) + ttl_s)
+    payload = (
+        bytes([_LINK_TOKEN_VERSION, _LINK_KIND_BYTE[kind]])
+        + expires_at.to_bytes(4, "big")
+        + (nonce or secrets.token_bytes(4))
+        + identity_bytes
+    )
+    return _b64url_encode(payload + _link_mac(payload, secret))
+
+
+def decode_link_token(token: str, secret: str, *, now: float | None = None) -> LinkToken:
+    """Verify a token and return what it claims. ``ValueError`` carries the refusal text.
+
+    Every failure message is written to be shown to whoever presented it: a
+    refusal that does not say which of "malformed", "not ours" and "too old"
+    happened sends the reader to an operator instead of back to the button.
+    """
+    if not _LINK_TOKEN_RE.fullmatch(token or ""):
+        raise ValueError("That start code is not in the format this desk issues.")
+    try:
+        raw = _b64url_decode(token)
+    except (ValueError, TypeError) as exc:
+        raise ValueError("That start code is not in the format this desk issues.") from exc
+    if len(raw) != _LINK_TOKEN_BYTES or raw[0] != _LINK_TOKEN_VERSION:
+        raise ValueError("That start code is not in the format this desk issues.")
+
+    payload, mac = raw[:_LINK_PAYLOAD_BYTES], raw[_LINK_PAYLOAD_BYTES:]
+    # Constant time: the verifier is a pure function an attacker can call as
+    # often as they like, so a comparison that returns early on the first wrong
+    # byte is a byte-at-a-time oracle for the signature.
+    if not hmac.compare_digest(mac, _link_mac(payload, secret)):
+        raise ValueError("That start code was not issued by this desk.")
+
+    kind = _LINK_KIND_NAME.get(payload[1])
+    if kind is None:
+        raise ValueError("That start code is not in the format this desk issues.")
+    expires_at = int.from_bytes(payload[2:6], "big")
+    if (time.time() if now is None else now) > expires_at:
+        raise ValueError("That connect link has expired. Tap Connect on the desk again.")
+    return LinkToken(
+        kind=kind,
+        identity=str(uuid.UUID(bytes=payload[10:26])),
+        expires_at=datetime.fromtimestamp(expires_at, timezone.utc).replace(tzinfo=None),
+    )
+
+
 """The gates the deploy workflow actually runs before it will ship a build.
 
 This replaced three hardcoded assertion counts (342/680/13) that drifted the
@@ -452,6 +609,12 @@ class TelegramBot:
         # invalidating every pending kill-switch confirmation is the safe
         # direction to fail.
         self._challenges: dict[str, dict[str, Any]] = {}
+        # Telegram user ids with a live web binding, and when that set was last
+        # read from the audit store. A cache, never a record: the binding itself
+        # is persisted, and this is dropped whenever one is written.
+        self._bound_users: set[str] = set()
+        self._bound_users_read_at: float | None = None
+        self.links_completed = 0
         self.me: dict[str, Any] | None = None
         self.started_at: float | None = None
         self.updates_handled = 0
@@ -478,6 +641,15 @@ class TelegramBot:
         Fails closed on an empty list, like the read allow-list — an
         unconfigured deployment has a reporting bot, not a dormant kill switch
         waiting for someone to guess a command.
+
+        One list, read once, and no second grant: `_authorised` gained a web
+        binding as an alternative source of *read* rights, and this function
+        deliberately did not. Whatever else changes about who may read this
+        book, changing who may stop it stays an edit to
+        ``TELEGRAM_CONTROL_USER_IDS`` by someone with deploy access.
+
+        ``user_id`` is a bare numeric id. Callers holding a composite actor must
+        put it through `actor_user_id` first.
         """
         return bool(self.control_user_ids) and user_id in self.control_user_ids
 
@@ -747,8 +919,88 @@ class TelegramBot:
         self._seen_updates.add(update_id)
         return True
 
-    def _authorised(self, user_id: str) -> bool:
+    # A few seconds. `_authorised` runs on every update and once per subscriber
+    # inside the alert loops, so an uncached lookup makes a broadcast to twenty
+    # chats twenty DuckDB round trips. Short enough that an expired binding
+    # stops granting almost at once, and dropped outright when one is written.
+    _BINDING_CACHE_TTL_S = 5.0
+
+    def _allow_listed(self, user_id: str) -> bool:
+        """The operator's own read list. Fail-closed on empty, as it always was."""
         return bool(self.allowed_user_ids) and user_id in self.allowed_user_ids
+
+    def _bound_user_ids(self) -> set[str]:
+        """Telegram user ids holding a live binding to a web desk pass.
+
+        Guest bindings age out; account bindings do not. A guest desk pass is a
+        browser-session cookie this process cannot watch expire, so its mirror
+        here carries its own clock — see ``TELEGRAM_GUEST_LINK_TTL_S``. An
+        account binding has a durable Supabase row behind it and ends with the
+        account, through the ``on delete cascade``.
+        """
+        if not self.audit:
+            return set()
+        now = time.monotonic()
+        if (
+            self._bound_users_read_at is not None
+            and now - self._bound_users_read_at < self._BINDING_CACHE_TTL_S
+        ):
+            return self._bound_users
+
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
+            seconds=settings.telegram_guest_link_ttl_s
+        )
+        live: set[str] = set()
+        for binding in self.audit.web_bindings():
+            user_id = str(binding.get("user_id") or "")
+            identity = str(binding.get("web_identity") or "")
+            kind = identity.split(":", 1)[0]
+            # Unknown prefixes grant nothing. A binding whose shape this build
+            # does not recognise is a binding it cannot reason about.
+            if not user_id or kind not in _LINK_KIND_BYTE:
+                continue
+            if kind == LINK_KIND_GUEST and binding["linked_at"] < cutoff:
+                continue
+            live.add(user_id)
+        self._bound_users = live
+        self._bound_users_read_at = now
+        return live
+
+    def _forget_bindings(self) -> None:
+        """Drop the cache so the next read sees a binding written just now."""
+        self._bound_users_read_at = None
+
+    def _authorised(self, user_id: str) -> bool:
+        """May this Telegram user read desk data?
+
+        Two independent grants, kept nameable so an auditor can tell which one
+        admitted a given user:
+
+          1. ``TELEGRAM_ALLOWED_USER_IDS`` — the operator's list, unchanged.
+          2. A live web binding — this Telegram account completed ``/start``
+             with a one-time token minted for a desk pass someone was already
+             holding.
+
+        (2) IS NOT AN AUTHENTICATION BYPASS, and the argument is arithmetic
+        rather than judgement. The token can only be minted by a request that
+        already carries a desk pass, and ``POST /api/auth/guest`` hands a pass to
+        anyone who asks. So a bound user is shown exactly what they could
+        already read by opening the workspace — one shared book, one kill
+        switch, one set of counters — over a second transport. Binding moves
+        data between transports it was already on; it unlocks none.
+
+        The direction matters too, and it is the direction the invariant in
+        ``config.py`` states: a *web* identity authorises a *Telegram* read.
+        Nothing here lets a Telegram identity authenticate a web request.
+
+        What this deliberately does not touch is `_may_control`, which reads
+        ``TELEGRAM_CONTROL_USER_IDS`` and nothing else. A binding — guest or
+        account — cannot halt, resume, flatten, set reduce-only or reset the
+        book. Read parity is the entire grant.
+        """
+        return self._allow_listed(user_id) or (
+            bool(user_id) and user_id in self._bound_user_ids()
+        )
 
     def _rate_allowed(self, user_id: str) -> bool:
         now = time.monotonic()
@@ -790,7 +1042,10 @@ class TelegramBot:
                         [
                             f"User ID <code>{esc(user_id)}</code>",
                             f"Chat ID <code>{esc(chat_id)}</code>",
-                            "Ask the operator to add your user ID to <code>TELEGRAM_ALLOWED_USER_IDS</code>.",
+                            "Two ways in. Tap <b>Connect</b> in the AlphaEngine workspace header, which "
+                            "links this chat to the desk you are already looking at and grants the same "
+                            "reading — never the controls.",
+                            "Or ask the operator to add your user ID to <code>TELEGRAM_ALLOWED_USER_IDS</code>.",
                         ],
                         source="AlphaEngine access control",
                         next_commands="/whoami · /help",
@@ -938,7 +1193,189 @@ class TelegramBot:
     # ------------------------------------------------------------------ #
     # Essentials
     # ------------------------------------------------------------------ #
+    #: What the header's link carried before there was anything to hand over.
+    _LEGACY_START_PAYLOAD = "auth"
+
+    async def _link_refusal(self, chat_id: str, status: str, lines: list[str]) -> None:
+        """One shape for every way a connect can fail, because each one has a cause.
+
+        House rule: a refusal states its reason on screen. "Connect failed" with
+        no explanation sends someone to an operator for what is usually a stale
+        tab.
+        """
+        await self.send_message(chat_id, text_card(
+            "⛔ Connect refused", status, lines,
+            source="AlphaEngine desk link", next_commands="/whoami · /help"))
+
+    async def _record_account_link(
+        self, token: LinkToken, chat_id: str, user_id: str, username: str
+    ) -> bool | None:
+        """Mirror an account binding into Supabase, where it becomes durable.
+
+        The DuckDB row is what this process consults on every command; this row
+        is what outlives the container. ``None`` when the gateway holds no
+        Supabase credentials — a state the confirmation says out loud, rather
+        than letting someone believe a link is durable when it is not.
+
+        Written with the service role because the writer is the gateway, not the
+        signed-in browser. RLS on ``telegram_link`` scopes what an *account* may
+        read of its own row; the account is not the party holding the Telegram
+        user id, so it cannot be the one to write it.
+        """
+        if not (settings.supabase_url and settings.supabase_service_role_key):
+            return None
+        headers = {
+            "apikey": settings.supabase_service_role_key,
+            "Authorization": f"Bearer {settings.supabase_service_role_key}",
+            "Content-Type": "application/json",
+        }
+        row = {
+            "user_id": token.identity,
+            "telegram_user_id": user_id,
+            "telegram_chat_id": str(chat_id),
+            "telegram_username": username or None,
+            "linked_at": datetime.now(timezone.utc).isoformat(),
+        }
+        try:
+            async with httpx.AsyncClient(
+                base_url=settings.supabase_url.rstrip("/"),
+                headers=headers,
+                timeout=settings.supabase_timeout_s,
+            ) as client:
+                # One Telegram account, one desk account. The table's unique
+                # constraint would refuse the upsert otherwise, and refusing is
+                # the worse outcome here: the person is standing in front of a
+                # valid single-use code that has already been spent.
+                await client.delete(f"/rest/v1/telegram_link?telegram_user_id=eq.{user_id}")
+                response = await client.post(
+                    "/rest/v1/telegram_link?on_conflict=user_id",
+                    json=row,
+                    headers={"Prefer": "resolution=merge-duplicates,return=minimal"},
+                )
+                if response.status_code < 300:
+                    return True
+                log.warning("telegram_link write refused (HTTP %s)", response.status_code)
+        except Exception as exc:  # never let the confirmation itself fail
+            log.error("telegram_link write failed: %s", type(exc).__name__)
+        return False
+
+    async def _complete_link(self, payload: str, chat_id: str, actor: str) -> None:
+        """Redeem a ``?start=<token>`` payload and bind this chat to a web identity."""
+        parts = str(actor).split(":", 2)
+        username = parts[2] if len(parts) > 2 else "user"
+        user_id = actor_user_id(actor)
+
+        if payload == self._LEGACY_START_PAYLOAD:
+            # An old bookmark is not a mistake, so this is a signpost rather
+            # than an error card.
+            await self.send_message(chat_id, text_card(
+                "🔗 Connect this chat", "NO CODE IN THIS LINK",
+                [
+                    "This link predates the connect flow and carries no code.",
+                    "Open the AlphaEngine workspace and tap <b>Connect</b> in the header. That link "
+                    "carries a single-use code that binds this chat to the desk you are looking at.",
+                ],
+                source="AlphaEngine desk link", next_commands="/whoami · /help"))
+            return
+
+        if not settings.telegram_link_enabled:
+            await self._link_refusal(chat_id, "LINKING NOT CONFIGURED", [
+                "This gateway holds no <code>TELEGRAM_LINK_SECRET</code>, so it cannot verify a connect code — and it will not guess.",
+                "An operator sets the same value on the gateway and on the web deployment.",
+            ])
+            return
+
+        try:
+            token = decode_link_token(payload, settings.telegram_link_secret)
+        except ValueError as exc:
+            await self._link_refusal(chat_id, "CODE REJECTED", [esc(str(exc))])
+            return
+
+        if not user_id:
+            await self._link_refusal(chat_id, "NO TELEGRAM IDENTITY", [
+                "This update carried no usable Telegram user ID, and a binding with no owner is not a binding.",
+            ])
+            return
+
+        if not self.audit:
+            await self._link_refusal(chat_id, "NO DESK STORE", [
+                "This gateway has no audit store, so the code cannot be spent exactly once and the binding cannot be recorded.",
+            ])
+            return
+
+        # Spend the code before writing anything. A double tap on the deep link
+        # delivers two identical /start updates, and the second must lose.
+        if not self.audit.claim_link_token(link_token_fingerprint(payload), token.expires_at):
+            await self._link_refusal(chat_id, "CODE ALREADY USED", [
+                "Connect codes are single use. Tap <b>Connect</b> on the desk again for a fresh one.",
+            ])
+            return
+
+        existing = self.audit.get_subscriber(str(chat_id)) or {}
+        self.audit.upsert_subscriber(
+            str(chat_id), actor,
+            # Binding is identity, not consent to be messaged. Whatever this
+            # chat had already chosen stays chosen, and /subscribe remains the
+            # only thing that turns pushed alerts on.
+            alerts=bool(existing.get("alerts")),
+            user_id=user_id,
+            web_identity=token.web_identity,
+            linked_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        )
+        self._forget_bindings()
+        self.links_completed += 1
+        log.info("telegram chat %s bound to a %s desk identity", chat_id, token.kind)
+
+        if token.kind == LINK_KIND_GUEST:
+            hours = max(1, int(settings.telegram_guest_link_ttl_s // 3600))
+            where = [
+                "<b>Guest desk pass</b> — this link is held in the gateway's own store and nowhere else.",
+                f"It lapses after <code>{hours}h</code>, and it does not survive this desk being rebuilt. "
+                "A guest pass is a browser session; the desk cannot watch yours end, so the link carries its own clock.",
+                "Sign in on the workspace and connect again to keep it.",
+            ]
+        else:
+            durable = await self._record_account_link(token, chat_id, user_id, username)
+            where = ["<b>Account</b> — this link is recorded against your desk account."]
+            if durable is True:
+                where.append("It survives restarts and ends when the account does.")
+            elif durable is None:
+                where.append(
+                    "<i>This gateway has no Supabase credentials, so only its local copy was written. "
+                    "The link will not survive the desk being rebuilt.</i>"
+                )
+            else:
+                where.append(
+                    "<i>The durable copy could not be written and the desk is not going to pretend otherwise. "
+                    "The local copy works now; reconnect after a rebuild.</i>"
+                )
+
+        await self.send_message(chat_id, text_card(
+            "🔗 Connected", "READ PARITY WITH A DESK PASS",
+            [
+                f"Connected as <b>@{esc(username)}</b>",
+                f"Telegram user <code>{esc(user_id)}</code> · chat <code>{esc(chat_id)}</code>",
+                "",
+                "<b>What this grants</b>",
+                "Exactly what a desk pass already shows you in the browser — one shared book, one kill "
+                "switch, one set of counters. None of it is private to you, and none of it is new.",
+                "It does <b>not</b> grant the controls. /halt, /resume, /flatten, /reduceonly and "
+                "/resetbook stay behind <code>TELEGRAM_CONTROL_USER_IDS</code>, which only an operator changes.",
+                "",
+                "<b>Where the link is kept</b>",
+                *where,
+                "",
+                "Pushed alerts stay off until you run /subscribe.",
+            ],
+            source="AlphaEngine desk link", next_commands="/portfolio · /risk · /subscribe"))
+
     async def _cmd_start(self, args, chat_id, actor) -> None:
+        # `?start=<payload>` arrives as args[0]; the dispatcher already passes
+        # them through. A bare /start keeps its original answer, because someone
+        # who simply found the bot is asking for the command card.
+        if args:
+            await self._complete_link(args[0], chat_id, actor)
+            return
         await self.send_message(chat_id, HELP_TEXT)
 
     async def _cmd_help(self, args, chat_id, actor) -> None:
@@ -982,16 +1419,35 @@ class TelegramBot:
         )
 
     async def _cmd_whoami(self, args, chat_id, actor) -> None:
-        user_id = actor.split(":", 2)[1] if actor.startswith("tg:") else "unknown"
-        authorised = self._authorised(user_id)
+        parsed = actor_user_id(actor)
+        user_id = parsed or "unknown"
+        # Which of the two grants admitted this user, named rather than merged.
+        # "Authorised" without a reason is unauditable, and the two are revoked
+        # in completely different places.
+        allow_listed = self._allow_listed(parsed)
+        bound = bool(parsed) and parsed in self._bound_user_ids()
+        authorised = allow_listed or bound
+        if allow_listed and bound:
+            grant = "Operator allow-list, and a connected desk pass"
+        elif allow_listed:
+            grant = "Operator allow-list"
+        elif bound:
+            grant = "Connected desk pass — reading only, never the controls"
+        else:
+            grant = "None yet"
         await self.send_message(
             chat_id,
             text_card(
                 "🪪 Telegram identity",
                 "AUTHORISED" if authorised else "NOT YET AUTHORISED",
-                [f"User ID <code>{esc(user_id)}</code>", f"Chat ID <code>{esc(chat_id)}</code>"],
+                [
+                    f"User ID <code>{esc(user_id)}</code>",
+                    f"Chat ID <code>{esc(chat_id)}</code>",
+                    f"Read access <code>{esc(grant)}</code>",
+                    f"Controls <code>{'PERMITTED' if self._may_control(parsed) else 'NOT PERMITTED'}</code>",
+                ],
                 source="Telegram update envelope",
-                next_commands="/help" if authorised else "Ask operator to update TELEGRAM_ALLOWED_USER_IDS",
+                next_commands="/help" if authorised else "Tap Connect in the workspace header, or ask the operator to update TELEGRAM_ALLOWED_USER_IDS",
             ),
         )
 
@@ -1913,8 +2369,6 @@ class TelegramBot:
     _CHALLENGE_TTL_SECONDS = 90.0
 
     def _issue_challenge(self, user_id: str, action: str, symbol: str | None) -> str:
-        import secrets
-
         code = f"{secrets.randbelow(9000) + 1000}"
         self._challenges[user_id] = {
             "code": code, "action": action, "symbol": symbol,
@@ -1936,13 +2390,41 @@ class TelegramBot:
         return True, pending["symbol"], ""
 
     async def _control(self, action: str, args, chat_id, actor) -> None:
-        user_id = str(actor)
+        # This line used to read `user_id = str(actor)`, which handed the whole
+        # composite "tg:<id>:<username>" to a membership test against a list of
+        # bare numeric ids. `"tg:12345:ian" in ["12345"]` is false for every
+        # possible configuration, so all five controls were permanently refused
+        # — including on a deployment that had configured an operator and had
+        # no way to discover the switch was dead short of trying it.
+        #
+        # `_user_id_from_actor` rather than a bare regex, on purpose. It also
+        # re-checks READ authorisation, and re-checking at this point is the
+        # discipline `_watch_tick` already follows before a delivery:
+        # `handle_update` authorised this user when the message arrived, and the
+        # gap between that and a change of risk state is exactly where a
+        # revocation ought to land. The cost of the stricter helper is that it
+        # raises, so the refusal is rendered here — an uncaught PermissionError
+        # would surface as the generic "Command failed" card, and a refusal that
+        # does not say why is not a refusal.
+        try:
+            user_id = self._user_id_from_actor(actor)
+        except PermissionError:
+            await self.send_message(chat_id, text_card(
+                f"⛔ /{action} not permitted", "READ AUTHORISATION WITHDRAWN",
+                [
+                    "This account is not currently authorised to read this book, so it may not change it either.",
+                    "Ask the operator about <code>TELEGRAM_ALLOWED_USER_IDS</code>, or reconnect from the workspace.",
+                ],
+                source="Risk gateway", next_commands="/whoami · /status"))
+            return
+
         if not self._may_control(user_id):
             await self.send_message(chat_id, text_card(
                 f"⛔ /{action} not permitted", "CONTROL ALLOW-LIST",
                 [
                     f"User ID <code>{esc(user_id)}</code> may read this book but not change it.",
                     "Control commands need <code>TELEGRAM_CONTROL_USER_IDS</code>, which is separate from the read allow-list and empty by default.",
+                    "Connecting this chat from the workspace grants reading only — it never adds anyone here.",
                 ],
                 source="Risk gateway", next_commands="/risk · /headroom"))
             return
@@ -1983,7 +2465,11 @@ class TelegramBot:
             return
 
         try:
-            result = await self._apply_control(action, symbol, user_id)
+            # The composite actor, not the bare id: the allow-list wanted an id,
+            # the audit log wants a name beside it. `_apply_control` is what
+            # reaches `gateway.submit` and the risk-event log, and those rows
+            # should still read `tg:12345:ian` a year from now.
+            result = await self._apply_control(action, symbol, actor)
         except Exception as exc:  # noqa: BLE001 - surfaced to the operator verbatim
             log.exception("control %s failed", action)
             await self.send_message(chat_id, text_card(f"✕ /{action} failed", "GATEWAY ERROR", [esc(str(exc)[:200])], source="Risk gateway", next_commands="/status"))
@@ -2956,8 +3442,14 @@ class TelegramBot:
         return not require_alerts or bool(subscriber.get("alerts"))
 
     def _user_id_from_actor(self, actor: str) -> str:
-        match = _TELEGRAM_ACTOR_RE.match(actor)
-        user_id = match.group(1) if match else ""
+        """Parse, then re-check. ``PermissionError`` when the actor may not read.
+
+        Two jobs in one call because every caller wants both: a bare id to store
+        or compare, and a guarantee that the person behind it is still allowed
+        to be there. `actor_user_id` is the parse alone, for the one caller that
+        must run before authorisation exists — ``/start`` completing a link.
+        """
+        user_id = actor_user_id(actor)
         if not self._authorised(user_id):
             raise PermissionError("notification owner is not currently authorised")
         return user_id
@@ -3180,6 +3672,19 @@ class TelegramBot:
                 "commands": 3,
                 "gated": True,
                 "control_allowlist_configured": bool(self.control_user_ids),
+            },
+            # Counts and contract only — never which account is bound to which
+            # chat. This endpoint is proxied to a public web origin, and the
+            # binding is the one genuinely personal fact this module holds.
+            "links": {
+                "configured": settings.telegram_link_enabled,
+                "bound_users": len(self._bound_user_ids()),
+                "completed": self.links_completed,
+                "grants": "read-parity-with-a-web-desk-pass",
+                # Stated as a field because `read_only` above is the cautionary
+                # tale: a contract nobody can assert drifts silently. The
+                # controls read TELEGRAM_CONTROL_USER_IDS and nothing else.
+                "grants_control": False,
             },
             "charts": "real-data-only",
             "last_error": self.last_error,

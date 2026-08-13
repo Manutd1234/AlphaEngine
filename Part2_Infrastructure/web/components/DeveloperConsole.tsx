@@ -51,13 +51,16 @@ interface ControlState {
 const CI_JOBS = [
   {
     name: "Gateway",
-    count: 342,
+    // Re-derived, not remembered. These three were 342/680/13 against a real
+    // 662/1975/13 — the pill below sums them, so the tab was advertising "1035
+    // tests" while the suites ran 2650. Each row's `command` is how to check.
+    count: 662,
     command: "python -m pytest",
     evidence: "pytest · ruff · OpenAPI snapshot · money-path probe",
   },
   {
     name: "Web workspace",
-    count: 680,
+    count: 1975,
     command: "npm test && npm run typecheck && npm run build",
     evidence: "domain tests · contract fixtures · strict TypeScript · Next.js build",
   },
