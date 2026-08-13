@@ -22,10 +22,13 @@ import { NextRequest } from "next/server";
 
 import { DESK_COOKIE, guestValue } from "../lib/desk-cookie";
 import {
+  LINK_PROBE_TTL_S,
   LINK_SECRET_ENV,
   deepLink,
   isBotHandle,
+  linkProbeSecret,
   linkSecret,
+  mintLinkProbe,
   mintLinkToken,
   parseDeskPass,
   verifyLinkToken,
@@ -40,6 +43,17 @@ const VECTOR = {
   ttlS: 900,
   nonce: Buffer.from([1, 2, 3, 4]),
   token: "AQJrSdWEAQIDBD8lBOBPiRHTmgwDBegsMwFgI2xPwQd27wYqtOA",
+};
+
+/**
+ * The status probe's own vector, also shared with the Python suite. Same
+ * layout, same identity, same clock — a different key, so the bytes differ in
+ * the MAC and nowhere else.
+ */
+const PROBE_VECTOR = {
+  key: "4c4e93d04e9784d3f70f30f64db5ad02ca0d8df6d816a6f8c6aaf6b423b32470",
+  ttlS: 120,
+  token: "AQJrSdJ4AQIDBD8lBOBPiRHTmgwDBegsMwGXMR4wmQHfKCNOfrQ",
 };
 
 const SECRET = "a-shared-link-secret-of-more-than-32-chars";
@@ -138,6 +152,54 @@ describe("the secret and the handle are validated, not trusted", () => {
       deepLink("alpha_engine_nussif_bot", VECTOR.token),
       `https://t.me/alpha_engine_nussif_bot?start=${VECTOR.token}`,
     );
+  });
+});
+
+describe("the status probe is a different token family, not a second use of the same one", () => {
+  it("derives the key the Python verifier derives", () => {
+    // Domain separation, pinned on both sides: the probe key is
+    // HMAC(secret, "alphaengine/telegram-link-probe/v1"). Get this wrong and
+    // every chip reads "could not tell" while Connect keeps working, which is
+    // the least debuggable possible failure.
+    assert.equal(linkProbeSecret(VECTOR.secret), PROBE_VECTOR.key);
+    assert.equal(
+      mintLinkProbe({ kind: VECTOR.kind, id: VECTOR.id }, VECTOR.secret, {
+        now: VECTOR.now,
+        nonce: VECTOR.nonce,
+      }).token,
+      PROBE_VECTOR.token,
+    );
+  });
+
+  it("cannot be redeemed as a connect code", () => {
+    /**
+     * The property the whole design rests on. A probe rides on every header
+     * load and can land in a proxy log; a connect code BINDS a chat. If one
+     * verified as the other, reading a probe in flight would be enough to bind
+     * your own Telegram account to somebody else's desk pass.
+     */
+    const { token } = mintLinkProbe({ kind: "guest", id: VECTOR.id }, SECRET);
+    assert.equal(verifyLinkToken(token, SECRET), null);
+  });
+
+  it("cannot be satisfied by a connect code either", () => {
+    const { token } = mintLinkToken({ kind: "guest", id: VECTOR.id }, SECRET);
+    assert.equal(verifyLinkToken(token, linkProbeSecret(SECRET)), null);
+  });
+
+  it("expires in one round trip, not one quarter of an hour", () => {
+    // It is minted server-side and spent in the same request. The window only
+    // has to cover clock skew between two hosts.
+    assert.equal(LINK_PROBE_TTL_S, PROBE_VECTOR.ttlS);
+    const { expiresAt } = mintLinkProbe({ kind: "guest", id: VECTOR.id }, SECRET, { now: 1_000 });
+    assert.equal(expiresAt, 1_000 + LINK_PROBE_TTL_S);
+  });
+
+  it("carries the identity inside the signature, so there is nothing to point elsewhere", () => {
+    const { token } = mintLinkProbe({ kind: "guest", id: VECTOR.id }, SECRET);
+    const raw = Buffer.from(token, "base64url");
+    raw[25] ^= 0xff;
+    assert.equal(verifyLinkToken(raw.toString("base64url"), linkProbeSecret(SECRET)), null);
   });
 });
 

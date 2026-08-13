@@ -221,6 +221,21 @@
         "title": "BacktestRequest",
         "type": "object"
       },
+      "Body_telegram_link_status_telegram_link_status_post": {
+        "properties": {
+          "probe": {
+            "description": "A signed status probe minted by the web desk.",
+            "maxLength": 64,
+            "title": "Probe",
+            "type": "string"
+          }
+        },
+        "required": [
+          "probe"
+        ],
+        "title": "Body_telegram_link_status_telegram_link_status_post",
+        "type": "object"
+      },
       "BookLevel": {
         "properties": {
           "cum_notional": {
@@ -5532,6 +5547,50 @@
           }
         },
         "summary": "Telegram Health",
+        "tags": [
+          "telegram"
+        ]
+      }
+    },
+    "/telegram/link/status": {
+      "post": {
+        "description": "Is the desk pass this caller already holds bound to a Telegram chat?\n\nExists because a GUEST binding lives only in this gateway's store. The web\nworkspace can read an *account* binding back from Supabase under RLS, but it\nhas no route into DuckDB, so a guest who tapped Connect and was confirmed by\nthe bot saw the header chip stay grey forever.\n\n\u2500\u2500 Why this cannot be used to look anyone else up \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nThe identity is not a parameter. It is carried inside ``probe``, MAC'd with\na key derived from ``TELEGRAM_LINK_SECRET`` (see ``link_probe_secret``), so\nthe only identities that can be asked about are ones the caller could\nalready mint a *link* token for \u2014 that is, ones it already speaks for. There\nis no field to put somebody else's user id in, and flipping a byte of the\nembedded UUID invalidates the signature, which is the same property\n``tests/test_telegram_link.py`` pins for the link token itself.\n\n\u2500\u2500 Why the answer cannot enumerate anything \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nIt is a state and a kind. Never the Telegram username, never the chat id,\nnever the Telegram user id, never a count, never a list. Exactly the line\n``TelegramBot.health()``'s ``links`` block draws, narrowed to one row: a\ncaller learns one boolean-ish fact about one identity it already proved it\nholds, and cannot walk from that answer to a second one.\n\n\u2500\u2500 Why POST for a read \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nSo the signed probe travels in a body rather than a URL. A query string ends\nup in access logs, proxy logs and ``Referer`` headers; the probe is\nshort-lived and answers only yes/no, but a credential that need not be\nwritten down should not be. Nothing is written by this handler.",
+        "operationId": "telegram_link_status_telegram_link_status_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_telegram_link_status_telegram_link_status_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Telegram Link Status Telegram Link Status Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Telegram Link Status",
         "tags": [
           "telegram"
         ]

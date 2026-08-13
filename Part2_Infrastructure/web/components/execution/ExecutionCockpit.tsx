@@ -235,14 +235,30 @@ export default function ExecutionCockpit({
     onOrderSettled?.(result);
   }, [onOrderSettled, refresh]);
 
+  /**
+   * The first probe, and only the first.
+   *
+   * Deliberately its own effect. It used to open the interval effect below,
+   * which re-runs on every `failures` change — so a failed probe incremented the
+   * counter, the effect re-ran, and the immediate refresh at the top fired again
+   * with no delay whatever the backoff said. Measured in a browser against a
+   * refusing gateway: 1,542 requests in ten seconds from one idle guest tab,
+   * every one of them doomed. The geometric backoff was never reached because
+   * the loop never waited for the interval it computed.
+   *
+   * The failure is invisible to the desk sweep and to the unit suite: the panel
+   * renders correctly, the sandbox fills in, and nothing on screen is wrong.
+   */
   useEffect(() => {
     void refresh();
+    return () => { sequence.current += 1; };
+  }, [refresh]);
+
+  useEffect(() => {
     // "No gateway in this deployment" cannot change without a redeploy, so
     // polling it is 45 doomed requests a minute in a reviewer's network tab.
     // One probe is enough; the Retry button owns any second attempt.
-    if (unconfigured) {
-      return () => { sequence.current += 1; };
-    }
+    if (unconfigured) return;
     // Real outages back off geometrically instead of hammering a struggling
     // service at a fixed 4s forever.
     const interval = Math.min(REFRESH_MS * 2 ** Math.min(failures, 8), MAX_BACKOFF_MS);

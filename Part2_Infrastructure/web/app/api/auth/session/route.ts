@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { DESK_COOKIE, deskCookie } from "@/lib/desk-cookie";
+import { DESK_COOKIE, deskCookie, isGuest } from "@/lib/desk-cookie";
 
 /**
  * Validate a bearer token server-side and issue the desk pass.
@@ -57,15 +57,28 @@ export async function GET(request: NextRequest) {
   const { data, error } = await client(url, anonKey).auth.getUser(token);
   if (error || !data.user) {
     /**
-     * Clear the pass on the way out.
+     * Clear the pass on the way out — an ACCOUNT pass, never a guest one.
      *
      * An expired token with a live cookie is the state that would let someone sit
      * on the desk shell indefinitely after their session ended. Nothing sensitive
      * is behind the shell, but a stale pass is still a lie about the session, and
      * the header would render a signed-in chip for an account that is gone.
+     *
+     * A guest pass makes no claim about this token. It was minted by
+     * `/api/auth/guest` for someone who chose not to have an account, and
+     * dropping it here evicts them from the desk because a *different* identity
+     * failed to validate. That is reachable rather than theoretical: `/` always
+     * redirects to `/login`, the login page mints from whatever token it finds in
+     * storage, and a token Supabase rejects — a rotated project, a deleted user, a
+     * session left behind by earlier testing — then takes the guest's pass with
+     * it, bouncing them back to the form on their next navigation. `isGuest` is
+     * the same shape test the guard uses, so the two cannot disagree about which
+     * kind of pass this is.
      */
     const response = NextResponse.json({ status: "signed-out", user: null }, { status: 401 });
-    response.cookies.set({ ...deskCookie(""), value: "", maxAge: 0 });
+    if (!isGuest(request.cookies.get(DESK_COOKIE)?.value)) {
+      response.cookies.set({ ...deskCookie(""), value: "", maxAge: 0 });
+    }
     return response;
   }
 

@@ -138,6 +138,54 @@ export function mintLinkToken(
 }
 
 /**
+ * ── The status probe ────────────────────────────────────────────────────────
+ *
+ * A second token family, same packed layout, DIFFERENT KEY. It asks the gateway
+ * one question — "is the desk identity I already hold bound to a chat?" — which
+ * is the only way this app can learn that a GUEST is connected, because a guest
+ * binding lives in the gateway's own store and nowhere this app can read.
+ *
+ * The key is derived from the shared secret by domain separation:
+ *
+ *     probe key = HMAC-SHA256(TELEGRAM_LINK_SECRET, "alphaengine/telegram-link-probe/v1")
+ *
+ * That separation is the security property, not a formality. A link token is a
+ * bearer credential that BINDS a chat; a probe only asks a yes/no question. The
+ * probe is the one that travels server-to-server on every header load and can
+ * end up in a proxy log, so it must not be redeemable: presented to `/start` it
+ * fails as "not issued by this desk", exactly as a link token presented to the
+ * status endpoint does.
+ *
+ * Mirrored by `link_probe_secret` in `modules/telegram.py`, with a shared
+ * known-answer vector in both suites for the same reason the link token has one.
+ */
+const PROBE_CONTEXT = "alphaengine/telegram-link-probe/v1";
+
+/**
+ * Minted and spent inside one server-side request, so the whole legitimate life
+ * of a probe is a single round trip. Two minutes is slack for clock skew
+ * between two hosts, nothing more. The gateway enforces its own ceiling
+ * (`LINK_PROBE_MAX_TTL_S`) rather than trusting this number.
+ */
+export const LINK_PROBE_TTL_S = 120;
+
+export function linkProbeSecret(secret: string): string {
+  return createHmac("sha256", secret).update(PROBE_CONTEXT, "utf8").digest("hex");
+}
+
+/** A read-only probe for `POST /telegram/link/status`. Never a connect link. */
+export function mintLinkProbe(
+  identity: DeskIdentity,
+  secret: string,
+  options: MintOptions = {},
+): MintedLink {
+  return mintLinkToken(identity, linkProbeSecret(secret), {
+    ttlS: LINK_PROBE_TTL_S,
+    ...options,
+  });
+}
+
+/**
  * Verify a token this app minted. The gateway is the real verifier; this exists
  * so the round trip is testable on one side of the wire, and so nothing here
  * ever hand-rolls a comparison against a signature.

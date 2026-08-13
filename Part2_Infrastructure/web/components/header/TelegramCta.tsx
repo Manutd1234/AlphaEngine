@@ -53,6 +53,10 @@ interface LinkState {
   handle: string | null;
   connect: ConnectLink | null;
   linkStatus: "linked" | "not-linked" | "unknown";
+  /** Which authority answered. "none" when nobody could be asked. */
+  linkSource: "account-record" | "gateway" | "none";
+  /** Why `linkStatus` is "unknown", when it is. */
+  linkReason: string | null;
   linked: { handle: string | null } | null;
   reason: string | null;
   note: string | null;
@@ -88,7 +92,8 @@ export default function TelegramCta() {
       });
       if (!response.ok) {
         setAnswer({
-          handle: null, connect: null, linkStatus: "unknown", linked: null, note: null,
+          handle: null, connect: null, linkStatus: "unknown", linkSource: "none",
+          linkReason: null, linked: null, note: null,
           reason: `This workspace could not ask its own server about the companion (HTTP ${response.status}).`,
         });
         return;
@@ -96,7 +101,8 @@ export default function TelegramCta() {
       setAnswer((await response.json()) as LinkState);
     } catch {
       setAnswer({
-        handle: null, connect: null, linkStatus: "unknown", linked: null, note: null,
+        handle: null, connect: null, linkStatus: "unknown", linkSource: "none",
+        linkReason: null, linked: null, note: null,
         reason: "This workspace could not reach its own server to check for the companion.",
       });
     } finally {
@@ -122,18 +128,36 @@ export default function TelegramCta() {
   const resolving = answer === null;
   const handle = answer?.handle ?? null;
   const linked = answer?.linkStatus === "linked";
-  const connectedTo = linked ? (answer?.linked?.handle ?? handle) : null;
+  /* The bot's own handle is NOT a fallback here. `?? handle` used to close this
+     expression and rendered the bot's username as though it were the reader's,
+     for every binding whose Telegram username was never captured — which is
+     every guest. A handle we do not have is a handle we do not print. */
+  const connectedTo = linked ? (answer?.linked?.handle ?? null) : null;
 
   /**
    * A link only when there is somewhere real to go. Falls back to the bot's
    * plain address when a token could not be minted: that opens the actual bot,
    * whose own /start card explains what it cannot do, rather than this chip
    * guessing on its behalf.
+   *
+   * Already connected goes to the plain address too. A connect code is a
+   * single-use credential that BINDS a chat, and handing one to somebody whose
+   * chat is already bound offers a write they did not ask for; the affordance
+   * they want is "open the chat I connected".
    */
-  const href = answer?.connect?.url ?? (handle ? `https://t.me/${handle}` : null);
+  const href = linked && handle
+    ? `https://t.me/${handle}`
+    : answer?.connect?.url ?? (handle ? `https://t.me/${handle}` : null);
 
   let label: string;
   let description: string;
+  /**
+   * A typographic mark that sits OUTSIDE the collapsing label, so the connected
+   * state is still carried by something other than colour at the widths where
+   * the word is hidden. House vocabulary, never an emoji: it inherits the text
+   * colour and renders in the app's own font.
+   */
+  let mark: string | null = null;
   if (resolving) {
     label = "Telegram";
     description = "Checking whether a Telegram companion is attached to this desk.";
@@ -141,13 +165,27 @@ export default function TelegramCta() {
     label = "Unavailable";
     description = answer?.reason ?? UNREACHABLE;
   } else if (linked) {
-    label = `@${connectedTo}`;
-    description = `Connected to the AlphaEngine Telegram companion as @${connectedTo}. Opens the chat in a new tab.`;
+    // The word the state is named by. The handle rides in the description
+    // rather than the label: the header collapses labels below 1380px, and
+    // "Connected · @somebody" is a chip wide enough to move the nav.
+    label = "Connected";
+    mark = "✓";
+    const who = connectedTo ? ` as @${connectedTo}` : "";
+    // Provenance, because the two are not the same promise: an account binding
+    // is recorded against the account, a guest binding is the gateway's alone.
+    const where =
+      answer?.linkSource === "account-record"
+        ? "Recorded against your desk account."
+        : answer?.note ?? "Held by the gateway for this desk pass.";
+    description = `Connected to the AlphaEngine Telegram companion${who}. ${where} Opens the chat in a new tab.`;
   } else if (answer?.connect) {
     label = "Connect";
     description =
       "Connect this desk to the AlphaEngine Telegram companion — the same reading, never the controls. "
-      + (answer.note ?? "Opens in a new tab.");
+      + (answer.note ?? "Opens in a new tab.")
+      // "Not connected" and "could not tell" are different things to say, and
+      // the second one names its own cause rather than reading as the first.
+      + (answer.linkReason ? ` ${answer.linkReason}` : "");
   } else {
     label = "Telegram";
     description = `${answer?.reason ?? "This desk cannot mint a connect code right now."} Opens the companion in a new tab.`;
@@ -156,15 +194,35 @@ export default function TelegramCta() {
   /* Telegram brand blue mixed into the theme's own surface and border, so the
      wash follows data-theme instead of needing a dark: variant. */
   const chrome =
-    "inline-flex items-center gap-2 rounded-[10px] border border-[color-mix(in_srgb,#229ED9_30%,var(--border))] "
-    + "bg-[color-mix(in_srgb,#229ED9_7%,var(--surface-1))] px-2 py-1 text-[11px] font-semibold text-text-primary no-underline";
+    "inline-flex items-center gap-2 rounded-[10px] border px-2 py-1 text-[11px] font-semibold no-underline "
+    + (linked
+      /* Connected wears the house green, and green is never the only carrier:
+         the word changes to "Connected", a ✓ appears beside the mark, and the
+         border changes with it, so the state survives a colour-blind reader, a
+         greyscale screenshot and Windows High Contrast.
+
+         6% of --status-good over --surface-1 keeps --success-text at 5.34:1 in
+         light and 4.54:1 in dark — both clear of AA. 8% would put dark at
+         4.38:1, which is why the wash is this shallow and why hover moves the
+         BORDER rather than the background: a hover that repaints the plane
+         under the word changes the word's contrast with it. */
+      ? "border-[color-mix(in_srgb,var(--status-good)_38%,var(--border))] "
+        + "bg-[color-mix(in_srgb,var(--status-good)_6%,var(--surface-1))] text-success-text"
+      : "border-[color-mix(in_srgb,#229ED9_30%,var(--border))] "
+        + "bg-[color-mix(in_srgb,#229ED9_7%,var(--surface-1))] text-text-primary");
+
+  const hover = linked
+    ? "hover:border-[color-mix(in_srgb,var(--status-good)_62%,var(--border))]"
+    : "hover:bg-[color-mix(in_srgb,#229ED9_14%,var(--surface-1))]";
 
   const body = (
     <>
       {/* Fixed #0088cc, not the lighter #229ED9: white on this carries 3.89:1,
           clearing the 3:1 bar for graphical objects in both themes, where the
           lighter brand blue sits at 3.02:1 — a rounding error from failing.
-          Same reasoning as the fixed red on .handoff-fire. */}
+          Same reasoning as the fixed red on .handoff-fire. The mark stays brand
+          blue when connected: it identifies Telegram, and Telegram is not the
+          thing whose state changed. */}
       <span
         aria-hidden
         className="grid h-[27px] w-[27px] place-items-center rounded-[8px] bg-[#0088cc] text-white"
@@ -173,6 +231,7 @@ export default function TelegramCta() {
           <path d="M21.94 4.3 18.9 19.1c-.23 1.02-.84 1.27-1.7.79l-4.7-3.47-2.27 2.19c-.25.25-.46.46-.95.46l.34-4.8 8.73-7.9c.38-.34-.08-.53-.59-.19L6.98 13.1 2.34 11.6c-1.01-.31-1.03-1.01.21-1.5L20.63 3.1c.84-.31 1.57.19 1.31 1.2Z" />
         </svg>
       </span>
+      {mark ? <span aria-hidden className="text-[12px] leading-none">{mark}</span> : null}
       <span className="max-[1380px]:hidden">{label}</span>
     </>
   );
@@ -203,7 +262,7 @@ export default function TelegramCta() {
       onFocus={refreshIfStale}
       aria-label={description}
       title={description}
-      className={`${chrome} hover:bg-[color-mix(in_srgb,#229ED9_14%,var(--surface-1))]`}
+      className={`${chrome} ${hover}`}
     >
       {body}
     </a>

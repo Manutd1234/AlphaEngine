@@ -30,7 +30,10 @@ from config import settings
 from modules.telegram import (
     LINK_KIND_ACCOUNT,
     LINK_KIND_GUEST,
+    LINK_PROBE_MAX_TTL_S,
+    decode_link_probe,
     decode_link_token,
+    link_probe_secret,
     link_token_fingerprint,
     mint_link_token,
 )
@@ -51,6 +54,21 @@ VECTOR = {
     "ttl": 900,
     "nonce": bytes([1, 2, 3, 4]),
     "token": "AQJrSdWEAQIDBD8lBOBPiRHTmgwDBegsMwFgI2xPwQd27wYqtOA",
+}
+
+#: The status probe's own vector, shared with `web/tests/telegram-link.test.ts`
+#: for the same reason. Same layout, same identity, same clock — a DIFFERENT
+#: key, derived by domain separation, which is why the token differs from the
+#: link token above in its MAC and nowhere else.
+PROBE_VECTOR = {
+    "secret": "x" * 40,
+    "key": "4c4e93d04e9784d3f70f30f64db5ad02ca0d8df6d816a6f8c6aaf6b423b32470",
+    "kind": LINK_KIND_GUEST,
+    "id": GUEST_ID,
+    "now": 1_800_000_000,
+    "ttl": 120,
+    "nonce": bytes([1, 2, 3, 4]),
+    "token": "AQJrSdJ4AQIDBD8lBOBPiRHTmgwDBegsMwGXMR4wmQHfKCNOfrQ",
 }
 
 
@@ -82,6 +100,11 @@ def link_configuration():
 
 def token_for(kind: str, identity: str) -> str:
     return mint_link_token(kind, identity, settings.telegram_link_secret, 900)
+
+
+def probe_for(kind: str, identity: str, ttl: float = 120) -> str:
+    """What the web desk mints to ask "is the pass I hold already bound?"."""
+    return mint_link_token(kind, identity, link_probe_secret(settings.telegram_link_secret), ttl)
 
 
 # --------------------------------------------------------------------------- #
@@ -376,6 +399,193 @@ async def test_the_legacy_start_payload_signposts_rather_than_erroring(bot):
 async def test_bare_start_is_unchanged(bot):
     await bot.handle_update(update("/start", update_id=360))
     assert "TEXT ONLY" in bot.last
+
+
+# --------------------------------------------------------------------------- #
+# The status probe
+# --------------------------------------------------------------------------- #
+#
+# A guest binding lives in this gateway's DuckDB and nowhere the web app can
+# read, so before this existed the header chip could never turn green for a
+# guest: the bot said "Connected" and the desk went on saying "Connect".
+#
+# The probe answers that, and the property that makes it safe to send on every
+# header load is that it is NOT a link token — different key, same layout.
+
+def test_the_probe_matches_the_vector_the_typescript_minter_pins():
+    assert link_probe_secret(PROBE_VECTOR["secret"]) == PROBE_VECTOR["key"]
+    minted = mint_link_token(
+        PROBE_VECTOR["kind"], PROBE_VECTOR["id"], PROBE_VECTOR["key"], PROBE_VECTOR["ttl"],
+        now=PROBE_VECTOR["now"], nonce=PROBE_VECTOR["nonce"],
+    )
+    assert minted == PROBE_VECTOR["token"], (
+        "the probe key derivation changed on this side only — update "
+        "web/lib/telegram-link.ts and its vector in the same commit"
+    )
+
+
+def test_a_probe_cannot_be_redeemed_as_a_connect_code():
+    """The whole reason for the separate key.
+
+    A probe travels server-to-server on every header load and can land in a
+    proxy log. A link token BINDS a chat. If one could be presented as the
+    other, anything that could read a probe in flight could bind its own
+    Telegram account to somebody else's desk pass.
+    """
+    probe = probe_for(LINK_KIND_GUEST, GUEST_ID)
+    with pytest.raises(ValueError, match="not issued by this desk"):
+        decode_link_token(probe, SECRET)
+
+
+def test_a_connect_code_cannot_be_spent_as_a_probe():
+    """And the other direction, so the separation is not one-way."""
+    with pytest.raises(ValueError, match="not issued by this desk"):
+        decode_link_probe(token_for(LINK_KIND_GUEST, GUEST_ID), SECRET)
+
+
+def test_a_probe_carries_its_own_identity_and_cannot_be_pointed_at_another():
+    decoded = decode_link_probe(probe_for(LINK_KIND_ACCOUNT, ACCOUNT_ID), SECRET)
+    assert (decoded.kind, decoded.identity) == (LINK_KIND_ACCOUNT, ACCOUNT_ID)
+
+    # The identity is inside the signature, so there is no way to ask about
+    # somebody else's: swapping the embedded UUID invalidates the MAC.
+    raw = bytearray(base64.urlsafe_b64decode(probe_for(LINK_KIND_GUEST, GUEST_ID) + "=="))
+    raw[25] ^= 0xFF
+    forged = base64.urlsafe_b64encode(bytes(raw)).decode().rstrip("=")
+    with pytest.raises(ValueError, match="not issued by this desk"):
+        decode_link_probe(forged, SECRET)
+
+
+def test_the_gateway_caps_how_long_a_probe_may_answer_for():
+    """The ceiling is enforced here, not trusted to the minter.
+
+    A probe is minted and spent inside one request. A bug or a compromise on the
+    web side must not be able to issue one that answers the same question for a
+    week.
+    """
+    decode_link_probe(probe_for(LINK_KIND_GUEST, GUEST_ID, LINK_PROBE_MAX_TTL_S - 5), SECRET)
+    with pytest.raises(ValueError, match="valid for longer than this desk accepts"):
+        decode_link_probe(probe_for(LINK_KIND_GUEST, GUEST_ID, LINK_PROBE_MAX_TTL_S + 60), SECRET)
+
+
+@pytest.mark.asyncio
+async def test_the_desk_can_see_a_guest_binding_it_could_not_see_before(bot):
+    """The user-visible bug this closes: guest connects, chip stays grey."""
+    settings.telegram_allowed_user_ids[:] = []
+    assert bot.binding_status(LINK_KIND_GUEST, GUEST_ID) == "not-linked"
+
+    await bot.handle_update(update(f"/start {token_for(LINK_KIND_GUEST, GUEST_ID)}", update_id=400))
+    assert bot.binding_status(LINK_KIND_GUEST, GUEST_ID) == "linked"
+
+    # A binding is for one identity of one kind. Neither half is a wildcard.
+    assert bot.binding_status(LINK_KIND_ACCOUNT, GUEST_ID) == "not-linked"
+    assert bot.binding_status(LINK_KIND_GUEST, ACCOUNT_ID) == "not-linked"
+
+
+@pytest.mark.asyncio
+async def test_the_status_follows_the_same_expiry_the_authorisation_does(bot):
+    """One freshness rule, not two.
+
+    Two copies of an expiry policy is how a chip goes on saying Connected for a
+    binding that stopped granting hours ago.
+    """
+    settings.telegram_allowed_user_ids[:] = []
+    await bot.handle_update(update(f"/start {token_for(LINK_KIND_GUEST, GUEST_ID)}", update_id=410))
+    assert bot.binding_status(LINK_KIND_GUEST, GUEST_ID) == "linked"
+
+    _set("telegram_guest_link_ttl_s", 0.0)
+    bot._forget_bindings()
+    assert bot._authorised(TELEGRAM_TEST_USER) is False
+    assert bot.binding_status(LINK_KIND_GUEST, GUEST_ID) == "not-linked"
+
+
+@pytest.mark.asyncio
+async def test_no_store_means_unknown_rather_than_not_linked(bot):
+    """"Cannot tell" and "not connected" are different things to say.
+
+    Reporting an unreadable store as an absent binding would invite someone to
+    reconnect a chat they have already connected.
+    """
+    bot.audit = None
+    assert bot.binding_status(LINK_KIND_GUEST, GUEST_ID) == "unknown"
+
+
+# --------------------------------------------------------------------------- #
+# The endpoint the desk asks
+# --------------------------------------------------------------------------- #
+
+@pytest.mark.asyncio
+async def test_the_status_route_answers_the_identity_the_probe_signs(bot, monkeypatch):
+    import main
+
+    monkeypatch.setattr(main, "get_bot", lambda: bot)
+    settings.telegram_allowed_user_ids[:] = []
+    await bot.handle_update(update(f"/start {token_for(LINK_KIND_GUEST, GUEST_ID)}", update_id=420))
+
+    bound = await main.telegram_link_status(probe=probe_for(LINK_KIND_GUEST, GUEST_ID))
+    assert bound["link_status"] == "linked"
+    assert bound["kind"] == LINK_KIND_GUEST
+    # The contract is stated, for the reason `read_only` in health() is a
+    # cautionary tale: a promise nobody can assert drifts silently.
+    assert bound["grants_control"] is False
+
+    other = await main.telegram_link_status(probe=probe_for(LINK_KIND_ACCOUNT, ACCOUNT_ID))
+    assert other["link_status"] == "not-linked"
+
+
+@pytest.mark.asyncio
+async def test_the_status_route_never_names_a_chat_a_handle_or_a_count(bot, monkeypatch):
+    """The whole answer is a state and a kind.
+
+    Same line `TelegramBot.health()`'s links block draws, narrowed to one row:
+    a caller learns one fact about one identity it already speaks for, and
+    cannot walk from that answer to a second one.
+    """
+    import main
+
+    monkeypatch.setattr(main, "get_bot", lambda: bot)
+    settings.telegram_allowed_user_ids[:] = []
+    await bot.handle_update(update(f"/start {token_for(LINK_KIND_GUEST, GUEST_ID)}", update_id=430))
+
+    answer = await main.telegram_link_status(probe=probe_for(LINK_KIND_GUEST, GUEST_ID))
+    rendered = repr(answer)
+    assert TELEGRAM_TEST_CHAT not in rendered
+    assert TELEGRAM_TEST_USER not in rendered
+    assert "operator" not in rendered
+    assert set(answer) == {"link_status", "kind", "grants", "grants_control"}
+
+
+@pytest.mark.asyncio
+async def test_the_status_route_refuses_a_probe_it_did_not_issue(bot, monkeypatch):
+    from fastapi import HTTPException
+
+    import main
+
+    monkeypatch.setattr(main, "get_bot", lambda: bot)
+    foreign = mint_link_token(
+        LINK_KIND_ACCOUNT, ACCOUNT_ID,
+        link_probe_secret("another-deployments-secret-key-0123456789"), 120,
+    )
+    with pytest.raises(HTTPException) as refusal:
+        await main.telegram_link_status(probe=foreign)
+    assert refusal.value.status_code == 403
+    assert "not issued by this desk" in refusal.value.detail
+
+
+@pytest.mark.asyncio
+async def test_the_status_route_refuses_rather_than_guessing_when_unconfigured(bot, monkeypatch):
+    """An absent secret is not evidence of an absent binding."""
+    from fastapi import HTTPException
+
+    import main
+
+    monkeypatch.setattr(main, "get_bot", lambda: bot)
+    probe = probe_for(LINK_KIND_GUEST, GUEST_ID)
+    _set("telegram_link_secret", "")
+    with pytest.raises(HTTPException) as refusal:
+        await main.telegram_link_status(probe=probe)
+    assert refusal.value.status_code == 503
+    assert "TELEGRAM_LINK_SECRET" in refusal.value.detail
 
 
 # --------------------------------------------------------------------------- #

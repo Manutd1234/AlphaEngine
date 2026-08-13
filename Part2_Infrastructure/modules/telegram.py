@@ -210,6 +210,59 @@ def decode_link_token(token: str, secret: str, *, now: float | None = None) -> L
     )
 
 
+# --------------------------------------------------------------------------- #
+# Read-only status probes
+# --------------------------------------------------------------------------- #
+#
+# The desk needs to answer one question it could not answer before: "is the
+# browser I am holding already bound to a chat?". For an account the web app can
+# read its own Supabase row under RLS; for a GUEST the binding exists only in
+# this process's store, so the chip could never turn green and a guest was
+# invited to reconnect a chat they had already connected.
+#
+# The probe closes that, and it reuses the link token's exact layout on purpose
+# — one packed format, one verifier, one set of failure messages — with ONE
+# difference that carries the whole security argument: it is signed with a
+# DIFFERENT KEY, derived from the same shared secret by domain separation.
+#
+#     probe key = HMAC-SHA256(TELEGRAM_LINK_SECRET, "alphaengine/telegram-link-probe/v1")
+#
+# So a probe presented to ``/start`` fails as "not issued by this desk", and a
+# link token presented to the status endpoint fails the same way. That matters
+# because the two travel differently: a link token is a bearer credential that
+# BINDS a chat, while a probe only asks a yes/no question, and the probe is the
+# one that will sit in server-to-server request bodies and proxy logs. Without
+# the separation, anything that could read a probe in flight could redeem it as
+# a link and bind its own Telegram account to somebody else's desk pass.
+_LINK_PROBE_CONTEXT = b"alphaengine/telegram-link-probe/v1"
+
+#: A probe is minted server-side and spent in the same request, so its whole
+#: legitimate life is one round trip. The ceiling is enforced HERE rather than
+#: trusted to the minter: a bug or a compromise on the web side must not be able
+#: to issue a probe that answers the same question for a week.
+LINK_PROBE_MAX_TTL_S = 300
+
+
+def link_probe_secret(secret: str) -> str:
+    """The key a status probe is signed with — never the key a link is signed with.
+
+    Domain separation, so the two token families cannot be swapped for one
+    another. See the block comment above for why that is the load-bearing part.
+    Mirrored by ``linkProbeSecret`` in ``web/lib/telegram-link.ts``; both suites
+    pin the same known-answer vector.
+    """
+    return hmac.new(secret.encode("utf-8"), _LINK_PROBE_CONTEXT, hashlib.sha256).hexdigest()
+
+
+def decode_link_probe(token: str, secret: str, *, now: float | None = None) -> LinkToken:
+    """Verify a status probe. ``ValueError`` carries the refusal text, as above."""
+    probe = decode_link_token(token, link_probe_secret(secret), now=now)
+    horizon = (time.time() if now is None else now) + LINK_PROBE_MAX_TTL_S
+    if probe.expires_at.replace(tzinfo=timezone.utc).timestamp() > horizon:
+        raise ValueError("That status probe is valid for longer than this desk accepts.")
+    return probe
+
+
 """The gates the deploy workflow actually runs before it will ship a build.
 
 This replaced three hardcoded assertion counts (342/680/13) that drifted the
@@ -937,28 +990,27 @@ class TelegramBot:
         """The operator's own read list. Fail-closed on empty, as it always was."""
         return bool(self.allowed_user_ids) and user_id in self.allowed_user_ids
 
-    def _bound_user_ids(self) -> set[str]:
-        """Telegram user ids holding a live binding to a web desk pass.
+    def _live_bindings(self) -> list[dict[str, Any]]:
+        """Bindings this gateway still honours, with the guest clock applied.
 
         Guest bindings age out; account bindings do not. A guest desk pass is a
         browser-session cookie this process cannot watch expire, so its mirror
         here carries its own clock — see ``TELEGRAM_GUEST_LINK_TTL_S``. An
         account binding has a durable Supabase row behind it and ends with the
         account, through the ``on delete cascade``.
+
+        Factored out so the authorisation check and the desk's own "am I
+        connected?" probe read ONE freshness rule. Two copies of an expiry
+        policy is how a chip goes on saying Connected for a binding that stopped
+        granting hours ago — which is the defect the probe exists to prevent,
+        inverted.
         """
         if not self.audit:
-            return set()
-        now = time.monotonic()
-        if (
-            self._bound_users_read_at is not None
-            and now - self._bound_users_read_at < self._BINDING_CACHE_TTL_S
-        ):
-            return self._bound_users
-
+            return []
         cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
             seconds=settings.telegram_guest_link_ttl_s
         )
-        live: set[str] = set()
+        live: list[dict[str, Any]] = []
         for binding in self.audit.web_bindings():
             user_id = str(binding.get("user_id") or "")
             identity = str(binding.get("web_identity") or "")
@@ -969,10 +1021,51 @@ class TelegramBot:
                 continue
             if kind == LINK_KIND_GUEST and binding["linked_at"] < cutoff:
                 continue
-            live.add(user_id)
-        self._bound_users = live
-        self._bound_users_read_at = now
+            live.append(binding)
         return live
+
+    def _bound_user_ids(self) -> set[str]:
+        """Telegram user ids holding a live binding to a web desk pass."""
+        if not self.audit:
+            return set()
+        now = time.monotonic()
+        if (
+            self._bound_users_read_at is not None
+            and now - self._bound_users_read_at < self._BINDING_CACHE_TTL_S
+        ):
+            return self._bound_users
+
+        self._bound_users = {str(binding["user_id"]) for binding in self._live_bindings()}
+        self._bound_users_read_at = now
+        return self._bound_users
+
+    def binding_status(self, kind: str, identity: str) -> str:
+        """Is this WEB identity bound to a chat right now? Three answers, never two.
+
+        ``"linked"``, ``"not-linked"``, or ``"unknown"`` when this gateway has no
+        store to read and therefore knows nothing — which is a different fact
+        from "no binding" and must not be flattened into it. Reporting an
+        unreadable store as "not linked" would invite someone to reconnect a
+        chat they had already connected.
+
+        The answer is a state, never an identity: the caller learns whether the
+        desk pass it already holds is bound, and nothing about WHICH chat,
+        WHICH Telegram account, or how many others exist. That is the same line
+        ``health()``'s ``links`` block draws, applied to a single row.
+
+        Uncached deliberately. ``_bound_user_ids`` caches for five seconds
+        because it runs once per subscriber inside every alert broadcast; this
+        runs once per header load, and a chip that says "not connected" for five
+        seconds after the bot said "Connected" is exactly the confusion the
+        whole feature is here to remove.
+        """
+        if not self.audit:
+            return "unknown"
+        wanted = f"{kind}:{identity}"
+        for binding in self._live_bindings():
+            if str(binding.get("web_identity") or "") == wanted:
+                return "linked"
+        return "not-linked"
 
     def _forget_bindings(self) -> None:
         """Drop the cache so the next read sees a binding written just now."""

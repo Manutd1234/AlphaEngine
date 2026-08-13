@@ -8,6 +8,7 @@ import {
   deepLink,
   isBotHandle,
   linkSecret,
+  mintLinkProbe,
   mintLinkToken,
   parseDeskPass,
   type DeskIdentity,
@@ -21,7 +22,16 @@ export const dynamic = "force-dynamic";
  *
  * Answers three questions in one round trip, because the header asks all three
  * at once and none of them is worth its own request: which bot is live, whether
- * this account has already connected a chat, and a fresh one-time deep link.
+ * this desk has already connected a chat, and a fresh one-time deep link.
+ *
+ * ── Why the second question needs two authorities ───────────────────────────
+ * It used to be answerable only for an account, from the `telegram_link` row in
+ * Supabase. A GUEST binding is held in the gateway's DuckDB and nowhere else,
+ * so a guest tapped Connect, the bot said "Connected", and this route kept
+ * answering `linkStatus: "unknown"` forever — the chip never turned green, for
+ * the majority of visitors, which defeats the feature. The gateway now publishes
+ * a read-only `POST /telegram/link/status` that answers for one signed identity,
+ * and `gatewayLinkStatus` below is how this route asks it.
  *
  * ── The identity is proved, not read off a cookie ───────────────────────────
  * The token binds a desk identity, so whoever mints it is claiming to *be* that
@@ -114,6 +124,13 @@ function bearer(request: NextRequest): string {
 
 export type LinkStatus = "linked" | "not-linked" | "unknown";
 
+/**
+ * Where the answer above came from. Never null and never absent: a state with
+ * no provenance is the shape this codebase keeps getting wrong, and "we could
+ * not ask" has to be a nameable answer rather than the absence of one.
+ */
+export type LinkSource = "account-record" | "gateway" | "none";
+
 interface LinkedChat {
   handle: string | null;
   chatId: string | null;
@@ -154,6 +171,66 @@ async function existingLink(
   };
 }
 
+interface GatewayLinkStatus {
+  link_status?: unknown;
+}
+
+/**
+ * Ask the gateway whether the identity this request already proved is bound.
+ *
+ * This is the only way a GUEST can ever be told they are connected: the guest
+ * binding lives in the gateway's DuckDB and there is no Supabase row to read.
+ * It is also the honest fallback for an account whose durable mirror was never
+ * written — the gateway's own store is what actually authorises, so it is the
+ * better authority on "is this working", and the Supabase row is the better
+ * authority on "as whom".
+ *
+ * ── What is sent, and why it cannot ask about anyone else ───────────────────
+ * A probe, signed with a key derived from the shared secret. The identity is
+ * INSIDE the signed payload, so there is no field an arbitrary user id could be
+ * placed in, and a flipped byte invalidates the MAC. The identity itself was
+ * established before we got here: an account by `getUser(jwt)` against
+ * Supabase's auth server, a guest by a cookie that claims nothing about anybody
+ * and that `POST /api/auth/guest` hands to whoever asks.
+ *
+ * The probe is not a connect token and cannot be redeemed as one — different
+ * key, see `mintLinkProbe`. That matters because this one travels on every
+ * header load rather than once per tap.
+ */
+async function gatewayLinkStatus(
+  identity: DeskIdentity,
+  secret: string,
+): Promise<{ status: LinkStatus; reason: string | null }> {
+  const probe = mintLinkProbe(identity, secret);
+  const result = await callGateway<GatewayLinkStatus>("/telegram/link/status", {
+    method: "POST",
+    body: { probe: probe.token },
+    timeoutMs: 4_000,
+    subject: "the Telegram connection status",
+  });
+
+  if (!result.ok) {
+    // 403 is the one failure worth translating: the gateway verified the
+    // signature and refused it, which in practice means the two deployments
+    // hold different secrets — and that breaks connecting too, not just this.
+    const reason =
+      result.failure.upstreamStatus === 403
+        ? `The gateway refused this desk's status probe. That usually means ${LINK_SECRET_ENV} `
+          + "differs between this deployment and the gateway, which would also stop Connect from working."
+        : result.failure.error;
+    return { status: "unknown", reason };
+  }
+
+  const reported = result.data?.link_status;
+  if (reported === "linked" || reported === "not-linked") return { status: reported, reason: null };
+  // Including the gateway's own "unknown" — it has no store to read, and that
+  // is a different fact from "no binding". It must not become one here.
+  return {
+    status: "unknown",
+    reason: "The gateway could not say whether this desk is connected, so this workspace will not guess.",
+  };
+}
+
 export async function GET(request: NextRequest) {
   const handle = await botHandle();
   const secret = linkSecret();
@@ -191,10 +268,31 @@ export async function GET(request: NextRequest) {
 
   const minted = handle && secret && identity ? mintLinkToken(identity, secret) : null;
 
+  /**
+   * Two authorities, asked in the order of what each is actually good for.
+   *
+   * The Supabase row is the only one that knows the Telegram *handle*, so an
+   * account that reads back as linked is answered from there and the gateway is
+   * left alone. Everything else — every guest, and any account whose durable
+   * mirror is missing or unreadable — is asked of the gateway, whose own store
+   * is what grants the Telegram read in the first place and is therefore the
+   * authority on whether the connection is live at all.
+   */
   let status: LinkStatus = "unknown";
   let chat: LinkedChat | null = null;
+  let source: LinkSource = "none";
+  let linkReason: string | null = null;
   if (account && env && token) {
     ({ status, chat } = await existingLink(env.url, env.anonKey, token, account.id));
+    if (status === "linked") source = "account-record";
+  }
+  if (status !== "linked" && identity && secret) {
+    const asked = await gatewayLinkStatus(identity, secret);
+    if (asked.status === "unknown") linkReason = asked.reason;
+    else {
+      status = asked.status;
+      source = "gateway";
+    }
   }
 
   return NextResponse.json(
@@ -206,12 +304,16 @@ export async function GET(request: NextRequest) {
           : null,
       reason,
       /**
-       * Three states, never two. A guest binding lives only in the gateway's own
-       * store, which this app has no route into, so "not connected" and "cannot
-       * tell from here" must not be collapsed — the button would then invite a
-       * guest to reconnect a chat that is already connected.
+       * Three states, never two. "Not connected" and "cannot tell from here"
+       * stay distinct even now that the gateway can be asked, because the ask
+       * itself can fail — and a failed ask reported as "not connected" invites
+       * someone to reconnect a chat that is already connected.
        */
       linkStatus: status,
+      /** Which authority answered, so the chip can say so rather than imply it. */
+      linkSource: source,
+      /** Why the answer is "unknown", when it is. Null when it is not. */
+      linkReason,
       linked: chat,
       note:
         identity?.kind === "guest"

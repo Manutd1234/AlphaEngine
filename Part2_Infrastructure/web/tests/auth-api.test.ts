@@ -145,6 +145,25 @@ describe("the session route mints a pass only for a real session", () => {
       "a failed validation must drop the pass rather than leaving it");
   });
 
+  it("leaves a GUEST pass alone when someone else's token fails", async () => {
+    /**
+     * Observed in a browser, not reasoned about: a guest holding a valid pass
+     * loaded `/login` — which `/` always redirects to — with a token in storage
+     * that Supabase no longer accepts. The login page minted from it, this route
+     * answered 401, and the guest's pass went with it, so the next navigation to
+     * the desk bounced them back to the form. The rejected token says nothing
+     * about a guest who chose not to have an account.
+     */
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://project.invalid";
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon";
+    const request = get("/api/auth/session", "Bearer not-a-real-token");
+    request.cookies.set(DESK_COOKIE, guestValue("visitor"));
+    const response = await session(request);
+    assert.equal(response.status, 401, "the answer about the token is unchanged");
+    assert.equal(response.cookies.get(DESK_COOKIE), undefined,
+      "a guest pass must survive a failed validation of an account token");
+  });
+
   it("accepts the bearer scheme case-insensitively", async () => {
     // "bearer" lowercase is legal and some clients send it; rejecting it would
     // present as sign-in working in one browser and not another.

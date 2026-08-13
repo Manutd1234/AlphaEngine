@@ -28,6 +28,10 @@ export interface BacktestRequest {
   walk_forward?: boolean;
 }
 
+export interface Body_telegram_link_status_telegram_link_status_post {
+  probe: string;
+}
+
 export interface BookLevel {
   cum_notional: number;
   notional: number;
@@ -530,6 +534,7 @@ export interface GatewayOperations {
   "GET /health": { response: Record<string, unknown> };
   "GET /metrics": { response: unknown };
   "GET /telegram/health": { response: Record<string, unknown> };
+  "POST /telegram/link/status": { request: Body_telegram_link_status_telegram_link_status_post; response: Record<string, unknown> };
   "POST /telegram/webhook": { response: Record<string, boolean> };
 }
 
@@ -571,6 +576,7 @@ export const GATEWAY_CONTRACT_PATHS = [
   "/health",
   "/metrics",
   "/telegram/health",
+  "/telegram/link/status",
   "/telegram/webhook",
 ] as const;
 

@@ -120,6 +120,112 @@ describe("the link leaves this origin safely", () => {
   });
 });
 
+describe("connected is unmistakably connected", () => {
+  it("says the word", () => {
+    // The state is named, not implied by a handle. `@somebody` in a header chip
+    // is a username; "Connected" is an answer to the question the reader has.
+    assert.match(code(cta), /label = "Connected"/);
+  });
+
+  it("carries the state with a mark as well as a colour", () => {
+    // House rule, and the reason it exists: below 1380px the label span is
+    // hidden, so a green chip with no word would be colour and nothing else —
+    // invisible to a colour-blind reader, a greyscale screenshot and Windows
+    // High Contrast alike. The ✓ sits OUTSIDE the collapsing span.
+    assert.match(code(cta), /mark = "✓"/);
+    const markSpan = code(cta).indexOf("{mark ?");
+    const labelSpan = code(cta).indexOf("max-[1380px]:hidden");
+    assert.ok(markSpan !== -1 && markSpan < labelSpan, "the mark must not collapse with the label");
+  });
+
+  it("uses the house status tokens rather than a raw green", () => {
+    // --status-good is the FILL step (dots, washes, borders); --success-text is
+    // the AA-asserted TEXT step. A word takes the text step, never the fill.
+    assert.match(cta, /color-mix\(in_srgb,var\(--status-good\)_38%,var\(--border\)\)/);
+    assert.match(cta, /color-mix\(in_srgb,var\(--status-good\)_6%,var\(--surface-1\)\)/);
+    assert.match(code(cta), /text-success-text/);
+    // No raw green anywhere: the tokens already flip with data-theme.
+    assert.doesNotMatch(code(cta), /#(?:159467|35c48f|087552|0ca50c)/i);
+  });
+
+  it("keeps hover off the plane the word sits on", () => {
+    /**
+     * --success-text over 6% --status-good is 5.34:1 in light and 4.54:1 in
+     * dark. Deepening that wash on hover would walk the dark theme under AA —
+     * 8% is already 4.38:1 — so hover moves the border instead, and the
+     * contrast of the word is invariant under pointer state.
+     */
+    assert.match(code(cta), /hover:border-\[color-mix\(in_srgb,var\(--status-good\)_62%,var\(--border\)\)\]/);
+    assert.doesNotMatch(code(cta), /hover:bg-\[color-mix\(in_srgb,var\(--status-good\)/);
+  });
+
+  it("keeps the handle available without widening the chip", () => {
+    // The header collapses labels under 1380px and the nav sits beside this
+    // chip, so `Connected · @somebody` is a layout change disguised as a label.
+    // The handle rides in the description, which is both title and aria-label.
+    assert.match(code(cta), /as @\$\{connectedTo\}/);
+    assert.match(code(cta), /title=\{description\}/);
+  });
+
+  it("never prints the bot's own handle as though it were the reader's", () => {
+    // `?? handle` used to close this expression, so every binding with no
+    // captured Telegram username — which is every guest — rendered the bot's
+    // username as the user's own.
+    assert.match(code(cta), /const connectedTo = linked \? \(answer\?\.linked\?\.handle \?\? null\) : null/);
+  });
+
+  it("offers the chat rather than a second connect code once connected", () => {
+    // A connect code is a single-use credential that BINDS a chat. Handing one
+    // to somebody already bound offers a write they did not ask for.
+    assert.match(code(cta), /const href = linked && handle\s*\?\s*`https:\/\/t\.me\/\$\{handle\}`/);
+  });
+});
+
+describe("a guest can see that they are connected", () => {
+  it("asks the gateway, because a guest binding lives nowhere else", () => {
+    // The gap this closes: a guest tapped Connect, the bot confirmed, and this
+    // route answered `linkStatus: "unknown"` forever because the binding is in
+    // the gateway's DuckDB and there is no Supabase row to read.
+    assert.match(code(route), /callGateway<GatewayLinkStatus>\("\/telegram\/link\/status"/);
+    assert.match(code(route), /method: "POST"/);
+    assert.match(code(route), /mintLinkProbe\(identity, secret\)/);
+  });
+
+  it("sends a probe that cannot be redeemed as a connect code", () => {
+    // Different key by domain separation — pinned in telegram-link.test.ts on
+    // both sides of the wire. The probe rides on every header load; the connect
+    // token is a bearer credential that binds a chat.
+    const lib = read("../lib/telegram-link.ts");
+    assert.match(lib, /alphaengine\/telegram-link-probe\/v1/);
+    assert.match(code(lib), /createHmac\("sha256", secret\)\.update\(PROBE_CONTEXT/);
+  });
+
+  it("asks about the identity it proved, never one from the request", () => {
+    // The identity is inside the signed payload, so the endpoint has no field
+    // for an arbitrary user id. `identity` here is the same value the route
+    // established from `getUser(jwt)` or from a guest pass that claims nothing.
+    const source = code(route);
+    const proved = source.indexOf('if (!identity && pass?.kind === "guest") identity = pass;');
+    const asked = source.indexOf("gatewayLinkStatus(identity, secret)");
+    assert.ok(proved !== -1 && asked !== -1 && proved < asked);
+  });
+
+  it("keeps three states, so a failed ask is not reported as 'not connected'", () => {
+    assert.match(code(route), /status: "unknown"/);
+    assert.match(code(route), /reported === "linked" \|\| reported === "not-linked"/);
+    // And the unknown case names its own cause instead of going quiet.
+    assert.match(code(route), /linkReason/);
+    assert.match(code(cta), /answer\.linkReason/);
+  });
+
+  it("says which authority answered", () => {
+    // Provenance, because the two are different promises: an account binding is
+    // recorded against the account, a guest binding is the gateway's alone.
+    assert.match(code(route), /export type LinkSource = "account-record" \| "gateway" \| "none"/);
+    assert.match(code(cta), /answer\?\.linkSource === "account-record"/);
+  });
+});
+
 describe("the brand mark stays legible in both themes", () => {
   it("uses the darker brand blue behind the white glyph", () => {
     // White on #0088cc is 3.89:1, clearing the 3:1 bar for graphical objects.
