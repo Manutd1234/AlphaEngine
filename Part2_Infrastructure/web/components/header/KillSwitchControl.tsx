@@ -63,6 +63,7 @@ export default function KillSwitchControl({
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<RiskSubmitResult | null>(null);
   const [gatewayConnected, setGatewayConnected] = useState<boolean | null>(null);
+  const [gatewayReason, setGatewayReason] = useState<string | null>(null);
   const wrapper = useRef<HTMLSpanElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const confirmInput = useRef<HTMLInputElement>(null);
@@ -76,7 +77,13 @@ export default function KillSwitchControl({
     let alive = true;
     setResult(null);
     void fetchRiskControl().then((info) => {
-      if (alive) setGatewayConnected(info ? info.gatewayConnected : false);
+      if (!alive) return;
+      setGatewayConnected(info ? info.gatewayConnected : false);
+      setGatewayReason(
+        info
+          ? info.gatewayReason ?? null
+          : "This deployment's risk route did not answer.",
+      );
     });
     confirmInput.current?.focus();
     return () => {
@@ -176,16 +183,30 @@ export default function KillSwitchControl({
               : "Trips the gateway's kill switch: every subsequent pre-trade check rejects until it is cleared, and the event lands in the audit log."}
           </p>
 
+          {/* ONLINE now means the gateway answered a health probe, not that a
+              URL is set. The offline branch prints the reason the probe gave
+              rather than guessing at a stopped local server — a deployed desk
+              has no uvicorn to restart, and that instruction was the only thing
+              it offered. */}
           <p className="mt-2 flex items-center gap-1.5 text-[11px]">
             {gatewayConnected === null ? (
               <span className="text-text-muted">Checking gateway connection…</span>
             ) : gatewayConnected ? (
               <span className="text-success-text"><span aria-hidden>●</span> GATEWAY ONLINE · guard: {riskControl.guardMode}</span>
             ) : (
-              <span className="text-critical-text"><span aria-hidden>✕</span> GATEWAY OFFLINE — Run <code className="font-mono">python -m uvicorn main:app --port 8000</code></span>
+              <span className="text-critical-text"><span aria-hidden>✕</span> GATEWAY UNREACHABLE</span>
             )}
             {halt?.sandbox && <span className="text-notice-text">· sandbox mode</span>}
           </p>
+          {gatewayConnected === false && gatewayReason && (
+            <p className="mt-1 text-[11px] leading-snug text-text-secondary">
+              {gatewayReason}{" "}
+              {gatewayReason.startsWith("No gateway URL")
+                ? "Set ALPHAENGINE_GATEWAY_URL, or run the gateway locally with "
+                : "If you are running the desk locally, start the gateway with "}
+              <code className="font-mono">python -m uvicorn main:app --port 8000</code>.
+            </p>
+          )}
 
           <label className="mt-3 block text-[11px] font-semibold text-text-secondary" htmlFor="kill-switch-reason">
             Reason (audited)

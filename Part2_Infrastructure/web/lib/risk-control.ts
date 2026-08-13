@@ -170,7 +170,14 @@ export interface RiskControlInfo {
   actions: RiskAction[];
   confirm: Record<RiskAction, string>;
   guard: { mode: GuardMode; tokenEnv: string };
+  /**
+   * The gateway answered a deadlined health probe. This used to mean only that
+   * a URL was configured, which is a different claim and a worse one to make
+   * above a control that halts trading.
+   */
   gatewayConnected: boolean;
+  /** Why it did not answer. Null when it did. */
+  gatewayReason?: string | null;
 }
 
 /** Pre-flight probe: what this deployment permits, before anything is typed. */

@@ -19,8 +19,10 @@
  */
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { after, describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { describeTier, isMeasured, writesEnabled, type Provenance } from "../lib/data-tier";
 import {
@@ -84,6 +86,70 @@ describe("only live data may be acted on", () => {
   it("separates 'real' from 'actionable'", () => {
     assert.equal(isMeasured("cached"), true);
     assert.equal(isMeasured("sandbox"), false);
+  });
+});
+
+/**
+ * `writesEnabled` being false is not the same claim as "the control is
+ * disabled", and the badge used to make the second one on the strength of the
+ * first: "Order entry and operator controls are disabled until live data
+ * returns", for every non-live tier.
+ *
+ * Neither half held. In sandbox the ticket stays fully operable and judges each
+ * order in the browser against the gateway's own gate logic — it sends nothing,
+ * which is a different and more interesting fact. And the operator controls are
+ * not tier-gated at all; the kill switch answers to the guard mode and to the
+ * gateway answering a probe.
+ *
+ * A badge describing a lockout the desk does not perform is worse than one
+ * saying nothing, because it is checked precisely when someone is deciding
+ * whether it is safe to click.
+ */
+describe("the safety statement describes what the desk actually does", () => {
+  const source = (relative: string) =>
+    readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
+  /**
+   * Comments stripped before scanning. The badge's own comment records the
+   * sentence it stopped saying and why, which a naive search reads as the
+   * defect itself — the same trap `drift-bars.test.ts` documents. Prose about
+   * what not to do must not count as doing it.
+   */
+  const code = (relative: string) =>
+    source(relative).replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+
+  const badge = code("../components/header/DataTierBadge.tsx");
+  const ticket = source("../components/execution/OrderTicket.tsx");
+
+  it("no longer claims order entry is disabled outside live", () => {
+    assert.doesNotMatch(
+      badge,
+      /Order entry and operator controls are disabled/,
+      "the badge is again claiming a lockout the ticket does not perform",
+    );
+  });
+
+  it("agrees with the ticket about sandbox: open, judged here, not sent", () => {
+    // The ticket's own words, so the two surfaces cannot drift apart.
+    assert.match(ticket, /No order leaves this page/);
+    assert.match(badge, /judges every order in this browser/);
+    assert.match(badge, /Nothing is sent/);
+  });
+
+  it("attributes the closed ticket to the gateway rather than to the tier", () => {
+    // The ticket disables on reachability, which it reaches before any tier
+    // test — so that is what the badge must name.
+    assert.match(ticket, /The order path needs a reachable gateway/);
+    assert.match(badge, /while no gateway is answering/);
+  });
+
+  it("stops attributing operator controls to the data tier", () => {
+    assert.match(badge, /Operator controls answer to the guard mode and to the gateway/);
+  });
+
+  it("still routes its own claim through the shared authority", () => {
+    // The copy changed; the gate did not. `writesEnabled` remains the thing
+    // asked, so a fourth tier cannot arrive quietly write-enabled.
+    assert.match(badge, /writesEnabled\(provenance\.tier\)/);
   });
 });
 

@@ -288,14 +288,66 @@ function relay(
   );
 }
 
+/**
+ * Whether the gateway is actually there, asked rather than assumed.
+ *
+ * `gatewayConnected` used to be `gatewayBase() !== null` — a URL is
+ * configured. The comment on `gatewayBase` above already records this exact
+ * class of bug being fixed once, for a loopback address that "reported a
+ * connected gateway while every fetch through it failed, the worst possible
+ * answer for the one field operators check first". Resolving the URL more
+ * carefully narrowed that; it did not close it, because a correctly-shaped URL
+ * pointing at a stopped process still resolves.
+ *
+ * The panel says GATEWAY ONLINE directly above a box that halts trading. It
+ * has to mean the gateway answered.
+ *
+ * Deadlined at the same 2.5s the browser-side reads use, so a hung gateway
+ * reports unreachable instead of holding the panel open on a spinner — the
+ * failure an operator can least afford to wait out.
+ */
+const PROBE_DEADLINE_MS = 2_500;
+
+async function probeGateway(base: URL | null): Promise<{ reachable: boolean; reason: string | null }> {
+  if (!base) {
+    return { reachable: false, reason: "No gateway URL is configured for this deployment." };
+  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PROBE_DEADLINE_MS);
+  try {
+    const response = await fetch(new URL("/health", base), {
+      cache: "no-store",
+      signal: controller.signal,
+      headers: gatewayHeaders(),
+    });
+    if (response.ok) return { reachable: true, reason: null };
+    return {
+      reachable: false,
+      reason: `The gateway answered HTTP ${response.status} rather than a health report.`,
+    };
+  } catch (err) {
+    return {
+      reachable: false,
+      reason: controller.signal.aborted
+        ? `The gateway did not answer within ${PROBE_DEADLINE_MS}ms.`
+        : `The gateway could not be reached: ${(err as Error).message}`,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 /** GET — what this route would do and whether it is currently permitted. */
 export async function GET() {
   const mode = guardMode();
+  const probe = await probeGateway(gatewayBase());
   return NextResponse.json({
     actions: ACTIONS,
     confirm: CONFIRM_WORD,
     guard: { mode, tokenEnv: OPERATOR_TOKEN_ENV },
-    gatewayConnected: gatewayBase() !== null,
+    gatewayConnected: probe.reachable,
+    /** Null when it answered. The panel prints this instead of guessing. */
+    gatewayReason: probe.reason,
     note:
       "Flatten is composed from GET /api/portfolio plus one risk-gated POST /api/orders per open position — "
       + "the gateway exposes no flatten endpoint. Orders are submitted sequentially so they cannot race its exposure accounting.",

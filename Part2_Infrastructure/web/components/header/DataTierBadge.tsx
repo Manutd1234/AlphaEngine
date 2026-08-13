@@ -114,12 +114,28 @@ export default function DataTierBadge({
           <p className="mt-1 text-[11.5px] leading-snug text-text-secondary">{badge.detail}</p>
 
           {/* The safety statement, and the reason it is safe to fill the desk in
-              at all. Shown in every tier so its absence is never the only signal. */}
+              at all. Shown in every tier so its absence is never the only signal.
+
+              It used to read "Order entry and operator controls are disabled
+              until live data returns" for every non-live tier, and that was not
+              what the desk does. In sandbox the ticket stays fully operable and
+              judges each order in the browser against the gateway's own gate
+              logic — it simply sends nothing. And the operator controls are not
+              tier-gated at all: the kill switch answers to the guard mode and to
+              the gateway answering a probe. A badge that describes a lockout
+              nobody performs teaches the reader to distrust the badge. */}
           <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-snug text-text-secondary">
             <i aria-hidden>{writesEnabled(provenance.tier) ? "○" : "⦸"}</i>
             {writesEnabled(provenance.tier)
-              ? "Order entry and operator controls are enabled."
-              : "Order entry and operator controls are disabled until live data returns."}
+              ? "Orders submitted from this desk reach the gateway."
+              : provenance.tier === "sandbox"
+                ? "The ticket stays open and judges every order in this browser using the gateway's own gate logic, against the generated book. Nothing is sent."
+                : "The ticket is closed while no gateway is answering, rather than ending a click in an error it could not explain."}
+          </p>
+          <p className="mt-1 flex items-start gap-1.5 text-[11px] leading-snug text-text-muted">
+            <i aria-hidden>○</i>
+            Operator controls answer to the guard mode and to the gateway, not to
+            this tier.
           </p>
 
           {detail && (

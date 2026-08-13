@@ -61,8 +61,20 @@ export interface Provenance {
  *
  * `killSwitchGate` already refused to arm against a disconnected gateway and
  * `WorkingOrders` already had a `writesDisabled` flag; this is the same rule
- * stated once so the twenty-odd surfaces that gained a fallback in this pass
- * cannot each decide it differently.
+ * stated once so no surface can decide it differently.
+ *
+ * WHO ACTUALLY READS IT, because the honest answer is narrower than it looks:
+ * one caller, `DataTierBadge`'s safety statement. That is not a sign the rule
+ * is unused — it is that every surface which could write carries a STRICTER
+ * gate of its own, and reaches it first. The ticket is closed by an unreachable
+ * gateway before the tier is consulted, and in sandbox it stays open and judges
+ * locally rather than sending. The kill switch is gated by the guard mode and
+ * by the gateway answering a probe.
+ *
+ * So this is the floor, and the badge is where the floor is described. Anything
+ * that describes it must describe the stricter gates too, or it will claim a
+ * lockout the desk does not perform — which is precisely what the badge used to
+ * do.
  */
 export function writesEnabled(tier: DataTier): boolean {
   return tier === "live";
