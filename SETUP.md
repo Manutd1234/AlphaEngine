@@ -157,7 +157,7 @@ nobody should quote.
 # Gateway suite — 691 passed, 1 skipped
 cd Part2_Infrastructure && venv/bin/python -m pytest
 
-# Web suite — 2169 passed across 547 suites, no browser needed
+# Web suite — 2174 passed across 548 suites, no browser needed
 cd Part2_Infrastructure/web && npm test
 
 # Research service — 13 passed

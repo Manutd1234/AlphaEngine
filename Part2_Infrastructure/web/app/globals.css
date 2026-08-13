@@ -15104,15 +15104,24 @@ html:active-view-transition .view-panel {
    navigation is one quiet row, while actions are a separate group. The old
    numbered/checkmarked stepper consumed about 23px per tab and implied that
    opening a section completed work. Labels now carry the whole hierarchy. */
+/* A tab strip needs a baseline, or its active item is a box floating in space.
+   Flattening the tray removed the chrome and left exactly that: a rounded,
+   tinted 34px block adrift in a 42px row, with an underline attached to
+   nothing. The hairline is what says "these are tabs, and there are more of
+   them" — it is the same job the header's own bottom border does for the role
+   tabs one level up.
+   Children align to the BOTTOM so the active tab's 2px rule lands on the
+   hairline rather than hovering four pixels above it. */
 .workspace-subtabs {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  align-items: end;
   gap: var(--space-2);
-  min-height: 42px;
+  min-height: 40px;
   margin-bottom: var(--space-3);
   padding: 0;
   border: 0;
+  border-bottom: 1px solid var(--border);
   background: transparent;
 }
 
@@ -15157,7 +15166,9 @@ html:active-view-transition .view-panel {
   justify-content: center;
   padding: 5px 9px;
   border: 1px solid transparent;
-  border-radius: calc(var(--radius-md) - 3px);
+  /* Top corners only. A fully rounded tint reads as a pill that happens to be
+     highlighted; a tab is a shape that meets the baseline. */
+  border-radius: 6px 6px 0 0;
   background: transparent;
   color: var(--text-secondary);
   text-align: center;
@@ -15210,7 +15221,8 @@ html:active-view-transition .view-panel {
   margin-left: 0;
   padding-left: 9px;
   border-left: 1px solid color-mix(in srgb, var(--text-muted) 14%, transparent);
-  border-radius: calc(var(--radius-md) - 3px);
+  /* Matches the tab shape of its neighbours; it is a quieter tab, not a chip. */
+  border-radius: 6px 6px 0 0;
   color: var(--text-muted);
 }
 

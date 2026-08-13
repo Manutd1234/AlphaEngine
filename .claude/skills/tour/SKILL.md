@@ -190,7 +190,7 @@ liquidation modelling. Point the user at that table rather than reciting it; the
 gaps column is the argument.
 
 That table's test counts were last re-measured against a green run on
-2026-08-14 — 691 gateway, 2,169 web across 547 suites, 13 service. Cite them if
+2026-08-14 — 691 gateway, 2,174 web across 548 suites, 13 service. Cite them if
 you must, but the standing rule outranks the sentence: **never quote a test
 count from prose.** Run the `verify` skill and read the number off the output.
 Every count in this repository has drifted at least once.

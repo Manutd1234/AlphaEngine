@@ -267,3 +267,68 @@ describe("one navigation surface per viewport", () => {
     assert.match(header, /\{item\.label\} — \{item\.role\}/);
   });
 });
+
+/**
+ * A subtab rail has to look like a subtab rail.
+ *
+ * Flattening the tray removed real chrome — a bordered, tinted, twice-shadowed
+ * box around a row of eight words — but took the strip's identity with it. What
+ * was left was a rounded, tinted 34px block adrift in a 42px row, carrying an
+ * underline that met nothing, on eight tabs. Nothing said "this row is a set of
+ * tabs, and there are more of them than the one you are reading".
+ *
+ * The fix is a hairline baseline plus bottom-aligned children, so the active
+ * tab's 2px rule lands ON the line instead of hovering above it. That geometry
+ * is the whole effect, and it is what these assertions hold: a centred row, or
+ * a taller strip than its buttons, silently detaches the rule again and the
+ * screenshot looks almost right.
+ *
+ * Measured in a browser across all eight tabs and both themes when written:
+ * button bottom to baseline, 0px everywhere.
+ */
+describe("the subtab strip reads as a strip", () => {
+  const strip = ruleFor(".workspace-subtabs").at(-1) ?? "";
+  const railButton = declarations.slice(
+    declarations.indexOf('.workspace-subtabs__rail[data-scroll-affordance="horizontal"] > button {'),
+  ).split("\n}")[0];
+
+  it("draws a baseline under the whole strip", () => {
+    assert.match(
+      strip,
+      /border-bottom:\s*1px solid var\(--border\)/,
+      "the rail lost the hairline that says a tab strip is a tab strip",
+    );
+  });
+
+  it("aligns its children to that baseline", () => {
+    // `center` is what left the active tab floating: the strip is taller than
+    // its buttons, so a bottom-anchored rule stops short of the line.
+    assert.match(strip, /align-items:\s*end/);
+    assert.doesNotMatch(strip, /align-items:\s*center/);
+  });
+
+  it("shapes the tabs as tabs, not as pills", () => {
+    // Top corners only. A fully rounded tint reads as a highlighted pill that
+    // happens to sit near a line, which is what the screenshots showed.
+    assert.match(railButton, /border-radius:\s*6px 6px 0 0/);
+  });
+
+  it("marks the active tab with a rule that meets the baseline", () => {
+    // `ruleFor` escapes only a leading dot, so an attribute selector's brackets
+    // would be read as a character class. Sliced directly instead.
+    const start = declarations.lastIndexOf('.workspace-subtabs button[aria-selected="true"] {');
+    assert.ok(start > 0, "the active subtab has no rule in the stylesheet");
+    const active = declarations.slice(start).split("\n}")[0];
+    assert.match(active, /box-shadow:\s*inset 0 -2px 0 var\(--series-1\)/);
+    // And the rule is not the only signal — contrast and the tint carry it too,
+    // which is the no-colour-only rule applied to navigation.
+    assert.match(active, /color:\s*var\(--text-primary\)/);
+  });
+
+  it("keeps the strip no taller than a tab plus its baseline", () => {
+    // 40px against a 34px button leaves room for the hairline and nothing else.
+    // A larger figure reintroduces the gap this whole block exists to close.
+    const height = Number(strip.match(/min-height:\s*(\d+)px/)?.[1] ?? 0);
+    assert.ok(height > 0 && height <= 40, `strip min-height is ${height}px`);
+  });
+});
