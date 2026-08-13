@@ -23,6 +23,7 @@ import type { DeveloperWorkItem } from "@/lib/developer-work";
 import { mcParityFixture, MC_PARITY_PATHS } from "@/lib/mc-parity";
 import { MC_PARITY_REFERENCE_JSON, MC_PARITY_REFERENCE_SHA256 } from "@/lib/mc-parity-reference.generated";
 import { DEVELOPER_SECTIONS, type DeveloperSection } from "@/lib/sections";
+import { TEST_COUNTS } from "@/lib/test-counts.generated";
 import { useMcDistribution } from "@/lib/use-mc-distribution";
 import { DEPLOYABLES, GITHUB_SOURCE_ROOT, REPOSITORY_STATS } from "@/lib/repository-catalog";
 import type { SystemHealthView } from "@/lib/use-system-health";
@@ -48,29 +49,35 @@ interface ControlState {
   tone: ControlTone;
 }
 
+/*
+ * Measured, not remembered.
+ *
+ * These were three hand-copied integers and they drifted three times: first
+ * 342/680/13 against a real 667/1976/13 — the pill below sums them, so the tab
+ * advertised "1035 tests" while the suites ran 2650 — then 667/1976 against
+ * 691/2013, then 2013 against 2169 inside a single afternoon.
+ *
+ * A figure nobody can reproduce is the one defect this console exists to
+ * catch, so the console had stopped being able to make the claim honestly.
+ * `scripts/refresh-test-counts.mjs` now runs the three suites and writes what
+ * they print; each row's `command` is how a reader checks it themselves.
+ */
 const CI_JOBS = [
   {
     name: "Gateway",
-    // Re-derived, not remembered. These were 342/680/13 against a real
-    // 667/1976/13 once — the pill below sums them, so the tab was advertising
-    // "1035 tests" while the suites ran 2650. They then drifted again, which is
-    // what a hand-copied count does: 667/1976 against 691/2013 as measured on
-    // 2026-08-14. Each row's `command` is how to check, and checking is the
-    // point — this is a delivery console, so a number here that nobody can
-    // reproduce is the one kind of defect it exists to catch.
-    count: 691,
+    count: TEST_COUNTS.gateway.total,
     command: "python -m pytest",
     evidence: "pytest · ruff · OpenAPI snapshot · money-path probe",
   },
   {
     name: "Web workspace",
-    count: 2013,
+    count: TEST_COUNTS.web.total,
     command: "npm test && npm run typecheck && npm run build",
     evidence: "domain tests · contract fixtures · strict TypeScript · Next.js build",
   },
   {
     name: "OpenBB service",
-    count: 13,
+    count: TEST_COUNTS.service.total,
     command: "python -m pytest",
     evidence: "provider facade · authentication · API contracts",
   },

@@ -120,7 +120,7 @@ container, the lockfile and the live database. Full detail (every dependency's
 | **[Caddy](https://caddyserver.com)** | `2.6.2` | Automatic HTTPS in front of the gateway. |
 | **[Oracle Cloud](https://www.oracle.com/cloud/)** | managed | Always-on host, Singapore — region is load-bearing for venue egress. |
 | **[Vercel](https://vercel.com)** | managed | Two serverless projects from one repo; builds are Ed25519-attested against a trust root pinned in reviewed source. |
-| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free CI jobs: 691 gateway + 2,038 web + 13 service tests. |
+| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free CI jobs: 691 gateway + 2,169 web + 13 service tests. |
 
 ### Verify it end to end
 
@@ -138,7 +138,7 @@ From a tree that is already set up:
 cd Part2_Infrastructure
 venv/bin/python -m pytest                            # 691 passed, 1 skipped
 venv/bin/python tools/synthetic_probe.py             # book → cost → risk gate → audit
-(cd web && npm test)                                 # 2,038 tests across 513 suites
+(cd web && npm test)                                 # 2,169 tests across 547 suites
 (cd OpenBB_Service && ../venv/bin/python -m pytest)  # 13 passed
 ```
 

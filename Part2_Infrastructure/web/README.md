@@ -89,7 +89,7 @@ npm install
 npm run dev        # http://localhost:3000 (Turbopack)
 npm run build      # Turbopack production build
 npm run typecheck  # tsc --noEmit
-npm test           # 2,038 tests across 513 suites, no network required
+npm test           # 2,169 tests across 547 suites, no network required
 ```
 
 Built on **Next.js 16** with **Turbopack**, which is the default bundler for both
@@ -497,7 +497,7 @@ web/
 │       └── …one adapter per vendor (binance, fmp, tiingo, massive,
 │            alphavantage, firecrawl, openbb)
 ├── components/               charts (hand-rolled SVG), controls, tables
-└── tests/                   2,038 tests incl. cross-engine and risk-engine parity
+└── tests/                   2,169 tests incl. cross-engine and risk-engine parity
 ```
 
 **Why the sweep runs server-side.** Binance's public API is called from the

@@ -3,7 +3,7 @@
 import { useDeferredValue, useMemo, useState } from "react";
 
 type ApiGroup = "market" | "research" | "gateway" | "system";
-type ApiMethod = "GET" | "POST";
+type ApiMethod = "GET" | "POST" | "DELETE";
 
 interface ApiOperation {
   method: ApiMethod;
@@ -46,6 +46,33 @@ export const API_OPERATIONS: readonly ApiOperation[] = [
   { method: "GET", path: "/api/system/events?since=0", purpose: "Structured trace cursored by sequence", group: "system" },
   { method: "GET", path: "/api/system/health", purpose: "Providers, breakers, latency, failover, and cache", group: "system" },
   { method: "GET", path: "/api/system/inspect?symbol=BTCUSDT&raw=1", purpose: "One request with route and raw-payload lineage", group: "system" },
+
+  /*
+   * The nine routes this catalogue had never listed.
+   *
+   * It claimed "26 web API operations · 23 route handlers" while the app
+   * shipped 32 route files — every auth surface, both Oracle backends, the
+   * research RAG proxy, favourites and the Telegram connect mint were absent.
+   * The count was not wrong about its own list; the list was nine routes short,
+   * which is the harder version of the same defect, because the arithmetic
+   * checks out and the inventory is still a lie.
+   *
+   * That matters more here than almost anywhere: this is the panel a reviewer
+   * opens to ask what the API surface IS. `tests/api-catalogue.test.ts` now
+   * diffs this array against the filesystem, so the next route cannot be added
+   * without appearing here.
+   */
+  { method: "POST", path: "/api/auth/guest", purpose: "Seed a guest desk pass for this browser", group: "system" },
+  { method: "GET", path: "/api/auth/login", purpose: "Configured sign-in providers", group: "system" },
+  { method: "POST", path: "/api/auth/login", purpose: "Exchange credentials for a desk session", group: "system" },
+  { method: "POST", path: "/api/auth/logout", purpose: "End this browser's desk session", group: "system" },
+  { method: "GET", path: "/api/auth/session", purpose: "Current identity and active sessions", group: "system" },
+  { method: "DELETE", path: "/api/auth/session", purpose: "Revoke one session by id", group: "system" },
+  { method: "GET", path: "/api/telegram/link", purpose: "Mint a single-use Telegram connect token", group: "system" },
+  { method: "POST", path: "/api/favourites", purpose: "Pin or unpin a research run for this identity", group: "research" },
+  { method: "POST", path: "/api/gateway/research/rag", purpose: "Retrieval over the research corpus", group: "gateway" },
+  { method: "POST", path: "/api/oracle/research", purpose: "Oracle-backed research retrieval (optional backend)", group: "research" },
+  { method: "POST", path: "/api/oracle/var", purpose: "Oracle-backed value-at-risk (optional backend)", group: "research" },
 ] as const;
 
 const API_ROUTE_HANDLER_COUNT = new Set(

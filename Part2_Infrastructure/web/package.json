@@ -15,7 +15,8 @@
     "catalog:refresh": "node scripts/generate-codebase-manifest.mjs",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test tests/*.test.ts"
+    "test": "node --import tsx --test tests/*.test.ts",
+    "counts:refresh": "node scripts/refresh-test-counts.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.2",
