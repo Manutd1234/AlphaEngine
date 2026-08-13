@@ -22,6 +22,7 @@
 
 import { useState } from "react";
 
+import TechMark from "@/components/common/TechMark";
 import {
   DEPENDENCY_GLYPH,
   DEPENDENCY_WORD,
@@ -59,13 +60,24 @@ function Node({ node, depth }: { node: DependencyNode; depth: number }) {
           <span className="sr-only">{DEPENDENCY_WORD[node.health]}</span>
         </span>
 
+        <TechMark nodeId={node.id} label={node.label} state={node.health} size="sm" />
+
         <span className="dependency-node__name">
           <strong>{node.label}</strong>
           <span className="dependency-node__role">{node.role}</span>
         </span>
 
         <span className="dependency-node__word">{DEPENDENCY_WORD[node.health]}</span>
-        <span className="dependency-node__detail">{node.detail}</span>
+        {/* EXPLAIN THE EXCEPTIONS, NOT THE NORM. Fifteen rows each carrying a
+            full sentence is the wall this tab was accused of being, and on a
+            healthy node the sentence says the thing the glyph and the word
+            already said. Anything that is not `ok` keeps its reason inline,
+            because that is precisely the row a reader came here for. */}
+        {node.health === "ok" ? (
+          <span className="dependency-node__detail sr-only">{node.detail}</span>
+        ) : (
+          <span className="dependency-node__detail">{node.detail}</span>
+        )}
         {/* Provenance on the node itself: the state above is checkable rather
             than merely plausible. */}
         <code className="dependency-node__source">{node.source}</code>
@@ -114,16 +126,30 @@ export default function DependencyTree({
         </span>
       </div>
 
-      <p className="sub">
-        Read top-down: everything indented under a node depends on it. Five states, because{" "}
-        <em>not configured</em> and <em>not observed</em> are not faults — and when the gateway
-        cannot be reached, everything behind it reports <em>not observed</em> rather than down,
-        since one dead transport is not five broken components.
-      </p>
-
-      <ul className="dependency-tree" role="tree" aria-label="Service dependencies">
+      {/* No `role="tree"`. It was there and it was wrong: an ARIA tree requires
+          its children to be `treeitem`, and these `<li>`s never carried that
+          role, so assistive technology was being handed a malformed tree. A
+          plain nested list announces its nesting natively and needs no roving
+          tabindex to be navigable. */}
+      <ul className="dependency-tree" aria-label="Service dependencies">
         <Node node={root} depth={0} />
       </ul>
+
+      <details className="disclosure">
+        <summary>How to read this tree, and why two of the five states are not faults</summary>
+        <p className="sub">
+          Read top-down: everything indented under a node depends on it. Five states, because{" "}
+          <em>not configured</em> and <em>not observed</em> are not faults — and when the gateway
+          cannot be reached, everything behind it reports <em>not observed</em> rather than down,
+          since one dead transport is not five broken components.
+        </p>
+        <p className="sub">
+          A healthy row states its reading to a screen reader but not on screen: on a node that is
+          working, the sentence repeats what the glyph and the state word already say. Every row
+          that is <em>not</em> healthy keeps its reason inline, because that is the row worth
+          finding.
+        </p>
+      </details>
     </section>
   );
 }

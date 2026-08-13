@@ -16051,10 +16051,14 @@ html:active-view-transition .view-panel {
   position: relative;
 }
 
+/* Seven columns: toggle, state glyph, tech mark, name, state word, reason,
+   source. The reason column is empty on a healthy row by design — the sentence
+   there only repeats the glyph beside it — so the grid must not collapse when
+   it is, or every healthy row would jump a column. */
 .dependency-node__row {
   display: grid;
-  grid-template-columns: 20px 16px minmax(140px, 1.1fr) 96px minmax(0, 1.6fr) auto;
-  align-items: baseline;
+  grid-template-columns: 20px 16px 20px minmax(140px, 1.1fr) 96px minmax(0, 1.6fr) auto;
+  align-items: center;
   gap: var(--space-2);
   padding: 5px 0;
   font-size: 11.5px;
@@ -16111,13 +16115,88 @@ html:active-view-transition .view-panel {
 
 @media (max-width: 900px) {
   .dependency-node__row {
-    grid-template-columns: 20px 16px minmax(0, 1fr);
+    grid-template-columns: 20px 16px 20px minmax(0, 1fr);
   }
   .dependency-node__word,
   .dependency-node__detail,
   .dependency-node__source {
-    grid-column: 3;
+    grid-column: 4;
   }
+}
+
+/* ---------- tech marks ----------
+   One tile geometry for every dependency, so a vendor mark and a house
+   lettermark read as members of one strip rather than as two kinds of thing.
+   Geometry follows `.codex-monogram`, which already establishes the rounded
+   square in this app. Colour is carried by `color`, so the mark — path fill or
+   letters — inherits it and forced-colours needs no exemption. */
+
+.tech-mark {
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+}
+
+.tech-mark--md { width: 34px; height: 34px; }
+.tech-mark--sm { width: 20px; height: 20px; }
+
+.tech-mark svg { width: 58%; height: 58%; }
+
+.tech-mark__letters {
+  font-family: var(--mono);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.tech-mark--md .tech-mark__letters { font-size: 11px; }
+.tech-mark--sm .tech-mark__letters { font-size: 7.5px; }
+
+.tech-mark[data-state="degraded"] { color: var(--warning-text); border-color: var(--status-warning); }
+.tech-mark[data-state="down"] { color: var(--critical-text); border-color: var(--status-critical); }
+.tech-mark[data-state="unknown"] { color: var(--text-muted); border-color: var(--axis); }
+
+/* Hollow and dashed, never filled: a configured-and-healthy component and one
+   that was never switched on must not wear the same tile. */
+.tech-mark[data-state="absent"] {
+  color: var(--text-muted);
+  border-style: dashed;
+  background: none;
+}
+
+.tech-mark-strip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+}
+
+.tech-mark-strip__group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.tech-mark-strip__label {
+  min-width: 74px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dependency-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+  margin: var(--space-3) 0;
 }
 
 /* ---------- remediation ledger ---------- */

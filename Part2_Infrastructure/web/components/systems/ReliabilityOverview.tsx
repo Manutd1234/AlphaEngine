@@ -9,6 +9,9 @@
  * provider table that already lives in Services & Circuits.
  */
 
+import { useState } from "react";
+
+import DependencyMix from "@/components/systems/DependencyMix";
 import DependencyTree from "@/components/systems/DependencyTree";
 import LatencyTrend from "@/components/systems/LatencyTrend";
 import RouteLatencyBars from "@/components/systems/RouteLatencyBars";
@@ -18,6 +21,24 @@ import type { SystemHealthView } from "@/lib/use-system-health";
 import type { GatewayOpsSnapshot, ProviderRow } from "./types";
 
 export type ReliabilityDrilldown = "services" | "events" | "controls";
+
+/**
+ * Dependencies was four stacked card-sections in one scroll. These are three
+ * questions, and each has exactly ONE source — so each degrades on its own
+ * rather than dragging the others down with it.
+ *
+ * Deliberately NOT a nested `<WorkspaceSubtabs>`: that publishes `--rail-h`
+ * from a ResizeObserver and asserts exactly one rail is mounted, so a second
+ * would fight the first over every sticky offset in the app. The house
+ * in-panel pattern is `.seg role="group"`, as the blotter uses.
+ */
+type DependencyPane = "map" | "providers" | "platform";
+
+const DEPENDENCY_PANES: Array<{ id: DependencyPane; label: string; hint: string }> = [
+  { id: "map", label: "Map", hint: "What depends on what, and which failure removes several things at once" },
+  { id: "providers", label: "Providers", hint: "Which research APIs are routable right now, and why the others are not" },
+  { id: "platform", label: "Platform", hint: "Components inside the gateway process, their timing, and what this snapshot can prove" },
+];
 
 interface ReliabilityOverviewProps {
   view: SystemHealthView;
@@ -109,6 +130,7 @@ export default function ReliabilityOverview({
 }: ReliabilityOverviewProps) {
   const showAttention = part === "attention";
   const showPlanes = part === "planes";
+  const [pane, setPane] = useState<DependencyPane>("map");
   const { health, healthError } = view;
   const providers = health?.providers ?? [];
   const summary = health?.summary;
@@ -370,15 +392,79 @@ export default function ReliabilityOverview({
         </section>
       </div>
 
-      {/* The shape first: what depends on what, and which failure would take
-          out five things at once. The provider digest below answers the
-          narrower question of which APIs are routable right now. */}
-      <div hidden={!showPlanes}>
-        <DependencyTree health={health} healthError={healthError} />
-        <RouteLatencyBars platform={platform} />
-      </div>
+      {/* The summary stays ABOVE the switcher and never moves. Four numbers
+          that change identity as you change view is the "re-learning where to
+          look" failure PageHead exists to end.
 
-      <section className="card reliability-dependency-digest" aria-labelledby="reliability-provider-api-title" hidden={!showPlanes}>
+          Two of the four requested KPIs are renamed, because they are not
+          measurable here. There is exactly ONE FastAPI gateway, so "active
+          gateways" would render 1/1 and invite belief in a fleet; and no
+          process uptime or availability ratio is published anywhere, only
+          durations. Each tile says what it actually reads. */}
+      {showPlanes && (
+        <>
+          <div className="reliability-dependency-summary" aria-label="Dependency summary">
+            <div>
+              <span>Trading gateway</span>
+              <strong>{gatewayTile.value}</strong>
+              <small>{gatewayTile.note}</small>
+            </div>
+            <div>
+              <span>Provider APIs routable</span>
+              <strong>{health ? `${routableProviders}/${providers.length}` : "—"}</strong>
+              <small>{health ? `${configuredProviders} configured` : "registry not observed"}</small>
+            </div>
+            <div>
+              <span>Slowest route p99</span>
+              <strong>
+                {slowestRoute
+                  ? slowestRoute.samples >= 20 ? `${Math.round(slowestRoute.p99_ms)}ms` : `Collecting`
+                  : "—"}
+              </strong>
+              <small>
+                {slowestRoute
+                  ? slowestRoute.samples >= 20
+                    ? `${slowestRoute.route} · in-process, a different plane from the header p99`
+                    : `${slowestRoute.samples}/20 samples`
+                  : "no gateway ops snapshot"}
+              </small>
+            </div>
+            <div>
+              <span>Gateway route errors</span>
+              <strong>{routeErrorTile.value}</strong>
+              <small>{routeErrorTile.note}</small>
+            </div>
+          </div>
+
+          {/* Conditional renders, not `hidden`: a switched-away view's
+              ResizeObserver should not keep running behind the one on screen. */}
+          <div className="seg" role="group" aria-label="Dependency view">
+            {DEPENDENCY_PANES.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                aria-pressed={pane === option.id}
+                title={option.hint}
+                onClick={() => setPane(option.id)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* The shape first: what depends on what, and which failure would take
+          out five things at once. */}
+      {showPlanes && pane === "map" && (
+        <>
+          <DependencyMix health={health} healthError={healthError} />
+          <DependencyTree health={health} healthError={healthError} />
+        </>
+      )}
+
+      {showPlanes && pane === "providers" && (
+      <section className="card reliability-dependency-digest" aria-labelledby="reliability-provider-api-title">
         <div className="section-heading compact">
           <div>
             <span className="page-kicker">Research data plane</span>
@@ -387,49 +473,6 @@ export default function ReliabilityOverview({
           <button type="button" className="text-action" onClick={() => onOpenSection("services")}>
             Open latency, quota &amp; circuits →
           </button>
-        </div>
-
-        {/* Reworked rather than replaced by a new tile row: ConsoleChrome owns
-            the one status summary for the whole tab, and four numbers that
-            change identity as you move between subtabs is the "re-learning
-            where to look" failure PageHead exists to end.
-
-            Two of the four requested KPIs are renamed, because they are not
-            measurable here. There is exactly ONE FastAPI gateway, so "active
-            gateways" would render 1/1 and invite belief in a fleet; and no
-            process uptime or availability ratio is published anywhere, only
-            durations. Each tile says what it actually reads. */}
-        <div className="reliability-dependency-summary" aria-label="Dependency summary">
-          <div>
-            <span>Trading gateway</span>
-            <strong>{gatewayTile.value}</strong>
-            <small>{gatewayTile.note}</small>
-          </div>
-          <div>
-            <span>Provider APIs routable</span>
-            <strong>{health ? `${routableProviders}/${providers.length}` : "—"}</strong>
-            <small>{health ? `${configuredProviders} configured` : "registry not observed"}</small>
-          </div>
-          <div>
-            <span>Slowest route p99</span>
-            <strong>
-              {slowestRoute
-                ? slowestRoute.samples >= 20 ? `${Math.round(slowestRoute.p99_ms)}ms` : `Collecting`
-                : "—"}
-            </strong>
-            <small>
-              {slowestRoute
-                ? slowestRoute.samples >= 20
-                  ? `${slowestRoute.route} · in-process, a different plane from the header p99`
-                  : `${slowestRoute.samples}/20 samples`
-                : "no gateway ops snapshot"}
-            </small>
-          </div>
-          <div>
-            <span>Gateway route errors</span>
-            <strong>{routeErrorTile.value}</strong>
-            <small>{routeErrorTile.note}</small>
-          </div>
         </div>
 
         <ul className="reliability-provider-digest" aria-label="Configured, routable and live status for every provider">
@@ -447,14 +490,22 @@ export default function ReliabilityOverview({
           })}
           {!health && <li className="is-loading">Loading all provider states…</li>}
         </ul>
-        <p className="reliability-window-note">
-          “Routable” means configured, within quota and not held behind an open circuit. Success evidence needs an observed successful call;
-          only OpenBB is probed automatically because probing every paid API on each health refresh would consume quota.
-        </p>
+        <details className="disclosure">
+          <summary>What &ldquo;routable&rdquo; means, and why only OpenBB is probed automatically</summary>
+          <p className="reliability-window-note">
+            “Routable” means configured, within quota and not held behind an open circuit. Success evidence needs an observed successful call;
+            only OpenBB is probed automatically because probing every paid API on each health refresh would consume quota.
+          </p>
+        </details>
       </section>
+      )}
+
+      {showPlanes && pane === "platform" && (
+        <>
+      <RouteLatencyBars platform={platform} />
 
       {platform ? (
-        <section className="card reliability-platform" aria-labelledby="reliability-platform-title" hidden={!showPlanes}>
+        <section className="card reliability-platform" aria-labelledby="reliability-platform-title">
           <div className="section-heading compact">
             <div>
               <span className="page-kicker">Authoritative gateway</span>
@@ -549,14 +600,34 @@ export default function ReliabilityOverview({
               <code>{platform.environment}</code>
             </span>
           </div>
-          <p className="reliability-platform__caveat">
-            Queue workers are configured slots, not distributed worker heartbeats. This is one gateway-process snapshot;
-            fleet aggregation and exchange order-to-ack timing still belong in external telemetry.
+          <details className="disclosure">
+            <summary>Why worker slots are not worker heartbeats, and what one process cannot show</summary>
+            <p className="reliability-platform__caveat">
+              Queue workers are configured slots, not distributed worker heartbeats. This is one gateway-process snapshot;
+              fleet aggregation and exchange order-to-ack timing still belong in external telemetry.
+            </p>
+          </details>
+        </section>
+      ) : (
+        // An honest empty state rather than nothing: the deployed workspace's
+        // normal condition is no gateway, and a view that renders blank reads
+        // to the sweep as a dead end and to a reader as a broken panel.
+        <section className="card">
+          <div className="section-heading compact">
+            <div>
+              <span className="page-kicker">Authoritative gateway</span>
+              <h2>Quant infrastructure components</h2>
+            </div>
+          </div>
+          <p className="muted">
+            No gateway ops snapshot is being received, so the components inside that process — market
+            data, pre-trade risk, the audit store, the research queue and the durable mirror — cannot
+            be observed from here. That is a missing measurement, not a set of failures.
           </p>
         </section>
-      ) : null}
+      )}
 
-      <section className="card reliability-evidence" aria-labelledby="reliability-evidence-title" hidden={!showPlanes}>
+      <section className="card reliability-evidence" aria-labelledby="reliability-evidence-title">
         <div className="section-heading compact">
           <div>
             <span className="page-kicker">Evidence boundary</span>
@@ -597,6 +668,8 @@ export default function ReliabilityOverview({
           <button type="button" className="text-action" onClick={onOpenData}>Open Data quality →</button>
         </aside>
       </section>
+        </>
+      )}
     </div>
   );
 }
