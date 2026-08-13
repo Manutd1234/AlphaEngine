@@ -1768,7 +1768,11 @@ tbody tr[tabindex]:focus-visible {
   margin-block-end: auto;
 }
 
-.auth-card {
+/* Two classes, not one. `.card` is declared four times in this file and the
+   last of them sets `padding: var(--card-pad)`, so a single-class `.auth-card`
+   loses the cascade on source order alone — which is why the padding it asked
+   for never applied and the card has been sized by the shared rule all along. */
+.card.auth-card {
   padding: var(--space-6);
 }
 
@@ -1779,13 +1783,13 @@ tbody tr[tabindex]:focus-visible {
 }
 
 .brand-lockup--lg .brand-mark {
-  width: 38px;
-  height: 38px;
-  font-size: 20px;
+  width: 44px;
+  height: 44px;
+  font-size: 23px;
 }
 
 .brand-lockup--lg .brand-copy strong {
-  font-size: 17px;
+  font-size: 19px;
 }
 
 /* Inert on the sign-in page: it is the masthead, not a way back to anywhere. */
@@ -1802,12 +1806,13 @@ tbody tr[tabindex]:focus-visible {
    a footnote to the form rather than an alternative to it. */
 .auth-guest {
   width: 100%;
-  padding: 9px var(--space-3);
+  min-height: 42px;
+  padding: 10px var(--space-3);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-1);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 650;
   color: var(--text-primary);
   transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
@@ -1820,9 +1825,95 @@ tbody tr[tabindex]:focus-visible {
 .auth-guest__note {
   margin: 0;
   text-align: center;
-  font-size: 10.5px;
-  line-height: 1.45;
+  font-size: 11.5px;
+  line-height: 1.5;
   color: var(--text-muted);
+}
+
+/**
+ * A link that happens to be a button.
+ *
+ * "Forgot password?", "Create account" and "Back to sign in" switch mode in
+ * place rather than navigating, so they are <button> — and the global control
+ * rule therefore gave each of them a 1px border, a filled background, 9px of
+ * padding and a 32px minimum. Three boxes floating inside the card where the
+ * design called for three links, which is exactly how they shipped.
+ *
+ * Every one of those four properties has to be undone, not just the border:
+ * resetting the border alone leaves a grey pill, and resetting the background
+ * alone leaves an empty outline. Kept as one class rather than repeated inline
+ * on each caller so the next one cannot be added half-reset.
+ */
+.auth-link {
+  border: none;
+  border-radius: 0;
+  background: none;
+  padding: 0;
+  min-height: 0;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--series-1);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* The global button hover recolours a border this has none of, so it would
+   otherwise answer the pointer with nothing at all. */
+.auth-link:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+/* The sign-in page is a full page, not a chip in a dense row: its type was
+   sized for the latter and read as a dialog shrunk to fit. One block owns the
+   scale so the card, the lockup and the copy stay in proportion to each other
+   rather than drifting apart one arbitrary utility at a time. */
+.auth-card h1 {
+  font-size: 28px;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+}
+
+.auth-card .auth-blurb {
+  margin-top: 6px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.auth-card label {
+  font-size: 12px;
+}
+
+.auth-card input:not([type="checkbox"]) {
+  min-height: 42px;
+  padding: 10px 12px;
+  font-size: 13.5px;
+}
+
+.auth-card .primary-action {
+  width: 100%;
+  min-height: 44px;
+  font-size: 14px;
+}
+
+/* Equal in weight to the primary action, because a provider is an equally real
+   way in — not a footnote under the form. */
+.auth-provider {
+  width: 100%;
+  min-height: 42px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-primary);
+  transition: background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+
+.auth-provider:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--series-1) 40%, var(--border));
 }
 
 /* ---------- data provenance badge ----------

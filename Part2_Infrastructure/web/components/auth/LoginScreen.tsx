@@ -383,7 +383,7 @@ export default function LoginScreen() {
       <main className="auth-shell standalone-scroll">
         <BrandLockup size="lg" />
         <div className="card auth-card">
-          <h1 className="text-[21px]">Open the desk</h1>
+          <h1>Open the desk</h1>
           <div className="banner warn mt-3" role="status">
             <span aria-hidden>◌</span>
             <div>
@@ -426,8 +426,8 @@ export default function LoginScreen() {
           two can never drift into looking like different products. */}
       <BrandLockup size="lg" />
       <div className="card auth-card">
-        <h1 className="text-[21px]">{copy.title}</h1>
-        <p className="mt-1 text-[12px] leading-snug text-text-secondary">{copy.blurb}</p>
+        <h1>{copy.title}</h1>
+        <p className="auth-blurb">{copy.blurb}</p>
 
         {banner && (
           <div className={`banner ${banner.tone} mt-3`} role={banner.tone === "error" ? "alert" : "status"}>
@@ -436,10 +436,10 @@ export default function LoginScreen() {
           </div>
         )}
 
-        <form className="mt-4 flex flex-col gap-3" onSubmit={(event) => void onSubmit(event)}>
+        <form className="mt-5 flex flex-col gap-4" onSubmit={(event) => void onSubmit(event)}>
           {mode !== "reset" && (
             <div>
-              <label className="block text-[11px] font-semibold text-text-secondary" htmlFor="auth-email">
+              <label className="block font-semibold text-text-secondary" htmlFor="auth-email">
                 Email
               </label>
               <input
@@ -459,7 +459,7 @@ export default function LoginScreen() {
 
           {showPasswordField && (
             <div>
-              <label className="block text-[11px] font-semibold text-text-secondary" htmlFor="auth-password">
+              <label className="block font-semibold text-text-secondary" htmlFor="auth-password">
                 {mode === "reset" ? "New password" : "Password"}
               </label>
               <div className="relative mt-1 flex">
@@ -479,7 +479,7 @@ export default function LoginScreen() {
                   aria-pressed={showPassword}
                   aria-controls="auth-password"
                   aria-label={showPassword ? "Hide password" : "Show password"}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 border-none bg-transparent px-1.5 py-1 text-[11px] font-semibold text-text-secondary underline"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 border-none bg-transparent px-1.5 py-1 text-[12px] font-semibold text-text-secondary underline"
                 >
                   {showPassword ? "Hide" : "Show"}
                 </button>
@@ -489,7 +489,7 @@ export default function LoginScreen() {
 
           {showRemember && (
             <div className="flex items-center justify-between gap-3">
-              <label className="flex items-center gap-2 text-[11.5px] text-text-secondary" htmlFor="auth-remember">
+              <label className="flex items-center gap-2 text-[12.5px] text-text-secondary" htmlFor="auth-remember">
                 <input
                   id="auth-remember"
                   type="checkbox"
@@ -502,7 +502,7 @@ export default function LoginScreen() {
               {mode === "signin" && (
                 <button
                   type="button"
-                  className="bg-transparent p-0 text-[11.5px] font-semibold text-series-1 underline"
+                  className="auth-link"
                   onClick={() => switchMode("forgot")}
                 >
                   Forgot password?
@@ -518,7 +518,7 @@ export default function LoginScreen() {
 
         {showProviders && (
           <>
-            <p className="mt-4 mb-2 text-center text-[10.5px] uppercase tracking-[0.08em] text-text-muted">
+            <p className="mt-5 mb-3 text-center text-[11px] uppercase tracking-[0.08em] text-text-muted">
               {/* Not a bare "or" while the probe is out: a divider above nothing
                   is the headless-section case, and saying what is being waited
                   for costs one word. */}
@@ -535,7 +535,7 @@ export default function LoginScreen() {
                * warning at all, which is the defect this whole branch exists to
                * bound.
                */
-              <p className="mb-2 text-center text-[10.5px] leading-snug text-text-muted">
+              <p className="mb-3 text-center text-[11.5px] leading-snug text-text-muted">
                 We could not check which of these are enabled here, so one may not complete.
               </p>
             )}
@@ -546,7 +546,7 @@ export default function LoginScreen() {
                   type="button"
                   disabled={busy}
                   onClick={() => void onProvider(provider.id)}
-                  className="w-full rounded-[10px] border border-border bg-surface-1 px-3 py-2 text-[12px] font-semibold text-text-primary hover:bg-surface-2"
+                  className="auth-provider"
                 >
                   Continue with {provider.label}
                 </button>
@@ -555,13 +555,13 @@ export default function LoginScreen() {
           </>
         )}
 
-        <div className="mt-4 border-t border-grid pt-3 text-[11.5px] text-text-secondary">
+        <div className="mt-5 border-t border-grid pt-4 text-[12.5px] text-text-secondary">
           {mode === "signin" ? (
             <>
               No account?{" "}
               <button
                 type="button"
-                className="bg-transparent p-0 text-[11.5px] font-semibold text-series-1 underline"
+                className="auth-link"
                 onClick={() => switchMode("signup")}
               >
                 Create account
@@ -570,7 +570,7 @@ export default function LoginScreen() {
           ) : (
             <button
               type="button"
-              className="bg-transparent p-0 text-[11.5px] font-semibold text-series-1 underline"
+              className="auth-link"
               onClick={() => switchMode("signin")}
             >
               Back to sign in
