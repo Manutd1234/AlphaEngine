@@ -8,14 +8,12 @@ type Tone = "positive" | "warning" | "danger" | "info" | "neutral";
 type PipelineRun = {
   id: string;
   branch: string;
-  sha: string;
+  // Deliberately not named `sha`: no commit hash is available to this app, so
+  // the field carries an obvious placeholder rather than a plausible digest.
+  ref: string;
   title: string;
-  actor: string;
-  age: string;
-  timestamp: string;
   duration: string;
   status: "Passing" | "Failed" | "Running" | "Queued";
-  progress?: number;
 };
 
 type Endpoint = {
@@ -46,49 +44,42 @@ const tabs: Array<{ id: TabId; label: string; count?: number }> = [
   { id: "tasks", label: "Task Queue", count: 5 },
 ];
 
+// No CI provider is connected, so there is no run history to render. These rows
+// exist only to show the shape of the run viewer: they carry no author, no
+// commit hash and no wall-clock time, because inventing any of those would put
+// audit-shaped fiction on screen. The panel labels them as illustrative in the
+// rendered UI, not just here.
 const pipelines: PipelineRun[] = [
   {
-    id: "#184",
+    id: "Example 1",
     branch: "main",
-    sha: "582b738",
-    title: "Leakage proof and canonical replay",
-    actor: "ian",
-    age: "12m ago",
-    timestamp: "06 Aug 2026, 16:02 SGT",
+    ref: "example-ref-1",
+    title: "Reproducibility preflight blocks promotion",
     duration: "4m 12s",
     status: "Failed",
   },
   {
-    id: "#183",
-    branch: "lever-program",
-    sha: "43f5307",
-    title: "Bound participation by construction",
-    actor: "ian",
-    age: "3h ago",
-    timestamp: "06 Aug 2026, 13:18 SGT",
+    id: "Example 2",
+    branch: "example-branch",
+    ref: "example-ref-2",
+    title: "Unit and integration suites pass",
     duration: "6m 48s",
     status: "Passing",
   },
   {
-    id: "#182",
+    id: "Example 3",
     branch: "main",
-    sha: "f5d02ae",
-    title: "Consolidate hardened strategy",
-    actor: "release-bot",
-    age: "1d ago",
-    timestamp: "05 Aug 2026, 15:42 SGT",
+    ref: "example-ref-3",
+    title: "Lint and type checks pass",
     duration: "5m 03s",
     status: "Passing",
   },
   {
-    id: "#181",
-    branch: "bounds-study",
-    sha: "92c7f0a",
-    title: "Risk-matched bound sweep",
-    actor: "mei",
-    age: "2d ago",
-    timestamp: "04 Aug 2026, 10:11 SGT",
-    duration: "2m 09s",
+    id: "Example 4",
+    branch: "example-branch",
+    ref: "example-ref-4",
+    title: "Scheduled run waiting for a runner",
+    duration: "—",
     status: "Queued",
   },
 ];
@@ -135,6 +126,11 @@ const endpoints: Endpoint[] = [
     drift: "Review",
   },
 ];
+
+// Derived from the fixtures above so the summary counts can never claim more
+// routes or services than the list actually renders.
+const endpointServiceCount = new Set(endpoints.map((endpoint) => endpoint.group)).size;
+const endpointChangeCount = endpoints.filter((endpoint) => endpoint.drift === "Breaking" || endpoint.drift === "Review").length;
 
 const workItems: WorkItem[] = [
   {
@@ -363,7 +359,7 @@ function Overview({ onOpenDrift, onOpenPipelines }: { onOpenDrift: () => void; o
           </div>
           <div className="health-table" role="table" aria-label="Environment health">
             <div className="health-row health-head" role="row"><span>Environment</span><span>Artifact</span><span>Freshness</span><span>Status</span></div>
-            <div className="health-row" role="row"><span><i className="env-dot local" />Local research</span><code>582b738</code><span>16:14</span><StatusPill label="Unbound" tone="warning" /></div>
+            <div className="health-row" role="row"><span><i className="env-dot local" />Local research</span><code>—</code><span>16:14</span><StatusPill label="Unbound" tone="warning" /></div>
             <div className="health-row" role="row"><span><i className="env-dot shadow" />Paper / shadow</span><code>—</code><span>Never</span><StatusPill label="Not deployed" tone="neutral" /></div>
             <div className="health-row" role="row"><span><i className="env-dot prod" />Production</span><code>—</code><span>Never</span><StatusPill label="Blocked" tone="danger" /></div>
           </div>
@@ -375,7 +371,7 @@ function Overview({ onOpenDrift, onOpenPipelines }: { onOpenDrift: () => void; o
         <article className="panel events-panel">
           <div className="panel-header">
             <div><span className="panel-kicker">Evidence trail</span><h2>Recent events</h2></div>
-            <button className="text-button" type="button">Full audit log <span aria-hidden="true">↗</span></button>
+            <button className="text-button" type="button" title="No audit log service is connected" disabled>Full audit log <span aria-hidden="true">↗</span></button>
           </div>
           <ol className="event-list">
             <li><span className="event-time">16:14</span><span className="event-marker positive" /><div><strong>Local bundle verified</strong><p>29 implementation and 20 output hashes match the manifest.</p></div></li>
@@ -428,15 +424,15 @@ function Pipelines() {
       <div className="section-heading compact-heading">
         <div><span className="eyebrow">Delivery workflow</span><h1>Pipeline execution</h1></div>
         <div className="heading-actions">
-          <span className="source-chip"><i /> Demo runs</span>
+          <span className="source-chip"><i /> Illustrative · no CI connector</span>
           <button className="button button-primary" type="button" onClick={() => setActionOpen(true)}>Run sanity backtest</button>
         </div>
       </div>
-      <div className="notice-bar"><span aria-hidden="true">i</span><p>GitHub is not connected in this workspace. Runs below preview the configured unit, integration and lint workflow.</p></div>
+      <div className="notice-bar"><span aria-hidden="true">i</span><p>No CI provider is connected in this workspace, so no run history exists to display. The runs below are illustrative: they show the shape of the configured unit, integration and lint workflow, and carry no author, commit or timestamp.</p></div>
       <div className="pipeline-layout">
         <aside className="panel run-list-panel" aria-label="Pipeline runs">
           <div className="run-list-header">
-            <div><h2>Run viewer preview</h2><span>4 illustrative executions</span></div>
+            <div><h2>Run viewer preview</h2><span>{pipelines.length} illustrative executions · not real history</span></div>
             <div className="segmented-control" aria-label="Filter runs">
               {(["All", "Failed", "Passing"] as const).map((item) => <button key={item} className={filter === item ? "active" : ""} type="button" onClick={() => setFilter(item)}>{item}</button>)}
             </div>
@@ -445,10 +441,10 @@ function Pipelines() {
             {visibleRuns.length ? visibleRuns.map((run) => (
               <button key={run.id} className={`run-item ${selectedRun.id === run.id ? "selected" : ""}`} type="button" onClick={() => setSelectedRun(run)}>
                 <span className={`run-status-mark ${toneForStatus(run.status)}`} aria-hidden="true">{run.status === "Passing" ? "✓" : run.status === "Failed" ? "×" : "·"}</span>
-                <span className="run-main"><strong>{run.title}</strong><span><code>{run.sha}</code> on {run.branch}</span></span>
-                <span className="run-meta"><StatusPill label={run.status} dot={false} /><span>{run.age}</span></span>
+                <span className="run-main"><strong>{run.title}</strong><span><code>{run.ref}</code> on {run.branch}</span></span>
+                <span className="run-meta"><StatusPill label={run.status} dot={false} /><span>{run.duration}</span></span>
               </button>
-            )) : <div className="empty-state"><strong>No matching runs</strong><span>Clear the filter to see the full history.</span></div>}
+            )) : <div className="empty-state"><strong>No matching runs</strong><span>Clear the filter to see every illustrative run.</span></div>}
           </div>
         </aside>
 
@@ -457,15 +453,15 @@ function Pipelines() {
             <div>
               <div className="run-title-line"><StatusPill label={selectedRun.status} /><span>{selectedRun.id}</span></div>
               <h2>{selectedRun.title}</h2>
-              <p>Triggered by <strong>{selectedRun.actor}</strong> on <code>{selectedRun.branch}</code> · {selectedRun.timestamp}</p>
+              <p>Illustrative run on <code>{selectedRun.branch}</code> · author, commit and timestamp stay blank until a CI provider is connected.</p>
             </div>
-            <div className="run-detail-actions"><CopyButton value={selectedRun.sha} label="Copy commit" /><button className="icon-button" type="button" aria-label="Open run in provider" title="Open in provider">↗</button></div>
+            <div className="run-detail-actions"><CopyButton value={selectedRun.ref} label="Copy example reference" /><button className="icon-button" type="button" aria-label="Open run in provider (unavailable)" title="No CI provider is connected" disabled>↗</button></div>
           </div>
           <div className="run-facts">
-            <div><span>Commit</span><strong><code>{selectedRun.sha}</code></strong></div>
+            <div><span>Reference</span><strong><code>{selectedRun.ref}</code></strong></div>
             <div><span>Duration</span><strong>{selectedRun.duration}</strong></div>
-            <div><span>Artifacts</span><strong>3 files</strong></div>
-            <div><span>Environment</span><strong>CI / synthetic</strong></div>
+            <div><span>Triggered by</span><strong>Not recorded</strong></div>
+            <div><span>Environment</span><strong>Illustrative</strong></div>
           </div>
           <div className="jobs-section">
             <div className="subsection-title"><h3>Jobs</h3><span>4 checks · 1 attention item</span></div>
@@ -479,7 +475,7 @@ function Pipelines() {
           <div className="log-section">
             <div className="log-toolbar">
               <div><h3>Git reproducibility preflight</h3><span>Illustrative step</span></div>
-              <div><button type="button" className={showLogs ? "active" : ""} onClick={() => setShowLogs(!showLogs)}>{showLogs ? "Hide logs" : "Show logs"}</button><button type="button">Download</button></div>
+              <div><button type="button" className={showLogs ? "active" : ""} onClick={() => setShowLogs(!showLogs)}>{showLogs ? "Hide logs" : "Show logs"}</button><button type="button" title="Log export needs a connected CI provider" disabled>Download</button></div>
             </div>
             {showLogs ? (
               <pre className="log-viewer" aria-label="Illustrative pipeline log output"><code><span className="log-muted">16:05:12</span> verify local bundle against run_manifest.json{"\n"}<span className="log-ok">16:05:12 ✓</span> 29 implementation + 20 output digests verified{"\n"}<span className="log-error">16:05:13 ×</span> Git HEAD cannot reproduce the local bundle{"\n"}<span className="log-muted">         HEAD</span> ec5ffb7a…850c83 · inference.py{"\n"}<span className="log-muted">         manifest</span> 1855aea9…4ff · inference.py{"\n"}<span className="log-warn">16:05:13 !</span> 7 manifest-bound modules are untracked at HEAD{"\n"}<span className="log-error">16:05:13 error</span> freeze a clean commit before promotion</code></pre>
@@ -503,7 +499,7 @@ function Pipelines() {
             <div className="registry-row" role="row"><span className="artifact-name"><i>HO</i><span><strong>Holdout evaluation</strong><small>522 sessions · local custodian</small></span></span><span>2 years</span><code>12 / 59 roots</code><span>Does not clear gate</span><StatusPill label="Limited" tone="warning" /></div>
           </div>
         </div>
-        <div className="registry-footer"><span>Creation time, Git SHA, signer, release URL and environment are unavailable.</span><button className="text-button" type="button">View fingerprints <span aria-hidden="true">→</span></button></div>
+        <div className="registry-footer"><span>Creation time, Git SHA, signer, release URL and environment are unavailable.</span><button className="text-button" type="button" title="No artifact registry is connected" disabled>View fingerprints <span aria-hidden="true">→</span></button></div>
       </article>
 
       {actionOpen ? (
@@ -512,7 +508,7 @@ function Pipelines() {
             <div className="modal-header"><div><span className="panel-kicker">Safe action preview</span><h2 id="sanity-title">Run synthetic sanity backtest</h2></div><button className="icon-button" type="button" onClick={() => setActionOpen(false)} aria-label="Close dialog">×</button></div>
             <div className="modal-alert">This workspace has no workflow dispatch endpoint. Confirming records a preview request only; it will not execute code.</div>
             <div className="form-grid">
-              <label>Immutable commit<input readOnly value="582b738" /></label>
+              <label>Immutable commit<input readOnly value="Unavailable — no repository connected" /></label>
               <label>Dataset<input readOnly value="Synthetic vendor layout" /></label>
               <label>Bootstrap samples<input readOnly value="200" /></label>
               <label>Target environment<input readOnly value="CI sandbox" /></label>
@@ -543,7 +539,7 @@ function Interfaces() {
       <div className="api-layout">
         <aside className="panel endpoint-panel">
           <div className="search-field"><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search routes or services" aria-label="Search routes or services" /><kbd>⌘K</kbd></div>
-          <div className="endpoint-summary"><span><strong>23</strong> routes</span><span><strong>5</strong> services</span><span><strong className="text-warning">2</strong> changes</span></div>
+          <div className="endpoint-summary"><span><strong>{endpoints.length}</strong> routes</span><span><strong>{endpointServiceCount}</strong> services</span><span><strong className="text-warning">{endpointChangeCount}</strong> changes</span></div>
           <div className="endpoint-list">
             {filtered.map((endpoint) => (
               <button type="button" key={`${endpoint.method}-${endpoint.path}`} className={`endpoint-item ${selected.path === endpoint.path ? "selected" : ""}`} onClick={() => setSelected(endpoint)}>
@@ -557,7 +553,7 @@ function Interfaces() {
         <article className="panel schema-panel">
           <div className="schema-header">
             <div><div className="schema-path"><span className={`method method-${selected.method.toLowerCase()}`}>{selected.method}</span><code>{selected.path}</code><CopyButton value={selected.path} label="Copy endpoint" /></div><p>{selected.summary}</p></div>
-            <div className="schema-health"><span>Observed p95</span><strong>{selected.latency}</strong><small>preview fixture</small></div>
+            <div className="schema-health"><span>p95 latency</span><strong>{selected.latency}</strong><small>illustrative · not measured</small></div>
           </div>
           <div className="schema-meta"><span>Service <strong>{selected.group}</strong></span><span>Auth <strong>service token</strong></span><span>Baseline <strong>production@3.2.1</strong></span></div>
           <div className="inner-tabs" role="tablist" aria-label="Schema detail">
@@ -602,8 +598,9 @@ function Changes() {
     <section className="tab-panel" id="panel-changes" role="tabpanel" aria-labelledby="tab-changes">
       <div className="section-heading compact-heading">
         <div><span className="eyebrow">Repository evidence</span><h1>Code & Diffs</h1></div>
-        <div className="heading-actions"><span className="source-chip"><i className="danger" /> Git reproducibility blocked</span><button className="button button-secondary" type="button">Open repository ↗</button></div>
+        <div className="heading-actions"><span className="source-chip"><i className="danger" /> Git reproducibility blocked</span><button className="button button-secondary" type="button" title="No repository provider is connected" disabled>Open repository ↗</button></div>
       </div>
+      <div className="notice-bar"><span aria-hidden="true">i</span><p>No repository provider is connected, so the hunks below are illustrative rather than fetched. The file list reflects the drift recorded in the local readiness snapshot; the line-level content does not.</p></div>
       <div className="code-layout">
         <aside className="panel file-panel">
           <div className="file-panel-header"><div><h2>HEAD divergence</h2><span>8 manifest-bound files differ from Git</span></div><StatusPill label="8" tone="danger" dot={false} /></div>
@@ -682,7 +679,7 @@ function Tasks({ onOpenChanges }: { onOpenChanges: () => void }) {
             <div className="drawer-section"><h3>Why this matters</h3><p>{selectedTask.context}. This item is linked directly to its originating operational evidence so ownership and resolution remain traceable.</p></div>
             <div className="drawer-facts"><div><span>Source</span><strong>{selectedTask.source}</strong></div><div><span>Owner</span><strong>{selectedTask.owner}</strong></div><div><span>Environment</span><strong>Repository / CI</strong></div><div><span>Last verified</span><strong>06 Aug · 16:14 SGT</strong></div></div>
             <div className="drawer-section"><h3>Linked evidence</h3><button className="linked-evidence" type="button" onClick={() => { setSelectedTask(null); onOpenChanges(); }}><span className="service-mark">DI</span><span><strong>Implementation drift report</strong><small>8 files · bundle 3.2.1</small></span><span aria-hidden="true">↗</span></button></div>
-            <div className="drawer-footer"><button type="button" className="button button-secondary">Open in tracker ↗</button><button type="button" className="button button-primary" disabled>Mark resolved</button></div>
+            <div className="drawer-footer"><button type="button" className="button button-secondary" title="No issue tracker is connected" disabled>Open in tracker ↗</button><button type="button" className="button button-primary" disabled>Mark resolved</button></div>
           </aside>
         </div>
       ) : null}
@@ -751,7 +748,7 @@ export default function Home() {
           <div className="title-group"><button className="mobile-menu" type="button" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Toggle application menu">☰</button><div><span className="product-name">AlphaEngine</span><strong>Developer</strong></div></div>
           <div className="global-context" aria-label="Current developer context">
             <div><span>Repository</span><strong>delta1_strategy</strong></div><i />
-            <div><span>Revision</span><strong><code>main@582b738</code></strong></div><i />
+            <div><span>Revision</span><strong><code>unbound</code></strong></div><i />
             <div><span>Environment</span><strong>Local research</strong></div><i />
             <div><span>Artifact</span><strong>engine 3.2.1</strong></div>
           </div>

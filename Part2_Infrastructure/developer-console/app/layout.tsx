@@ -34,7 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
       description,
       type: "website",
       url: origin,
-      images: [{ url: image, width: 1680, height: 945, alt: "AlphaEngine Developer Control Plane" }],
+      images: [{ url: image, width: 1672, height: 941, alt: "AlphaEngine Developer Control Plane" }],
     },
     twitter: {
       card: "summary_large_image",

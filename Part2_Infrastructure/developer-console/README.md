@@ -26,6 +26,10 @@ Next.js build through `npm run build:vercel`, configured in `vercel.json`.
 ## Product boundaries
 
 - Passing CI never implies production readiness.
+- Pipeline runs, code diffs and gateway contracts on screen are illustrative
+  fixtures, labelled as such in the rendered UI. They carry no author, commit
+  hash or measured latency, because no CI, repository or schema provider is
+  connected to this app.
 - Stale, missing, or unreachable operational evidence never renders healthy.
 - The browser contains no provider, cloud, or broker credentials.
 - Deployment, rollback, halt, and reset controls are disabled until a gated,
