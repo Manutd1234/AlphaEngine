@@ -15,7 +15,7 @@ an unverified number is worse than an admitted gap.
 ## Prerequisites
 
 The Python checks need the virtualenv at `Part2_Infrastructure/venv` (that exact
-name — see the `start` skill). The `ruff` step additionally needs
+name — see the `start-alpha-engine` skill). The `ruff` step additionally needs
 `requirements-dev.txt` installed; if `ruff` is missing, report the lint step as
 not run rather than skipping it silently.
 

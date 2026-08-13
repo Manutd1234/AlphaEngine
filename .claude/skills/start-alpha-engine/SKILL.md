@@ -1,5 +1,5 @@
 ---
-name: start
+name: start-alpha-engine
 description: Start AlphaEngine locally — boot the desk workspace and the FastAPI risk gateway, then report the URLs. Use whenever the user says start, run, boot, launch, spin up, serve, "get it running", "npm run dev", "start the app", "start the server", "start the gateway", "run the desk", "run it locally", "how do I see it", or asks why localhost:3000 is empty, why the gateway is not connecting, or why a venv spawn fails with ENOENT. Creates the virtualenv at the one path the dev scripts accept, installs the tested dependency set, and states exactly what works without any API keys.
 ---
 

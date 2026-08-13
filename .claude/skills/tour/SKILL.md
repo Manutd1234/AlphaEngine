@@ -199,7 +199,8 @@ Every count in this repository has drifted at least once.
 
 ## 5. Suggested walk
 
-If they want to see it rather than read about it, use the `start` skill, then:
+If they want to see it rather than read about it, use the `start-alpha-engine`
+skill, then:
 
 1. **Overview → loop** — the pipeline end to end, and the next action.
 2. **Research → walkforward** — where a good-looking equity curve is told it

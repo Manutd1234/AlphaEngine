@@ -216,6 +216,25 @@ from the script's own header and argument parser.*
 
 ---
 
+## Claude Code skills
+
+`.claude/skills/` holds three skills — one directory each, one `SKILL.md`
+apiece. They travel with the clone, so there is nothing to install; in Claude
+Code they are invoked as slash commands.
+
+| Skill | What it does |
+|---|---|
+| `/start-alpha-engine` | Boots the desk workspace and the FastAPI gateway, creating the virtualenv at the one path the dev scripts accept, and states what works with no API keys. |
+| `/tour` | Walks the architecture: the three deployment units, the two-implementation parity argument, and the honesty doctrine. |
+| `/verify` | Runs every check in *Verify it* above and reports the numbers it has just measured, never a remembered one. |
+
+They restate what this file and `CLAUDE.md` already say, in a form an agent
+follows rather than reads. Nothing in the repository depends on them, and every
+command they run is written out above — they save typing and they enforce the
+rule about counts, which is the whole of their value.
+
+---
+
 ## Environment variables
 
 Both `.env.example` files are the reference and are heavily commented. Read

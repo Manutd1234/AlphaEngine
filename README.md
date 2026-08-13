@@ -76,6 +76,10 @@ independently shippable slices are all shipped and named in the tour. The two pl
 documents that sequenced and succeeded that work are working notes kept outside this
 repository; the audit and the tour are the parts worth reading.
 
+**→ [`.claude/skills/`](.claude/skills/)** — three Claude Code skills,
+`/start-alpha-engine`, `/tour` and `/verify`, described in
+[`SETUP.md`](SETUP.md#claude-code-skills).
+
 ## Tech Stack
 
 Versions are as deployed/locked on 2026-08-08 — read from the running
