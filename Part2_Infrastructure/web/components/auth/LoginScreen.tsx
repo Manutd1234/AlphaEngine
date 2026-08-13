@@ -380,7 +380,7 @@ export default function LoginScreen() {
    */
   if (!configured) {
     return (
-      <main className="auth-shell">
+      <main className="auth-shell standalone-scroll">
         <BrandLockup size="lg" />
         <div className="card auth-card">
           <h1 className="text-[21px]">Open the desk</h1>
@@ -420,7 +420,7 @@ export default function LoginScreen() {
   const showRemember = mode === "signin" || mode === "signup";
 
   return (
-    <main className="auth-shell">
+    <main className="auth-shell standalone-scroll">
       {/* The mark, which this page had none of: a bare form gave no indication of
           what was being signed into. One component, shared with the header, so the
           two can never drift into looking like different products. */}

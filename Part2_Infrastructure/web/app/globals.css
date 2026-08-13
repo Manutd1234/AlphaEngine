@@ -451,6 +451,32 @@ body {
   overflow: hidden;
 }
 
+/**
+ * The scroller for routes that are NOT the desk.
+ *
+ * The lock above is written for `/dashboard`, where `.workspace-shell` carries
+ * the only `overflow-y: auto` on the page. `/profile` and `/login` are siblings
+ * of that route, not tabs inside it, so they inherit a document that is exactly
+ * one viewport tall and does not scroll — and anything past the fold is simply
+ * gone. That is not hypothetical: the Security centre's Credentials card was
+ * unreachable, and the comment above predicted the failure ("a clipped overflow
+ * is a visible bug") before it happened.
+ *
+ * So each standalone route owns its scroller, exactly the way the desk's shell
+ * does. The invariant the lock protects — one scrollbar, and it belongs to the
+ * thing you are reading — is preserved rather than weakened: these routes have
+ * no panel beneath them to compete with.
+ *
+ * `overscroll-behavior: contain` for the same reason `.workspace-shell` sets it:
+ * without it, scrolling past the end rubber-bands the whole page.
+ */
+.standalone-scroll {
+  height: 100vh;
+  height: 100svh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 ::selection {
   background: color-mix(in srgb, var(--series-1) 24%, transparent);
 }
@@ -1716,19 +1742,34 @@ tbody tr[tabindex]:focus-visible {
    centred content is right for a form; the desk's `height` lock exists to give a
    panel a bounded box to scroll inside, which nothing here needs. */
 .auth-shell {
-  width: min(400px, 100%);
-  min-height: 100dvh;
-  min-height: 100svh;
+  width: min(440px, 100%);
   margin: 0 auto;
   padding: var(--space-6) var(--space-5);
   display: flex;
   flex-direction: column;
-  justify-content: center;
   gap: var(--space-4);
 }
 
+/**
+ * Centred while it fits, scrolled when it does not.
+ *
+ * `justify-content: center` is the obvious way to centre this column and the
+ * wrong one the moment the column is taller than its scroller: centring an
+ * overflowing flex container pushes the first child above the scrollable area,
+ * so the top of the form becomes unreachable. Auto margins on the end children
+ * absorb the spare room the same way when there is any, and collapse to nothing
+ * when there is not — which leaves the whole column scrollable.
+ */
+.auth-shell > :first-child {
+  margin-block-start: auto;
+}
+
+.auth-shell > :last-child {
+  margin-block-end: auto;
+}
+
 .auth-card {
-  padding: var(--space-5);
+  padding: var(--space-6);
 }
 
 /* The lockup as a masthead rather than one chip in a crowded row. */

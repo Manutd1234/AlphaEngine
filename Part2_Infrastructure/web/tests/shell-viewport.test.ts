@@ -85,6 +85,57 @@ describe("the document is locked to one viewport", () => {
   });
 });
 
+/**
+ * The routes that are not the desk.
+ *
+ * The lock above is written for `/dashboard`, where `.workspace-shell` owns the
+ * only scroller. `/login` and `/profile` are siblings of that route rather than
+ * tabs inside it, so they inherit a document exactly one viewport tall that does
+ * not scroll — and everything past the fold is silently unreachable.
+ *
+ * That is not a hypothetical: the Security centre rendered its Credentials card
+ * off the bottom of a locked body, with correct data and no error anywhere. The
+ * page looked finished. This is the check that would have caught it, and it is
+ * the shape of defect this repository keeps rediscovering — a surface that is
+ * wrong while everything reports green.
+ */
+describe("standalone routes carry their own scroller", () => {
+  const frame = ruleFor(".standalone-scroll").find((block) => /overflow-y:\s*auto/.test(block));
+
+  it("declares a bounded, scrollable frame", () => {
+    assert.ok(frame, ".standalone-scroll no longer scrolls — /profile and /login would clip");
+    assert.match(frame, /height:\s*100svh/,
+      "an unbounded frame inside a locked body clips instead of scrolling");
+    assert.match(frame, /height:\s*100vh/,
+      "keep the vh twin so a browser without svh still gets a bounded frame");
+    assert.match(frame, /overscroll-behavior:\s*contain/);
+  });
+
+  it("every route outside the workspace shell uses it", () => {
+    // Both files render their own top-level <main>; neither sits inside
+    // .workspace-shell, so neither inherits a scroller from anywhere.
+    for (const file of ["../components/auth/LoginScreen.tsx", "../components/profile/ProfileScreen.tsx"]) {
+      assert.match(read(file), /className="[^"]*\bstandalone-scroll\b/,
+        `${file} renders a top-level frame that the body lock will clip`);
+    }
+  });
+
+  it("centres the sign-in column without clipping its top", () => {
+    /**
+     * `justify-content: center` on an overflowing flex column pushes the first
+     * child above the scrollable area, so the top of the form cannot be reached
+     * by scrolling — the failure looks exactly like the clip this suite exists
+     * to prevent. Auto margins centre the same way with spare room and collapse
+     * to nothing without it.
+     */
+    const shell = ruleFor(".auth-shell")[0];
+    assert.doesNotMatch(shell, /justify-content:\s*center/,
+      "flex centring clips the top of an overflowing column — use auto margins");
+    assert.match(declarations, /\.auth-shell > :first-child \{\s*margin-block-start:\s*auto/);
+    assert.match(declarations, /\.auth-shell > :last-child \{\s*margin-block-end:\s*auto/);
+  });
+});
+
 describe("viewport units keep their mobile twin", () => {
   it("no bare 100vh height without an svh or dvh alongside it", () => {
     /**

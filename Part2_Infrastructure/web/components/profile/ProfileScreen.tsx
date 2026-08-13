@@ -708,7 +708,7 @@ export default function ProfileScreen() {
 /** The page frame, shared by every bail-out so the way back never disappears. */
 function Shell({ children }: { children: ReactNode }) {
   return (
-    <main className="mx-auto w-full max-w-[760px] px-5 py-8">
+    <main className="standalone-scroll mx-auto w-full max-w-[760px] px-5 py-8">
       {/* /dashboard, not "/": the root redirects by cookie now, so linking to it
           from a page only a signed-in visitor can reach costs a needless hop. */}
       <a
