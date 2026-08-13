@@ -7,7 +7,7 @@ throughout, in prose and in identifiers.
 `SETUP.md` is the running instructions. This file is the things an agent
 otherwise gets wrong.
 
-## Three facts that cost an hour each
+## Four facts that cost an hour each
 
 **1. The virtualenv must be named `venv`, at `Part2_Infrastructure/venv`.**
 `web/package.json`'s `dev:gateway` runs `cd .. && ./venv/bin/python`, and
@@ -23,7 +23,16 @@ a broken linter. Linting is Python-side: `ruff check .` from
 `Part2_Infrastructure`, configured in `pyproject.toml`, installed only by
 `requirements-dev.txt`.
 
-**3. `npm run build` runs a contract gate before Next.js starts.** The
+**3. The venv must be Python 3.12, and a newer one silently loses a test.**
+CI pins 3.12 — the only version the gateway (3.11–3.14) and the OpenBB service
+(`>=3.12,<3.15`) both accept. A 3.14 venv looks fine: 691 pass, one skip. That
+skip is `tests/test_backtester.py:99`, "vectorbt not installed", because numba
+has no 3.14 wheel — so the vectorbt engine goes untested and the summary line
+still reads green. On 3.12 it is **692 passed, nothing skipped**. Build it with
+`python3.12 -m venv venv` explicitly; the default `python3` on a current
+macOS/Homebrew is 3.14.
+
+**4. `npm run build` runs a contract gate before Next.js starts.** The
 `prebuild` hook is `scripts/check-gateway-openapi-digest.mjs`: it canonicalises
 `tools/openapi.json`, SHA-256s it, and compares against the digest committed in
 `lib/gateway-openapi-digest.generated.ts`. A mismatch exits 1 with

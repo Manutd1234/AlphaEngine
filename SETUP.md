@@ -154,7 +154,7 @@ trusting the counts — they drift, and a number nobody re-measured is a number
 nobody should quote.
 
 ```bash
-# Gateway suite — 691 passed, 1 skipped
+# Gateway suite — 692 passed
 cd Part2_Infrastructure && venv/bin/python -m pytest
 
 # Web suite — 2174 passed across 548 suites, no browser needed
