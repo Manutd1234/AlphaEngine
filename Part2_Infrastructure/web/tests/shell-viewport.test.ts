@@ -205,3 +205,65 @@ describe("navigation moves the scroller that exists", () => {
     assert.match(page, /id="workspace-content"\s+ref=\{shellRef\}/);
   });
 });
+
+/**
+ * How many ways between workspaces are on screen at once.
+ *
+ * Three surfaces exist and they are meant to hand over to each other: the tab
+ * row above 900px, a full-width `<select>` from 900 down, and the thumb bar
+ * from 620 down. The first two do hand over. The last two did not — below 620px
+ * a phone rendered the select inside a two-row header AND a fixed bar at the
+ * bottom, which is two navigations and one screen.
+ *
+ * The fix is three lines, and the interesting part is where they go. The bottom
+ * bar's own block sits near the top of the sheet; the select's 900px rule sits
+ * some fourteen thousand lines later. At equal specificity the later rule wins,
+ * so an override written beside the bar would have lost silently and looked
+ * correct in the diff. It is asserted here by ORDER, not merely by presence.
+ */
+describe("one navigation surface per viewport", () => {
+  const at620 = (() => {
+    const marker = "@media (max-width: 620px)";
+    const blocks = [...declarations.matchAll(/@media \(max-width: 620px\) \{/g)]
+      .map((m) => ({ index: m.index as number, body: declarations.slice(m.index as number, (m.index as number) + 4000) }));
+    assert.ok(blocks.length > 0, `${marker} has no block`);
+    return blocks;
+  })();
+
+  it("hides the workspace select where the thumb bar takes over", () => {
+    const hiding = at620.find((block) => /\.workspace-switcher \{\s*display: none/.test(block.body));
+    assert.ok(hiding, "below 620px the select and the thumb bar both render");
+  });
+
+  it("hides it AFTER the 900px rule that shows it, or the override is inert", () => {
+    const shows = declarations.indexOf(".workspace-switcher {\n    order: 3;");
+    assert.ok(shows > 0, "the 900px rule that lays the select out has moved");
+    const hiding = at620.find((block) => /\.workspace-switcher \{\s*display: none/.test(block.body));
+    assert.ok(
+      (hiding?.index ?? -1) > shows,
+      "the 620px override sits before the 900px rule it must beat, so it does nothing",
+    );
+  });
+
+  it("keeps the select between 620 and 900, where it is the only navigation", () => {
+    // The tab row is hidden from 900 down and the bar does not arrive until
+    // 620. Hiding the select unconditionally would strand that band.
+    const hiding = at620.find((block) => /\.workspace-switcher \{\s*display: none/.test(block.body));
+    assert.doesNotMatch(
+      hiding?.body.slice(0, hiding.body.indexOf("\n}\n")) ?? "",
+      /max-width: 900px/,
+      "the select was hidden in the band where nothing else navigates",
+    );
+  });
+
+  it("the tab row no longer ships markup that has never been visible", () => {
+    // `<small className="workspace-tabs__role">` was hidden by a BASE rule, so
+    // it had never rendered at any width, and a second rule hid it again.
+    const header = read("../components/WorkspaceHeader.tsx");
+    assert.doesNotMatch(header, /workspace-tabs__role/);
+    assert.doesNotMatch(declarations, /\.workspace-tabs button small \{/);
+    // The role still reaches the reader by the two routes that always carried it.
+    assert.match(header, /title=\{item\.role\}/);
+    assert.match(header, /\{item\.label\} — \{item\.role\}/);
+  });
+});

@@ -197,10 +197,14 @@ export default function WorkspaceHeader({
               onKeyDown={(event) => onTabKeyDown(event, index)}
               title={item.role}
             >
+              {/* The role each tab belongs to reaches the reader through
+                  `title` above and through the ≤900px `<select>`, whose options
+                  read "{label} — {role}". It used to be rendered here as well,
+                  inside a `<small>` that `globals.css` hid with a base rule —
+                  so it had never been visible at any width, and a second rule
+                  further down hid it again with a comment explaining it was
+                  "the first thing to go when the tab is this narrow". */}
               <span>{item.label}</span>
-              {/* The role each tab belongs to. Eight tabs only read as a map of
-                  the desk if the audience is on the tab itself. */}
-              <small className="workspace-tabs__role">{item.role}</small>
             </button>
           ))}
         </nav>
