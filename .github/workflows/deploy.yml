@@ -241,7 +241,7 @@ jobs:
           command_timeout: 10m
           # Correction 5 — passed as environment variables, so none of these
           # appears in the VM's process list or shell history.
-          envs: IMAGE,REGISTRY,CONTAINER,VOLUME,PORT,GH_ACTOR,GH_TOKEN,WEB_API_TOKEN,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,TELEGRAM_BOT_TOKEN,TELEGRAM_ALLOWED_USER_IDS,TELEGRAM_CONTROL_USER_IDS,TELEGRAM_ALERT_CHAT_IDS
+          envs: IMAGE,REGISTRY,CONTAINER,VOLUME,PORT,GH_ACTOR,GH_TOKEN,WEB_API_TOKEN,SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,TELEGRAM_BOT_TOKEN,TELEGRAM_ALLOWED_USER_IDS,TELEGRAM_CONTROL_USER_IDS,TELEGRAM_ALERT_CHAT_IDS,TELEGRAM_LINK_SECRET
           script_stop: true
           script: |
             set -euo pipefail
@@ -352,6 +352,13 @@ jobs:
             # loses even them.
             put TELEGRAM_CONTROL_USER_IDS "${TELEGRAM_CONTROL_USER_IDS:-}"
             put TELEGRAM_ALERT_CHAT_IDS "${TELEGRAM_ALERT_CHAT_IDS:-}"
+            # Signs the one-time Connect token the web app mints. It must hold
+            # THE SAME VALUE as the Vercel project's TELEGRAM_LINK_SECRET —
+            # the minter and the verifier are different processes on different
+            # hosts, and a mismatch fails every link with a bad MAC rather than
+            # with anything that names the cause. Omitting it is fail-closed:
+            # Connect refuses and says the secret is missing.
+            put TELEGRAM_LINK_SECRET "${TELEGRAM_LINK_SECRET:-}"
             echo "    overlaying $(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$OVERLAY" || true) CI-supplied variable(s)"
 
             # Overlay first (so it wins), then any KEY= line from the preserved
@@ -469,6 +476,7 @@ jobs:
           TELEGRAM_ALLOWED_USER_IDS: ${{ secrets.TELEGRAM_ALLOWED_USER_IDS }}
           TELEGRAM_CONTROL_USER_IDS: ${{ secrets.TELEGRAM_CONTROL_USER_IDS }}
           TELEGRAM_ALERT_CHAT_IDS: ${{ secrets.TELEGRAM_ALERT_CHAT_IDS }}
+          TELEGRAM_LINK_SECRET: ${{ secrets.TELEGRAM_LINK_SECRET }}
 
       # -----------------------------------------------------------------------
       # TLS termination (FEAT-077). README has claimed "Caddy — Automatic HTTPS"
