@@ -20,13 +20,16 @@ dialling out of a network-free suite.
 from __future__ import annotations
 
 import base64
+import json
 import time
 
+import httpx
 import pytest
 from conftest import TELEGRAM_TEST_CHAT, TELEGRAM_TEST_USER
 from test_telegram import StubBot, update
 
 from config import settings
+from modules import telegram as telegram_module
 from modules.telegram import (
     LINK_KIND_ACCOUNT,
     LINK_KIND_GUEST,
@@ -609,3 +612,250 @@ async def test_health_counts_bindings_without_naming_anyone(bot):
     rendered = repr(health)
     assert ACCOUNT_ID not in rendered
     assert TELEGRAM_TEST_CHAT not in rendered
+
+
+# --------------------------------------------------------------------------- #
+# The durable copy
+#
+# This is the branch that had no test at all, and production was its first
+# execution. It failed there — `public.telegram_link` had never been created,
+# because the migration ships by manual dispatch and the writer shipped with the
+# code — and the card reported it as a credentials problem, because the only
+# sentence naming the real cause was in `response.text`, which the writer threw
+# away.
+#
+# Nothing here touches a network: the module's own `httpx.AsyncClient` is routed
+# through a MockTransport, which is the only way to exercise a status code the
+# suite can otherwise never reach.
+# --------------------------------------------------------------------------- #
+
+MISSING_TABLE = {
+    "code": "42P01",
+    "message": 'relation "public.telegram_link" does not exist',
+    "hint": None,
+}
+BAD_KEY = {
+    "code": "42501",
+    "message": "permission denied for table telegram_link",
+    "hint": None,
+}
+
+
+def supabase_returns(monkeypatch, handler) -> list[httpx.Request]:
+    """Point the module's Supabase client at `handler` and record what it sent.
+
+    `_record_account_link` builds its own client, so the seam is the module's
+    reference to `httpx.AsyncClient` rather than an injected dependency.
+    """
+    seen: list[httpx.Request] = []
+    real = httpx.AsyncClient
+
+    def factory(**kwargs):
+        def record(request: httpx.Request) -> httpx.Response:
+            seen.append(request)
+            return handler(request)
+
+        kwargs["transport"] = httpx.MockTransport(record)
+        return real(**kwargs)
+
+    monkeypatch.setattr(telegram_module.httpx, "AsyncClient", factory)
+    _set("supabase_url", "https://project.supabase.co")
+    _set("supabase_service_role_key", "service-role-key-for-tests")
+    return seen
+
+
+def _json(status: int, body) -> httpx.Response:
+    return httpx.Response(status, json=body)
+
+
+@pytest.mark.asyncio
+async def test_a_missing_table_is_named_on_the_card(bot, monkeypatch):
+    """The production failure, reproduced.
+
+    A 404 from PostgREST for a table that does not exist and a 401 for a key
+    that may not write it are both "the durable copy did not happen". Only the
+    body tells them apart, and only one of them is fixed by running a migration.
+    """
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "DELETE":
+            return _json(200, [])
+        return _json(404, MISSING_TABLE)
+
+    supabase_returns(monkeypatch, handler)
+    settings.telegram_allowed_user_ids[:] = []
+    await bot.handle_update(update(f"/start {token_for(LINK_KIND_ACCOUNT, ACCOUNT_ID)}", update_id=500))
+
+    assert "Connected" in bot.last
+    assert "refused" in bot.last
+    # The sentence that would have saved the debugging session.
+    assert "public.telegram_link" in bot.last
+    assert "does not exist" in bot.last
+    # And it must not be reported as the other failure.
+    assert "no Supabase credentials" not in bot.last
+
+
+@pytest.mark.asyncio
+async def test_a_rejected_key_says_so_instead_of_blaming_the_schema(bot, monkeypatch):
+    """The same status class, the opposite fix. The card must not conflate them."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "DELETE":
+            return _json(200, [])
+        return _json(401, BAD_KEY)
+
+    supabase_returns(monkeypatch, handler)
+    settings.telegram_allowed_user_ids[:] = []
+    await bot.handle_update(update(f"/start {token_for(LINK_KIND_ACCOUNT, ACCOUNT_ID)}", update_id=505))
+
+    assert "permission denied" in bot.last
+    assert "does not exist" not in bot.last
+
+
+@pytest.mark.asyncio
+async def test_durability_is_claimed_only_once_the_write_returns(bot, monkeypatch):
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "DELETE":
+            return _json(200, [])
+        return httpx.Response(201)
+
+    seen = supabase_returns(monkeypatch, handler)
+    settings.telegram_allowed_user_ids[:] = []
+    await bot.handle_update(update(f"/start {token_for(LINK_KIND_ACCOUNT, ACCOUNT_ID)}", update_id=510))
+
+    assert "durable copy was written" in bot.last
+    assert "survives restarts" in bot.last
+    assert "refused" not in bot.last
+    # The row carries the identity the token signed, not the Telegram handle.
+    written = json.loads(seen[-1].content)
+    assert written["user_id"] == ACCOUNT_ID
+    assert written["telegram_user_id"] == TELEGRAM_TEST_USER
+
+
+@pytest.mark.asyncio
+async def test_replacing_someone_elses_binding_is_announced(bot, monkeypatch):
+    """The delete is destructive and used to be silent.
+
+    A guest connects, then signs in and connects again: the second write
+    destroys the first binding, which the first card promised would last. The
+    policy is latest-wins, and a policy the user cannot see is not a policy.
+    """
+    other = "11111111-2222-3333-4444-555555555555"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "DELETE":
+            return _json(200, [{"user_id": other, "telegram_user_id": TELEGRAM_TEST_USER}])
+        return httpx.Response(201)
+
+    supabase_returns(monkeypatch, handler)
+    settings.telegram_allowed_user_ids[:] = []
+    await bot.handle_update(update(f"/start {token_for(LINK_KIND_ACCOUNT, ACCOUNT_ID)}", update_id=515))
+
+    assert "replaced" in bot.last
+    assert "latest connect wins" in bot.last
+    assert other[:8] in bot.last
+
+
+@pytest.mark.asyncio
+async def test_reconnecting_the_same_identity_is_not_called_a_replacement(bot, monkeypatch):
+    """Refreshing your own binding is not news, and crying wolf costs the notice."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "DELETE":
+            return _json(200, [{"user_id": ACCOUNT_ID, "telegram_user_id": TELEGRAM_TEST_USER}])
+        return httpx.Response(201)
+
+    supabase_returns(monkeypatch, handler)
+    settings.telegram_allowed_user_ids[:] = []
+    await bot.handle_update(update(f"/start {token_for(LINK_KIND_ACCOUNT, ACCOUNT_ID)}", update_id=520))
+
+    assert "replaced" not in bot.last
+
+
+@pytest.mark.asyncio
+async def test_a_refused_delete_does_not_pass_as_a_clean_write(bot, monkeypatch):
+    """A successful delete followed by a failed insert is silent data loss.
+
+    So is the reverse when nobody checks the delete: the row survives, the
+    insert collides with it, and the only account of what happened is a status
+    code nobody kept.
+    """
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "DELETE":
+            return _json(401, BAD_KEY)
+        return _json(409, {"code": "23505", "message": "duplicate key value violates unique constraint"})
+
+    supabase_returns(monkeypatch, handler)
+    settings.telegram_allowed_user_ids[:] = []
+    await bot.handle_update(update(f"/start {token_for(LINK_KIND_ACCOUNT, ACCOUNT_ID)}", update_id=525))
+
+    assert "refused" in bot.last
+    assert "duplicate key" in bot.last
+
+
+@pytest.mark.asyncio
+async def test_an_unreachable_supabase_is_named_as_a_network_failure(bot, monkeypatch):
+    """Not reaching the database and being refused by it are different sentences."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection refused")
+
+    supabase_returns(monkeypatch, handler)
+    settings.telegram_allowed_user_ids[:] = []
+    await bot.handle_update(update(f"/start {token_for(LINK_KIND_ACCOUNT, ACCOUNT_ID)}", update_id=530))
+
+    assert "could not reach Supabase" in bot.last
+    assert "ConnectError" in bot.last
+    # The local copy still stands, and the card must not imply otherwise.
+    assert bot._authorised(TELEGRAM_TEST_USER) is True
+
+
+@pytest.mark.asyncio
+async def test_a_failed_durable_copy_never_costs_the_local_binding(bot, monkeypatch):
+    """The confirmation is best-effort; the binding is not."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "DELETE":
+            return _json(200, [])
+        return _json(404, MISSING_TABLE)
+
+    supabase_returns(monkeypatch, handler)
+    settings.telegram_allowed_user_ids[:] = []
+    await bot.handle_update(update(f"/start {token_for(LINK_KIND_ACCOUNT, ACCOUNT_ID)}", update_id=535))
+
+    row = bot.audit.get_subscriber(TELEGRAM_TEST_CHAT)
+    assert row["web_identity"] == f"{LINK_KIND_ACCOUNT}:{ACCOUNT_ID}"
+    assert bot.binding_status(LINK_KIND_ACCOUNT, ACCOUNT_ID) == "linked"
+
+
+@pytest.mark.asyncio
+async def test_the_card_labels_both_identities_it_binds(bot, monkeypatch):
+    """The user-visible confusion this closes.
+
+    "Connected as @handle" sat directly above "recorded against your desk
+    account", so the Telegram handle read as the desk identity — and a second
+    connect through a different web identity looked like it had kept the first.
+    """
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(201) if request.method == "POST" else _json(200, [])
+
+    supabase_returns(monkeypatch, handler)
+    settings.telegram_allowed_user_ids[:] = []
+    await bot.handle_update(update(f"/start {token_for(LINK_KIND_ACCOUNT, ACCOUNT_ID)}", update_id=540))
+
+    assert "<b>Telegram</b>" in bot.last
+    assert "<b>Desk identity</b>" in bot.last
+    assert ACCOUNT_ID[:8] in bot.last
+    # Two labelled identities, not one ambiguous one.
+    assert "Connected as" not in bot.last
+
+
+def test_a_reason_survives_a_body_that_is_not_json():
+    """Not every refusal is PostgREST's. A proxy's HTML must not read as silence."""
+    reason = telegram_module._postgrest_reason(httpx.Response(502, text="<html>Bad Gateway</html>"))
+    assert "Bad Gateway" in reason
+
+
+def test_a_reason_is_reported_even_when_the_body_is_empty():
+    reason = telegram_module._postgrest_reason(httpx.Response(500, text=""))
+    assert "500" in reason
+
+
+def test_a_reason_is_clipped_to_fit_a_card():
+    reason = telegram_module._postgrest_reason(httpx.Response(400, json={"message": "x" * 400}))
+    assert len(reason) <= 220

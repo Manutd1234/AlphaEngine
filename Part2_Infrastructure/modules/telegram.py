@@ -129,6 +129,76 @@ class LinkToken:
         return f"{self.kind}:{self.identity}"
 
 
+@dataclass(frozen=True)
+class AccountLinkWrite:
+    """What happened when the durable copy was attempted, and why.
+
+    ``ok`` is tri-state on purpose: ``True`` written, ``False`` refused,
+    ``None`` never attempted because this gateway holds no Supabase
+    credentials. Collapsing the last two into ``False`` is what made a
+    deployment with no credentials indistinguishable from a deployment whose
+    write was rejected — the confirmation card said the same thing for both.
+    """
+
+    ok: bool | None
+    reason: str | None = None
+    #: The desk identity whose binding this write destroyed, if it destroyed one.
+    replaced: str | None = None
+
+
+def _postgrest_reason(response: httpx.Response) -> str:
+    """The sentence PostgREST put in the body, or a description of the silence.
+
+    PostgREST answers a missing table and an unauthorised key with bodies that
+    differ only in their text; the status codes overlap. Returning ``message``
+    is the difference between "run the migration" and "rotate the key" showing
+    up on the operator's screen instead of in nobody's log.
+    """
+    body = (response.text or "").strip()
+    if not body:
+        return f"Supabase refused the write with HTTP {response.status_code} and no body."
+    try:
+        parsed = json.loads(body)
+    except ValueError:
+        return _clip(body)
+    if isinstance(parsed, dict):
+        # `message` is the human sentence; `hint` is often the actionable half
+        # ("Perhaps you meant …"), so it travels when present.
+        message = str(parsed.get("message") or "").strip()
+        hint = str(parsed.get("hint") or "").strip()
+        if message:
+            return _clip(f"{message} {hint}".strip())
+    return _clip(body)
+
+
+def _clip(text: str, limit: int = 220) -> str:
+    """Keep a reason readable inside a Telegram card."""
+    collapsed = " ".join(text.split())
+    return collapsed if len(collapsed) <= limit else collapsed[: limit - 1] + "…"
+
+
+def _replaced_identity(response: httpx.Response, incoming: str) -> str | None:
+    """The desk identity a delete just unbound, when it was somebody else's.
+
+    Reconnecting from the same account is a refresh and needs no announcement.
+    Reconnecting from a *different* one destroys a binding that a previous card
+    promised would last, so that card's promise has to be retracted out loud.
+    """
+    try:
+        rows = json.loads(response.text or "[]")
+    except ValueError:
+        return None
+    if not isinstance(rows, list):
+        return None
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        previous = str(row.get("user_id") or "").strip()
+        if previous and previous != incoming:
+            return previous
+    return None
+
+
 def _b64url_encode(raw: bytes) -> str:
     return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
@@ -1310,11 +1380,11 @@ class TelegramBot:
 
     async def _record_account_link(
         self, token: LinkToken, chat_id: str, user_id: str, username: str
-    ) -> bool | None:
+    ) -> AccountLinkWrite:
         """Mirror an account binding into Supabase, where it becomes durable.
 
         The DuckDB row is what this process consults on every command; this row
-        is what outlives the container. ``None`` when the gateway holds no
+        is what outlives the container. ``ok is None`` when the gateway holds no
         Supabase credentials — a state the confirmation says out loud, rather
         than letting someone believe a link is durable when it is not.
 
@@ -1322,9 +1392,16 @@ class TelegramBot:
         signed-in browser. RLS on ``telegram_link`` scopes what an *account* may
         read of its own row; the account is not the party holding the Telegram
         user id, so it cannot be the one to write it.
+
+        Returns the *reason* on failure rather than a bare ``False``. This
+        function used to log a status code and discard ``response.text``, which
+        is the only place PostgREST distinguishes "the table does not exist"
+        from "this key may not write it" — two failures with the same status
+        and completely different fixes. The first production run of this path
+        hit the first of those and reported it as the second.
         """
         if not (settings.supabase_url and settings.supabase_service_role_key):
-            return None
+            return AccountLinkWrite(ok=None)
         headers = {
             "apikey": settings.supabase_service_role_key,
             "Authorization": f"Bearer {settings.supabase_service_role_key}",
@@ -1337,6 +1414,8 @@ class TelegramBot:
             "telegram_username": username or None,
             "linked_at": datetime.now(timezone.utc).isoformat(),
         }
+        delete_reason: str | None = None
+        replaced: str | None = None
         try:
             async with httpx.AsyncClient(
                 base_url=settings.supabase_url.rstrip("/"),
@@ -1347,18 +1426,47 @@ class TelegramBot:
                 # constraint would refuse the upsert otherwise, and refusing is
                 # the worse outcome here: the person is standing in front of a
                 # valid single-use code that has already been spent.
-                await client.delete(f"/rest/v1/telegram_link?telegram_user_id=eq.{user_id}")
+                #
+                # `return=representation` so the removed row comes back. This
+                # delete is destructive and used to be silent: connecting a
+                # second time from a different desk identity destroyed the first
+                # binding and told nobody. The confirmation now says so, which
+                # needs to know what was there.
+                removed = await client.delete(
+                    f"/rest/v1/telegram_link?telegram_user_id=eq.{user_id}",
+                    headers={"Prefer": "return=representation"},
+                )
+                if removed.status_code >= 300:
+                    # Not fatal on its own — the upsert below may still succeed
+                    # against the same account — but a failed delete followed by
+                    # a failed insert is silent data loss, so carry the reason.
+                    delete_reason = _postgrest_reason(removed)
+                    log.warning(
+                        "telegram_link delete refused (HTTP %s): %s",
+                        removed.status_code, delete_reason,
+                    )
+                else:
+                    replaced = _replaced_identity(removed, token.identity)
+
                 response = await client.post(
                     "/rest/v1/telegram_link?on_conflict=user_id",
                     json=row,
                     headers={"Prefer": "resolution=merge-duplicates,return=minimal"},
                 )
                 if response.status_code < 300:
-                    return True
-                log.warning("telegram_link write refused (HTTP %s)", response.status_code)
+                    return AccountLinkWrite(ok=True, replaced=replaced)
+                reason = _postgrest_reason(response)
+                log.warning(
+                    "telegram_link write refused (HTTP %s): %s", response.status_code, reason,
+                )
+                return AccountLinkWrite(ok=False, reason=reason, replaced=replaced)
         except Exception as exc:  # never let the confirmation itself fail
             log.error("telegram_link write failed: %s", type(exc).__name__)
-        return False
+            return AccountLinkWrite(
+                ok=False,
+                reason=f"The desk could not reach Supabase ({type(exc).__name__}).",
+                replaced=replaced,
+            )
 
     async def _complete_link(self, payload: str, chat_id: str, actor: str) -> None:
         """Redeem a ``?start=<token>`` payload and bind this chat to a web identity."""
@@ -1413,6 +1521,12 @@ class TelegramBot:
             return
 
         existing = self.audit.get_subscriber(str(chat_id)) or {}
+        # The local store also replaces rather than accumulates — `upsert_subscriber`
+        # is keyed by chat_id. A guest who signs in and reconnects, or an account
+        # holder connecting from a second identity, silently loses the previous
+        # binding here too, so the same retraction is owed on both paths.
+        previous_identity = str(existing.get("web_identity") or "").strip()
+        local_replaced = bool(previous_identity) and previous_identity != token.web_identity
         self.audit.upsert_subscriber(
             str(chat_id), actor,
             # Binding is identity, not consent to be messaged. Whatever this
@@ -1435,27 +1549,65 @@ class TelegramBot:
                 "A guest pass is a browser session; the desk cannot watch yours end, so the link carries its own clock.",
                 "Sign in on the workspace and connect again to keep it.",
             ]
-        else:
-            durable = await self._record_account_link(token, chat_id, user_id, username)
-            where = ["<b>Account</b> — this link is recorded against your desk account."]
-            if durable is True:
-                where.append("It survives restarts and ends when the account does.")
-            elif durable is None:
+            if local_replaced:
                 where.append(
-                    "<i>This gateway has no Supabase credentials, so only its local copy was written. "
-                    "The link will not survive the desk being rebuilt.</i>"
+                    "⚠ This chat was connected to a different desk identity "
+                    f"(<code>{esc(previous_identity.split(':', 1)[-1][:8])}…</code>). "
+                    "That binding has been replaced — latest connect wins."
+                )
+        else:
+            written = await self._record_account_link(token, chat_id, user_id, username)
+            # The kind of binding is one statement; where it is kept is another.
+            # These used to be the same sentence — "recorded against your desk
+            # account" was asserted before the write was attempted and retracted
+            # two lines later, which reads as a promise with a disclaimer rather
+            # than a status.
+            where = ["<b>Account</b> — bound to your desk account, not to a browser session."]
+            if written.ok is True:
+                where.append(
+                    "The durable copy was written: it survives restarts and ends when the account does."
+                )
+            elif written.ok is None:
+                where.append(
+                    "<i>This gateway holds no Supabase credentials, so only its local copy was written. "
+                    "The link works now and will not survive the desk being rebuilt.</i>"
                 )
             else:
                 where.append(
-                    "<i>The durable copy could not be written and the desk is not going to pretend otherwise. "
+                    "<i>The durable copy was refused, and the desk is not going to pretend otherwise. "
                     "The local copy works now; reconnect after a rebuild.</i>"
+                )
+                # The reason, verbatim from PostgREST. A missing table and a
+                # rejected key are the same status code and different fixes.
+                where.append(
+                    f"<i>Reason: {esc(written.reason)}</i>" if written.reason
+                    else "<i>Supabase gave no reason.</i>"
+                )
+            # Either store can be the one that noticed: Supabase reports the row
+            # its delete removed, and the local store still knows when Supabase
+            # was never consulted at all.
+            replaced = written.replaced or (
+                previous_identity.split(":", 1)[-1] if local_replaced else None
+            )
+            if replaced:
+                where.append(
+                    "⚠ This chat was connected to a different desk identity "
+                    f"(<code>{esc(replaced[:8])}…</code>). That binding has been replaced — "
+                    "latest connect wins."
                 )
 
         await self.send_message(chat_id, text_card(
             "🔗 Connected", "READ PARITY WITH A DESK PASS",
             [
-                f"Connected as <b>@{esc(username)}</b>",
-                f"Telegram user <code>{esc(user_id)}</code> · chat <code>{esc(chat_id)}</code>",
+                # Two identities meet here and only one of them was ever named.
+                # "Connected as @handle" directly above "recorded against your
+                # desk account" reads as though the handle IS the desk account,
+                # so a guest pass and a signed-in account produced the same
+                # sentence and the second connect looked like it had kept the
+                # first one's identity. Both sides are now labelled.
+                f"<b>Telegram</b> @{esc(username)} · user <code>{esc(user_id)}</code> "
+                f"· chat <code>{esc(chat_id)}</code>",
+                f"<b>Desk identity</b> {esc(token.kind)} <code>{esc(token.identity[:8])}…</code>",
                 "",
                 "<b>What this grants</b>",
                 "Exactly what a desk pass already shows you in the browser — one shared book, one kill "
