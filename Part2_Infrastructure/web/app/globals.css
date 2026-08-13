@@ -3066,6 +3066,7 @@ a.text-action {
 }
 
 .execution-market-strip__status i {
+  position: relative;
   width: 7px;
   height: 7px;
   border-radius: 50%;
@@ -3127,6 +3128,7 @@ a.text-action {
 
 .market-context-card__mode i,
 .venue-status__name i {
+  position: relative;
   width: 7px;
   height: 7px;
   flex: 0 0 7px;
@@ -3139,6 +3141,31 @@ a.text-action {
 .venue-status.is-live .venue-status__name i {
   background: var(--status-good);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--status-good) 12%, transparent);
+}
+
+/**
+ * One ring for every live feed on the desk.
+ *
+ * The shared keyframe already served the work board's dot and the header's
+ * data-source badge; the two market-feed indicators were static, so "the tape
+ * is arriving" was animated in one place on the desk and still in another for
+ * the same fact. Extending the existing rule rather than writing a third
+ * effect is the whole point — the comment on `live-pulse` says a third caller
+ * would otherwise invent a third name.
+ *
+ * Decoration only: the dot's colour and the word beside it already carry the
+ * state, so the reduce block collapsing this to 1ms loses nothing.
+ */
+.execution-market-strip__status.is-live i::after,
+.market-context-card__mode.is-live i::after,
+.venue-status.is-live .venue-status__name i::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border: 1px solid var(--status-good);
+  border-radius: 50%;
+  opacity: 0;
+  animation: live-pulse 2400ms var(--ease-out) infinite;
 }
 
 .market-watchlist-shell {
