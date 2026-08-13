@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * What has actually happened, beside the controls that make it happen.
+ * What has actually happened — the History pane of Remediation, one click from
+ * the controls that make it happen.
  *
  * NOT a second `TraceConsole`. That component is pinned to exactly one instance
  * on this tab — reliability has one correlated event stream — and it is the
@@ -63,8 +64,10 @@ export default function RemediationLedger({ active }: { active: boolean }) {
   }, []);
 
   useEffect(() => {
-    // Gated, exactly as TraceConsole is: panels stay mounted, so an ungated
-    // poll would keep running behind a subtab nobody is reading.
+    // Gated, exactly as TraceConsole is: section panels stay mounted, so an
+    // ungated poll would keep running behind a subtab nobody is reading. The
+    // caller's flag now carries the pane as well as the section — a reader on
+    // Act or Recovery is not reading this either.
     if (!active) return;
     void load();
     const timer = setInterval(() => void load(), POLL_MS);

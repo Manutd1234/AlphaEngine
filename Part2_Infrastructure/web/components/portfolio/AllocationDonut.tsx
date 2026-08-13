@@ -20,6 +20,7 @@
 
 import { useMemo, useState } from "react";
 
+import { DONUT_SIZE, donutArc } from "@/components/portfolio/donut-arc";
 import { fmt, pct, usd } from "@/lib/format";
 import type { PortfolioPosition } from "@/lib/portfolio";
 
@@ -41,29 +42,10 @@ const SLICE_COLORS = [
   "var(--text-muted)",
 ];
 
-const SIZE = 190;
-const RADIUS = 74;
-const THICKNESS = 26;
-
-/** Arc path for a donut segment, angles in radians clockwise from 12 o'clock. */
-function arc(from: number, to: number): string {
-  const c = SIZE / 2;
-  const outer = RADIUS;
-  const inner = RADIUS - THICKNESS;
-  const point = (r: number, a: number) => [c + r * Math.sin(a), c - r * Math.cos(a)];
-  const [x0, y0] = point(outer, from);
-  const [x1, y1] = point(outer, to);
-  const [x2, y2] = point(inner, to);
-  const [x3, y3] = point(inner, from);
-  const large = to - from > Math.PI ? 1 : 0;
-  return [
-    `M${x0.toFixed(2)},${y0.toFixed(2)}`,
-    `A${outer},${outer} 0 ${large} 1 ${x1.toFixed(2)},${y1.toFixed(2)}`,
-    `L${x2.toFixed(2)},${y2.toFixed(2)}`,
-    `A${inner},${inner} 0 ${large} 0 ${x3.toFixed(2)},${y3.toFixed(2)}`,
-    "Z",
-  ].join("");
-}
+/* Geometry lives in `donut-arc` so it can be measured directly: the builder
+   that used to sit here dropped both of its arcs on a single 100% slice and
+   painted an empty box. See that module's header. */
+const SIZE = DONUT_SIZE;
 
 export default function AllocationDonut({
   positions,
@@ -119,12 +101,12 @@ export default function AllocationDonut({
             width={SIZE}
             height={SIZE}
             role="img"
-            aria-label={`Allocation by instrument across ${slices.length} positions. Largest is ${slices[0].position.symbol} at ${pct(slices[0].share, 1)} of gross notional.`}
+            aria-label={`Allocation by instrument across ${slices.length} position${slices.length === 1 ? "" : "s"}. Largest is ${slices[0].position.symbol} at ${pct(slices[0].share, 1)} of gross notional.`}
           >
             {slices.map((s) => (
               <path
                 key={s.position.symbol}
-                d={arc(s.from, s.to)}
+                d={donutArc(s.from, s.to)}
                 fill={s.color}
                 opacity={hover && hover !== s.position.symbol ? 0.35 : 1}
                 onPointerEnter={() => setHover(s.position.symbol)}
@@ -181,16 +163,35 @@ export default function AllocationDonut({
         </div>
       </div>
 
+      {/* Three facts, or one. On a book of one every concentration statistic
+          collapses onto the same tautology — largest share is 1, the Herfindahl
+          index is its maximum of 1, and its inverse is 1 position — so printing
+          all three reads as three independent findings when it is one fact
+          stated three times. The numbers stay on screen; the claim that they
+          are separate measurements does not. */}
       <div className="allocation-facts">
-        <span>
-          Largest <strong className="num">{pct(largestShare, 1)}</strong>
-        </span>
-        <span>
-          HHI <strong className="num">{fmt(hhi, 3)}</strong>
-        </span>
-        <span>
-          Behaves like <strong className="num">{fmt(effectivePositions, 1)}</strong> equal positions
-        </span>
+        {slices.length === 1 ? (
+          <span>
+            One position, so the ring is the whole book:{" "}
+            <strong className="num">{pct(largestShare, 1)}</strong> of gross, HHI{" "}
+            <strong className="num">{fmt(hhi, 3)}</strong> at its maximum,{" "}
+            <strong className="num">{fmt(effectivePositions, 1)}</strong> effective position. A
+            single-asset book is trivially 100% of itself under any measure — concentration only
+            becomes a measurement once a second name is on.
+          </span>
+        ) : (
+          <>
+            <span>
+              Largest <strong className="num">{pct(largestShare, 1)}</strong>
+            </span>
+            <span>
+              HHI <strong className="num">{fmt(hhi, 3)}</strong>
+            </span>
+            <span>
+              Behaves like <strong className="num">{fmt(effectivePositions, 1)}</strong> equal positions
+            </span>
+          </>
+        )}
       </div>
 
       {/* Method, not measurement. The caveat it carries — that this says nothing

@@ -15,7 +15,10 @@
  * **The guard's state is visible before anything is clicked.** On a production
  * deployment without `ALPHAENGINE_OPERATOR_TOKEN` the actions are refused
  * server-side; showing enabled buttons that 503 would be a worse experience than
- * showing disabled ones with the reason attached.
+ * showing disabled ones with the reason attached. That block is now
+ * `OperatorGuard`, rendered here — one authorisation state for the whole
+ * surface, as against a cost, which is a fact about a single control and
+ * therefore stays welded to it.
  *
  * The last two controls are client-side only and say so: WebSocket connections
  * belong to this browser tab, and the poll cadence is this console's own.
@@ -24,6 +27,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import DonutChart, { type DonutSlice } from "@/components/common/DonutChart";
+import OperatorGuard from "@/components/systems/OperatorGuard";
 import type { ActionResponse, GuardMode, ProviderRow } from "./types";
 
 export interface ActionOptions {
@@ -165,8 +169,9 @@ export default function OperatorPanel({
    * instance keeps no durable remediation ledger, and a 'resolutions over time'
    * line would have to invent its own past." The reasoning still holds; the
    * inputs changed. `resetBreaker` now emits the closing transition it used to
-   * swallow, so open→closed pairs are observable and `RemediationLedger` below
-   * pairs them — a real ledger, but a bounded, per-instance, non-durable one:
+   * swallow, so open→closed pairs are observable and `RemediationLedger` — now
+   * the History pane rather than the card underneath this one — pairs them: a
+   * real ledger, but a bounded, per-instance, non-durable one:
    * 600 events shared with dispatch and cache traffic, reset by redeploy and by
    * Clear telemetry.
    *
@@ -236,90 +241,17 @@ export default function OperatorPanel({
         </div>
       </div>
 
-      {locked && (
-        <div className="banner warn" role="status">
-          <span aria-hidden>!</span>
-          <div>
-            <strong>Actions are disabled on this deployment.</strong> Every action spends real
-            upstream quota, so a production build refuses them unless <code>{tokenEnv}</code> is set
-            on the server. Read-only telemetry above is unaffected.
-          </div>
-        </div>
-      )}
-
-      {(guard === "token" || tokenOverrideAvailable) && (
-        <label className="console-token">
-          <span>
-            {guard === "token"
-              ? "Operator token"
-              : "Operator token — optional, overrides demo mode for this tab"}
-          </span>
-          <div className="console-token__row">
-            <input
-              type="password"
-              value={token}
-              onChange={(event) => onTokenChange(event.target.value)}
-              placeholder={tokenEnv}
-              autoComplete="off"
-              spellCheck={false}
-            />
-            {token !== "" && (
-              <button
-                type="button"
-                className="console-node__action"
-                onClick={() => onTokenChange("")}
-                title="Forget the token and return this tab to its default identity."
-              >
-                Clear
-              </button>
-            )}
-          </div>
-          <small className="muted" role="status">
-            {tokenStatus === "valid" ? (
-              <span style={{ color: "var(--success-text)" }}>
-                <span aria-hidden>✓</span> Authenticated operator — the credential was checked and
-                every action from this tab carries it.
-              </span>
-            ) : tokenStatus === "rejected" ? (
-              <span style={{ color: "var(--critical-text)" }}>
-                <span aria-hidden>✕</span> The operator credential was rejected — actions will fail
-                until it is fixed or cleared.
-              </span>
-            ) : tokenStatus === "checking" ? (
-              "Checking the credential…"
-            ) : guard === "open-demo" ? (
-              "Demo operator (open) — actions work without a credential; type one to act as the authenticated operator."
-            ) : (
-              "Kept in this tab's session storage — survives a reload, gone when the tab closes; never logged."
-            )}
-          </small>
-          {token !== "" && tokenStatus !== "none" && (
-            <small className="muted">
-              Kept in this tab&rsquo;s session storage — survives a reload, gone when the tab
-              closes; never logged.
-            </small>
-          )}
-        </label>
-      )}
-
-      {guard === "open-dev" && (
-        <p className="console-note">
-          Non-production build: actions are open. Set <code>{tokenEnv}</code> before deploying, or
-          they will be refused there.
-        </p>
-      )}
-
-      {guard === "open-demo" && (
-        <p className="console-note">
-          <strong>Demo deployment: operator actions are open to anyone with this URL.</strong> No
-          token is asked — orders, risk actions and remediation all work directly. That is a
-          deliberate setting (<code>ALPHAENGINE_OPERATOR_OPEN=1</code>) for a paper-trading
-          assessment, survivable because nothing here is permanent: orders are paper and capped by
-          the gateway&rsquo;s gates, the kill switch reverses, purged caches refill. A typed
-          credential is still checked and is authoritative for this tab. Unset the flag to require
-          a token again.
-        </p>
-      )}
+      {/* Authorisation, which is one state for the whole surface, rather than a
+          per-control fact. Extracted for that reason and no other — every cost
+          sentence below stayed beside the button that spends it. */}
+      <OperatorGuard
+        guard={guard}
+        tokenEnv={tokenEnv}
+        token={token}
+        onTokenChange={onTokenChange}
+        tokenOverrideAvailable={tokenOverrideAvailable}
+        tokenStatus={tokenStatus}
+      />
 
       {lastResult && <OperatorActionResult result={lastResult} />}
 

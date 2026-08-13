@@ -1,0 +1,178 @@
+/**
+ * Remediation as three panes, and the four ways splitting a section goes wrong.
+ *
+ * The section was three stacked cards in one scroll — controls, the state
+ * machine that explains recovery, and the ledger of what has been done. Cutting
+ * it into panes is cheap; the failure modes are not, and none of them is visible
+ * to a type checker:
+ *
+ *  1. A second `<WorkspaceSubtabs>` publishes `--rail-h` from a ResizeObserver
+ *     and its own comment asserts exactly one rail is mounted, so a nested one
+ *     fights the first over every sticky offset in the app.
+ *  2. Switching with `hidden` rather than a conditional render leaves the
+ *     ledger's 15s poll running behind a pane nobody is reading — the exact
+ *     defect `active` was threaded through it to prevent, reintroduced one
+ *     level lower.
+ *  3. Landing on a reference pane puts the only surface with buttons on it
+ *     behind a click, in the section a reader opens mid-incident.
+ *  4. An action confirmed on Act and then read from History reports nowhere:
+ *     `OperatorPanel` renders its own result inline, and the console-level
+ *     banner used to suppress itself for the whole section.
+ *
+ * Source-level assertions, like the workspace suite this extends: there is no
+ * DOM here, and the properties worth pinning are structural.
+ */
+
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
+
+const read = (relative: string) =>
+  readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
+
+const console_ = read("../components/ReliabilityConsole.tsx");
+const operator = read("../components/systems/OperatorPanel.tsx");
+const guard = read("../components/systems/OperatorGuard.tsx");
+const overview = read("../components/systems/ReliabilityOverview.tsx");
+
+/** Comments name the constructs they are explaining the absence of. */
+const code = (source: string) =>
+  source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, "")
+    .replace(/\/\/.*$/gm, "");
+
+/** The body of the `controls` subtab panel, which is what the panes live in. */
+function controlsPanel(source: string): string {
+  const start = source.indexOf('tabId="controls"');
+  assert.ok(start > 0, "ReliabilityConsole no longer renders a controls panel");
+  const end = source.indexOf("</WorkspaceSubtabPanel>", start);
+  assert.ok(end > start, "the controls panel is unterminated");
+  return source.slice(start, end);
+}
+
+describe("Remediation splits into three panes, not a fourth rail", () => {
+  it("switches with `.seg role=\"group\"`, never a nested WorkspaceSubtabs", () => {
+    /**
+     * `WorkspaceSubtabs` sets `--rail-h` on the document element from a
+     * ResizeObserver and documents that exactly one rail is mounted at a time.
+     * A second instance is not a layout preference — it is two observers
+     * writing one variable, and every sticky offset and `scroll-margin-top` in
+     * the app reads it.
+     */
+    assert.equal(
+      code(console_).match(/<WorkspaceSubtabs\b/g)?.length,
+      1,
+      "a second rail would fight the first over --rail-h",
+    );
+    assert.match(controlsPanel(console_), /className="seg [^"]*" role="group"/);
+  });
+
+  it("offers exactly three panes and no more", () => {
+    const start = console_.indexOf("const REMEDIATION_PANES");
+    assert.ok(start > 0, "the pane list is no longer a module-level constant");
+    const block = console_.slice(start, console_.indexOf("];", start));
+    const ids = [...block.matchAll(/\{\s*id:\s*"(\w+)"/g)].map((match) => match[1]);
+    assert.deepEqual(ids, ["act", "recovery", "history"]);
+  });
+
+  it("carries a hint on every pane, as the Dependencies switcher does", () => {
+    // `title={option.hint}` is the whole reason the pane list is objects rather
+    // than strings: a three-word label cannot say what a pane answers.
+    const start = console_.indexOf("const REMEDIATION_PANES");
+    const block = console_.slice(start, console_.indexOf("];", start));
+    const hints = [...block.matchAll(/hint:\s*"([^"]*)"/g)].map((match) => match[1]);
+    assert.equal(hints.length, 3);
+    for (const hint of hints) assert.ok(hint.length > 24, `a hint that says nothing: "${hint}"`);
+    assert.match(controlsPanel(console_), /title=\{option\.hint\}/);
+    assert.match(controlsPanel(console_), /aria-pressed=\{remediationPane === option\.id\}/);
+    // Same shape as the shipped one, so the two cannot drift into two patterns.
+    assert.match(overview, /title=\{option\.hint\}/);
+  });
+
+  it("opens on Act, the only pane with controls on it", () => {
+    /**
+     * A reader reaches Remediation mid-incident, from "Recover safely" on the
+     * triage path. Landing them on a state-machine diagram puts every button
+     * behind a click they did not know they had to make.
+     */
+    assert.match(console_, /useState<RemediationPane>\("act"\)/);
+  });
+});
+
+describe("a switched-away pane stops doing work", () => {
+  it("renders conditionally, never behind `hidden`", () => {
+    const panel = code(controlsPanel(console_));
+    for (const pane of ["act", "recovery", "history"]) {
+      assert.match(
+        panel,
+        new RegExp(`remediationPane === "${pane}" && \\(`),
+        `the ${pane} pane is not a conditional render`,
+      );
+    }
+    // `hidden` keeps the subtree mounted, which is right for the section rail
+    // (a typed token and a chosen purge scope survive a switch) and wrong here.
+    assert.doesNotMatch(panel, /hidden=/);
+  });
+
+  it("gates the ledger's poll on the pane as well as the section", () => {
+    /**
+     * Both clauses, exactly as `BlotterViews` gates `WorkingOrders`. The section
+     * clause is load-bearing today because `WorkspaceSubtabPanel` hides rather
+     * than unmounts. The pane clause is redundant only for as long as the panes
+     * stay conditional renders — and the day someone switches them to `hidden`
+     * to preserve scroll position, a 15s poll must not quietly come back.
+     */
+    assert.match(
+      controlsPanel(console_),
+      /active=\{section === "controls" && remediationPane === "history"\}/,
+    );
+  });
+
+  it("leaves the correlated event stream's own gate alone", () => {
+    // TraceConsole is pinned to one instance on this tab and gated on its own
+    // section; the pane split must not have touched either.
+    assert.equal(console_.match(/<TraceConsole/g)?.length, 1);
+    assert.ok(console_.includes('active={section === "events"}'));
+  });
+});
+
+describe("an action outcome is reported from wherever the reader is", () => {
+  it("shows the console banner whenever the panel that renders it inline is gone", () => {
+    /**
+     * `OperatorPanel` renders `lastResult` beside the button that caused it, so
+     * the console-level banner is the fallback for every other position. Once
+     * Act became a pane, "not the controls section" stopped covering the case —
+     * Recovery and History are the controls section with no panel mounted.
+     */
+    assert.match(
+      console_,
+      /\(section !== "controls" \|\| remediationPane !== "act"\) && actionResult/,
+    );
+    assert.match(code(operator), /\{lastResult && <OperatorActionResult result=\{lastResult\} \/>\}/);
+  });
+});
+
+describe("the extraction moved authorisation and left every cost behind", () => {
+  it("keeps the guard's refusal readable before anything is clicked", () => {
+    // Showing enabled buttons that 503 is worse than disabled ones with the
+    // reason attached, so the reason has to survive the move.
+    assert.match(guard, /Actions are disabled on this deployment/);
+    assert.match(guard, /operator actions are open to anyone with this URL/);
+    assert.match(code(operator), /<OperatorGuard/);
+    // And it is one authorisation state, not a per-control fact: nothing about
+    // spend travelled with it. Comments stripped — this file's header names the
+    // very sentences it is explaining the absence of.
+    assert.doesNotMatch(code(guard), /spends a real call|Destroys this instance|vendor/);
+  });
+
+  it("leaves the disruptive controls and their gate in the panel", () => {
+    const panel = code(operator);
+    assert.match(panel, /const locked = guard === "locked"/);
+    assert.match(panel, /const disabled = locked \|\| missingToken/);
+    assert.match(panel, /action: "purge_cache"/);
+    assert.match(panel, /action: "reset_quota"/);
+    assert.match(panel, /action: "clear_telemetry"/);
+  });
+});

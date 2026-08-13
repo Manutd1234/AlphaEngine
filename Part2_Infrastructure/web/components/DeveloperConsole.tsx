@@ -481,6 +481,25 @@ function DeveloperPipelines({ view }: { view: SystemHealthView }) {
             </div>
           ))}
         </div>
+
+        {/* The same four rows as bars, on one shared scale. `CategoryBars`'
+            own header names this exact caller — "CI test counts" — and the
+            import sat unused since it was written, which is its own small
+            evidence that nothing in this project catches a dead import.
+
+            Worth drawing rather than only tabulating: the numbers span an
+            order of magnitude, and a column of right-aligned figures hides
+            that the web suite is most of the estate. The tree audit has no
+            count and is deliberately absent rather than plotted as zero. */}
+        <CategoryBars
+          rows={CI_JOBS.filter((job) => job.count !== null).map((job) => ({
+            label: job.name,
+            note: `${job.count} tests`,
+            segments: [{ label: "tests", value: job.count ?? 0, color: "var(--series-1)" }],
+          }))}
+          ariaLabel="Test count by continuous-integration suite"
+          emptyNote="No suite reports a documented baseline."
+        />
       </section>
 
       <section className="card developer-cp-artifact-card">

@@ -1632,6 +1632,40 @@ tbody tr[tabindex]:focus-visible {
   border-radius: 3px;
 }
 
+/* ---------- drift legend ----------
+   The drift chart's key became a worked reading: three rules quoting the band
+   currently under the slider, so a colour explains itself rather than being
+   looked up. Sentences do not fit the base `.legend` flex row — three of them
+   side by side become three narrow columns — so this flips the axis and gives
+   each swatch its own column, keeping the mark on the first line of its own
+   rule instead of floating in the middle of the text.
+
+   Must stay AFTER `.legend i`: `.drift-legend i` has equal specificity and
+   wins on source order alone. */
+.drift-legend {
+  flex-direction: column;
+  gap: 8px;
+  max-width: 74ch;
+  line-height: 1.55;
+}
+
+.drift-legend li {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+}
+
+.drift-legend i {
+  margin-right: 0;
+  /* Centres the 3px dash on the first line of its rule rather than the block. */
+  margin-top: 7px;
+}
+
+.drift-legend strong {
+  color: var(--text-primary);
+}
+
 .skeleton {
   background: linear-gradient(
     90deg,
@@ -16223,6 +16257,14 @@ html:active-view-transition .view-panel {
 .operator-scope-notes dd {
   margin: 2px 0 0;
   color: var(--text-secondary);
+}
+
+/* Remediation's pane switcher. `.seg` carries no margin of its own, and this
+   one sits directly above a `.card` that supplies its own — so the gap between
+   the control and the pane it selects has to come from here, in the same token
+   the cards use between themselves. */
+.reliability-remediation-seg {
+  margin-bottom: var(--space-3);
 }
 
 /* ---------- breaker state machine ---------- */

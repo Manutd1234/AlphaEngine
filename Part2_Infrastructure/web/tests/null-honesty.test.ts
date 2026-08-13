@@ -88,13 +88,16 @@ describe("legends are lists without being bulleted", () => {
   });
 
   it("still has no bare ul call site relying on a rule that does not exist", () => {
+    // Prefix match, not exact: a call site may legitimately add a modifier
+    // class beside `legend`. What matters is that it is a `<ul>` reaching for
+    // the rule that now resets the marker.
     for (const file of [
       "../components/portfolio/DriftBars.tsx",
       "../components/portfolio/ExposureHeatmap.tsx",
       "../components/systems/RouteLatencyBars.tsx",
       "../components/execution/SpreadDecomposition.tsx",
     ]) {
-      assert.match(read(file), /<ul className="legend">/, `${file} stopped using the legend list`);
+      assert.match(read(file), /<ul className="legend[ "]/, `${file} stopped using the legend list`);
     }
   });
 });

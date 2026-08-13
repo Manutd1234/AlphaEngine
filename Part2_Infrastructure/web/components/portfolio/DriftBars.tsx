@@ -65,6 +65,15 @@ export default function DriftBars({
   const x = linearScale(-domain, domain, MARGIN.left, plotRight);
   const base = MARGIN.top + targets.length * ROW;
   const outside = targets.filter((t) => Math.abs(t.drift) >= driftBand).length;
+  const clipped = targets.filter((t) => t.clippedBy).map((t) => t.symbol);
+  /**
+   * A book of one. Every method solves the same weight, so the chart, the band
+   * slider and the model selector above are all genuinely inert — and a panel
+   * that is inert for a good reason looks identical to one that is broken. The
+   * arithmetic gets printed rather than asserted.
+   */
+  const only = targets.length === 1 ? targets[0] : null;
+  const onTarget = only != null && Math.abs(only.drift) < 1e-9;
 
   return (
     <div ref={ref}>
@@ -182,11 +191,97 @@ export default function DriftBars({
         )}
       </svg>
 
-      <ul className="legend">
-        <li><i aria-hidden style={{ background: "var(--diverging-pos)" }} /> Add to reach target</li>
-        <li><i aria-hidden style={{ background: "var(--diverging-neg)" }} /> Trim to reach target</li>
-        <li><i aria-hidden style={{ background: "var(--text-muted)" }} /> Inside the band — left alone</li>
+      {/* A worked reading rather than a key. A key names the hues and leaves the
+          reader to work out what makes one appear; these are the three rules,
+          quoting the band that is on screen right now, so moving the slider
+          rewrites the legend along with the bars. */}
+      <ul className="legend drift-legend">
+        <li>
+          <i aria-hidden style={{ background: "var(--diverging-pos)" }} />
+          <span>
+            <strong>Add.</strong> The target sits at least {pct(driftBand, 0)} of gross{" "}
+            <em>above</em> where the position is now, so the book is underweight it and a trade is
+            proposed. On a <strong>short</strong> that trade is a <span className="num">SELL</span>:
+            adding to a short means selling more of it.
+          </span>
+        </li>
+        <li>
+          <i aria-hidden style={{ background: "var(--diverging-neg)" }} />
+          <span>
+            <strong>Trim.</strong> The target sits at least {pct(driftBand, 0)} of gross{" "}
+            <em>below</em> the position, so the book is overweight it. On a short that trade is a{" "}
+            <span className="num">BUY</span>, for the same reason in reverse.
+          </span>
+        </li>
+        <li>
+          <i aria-hidden style={{ background: "var(--text-muted)" }} />
+          <span>
+            <strong>Left alone.</strong> The gap is smaller than ±{pct(driftBand, 0)}, so the
+            position stays inside the shaded band and emits no trade at all. Right now{" "}
+            <span className="num">{targets.length - outside}</span> of{" "}
+            <span className="num">{targets.length}</span>{" "}
+            {targets.length - outside === 1 ? "position sits" : "positions sit"} here.
+          </span>
+        </li>
       </ul>
+
+      <p className="research-note">
+        Drift is{" "}
+        <span className="num">(target notional − current notional) ÷ gross before</span> — a share
+        of the <strong>whole book</strong>, not of the position, so a bar reading{" "}
+        {pct(driftBand, 0)} on a name that is twice that size means moving half of it. The band is
+        one number doing two jobs: it decides the colour here, and it is the same filter the trade
+        list uses. A coloured bar and a trade row are therefore the same set, exactly — dragging the
+        slider recolours bars and adds or removes trades in one motion.
+      </p>
+
+      {unbalancedSum != null && (
+        <p className="research-note">
+          One state breaks that equivalence, and it is the state on screen: typed weights sum to{" "}
+          {pct(unbalancedSum, 1)} rather than to one, so the bars still colour but no trade is
+          composed from them. Everywhere else, colour and trade agree.
+        </p>
+      )}
+
+      {clipped.length > 0 && (
+        <p className="research-note">
+          {clipped.join(", ")} {clipped.length === 1 ? "carries" : "carry"} a{" "}
+          <span className="num">capped</span> marker: the proposed target ran into that symbol&apos;s
+          own notional limit and was clipped back to it. The marker changes neither the colour of a
+          bar nor its length — it says how the target was arrived at, not how far away it is — so a
+          clipped position can and does sit grey inside the band. That is a different condition from
+          the gross cap, which is what replaces the{" "}
+          <span className="num">current → target</span> pair on the right with{" "}
+          <span className="num">—</span>.
+        </p>
+      )}
+
+      {only && (
+        <p className="research-note">
+          <strong>One position, so nothing here can move.</strong> A single-asset book is trivially
+          100% of itself under every method offered — equal weight, inverse volatility, equal risk
+          contribution and minimum variance all return the same single weight — which is why the
+          model selector produces identical output whichever one is picked.
+          {onTarget ? (
+            <>
+              {" "}Its drift is{" "}
+              <span className="num">
+                ({usd(only.targetNotional)} − {usd(only.currentNotional)}) ÷{" "}
+                {usd(only.currentNotional)} = 0
+              </span>
+              , so the bar is a one-pixel hairline, no position sits outside the band at any width,
+              and the drift-band slider has nothing to add or remove. The panel is measuring
+              correctly; there is simply no allocation decision inside a book of one.
+            </>
+          ) : (
+            <>
+              {" "}Its target was nonetheless not left at the full book — a risk limit clipped it —
+              so the drift beside it is the distance to that cap rather than a distance to some
+              other position.
+            </>
+          )}
+        </p>
+      )}
     </div>
   );
 }

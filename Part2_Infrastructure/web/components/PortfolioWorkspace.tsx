@@ -10,10 +10,14 @@
  * and sending someone to another tab to learn they have no room would make this
  * page lie by omission.
  *
- * The four sections answer four different questions and were one scroll until
- * they were split: what is the book worth (overview), what exactly is in it
- * (positions), what should be in it (allocation), and which sleeve earned it
- * (performance). Real-time monitoring and static target allocation are not the
+ * The five sections answer five different questions and were one scroll until
+ * they were split: what is the book worth (overview), how did it get there
+ * (equity), what exactly is in it (positions), what should be in it
+ * (allocation), and which sleeve earned it (performance). Two of those have
+ * since split again, in-panel — Positions into Holdings/Shape/Exit and
+ * Allocation into Mix/Targets/Composition — because a section that answers one
+ * question with eight cards is a scroll wearing a subtab's name.
+ * Real-time monitoring and static target allocation are not the
  * same activity, and a page that interleaves them asks the reader to hold both
  * at once.
  */
@@ -63,6 +67,43 @@ export { PORTFOLIO_SECTION_IDS, type PortfolioSection } from "@/lib/sections";
 const SUMMARY_ROWS = 5;
 
 /**
+ * Positions and Allocation were the two sections that outgrew a scroll — eight
+ * cards and four — so each gets one in-panel split. Three panes each, no more:
+ * a fourth is the point at which a picker stops being a split and becomes a
+ * second navigation the reader has to learn.
+ *
+ * Deliberately NOT a nested `<WorkspaceSubtabs>`: that publishes `--rail-h`
+ * from a ResizeObserver and asserts exactly one rail is mounted, so a second
+ * would fight the first over every sticky offset in the app. `.seg role="group"`
+ * is the house in-panel pattern, as `ReliabilityOverview` uses it.
+ *
+ * And conditional renders rather than `hidden`, for the same reason it gives:
+ * a switched-away pane's ResizeObserver — every chart here has one — should not
+ * keep running behind the pane on screen.
+ */
+type PositionsPane = "holdings" | "shape" | "exit";
+type AllocationPane = "mix" | "targets" | "composition";
+
+const POSITIONS_PANES: Array<{ id: PositionsPane; label: string; hint: string }> = [
+  { id: "holdings", label: "Holdings", hint: "Every open position, what it is worth, and the actions on it" },
+  { id: "shape", label: "Shape", hint: "Where the weight sits against each symbol's own cap, and how the unrealised P&L is spread across the book" },
+  { id: "exit", label: "Exit", hint: "What getting out would cost at a chosen participation rate, and the orders already working" },
+];
+
+/**
+ * The cleanest one-source-per-pane split in the app. Mix and Composition read
+ * the positions payload alone; only Targets needs a covariance. So on a book
+ * with too little shared history to build one — a new symbol, a short session —
+ * a single pane goes quiet and says why, instead of a dead grey slab wedged
+ * between two charts that are working perfectly well.
+ */
+const ALLOCATION_PANES: Array<{ id: AllocationPane; label: string; hint: string }> = [
+  { id: "mix", label: "Mix", hint: "What the book is concentrated in right now, measured from notional alone" },
+  { id: "targets", label: "Targets", hint: "What the book should be under a risk model, and the trades that would close the gap — needs a covariance" },
+  { id: "composition", label: "Composition", hint: "Asset class, settlement currency and sleeve: three cuts of the same book making three different claims" },
+];
+
+/**
  * `attribution.by_symbol` and `execution_quality` are typed as loose records
  * because the gateway's own shape has widened twice. A field that is absent, or
  * present as something other than a finite number, reads as "not measured"
@@ -82,6 +123,11 @@ export default function PortfolioWorkspace({
   onSectionChange,
 }: PortfolioWorkspaceProps) {
   const [handoff, setHandoff] = useState<HandoffIntent | null>(null);
+  // Above the `!book` bail-out, with every other hook: a pane selector declared
+  // after an early return is the "rendered more hooks than during the previous
+  // render" crash on the first snapshot that arrives.
+  const [positionsPane, setPositionsPane] = useState<PositionsPane>("holdings");
+  const [allocationPane, setAllocationPane] = useState<AllocationPane>("mix");
   const selectedSymbol = workspaceSymbol.trim().toUpperCase();
 
   const {
@@ -477,173 +523,223 @@ export default function PortfolioWorkspace({
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="portfolio" tabId="positions" activeId={section}>
-        <div className="card portfolio-positions-card">
-          <div className="portfolio-card-heading">
-            <div>
-              {/* Sandbox first: `isStale` is forced false in sandbox, so keying on
-                  it alone would caption generated positions as a "Live book". */}
-              <span className="page-kicker">{bookLabel}</span>
-              <h2>Positions</h2>
-            </div>
-            <span>{usd(book.exposure.gross, 0)} gross</span>
-          </div>
-
-          {positions.length ? (
-            <div className="table-wrap table-wrap--clamped">
-              <table>
-                <caption className="sr-only">Current portfolio positions and their measured risk contributions</caption>
-                <thead>
-                  <tr>
-                    <th>Instrument</th>
-                    <th>Side</th>
-                    <th>Notional</th>
-                    <th>Share</th>
-                    <th>Mark</th>
-                    <th>Total P&amp;L</th>
-                    <th>β</th>
-                    <th>Vol contrib</th>
-                    <th><span className="sr-only">Actions</span></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {positions.map((position) => (
-                    <tr key={position.symbol}>
-                      <th scope="row">{position.symbol}</th>
-                      <td className={position.side === "SHORT" ? "neg" : "pos"}>{position.side}</td>
-                      <td>{usd(position.notional, 0)}</td>
-                      <td>
-                        {fmt(position.share_of_gross * 100, 1)}%
-                        {/* Ranks four positions at a glance; the number stays first
-                            and stays exact. Share of gross, so the fill is the
-                            share itself with no rescaling. */}
-                        <span
-                          className="cell-meter"
-                          aria-hidden
-                          style={{ "--fill": `${position.share_of_gross * 100}%` } as CSSProperties}
-                        />
-                      </td>
-                      <td>{fmt(position.mark_price, position.mark_price < 10 ? 4 : 2)}</td>
-                      <td className={position.total_pnl >= 0 ? "pos" : "neg"}>{usd(position.total_pnl, 0)}</td>
-                      <td>
-                        {betaBySymbol.get(position.symbol) == null ? (
-                          <span className="muted" title="Not enough aligned price history to measure">—</span>
-                        ) : (
-                          fmt(betaBySymbol.get(position.symbol)!, 2)
-                        )}
-                      </td>
-                      <td className={(riskShare.get(position.symbol) ?? 0) < 0 ? "pos" : undefined}>
-                        {riskShare.has(position.symbol) ? (
-                          <>
-                            {pct(riskShare.get(position.symbol)!, 1)}
-                            {/* A hedge takes risk out; naming it stops a negative
-                                percentage reading as an error. */}
-                            {(riskShare.get(position.symbol) ?? 0) < 0 && <span className="muted"> hedge</span>}
-                          </>
-                        ) : (
-                          <span className="muted">—</span>
-                        )}
-                      </td>
-                      <td>
-                        {/* One disclosure rather than three buttons per row.
-                            `RowMenu` renders in the top layer so the last rows
-                            of this scroller are not clipped — see its header. */}
-                        <RowMenu label={`Actions for ${position.symbol}`}>
-                          <button
-                            type="button"
-                            role="menuitem"
-                            onClick={() => onFocusSymbol(position.symbol, "live")}
-                            disabled={isStale}
-                            title={isStale ? "Reconnect the portfolio gateway before opening execution." : undefined}
-                          >
-                            Trade
-                          </button>
-                          <button
-                            type="button"
-                            role="menuitem"
-                            onClick={() => onFocusSymbol(position.symbol, "research")}
-                          >
-                            Research
-                          </button>
-                          <button
-                            type="button"
-                            role="menuitem"
-                            onClick={() => setHandoff({
-                              kind: "flatten_symbol",
-                              symbol: position.symbol,
-                              side: position.side === "SHORT" ? "SHORT" : "LONG",
-                              notional: position.notional,
-                            })}
-                            title="Show the authenticated request that closes this position"
-                          >
-                            Close
-                          </button>
-                        </RowMenu>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="portfolio-empty-book">
-              <strong>No open positions</strong>
-              <p>
-                {isStale
-                  ? "The last successful snapshot was flat. Reconnect before relying on current exposure."
-                  : "The risk gateway is connected and the book is flat. Research candidates remain available for review."}
-              </p>
-              <button onClick={() => onFocusSymbol(selectedSymbol, "research")}>Open research workspace</button>
-            </div>
-          )}
+        <div className="seg" role="group" aria-label="Positions view">
+          {POSITIONS_PANES.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              aria-pressed={positionsPane === option.id}
+              title={option.hint}
+              onClick={() => setPositionsPane(option.id)}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
+
+        {positionsPane === "holdings" && (
+          <div className="card portfolio-positions-card">
+            <div className="portfolio-card-heading">
+              <div>
+                {/* Sandbox first: `isStale` is forced false in sandbox, so keying on
+                    it alone would caption generated positions as a "Live book". */}
+                <span className="page-kicker">{bookLabel}</span>
+                <h2>Positions</h2>
+              </div>
+              <span>{usd(book.exposure.gross, 0)} gross</span>
+            </div>
+
+            {positions.length ? (
+              <div className="table-wrap table-wrap--clamped">
+                <table>
+                  <caption className="sr-only">Current portfolio positions and their measured risk contributions</caption>
+                  <thead>
+                    <tr>
+                      <th>Instrument</th>
+                      <th>Side</th>
+                      <th>Notional</th>
+                      <th>Share</th>
+                      <th>Mark</th>
+                      <th>Total P&amp;L</th>
+                      <th>β</th>
+                      <th>Vol contrib</th>
+                      <th><span className="sr-only">Actions</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {positions.map((position) => (
+                      <tr key={position.symbol}>
+                        <th scope="row">{position.symbol}</th>
+                        <td className={position.side === "SHORT" ? "neg" : "pos"}>{position.side}</td>
+                        <td>{usd(position.notional, 0)}</td>
+                        <td>
+                          {fmt(position.share_of_gross * 100, 1)}%
+                          {/* Ranks four positions at a glance; the number stays first
+                              and stays exact. Share of gross, so the fill is the
+                              share itself with no rescaling. */}
+                          <span
+                            className="cell-meter"
+                            aria-hidden
+                            style={{ "--fill": `${position.share_of_gross * 100}%` } as CSSProperties}
+                          />
+                        </td>
+                        <td>{fmt(position.mark_price, position.mark_price < 10 ? 4 : 2)}</td>
+                        <td className={position.total_pnl >= 0 ? "pos" : "neg"}>{usd(position.total_pnl, 0)}</td>
+                        <td>
+                          {betaBySymbol.get(position.symbol) == null ? (
+                            <span className="muted" title="Not enough aligned price history to measure">—</span>
+                          ) : (
+                            fmt(betaBySymbol.get(position.symbol)!, 2)
+                          )}
+                        </td>
+                        <td className={(riskShare.get(position.symbol) ?? 0) < 0 ? "pos" : undefined}>
+                          {riskShare.has(position.symbol) ? (
+                            <>
+                              {pct(riskShare.get(position.symbol)!, 1)}
+                              {/* A hedge takes risk out; naming it stops a negative
+                                  percentage reading as an error. */}
+                              {(riskShare.get(position.symbol) ?? 0) < 0 && <span className="muted"> hedge</span>}
+                            </>
+                          ) : (
+                            <span className="muted">—</span>
+                          )}
+                        </td>
+                        <td>
+                          {/* One disclosure rather than three buttons per row.
+                              `RowMenu` renders in the top layer so the last rows
+                              of this scroller are not clipped — see its header. */}
+                          <RowMenu label={`Actions for ${position.symbol}`}>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => onFocusSymbol(position.symbol, "live")}
+                              disabled={isStale}
+                              title={isStale ? "Reconnect the portfolio gateway before opening execution." : undefined}
+                            >
+                              Trade
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => onFocusSymbol(position.symbol, "research")}
+                            >
+                              Research
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => setHandoff({
+                                kind: "flatten_symbol",
+                                symbol: position.symbol,
+                                side: position.side === "SHORT" ? "SHORT" : "LONG",
+                                notional: position.notional,
+                              })}
+                              title="Show the authenticated request that closes this position"
+                            >
+                              Close
+                            </button>
+                          </RowMenu>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="portfolio-empty-book">
+                <strong>No open positions</strong>
+                <p>
+                  {isStale
+                    ? "The last successful snapshot was flat. Reconnect before relying on current exposure."
+                    : "The risk gateway is connected and the book is flat. Research candidates remain available for review."}
+                </p>
+                <button onClick={() => onFocusSymbol(selectedSymbol, "research")}>Open research workspace</button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Two questions the nine-column table cannot answer by summing: where
             the weight sits against each position's own limit, and whether a
             small total P&L is a quiet book or two large offsetting bets. */}
-        <ExposureHeatmap positions={positions} generated={Boolean(book.sandbox)} />
-        <UnrealisedSpread positions={positions} generated={Boolean(book.sandbox)} />
+        {positionsPane === "shape" && (
+          <>
+            <ExposureHeatmap positions={positions} generated={Boolean(book.sandbox)} />
+            <UnrealisedSpread positions={positions} generated={Boolean(book.sandbox)} />
+          </>
+        )}
 
-        {/* The exit, under the positions that will have to make it. A weight is
-            only as real as the way out of it, and `useBook` has been computing
-            `advBySymbol` from the same bars as the risk figures on every poll
-            since those shipped — with nothing reading it until now. */}
-        <LiquidityPanel positions={positions} advMap={view.advBySymbol} />
+        {/* The exit, and the capital already committed to making one. A weight
+            is only as real as the way out of it, and `useBook` has been
+            computing `advBySymbol` from the same bars as the risk figures on
+            every poll since those shipped — with nothing reading it until now. */}
+        {positionsPane === "exit" && (
+          <>
+            <LiquidityPanel positions={positions} advMap={view.advBySymbol} />
 
-        {/* Committed capital sits directly under the positions it will become.
-            `active` gates the poll: panels stay mounted so a draft survives a
-            section switch, which would otherwise leave this fetching behind a
-            tab nobody is looking at. */}
-        <WorkingOrders
-          source={book.sandbox ? "sandbox" : isStale ? "unavailable" : "live"}
-          focusSymbol={selectedSymbol}
-          isStale={isStale}
-          active={section === "positions"}
-          operatorToken={operatorToken}
-          onChanged={() => void refresh(true)}
-          onFocusSymbol={(symbol) => onFocusSymbol(symbol, "research")}
-        />
+            {/* `active` now requires the Exit pane as well as the section. The
+                panel is mounted only here, but the section panel above it stays
+                mounted when the reader moves to Allocation — so without the pane
+                in the condition an order poll would keep hitting the gateway
+                behind a tab nobody is looking at, which is what it did while
+                every Positions card shared one scroll. */}
+            <WorkingOrders
+              source={book.sandbox ? "sandbox" : isStale ? "unavailable" : "live"}
+              focusSymbol={selectedSymbol}
+              isStale={isStale}
+              active={section === "positions" && positionsPane === "exit"}
+              operatorToken={operatorToken}
+              onChanged={() => void refresh(true)}
+              onFocusSymbol={(symbol) => onFocusSymbol(symbol, "research")}
+            />
+          </>
+        )}
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="portfolio" tabId="allocation" activeId={section}>
-        <AllocationDonut
-          positions={positions}
-          gross={book.exposure.gross}
-          effectivePositions={book.concentration.effective_positions}
-          largestShare={book.concentration.largest_share}
-          hhi={book.concentration.hhi}
-        />
+        <div className="seg" role="group" aria-label="Allocation view">
+          {ALLOCATION_PANES.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              aria-pressed={allocationPane === option.id}
+              title={option.hint}
+              onClick={() => setAllocationPane(option.id)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
 
-        <AllocationPanel
-          positions={riskPositions}
-          model={covarianceModel}
-          limits={allocationLimits}
-        />
-      
+        {/* What the book IS. Notional only — no covariance, so this pane draws
+            on any book with an open position. */}
+        {allocationPane === "mix" && (
+          <AllocationDonut
+            positions={positions}
+            gross={book.exposure.gross}
+            effectivePositions={book.concentration.effective_positions}
+            largestShare={book.concentration.largest_share}
+            hhi={book.concentration.hhi}
+          />
+        )}
+
+        {/* What it SHOULD be. The only pane that needs a covariance, and the
+            only one that goes quiet when there is not enough history for one. */}
+        {allocationPane === "targets" && (
+          <AllocationPanel
+            positions={riskPositions}
+            model={covarianceModel}
+            limits={allocationLimits}
+          />
+        )}
+
         {/* Three cuts of the same book, and three DIFFERENT claims — measured,
             inferred and flow. Each says which it is rather than presenting them
             as equivalent. */}
-        <AllocationMixes positions={positions} attribution={strategies} generated={Boolean(book.sandbox)} />
-</WorkspaceSubtabPanel>
+        {allocationPane === "composition" && (
+          <AllocationMixes positions={positions} attribution={strategies} generated={Boolean(book.sandbox)} />
+        )}
+      </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="portfolio" tabId="performance" activeId={section}>
         <div className="card portfolio-attribution-card">

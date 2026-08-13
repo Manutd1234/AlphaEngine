@@ -305,10 +305,23 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
       </details>
 
       {manual && !manual.balanced ? null : trades.length === 0 ? (
-        <p className="research-note">
-          Nothing is outside the band — the book is already close enough to target that trading it
-          would cost more than the drift does.
-        </p>
+        active.targets.length === 1 ? (
+          /* The generic wording claims the book is "close enough to target",
+             which is a judgement about a gap. A book of one has no gap to be
+             close to — it is 100% of itself by construction — and dressing that
+             up as a tolerance decision would credit the band for a result the
+             arithmetic already fixed. */
+          <p className="research-note">
+            No trade is proposed, and none can be: with one position the target weight is 100%
+            whichever model is selected, so it already equals the current weight. The band is not
+            what is suppressing this — there is nothing for it to suppress.
+          </p>
+        ) : (
+          <p className="research-note">
+            Nothing is outside the band — the book is already close enough to target that trading it
+            would cost more than the drift does.
+          </p>
+        )
       ) : (
         <>
           <h3 className="allocation-subhead">Trades to close the gap</h3>
