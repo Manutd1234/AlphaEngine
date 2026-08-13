@@ -174,3 +174,63 @@ describe("chrome offsets are measured", () => {
     }
   });
 });
+
+/**
+ * The header's utility row, and the wrapper that silently unstyled it.
+ *
+ * Four triggers in that row render inside a `.header-anchor` span so the panel
+ * they open has something to position against. The moment that wrapper landed,
+ * every `.workspace-header__utility > .trigger` rule stopped matching — the
+ * button became a grandchild. The Settings control lost `inline-flex`, its
+ * `gap`, its `min-width` and both responsive collapses, and fell back to bare
+ * `button.icon`: a gear pressed flat against the word "Settings", and a label
+ * that never collapsed at laptop widths.
+ *
+ * `dead-css.test.ts` cannot see this class of bug. It measures classes that are
+ * declared and never rendered; `header-settings` was rendered throughout. What
+ * broke was reach, not existence — so it is checked here instead.
+ */
+describe("the header's anchored triggers stay styled", () => {
+  /** Classes that are rendered inside a `.header-anchor`, not directly in the row. */
+  const ANCHORED = ["header-settings", "icon"];
+
+  it("no utility rule reaches an anchored trigger with a single child step", () => {
+    for (const klass of ANCHORED) {
+      // Every rule that targets this class as a DIRECT child of the row...
+      const direct = new RegExp(`\\.workspace-header__utility > \\.${klass}\\b`, "g");
+      for (const match of declarations.matchAll(direct)) {
+        const index = match.index ?? 0;
+        const line = declarations.slice(0, index).split("\n").length;
+        // ...must be accompanied by the two-level form, or it reaches nothing.
+        const selectorList = declarations.slice(index, declarations.indexOf("{", index));
+        const rest = declarations.slice(index - 300, index + 400);
+        assert.match(
+          rest,
+          new RegExp(`\\.workspace-header__utility > \\.header-anchor > \\.${klass}\\b`),
+          `globals.css:${line} — \`${selectorList.trim()}\` cannot match: `
+            + `.${klass} renders inside .header-anchor, so it is a grandchild of the row`,
+        );
+      }
+    }
+  });
+
+  it("the trigger keeps a gap between its glyph and its word", () => {
+    // gapPx measured 0 in the browser when the rule below stopped matching.
+    const rule = declarations.slice(
+      declarations.indexOf(".workspace-header__utility > .header-anchor > .header-settings"),
+    );
+    const body = rule.slice(0, rule.indexOf("}"));
+    assert.match(body, /display:\s*inline-flex/);
+    assert.match(body, /gap:\s*\d/, "an icon and a label with no gap read as one glued token");
+  });
+
+  it("QuickSettings still renders inside the anchor the rules now expect", () => {
+    // If the wrapper is ever removed, the two-level selectors become the dead
+    // ones and this flips — which is the point of asserting the shape.
+    const source = readFileSync(
+      fileURLToPath(new URL("../components/header/QuickSettings.tsx", import.meta.url)),
+      "utf8",
+    );
+    assert.match(source, /className="header-anchor"[\s\S]{0,400}className="icon header-settings"/);
+  });
+});

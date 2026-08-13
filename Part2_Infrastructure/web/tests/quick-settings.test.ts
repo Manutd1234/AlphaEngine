@@ -64,12 +64,26 @@ describe("the gear replaces the two loose buttons", () => {
     assert.match(code(header), /setProperty\(\s*"--header-h"/);
   });
 
-  it("styles the trigger through the class the CSS now targets", () => {
+  it("styles the trigger through a selector that actually reaches it", () => {
+    /**
+     * This assertion used to read `> .header-settings {` and passed for as long
+     * as the rule existed — including the whole time it matched nothing. The
+     * trigger renders inside a `.header-anchor` span (the panel needs something
+     * to position against), so it is a GRANDCHILD of the utility row and the
+     * single-step selector could never reach it. The gear rendered with no gap
+     * beside its label and never collapsed at laptop widths, and this test
+     * stayed green throughout, because "the rule is in the file" and "the rule
+     * applies to the button" are different claims and only the first was made.
+     *
+     * Both forms are required now: the direct one for anything that ever sits
+     * straight in the row, the two-level one for the anchored triggers.
+     */
     assert.match(code(panel), /className="icon header-settings"/);
-    assert.match(css, /\.workspace-header__utility > \.header-settings \{/);
+    assert.match(code(panel), /className="header-anchor"/);
+    assert.match(css, /\.workspace-header__utility > \.header-anchor > \.header-settings \{/);
     // The collapse band between 901 and 1380px drops the label; without this
     // the gear keeps a 96px minimum and squeezes the nav instead.
-    assert.match(css, /\.workspace-header__utility > \.header-settings span,/);
+    assert.match(css, /\.workspace-header__utility > \.header-anchor > \.header-settings span,/);
   });
 });
 

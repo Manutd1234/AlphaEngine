@@ -2120,7 +2120,29 @@ tbody tr[tabindex]:focus-visible {
 .latency-chip.is-bad .latency-chip__state { color: var(--critical-text); }
 .latency-chip.is-bad .latency-chip__state i { background: var(--status-critical); }
 
-.workspace-header__utility > .icon {
+/**
+ * TWO LEVELS, NOT ONE — and the reason is a bug this file already shipped.
+ *
+ * Four utility controls (QuickSettings, AccountChip, DataTierBadge,
+ * KillSwitchControl) render their trigger inside a `.header-anchor` span so the
+ * panel they open has something to position against. That wrapper made every
+ * `.workspace-header__utility > .trigger` rule stop matching, silently: the
+ * Settings trigger lost `inline-flex`, its `gap`, its `min-width` and both of
+ * its responsive collapses, and fell back to the bare `button.icon` rule. The
+ * visible result was a gear jammed against the word "Settings" with no space
+ * between them, and a label that never collapsed at laptop widths.
+ *
+ * Nothing caught it. `dead-css.test.ts` measures classes that are declared and
+ * never rendered; `header-settings` was rendered the whole time — it was the
+ * selector that stopped reaching it. `tests/interaction.test.ts` now pins the
+ * two-level form so a future wrapper cannot repeat this quietly.
+ *
+ * Written out rather than collapsed to a descendant selector on purpose: the
+ * intent is "chrome sitting directly in the utility row", and a bare descendant
+ * would also style any icon a panel renders inside itself.
+ */
+.workspace-header__utility > .icon,
+.workspace-header__utility > .header-anchor > .icon {
   min-width: 72px;
   background: transparent;
   border-color: var(--border);
@@ -2130,7 +2152,8 @@ tbody tr[tabindex]:focus-visible {
    theme and density buttons used to share. Inside the panel both are segmented
    `.seg` groups now and carry no header class at all, which is why the old
    `.theme-toggle` half of the rule below was dropped rather than left dangling. */
-.workspace-header__utility > .header-settings {
+.workspace-header__utility > .header-settings,
+.workspace-header__utility > .header-anchor > .header-settings {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3636,10 +3659,12 @@ a.text-action {
   .system-health i {
     flex: 0 0 7px;
   }
-  .workspace-header__utility > .icon {
+  .workspace-header__utility > .icon,
+  .workspace-header__utility > .header-anchor > .icon {
     min-width: 42px;
   }
-  .workspace-header__utility > .icon span:last-child {
+  .workspace-header__utility > .icon span:last-child,
+  .workspace-header__utility > .header-anchor > .icon span:last-child {
     display: none;
   }
   .latency-chip__copy small,
@@ -14686,13 +14711,15 @@ html:active-view-transition .view-panel {
    viewing preferences and status prose while their labelled controls remain
    fully accessible through title and aria-label. */
 @media (min-width: 901px) and (max-width: 1380px) {
-  .workspace-header__utility > .header-settings {
+  .workspace-header__utility > .header-settings,
+  .workspace-header__utility > .header-anchor > .header-settings {
     width: 36px;
     min-width: 36px;
     padding-inline: 0;
   }
 
   .workspace-header__utility > .header-settings span,
+  .workspace-header__utility > .header-anchor > .header-settings span,
   .latency-chip__state {
     display: none;
   }
