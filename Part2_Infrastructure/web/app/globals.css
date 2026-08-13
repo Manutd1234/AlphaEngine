@@ -2167,15 +2167,24 @@ tbody tr[tabindex]:focus-visible {
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--status-warning) 12%, transparent);
 }
 
+/* 32px and a 9px radius, like everything else in the row.
+   This chip carries two lines of copy and so had sized itself to fit them —
+   38px tall with a 10px radius, standing a full 6px proud of its seven
+   neighbours and rounding differently at the corners. It reads as the one
+   control that did not get the memo. The copy still fits: 9.5px over 10.5px is
+   23px of text, which clears 32px with 4px of padding either side, and the icon
+   comes down with it rather than setting the floor on its own. */
 .latency-chip {
   display: inline-grid;
   grid-template-columns: auto auto auto;
   align-items: center;
   gap: 8px;
-  min-height: 38px;
-  padding: 5px 9px 5px 6px;
+  min-height: 32px;
+  /* 24px icon + 6px padding + 2px border = 32. The icon sets the floor here,
+     not the copy (23px), so the padding is what has to give. */
+  padding: 3px 9px 3px 5px;
   border-color: color-mix(in srgb, var(--series-1) 18%, var(--border));
-  border-radius: 10px;
+  border-radius: 9px;
   background: color-mix(in srgb, var(--series-1) 4%, var(--surface-1));
   text-align: left;
 }
@@ -2187,10 +2196,10 @@ tbody tr[tabindex]:focus-visible {
 
 .latency-chip__icon {
   display: grid;
-  width: 27px;
-  height: 27px;
+  width: 24px;
+  height: 24px;
   place-items: center;
-  border-radius: 8px;
+  border-radius: 7px;
   background: color-mix(in srgb, var(--series-1) 10%, var(--surface-2));
   color: var(--series-1);
 }
@@ -2282,8 +2291,11 @@ tbody tr[tabindex]:focus-visible {
   white-space: nowrap;
 }
 
+/* 11px, matching the four status chips beside it. It was 10.5px — the only
+   half-step in the row, and small enough beside "Kill switch" to read as a
+   different class of control rather than the same one. */
 .header-settings span {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 650;
 }
 

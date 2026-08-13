@@ -149,7 +149,11 @@ export default function AccountChip({
            the app, and it is already the panel's heading — carrying it twice
            cost the Settings gear its place on screen. aria-label still names
            the account, so nothing is lost to a screen reader. */
-        className="inline-flex items-center rounded-[9px] border border-transparent p-1 text-[11px] font-semibold text-text-secondary transition-[background-color,border-color] duration-(--dur-fast) ease-(--ease) hover:border-border hover:bg-surface-2"
+        /* `bg-transparent` is load-bearing, not decoration: the global control
+           rule fills every <button> with --surface-2, so at rest this sat in a
+           grey pill while the four status chips beside it were transparent —
+           the avatar read as the one pressed control in the row. */
+        className="inline-flex items-center rounded-[9px] border border-transparent bg-transparent p-1 text-[11px] font-semibold text-text-secondary transition-[background-color,border-color] duration-(--dur-fast) ease-(--ease) hover:border-border hover:bg-surface-2"
       >
         <span
           aria-hidden
