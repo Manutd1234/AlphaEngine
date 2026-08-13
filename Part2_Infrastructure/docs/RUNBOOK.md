@@ -92,8 +92,10 @@ Most orders are being refused. This is the pre-trade gates working; the question
 is which gate and why.
 
 1. **Name the gate.** Execution tab → Blotter → the "Most frequent block" line,
-   or expand any rejected row for its full fourteen-check vector. Every rejection
-   carries the number that tripped it.
+   or expand any rejected row for its full check vector. The vector lists the
+   gates that *ran*, not a fixed-length row: fifteen of the seventeen can appear
+   on a crypto order, and `paper_execution_model` and `reference_freshness` only
+   on a paper-equity one. Every rejection carries the gate that tripped it.
 2. **Read it as a sizing problem first.** `max_order_notional`,
    `symbol_concentration` and `gross_exposure` all mean the same thing: the size
    is wrong for the limit, not the limit wrong for the size. Changing a limit is
@@ -110,7 +112,7 @@ is which gate and why.
 
 **Alert:** `AlphaEngineGateLatencyHigh`
 
-The fourteen gates normally decide in well under a millisecond. Hundreds of
+The seventeen gates normally decide in well under a millisecond. Hundreds of
 milliseconds means the decision is waiting on something it should not.
 
 1. **Check the audit backend.** `/health` → `audit.backend`. A DuckDB store on a

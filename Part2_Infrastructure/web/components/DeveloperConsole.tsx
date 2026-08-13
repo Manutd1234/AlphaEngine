@@ -52,15 +52,15 @@ const CI_JOBS = [
   {
     name: "Gateway",
     // Re-derived, not remembered. These three were 342/680/13 against a real
-    // 662/1975/13 — the pill below sums them, so the tab was advertising "1035
+    // 667/1976/13 — the pill below sums them, so the tab was advertising "1035
     // tests" while the suites ran 2650. Each row's `command` is how to check.
-    count: 662,
+    count: 667,
     command: "python -m pytest",
     evidence: "pytest · ruff · OpenAPI snapshot · money-path probe",
   },
   {
     name: "Web workspace",
-    count: 1975,
+    count: 1976,
     command: "npm test && npm run typecheck && npm run build",
     evidence: "domain tests · contract fixtures · strict TypeScript · Next.js build",
   },

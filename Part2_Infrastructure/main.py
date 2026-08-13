@@ -505,7 +505,12 @@ async def stream_desk(_actor: str = Depends(trader_identity)) -> StreamingRespon
     dead one.
 
     Not consumed by the browser directly — the page is HTTPS and this gateway is
-    plain HTTP, which no browser will mix. `web/app/api/stream/desk` proxies it.
+    plain HTTP, which no browser will mix, so it needs a same-origin proxy. The
+    web app carried one and it has been removed: it had no consumer, and
+    `EventSource` exposes neither the status code nor the body, so the proxy's
+    deliberate 503 on a gateway-less deployment was invisible to the client and
+    the panel read "connecting" forever. This endpoint stays — it is correct and
+    cheap — and re-proxying is a small change once a surface wants a stream.
     """
     gateway = get_gateway()
 

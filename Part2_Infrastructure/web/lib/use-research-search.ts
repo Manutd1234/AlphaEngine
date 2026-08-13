@@ -51,6 +51,35 @@ const IDLE: ResearchSearchState = {
   elapsedMs: null,
 };
 
+/**
+ * Two hops on the slower path, and both are real work: the gateway embeds the
+ * query against its own 8s budget, then the index is scanned — Oracle's is an
+ * in-database vector search over the corpus, the same kind of second-scale
+ * operation `OracleVarPanel` budgets 9s for.
+ *
+ * Set to outlast both rather than to feel quick. A search cut off at, say, five
+ * seconds reports "the index was not reached" for an index that was reached and
+ * was answering, and the reader cannot tell that from an index that is down —
+ * which is precisely the flattening this module's header refuses to do.
+ */
+const SEARCH_DEADLINE_MS = 20_000;
+
+/**
+ * The sentence a failed search is entitled to say.
+ *
+ * "The index was not reached" is a claim about the network. An abort cannot make
+ * it: the request may have reached the index, which may still be answering. The
+ * difference matters here because the panel's whole job is to keep "not
+ * configured", "did not answer" and "nothing similar is recorded" apart.
+ */
+export function describeSearchFailure(cause: unknown, backend: SearchBackend): string {
+  if (cause instanceof DOMException && cause.name === "TimeoutError") {
+    return `The ${backend} index did not answer within ${SEARCH_DEADLINE_MS / 1000}s. `
+      + "It may still be searching — this says nothing about whether anything similar is recorded.";
+  }
+  return "The search request did not complete. The index was not reached.";
+}
+
 export function useResearchSearch() {
   const [state, setState] = useState<ResearchSearchState>(IDLE);
 
@@ -69,12 +98,13 @@ export function useResearchSearch() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ query: trimmed, match_count: matchCount }),
+        signal: AbortSignal.timeout(SEARCH_DEADLINE_MS),
       });
-    } catch {
+    } catch (cause) {
       setState({
         status: "error",
         matches: [],
-        outcome: "The search request did not complete. The index was not reached.",
+        outcome: describeSearchFailure(cause, backend),
         backend,
         elapsedMs: Math.round(performance.now() - started),
       });

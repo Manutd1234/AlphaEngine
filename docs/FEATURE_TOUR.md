@@ -125,10 +125,13 @@ movement only — the signed 24h% next to each price stays the accessible signal
 
 **The question it answers:** what does the book hold, and which sleeve earned the P&L?
 
-**60 seconds:** rail: **Overview → Positions → Allocation → Performance**. The book snapshot is
-the same one Risk reads — the intro card says so ("shared with Risk"), and Sandbox is labelled
-when the gateway is unreachable. Positions link back to Research and Execution with the symbol
-kept in context.
+**60 seconds:** rail: **Overview → Positions → Allocation → Performance**. Positions and
+Allocation each carry an in-panel `.seg` switcher rather than a longer rail — Positions splits
+into **Holdings · Shape · Exit**, Allocation into **Mix · Targets · Composition** — so a pane
+that needs a covariance can go quiet and say why instead of leaving a dead slab between two
+charts that are working. The book snapshot is the same one Risk reads — the intro card says so
+("shared with Risk"), and Sandbox is labelled when the gateway is unreachable. Positions link
+back to Research and Execution with the symbol kept in context.
 
 **The moment worth showing:** the risk-model card reading "Measured · N aligned bars" — the
 covariance is estimated from real venue bars, and when it cannot be, the panel says "Pending"
@@ -153,8 +156,11 @@ historical replay.
 **The question it answers:** can the numbers upstream of every other tab be trusted?
 
 **60 seconds:** rail: **Overview & Trust → Quality & Incidents → Lineage & Payloads →
-Providers & Capacity → Work Queue**. Trust scores per source, freshness clocks, contract
-checks, and per-request lineage — which provider answered, what was cached, what got coerced.
+Providers & Capacity → Work Queue**. The Trust summary is itself three switchable panes
+(**Verdict · Response · Composition**), so the posture, the response clocks and the contract
+re-checks are one derivation seen three ways rather than one very long scroll. Trust scores per
+source, freshness clocks, contract checks, and per-request lineage — which provider answered,
+what was cached, what got coerced.
 The Work Queue is labelled **"Mocked, session-only workflow"** — the honest-labels rule applied
 to a whole section.
 
@@ -168,6 +174,8 @@ data hash traces back to a provider, a cache state and a validation pass.
 **60 seconds:** rail: **Telemetry & SLIs → Services & Circuits → Logs & Traces →
 Remediation**. SLIs with error budgets, provider circuit breakers, cross-origin event
 investigation, and guarded remediation actions (cache purge, simulated outage — both expire).
+Remediation splits across **Act · Recovery · History**: what you can do, how a tripped circuit
+comes back on its own, and which ones actually tripped here.
 
 **The moment worth showing:** the provider-health drilldown the header's latency chip links to
 — the same chip visible on every tab resolves here to per-provider circuits. The numbers under
@@ -182,30 +190,36 @@ degrades honestly to "per-instance" if the gateway is unreachable).
 **The question it answers:** how is this built, and does the running system match the repo?
 
 **60 seconds:** rail: **Overview → CI/CD → API & Schema → Code & Diffs → Task Queue**.
-Topology, the four network-free CI jobs (396 gateway + 711 web + 13 service tests), the
-34-route OpenAPI contract with drift detection, and the repository manifest.
+Topology, the four network-free CI jobs (667 gateway + 1,976 web + 13 service tests — each
+figure is what its own runner prints, so re-run rather than trust the sentence), the 37-path
+OpenAPI contract with drift detection, and the repository manifest.
 
 **The moment worth showing:** API & Schema's contract drift check — the portal carries a
 committed digest of the gateway's OpenAPI and compares it against the live one.
 
 ---
 
-## Verify it yourself — the 11 E2E probes
+## Verify it yourself — the 13 E2E probes
 
-`Part2_Infrastructure/tools/e2e_smoke.py` runs eleven probes against the live deployment; the
-list doubles as a checklist for a manual tour:
+`Part2_Infrastructure/tools/e2e_smoke.py` runs thirteen probes against the live deployment, in
+this order; the list doubles as a checklist for a manual tour:
 
 1. Gateway `/health` answers.
 2. Venue feeds — both Binance and Bybit books are flowing.
 3. Gateway auth — `/api/portfolio` rejects keyless, accepts the token.
 4. Decision histogram — pre-trade decisions are being recorded.
-5. RAG embed — the research-corpus embedding path answers.
-6. Vercel app — the portal serves.
+5. Vercel app — the portal serves.
+6. Vercel root guard — `/` still redirects rather than answering 200, so the desk is never
+   served to a visitor with no session.
 7. Vercel `/api/system/health` — the portal can see its providers.
-8. Oracle ADB — the VaR persistence layer answers.
-9. Supabase — the audit-log mirror answers.
-10. Market data — a real bar series comes back.
-11. Backtest — a sweep runs end to end and returns a verdict.
+8. Vercel → gateway — the hop the workspace actually depends on, probed from outside through
+   `/api/gateway/portfolio` rather than inferred from a `/health` that was green from three
+   other vantage points while this one was down.
+9. Market data — a real bar series comes back.
+10. Backtest — a sweep runs end to end and returns a verdict.
+11. Oracle ADB — the VaR persistence layer answers.
+12. Supabase — the audit-log mirror answers.
+13. RAG embed — the research-corpus embedding path answers.
 
 **The five-minute ops drill.** `python3 tools/e2e_smoke.py --drill` adds two *mutating but
 reversible* proofs on top of the read-only probes: it simulates a provider outage and asserts
@@ -222,8 +236,10 @@ rather than hidden.
 
 ---
 
-*All eight slices of [`UI_OVERHAUL_PLAN.md`](../UI_OVERHAUL_PLAN.md) are shipped, and their
-moments are woven into the tabs above: the Strategy Codex and the gate-clear pulse on Research,
+*All eight slices of the UI overhaul are shipped — the audit they answer is
+[`UI_IMPROVEMENTS.md`](UI_IMPROVEMENTS.md), and the plan that sequenced them is a working note
+kept outside this repository. Their moments are woven into the tabs above: the Strategy Codex
+and the gate-clear pulse on Research,
 the order-gate cascade and tick flashes on Execution, drawing charts throughout, ⌘K fuzzy
 search with recents, and View Transitions between tabs. This tour doubles as the acceptance
 script: walking it end to end — once with motion on, once with the OS reduce-motion switch set —

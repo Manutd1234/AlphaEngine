@@ -24,6 +24,19 @@ import { STRATEGY_LABELS } from "@/lib/types";
 /** Matches the route's cap; past this a set of variations is one bet. */
 const MAX_SELECTED = 5;
 
+/**
+ * The longest legitimate wait in this app, and deliberately so: the route
+ * re-executes up to five backtests, each loading its own bars from a market
+ * data provider before the engine runs. The panel says as much — the history
+ * stores the recipe, not the return series — so a reader pressing "Combine"
+ * has already been told this is real work rather than a lookup.
+ *
+ * The deadline is not here to make that quick. It is here so a request that
+ * stalls cannot leave the button reading "Re-running…" for the life of the tab,
+ * which is indistinguishable from a combination that is merely slow.
+ */
+const COMBINE_DEADLINE_MS = 45_000;
+
 const METHOD_LABEL: Record<string, string> = {
   equal_weight: "Equal weight",
   inverse_vol: "Inverse volatility",
@@ -73,6 +86,7 @@ export default function FavouritesPanel({ records }: { records: ExperimentRecord
             fast: r.fast, slow: r.slow, bars: r.bars, direction: r.direction,
           })),
         }),
+        signal: AbortSignal.timeout(COMBINE_DEADLINE_MS),
       });
       const body = (await response.json()) as CombineResponse;
       if (!response.ok) {
@@ -84,8 +98,18 @@ export default function FavouritesPanel({ records }: { records: ExperimentRecord
         return;
       }
       setResult(body);
-    } catch {
-      setStatus("The combination did not complete — the request never reached the engine.");
+    } catch (cause) {
+      /**
+       * "The request never reached the engine" is a claim about the network, and
+       * an abort cannot make it — the engine may have been halfway through the
+       * fourth backtest. Saying it anyway sends a reader to check their
+       * connection over a request that was working.
+       */
+      const timedOut = cause instanceof DOMException && cause.name === "TimeoutError";
+      setStatus(timedOut
+        ? `No result within ${COMBINE_DEADLINE_MS / 1000}s. The engine may still have been re-running `
+          + "these bars — try fewer runs, or a shorter window, rather than assuming they cannot combine."
+        : "The combination did not complete — the request never reached the engine.");
       setResult(null);
     } finally {
       setRunning(false);

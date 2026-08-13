@@ -38,6 +38,14 @@ const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 /** Distinct from the tape client's default slot; see the header. */
 export const AUTH_STORAGE_KEY = "alphaengine-auth";
 
+/**
+ * Short on purpose: this decides which OAuth buttons the sign-in page may draw,
+ * so it sits in front of the form's first useful paint. Giving up returns
+ * "unknown", which the login screen already handles — a slow answer buys
+ * nothing that a fast unknown does not.
+ */
+const PROVIDER_PROBE_DEADLINE_MS = 4_000;
+
 let client: SupabaseClient | null = null;
 
 /** The shared auth client, or null when this deployment has no Supabase config. */
@@ -76,7 +84,8 @@ export function authConfigured(): boolean {
  * Returns null when the probe fails, which callers must treat as "unknown"
  * rather than "none". A blocked request is not evidence that a provider is
  * missing, and hiding a working button because the network hiccuped would be
- * the same lie in the other direction.
+ * the same lie in the other direction. A timeout joins that same null: an
+ * abandoned request has learnt nothing about which providers exist.
  */
 export async function fetchEnabledProviders(): Promise<Set<string> | null> {
   if (!url || !anonKey) return null;
@@ -84,6 +93,11 @@ export async function fetchEnabledProviders(): Promise<Set<string> | null> {
     const response = await fetch(`${url}/auth/v1/settings`, {
       headers: { apikey: anonKey },
       cache: "no-store",
+      // The login form waits on this to decide which buttons it may draw, so a
+      // stalled probe holds up the whole sign-in page. It is a static settings
+      // document on Supabase's own edge — anything past a few seconds is not
+      // slow, it is not coming.
+      signal: AbortSignal.timeout(PROVIDER_PROBE_DEADLINE_MS),
     });
     if (!response.ok) return null;
     const body: unknown = await response.json();

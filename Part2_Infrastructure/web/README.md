@@ -89,7 +89,7 @@ npm install
 npm run dev        # http://localhost:3000 (Turbopack)
 npm run build      # Turbopack production build
 npm run typecheck  # tsc --noEmit
-npm test           # 680 tests, no network required
+npm test           # 1976 tests, no network required
 ```
 
 Built on **Next.js 16** with **Turbopack**, which is the default bundler for both
@@ -482,7 +482,7 @@ web/
 │       └── …one adapter per vendor (binance, fmp, tiingo, massive,
 │            alphavantage, firecrawl, openbb)
 ├── components/               charts (hand-rolled SVG), controls, tables
-└── tests/                    680 tests incl. cross-engine and risk-engine parity
+└── tests/                   1976 tests incl. cross-engine and risk-engine parity
 ```
 
 **Why the sweep runs server-side.** Binance's public API is called from the
@@ -542,12 +542,12 @@ survive contact with the defaults.
 ## Relationship to the rest of the system
 
 This portal is Module C (research). The full AlphaEngine gateway in
-[`../Part2_Infrastructure`](../Part2_Infrastructure) adds the two modules that
+[`the gateway`](..) adds the two modules that
 need a long-lived process, which is why they are not deployed here:
 
 - **Module A** — live L2 order books from Binance and Bybit over WebSocket, with
   VWAP, slippage and cross-venue smart routing.
-- **Module B** — a pre-trade risk gateway (15 gates in ~0.2 ms), a resting-order
+- **Module B** — a pre-trade risk gateway (17 gates, 15 on every order path, in ~0.2 ms), a resting-order
   book with cancel and replace, and an emergency kill switch controlled only
   through authenticated gateway surfaces — engaging it also cancels the resting
   book, because a halt that leaves orders working is not a halt.

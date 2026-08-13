@@ -42,6 +42,15 @@ interface Banner {
   message: string;
 }
 
+/**
+ * Short, because the desk opens whether or not this lands — the middleware
+ * grants a guest pass itself on a deployment with no auth, so the entire cost of
+ * giving up early is a sandbox seeded from a different id than the cookie
+ * carries. Making someone wait longer than that for a button labelled "open the
+ * desk" trades a visible delay for an invisible detail.
+ */
+const GUEST_PASS_DEADLINE_MS = 4_000;
+
 const PROVIDERS: { id: Provider; label: string }[] = [
   { id: "google", label: "Google" },
   { id: "github", label: "GitHub" },
@@ -347,7 +356,10 @@ export default function LoginScreen() {
   const enterAsGuest = async () => {
     setGuestBusy(true);
     try {
-      const response = await fetch("/api/auth/guest", { method: "POST" });
+      const response = await fetch("/api/auth/guest", {
+        method: "POST",
+        signal: AbortSignal.timeout(GUEST_PASS_DEADLINE_MS),
+      });
       const body = (await response.json().catch(() => null)) as { id?: string } | null;
       if (body?.id) {
         try {
@@ -357,7 +369,9 @@ export default function LoginScreen() {
         }
       }
     } catch {
-      // See above: proceed regardless.
+      // See above: proceed regardless. A timeout arrives here alongside a
+      // transport failure and is not worded differently because it is never
+      // shown — both end in the same place, with the guard sorting it out.
     }
     window.location.assign("/dashboard");
   };

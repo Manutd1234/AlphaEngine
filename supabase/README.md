@@ -24,7 +24,7 @@ the service-role key and never holds the Postgres connection string.
 
 - `order_blotter.decided_by` (`gateway` | `supabase_rpc`) — provenance on
   every row. `submit_alphaengine_order` is a labelled two-gate **sandbox**;
-  the fifteen-gate decision is the Python gateway's alone.
+  the seventeen-gate decision is the Python gateway's alone.
 - `latency_ms` is the measured decision latency, never a constant.
 - RLS deny-by-default: zero `anon` policies, explicit `REVOKE`.
 - `order_blotter` is append-only by trigger.

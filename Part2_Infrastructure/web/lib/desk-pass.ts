@@ -27,6 +27,26 @@
  */
 
 /**
+ * Both budgets are set by what someone is waiting for, not by what the route
+ * needs — `/api/auth/session` validates a JWT and sets a cookie, and
+ * `/api/auth/logout` clears one. Neither is slow when it is working at all.
+ *
+ * A navigation is held open behind the mint, so a stalled request there is a
+ * visitor watching nothing happen after a successful sign-in. Five seconds is
+ * long enough to survive a cold serverless start and short enough that the
+ * fallback — the guard asking again on the next navigation — takes over while
+ * they are still paying attention.
+ */
+const MINT_DEADLINE_MS = 5_000;
+
+/**
+ * Shorter, because by the time this runs the session is already revoked. A
+ * stalled request can only keep someone on the page they asked to leave, and
+ * the pass expires with the browser session regardless of whether it lands.
+ */
+const DROP_DEADLINE_MS = 3_000;
+
+/**
  * Trade a live access token for the routing pass.
  *
  * The server validates the token with `getUser()` before setting anything, so
@@ -34,12 +54,19 @@
  * whether it worked, and the caller decides whether that matters — for a
  * returning visitor it does (they cannot reach the desk without it), for a
  * background top-up it does not (the next navigation asks again).
+ *
+ * A timeout returns false alongside every other failure, and that is correct
+ * here rather than lossy: `false` means "this call did not confirm a pass", and
+ * a request that was abandoned in flight has confirmed nothing. No caller shows
+ * this to anyone — they retry or carry on — so there is nothing to word
+ * differently.
  */
 export async function mintDeskPass(accessToken: string): Promise<boolean> {
   try {
     const response = await fetch("/api/auth/session", {
       headers: { authorization: `Bearer ${accessToken}` },
       cache: "no-store",
+      signal: AbortSignal.timeout(MINT_DEADLINE_MS),
     });
     return response.ok;
   } catch {
@@ -56,7 +83,15 @@ export async function mintDeskPass(accessToken: string): Promise<boolean> {
  */
 export async function dropDeskPass(): Promise<void> {
   try {
-    await fetch("/api/auth/logout", { method: "POST", cache: "no-store" });
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      cache: "no-store",
+      // Awaited before a navigation, so "not fire-and-forget" must not become
+      // "waits forever": a hung logout would strand someone on the desk they
+      // just signed out of, which is the exact confusion this module exists to
+      // remove.
+      signal: AbortSignal.timeout(DROP_DEADLINE_MS),
+    });
   } catch {
     // The Supabase session is revoked regardless; the pass will expire with the
     // browser session even if this never landed.

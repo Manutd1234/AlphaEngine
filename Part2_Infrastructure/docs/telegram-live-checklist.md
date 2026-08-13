@@ -1,6 +1,6 @@
 # Telegram live checklist
 
-The automated suite dispatches all 76 commands on every push and asserts their
+The automated suite dispatches all 81 commands on every push and asserts their
 replies. What it cannot do is prove the bot is reachable from *your* Telegram
 account, that BotFather is showing the right menu, or that a photo actually
 renders on a phone. That is what this is for: fifteen minutes of tapping,
@@ -43,8 +43,13 @@ If it shows an older set, the client has cached it — reopen the chat.
 | `/help portfolio` | that category's commands with exact syntax |
 | `/about` | the boundary, the five controls named, and the **Web parity** map |
 
-If `/whoami` says you are not authorised, add your numeric ID to
-`TELEGRAM_ALLOWED_USER_IDS` and restart. Everything below needs it.
+If `/whoami` says you are not authorised, there are two ways to fix it. Add your
+numeric ID to `TELEGRAM_ALLOWED_USER_IDS` and restart; or, with
+`TELEGRAM_LINK_SECRET` set on both the gateway and the web deployment, open the
+workspace and tap **Connect** in the header — the deep link carries a single-use
+code that binds this chat to the desk pass you are already holding. Either way,
+everything below needs it. The binding grants reads only: section 6 still refuses
+you unless your ID is in `TELEGRAM_CONTROL_USER_IDS`.
 
 ---
 
@@ -149,7 +154,7 @@ Things worth confirming while you are here:
 - Codes **die on restart**, by design — a deploy mid-confirmation means
   starting over, which is the safe direction.
 
-`/flatten` submits real closing orders through the same fourteen pre-trade
+`/flatten` submits real closing orders through the same seventeen pre-trade
 gates as any other order. On a paper book that is safe to exercise; do it only
 if you want to see the gate vector.
 

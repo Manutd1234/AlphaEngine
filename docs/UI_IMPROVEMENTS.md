@@ -3,10 +3,12 @@
 **Verdict first.** The workspace's engine outgrew its chrome. Forty-six documented strategies
 hide behind a flat `<select>`, the promotion gate — the most dramatic moment in the product —
 renders as a static list, and a 12,900-line design system contains exactly three animations.
-The overhaul plan ([`UI_OVERHAUL_PLAN.md`](../UI_OVERHAUL_PLAN.md), repository root) fixes this
-in eight independently shippable slices. This document is the audit that plan stands on: every
-finding cites file and line, every recommendation names the alternative it rejects, and the
-final section lists what was deliberately *not* done.
+The overhaul that followed fixed this in eight independently shippable slices, each one
+findable in [`FEATURE_TOUR.md`](FEATURE_TOUR.md). This document is the audit the overhaul
+stands on: every finding cites file and line, every recommendation names the alternative it
+rejects, and the final section lists what was deliberately *not* done. The plan document that
+sequenced the slices is a working note kept outside this repository; the audit is the part
+worth reading, because it is the part that has to survive contact with the code.
 
 **The boundary, stated once.** No confetti, no XP, no streaks, no locked content — a research
 tool that celebrates output volume rewards exactly the multiple-testing behaviour the Deflated

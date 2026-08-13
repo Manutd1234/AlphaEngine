@@ -54,9 +54,12 @@ every sample for the life of the process rather than a sliding window.
 
 ### 2.1 The pre-trade risk decision — measured
 
-`RiskGateway.submit` evaluates 15 gates under a lock and returns a decision.
-5 000 orders against a synthetic 50-level book, warmed, on the development
-machine:
+`RiskGateway.submit` evaluates gates under a lock and returns a decision.
+Seventeen are defined; fifteen of them can appear on the crypto path measured
+here, and the remaining two (`paper_execution_model`, `reference_freshness`) run
+only for paper-equity orders, which are priced from a vendor quote rather than a
+book and are not what this benchmark exercises. 5 000 orders against a synthetic
+50-level book, warmed, on the development machine:
 
 | | p50 | p99 | p99.9 | max |
 |---|---|---|---|---|
@@ -275,8 +278,17 @@ Separate budget, and much less demanding.
   the transport.
 * **A browser cannot open an `EventSource` to the gateway directly.** The page
   is HTTPS and the gateway is `http://…:8000`; that is blocked as mixed content
-  with no override. Streaming is therefore proxied through a Vercel route
-  handler, costing ~25 ms — measured, and irrelevant against a 1 s recompute.
+  with no override. Streaming would therefore have to be proxied through a
+  Vercel route handler, costing ~25 ms — measured, and irrelevant against a 1 s
+  recompute.
+* **The transport half is not wired, and the proxy that anticipated it has been
+  removed.** It had no consumer, and the hook written against it could not
+  express the state that matters: `EventSource` exposes neither the status code
+  nor the body, so the proxy's deliberate 503 on a gateway-less deployment was
+  invisible to it and the panel would have read "Connecting…" forever — on
+  precisely the deployment where that is the normal condition. The recompute
+  split above stands on its own; re-proxying is roughly sixty lines once a
+  surface genuinely wants a stream.
 
 Measured from a development machine to the gateway: 21–27 ms total, 9–13 ms TCP
 connect. Vercel serves the web project from `sin1`, the same city as the VM.
@@ -287,7 +299,7 @@ connect. Vercel serves the web project from `sin1`, the same city as the VM.
 
 | Hop | Measured | Notes |
 |---|---|---|
-| Risk decision (15 gates) | **50.3 µs** p50 | in-process; excludes kernel and wire |
+| Risk decision (crypto path, up to 15 of 17 gates) | **50.3 µs** p50 | in-process; excludes kernel and wire |
 | Decision tail | 90.9 µs p99.9 | scheduler jitter, not GC |
 | Market data → gateway | **69.1 ms** RTT | Binance, Tokyo → Singapore; **the constraint** |
 | Order entry → venue | **72.7 ms** origin RTT | Binance; 1.6 ms to the CDN edge, which is not where it matches |

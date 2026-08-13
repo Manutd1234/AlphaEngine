@@ -9,7 +9,7 @@
 
 1. **Alpha & Signal Utility**: Real-time cross-venue L2 order book depth (Binance + Bybit) prevents adverse selection. Pre-trade TCA estimates VWAP & slippage before order entry. Deflated Sharpe ratios (DSR) prevent backtest overfitting.
 2. **Implemented vs. Mocked Components**:
-   - **Implemented**: Live Binance/Bybit WebSocket depth streaming, 15 pre-trade risk check vectors, FastAPI risk gateway, DuckDB append-only audit log, OpenBB provider layer, Next.js web workspace, Telegram companion bot with matplotlib PNG chart generation.
+   - **Implemented**: Live Binance/Bybit WebSocket depth streaming, 17 pre-trade risk gates, FastAPI risk gateway, DuckDB append-only audit log, OpenBB provider layer, Next.js web workspace, Telegram companion bot with matplotlib PNG chart generation.
    - **Mocked**: Paper order execution (simulated fills at L2 touch; resting limit orders).
 3. **Production Architecture & Data Collection Frequency**:
    - **100ms** L2 depth polling & book consolidation.
@@ -26,8 +26,9 @@ Unified execution-quality, pre-trade-risk and strategy-research infrastructure
 with three deliberately separate surfaces: an always-on stateful gateway, a
 Vercel web workspace, and an independent **text-only & visual chart Telegram companion**. The
 companion reports portfolio, market-data and operational state, and — for
-explicitly listed operators only — can halt, resume or flatten the book. It
-never opens or authenticates a web UI and never queues a backtest.
+explicitly listed operators only — can halt, resume, flatten, set reduce-only or
+reset the paper book. It never opens or authenticates a web UI, and it cannot
+open a position.
 
 That last capability is opt-in and off by default. `TELEGRAM_CONTROL_USER_IDS`
 is a **second, narrower allow-list** than the one that grants read access, and
@@ -82,7 +83,7 @@ missing (§9 has the detail):
 | **Risk Manager** | *Is the model right, and will the limits hold?* | Kupiec VaR backtest, stress scenarios, reduce-only mode, kill switch | No margin or liquidation modelling |
 | **Data Engineer** | *Can I trust this data?* | Overview-first trust cockpit, provider registry, failover, data contracts, quarantine and lineage | No durable quality ledger, orchestration or backfill scheduler |
 | **DevOps / SRE** | *Is it healthy, and what do I do at 3am?* | `/health`, `/metrics`, systems console, alert rules, runbook | No log aggregation or distributed tracing |
-| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, parity suites, CI, 337 + 666 + 13 tests | No generated client, no property-based fuzzing |
+| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, parity suites, CI, 667 + 1,976 + 13 tests | No generated client, no property-based fuzzing |
 
 ### 🎯 Quant Traders — *"Can I send this, and what will it cost?"*
 
@@ -210,7 +211,7 @@ backfill.
 | Documented tunables | `BacktestRequest` carries bounds *and* descriptions, so `/docs` doubles as the researcher's parameter registry |
 | Confidence that two implementations agree | Python↔TypeScript parity suites for the **backtest engine** and the **risk engine**, both driven by fixtures the Python reference emits |
 | To debug a request without guessing | Pipeline inspector down to raw vendor JSON; bounded trace ring with redaction; `/api/system/inspect` |
-| Tests that run anywhere | 337 gateway + 666 web + 13 service tests, all offline by construction — no network, no fixtures fetched at test time |
+| Tests that run anywhere | 667 gateway + 1,976 web + 13 service tests, all offline by construction — no network, no fixtures fetched at test time. Each figure is what its runner prints: `venv/bin/python -m pytest`, `(cd web && npm test)`, `venv/bin/python -m pytest OpenBB_Service/tests` |
 | A lint gate that catches defects, not style | ruff with bugbear, async and bandit rules; `tsc --strict` on the web tier |
 | To add a provider or an endpoint without breaking things | Uniform `Adapter` interface with declared capabilities; the recipe is in §7 and in `web/README.md` |
 
@@ -256,7 +257,7 @@ gateway and its OpenBB adapter to the separate stateless service.
 cd web
 npm install
 npm run dev    # http://localhost:3000
-npm test       # 666 tests
+npm test       # 1,975 tests across 502 suites
 ```
 
 Live-feed endpoints (public, no key):
@@ -352,7 +353,7 @@ pytest                                   # deterministic; no network required
                     │       │       │
            ┌────────▼─┐ ┌───▼────┐ ┌▼──────────────┐
            │ A · TCA  │ │ B · risk│ │ C · backtest │
-           │ L2 + VWAP│ │ 15 gates│ │ jobs + DSR   │
+           │ L2 + VWAP│ │ 17 gates│ │ jobs + DSR   │
            └────┬─────┘ └────┬────┘ └──────┬───────┘
                 └────────────┼──────────────┘
                              ▼
@@ -393,7 +394,7 @@ service carries no pinned version.
 | Component | Version | Role in AlphaEngine |
 |---|---|---|
 | **[Python](https://www.python.org)** | `3.12.13` | The gateway runtime inside the container. |
-| **[FastAPI](https://fastapi.tiangolo.com)** | `0.141.1` | 34 documented routes. The OpenAPI schema is a committed contract (`tools/openapi.json`) whose SHA-256 the web build verifies at `prebuild`. |
+| **[FastAPI](https://fastapi.tiangolo.com)** | `0.141.1` | 37 documented paths carrying 38 operations. The OpenAPI schema is a committed contract (`tools/openapi.json`) whose SHA-256 the web build verifies at `prebuild`. `main.py` declares 42 route decorators; the four that never reach the schema are the `/ws/book/{symbol}` WebSocket, which OpenAPI does not describe, and the three HTML routes (`/`, `/app`, `/ui`) marked `include_in_schema=False`. |
 | **[Uvicorn](https://www.uvicorn.org)** | `0.52.1` | **One process, no workers, by design** — the risk gateway holds a mutable in-memory book, a resting-order book, a token bucket and the kill switch; a second worker would fork the book and localise the halt. |
 | **[Pydantic](https://docs.pydantic.dev)** | `2.13.4` | Every API payload, risk decision and bot read-model shares one schema module (`modules/schemas.py`). |
 | **[httpx](https://www.python-httpx.org)** | `0.28.1` | All outbound HTTP, including the Supabase mirror — chosen over `supabase-py` to keep the import graph network-free for CI. |
@@ -408,8 +409,8 @@ service carries no pinned version.
 | Component | Version | Role in AlphaEngine |
 |---|---|---|
 | **[DuckDB](https://duckdb.org)** | `1.5.5` | The **authoritative** store: an embedded, append-only audit log (orders, events, backtests, equity) on a named Docker volume, with an SQLite fallback. Embedded on purpose — the desk must keep trading when every network dependency is down. |
-| **[PostgreSQL](https://www.postgresql.org)** | `17.6` | The durable **mirror**, never a second decision-maker. Every gateway decision streams through a bounded queue into `public.order_blotter` with `decided_by` provenance, measured `latency_ms` and the full 15-gate check vector. |
-| **[Supabase](https://supabase.com)** | managed | Hosts that Postgres. RLS deny-by-default (zero `anon` policies), append-only by trigger, `search_path` pinned on every `SECURITY DEFINER` function. Six ordered migrations in [`../supabase/migrations/`](../supabase/migrations/); `tests/test_supabase_schema.py` pins SQL limit defaults to `config.py` offline. |
+| **[PostgreSQL](https://www.postgresql.org)** | `17.6` | The durable **mirror**, never a second decision-maker. Every gateway decision streams through a bounded queue into `public.order_blotter` with `decided_by` provenance, measured `latency_ms` and the full check vector — every gate that ran, out of the seventeen defined. |
+| **[Supabase](https://supabase.com)** | managed | Hosts that Postgres. RLS deny-by-default (zero `anon` policies), append-only by trigger, `search_path` pinned on every `SECURITY DEFINER` function. Sixteen ordered migrations in [`../supabase/migrations/`](../supabase/migrations/); `tests/test_supabase_schema.py` pins SQL limit defaults to `config.py` offline. |
 | **[pgvector](https://github.com/pgvector/pgvector)** | `0.8.2` | 384-dim HNSW cosine index over `public.research_documents` — see **RAG & ML** below. |
 
 ### DevOps & Infrastructure
@@ -421,7 +422,7 @@ service carries no pinned version.
 | **[Supabase CLI](https://supabase.com/docs/guides/cli)** | `2.112.0` | Migration push via the IPv4 session pooler (the direct DB host is IPv6-only) and edge-function deploys. |
 | **[Oracle Cloud](https://www.oracle.com/cloud/)** | managed | The always-on host (Singapore). Region is load-bearing: US egress gets Binance HTTP 451 / Bybit 403 (§11). |
 | **[Vercel](https://vercel.com)** | managed | Two serverless projects (web portal, OpenBB service) from one repo with different Root Directories, region `sin1`. Artifact custody via an Ed25519-signed build attestation against a trust root pinned in reviewed source (`web/lib/artifact-trust.mjs`). |
-| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free jobs (gateway, OpenBB, web, repo-audit): a red build means the code broke, never that an exchange was slow. 396 gateway + 711 web + 13 service tests. |
+| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free jobs (gateway, OpenBB, web, repo-audit): a red build means the code broke, never that an exchange was slow. 667 gateway + 1,976 web + 13 service tests. |
 
 ### 🔑 API Keys & Secrets
 
@@ -442,8 +443,9 @@ credentials**, and the service-role key never leaves the gateway host.
 | `FIRECRAWL_API_KEY` | [Firecrawl](https://firecrawl.dev) | open-web research search | Vercel (server-side) |
 | `OPENBB_API_URL` / `_TOKEN` | the OpenBB service | quotes, bars, news, fundamentals | Vercel + service env |
 | `TELEGRAM_BOT_TOKEN` (+ allowlists) | [Telegram Bot API](https://core.telegram.org/bots/api) | the text-only companion; fail-closed user allowlist | gateway `.env` |
+| `TELEGRAM_LINK_SECRET` *(optional, ≥32 chars)* | Connect-button account linking | HMACs the single-use deep link that binds a chat to a web desk pass; below 32 characters the feature stays off | gateway `.env` **and** Vercel, identical |
 | `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` | Supabase PostgREST | the order mirror + RAG writes | **gateway `.env` only — never Vercel** |
-| `NEXT_PUBLIC_SUPABASE_URL` / `_ANON_KEY` | Supabase (browser) | **inert** — read by no code until the deferred Realtime phase; RLS makes the anon key readable-nothing anyway | Vercel |
+| `NEXT_PUBLIC_SUPABASE_URL` / `_ANON_KEY` | Supabase (browser) | the browser Realtime client (`web/lib/supabaseClient.ts`) and, in `web/proxy.ts`, the single test for whether this deployment can authenticate anyone at all — absent, the edge mints a guest pass instead of asking for a sign-in. Publishable on purpose: RLS scopes the anon key to gateway-decided, unowned rows on the public demo desk and nothing else | Vercel |
 | `ALPHAENGINE_ARTIFACT_SIGNING_KEY` | build attestation | Ed25519 signature over commit/env/tree, verified against the pinned trust root | Vercel (build-time only) |
 | Binance & Bybit L2 | public venue WebSockets | **keyless** — consolidated depth needs no credential | — |
 
@@ -579,48 +581,59 @@ after a rejected ack, an exchange ban from rate-limit abuse, a position that kee
 averaging into a liquidation cascade. Every order therefore passes one choke point
 that can say *no* in microseconds, and a human can stop the desk with one message.
 
-**The 15 gates**, evaluated cheapest-first:
+**The 17 gates**, evaluated cheapest-first. Rows 4 and 5 are marked *paper
+equity* because they exist only for that path — an order priced from a trusted
+vendor quote instead of a live L2 ladder — and never run against a crypto order:
 
 | # | Gate | Guards against |
 |---|---|---|
 | 1 | `kill_switch` | everything — one boolean read, always first |
 | 2 | `symbol_halt` | per-instrument suspension |
 | 3 | `symbol_whitelist` | trading an instrument nobody approved |
-| 4 | `duplicate_order` | a retrying algo double-firing |
-| 5 | `rate_limit` | runaway loops and exchange bans (token bucket) |
-| 6 | `price_available` | pricing an order with no live mark |
-| 7 | `order_sized` | ambiguous quantity/notional |
-| 8 | `max_order_notional` | **fat finger** — $50k cap |
-| 9 | `symbol_concentration` | projected per-symbol exposure, resting orders included |
-| 10 | `gross_exposure` | projected book-wide exposure, likewise |
-| 11 | `price_band` | limit price far from mark (fat finger, part 2) |
-| 12 | `working_book` | an algo that places and never cancels — the resting book has a ceiling of its own |
-| 13 | `daily_drawdown` | the bad day — hard stop at 5% of start-of-day equity |
-| 14 | `reduce_only` | *adding* risk once 80% of the drawdown budget is spent, while still allowing the exit |
-| 15 | `est_slippage` | illiquid size — measured on the **routed** execution, not the mid |
+| 4 | `paper_execution_model` *(paper equity)* | claiming a fill model the input cannot support — a quote is a price, not a book, so this path accepts `MARKET` only and refuses to pretend a resting `LIMIT` has depth behind it |
+| 5 | `reference_freshness` *(paper equity)* | sizing against a quote that has gone off — age bounded by `PAPER_EQUITY_QUOTE_MAX_AGE_S` (a week by default, so a weekend close still demonstrates), and rejected outright if it is dated more than 60 s into the future, which is a clock fault rather than a quote |
+| 6 | `duplicate_order` | a retrying algo double-firing |
+| 7 | `rate_limit` | runaway loops and exchange bans (token bucket) |
+| 8 | `price_available` | pricing an order with no live mark |
+| 9 | `order_sized` | ambiguous quantity/notional |
+| 10 | `max_order_notional` | **fat finger** — $50k cap |
+| 11 | `symbol_concentration` | projected per-symbol exposure, resting orders included |
+| 12 | `gross_exposure` | projected book-wide exposure, likewise |
+| 13 | `price_band` | limit price far from mark (fat finger, part 2) |
+| 14 | `working_book` | an algo that places and never cancels — the resting book has a ceiling of its own |
+| 15 | `daily_drawdown` | the bad day — hard stop at 5% of start-of-day equity |
+| 16 | `reduce_only` | *adding* risk once 80% of the drawdown budget is spent, while still allowing the exit |
+| 17 | `est_slippage` | illiquid size — measured on the **routed** execution, not the mid |
 
-Measured on live books: **0.14 – 0.24 ms** per decision. Gate 14 was added with
-the reduce-only work and the count moved from twelve to fourteen; the two that
-were previously one row are now their own, because a hard stop and a graduated
-throttle are different controls and a reader should be able to see both.
-`working_book` took it to fifteen on exactly that precedent. Resting orders
+Measured on live books: **0.14 – 0.24 ms** per decision. `reduce_only` was added
+with the reduce-only work and the count moved from twelve to fourteen; the two
+that were previously one row are now their own, because a hard stop and a
+graduated throttle are different controls and a reader should be able to see
+both. `working_book` took it to fifteen on exactly that precedent. Resting orders
 introduced a resource an algo can exhaust without breaching a single notional
 limit — an order that is placed and never cancelled costs unbounded memory and an
 unbounded sweep, which is the runaway-loop failure this module exists to stop —
 and a ceiling that never appears in a check vector is a ceiling nobody audits.
+Paper equity then took it to seventeen for the same reason a third time: quoting
+an equity off a vendor snapshot introduces two failure modes a crypto order
+cannot have — a stale reference price and an order type the quote cannot honour —
+and both were already being refused in code before either had a named row here.
+An unnamed refusal is worse than a strict one: the trader sees a rejection with
+nothing to look up.
 
-Seven of the fifteen are conditional on the order in front of them.
-`max_order_notional`, `symbol_concentration` and `gross_exposure` each price a
-*size*, so all three are skipped when the order could not be sized at all — which
-is exactly the feed-outage case: a `MARKET` order carrying a quantity but no live
-mark runs eight gates, rows 1–7 plus `daily_drawdown`, and never reaches a
-notional limit because there is no notional to compare. `price_band` and
-`working_book` apply only to a `LIMIT`, `reduce_only` only inside the defensive
-regime and only to an order that has a size to call reducing, and `est_slippage`
-only where there is a size to route. A returned vector is therefore the gates
-that *ran*, not a fixed-length row — a check that did not apply and a check that
-passed are different facts, and collapsing them would be the same mistake as
-reporting a missing number as zero.
+Nine of the seventeen are conditional on the order in front of them.
+`paper_execution_model` and `reference_freshness` need a paper-equity quote to
+check. `max_order_notional`, `symbol_concentration` and `gross_exposure` each
+price a *size*, so all three are skipped when the order could not be sized at all
+— which is exactly the feed-outage case: a crypto `MARKET` order carrying a
+quantity but no live mark runs eight gates, rows 1–3, 6–9 and `daily_drawdown`,
+and never reaches a notional limit because there is no notional to compare.
+`price_band` and `working_book` apply only to a `LIMIT`, `reduce_only` only
+inside the defensive regime and only to an order that has a size to call
+reducing, and `est_slippage` only where there is a size to route. A returned
+vector is therefore the gates that *ran*, not a fixed-length row — a check that
+did not apply and a check that passed are different facts, and collapsing them
+would be the same mistake as reporting a missing number as zero.
 
 **Principles:**
 
@@ -793,12 +806,16 @@ An 82% backtest return that the system refuses to endorse. That is the feature.
 The companion is optional: the gateway, API and web workspace remain fully
 functional with no Telegram token. When enabled, it is an independent text
 interface for phone-friendly portfolio, OpenBB, execution and health cards. It
-does not render a web page or send web links, and it cannot enqueue a backtest
-or reset the book. Sixty-four of its sixty-seven commands are read-only. The three
-that are not — `/halt`, `/resume`, `/flatten` — require membership of
-`TELEGRAM_CONTROL_USER_IDS` (**Gated controls**, below), which is separate from
-the read allow-list and empty by default. Notification preferences and liquidity
-watches also change from chat.
+does not render a web page or send web links, and it cannot open a position.
+Five of its eighty-one commands change what the desk is allowed to do — `/halt`,
+`/resume`, `/flatten`, `/reduceonly`, `/resetbook` — and each requires membership
+of `TELEGRAM_CONTROL_USER_IDS` (**Gated controls**, below), which is separate
+from the read allow-list and empty by default. Of the other seventy-six, all but
+one are pure reads; the exception is `/backtest`, which queues a sweep on the
+same jobs engine the API and the web use. That crosses into research, not
+execution: it submits work to the queue and never an order to the gateway.
+Notification preferences and liquidity watches also change from chat, but they
+are the companion's own state rather than the desk's.
 
 ### Fail-closed bootstrap
 
@@ -816,6 +833,19 @@ watches also change from chat.
    notifications are delivered. An allow-listed user must run `/subscribe`
    once in each destination so the bot records its current authorised owner;
    ownerless legacy rows never receive pushes.
+
+There is a second way in, and it does not require an operator or a restart: the
+**Connect** button in the workspace header. It mints a single-use, HMAC-signed
+deep link (`TELEGRAM_LINK_SECRET`, set identically on the gateway and the web
+deployment) that binds the chat to the web identity that tapped it — account or
+guest pass. The grant is read parity and nothing more: a bound chat sees exactly
+what that identity could already see by opening the workspace, over a second
+transport. It never reaches `_may_control`, so a binding cannot halt, resume,
+flatten, set reduce-only or reset the book. The direction is one-way by design —
+a web identity authorises a Telegram read; no Telegram identity ever
+authenticates a web request. The secret must be at least 32 characters; below
+that the feature stays off and the gateway refuses connect codes outright rather
+than guessing at one.
 
 For webhook delivery, set a stable HTTPS `PUBLIC_URL`, choose
 `TELEGRAM_MODE=webhook`, and configure a unique random
@@ -854,7 +884,7 @@ can scale independently from portfolio state.
 | `/help [CATEGORY\|COMMAND]` | Category help or exact syntax, for example `/help markets` |
 | `/commands` | Complete categorized command catalogue |
 | `/status` | Gateway, feed, queue and OpenBB status |
-| `/about` | Scope, and which three commands are not reads |
+| `/about` | Scope, and which five commands are not reads |
 | `/whoami` | Show Telegram user ID and destination chat ID |
 | `/version` | Gateway version and delivery mode |
 | `/ping` | Command-path responsiveness |
@@ -952,16 +982,20 @@ risk tab cannot be allowed to disagree.
 
 #### Gated controls
 
-These three are the only commands that change what the desk is allowed to do, and
+These five are the only commands that change what the desk is allowed to do, and
 they are the reason `TELEGRAM_CONTROL_USER_IDS` exists as a **second, narrower
 allow-list** than the one that grants read access. It is empty unless someone
 sets it: being able to see the book does not imply being able to stop the desk.
+A chat bound through the workspace's **Connect** button never reaches this list
+either — a binding grants reads and nothing else.
 
 | Command | Purpose |
 |---|---|
 | `/halt [SYMBOL]` · `/halt CODE` | Engage the kill switch, book-wide or per instrument |
 | `/resume [SYMBOL]` · `/resume CODE` | Release it; the acting user ID is recorded either way |
 | `/flatten [SYMBOL]` · `/flatten CODE` | Close every open position |
+| `/reduceonly [on\|off]` · `/reduceonly CODE` | Enter or leave the defensive regime: only risk-reducing orders accepted |
+| `/resetbook` · `/resetbook CODE` | Reset the paper book and session accounting |
 
 The two-call shape is the control. The bare command returns a single-use,
 user-bound confirmation code that expires in ninety seconds and is burned even on
@@ -971,15 +1005,18 @@ order rather than around them.
 
 ### Security and delivery guarantees
 
-- Operational commands require a user ID in `TELEGRAM_ALLOWED_USER_IDS`; an
-  empty list exposes bootstrap identity/help only.
-- The bot cannot *open* a position or queue a research job: there is
-  intentionally no `/order`, `/backtest` or `/reset` command. The only three
-  commands that change trading state are `/halt`, `/resume` and `/flatten`, and
-  each needs the separate control allow-list *and* a confirmation code.
-  `/flatten` does enter orders — closing ones, submitted through the same
-  fifteen pre-trade gates as a manual order rather than around them — so the
-  guarantee is that the companion cannot add risk, not that it never trades.
+- Operational commands require a user ID in `TELEGRAM_ALLOWED_USER_IDS`, or a
+  chat bound to a web desk pass through the workspace's **Connect** button; with
+  neither, the bot exposes bootstrap identity/help only.
+- The bot cannot *open* a position: there is intentionally no `/order` command,
+  and no way to reach one. The five commands that change what the desk is
+  allowed to do are `/halt`, `/resume`, `/flatten`, `/reduceonly` and
+  `/resetbook`, and each needs the separate control allow-list *and* a
+  confirmation code — which a binding never grants. `/flatten` does enter
+  orders — closing ones, submitted through the same seventeen pre-trade gates as
+  a manual order rather than around them — so the guarantee is that the
+  companion cannot add risk, not that it never trades. `/backtest` queues a
+  sweep, which is research and reaches the jobs engine rather than the gateway.
   Subscriptions and liquidity watches are the companion's own state, not the
   desk's.
 - `/start` does not silently subscribe. Subscription changes are explicit and
@@ -1488,12 +1525,17 @@ on different iterations and disagree by more than the fixture allows.
 Everything a reviewer needs to check runs offline:
 
 ```bash
-pytest                                    # 337 gateway + companion tests
+pytest                                    # 667 gateway + companion tests (1 skipped)
 python tools/synthetic_probe.py           # end-to-end: book → cost → gate → audit
 cd OpenBB_Service && pytest               # 13 stateless service tests
-cd web && npm install && npm test         # 666 workspace tests, incl. both parity suites
+cd web && npm install && npm test         # 1,975 workspace tests, incl. both parity suites
 bash tools/check_repo_complete.sh         # builds the *committed* tree
 ```
+
+Every test count quoted anywhere in this repository comes from one of those
+runners' own final line — `pytest`'s summary, `node --test`'s `ℹ pass`. Re-run
+them rather than believing the prose; these figures have drifted before, and a
+count nobody re-derives is a count that quietly stops being true.
 
 Two of those deserve a note. The **probe** is the one that proves the parts are
 wired to each other rather than merely correct in isolation: it walks the money

@@ -26,6 +26,33 @@ import { useState, useCallback } from "react";
 
 import { absorbs, type TcaReport } from "@/lib/venues";
 
+/**
+ * One click, and `/api/tca` walks both venues' REST ladders before it can price
+ * anything — two upstream round trips to Binance and Bybit, not a cached read.
+ * Generous enough that a slow venue does not read as a missing book, short
+ * enough that a stuck probe gives the button back while the answer would still
+ * have been worth having: this quote is only meaningful at the moment it is
+ * asked, so a very late one is not a late answer, it is a different question.
+ */
+const EXIT_QUOTE_DEADLINE_MS = 10_000;
+
+/**
+ * The sentence a failed probe is entitled to say.
+ *
+ * The route's own 503 already distinguishes "no live book for X" from a fault,
+ * and that message is passed through untouched. This covers the other side: an
+ * abort must not borrow the route's vocabulary, because "probe did not
+ * complete" beside a symbol that has a perfectly good book would send a reader
+ * hunting for a venue outage that is not there.
+ */
+export function describeProbeFailure(cause: unknown): string {
+  if (cause instanceof DOMException && cause.name === "TimeoutError") {
+    return `No quote within ${EXIT_QUOTE_DEADLINE_MS / 1000}s — the venues were slow to answer, `
+      + "not necessarily unable to. Probe again for a fresh price.";
+  }
+  return cause instanceof Error ? cause.message : "probe did not complete";
+}
+
 export interface ExitQuoteResult {
   symbol: string;
   side: "BUY" | "SELL";
@@ -61,7 +88,7 @@ export function useExitQuotes() {
     try {
       const res = await fetch(
         `/api/tca?symbol=${encodeURIComponent(symbol)}&side=${side}&notional=${target}`,
-        { cache: "no-store" },
+        { cache: "no-store", signal: AbortSignal.timeout(EXIT_QUOTE_DEADLINE_MS) },
       );
       const body = (await res.json()) as Partial<TcaReport> & { error?: string };
 
@@ -93,10 +120,7 @@ export function useExitQuotes() {
         },
       }));
     } catch (cause) {
-      setErrors((prev) => ({
-        ...prev,
-        [key]: cause instanceof Error ? cause.message : "probe did not complete",
-      }));
+      setErrors((prev) => ({ ...prev, [key]: describeProbeFailure(cause) }));
     } finally {
       setLoading((prev) => ({ ...prev, [key]: false }));
     }

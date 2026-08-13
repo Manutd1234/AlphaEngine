@@ -37,9 +37,10 @@ microservice, and a Telegram companion — sharing one append-only audit log.
 * **Module A** — cross-venue L2 order books from Binance and Bybit, with
   sequence-gap detection, staleness clocks, and transaction-cost analysis on the
   routed execution rather than the mid.
-* **Module B** — a pre-trade risk gateway: 14 gates in ~0.2 ms on the single
-  order path, an automatic drawdown breaker, reduce-only mode before the halt,
-  and a kill switch reachable from four surfaces.
+* **Module B** — a pre-trade risk gateway: 17 gates in ~0.2 ms on the single
+  order path — fifteen any order can reach, plus two that fire only for
+  paper-equity orders — an automatic drawdown breaker, reduce-only mode before
+  the halt, and a kill switch reachable from four surfaces.
 * **Module C** — asynchronous parameter sweeps that report the Deflated Sharpe
   Ratio, walk-forward out-of-sample results, and the probability the search
   itself is overfitting — and that will tell you a good-looking equity curve
@@ -64,8 +65,10 @@ architecture, the design arguments, and what is implemented versus mocked.
 **→ [`docs/FEATURE_TOUR.md`](docs/FEATURE_TOUR.md)** — the guided walkthrough of the whole
 platform, tab by tab, with the zero-config / keyed / gateway-backed capability map and the
 verify-it-yourself E2E checklist. **[`docs/UI_IMPROVEMENTS.md`](docs/UI_IMPROVEMENTS.md)** is
-the UI audit behind [`UI_OVERHAUL_PLAN.md`](UI_OVERHAUL_PLAN.md) (shipped, eight slices);
-**[`UI_REFINEMENT_PLAN.md`](UI_REFINEMENT_PLAN.md)** is the successor plan for the next pass.
+the UI audit the overhaul stood on — every finding cites file and line, and its eight
+independently shippable slices are all shipped and named in the tour. The two planning
+documents that sequenced and succeeded that work are working notes kept outside this
+repository; the audit and the tour are the parts worth reading.
 
 ## 🛠️ Tech Stack
 
@@ -88,7 +91,7 @@ container, the lockfile and the live database. Full detail (every dependency's
 | Component | Version | Role |
 |---|---|---|
 | **[Python](https://www.python.org)** | `3.12.13` | The gateway runtime. |
-| **[FastAPI](https://fastapi.tiangolo.com)** | `0.141.1` | 34 routes behind a committed OpenAPI contract. |
+| **[FastAPI](https://fastapi.tiangolo.com)** | `0.141.1` | 37 documented paths / 38 operations behind a committed OpenAPI contract. |
 | **[Uvicorn](https://www.uvicorn.org)** | `0.52.1` | One stateful process by design — in-memory book + kill switch. |
 | **[NumPy](https://numpy.org)** | `2.5.1` | Reference engine for TCA, risk and backtesting; vectorbt optional. |
 | **[pandas](https://pandas.pydata.org)** | `3.0.5` | Bar/series handling across analytics. |
@@ -111,7 +114,7 @@ container, the lockfile and the live database. Full detail (every dependency's
 | **[Caddy](https://caddyserver.com)** | `2.6.2` | Automatic HTTPS in front of the gateway. |
 | **[Oracle Cloud](https://www.oracle.com/cloud/)** | managed | Always-on host, Singapore — region is load-bearing for venue egress. |
 | **[Vercel](https://vercel.com)** | managed | Two serverless projects from one repo; builds are Ed25519-attested against a trust root pinned in reviewed source. |
-| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free CI jobs: 396 gateway + 711 web + 13 service tests. |
+| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free CI jobs: 667 gateway + 1,976 web + 13 service tests. |
 
 ### Verify it end to end
 
@@ -120,11 +123,16 @@ Everything runs offline: market data falls back to clearly-tagged synthetic book
 ```bash
 cd Part2_Infrastructure
 python -m venv venv && venv/bin/pip install -r requirements-core.txt
-venv/bin/python -m pytest                            # 396 gateway tests
+venv/bin/python -m pytest                            # 667 passed, 1 skipped
 venv/bin/python tools/synthetic_probe.py             # book → cost → risk gate → audit
-(cd web && npm install && npm test)                  # 711 web tests, incl. cross-engine parity
-(cd OpenBB_Service && ../venv/bin/python -m pytest)  # 13 service tests
+(cd web && npm install && npm test)                  # 1,975 tests, incl. cross-engine parity
+(cd OpenBB_Service && ../venv/bin/python -m pytest)  # 13 passed
 ```
+
+Those three commands *are* the source of the three numbers — each figure is the
+count its own runner prints on the last line (`pytest` summary; `node --test`'s
+`ℹ pass`). Re-run them rather than trusting this paragraph: a test count quoted
+from memory goes stale the week after it is written.
 
 To run the complete platform concurrently:
 ```bash

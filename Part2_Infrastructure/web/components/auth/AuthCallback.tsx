@@ -32,6 +32,17 @@ import { authClient, authConfigured } from "@/lib/auth-client";
 const DEFAULT_DESTINATION = "/dashboard";
 
 /**
+ * The visitor is watching "Signing you in…" while this runs, and the page
+ * continues to the desk whether or not the pass was minted — the guard asks
+ * again on the next navigation. So the budget is set by patience rather than by
+ * the route: without it a stalled mint holds someone on a spinner for the life
+ * of the tab, on a page whose only two outcomes are "in" and "this link did not
+ * complete". Longer than `mintDeskPass`'s own budget because there is no second
+ * chance here: this link is one-time and Back cannot re-run it.
+ */
+const PASS_MINT_DEADLINE_MS = 6_000;
+
+/**
  * Only same-origin paths, and only ones that look like our routes.
  *
  * `next` comes off the query string, so it is attacker-controlled: without this
@@ -127,10 +138,14 @@ export default function AuthCallback() {
         await fetch("/api/auth/session", {
           headers: { authorization: `Bearer ${data.session.access_token}` },
           cache: "no-store",
+          signal: AbortSignal.timeout(PASS_MINT_DEADLINE_MS),
         });
       } catch {
         // The session itself is real and stored; a failed cookie mint means the
         // guard will ask again on the next navigation rather than losing it.
+        // A timeout is not worded differently because it is not reported: both
+        // outcomes continue to the desk, which is the honest answer either way —
+        // the sign-in genuinely succeeded, only the cookie is unconfirmed.
       }
       finish(destination);
     })();

@@ -1,9 +1,17 @@
 """AlphaEngine Telegram companion — independent, text-only operational updates.
 
-The Telegram bot is deliberately separate from every web interface. It does
-not open a Mini App, authenticate the website, submit orders, alter the kill
-switch, or enqueue research. It reads the same authoritative gateway state and
-OpenBB provider layer, then renders compact phone-friendly text cards.
+The Telegram bot is deliberately separate from every web interface. It does not
+open a Mini App and it never authenticates the website — a binding runs one way,
+from a web identity to a Telegram read. It reads the same authoritative gateway
+state and OpenBB provider layer, then renders compact phone-friendly text cards.
+
+It IS able to change state, and this paragraph used to deny it: ``/halt`` and
+``/resume`` move the kill switch, ``/flatten`` submits real closing MARKET
+orders through the same pre-trade gates as any other order, and ``/backtest``
+enqueues work on the shared jobs engine. The first three answer only to
+``TELEGRAM_CONTROL_USER_IDS`` plus a single-use confirmation code; the last is
+un-gated, matching the web, because a queued backtest spends compute and
+touches no position.
 
 Operational data is fail-closed behind two named grants, and only two:
 ``TELEGRAM_ALLOWED_USER_IDS``, and a chat bound to a web desk pass through the
@@ -494,7 +502,7 @@ for _spec in COMMAND_SPECS:
         _COMMAND_BY_NAME[f"/{_alias}"] = _spec
 
 BOT_COMMANDS = [(spec.name, spec.description) for spec in COMMAND_SPECS]
-BOT_SHORT_DESCRIPTION = "Independent text alerts, portfolio and risk reads, and three gated emergency controls."
+BOT_SHORT_DESCRIPTION = "Independent text alerts, portfolio and risk reads, and five gated emergency controls."
 BOT_DESCRIPTION = (
     "AlphaEngine Companion is separate from the web workspace. It provides text-only portfolio, "
     "OpenBB market data, execution analytics, research status and operational alerts. It cannot "

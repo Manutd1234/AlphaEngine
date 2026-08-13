@@ -266,7 +266,13 @@ describe("the guest lane is a real way in", () => {
     assert.match(route, /export async function POST/);
     assert.doesNotMatch(route, /export async function GET/);
     const screen = read("../components/auth/LoginScreen.tsx");
-    assert.match(screen, /fetch\("\/api\/auth\/guest", \{ method: "POST" \}\)/);
+    /**
+     * The method, not the shape of the options object. This pinned the whole
+     * literal until the call gained a deadline, at which point it failed for a
+     * reason that had nothing to do with the rule it exists to hold — which is
+     * "POST, not a link". `deadlines.test.ts` owns the deadline itself.
+     */
+    assert.match(screen, /fetch\("\/api\/auth\/guest", \{\s*method: "POST"/);
   });
 
   it("seeds the sandbox from the id the cookie carries", () => {
