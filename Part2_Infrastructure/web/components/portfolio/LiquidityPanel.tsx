@@ -1,67 +1,121 @@
 "use client";
 
 /**
- * Liquidity & Time-to-Liquidate (TTL) Panel.
+ * How long would it take to get out of this book, and what would the exit cost?
  *
- * Displays TTL metrics per position, bottleneck identification, and manual TCA exit quotes.
+ * Sits beside the positions table because it answers the question that table
+ * raises and cannot: a position is only as real as the exit, and a 3% weight in
+ * something that trades $200k a day is a different risk from the same weight in
+ * something that trades $200m.
+ *
+ * WHAT IT REFUSES TO SAY. `timeToLiquidate` bands a position `unmeasurable`
+ * rather than guessing when ADV is missing or thinner than
+ * MIN_ADV_OBSERVATIONS, and those rows print "—" rather than a horizon. The
+ * exit probe is manual for the same reason it is manual on the routing tab: it
+ * walks two live order books, and the answer is only true at the moment it is
+ * asked, so polling it would age the number on screen into fiction.
+ *
+ * The ADV it reads has been computed on every book poll since the risk numbers
+ * shipped — `useBook` exposes `advBySymbol` from the same bars the risk figures
+ * use, precisely "so a position can never have a liquidity figure but no risk
+ * figure" — and until this panel mounted, nothing consumed it.
  */
 
 import { useState } from "react";
-import { timeToLiquidate, liquidityConcentration, DEFAULT_PARTICIPATION, type LiquidityInput } from "@/lib/liquidity";
-import { useExitQuotes } from "@/lib/use-exit-quotes";
-import { fmt } from "@/lib/format";
 
-interface LiquidityPanelProps {
+import { fmt } from "@/lib/format";
+import {
+  DEFAULT_PARTICIPATION,
+  MIN_ADV_OBSERVATIONS,
+  liquidityConcentration,
+  timeToLiquidate,
+  type LiquidityInput,
+} from "@/lib/liquidity";
+import { useExitQuotes } from "@/lib/use-exit-quotes";
+
+/**
+ * The rates a desk actually argues about. The panel used to hold this in state
+ * with no setter and print "Participation: 10% ADV" as a fixed label beside
+ * copy describing it as adjustable — so the control the prose promised did not
+ * exist.
+ */
+const PARTICIPATION_STEPS = [0.05, DEFAULT_PARTICIPATION, 0.2, 0.3] as const;
+
+const BAND_TONE: Record<string, string> = {
+  liquid: "good",
+  moderate: "warning",
+  illiquid: "critical",
+  unmeasurable: "neutral",
+};
+
+export default function LiquidityPanel({
+  positions,
+  advMap,
+}: {
   positions: { symbol: string; notional: number; quantity: number }[];
   advMap: Record<string, { adv: number; observations: number }>;
-}
+}) {
+  const [participation, setParticipation] = useState<number>(DEFAULT_PARTICIPATION);
+  const { quotes, loading, errors, fetchExitQuote } = useExitQuotes();
 
-export default function LiquidityPanel({ positions, advMap }: LiquidityPanelProps) {
-  const [participation, setParticipation] = useState(DEFAULT_PARTICIPATION);
-  const { quotes, loading, fetchExitQuote } = useExitQuotes();
-
-  const inputs: LiquidityInput[] = positions.map((p) => ({
-    symbol: p.symbol,
-    notional: p.notional,
-    quantity: p.quantity,
-    adv: advMap[p.symbol]?.adv ?? null,
-    observations: advMap[p.symbol]?.observations ?? 0,
+  const inputs: LiquidityInput[] = positions.map((position) => ({
+    symbol: position.symbol,
+    notional: position.notional,
+    quantity: position.quantity,
+    adv: advMap[position.symbol]?.adv ?? null,
+    observations: advMap[position.symbol]?.observations ?? 0,
   }));
 
   const report = timeToLiquidate(inputs, participation);
-  const conc = liquidityConcentration(report);
+  const concentration = liquidityConcentration(report);
+  const unmeasurable = report.rows.filter((row) => row.band === "unmeasurable").length;
 
   return (
     <div className="card">
       <div className="portfolio-card-heading">
         <div>
-          <span className="page-kicker">Liquidity Risk</span>
-          <h2>Time to Liquidate (TTL)</h2>
+          <span className="page-kicker">Liquidity risk</span>
+          <h2>Time to liquidate</h2>
         </div>
-        <span>
-          {positions.length} positions · Participation: {(participation * 100).toFixed(0)}% ADV
-        </span>
+        <div className="seg research-seg" role="group" aria-label="Participation rate">
+          {PARTICIPATION_STEPS.map((step) => (
+            <button
+              key={step}
+              type="button"
+              aria-pressed={participation === step}
+              onClick={() => setParticipation(step)}
+            >
+              {Math.round(step * 100)}%
+            </button>
+          ))}
+        </div>
       </div>
 
       <p className="sub">
-        Estimates the sessions required to exit positions at a given participation rate without market disruption.
+        Sessions required to exit each position at {Math.round(participation * 100)}% of its average
+        daily volume. {positions.length} position{positions.length === 1 ? "" : "s"}
+        {unmeasurable > 0 && `, ${unmeasurable} without enough volume history to measure`}.
       </p>
 
-      <div className="compact-grid-3col" style={{ margin: "14px 0" }}>
-        <div className="card" style={{ padding: "10px" }}>
-          <span className="section-note">Slowest Leg</span>
+      <div className="compact-grid-3col liquidity-facts">
+        <div className="card">
+          <span className="section-note">Slowest leg</span>
           <strong>{report.slowestLeg ?? "—"}</strong>
-          <small>{report.bookDaysToLiquidate ? `${report.bookDaysToLiquidate.toFixed(1)} sessions` : "Unmeasurable"}</small>
+          <small>
+            {report.bookDaysToLiquidate != null
+              ? `${report.bookDaysToLiquidate.toFixed(1)} sessions`
+              : "No position has measurable volume"}
+          </small>
         </div>
-        <div className="card" style={{ padding: "10px" }}>
-          <span className="section-note">Clearable 1-Session</span>
-          <strong>{(report.shareClearableInOneSession * 100).toFixed(0)}%</strong>
-          <small>Positions exitable in ≤1 session</small>
+        <div className="card">
+          <span className="section-note">Clearable in one session</span>
+          <strong className="num">{(report.shareClearableInOneSession * 100).toFixed(0)}%</strong>
+          <small>Of measured positions</small>
         </div>
-        <div className="card" style={{ padding: "10px" }}>
-          <span className="section-note">TTL Bottleneck HHI</span>
-          <strong>{conc?.hhi ? conc.hhi.toFixed(2) : "—"}</strong>
-          <small>Concentration of unwind horizon</small>
+        <div className="card">
+          <span className="section-note">Unwind concentration</span>
+          <strong className="num">{concentration?.hhi != null ? concentration.hhi.toFixed(2) : "—"}</strong>
+          <small>HHI across exit horizons</small>
         </div>
       </div>
 
@@ -70,45 +124,62 @@ export default function LiquidityPanel({ positions, advMap }: LiquidityPanelProp
           <thead>
             <tr>
               <th>Symbol</th>
-              <th>Notional</th>
-              <th>ADV (20d)</th>
-              <th>Position / ADV</th>
-              <th>Days to Exit</th>
+              <th className="num">Notional</th>
+              <th className="num">ADV (20d)</th>
+              <th className="num">Position / ADV</th>
+              <th className="num">Days to exit</th>
               <th>Band</th>
-              <th>Exit Probe</th>
+              <th>Exit probe</th>
             </tr>
           </thead>
           <tbody>
-            {report.rows.map((r) => {
-              const quoteKey = `${r.symbol}-${r.notional > 0 ? "SELL" : "BUY"}`;
-              const quote = quotes[quoteKey];
-              const isLoading = loading[quoteKey];
+            {report.rows.map((row) => {
+              const key = `${row.symbol}-${row.notional > 0 ? "SELL" : "BUY"}`;
+              const quote = quotes[key];
+              const error = errors[key];
 
               return (
-                <tr key={r.symbol}>
-                  <td><strong>{r.symbol}</strong></td>
-                  <td>${fmt(Math.abs(r.notional))}</td>
-                  <td>{r.adv ? `$${fmt(r.adv)}` : "—"}</td>
-                  <td>{r.adv && r.adv > 0 ? `${(Math.abs(r.notional) / r.adv * 100).toFixed(1)}%` : "—"}</td>
-                  <td>{r.daysToLiquidate ? `${r.daysToLiquidate.toFixed(1)}d (${r.sessionsToExit}s)` : "—"}</td>
-                  <td>
-                    <span className={`pill is-${r.band === "illiquid" ? "critical" : r.band === "moderate" ? "warning" : "good"}`}>
-                      {r.band}
-                    </span>
+                <tr key={row.symbol}>
+                  <td><strong>{row.symbol}</strong></td>
+                  <td className="num">${fmt(Math.abs(row.notional))}</td>
+                  <td className="num">{row.adv ? `$${fmt(row.adv)}` : "—"}</td>
+                  <td className="num">
+                    {row.adv && row.adv > 0
+                      ? `${((Math.abs(row.notional) / row.adv) * 100).toFixed(1)}%`
+                      : "—"}
+                  </td>
+                  <td className="num">
+                    {row.daysToLiquidate != null
+                      ? `${row.daysToLiquidate.toFixed(1)}d (${row.sessionsToExit}s)`
+                      : "—"}
                   </td>
                   <td>
-                    {quote ? (
+                    <span className={`pill is-${BAND_TONE[row.band] ?? "neutral"}`}>{row.band}</span>
+                  </td>
+                  <td>
+                    {/* Three outcomes, and the failure is one of them. The probe
+                        used to swallow every error, so a 503 for a symbol with
+                        no live book looked exactly like a button nobody had
+                        pressed. */}
+                    {error ? (
+                      <small className="liquidity-probe__error">{error}</small>
+                    ) : quote ? (
                       <small>
-                        Slippage: {quote.expectedSlippageBps ? `${quote.expectedSlippageBps.toFixed(1)} bps` : "—"} ({quote.fetchedAt})
+                        {quote.expectedSlippageBps != null
+                          ? `${quote.expectedSlippageBps.toFixed(1)} bps`
+                          : "not priced"}
+                        {!quote.fillable && ` · book covers $${fmt(quote.routedNotional)} of it`}
+                        {" · "}
+                        {quote.fetchedAt}
                       </small>
                     ) : (
                       <button
                         type="button"
                         className="small"
-                        disabled={isLoading}
-                        onClick={() => fetchExitQuote(r.symbol, r.notional, r.notional > 0)}
+                        disabled={Boolean(loading[key])}
+                        onClick={() => void fetchExitQuote(row.symbol, row.notional, row.notional > 0)}
                       >
-                        {isLoading ? "Probing..." : "Price Exit"}
+                        {loading[key] ? "Probing…" : "Price exit"}
                       </button>
                     )}
                   </td>
@@ -119,9 +190,12 @@ export default function LiquidityPanel({ positions, advMap }: LiquidityPanelProp
         </table>
       </div>
 
-      <p className="research-note" style={{ marginTop: "12px" }}>
-        Time to liquidate assumes volume is available every day at the stated participation rate ({participation * 100}% ADV).
-        Treat these estimates as a floor for market impact during stressed unwinds.
+      <p className="research-note">
+        A horizon assumes the stated share of average daily volume is available every session, which
+        a stressed tape does not offer — read these as a floor, not a forecast. Positions with fewer
+        than {MIN_ADV_OBSERVATIONS} volume observations are banded{" "}
+        <strong>unmeasurable</strong> rather than estimated. Exit probes walk the live consolidated
+        book at the moment you press them.
       </p>
     </div>
   );

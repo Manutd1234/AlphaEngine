@@ -13399,6 +13399,41 @@ h4 {
 .signal-workflow__node[data-state="absent"] .signal-workflow__meta em,
 .signal-workflow__node[data-state="unknown"] .signal-workflow__meta em { color: var(--text-muted); }
 
+/* ---------- liquidity / time-to-liquidate ---------- */
+
+/* The three facts above the table. Replaces four inline `style` objects the
+   panel carried, which is the shape this file exists to avoid. */
+.liquidity-facts {
+  margin: 14px 0;
+}
+
+/* Stacked, because the three children are inline elements and ran together as
+   "Slowest legBNBUSDT0.7 sessions" without this. */
+.liquidity-facts .card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  margin-bottom: 0;
+}
+
+.liquidity-facts .card strong {
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.liquidity-facts .card small {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+/* A probe that failed says why, in the tone of a warning rather than a value —
+   the old hook swallowed the reason and rendered the same "—" a fresh row has. */
+.liquidity-probe__error {
+  color: var(--warning-text);
+}
+
 /* The line that lets a reader check the state above rather than trust it. */
 .signal-workflow__source {
   margin-top: 6px;

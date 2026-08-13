@@ -28,6 +28,7 @@ import { BookChrome, BookFallback, BookSourceControl, CrossLinkTile } from "@/co
 import EquityCurve from "@/components/portfolio/EquityCurve";
 import ExecutionHandoff, { type HandoffIntent } from "@/components/portfolio/ExecutionHandoff";
 import PnlWaterfall from "@/components/portfolio/PnlWaterfall";
+import LiquidityPanel from "@/components/portfolio/LiquidityPanel";
 import WorkingOrders from "@/components/portfolio/WorkingOrders";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import { compact, fmt, pct, signedPct, usd } from "@/lib/format";
@@ -549,6 +550,12 @@ export default function PortfolioWorkspace({
             </div>
           )}
         </div>
+
+        {/* The exit, under the positions that will have to make it. A weight is
+            only as real as the way out of it, and `useBook` has been computing
+            `advBySymbol` from the same bars as the risk figures on every poll
+            since those shipped — with nothing reading it until now. */}
+        <LiquidityPanel positions={positions} advMap={view.advBySymbol} />
 
         {/* Committed capital sits directly under the positions it will become.
             `active` gates the poll: panels stay mounted so a draft survives a
