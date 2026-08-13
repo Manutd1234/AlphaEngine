@@ -1,0 +1,90 @@
+# CLAUDE.md
+
+AlphaEngine — a FastAPI risk gateway, a Next.js desk workspace, and a stateless
+research service, sharing one append-only audit log. British spelling
+throughout, in prose and in identifiers.
+
+`SETUP.md` is the running instructions. This file is the things an agent
+otherwise gets wrong.
+
+## Three facts that cost an hour each
+
+**1. The virtualenv must be named `venv`, at `Part2_Infrastructure/venv`.**
+`web/package.json`'s `dev:gateway` runs `cd .. && ./venv/bin/python`, and
+`web/scripts/start-dev-all.mjs` spawns `resolve(rootDir, "venv/bin/python")`
+with no existence check and no `error` handler on the child process. A `.venv`,
+a conda env or a uv env produces an unhandled `ENOENT` that looks nothing like
+"wrong Python path". Never rename it, never add a second one.
+
+**2. The web app has no `lint` script.** `web/package.json` has exactly `dev`,
+`dev:gateway`, `dev:all`, `prebuild`, `build`, `catalog:refresh`, `start`,
+`typecheck`, `test`. `npm run lint` there fails as a missing script — it is not
+a broken linter. Linting is Python-side: `ruff check .` from
+`Part2_Infrastructure`, configured in `pyproject.toml`, installed only by
+`requirements-dev.txt`.
+
+**3. `npm run build` runs a contract gate before Next.js starts.** The
+`prebuild` hook is `scripts/check-gateway-openapi-digest.mjs`: it canonicalises
+`tools/openapi.json`, SHA-256s it, and compares against the digest committed in
+`lib/gateway-openapi-digest.generated.ts`. A mismatch exits 1 with
+`Gateway OpenAPI digest is stale`. That is the contract between two separately
+deployed units asserting itself, not a build failure. If you changed a gateway
+route, regenerate the snapshot (`python tools/export_openapi.py`) and update the
+digest module deliberately.
+
+## House rules
+
+These are enforced by tests, not by convention — `web/tests/house-rules.test.ts`,
+`motion.test.ts`, `forced-colors.test.ts`. Breaking one turns the suite red.
+
+- **No new npm dependencies.** The workspace ships on Next, React,
+  `lucide-react`, `@supabase/supabase-js` and `oracledb`. Everything else is
+  written here. Reach for a package and you are changing the argument the
+  project makes about itself.
+- **No emoji in UI.** Not in components, not in `app/`. The status vocabulary is
+  typographic marks — `● ▲ ✕ ○ ◌ ✓ ✗ →` — which inherit the text colour and
+  render in the app's own font. Coloured geometric shapes (🟢🔴🟡) count as emoji
+  and are banned for exactly the reason they are tempting: they encode state in
+  a vendor's picture.
+- **No colour-only meaning.** Anything a colour says, a mark, a label or a
+  border must also say. `forced-colors.test.ts` holds the line for Windows High
+  Contrast.
+- **Null is never coerced to zero.** A missing measurement renders as a dash and
+  says why it is missing. `?? 0` on a nullable metric is the defect this
+  codebase is most alert to: it turns "we do not know" into "it is fine", and it
+  passes every type check on the way through.
+- **`prefers-reduced-motion` is respected everywhere.** One reduce block, one
+  motion ladder in `:root`, no hardcoded transition durations, and components
+  that animate in JS (`NumberTicker`) check the query themselves.
+- **Empty results are reported, not hidden.** A panel with nothing to show says
+  so; it does not render as though it were still loading.
+
+## Layout
+
+```
+Part2_Infrastructure/
+  main.py, config.py, modules/   FastAPI risk gateway (port 8000)
+  tools/                         fixture generators, OpenAPI export, probes
+  tests/                         gateway pytest suite
+  web/                           Next.js desk workspace (port 3000)
+  OpenBB_Service/                stateless research service, own pyproject
+  developer-console/             separate Cloudflare/vinext app, needs Node >=22.13
+oracle/, supabase/               schema DDL for the optional backends
+docs/                            feature tour, runbook, latency budget
+```
+
+## Working here
+
+- Node 22 (`.nvmrc`), Python 3.12 for anything that must match CI. npm, not
+  yarn or pnpm — `package-lock.json` and `npm ci` are what CI uses.
+- Run the full check before claiming something works:
+  `venv/bin/python -m pytest`, `npm test`, `npm run typecheck`,
+  `venv/bin/python -m ruff check .`. `/verify` does all of it and reports real
+  numbers.
+- Never quote a test count from memory or from a README. Run the suite and read
+  the number off the output. The counts in prose here have drifted before.
+- The gateway's maths exists twice — Python for the server and the Telegram
+  companion, TypeScript for the browser, because neither runtime can call the
+  other. Python is the reference. Change a formula on one side and the parity
+  fixtures make the other side fail; that is the design, so regenerate the
+  fixture deliberately rather than loosening the tolerance.
