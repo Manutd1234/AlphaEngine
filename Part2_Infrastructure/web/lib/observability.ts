@@ -217,8 +217,16 @@ const LATENCY_WINDOW_MS = 15 * 60_000;
 
 const latencySamples = new Map<string, LatencySample[]>();
 
-export function recordLatency(key: string, ms: number, ok: boolean): void {
-  const sample = { ts: Date.now(), ms, ok };
+/**
+ * `at` is the observation time and defaults to now.
+ *
+ * Parameterised only so bucketing can be tested: every property worth pinning
+ * about `latencyWindow` is about samples landing in DIFFERENT buckets, and a
+ * test cannot produce that if the clock is read internally. Production callers
+ * pass nothing and get `Date.now()`, exactly as before.
+ */
+export function recordLatency(key: string, ms: number, ok: boolean, at = Date.now()): void {
+  const sample = { ts: at, ms, ok };
   const bucket = latencySamples.get(key) ?? [];
   bucket.push(sample);
   if (bucket.length > LATENCY_CAPACITY) bucket.splice(0, bucket.length - LATENCY_CAPACITY);
@@ -288,6 +296,89 @@ export function latencyKeys(now = Date.now()): string[] {
   return [...latencySamples.entries()]
     .filter(([, bucket]) => bucket.some((s) => s.ts >= cutoff))
     .map(([key]) => key);
+}
+
+/**
+ * The history behind the scalars, bucketed for the wire.
+ *
+ * `latencySamples` has held timestamped samples the whole time and only
+ * `statsOf` aggregates ever escaped, so the client could show a p95 and had no
+ * way to show whether it had been climbing. This exposes the shape without
+ * shipping the raw samples: ~1,300 `{ts,ms,ok}` would be about 50KB per poll,
+ * and 15 one-minute buckets per key is 2-3KB.
+ *
+ * The per-bucket statistic is p50, NOT p95. A 60-second bucket on this traffic
+ * holds single digits, and a "p95" over three calls is the maximum wearing a
+ * percentile's name — the exact theatre `LATENCY_MIN_SAMPLES` exists to stop.
+ * The headline stays the 15-minute p95 from `latencyStats`; this is the trend
+ * beneath it, and the caption says which is which.
+ *
+ * Reads through `windowedSamples`, so the sparkline and the chip describe the
+ * same pool including the gateway-merged overlay. Two different sources for one
+ * number is how they end up disagreeing on screen.
+ */
+export const LATENCY_BUCKET_MS = 60_000;
+export const LATENCY_BUCKET_MIN_SAMPLES = 3;
+
+export interface LatencyWindowSeries {
+  key: string;
+  /**
+   * Oldest first. `null` where fewer than `minSamples` calls landed in the
+   * bucket — never 0, because a minute with no traffic is not a fast minute.
+   */
+  p50: Array<number | null>;
+  n: number[];
+}
+
+export interface LatencyWindow {
+  /** Epoch ms of the START of bucket 0. */
+  startedAt: number;
+  bucketMs: number;
+  buckets: number;
+  minSamplesPerBucket: number;
+  /** Only keys with at least one sample in the window; an all-null row is omitted. */
+  series: LatencyWindowSeries[];
+}
+
+export function latencyWindow(
+  now = Date.now(),
+  bucketMs = LATENCY_BUCKET_MS,
+  minSamples = LATENCY_BUCKET_MIN_SAMPLES,
+): LatencyWindow {
+  const buckets = Math.max(1, Math.round(LATENCY_WINDOW_MS / bucketMs));
+  const startedAt = now - buckets * bucketMs;
+
+  const keys = new Set<string>(latencySamples.keys());
+  if (sharedFresh(now)) for (const key of shared!.latency.keys()) keys.add(key);
+
+  const series: LatencyWindowSeries[] = [];
+  for (const key of keys) {
+    const samples = windowedSamples(key, now);
+    if (!samples.length) continue;
+
+    const lanes: number[][] = Array.from({ length: buckets }, () => []);
+    for (const sample of samples) {
+      const index = Math.floor((sample.ts - startedAt) / bucketMs);
+      if (index >= 0 && index < buckets) lanes[index].push(sample.ms);
+    }
+
+    const p50 = lanes.map((lane) => {
+      if (lane.length < minSamples) return null;
+      return percentile([...lane].sort((a, b) => a - b), 50);
+    });
+    // An all-null row is a key with traffic too thin to plot anywhere in the
+    // window; omitting it is the difference between "no line" and "a flat line".
+    if (p50.every((v) => v == null)) continue;
+    series.push({ key, p50, n: lanes.map((lane) => lane.length) });
+  }
+
+  return {
+    startedAt,
+    bucketMs,
+    buckets,
+    minSamplesPerBucket: minSamples,
+    series: series.sort((a, b) => a.key.localeCompare(b.key)),
+  };
 }
 
 /** p50 across every provider's window — the "is the data plane slow" number. */

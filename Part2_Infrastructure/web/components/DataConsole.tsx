@@ -24,7 +24,7 @@ import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSu
 import FreshnessStamp from "@/components/workspace/FreshnessStamp";
 import PageHead from "@/components/workspace/PageHead";
 import type { DataWorkItem } from "@/lib/data-work-queue";
-import { deriveDataTrust } from "@/lib/data-trust";
+import { deriveDataTrust, deriveTrustSlis } from "@/lib/data-trust";
 import { fmt } from "@/lib/format";
 import { DATA_SECTIONS, type DataSection } from "@/lib/sections";
 import type { SystemHealthView } from "@/lib/use-system-health";
@@ -204,24 +204,30 @@ function metricsForSection(
               ? "good"
               : "neutral",
     },
-    {
-      label: "Market feeds up",
-      value: health?.platform ? `${freshFeeds}/${feeds.length}` : "—",
-      note: health?.platform ? (health.platform.market_data.synthetic_active ? "synthetic feed active" : "gateway observation") : "gateway not observed",
-      tone: health?.platform && freshFeeds === feeds.length && feeds.length > 0 ? "good" : "warn",
-    },
-    {
-      label: "Quarantine buffer",
-      value: health?.quarantine ? String(quarantined) : "—",
-      note: quarantined ? "review held or flagged payloads" : "bounded runtime evidence",
-      tone: rejected
-        ? "bad"
-        : quarantined
-          ? "warn"
-          : health?.quarantine && validation?.evaluated
-            ? "good"
-            : "neutral",
-    },
+    /**
+     * Three of the four tiles this section was asked for do not exist as
+     * measurements in this system, so they are RENAMED rather than faked, and
+     * each says what it actually counts. `deriveTrustSlis` carries the full
+     * reasoning; the short version:
+     *
+     *   SLA %          no SLA target is defined anywhere → books within the
+     *                  freshness budget the gateway publishes
+     *   packet rate    no sequence-gap counter exists on any feed → reconnects,
+     *                  each of which IS an unmeasured gap
+     *   uptime %       providers are observed only when called, so per-provider
+     *                  uptime is unmeasurable → success rate of the attempts
+     *                  actually made, gated on a sample floor
+     *
+     * The fourth, last sync, ships as asked — and reads the GATEWAY's
+     * observation time rather than `fetchedAt`, because fetching the health
+     * response does not make an old feed fresh.
+     */
+    ...deriveTrustSlis(health).map((sli) => ({
+      label: sli.label,
+      value: sli.value,
+      note: sli.note,
+      tone: sli.tone === "unknown" ? ("neutral" as const) : sli.tone,
+    })),
   ];
 }
 

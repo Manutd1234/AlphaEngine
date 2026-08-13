@@ -19,6 +19,7 @@ import {
   cacheStats,
   eventCursor,
   globalLatency,
+  latencyWindow,
   instanceId,
   latencyStats,
   recordLatency,
@@ -189,6 +190,10 @@ export async function buildSystemHealthSnapshot(priority: Priority): Promise<Sys
       latency: globalLatency(),
       cache: cacheStats().total,
     },
+    /* The trend beneath the scalars above. The samples have always been here;
+       only the aggregates ever left the server, so the client could report a
+       p95 and had no way to say whether it was climbing. */
+    latencyWindow: latencyWindow(),
     providers,
     venues: DIRECT_VENUES.map((venue) => ({
       ...venue,

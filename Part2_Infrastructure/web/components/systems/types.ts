@@ -233,6 +233,21 @@ export interface GatewayOpsSnapshot {
 export type HealthSourceState = "fresh" | "stale" | "not_configured" | "unreachable" | "invalid";
 
 /** Freshness belongs to each source; one current provider read cannot freshen an old gateway sample. */
+export interface LatencyWindowSeries {
+  key: string;
+  /** Oldest first. `null` = too few calls in that bucket to state a figure. */
+  p50: Array<number | null>;
+  n: number[];
+}
+
+export interface LatencyWindow {
+  startedAt: number;
+  bucketMs: number;
+  buckets: number;
+  minSamplesPerBucket: number;
+  series: LatencyWindowSeries[];
+}
+
 export interface HealthSourceFreshness {
   state: HealthSourceState;
   observedAt: string | null;
@@ -296,6 +311,12 @@ export interface SystemHealth {
    * Authoritative trading-path state. Absent when the gateway is unavailable,
    * not configured, or an older gateway has not shipped schema v1 yet.
    */
+  /**
+   * Bucketed per-key latency history behind `summary.latency` and each
+   * provider's scalars. OPTIONAL, per this file's rolling-deploy rule: an older
+   * route simply degrades to "no sparkline" rather than to a crash.
+   */
+  latencyWindow?: LatencyWindow;
   platform?: GatewayOpsSnapshot;
   /** Per-source observation age; consumers must not infer freshness from fetchedAt alone. */
   sources?: {

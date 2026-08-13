@@ -1,6 +1,7 @@
 "use client";
 
 import CategoryBars, { type BarRow } from "@/components/charts/CategoryBars";
+import GappedSparkline from "@/components/charts/GappedSparkline";
 import DonutChart, { type DonutSlice } from "@/components/common/DonutChart";
 import type { InspectResponse, SystemHealth } from "@/components/systems/types";
 import {
@@ -67,6 +68,7 @@ export default function DataTrustOverview({
   // re-checked — folding them together would report contract coverage the
   // instance never performed.
   const validationWindow = health?.validation ?? null;
+  const latencyWindow = health?.latencyWindow ?? null;
   const provenanceRows: BarRow[] = Object.entries(health?.cache.byCapability ?? {})
     .map(([capability, counters]) => {
       const checks = validationWindow?.byCapability?.[capability];
@@ -141,6 +143,135 @@ export default function DataTrustOverview({
           Each capability's bar is that proportion already — cache hits carry no
           contract check because nothing was fetched, and every fetch that did
           happen is shown as passed, flagged, or unevaluated. */}
+      {/* ------------------------------------------------------------------
+          Payload verdict and findings composition — TWO MARKS, TWO DENOMINATORS.
+
+          The obvious chart, "passed vs fatal+warn+drift", cannot be drawn:
+          `ValidationCounts` documents that `passed` is a PAYLOAD count while
+          fatal/warn/drift are FINDING counts — one payload can carry three
+          warnings — so a single ring mixing them would not sum to `evaluated`.
+          That is exactly the arithmetic this tab exists to be trusted about.
+
+          So: a ring over payloads, bars over findings, and a sentence saying a
+          green ring means no FATAL finding rather than a clean one.
+          ------------------------------------------------------------------ */}
+      {/* ------------------------------------------------------------------
+          Response history per source.
+
+          The samples behind these have existed on the server the whole time and
+          only the aggregates ever escaped, so this tab could report a p95 and
+          had no way to say whether it had been climbing.
+
+          The BUCKET statistic is p50 and the HEADLINE is the 15-minute p95, and
+          they are labelled apart: a 60-second bucket holds single-digit calls
+          here, and a "p95" over three of them is the maximum wearing a
+          percentile's name.
+          ------------------------------------------------------------------ */}
+      <section className="card data-trust-latency" aria-labelledby="trust-latency-heading" hidden={!summary}>
+        <div className="portfolio-card-heading">
+          <div>
+            <span className="page-kicker">Freshness</span>
+            <h2 id="trust-latency-heading">Per-source response history</h2>
+          </div>
+          <span className="section-note">
+            {latencyWindow ? `${latencyWindow.buckets} × ${Math.round(latencyWindow.bucketMs / 1000)}s` : "no history"}
+          </span>
+        </div>
+
+        {!latencyWindow?.series.length ? (
+          <p className="muted">
+            No source has been called often enough in the last fifteen minutes to plot. This is a
+            quiet instance, not a broken one — the window fills as the desk asks for data.
+          </p>
+        ) : (
+          <ul className="spark-rows">
+            {latencyWindow.series.map((row) => {
+              const stats = row.key.startsWith("venue:")
+                ? health?.venues.find((v) => `venue:${v.id}` === row.key)?.latency
+                : health?.providers.find((p) => p.id === row.key)?.latency;
+              const gaps = row.p50.filter((v) => v == null).length;
+              return (
+                <li key={row.key}>
+                  <span className="spark-rows__label">{row.key.replace(/^venue:/, "")}</span>
+                  <GappedSparkline
+                    points={row.p50}
+                    ariaLabel={`${row.key} response time per minute`}
+                    emptyNote="too few calls to plot"
+                    tone={stats && stats.errorRate > 0.05 ? "warn" : "accent"}
+                  />
+                  <span className="spark-rows__stat num">
+                    {stats?.p95 != null ? `p95 ${Math.round(stats.p95)}ms` : "—"}
+                    {stats?.n ? ` · n=${stats.n}` : ""}
+                    {gaps ? ` · ${gaps} quiet min` : ""}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        <p className="research-note">
+          Each spark is the <strong>median per minute</strong>; the figure beside it is the
+          fifteen-minute <strong>p95</strong>. They answer different questions and are not the same
+          number. A minute with fewer than {latencyWindow?.minSamplesPerBucket ?? 3} calls is drawn
+          as a gap rather than joined across, because too little traffic to measure and a fast
+          minute look identical once the line is bridged.
+        </p>
+      </section>
+
+      <section className="card data-trust-verdict-ring" aria-labelledby="trust-verdict-ring-heading" hidden={!summary}>
+        <div className="portfolio-card-heading">
+          <div>
+            <span className="page-kicker">Contract validation</span>
+            <h2 id="trust-verdict-ring-heading">Payload verdict &amp; findings</h2>
+          </div>
+          <span className="section-note">
+            {validationWindow ? `${validationWindow.evaluated} evaluated` : "nothing evaluated yet"}
+          </span>
+        </div>
+
+        <div className="data-trust-verdict-ring__grid">
+          <DonutChart
+            slices={[
+              { label: "no fatal finding", value: validationWindow?.passed ?? 0, colour: "var(--status-good)" },
+              {
+                label: "fatal finding",
+                value: Math.max(0, (validationWindow?.evaluated ?? 0) - (validationWindow?.passed ?? 0)),
+                colour: "var(--status-critical)",
+              },
+            ]}
+            total={validationWindow?.evaluated || undefined}
+            centreValue={String(validationWindow?.evaluated ?? 0)}
+            centreLabel="payloads"
+            emptyNote="No payload has been evaluated in this function instance. Zero evidence is not a clean bill of health."
+            ariaLabel="Evaluated payloads by verdict"
+          />
+
+          <CategoryBars
+            rows={[
+              {
+                label: "Findings",
+                note: `${validationWindow?.fatal ?? 0} fatal · ${validationWindow?.warn ?? 0} warn · ${validationWindow?.drift ?? 0} drift`,
+                segments: [
+                  { label: "fatal", value: validationWindow?.fatal ?? 0, color: "var(--status-critical)" },
+                  { label: "warn", value: validationWindow?.warn ?? 0, color: "var(--status-warning)" },
+                  { label: "drift", value: validationWindow?.drift ?? 0, color: "var(--series-2)" },
+                  { label: "not evaluated", value: validationWindow?.notEvaluated ?? 0, color: "var(--axis)" },
+                ],
+              },
+            ]}
+            ariaLabel="Validation findings by severity"
+            emptyNote="No finding has been raised in this window."
+          />
+        </div>
+
+        <p className="research-note">
+          Findings, not payloads — one payload can carry several, so the two marks above have
+          different denominators and are deliberately not combined. A green ring means{" "}
+          <strong>no fatal finding</strong>; warnings and drift may remain.
+        </p>
+      </section>
+
       <section className="card data-trust-provenance" aria-labelledby="trust-provenance-heading" hidden={!summary}>
         <div className="portfolio-card-heading">
           <div>
