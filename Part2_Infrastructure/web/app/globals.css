@@ -68,7 +68,11 @@
      other jobs, so the tree carries its own accent step. */
   --json-accent: #2563eb;
 
-  --radius: 14px;
+  /* `--radius` used to be declared here at 14px, duplicating `--radius-lg`
+     below it to the pixel. Two names for one value is how a ladder stops being
+     a ladder: half the sheet reached for one, half for the other, and neither
+     could be retuned without hunting the other down. One name each now —
+     sm 8 / md 10 / lg 14 / pill 999. */
   --shadow-sm: 0 1px 2px rgba(24, 24, 27, 0.04), 0 8px 24px rgba(24, 24, 27, 0.04);
   /* The type stacks. --font-sans/--font-mono are published on <html> by
      next/font in app/layout.tsx — self-hosted variable Inter and JetBrains
@@ -535,7 +539,7 @@ a:not([class]):active {
 .card {
   background: var(--surface-1);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   padding: 20px;
   margin-bottom: 16px;
 }
@@ -1506,9 +1510,57 @@ button.icon {
   color: var(--text-secondary);
   border-radius: 6px;
 }
+/*
+ * A selected segment is not a call to action.
+ *
+ * This used to fill with `--series-1` and set `color: #fff` — the exact
+ * treatment of **Send order**, **Sign in** and **Promote strategy**. Twenty-two
+ * components render a `.seg`, across all eight tabs, so choosing a log level, a
+ * chart's colouring or a blotter filter shouted in the same voice as submitting
+ * an order. When everything is emphasised, the emphasis stops carrying
+ * information — and the things it should have been reserved for are the ones
+ * that spend money.
+ *
+ * The correct treatment already existed one rule away, scoped to the rail's own
+ * segments: a raised surface and a 1px shadow. Promoted here, it reserves
+ * saturated accent for genuine writes app-wide in a single edit.
+ *
+ * Selection is still carried by three things that are not colour — the raised
+ * surface, the shadow, and `aria-pressed` — which is the house rule and what
+ * survives forced-colors.
+ */
 .seg button[aria-pressed="true"] {
-  background: var(--series-1);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--text-primary) 8%, transparent);
+}
+
+/*
+ * The exception, and the reason it is not optional.
+ *
+ * `OrderTicket`'s BUY/SELL picker is a `.seg` with no styling of its own — it
+ * inherited its entire selected state from the rule above. Quieting that rule
+ * alone would have made the control deciding WHICH DIRECTION AN ORDER GOES
+ * exactly as loud as a log-level filter, on the one screen where misreading it
+ * sends a wrong-way trade.
+ *
+ * So it keeps a saturated fill, and takes its hue from the side rather than
+ * from the app accent: the desk already colours long and short this way
+ * everywhere else, so buy and sell are told apart here by the same vocabulary
+ * rather than by position alone. Direction is never carried by colour on its
+ * own — the word BUY or SELL is the label.
+ */
+.seg--side button[aria-pressed="true"] {
   color: #fff;
+  box-shadow: none;
+}
+
+.seg--side button[value="BUY"][aria-pressed="true"] {
+  background: var(--diverging-pos);
+}
+
+.seg--side button[value="SELL"][aria-pressed="true"] {
+  background: var(--diverging-neg);
 }
 /* The stress panel's fifth segment: inert until a hand shock exists. Dimmed,
    never hidden — an absent control reads as a missing feature, and this one is
@@ -1769,7 +1821,7 @@ tbody tr[tabindex]:focus-visible {
   width: min(var(--panel-w, 300px), calc(100vw - 28px));
   padding: var(--space-4);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   box-shadow: var(--shadow-sm);
 }
@@ -2605,7 +2657,7 @@ button.primary-action:hover:not(:disabled) {
   min-height: 142px;
   padding: 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   display: flex;
   flex-direction: column;
@@ -2688,7 +2740,7 @@ button.primary-action:hover:not(:disabled) {
 .card {
   background: var(--surface-1);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   padding: 14px 16px;
   margin-bottom: 12px;
 }
@@ -2873,7 +2925,7 @@ button.primary-action:hover:not(:disabled) {
   margin-bottom: 16px;
   padding: 16px 18px;
   border: 1px solid color-mix(in srgb, var(--series-1) 28%, var(--border));
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background: linear-gradient(110deg, color-mix(in srgb, var(--series-1) 9%, var(--surface-1)), var(--surface-1));
   display: flex;
   align-items: center;
@@ -2908,7 +2960,7 @@ button.primary-action:hover:not(:disabled) {
   margin-bottom: 16px;
   padding: 13px 15px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--surface-2) 62%, var(--surface-1));
   display: grid;
   grid-template-columns: minmax(210px, 0.85fr) minmax(0, 1.7fr);
@@ -4264,7 +4316,7 @@ button.console-stat:hover:not(:disabled) {
 .console-node__badge {
   margin-left: 6px;
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--series-1);
   color: #fff;
   letter-spacing: 0.04em;
@@ -5303,7 +5355,7 @@ button.console-stat:hover:not(:disabled) {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   padding: 2px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface-3);
   color: var(--text-muted);
 }
@@ -5408,7 +5460,7 @@ button.console-stat:hover:not(:disabled) {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--surface-0) 30%, transparent);
 }
 
@@ -5478,7 +5530,7 @@ button.console-stat:hover:not(:disabled) {
   gap: 8px;
   padding: 16px 22px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   box-shadow: var(--shadow-sm);
 }
@@ -5899,7 +5951,7 @@ button.console-stat:hover:not(:disabled) {
 .headroom-card {
   padding: 12px 14px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
 }
 
@@ -5937,7 +5989,7 @@ button.console-stat:hover:not(:disabled) {
   font-weight: 700;
   letter-spacing: 0.04em;
   padding: 2px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--series-1) 15%, transparent);
   color: var(--series-1);
 }
@@ -6456,7 +6508,7 @@ button.console-stat:hover:not(:disabled) {
 .cockpit-meter {
   margin-top: 6px;
   height: 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface-3);
   overflow: hidden;
 }
@@ -6464,7 +6516,7 @@ button.console-stat:hover:not(:disabled) {
 .cockpit-meter__fill {
   display: block;
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   transition: width var(--dur-slow) var(--ease);
 }
 
@@ -6477,7 +6529,7 @@ button.console-stat:hover:not(:disabled) {
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.05em;
@@ -6959,7 +7011,7 @@ button.console-stat:hover:not(:disabled) {
   text-transform: lowercase;
   letter-spacing: 0.03em;
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface-2);
   color: var(--text-secondary);
   border: 1px solid var(--border);
@@ -7251,7 +7303,7 @@ button.console-stat:hover:not(:disabled) {
 .allocation-override-chip {
   margin-left: 8px;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 9.5px;
   font-weight: 750;
   letter-spacing: 0.09em;
@@ -7465,7 +7517,7 @@ button.console-stat:hover:not(:disabled) {
 }
 
 .workspace-subtab-panel:focus-visible {
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--series-1) 35%, transparent);
 }
 
@@ -7486,7 +7538,7 @@ button.console-stat:hover:not(:disabled) {
   gap: 12px;
   padding: 9px 12px;
   border: 1px solid color-mix(in srgb, var(--data-accent) 26%, var(--border));
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background:
     linear-gradient(110deg, color-mix(in srgb, var(--data-accent) 6%, var(--surface-1)), var(--surface-1) 48%),
     var(--surface-1);
@@ -7788,7 +7840,7 @@ button.data-trust-action {
   margin: 0;
   padding: 13px 14px;
   border-left: 3px solid var(--axis);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   color: var(--text-primary);
   text-align: left;
@@ -8020,7 +8072,7 @@ button.data-trust-action > i {
 .data-workboard__kinds button span {
   min-width: 17px;
   padding: 1px 5px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--text-muted) 11%, transparent);
   font-family: var(--mono);
   font-size: 9px;
@@ -8220,7 +8272,7 @@ button.data-trust-action > i {
   min-width: 26px;
   padding: 3px 7px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface-1);
   color: var(--text-secondary);
   font-family: var(--mono);
@@ -8357,7 +8409,7 @@ button.data-trust-action > i {
   width: fit-content;
   min-height: 19px;
   padding: 2px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -9917,7 +9969,7 @@ button.data-trust-action > i {
   width: fit-content;
   padding: 3px 8px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--text-secondary);
   font-size: 9.5px;
   font-weight: 750;
@@ -10071,7 +10123,7 @@ button.data-trust-action > i {
   width: fit-content;
   padding: 3px 7px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--text-secondary);
   font-size: 9.5px;
   font-weight: 750;
@@ -10115,7 +10167,7 @@ button.data-trust-action > i {
   margin: -2px 0 8px;
   padding: 4px 8px;
   border: 1px solid color-mix(in srgb, var(--series-1) 28%, var(--border));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--series-1) 5%, var(--surface-1));
   color: var(--text-secondary);
   font-size: 10.5px;
@@ -10358,7 +10410,7 @@ button.data-trust-action > i {
 .operator-confirmation__badge {
   padding: 3px 7px;
   border: 1px solid color-mix(in srgb, var(--status-critical) 38%, var(--border));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--critical-text);
   font-size: 9px;
   font-weight: 750;
@@ -10524,7 +10576,7 @@ button.data-trust-action > i {
   min-height: 26px;
   padding: 4px 9px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface-2);
   color: var(--text-secondary);
   font-size: 10.5px;
@@ -11372,7 +11424,7 @@ button.data-trust-action > i {
   padding: 16px 24px;
   background: var(--surface-1);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
 }
 
 .next-step-footer__content {
@@ -12671,11 +12723,9 @@ button.primary-action:disabled {
   font-size: 11px;
 }
 
-.workspace-subtabs__actions .seg button[aria-pressed="true"] {
-  background: var(--surface-1);
-  color: var(--text-primary);
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--text-primary) 8%, transparent);
-}
+/* The rail's own override is gone: this treatment is the base rule now, which
+   is where it should have been. It was the only place in the sheet that had it
+   right. */
 
 .workspace-subtabs__actions button.primary-action {
   border-color: var(--series-1);
@@ -14807,7 +14857,7 @@ html:active-view-transition .view-panel {
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--verdict-fill) 14%, transparent);
   border: 1px solid color-mix(in srgb, var(--verdict-fill) 45%, transparent);
   flex-shrink: 0;

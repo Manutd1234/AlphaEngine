@@ -164,7 +164,7 @@ export default function MonteCarloDistribution({
             It resamples the same drivers as the Monte Carlo band on the Research equity chart —
             run research first, then come back.
           </p>
-          <button type="button" className="primary-action" onClick={onOpenResearch}>
+          <button type="button" className="text-action" onClick={onOpenResearch}>
             Open Research
           </button>
         </div>

@@ -324,11 +324,18 @@ export default function OrderTicket({
       ) : null}
 
       <div className="cockpit-ticket__form">
-        <div className="seg" role="group" aria-label="Side">
+        {/* `seg--side` is the one segmented control that keeps a saturated
+            fill. Selection everywhere else is a raised surface now, and the
+            control deciding which direction an order goes must not read as
+            quietly as a log-level filter. The hue comes from the side, matching
+            how the desk colours long and short elsewhere; the word is what
+            actually says which is which. */}
+        <div className="seg seg--side" role="group" aria-label="Side">
           {(["BUY", "SELL"] as const).map((option) => (
             <button
               key={option}
               type="button"
+              value={option}
               aria-pressed={side === option}
               onClick={() => onSideChange(option)}
             >

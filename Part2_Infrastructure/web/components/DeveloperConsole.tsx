@@ -51,16 +51,20 @@ interface ControlState {
 const CI_JOBS = [
   {
     name: "Gateway",
-    // Re-derived, not remembered. These three were 342/680/13 against a real
-    // 667/1976/13 — the pill below sums them, so the tab was advertising "1035
-    // tests" while the suites ran 2650. Each row's `command` is how to check.
-    count: 667,
+    // Re-derived, not remembered. These were 342/680/13 against a real
+    // 667/1976/13 once — the pill below sums them, so the tab was advertising
+    // "1035 tests" while the suites ran 2650. They then drifted again, which is
+    // what a hand-copied count does: 667/1976 against 691/2013 as measured on
+    // 2026-08-14. Each row's `command` is how to check, and checking is the
+    // point — this is a delivery console, so a number here that nobody can
+    // reproduce is the one kind of defect it exists to catch.
+    count: 691,
     command: "python -m pytest",
     evidence: "pytest · ruff · OpenAPI snapshot · money-path probe",
   },
   {
     name: "Web workspace",
-    count: 1976,
+    count: 2013,
     command: "npm test && npm run typecheck && npm run build",
     evidence: "domain tests · contract fixtures · strict TypeScript · Next.js build",
   },
@@ -444,7 +448,9 @@ function DeveloperOverview({
           <span><strong>{openWork.length}</strong> open tasks</span>
         </div>
         <div className="developer-cp-context__actions">
-          <button type="button" className="primary-action" onClick={onOpenResearch}>Research {workspaceSymbol}</button>
+          {/* Three cross-tab links, three identical treatments. One of them
+              used to wear the fill that Send order wears. */}
+          <button type="button" onClick={onOpenResearch}>Research {workspaceSymbol}</button>
           <button type="button" onClick={onOpenLive}>Open live book</button>
           <button type="button" onClick={onOpenReliability}>Open Reliability</button>
         </div>
@@ -465,7 +471,7 @@ function DeveloperPipelines({ view }: { view: SystemHealthView }) {
         </div>
         <div className="developer-cp-section-hero__actions">
           <StatusPill state={{ label: `${totalTests} tests`, detail: "Documented offline baseline across three suites.", tone: "info" }} />
-          <a className="primary-action" href={`${GITHUB_REPOSITORY_ROOT}/actions`} target="_blank" rel="noreferrer">Open GitHub Actions ↗</a>
+          <a className="text-action" href={`${GITHUB_REPOSITORY_ROOT}/actions`} target="_blank" rel="noreferrer">Open GitHub Actions ↗</a>
         </div>
       </section>
 
@@ -604,7 +610,7 @@ function DeveloperChanges() {
         <div><span>Repository evidence</span><h2>Code &amp; Diffs</h2><p>This runtime exposes the committed path manifest, not arbitrary source contents. GitHub remains the authenticated surface for blame, history, and executable diffs.</p></div>
         <div className="developer-cp-section-hero__actions">
           <StatusPill state={{ label: APP_COMMIT, detail: "Build-time Git identity.", tone: APP_COMMIT === "dev" ? "warn" : "good" }} />
-          <a className="primary-action" href={APP_COMMIT === "dev" ? `${GITHUB_REPOSITORY_ROOT}/commits/main` : `${GITHUB_REPOSITORY_ROOT}/commit/${APP_COMMIT}`} target="_blank" rel="noreferrer">Open commit ↗</a>
+          <a className="text-action" href={APP_COMMIT === "dev" ? `${GITHUB_REPOSITORY_ROOT}/commits/main` : `${GITHUB_REPOSITORY_ROOT}/commit/${APP_COMMIT}`} target="_blank" rel="noreferrer">Open commit ↗</a>
         </div>
       </section>
       <div className="developer-cp-change-summary">

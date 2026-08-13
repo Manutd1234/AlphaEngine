@@ -180,7 +180,9 @@ export default function CodebaseExplorer() {
                   <h3>{activeFile.name}</h3>
                   <code>{activeFile.path}</code>
                 </div>
-                <a className="primary-action" href={activeFile.sourceUrl} target="_blank" rel="noreferrer">
+                {/* Leaves the application, so it reads as a link rather than
+                    as the desk's loudest control. */}
+                <a className="text-action" href={activeFile.sourceUrl} target="_blank" rel="noreferrer">
                   Open source ↗
                 </a>
               </div>

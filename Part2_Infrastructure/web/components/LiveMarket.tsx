@@ -400,7 +400,9 @@ export default function LiveMarket({
                   crypto pair above to open direct Binance and Bybit order books.
                 </p>
                 <div>
-                  <button className="primary-action" onClick={onOpenData}>Open data workspace</button>
+                  {/* Both are navigation, so both look like navigation. The
+                      first wore the fill reserved for Send order. */}
+                  <button onClick={onOpenData}>Open data workspace</button>
                   <button onClick={onOpenResearch}>Review research context</button>
                 </div>
               </div>
@@ -557,9 +559,14 @@ export default function LiveMarket({
           </div>
           <div style={{ flex: 1 }}>
             <label className="field">Side</label>
-            <div className="seg">
+            {/* The only `.seg` in the app that carried neither `role="group"`
+                nor a name, so a screen reader met two loose buttons rather than
+                a two-way choice. Not `seg--side`: this is the cost probe's
+                input, not an order ticket — nothing here can be submitted, so
+                it takes the same quiet selection as every other filter. */}
+            <div className="seg" role="group" aria-label="Probe side">
               {(["BUY", "SELL"] as Side[]).map((s) => (
-                <button key={s} aria-pressed={s === side} onClick={() => onSideChange(s)}>
+                <button key={s} type="button" aria-pressed={s === side} onClick={() => onSideChange(s)}>
                   {s}
                 </button>
               ))}

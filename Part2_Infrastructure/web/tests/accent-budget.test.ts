@@ -1,0 +1,158 @@
+/**
+ * What the saturated accent is allowed to mean.
+ *
+ * `--series-1` filled is the desk's loudest statement. It belongs to controls
+ * that commit something: Send order, Sign in, Promote strategy, Retry
+ * connection. It had also been given to `.seg button[aria-pressed="true"]` —
+ * the *selected* state of a segmented control — and twenty-two components
+ * render a `.seg`. So choosing a log level, a chart's colouring or a blotter
+ * filter shouted in exactly the voice reserved for submitting an order, on
+ * every one of the eight tabs.
+ *
+ * Emphasis that is everywhere carries nothing. These tests hold the budget.
+ *
+ * One exception is deliberate and is asserted as hard as the rule: the order
+ * ticket's BUY/SELL picker had no styling of its own and inherited that base
+ * rule entirely. Quieting the base alone would have made the control deciding
+ * WHICH DIRECTION AN ORDER GOES exactly as loud as a filter, on the one screen
+ * where misreading it sends a wrong-way trade.
+ */
+
+import assert from "node:assert/strict";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
+
+const root = fileURLToPath(new URL("..", import.meta.url));
+const read = (relative: string) => readFileSync(join(root, relative), "utf8");
+
+/** Comment bodies blanked, newlines kept, so prose is not read as a rule. */
+const strip = (source: string) =>
+  source.replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, " "));
+
+const css = strip(read("app/globals.css"));
+
+/** The body of the last rule for a selector — the one that wins. */
+function ruleBody(selector: string): string {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const matches = [...css.matchAll(new RegExp(`\\n${escaped} \\{([^}]*)\\}`, "g"))];
+  assert.ok(matches.length > 0, `${selector} has no rule`);
+  return matches[matches.length - 1][1];
+}
+
+function sourceFiles(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) out.push(...sourceFiles(full));
+    else if (entry.endsWith(".tsx")) out.push(full);
+  }
+  return out;
+}
+
+describe("a selected segment is not a call to action", () => {
+  it("the base pressed state is a raised surface, not the accent fill", () => {
+    const body = ruleBody('.seg button[aria-pressed="true"]');
+    assert.doesNotMatch(
+      body,
+      /background:\s*var\(--series-1\)/,
+      "every segmented control in the app is shouting in the Send-order voice again",
+    );
+    assert.match(body, /background:\s*var\(--surface-1\)/);
+    assert.match(body, /color:\s*var\(--text-primary\)/);
+  });
+
+  it("selection is still readable without colour", () => {
+    // The house rule, and what survives forced-colors: the raised surface and
+    // the shadow say "chosen" as well as the hue does, and `aria-pressed` says
+    // it to a screen reader.
+    assert.match(ruleBody('.seg button[aria-pressed="true"]'), /box-shadow:/);
+  });
+
+  it("the order side keeps a saturated fill, and takes it from the side", () => {
+    assert.match(ruleBody('.seg--side button[value="BUY"][aria-pressed="true"]'), /var\(--diverging-pos\)/);
+    assert.match(ruleBody('.seg--side button[value="SELL"][aria-pressed="true"]'), /var\(--diverging-neg\)/);
+    // And direction is never carried by hue alone — the label is the word.
+    const ticket = read("components/execution/OrderTicket.tsx");
+    assert.match(ticket, /className="seg seg--side"/);
+    assert.match(ticket, /\["BUY", "SELL"\] as const/);
+    assert.match(ticket, /value=\{option\}/);
+  });
+
+  it("only the order ticket claims the exception", () => {
+    // `seg--side` exists to keep ONE control loud. A second user would be the
+    // budget leaking back out through the exception rather than the rule.
+    const claimants = sourceFiles(join(root, "components"))
+      .filter((file) => strip(readFileSync(file, "utf8")).includes("seg--side"))
+      .map((file) => file.slice(root.length));
+    assert.deepEqual(claimants, ["components/execution/OrderTicket.tsx"]);
+  });
+});
+
+describe("the accent fill stays with controls that commit something", () => {
+  it("no link that leaves the application wears it", () => {
+    const offenders: string[] = [];
+    for (const file of sourceFiles(join(root, "components"))) {
+      const source = strip(readFileSync(file, "utf8"));
+      // An <a> carrying primary-action and opening a new tab is, by
+      // construction, navigation away from the desk.
+      for (const tag of source.match(/<a[^>]*>/g) ?? []) {
+        if (tag.includes("primary-action") && tag.includes('target="_blank"')) {
+          offenders.push(file.slice(root.length));
+        }
+      }
+    }
+    assert.deepEqual(
+      offenders,
+      [],
+      `external links wearing the Send-order treatment:\n  ${offenders.join("\n  ")}`,
+    );
+  });
+
+  it("every remaining claimant does something, and the list is explicit", () => {
+    // Not a count — a roll call, scoped to `components/`. A new
+    // `primary-action` has to be argued for here, which is the only thing that
+    // stops the budget drifting back one reasonable-looking button at a time.
+    //
+    // The test each of these passes is "clicking it makes something happen",
+    // not merely "it is the most important thing on the card". The six removed
+    // in this pass all failed it: they navigated, and four of them navigated
+    // out of the application entirely.
+    const claimants = new Set<string>();
+    for (const file of sourceFiles(join(root, "components"))) {
+      if (strip(readFileSync(file, "utf8")).includes("primary-action")) {
+        claimants.add(file.slice(root.length));
+      }
+    }
+    assert.deepEqual([...claimants].sort(), [
+      "components/DeveloperConsole.tsx",             // run the parity check here
+      "components/auth/AuthCallback.tsx",            // sign in
+      "components/auth/LoginScreen.tsx",             // sign in
+      "components/developer/DeveloperWorkQueue.tsx", // add to triage
+      "components/execution/OrderTicket.tsx",        // send order
+      "components/execution/PnlStrip.tsx",           // enter sandbox
+      "components/portfolio/BookChrome.tsx",         // retry connection, enter sandbox
+      "components/profile/ProfileScreen.tsx",        // sign in
+      "components/research/FavouritesPanel.tsx",     // re-run and combine
+      "components/research/PromotionPanel.tsx",      // promote strategy
+      "components/research/StaleGate.tsx",           // re-run the sweep
+    ].sort());
+  });
+});
+
+describe("the radius ladder has one name per step", () => {
+  it("no bare --radius token survives alongside --radius-lg", () => {
+    // Both were 14px. Two names for one value is how a ladder stops being one:
+    // half the sheet reaches for each, and neither can be retuned alone.
+    assert.doesNotMatch(css, /^\s*--radius:\s/m);
+    assert.match(css, /--radius-sm:/);
+    assert.match(css, /--radius-md:/);
+    assert.match(css, /--radius-lg:/);
+    assert.match(css, /--radius-pill:/);
+  });
+
+  it("the pill radius is written as a token, not as 999px", () => {
+    assert.doesNotMatch(css, /border-radius:\s*999px/);
+  });
+});

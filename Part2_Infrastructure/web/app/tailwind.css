@@ -87,6 +87,8 @@
   /* Type and shape */
   --font-sans: var(--sans);
   --font-mono: var(--mono);
-  --radius-card: var(--radius);
+  /* Was `var(--radius)`, which globals declared at 14px alongside an identical
+     `--radius-lg`. One name per step now. */
+  --radius-card: var(--radius-lg);
   --shadow-card: var(--shadow-sm);
 }
