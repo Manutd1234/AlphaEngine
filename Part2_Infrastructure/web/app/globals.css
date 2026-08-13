@@ -15884,3 +15884,100 @@ html:active-view-transition .view-panel {
   font-family: var(--sans);
   font-size: 12px;
 }
+
+/* ---------- portfolio analytics ---------- */
+
+.portfolio-glance .muted {
+  margin-top: var(--space-2);
+}
+
+/* Two bar columns in a table rather than a drawn grid: the reader compares
+   along one axis at a time, the labels are symbols rather than coordinates, and
+   this wraps and reads aloud without a second implementation. */
+.exposure-heatmap__bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 120px;
+}
+
+.exposure-heatmap__bar > i {
+  display: block;
+  height: 8px;
+  min-width: 2px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--series-1) 55%, var(--surface-3));
+}
+
+/* Pressure against a hard stop reads differently from mere size, and it carries
+   the word in the note below the table rather than the colour alone. */
+.exposure-heatmap__bar.is-tight > i {
+  background: var(--status-warning);
+}
+
+.unrealised-spread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+}
+
+.unrealised-spread__row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) 110px;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 12px;
+}
+
+.unrealised-spread__label {
+  font-weight: 650;
+}
+
+/* One shared centre line, so magnitudes either side of zero compare directly
+   instead of being two charts with two scales. */
+.unrealised-spread__track {
+  position: relative;
+  display: block;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--surface-2);
+}
+
+.unrealised-spread__track::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--axis);
+}
+
+.unrealised-spread__track > i {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  border-radius: 2px;
+}
+
+.unrealised-spread__track > i.is-up { background: var(--status-good); }
+.unrealised-spread__track > i.is-down { background: var(--status-critical); }
+
+.unrealised-spread__value {
+  text-align: right;
+}
+
+.allocation-mixes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-5);
+  margin-top: var(--space-3);
+}
+
+.allocation-mixes small {
+  display: block;
+  margin-top: var(--space-2);
+  line-height: 1.5;
+}

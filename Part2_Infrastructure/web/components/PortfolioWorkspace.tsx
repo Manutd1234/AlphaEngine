@@ -21,9 +21,14 @@
 import { useState, type CSSProperties } from "react";
 
 import NumberTicker from "@/components/common/NumberTicker";
+import Sparkline from "@/components/overview/Sparkline";
 import RowMenu from "@/components/common/RowMenu";
 import AllocationDonut from "@/components/portfolio/AllocationDonut";
 import AllocationPanel from "@/components/portfolio/AllocationPanel";
+import AllocationMixes from "@/components/portfolio/AllocationMixes";
+import ExposureHeatmap from "@/components/portfolio/ExposureHeatmap";
+import RiskAdjustedTrend from "@/components/portfolio/RiskAdjustedTrend";
+import UnrealisedSpread from "@/components/portfolio/UnrealisedSpread";
 import { BookChrome, BookFallback, BookSourceControl, CrossLinkTile } from "@/components/portfolio/BookChrome";
 import EquityCurve from "@/components/portfolio/EquityCurve";
 import ExecutionHandoff, { type HandoffIntent } from "@/components/portfolio/ExecutionHandoff";
@@ -35,6 +40,7 @@ import { compact, fmt, pct, signedPct, usd } from "@/lib/format";
 import { buildPnlWaterfall } from "@/lib/pnl-attribution";
 import { proposeAllocation } from "@/lib/portfolio-risk";
 import { bookStatus } from "@/lib/portfolio";
+import { maxDrawdown } from "@/lib/portfolio-analytics";
 import { PORTFOLIO_SECTIONS, type PortfolioSection } from "@/lib/sections";
 import type { BookView } from "@/lib/use-book";
 
@@ -312,9 +318,49 @@ export default function PortfolioWorkspace({
           </div>
         </section>
 
-        <button type="button" className="text-action" onClick={() => openSection("equity")}>
-          Session equity curve &amp; P&amp;L attribution →
-        </button>
+        {/* A glance, not a second copy. The full curve and the attribution
+            waterfall live on Equity & P&L and were moved off this section
+            deliberately when it grew to seven panels; this is the shape of the
+            session with a way through to them, which is what Overview is for. */}
+        <div className="card portfolio-glance">
+          <div className="portfolio-card-heading">
+            <div>
+              <span className="page-kicker">{bookLabel}</span>
+              <h2>Session shape</h2>
+            </div>
+            <button type="button" className="text-action" onClick={() => openSection("equity")}>
+              Equity curve &amp; P&amp;L attribution →
+            </button>
+          </div>
+          {view.equityTrack.length >= 2 ? (
+            <>
+              <Sparkline
+                points={view.equityTrack.map((p) => p.equity)}
+                width={520}
+                height={54}
+                variant="area"
+                tone={
+                  view.equityTrack[view.equityTrack.length - 1].equity >= view.equityTrack[0].equity
+                    ? "good"
+                    : "critical"
+                }
+                ariaLabel="Session equity path"
+              />
+              <p className="muted">
+                {view.equityTrack.length} observations
+                {maxDrawdown(view.equityTrack)
+                  ? <>, deepest drawdown {pct(maxDrawdown(view.equityTrack)!.drawdown, 2)} from the
+                      running high-water mark</>
+                  : ", never below its high-water mark"}
+                .
+              </p>
+            </>
+          ) : (
+            <p className="muted">
+              The equity track holds fewer than two observations, so there is no path to draw yet.
+            </p>
+          )}
+        </div>
 
         {/* A summary, not a second copy: four columns against the full table's
             nine, and it defers rather than repeating the row actions. Both read
@@ -551,6 +597,12 @@ export default function PortfolioWorkspace({
           )}
         </div>
 
+        {/* Two questions the nine-column table cannot answer by summing: where
+            the weight sits against each position's own limit, and whether a
+            small total P&L is a quiet book or two large offsetting bets. */}
+        <ExposureHeatmap positions={positions} generated={Boolean(book.sandbox)} />
+        <UnrealisedSpread positions={positions} generated={Boolean(book.sandbox)} />
+
         {/* The exit, under the positions that will have to make it. A weight is
             only as real as the way out of it, and `useBook` has been computing
             `advBySymbol` from the same bars as the risk figures on every poll
@@ -586,7 +638,12 @@ export default function PortfolioWorkspace({
           model={covarianceModel}
           limits={allocationLimits}
         />
-      </WorkspaceSubtabPanel>
+      
+        {/* Three cuts of the same book, and three DIFFERENT claims — measured,
+            inferred and flow. Each says which it is rather than presenting them
+            as equivalent. */}
+        <AllocationMixes positions={positions} attribution={strategies} generated={Boolean(book.sandbox)} />
+</WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="portfolio" tabId="performance" activeId={section}>
         <div className="card portfolio-attribution-card">
@@ -732,7 +789,11 @@ export default function PortfolioWorkspace({
             </p>
           </div>
         )}
-      </WorkspaceSubtabPanel>
+      
+        {/* The two things a flow table cannot show: how far under water the
+            session went, and whether the return was worth its own variance. */}
+        <RiskAdjustedTrend points={equityTrack} generated={Boolean(book.sandbox)} />
+</WorkspaceSubtabPanel>
 
       {/* Outside every panel on purpose: an in-flight handoff must not vanish
           because the reader changed section while the request was open. */}
