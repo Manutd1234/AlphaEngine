@@ -163,6 +163,17 @@ describe("errors say what to do about them", () => {
     assert.doesNotMatch(message, /error|failed/i);
   });
 
+  it("a sign-in service that cannot be reached does not read as a bad password", () => {
+    // Observed in a browser: GoTrue passes the transport error through, so the
+    // banner said "Failed to fetch" and nothing else. Safari words it "Load
+    // failed"; both mean the request never arrived.
+    for (const raw of ["Failed to fetch", "Load failed", "NetworkError when attempting to fetch resource."]) {
+      const message = describeAuthError({ message: raw });
+      assert.match(message, /could not be reached/i, `unmapped: ${raw}`);
+      assert.match(message, /guest/i, "the visitor is left with a way in");
+    }
+  });
+
   it("keeps unknown messages verbatim rather than inventing one", () => {
     assert.equal(describeAuthError({ message: "Weird upstream thing" }), "Weird upstream thing");
   });

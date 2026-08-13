@@ -68,6 +68,23 @@ export function describeAuthError(error: { message?: string } | null | undefined
   if (lower.includes("provider is not enabled") || lower.includes("unsupported provider")) {
     return `${raw} — this sign-in provider has not been configured for this deployment yet.`;
   }
+  /**
+   * The request never reached an auth server.
+   *
+   * GoTrue hands the browser's own TypeError straight through, so the banner
+   * read "✕ Failed to fetch" — observed in a browser against a deployment whose
+   * `NEXT_PUBLIC_SUPABASE_URL` is a placeholder host. That is the one failure
+   * here that is not about the credentials typed, and the words matter: a
+   * visitor who reads "failed" tries a different password, when what happened is
+   * that this deployment has nowhere to sign in to. Chrome and Firefox say
+   * "Failed to fetch", Safari says "Load failed", and both are matched.
+   */
+  if (lower.includes("failed to fetch") || lower.includes("load failed")
+    || lower.includes("networkerror")) {
+    return "The sign-in service could not be reached from this deployment. "
+      + "Nothing was sent, so nothing about your account has changed — "
+      + "continue as a guest, or try again once it is configured.";
+  }
   if (lower.includes("invalid login credentials")) {
     return "That email and password combination does not match an account.";
   }
