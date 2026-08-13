@@ -15533,7 +15533,9 @@ html:active-view-transition .view-panel {
   .data-cp-status,
   .method-badge,
   .friction-badge,
-  .allocation-override-chip {
+  .allocation-override-chip,
+  .dependency-node__state,
+  .route-latency__row {
     border: 1px solid CanvasText;
     background: Canvas;
     color: CanvasText;
@@ -16025,4 +16027,95 @@ html:active-view-transition .view-panel {
    rather than leaving a hole the eye reads as a missing row. */
 .spark-empty {
   font-size: 10.5px;
+}
+
+/* ---------- dependency tree ---------- */
+
+/* Connectors are borders on the nested list, not coordinates in an SVG: there
+   is nothing to lay out on resize and nothing for reduced motion to remove,
+   and the whole thing is an indented outline at any width. */
+.dependency-tree,
+.dependency-tree ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dependency-tree ul {
+  margin-left: 11px;
+  padding-left: var(--space-4);
+  border-left: 1px solid var(--grid);
+}
+
+.dependency-node {
+  position: relative;
+}
+
+.dependency-node__row {
+  display: grid;
+  grid-template-columns: 20px 16px minmax(140px, 1.1fr) 96px minmax(0, 1.6fr) auto;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 5px 0;
+  font-size: 11.5px;
+}
+
+.dependency-node__toggle {
+  border: none;
+  background: none;
+  padding: 0;
+  min-height: 0;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.dependency-node__toggle.is-leaf {
+  display: inline-block;
+}
+
+/* Colour is the third carrier here. The glyph and the word beside it hold the
+   meaning on their own, which is what lets this join the forced-colors block
+   without an adjust exemption. */
+.dependency-node__state { font-size: 10px; }
+.dependency-node[data-state="ok"] .dependency-node__state { color: var(--success-text); }
+.dependency-node[data-state="degraded"] .dependency-node__state { color: var(--warning-text); }
+.dependency-node[data-state="down"] .dependency-node__state { color: var(--critical-text); }
+.dependency-node[data-state="absent"] .dependency-node__state,
+.dependency-node[data-state="unknown"] .dependency-node__state { color: var(--text-muted); }
+
+.dependency-node__name {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow-wrap: anywhere;
+}
+
+.dependency-node__role,
+.dependency-node__detail {
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+.dependency-node__word {
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  font-weight: 650;
+}
+
+.dependency-node__source {
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .dependency-node__row {
+    grid-template-columns: 20px 16px minmax(0, 1fr);
+  }
+  .dependency-node__word,
+  .dependency-node__detail,
+  .dependency-node__source {
+    grid-column: 3;
+  }
 }

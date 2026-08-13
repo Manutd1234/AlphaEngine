@@ -9,7 +9,9 @@
  * provider table that already lives in Services & Circuits.
  */
 
+import DependencyTree from "@/components/systems/DependencyTree";
 import LatencyTrend from "@/components/systems/LatencyTrend";
+import RouteLatencyBars from "@/components/systems/RouteLatencyBars";
 import { fmt } from "@/lib/format";
 import { deriveReliabilityPosture, type ReliabilityStatus } from "@/lib/reliability";
 import type { SystemHealthView } from "@/lib/use-system-health";
@@ -143,6 +145,41 @@ export default function ReliabilityOverview({
     (slowest, route) => !slowest || route.p95_ms > slowest.p95_ms ? route : slowest,
     null,
   ) ?? null;
+
+  /**
+   * One gateway, reported as a state rather than as a count. `1/1 active` is
+   * true and misleading — it implies a fleet with one member up, when there is
+   * exactly one FastAPI process and no notion of a second.
+   */
+  const gatewayState = health?.sources?.gateway?.state ?? (platform ? "fresh" : undefined);
+  const gatewayTile = {
+    value: gatewayState === "fresh" ? "Fresh"
+      : gatewayState === "stale" ? "Stale"
+      : gatewayState === "unreachable" ? "Unreachable"
+      : gatewayState === "not_configured" ? "Not configured"
+      : "—",
+    note: health?.sources?.gateway?.detail ?? "one FastAPI process · no fleet to count",
+  };
+
+  /**
+   * The fraction beside the percent on purpose: 1/3 rendered only as 33% reads
+   * as a meaningful rate rather than as three calls.
+   */
+  const routeErrors = platform?.route_latency.routes.reduce(
+    (acc, route) => ({ errors: acc.errors + route.errors_total, samples: acc.samples + route.samples }),
+    { errors: 0, samples: 0 },
+  ) ?? null;
+  const routeErrorTile = {
+    value: !routeErrors ? "—"
+      : routeErrors.samples >= 20
+        ? `${routeErrors.errors}/${routeErrors.samples} · ${((routeErrors.errors / routeErrors.samples) * 100).toFixed(1)}%`
+        : `${routeErrors.errors}/${routeErrors.samples}`,
+    note: !routeErrors
+      ? "no gateway ops snapshot"
+      : routeErrors.samples >= 20
+        ? `across ${platform!.route_latency.routes.length} sampled routes`
+        : "too few samples for a rate",
+  };
 
   const attention: AttentionItem[] = [];
   if (healthError) {
@@ -333,6 +370,14 @@ export default function ReliabilityOverview({
         </section>
       </div>
 
+      {/* The shape first: what depends on what, and which failure would take
+          out five things at once. The provider digest below answers the
+          narrower question of which APIs are routable right now. */}
+      <div hidden={!showPlanes}>
+        <DependencyTree health={health} healthError={healthError} />
+        <RouteLatencyBars platform={platform} />
+      </div>
+
       <section className="card reliability-dependency-digest" aria-labelledby="reliability-provider-api-title" hidden={!showPlanes}>
         <div className="section-heading compact">
           <div>
@@ -344,11 +389,47 @@ export default function ReliabilityOverview({
           </button>
         </div>
 
-        <div className="reliability-dependency-summary" aria-label="Provider API summary">
-          <div><span>Configured</span><strong>{health ? `${configuredProviders}/${providers.length}` : "—"}</strong></div>
-          <div><span>Routable now</span><strong>{health ? `${routableProviders}/${providers.length}` : "—"}</strong></div>
-          <div><span>Success evidence</span><strong>{health ? `${providersWithLiveEvidence}/${providers.length}` : "—"}</strong></div>
-          <div><span>Automatic probes</span><strong>OpenBB only</strong></div>
+        {/* Reworked rather than replaced by a new tile row: ConsoleChrome owns
+            the one status summary for the whole tab, and four numbers that
+            change identity as you move between subtabs is the "re-learning
+            where to look" failure PageHead exists to end.
+
+            Two of the four requested KPIs are renamed, because they are not
+            measurable here. There is exactly ONE FastAPI gateway, so "active
+            gateways" would render 1/1 and invite belief in a fleet; and no
+            process uptime or availability ratio is published anywhere, only
+            durations. Each tile says what it actually reads. */}
+        <div className="reliability-dependency-summary" aria-label="Dependency summary">
+          <div>
+            <span>Trading gateway</span>
+            <strong>{gatewayTile.value}</strong>
+            <small>{gatewayTile.note}</small>
+          </div>
+          <div>
+            <span>Provider APIs routable</span>
+            <strong>{health ? `${routableProviders}/${providers.length}` : "—"}</strong>
+            <small>{health ? `${configuredProviders} configured` : "registry not observed"}</small>
+          </div>
+          <div>
+            <span>Slowest route p99</span>
+            <strong>
+              {slowestRoute
+                ? slowestRoute.samples >= 20 ? `${Math.round(slowestRoute.p99_ms)}ms` : `Collecting`
+                : "—"}
+            </strong>
+            <small>
+              {slowestRoute
+                ? slowestRoute.samples >= 20
+                  ? `${slowestRoute.route} · in-process, a different plane from the header p99`
+                  : `${slowestRoute.samples}/20 samples`
+                : "no gateway ops snapshot"}
+            </small>
+          </div>
+          <div>
+            <span>Gateway route errors</span>
+            <strong>{routeErrorTile.value}</strong>
+            <small>{routeErrorTile.note}</small>
+          </div>
         </div>
 
         <ul className="reliability-provider-digest" aria-label="Configured, routable and live status for every provider">
@@ -457,17 +538,11 @@ export default function ReliabilityOverview({
             )}
           </div>
 
-          <div className="reliability-platform__sli" aria-label="Gateway route latency evidence">
-            <span>
-              <small>Slowest sampled route p95</small>
-              <strong className="num">{slowestRoute ? `${fmt(slowestRoute.p95_ms, 1)}ms` : "—"}</strong>
-              <code>{slowestRoute?.route ?? "no route samples"}</code>
-            </span>
-            <span>
-              <small>Latency evidence</small>
-              <strong className="num">{routeSamples}</strong>
-              <code>{fmt(platform.route_latency.window_seconds / 60, 0)}m bounded window</code>
-            </span>
+          {/* The slowest-route and sample-count scalars that stood here are now
+              the chart below, per route rather than reduced to one. Two places
+              reporting the same reduction is two places that can disagree, so
+              only the build — which nothing else carries — stays. */}
+          <div className="reliability-platform__sli" aria-label="Gateway build">
             <span>
               <small>Gateway build</small>
               <strong className="num">v{platform.version}</strong>
