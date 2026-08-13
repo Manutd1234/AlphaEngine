@@ -27,6 +27,7 @@
 
 import { useMemo, useState } from "react";
 
+import DriftBars from "@/components/portfolio/DriftBars";
 import { fmt, pct, usd } from "@/lib/format";
 import {
   applyManualWeights,
@@ -137,6 +138,15 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
   };
 
   const overshoot = manual ? manual.weightSum - 1 : 0;
+  /**
+   * When the gross cap sits below current gross, `targetWeight` is measured
+   * over the cap while `drift` is measured over gross — so `current → target`
+   * stops equalling the drift beside it. The chart drops that annotation
+   * rather than printing two numbers whose difference is not the third.
+   */
+  const capBinds = Boolean(
+    limits.maxGrossNotional != null && limits.maxGrossNotional < active.grossBefore,
+  );
 
   return (
     <div className="card">
@@ -181,12 +191,6 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
         </div>
       </div>
 
-      <p className="sub">
-        {manual
-          ? `Targets you typed, seeded from ${selected.label.toLowerCase()}. The Model column keeps the solved answer beside yours.`
-          : selected.explain}
-      </p>
-
       {manual && !manual.balanced && (
         <div className="banner warn" role="status" aria-live="polite">
           <span aria-hidden>◆</span>
@@ -200,7 +204,35 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
         </div>
       )}
 
-      <div className="table-wrap" tabIndex={0}>
+      <DriftBars
+        targets={active.targets}
+        driftBand={driftBand}
+        trades={trades}
+        capBinds={capBinds}
+        unbalancedSum={manual && !manual.balanced ? manual.weightSum : null}
+      />
+
+      {/* The control sits directly under the region it shades, so moving it is
+          direct manipulation of the chart rather than an unrelated setting. */}
+      <div className="allocation-band">
+        <label>
+          <span>Drift band · {pct(driftBand, 0)}</span>
+          <input
+            type="range"
+            min={0.01}
+            max={0.25}
+            step={0.01}
+            value={driftBand}
+            onChange={(event) => setDriftBand(Number(event.target.value))}
+          />
+        </label>
+      </div>
+
+      {/* Forced open while overriding: the toggle's whole effect is the inputs
+          in this table, and a control whose result is hidden reads as broken. */}
+      <details className="disclosure" open={override}>
+        <summary>Every weight as a table — notional now and notional target per symbol</summary>
+        <div className="table-wrap" tabIndex={0}>
         <table>
           <caption className="sr-only">
             Current and proposed weight per position, with the drift between them.
@@ -269,25 +301,8 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
             })}
           </tbody>
         </table>
-      </div>
-
-      <div className="allocation-band">
-        <label>
-          <span>Drift band · {pct(driftBand, 0)}</span>
-          <input
-            type="range"
-            min={0.01}
-            max={0.25}
-            step={0.01}
-            value={driftBand}
-            onChange={(event) => setDriftBand(Number(event.target.value))}
-          />
-        </label>
-        <small className="muted">
-          Positions inside the band are left alone. Correcting a small deviation costs more in fees
-          and slippage than the deviation costs in risk.
-        </small>
-      </div>
+        </div>
+      </details>
 
       {manual && !manual.balanced ? null : trades.length === 0 ? (
         <p className="research-note">
@@ -316,22 +331,48 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
         </>
       )}
 
-      <p className="research-note">
-        {manual ? (
-          <>
-            These target weights were entered, not solved. The Model column shows what{" "}
-            {selected.label.toLowerCase()} proposed; the difference is a judgement this panel does
-            not evaluate. Weights you do not pin are spread across the remainder in the model&apos;s
-            own proportions, so pinning one name does not silently resize the rest.
-          </>
-        ) : (
-          <>
-            No expected return is forecast anywhere in this proposal. It answers &quot;how should the
-            risk be spread&quot;, never &quot;what should we own&quot;. Measured over{" "}
-            {fmt(model.observations, 0)} observations.
-          </>
+      <details className="disclosure">
+        <summary>
+          {manual
+            ? `What you typed, against what ${selected.label.toLowerCase()} solved`
+            : `What ${selected.label.toLowerCase()} assumes, what it ignores, `
+              + `and the ${fmt(model.observations, 0)} observations behind it`}
+        </summary>
+        <p className="research-note">
+          {manual
+            ? `Targets you typed, seeded from ${selected.label.toLowerCase()}. The Model column keeps the solved answer beside yours.`
+            : selected.explain}
+        </p>
+        <p className="research-note">
+          {manual ? (
+            <>
+              These target weights were entered, not solved. The Model column shows what{" "}
+              {selected.label.toLowerCase()} proposed; the difference is a judgement this panel does
+              not evaluate. Weights you do not pin are spread across the remainder in the
+              model&apos;s own proportions, so pinning one name does not silently resize the rest.
+            </>
+          ) : (
+            <>
+              No expected return is forecast anywhere in this proposal. It answers &quot;how should
+              the risk be spread&quot;, never &quot;what should we own&quot;. Measured over{" "}
+              {fmt(model.observations, 0)} observations.
+            </>
+          )}
+        </p>
+        <p className="research-note">
+          Positions inside the drift band are left alone. Correcting a small deviation costs more in
+          fees and slippage than the deviation costs in risk — which is what the shaded region on the
+          chart is, and why widening it removes trades.
+        </p>
+        {capBinds && (
+          <p className="research-note">
+            The gross cap currently sits below current gross, so target weights are measured over the
+            cap while drift is measured over gross. The chart therefore withholds the{" "}
+            <span className="num">current → target</span> pair rather than printing two numbers whose
+            difference is not the drift beside them.
+          </p>
         )}
-      </p>
+      </details>
     </div>
   );
 }

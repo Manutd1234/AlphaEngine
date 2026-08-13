@@ -69,9 +69,6 @@ export default function AllocationMixes({
             emptyNote="No open position to classify."
             ariaLabel="Gross exposure by asset class"
           />
-          <small className="muted">
-            Gross exposure, classified by the same module that routes each symbol&rsquo;s quotes.
-          </small>
         </div>
 
         <div>
@@ -81,11 +78,6 @@ export default function AllocationMixes({
             emptyNote="No open position to attribute."
             ariaLabel="Gross exposure by settlement currency"
           />
-          <small className="muted">
-            <strong>Derived from the ticker.</strong> No currency is recorded on a position, so this
-            reads the quote suffix; a symbol without one is counted as unknown rather than assumed
-            into dollars.
-          </small>
         </div>
 
         <div>
@@ -95,13 +87,33 @@ export default function AllocationMixes({
             emptyNote="No sleeve has traded yet."
             ariaLabel="Traded notional by strategy sleeve"
           />
-          <small className="muted">
-            <strong>Traded notional, not holdings.</strong> The attribution table is a lifetime
-            tally per sleeve and positions carry no sleeve tag, so current exposure by sleeve is not
-            derivable here.
-          </small>
         </div>
       </div>
+
+      {/* One disclosure, not three. The summary names all three provenances,
+          so the claims that each ring means something different — and that two
+          of them are not measurements — stay on screen while the ~450
+          characters explaining them do not. */}
+      <details className="disclosure">
+        <summary>
+          What each cut measures: classified by the router, inferred from the ticker, and traded flow
+        </summary>
+        <p className="research-note">
+          <strong>Asset class</strong> is gross exposure classified by the same module that routes
+          each symbol&rsquo;s quotes, reused rather than copied so it cannot drift from the judgement
+          that decides where quotes are actually fetched.
+        </p>
+        <p className="research-note">
+          <strong>Settlement currency is derived from the ticker.</strong> No currency is recorded on
+          a position, so this reads the quote suffix; a symbol without one is counted as unknown
+          rather than assumed into dollars.
+        </p>
+        <p className="research-note">
+          <strong>Sleeve is traded notional, not holdings.</strong> The attribution table is a
+          lifetime tally per sleeve and positions carry no sleeve tag, so current exposure by sleeve
+          is not derivable here.
+        </p>
+      </details>
     </section>
   );
 }
