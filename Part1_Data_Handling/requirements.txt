@@ -1,0 +1,27 @@
+# Part 1 — exact environment the notebook's committed outputs were produced in.
+#
+#   python3.12 -m venv venv
+#   venv/bin/pip install -r requirements.txt
+#
+# Python 3.12 specifically: the pins below are the versions resolved under 3.12,
+# and the notebook's provenance cell prints the interpreter it actually ran on so
+# a reader can tell at a glance whether their run matches these outputs.
+#
+# The versions are pinned rather than bounded because the point of this file is to
+# reproduce a specific set of numbers, not to install a working analysis stack.
+
+# --- analysis -------------------------------------------------------------
+pandas==3.0.5
+numpy==2.5.2
+scipy==1.18.0
+statsmodels==0.14.6
+matplotlib==3.11.1
+
+# --- reading the workbook -------------------------------------------------
+openpyxl==3.1.5
+
+# --- building and executing the notebook ----------------------------------
+nbformat==5.11.0
+nbconvert==7.17.1
+jupyter_client==8.9.1
+ipykernel==7.3.0
