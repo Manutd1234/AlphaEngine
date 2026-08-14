@@ -35,6 +35,10 @@ const KIND_LABEL: Record<DataWorkKind, string> = {
   bug: "Bug",
 };
 
+/** Exported so the PageHead's Active WIP metric states the same n/limit this
+ *  board enforces, rather than a bare count beside a second bare count here. */
+export const PROGRESS_WIP_LIMIT = 3;
+
 const STATUS_META: ReadonlyArray<{
   id: DataWorkStatus;
   label: string;
@@ -43,7 +47,7 @@ const STATUS_META: ReadonlyArray<{
 }> = [
   { id: "intake", label: "Intake", description: "Needs triage", wipLimit: null },
   { id: "ready", label: "Ready", description: "Scoped and prioritised", wipLimit: null },
-  { id: "progress", label: "In progress", description: "Actively owned", wipLimit: 3 },
+  { id: "progress", label: "In progress", description: "Actively owned", wipLimit: PROGRESS_WIP_LIMIT },
   { id: "resolved", label: "Resolved", description: "Verified complete", wipLimit: null },
 ];
 
@@ -137,7 +141,6 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
   }, [justMoved, visible]);
 
   const openItems = items.filter((item) => item.status !== "resolved");
-  const urgentItems = openItems.filter((item) => item.priority === "P0" || item.priority === "P1");
   const slaRisk = openItems.filter((item) => {
     if (item.slaDueAt === null) return false;
     return item.slaDueAt - now <= 120 * 60_000;
@@ -207,22 +210,15 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
             keyboard-accessible status control.
           </p>
         </div>
+        {/* One tile, not four: Open, P0/P1 and Active WIP already stand in
+            the PageHead directly above this card, computed from the same
+            items — the deck was restating its own header. SLA risk stays
+            here because it is the one figure that needs this board's live
+            clock (the 30s `now` tick) to stay honest. */}
         <div className="data-workboard__stats" aria-label="Work queue summary">
-          <div>
-            <span>Open</span>
-            <strong className="num">{openItems.length}</strong>
-          </div>
-          <div>
-            <span>P0 / P1</span>
-            <strong className="num">{urgentItems.length}</strong>
-          </div>
           <div className={slaRisk.length ? "is-warn" : ""}>
             <span>SLA risk</span>
             <strong className="num">{slaRisk.length}</strong>
-          </div>
-          <div className={progressCount > progressLimit ? "is-warn" : ""}>
-            <span>Active WIP</span>
-            <strong className="num">{progressCount}/{progressLimit}</strong>
           </div>
         </div>
       </div>

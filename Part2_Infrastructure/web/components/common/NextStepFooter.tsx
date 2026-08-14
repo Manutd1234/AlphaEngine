@@ -83,6 +83,15 @@ const NEXT_FROM: Record<string, { view: WorkspaceView; section: string; why: str
     section: "decision",
     why: "Out-of-sample evidence is the promotion gate's input — take it straight to the gate and the sizing that follows.",
   },
+  "research/decision": {
+    // Absorbed from an inline hand-off card on the decision section itself:
+    // with no key here the ring fallback offered Execution at the same moment
+    // PromotionPanel's staged hand-off did, shadowing it. Verifying the inputs
+    // is the continuation a promotion decision actually has.
+    view: "data",
+    section: "overview",
+    why: "Verify the inputs before approving the candidate — the trust verdict rules on exactly the bars this gate just judged.",
+  },
   "research/attribution": {
     view: "risk",
     section: "model",

@@ -730,11 +730,10 @@ function DeveloperChanges() {
           <a className="text-action" href={APP_COMMIT === "dev" ? `${GITHUB_REPOSITORY_ROOT}/commits/main` : `${GITHUB_REPOSITORY_ROOT}/commit/${APP_COMMIT}`} target="_blank" rel="noreferrer">Open commit ↗</a>
         </div>
       </section>
-      <div className="developer-cp-change-summary">
-        <section className="card"><span>Repository snapshot</span><strong>{REPOSITORY_STATS.files}</strong><small>{REPOSITORY_STATS.areas} owned code areas</small></section>
-        <section className="card"><span>Verification files</span><strong>{REPOSITORY_STATS.tests}</strong><small>tests indexed in committed HEAD</small></section>
-        <section className="card"><span>API routes</span><strong>{REPOSITORY_STATS.webRoutes}</strong><small>server-side route handlers</small></section>
-      </div>
+      {/* No stat-card row here: CodebaseExplorer opens with its own labelled
+          stats strip reading the same REPOSITORY_STATS — files, tests and
+          routes appeared twice in one viewport, back to back, and the strip
+          additionally carries Areas. One source on screen. */}
       <CodebaseExplorer />
     </div>
   );
@@ -850,7 +849,9 @@ export default function DeveloperConsole({
       <WorkspaceSubtabPanel workspaceId="developer" tabId="work" activeId={section}>
         <div className="developer-cp-stack">
           <section className="card developer-cp-section-hero">
-            <div><span>Engineering impact</span><h2>Task Queue</h2><p>Features, bugs, and delivery tickets only. Changes remain session-local until an authenticated tracker is connected.</p></div>
+            {/* The session-only caveat is the queue card's own pill and scope
+                block, one screen down — not restated here. */}
+            <div><span>Engineering impact</span><h2>Task Queue</h2><p>Features, bugs, and delivery tickets only.</p></div>
             <StatusPill state={{ label: `${openWork.length} open`, detail: "Session-scoped engineering queue.", tone: openWork.length ? "warn" : "good" }} />
           </section>
           <DeveloperWorkQueue items={workItems} onItemsChange={onWorkItemsChange} />

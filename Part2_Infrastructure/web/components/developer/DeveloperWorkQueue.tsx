@@ -102,7 +102,10 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
   const move = (item: DeveloperWorkItem, next: DeveloperWorkStatus) => {
     if (item.status === next) return;
     onItemsChange(moveDeveloperWorkItem(items, item.id, next));
-    setAnnouncement(`${item.id} moved to ${STATUS_LABEL[next]}. This session queue does not modify source code or an external ticket.`);
+    // The move alone. The session-only caveat is stated once by the pill and
+    // defined once by the scope block; repeating it on every move announcement
+    // was the same sentence read aloud dozens of times per session.
+    setAnnouncement(`${item.id} moved to ${STATUS_LABEL[next]}.`);
     window.requestAnimationFrame(() => document.getElementById(`developer-work-status-${item.id}`)?.focus());
   };
 
@@ -137,9 +140,10 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
             <span className="pill">Mocked · session-only</span>
           </div>
           <h2>Features, bugs &amp; current tickets</h2>
+          {/* The session-only caveat lives in the pill above and the scope
+              block below — twice is labelling, four times was noise. */}
           <p className="sub">
-            Capture a change, assign it, and advance it through review with explicit controls. The
-            queue demonstrates the workflow but is not a GitHub or Linear system of record.
+            Capture a change, assign it, and advance it through review with explicit controls.
           </p>
         </div>
         <div className="developer-work__stats" aria-label="Engineering work summary">

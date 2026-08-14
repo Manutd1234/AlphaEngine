@@ -18,6 +18,7 @@
 
 import { useRef, useState } from "react";
 
+import RowMenu from "@/components/common/RowMenu";
 import { download } from "@/lib/download";
 import { generatePythonScript } from "@/lib/export-python";
 import { fmt, pct } from "@/lib/format";
@@ -140,37 +141,49 @@ export default function ExperimentHistory({
           <span className="page-kicker">Experiment tracker</span>
           <h2>Run history</h2>
         </div>
-        <span className="section-note">
-          {records.length} run{records.length === 1 ? "" : "s"} · {promoted.length} promotable
-        </span>
+        <div className="blotter-toolbar">
+          <span className="section-note">
+            {records.length} run{records.length === 1 ? "" : "s"} · {promoted.length} promotable
+          </span>
+          {/* The archive's three management actions in one disclosure, the
+              same consolidation the blotter's exports went through: a
+              permanent Export/Import toolbar plus a Clear tucked into the
+              facts row was three archive controls in two places for one log.
+              The menu's name carries the count the reader is about to act on. */}
+          <RowMenu label={`Archive actions (${records.length} run${records.length === 1 ? "" : "s"})`}>
+            <button type="button" role="menuitem" onClick={exportJson} disabled={records.length === 0}>
+              Export JSON
+            </button>
+            <button type="button" role="menuitem" onClick={() => fileInput.current?.click()} disabled={!onImport}>
+              Import JSON
+            </button>
+            <button type="button" role="menuitem" onClick={onClear} disabled={records.length === 0}>
+              Clear history
+            </button>
+          </RowMenu>
+        </div>
       </div>
 
-      <div className="history-toolbar">
-        <button type="button" onClick={exportJson} disabled={records.length === 0}>
-          Export JSON
-        </button>
-        <button type="button" onClick={() => fileInput.current?.click()} disabled={!onImport}>
-          Import JSON
-        </button>
-        <input
-          ref={fileInput}
-          type="file"
-          accept=".json,application/json"
-          className="sr-only"
-          aria-hidden
-          tabIndex={-1}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) handleImportFile(file);
-            event.target.value = ""; // allow re-importing the same file
-          }}
-        />
-        {ioStatus && (
-          <span className="history-toolbar__status" role="status">
-            {ioStatus}
-          </span>
-        )}
-      </div>
+      <input
+        ref={fileInput}
+        type="file"
+        accept=".json,application/json"
+        className="sr-only"
+        aria-hidden
+        tabIndex={-1}
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) handleImportFile(file);
+          event.target.value = ""; // allow re-importing the same file
+        }}
+      />
+      {/* Outside the menu, so the answer to an archive action survives the
+          menu closing over it. */}
+      {ioStatus && (
+        <p className="sub" role="status">
+          {ioStatus}
+        </p>
+      )}
 
       {records.length === 0 ? (
         <p className="sub">
@@ -269,6 +282,13 @@ export default function ExperimentHistory({
                         </span>
                       </td>
                       <td>
+                        {/* Clone stays inline — it is the row's defining act,
+                            the one that reloads the hypothesis. The rest fold
+                            into the shared RowMenu with labels that say what
+                            they do: "Py" was a two-letter riddle whose answer
+                            lived in a title attribute, inside a .table-wrap
+                            whose overflow clips anything absolute — the exact
+                            geometry RowMenu was built to escape. */}
                         <div className="run-actions">
                           <button
                             type="button"
@@ -277,29 +297,34 @@ export default function ExperimentHistory({
                           >
                             Clone
                           </button>
-                          {onAnnotate && (
+                          <RowMenu label={`Actions for ${r.id}`}>
+                            {onAnnotate && (
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => startEditing(r)}
+                                title="Attach a note and tags to this run"
+                              >
+                                Annotate run
+                              </button>
+                            )}
                             <button
                               type="button"
-                              onClick={() => startEditing(r)}
-                              title="Attach a note and tags to this run"
+                              role="menuitem"
+                              onClick={() => exportPython(r)}
+                              title="Download a self-contained Python script that reproduces this run offline"
                             >
-                              Note
+                              Export Python script
                             </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => exportPython(r)}
-                            title="Download a self-contained Python script that reproduces this run offline"
-                          >
-                            Py
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onRemove(r.id)}
-                            title="Remove this run from the local history"
-                          >
-                            Drop
-                          </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => onRemove(r.id)}
+                              title="Remove this run from the local history"
+                            >
+                              Remove from history
+                            </button>
+                          </RowMenu>
                         </div>
                       </td>
                     </tr>
@@ -351,9 +376,6 @@ export default function ExperimentHistory({
             {selected.length === 1 && (
               <span className="muted">Select one more run to compare.</span>
             )}
-            <button type="button" className="text-action" onClick={onClear}>
-              Clear history
-            </button>
           </div>
         </>
       )}

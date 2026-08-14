@@ -23,6 +23,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { filterWorkingOrders, sandboxWorkingOrders, toWorkingOrder, type WorkingOrderRow } from "@/lib/blotter";
+import RowMenu from "@/components/common/RowMenu";
 import { download } from "@/lib/download";
 import { workingOrdersToCsv } from "@/lib/export-csv";
 import { fmt, usd } from "@/lib/format";
@@ -200,19 +201,40 @@ export default function WorkingOrders({
           {/* Its own header, not the blotter's 18 columns: a resting order has
               no verdict, no fill and no latency, and exporting it through that
               contract would write four empty cells a reader would take for
-              missing data rather than for "not yet". */}
-          <button
-            type="button"
-            disabled={!visible.length}
-            title="Download the resting orders as CSV"
-            onClick={() => download(
-              `alphaengine-working-${source}-${visible.length}rows-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}.csv`,
-              workingOrdersToCsv(visible),
-              "text/csv",
-            )}
-          >
-            Export CSV
-          </button>
+              missing data rather than for "not yet".
+
+              The same RowMenu as OrderBlotter's, so flipping the Blotter view
+              seg does not swap the export affordance mid-toolbar: one 3-dot
+              menu in one position, its name carrying the on-screen count, CSV
+              and JSON in both places. */}
+          <RowMenu label={`Export the rows on screen (${visible.length})`}>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={!visible.length}
+              title="Download exactly the resting orders on screen as CSV"
+              onClick={() => download(
+                `alphaengine-working-${source}-${visible.length}rows-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}.csv`,
+                workingOrdersToCsv(visible),
+                "text/csv",
+              )}
+            >
+              Export CSV
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={!visible.length}
+              title="Download exactly the resting orders on screen as JSON"
+              onClick={() => download(
+                `alphaengine-working-${source}-${visible.length}rows-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}.json`,
+                JSON.stringify(visible, null, 2),
+                "application/json",
+              )}
+            >
+              Export JSON
+            </button>
+          </RowMenu>
         </div>
       </div>
 

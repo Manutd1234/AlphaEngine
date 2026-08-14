@@ -5297,33 +5297,15 @@ button.console-stat:hover:not(:disabled) {
   gap: 5px;
 }
 
-.run-actions button {
+/* Direct children only, and not the RowMenu trigger: the menu's popover div
+   nests inside this cell, so a descendant selector would shout its menu items
+   in 9.5px uppercase; the ··· glyph keeps the shared 13px treatment. */
+.run-actions > button:not(.row-menu__trigger) {
   padding: 4px 8px;
   font-size: 9.5px;
   font-weight: 650;
   text-transform: uppercase;
   letter-spacing: 0.02em;
-}
-
-.history-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.history-toolbar button {
-  padding: 5px 10px;
-  font-size: 10px;
-  font-weight: 650;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.history-toolbar__status {
-  font-size: 11.5px;
-  color: var(--text-secondary);
 }
 
 /* ---------- friction controls ---------- */
@@ -8037,11 +8019,12 @@ button.data-trust-action > i {
   font-size: 9px;
 }
 
+/* Sized to its single tile since the board's deck was trimmed to SLA risk —
+   the other three figures live in the PageHead directly above the card. */
 .data-workboard__stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(76px, 1fr));
-  flex: 0 1 420px;
-  min-width: 360px;
+  grid-template-columns: minmax(96px, auto);
+  flex: 0 0 auto;
   border: 1px solid var(--border);
   border-radius: 11px;
   overflow: hidden;
@@ -8612,12 +8595,6 @@ button.data-trust-action > i {
     flex-direction: column;
   }
 
-  .data-workboard__stats {
-    flex-basis: auto;
-    width: 100%;
-    min-width: 0;
-  }
-
   .data-workboard__toolbar {
     grid-template-columns: minmax(220px, 1fr) auto auto;
   }
@@ -8705,10 +8682,6 @@ button.data-trust-action > i {
 
   .data-workboard {
     padding: 14px;
-  }
-
-  .data-workboard__stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .data-workboard__board {
@@ -8820,10 +8793,6 @@ button.data-trust-action > i {
 
 .research-inspection-banner {
   margin-bottom: 16px;
-}
-
-.research-data-handoff {
-  margin-top: 16px;
 }
 
 .cockpit-grid--ticket {
@@ -10596,8 +10565,7 @@ button.data-trust-action > i {
 
 .developer-cp-heading > div > span,
 .developer-cp-section-hero > div > span,
-.developer-cp-context > div:first-child > span,
-.developer-cp-change-summary section > span {
+.developer-cp-context > div:first-child > span {
   color: var(--text-muted);
   font-size: 9px;
   font-weight: 750;
@@ -10703,7 +10671,6 @@ button.data-trust-action > i {
 
 .developer-cp-overview__grid > .card,
 .developer-cp-stack > .card,
-.developer-cp-change-summary > .card,
 .developer-cp-context {
   margin-bottom: 0;
 }
@@ -11280,31 +11247,6 @@ button.data-trust-action > i {
   min-width: 0;
 }
 
-.developer-cp-change-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.developer-cp-change-summary section {
-  display: grid;
-  gap: 3px;
-  min-height: 106px;
-  align-content: center;
-  background: linear-gradient(120deg, color-mix(in srgb, var(--series-1) 5%, var(--surface-1)), var(--surface-1));
-}
-
-.developer-cp-change-summary section > strong {
-  font-family: var(--mono);
-  font-size: 26px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.developer-cp-change-summary section > small {
-  color: var(--text-muted);
-  font-size: 9.5px;
-}
 
 @media (max-width: 1120px) {
 
@@ -11416,13 +11358,6 @@ button.data-trust-action > i {
     grid-row: auto;
   }
 
-  .developer-cp-change-summary {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .developer-cp-change-summary section {
-    min-height: 88px;
-  }
 }
 
 @media (max-width: 520px) {
@@ -15814,7 +15749,6 @@ html:active-view-transition .view-panel {
   #panel-research :is(input, select, textarea),
   #panel-research .chart-toggle,
   #panel-research .corpus-search,
-  #panel-research .history-toolbar,
   #panel-research .research-seg,
   #panel-research .run-actions,
   #panel-research .run-annotate,
@@ -15822,9 +15756,7 @@ html:active-view-transition .view-panel {
   #panel-research .research-facts .text-action,
   #panel-research .strategy-doc__similar,
   #panel-research .research-corpus > p.muted:has(.linklike),
-  #panel-research .promotion-handoff button,
-  #panel-research .research-data-handoff button,
-  #panel-research .research-empty-section button {
+  #panel-research .promotion-handoff button {
     display: none !important;
   }
 

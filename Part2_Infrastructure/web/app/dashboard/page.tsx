@@ -1443,19 +1443,22 @@ export default function Page() {
                 </div>
               </div>
             )}
-            {data?.warnings.map((warning) => (
-              <div className="banner warn" key={warning} role="status">
+            {data && data.warnings.length > 0 && (
+              /* One banner however many warnings the run returned. They are
+                 all about the same bars — which provider answered, what was
+                 coerced, whether the series was generated — and they all have
+                 the same answer: Data ▸ Trust Summary. Stacking N banners
+                 repeated the identical button N times at the same moment. */
+              <div className="banner warn" role="status">
                 <span aria-hidden>!</span>
                 <div>
-                  {warning}
-                  {/* These warnings are all about the bars the run used —
-                      which provider answered, what was coerced, whether the
-                      series was generated. Data ▸ Trust Summary is the verdict
-                      on exactly that. */}
+                  {data.warnings.map((warning) => (
+                    <div key={warning}>{warning}</div>
+                  ))}
                   <button className="text-action" onClick={() => openSection("data", "overview")}>Inspect data health →</button>
                 </div>
               </div>
-            ))}
+            )}
             {autoSuspended && (
               <div className="banner warn" role="status">
                 <span aria-hidden>!</span>
@@ -1467,13 +1470,18 @@ export default function Page() {
                 already in flight within a few hundred milliseconds and this
                 would be a call to action for something already happening. */}
             {researchDirty && data && !sweepIncoming && (
+              /* Announcement only. Under exactly this condition the stale
+                 veil's "Rerun sweep" already stands on every gated section
+                 and the rail's "Run now" survives any scroll — a third
+                 trigger for the same run() at the same moment was the shape
+                 the Controls pass already removed once. "Run now" is named
+                 so the ungated sections (runs, codex) still point somewhere. */
               <div className="banner context-change" role="status">
                 <span aria-hidden>↻</span>
                 <div>
                   <strong>Desk context changed.</strong> The result below belongs to {data.request.symbol} · {data.request.interval}.
-                  Run the sweep to refresh it for {req.symbol} · {req.interval}.
+                  Use Run now to refresh it for {req.symbol} · {req.interval}.
                 </div>
-                <button onClick={() => run()} disabled={running}>{running ? "Running…" : "Refresh research"}</button>
               </div>
             )}
 
@@ -1546,35 +1554,13 @@ export default function Page() {
                     <span key={resultAnnouncement.key}>{resultAnnouncement.text}</span>
                   )}
                 </p>
-                {/* The codex is deliberately missing from this empty-state
-                    map — it renders below, runless: a reference library that
-                    demands a completed sweep is wrong. */}
-                {!data && RESEARCH_SECTIONS.filter((section) => section.id !== "codex").map((section) => (
-                  <WorkspaceSubtabPanel
-                    key={section.id}
-                    workspaceId="research"
-                    tabId={section.id}
-                    activeId={researchSection}
-                  >
-                    {running ? (
-                      <>
-                        <div className="skeleton" style={{ height: 150, marginBottom: 16 }} />
-                        <div className="skeleton" style={{ height: 330 }} />
-                      </>
-                    ) : (
-                      <div className="card capability-empty research-empty-section">
-                        <span className="role-monogram" aria-hidden>R</span>
-                        <div>
-                          <span className="page-kicker">No completed run</span>
-                          <h2>Run the experiment setup to populate {section.label.toLowerCase()}.</h2>
-                          <p>The current controls stay available at left, so you can revise the hypothesis before starting.</p>
-                          <button className="primary-action" onClick={() => run()}>Run research</button>
-                        </div>
-                      </div>
-                    )}
-                  </WorkspaceSubtabPanel>
-                ))}
-
+                {/* No empty-state map: `data` seeds from SEED_RUN and the one
+                    setData call writes completed runs, so a runless research
+                    tab is a state this component cannot reach. The map that
+                    stood here was unreachable — and its "Run research" button
+                    was a second primary-action for the rail's "Run now". If
+                    the seed is ever removed, restore a reported empty state
+                    rather than letting the panels render nothing. */}
                 {data && displayedResult && (
                   <>
                     <WorkspaceSubtabPanel workspaceId="research" tabId="summary" activeId={researchSection}>
@@ -1844,14 +1830,11 @@ export default function Page() {
                             equity={REFERENCE_EQUITY}
                           />
                         </div>
-                        <div className="workflow-handoff research-data-handoff">
-                          <div>
-                            <span className="page-kicker">Evidence lineage</span>
-                            <strong>Verify the inputs before approving the candidate.</strong>
-                            <small>Open the data workspace with {data.request.symbol} still in context.</small>
-                          </div>
-                          <button onClick={() => openSection("data", "overview")}>Trace market data</button>
-                        </div>
+                      {/* The "trace market data" handoff that stood here as an
+                          inline card now rides the NextStepFooter's measured
+                          continuation for research/decision — one exit per
+                          section, not a card stack of three navigation
+                          furnishings pointing three ways at once. */}
                       </StaleGate>
                     </WorkspaceSubtabPanel>
 

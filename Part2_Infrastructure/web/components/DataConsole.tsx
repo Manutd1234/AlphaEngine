@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import DataTrustOverview from "@/components/data/DataTrustOverview";
-import DataWorkBoard from "@/components/data/DataWorkBoard";
+import DataWorkBoard, { PROGRESS_WIP_LIMIT } from "@/components/data/DataWorkBoard";
 import CrossSourceCheck from "@/components/systems/CrossSourceCheck";
 import FailoverGraph from "@/components/systems/FailoverGraph";
 import { OperatorActionResult } from "@/components/systems/OperatorPanel";
@@ -170,7 +170,9 @@ function metricsForSection(
     return [
       { label: "Open samples", value: String(openWork.length), note: "browser session only", tone: openWork.length ? "warn" : "good" },
       { label: "P0 / P1", value: String(urgentWork.length), note: "sample priority labels", tone: urgentWork.length ? "warn" : "good" },
-      { label: "Active WIP", value: String(activeWork.length), note: "not a live worker queue", tone: activeWork.length > 3 ? "warn" : "neutral" },
+      // n/limit, the same fraction the board enforces — a bare count here
+      // beside the board's own n/limit read as two different numbers.
+      { label: "Active WIP", value: `${activeWork.length}/${PROGRESS_WIP_LIMIT}`, note: "not a live worker queue", tone: activeWork.length > PROGRESS_WIP_LIMIT ? "warn" : "neutral" },
       { label: "Persistence", value: "None", note: "reset on reload", tone: "neutral" },
     ];
   }

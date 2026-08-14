@@ -352,12 +352,17 @@ export default function HealthMatrix({
                         : <span className="muted">—</span>}
                     </td>
                     <td>
+                      {/* "Logs", the provider rows' name for the identical
+                          action — one label per action inside one card.
+                          Inline rather than a RowMenu because a venue row has
+                          no cost-bearing siblings; a one-item menu would be
+                          a click that buys nothing. */}
                       <button
                         type="button"
                         onClick={() => onInspectEvents(venue.id, venue.label)}
                         title={`Open Logs & Traces filtered to ${venue.label}`}
                       >
-                        View logs
+                        Logs
                       </button>
                     </td>
                   </tr>

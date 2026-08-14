@@ -428,7 +428,6 @@ export default function ExecutionCockpit({
             mode={mode}
             judge={mode === "sandbox" ? sandboxState.desk.judge : undefined}
             onSubmitted={handleSubmitted}
-            onOpenResearch={onOpenResearch}
           />
         </div>
       </WorkspaceSubtabPanel>

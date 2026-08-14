@@ -138,6 +138,34 @@ describe("gate codes come from the rows, not from a list", () => {
   });
 });
 
+describe("the resting book's exports live in the same disclosure as the blotter's", () => {
+  /**
+   * The Activity toolbar swaps components when the view seg flips: Fills and
+   * Cancelled render OrderBlotter, Active renders WorkingOrders. Before this
+   * pass the flip also swapped the export affordance — a count-labelled
+   * RowMenu with CSV+JSON on two views, a bare "Export CSV" button with no
+   * count and no JSON on the third. Same action, two presentations, one
+   * seg-click apart.
+   */
+  const orders = read("../components/portfolio/WorkingOrders.tsx")
+    .replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
+
+  it("uses one shared RowMenu, named with the count it is about to write", () => {
+    assert.equal((orders.match(/<RowMenu/g) ?? []).length, 1);
+    const label = /<RowMenu label=\{([\s\S]*?)\}>/.exec(orders);
+    assert.ok(label, "the RowMenu has no label expression");
+    assert.match(label[1], /rows on screen/);
+    assert.match(label[1], /visible\.length/);
+  });
+
+  it("offers both formats, neither left behind in the toolbar", () => {
+    assert.equal((orders.match(/Export CSV/g) ?? []).length, 1);
+    assert.equal((orders.match(/Export JSON/g) ?? []).length, 1);
+    assert.equal((orders.match(/role="menuitem"/g) ?? []).length, 2);
+    assert.equal((orders.match(/disabled=\{!visible\.length\}/g) ?? []).length, 2);
+  });
+});
+
 describe("the resting book keeps its own shape", () => {
   it("searches the fields a resting order actually has", () => {
     const resting = sandboxWorkingOrders();

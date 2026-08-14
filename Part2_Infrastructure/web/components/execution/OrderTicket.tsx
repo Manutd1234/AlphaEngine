@@ -64,7 +64,6 @@ interface OrderTicketProps {
   /** The sandbox desk's judge, present only in sandbox mode. */
   judge?: (order: SandboxOrder) => SandboxDecision;
   onSubmitted: (result: OrderSubmissionResult) => void;
-  onOpenResearch?: () => void;
 }
 
 export interface OrderSubmissionResult {
@@ -116,7 +115,7 @@ export default function OrderTicket({
   symbol, side, notional, orderType, limitPrice, onSideChange, onNotionalChange,
   onOrderTypeChange, onLimitPriceChange, operatorToken, operatorGuard,
   operatorTokenEnv, paperOrderDefaultAvailable, onOperatorTokenChange, strategy, onStrategyChange,
-  experimentId, halted, haltedSymbols, mode, judge, onSubmitted, onOpenResearch,
+  experimentId, halted, haltedSymbols, mode, judge, onSubmitted,
 }: OrderTicketProps) {
   const [busy, setBusy] = useState(false);
   // Local rather than lifted. `orderType` and `limitPrice` live in page.tsx so
@@ -271,9 +270,12 @@ export default function OrderTicket({
               : "Every order is judged by the gateway's pre-trade gates. A rejection is the answer, not an error."}
           </p>
         </div>
-        <button type="button" className="icon" onClick={onOpenResearch}>
-          Sleeve · {STRATEGY_LABELS[strategy]}
-        </button>
+        {/* No sleeve chip here. It read as a status chip and navigated to
+            Research — an action its face never stated — and the sleeve it
+            named is the "Strategy sleeve" select a few fields below, which
+            can say it as a control rather than a caption. Research stays
+            reachable through the workspace nav, the routing hand-off's
+            "Review evidence", and the blotter's per-experiment link. */}
       </header>
 
       {symbolHalted ? (

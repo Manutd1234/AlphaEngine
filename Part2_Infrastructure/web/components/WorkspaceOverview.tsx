@@ -225,8 +225,11 @@ export default function WorkspaceOverview({
             <span>VaR 95 · 1 day</span>
             <strong className="num">{risk ? usd(risk.var95, 0) : "—"}</strong>
             <small>
+              {/* No CVaR here: the KPI deck's "Loss beyond VaR" card one
+                  screen down has it as its headline, and the deck's own rule
+                  is that it does not restate the hero band. */}
               {risk
-                ? `CVaR ${usd(risk.cvar95, 0)}${book.varValidation ? ` · zone ${book.varValidation.zone}` : ""} · backtested in this browser`
+                ? `${book.varValidation ? `zone ${book.varValidation.zone} · ` : ""}backtested in this browser`
                 : "needs price history"}
             </small>
           </div>

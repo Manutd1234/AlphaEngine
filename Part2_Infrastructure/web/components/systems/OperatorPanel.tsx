@@ -430,10 +430,13 @@ export default function OperatorPanel({
             </button>
           </div>
         </div>
+        {/* Cost inline, use-case in the disclosure — the panel's own rule.
+            The "useful after an instance swap" sentence lives in the "What
+            each server control touches" dd below; it was printed here too,
+            verbatim, twice on one pane. */}
         <small className="console-warn">
           This clears <em>our</em> count, not the vendor&apos;s meter. The provider still believes it
-          served those calls; further requests may be rejected upstream or billed. Useful after an
-          instance swap left the ledger pessimistic — not as a way to get more calls.
+          served those calls; further requests may be rejected upstream or billed.
         </small>
       </div>
 

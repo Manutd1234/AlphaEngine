@@ -77,9 +77,12 @@ export default function CodebaseExplorer() {
         <div>
           <span className="page-kicker">Repository map</span>
           <h2>Browse the complete codebase snapshot</h2>
+          {/* Read-only-ness is stated once, by the notice block below — it
+              carries the actionable refresh command, so it is the copy that
+              earns the words. */}
           <p className="sub">
             Search every checked-in and newly authored path in this workspace, then open the canonical
-            source in GitHub. File contents are never served from the deployed runtime.
+            source in GitHub.
           </p>
         </div>
         <div className="codebase-explorer__stats" aria-label="Repository snapshot summary">
@@ -208,8 +211,7 @@ export default function CodebaseExplorer() {
                 <strong>Ready to change it?</strong>
                 <p>
                   Open the repository source, create or link a work item, then let the contract,
-                  parity, type, and build gates verify the change. This console intentionally does
-                  not write arbitrary source files from a production deployment.
+                  parity, type, and build gates verify the change.
                 </p>
               </div>
             </>
