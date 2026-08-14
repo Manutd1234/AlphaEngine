@@ -2757,6 +2757,9 @@ tbody tr[tabindex]:focus-visible {
   margin-top: 2px;
   color: var(--text-secondary);
   font-size: 12px;
+  /* No orphans: a description that wraps must not strand its last word on a
+     line of its own. Progressive — engines without `pretty` wrap as before. */
+  text-wrap: pretty;
 }
 
 .page-heading__insights {

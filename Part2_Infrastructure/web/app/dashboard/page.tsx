@@ -1966,7 +1966,7 @@ export default function Page() {
             <WorkspaceIntro
               kicker="Quant trader"
               title="Execution"
-              description={<>Trade {req.symbol}, inspect liquidity, compare routing cost and review fills without one endless page.</>}
+              description={<>Trade {req.symbol}, inspect liquidity, compare routing cost and review fills.</>}
               insights={[
                 { label: "Instrument", value: req.symbol, detail: "consolidated L2", tone: "accent", mono: true },
                 { label: "Intent", value: `${side} ${usd(notional, 0)}`, detail: "editable in the ticket", tone: side === "BUY" ? "good" : "warn", mono: true },
