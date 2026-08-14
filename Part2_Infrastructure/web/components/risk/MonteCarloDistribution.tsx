@@ -14,6 +14,7 @@
 import { useMemo, useState } from "react";
 
 import { linearScale, useMeasuredWidth } from "@/components/chart-kit";
+import StatTile from "@/components/StatTile";
 import { compact, fmt, usd } from "@/lib/format";
 import type { McDistributionResult } from "@/lib/mc-distribution";
 import { hoursPerBar } from "@/lib/quant";
@@ -234,38 +235,36 @@ export default function MonteCarloDistribution({
         <>
           <HistogramChart result={result} />
 
+          {/* `<StatTile>`, not five hand-typed copies of what it renders. The
+              markup here was character-for-character its output — label div,
+              `num stat-tile__value` with a data-tone, note div — while sibling
+              panels in this same directory imported the component. */}
           <div className="tiles stability-tiles">
-            <div className="stat-tile">
-              <div className="stat-tile__label">Mean outcome</div>
-              <div className="num stat-tile__value" data-tone={result.pnl.mean < 0 ? "neg" : "pos"}>
-                {usd(result.pnl.mean, 0)}
-              </div>
-              <div className="stat-tile__note">
-                {fmt(result.probLoss * 100, 1)}% of paths end in loss
-              </div>
-            </div>
-            <div className="stat-tile">
-              <div className="stat-tile__label">P50 outcome</div>
-              <div className="num stat-tile__value">{usd(result.pnl.p50, 0)}</div>
-              <div className="stat-tile__note">median terminal P&amp;L</div>
-            </div>
-            <div className="stat-tile">
-              <div className="stat-tile__label">P95 loss</div>
-              <div className="num stat-tile__value" data-tone="neg">{usd(result.loss.p95, 0)}</div>
-              <div className="stat-tile__note">not exceeded in 95% of paths</div>
-            </div>
-            <div className="stat-tile">
-              <div className="stat-tile__label">P99 loss</div>
-              <div className="num stat-tile__value" data-tone="neg">{usd(result.loss.p99, 0)}</div>
-              <div className="stat-tile__note">not exceeded in 99% of paths</div>
-            </div>
-            <div className="stat-tile">
-              <div className="stat-tile__label">Worst case</div>
-              <div className="num stat-tile__value" data-tone="neg">{usd(result.pnl.worst, 0)}</div>
-              <div className="stat-tile__note">
-                single worst of {result.paths.toLocaleString()} paths
-              </div>
-            </div>
+            <StatTile
+              label="Mean outcome"
+              value={usd(result.pnl.mean, 0)}
+              tone={result.pnl.mean < 0 ? "neg" : "pos"}
+              note={`${fmt(result.probLoss * 100, 1)}% of paths end in loss`}
+            />
+            <StatTile label="P50 outcome" value={usd(result.pnl.p50, 0)} note="median terminal P&L" />
+            <StatTile
+              label="P95 loss"
+              value={usd(result.loss.p95, 0)}
+              tone="neg"
+              note="not exceeded in 95% of paths"
+            />
+            <StatTile
+              label="P99 loss"
+              value={usd(result.loss.p99, 0)}
+              tone="neg"
+              note="not exceeded in 99% of paths"
+            />
+            <StatTile
+              label="Worst case"
+              value={usd(result.pnl.worst, 0)}
+              tone="neg"
+              note={`single worst of ${result.paths.toLocaleString()} paths`}
+            />
           </div>
 
           {withinHeadroom !== null && (

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import StatTile from "@/components/StatTile";
 import { fmt, usd } from "@/lib/format";
 
 interface OracleVarOk {
@@ -155,32 +156,32 @@ export default function OracleVarPanel({
         </div>
       ) : (
         <>
+          {/* `<StatTile>`, not four hand-typed copies of what it renders. Note
+              the null handling survives the move intact: a missing parametric
+              VaR or divergence renders "—", never a zero. */}
           <div className="tiles stability-tiles">
-            <div className="stat-tile">
-              <div className="stat-tile__label">Oracle VaR 99</div>
-              <div className="num stat-tile__value" data-tone="neg">{usd(result.var99, 0)}</div>
-              <div className="stat-tile__note">{result.pathsUsed.toLocaleString()} paths · {horizonDays}d</div>
-            </div>
-            <div className="stat-tile">
-              <div className="stat-tile__label">Parametric VaR 99</div>
-              <div className="num stat-tile__value">{clientVar ? usd(clientVar, 0) : "—"}</div>
-              <div className="stat-tile__note">2.326σ·√t, same volatility</div>
-            </div>
-            <div className="stat-tile">
-              <div className="stat-tile__label">Divergence</div>
-              <div
-                className="num stat-tile__value"
-                data-tone={divergence !== null && Math.abs(divergence) > 0.15 ? "neg" : undefined}
-              >
-                {divergence === null ? "—" : `${divergence > 0 ? "+" : ""}${fmt(divergence * 100, 1)}%`}
-              </div>
-              <div className="stat-tile__note">simulated vs closed form</div>
-            </div>
-            <div className="stat-tile">
-              <div className="stat-tile__label">Expected equity</div>
-              <div className="num stat-tile__value">{usd(result.expectedEquity, 0)}</div>
-              <div className="stat-tile__note">mean terminal value · {result.computedInMs}ms</div>
-            </div>
+            <StatTile
+              label="Oracle VaR 99"
+              value={usd(result.var99, 0)}
+              tone="neg"
+              note={`${result.pathsUsed.toLocaleString()} paths · ${horizonDays}d`}
+            />
+            <StatTile
+              label="Parametric VaR 99"
+              value={clientVar ? usd(clientVar, 0) : "—"}
+              note="2.326σ·√t, same volatility"
+            />
+            <StatTile
+              label="Divergence"
+              value={divergence === null ? "—" : `${divergence > 0 ? "+" : ""}${fmt(divergence * 100, 1)}%`}
+              tone={divergence !== null && Math.abs(divergence) > 0.15 ? "neg" : undefined}
+              note="simulated vs closed form"
+            />
+            <StatTile
+              label="Expected equity"
+              value={usd(result.expectedEquity, 0)}
+              note={`mean terminal value · ${result.computedInMs}ms`}
+            />
           </div>
           <p className="sub">
             {divergence !== null && Math.abs(divergence) > 0.15
