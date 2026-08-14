@@ -12220,13 +12220,33 @@ button.page-insight:hover:not(:disabled) {
   color: var(--plane-accent-2);
 }
 
+/* The chips, at the band's own scale. The shared 84px chip is sized for a
+   header that must match seven other headers; nothing in this band has to
+   match anything, so the figures get room. Surfaces one step up and borders
+   on --axis rather than --border, because on the #101014 plane the ordinary
+   card seam colours sat within ~1.16:1 of everything around them and the
+   boxes dissolved. The note reads --text-secondary, not --text-muted, for
+   the same reason. */
+.overview-hero .page-insight {
+  min-height: 96px;
+  padding: 12px 15px 12px 16px;
+  border-color: color-mix(in srgb, var(--axis) 72%, var(--border));
+  background: var(--surface-2);
+}
+
 .overview-hero .page-insight > span {
   color: var(--plane-accent);
+  font-size: 11px;
 }
 
 .overview-hero .page-insight > strong {
   color: #fff;
-  font-size: 16.5px;
+  font-size: 19px;
+}
+
+.overview-hero .page-insight > small {
+  color: var(--text-secondary);
+  font-size: 11px;
 }
 
 .overview-loop {

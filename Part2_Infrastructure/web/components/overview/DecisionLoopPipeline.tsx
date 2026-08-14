@@ -76,7 +76,7 @@ export default function DecisionLoopPipeline({
       {/* The band's local accent via the var shorthand — the plane is fixed
           dark in both themes, so this ink is fixed too and lives on
           .overview-hero rather than :root. */}
-      <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-(--plane-accent)">Decision loop</span>
+      <span className="text-[11px] font-bold uppercase tracking-[0.05em] text-(--plane-accent)">Decision loop</span>
       <ol
         className="mt-2 flex list-none flex-nowrap items-stretch gap-x-1 p-0 max-[560px]:flex-wrap max-[560px]:gap-y-2"
         aria-label="Pipeline stages"
@@ -102,22 +102,22 @@ export default function DecisionLoopPipeline({
                    card whenever the theme flipped. The band is an ordinary
                    surface now, so the ordinary tokens apply and the tile
                    follows the theme like every other control. */
-                className="grid min-w-0 flex-1 gap-0.5 rounded-[var(--radius-control)] border border-border bg-surface-1 px-2.5 py-1.5 text-left font-normal"
+                className="grid min-w-0 flex-1 gap-1 rounded-[var(--radius-control)] border border-axis bg-surface-2 px-3 py-2.5 text-left font-normal"
               >
-                <span className="flex min-w-0 items-center gap-1.5 text-[11px] font-semibold text-text-primary">
-                  <StageIcon size={13} aria-hidden className="shrink-0" />
+                <span className="flex min-w-0 items-center gap-1.5 text-[12.5px] font-semibold text-text-primary">
+                  <StageIcon size={15} aria-hidden className="shrink-0" />
                   <span className="min-w-0 truncate">{stage.label}</span>
-                  <span className="flex shrink-0 items-center gap-1 text-[10px] font-bold" style={{ color: style.hex }}>
-                    <StateIcon size={11} aria-hidden className={stage.state === "active" ? "animate-spin" : undefined} />
+                  <span className="flex shrink-0 items-center gap-1 text-[11px] font-bold" style={{ color: style.hex }}>
+                    <StateIcon size={12} aria-hidden className={stage.state === "active" ? "animate-spin" : undefined} />
                     {style.word}
                   </span>
                 </span>
-                <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-text-muted">
+                <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-text-secondary">
                   {stage.detail}
                 </span>
               </button>
               {index < stages.length - 1 && (
-                <ChevronRight size={12} aria-hidden className="shrink-0 text-axis" />
+                <ChevronRight size={13} aria-hidden className="shrink-0 text-text-muted" />
               )}
             </li>
           );
