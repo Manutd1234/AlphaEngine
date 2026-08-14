@@ -380,7 +380,12 @@ export default function OrderTicket({
               </optgroup>
             ))}
           </select>
-          <small id="execution-strategy-help" className="muted">
+          {/* Screen-reader only. Printed under the select, this line was the
+              one control in the row with text below it, so the row's shared
+              bottom edge ran under the hint and the sleeve sat a line higher
+              than BUY/SELL beside it. The select's own title carries the same
+              fact for a sighted reader on hover. */}
+          <small id="execution-strategy-help" className="sr-only">
             Tags this paper order; it does not run the model automatically.
           </small>
         </label>
