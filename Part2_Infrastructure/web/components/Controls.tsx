@@ -233,8 +233,10 @@ export default function Controls({
       </div>
       <div id="research-experiment-controls" className="experiment-panel__body">
         <p className="sub experiment-panel__help">
-          Each control re-runs the sweep the moment you settle on a value — on release for a slider,
-          on blur for a typed field. Turn <strong>Auto</strong> off on the section rail to hold it.
+          {/* Compressed to fit the 310px rail without losing a fact: the
+              trigger for each input type, and how to stop it. */}
+          Controls re-run the sweep on release (slider) or blur (typed field).
+          Turn <strong>Auto</strong> off on the rail to hold it.
         </p>
         <div className="stack">
         <div className="row">

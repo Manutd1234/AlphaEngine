@@ -852,7 +852,7 @@ a:not([class]):active {
 }
 
 .reliability-dependency-summary > div:last-child { border-right: 0; }
-.reliability-dependency-summary span { color: var(--text-muted); font-size: 9.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.reliability-dependency-summary span { color: var(--text-muted); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .reliability-dependency-summary strong { font-size: 17px; }
 .reliability-dependency-summary strong.warn { color: var(--warning-text); }
 .reliability-dependency-summary strong.critical { color: var(--critical-text); }
@@ -898,7 +898,7 @@ a:not([class]):active {
   gap: 2px;
   width: 64px;
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   text-align: center;
 }
@@ -1010,7 +1010,7 @@ a:not([class]):active {
 
 .console-percentile-guide__window small {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -2024,7 +2024,7 @@ tbody tr[tabindex]:focus-visible {
 }
 
 .data-tier__dot {
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1;
 }
 
@@ -2177,7 +2177,7 @@ tbody tr[tabindex]:focus-visible {
 
 .brand-copy small {
   color: var(--text-muted);
-  font-size: 8.5px;
+  font-size: 10px;
   font-weight: 650;
   letter-spacing: 0.07em;
   line-height: 1.35;
@@ -2188,7 +2188,7 @@ tbody tr[tabindex]:focus-visible {
 .eyebrow,
 .page-kicker {
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.11em;
   line-height: 1.4;
@@ -2267,7 +2267,7 @@ tbody tr[tabindex]:focus-visible {
 
 .latency-chip__copy small {
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: .075em;
   text-transform: uppercase;
@@ -2285,7 +2285,7 @@ tbody tr[tabindex]:focus-visible {
   align-items: center;
   gap: 5px;
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -2515,7 +2515,7 @@ tbody tr[tabindex]:focus-visible {
 
 .overview-hero__stat span {
   color: var(--hero-accent);
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -2539,10 +2539,16 @@ tbody tr[tabindex]:focus-visible {
   white-space: nowrap;
 }
 
+/* The spark belongs to the figure above it, not to the column beside it.
+   `space-between` flung it to the far edge of its grid cell, where it sat in
+   the gutter reading as a floating chip closer to the next stat's label than
+   to its own; and centring it against a 16px line left its filled area
+   hanging above the text baseline. It now follows the note it annotates and
+   sits on the same baseline. */
 .overview-hero__stat-line {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: flex-end;
+  justify-content: flex-start;
   gap: var(--space-2);
 }
 
@@ -2656,7 +2662,7 @@ tbody tr[tabindex]:focus-visible {
   height: 30px;
   flex-basis: 30px;
   border-radius: var(--radius-control);
-  font-size: 8.5px;
+  font-size: 10px;
 }
 
 .pipeline-card__step span {
@@ -2811,7 +2817,7 @@ tbody tr[tabindex]:focus-visible {
 
 .page-insight > span {
   color: var(--text-muted);
-  font-size: 8.5px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.075em;
   text-transform: uppercase;
@@ -2831,7 +2837,7 @@ tbody tr[tabindex]:focus-visible {
 .page-insight > small {
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2948,7 +2954,7 @@ tbody tr[tabindex]:focus-visible {
 
 .research-provenance__lead small {
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .research-provenance dl {
@@ -2967,7 +2973,7 @@ tbody tr[tabindex]:focus-visible {
 
 .research-provenance dt {
   color: var(--text-muted);
-  font-size: 8.5px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -3094,7 +3100,7 @@ a.text-action {
 
 .execution-market-strip dt {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -3109,7 +3115,7 @@ a.text-action {
 
 .execution-market-strip dd small {
   margin-left: 6px;
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 650;
 }
 
@@ -3351,7 +3357,7 @@ a.text-action {
 .venue-status__name small,
 .venue-status__metrics {
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .venue-status.is-error .venue-status__name i {
@@ -3410,7 +3416,7 @@ a.text-action {
   color: var(--series-3);
   background: color-mix(in srgb, var(--series-3) 10%, transparent);
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
 }
 
@@ -3496,7 +3502,7 @@ a.text-action {
 
 .portfolio-metrics span {
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -3574,7 +3580,7 @@ a.text-action {
 
 .portfolio-row-actions button {
   padding: 4px 7px;
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .portfolio-row-actions button:first-child:not(:disabled) {
@@ -3639,7 +3645,7 @@ a.text-action {
 
 .portfolio-concentration span {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .portfolio-concentration strong {
@@ -4056,7 +4062,7 @@ button.console-stat:hover:not(:disabled) {
 .console-stat em {
   margin-top: 3px;
   color: var(--series-1);
-  font-size: 9px;
+  font-size: 10px;
   font-style: normal;
   font-weight: 750;
 }
@@ -4233,7 +4239,7 @@ button.console-stat:hover:not(:disabled) {
 
 .console-row-actions button {
   padding: 4px 8px;
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 650;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -4294,7 +4300,7 @@ button.console-stat:hover:not(:disabled) {
 }
 
 .console-node__role {
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -4332,7 +4338,7 @@ button.console-stat:hover:not(:disabled) {
 .console-node__action {
   margin-top: 6px;
   padding: 4px 8px;
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 650;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -4340,7 +4346,7 @@ button.console-stat:hover:not(:disabled) {
 
 .console-node__next {
   margin-top: 4px;
-  font-size: 9.5px;
+  font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -4357,7 +4363,7 @@ button.console-stat:hover:not(:disabled) {
 }
 
 .console-edge__label {
-  font-size: 9.5px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--text-muted);
@@ -4464,7 +4470,7 @@ button.console-stat:hover:not(:disabled) {
 }
 
 .console-facts dt {
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 650;
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -4762,7 +4768,7 @@ button.console-stat:hover:not(:disabled) {
      new background — passing on paper, and too close to the line for 9.5px
      mono. #9a9aa4 restores 5.5:1. */
   color: #9a9aa4;
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .console-log__source {
@@ -4934,7 +4940,7 @@ button.console-stat:hover:not(:disabled) {
   border: 0;
   background: transparent;
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1;
   width: 11px;
 }
@@ -5364,7 +5370,7 @@ button.console-stat:hover:not(:disabled) {
    in 9.5px uppercase; the ··· glyph keeps the shared 13px treatment. */
 .run-actions > button:not(.row-menu__trigger) {
   padding: 4px 8px;
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 650;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -5401,7 +5407,7 @@ button.console-stat:hover:not(:disabled) {
 
 .friction-badge {
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -5653,7 +5659,7 @@ button.console-stat:hover:not(:disabled) {
 .corr-matrix thead th {
   width: var(--corr-cell);
   padding-bottom: 4px;
-  font-size: 9.5px;
+  font-size: 10px;
   text-align: center;
 }
 
@@ -6036,7 +6042,7 @@ button.console-stat:hover:not(:disabled) {
 
 .headroom-binding {
   font-style: normal;
-  font-size: 8.5px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.04em;
   padding: 2px 6px;
@@ -6132,7 +6138,7 @@ button.console-stat:hover:not(:disabled) {
 }
 
 .allocation-symbol small {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.04em;
 }
@@ -6455,7 +6461,7 @@ button.console-stat:hover:not(:disabled) {
 }
 
 .cockpit-strip--compact .cockpit-strip__metrics dt {
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .cockpit-strip--compact .cockpit-strip__metrics dd {
@@ -6466,7 +6472,7 @@ button.console-stat:hover:not(:disabled) {
 .cockpit-strip--compact .cockpit-strip__metrics dd small {
   display: inline;
   margin: 0 0 0 4px;
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .cockpit-strip--compact .cockpit-strip__budget {
@@ -7344,7 +7350,7 @@ button.console-stat:hover:not(:disabled) {
 }
 
 .allocation-method-label {
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.11em;
   text-transform: uppercase;
@@ -7372,7 +7378,7 @@ button.console-stat:hover:not(:disabled) {
   margin-left: 8px;
   padding: 2px 8px;
   border-radius: var(--radius-pill);
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -7751,7 +7757,7 @@ button.console-stat:hover:not(:disabled) {
 
 .data-trust-verdict small {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .data-trust-verdict.is-good { color: var(--success-text); }
@@ -7795,7 +7801,7 @@ button.console-stat:hover:not(:disabled) {
 .data-trust-evidence.is-bad > div { color: var(--critical-text); }
 
 .data-trust-evidence > div small {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.055em;
   text-transform: uppercase;
@@ -7811,7 +7817,7 @@ button.console-stat:hover:not(:disabled) {
 .data-trust-evidence > p {
   margin: 0;
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
   line-height: 1.45;
 }
 
@@ -7864,7 +7870,7 @@ button.console-stat:hover:not(:disabled) {
 
 .data-trust-probe > span {
   color: var(--text-muted);
-  font-size: 8.5px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -7876,7 +7882,7 @@ button.console-stat:hover:not(:disabled) {
 
 .data-trust-probe > small {
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
   line-height: 1.45;
 }
 
@@ -7945,7 +7951,7 @@ button.data-trust-action.is-inspect { border-left-color: var(--series-1); }
 
 button.data-trust-action > span {
   color: var(--text-muted);
-  font-size: 8.5px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.065em;
   text-transform: uppercase;
@@ -7957,7 +7963,7 @@ button.data-trust-action > strong {
 
 button.data-trust-action > small {
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 450;
   line-height: 1.45;
 }
@@ -7965,7 +7971,7 @@ button.data-trust-action > small {
 button.data-trust-action > i {
   align-self: end;
   color: var(--series-1);
-  font-size: 9.5px;
+  font-size: 10px;
   font-style: normal;
   font-weight: 700;
 }
@@ -8106,7 +8112,7 @@ button.data-trust-action > i {
 
 .data-workboard__eyebrow .pill {
   padding: 2px 7px;
-  font-size: 9px;
+  font-size: 10px;
 }
 
 /* Sized to its single tile since the board's deck was trimmed to SLA risk —
@@ -8131,7 +8137,7 @@ button.data-trust-action > i {
 
 .data-workboard__stats span {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -8186,7 +8192,7 @@ button.data-trust-action > i {
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--text-muted) 11%, transparent);
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 10px;
   text-align: center;
 }
 
@@ -8254,7 +8260,7 @@ button.data-trust-action > i {
 
 .data-workboard__composer label > span {
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -8378,7 +8384,7 @@ button.data-trust-action > i {
   display: block;
   margin-top: 1px;
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .data-work-column__count {
@@ -8405,7 +8411,7 @@ button.data-trust-action > i {
   border-radius: 7px;
   background: color-mix(in srgb, var(--status-warning) 10%, var(--surface-1));
   color: var(--warning-text);
-  font-size: 9.5px;
+  font-size: 10px;
   line-height: 1.4;
 }
 
@@ -8475,7 +8481,7 @@ button.data-trust-action > i {
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--series-1) 9%, var(--surface-2));
   color: var(--series-1);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.06em;
   line-height: 1;
@@ -8523,7 +8529,7 @@ button.data-trust-action > i {
   min-height: 19px;
   padding: 2px 6px;
   border-radius: var(--radius-pill);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.06em;
   line-height: 1;
@@ -8589,7 +8595,7 @@ button.data-trust-action > i {
 
 .data-work-card__meta dt {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -8634,7 +8640,7 @@ button.data-trust-action > i {
 
 .data-work-card__status > span {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -9081,7 +9087,7 @@ button.data-trust-action > i {
 .codebase-explorer__stats span,
 .developer-work__stats span {
   color: var(--text-muted);
-  font-size: 8.5px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -9143,7 +9149,7 @@ button.data-trust-action > i {
 .developer-work__composer label > span,
 .developer-api-catalog__toolbar label > span {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.055em;
   text-transform: uppercase;
@@ -9235,7 +9241,7 @@ button.data-trust-action > i {
 
 .codebase-filelist__summary small {
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .codebase-filegroup h3 {
@@ -9260,7 +9266,7 @@ button.data-trust-action > i {
 
 .codebase-filegroup h3 small {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .codebase-filegroup ul {
@@ -9306,7 +9312,7 @@ button.data-trust-action > i {
   place-items: center;
   color: var(--series-1);
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 800;
 }
 
@@ -9339,7 +9345,7 @@ button.data-trust-action > i {
 .codebase-filegroup button small {
   color: var(--text-muted);
   font-family: var(--mono);
-  font-size: 8.5px;
+  font-size: 10px;
 }
 
 .codebase-filelist__empty,
@@ -9435,7 +9441,7 @@ button.data-trust-action > i {
 
 .codebase-detail__meta dt {
   color: var(--text-muted);
-  font-size: 8.5px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -9449,7 +9455,7 @@ button.data-trust-action > i {
 }
 
 .codebase-detail__meta code {
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .codebase-detail__context,
@@ -9515,7 +9521,7 @@ button.data-trust-action > i {
 
 .developer-work__eyebrow .pill {
   padding: 2px 7px;
-  font-size: 8.5px;
+  font-size: 10px;
 }
 
 .developer-work__actions {
@@ -9603,7 +9609,7 @@ button.data-trust-action > i {
   padding: 9px 11px;
   background: var(--surface-2);
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
   letter-spacing: 0.06em;
   text-align: left;
   text-transform: uppercase;
@@ -9666,7 +9672,7 @@ button.data-trust-action > i {
 
 .developer-work__badges code {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .developer-work-kind,
@@ -9674,7 +9680,7 @@ button.data-trust-action > i {
   width: fit-content;
   padding: 3px 6px;
   border-radius: 5px;
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -9725,7 +9731,7 @@ button.data-trust-action > i {
 .developer-work__table td:nth-child(3) small {
   margin-top: 4px;
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .developer-work__table select {
@@ -9752,14 +9758,14 @@ button.data-trust-action > i {
   gap: 12px;
   margin-top: 10px;
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .developer-work__footer button {
   border: 0;
   background: transparent;
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 /* API and quality views */
@@ -9788,7 +9794,7 @@ button.data-trust-action > i {
 .developer-api-catalog__groups button span {
   color: var(--text-muted);
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .developer-api-catalog__list {
@@ -9828,7 +9834,7 @@ button.data-trust-action > i {
 
 .developer-api-row > div span {
   color: var(--text-muted);
-  font-size: 8.5px;
+  font-size: 10px;
 }
 
 .developer-api-row p {
@@ -9839,7 +9845,7 @@ button.data-trust-action > i {
 .developer-api-row > button {
   min-height: 32px;
   padding-inline: 8px;
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .developer-api-catalog__footer {
@@ -9849,7 +9855,7 @@ button.data-trust-action > i {
   gap: 20px;
   margin-top: 11px;
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .developer-api-catalog__footer p {
@@ -10075,7 +10081,7 @@ button.data-trust-action > i {
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
   color: var(--text-secondary);
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: .045em;
   text-transform: uppercase;
@@ -10141,7 +10147,7 @@ button.data-trust-action > i {
 .reliability-platform__grid article > span,
 .reliability-platform__sli small {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: .055em;
   text-transform: uppercase;
@@ -10185,7 +10191,7 @@ button.data-trust-action > i {
 .reliability-platform__sli code {
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -10232,7 +10238,7 @@ button.data-trust-action > i {
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
   color: var(--text-secondary);
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -10317,7 +10323,7 @@ button.data-trust-action > i {
 
 .console-trace-pane-heading span {
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .console-trace-split .console-log {
@@ -10414,7 +10420,7 @@ button.data-trust-action > i {
 .console-trace-detail__title .console-log__level {
   width: fit-content;
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .console-trace-detail__title h3 {
@@ -10443,7 +10449,7 @@ button.data-trust-action > i {
 .console-trace-meta dt,
 .console-trace-fields dt {
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -10519,7 +10525,7 @@ button.data-trust-action > i {
   border: 1px solid color-mix(in srgb, var(--status-critical) 38%, var(--border));
   border-radius: var(--radius-pill);
   color: var(--critical-text);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: .05em;
   text-transform: uppercase;
@@ -10544,7 +10550,7 @@ button.data-trust-action > i {
 
 .operator-confirmation__facts dt {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: .05em;
   text-transform: uppercase;
@@ -10571,7 +10577,7 @@ button.data-trust-action > i {
 
 .operator-confirmation > small {
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .operator-confirmation__actions {
@@ -10667,7 +10673,7 @@ button.data-trust-action > i {
 .developer-cp-section-hero > div > span,
 .developer-cp-context > div:first-child > span {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.085em;
   text-transform: uppercase;
@@ -10704,7 +10710,7 @@ button.data-trust-action > i {
 .developer-cp-status.is-compact {
   min-height: 22px;
   padding: 3px 7px;
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .developer-cp-status.is-good {
@@ -10886,7 +10892,7 @@ button.data-trust-action > i {
 
 .developer-cp-node > div > .num {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .developer-cp-node h3 {
@@ -10902,7 +10908,7 @@ button.data-trust-action > i {
 .developer-cp-node small {
   display: block;
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
   line-height: 1.45;
 }
 
@@ -10915,7 +10921,7 @@ button.data-trust-action > i {
   background: var(--surface-2);
   color: var(--text-secondary);
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -10928,7 +10934,7 @@ button.data-trust-action > i {
   padding-top: 11px;
   border-top: 1px solid var(--border);
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .developer-cp-legend span {
@@ -10998,7 +11004,7 @@ button.data-trust-action > i {
 
 .developer-cp-readiness__ring small {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.1em;
 }
@@ -11025,7 +11031,7 @@ button.data-trust-action > i {
   min-height: 45px;
   padding: 5px 0;
   border-bottom: 1px solid var(--border);
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .developer-cp-readiness__checks i {
@@ -11035,7 +11041,7 @@ button.data-trust-action > i {
   height: 17px;
   border-radius: 50%;
   color: var(--surface-1);
-  font-size: 9px;
+  font-size: 10px;
   font-style: normal;
   font-weight: 800;
 }
@@ -11048,14 +11054,14 @@ button.data-trust-action > i {
 }
 
 .developer-cp-readiness__checks span b {
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 600;
 }
 
 .developer-cp-readiness__checks span small {
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 8.5px;
+  font-size: 10px;
   font-weight: 450;
   line-height: 1.25;
   text-overflow: ellipsis;
@@ -11065,7 +11071,7 @@ button.data-trust-action > i {
 .developer-cp-readiness__checks strong {
   color: var(--text-primary);
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   text-align: right;
   white-space: nowrap;
@@ -11074,7 +11080,7 @@ button.data-trust-action > i {
 .developer-cp-readiness > p {
   margin-top: 11px;
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
   line-height: 1.45;
 }
 
@@ -11117,7 +11123,7 @@ button.data-trust-action > i {
   background: var(--surface-1);
   color: var(--text-muted);
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 10px;
   box-shadow: 0 0 0 5px var(--surface-1);
 }
 
@@ -11141,7 +11147,7 @@ button.data-trust-action > i {
 }
 
 .developer-cp-pipeline__stage strong {
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.045em;
   text-transform: uppercase;
@@ -11152,7 +11158,7 @@ button.data-trust-action > i {
   width: 100%;
   color: var(--text-muted);
   font-family: var(--mono);
-  font-size: 8.5px;
+  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -11162,7 +11168,7 @@ button.data-trust-action > i {
   padding-top: 10px;
   border-top: 1px solid var(--border);
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
   line-height: 1.5;
 }
 
@@ -11193,7 +11199,7 @@ button.data-trust-action > i {
   padding: 7px 3px;
   border-bottom: 1px solid var(--border);
   color: var(--text-secondary);
-  font-size: 9.5px;
+  font-size: 10px;
 }
 
 .developer-cp-table__row {
@@ -11217,7 +11223,7 @@ button.data-trust-action > i {
   min-height: 27px;
   padding-top: 0;
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -11242,7 +11248,7 @@ button.data-trust-action > i {
   overflow: hidden;
   color: var(--text-secondary);
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -11254,7 +11260,7 @@ button.data-trust-action > i {
 
 .developer-cp-artifacts__row small {
   color: var(--text-muted);
-  font-size: 8.5px;
+  font-size: 10px;
 }
 
 .developer-cp-context {
@@ -11290,7 +11296,7 @@ button.data-trust-action > i {
   gap: 1px;
   padding: 2px 10px;
   color: var(--text-muted);
-  font-size: 8.5px;
+  font-size: 10px;
   text-align: center;
 }
 
@@ -11817,9 +11823,13 @@ button.data-trust-action > i {
 
 .page-insight > span {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 750;
-  letter-spacing: 0.07em;
+  /* 0.05em, not 0.07em. The label went up a point with the rest of the small
+     type, and at the old tracking "Books within freshness budget" needed 202px
+     of a 201px box — tracking is the cheapest 6px on the row, and the label
+     still reads as a label. */
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
@@ -11849,7 +11859,7 @@ button.data-trust-action > i {
      cascades in here and pins the note to one clipped line, clamp or no. */
   white-space: normal;
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
   line-height: 1.34;
 }
 
@@ -11871,7 +11881,7 @@ button.page-insight:hover:not(:disabled) {
 .page-insight > em {
   margin-top: 2px;
   color: var(--series-1);
-  font-size: 8.5px;
+  font-size: 10px;
   font-style: normal;
   font-weight: 750;
   white-space: nowrap;
@@ -12096,7 +12106,7 @@ button.page-insight:hover:not(:disabled) {
   flex: 0 0 auto;
   min-width: 74px;
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -12643,7 +12653,7 @@ button.page-insight:hover:not(:disabled) {
 }
 
 .next-step-footer__kicker {
-  font-size: 8.5px;
+  font-size: 10px;
   letter-spacing: 0.08em;
 }
 
@@ -13153,7 +13163,7 @@ h4 {
 
 .remediation-scope__facts dt {
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -13418,7 +13428,7 @@ h4 {
   }
 
   .console-edge__label {
-    font-size: 9.5px;
+    font-size: 10px;
   }
 }
 
@@ -13548,7 +13558,7 @@ h4 {
 
 .signal-workflow__step {
   color: var(--series-1);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -15077,7 +15087,7 @@ html:active-view-transition .view-panel {
   .workspace-switcher > span {
     padding-left: 7px;
     color: var(--text-muted);
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 750;
     letter-spacing: .08em;
     text-transform: uppercase;
@@ -15418,7 +15428,7 @@ html:active-view-transition .view-panel {
 
   .workspace-subtabs__picker > span {
     color: var(--text-muted);
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 750;
     letter-spacing: .08em;
     text-transform: uppercase;
@@ -16331,7 +16341,7 @@ html:active-view-transition .view-panel {
 .dependency-node__source {
   color: var(--text-muted);
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 10px;
   white-space: nowrap;
 }
 
