@@ -4813,6 +4813,18 @@ button.console-stat:hover:not(:disabled) {
   font-size: 12.5px;
 }
 
+/* What the control would touch, beside its name. `margin-right: auto` keeps it
+   with the title rather than letting space-between fling it at the buttons. */
+.console-action__figure {
+  margin-right: auto;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
 .console-action__controls {
   display: flex;
   align-items: center;

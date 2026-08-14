@@ -314,6 +314,12 @@ export default function ReliabilityConsole({
             if (ms > 0) setPollMs(ms);
           }}
           socketCount={sockets.length}
+          counters={{
+            cacheEntries: health?.cache.entries ?? null,
+            stateEntries: health?.cache.stateEntries ?? null,
+            eventsRetained: health?.events.retained ?? null,
+            eventsCapacity: health?.events.capacity ?? null,
+          }}
           onReconnectSockets={onReconnectSockets}
           busyAction={busyAction}
           lastResult={actionResult}

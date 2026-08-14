@@ -56,6 +56,18 @@ interface OperatorPanelProps {
   pollMs: number;
   onPollMsChange: (ms: number) => void;
   socketCount: number;
+  /**
+   * What each server control would actually touch, so a row can say it. A
+   * control list with no figures on it is five sentences and five buttons —
+   * the operator still has to go elsewhere to learn whether pressing one has
+   * anything to act on. Optional: an older gateway simply omits the figure.
+   */
+  counters?: {
+    cacheEntries: number | null;
+    stateEntries: number | null;
+    eventsRetained: number | null;
+    eventsCapacity: number | null;
+  };
   onReconnectSockets: () => void;
   busyAction: string | null;
   lastResult: ActionResponse | null;
@@ -112,6 +124,7 @@ export default function OperatorPanel({
   pollMs,
   onPollMsChange,
   socketCount,
+  counters,
   onReconnectSockets,
   busyAction,
   lastResult,
@@ -187,6 +200,10 @@ export default function OperatorPanel({
   const openCircuits = rows.filter((row) => row.circuitOpen).length;
   const simulated = rows.filter((row) => row.simulatedOutage).length;
   const unconfigured = rows.filter((row) => !row.configured).length;
+  const quotaLedgers = rows.filter((row) => row.quota !== null).length;
+  /** A dash, never a zero: an absent counter and an empty one are different. */
+  const figure = (value: number | null | undefined, suffix: string) =>
+    value == null ? null : `${value.toLocaleString()} ${suffix}`;
   const healthy = rows.filter((row) => row.configured && !row.circuitOpen && !row.simulatedOutage).length;
   const scopeSlices: DonutSlice[] = [
     { label: "routing normally", value: healthy, colour: "var(--status-good)" },
@@ -304,10 +321,17 @@ export default function OperatorPanel({
         </section>
       ) : null}
 
+      {/* No server band here: `Provider routing controls` above this panel
+          already names the group and its scope, and a second header saying
+          the same thing in different words is the clutter this pass is
+          removing. The session band below stays — it marks a change of blast
+          radius, not a repeat. */}
+
       {/* ---- cache ------------------------------------------------------- */}
       <div className="console-action">
         <div className="console-action__head">
           <strong>Purge cached responses</strong>
+          <span className="console-action__figure num">{figure(counters?.cacheEntries, "cached") ?? "—"}{counters?.stateEntries != null ? ` · ${counters.stateEntries} state` : ""}</span>
           <div className="console-action__controls">
             <label className="sr-only" htmlFor="console-purge-scope">Purge scope</label>
             <select
@@ -353,6 +377,7 @@ export default function OperatorPanel({
       <div className="console-action">
         <div className="console-action__head">
           <strong>Restore routing</strong>
+          <span className="console-action__figure num">{`${openCircuits} open · ${simulated} simulated`}</span>
           <div className="console-action__controls">
             <button
               type="button"
@@ -381,6 +406,7 @@ export default function OperatorPanel({
       <div className="console-action">
         <div className="console-action__head">
           <strong>Re-read provider configuration</strong>
+          <span className="console-action__figure num">{`${rows.length} providers`}</span>
           <div className="console-action__controls">
             <button type="button" onClick={() => onAction("reload_providers")} disabled={disabled}>
               {busyAction === "reload_providers" ? "Reloading…" : "Reload"}
@@ -401,6 +427,7 @@ export default function OperatorPanel({
       <div className="console-action">
         <div className="console-action__head">
           <strong>Reset a quota ledger</strong>
+          <span className="console-action__figure num">{`${quotaLedgers} ledgers`}</span>
           <div className="console-action__controls">
             <label className="sr-only" htmlFor="console-quota-target">Provider</label>
             <select
@@ -449,6 +476,7 @@ export default function OperatorPanel({
       <div className="console-action">
         <div className="console-action__head">
           <strong>Clear telemetry buffers</strong>
+          <span className="console-action__figure num">{counters?.eventsRetained != null ? `${counters.eventsRetained}/${counters.eventsCapacity ?? "—"} events` : "—"}</span>
           <div className="console-action__controls">
             <button
               type="button"
