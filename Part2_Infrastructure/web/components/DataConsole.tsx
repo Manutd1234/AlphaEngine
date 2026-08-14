@@ -233,6 +233,30 @@ function metricsForSection(
   ];
 }
 
+/**
+ * Two panes, and the cards named them first: the failover card's kicker
+ * already reads "Routing" and the quota card's "Budget". Side by side each got
+ * half of the panel, which wrapped a multi-node chain onto three rows and gave
+ * the quota meters and cache table half the room their columns were drawn for.
+ * One at a time, at full width — and they degrade separately: the chain comes
+ * from the routing registry before any call is spent, while the quota ledger
+ * only carries entries for metered providers.
+ */
+type ProvidersPane = "routing" | "budget";
+
+const PROVIDERS_PANES: Array<{ id: ProvidersPane; label: string; hint: string }> = [
+  {
+    id: "routing",
+    label: "Routing",
+    hint: "The failover chain a request would walk right now, and the outage drill that proves the next rank picks up",
+  },
+  {
+    id: "budget",
+    label: "Budget",
+    hint: "What each metered provider has left before background polling is fenced out, and what the cache saved",
+  },
+];
+
 export default function DataConsole({
   view,
   workspaceSymbol,
@@ -253,6 +277,10 @@ export default function DataConsole({
   const [probeError, setProbeError] = useState<string | null>(null);
   const [probeLoading, setProbeLoading] = useState(true);
   const [probeSymbol, setProbeSymbol] = useState(workspaceSymbol);
+  // Opens on Routing: "Open providers" on the quality tab's outage card exists
+  // to show the reader the failover graph an outage is bending, so the pane a
+  // cross-link lands on must be the one holding the graph.
+  const [providersPane, setProvidersPane] = useState<ProvidersPane>("routing");
   const probeSequence = useRef(0);
   const activeProbeRequest = useRef<AbortController | null>(null);
 
@@ -434,12 +462,32 @@ export default function DataConsole({
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="data" tabId="providers" activeId={section}>
-        <div className="data-console-stack">
-          {/* Actions fired from this panel must answer on this panel — the shared
-              hook state also mirrors into Reliability, but a 401 that only
-              reports two workspaces away is indistinguishable from nothing. */}
-          {actionResult && <OperatorActionResult result={actionResult} />}
-          <div className="compact-grid-2col">
+        {/* Actions fired from this panel must answer on this panel — the shared
+            hook state also mirrors into Reliability, but a 401 that only
+            reports two workspaces away is indistinguishable from nothing.
+            Above the pane switcher rather than inside the Routing pane that
+            fires the actions: a slow answer must not land behind whichever
+            pane the reader has moved on to. */}
+        {actionResult && <OperatorActionResult result={actionResult} />}
+        <div className="seg" role="group" aria-label="Providers and capacity view">
+          {PROVIDERS_PANES.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              aria-pressed={providersPane === option.id}
+              title={option.hint}
+              onClick={() => setProvidersPane(option.id)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        {/* The chain and the ledger sat side by side in a `.compact-grid-2col`,
+            which gave a multi-node failover chain and a four-column cache table
+            half the panel each. One pane at a time, full width. */}
+        {providersPane === "routing" && (
+          <div className="data-console-stack">
             <FailoverGraph
               routes={health?.routes ?? []}
               selected={route}
@@ -451,25 +499,32 @@ export default function DataConsole({
               busyAction={busyAction}
               onAction={runAction}
             />
-            <QuotaMeters
-              providers={health?.providers ?? null}
-              cacheByCapability={health?.cache.byCapability ?? {}}
-              cacheEntries={health?.cache.entries ?? 0}
-            />
+            {/* Under Routing, not Budget: the card's own numbers — degraded
+                routes and live sockets — are transport state, and the reader it
+                serves has just watched a chain fail over and wants the breaker
+                and latency story behind it. */}
+            <aside className="card data-console-handoff" aria-label="Reliability ownership handoff">
+              <div>
+                <span className="page-kicker">Owned by reliability</span>
+                <h2>Need transport diagnostics?</h2>
+                <p className="sub">Breaker timelines, latency SLOs, failure drills and remediation controls live with the SRE workflow.</p>
+              </div>
+              <div className="cross-link-metrics">
+                <div><span>Route issues</span><strong className={`num${view.degraded ? " warn" : ""}`}>{view.degraded}</strong><small>degraded or exhausted</small></div>
+                <div><span>Sockets</span><strong className="num">{view.sockets.length}</strong><small>{view.sockets.length ? view.sockets.map((socket) => socket.venue).join(" · ") : "wire tap idle"}</small></div>
+              </div>
+              <button className="text-action" onClick={onOpenReliability}>Open Reliability →</button>
+            </aside>
           </div>
-          <aside className="card data-console-handoff" aria-label="Reliability ownership handoff">
-            <div>
-              <span className="page-kicker">Owned by reliability</span>
-              <h2>Need transport diagnostics?</h2>
-              <p className="sub">Breaker timelines, latency SLOs, failure drills and remediation controls live with the SRE workflow.</p>
-            </div>
-            <div className="cross-link-metrics">
-              <div><span>Route issues</span><strong className={`num${view.degraded ? " warn" : ""}`}>{view.degraded}</strong><small>degraded or exhausted</small></div>
-              <div><span>Sockets</span><strong className="num">{view.sockets.length}</strong><small>{view.sockets.length ? view.sockets.map((socket) => socket.venue).join(" · ") : "wire tap idle"}</small></div>
-            </div>
-            <button className="text-action" onClick={onOpenReliability}>Open Reliability →</button>
-          </aside>
-        </div>
+        )}
+
+        {providersPane === "budget" && (
+          <QuotaMeters
+            providers={health?.providers ?? null}
+            cacheByCapability={health?.cache.byCapability ?? {}}
+            cacheEntries={health?.cache.entries ?? 0}
+          />
+        )}
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="data" tabId="queue" activeId={section}>

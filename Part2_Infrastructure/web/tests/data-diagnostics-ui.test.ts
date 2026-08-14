@@ -51,3 +51,31 @@ describe("data diagnostics do not manufacture trust evidence", () => {
     assert.match(quarantine, /<code>\{record\.key\}<\/code>/);
   });
 });
+
+describe("the pipeline inspector separates zones instead of narrating them", () => {
+  it("states the price of a trace beside the button that spends it", () => {
+    // Trace is the one control on the card that costs a real provider call.
+    // The house rule is that a cost stays visible next to the action; folding
+    // it into a disclosure would make the expensive button the quiet one.
+    assert.ok(pipeline.includes("Trace (bypass cache)"));
+    assert.ok(pipeline.includes("spends one interactive provider call"));
+  });
+
+  it("renders the executed path as an ordered list, with the key in the verdict grid", () => {
+    // The lineage is the heart of the panel and its order is its meaning — an
+    // <ol> so the sequence survives styling. The cache key sits in the same
+    // labelled grid as the verdict rather than in a stray sentence below it.
+    assert.match(pipeline, /<ol className="console-lineage">/);
+    assert.match(pipeline, /console-facts__span/);
+    assert.ok(!pipeline.includes("console-key"), "the cache key regressed to sentence prose");
+  });
+
+  it("folds explainer prose into disclosures but keeps honest empty states in the open", () => {
+    // Methodology can collapse; the absence of evidence cannot. A reader must
+    // never open a disclosure to learn that nothing was captured.
+    assert.match(pipeline, /<details className="disclosure">\s*<summary>Why raw and normalised/);
+    assert.match(pipeline, /<details className="disclosure">\s*<summary>Where these frames/);
+    assert.ok(pipeline.includes("None — the cache answered."));
+    assert.ok(pipeline.includes("No frame received yet."));
+  });
+});

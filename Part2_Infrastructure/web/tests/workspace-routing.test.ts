@@ -392,6 +392,9 @@ const COMPONENTS = [
   "../components/DeveloperConsole.tsx",
   "../components/portfolio/BookChrome.tsx",
   "../components/portfolio/WorkingOrders.tsx",
+  // Two pane states above a loading bail-out — the exact shape the check was
+  // written for, opted in when the Activity split added the second one.
+  "../components/execution/ExecutionCockpit.tsx",
   "../lib/use-book.ts",
   "../lib/use-system-health.ts",
 ];

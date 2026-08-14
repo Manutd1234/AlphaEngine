@@ -146,4 +146,27 @@ describe("operator costs stay beside the buttons", () => {
       assert.doesNotMatch(text.trim(), /^(Advanced|More|Details)$/i);
     }
   });
+
+  it("keeps a sentence inline or in the disclosure, never both", () => {
+    /**
+     * The panel's rule, applied without exception: the line under a button is
+     * the bill or the warning; what a control touches, or is for, lives in a
+     * `dd`. Each of these sentences used to be printed in both places, so a
+     * reader met it twice on one pane — and the pane read as twice its length.
+     */
+    assert.doesNotMatch(uncollapsed(operator), /Re-evaluates the environment/);
+    assert.doesNotMatch(uncollapsed(operator), /Behaviour survives\./);
+    // Moved, not deleted: the disclosure still owns the scope sentence.
+    assert.match(code(operator), /Re-evaluates the environment this process already holds/);
+    // And the caveat that stayed behind is readable without opening anything.
+    assert.match(uncollapsed(operator), /Cannot import a changed/);
+  });
+
+  it('frames "browser only" once, on the session heading, not per row', () => {
+    // The heading says "This browser only · No server state is mutated" for the
+    // whole group; a "Browser-side." prefix on every row under it was that
+    // heading restated two words at a time.
+    assert.match(code(operator), /No server state is mutated/);
+    assert.doesNotMatch(code(operator), /Browser-side\./);
+  });
 });

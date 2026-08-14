@@ -163,7 +163,11 @@ export default function PipelineInspector({
 
   return (
     <div className="card console-card console-inspector">
-      <div className="section-heading compact">
+      {/* portfolio-card-heading, like every other card on the Data surface —
+          this was the last holdout on the non-card section grammar, so its
+          title rendered at a different size from the equal-rank cards a reader
+          had just left. */}
+      <div className="portfolio-card-heading">
         <div>
           <span className="page-kicker">Live debug</span>
           <h2>Pipeline inspector</h2>
@@ -186,6 +190,12 @@ export default function PipelineInspector({
           {busy ? "Tracing…" : "Trace (bypass cache)"}
         </button>
       </div>
+      {/* The price tag lives beside the button that pays it. Trace is the one
+          control on this card that costs something real, so it stays visible
+          with its cost stated rather than folded into a disclosure. */}
+      <p className="console-trace-cost">
+        Trace skips the registry cache and spends one interactive provider call.
+      </p>
 
       <div className="seg console-seg" role="group" aria-label="Capability to inspect">
         {CAPABILITIES.map((item) => (
@@ -251,7 +261,8 @@ function RestTrace({ result, interval }: { result: InspectResponse; interval?: s
   const cacheHit = result.cache.state === "hit";
   return (
     <>
-      <dl className="console-facts">
+      <p className="console-subhead">Cache &amp; timing</p>
+      <dl className="console-facts" aria-label="Cache verdict and timing">
         {result.capability === "bars" && interval && (
           <div>
             <dt>Requested interval</dt>
@@ -285,11 +296,26 @@ function RestTrace({ result, interval }: { result: InspectResponse; interval?: s
           <dt>Round trip</dt>
           <dd>{result.totalMs}ms</dd>
         </div>
+        {/* The key is identity, not a metric, but it belongs in the verdict
+            grid rather than in a stray sentence below it: one zone, one grid. */}
+        <div className="console-facts__span">
+          <dt>Cache key</dt>
+          <dd>{result.cache.key}</dd>
+        </div>
       </dl>
 
-      <p className="console-key">
-        <span className="muted">key</span> <code>{result.cache.key}</code>
-      </p>
+      {/* The heart of the panel: the executed path, stage by stage, ahead of
+          who answered and what it cost. Everything below is detail on one of
+          these nodes. */}
+      <p className="console-subhead">Lineage</p>
+      <ol className="console-lineage">
+        {result.lineage.map((stage) => (
+          <li key={stage.stage}>
+            <strong>{stage.stage}</strong>
+            <small>{stage.detail}</small>
+          </li>
+        ))}
+      </ol>
 
       {result.provenance && (
         <>
@@ -330,21 +356,11 @@ function RestTrace({ result, interval }: { result: InspectResponse; interval?: s
         </>
       )}
 
-      <p className="console-subhead">Lineage</p>
-      <ol className="console-lineage">
-        {result.lineage.map((stage) => (
-          <li key={stage.stage}>
-            <strong>{stage.stage}</strong>
-            <small className="console-wrap">{stage.detail}</small>
-          </li>
-        ))}
-      </ol>
-
       {result.attempts.length > 0 && (
         <>
           <p className="console-subhead">
             Skipped before the answer
-            <small className="muted"> — every provider ranked above the one that served it.</small>
+            <small className="muted"> — ranked above the provider that answered.</small>
           </p>
           <ul className="console-skips">
             {result.attempts.map((attempt) => (
@@ -407,10 +423,15 @@ function RestTrace({ result, interval }: { result: InspectResponse; interval?: s
       )}
 
       {result.upstream.calls.some((call) => call.body !== undefined) && (
-        <p className="console-footnote">
-          Raw vendor bodies and normalised output are shown as separate evidence. This response does
-          not expose a field-level transformation map, so the console does not infer one.
-        </p>
+        /* Static methodology, not a number a reader would be wrong to miss —
+           exactly what the disclosure grammar exists for. */
+        <details className="disclosure">
+          <summary>Why raw and normalised are shown separately</summary>
+          <p className="console-footnote">
+            Raw vendor bodies and normalised output are separate pieces of evidence. This response
+            does not expose a field-level transformation map, so the console does not infer one.
+          </p>
+        </details>
       )}
 
       <p className="console-subhead">Normalised output</p>
@@ -484,10 +505,6 @@ function SocketTrace({
 
   return (
     <>
-      <p className="console-note">
-        These frames arrive in the browser, not on the server — a serverless function cannot hold a
-        subscription open. They are captured client-side and never appear in the server trace.
-      </p>
       {snapshot.venues.map((venue) => (
         <div className="console-socket" key={venue.venue}>
           <div className="console-socket__head">
@@ -543,6 +560,16 @@ function SocketTrace({
           )}
         </div>
       ))}
+      {/* Capture provenance is static documentation of how the tap works, so
+          it folds; the per-venue counts above are the live evidence and stay
+          in the open. */}
+      <details className="disclosure">
+        <summary>Where these frames are captured</summary>
+        <p className="console-footnote">
+          These frames arrive in the browser, not on the server — a serverless function cannot hold
+          a subscription open. They are captured client-side and never appear in the server trace.
+        </p>
+      </details>
     </>
   );
 }

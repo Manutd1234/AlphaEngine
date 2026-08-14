@@ -20,8 +20,9 @@
  * surface, as against a cost, which is a fact about a single control and
  * therefore stays welded to it.
  *
- * The last two controls are client-side only and say so: WebSocket connections
- * belong to this browser tab, and the poll cadence is this console's own.
+ * The last two controls are client-side only, and the session group heading
+ * says so once for both: WebSocket connections belong to this browser tab, and
+ * the poll cadence is this console's own.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -342,7 +343,7 @@ export default function OperatorPanel({
         {/* The COST stays inline. This file's own rule: costs are rendered next
             to the buttons, not buried, because the person clicking is usually
             the person who will be surprised by the bill. Only the scope — what
-            a control does not touch — collapses into the group note below. */}
+            a control does not touch — collapses into the disclosure below. */}
         <small className="muted">
           The next request for each purged key goes upstream and spends a real call.
         </small>
@@ -386,9 +387,13 @@ export default function OperatorPanel({
             </button>
           </div>
         </div>
+        {/* Only the caveat stays inline: acting on the belief that Reload
+            applied a new key is how a dead provider gets declared configured.
+            What the reload actually re-reads is scope, and scope lives in the
+            disclosure below. */}
         <small className="muted">
-          Re-evaluates the environment this process already holds. It cannot import a changed{" "}
-          <code>.env</code> from disk.
+          Cannot import a changed <code>.env</code> from disk — new keys still need a restart or a
+          redeploy.
         </small>
       </div>
 
@@ -452,7 +457,7 @@ export default function OperatorPanel({
                 title: "Clear diagnostic telemetry?",
                 confirmLabel: "Confirm clear",
                 target: "event ring, latency samples and cache counters",
-                effect: "The current instance's retained investigation history will be destroyed. Circuit and simulated-outage behavior survives, but the evidence that led here does not.",
+                effect: "The current instance's retained investigation history will be destroyed. Circuit and simulated-outage behaviour survives, but the evidence that led here does not.",
               })}
               disabled={disabled}
               className="is-disruptive"
@@ -461,8 +466,11 @@ export default function OperatorPanel({
             </button>
           </div>
         </div>
+        {/* The cost alone. What survives — circuit state, simulated outages —
+            is scope, and the disclosure below already says it in its own words;
+            printed here too it was this panel's one duplicated sentence. */}
         <small className="muted">
-          Destroys this instance&rsquo;s investigation history. Behaviour survives.
+          Destroys this instance&rsquo;s investigation history.
         </small>
       </div>
 
@@ -474,7 +482,7 @@ export default function OperatorPanel({
           <dt>Restore routing</dt>
           <dd>A circuit that is still failing reopens after three more consecutive failures.</dd>
           <dt>Re-read provider configuration</dt>
-          <dd>Drops the cached OpenBB readiness verdict. Next.js reads <code>.env</code> once at boot, so a changed file still needs a restart or a redeploy.</dd>
+          <dd>Re-evaluates the environment this process already holds and drops the cached OpenBB readiness verdict. Next.js reads <code>.env</code> once at boot.</dd>
           <dt>Reset a quota ledger</dt>
           <dd>Useful after an instance swap left the ledger pessimistic — not as a way to get more calls.</dd>
           <dt>Clear telemetry buffers</dt>
@@ -482,6 +490,9 @@ export default function OperatorPanel({
         </dl>
       </details>
 
+      {/* "This browser only" is said once, here, for the whole group. Each row
+          under it used to open with "Browser-side." as well — the heading
+          restated two words at a time, on every line. */}
       <div className="operator-group-heading is-session">
         <div>
           <span className="page-kicker">Session controls</span>
@@ -501,7 +512,7 @@ export default function OperatorPanel({
           </div>
         </div>
         <small className="muted">
-          Browser-side. Drops and re-handshakes every exchange socket this tab owns.
+          Drops and re-handshakes every exchange socket this tab owns.
           {socketCount === 0 && " No socket is open — the wire tap opens them when it is on screen."}
         </small>
       </div>
@@ -523,8 +534,8 @@ export default function OperatorPanel({
           </div>
         </div>
         <small className="muted">
-          Browser-side. Unattended ticks are sent at <code>background</code> priority, so a 1s
-          debugging loop cannot spend the budget a person needs later.
+          Unattended ticks are sent at <code>background</code> priority, so a 1s debugging loop
+          cannot spend the budget a person needs later.
         </small>
       </div>
 

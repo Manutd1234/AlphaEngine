@@ -6,11 +6,11 @@ import { fmt, usd } from "@/lib/format";
 /**
  * The live decision tape.
  *
- * Sits beside the blotter rather than replacing it, and the copy says why: the
- * blotter is the complete record polled from the authoritative DuckDB store,
- * this is the stream of what has just been decided. A realtime channel drops
- * silently while it reconnects, so it is the wrong thing to source a record
- * from — and exactly the right thing to watch a desk with.
+ * Sits one pane over from the blotter rather than replacing it, and the copy
+ * says why: the blotter is the complete record polled from the authoritative
+ * DuckDB store, this is the stream of what has just been decided. A realtime
+ * channel drops silently while it reconnects, so it is the wrong thing to
+ * source a record from — and exactly the right thing to watch a desk with.
  *
  * Every non-live state renders as a stated reason, never as an empty table. A
  * tape that shows nothing because its channel died looks identical to a quiet
@@ -36,8 +36,8 @@ export default function DeskTape({ symbol }: { symbol: string }) {
       </div>
 
       <p className="sub">
-        Mirrored decisions as Postgres commits them, filtered to {symbol}. The blotter beside this
-        is the complete record — polled from the gateway&apos;s own store, which stays authoritative.
+        Mirrored decisions as Postgres commits them, filtered to {symbol}. The Blotter pane holds
+        the complete record — polled from the gateway&apos;s own store, which stays authoritative.
         A stream can drop silently, so it is watched, not counted on.
       </p>
 

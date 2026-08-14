@@ -104,16 +104,28 @@ export default function FeedThroughput({ health }: { health: SystemHealth | null
         })
       )}
 
+      {/* The measured facts stay in the light — the stale count and the shared
+          scale are what stop a reader misranking two venues — while the
+          derivation of the mean folds behind a summary that already states its
+          conclusion. */}
       {feeds.length > 0 && (
-        <p className="research-note">
-          Bars share one scale across venues. The <strong>mean</strong> beside each venue is derived
-          from its lifetime counters and assumes every book was subscribed at connect; a venue with
-          reconnects has gaps that no counter here measures, so treat it as a floor.{" "}
-          {staleBooks
-            ? <><strong>{staleBooks}</strong> book{staleBooks === 1 ? " is" : "s are"} past the
-              gateway&rsquo;s freshness budget.</>
-            : "No book is past the gateway's freshness budget."}
-        </p>
+        <>
+          <p className="research-note">
+            Bars share one scale across venues.{" "}
+            {staleBooks
+              ? <><strong>{staleBooks}</strong> book{staleBooks === 1 ? " is" : "s are"} past the
+                gateway&rsquo;s freshness budget.</>
+              : "No book is past the gateway's freshness budget."}
+          </p>
+          <details className="disclosure">
+            <summary>Why each venue&rsquo;s mean rate is a floor, not a measurement</summary>
+            <p className="research-note">
+              The <strong>mean</strong> beside each venue is derived from its lifetime counters and
+              assumes every book was subscribed at connect; a venue with reconnects has gaps that no
+              counter here measures.
+            </p>
+          </details>
+        </>
       )}
     </section>
   );

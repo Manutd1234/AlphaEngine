@@ -91,32 +91,33 @@ export default function SupplyPosture({ health }: { health: SystemHealth | null 
         />
       </div>
 
-      <p className="research-note">
-        Thinnest chains first. {supply.total
-          ? `${supply.ready} of ${supply.total} providers are routable`
-          : "No provider is observed"}
-        {supply.notConfigured ? `, ${supply.notConfigured} have no key in this environment` : ""}
-        {supply.circuitOpen ? `, ${supply.circuitOpen} are behind an open circuit` : ""}.{" "}
-        {depth.length
-          ? <>
-              {noRoute > 0 && (
-                <><strong>{noRoute}</strong> {noRoute === 1 ? "chain has" : "chains have"} no routable
-                  node at all. </>
-              )}
-              {noFallback > 0
-                ? <><strong>{noFallback}</strong> of {depth.length} {noFallback === 1 ? "has" : "have"}{" "}
-                  exactly one routable node — green, and a single point of failure. </>
-                : depth.length > noRoute
-                  // Only when something IS routable: after "9 chains have no
-                  // routable node", a reassurance about the rest would be
-                  // vacuously true and read as comfort.
-                  ? <>Every chain that can be routed at all has more than one node able to serve it. </>
-                  : null}
-              Each bar groups that chain&rsquo;s nodes by state and is <strong>not</strong> rank
-              order; which provider answers first is a ranking, and it lives in the Providers section.
-            </>
-          : "No chain is being reported."}
-      </p>
+      {/* The registry counts left this note deliberately: the section-note
+          prints ready/total and the ring's legend prints every state with its
+          count, so prose repeating them was the same fact three times over.
+          What stays is what no chart above can say — the chains one node from
+          silence — and the rank-order caveat that stops the bars being
+          misread. When no chain is reported, the bars' own emptyNote already
+          states it, so the note stands down rather than restating an absence. */}
+      {depth.length > 0 && (
+        <p className="research-note">
+          Thinnest chains first.{" "}
+          {noRoute > 0 && (
+            <><strong>{noRoute}</strong> {noRoute === 1 ? "chain has" : "chains have"} no routable
+              node at all. </>
+          )}
+          {noFallback > 0
+            ? <><strong>{noFallback}</strong> of {depth.length} {noFallback === 1 ? "has" : "have"}{" "}
+              exactly one routable node — green, and a single point of failure. </>
+            : depth.length > noRoute
+              // Only when something IS routable: after "9 chains have no
+              // routable node", a reassurance about the rest would be
+              // vacuously true and read as comfort.
+              ? <>Every chain that can be routed at all has more than one node able to serve it. </>
+              : null}
+          Each bar groups that chain&rsquo;s nodes by state and is <strong>not</strong> rank order;
+          which provider answers first is a ranking, and it lives in the Providers section.
+        </p>
+      )}
     </section>
   );
 }

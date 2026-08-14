@@ -1125,10 +1125,6 @@ a:not([class]):active {
   margin-bottom: 0;
 }
 
-#reliability-subpanel-controls .console-action > small {
-  font-size: 11.5px;
-}
-
 .console-action-result {
   margin: 12px 0 2px;
 }
@@ -4132,6 +4128,21 @@ button.console-stat:hover:not(:disabled) {
   outline-offset: -1px;
 }
 
+/* `.console-card details` is the boxy chrome for payload evidence (raw
+   bodies, normalised output). A `.disclosure` is the quieter grammar for
+   explainer prose a reader may skip, and must not wear the same box — the
+   two shapes are how evidence and commentary stay tellable apart. */
+.console-card details.disclosure {
+  border: 0;
+  border-top: 1px solid var(--grid);
+  border-radius: 0;
+  background: transparent;
+}
+
+.console-card details.disclosure > p {
+  padding-bottom: var(--space-2);
+}
+
 /* ---------- meters ---------- */
 .console-meter {
   position: relative;
@@ -4387,6 +4398,16 @@ button.console-stat:hover:not(:disabled) {
   min-width: 0;
 }
 
+/* The price tag sits under the button that pays it. Trace is the one control
+   on the inspector that spends a real provider call, and the house rule is
+   that a cost stays visible next to the action, never folded away. */
+.console-trace-cost {
+  margin: -2px 0 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
 .console-seg {
   flex-wrap: wrap;
   margin-bottom: 10px;
@@ -4440,17 +4461,30 @@ button.console-stat:hover:not(:disabled) {
   line-height: 1.4;
 }
 
+/* A full-width tile for identity facts — the cache key is part of the verdict
+   but is prose-long, so it takes the whole row rather than squeezing a
+   neighbour. */
+.console-facts > .console-facts__span {
+  grid-column: 1 / -1;
+}
+
+.console-facts__span dd {
+  overflow-wrap: anywhere;
+}
+
 .console-key {
   margin-top: 8px;
   font-size: 11px;
   overflow-wrap: anywhere;
 }
 
+/* The heart of the inspector. Every other result zone is a grey grid of
+   facts; the executed path wears the one treatment nothing else on the card
+   has — numbered nodes on a connected rail — so the eye lands here first.
+   The numbers carry the order; the accent only underlines it. */
 .console-lineage {
-  display: grid;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
+  margin: 0 0 var(--space-1);
+  padding: var(--space-1) 0 0;
   list-style: none;
   counter-reset: lineage;
 }
@@ -4458,33 +4492,58 @@ button.console-stat:hover:not(:disabled) {
 .console-lineage li {
   position: relative;
   display: grid;
-  gap: 1px;
-  padding: 7px 10px 7px 30px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  background: var(--surface-1);
+  gap: 2px;
+  padding: 0 0 var(--space-3) 38px;
   counter-increment: lineage;
+}
+
+.console-lineage li:last-child {
+  padding-bottom: var(--space-1);
 }
 
 .console-lineage li::before {
   content: counter(lineage);
   position: absolute;
-  left: 10px;
-  top: 7px;
+  left: 0;
+  top: -3px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid color-mix(in srgb, var(--series-1) 55%, var(--border));
+  border-radius: 50%;
+  background: var(--surface-1);
   font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 800;
+  font-size: 10.5px;
+  font-weight: 700;
   color: var(--series-1);
 }
 
+/* The connector is what says "one path", not seven sibling facts. */
+.console-lineage li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 23px;
+  bottom: 1px;
+  width: 1px;
+  background: var(--grid);
+}
+
 .console-lineage strong {
-  font-size: 11.5px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
 }
 
 .console-lineage small {
-  font-size: 11px;
-  color: var(--text-muted);
-  max-width: none;
+  display: block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
 }
 
 .console-skips {
@@ -4711,7 +4770,12 @@ button.console-stat:hover:not(:disabled) {
 
 /* ---------- operator panel ---------- */
 .console-action {
-  padding: 12px 0;
+  /* One rhythm for all seven rows: name left, action right, cost line beneath.
+     The grid gap owns the spacing between head and cost line, so no row
+     carries a margin of its own. */
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) 0;
   border-bottom: 1px solid var(--grid);
 }
 
@@ -4732,8 +4796,10 @@ button.console-stat:hover:not(:disabled) {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 5px;
+  gap: var(--space-2);
+  /* As tall as the tallest control a head can hold, so a row with a bare
+     button sits at the same height as one with a select beside it. */
+  min-height: 30px;
 }
 
 .console-action__head strong {
@@ -4746,14 +4812,20 @@ button.console-stat:hover:not(:disabled) {
   gap: 6px;
 }
 
-.console-action__controls select {
+.console-action__controls select,
+.console-action__controls button {
+  /* The shared height is what makes the panel read as one column of controls
+     rather than five slightly different toolbars. */
+  min-height: 30px;
   font-size: 11.5px;
+}
+
+.console-action__controls select {
   padding: 5px 7px;
 }
 
 .console-action__controls button {
   padding: 5px 10px;
-  font-size: 11.5px;
 }
 
 .console-action .console-seg {
@@ -4762,7 +4834,10 @@ button.console-stat:hover:not(:disabled) {
 
 .console-action > small {
   display: block;
-  font-size: 10.5px;
+  /* 11.5px unconditionally. This was a 10.5px base plus an override to 11.5px
+     scoped to the controls panel — but the operator panel mounts nowhere else,
+     so the base size was a size nothing ever rendered. */
+  font-size: 11.5px;
   line-height: 1.55;
 }
 
@@ -7707,11 +7782,22 @@ button.console-stat:hover:not(:disabled) {
   line-height: 1.45;
 }
 
+/* Response pane's shared row: the per-source sparklines and the quota bars are
+   both narrow content, so pairing them halves that pane's scroll. Tables are
+   deliberately NOT paired this way — the feeds monitors were un-paired for
+   exactly that squeeze — and the 980px rule below stacks these again where
+   half a panel is too little. `align-items: start`, not stretch: the two
+   cards are genuinely different lengths and a stretched card would only gain
+   a void. */
 .data-trust-detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-4);
   align-items: start;
+}
+
+.data-trust-detail-grid > * {
+  min-width: 0;
 }
 
 .data-trust-monitor {
@@ -7856,7 +7942,11 @@ button.data-trust-action > i {
   padding: 16px;
 }
 
-.data-trust-boundaries > div:last-child {
+/* `details >`, not `.data-trust-boundaries >`: when the card gained its
+   disclosure wrapper the articles stopped being direct children of the
+   section, this selector silently stopped matching, and the two columns
+   stacked — green-while-broken, caught only by reading the opened card. */
+.data-trust-boundaries details > div:last-child {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
@@ -7894,7 +7984,20 @@ button.data-trust-action > i {
 
 .data-console-stack {
   display: grid;
-  gap: 16px;
+  gap: var(--space-4);
+}
+
+/* The Routing pane's failover chain now owns the full panel instead of half of
+   a `.compact-grid-2col`, and `.data-console-stack` wraps nothing else. The
+   168px flex basis was sized for that half-width column, where the nodes
+   wrapped onto extra rows; at panel width the same basis stretches a short
+   chain into a row of banners that are mostly empty plane after two lines of
+   11.5px detail. A wider basis gives the detail text its room, and the cap
+   keeps the chain reading as steps in an order — the empty space to the right
+   of a short chain is the honest rendering of a short chain. */
+.data-console-stack .console-node {
+  flex-basis: 220px;
+  max-width: 420px;
 }
 
 .data-console-stack > .console-card,
@@ -8620,7 +8723,7 @@ button.data-trust-action > i {
 
 
   .data-trust-hero,
-  .data-trust-boundaries > div:last-child {
+  .data-trust-boundaries details > div:last-child {
     grid-template-columns: minmax(0, 1fr);
   }
 

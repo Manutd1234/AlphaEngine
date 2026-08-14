@@ -46,13 +46,21 @@ export default function InstanceScope({ health }: { health: SystemHealth | null 
         ))}
       </div>
 
-      <p className="research-note">
-        Validation, cache, lineage-event and quarantine counters are incremented inside the quote
-        and bar routes. This response is built by a <strong>different function instance</strong>,
-        so those four read empty here however busy the desk is — a deployment boundary, not a quiet
-        system. The feed, provider, route and quota evidence on the other panes is gathered while
-        this request is served, which is why it is populated when they are not.
-      </p>
+      {/* The mechanism folds; the caveat does not. The scope tile above already
+          carries "Per-instance" with a warn tone, so what collapses here is WHY
+          — which routes increment which counters — and the summary still states
+          the fact plainly for a reader who never opens it. */}
+      <details className="disclosure">
+        <summary>
+          Why validation, cache, lineage and quarantine read empty here however busy the desk is
+        </summary>
+        <p className="research-note">
+          Those four counters are incremented inside the quote and bar routes, and this response is
+          built by a <strong>different function instance</strong> — a deployment boundary, not a
+          quiet system. The feed, provider, route and quota evidence on the other panes is gathered
+          while this request is served, which is why it is populated when they are not.
+        </p>
+      </details>
     </section>
   );
 }

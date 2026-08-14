@@ -83,6 +83,27 @@ const QUALITY_PANES: Array<{ id: QualityPane; label: string; hint: string }> = [
   { id: "where", label: "Where", hint: "Which venue and which component of the spread the cost came from, and at which hour of the day" },
 ];
 
+/**
+ * Activity, split along the record/stream seam.
+ *
+ * The blotter, the decision tape and the alert feed sat in one scroll, and the
+ * only thing keeping them straight was order: the tape came after the blotter
+ * so the record was read before the stream. A split states the same argument
+ * with geometry instead of position. The Blotter pane is the record — every
+ * order the desk sent, polled from the gateway's authoritative store, with the
+ * resting book beside it. The Tape & alerts pane is the desk happening: the
+ * realtime mirror of decisions as Postgres commits them, and what the risk
+ * system decided on its own. The seg opens on Blotter for the reason the old
+ * ordering existed — reading the stream first invites treating it as the
+ * record, which is exactly what a channel that drops silently cannot be.
+ */
+type ActivityPane = "blotter" | "tape";
+
+const ACTIVITY_PANES: Array<{ id: ActivityPane; label: string; hint: string }> = [
+  { id: "blotter", label: "Blotter", hint: "The record: every order the desk sent, what it cost, which gate stopped it, and the resting book — polled from the gateway's authoritative store" },
+  { id: "tape", label: "Tape & alerts", hint: "The stream: decisions mirrored as Postgres commits them, and the alerts the risk system raised on its own — watched beside the record, never instead of it" },
+];
+
 const REFRESH_MS = 4_000;
 const MAX_BACKOFF_MS = 60_000;
 /** 200, not 60: a nearest-rank p99 over 60 rows is just the maximum, and the
@@ -179,6 +200,9 @@ export default function ExecutionCockpit({
    * screen for every reader, and Cost is the metric the section is named for.
    */
   const [qualityPane, setQualityPane] = useState<QualityPane>("cost");
+  /** Same discipline, and "blotter" for the reason ACTIVITY_PANES argues: the
+   *  record is what opens first. */
+  const [activityPane, setActivityPane] = useState<ActivityPane>("blotter");
   const sequence = useRef(0);
 
   /**
@@ -485,25 +509,50 @@ export default function ExecutionCockpit({
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="execution" tabId="activity" activeId={section}>
-        <BlotterViews
-          rows={effectiveOrders}
-          focusSymbol={symbol}
-          source={feedSource}
-          active={section === "activity"}
-          operatorToken={operatorToken}
-          /* The cockpit's own refresh, not `onOrderSettled`: that one carries a
-             submission result and invalidates the shared book after a NEW order.
-             A cancel from this table changes the resting book, so what has to
-             re-read is this panel's poll. */
-          onChanged={() => void refresh()}
-          onOpenResearch={onOpenResearch}
-        />
-        {/* After the blotter, deliberately: the blotter is the complete
-            polled record and the tape is the stream of what has just
-            landed. Reading the stream first would invite treating it as
-            the record, which is exactly what it cannot be. */}
-        <DeskTape symbol={symbol} />
-        <AlertFeed events={effectiveEvents} source={feedSource} />
+        <div className="seg" role="group" aria-label="Activity view">
+          {ACTIVITY_PANES.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              aria-pressed={activityPane === option.id}
+              title={option.hint}
+              onClick={() => setActivityPane(option.id)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Conditional renders, not `hidden`, like Fill quality above — with
+            one cost the quality panes do not pay: switching away unmounts the
+            tape, and the rows its channel gathered this session are gone when
+            it remounts. Accepted, on the tape's own doctrine — it is watched,
+            not counted on, and every decision it ever showed is in the store
+            the Blotter pane polls. Keeping it mounted to preserve a window
+            nobody may read again would promote the stream toward being a
+            record, which is the one thing this split exists to prevent. */}
+        {activityPane === "blotter" && (
+          <BlotterViews
+            rows={effectiveOrders}
+            focusSymbol={symbol}
+            source={feedSource}
+            active={section === "activity"}
+            operatorToken={operatorToken}
+            /* The cockpit's own refresh, not `onOrderSettled`: that one carries a
+               submission result and invalidates the shared book after a NEW order.
+               A cancel from this table changes the resting book, so what has to
+               re-read is this panel's poll. */
+            onChanged={() => void refresh()}
+            onOpenResearch={onOpenResearch}
+          />
+        )}
+
+        {activityPane === "tape" && (
+          <>
+            <DeskTape symbol={symbol} />
+            <AlertFeed events={effectiveEvents} source={feedSource} />
+          </>
+        )}
       </WorkspaceSubtabPanel>
     </div>
   );

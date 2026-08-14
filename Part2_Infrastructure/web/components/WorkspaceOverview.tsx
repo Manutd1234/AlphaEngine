@@ -274,16 +274,12 @@ export default function WorkspaceOverview({
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="overview" tabId="desks" activeId={section}>
-        <section className="overview-section">
-          <div className="section-heading">
-            <div>
-              <span className="page-kicker">Workspaces</span>
-              <h2>One tab per desk role</h2>
-            </div>
-            <span className="section-note">
-              Each role owns its surface; every action still lands in the same audit log.
-            </span>
-          </div>
+        <section className="overview-section" aria-label="Desk role workspaces">
+          {/* No heading row. "Workspaces — one tab per desk role" restated
+              what the rail tab the reader just pressed already says, and each
+              card below names its role in its own kicker; the aria-label keeps
+              the section named for a screen reader without spending a visual
+              row on it. */}
 
           {/* Ordered the way work moves — an idea is researched, executed, held,
               and constrained — then the three roles that keep that possible.

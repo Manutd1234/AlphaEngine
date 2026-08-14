@@ -27,6 +27,13 @@
  *    decides which half an instance draws, and `DataConsole` mounts one
  *    instance per section, so the pane a reader left in Summary is not the
  *    pane they land on in Feeds & Contracts.
+ *
+ * 3. PROSE EARNS ITS PAINT. Methodology paragraphs fold into `.disclosure`
+ *    blocks whose summaries state the fact they explain; measured figures,
+ *    verdicts and every empty state's honest sentence stay outside the fold.
+ *    A fact a chart's own legend or a section-note already prints is not
+ *    restated in prose beside it — the house calls the repeat noise, not
+ *    honesty.
  */
 
 import { useState } from "react";
@@ -283,6 +290,13 @@ export default function DataTrustOverview({
         <>
           <FeedThroughput health={health} />
 
+          {/* Shared row, not a stack: the sparkline rows and the normalised
+              quota bars are both narrow content, so at desk width they halve
+              the pane's scroll instead of each taking a full-width card. The
+              980px media rule stacks them again where half a panel is too
+              little. Unlike the feeds monitors that were un-paired in the last
+              consolidation, neither side is a wide table. */}
+          <div className="data-trust-detail-grid">
           {/* ------------------------------------------------------------------
               Response history per source.
 
@@ -347,18 +361,27 @@ export default function DataTrustOverview({
               </ul>
             )}
 
-            <p className="research-note">
-              Each spark is the <strong>median per minute</strong>; the figure beside it is the
-              fifteen-minute <strong>p95</strong>. They answer different questions and are not the same
-              number. A minute with fewer than {latencyWindow?.minSamplesPerBucket ?? 3} calls is drawn
-              as a gap rather than joined across, because too little traffic to measure and a fast
-              minute look identical once the line is bridged. A source shown as{" "}
-              <strong>p95 n/a</strong> is one the wire publishes no aggregate for — the gateway probe
-              is one — and its sample count is read from the window&rsquo;s own buckets instead.
-            </p>
+            {/* Methodology folds; measurements do not. Every figure this
+                paragraph explains is printed in the rows above, so the
+                derivation collapses to a summary that names both statistics —
+                a reader who trusts the labels never pays for the argument. */}
+            <details className="disclosure">
+              <summary>
+                How these rows are read — the spark is a per-minute median, the chip a fifteen-minute p95
+              </summary>
+              <p className="research-note">
+                They answer different questions and are not the same number. A minute with fewer than{" "}
+                {latencyWindow?.minSamplesPerBucket ?? 3} calls is drawn as a gap rather than joined
+                across, because too little traffic to measure and a fast minute look identical once
+                the line is bridged. A source shown as <strong>p95 n/a</strong> is one the wire
+                publishes no aggregate for — the gateway probe is one — and its sample count is read
+                from the window&rsquo;s own buckets instead.
+              </p>
+            </details>
           </section>
 
           <QuotaHeadroom health={health} />
+          </div>
         </>
       )}
 
@@ -430,9 +453,9 @@ export default function DataTrustOverview({
             </div>
 
             <p className="research-note">
-              Findings, not payloads — one payload can carry several, so the two marks above have
-              different denominators and are deliberately not combined. A green ring means{" "}
-              <strong>no fatal finding</strong>; warnings and drift may remain.
+              A green ring means <strong>no fatal finding</strong> — warnings and drift may remain.
+              The ring counts payloads, the bar counts findings, and one payload can carry several,
+              which is why the two marks are deliberately not combined.
             </p>
           </section>
 
@@ -468,11 +491,12 @@ export default function DataTrustOverview({
                 ariaLabel="Per provider, evaluated payloads split by whether any fatal contract finding was raised against them."
                 emptyNote="No provider has had a payload evaluated on this instance."
               />
+              {/* One clause, because the card above has already argued the
+                  payload/finding split — its neighbour restating the whole
+                  case was the same fact twice on one pane. */}
               <p className="research-note">
-                One denominator per bar: both segments are <strong>payloads</strong> and sum to that
-                provider&rsquo;s evaluated count. The fatal, warn and drift figures in each note are{" "}
-                <strong>findings</strong> — one payload can carry several — which is why they are
-                printed rather than stacked into the same bar.
+                Segments are <strong>payloads</strong> and sum to each provider&rsquo;s evaluated
+                count; the figures in each note are <strong>findings</strong>, as above.
               </p>
             </section>
           )}
@@ -714,18 +738,16 @@ export default function DataTrustOverview({
         its summary line still says exactly what is inside.
       */}
       {summary && (
-        <section className="card data-trust-boundaries" aria-labelledby="trust-boundaries-heading">
+        <section className="card data-trust-boundaries" aria-label="Assessment boundary">
           <details className="disclosure">
+            {/* The summary IS the heading. An inner kicker-and-h2 block used to
+                restate it word for word the moment the disclosure opened, so
+                the reader's reward for opening was the title twice; the h2 went
+                with the repeat, and the section carries an aria-label instead
+                of pointing at a heading that no longer exists. */}
             <summary>
               Assessment boundary — what is implemented, and where the production gap is
             </summary>
-            <div className="section-heading compact">
-              <div>
-                <span className="page-kicker">Assessment boundary</span>
-                <h2 id="trust-boundaries-heading">Implemented evidence vs production gap</h2>
-              </div>
-              <span className="section-note">claims match the running system</span>
-            </div>
             <div>
               <article>
                 <h3><span aria-hidden>✓</span> Implemented</h3>

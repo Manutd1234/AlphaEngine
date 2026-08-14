@@ -59,16 +59,20 @@ export default function QuotaHeadroom({ health }: { health: SystemHealth | null 
         emptyNote="No provider in this environment keeps a local quota ledger, so there is no headroom to report."
       />
 
-      <p className="research-note">
-        Percentages of each provider&rsquo;s own window; the count beside each bar is the absolute
-        figure. {fenced
-          ? <><strong>{fenced}</strong> provider{fenced === 1 ? " is" : "s are"} at or past the
-            reserve, so background refreshes there are already being refused while interactive
-            lookups still work.</>
-          : "No provider has reached its reserve, so background polling and interactive lookups are both still funded."}
-        {" "}Providers with no key are left out — an unspendable budget is not headroom. The window
-        countdown and the per-call ledger live in Providers.
-      </p>
+      {/* Only over a populated chart. With zero metered rows the all-clear
+          sentence would be comfort over an empty set, and the bars' own
+          emptyNote already reports the emptiness honestly. */}
+      {rows.length > 0 && (
+        <p className="research-note">
+          Each bar is a share of its own window; the absolute count sits beside it. {fenced
+            ? <><strong>{fenced}</strong> provider{fenced === 1 ? " is" : "s are"} at or past the
+              reserve, so background refreshes there are already being refused while interactive
+              lookups still work.</>
+            : "No provider has reached its reserve, so background polling and interactive lookups are both still funded."}
+          {" "}Keyless providers are left out — an unspendable budget is not headroom; the window
+          countdown and the per-call ledger live in Providers.
+        </p>
+      )}
 
       {unmetered.length > 0 && (
         <p className="console-footnote">
