@@ -65,7 +65,15 @@ function Metric({ metric }: { metric: PageMetric }) {
     <>
       <span>{metric.label}</span>
       <strong className={mono ? "num" : undefined}>{metric.value}</strong>
-      {metric.note ? <small>{metric.note}</small> : null}
+      {/* The note is clamped to two lines in CSS, so a long one is clipped. A
+          clipped provenance line is the half a reader checks when a number
+          looks wrong, and losing its tail silently is the worst way to lose
+          it — Reliability's trading-path reason is a full sentence when the
+          gateway is misconfigured. Carrying the string as `title` keeps the
+          rest one hover away rather than gone. */}
+      {metric.note ? (
+        <small title={typeof metric.note === "string" ? metric.note : undefined}>{metric.note}</small>
+      ) : null}
     </>
   );
   const className = `page-insight is-${metric.tone ?? "neutral"}`;

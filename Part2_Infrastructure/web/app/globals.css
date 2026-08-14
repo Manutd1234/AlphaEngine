@@ -11549,8 +11549,23 @@ button.data-trust-action > i {
   min-width: 0;
   /* Sized for the two-line note, on every tab — so a tab whose provenance
      lines all fit on one line is exactly as tall as Data, whose notes need
-     both. Grid stretches the rest of the row to match. */
-  min-height: 81px;
+     both. Grid stretches the rest of the row to match.
+
+     This used to read 81px, which is the height of a chip whose note is ONE
+     line, so the intent above was never actually delivered: Data and
+     Reliability wrap a note and opened 171px against everyone else's 168px,
+     and the gap widened to 47px by 900px. The floor is now the arithmetic it
+     always claimed to be, so the number cannot drift from the anatomy again:
+
+       2 × 1px   border            =  2.00
+       2 × 9px   padding           = 18.00
+       1 × 15px  label line        = 15.00
+       2 × 2px   row gap           =  4.00
+       14.5px × 1.24  value line   = 17.98
+       10px × 1.34 × 2  note lines = 26.80
+                                     ------
+                                      83.78  →  84px */
+  min-height: 84px;
   padding: 9px 12px 9px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -11603,11 +11618,18 @@ button.data-trust-action > i {
 
 /* Two lines, then clip. The provenance line is the half a reader checks when a
    number looks wrong, and one nowrap line turned it into "no gateway feed
-   snapshot — the…" on exactly the surfaces where it mattered most. */
+   snapshot — the…" on exactly the surfaces where it mattered most.
+
+   The slot is two lines whether or not the note fills them. Reserving it is
+   what makes the chip's height a property of its anatomy rather than of how
+   long someone's sentence happened to be: without this, a tab whose notes all
+   fit on one line renders a shorter chip and only the grid's row-stretch hides
+   it — which works within a row and not at all between tabs. */
 .page-insight > small {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  min-height: calc(1.34em * 2);
   overflow: hidden;
   color: var(--text-muted);
   font-size: 10px;
@@ -11618,8 +11640,10 @@ button.data-trust-action > i {
 .page-insight.is-warn > strong { color: var(--warning-text); }
 .page-insight.is-critical > strong { color: var(--critical-text); }
 
+/* No `min-height: auto` here. A chip that happens to be a button is still a
+   chip, and opting it out of the floor meant a header whose metrics were all
+   actionable opened shorter than one whose metrics were not. */
 button.page-insight {
-  min-height: auto;
   cursor: pointer;
   transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
@@ -11669,6 +11693,17 @@ button.page-insight:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--status-critical) 38%, var(--border));
   background: color-mix(in srgb, var(--status-critical) 7%, var(--surface-1));
   color: var(--critical-text);
+}
+
+/* `neutral` is a declared tone in PageStatus and had no rule, so a surface that
+   passed it got the bare `.page-status` look — legible, but indistinguishable
+   from an unstyled fallback, which is exactly the state you cannot tell apart
+   from a bug. It reads as deliberate now: the axis grey, no status colour,
+   because "no verdict" is a verdict this desk is allowed to render. */
+.page-status.is-neutral {
+  border-color: var(--border);
+  background: var(--surface-2);
+  color: var(--text-secondary);
 }
 
 /* ---------- the term explainer ----------
@@ -13071,10 +13106,10 @@ h4 {
     flex: 1 1 380px;
     max-width: 58ch;
   }
-
-  .page-heading__context {
-    flex: 1 1 420px;
-  }
+  /* `.page-heading__context` used to take a `flex: 1 1 420px` here. It is
+     `display: contents` — it has no box, so it never took a flex line and the
+     declaration did nothing. Its two children, `__actions` and `__insights`,
+     are the real flex items and carry their own basis. */
 }
 
 /* ---------- containment ---------- */

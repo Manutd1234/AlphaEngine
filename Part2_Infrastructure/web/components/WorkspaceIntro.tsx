@@ -1,4 +1,4 @@
-import PageHead, { type PageMetric } from "@/components/workspace/PageHead";
+import PageHead, { type PageMetric, type PageStatus } from "@/components/workspace/PageHead";
 
 interface WorkspaceInsight {
   label: string;
@@ -13,6 +13,8 @@ interface WorkspaceIntroProps {
   title: string;
   description: React.ReactNode;
   insights: WorkspaceInsight[];
+  /** The one-word verdict, when the surface has one. */
+  status?: PageStatus | null;
   /** Controls that belong to the surface as a whole (refresh, source switch). */
   actions?: React.ReactNode;
 }
@@ -30,6 +32,7 @@ export default function WorkspaceIntro({
   title,
   description,
   insights,
+  status = null,
   actions,
 }: WorkspaceIntroProps) {
   const metrics: PageMetric[] = insights.map((insight) => ({
@@ -37,6 +40,13 @@ export default function WorkspaceIntro({
     value: insight.value,
     note: insight.detail,
     tone: insight.tone,
+    /* Off by default, where PageHead's own default is on. That reads like
+       drift and is not: the values reaching this adapter are mostly verdict
+       words — "Halted", "Sandbox", "Measured", "Paper only" — and `.num` sets
+       the mono family, so defaulting it on would set those words in monospace.
+       The call sites that hold figures (Positions, Instrument, Intent) opt in
+       explicitly. PageHead's direct callers default the other way because
+       their values are mostly figures. Two vocabularies, one component. */
     mono: insight.mono ?? false,
   }));
 
@@ -46,6 +56,7 @@ export default function WorkspaceIntro({
       title={title}
       description={description}
       metrics={metrics}
+      status={status}
       actions={actions}
     />
   );

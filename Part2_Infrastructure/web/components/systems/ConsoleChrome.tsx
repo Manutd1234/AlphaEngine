@@ -3,7 +3,7 @@
 /** Shared status header for the operational console. */
 
 import FreshnessStamp from "@/components/workspace/FreshnessStamp";
-import PageHead, { type PageMetric } from "@/components/workspace/PageHead";
+import PageHead, { type PageMetric, type PageStatus } from "@/components/workspace/PageHead";
 import type { SystemHealthView } from "@/lib/use-system-health";
 
 export interface ConsoleTile {
@@ -41,12 +41,15 @@ export function ConsoleChrome({
   kicker,
   title,
   description,
+  status = null,
 }: {
   view: SystemHealthView;
   tiles: ConsoleTile[];
   kicker: string;
   title: string;
   description: React.ReactNode;
+  /** The one-word verdict, when the console has one. */
+  status?: PageStatus | null;
 }) {
   const { health, healthError, updatedAt, paused, pollMs, refresh, busyAction } = view;
 
@@ -65,6 +68,7 @@ export function ConsoleChrome({
       title={title}
       description={description}
       metrics={metrics}
+      status={status}
       actions={
         <>
           <FreshnessStamp updatedAt={updatedAt} pollMs={pollMs} paused={paused} />
