@@ -473,7 +473,10 @@ export default function OrderTicket({
         ) : null}
       </div>
 
-      <div className="cockpit-ticket__presets">
+      {/* A named group, not a seg: these are submit actions, so aria-pressed
+          would be a lie, but a screen reader still deserves to know the three
+          are one family — the same fix LiveMarket's notional shortcuts got. */}
+      <div className="cockpit-ticket__presets" role="group" aria-label="Gate demonstration presets">
         {PRESETS.map((preset) => (
           <button
             key={preset.id}

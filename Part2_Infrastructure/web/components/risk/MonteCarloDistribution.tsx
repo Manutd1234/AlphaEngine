@@ -38,11 +38,16 @@ interface MonteCarloDistributionProps {
   sandbox: boolean;
   /** Bumped by the palette action to re-run with the current inputs. */
   runNonce: number;
+  /**
+   * Owned by the montecarlo section, not this card: the GBM panel beside it
+   * reads the same value, so the two loss estimates are always over one
+   * horizon and their disagreement stays a statement about method.
+   */
+  horizonDays: number;
   onOpenResearch: () => void;
 }
 
 const PATH_CHOICES = [2_000, 10_000, 50_000] as const;
-const HORIZON_CHOICES = [10, 30, 90] as const;
 
 function HistogramChart({ result }: { result: McDistributionResult }) {
   const [ref, width] = useMeasuredWidth<HTMLDivElement>();
@@ -126,10 +131,10 @@ export default function MonteCarloDistribution({
   cushionUsd,
   sandbox,
   runNonce,
+  horizonDays,
   onOpenResearch,
 }: MonteCarloDistributionProps) {
   const [paths, setPaths] = useState<number>(10_000);
-  const [horizonDays, setHorizonDays] = useState<number>(30);
 
   // Quantised so a live book repolling every 15s does not re-simulate on
   // every equity tick — the same restraint OracleVarPanel applies.
@@ -182,32 +187,21 @@ export default function MonteCarloDistribution({
           <span className="page-kicker">Independent computation</span>
           <h2>Monte Carlo terminal distribution</h2>
         </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <label className="rail-toggle">
-            Paths
-            <select
-              value={paths}
-              onChange={(event) => setPaths(Number(event.target.value))}
-              aria-label="Simulation path count"
-            >
-              {PATH_CHOICES.map((choice) => (
-                <option key={choice} value={choice}>{choice.toLocaleString()}</option>
-              ))}
-            </select>
-          </label>
-          <label className="rail-toggle">
-            Horizon
-            <select
-              value={horizonDays}
-              onChange={(event) => setHorizonDays(Number(event.target.value))}
-              aria-label="Forward horizon in days"
-            >
-              {HORIZON_CHOICES.map((choice) => (
-                <option key={choice} value={choice}>{choice} days</option>
-              ))}
-            </select>
-          </label>
-        </div>
+        {/* Paths only. The horizon moved to the section-level seg above the
+            card, shared with the GBM panel, so the two estimates cannot be
+            read against each other on two different clocks. */}
+        <label className="rail-toggle">
+          Paths
+          <select
+            value={paths}
+            onChange={(event) => setPaths(Number(event.target.value))}
+            aria-label="Simulation path count"
+          >
+            {PATH_CHOICES.map((choice) => (
+              <option key={choice} value={choice}>{choice.toLocaleString()}</option>
+            ))}
+          </select>
+        </label>
       </div>
       <p className="sub">
         Resamples <strong>{driver.label}</strong>&apos;s realised {driver.interval} returns — the

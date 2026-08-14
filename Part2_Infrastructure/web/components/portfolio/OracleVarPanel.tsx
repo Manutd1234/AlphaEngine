@@ -50,13 +50,16 @@ export default function OracleVarPanel({
   equity,
   annualVol,
   sandbox,
+  horizonDays,
 }: {
   equity: number;
   /** From the measured covariance model, so both figures share one input. */
   annualVol: number | null;
   sandbox: boolean;
+  /** Owned by the montecarlo section's seg, shared with the bootstrap card
+   *  above, so the two loss estimates always answer over one horizon. */
+  horizonDays: number;
 }) {
-  const [horizonDays, setHorizonDays] = useState(30);
   const [result, setResult] = useState<OracleVarResponse | null>(null);
   const [running, setRunning] = useState(false);
 
@@ -125,19 +128,9 @@ export default function OracleVarPanel({
           <span className="page-kicker">Independent computation</span>
           <h2>In-database Monte Carlo VaR</h2>
         </div>
-        <label className="rail-toggle">
-          Horizon
-          <select
-            value={horizonDays}
-            onChange={(event) => setHorizonDays(Number(event.target.value))}
-            aria-label="Forecast horizon in days"
-          >
-            <option value={1}>1 day</option>
-            <option value={10}>10 days</option>
-            <option value={30}>30 days</option>
-            <option value={90}>90 days</option>
-          </select>
-        </label>
+        {/* No control here: the horizon is the section seg above both cards.
+            The figure states its own horizon in the tile note below. */}
+        <span>{horizonDays}-day horizon</span>
       </div>
       <p className="sub">
         Simulated by Oracle 23ai, not by this browser. It is a <strong>terminal-value</strong> GBM

@@ -21,7 +21,7 @@
  *    median rather than being allowed to flatter it.
  */
 
-import { fmt } from "@/lib/format";
+import { fmt, pct } from "@/lib/format";
 import { DEFAULT_MARGIN, Grid, extent, linearScale, ticks, useMeasuredWidth } from "@/components/chart-kit";
 import type { WalkForwardReport } from "@/lib/types";
 
@@ -222,20 +222,27 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
         </div>
       </div>
 
+      {/* The one per-fold table on this tab. A second card below it used to
+          repeat five of these columns for the same folds under its own
+          heading; `FoldEfficiency extends WalkForwardFold`, so the two
+          columns it alone carried — the train window and the OOS return —
+          simply live here now. */}
       <div className="table-wrap" tabIndex={0}>
         <table>
           <caption className="sr-only">
             Per-fold walk-forward results: training and testing windows, chosen parameters,
-            in-sample and out-of-sample Sharpe, efficiency, and parameter drift.
+            in-sample and out-of-sample Sharpe, out-of-sample return, efficiency, and parameter drift.
           </caption>
           <thead>
             <tr>
               <th scope="col">Fold</th>
+              <th scope="col">Train window</th>
               <th scope="col">Test window</th>
               <th scope="col">Params</th>
               <th scope="col">Drift</th>
               <th scope="col">IS Sharpe</th>
               <th scope="col">OOS Sharpe</th>
+              <th scope="col">OOS return</th>
               <th scope="col">Efficiency</th>
             </tr>
           </thead>
@@ -243,6 +250,9 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
             {folds.map((f) => (
               <tr key={f.fold}>
                 <td>{f.fold}</td>
+                <td className="research-window muted">
+                  {f.trainStart} → {f.trainEnd}
+                </td>
                 <td className="research-window">
                   {f.testStart} → {f.testEnd}
                 </td>
@@ -260,6 +270,7 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
                 </td>
                 <td>{fmt(f.isSharpe, 2)}</td>
                 <td className={f.oosSharpe >= 0 ? "pos" : "neg"}>{fmt(f.oosSharpe, 2)}</td>
+                <td className={f.oosReturn >= 0 ? "pos" : "neg"}>{pct(f.oosReturn)}</td>
                 <td>
                   {f.efficiency === null ? (
                     <span className="muted" title="In-sample Sharpe was not positive, so the ratio would be misleading">
@@ -274,6 +285,11 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
           </tbody>
         </table>
       </div>
+      <p className="research-note">
+        Each fold optimises on the train window and trades the <strong>next</strong>, unseen one. A
+        large in-sample → out-of-sample gap is overfitting made visible: the parameters that won on
+        past data stop winning on the data that followed it.
+      </p>
     </div>
   );
 }

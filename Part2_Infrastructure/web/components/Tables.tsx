@@ -76,60 +76,7 @@ export function ResultsTable({
   );
 }
 
-export function WalkForwardTable({ data }: { data: SweepResponse }) {
-  if (!data.walkForward.length) {
-    return (
-      <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-        Not enough history for the requested number of folds — increase the bar count or reduce folds.
-      </p>
-    );
-  }
-  return (
-    <div className="table-wrap" tabIndex={0}>
-      <table>
-        <caption className="sr-only">
-          Walk-forward folds: parameters chosen in-sample, scored out-of-sample
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col">Fold</th>
-            <th scope="col">Train window</th>
-            <th scope="col">Test window</th>
-            <th scope="col">Chosen</th>
-            <th scope="col">IS Sharpe</th>
-            <th scope="col">OOS Sharpe</th>
-            <th scope="col">OOS return</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.walkForward.map((f) => (
-            <tr key={f.fold}>
-              <th scope="row" style={{ textAlign: "left", padding: "7px 10px", borderBottom: "1px solid var(--grid)" }}>
-                {f.fold}
-              </th>
-              <td className="muted">
-                {f.trainStart.slice(0, 10)} → {f.trainEnd.slice(0, 10)}
-              </td>
-              <td className="muted">
-                {f.testStart.slice(0, 10)} → {f.testEnd.slice(0, 10)}
-              </td>
-              <td>
-                {f.chosenFast}/{f.chosenSlow}
-              </td>
-              <td className="muted">{fmt(f.isSharpe, 2)}</td>
-              <td className={sign(f.oosSharpe)} style={{ fontWeight: 600 }}>
-                {fmt(f.oosSharpe, 2)}
-              </td>
-              <td className={sign(f.oosReturn)}>{pct(f.oosReturn)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 12, maxWidth: "78ch" }}>
-        Each fold optimises on the train window and trades the <strong>next</strong>, unseen one. A
-        large in-sample → out-of-sample gap is overfitting made visible: the parameters that won on
-        past data stop winning on the data that followed it.
-      </p>
-    </div>
-  );
-}
+/* WalkForwardTable used to live here: a second per-fold table stacked under
+   WalkForwardTimeline's on the same sub-tab, repeating five of its columns.
+   The timeline's table absorbed the two this one alone carried (train window,
+   OOS return); FoldEfficiency extends WalkForwardFold, so nothing was lost. */

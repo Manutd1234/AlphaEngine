@@ -62,6 +62,10 @@ function limitValue(value: number, unit: "usd" | "pct"): string {
   return unit === "usd" ? usd(value, 0) : pct(value, 2);
 }
 
+/** The montecarlo section's shared forward horizon, in days. 1 day is here for
+ *  the GBM panel's original range; the bootstrap converts it to ≥1 bar. */
+const MC_HORIZON_CHOICES = [1, 10, 30, 90] as const;
+
 export default function RiskWorkspace({
   view,
   onOpenPortfolio,
@@ -73,6 +77,14 @@ export default function RiskWorkspace({
   onSectionChange,
 }: RiskWorkspaceProps) {
   const [handoff, setHandoff] = useState<HandoffIntent | null>(null);
+  /**
+   * One horizon for both Monte Carlos. Each card used to carry its own
+   * "Horizon" select, so the section's stated purpose — read the two loss
+   * estimates against each other — only held after the reader had manually
+   * set two controls to the same value. A comparison with two clocks is not
+   * a comparison.
+   */
+  const [mcHorizonDays, setMcHorizonDays] = useState<number>(30);
 
   const {
     book,
@@ -251,22 +263,38 @@ export default function RiskWorkspace({
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="risk" tabId="montecarlo" activeId={section}>
+        <div className="seg research-seg" role="group" aria-label="Forward horizon for both loss estimates">
+          {MC_HORIZON_CHOICES.map((days) => (
+            <button
+              key={days}
+              type="button"
+              aria-pressed={mcHorizonDays === days}
+              title={`Run both estimates over a ${days}-day forward horizon`}
+              onClick={() => setMcHorizonDays(days)}
+            >
+              {days}d
+            </button>
+          ))}
+        </div>
         <MonteCarloDistribution
           driver={mcDriver}
           equity={book.equity.current}
           cushionUsd={book.risk_budget.daily_drawdown.cushion_usd}
           sandbox={Boolean(book.sandbox)}
           runNonce={mcRunNonce}
+          horizonDays={mcHorizonDays}
           onOpenResearch={onOpenResearch}
         />
         {/* The two Monte Carlos live together on purpose: a bootstrap of the
             strategy's realised returns above, a GBM simulated in the database
             below. They answer the same question two ways, and disagreement
-            between them is signal about the method, not an error. */}
+            between them is signal about the method, not an error — which is
+            why the horizon seg above sets both at once. */}
         <OracleVarPanel
           equity={book.equity.current}
           annualVol={risk?.annualisedVolatility ?? null}
           sandbox={Boolean(book.sandbox)}
+          horizonDays={mcHorizonDays}
         />
       </WorkspaceSubtabPanel>
 

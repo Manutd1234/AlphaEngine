@@ -31,7 +31,7 @@ import TearSheet from "@/components/research/TearSheet";
 import WalkForwardTimeline from "@/components/research/WalkForwardTimeline";
 import NextStepFooter from "@/components/common/NextStepFooter";
 import StatTile from "@/components/StatTile";
-import { ResultsTable, WalkForwardTable } from "@/components/Tables";
+import { ResultsTable } from "@/components/Tables";
 import Verdict from "@/components/Verdict";
 import CommandBar, { type Command } from "@/components/header/CommandBar";
 import ShortcutsOverlay, { type TourStop } from "@/components/header/ShortcutsOverlay";
@@ -1698,12 +1698,12 @@ export default function Page() {
                         targetInterval={req.interval}
                         onRerun={() => run()}
                       >
+                        {/* One card, one per-fold table. A "Walk-forward
+                            validation" card used to stack beneath this with a
+                            second table repeating five of its columns for the
+                            same folds; the timeline's table now carries the
+                            train window and OOS return it alone added. */}
                         <WalkForwardTimeline report={data.walkForwardReport} />
-                        <div className="card">
-                          <h2>Walk-forward validation</h2>
-                          <p className="sub">Choose parameters on one window, then trade the next window blind.</p>
-                          <WalkForwardTable data={data} />
-                        </div>
                       </StaleGate>
                     </WorkspaceSubtabPanel>
 
