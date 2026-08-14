@@ -1164,10 +1164,22 @@ The resting book and paper-equity adapter add seven of their own:
 | `PAPER_EQUITY_QUOTE_URL` | empty | optional validated quote facade for authenticated clients that predate the enriched order envelope |
 | `PAPER_EQUITY_QUOTE_TIMEOUT_S` | `5.0` | fail-closed timeout for that server-side quote lookup |
 
-`requirements.txt` is the full set (verified on Python 3.11 – 3.14, including
-vectorbt + numba on 3.14). If numba will not build on your platform, use
+`requirements.txt` is the full set. **Build the virtualenv on Python 3.12** —
+the version CI pins, and the only one the gateway (3.11–3.14) and the OpenBB
+service (`>=3.12,<3.15`) both accept.
+
+This used to read "verified on 3.11 – 3.14, including vectorbt + numba on
+3.14", and that was wrong in a way worth recording. numba publishes no 3.14
+wheel, so on a 3.14 interpreter vectorbt does not install — and the suite does
+not fail, it *skips*: `tests/test_backtester.py:99`, "vectorbt not installed".
+The summary line reads 691 passed, 1 skipped and looks healthy while the
+vectorbt engine goes entirely untested. On 3.12 the same tree is 692 passed,
+nothing skipped.
+
+If numba genuinely will not build on your platform, use
 `requirements-core.txt` — the backtester falls back to its NumPy engine and
-nothing else changes.
+nothing else changes. Prefer that to a newer interpreter, because it fails
+loudly in one place rather than quietly everywhere.
 
 **Celery/Redis is optional.** Set `REDIS_URL` and the job queue switches from the
 in-process thread pool to Celery automatically; `python worker.py` starts a

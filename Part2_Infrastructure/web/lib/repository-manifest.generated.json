@@ -449,7 +449,6 @@
     "Part2_Infrastructure/web/proxy.ts",
     "Part2_Infrastructure/web/public/alphaengine-mark.svg",
     "Part2_Infrastructure/web/public/og-alphaengine-v2.png",
-    "Part2_Infrastructure/web/public/og.png",
     "Part2_Infrastructure/web/public/robots.txt",
     "Part2_Infrastructure/web/README.md",
     "Part2_Infrastructure/web/scripts/check-gateway-openapi-digest.mjs",

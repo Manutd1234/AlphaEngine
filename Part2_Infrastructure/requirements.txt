@@ -1,5 +1,11 @@
 # AlphaEngine Trading Automation — full dependency set
-# Verified on Python 3.11 – 3.14.
+#
+# BUILD THE VENV ON PYTHON 3.12. It is what CI pins, and the only version the
+# gateway (3.11-3.14) and the OpenBB service (>=3.12,<3.15) both accept.
+#
+# Not 3.14: numba publishes no wheel for it, so vectorbt silently does not
+# install and tests/test_backtester.py:99 SKIPS rather than fails. The summary
+# still reads green while the vectorbt engine goes untested.
 #
 #   python -m venv venv && source venv/bin/activate
 #   pip install -r requirements.txt
