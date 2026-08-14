@@ -181,19 +181,21 @@ export default function WorkspaceOverview({
 
   return (
     <div className="overview-page">
-      {/* The eighth tab reaches PageHead like the other seven.
+      {/* The command centre band. Two things are true of it at once, and the
+          combination is the point.
 
-          This was a bespoke `.overview-hero`: a 380px band on a theme-invariant
-          zinc plane, carrying its own kicker, headline, stat anatomy and CTA.
-          It was the only surface in the app that opened in a different visual
-          grammar from the tab beside it, and the only reason a second colour
-          system existed — ten `--hero-*` tokens that never flipped with the
-          theme, including a duplicate status ramp shadowing `--status-*`.
+          It keeps the dark plane the overview has always opened on — this is
+          the desk's landing surface and it is meant to read as one. But it no
+          longer owns a private colour system to do it. `data-plane="inverted"`
+          scopes the DARK THEME'S OWN tokens to this subtree, so the head, the
+          chips, the loop tiles, the button and the sparkline all render dark
+          through the ordinary names. The ten `--hero-*` tokens that used to
+          exist for this one band — a plane, five ink steps and a duplicate of
+          the status ramp — are gone, and status colour has one spelling again.
 
-          Everything it carried is still here: the four stats are the four
-          chips, the equity sparkline rides in the first chip's note slot, the
-          primary action is the head's one control, and the decision loop keeps
-          its own band directly beneath. What went is the parallel palette. */}
+          Inside it, the head is the same `PageHead` the other seven tabs
+          render, with the same chip anatomy and the same height. */}
+      <section className="overview-hero" data-plane="inverted">
       <PageHead
         kicker="AlphaEngine command center"
         title="Overview"
@@ -255,11 +257,12 @@ export default function WorkspaceOverview({
         }
       />
 
-      <section className="overview-loop" aria-label="AlphaEngine decision loop">
-        <DecisionLoopPipeline stages={stages} onOpenStage={onOpenStage} />
+        <div className="overview-loop" aria-label="AlphaEngine decision loop">
+          <DecisionLoopPipeline stages={stages} onOpenStage={onOpenStage} />
+        </div>
       </section>
 
-      {/* The loop band stays above the rail the way BookChrome does on
+      {/* The band stays above the rail the way BookChrome does on
           Portfolio/Risk — it is the workspace's identity, not a section. The
           three sections below it are real locations. */}
       <WorkspaceSubtabs

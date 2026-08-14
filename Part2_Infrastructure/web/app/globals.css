@@ -215,7 +215,26 @@
   }
 }
 
-:root[data-theme="dark"] {
+/*
+ * The second selector is the command centre's dark band, and it is why there
+ * is no `--hero-*` ramp any more.
+ *
+ * That band needs a dark palette in a light page. It used to get one by naming
+ * ten private tokens — a plane, five ink steps and a duplicate of the whole
+ * status ramp — which meant status colour had two spellings depending on
+ * whether you were inside the hero, and meant a theme sweep could "fix" those
+ * hexes into illegibility because nothing marked them as belonging to one
+ * surface.
+ *
+ * Scoping instead of duplicating: an element carrying `data-plane="inverted"`
+ * redeclares the SAME token names the dark theme uses, so everything inside it
+ * — the page head, the metric chips, the loop tiles, the buttons, the
+ * sparkline — renders dark without knowing anything about where it is. One
+ * palette, declared once, applied in two places. The plane itself is
+ * `--surface-0` (#18181b), which is the value the old `--hero-plane` held.
+ */
+:root[data-theme="dark"],
+[data-plane="inverted"] {
   color-scheme: dark;
 
   --surface-1: #1f1f23;
@@ -12103,18 +12122,36 @@ button.page-insight:hover:not(:disabled) {
   gap: var(--space-4);
 }
 
-/* The decision loop, on its own band under the page head.
+/* The command centre band: the page head and the decision loop on one dark
+   plane, the way the overview has always opened.
 
-   It used to be the right-hand half of a 380px hero on a fixed zinc plane. The
-   band is an ordinary surface now — which is the whole point: the loop is four
-   live states read off what the system measured, and it was the last thing on
-   the desk whose colours could not follow the theme. Its own tile borders and
-   the section rule below carry the separation the dark plane used to. */
-.overview-loop {
-  padding: var(--space-3) var(--space-4);
+   It carries `data-plane="inverted"`, which scopes the dark palette to this
+   subtree (see the note beside the dark token block). So this rule sets the
+   box and nothing else — every colour inside it, down to the chip borders and
+   the sparkline's series ink, resolves through the ordinary token names. */
+.overview-hero {
+  padding: var(--space-5) var(--space-5) var(--space-4);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--surface-2);
+  background: var(--surface-0);
+  /* Re-anchor the inherited colour. Rescoping `--text-primary` is not enough
+     on its own: `color` is an inherited property that `body` already resolved
+     against the LIGHT palette, and anything below it that does not declare its
+     own colour — the head's h1, most notably — inherits that resolved value
+     rather than re-reading the token. In light theme that drew a #18181b
+     headline on a #18181b plane. Declaring it here re-resolves the token at
+     the top of the band and lets it inherit down correctly. */
+  color: var(--text-primary);
+  box-shadow: 0 18px 44px -28px color-mix(in srgb, #000 45%, transparent);
+}
+
+/* The head sits directly on the plane, so its underline is the only thing
+   separating it from the loop and it does not need a second margin. */
+.overview-hero .page-heading {
+  margin-bottom: var(--space-4);
+}
+
+.overview-loop {
   display: flex;
 }
 
