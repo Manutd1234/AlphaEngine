@@ -8792,6 +8792,9 @@ button.data-trust-action > i {
   .workspace-subtabs button {
     padding: 8px 6px;
     text-align: center;
+    /* The desk-width growth cap has no business in a grid cell: a capped
+       button inside a wider auto-fit track would float in its own cell. */
+    max-width: none;
   }
 
   .market-watchlist {
@@ -15029,6 +15032,14 @@ html:active-view-transition .view-panel {
   display: flex;
   flex: 1 1 0;
   min-width: 0;
+  /* Growth is capped so a sparse rail stays a row of tabs. Overview has three
+     sections, and uncapped flex stretched each to ~486px at desk width — a
+     third of the screen per two-word label, with the active ring drawn around
+     the whole slab. Dense rails are untouched (research's eight tabs sit at
+     ~183px); short rails now cluster left on the hairline, which is how the
+     role tabs one level up already read. Measured at 1512px: overview tabs
+     486px → 200px, loop/desks/audit all opening 28px below the rail. */
+  max-width: 200px;
   min-height: 34px;
   align-items: center;
   justify-content: center;
@@ -15074,6 +15085,15 @@ html:active-view-transition .view-panel {
   border-color: transparent;
   background: color-mix(in srgb, var(--series-1) 5%, transparent);
   color: var(--text-primary);
+}
+
+/* Inside the tab's own shape. The global ring sits at offset 0, and on a
+   bottom-flush tab that draws a box colliding with the hairline and the
+   active tab's 2px rule — three blue edges stacked on one baseline. Inset,
+   the ring follows the tab's rounded top and stays clear of the strip's
+   geometry; contrast is unchanged. */
+.workspace-subtabs__rail[data-scroll-affordance="horizontal"] > button:focus-visible {
+  outline-offset: -2px;
 }
 
 .workspace-subtabs button[aria-selected="true"] {

@@ -187,7 +187,11 @@ export default function KpiDeck({
   return (
     <section
       aria-label="Current decision context"
-      className="relative z-[2] mt-3 grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[520px]:grid-cols-1"
+      // No mt-3: the overview page's grid gap plus the rail's own margin
+      // already open every pane 28px below the rail. This margin made the
+      // Decision loop pane alone start at ~39px, so content jumped
+      // vertically on every tab switch.
+      className="relative z-[2] grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[520px]:grid-cols-1"
     >
       <KpiCard
         label="Research candidate"
