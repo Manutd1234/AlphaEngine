@@ -11,6 +11,7 @@
 
 import { useState } from "react";
 
+import { CrossLinkTile } from "@/components/portfolio/BookChrome";
 import DependencyMix from "@/components/systems/DependencyMix";
 import DependencyTree from "@/components/systems/DependencyTree";
 import LatencyTrend from "@/components/systems/LatencyTrend";
@@ -666,18 +667,33 @@ export default function ReliabilityOverview({
           </div>
         </div>
 
-        <aside className="reliability-data-handoff" aria-label="Data quality ownership handoff">
-          <div>
-            <span className="page-kicker">Owned by data engineering</span>
-            <strong>Transport healthy, payload suspect?</strong>
-            <small>Contract checks, source reconciliation and quarantined records live in Data operations.</small>
-          </div>
-          <div className="reliability-data-handoff__metrics">
-            <span><strong className={`num${quarantined ? " warn" : ""}`}>{quarantined}</strong> quarantined</span>
-            <span><strong className="num">{health?.cache.entries ?? 0}</strong> cache entries</span>
-          </div>
-          <button type="button" className="text-action" onClick={onOpenData}>Open Data quality →</button>
-        </aside>
+        {/* The shared CrossLinkTile, not a hand-rolled copy: the anti-copy
+            ratchet in portfolio-section-panes.test.ts named this aside as the
+            one cross-link its scan could not measure because it did not reuse
+            .cross-link-metrics. Same words, same figures, shared chrome. */}
+        <CrossLinkTile
+          kicker="Owned by data engineering"
+          title="Transport healthy, payload suspect?"
+          actionLabel="Open Data quality"
+          onNavigate={onOpenData}
+          metrics={[
+            {
+              label: "Quarantined",
+              value: String(quarantined),
+              note: "records held out of the desk's series",
+              tone: quarantined ? "warn" : undefined,
+            },
+            {
+              label: "Cache entries",
+              value: String(health?.cache.entries ?? 0),
+              note: "provider payloads currently held",
+            },
+          ]}
+        >
+          <p className="research-note">
+            Contract checks, source reconciliation and quarantined records live in Data operations.
+          </p>
+        </CrossLinkTile>
       </section>
         </>
       )}

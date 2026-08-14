@@ -153,7 +153,7 @@ export default function RiskAdjustedTrend({
           <span className="page-kicker">Risk-adjusted</span>
           <h2>Drawdown and rolling Sharpe</h2>
         </div>
-        <span className="section-note">
+        <span>
           {worst ? `deepest ${pct(worst.drawdown, 2)}` : "never underwater"}
         </span>
       </div>

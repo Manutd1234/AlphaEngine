@@ -20,6 +20,7 @@
 
 import CorrelationMatrix from "@/components/portfolio/CorrelationMatrix";
 import RiskContributions from "@/components/portfolio/RiskContributions";
+import StatTile from "@/components/StatTile";
 import { pct, usd } from "@/lib/format";
 import VarBacktestChart from "@/components/portfolio/VarBacktestChart";
 import type { CovarianceModel, PortfolioRisk, VarBacktest, VarSeries } from "@/lib/portfolio-risk";
@@ -116,31 +117,34 @@ export default function RiskEngine({
         <span>{risk.observations} daily observations</span>
       </div>
 
+      {/* The shared StatTile, not the hand-rolled span/strong/small dialect:
+          two markup systems for the identical visual object had grown side by
+          side in this workspace, and the inline critical-text colour is what
+          the tile's data-tone="neg" already says. */}
       <div className="tiles stability-tiles">
-        <div className="stability-tile">
-          <span>Book volatility</span>
-          <strong className="num">{pct(risk.annualisedVolatility, 1)}</strong>
-          <small>annualised · {pct(risk.volatility, 2)} per day</small>
-        </div>
-        <div className="stability-tile">
-          <span>VaR 95 · 1 day</span>
-          <strong className="num" style={{ color: "var(--critical-text)" }}>{usd(risk.var95, 0)}</strong>
-          <small>parametric · normal assumption</small>
-        </div>
-        <div className="stability-tile">
-          <span>Historical VaR 95</span>
-          <strong className="num" style={{ color: "var(--critical-text)" }}>
-            {risk.historicalVar95 === null ? "—" : usd(risk.historicalVar95, 0)}
-          </strong>
-          <small>this book replayed over real returns</small>
-        </div>
-        <div className="stability-tile">
-          <span>Expected shortfall 95</span>
-          <strong className="num" style={{ color: "var(--critical-text)" }}>
-            {risk.historicalCvar95 === null ? usd(risk.cvar95, 0) : usd(risk.historicalCvar95, 0)}
-          </strong>
-          <small>{risk.historicalCvar95 === null ? "parametric" : "average loss beyond VaR"}</small>
-        </div>
+        <StatTile
+          label="Book volatility"
+          value={pct(risk.annualisedVolatility, 1)}
+          note={`annualised · ${pct(risk.volatility, 2)} per day`}
+        />
+        <StatTile
+          label="VaR 95 · 1 day"
+          value={usd(risk.var95, 0)}
+          note="parametric · normal assumption"
+          tone="neg"
+        />
+        <StatTile
+          label="Historical VaR 95"
+          value={risk.historicalVar95 === null ? "—" : usd(risk.historicalVar95, 0)}
+          note="this book replayed over real returns"
+          tone="neg"
+        />
+        <StatTile
+          label="Expected shortfall 95"
+          value={risk.historicalCvar95 === null ? usd(risk.cvar95, 0) : usd(risk.historicalCvar95, 0)}
+          note={risk.historicalCvar95 === null ? "parametric" : "average loss beyond VaR"}
+          tone="neg"
+        />
       </div>
 
       {tailGap !== null && tailGap > risk.var95 * 0.15 && (

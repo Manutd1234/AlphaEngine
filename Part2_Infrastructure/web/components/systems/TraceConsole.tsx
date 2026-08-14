@@ -212,7 +212,10 @@ export default function TraceConsole({ pollMs, active, filterRequest }: TraceCon
             className="console-log-filter"
           />
         </label>
-        {filter ? <button type="button" onClick={clearFilter}>Clear filter</button> : null}
+        {/* Mounted always, disabled when empty — the stylesheet's own rule:
+            "dimmed, never hidden". Mount-on-keystroke shoved Pause and Clear
+            view sideways the moment the filter had one character in it. */}
+        <button type="button" onClick={clearFilter} disabled={!filter}>Clear filter</button>
         <button type="button" onClick={() => setPaused((current) => !current)} aria-pressed={paused}>
           {paused ? "Resume stream" : "Pause stream"}
         </button>

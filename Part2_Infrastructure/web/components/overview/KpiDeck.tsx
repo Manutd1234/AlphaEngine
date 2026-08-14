@@ -187,7 +187,7 @@ export default function KpiDeck({
   return (
     <section
       aria-label="Current decision context"
-      className="relative z-[2] mt-3 grid grid-cols-4 gap-2.5 max-[900px]:grid-cols-2 max-[520px]:grid-cols-1"
+      className="relative z-[2] mt-3 grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[520px]:grid-cols-1"
     >
       <KpiCard
         label="Research candidate"

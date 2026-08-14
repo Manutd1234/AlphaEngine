@@ -28,6 +28,7 @@ import { useState, type CSSProperties } from "react";
 import NumberTicker from "@/components/common/NumberTicker";
 import Sparkline from "@/components/overview/Sparkline";
 import RowMenu from "@/components/common/RowMenu";
+import StatTile from "@/components/StatTile";
 import AllocationDonut from "@/components/portfolio/AllocationDonut";
 import AllocationPanel from "@/components/portfolio/AllocationPanel";
 import AllocationMixes from "@/components/portfolio/AllocationMixes";
@@ -430,7 +431,7 @@ export default function PortfolioWorkspace({
                     <span className="page-kicker">Soft limits</span>
                     <h2>Wants attention</h2>
                   </div>
-                  <span className="section-note">enforced at the gate</span>
+                  <span>enforced at the gate</span>
                 </div>
                 <ul>
                   {alerts.map((alert) => (
@@ -481,7 +482,7 @@ export default function PortfolioWorkspace({
                   <span className="page-kicker">Standing</span>
                   <h2>{alerts.length ? "Something is asking for attention" : "Nothing is asking for attention"}</h2>
                 </div>
-                <span className="section-note">{bookLabel}</span>
+                <span>{bookLabel}</span>
               </div>
               <p className="sub">
                 {alerts.length
@@ -1053,13 +1054,10 @@ export default function PortfolioWorkspace({
                     <h2>Execution quality</h2>
                   </div>
                 </div>
+                {/* Shared StatTile — one tile dialect per workspace. */}
                 <div className="tiles stability-tiles">
                   {executionTiles.map((tile) => (
-                    <div key={tile.label} className="stability-tile">
-                      <span>{tile.label}</span>
-                      <strong className="num">{tile.value}</strong>
-                      <small>{tile.note}</small>
-                    </div>
+                    <StatTile key={tile.label} label={tile.label} value={tile.value} note={tile.note} />
                   ))}
                 </div>
                 <p className="research-note">

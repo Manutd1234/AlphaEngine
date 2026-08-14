@@ -129,6 +129,7 @@ describe("the accent fill stays with controls that commit something", () => {
       "components/DeveloperConsole.tsx",             // run the parity check here
       "components/auth/AuthCallback.tsx",            // sign in
       "components/auth/LoginScreen.tsx",             // sign in
+      "components/data/DataWorkBoard.tsx",           // add to intake — the commit that creates an item
       "components/developer/DeveloperWorkQueue.tsx", // add to triage
       "components/execution/OrderTicket.tsx",        // send order
       "components/execution/PnlStrip.tsx",           // enter sandbox
@@ -138,6 +139,34 @@ describe("the accent fill stays with controls that commit something", () => {
       "components/research/PromotionPanel.tsx",      // promote strategy
       "components/research/StaleGate.tsx",           // re-run the sweep
     ].sort());
+  });
+});
+
+describe("primary has one spelling and navigators stay quiet", () => {
+  it("button.primary stays retired", () => {
+    // A second accent-fill variant with its own geometry, invisible to the
+    // roll call above because that greps for 'primary-action' — accent
+    // discipline enforced for one name and not the other. Its three users
+    // were reclassed (the commit to primary-action, the togglers to the
+    // default voice) and the rule deleted.
+    assert.doesNotMatch(css, /button\.primary \{/);
+    for (const file of sourceFiles(join(root, "components"))) {
+      assert.ok(
+        !strip(readFileSync(file, "utf8")).includes('className="primary"'),
+        `${file.slice(root.length)} resurrects the retired button.primary variant`,
+      );
+    }
+  });
+
+  it("the flow footer's door does not wear the fill", () => {
+    // A navigator to another workspace, under a class name the roll call
+    // cannot see. By the tested rule that stripped the fill from the
+    // developer console's cross-tab links, a door is not a commit.
+    const start = css.indexOf(".next-step-footer__action {");
+    assert.ok(start >= 0, "the footer action rule is gone");
+    const block = css.slice(start, css.indexOf("}", start));
+    assert.doesNotMatch(block, /var\(--series-1\)/);
+    assert.doesNotMatch(block, /#fff/i);
   });
 });
 

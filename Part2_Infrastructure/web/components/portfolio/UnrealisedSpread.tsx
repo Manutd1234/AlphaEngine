@@ -55,7 +55,7 @@ export default function UnrealisedSpread({
           <span className="page-kicker">Open P&amp;L</span>
           <h2>Unrealised by position</h2>
         </div>
-        <span className="section-note">
+        <span>
           {spread.winners} up · {spread.losers} down{spread.flat ? ` · ${spread.flat} flat` : ""}
         </span>
       </div>

@@ -265,10 +265,13 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
           </select>
         </label>
 
+        {/* Default voice: this opens and closes the composer, it commits
+            nothing. The accent belongs to "Add to Intake" alone — while the
+            form was open, two accent-filled buttons sat on one card and one
+            of them meant "Close". */}
         <button
           ref={addItemButton}
           type="button"
-          className="primary"
           aria-expanded={composerOpen}
           aria-controls="data-workboard-composer"
           onClick={() => setComposerOpen((open) => !open)}
@@ -342,7 +345,9 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
               maxLength={32}
             />
           </label>
-          <button type="submit" className="primary">Add to Intake</button>
+          {/* The card's one commit, in the budgeted spelling of primary —
+              accent-budget.test.ts's roll call names this file for it. */}
+          <button type="submit" className="primary-action w-full">Add to Intake</button>
         </form>
       )}
 

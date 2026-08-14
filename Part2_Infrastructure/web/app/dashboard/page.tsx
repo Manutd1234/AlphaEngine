@@ -1648,7 +1648,7 @@ export default function Page() {
                           </div>
 
                           <div className="card">
-                            <h2>Signal behavior</h2>
+                            <h2>Signal behaviour</h2>
                             <p className="sub">Shaded bands are held positions. Signals form on one bar and execute on the next.</p>
                             <PriceChart
                               series={displayedResult.series}

@@ -88,13 +88,17 @@ export default function SpreadDecomposition({
 
   return (
     <section className="card">
-      <div className="portfolio-card-heading">
+      {/* The Where pane's own grammar — section-heading compact + h3, like
+          FillQualityHeatmap beside it. This card wore the portfolio heading
+          class (kicker + underlined h2), so one pane showed two card-header
+          styles and a skipped heading level between peer cards. */}
+      <header className="section-heading compact">
         <div>
-          <span className="page-kicker">Cost decomposition</span>
-          <h2>Effective spread and fee</h2>
+          <h3>Effective spread and fee</h3>
+          <p className="muted">Cost decomposition per venue.</p>
         </div>
         <span className="section-note">{mix.totalFills} fills</span>
-      </div>
+      </header>
 
       <div ref={ref}>
         <svg width="100%" height={HEIGHT} viewBox={`0 0 ${width} ${HEIGHT}`} role="img"

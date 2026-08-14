@@ -65,13 +65,15 @@ export default function VenueMixDonut({
 
   return (
     <section className="card">
-      <div className="portfolio-card-heading">
+      {/* section-heading compact + h3, matching its Where-pane peer — see the
+          note in SpreadDecomposition for why the portfolio grammar left. */}
+      <header className="section-heading compact">
         <div>
-          <span className="page-kicker">Execution venues</span>
-          <h2>Share of fills by venue</h2>
+          <h3>Share of fills by venue</h3>
+          <p className="muted">Execution venues across the audit window.</p>
         </div>
         <span className="section-note">{mix.totalFills} fills</span>
-      </div>
+      </header>
 
       <DonutChart
         slices={slices}

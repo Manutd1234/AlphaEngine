@@ -33,7 +33,9 @@ const REGIME_LABELS: Record<string, string> = {
 function RegimeRow({ stat }: { stat: RegimeStat }) {
   return (
     <tr>
-      <th scope="row" style={{ textAlign: "left", padding: "7px 10px", borderBottom: "1px solid var(--grid)", fontWeight: 600 }}>
+      {/* Styled by the shared tbody th[scope="row"] rule — this inline style
+          object was the stylesheet restated in JSX. */}
+      <th scope="row">
         <span aria-hidden>{REGIME_GLYPHS[stat.regime] ?? "·"}</span>{" "}
         {REGIME_LABELS[stat.regime] ?? stat.regime}
       </th>

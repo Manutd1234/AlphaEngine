@@ -27,6 +27,7 @@ import {
   ticks,
   useMeasuredWidth,
 } from "@/components/chart-kit";
+import StatTile from "@/components/StatTile";
 import { compact, pct, usd } from "@/lib/format";
 import type { EquityPoint } from "@/lib/portfolio";
 
@@ -245,18 +246,20 @@ export default function EquityCurve({
       </div>
 
       {!generated && periods && (
+        /* Shared StatTile — the hand-rolled span/strong/small dialect left
+           this workspace in the harmonisation pass. */
         <div className="tiles period-tiles">
           {PERIOD_LABELS.map(([key, label]) => {
             const period = periods[key];
             if (!period || period.pnl === null) return null;
             return (
-              <div className="stability-tile" key={key}>
-                <span>{label}</span>
-                <strong className={`num ${period.pnl >= 0 ? "pos" : "neg"}`}>
-                  {period.pnl >= 0 ? "+" : "−"}{usd(Math.abs(period.pnl), 0)}
-                </strong>
-                <small>{period.return === null ? "—" : pct(period.return, 2)}</small>
-              </div>
+              <StatTile
+                key={key}
+                label={label}
+                value={`${period.pnl >= 0 ? "+" : "−"}${usd(Math.abs(period.pnl), 0)}`}
+                note={period.return === null ? "—" : pct(period.return, 2)}
+                tone={period.pnl >= 0 ? "pos" : "neg"}
+              />
             );
           })}
         </div>

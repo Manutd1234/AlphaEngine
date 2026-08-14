@@ -24,7 +24,10 @@ export default function DeskTape({ symbol }: { symbol: string }) {
       <div className="section-heading compact">
         <div>
           <span className="page-kicker">Postgres realtime</span>
-          <h2 id="desk-tape-title">Decision tape</h2>
+          {/* h3, like OrderBlotter and AlertFeed either side of it — the tape
+              alone sat at h2, so the subtab's outline ran h3 / h2 / h3. The id
+              stays: the section's aria-labelledby reads it. */}
+          <h3 id="desk-tape-title">Decision tape</h3>
         </div>
         <span className={`desk-tape__state is-${state}`}>
           <i aria-hidden />

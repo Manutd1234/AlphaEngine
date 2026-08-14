@@ -168,13 +168,22 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
           reads the same field, so the form still says which kind is being
           captured. */}
       <div className="developer-work__actions" aria-label="Create engineering work">
-        <button ref={newWorkButton} type="button" className="primary" onClick={() => setComposerOpen(true)}>
+        {/* Default voice, like its DataWorkBoard twin: this opens a composer,
+            it commits nothing — the accent stays on "Add to triage". The
+            aria wiring matches the twin too; it was missing here. */}
+        <button
+          ref={newWorkButton}
+          type="button"
+          aria-expanded={composerOpen}
+          aria-controls="developer-work-composer"
+          onClick={() => setComposerOpen(true)}
+        >
           New work
         </button>
       </div>
 
       {composerOpen && (
-        <form className="developer-work__composer" onSubmit={submitNewItem}>
+        <form id="developer-work-composer" className="developer-work__composer" onSubmit={submitNewItem}>
           <div className="developer-work__composer-heading">
             <div>
               <span className="page-kicker">New {KIND_LABEL[draft.kind].toLocaleLowerCase()}</span>

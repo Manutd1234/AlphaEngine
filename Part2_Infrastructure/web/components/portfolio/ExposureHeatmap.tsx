@@ -103,7 +103,7 @@ export default function ExposureHeatmap({
           <span className="page-kicker">Concentration</span>
           <h2>Exposure and limit pressure</h2>
         </div>
-        <span className="section-note">
+        <span>
           {cells.length} positions{withheld ? ` · ${withheld} without a published limit` : ""}
         </span>
       </div>

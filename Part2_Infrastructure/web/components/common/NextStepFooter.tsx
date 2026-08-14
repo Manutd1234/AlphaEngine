@@ -203,53 +203,56 @@ const NEXT_FROM: Record<string, { view: WorkspaceView; section: string; why: str
  * continuation, so it does not claim to know which panel the reader wants and
  * leaves them where they last were in that workspace.
  */
+/* Sentence case and British spelling, like the contextual variant above it —
+   the ring used to shout Title Case and American "Center" while the measured
+   steps spoke the house voice, two registers in one footer. */
 const FLOW_MAP: Record<WorkspaceView, { nextId: WorkspaceView; roleLabel: string; title: string; hint: string }> = {
   overview: {
     nextId: "research",
-    roleLabel: "Quant Researcher",
-    title: "Validate Strategy & Signal Evidence",
+    roleLabel: "Quant researcher",
+    title: "Validate strategy and signal evidence",
     hint: "Move from desk overview to parameter sweeps, stability metrics, and walk-forward analysis.",
   },
   research: {
     nextId: "live",
-    roleLabel: "Quant Trader",
-    title: "Stage Paper Execution & Market Depth",
-    hint: "Inspect consolidated L2 order book, venue routing costs, and pre-trade gate validation.",
+    roleLabel: "Quant trader",
+    title: "Stage paper execution and market depth",
+    hint: "Inspect the consolidated L2 order book, venue routing costs, and pre-trade gate validation.",
   },
   live: {
     nextId: "portfolio",
-    roleLabel: "Portfolio Manager",
-    title: "Review Positions & P&L Attribution",
-    hint: "Reconcile equity curve, sleeve breakdown, concentration, and intraday P&L waterfall.",
+    roleLabel: "Portfolio manager",
+    title: "Review positions and P&L attribution",
+    hint: "Reconcile the equity curve, sleeve breakdown, concentration, and intraday P&L waterfall.",
   },
   portfolio: {
     nextId: "risk",
-    roleLabel: "Risk Manager",
-    title: "Audit Pre-Trade Risk & Limits",
+    roleLabel: "Risk manager",
+    title: "Audit pre-trade risk and limits",
     hint: "Check gross/net headroom, historical VaR, stress scenario testing, and kill switch state.",
   },
   risk: {
     nextId: "data",
-    roleLabel: "Data Engineer",
-    title: "Verify Data Lineage & Feed Freshness",
-    hint: "Audit market feed freshness, provider quotas, contract evidence, and pipeline DAG.",
+    roleLabel: "Data engineer",
+    title: "Verify data lineage and feed freshness",
+    hint: "Audit market feed freshness, provider quotas, contract evidence, and the pipeline DAG.",
   },
   data: {
     nextId: "reliability",
     roleLabel: "DevOps / SRE",
-    title: "Check SRE Telemetry & Circuit Health",
+    title: "Check SRE telemetry and circuit health",
     hint: "Monitor provider API latency percentiles, active incident alerts, and recovery workflows.",
   },
   reliability: {
     nextId: "developer",
-    roleLabel: "Quant Developer",
-    title: "Inspect CI/CD & Schema Contracts",
-    hint: "Verify deployment topology, launch readiness ring, OpenAPI diffs, and task queue.",
+    roleLabel: "Quant developer",
+    title: "Inspect CI/CD and schema contracts",
+    hint: "Verify deployment topology, the launch readiness ring, OpenAPI diffs, and the task queue.",
   },
   developer: {
     nextId: "overview",
-    roleLabel: "Desk Command Center",
-    title: "Return to Desk Overview",
+    roleLabel: "Desk command centre",
+    title: "Return to the desk overview",
     hint: "Complete the operating loop and return to the unified desk dashboard.",
   },
 };
@@ -285,10 +288,10 @@ export default function NextStepFooter({ currentView, currentSection, onNavigate
     : {
         view: ring.nextId,
         section: undefined,
-        kicker: `Decision Loop Flow · ${ring.roleLabel}`,
+        kicker: `Decision loop flow · ${ring.roleLabel}`,
         title: ring.title,
         hint: ring.hint,
-        action: "Next Step",
+        action: "Next step",
       };
 
   return (

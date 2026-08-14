@@ -51,7 +51,11 @@ export default function SignalDAGViewer({
 
   return (
     <div className="card signal-workflow">
-      <div className="portfolio-card-heading">
+      {/* section-heading compact, like every other research card — this was
+          the one card on the surface wearing the portfolio workspace's
+          underlined heading, so the Lineage tab showed two header treatments
+          for no stated reason. */}
+      <div className="section-heading compact">
         <div>
           <span className="page-kicker">Data lineage &amp; pipeline</span>
           <h2>Signal path</h2>

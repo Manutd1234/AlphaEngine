@@ -23,6 +23,7 @@
 
 import { useState } from "react";
 
+import StatTile from "@/components/StatTile";
 import { fmt } from "@/lib/format";
 import {
   DEFAULT_PARTICIPATION,
@@ -97,26 +98,28 @@ export default function LiquidityPanel({
         {unmeasurable > 0 && `, ${unmeasurable} without enough volume history to measure`}.
       </p>
 
-      <div className="compact-grid-3col liquidity-facts">
-        <div className="card">
-          <span className="section-note">Slowest leg</span>
-          <strong>{report.slowestLeg ?? "—"}</strong>
-          <small>
-            {report.bookDaysToLiquidate != null
-              ? `${report.bookDaysToLiquidate.toFixed(1)} sessions`
-              : "No position has measurable volume"}
-          </small>
-        </div>
-        <div className="card">
-          <span className="section-note">Clearable in one session</span>
-          <strong className="num">{(report.shareClearableInOneSession * 100).toFixed(0)}%</strong>
-          <small>Of measured positions</small>
-        </div>
-        <div className="card">
-          <span className="section-note">Unwind concentration</span>
-          <strong className="num">{concentration?.hhi != null ? concentration.hhi.toFixed(2) : "—"}</strong>
-          <small>HHI across exit horizons</small>
-        </div>
+      {/* Shared stat tiles, not cards nested inside the card: every sibling
+          metric strip on Portfolio and Risk is a stat-tile row, and this was
+          the surface's third tile dialect with its own padding and type
+          overrides. */}
+      <div className="tiles stability-tiles liquidity-facts">
+        <StatTile
+          label="Slowest leg"
+          value={report.slowestLeg ?? "—"}
+          note={report.bookDaysToLiquidate != null
+            ? `${report.bookDaysToLiquidate.toFixed(1)} sessions`
+            : "No position has measurable volume"}
+        />
+        <StatTile
+          label="Clearable in one session"
+          value={`${(report.shareClearableInOneSession * 100).toFixed(0)}%`}
+          note="Of measured positions"
+        />
+        <StatTile
+          label="Unwind concentration"
+          value={concentration?.hhi != null ? concentration.hhi.toFixed(2) : "—"}
+          note="HHI across exit horizons"
+        />
       </div>
 
       <div className="table-wrap" tabIndex={0}>
@@ -173,9 +176,10 @@ export default function LiquidityPanel({
                         {quote.fetchedAt}
                       </small>
                     ) : (
+                      // No size class: "small" matched no selector anywhere —
+                      // a no-op that implied a compact variant existed.
                       <button
                         type="button"
-                        className="small"
                         disabled={Boolean(loading[key])}
                         onClick={() => void fetchExitQuote(row.symbol, row.notional, row.notional > 0)}
                       >

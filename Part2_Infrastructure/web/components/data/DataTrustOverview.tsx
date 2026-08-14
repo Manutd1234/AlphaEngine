@@ -531,7 +531,11 @@ export default function DataTrustOverview({
           the contract evidence it is a response to. */}
       {feedsView && feedsPane === "freshness" && (
         <section className="card data-trust-monitor" aria-labelledby="feed-monitor-heading">
-          <div className="section-heading compact">
+          {/* portfolio-card-heading, like the four sibling cards in this file
+              and every card on this surface: the two monitor cards alone
+              borrowed the non-card section grammar, so equal-rank titles
+              rendered at two sizes as the reader switched panes. */}
+          <div className="portfolio-card-heading">
             <div>
               <span className="page-kicker">Freshness</span>
               <h2 id="feed-monitor-heading">Observed market feeds</h2>
@@ -599,7 +603,8 @@ export default function DataTrustOverview({
       {feedsView && feedsPane === "contracts" && (
         <>
           <section className="card data-trust-monitor" aria-labelledby="contract-monitor-heading">
-            <div className="section-heading compact">
+            {/* portfolio-card-heading — same reasoning as the feeds monitor. */}
+            <div className="portfolio-card-heading">
               <div>
                 <span className="page-kicker">Validation</span>
                 <h2 id="contract-monitor-heading">Exact payload &amp; instance sample</h2>

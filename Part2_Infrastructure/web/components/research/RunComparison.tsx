@@ -49,16 +49,19 @@ export default function RunComparison({ a, b, onClose }: RunComparisonProps) {
         <button type="button" className="text-action" onClick={onClose}>Close</button>
       </div>
 
+      {/* <div>, not <p>: a <p> cannot contain a <div>, so the SSR parser
+          auto-closed these and hydration met different markup — and every
+          sibling banner on the surface is already a <div className="banner">. */}
       {comparison.sameData === true ? (
-        <p className="banner" role="status">
+        <div className="banner" role="status">
           <span aria-hidden>=</span>
           <div>
             <strong>Same data.</strong> Both runs fingerprint to <code>{a.dataHash}</code>, so the
             differences below are attributable to the request, not to the bars.
           </div>
-        </p>
+        </div>
       ) : comparison.sameData === false ? (
-        <p className="banner warn" role="status">
+        <div className="banner warn" role="status">
           <span aria-hidden>!</span>
           <div>
             <strong>Different data.</strong> These runs saw different bars
@@ -66,16 +69,16 @@ export default function RunComparison({ a, b, onClose }: RunComparisonProps) {
             evidence about the parameters — re-run them against the same history before concluding
             anything.
           </div>
-        </p>
+        </div>
       ) : (
-        <p className="banner" role="status">
+        <div className="banner" role="status">
           <span aria-hidden>?</span>
           <div>
             <strong>Comparability unknown.</strong> At least one run predates dataset fingerprinting,
             so there is no way to confirm they saw the same prices. Matching date ranges are not
             sufficient evidence.
           </div>
-        </p>
+        </div>
       )}
 
       <h3 className="run-comparison__subhead">What changed in the request</h3>

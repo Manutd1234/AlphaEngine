@@ -98,6 +98,10 @@
   --space-6: 28px;
 
   --radius-sm: 8px;
+  /* The de-facto control radius. 9px had 20 unnamed uses — the base button,
+     the seg, the primary action — sitting one pixel off --radius-sm with no
+     way to retune them together. Named, the choice is visible and movable. */
+  --radius-control: 9px;
   --radius-md: 10px;
   --radius-lg: 14px;
   --radius-pill: 999px;
@@ -536,27 +540,12 @@ a:not([class]):active {
   flex: 1;
 }
 
-.card {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 20px;
-  margin-bottom: 16px;
-}
-.card > h2 {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-.card > .sub {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin-bottom: 16px;
-  max-width: 74ch;
-}
+/* .card's base lives further down (before the compact-grid section) and the
+   density layer at the end retunes its metrics via --card-pad. Exactly two
+   .card declarations coexist by design — base + density, the shape
+   tests/interaction.test.ts documents. A third base used to sit here with
+   conflicting metrics that always lost by source order; anyone tuning card
+   rhythm from it was editing dead numbers. */
 
 .cols {
   display: grid;
@@ -594,8 +583,7 @@ a:not([class]):active {
    measures itself. */
 .workspace-subtab-panel,
 .research-content,
-.compact-grid-2col > *,
-.compact-grid-3col > * {
+.compact-grid-2col > * {
   container-type: inline-size;
 }
 
@@ -852,7 +840,7 @@ a:not([class]):active {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-bottom: 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-2);
 }
 
@@ -883,7 +871,7 @@ a:not([class]):active {
   min-width: 0;
   padding: 9px 10px;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   background: var(--surface-1);
 }
 
@@ -936,41 +924,9 @@ a:not([class]):active {
   color: var(--text-muted);
 }
 
-.reliability-data-handoff {
-  display: grid;
-  grid-template-columns: minmax(260px, 1fr) auto auto;
-  align-items: center;
-  gap: 18px;
-  margin-top: 12px;
-  padding: 12px 13px;
-  border: 1px dashed color-mix(in srgb, var(--series-1) 28%, var(--border));
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--series-1) 3%, var(--surface-1));
-}
-
-.reliability-data-handoff > div:first-child {
-  display: grid;
-  gap: 2px;
-}
-
-.reliability-data-handoff > div:first-child > strong { font-size: 12px; }
-.reliability-data-handoff > div:first-child > small { color: var(--text-muted); font-size: 10.5px; line-height: 1.4; }
-
-.reliability-data-handoff__metrics {
-  display: flex;
-  gap: 14px;
-}
-
-.reliability-data-handoff__metrics > span {
-  display: grid;
-  gap: 1px;
-  color: var(--text-muted);
-  font-size: 9.5px;
-  text-align: right;
-}
-
-.reliability-data-handoff__metrics strong { color: var(--text-primary); font-size: 14px; }
-.reliability-data-handoff__metrics strong.warn { color: var(--warning-text); }
+/* The data-quality hand-off is a shared CrossLinkTile now — the bespoke
+   .reliability-data-handoff family that styled a third copy of that pattern
+   went with the markup, so the anti-copy ratchet can finally see it. */
 
 /* Full-width service diagnostics: p95 is the scanning value, while the
    provider and action edges remain reachable during horizontal inspection. */
@@ -1226,7 +1182,7 @@ a:not([class]):active {
   margin-top: 18px;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-2);
 }
 
@@ -1295,12 +1251,6 @@ a:not([class]):active {
     border-left: 0;
   }
 
-  .reliability-data-handoff {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 10px;
-  }
-
-  .reliability-data-handoff__metrics > span { text-align: left; }
 }
 
 @media (max-width: 620px) {
@@ -1451,7 +1401,7 @@ input[type="range"]::-moz-range-thumb {
 button {
   font-family: var(--sans);
   cursor: pointer;
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--border);
   background: var(--surface-2);
   color: var(--text-primary);
@@ -1485,14 +1435,11 @@ textarea:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-button.primary {
-  background: var(--series-1);
-  border-color: var(--series-1);
-  color: #fff;
-  width: 100%;
-  padding: 12px;
-  font-size: 14.5px;
-}
+/* button.primary is retired. It was a second accent-fill spelling with its own
+   geometry, invisible to accent-budget.test.ts's roll call (which greps for
+   'primary-action') — accent discipline enforced for one name and not the
+   other. Its three users were reclassed: the one commit ("Add to Intake") to
+   primary-action, the two composer togglers to the default voice. */
 button.icon {
   padding: 7px 10px;
   font-size: 13px;
@@ -1503,7 +1450,7 @@ button.icon {
   gap: 3px;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   padding: 3px;
 }
 .seg button {
@@ -1608,6 +1555,19 @@ th:first-child,
 td:first-child {
   text-align: left;
 }
+/* Row headers take a body cell's metrics, not a column header's: the base th
+   rule above is written for thead. Components used to restate these three
+   declarations as inline style objects (RegimePanel, the old fold table). */
+tbody th[scope="row"] {
+  text-align: left;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--grid);
+  font-weight: 600;
+  text-transform: none;
+  font-size: 12.5px;
+  letter-spacing: 0;
+  color: var(--text-primary);
+}
 td {
   padding: 7px 10px;
   border-bottom: 1px solid var(--grid);
@@ -1642,7 +1602,7 @@ tbody tr[tabindex]:focus-visible {
 /* ---------- misc ---------- */
 .banner {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   padding: 11px 14px;
   font-size: 13px;
   margin-bottom: 14px;
@@ -1758,7 +1718,7 @@ tbody tr[tabindex]:focus-visible {
   z-index: var(--z-skip);
   padding: 9px 13px;
   border: 2px solid var(--series-1);
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   color: var(--text-primary);
   background: var(--surface-1);
   box-shadow: var(--shadow-sm);
@@ -2055,7 +2015,7 @@ tbody tr[tabindex]:focus-visible {
   gap: 6px;
   padding: 5px 8px;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   background: transparent;
   font-size: 11px;
   font-weight: 600;
@@ -2128,7 +2088,7 @@ tbody tr[tabindex]:focus-visible {
   border: 0;
   background: transparent;
   padding: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -2283,7 +2243,7 @@ tbody tr[tabindex]:focus-visible {
      not the copy (23px), so the padding is what has to give. */
   padding: 3px 9px 3px 5px;
   border-color: color-mix(in srgb, var(--series-1) 18%, var(--border));
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   background: color-mix(in srgb, var(--series-1) 4%, var(--surface-1));
   text-align: left;
 }
@@ -2613,16 +2573,11 @@ tbody tr[tabindex]:focus-visible {
   flex-wrap: wrap;
 }
 
-button.primary-action {
-  border-color: var(--series-1);
-  color: #fff;
-  background: var(--series-1);
-}
-
-button.primary-action:hover:not(:disabled) {
-  border-color: #4a7ff0;
-  background: #3570ea;
-}
+/* The primary-action declaration lives in the standardisation layer at the end
+   of the file — deliberately last, so it wins the cascade (its own comment
+   there explains why). A copy used to sit here too, fully shadowed, carrying
+   the sheet's only uncommented raw hexes on hover blues that had stopped
+   applying and would not have flipped with data-theme even when they did. */
 
 .overview-section {
   margin-top: 28px;
@@ -2636,7 +2591,11 @@ button.primary-action:hover:not(:disabled) {
   gap: 20px;
 }
 
-.section-heading h2 {
+/* :is(h2, h3): a card whose right outline level is h3 — ResearchCorpus, the
+   execution quality cards — used to fall through to UA sizing, the one title
+   off the type scale. The outline level is the component's choice; the scale
+   is not. */
+.section-heading :is(h2, h3) {
   margin-top: 4px;
   font-size: 20px;
   line-height: 1.2;
@@ -2647,7 +2606,7 @@ button.primary-action:hover:not(:disabled) {
   align-items: center;
 }
 
-.section-heading.compact h2 {
+.section-heading.compact :is(h2, h3) {
   font-size: 17px;
 }
 
@@ -2690,7 +2649,7 @@ button.primary-action:hover:not(:disabled) {
   width: 30px;
   height: 30px;
   flex-basis: 30px;
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   font-size: 8.5px;
 }
 
@@ -2732,7 +2691,7 @@ button.primary-action:hover:not(:disabled) {
   height: 34px;
   flex: 0 0 34px;
   border: 1px solid color-mix(in srgb, var(--series-1) 25%, var(--border));
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   color: var(--series-1);
   background: color-mix(in srgb, var(--series-1) 8%, var(--surface-1));
   display: grid;
@@ -2770,14 +2729,8 @@ button.primary-action:hover:not(:disabled) {
   /* min(100%, …) so a track can never demand more than its container — the
      bare 360px floor overflowed narrow phones instead of collapsing. */
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
-  gap: 12px;
+  gap: var(--space-3);
 }
-.compact-grid-3col {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-  gap: 12px;
-}
-
 /* ---------- module pages ---------- */
 
 .page-heading {
@@ -2823,7 +2776,7 @@ button.primary-action:hover:not(:disabled) {
   min-width: 0;
   padding: 8px 10px 8px 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface-1) 86%, transparent);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--text-primary) 5%, transparent);
   display: grid;
@@ -3299,7 +3252,7 @@ a.text-action {
   min-height: 67px;
   padding: 9px 11px;
   border-color: var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface-2) 68%, var(--surface-1));
   color: var(--text-primary);
   display: grid;
@@ -3366,7 +3319,7 @@ a.text-action {
   min-width: 210px;
   padding: 7px 10px;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   background: color-mix(in srgb, var(--surface-2) 62%, var(--surface-1));
   display: flex;
   align-items: center;
@@ -3565,7 +3518,7 @@ a.text-action {
 .portfolio-main-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(340px, 1fr);
-  gap: 12px;
+  gap: var(--space-3);
   align-items: stretch;
 }
 
@@ -3669,7 +3622,7 @@ a.text-action {
 
 .portfolio-concentration > div {
   padding: 10px;
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   background: var(--surface-2);
   display: grid;
 }
@@ -3718,7 +3671,7 @@ a.text-action {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .role-card {
@@ -3743,21 +3696,21 @@ a.text-action {
 }
 
 .role-card__actions {
-  min-height: 34px;
+  min-height: 0;
   margin-top: auto;
-  padding-top: 14px;
+  padding-top: var(--space-3);
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
+/* Only the two survivors of the padded-pill era. The quiet-label voice and
+   its card-sized ::after hit area are declared beside the role-card styles
+   near the end of the file — the block that actually wins; the 34px pill
+   metrics that used to sit here were fully overridden residue of the
+   launcher's solid-button era. */
 .role-card__action {
   min-width: 0;
-  min-height: 34px;
-  padding: 6px 11px;
-  border-radius: 9px;
-  font-size: 10.5px;
-  font-weight: 650;
   white-space: nowrap;
 }
 
@@ -4162,7 +4115,7 @@ button.console-stat:hover:not(:disabled) {
 .console-card details {
   margin-top: 8px;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   background: var(--surface-2);
 }
 
@@ -4290,7 +4243,7 @@ button.console-stat:hover:not(:disabled) {
   gap: 3px;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-1);
   font-size: 11.5px;
 }
@@ -4439,9 +4392,10 @@ button.console-stat:hover:not(:disabled) {
   margin-bottom: 10px;
 }
 
-.console-seg button {
-  font-size: 11px;
-}
+/* .console-seg keeps its layout roles (wrap, margins) but not a private font
+   size: its 11px met the bare .seg's 12.5px on one screen — Remediation's
+   pane switcher directly above the operator cadence seg — and nothing
+   documented the fork. One pattern, one size. */
 
 .console-check {
   display: flex;
@@ -4457,7 +4411,7 @@ button.console-stat:hover:not(:disabled) {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--border);
 }
@@ -4507,7 +4461,7 @@ button.console-stat:hover:not(:disabled) {
   gap: 1px;
   padding: 7px 10px 7px 30px;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   background: var(--surface-1);
   counter-increment: lineage;
 }
@@ -4573,7 +4527,7 @@ button.console-stat:hover:not(:disabled) {
 .console-calls > li {
   padding: 9px 10px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-1);
 }
 
@@ -4597,7 +4551,7 @@ button.console-stat:hover:not(:disabled) {
   margin-bottom: 12px;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-1);
 }
 
@@ -4672,7 +4626,7 @@ button.console-stat:hover:not(:disabled) {
   overflow: auto;
   padding: 10px 12px;
   border: 1px solid #34343c;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: #16161c;
   color: #d4d4d8;
   font-family: var(--mono);
@@ -4980,7 +4934,7 @@ button.console-stat:hover:not(:disabled) {
   gap: 2px;
   padding: 7px 10px;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   background: var(--surface-1);
   font-size: 11.5px;
   line-height: 1.45;
@@ -5057,7 +5011,7 @@ button.console-stat:hover:not(:disabled) {
   align-content: start;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-1);
 }
 
@@ -5193,7 +5147,7 @@ button.console-stat:hover:not(:disabled) {
   align-items: start;
   padding: 9px 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-1);
 }
 
@@ -5249,7 +5203,7 @@ button.console-stat:hover:not(:disabled) {
   margin-top: 14px;
   padding: 12px 14px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-2);
 }
 
@@ -5311,7 +5265,7 @@ button.console-stat:hover:not(:disabled) {
 /* ---------- friction controls ---------- */
 .friction-group {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-2);
   padding: 0;
 }
@@ -5716,7 +5670,7 @@ button.console-stat:hover:not(:disabled) {
   margin: 12px 0 14px;
   padding: 13px 15px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-2);
 }
 
@@ -5803,7 +5757,7 @@ button.console-stat:hover:not(:disabled) {
   gap: 1px;
   margin-bottom: 14px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--border);
 }
@@ -5859,7 +5813,7 @@ button.console-stat:hover:not(:disabled) {
   margin-top: 14px;
   padding: 14px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-2);
 }
 
@@ -5891,7 +5845,7 @@ button.console-stat:hover:not(:disabled) {
   /* Same plane as .console-log — this is the other terminal block in the app,
      and the two should not read as different surfaces. */
   border: 1px solid #34343c;
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   background: #16161c;
   color: #d4d4d8;
   font-family: var(--mono);
@@ -6350,7 +6304,7 @@ button.console-stat:hover:not(:disabled) {
 .cockpit-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-  gap: 16px;
+  gap: var(--space-4);
   align-items: start;
 }
 
@@ -6549,7 +6503,7 @@ button.console-stat:hover:not(:disabled) {
 /* -- notices -- */
 .notice {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   padding: 10px 13px;
   font-size: 12.5px;
   line-height: 1.55;
@@ -6579,7 +6533,7 @@ button.console-stat:hover:not(:disabled) {
   margin: 10px 0 12px;
   padding: 9px 11px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-2);
 }
 
@@ -6753,7 +6707,7 @@ button.console-stat:hover:not(:disabled) {
   margin: 0 0 14px;
   padding: 10px 12px 8px;
   border: 1px dashed var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface-2) 45%, var(--surface-1));
 }
 
@@ -6802,7 +6756,7 @@ button.console-stat:hover:not(:disabled) {
 .cockpit-verdict {
   margin-top: 14px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   padding: 12px 14px;
   font-size: 12.5px;
 }
@@ -7041,7 +6995,7 @@ button.console-stat:hover:not(:disabled) {
   padding: 14px;
   margin-top: 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-2);
 }
 
@@ -7096,7 +7050,7 @@ button.console-stat:hover:not(:disabled) {
   margin-top: 14px;
   padding: 12px 14px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 
 .var-validation__head {
@@ -7217,7 +7171,7 @@ button.console-stat:hover:not(:disabled) {
   gap: 8px;
   font-size: 13px;
   padding: 8px 10px;
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   border-left: 3px solid var(--border);
   background: var(--surface-2);
   color: var(--text-secondary);
@@ -7404,7 +7358,7 @@ button.console-stat:hover:not(:disabled) {
 
 .quarantine-list > li {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   padding: 10px 12px;
   background: var(--surface-2);
 }
@@ -7669,7 +7623,7 @@ button.console-stat:hover:not(:disabled) {
   gap: 10px;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-1);
 }
 
@@ -7705,7 +7659,7 @@ button.console-stat:hover:not(:disabled) {
 .data-trust-evidence-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .data-trust-evidence {
@@ -7756,7 +7710,7 @@ button.console-stat:hover:not(:disabled) {
 .data-trust-detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: var(--space-4);
   align-items: start;
 }
 
@@ -7832,7 +7786,7 @@ button.console-stat:hover:not(:disabled) {
   margin-top: 10px;
   padding: 14px;
   border: 1px dashed var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   background: var(--surface-2);
 }
 
@@ -7912,7 +7866,7 @@ button.data-trust-action > i {
 .data-trust-boundaries article {
   padding: 12px 13px;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   background: var(--surface-2);
 }
 
@@ -8113,8 +8067,10 @@ button.data-trust-action > i {
   min-width: 150px;
 }
 
+/* No private 35px: the base button's 32px is the row height everywhere else.
+   Three near-identical toolbar buttons had drifted to 34/35/37px with nothing
+   distinguishing them but the copy-paste they arrived by. */
 .data-workboard__toolbar > button {
-  min-height: 35px;
   white-space: nowrap;
 }
 
@@ -8334,7 +8290,7 @@ button.data-trust-action > i {
   padding: 7px 8px 6px 9px;
   border: 1px solid var(--border);
   border-left-width: 3px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-1);
   transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease),
     transform var(--dur-fast) var(--ease);
@@ -8560,7 +8516,7 @@ button.data-trust-action > i {
   place-items: center;
   margin: 0;
   border: 1px dashed var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   color: var(--text-muted);
   font-size: 10.5px;
   text-align: center;
@@ -8969,7 +8925,7 @@ button.data-trust-action > i {
   flex: 0 1 390px;
   min-width: 340px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--border);
   gap: 1px;
@@ -9298,12 +9254,15 @@ button.data-trust-action > i {
   font-size: 10px;
 }
 
-.codebase-detail__header .primary-action {
+/* .text-action, not .primary-action: the header's sole action is the quiet
+   "Open source ↗" link, demoted from the fill in an earlier pass. The old
+   compound selector kept matching nothing — the 36px touch target this rule
+   exists for had silently stopped applying. */
+.codebase-detail__header .text-action {
   flex: 0 0 auto;
   min-height: 36px;
   display: inline-flex;
   align-items: center;
-  text-decoration: none;
 }
 
 .codebase-detail__purpose {
@@ -9321,7 +9280,7 @@ button.data-trust-action > i {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--border);
   gap: 1px;
@@ -9359,7 +9318,7 @@ button.data-trust-action > i {
   margin-top: 16px;
   padding: 14px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 
 .codebase-detail__context h4 {
@@ -9427,9 +9386,8 @@ button.data-trust-action > i {
   margin-bottom: 12px;
 }
 
-.developer-work__actions button {
-  min-height: 37px;
-}
+/* No private 37px — the base button's 32px, like every peer toolbar. The
+   mobile 44px touch floor is enforced separately by the pinned block. */
 
 .developer-work__composer {
   display: grid;
@@ -9938,7 +9896,7 @@ button.data-trust-action > i {
     flex-direction: column;
   }
 
-  .codebase-detail__header .primary-action {
+  .codebase-detail__header .text-action {
     justify-content: center;
   }
 
@@ -10007,7 +9965,10 @@ button.data-trust-action > i {
 .reliability-platform__grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 9px;
+  /* The house card gap. This grid sat at 9px, its evidence sibling at 10px,
+     the portfolio grids at 12px — six gaps for one kind of object, none of
+     them reading the --space ladder declared at the top of the file. */
+  gap: var(--space-3);
 }
 
 .reliability-platform__grid article {
@@ -10018,7 +9979,7 @@ button.data-trust-action > i {
   min-height: 112px;
   padding: 12px 13px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-2);
   box-shadow: inset 3px 0 0 var(--axis);
 }
@@ -10066,7 +10027,7 @@ button.data-trust-action > i {
   margin-top: 10px;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--border);
 }
 
@@ -10100,7 +10061,7 @@ button.data-trust-action > i {
 .reliability-evidence__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .reliability-evidence__grid > div {
@@ -10111,7 +10072,7 @@ button.data-trust-action > i {
   min-width: 0;
   padding: 12px 13px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface-2);
 }
 
@@ -10287,7 +10248,7 @@ button.data-trust-action > i {
   max-height: calc(min(60vh, 620px) + 35px);
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   background: var(--surface-1);
 }
 
@@ -10398,7 +10359,7 @@ button.data-trust-action > i {
   margin: 12px 0 4px;
   padding: 13px;
   border: 1px solid color-mix(in srgb, var(--status-critical) 38%, var(--border));
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--status-critical) 5%, var(--surface-1));
 }
 
@@ -10666,7 +10627,7 @@ button.data-trust-action > i {
   display: grid;
   min-width: 0;
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 14px;
+  gap: var(--space-4);
 }
 
 .developer-cp-overview__grid > .card,
@@ -10739,7 +10700,7 @@ button.data-trust-action > i {
   margin: 0 auto;
   padding: 10px 12px;
   border: 1px solid color-mix(in srgb, var(--series-1) 32%, var(--border));
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   background: color-mix(in srgb, var(--surface-1) 92%, transparent);
   font-size: 11px;
   font-weight: 680;
@@ -10765,7 +10726,7 @@ button.data-trust-action > i {
   padding: 12px;
   border: 1px solid var(--border);
   border-top-width: 2px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface-1) 94%, transparent);
   box-shadow: 0 6px 18px color-mix(in srgb, var(--text-primary) 4%, transparent);
 }
@@ -11435,25 +11396,19 @@ button.data-trust-action > i {
   color: var(--text-secondary);
 }
 
+/* A navigator, not a commit. By the desk's own tested rule (developer-panes
+   stripped the fill from "doors to other tabs"), this button must not wear
+   the Send-order accent — yet it did, under a class name the accent-budget
+   roll call cannot see. The base button voice (border + surface, hover on the
+   border, press-down active) is exactly right for a door, so this block keeps
+   only the layout the arrow mark needs; geometry (32px, radius-sm, 12px) sits
+   in the standardisation layer below. */
 .next-step-footer__action {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 20px;
-  font-size: 0.88rem;
   font-weight: 600;
-  color: #ffffff;
-  background-color: var(--series-1);
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
   white-space: nowrap;
-}
-
-.next-step-footer__action:hover {
-  opacity: 0.92;
-  transform: translateY(-1px);
 }
 
 
@@ -12435,11 +12390,11 @@ button.page-insight:hover:not(:disabled) {
   margin-bottom: var(--space-3);
 }
 
-.section-heading h2 {
+.section-heading :is(h2, h3) {
   font-size: 17px;
 }
 
-.section-heading.compact h2 {
+.section-heading.compact :is(h2, h3) {
   font-size: 15px;
 }
 
@@ -12471,11 +12426,6 @@ button.page-insight:hover:not(:disabled) {
   min-height: 0;
   margin-top: 3px;
   -webkit-line-clamp: 2;
-}
-
-.role-card__actions {
-  min-height: 0;
-  padding-top: var(--space-3);
 }
 
 /* ---------- decision-loop flow footer ---------- */
@@ -12641,7 +12591,7 @@ a.primary-action {
   gap: 6px;
   min-height: 32px;
   padding: 9px 14px;
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   font-size: 13.5px;
   font-weight: 550;
   text-decoration: none;
@@ -13454,31 +13404,11 @@ h4 {
 
 /* ---------- liquidity / time-to-liquidate ---------- */
 
-/* The three facts above the table. Replaces four inline `style` objects the
-   panel carried, which is the shape this file exists to avoid. */
+/* The three facts above the table — shared stat tiles since the
+   harmonisation pass; the nested-card dialect and its type overrides that
+   used to live here went with it. */
 .liquidity-facts {
   margin: 14px 0;
-}
-
-/* Stacked, because the three children are inline elements and ran together as
-   "Slowest legBNBUSDT0.7 sessions" without this. */
-.liquidity-facts .card {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px 12px;
-  margin-bottom: 0;
-}
-
-.liquidity-facts .card strong {
-  font-size: 15px;
-  line-height: 1.2;
-}
-
-.liquidity-facts .card small {
-  color: var(--text-muted);
-  font-size: 10.5px;
-  line-height: 1.4;
 }
 
 /* A probe that failed says why, in the tone of a warning rather than a value —
@@ -14431,7 +14361,10 @@ button:active:not(:disabled) {
   flex: 0 0 auto;
   margin-left: auto;
   padding-left: var(--space-2);
-  color: var(--text-tertiary, var(--text-secondary));
+  /* --text-tertiary was a phantom: defined nowhere, so the fallback always
+     applied while suggesting a fourth ink step the three-step system
+     (primary/secondary/muted) deliberately does not have. */
+  color: var(--text-secondary);
   font-size: 11px;
   white-space: nowrap;
 }
@@ -14460,7 +14393,7 @@ button:active:not(:disabled) {
 
 .codex-family {
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--surface-1);
   padding: var(--card-pad);
   border-top: 2px solid color-mix(in srgb, var(--codex-accent) 55%, var(--border));
@@ -14484,7 +14417,7 @@ button:active:not(:disabled) {
   place-items: center;
   width: 34px;
   height: 34px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   border: 1px solid color-mix(in srgb, var(--codex-accent) 45%, var(--border));
   background: color-mix(in srgb, var(--codex-accent) 12%, var(--surface-1));
   color: var(--text-secondary);
@@ -14518,7 +14451,7 @@ button:active:not(:disabled) {
 .codex-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .codex-card {
