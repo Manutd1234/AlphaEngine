@@ -73,7 +73,10 @@ export default function DecisionLoopPipeline({
          rather than pushing a sibling onto the next line. */
       className="relative z-[1] min-w-0 flex-[1_1_600px] max-[900px]:w-full"
     >
-      <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-text-muted">Decision loop</span>
+      {/* The band's local accent via the var shorthand — the plane is fixed
+          dark in both themes, so this ink is fixed too and lives on
+          .overview-hero rather than :root. */}
+      <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-(--plane-accent)">Decision loop</span>
       <ol
         className="mt-2 flex list-none flex-nowrap items-stretch gap-x-1 p-0 max-[560px]:flex-wrap max-[560px]:gap-y-2"
         aria-label="Pipeline stages"

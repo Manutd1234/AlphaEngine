@@ -12157,10 +12157,28 @@ button.page-insight:hover:not(:disabled) {
    box and nothing else — every colour inside it, down to the chip borders and
    the sparkline's series ink, resolves through the ordinary token names. */
 .overview-hero {
-  padding: var(--space-5) var(--space-5) var(--space-4);
+  /* The band's two fixed light-blue inks, local to this element and not on
+     `:root` — the plane cannot flip with the theme, so neither can they, and
+     keeping them here is what stops them growing back into the ten-token
+     parallel palette this band used to own. AA on the plane below: 10.9:1
+     and 8.9:1. */
+  --plane-accent: #9ec9fb;
+  --plane-accent-2: #86adf5;
+  /* Bigger than an ordinary band on purpose — this is the landing tab's one
+     eye-catching surface, and the user asked for it to read that way. The
+     floor means the plane keeps its presence even when the loop's details
+     run short. */
+  min-height: 320px;
+  padding: var(--space-6) var(--space-6) var(--space-5);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--surface-0);
+  /* #101014, a step BELOW the dark theme's --surface-0, and fixed: the box
+     has to pop off a white page in light mode and off the #18181b ground in
+     dark mode, and using the ground's own value gave it neither. The deeper
+     plane also restores the internal contrast — the chips and loop tiles are
+     #1f1f23, which reads as a surface on #101014 and read as nothing on
+     #18181b. */
+  background: #101014;
   /* Re-anchor the inherited colour. Rescoping `--text-primary` is not enough
      on its own: `color` is an inherited property that `body` already resolved
      against the LIGHT palette, and anything below it that does not declare its
@@ -12176,6 +12194,39 @@ button.page-insight:hover:not(:disabled) {
    separating it from the loop and it does not need a second margin. */
 .overview-hero .page-heading {
   margin-bottom: var(--space-4);
+}
+
+/* Headline scale, scoped to the band. The other seven tabs keep the shared
+   23px title and their 171px parity; this h1 is the desk's landing statement
+   and carries the tagline, so it gets the old hero's type. Tracking stays
+   inside the -0.03em floor typography.test.ts enforces. */
+.overview-hero .page-heading h1 {
+  margin-top: 4px;
+  font-size: clamp(26px, 2.6vw, 38px);
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+}
+
+.overview-hero .page-heading p {
+  margin-top: 6px;
+  font-size: 13.5px;
+}
+
+/* The blue structure the old band had, re-scoped: kicker and chip labels in
+   the plane accents, figures at full white and a step larger. This is what
+   "contrast" meant in practice — on the old band the labels were blue and the
+   numbers were big and white, and losing both flattened the box into greys. */
+.overview-hero .page-kicker {
+  color: var(--plane-accent-2);
+}
+
+.overview-hero .page-insight > span {
+  color: var(--plane-accent);
+}
+
+.overview-hero .page-insight > strong {
+  color: #fff;
+  font-size: 16.5px;
 }
 
 .overview-loop {

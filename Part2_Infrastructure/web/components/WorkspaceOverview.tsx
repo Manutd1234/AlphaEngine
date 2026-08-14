@@ -198,13 +198,14 @@ export default function WorkspaceOverview({
       <section className="overview-hero" data-plane="inverted">
       <PageHead
         kicker="AlphaEngine command center"
-        title="Overview"
-        /* 80 characters, which is the budget the other seven descriptions keep
-           to (77–87). At 143 this one wrapped to a second line and Overview
-           opened 18px taller than every tab beside it — the same class of
-           defect as the chip floor, one level up. Every claim survives: the
-           four domains, the one context, the one audit trail. */
-        description={<>{request.symbol} evidence, risk, execution and data health — one context, one audit trail.</>}
+        /* The tagline, not "Overview" — the user's explicit choice for the
+           landing tab. The nav rail already says Overview one row up, so the
+           h1 is free to say what the desk does; the other seven tabs keep
+           their one-word titles and their 171px parity. The `.overview-hero
+           .page-heading h1` rule scales this up to headline size — the band
+           is meant to be the eye-catching surface on the desk. */
+        title="From market signal to governed decision."
+        description={<>{request.symbol} research evidence, portfolio risk, execution intent and data health share one context — and reconcile to the same audit trail.</>}
         metrics={[
           {
             label: "Equity",
