@@ -1703,7 +1703,7 @@ export default function Page() {
 
                         {tiles}
 
-                        <div className="compact-grid-2col">
+                        <div className="compact-grid-2col research-chart-pair">
                           <div className="card">
                             <div className="chart-heading">
                               <h2>Performance</h2>

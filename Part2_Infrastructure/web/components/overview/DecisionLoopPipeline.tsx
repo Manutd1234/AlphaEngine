@@ -124,7 +124,6 @@ export default function DecisionLoopPipeline({
           );
         })}
       </ol>
-      <small className="mt-2 block text-[10px] text-[var(--hero-text-dim)]">Paper-only · observable · reproducible</small>
     </div>
   );
 }

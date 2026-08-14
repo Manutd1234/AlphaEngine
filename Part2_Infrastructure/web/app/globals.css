@@ -2716,7 +2716,8 @@ tbody tr[tabindex]:focus-visible {
   font-size: 12px;
   color: var(--text-secondary);
   margin-bottom: 10px;
-  max-width: 74ch;
+  /* Same reasoning as .research-note: the card is the measure. */
+  max-width: none;
 }
 
 /* Compact & bounded inner scrolling containers */
@@ -3796,10 +3797,8 @@ a.text-action {
     flex-direction: column;
     gap: 12px;
   }
-  .page-heading__insights {
-    width: 100%;
-    grid-auto-columns: minmax(0, 1fr);
-  }
+  /* The chips already own a full-width row and auto-fit their columns, so
+     the old width/auto-column override here has nothing left to correct. */
   .portfolio-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3917,10 +3916,15 @@ a.text-action {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  /* A phone gets one swipeable row rather than six stacked boxes: the chips
+     are context for the panel below, and six of them stacked would be the
+     whole first screen. Column flow overrides the desktop auto-fit template. */
   .page-heading__insights {
     width: calc(100vw - 32px);
     overflow-x: auto;
-    grid-auto-columns: minmax(112px, 1fr);
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(150px, 1fr);
     padding-bottom: 2px;
     scrollbar-width: none;
   }
@@ -5131,7 +5135,11 @@ button.console-stat:hover:not(:disabled) {
   font-size: 11px;
   line-height: 1.6;
   color: var(--text-muted);
-  max-width: 74ch;
+  /* No measure cap. A fixed ch cap inside a card the reader already sized is
+     two constraints fighting: it stopped every note ~300px short of the card
+     edge and spent the saved width on a third and fourth line instead. The
+     card's own width is the measure. */
+  max-width: none;
 }
 
 .research-window {
@@ -11648,6 +11656,9 @@ button.data-trust-action > i {
   padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--border);
   display: flex;
+  /* `flex-end` used to bottom-align chips against the title; the chips have
+     their own row now, so the title and its controls align on their baseline
+     row instead. */
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-2) var(--space-5);
@@ -11655,6 +11666,7 @@ button.data-trust-action > i {
 }
 
 .page-heading__copy {
+  order: 0;
   min-width: 0;
   flex: 1 1 340px;
 }
@@ -11674,37 +11686,49 @@ button.data-trust-action > i {
   line-height: 1.42;
 }
 
+/**
+ * One header shape for all eight tabs.
+ *
+ * The metrics used to share the title's row, sized by whatever space the title
+ * left over — so a three-chip tab drew wide boxes, a six-chip tab crushed its
+ * labels to "BOOKS WITHIN FRESHNESS B…", and the header's height changed as
+ * you moved between tabs. The chips now always take their own full-width row
+ * under the title, in equal columns with a floor wide enough for a real label,
+ * and the controls sit on a line beneath them. Every tab, the same frame.
+ */
+/* `contents`, so the two children below become direct flex items of the
+   heading and can be placed on its two rows independently. Without this the
+   metrics were locked inside a box that shared the title's line and shrank to
+   whatever the title left over — 831px of a 1400px header on Data, which is
+   why six chips wrapped and their labels clipped. */
 .page-heading__context {
-  min-width: 0;
-  flex: 1 1 auto;
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  gap: var(--space-3);
-  flex-wrap: wrap;
+  display: contents;
 }
 
-.page-heading__insights {
-  flex: 0 1 auto;
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(112px, 1fr);
-  gap: 6px;
-}
-
-/* Four metrics is the comfortable ceiling for one row beside a title; a fifth
-   wraps to its own line rather than crushing the other four. */
-.page-heading__insights[data-count="5"],
-.page-heading__insights[data-count="6"] {
-  flex-basis: 100%;
-  grid-auto-flow: row;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-}
-
+/* Row 1, right: the controls sit beside the title, so a tab that has a refresh
+   control is exactly as tall as one that does not. */
 .page-heading__actions {
+  order: 1;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-2);
+}
+
+/* Row 2: the full width of the panel, every tab, always. `0 0 100%` and not
+   `1 1 100%` — a shrinkable 100% basis still shares a line, which is the bug
+   this replaced. */
+.page-heading__insights {
+  order: 2;
+  flex: 0 0 100%;
+  display: grid;
+  /* `row` explicitly: the superseded block earlier in this sheet sets
+     `grid-auto-flow: column`, which would otherwise cascade in here and add
+     implicit columns instead of wrapping a seventh chip onto a new line. */
+  grid-auto-flow: row;
+  grid-template-columns: repeat(auto-fit, minmax(172px, 1fr));
+  gap: 8px;
 }
 
 .page-heading__actions button {
@@ -11720,14 +11744,18 @@ button.data-trust-action > i {
 .page-insight {
   position: relative;
   min-width: 0;
-  padding: 7px 10px 7px 12px;
+  /* Sized for the two-line note, on every tab — so a tab whose provenance
+     lines all fit on one line is exactly as tall as Data, whose notes need
+     both. Grid stretches the rest of the row to match. */
+  min-height: 81px;
+  padding: 9px 12px 9px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface-1);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--text-primary) 5%, transparent);
   display: grid;
   align-content: start;
-  gap: 1px;
+  gap: 2px;
   text-align: left;
 }
 
@@ -11746,9 +11774,9 @@ button.data-trust-action > i {
 
 .page-insight > span {
   color: var(--text-muted);
-  font-size: 8.5px;
+  font-size: 9px;
   font-weight: 750;
-  letter-spacing: 0.075em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
@@ -11758,21 +11786,28 @@ button.data-trust-action > i {
 .page-insight > strong {
   overflow: hidden;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 1.24;
   letter-spacing: -0.01em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* Two lines, then clip. The provenance line is the half a reader checks when a
+   number looks wrong, and one nowrap line turned it into "no gateway feed
+   snapshot — the…" on exactly the surfaces where it mattered most. */
 .page-insight > small {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
+  /* Explicit: the superseded block earlier in this sheet sets `nowrap`, which
+     cascades in here and pins the note to one clipped line, clamp or no. */
+  white-space: normal;
   color: var(--text-muted);
-  font-size: 9px;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 9.5px;
+  line-height: 1.34;
 }
 
 .page-insight.is-good > strong { color: var(--success-text); }
@@ -12948,7 +12983,12 @@ h4 {
    is told the taller height, and the ladder scrolls inside the card rather
    than setting it. */
 .liquidity-pair,
-.portfolio-chart-pair {
+.portfolio-chart-pair,
+/* The equity curve carries a drawdown pane under it and the signal chart does
+   not, so `align-items: start` left the right card ending ~75px above the
+   left one — two cards of one reading with a ragged bottom edge. They share
+   a baseline; the shorter chart keeps its own height inside its card. */
+.research-chart-pair {
   align-items: stretch;
 }
 
@@ -14207,6 +14247,27 @@ button:active:not(:disabled) {
   font-size: 0.85em;
 }
 
+/**
+ * Segregation. The card carries four readings — the one-line summary, the
+ * works/fails pair, the rule with its parameters, and the neighbours worth
+ * comparing against — and they ran together as one column of prose with only
+ * a gap between them, so nothing said where one ended and the next began. A
+ * hairline before each band says it, and the rule/parameters pair borrows the
+ * left-rule anatomy of the pair above it in the neutral tone: same shape, no
+ * verdict implied.
+ */
+.strategy-doc__mechanics,
+.strategy-doc__similar {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.strategy-doc__mechanics .strategy-doc__grid > div {
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--border);
+}
+
 /* ── Detail-level disclosures ──────────────────────────────────────────────
    Guided collapses these; Standard and Full open them. The summary always
    names what is inside — a collapsed control with a generic label reads as a
@@ -14943,7 +15004,8 @@ html:active-view-transition .view-panel {
   font-size: 12px;
   color: var(--text-muted);
   margin-top: 14px;
-  max-width: 80ch;
+  /* The buy-and-hold comparison is one sentence and belongs on one line. */
+  max-width: 160ch;
 }
 
 .workspace-switcher {
