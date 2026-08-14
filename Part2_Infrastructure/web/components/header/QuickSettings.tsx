@@ -19,7 +19,11 @@
  * The system-status row is a mirror, not a move. The standalone health button
  * stays in the header because it is the only always-visible signal that a data
  * provider is degraded, and a warning that lives behind a gear is a warning
- * nobody sees.
+ * nobody sees. In here the mirror is itself the door — one chip that both
+ * reads the status and opens Reliability. It used to be a read-only chip with
+ * a full-width "Open reliability" button beneath it, which was a second door
+ * to the room the header's always-visible button already opens, drawn on the
+ * same bar at the same moment.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -206,21 +210,25 @@ export default function QuickSettings({
           <div className="mt-3 border-t border-grid pt-3">
             <div className="flex items-center justify-between gap-3">
               <span className="text-[11px] font-semibold text-text-secondary">System status</span>
-              <span className={`system-health ${healthNeedsAttention ? "is-warn" : ""}`}>
+              {/* The mirrored chip IS the door — the base button rule supplies
+                  the house chrome, .system-health the dot and the label voice.
+                  Not .system-health-action: its narrow-width rules collapse the
+                  header's copy to a 44px dot, which inside a 320px panel would
+                  hide the very label this mirror exists to show. */}
+              <button
+                type="button"
+                className={`system-health px-2.5 ${healthNeedsAttention ? "is-warn" : ""}`}
+                aria-label={`Open reliability. ${healthLabel}`}
+                onClick={() => {
+                  close(false);
+                  onOpenReliability();
+                }}
+              >
                 <i aria-hidden />
                 {healthLabel}
-              </span>
+                <span aria-hidden>→</span>
+              </button>
             </div>
-            <button
-              type="button"
-              className="mt-2 w-full rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-[11.5px] font-semibold text-text-primary hover:bg-surface-2"
-              onClick={() => {
-                close(false);
-                onOpenReliability();
-              }}
-            >
-              Open reliability
-            </button>
           </div>
         </AnchoredPanel>
       )}

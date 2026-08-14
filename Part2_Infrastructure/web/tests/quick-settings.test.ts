@@ -214,6 +214,24 @@ describe("a degraded data plane stays visible without opening anything", () => {
   it("routes the panel's link through the header's existing handler", () => {
     assert.match(code(header), /onOpenReliability=\{onOpenProviderHealth\}/);
   });
+
+  it("the panel's mirror is itself the door, not a chip plus a second button", () => {
+    // The old shape was a read-only status chip with a full-width "Open
+    // reliability" button beneath it — a second door to the room the header's
+    // always-visible button already opens, drawn on the same bar at the same
+    // moment. Merged, the mirrored chip carries the action: the accessible
+    // name states the destination, the label stays the mirror.
+    assert.match(
+      code(panel),
+      /<button[^]*?className=\{`system-health[^`]*\$\{healthNeedsAttention \? "is-warn" : ""\}`\}/,
+    );
+    assert.match(code(panel), /aria-label=\{`Open reliability\. \$\{healthLabel\}`\}/);
+    assert.doesNotMatch(code(panel), />\s*Open reliability\s*</);
+    // Not the header's own class: .system-health-action collapses to a 44px
+    // icon-only dot at narrow widths, which inside a 320px panel would hide
+    // the very label the mirror exists to show.
+    assert.doesNotMatch(code(panel), /system-health-action/);
+  });
 });
 
 describe("the formatting row does not pretend", () => {

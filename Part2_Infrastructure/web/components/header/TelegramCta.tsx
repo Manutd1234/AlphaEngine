@@ -192,9 +192,14 @@ export default function TelegramCta() {
   }
 
   /* Telegram brand blue mixed into the theme's own surface and border, so the
-     wash follows data-theme instead of needing a dark: variant. */
+     wash follows data-theme instead of needing a dark: variant.
+
+     Sized to the utility row's 32px / 9px norm. An anchor escapes the global
+     button rule that normalises the rest of the row, and at a 27px tile plus
+     py-1 this chip stood ~37px tall with a 10px radius — the same standing-
+     proud defect the latency chip's own fix narrates in globals.css. */
   const chrome =
-    "inline-flex items-center gap-2 rounded-[10px] border px-2 py-1 text-[11px] font-semibold no-underline "
+    "inline-flex min-h-[32px] items-center gap-2 rounded-[9px] border px-2 py-0.5 text-[11px] font-semibold no-underline "
     + (linked
       /* Connected wears the house green, and green is never the only carrier:
          the word changes to "Connected", a ✓ appears beside the mark, and the
@@ -222,10 +227,11 @@ export default function TelegramCta() {
           lighter brand blue sits at 3.02:1 — a rounding error from failing.
           Same reasoning as the fixed red on .handoff-fire. The mark stays brand
           blue when connected: it identifies Telegram, and Telegram is not the
-          thing whose state changed. */}
+          thing whose state changed. 24px with a 7px radius, matching
+          .latency-chip__icon's tile two controls along. */}
       <span
         aria-hidden
-        className="grid h-[27px] w-[27px] place-items-center rounded-[8px] bg-[#0088cc] text-white"
+        className="grid h-6 w-6 place-items-center rounded-[7px] bg-[#0088cc] text-white"
       >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden focusable="false">
           <path d="M21.94 4.3 18.9 19.1c-.23 1.02-.84 1.27-1.7.79l-4.7-3.47-2.27 2.19c-.25.25-.46.46-.95.46l.34-4.8 8.73-7.9c.38-.34-.08-.53-.59-.19L6.98 13.1 2.34 11.6c-1.01-.31-1.03-1.01.21-1.5L20.63 3.1c.84-.31 1.57.19 1.31 1.2Z" />

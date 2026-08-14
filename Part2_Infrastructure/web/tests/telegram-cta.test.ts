@@ -274,4 +274,16 @@ describe("it sits in the header without disturbing the nav", () => {
     assert.match(code(cta), /max-\[1380px\]:hidden/);
     assert.match(code(cta), /aria-label=\{description\}/);
   });
+
+  it("wears the utility row's 32px / 9px norm despite being an anchor", () => {
+    // The global button rule normalises every <button> in the row to
+    // min-height 32px with a 9px radius; an <a> escapes it, and this chip
+    // once stood ~37px tall at a 10px radius — the standing-proud defect the
+    // latency chip's fix narrates in globals.css. The tile matches
+    // .latency-chip__icon: 24px, 7px radius.
+    assert.match(code(cta), /min-h-\[32px\]/);
+    assert.match(code(cta), /rounded-\[9px\]/);
+    assert.match(code(cta), /h-6 w-6 place-items-center rounded-\[7px\]/);
+    assert.doesNotMatch(code(cta), /rounded-\[10px\]|h-\[27px\]/);
+  });
 });
