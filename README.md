@@ -7,18 +7,54 @@ Two parts, in two directories. Start with whichever question you came for.
 | **Part 1** | What is wrong with 298 rows of LLM usage data, and what does the spend actually tell you? | [`Part1_Data_Handling/`](Part1_Data_Handling/) |
 | **Part 2** | **AlphaEngine** — infrastructure a quant desk runs on, built end to end | [`Part2_Infrastructure/`](Part2_Infrastructure/) |
 
+### Where each concern lives
+
+| Concern | Directory | Why it is there and not somewhere tidier |
+|---|---|---|
+| **Frontend** | [`Part2_Infrastructure/web/`](Part2_Infrastructure/web/) | Vercel's **Root Directory** points at this exact path. Moving it means reconfiguring the deployment before the next push builds. |
+| **Backend — risk gateway** | [`Part2_Infrastructure/`](Part2_Infrastructure/) — `main.py`, `config.py`, `modules/` | A FastAPI app's entrypoint belongs at its package root; that is where `uvicorn main:app`, `pytest`'s rootdir and the Dockerfile all expect it. Burying it in a `gateway/` folder would be less conventional, not more. |
+| **Backend — research service** | [`Part2_Infrastructure/OpenBB_Service/`](Part2_Infrastructure/OpenBB_Service/) | Separately deployed, separately versioned, its own `pyproject.toml`. |
+| **Job queue** | `Part2_Infrastructure/` — `worker.py`, `celery_tasks.py` | Optional Celery backend. Sits beside the app it serves; absent Redis, the gateway runs jobs in-process. |
+| **Database — Postgres mirror** | [`supabase/`](supabase/) | The Supabase CLI resolves `supabase/` from the **repository root**. `supabase db push` in `schema.yml` runs from here. |
+| **Database — Oracle ADB** | [`oracle/`](oracle/) | Plain DDL, applied by `tools/apply_oracle_schema.py`. |
+| **DevOps — CI/CD** | [`.github/workflows/`](.github/workflows/) | GitHub's own convention; it cannot live anywhere else. |
+| **Infrastructure — containers** | [`Part2_Infrastructure/docker/`](Part2_Infrastructure/docker/) | Gateway image, built by `deploy.yml` and run on OCI. |
+| **Operations — scripts** | `Part2_Infrastructure/tools/` | Schema appliers, probes, fixture generators, the OpenAPI exporter. |
+| **Documentation** | [`docs/`](docs/), [`SETUP.md`](SETUP.md), [`CLAUDE.md`](CLAUDE.md) | Feature tour, latency budget, TLS runbook; setup instructions; the things an agent otherwise gets wrong. |
+
+Every one of those locations is fixed by the tool that reads it — Vercel, the
+Supabase CLI, GitHub Actions, uvicorn, pytest — rather than chosen for looks. A
+`frontend/ backend/ database/` reshuffle would read tidier in a file listing and
+would break four separate deployments, so the layout follows the tools and this
+table does the explaining instead.
+
 ---
 
 ## Part 1 — Data handling
 
-A Jupyter notebook that finds seven planted defects in 2.7% of the rows,
-repairs each with a stated reason, and then answers the three questions: the
-usage trend, the real cost driver, and what had to be assumed to say either.
+A Jupyter notebook that finds 8 defects across 7 of 298 rows, repairs each with
+a stated reason, and then answers the three questions: the usage trend, the real
+cost driver, and what had to be assumed to say either.
 
-The headline finding is that cost grew faster than tokens (+33% against +27%),
-which is model-mix drift rather than volume — and that one service accounts for
-52% of spend on 6.5% of requests. The lever is model choice and context size,
-not call count.
+**Q1 — usage is growing at about 3.5% a week, and nothing suggests cost is
+growing faster than usage.** Over 75 days: spend +3.54%/week (95% CI 2.91 to
+4.17), requests +3.65% (2.63 to 4.67), tokens +3.60% (2.86 to 4.35) — three
+intervals that overlap almost entirely. That is volume growth at constant unit
+economics, so there is no model-mix drift to correct. Held at that rate, spend
+doubles in about 4.6 months.
+
+An earlier draft of this analysis reported the opposite — cost +33% against
+tokens +27%, read as drift toward the expensive model. That came from trimming
+both ends of the weekly series as a precaution; the final week was in fact
+complete, and discarding it is what produced the ordering. Fitted properly, with
+weekday effects absorbed and standard errors corrected for autocorrelation, the
+difference disappears. It is in §4 of the notebook, because how a headline
+survives being tested is more informative than the headline.
+
+**Q2 — one service is 52% of spend on 6.5% of requests**, and it survived all
+nine alternative cleanings. Decomposed, it makes *fewer* calls than the
+baseline; the cost is tokens per request and unit price. The lever is model
+choice and context size, not call volume.
 
 **Open [`Part1_Data_Handling/Part1_Data_Handling.html`](Part1_Data_Handling/Part1_Data_Handling.html)**
 in any browser — every output is executed and embedded, no server needed. The

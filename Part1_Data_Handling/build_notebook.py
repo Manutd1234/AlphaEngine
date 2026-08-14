@@ -122,6 +122,21 @@ WORKBOOK = Path("NUSSIF_2026_INFRA_ASSESSMENT.xlsx")
 if not WORKBOOK.exists():                      # also runs from the repo root
     WORKBOOK = Path("Part1_Data_Handling") / WORKBOOK.name
 
+# The workbook is NOT in this repository, deliberately: it is the assessment's
+# own material and the repository is public. Every committed output below was
+# produced from it, and the digest printed in the provenance table is how a
+# reader confirms they hold the same file. Say that here rather than letting
+# pandas raise a bare FileNotFoundError three cells further down.
+if not WORKBOOK.exists():
+    raise SystemExit(
+        f"{WORKBOOK.name} is not in this repository — it is the assessment's own\n"
+        "material and this repository is public.\n\n"
+        "Drop it into Part1_Data_Handling/ and re-run. Expected SHA-256:\n"
+        "  f188a47da6613564ee805c16... (the provenance cell prints it in full)\n\n"
+        "The committed .ipynb and .html already carry every output, so the\n"
+        "analysis is readable without re-executing anything."
+    )
+
 DIGEST = hashlib.sha256(WORKBOOK.read_bytes()).hexdigest()
 
 # dtype=object: read it as delivered, repair nothing implicitly.

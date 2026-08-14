@@ -14,7 +14,16 @@ than buried in cell JSON.
 | `Part1_Data_Handling.ipynb` | The notebook, executed end to end |
 | `build_notebook.py` | Generates the notebook — the narrative lives here as text so it is diff-able |
 | `requirements.txt` | Pinned environment the committed outputs were produced in |
-| `NUSSIF_2026_INFRA_ASSESSMENT.xlsx` | The source workbook, byte-for-byte unmodified |
+The source workbook, `NUSSIF_2026_INFRA_ASSESSMENT.xlsx`, is **not in this
+repository**. It is the assessment's own material and this repository is public,
+so it ships with the submission rather than with the code. Every output committed
+here was produced from it, and the provenance cell prints its SHA-256 so a reader
+holding the file can confirm it is the same one.
+
+**Nothing needs to be re-executed to read the analysis** — the `.ipynb` and the
+`.html` both carry every output. To re-run it, drop the workbook into this
+directory first; the build stops with that instruction rather than a stack trace
+if it is missing.
 
 ## Reproduce
 
