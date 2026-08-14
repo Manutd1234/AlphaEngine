@@ -720,19 +720,26 @@ a:not([class]):active {
   min-width: 0;
 }
 
+/* This list is the desk telling you what is wrong. "The risk gateway is
+   currently unreachable …" truncated at 320px is the one sentence on the
+   screen that must survive a narrow viewport, so both lines wrap rather than
+   clip. Two lines each keeps the list scannable when several fire at once. */
 .reliability-attention-list__copy strong {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
   font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .reliability-attention-list__copy small {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
   overflow: hidden;
   color: var(--text-muted);
   font-size: 10.5px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
 }
 
 .reliability-attention-list__action {
@@ -3234,13 +3241,17 @@ a.text-action {
   white-space: nowrap;
 }
 
+/* Two lines, not one clipped one. `nowrap` cost "effective positions ·
+   largest 41.9% · to…" its last 86px at 1280px, and a note truncated on a
+   touch device is gone for good — there is no hover to recover it on. */
 .portfolio-metrics small {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
   margin-top: 4px;
   color: var(--text-muted);
   font-size: 10.5px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* Risk's two-column body. Named `.portfolio-main-grid` until now, which was
@@ -10410,8 +10421,14 @@ button.data-trust-action > i {
   line-height: 1.45;
 }
 
+/* Paths wrap rather than truncate. Cutting the tail off a path removes the
+   filename, which is the half that identifies it — "Part2_Infrastructure/
+   OpenBB_Serv…" names a directory the reader already knew about. Breaking
+   anywhere is right for a path: there are no words to keep whole. */
 .developer-cp-node code {
-  display: block;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
   margin: 8px 0 5px;
   padding: 5px 7px;
@@ -10420,8 +10437,7 @@ button.data-trust-action > i {
   color: var(--text-secondary);
   font-family: var(--mono);
   font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .developer-cp-legend {
@@ -12122,6 +12138,17 @@ button.page-insight:hover:not(:disabled) {
   gap: var(--space-4);
 }
 
+/* The KPI deck's provenance line. Two lines, then clip — the same shape the
+   page head's chip note uses, so a reader learns one rule for "the small grey
+   line under a figure" and it holds wherever they meet it. */
+.kpi-card__note {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  line-height: 1.34;
+}
+
 /* The command centre band: the page head and the decision loop on one dark
    plane, the way the overview has always opened.
 
@@ -12239,11 +12266,15 @@ button.page-insight:hover:not(:disabled) {
   letter-spacing: -0.01em;
 }
 
+/* A sentence, so it wraps like one. It was `nowrap` and lost its tail on any
+   viewport under ~900px — a footer whose whole job is telling you why to go
+   somewhere, cut off before it says why. */
 .next-step-footer__hint {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
   font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .next-step-footer__action {
@@ -12683,11 +12714,12 @@ h4 {
   border-radius: 2px;
 }
 
+/* Legend labels wrap on narrow phones instead of clipping: "configured,
+   blocked" and "no key configured" are state names, and a state name cut to
+   "configured, bl…" stops distinguishing the states it exists to separate. */
 .donut__legend span {
   overflow: hidden;
   color: var(--text-secondary);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .donut__legend strong {
@@ -15007,14 +15039,17 @@ html:active-view-transition .view-panel {
     min-width: 0;
   }
 
+  /* The experiment context wraps to two lines on a phone. On one nowrap line
+     "BTCUSDT · 4h · Moving-average crossover · 74…" lost the combination
+     count at 390px and below — the number that tells you the sweep ran. */
   .experiment-panel__heading .sub {
-    display: block;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
     overflow: hidden;
     margin: 3px 0 0;
     color: var(--text-muted);
     font-size: 10px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .experiment-panel__toggle {

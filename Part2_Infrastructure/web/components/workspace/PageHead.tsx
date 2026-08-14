@@ -70,8 +70,22 @@ function Metric({ metric }: { metric: PageMetric }) {
   const mono = metric.mono ?? true;
   const body = (
     <>
-      <span>{metric.label}</span>
-      <strong className={mono ? "num" : undefined}>{metric.value}</strong>
+      {/* The label stays on one line — it is what makes the chip's height a
+          constant, and letting it wrap would put the eight headers out of
+          alignment again the moment one tab's label was longer. So it carries
+          its own text instead: at 768px "Books within freshness budget" loses
+          85px to the ellipsis, and this is what gets it back. */}
+      <span title={metric.label}>{metric.label}</span>
+      {/* Same one-line rule as the label, same reason, and the loss is worse
+          here because this is the figure itself: at 768px "Moving-average
+          crossover" gives up 40px and Developer's repository name 57px. The
+          value carries its own text so the ellipsis is never the last word. */}
+      <strong
+        className={mono ? "num" : undefined}
+        title={typeof metric.value === "string" || typeof metric.value === "number" ? String(metric.value) : undefined}
+      >
+        {metric.value}
+      </strong>
       {/* The note is clamped to two lines in CSS, so a long one is clipped. A
           clipped provenance line is the half a reader checks when a number
           looks wrong, and losing its tail silently is the worst way to lose

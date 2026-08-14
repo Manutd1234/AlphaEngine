@@ -74,10 +74,14 @@ function KpiCard({
       >
         {value}
       </strong>
-      <div className="flex min-w-0 items-center justify-between gap-2">
-        <small className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-text-muted">
-          {note}
-        </small>
+      {/* The note wraps to two lines rather than truncating on one.
+          `whitespace-nowrap` cost the order-intent card 165px of its own text
+          at 1024px — "$5 modeled cost · gross $8,600,000 · $3,…" losing the
+          headroom figure, which is the number the sentence exists to deliver.
+          A tooltip is not the fix here: this deck is read on tablets and
+          phones, where there is no hover to recover a clipped line with. */}
+      <div className="flex min-w-0 items-start justify-between gap-2">
+        <small className="kpi-card__note min-w-0 text-[11px] text-text-muted">{note}</small>
         {spark}
       </div>
     </div>
