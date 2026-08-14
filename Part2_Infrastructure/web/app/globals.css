@@ -639,12 +639,6 @@ a:not([class]):active {
 }
 
 
-
-
-
-
-
-
 .reliability-state.is-good .reliability-state__dot { background: var(--status-good); }
 .reliability-state.is-warn .reliability-state__dot { background: var(--status-warning); }
 .reliability-state.is-critical .reliability-state__dot { background: var(--status-critical); }
@@ -653,12 +647,9 @@ a:not([class]):active {
 .reliability-state.is-critical strong { color: var(--critical-text); }
 
 
-
-
 .reliability-signal.is-good::before { background: var(--status-good); }
 .reliability-signal.is-warn::before { background: var(--status-warning); }
 .reliability-signal.is-critical::before { background: var(--status-critical); }
-
 
 
 .reliability-signal.is-warn strong { color: var(--warning-text); }
@@ -2432,17 +2423,12 @@ tbody tr[tabindex]:focus-visible {
   background: var(--surface-2);
 }
 
-.workspace-shell {
-  width: min(1680px, 100%);
-  /* No min-height here: 63px matched no header this app has shipped in a long
-     time, and the authoritative rule further down measures --header-h. */
-  margin: 0 auto;
-  padding: 20px 24px 56px;
-}
-
-.view-panel {
-  animation: panel-in 180ms ease-out;
-}
+/* `.workspace-shell` and `.view-panel` are declared once, in the workspace
+   standardisation layer at the foot of this file. They used to be declared here
+   too — a padding-only shell from before `.workspace-shell` became the app's
+   single scroller, and a `.view-panel` with a hardcoded 180ms. Both lost the
+   cascade to the later block on source order, so the only thing they still did
+   was make this file look like it disagreed with itself. */
 
 @keyframes panel-in {
   from { opacity: 0; transform: translateY(3px); }
@@ -2573,10 +2559,6 @@ tbody tr[tabindex]:focus-visible {
 }
 
 
-
-
-
-
 .page-actions,
 .workflow-handoff > div:last-child,
 .capability-empty > div > div:last-child {
@@ -2638,7 +2620,6 @@ tbody tr[tabindex]:focus-visible {
   display: flex;
   flex-direction: column;
 }
-
 
 
 .pipeline-card__step {
@@ -2746,101 +2727,14 @@ tbody tr[tabindex]:focus-visible {
 }
 /* ---------- module pages ---------- */
 
-.page-heading {
-  min-height: 0;
-  margin-bottom: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.page-heading__copy {
-  min-width: 0;
-  flex: 1 1 560px;
-}
-
-.page-heading h1 {
-  margin-top: 2px;
-  font-size: clamp(18px, 1.8vw, 22px);
-  line-height: 1.12;
-  letter-spacing: -0.018em;
-}
-
-.page-heading p {
-  max-width: 760px;
-  margin-top: 2px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  /* No orphans: a description that wraps must not strand its last word on a
-     line of its own. Progressive — engines without `pretty` wrap as before. */
-  text-wrap: pretty;
-}
-
-.page-heading__insights {
-  flex: 0 1 auto;
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(108px, 1fr);
-  gap: 7px;
-}
-
-.page-insight {
-  position: relative;
-  min-width: 0;
-  padding: 8px 10px 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--surface-1) 86%, transparent);
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--text-primary) 5%, transparent);
-  display: grid;
-  gap: 1px;
-}
-
-.page-insight::before {
-  content: "";
-  position: absolute;
-  top: 9px;
-  bottom: 9px;
-  left: -1px;
-  width: 2px;
-  border-radius: 2px;
-  background: var(--axis);
-}
-
-.page-insight.is-good::before { background: var(--status-good); }
-.page-insight.is-warn::before { background: var(--status-warning); }
-.page-insight.is-critical::before { background: var(--status-critical); }
-.page-insight.is-accent::before { background: var(--series-1); }
-
-.page-insight > span {
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.075em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.page-insight > strong {
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 11.5px;
-  font-weight: 700;
-  line-height: 1.3;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.page-insight > small {
-  overflow: hidden;
-  color: var(--text-muted);
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+/* The `.page-heading` / `.page-insight` family lives once, in the workspace
+   standardisation layer at the foot of this file. A second, older copy used to
+   sit here and lose the cascade on source order — but not cleanly: it set
+   `grid-auto-flow: column` and `white-space: nowrap`, which the later block did
+   not, so those two leaked downward and the authoritative rules had to spend a
+   declaration each undoing them. That is why a seventh chip once refused to
+   wrap onto a new line, and why the note's two-line clamp rendered as one
+   clipped line. Deleting the copy is what makes those overrides unnecessary. */
 
 .page-actions {
   flex-shrink: 0;
@@ -3400,15 +3294,6 @@ a.text-action {
 }
 
 
-
-
-
-
-
-
-
-
-
 .method-badge {
   width: fit-content;
   padding: 3px 6px;
@@ -3613,11 +3498,6 @@ a.text-action {
 }
 
 
-
-
-
-
-
 .portfolio-budget-track i.is-warning {
   background: var(--status-warning);
 }
@@ -3808,13 +3688,9 @@ a.text-action {
 /* ---------- responsive workspace ---------- */
 
 @media (max-width: 1120px) {
-  .page-heading {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 12px;
-  }
-  /* The chips already own a full-width row and auto-fit their columns, so
-     the old width/auto-column override here has nothing left to correct. */
+  /* The `.page-heading` column-stack for this breakpoint is declared once, in
+     the standardisation layer, alongside the `__context` and `__insights`
+     rules it has to agree with. A second copy here only said half of it. */
   .portfolio-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3932,21 +3808,13 @@ a.text-action {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  /* A phone gets one swipeable row rather than six stacked boxes: the chips
-     are context for the panel below, and six of them stacked would be the
-     whole first screen. Column flow overrides the desktop auto-fit template. */
-  .page-heading__insights {
-    width: calc(100vw - 32px);
-    overflow-x: auto;
-    grid-template-columns: none;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(150px, 1fr);
-    padding-bottom: 2px;
-    scrollbar-width: none;
-  }
-  .page-heading__insights::-webkit-scrollbar {
-    display: none;
-  }
+  /* The swipeable one-row chip treatment that used to live here is gone. It had
+     stopped working: the standardisation layer's base rule sits later in this
+     file, so its `grid-auto-flow: row` and auto-fit template won on source
+     order and the phone got a wrapped grid regardless. Measured at 500px it was
+     three columns over two rows, `scrollWidth === clientWidth` — nothing to
+     swipe. The wrapped grid is also the better answer: it shows all six chips,
+     where a scroller hid half of them behind a gesture. */
   .market-context-card__heading {
     align-items: flex-start;
     flex-direction: column;
@@ -7643,72 +7511,6 @@ button.console-stat:hover:not(:disabled) {
   gap: 14px;
 }
 
-.data-cp-bar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  min-width: 0;
-  gap: 12px;
-  padding: 9px 12px;
-  border: 1px solid color-mix(in srgb, var(--data-accent) 26%, var(--border));
-  border-radius: var(--radius-lg);
-  background:
-    linear-gradient(110deg, color-mix(in srgb, var(--data-accent) 6%, var(--surface-1)), var(--surface-1) 48%),
-    var(--surface-1);
-}
-
-.data-cp-bar.is-stale {
-  border-color: color-mix(in srgb, var(--status-critical) 42%, var(--border));
-}
-
-
-
-
-
-
-.data-cp-metric.is-good > strong {
-  color: var(--success-text);
-}
-
-.data-cp-metric.is-warn > strong {
-  color: var(--warning-text);
-}
-
-.data-cp-metric.is-bad > strong {
-  color: var(--critical-text);
-}
-
-
-.data-cp-status.is-good {
-  border-color: color-mix(in srgb, var(--status-good) 38%, var(--border));
-  background: color-mix(in srgb, var(--status-good) 7%, var(--surface-1));
-  color: var(--success-text);
-}
-
-.data-cp-status.is-warn {
-  border-color: color-mix(in srgb, var(--status-warning) 38%, var(--border));
-  background: color-mix(in srgb, var(--status-warning) 7%, var(--surface-1));
-  color: var(--warning-text);
-}
-
-.data-cp-status.is-bad {
-  border-color: color-mix(in srgb, var(--status-critical) 38%, var(--border));
-  background: color-mix(in srgb, var(--status-critical) 7%, var(--surface-1));
-  color: var(--critical-text);
-}
-
-.data-cp-bar > button {
-  min-height: 31px;
-  padding: 5px 9px;
-  font-size: 10px;
-  white-space: nowrap;
-}
-
-
-
-
-
-
 
 .data-trust-overview {
   display: grid;
@@ -8748,11 +8550,6 @@ button.data-trust-action > i {
 }
 
 @media (max-width: 980px) {
-  .data-cp-bar {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-
   .data-trust-evidence-grid,
   .data-trust-detail-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -8860,16 +8657,6 @@ button.data-trust-action > i {
 }
 
 @media (max-width: 520px) {
-  .data-cp-bar {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .data-cp-status,
-  .data-cp-bar > button {
-    width: 100%;
-    justify-content: center;
-  }
-
   .data-trust-evidence-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -9014,53 +8801,16 @@ button.data-trust-action > i {
 }
 
 
-
-
-
-
-
-
 .developer-deployable__topline .num {
   color: var(--series-1);
   font-size: 12px;
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 .developer-work-preview__priority.is-p0,
 .developer-work-preview__priority.is-p1 {
   color: var(--warning-text);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 /* Repository explorer */
@@ -9892,26 +9642,16 @@ button.data-trust-action > i {
 }
 
 
-
 .developer-test-suites__grid > div.is-total {
   border-color: color-mix(in srgb, var(--series-1) 36%, var(--border));
   background: color-mix(in srgb, var(--series-1) 6%, var(--surface-2));
 }
 
 
-
-
-
-
-
-
 .developer-ci-jobs__flow .num {
   color: var(--series-1);
   font-size: 10px;
 }
-
-
-
 
 
 @media (max-width: 1120px) {
@@ -9927,7 +9667,6 @@ button.data-trust-action > i {
   }
 
 
-
   .developer-api-catalog__toolbar {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -9938,8 +9677,6 @@ button.data-trust-action > i {
 }
 
 @media (max-width: 900px) {
-
-
 
 
   .codebase-explorer__heading,
@@ -9977,9 +9714,6 @@ button.data-trust-action > i {
   .developer-api-catalog {
     padding: 15px;
   }
-
-
-
 
 
   .codebase-explorer__toolbar,
@@ -10073,7 +9807,6 @@ button.data-trust-action > i {
   .codebase-detail__meta {
     grid-template-columns: minmax(0, 1fr);
   }
-
 
 
   .developer-api-row {
@@ -11797,10 +11530,6 @@ button.data-trust-action > i {
   order: 2;
   flex: 0 0 100%;
   display: grid;
-  /* `row` explicitly: the superseded block earlier in this sheet sets
-     `grid-auto-flow: column`, which would otherwise cascade in here and add
-     implicit columns instead of wrapping a seventh chip onto a new line. */
-  grid-auto-flow: row;
   grid-template-columns: repeat(auto-fit, minmax(172px, 1fr));
   gap: 8px;
 }
@@ -11880,9 +11609,6 @@ button.data-trust-action > i {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
-  /* Explicit: the superseded block earlier in this sheet sets `nowrap`, which
-     cascades in here and pins the note to one clipped line, clamp or no. */
-  white-space: normal;
   color: var(--text-muted);
   font-size: 10px;
   line-height: 1.34;
@@ -15790,7 +15516,6 @@ html:active-view-transition .view-panel {
   .desk-tape__state,
   .latency-chip,
   .developer-cp-status,
-  .data-cp-status,
   .method-badge,
   .friction-badge,
   .allocation-override-chip,
