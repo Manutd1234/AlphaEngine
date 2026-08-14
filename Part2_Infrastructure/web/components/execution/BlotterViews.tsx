@@ -92,7 +92,9 @@ export default function BlotterViews({
           type="search"
           className="blotter-views__search"
           value={query}
-          placeholder="Search symbol, id, strategy, venue, gate…"
+          /* Short enough not to clip in the box: the five searchable fields
+             are named in full by the aria-label below. */
+          placeholder="Search orders…"
           aria-label="Search orders by symbol, order id, strategy, venue or gate"
           onChange={(event) => setQuery(event.target.value)}
         />
