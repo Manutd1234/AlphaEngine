@@ -62,7 +62,6 @@ export default function QuotaMeters({ providers, cacheByCapability, cacheEntries
     <div className="card console-card">
       <div className="section-heading compact">
         <div>
-          <span className="page-kicker">Budget</span>
           <h2>Quota &amp; rate limits</h2>
         </div>
         <span className="section-note">Counted before each call, so a timeout still costs a unit.</span>

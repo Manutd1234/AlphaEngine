@@ -45,6 +45,11 @@ interface WorkspaceOverviewProps {
   onRun: () => void;
   section: OverviewSection;
   onSectionChange: (section: OverviewSection) => void;
+  /**
+   * False while this workspace is mounted but hidden behind another tab.
+   * Panels persist across switches now; a hidden tab must not keep polling.
+   */
+  active?: boolean;
 }
 
 export default function WorkspaceOverview({
@@ -62,6 +67,7 @@ export default function WorkspaceOverview({
   onRun,
   section,
   onSectionChange,
+  active = true,
 }: WorkspaceOverviewProps) {
   const summary = systems.health?.summary;
   const capabilitiesDown = systems.health
@@ -295,7 +301,7 @@ export default function WorkspaceOverview({
       <WorkspaceSubtabPanel workspaceId="overview" tabId="audit" activeId={section}>
         {/* The same seed the rest of the desk generates from, so the audit
             rows here are the orders the Execution blotter lists. */}
-        <AuditTrail active={section === "audit"} seed={book.seed} />
+        <AuditTrail active={active && section === "audit"} seed={book.seed} />
       </WorkspaceSubtabPanel>
     </div>
   );

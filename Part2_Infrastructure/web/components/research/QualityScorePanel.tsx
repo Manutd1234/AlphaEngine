@@ -52,7 +52,6 @@ export default function QualityScorePanel({ data }: QualityScorePanelProps) {
     <div className="card quality-card">
       <div className="section-heading compact">
         <div>
-          <span className="page-kicker">Decision</span>
           <h2>Quality score</h2>
         </div>
         <span className={`quality-total is-${toneFor(score.total)}`}>

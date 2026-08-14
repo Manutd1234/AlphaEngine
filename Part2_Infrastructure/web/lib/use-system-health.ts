@@ -420,33 +420,46 @@ export function useSystemHealth(workspaceSymbol: string): SystemHealthView {
     guardMode === "open-demo" || guardMode === "open-dev"
     || (guardMode === "token" && token.trim() !== "");
 
-  return {
-    health,
-    healthError,
-    updatedAt,
-    refresh,
-    pollMs,
-    setPollMs,
-    paused,
-    setPaused,
-    effectivePollMs: paused ? 0 : pollMs,
-    route,
-    setRoute,
-    guard: guardMode,
-    tokenEnv: health?.guard.tokenEnv ?? "ALPHAENGINE_OPERATOR_TOKEN",
-    paperOrderDefaultAvailable: health?.guard.paperOrderDefaultAvailable === true,
-    token,
-    setToken,
-    operatorReady,
-    tokenStatus,
-    busyAction,
-    actionResult,
-    runAction,
-    sockets,
-    onReconnectSockets,
-    logLocal,
-    degraded,
-    cacheHitRate: summary?.cache.hitRate ?? null,
-    latencyHistory,
-  };
+  /**
+   * One identity per set of facts — same contract as `useBook`'s view. The
+   * persistent, memoised workspace panels compare this object by reference to
+   * decide whether to re-render, so it must only change when a field does.
+   */
+  return useMemo(
+    () => ({
+      health,
+      healthError,
+      updatedAt,
+      refresh,
+      pollMs,
+      setPollMs,
+      paused,
+      setPaused,
+      effectivePollMs: paused ? 0 : pollMs,
+      route,
+      setRoute,
+      guard: guardMode,
+      tokenEnv: health?.guard.tokenEnv ?? "ALPHAENGINE_OPERATOR_TOKEN",
+      paperOrderDefaultAvailable: health?.guard.paperOrderDefaultAvailable === true,
+      token,
+      setToken,
+      operatorReady,
+      tokenStatus,
+      busyAction,
+      actionResult,
+      runAction,
+      sockets,
+      onReconnectSockets,
+      logLocal,
+      degraded,
+      cacheHitRate: summary?.cache.hitRate ?? null,
+      latencyHistory,
+    }),
+    [
+      health, healthError, updatedAt, refresh, pollMs, setPollMs, paused,
+      setPaused, route, setRoute, guardMode, token, setToken, operatorReady,
+      tokenStatus, busyAction, actionResult, runAction, sockets,
+      onReconnectSockets, logLocal, degraded, summary, latencyHistory,
+    ],
+  );
 }

@@ -97,9 +97,12 @@ describe("cross-links name a section, not just a workspace", () => {
   it("routes a useful number of them through the section-aware helper", () => {
     // A ratchet, not a target: the count may rise freely. It falling means a
     // destination was dropped back to "wherever that tab was last left".
+    // 14 → 13 was not a dropped destination: two tabs shared the identical
+    // "reliability overview" arrow, and the memoised-panel pass folded both
+    // into one stable useCallback — same destinations, one literal fewer.
     assert.ok(
-      calls.length >= 14,
-      `only ${calls.length} cross-links name their section — this pass wired 14`,
+      calls.length >= 13,
+      `only ${calls.length} cross-links name their section — this pass wired 13`,
     );
   });
 

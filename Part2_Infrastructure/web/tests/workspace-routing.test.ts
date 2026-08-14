@@ -254,7 +254,7 @@ describe("dense role workspaces expose accessible feature sections", () => {
       "reliability must have one correlated event stream",
     );
     assert.ok(
-      reliabilityConsole.includes('active={section === "events"}'),
+      reliabilityConsole.includes('active={active && section === "events"}'),
       "hidden reliability events are not deactivated",
     );
     assert.ok(

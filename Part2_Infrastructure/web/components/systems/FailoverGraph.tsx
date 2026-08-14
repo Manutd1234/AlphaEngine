@@ -95,7 +95,6 @@ export default function FailoverGraph({
     <div className="card console-card">
       <div className="section-heading compact">
         <div>
-          <span className="page-kicker">Routing</span>
           <h2>Failover path</h2>
         </div>
         <span className="section-note">

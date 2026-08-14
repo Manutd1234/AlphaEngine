@@ -126,7 +126,7 @@ describe("a switched-away pane stops doing work", () => {
      */
     assert.match(
       controlsPanel(console_),
-      /active=\{section === "controls" && remediationPane === "history"\}/,
+      /active=\{active && section === "controls" && remediationPane === "history"\}/,
     );
   });
 
@@ -134,7 +134,7 @@ describe("a switched-away pane stops doing work", () => {
     // TraceConsole is pinned to one instance on this tab and gated on its own
     // section; the pane split must not have touched either.
     assert.equal(console_.match(/<TraceConsole/g)?.length, 1);
-    assert.ok(console_.includes('active={section === "events"}'));
+    assert.ok(console_.includes('active={active && section === "events"}'));
   });
 });
 

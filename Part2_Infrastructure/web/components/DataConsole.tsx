@@ -48,6 +48,8 @@ export interface DataConsoleProps {
   onSectionChange: (section: DataSection) => void;
   workItems: DataWorkItem[];
   onWorkItemsChange: (items: DataWorkItem[]) => void;
+  /** False while this workspace is mounted but hidden behind another tab. */
+  active?: boolean;
 }
 
 function absoluteTime(value: string | Date | null): string {
@@ -267,6 +269,7 @@ export default function DataConsole({
   onSectionChange,
   workItems,
   onWorkItemsChange,
+  active = true,
 }: DataConsoleProps) {
   const {
     health, route, setRoute, guard, operatorReady, busyAction, actionResult, runAction,
@@ -457,7 +460,7 @@ export default function DataConsole({
           onSymbolChange={onWorkspaceSymbolChange}
           pollMs={effectivePollMs}
           onEvent={logLocal}
-          active={section === "lineage"}
+          active={active && section === "lineage"}
         />
       </WorkspaceSubtabPanel>
 

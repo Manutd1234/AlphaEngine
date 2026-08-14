@@ -55,7 +55,6 @@ export default function AllocationMixes({
     <section className="card">
       <div className="portfolio-card-heading">
         <div>
-          <span className="page-kicker">Composition</span>
           <h2>Asset class, settlement and sleeve</h2>
         </div>
         {generated && <span className="section-note">generated book</span>}

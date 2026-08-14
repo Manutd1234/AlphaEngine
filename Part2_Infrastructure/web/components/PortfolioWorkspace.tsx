@@ -67,6 +67,8 @@ export interface PortfolioWorkspaceProps {
   operatorToken?: string;
   section: PortfolioSection;
   onSectionChange: (section: PortfolioSection) => void;
+  /** False while this workspace is mounted but hidden behind another tab. */
+  active?: boolean;
 }
 
 export { PORTFOLIO_SECTION_IDS, type PortfolioSection } from "@/lib/sections";
@@ -200,6 +202,7 @@ export default function PortfolioWorkspace({
   operatorToken,
   section,
   onSectionChange,
+  active = true,
 }: PortfolioWorkspaceProps) {
   const [handoff, setHandoff] = useState<HandoffIntent | null>(null);
   // Above the `!book` bail-out, with every other hook: a pane selector declared
@@ -846,7 +849,7 @@ export default function PortfolioWorkspace({
               source={book.sandbox ? "sandbox" : isStale ? "unavailable" : "live"}
               focusSymbol={selectedSymbol}
               isStale={isStale}
-              active={section === "positions" && positionsPane === "exit"}
+              active={active && section === "positions" && positionsPane === "exit"}
               operatorToken={operatorToken}
               onChanged={() => void refresh(true)}
               onFocusSymbol={(symbol) => onFocusSymbol(symbol, "research")}

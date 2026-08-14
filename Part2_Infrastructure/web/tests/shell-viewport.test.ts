@@ -193,12 +193,23 @@ describe("navigation moves the scroller that exists", () => {
     assert.match(page, /shellRef\.current\?\.scrollTo/);
   });
 
-  it("the reset stays inside the view transition", () => {
-    // Outside the callback it races the snapshot, and the transition captures
-    // the old scroll position — the documented reason it was written this way.
-    const transition = page.slice(page.indexOf("startViewTransition("));
-    const body = transition.slice(0, transition.indexOf("} else {"));
-    assert.match(body, /flushSync\(apply\)[\s\S]*shellRef\.current\?\.scrollTo/);
+  it("the switch is transition-free, concurrent, and the reset is instant", () => {
+    /**
+     * `document.startViewTransition(() => flushSync(apply))` was the measured
+     * tab stutter: painting froze for the snapshot while React synchronously
+     * rendered the whole incoming workspace, then a crossfade played over the
+     * result. The switch now goes through React's `startTransition`, which
+     * keeps the click responsive and renders the panel concurrently, and the
+     * scroll reset is `auto` — a tab change is a cut, not a camera move.
+     * Comments stripped first, so prose about the old behaviour cannot
+     * satisfy (or trip) any of these.
+     */
+    const stripped = page.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
+    assert.doesNotMatch(stripped, /startViewTransition\(/, "the paint-freezing snapshot transition is back");
+    assert.doesNotMatch(stripped, /flushSync\(/, "a synchronous whole-page render on switch is back");
+    assert.match(stripped, /startTransition\(\(\) => \{\s*setView\(next\);/);
+    assert.match(stripped, /shellRef\.current\?\.scrollTo\(\{ top: 0, behavior: "auto" \}\)/);
+    assert.doesNotMatch(stripped, /behavior: reduced \? "auto" : "smooth"/, "the post-switch smooth scroll is back");
   });
 
   it("the shell is actually wired to the ref it is scrolled by", () => {

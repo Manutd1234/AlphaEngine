@@ -546,7 +546,12 @@ export function useBook(): BookView {
     [heldSymbols, book?.risk_budget.gross_exposure.limit, book?.as_of],
   );
 
-  const equityTrack: EquityPoint[] = book?.sandbox ? sandboxEquityPath(book) : observed;
+  // Memoised: `sandboxEquityPath(book)` built a fresh array identity on every
+  // render, which alone would defeat the stable view identity below.
+  const equityTrack: EquityPoint[] = useMemo(
+    () => (book?.sandbox ? sandboxEquityPath(book) : observed),
+    [book, observed],
+  );
 
   const connectionState: BookConnectionState = book
     ? error ? "stale" : "live"
@@ -572,39 +577,58 @@ export function useBook(): BookView {
         ? "incident"
         : "not-configured";
 
-  return {
-    book,
-    loading,
-    refreshing,
-    error,
-    connectionState,
-    tier,
-    cause,
-    provenance: { tier, cause, lastGoodAt: lastSuccessAt },
-    isStale: !sandbox && connectionState === "stale",
-    lastSuccessAt,
-    refresh,
-    sandbox,
-    setSandbox,
-    seed,
-    risk,
-    covarianceModel,
-    varValidation,
-    varSeries,
-    riskPositions,
-    returns,
-    riskLoading,
-    missingHistory,
-    referenceSymbol,
-    sessionBars,
-    barTimes,
-    advBySymbol,
-    referenceSessionReturn,
-    riskShare,
-    betaBySymbol,
-    allocationLimits,
-    equityTrack,
-    periods,
-    historyBackfilled,
-  };
+  /**
+   * One identity per set of facts.
+   *
+   * This object used to be rebuilt on every render, so every consumer saw a
+   * fresh `BookView` even when nothing inside it had changed. Now that the
+   * workspace panels persist behind `hidden` and are memoised, the view's
+   * identity is what decides whether six mounted tabs re-render — so it
+   * changes only when a field does.
+   */
+  return useMemo(
+    () => ({
+      book,
+      loading,
+      refreshing,
+      error,
+      connectionState,
+      tier,
+      cause,
+      provenance: { tier, cause, lastGoodAt: lastSuccessAt },
+      isStale: !sandbox && connectionState === "stale",
+      lastSuccessAt,
+      refresh,
+      sandbox,
+      setSandbox,
+      seed,
+      risk,
+      covarianceModel,
+      varValidation,
+      varSeries,
+      riskPositions,
+      returns,
+      riskLoading,
+      missingHistory,
+      referenceSymbol,
+      sessionBars,
+      barTimes,
+      advBySymbol,
+      referenceSessionReturn,
+      riskShare,
+      betaBySymbol,
+      allocationLimits,
+      equityTrack,
+      periods,
+      historyBackfilled,
+    }),
+    [
+      book, loading, refreshing, error, connectionState, tier, cause,
+      lastSuccessAt, refresh, sandbox, setSandbox, seed, risk, covarianceModel,
+      varValidation, varSeries, riskPositions, returns, riskLoading,
+      missingHistory, referenceSymbol, sessionBars, barTimes, advBySymbol,
+      referenceSessionReturn, riskShare, betaBySymbol, allocationLimits,
+      equityTrack, periods, historyBackfilled,
+    ],
+  );
 }

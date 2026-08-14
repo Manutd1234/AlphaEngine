@@ -38,6 +38,8 @@ export interface ReliabilityConsoleProps {
   onOpenData: () => void;
   section: ReliabilitySection;
   onSectionChange: (section: ReliabilitySection) => void;
+  /** False while this workspace is mounted but hidden behind another tab. */
+  active?: boolean;
 }
 
 const POSTURE_LABEL: Record<ReliabilityStatus, string> = {
@@ -92,6 +94,7 @@ export default function ReliabilityConsole({
   onOpenData,
   section,
   onSectionChange,
+  active = true,
 }: ReliabilityConsoleProps) {
   const [traceFilterRequest, setTraceFilterRequest] = useState<{
     id: number;
@@ -273,7 +276,7 @@ export default function ReliabilityConsole({
       <WorkspaceSubtabPanel workspaceId="reliability" tabId="events" activeId={section}>
         <TraceConsole
           pollMs={pollMs || 30_000}
-          active={section === "events"}
+          active={active && section === "events"}
           filterRequest={traceFilterRequest}
         />
       </WorkspaceSubtabPanel>
@@ -344,7 +347,7 @@ export default function ReliabilityConsole({
             the poll must not start running again the day someone switches these
             three to `hidden` to preserve scroll position. */}
         {remediationPane === "history" && (
-          <RemediationLedger active={section === "controls" && remediationPane === "history"} />
+          <RemediationLedger active={active && section === "controls" && remediationPane === "history"} />
         )}
       </WorkspaceSubtabPanel>
     </>

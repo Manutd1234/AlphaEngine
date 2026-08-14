@@ -120,7 +120,6 @@ export default function FavouritesPanel({ records }: { records: ExperimentRecord
     <div className="card favourites">
       <div className="section-heading compact">
         <div>
-          <span className="page-kicker">Runs</span>
           <h2>Combine favourites</h2>
         </div>
         <span className="num muted">{selected.length}/{MAX_SELECTED} selected</span>

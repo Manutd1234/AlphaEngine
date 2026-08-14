@@ -1,17 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { flushSync } from "react-dom";
+import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import dynamic from "next/dynamic";
 
 import Controls from "@/components/Controls";
-import DataConsole from "@/components/DataConsole";
-import DeveloperConsole from "@/components/DeveloperConsole";
 import EquityChart from "@/components/EquityChart";
 import ExecutionCockpit from "@/components/execution/ExecutionCockpit";
 import LiveMarket from "@/components/LiveMarket";
 import PortfolioWorkspace, { type PortfolioFocusDestination } from "@/components/PortfolioWorkspace";
 import PriceChart from "@/components/PriceChart";
-import ReliabilityConsole from "@/components/ReliabilityConsole";
 import RiskWorkspace from "@/components/RiskWorkspace";
 import SignalDAGViewer from "@/components/research/SignalDAGViewer";
 import StrategyDocCard from "@/components/research/StrategyDocCard";
@@ -144,6 +142,33 @@ function railSection<T extends string>(ids: readonly T[], section: string): T | 
  * window it was measured in.
  */
 type AttributionPane = "explain" | "robustness";
+/**
+ * Memoised once, at module level. The six persistent tabs stay mounted behind
+ * `hidden` now, so every page-level state change would otherwise re-render all
+ * of them; with memo (and the stable hook returns backing their props) a
+ * hidden tab re-renders only when the data it actually shows changed.
+ */
+/**
+ * The console workspaces load as their own chunks. They are the heaviest
+ * subtrees on the page and none of them is needed for first paint, so the
+ * initial bundle stops carrying them; an idle-time prefetch below warms the
+ * chunks before the first click, and the loading box holds a panel-sized
+ * rectangle so the one cold visit cannot shift the layout.
+ */
+const PanelLoading = () => (
+  <div className="skeleton" style={{ height: 480 }} aria-busy="true" aria-label="Loading workspace" />
+);
+const DataConsole = dynamic(() => import("@/components/DataConsole"), { loading: PanelLoading });
+const ReliabilityConsole = dynamic(() => import("@/components/ReliabilityConsole"), { loading: PanelLoading });
+const DeveloperConsole = dynamic(() => import("@/components/DeveloperConsole"), { loading: PanelLoading });
+
+const OverviewTab = memo(WorkspaceOverview);
+const PortfolioTab = memo(PortfolioWorkspace);
+const RiskTab = memo(RiskWorkspace);
+const DataTab = memo(DataConsole);
+const ReliabilityTab = memo(ReliabilityConsole);
+const DeveloperTab = memo(DeveloperConsole);
+
 const ATTRIBUTION_PANES: { id: AttributionPane; label: string; hint: string }[] = [
   {
     id: "explain",
@@ -285,6 +310,42 @@ export default function Page() {
     developer: developerSection,
   };
 
+  /**
+   * Which workspaces the reader has opened this session.
+   *
+   * A visited tab is never unmounted again — it is hidden. Unmount-per-switch
+   * was most of the switch cost: thousands of DOM nodes rebuilt, every chart's
+   * draw-on animation replayed, every mount-effect refetched (the skeleton
+   * flash), and all in-panel state lost. `hidden` keeps DOM, state and chart
+   * geometry warm, so a revisit is a display flip.
+   *
+   * Research and Execution stay unmount-on-leave deliberately: Execution holds
+   * direct exchange WebSockets and the realtime tape, and Research is where
+   * the desk's typing lives — both keep their teardown-on-leave semantics.
+   */
+  const visitedViews = useRef(new Set<WorkspaceView>());
+  useEffect(() => {
+    visitedViews.current.add(view);
+  }, [view]);
+
+  // Warm the console chunks while the main thread is idle, so the first click
+  // on Data / Reliability / Developer finds its code already downloaded. A
+  // prefetch is a hint, not a dependency — failures here surface nothing and
+  // the tab's own loading box covers the cold case.
+  useEffect(() => {
+    const prefetch = () => {
+      void import("@/components/DataConsole");
+      void import("@/components/ReliabilityConsole");
+      void import("@/components/DeveloperConsole");
+    };
+    if ("requestIdleCallback" in window) {
+      const handle = window.requestIdleCallback(prefetch, { timeout: 4000 });
+      return () => window.cancelIdleCallback(handle);
+    }
+    const timer = setTimeout(prefetch, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
   const navigate = useCallback((
     next: WorkspaceView,
     replace = false,
@@ -308,29 +369,30 @@ export default function Page() {
       apply();
       return;
     }
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!reduced && "startViewTransition" in document) {
-      // Progressive, Chromium — the same posture rise-in already takes. The
-      // sticky header carries view-transition-name: workspace-header, so the
-      // swap reads as content changing under a stable frame. `panel-in` is
-      // suppressed for the duration by the `:active-view-transition` rule in
-      // globals.css — the platform's own hook, which replaced a hand-added
-      // `is-vt` class this function used to add and remove itself. The scroll
-      // reset stays INSIDE the callback as `auto` so it cannot race the
-      // snapshot.
-      document.startViewTransition(() => {
-        flushSync(apply);
-        shellRef.current?.scrollTo({ top: 0, behavior: "auto" });
-      });
-    } else {
-      apply();
-      // Tabs are a lateral move between desk surfaces, not a continuation of
-      // the one being left. Landing halfway down the new tab — which is what
-      // happens when the scroll position carries over from a long surface like
-      // the blotter — hides the page heading and the section rail, so the tab
-      // reads as broken until you scroll up. Reset to the top of the workspace.
-      shellRef.current?.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
-    }
+    /**
+     * No view transition, and no smooth scroll — both were the stutter.
+     *
+     * `document.startViewTransition(() => flushSync(apply))` froze painting
+     * for the snapshot while React synchronously rendered the entire incoming
+     * workspace — the measured ~30-100ms input freeze, followed by a crossfade
+     * that read as a flash. And the fallback's `behavior: "smooth"` scroll
+     * animated AFTER the switch, which read as the tab still settling.
+     *
+     * `startTransition` keeps the switch interruptible — the click paints its
+     * pressed state immediately and React renders the new panel concurrently.
+     * The URL write stays synchronous: the location must be true the moment
+     * the click happens, not when the render lands. The scroll reset is
+     * instant for the same reason the switch is — a tab change is a cut, not
+     * a camera move.
+     */
+    const url = new URL(window.location.href);
+    url.hash = detail?.hash ?? `${next}/${sectionByViewRef.current[next]}`;
+    window.history[replace ? "replaceState" : "pushState"]({}, "", url);
+    startTransition(() => {
+      setView(next);
+      detail?.apply();
+    });
+    shellRef.current?.scrollTo({ top: 0, behavior: "auto" });
   }, []);
 
   useEffect(() => {
@@ -537,6 +599,21 @@ export default function Page() {
    * providers degraded" opens the trust summary rather than wherever Data was
    * last left.
    */
+  /* Stable identities for the memoised tabs: an inline arrow prop would give
+     every page render a fresh function and defeat the memo above. */
+  const openRiskSection = useCallback(
+    (section?: RiskSection) => openSection("risk", section ?? "limits"),
+    [openSection],
+  );
+  const openPortfolioSection = useCallback(
+    (section?: PortfolioSection) => openSection("portfolio", section ?? "overview"),
+    [openSection],
+  );
+  const openResearchSummary = useCallback(() => openSection("research", "summary"), [openSection]);
+  const openLiveLiquidity = useCallback(() => openSection("live", "liquidity"), [openSection]);
+  const openReliabilityOverview = useCallback(() => openSection("reliability", "overview"), [openSection]);
+  const openDataOverview = useCallback(() => openSection("data", "overview"), [openSection]);
+
   const openLoopStage = useCallback((stage: StageId) => {
     switch (stage) {
       case "data": openSection("data", "overview"); break;
@@ -651,6 +728,7 @@ export default function Page() {
     },
     [req],
   );
+  const runNow = useCallback(() => void run(), [run]);
 
   /**
    * The auto-run entry point: a value settled, so run unless something says not to.
@@ -1263,9 +1341,10 @@ export default function Page() {
       />
 
       <main id="workspace-content" ref={shellRef} className="workspace-shell" tabIndex={-1}>
-        {view === "overview" && (
-          <section id="panel-overview" role="tabpanel" aria-labelledby="tab-overview" className="view-panel">
-            <WorkspaceOverview
+        {(view === "overview" || visitedViews.current.has("overview")) && (
+          <section id="panel-overview" role="tabpanel" aria-labelledby="tab-overview" className="view-panel" hidden={view !== "overview"}>
+            <OverviewTab
+              active={view === "overview"}
               request={req}
               result={activeResult}
               running={running}
@@ -1277,7 +1356,7 @@ export default function Page() {
               systems={systems}
               onNavigate={navigate}
               onOpenStage={openLoopStage}
-              onRun={() => void run()}
+              onRun={runNow}
               section={overviewSection}
               onSectionChange={changeOverviewSection}
             />
@@ -1285,8 +1364,8 @@ export default function Page() {
           </section>
         )}
 
-        {view === "portfolio" && (
-          <section id="panel-portfolio" role="tabpanel" aria-labelledby="tab-portfolio" className="view-panel">
+        {(view === "portfolio" || visitedViews.current.has("portfolio")) && (
+          <section id="panel-portfolio" role="tabpanel" aria-labelledby="tab-portfolio" className="view-panel" hidden={view !== "portfolio"}>
             <WorkspaceIntro
               kicker="Portfolio manager"
               title="Portfolio"
@@ -1319,7 +1398,8 @@ export default function Page() {
                 },
               ]}
             />
-            <PortfolioWorkspace
+            <PortfolioTab
+              active={view === "portfolio"}
               view={book}
               workspaceSymbol={req.symbol}
               onFocusSymbol={focusPortfolioSymbol}
@@ -1327,7 +1407,7 @@ export default function Page() {
                  figures, so the shell routes to whatever it asked for; the
                  fallback is Limits, where gross headroom, the drawdown cushion
                  and the binding constraint are all computed. */
-              onOpenRisk={(section) => openSection("risk", section ?? "limits")}
+              onOpenRisk={openRiskSection}
               operatorToken={systems.token}
               section={portfolioSection}
               onSectionChange={changePortfolioSection}
@@ -1336,8 +1416,8 @@ export default function Page() {
           </section>
         )}
 
-        {view === "risk" && (
-          <section id="panel-risk" role="tabpanel" aria-labelledby="tab-risk" className="view-panel">
+        {(view === "risk" || visitedViews.current.has("risk")) && (
+          <section id="panel-risk" role="tabpanel" aria-labelledby="tab-risk" className="view-panel" hidden={view !== "risk"}>
             <WorkspaceIntro
               kicker="Risk manager"
               title="Risk"
@@ -1377,15 +1457,15 @@ export default function Page() {
                 },
               ]}
             />
-            <RiskWorkspace
+            <RiskTab
               view={book}
               /* Same shape: the tile quoting equity, gross exposure and the
                  position count names its own destination, and Overview is the
                  fallback for a link that names none. Research is the book
                  fallback's escape hatch when the book cannot be read at all, so
                  it opens on the verdict. */
-              onOpenPortfolio={(section) => openSection("portfolio", section ?? "overview")}
-              onOpenResearch={() => openSection("research", "summary")}
+              onOpenPortfolio={openPortfolioSection}
+              onOpenResearch={openResearchSummary}
               operatorToken={systems.token}
               mcDriver={mcDriver}
               mcRunNonce={mcRunNonce}
@@ -1912,7 +1992,7 @@ export default function Page() {
                  evidence" beside the model's cost budget, "Verify feed" beside
                  the quote it was priced against — so they open the verdict and
                  the feed contracts rather than the last section read there. */
-              onOpenResearch={() => openSection("research", "summary")}
+              onOpenResearch={openResearchSummary}
               onOpenData={() => openSection("data", "feeds")}
               section={executionSection}
               onPriceSelect={stageLimitFromLadder}
@@ -1944,21 +2024,22 @@ export default function Page() {
                 /* The ticket and the blotter both ask the same thing of
                    Research — what evidence stands behind this sleeve — which
                    is the Summary verdict. */
-                onOpenResearch={() => openSection("research", "summary")}
+                onOpenResearch={openResearchSummary}
               />
             </LiveMarket>
             <NextStepFooter currentView="live" currentSection={executionSection} onNavigate={openSection} />
           </section>
         )}
 
-        {view === "data" && (
-          <section id="panel-data" role="tabpanel" aria-labelledby="tab-data" className="view-panel">
-            <DataConsole
+        {(view === "data" || visitedViews.current.has("data")) && (
+          <section id="panel-data" role="tabpanel" aria-labelledby="tab-data" className="view-panel" hidden={view !== "data"}>
+            <DataTab
+              active={view === "data"}
               view={systems}
               workspaceSymbol={req.symbol}
               workspaceInterval={req.interval}
               onWorkspaceSymbolChange={updateSymbol}
-              onOpenReliability={() => openSection("reliability", "overview")}
+              onOpenReliability={openReliabilityOverview}
               section={dataSection}
               onSectionChange={changeDataSection}
               workItems={dataWorkItems}
@@ -1968,12 +2049,13 @@ export default function Page() {
           </section>
         )}
 
-        {view === "reliability" && (
-          <section id="panel-reliability" role="tabpanel" aria-labelledby="tab-reliability" className="view-panel">
-            <ReliabilityConsole
+        {(view === "reliability" || visitedViews.current.has("reliability")) && (
+          <section id="panel-reliability" role="tabpanel" aria-labelledby="tab-reliability" className="view-panel" hidden={view !== "reliability"}>
+            <ReliabilityTab
+              active={view === "reliability"}
               view={systems}
               workspaceSymbol={req.symbol}
-              onOpenData={() => openSection("data", "overview")}
+              onOpenData={openDataOverview}
               section={reliabilitySection}
               onSectionChange={changeReliabilitySection}
             />
@@ -1981,18 +2063,18 @@ export default function Page() {
           </section>
         )}
 
-        {view === "developer" && (
-          <section id="panel-developer" role="tabpanel" aria-labelledby="tab-developer" className="view-panel">
-            <DeveloperConsole
+        {(view === "developer" || visitedViews.current.has("developer")) && (
+          <section id="panel-developer" role="tabpanel" aria-labelledby="tab-developer" className="view-panel" hidden={view !== "developer"}>
+            <DeveloperTab
               view={systems}
               workspaceSymbol={req.symbol}
               /* The three shared-context links, each landing where its own
                  noun is explained: "Research {symbol}" on the verdict for it,
                  "Open live book" on the consolidated depth, "Open Reliability"
                  on attention and the SLIs. */
-              onOpenResearch={() => openSection("research", "summary")}
-              onOpenLive={() => openSection("live", "liquidity")}
-              onOpenReliability={() => openSection("reliability", "overview")}
+              onOpenResearch={openResearchSummary}
+              onOpenLive={openLiveLiquidity}
+              onOpenReliability={openReliabilityOverview}
               section={developerSection}
               onSectionChange={changeDeveloperSection}
               workItems={developerWorkItems}

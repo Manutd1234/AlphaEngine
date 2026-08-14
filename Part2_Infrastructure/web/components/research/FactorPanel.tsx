@@ -37,7 +37,6 @@ export default function FactorPanel({ report }: { report: FactorReport | null })
       <div className="card">
         <div className="section-heading compact">
           <div>
-            <span className="page-kicker">Attribution</span>
             <h2>Factor exposure</h2>
           </div>
         </div>
@@ -60,7 +59,6 @@ export default function FactorPanel({ report }: { report: FactorReport | null })
     <div className="card">
       <div className="section-heading compact">
         <div>
-          <span className="page-kicker">Attribution</span>
           <h2>Factor exposure &amp; alpha decomposition</h2>
         </div>
         <span className="section-note">{r.n.toLocaleString()} bars</span>

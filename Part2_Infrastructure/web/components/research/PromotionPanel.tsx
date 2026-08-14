@@ -69,7 +69,6 @@ export default function PromotionPanel({
     <div className="card promotion-card">
       <div className="section-heading compact">
         <div>
-          <span className="page-kicker">Decision</span>
           <h2>Promotion gate</h2>
         </div>
         <span

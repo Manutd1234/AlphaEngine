@@ -121,7 +121,9 @@ describe("the order poll stops when its pane does", () => {
   it("requires the Exit pane as well as the Positions section", () => {
     // The section panel stays mounted when the reader moves to Allocation, so
     // the section alone left a gateway poll running behind another tab.
-    assert.match(workspace, /active=\{section === "positions" && positionsPane === "exit"\}/);
+    // `active && ` first: the workspace itself persists hidden behind other
+    // tabs now, and a hidden tab's order poll must stop with its pane's.
+    assert.match(workspace, /active=\{active && section === "positions" && positionsPane === "exit"\}/);
   });
 });
 

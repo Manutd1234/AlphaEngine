@@ -36,7 +36,6 @@ export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanel
       <div className="card">
         <div className="section-heading compact">
           <div>
-            <span className="page-kicker">Attribution</span>
             <h2>Versus benchmark</h2>
           </div>
         </div>
@@ -60,7 +59,6 @@ export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanel
     <div className="card">
       <div className="section-heading compact">
         <div>
-          <span className="page-kicker">Attribution</span>
           <h2>Versus {comparison.symbol}</h2>
         </div>
         <span className="num muted">{comparison.alignedBars} aligned bars</span>
