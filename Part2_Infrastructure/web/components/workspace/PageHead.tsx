@@ -26,6 +26,13 @@ export interface PageMetric {
   value: ReactNode;
   /** The supporting line. Always the provenance of the value, never a repeat. */
   note?: ReactNode;
+  /**
+   * A sparkline beside the note. It rides in the note's reserved two-line slot
+   * rather than under it, so a chip that carries one is exactly as tall as a
+   * chip that does not — the header's height contract does not bend for it.
+   * Keep it at or under 26px tall for that to hold.
+   */
+  spark?: ReactNode;
   tone?: MetricTone;
   /** Tabular figures. On by default — most of these are numbers. */
   mono?: boolean;
@@ -71,8 +78,11 @@ function Metric({ metric }: { metric: PageMetric }) {
           it — Reliability's trading-path reason is a full sentence when the
           gateway is misconfigured. Carrying the string as `title` keeps the
           rest one hover away rather than gone. */}
-      {metric.note ? (
-        <small title={typeof metric.note === "string" ? metric.note : undefined}>{metric.note}</small>
+      {metric.note || metric.spark ? (
+        <small>
+          <span title={typeof metric.note === "string" ? metric.note : undefined}>{metric.note}</span>
+          {metric.spark ? <span className="page-insight__spark">{metric.spark}</span> : null}
+        </small>
       ) : null}
     </>
   );

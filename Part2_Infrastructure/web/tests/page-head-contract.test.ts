@@ -70,7 +70,20 @@ describe("the metric chip is sized by its anatomy, not by its copy", () => {
         "line renders a shorter chip, and only the grid's row-stretch hides that — " +
         "which works within a row and not at all between tabs.",
     );
-    assert.match(body, /-webkit-line-clamp:\s*2/, "the note is clamped to the two lines it reserves");
+    /* The clamp is on the text, not on the row: the row also holds an optional
+       sparkline, and a line count meant for words would clip an SVG. */
+    const text = ruleBody(globals, ".page-insight > small > span:first-child");
+    assert.match(text, /-webkit-line-clamp:\s*2/, "the note text is clamped to the two lines it reserves");
+  });
+
+  it("a chip carrying a sparkline is no taller than one without", () => {
+    const spark = ruleBody(globals, ".page-insight__spark");
+    assert.match(
+      spark,
+      /flex-shrink:\s*0/,
+      "the spark shares the note's reserved slot rather than adding a row below it; " +
+        "if it could be pushed to its own line the chip would outgrow the floor",
+    );
   });
 
   it("no chip opts out of the floor for being a button", () => {
@@ -104,7 +117,7 @@ describe("a clipped provenance line is recoverable", () => {
   it("the note carries its full text as a title", () => {
     assert.match(
       pageHead,
-      /<small title=\{typeof metric\.note === "string" \? metric\.note : undefined\}>/,
+      /<span title=\{typeof metric\.note === "string" \? metric\.note : undefined\}>\{metric\.note\}<\/span>/,
       "the note is clamped to two lines, so a long one is clipped. The provenance line is " +
         "the half a reader checks when a number looks wrong; losing its tail silently is the " +
         "worst way to lose it.",

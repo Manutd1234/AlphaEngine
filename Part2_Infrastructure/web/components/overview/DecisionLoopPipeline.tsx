@@ -5,12 +5,13 @@
  * Execution" text with four stages whose states derive from what the system
  * actually measured (lib/overview-state.ts) — no invented progress.
  *
- * Colour note: the hero behind this panel is a theme-invariant zinc plane, so
- * the theme-flipping `--*-text` tokens are wrong here — their light-theme
- * values fail contrast on the dark plane. This map fixes the DARK-theme text
- * steps (each asserted AA-clear against --hero-plane itself by
- * tests/theme.test.ts) regardless of theme, the same reasoning the hero's own
- * fixed background carries in globals.css. Precedent for the shape:
+ * Colour note: this used to sit on the hero's theme-invariant zinc plane, so it
+ * carried its own fixed ink — a `--hero-*` ramp that never flipped with the
+ * theme, including a duplicate of the status ramp. The band now renders on
+ * `--surface-2` like every other band on the desk, so the ordinary text roles
+ * are not merely allowed here, they are the correct ones: they are the tokens
+ * whose contrast `tests/theme.test.ts` already checks against the surfaces
+ * they actually land on, in both themes. Precedent for the shape:
  * ROUTE_STATE_STYLE in components/systems/types.ts — icon + word carry the
  * meaning; colour reinforces.
  */
@@ -49,11 +50,11 @@ const STAGE_ICON: Record<StageId, typeof Database> = {
 };
 
 const STATE_STYLE: Record<StageState, { Icon: typeof Circle; word: string; hex: string }> = {
-  ok: { Icon: CircleCheck, word: "ok", hex: "var(--hero-good)" },
-  active: { Icon: LoaderCircle, word: "active", hex: "var(--hero-info)" },
-  attention: { Icon: TriangleAlert, word: "attention", hex: "var(--hero-warn)" },
-  halted: { Icon: OctagonX, word: "halted", hex: "var(--hero-critical)" },
-  idle: { Icon: Circle, word: "idle", hex: "var(--hero-muted)" },
+  ok: { Icon: CircleCheck, word: "ok", hex: "var(--success-text)" },
+  active: { Icon: LoaderCircle, word: "active", hex: "var(--notice-text)" },
+  attention: { Icon: TriangleAlert, word: "attention", hex: "var(--warning-text)" },
+  halted: { Icon: OctagonX, word: "halted", hex: "var(--critical-text)" },
+  idle: { Icon: Circle, word: "idle", hex: "var(--text-muted)" },
 };
 
 export default function DecisionLoopPipeline({
@@ -71,9 +72,8 @@ export default function DecisionLoopPipeline({
          in a nowrap row, so they share the width and each detail line ellipses
          rather than pushing a sibling onto the next line. */
       className="relative z-[1] min-w-0 flex-[1_1_600px] max-[900px]:w-full"
-      aria-label="AlphaEngine decision loop"
     >
-      <span className="text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--hero-accent)]">Decision loop</span>
+      <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-text-muted">Decision loop</span>
       <ol
         className="mt-2 flex list-none flex-nowrap items-stretch gap-x-1 p-0 max-[560px]:flex-wrap max-[560px]:gap-y-2"
         aria-label="Pipeline stages"
@@ -93,19 +93,15 @@ export default function DecisionLoopPipeline({
                 type="button"
                 onClick={() => onOpenStage(stage.id)}
                 title={`Open ${stage.label}`}
-                /* `border-white/10` compiled to nothing: `app/tailwind.css`
-                   strips the stock palette with `--color-*: initial` so that a
-                   stray `text-red-500` cannot creep in, which also means
-                   `white` is not a colour token. The bare `border` utility sets
-                   width and style only, so the colour fell through to the base
-                   `button { border: 1px solid var(--border) }` — and `--border`
-                   flips with the theme while this tile does not. In light theme
-                   that drew a near-white #e4e4e7 box on a fixed dark navy card.
-                   Written as an arbitrary value, the convention this sheet uses
-                   for anything the bridge does not carry. */
-                className="grid min-w-0 flex-1 gap-0.5 rounded-[9px] border border-[rgba(255,255,255,0.10)] bg-[rgba(11,23,40,0.55)] px-2.5 py-1.5 text-left font-normal"
+                /* These were `rgba(255,255,255,0.10)` and `rgba(11,23,40,0.55)`
+                   — a hand-mixed border and plane that only made sense against
+                   the fixed dark hero, and that drew a near-white box on a navy
+                   card whenever the theme flipped. The band is an ordinary
+                   surface now, so the ordinary tokens apply and the tile
+                   follows the theme like every other control. */
+                className="grid min-w-0 flex-1 gap-0.5 rounded-[var(--radius-control)] border border-border bg-surface-1 px-2.5 py-1.5 text-left font-normal"
               >
-                <span className="flex min-w-0 items-center gap-1.5 text-[11px] font-semibold text-[var(--hero-text)]">
+                <span className="flex min-w-0 items-center gap-1.5 text-[11px] font-semibold text-text-primary">
                   <StageIcon size={13} aria-hidden className="shrink-0" />
                   <span className="min-w-0 truncate">{stage.label}</span>
                   <span className="flex shrink-0 items-center gap-1 text-[10px] font-bold" style={{ color: style.hex }}>
@@ -113,12 +109,12 @@ export default function DecisionLoopPipeline({
                     {style.word}
                   </span>
                 </span>
-                <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-[var(--hero-text-dim)]">
+                <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-text-muted">
                   {stage.detail}
                 </span>
               </button>
               {index < stages.length - 1 && (
-                <ChevronRight size={12} aria-hidden className="shrink-0 text-[var(--hero-accent-2)]/70" />
+                <ChevronRight size={12} aria-hidden className="shrink-0 text-axis" />
               )}
             </li>
           );

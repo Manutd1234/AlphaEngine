@@ -164,37 +164,6 @@
   --card-pad: 16px;
   --card-pad-tight: 13px;
 
-  /* -------------------------------------------------------------------------
-     The command-centre hero.
-     It is soft zinc in BOTH themes — a deliberate fixed surface, not a bug, so
-     these do not appear in either dark block below. They are named here because
-     the same five values were otherwise repeated as bare hexes across the
-     hero's CSS and inside `DecisionLoopPipeline`'s Tailwind classes, where
-     nothing marked them as belonging to one surface and a theme sweep would
-     "fix" them into illegibility. Contrast is against --hero-plane, not against
-     --surface-1.
-     The plane was #101014, which read as near-black on a bright screen and made
-     the command centre a hole in the page rather than a panel on it. #18181B is
-     the same zinc family one step up — deliberately NOT a blue slate like
-     #0F172A, which would fight the blue accent ramp below and the brand mark.
-     It now sits just above dark --surface-1 (#131316) rather than below it, so
-     in dark mode the hero is separated from the cards by its hairline border
-     and shadow rather than by being darker than everything else.
-     ------------------------------------------------------------------------- */
-  --hero-plane: #18181B;
-  --hero-text: #f4f4f5;      /* 16.1:1 on --hero-plane */
-  --hero-text-dim: #a9b0bd;  /*  8.1:1 — supporting copy   */
-  --hero-accent: #9ec9fb;    /* 10.3:1 — kickers, labels   */
-  --hero-accent-2: #82b6f7;  /*  8.4:1 — flow connectors, on the accent ramp */
-  --hero-muted: #8f939c;     /*  5.8:1 — idle state        */
-  /* The status steps, in their DARK values, because the hero is a dark surface
-     whatever the theme is. They deliberately equal --status-* from the dark
-     blocks rather than referencing them: reading a token that flips with the
-     theme would give this surface the light steps, which fail on a dark plane. */
-  --hero-info: #86adf5;
-  --hero-good: #35c48f;
-  --hero-warn: #e8ab3d;
-  --hero-critical: #f0737c;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -2437,127 +2406,6 @@ tbody tr[tabindex]:focus-visible {
 
 /* ---------- overview ---------- */
 
-/* The hero's scale lives here and nowhere else. It used to be decided by three
-   same-specificity rules in three sections of this file, and the last one won —
-   which is how a 36px headline shipped as 28px and a phone rule authored at
-   27px rendered at 21px. */
-.overview-hero {
-  position: relative;
-  overflow: hidden;
-  min-height: 264px;
-  padding: 30px 34px 26px;
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: var(--radius-lg);
-  color: #fff;
-  background: var(--hero-plane);
-  box-shadow: 0 18px 44px -28px color-mix(in srgb, var(--text-primary) 45%, transparent);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 32px;
-}
-
-.overview-hero > * {
-  position: relative;
-  z-index: 1;
-}
-
-.overview-hero .page-kicker {
-  color: var(--hero-info);
-}
-
-.overview-hero h1 {
-  max-width: 720px;
-  margin-top: 6px;
-  font-size: clamp(28px, 3.2vw, 42px);
-  line-height: 1.05;
-  letter-spacing: -0.025em;
-}
-
-.overview-hero p {
-  max-width: 640px;
-  margin-top: 8px;
-  color: var(--hero-text-dim);
-  font-size: 15px;
-}
-
-/* The live band. A second full-width row inside the hero's own flex-wrap, so
-   the headline and the stage pipeline keep their row and these sit under both.
-   Every figure is already polled by the page — the strip adds no fetch. */
-.overview-hero__stats {
-  flex: 1 0 100%;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-3);
-  padding-top: var(--space-4);
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.overview-hero__stat {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-
-.overview-hero__stat span {
-  color: var(--hero-accent);
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.overview-hero__stat strong {
-  overflow: hidden;
-  font-family: var(--mono);
-  font-size: 22px;
-  font-weight: 650;
-  line-height: 1.15;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.overview-hero__stat small {
-  overflow: hidden;
-  color: var(--hero-muted);
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* The spark belongs to the figure above it, not to the column beside it.
-   `space-between` flung it to the far edge of its grid cell, where it sat in
-   the gutter reading as a floating chip closer to the next stat's label than
-   to its own; and centring it against a 16px line left its filled area
-   hanging above the text baseline. It now follows the note it annotates and
-   sits on the same baseline. */
-.overview-hero__stat-line {
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-start;
-  gap: var(--space-2);
-}
-
-@media (max-width: 900px) {
-  .overview-hero__stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 520px) {
-  .overview-hero {
-    min-height: 0;
-    padding: 20px 18px;
-  }
-  .overview-hero__stats {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-2);
-  }
-  .overview-hero__stat strong {
-    font-size: 19px;
-  }
-}
-
 
 .page-actions,
 .workflow-handoff > div:last-child,
@@ -3728,10 +3576,6 @@ a.text-action {
   .research-layout .sidebar {
     position: static;
   }
-  .overview-hero {
-    align-items: flex-start;
-    flex-direction: column;
-  }
   .research-provenance {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -3774,10 +3618,6 @@ a.text-action {
   }
   .role-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .overview-hero {
-    min-height: 145px;
-    padding: 22px;
   }
   .workflow-handoff {
     align-items: flex-start;
@@ -11626,14 +11466,32 @@ button.data-trust-action > i {
    fit on one line renders a shorter chip and only the grid's row-stretch hides
    it — which works within a row and not at all between tabs. */
 .page-insight > small {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
   min-height: calc(1.34em * 2);
-  overflow: hidden;
   color: var(--text-muted);
   font-size: 10px;
   line-height: 1.34;
+}
+
+/* The clamp sits on the text, not on the row, so a sparkline can share the
+   slot without being clipped by a line count meant for words. */
+.page-insight > small > span:first-child {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Rides inside the note's reserved two lines rather than under them — a chip
+   with a spark is exactly as tall as one without. */
+.page-insight__spark {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-end;
+  line-height: 0;
 }
 
 .page-insight.is-good > strong { color: var(--success-text); }
@@ -12364,6 +12222,21 @@ button.page-insight:hover:not(:disabled) {
   gap: var(--space-4);
 }
 
+/* The decision loop, on its own band under the page head.
+
+   It used to be the right-hand half of a 380px hero on a fixed zinc plane. The
+   band is an ordinary surface now — which is the whole point: the loop is four
+   live states read off what the system measured, and it was the last thing on
+   the desk whose colours could not follow the theme. Its own tile borders and
+   the section rule below carry the separation the dark plane used to. */
+.overview-loop {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  display: flex;
+}
+
 .attention-board,
 .overview-section {
   margin-top: 0;
@@ -12522,10 +12395,6 @@ button.page-insight:hover:not(:disabled) {
 }
 
 @media (max-width: 900px) {
-  .overview-hero {
-    flex-direction: column;
-    align-items: stretch;
-  }
   .workspace-subtabs {
     flex-wrap: wrap;
     padding-bottom: 4px;
@@ -12542,10 +12411,6 @@ button.page-insight:hover:not(:disabled) {
   }
   .workspace-shell {
     padding-top: var(--space-3);
-  }
-  .overview-hero {
-    min-height: 0;
-    padding: 16px;
   }
   .next-step-footer__hint {
     display: none;
@@ -13263,27 +13128,6 @@ h4 {
    washes that used to sit here promised depth the flat graphite ground no
    longer claims. */
 
-/* ---------- hero: four stages, one row ---------- */
-
-.overview-hero {
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 18px 26px;
-}
-
-/* Capped so the stage row gets the width it needs. Uncapped, the copy claimed
-   ~720px of a 1350px hero and the four stages had to wrap. */
-.overview-hero__copy {
-  min-width: 0;
-  flex: 1 1 340px;
-  max-width: 520px;
-}
-
-.overview-hero h1,
-.overview-hero p {
-  max-width: none;
-}
-
 /* ---------- signal execution workflow ---------- */
 
 .signal-workflow__track {
@@ -13721,25 +13565,14 @@ button:active:not(:disabled) {
   outline: none;
 }
 
-/* The overview's single primary action, on the hero's fixed dark plane. */
-.overview-hero__cta {
+/* The overview's single primary action. It sits in the page head's action
+   slot now, on an ordinary surface, so it wears the house control look
+   instead of the white-on-navy wash the fixed dark plane needed. */
+.overview-cta {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  margin-top: 14px;
-  padding: 8px 15px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff;
-  font-size: 12.5px;
-  font-weight: 650;
-}
-
-.overview-hero__cta:hover:not(:disabled) {
-  border-color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.24);
-  color: #fff;
+  white-space: nowrap;
 }
 
 /*
@@ -13823,9 +13656,6 @@ button:active:not(:disabled) {
    falls back to a single column of twelve — about 100px, which is what the
    automated-checks card first rendered as, heading overprinting itself. It
    sits full-width under the schema and artifact pair. */
-
-@media (max-width: 1120px) {
-}
 
 /* ---------- fill-quality heatmap ---------- */
 

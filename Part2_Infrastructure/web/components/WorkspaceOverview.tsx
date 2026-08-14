@@ -18,6 +18,7 @@ import DecisionLoopPipeline from "@/components/overview/DecisionLoopPipeline";
 import KpiDeck from "@/components/overview/KpiDeck";
 import RoleCards, { type RoleContext } from "@/components/overview/RoleCards";
 import Sparkline from "@/components/overview/Sparkline";
+import PageHead from "@/components/workspace/PageHead";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import { STRATEGY_LABELS, SweepRequest, SweepResponse } from "@/lib/types";
 import { fmt, signedPct, usd } from "@/lib/format";
@@ -180,83 +181,87 @@ export default function WorkspaceOverview({
 
   return (
     <div className="overview-page">
-      <section className="overview-hero">
-        <div className="overview-hero__copy">
-          <span className="page-kicker">AlphaEngine command center</span>
-          <h1>From market signal to governed decision.</h1>
-          <p>{request.symbol} research evidence, portfolio risk, execution intent and data health share one context — and reconcile to the same audit trail.</p>
+      {/* The eighth tab reaches PageHead like the other seven.
+
+          This was a bespoke `.overview-hero`: a 380px band on a theme-invariant
+          zinc plane, carrying its own kicker, headline, stat anatomy and CTA.
+          It was the only surface in the app that opened in a different visual
+          grammar from the tab beside it, and the only reason a second colour
+          system existed — ten `--hero-*` tokens that never flipped with the
+          theme, including a duplicate status ramp shadowing `--status-*`.
+
+          Everything it carried is still here: the four stats are the four
+          chips, the equity sparkline rides in the first chip's note slot, the
+          primary action is the head's one control, and the decision loop keeps
+          its own band directly beneath. What went is the parallel palette. */}
+      <PageHead
+        kicker="AlphaEngine command center"
+        title="Overview"
+        /* 80 characters, which is the budget the other seven descriptions keep
+           to (77–87). At 143 this one wrapped to a second line and Overview
+           opened 18px taller than every tab beside it — the same class of
+           defect as the chip floor, one level up. Every claim survives: the
+           four domains, the one context, the one audit trail. */
+        description={<>{request.symbol} evidence, risk, execution and data health — one context, one audit trail.</>}
+        metrics={[
+          {
+            label: "Equity",
+            value: equity ? usd(equity.current, 0) : "—",
+            note: equity ? `start ${usd(equity.start_of_day, 0)} · gateway snapshot` : "book connecting",
+            spark: equitySpark.length >= 2 ? (
+              <Sparkline
+                variant="area"
+                points={equitySpark}
+                width={90}
+                height={26}
+                ariaLabel={`Equity through the session, ending at ${usd(equitySpark[equitySpark.length - 1], 0)}`}
+              />
+            ) : undefined,
+          },
+          {
+            label: "Day P&L",
+            value: equity ? `${equity.daily_pnl >= 0 ? "+" : "−"}${usd(Math.abs(equity.daily_pnl), 0)}` : "—",
+            note: equity ? `${signedPct(equity.daily_return)} · ${dayTone} on the session` : "book connecting",
+            tone: equity ? (equity.daily_pnl >= 0 ? "good" : "critical") : "neutral",
+          },
+          {
+            label: "VaR 95 · 1 day",
+            value: risk ? usd(risk.var95, 0) : "—",
+            /* No CVaR here: the KPI deck's "Loss beyond VaR" card one screen
+               down has it as its headline, and the deck's own rule is that it
+               does not restate the band above it. */
+            note: risk
+              ? `${book.varValidation ? `zone ${book.varValidation.zone} · ` : ""}backtested in this browser`
+              : "needs price history",
+          },
+          {
+            label: "Data plane p99",
+            value: latencyMeasured ? `${Math.round(latency!.p99!)}ms` : "—",
+            note: latencyMeasured
+              ? `${summary?.ready ?? 0}/${summary?.total ?? 0} routes ready${systems.degraded ? ` · ${systems.degraded} degraded` : ""} · measured from this browser's polls`
+              : "fewer than 20 polls measured",
+          },
+        ]}
+        actions={
           <button
             type="button"
-            className="overview-hero__cta"
+            className="overview-cta"
             onClick={primaryAction.run}
             disabled={running && primaryAction.label.endsWith("…")}
           >
             {primaryAction.label}
             <span aria-hidden>→</span>
           </button>
-        </div>
+        }
+      />
+
+      <section className="overview-loop" aria-label="AlphaEngine decision loop">
         <DecisionLoopPipeline stages={stages} onOpenStage={onOpenStage} />
-
-        <div className="overview-hero__stats">
-          <div className="overview-hero__stat">
-            <span>Equity</span>
-            <strong className="num">{equity ? usd(equity.current, 0) : "—"}</strong>
-            <div className="overview-hero__stat-line">
-              <small>
-                {equity ? `start ${usd(equity.start_of_day, 0)} · gateway snapshot` : "book connecting"}
-              </small>
-              {equitySpark.length >= 2 ? (
-                <Sparkline
-                  variant="area"
-                  points={equitySpark}
-                  width={90}
-                  height={26}
-                  ariaLabel={`Equity through the session, ending at ${usd(equitySpark[equitySpark.length - 1], 0)}`}
-                />
-              ) : null}
-            </div>
-          </div>
-
-          <div className="overview-hero__stat">
-            <span>Day P&amp;L</span>
-            <strong className="num">
-              {equity ? `${equity.daily_pnl >= 0 ? "+" : "−"}${usd(Math.abs(equity.daily_pnl), 0)}` : "—"}
-            </strong>
-            <small>
-              {equity ? `${signedPct(equity.daily_return)} · ${dayTone} on the session` : "book connecting"}
-            </small>
-          </div>
-
-          <div className="overview-hero__stat">
-            <span>VaR 95 · 1 day</span>
-            <strong className="num">{risk ? usd(risk.var95, 0) : "—"}</strong>
-            <small>
-              {/* No CVaR here: the KPI deck's "Loss beyond VaR" card one
-                  screen down has it as its headline, and the deck's own rule
-                  is that it does not restate the hero band. */}
-              {risk
-                ? `${book.varValidation ? `zone ${book.varValidation.zone} · ` : ""}backtested in this browser`
-                : "needs price history"}
-            </small>
-          </div>
-
-          <div className="overview-hero__stat">
-            <span>Data plane p99</span>
-            <strong className="num">
-              {latencyMeasured ? `${Math.round(latency!.p99!)}ms` : "—"}
-            </strong>
-            <small>
-              {latencyMeasured
-                ? `${summary?.ready ?? 0}/${summary?.total ?? 0} routes ready${systems.degraded ? ` · ${systems.degraded} degraded` : ""} · measured from this browser's polls`
-                : "fewer than 20 polls measured"}
-            </small>
-          </div>
-        </div>
       </section>
 
-      {/* The hero (and its pipeline) stays above the rail the way BookChrome
-          does on Portfolio/Risk — it is the workspace's identity, not a
-          section. The three sections below it are real locations. */}
+      {/* The loop band stays above the rail the way BookChrome does on
+          Portfolio/Risk — it is the workspace's identity, not a section. The
+          three sections below it are real locations. */}
       <WorkspaceSubtabs
         workspaceId="overview"
         label="Overview sections"
