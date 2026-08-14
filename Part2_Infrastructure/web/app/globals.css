@@ -509,23 +509,8 @@ a:not([class]):active {
   flex: 1;
 }
 
-/* .card's base lives further down (before the compact-grid section) and the
-   density layer at the end retunes its metrics via --card-pad. Exactly two
-   .card declarations coexist by design — base + density, the shape
-   tests/interaction.test.ts documents. A third base used to sit here with
-   conflicting metrics that always lost by source order; anyone tuning card
-   rhythm from it was editing dead numbers. */
 
-.cols {
-  display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
-}
 @media (max-width: 900px) {
-  .cols {
-    grid-template-columns: minmax(0, 1fr);
-  }
   .sidebar {
     position: static !important;
   }
@@ -584,18 +569,6 @@ a:not([class]):active {
   }
 }
 
-/* ==========================================================================
-   Reliability workspace — symptom-first SRE dashboard
-   ========================================================================== */
-
-.console-stat.is-bad strong {
-  color: var(--critical-text);
-}
-
-.console-stat.is-neutral strong {
-  color: var(--text-secondary);
-}
-
 
 .reliability-overview {
   display: grid;
@@ -606,14 +579,6 @@ a:not([class]):active {
 .reliability-overview__split > .card {
   margin: 0;
 }
-
-
-.reliability-state.is-good .reliability-state__dot { background: var(--status-good); }
-.reliability-state.is-warn .reliability-state__dot { background: var(--status-warning); }
-.reliability-state.is-critical .reliability-state__dot { background: var(--status-critical); }
-.reliability-state.is-good strong { color: var(--success-text); }
-.reliability-state.is-warn strong { color: var(--warning-text); }
-.reliability-state.is-critical strong { color: var(--critical-text); }
 
 
 .reliability-signal.is-good::before { background: var(--status-good); }
@@ -654,7 +619,7 @@ a:not([class]):active {
   min-height: 92px;
   padding: 14px;
   border: 1px solid color-mix(in srgb, var(--status-good) 30%, var(--border));
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--status-good) 5%, var(--surface-1));
 }
 
@@ -917,7 +882,7 @@ a:not([class]):active {
   margin: -2px 0 12px;
   padding: 11px 13px;
   border: 1px solid color-mix(in srgb, var(--series-1) 25%, var(--border));
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   background:
     linear-gradient(110deg, color-mix(in srgb, var(--series-1) 7%, var(--surface-1)), var(--surface-1) 62%);
 }
@@ -2145,7 +2110,6 @@ tbody tr[tabindex]:focus-visible {
   white-space: nowrap;
 }
 
-.eyebrow,
 .page-kicker {
   color: var(--text-muted);
   font-size: 10px;
@@ -2542,12 +2506,13 @@ tbody tr[tabindex]:focus-visible {
   font-weight: 800;
 }
 
+/* Plane and line only. Padding, margin and radius are set once in the
+   standardisation layer at the foot of this file, from tokens; the literals
+   that used to sit here (14px 16px, 12px) lost the cascade to it and were
+   read by anyone tuning card rhythm from the wrong end of the sheet. */
 .card {
   background: var(--surface-1);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 14px 16px;
-  margin-bottom: 12px;
 }
 .card > h2 {
   font-size: 11px;
@@ -3187,7 +3152,7 @@ a.text-action {
   margin-bottom: 10px;
   padding: 6px 7px 6px 12px;
   border: 1px solid var(--border);
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   background: var(--surface-1);
   display: flex;
   align-items: center;
@@ -3259,19 +3224,23 @@ a.text-action {
   white-space: nowrap;
 }
 
-/* 60/40 rather than the previous 71/29.
-   The right column stopped being a sidebar the moment it held the risk engine,
-   the correlation matrix and the stress simulator — a 300px rail cannot show a
-   4x4 matrix without wrapping every header. `minmax(0, ...)` on both tracks is
-   what stops a wide table from forcing the grid past its container. */
-.portfolio-main-grid {
+/* Risk's two-column body. Named `.portfolio-main-grid` until now, which was
+   wrong in the only way a class name can be: RiskWorkspace is its sole render
+   site and Portfolio never used it at all.
+
+   60/40 rather than the previous 71/29. The right column stopped being a
+   sidebar the moment it held the risk engine, the correlation matrix and the
+   stress simulator — a 300px rail cannot show a 4x4 matrix without wrapping
+   every header. `minmax(0, ...)` on both tracks is what stops a wide table
+   from forcing the grid past its container. */
+.risk-main-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(340px, 1fr);
   gap: var(--space-3);
   align-items: stretch;
 }
 
-.portfolio-main-grid > .card {
+.risk-main-grid > .card {
   min-width: 0;
   margin-bottom: 12px;
 }
@@ -3542,7 +3511,7 @@ a.text-action {
   .portfolio-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .portfolio-main-grid {
+  .risk-main-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -3704,83 +3673,17 @@ a.text-action {
    ========================================================================== */
 
 /* ---------- status strip ---------- */
-/* `.console-statusbar` was here, replaced by `PageHead`/`ConsoleChrome`.
-   Deleted rather than tokenised because it was the worst instance of the bug
-   this ladder exists to stop: `top: 63px`, hand-measured against a 62px
-   utility row, with a comment tying it to that number. The header is 57px wide
-   and ~120px once the eight role tabs wrap, which is precisely why
-   `WorkspaceHeader` measures itself into `--header-h`. Anything rendering this
-   again would have docked a status bar behind the header on every narrow
-   viewport. `.console-stat*` below is still live and stays. */
 
 
-.console-stat {
-  display: grid;
-  gap: 1px;
-  padding: 0 16px;
-  border-right: 1px solid var(--border);
-}
-
-.console-stat:last-child {
-  border-right: 0;
-}
-
-.console-stat:first-child {
-  padding-left: 0;
-}
-
-.console-stat span {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--text-muted);
-  font-weight: 600;
-}
-
-.console-stat strong {
-  font-size: 21px;
-  font-weight: 680;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-}
-
-.console-stat.is-warn strong {
-  color: var(--warning-text);
-}
-
-.console-stat small {
-  font-size: 10.5px;
-  color: var(--text-muted);
-}
-
-button.console-stat {
-  min-height: auto;
-  border: 0;
-  border-right: 1px solid var(--border);
-  border-radius: 0;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-}
-
-button.console-stat:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--series-1) 5%, transparent);
-}
-
-.console-stat em {
-  margin-top: 3px;
-  color: var(--series-1);
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 750;
-}
+button
+button
 
 
 /* ---------- two-column body ---------- */
 
 
 .console-card {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 
@@ -4684,15 +4587,6 @@ button.console-stat:hover:not(:disabled) {
 .json-null { color: var(--text-muted); font-style: italic; }
 
 /* ---------- responsive ---------- */
-@media (max-width: 1120px) {
-  .console-stat:nth-child(odd) {
-    padding-left: 0;
-  }
-  .console-stat:nth-child(2n) {
-    border-right: 0;
-  }
-}
-
 @media (max-width: 900px) {
   .console-facts {
     grid-template-columns: minmax(0, 1fr);
@@ -4717,20 +4611,7 @@ button.console-stat:hover:not(:disabled) {
 }
 
 @media (max-width: 520px) {
-  .console-stat {
-    padding: 0;
-    border-right: 0;
-    border-top: 1px solid var(--border);
-    padding-top: 8px;
-  }
-  button.console-stat {
-    border-right: 0;
-  }
-  .console-stat:first-child {
-    border-top: 0;
-    padding-top: 0;
-  }
-  .console-inspector__controls {
+  button  .console-inspector__controls {
     flex-direction: column;
   }
   .console-log {
@@ -7789,7 +7670,7 @@ button.data-trust-action > i {
   grid-template-columns: minmax(96px, auto);
   flex: 0 0 auto;
   border: 1px solid var(--border);
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--border);
   gap: 1px;
@@ -7891,7 +7772,7 @@ button.data-trust-action > i {
   margin-bottom: 12px;
   padding: 12px;
   border: 1px solid color-mix(in srgb, var(--series-1) 30%, var(--border));
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--series-1) 4%, var(--surface-2));
 }
 
@@ -8821,7 +8702,7 @@ button.data-trust-action > i {
   min-height: 580px;
   max-height: 660px;
   border: 1px solid var(--border);
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   background: var(--surface-1);
 }
 
@@ -9156,7 +9037,7 @@ button.data-trust-action > i {
   margin-bottom: 14px;
   padding: 14px;
   border: 1px solid color-mix(in srgb, var(--series-1) 32%, var(--border));
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--series-1) 4%, var(--surface-2));
 }
 
@@ -9211,7 +9092,7 @@ button.data-trust-action > i {
 .developer-work__table-wrap {
   overflow-x: auto;
   border: 1px solid var(--border);
-  border-radius: 11px;
+  border-radius: var(--radius-md);
 }
 
 .developer-work__table {
@@ -9416,7 +9297,7 @@ button.data-trust-action > i {
   overflow-y: auto;
   max-height: 480px;
   border: 1px solid var(--border);
-  border-radius: 11px;
+  border-radius: var(--radius-md);
 }
 
 .developer-api-row {
@@ -12550,7 +12431,7 @@ h4 {
  * chart matched to a long attribution table left ~400px of empty card, which
  * reads as a missing panel and pushes everything after it down a screen.
  */
-.portfolio-main-grid,
+.risk-main-grid,
 .reliability-overview__split {
   align-items: start;
 }

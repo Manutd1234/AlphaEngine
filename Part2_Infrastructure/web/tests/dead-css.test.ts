@@ -64,8 +64,25 @@ for (const [, literal] of sources.matchAll(/`([^`]*\$\{[^`]*)`/g)) {
 }
 
 const declared = new Set([...selectors.matchAll(/\.([a-zA-Z][\w-]*)/g)].map((m) => m[1]));
+
+/**
+ * Whole class token, not a substring.
+ *
+ * This was `sources.includes(name)`, which counts a class as live whenever its
+ * name appears anywhere in the source text — including inside a longer class
+ * name. `.console-stat` had no render site at all and was scored as referenced
+ * because `console-status-cell` (a live class in HealthMatrix) contains it, so
+ * eight dead rule blocks sat under a comment asserting they were "still live
+ * and stay". `.cols` and `.eyebrow` were hidden the same way.
+ *
+ * The lookarounds reject a match that continues into another identifier, which
+ * is exactly the collision above, while still matching the class wherever it
+ * legitimately appears — a className literal, a template literal, a test.
+ */
+const isReferenced = (name: string) => new RegExp(`(?<![\\w-])${name}(?![\\w-])`).test(sources);
+
 const unreferenced = [...declared]
-  .filter((name) => !sources.includes(name))
+  .filter((name) => !isReferenced(name))
   .filter((name) => ![...dynamicPrefixes].some((prefix) => name.startsWith(prefix)))
   .sort();
 
@@ -126,8 +143,17 @@ describe("the stylesheet does not grow more dead rules", () => {
    *
    * So this number is now close to a floor rather than a backlog, which is why
    * the staleness guard below is tighter than the twelve it started with.
+   *
+   * 29 -> 24. Two different things happened in the same commit and both belong
+   * in this number. The check above now matches a whole class token instead of
+   * a substring, which ADDED three classes it had been scoring as live by
+   * accident — `.console-stat` (eight rule blocks, no render site, hidden
+   * behind the live `console-status-cell`), `.cols` and `.eyebrow`. Then those
+   * three were deleted along with `.reliability-state*`, which the dynamic
+   * prefix guard had been shielding. A more honest measurement first, then the
+   * deletion it exposed.
    */
-  const BASELINE = 29;
+  const BASELINE = 24;
 
   it(`has at most ${BASELINE} unreferenced classes`, () => {
     assert.ok(

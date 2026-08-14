@@ -141,7 +141,7 @@ export default function RiskWorkspace({
           }
         />
 
-        <div className="portfolio-main-grid">
+        <div className="risk-main-grid">
           <div className="card portfolio-risk-card">
             <div className="portfolio-card-heading">
               <div>

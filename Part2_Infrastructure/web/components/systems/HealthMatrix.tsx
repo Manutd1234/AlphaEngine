@@ -116,12 +116,21 @@ export default function HealthMatrix({
         </div>
         {/* Glyphs, not emoji: the house vocabulary is the same five marks every
             other status surface uses, and the rule against emoji in the UI is
-            documented in both prior UI plans. The colour still comes from the
-            pill tone, and the word still carries the meaning without it. */}
+            documented in both prior UI plans. The colour comes from the pill
+            tone, and the word still carries the meaning without it.
+
+            These read `is-good` and `is-warning` until now, and the sentence
+            above claimed the colour came from the tone. It did not: `.pill`
+            styles its tones as `pill--live|--stop|--warn|--info`, and no
+            `.pill.is-good` or `.pill.is-warning` rule has ever existed, so
+            these three counts rendered as plain untoned text. Nothing looked
+            broken, which is exactly why it survived — the glyph and the word
+            carried the meaning on their own, as the house rule requires, and
+            the missing half was the half nobody misses. */}
         <div className="health-matrix__counts">
-          <span className="pill is-good"><span aria-hidden>●</span> { (providers ?? []).filter((p) => p.ready && p.configured && !p.simulatedOutage).length } online</span>
-          <span className="pill is-warning"><span aria-hidden>▲</span> { (providers ?? []).filter((p) => p.configured && (!p.ready || p.simulatedOutage || (p.quota && p.quota.remaining <= 0))).length } degraded</span>
-          <span className="pill"><span aria-hidden>○</span> { (providers ?? []).filter((p) => !p.configured).length } not configured</span>
+          <span className="pill pill--live"><span aria-hidden>●</span> { (providers ?? []).filter((p) => p.ready && p.configured && !p.simulatedOutage).length } online</span>
+          <span className="pill pill--warn"><span aria-hidden>▲</span> { (providers ?? []).filter((p) => p.configured && (!p.ready || p.simulatedOutage || (p.quota && p.quota.remaining <= 0))).length } degraded</span>
+          <span className="pill pill--info"><span aria-hidden>○</span> { (providers ?? []).filter((p) => !p.configured).length } not configured</span>
         </div>
       </div>
 

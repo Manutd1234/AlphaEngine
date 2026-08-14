@@ -42,7 +42,11 @@ export default function ResearchCorpus() {
           <span className="page-kicker">Vector search</span>
           <h3 id="research-corpus-title">Has the desk seen this before?</h3>
         </div>
-        <span className="pill" data-tone={status === "searching" ? "accent" : "neutral"}>
+        {/* `data-tone` was doing nothing: `.pill` has no `[data-tone]` rule,
+            only the `pill--*` modifiers, so this chip rendered untoned in both
+            states. The word already separates them — the tone never added a
+            distinction the text was not making. */}
+        <span className="pill pill--info">
           {status === "searching" ? "searching" : `${matches.length} match${matches.length === 1 ? "" : "es"}`}
         </span>
       </div>
