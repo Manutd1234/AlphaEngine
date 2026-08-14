@@ -1369,7 +1369,7 @@ export default function Page() {
             <WorkspaceIntro
               kicker="Portfolio manager"
               title="Portfolio"
-              description={<>What the book holds, how capital is spread, and which sleeve earned the P&amp;L — from one reconciled snapshot.</>}
+              description={<>What the book holds, how capital is spread, and which sleeve earned the P&amp;L.</>}
               insights={[
                 {
                   label: "Book source",
@@ -1421,7 +1421,7 @@ export default function Page() {
             <WorkspaceIntro
               kicker="Risk manager"
               title="Risk"
-              description={<>Limits, validated loss estimates, forward-looking scenarios and emergency controls — separated by decision.</>}
+              description={<>Limits, validated loss estimates, forward-looking scenarios and emergency controls.</>}
               insights={[
                 {
                   label: "Trading state",

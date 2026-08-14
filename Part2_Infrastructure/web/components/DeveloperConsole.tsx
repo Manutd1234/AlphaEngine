@@ -781,7 +781,7 @@ export default function DeveloperConsole({
       <PageHead
         kicker="Quant developer"
         title="Developer"
-        description="What is deployed, what CI proved, and where the schema contracts stand — against this exact revision."
+        description="What is deployed, what CI proved, and where the schema contracts stand."
         metrics={[
           { label: "Repository", value: "Developer_Analyst_Infra", note: "committed delivery tree", mono: false },
           { label: "Revision", value: `main@${APP_COMMIT}`, note: HAS_COMMIT_IDENTITY ? "build identity" : "no commit stamped" },

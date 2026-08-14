@@ -367,7 +367,7 @@ export default function DataConsole({
       <PageHead
         kicker="Data engineer"
         title="Data operations"
-        description="Can the desk trust the number it is about to use — freshness, source agreement, contract evidence and payload lineage."
+        description="Can the desk trust the number it is about to use?"
         metrics={metrics.map((metric) => ({
           label: metric.label,
           value: metric.value,
