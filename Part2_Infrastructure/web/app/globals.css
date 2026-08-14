@@ -2363,6 +2363,16 @@ tbody tr[tabindex]:focus-visible {
   flex: 1;
 }
 
+/* Room between the wordmark and the first tab. At the bar's 8px gap the
+   lockup and "Overview" read as one cluster; the nav is a separate thing and
+   should look it. Desktop only — below 900px the tabs take their own row,
+   where a left margin would merely indent them. */
+@media (min-width: 901px) {
+  .workspace-tabs {
+    margin-left: 20px;
+  }
+}
+
 .workspace-tabs button {
   position: relative;
   flex: 1;
@@ -11320,6 +11330,27 @@ button.data-trust-action > i {
   display: grid;
   min-width: 0;
   gap: 4px;
+}
+
+/**
+ * Copy columns in a panel head grow to fill the head.
+ *
+ * Each of these is a flex row — prose on the left, a pill or a button on the
+ * right — and the text column carried no `flex-grow`, so it shrink-wrapped to
+ * its own longest line and left a band of dead plane beside it. At desk width
+ * that read as "the text stops early"; at laptop width the same column wrapped
+ * a one-line sentence onto two while a third of the card sat empty. The right
+ * of these rows holds an auto-sized control, so the left is what should take
+ * the remainder.
+ */
+.developer-cp-section-hero > div:first-child,
+.developer-cp-heading > div:first-child,
+.codebase-explorer__heading > div:first-child,
+.developer-work__heading > div:first-child,
+.data-workboard__heading > div:first-child,
+.developer-api-catalog__footer > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .developer-cp-section-hero h2 {
