@@ -22,6 +22,13 @@ interface WorkspaceSubtabsProps<T extends string> {
    * a quieter treatment, so the operational sections remain visually primary.
    */
   secondary?: readonly T[];
+  /**
+   * Whether the owning workspace is the visible tab. Persistent panels keep
+   * their rail mounted behind `hidden`, where it measures 0 — only the active
+   * rail may publish `--rail-h`. Defaults to true for rails that unmount on
+   * leave (Research, Live).
+   */
+  active?: boolean;
 }
 
 /**
@@ -44,6 +51,7 @@ export default function WorkspaceSubtabs<T extends string>({
   onChange,
   actions,
   secondary,
+  active = true,
 }: WorkspaceSubtabsProps<T>) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
   const railRef = useRef<HTMLElement | null>(null);
@@ -56,10 +64,15 @@ export default function WorkspaceSubtabs<T extends string>({
    * rail becomes a native picker with its own actions row and stands around
    * 130px. Every sticky offset and every `scroll-margin-top` read the constant,
    * so a deep link scrolled its target to a position the chrome then covered.
-   * Exactly one rail is mounted at a time — view panels are conditional
-   * renders — so there is no contention over the variable.
+   * Exactly one rail is VISIBLE at a time, but visited panels persist behind
+   * `hidden` (globals.css forces `display: none`), and a rail's observer fires
+   * a 0-size observation the instant its panel hides — so only the active rail
+   * publishes, the same "hidden tabs stay quiet" gate the persistent-panel
+   * change threads into every poller. Deactivation disconnects the observer,
+   * which also discards any pending zero-height delivery.
    */
   useEffect(() => {
+    if (!active) return;
     const node = railRef.current;
     if (!node || typeof ResizeObserver === "undefined") return;
     const publish = () => {
@@ -72,7 +85,7 @@ export default function WorkspaceSubtabs<T extends string>({
     const observer = new ResizeObserver(publish);
     observer.observe(node);
     return () => observer.disconnect();
-  }, []);
+  }, [active]);
   const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
 
   const revealTab = (index: number) => {

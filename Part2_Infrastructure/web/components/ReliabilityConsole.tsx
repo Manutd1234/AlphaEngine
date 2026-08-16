@@ -235,6 +235,7 @@ export default function ReliabilityConsole({
         tabs={RELIABILITY_SECTIONS}
         activeId={section}
         onChange={onSectionChange}
+        active={active}
       />
 
       <WorkspaceSubtabPanel workspaceId="reliability" tabId="overview" activeId={section}>

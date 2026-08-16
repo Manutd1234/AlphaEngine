@@ -406,6 +406,7 @@ export default function DataConsole({
         activeId={section}
         onChange={onSectionChange}
         secondary={["queue"]}
+        active={active}
       />
 
       <WorkspaceSubtabPanel workspaceId="data" tabId="overview" activeId={section}>

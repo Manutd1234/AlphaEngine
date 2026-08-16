@@ -749,6 +749,8 @@ export interface DeveloperConsoleProps {
   onSectionChange: (section: DeveloperSection) => void;
   workItems: DeveloperWorkItem[];
   onWorkItemsChange: (items: DeveloperWorkItem[]) => void;
+  /** Whether this workspace is the visible tab; gates the rail's `--rail-h` publisher. */
+  active?: boolean;
 }
 
 export default function DeveloperConsole({
@@ -761,6 +763,7 @@ export default function DeveloperConsole({
   onSectionChange,
   workItems,
   onWorkItemsChange,
+  active = true,
 }: DeveloperConsoleProps) {
   const openWork = workItems.filter((item) => item.status !== "done");
   const currentState = workspaceState(view);
@@ -806,6 +809,7 @@ export default function DeveloperConsole({
         activeId={section}
         onChange={onSectionChange}
         secondary={["work"]}
+        active={active}
       />
 
       <WorkspaceSubtabPanel workspaceId="developer" tabId="overview" activeId={section}>

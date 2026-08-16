@@ -1471,6 +1471,7 @@ export default function Page() {
               mcRunNonce={mcRunNonce}
               section={riskSection}
               onSectionChange={changeRiskSection}
+              active={view === "risk"}
             />
             <NextStepFooter currentView="risk" currentSection={riskSection} onNavigate={openSection} />
           </section>
@@ -2079,6 +2080,7 @@ export default function Page() {
               onSectionChange={changeDeveloperSection}
               workItems={developerWorkItems}
               onWorkItemsChange={setDeveloperWorkItems}
+              active={view === "developer"}
             />
             <NextStepFooter currentView="developer" currentSection={developerSection} onNavigate={openSection} />
           </section>

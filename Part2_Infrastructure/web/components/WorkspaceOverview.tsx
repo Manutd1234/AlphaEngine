@@ -272,6 +272,7 @@ export default function WorkspaceOverview({
         tabs={OVERVIEW_SECTIONS}
         activeId={section}
         onChange={onSectionChange}
+        active={active}
       />
 
       <WorkspaceSubtabPanel workspaceId="overview" tabId="loop" activeId={section}>

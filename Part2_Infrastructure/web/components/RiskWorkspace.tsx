@@ -47,6 +47,8 @@ export interface RiskWorkspaceProps {
   mcRunNonce: number;
   section: RiskSection;
   onSectionChange: (section: RiskSection) => void;
+  /** Whether this workspace is the visible tab; gates the rail's `--rail-h` publisher. */
+  active?: boolean;
 }
 
 export { RISK_SECTION_IDS, type RiskSection } from "@/lib/sections";
@@ -75,6 +77,7 @@ export default function RiskWorkspace({
   mcRunNonce,
   section,
   onSectionChange,
+  active = true,
 }: RiskWorkspaceProps) {
   const [handoff, setHandoff] = useState<HandoffIntent | null>(null);
   /**
@@ -117,6 +120,7 @@ export default function RiskWorkspace({
         activeId={section}
         onChange={onSectionChange}
         actions={<BookSourceControl view={view} />}
+        active={active}
       />
 
       <WorkspaceSubtabPanel workspaceId="risk" tabId="limits" activeId={section}>

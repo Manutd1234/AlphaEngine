@@ -159,6 +159,58 @@ describe("chrome offsets are measured", () => {
     );
   });
 
+  it("only the visible rail publishes --rail-h", () => {
+    // Visited panels persist behind `hidden` (display: none), where a rail
+    // measures 0 — and a hiding rail's ResizeObserver delivers that 0 in the
+    // same frame the entering rail publishes its real height. Delivery order
+    // follows observer creation order, so switching back to an earlier tab
+    // left --rail-h: 0px standing and every anchor jump landed under the
+    // chrome. The publisher therefore gates on the same `active` visibility
+    // the persistent-panel change threads into every poller.
+    assert.match(
+      subtabs,
+      /useEffect\(\(\) => \{\s*if \(!active\) return;[\s\S]{0,600}--rail-h[\s\S]{0,400}\}, \[active\]\);/,
+      "the --rail-h effect must bail when inactive and re-run on activation",
+    );
+    assert.doesNotMatch(
+      subtabs,
+      /Exactly one rail is mounted/,
+      "the single-mounted-rail premise died with persistent panels; the comment must not restate it",
+    );
+
+    const consoles = [
+      "WorkspaceOverview",
+      "PortfolioWorkspace",
+      "RiskWorkspace",
+      "DataConsole",
+      "ReliabilityConsole",
+      "DeveloperConsole",
+    ];
+    for (const name of consoles) {
+      const source = readFileSync(
+        fileURLToPath(new URL(`../components/${name}.tsx`, import.meta.url)),
+        "utf8",
+      );
+      assert.match(
+        source,
+        /<WorkspaceSubtabs\b[\s\S]{0,600}?active=\{active\}/,
+        `${name} must forward its visibility to the rail`,
+      );
+    }
+
+    const dashboard = readFileSync(
+      fileURLToPath(new URL("../app/dashboard/page.tsx", import.meta.url)),
+      "utf8",
+    );
+    for (const tab of ["overview", "portfolio", "risk", "data", "reliability", "developer"]) {
+      assert.match(
+        dashboard,
+        new RegExp(`active=\\{view === "${tab}"\\}`),
+        `the persistent ${tab} tab must pass its visibility down for the rail gate`,
+      );
+    }
+  });
+
   it("nothing sizes layout on bare 100vh without an svh companion", () => {
     // vh resolves to the LARGE viewport on iOS, so a 100vh page is always
     // taller than the screen and every view carries phantom scroll.

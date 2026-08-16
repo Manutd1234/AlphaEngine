@@ -363,6 +363,7 @@ export default function PortfolioWorkspace({
         activeId={section}
         onChange={onSectionChange}
         actions={<BookSourceControl view={view} />}
+        active={active}
       />
 
       <WorkspaceSubtabPanel workspaceId="portfolio" tabId="overview" activeId={section}>
