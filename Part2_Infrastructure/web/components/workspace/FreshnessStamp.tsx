@@ -51,7 +51,10 @@ export default function FreshnessStamp({
 
   return (
     <span className={`freshness-stamp${overdue ? " is-overdue" : ""}`}>
-      <i aria-hidden />
+      {/* The dot pulses only while the poll is genuinely running on time —
+          paused or overdue, it rests. Decoration: the words beside it carry
+          the state. */}
+      <i aria-hidden className={!paused && !overdue ? "pulse-live" : undefined} />
       <span>
         {label} <strong className="num">{updatedAt.toLocaleTimeString()}</strong>
       </span>

@@ -16274,13 +16274,15 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* The developer work rows host the status select — interactive, so they
-   respond, but in wash rather than space. */
-.developer-work__table tbody tr {
+/* Rows that host controls — the developer queue's status select, the health
+   matrix's operator actions — respond, but in wash rather than space. */
+.developer-work__table tbody tr,
+.console-matrix tbody tr {
   transition: background-color var(--dur-fast) var(--ease);
 }
 
-.developer-work__table tbody tr:hover {
+.developer-work__table tbody tr:hover,
+.console-matrix tbody tr:hover {
   background: color-mix(in srgb, var(--series-1) 4%, transparent);
 }
 

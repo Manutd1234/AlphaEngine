@@ -16,6 +16,7 @@
 
 import { useRef, useState } from "react";
 
+import NumberTicker from "@/components/common/NumberTicker";
 import HealthMatrix from "@/components/systems/HealthMatrix";
 import BreakerStateMachine from "@/components/systems/BreakerStateMachine";
 import OperatorPanel, { OperatorActionResult } from "@/components/systems/OperatorPanel";
@@ -182,7 +183,7 @@ export default function ReliabilityConsole({
     },
     {
       label: "Provider APIs",
-      value: health ? `${health.summary.ready}/${health.summary.total}` : "—",
+      value: health ? <><NumberTicker value={health.summary.ready} />/{health.summary.total}</> : "—",
       note: health
         ? `${health.summary.configured} configured · ${health.summary.ready} routable`
         : "checking provider registry",
@@ -190,7 +191,11 @@ export default function ReliabilityConsole({
     },
     {
       label: "Tail latency (p99)",
-      value: hasReliableP99 ? `${fmt(latency?.p99 ?? 0, 0)}ms` : "Collecting",
+      // The ticker wraps only the measured branch; the "Collecting" gate and
+      // its sample count stay exactly as they were.
+      value: hasReliableP99
+        ? <NumberTicker value={latency?.p99 ?? 0} format={(v) => `${fmt(v, 0)}ms`} />
+        : "Collecting",
       note: hasReliableP99
         ? `99% completed within this · ${latencyState.label} · n=${latency?.n ?? 0}`
         : `${latency?.n ?? 0}/${LATENCY_MIN_SAMPLES} samples · not a failure`,

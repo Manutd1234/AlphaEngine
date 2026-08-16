@@ -8,8 +8,9 @@
  * and labelled as a session-only case-assessment sample.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
+import NumberTicker from "@/components/common/NumberTicker";
 import DataTrustOverview from "@/components/data/DataTrustOverview";
 import DataWorkBoard, { PROGRESS_WIP_LIMIT } from "@/components/data/DataWorkBoard";
 import CrossSourceCheck from "@/components/systems/CrossSourceCheck";
@@ -33,7 +34,8 @@ export { DATA_SECTION_IDS, type DataSection } from "@/lib/sections";
 
 interface DataBarMetric {
   label: string;
-  value: string;
+  /** ReactNode so a poll-fed figure can count through NumberTicker. */
+  value: ReactNode;
   note: string;
   tone?: "good" | "warn" | "bad" | "neutral";
 }
@@ -122,7 +124,10 @@ function metricsForSection(
       },
       {
         label: "Cache hit rate",
-        value: view.cacheHitRate === null ? "—" : `${fmt(view.cacheHitRate * 100, 1)}%`,
+        // Null stays a dash; the ticker wraps only the measured branch.
+        value: view.cacheHitRate === null
+          ? "—"
+          : <NumberTicker value={view.cacheHitRate * 100} format={(v) => `${fmt(v, 1)}%`} />,
         note: health ? `${health.summary.cache.hits} hits · ${health.summary.cache.misses} misses` : "no observations",
         tone: "neutral",
       },
@@ -139,7 +144,7 @@ function metricsForSection(
     return [
       {
         label: "Providers ready",
-        value: health ? `${health.summary.ready}/${health.summary.total}` : "—",
+        value: health ? <><NumberTicker value={health.summary.ready} />/{health.summary.total}</> : "—",
         note: health ? `${health.summary.configured} configured` : "checking registry",
         tone: view.degraded
           ? "warn"
@@ -149,7 +154,7 @@ function metricsForSection(
       },
       {
         label: "Degraded / exhausted",
-        value: health ? String(view.degraded) : "—",
+        value: health ? <NumberTicker value={view.degraded} /> : "—",
         note: "route-affecting states",
         tone: view.degraded ? "warn" : health ? "good" : "neutral",
       },

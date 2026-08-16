@@ -2,13 +2,16 @@
 
 /** Shared status header for the operational console. */
 
+import type { ReactNode } from "react";
+
 import FreshnessStamp from "@/components/workspace/FreshnessStamp";
 import PageHead, { type PageMetric, type PageStatus } from "@/components/workspace/PageHead";
 import type { SystemHealthView } from "@/lib/use-system-health";
 
 export interface ConsoleTile {
   label: string;
-  value: string;
+  /** ReactNode so a poll-fed figure can count through NumberTicker. */
+  value: ReactNode;
   note: string;
   tone: "good" | "warn" | "bad" | "neutral";
   actionLabel?: string;

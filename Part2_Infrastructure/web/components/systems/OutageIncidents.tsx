@@ -1,5 +1,7 @@
 "use client";
 
+import type { CSSProperties } from "react";
+
 /**
  * Active operator-simulated outages, rendered as incident rows where a data
  * engineer triages: Quality & Incidents. QuarantinePanel next to this reports
@@ -70,10 +72,10 @@ export default function OutageIncidents({
         </span>
       </div>
       <ul className="console-incident-list">
-        {outages.map((outage) => {
+        {outages.map((outage, index) => {
           const seconds = Math.max(0, Math.ceil((outage.expiresAt - now) / 1000));
           return (
-            <li key={outage.provider} className="console-incident-list__row">
+            <li key={outage.provider} className="console-incident-list__row stagger-reveal" style={{ "--stagger-i": index } as CSSProperties}>
               <span aria-hidden style={{ color: "var(--warning-text)" }}>▲</span>
               <div>
                 <strong>{providerLabels[outage.provider] ?? outage.provider}</strong>{" "}

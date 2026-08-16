@@ -265,8 +265,14 @@ export default function TraceConsole({ pollMs, active, filterRequest }: TraceCon
                 {lines.length ? "No entries match the current filter." : "No entries yet. Trace a symbol or trip a provider to populate the stream."}
               </li>
             ) : null}
+            {/* A line that arrived within the last poll window wears the
+                fresh tint; the next pull's re-render ages it out. Emphasis
+                only — the row is identical without it. */}
             {visible.map((line) => (
-              <li className="console-log__entry" key={line.key}>
+              <li
+                className={`console-log__entry${Date.now() - line.ts < (pollMs || 5_000) ? " row-fresh" : ""}`}
+                key={line.key}
+              >
                 <button
                   type="button"
                   className={`console-log__line is-${line.level}`}
