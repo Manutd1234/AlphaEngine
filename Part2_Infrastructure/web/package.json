@@ -10,7 +10,7 @@
     "dev": "next dev",
     "dev:gateway": "cd .. && ./venv/bin/python -m uvicorn main:app --reload --port 8000",
     "dev:all": "node scripts/start-dev-all.mjs",
-    "prebuild": "node scripts/check-gateway-openapi-digest.mjs",
+    "prebuild": "node scripts/check-gateway-openapi-digest.mjs && node scripts/generate-codebase-manifest.mjs --check",
     "build": "next build",
     "catalog:refresh": "node scripts/generate-codebase-manifest.mjs",
     "start": "next start",

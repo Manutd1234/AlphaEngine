@@ -107,7 +107,17 @@ jobs:
           cache-dependency-path: Part2_Infrastructure/web/package-lock.json
       - run: npm ci
       - name: Tests
-        run: npm test
+        # pipefail is mandatory: GitHub's default bash does not set it, and
+        # `| tee` alone would mask a red suite behind tee's exit 0.
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee "$RUNNER_TEMP/web-tests.log"
+      # The count the Developer console displays must be the count the runner
+      # just printed. Asserting this from inside the suite is impossible — a
+      # test checking the total changes the total — so the gate lives here,
+      # one step outside it.
+      - name: Committed test counts match the suite
+        run: node scripts/check-test-counts.mjs web "$RUNNER_TEMP/web-tests.log"
       # Includes the Python/TypeScript engine parity suite: two implementations
       # of the same accounting are two chances to be wrong.
       - name: Typecheck

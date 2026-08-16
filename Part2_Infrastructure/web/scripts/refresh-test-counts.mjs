@@ -18,16 +18,19 @@
  * the value is a measurement with a date, not a contract.
  *
  *   node scripts/refresh-test-counts.mjs        # or: npm run counts:refresh
+ *   node scripts/refresh-test-counts.mjs --suite=web   # web only; keeps the
+ *                                                      # committed Python figures
  */
 
 import { execFileSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const webRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const infraRoot = join(webRoot, "..");
 const python = join(infraRoot, "venv/bin/python");
+const webOnly = process.argv.includes("--suite=web");
 
 const run = (file, args, cwd) => {
   try {
@@ -63,13 +66,37 @@ function nodeTestCount(output) {
   return { total, suites, failed };
 }
 
-console.log("running the gateway suite…");
-const gateway = pytestCount(run(python, ["-m", "pytest"], infraRoot));
-console.log(`  ${gateway.total} (${gateway.passed} passed, ${gateway.skipped} skipped)`);
+/**
+ * --suite=web re-measures only the suite that actually changed, so a
+ * test-adding web PR does not pay for two Python runs. The Python figures
+ * are carried over from the committed file — still measurements with a date,
+ * just not today's.
+ */
+function committedCounts() {
+  const source = readFileSync(join(webRoot, "lib/test-counts.generated.ts"), "utf8");
+  const gateway = source.match(/gateway: \{ total: (\d+), passed: (\d+), skipped: (\d+) \}/);
+  const service = source.match(/service: \{ total: (\d+) \}/);
+  if (!gateway || !service) throw new Error("could not read committed Python counts");
+  return {
+    gateway: { total: Number(gateway[1]), passed: Number(gateway[2]), skipped: Number(gateway[3]), failed: 0 },
+    service: { total: Number(service[1]), passed: Number(service[1]), skipped: 0, failed: 0 },
+  };
+}
 
-console.log("running the OpenBB service suite…");
-const service = pytestCount(run(python, ["-m", "pytest"], join(infraRoot, "OpenBB_Service")));
-console.log(`  ${service.total}`);
+let gateway;
+let service;
+if (webOnly) {
+  ({ gateway, service } = committedCounts());
+  console.log(`keeping committed Python counts (gateway ${gateway.total}, service ${service.total})`);
+} else {
+  console.log("running the gateway suite…");
+  gateway = pytestCount(run(python, ["-m", "pytest"], infraRoot));
+  console.log(`  ${gateway.total} (${gateway.passed} passed, ${gateway.skipped} skipped)`);
+
+  console.log("running the OpenBB service suite…");
+  service = pytestCount(run(python, ["-m", "pytest"], join(infraRoot, "OpenBB_Service")));
+  console.log(`  ${service.total}`);
+}
 
 console.log("running the web suite…");
 const web = nodeTestCount(run("npm", ["test"], webRoot));
