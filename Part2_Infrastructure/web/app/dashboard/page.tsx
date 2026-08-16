@@ -39,7 +39,12 @@ import WorkspaceIntro from "@/components/WorkspaceIntro";
 import WorkspaceOverview from "@/components/WorkspaceOverview";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import { createInitialDataWorkItems, type DataWorkItem } from "@/lib/data-work-queue";
-import { createInitialDeveloperWorkItems, type DeveloperWorkItem } from "@/lib/developer-work";
+import {
+  createInitialDeveloperWorkItems,
+  loadDeveloperWorkItems,
+  saveDeveloperWorkItems,
+  type DeveloperWorkItem,
+} from "@/lib/developer-work";
 import { fmt, pct, signedPct, usd } from "@/lib/format";
 import { mcSeedFor } from "@/lib/montecarlo";
 import type { StageId } from "@/lib/overview-state";
@@ -768,6 +773,28 @@ export default function Page() {
     }
   }, []);
 
+  // The engineering queue hydrates the same way the experiments log does:
+  // seeds render first (server and client agree), storage wins after mount.
+  // The persist effect skips its own mount pass — it fires in the same commit
+  // as hydration, while state still holds the seeds, and writing them there
+  // would clobber a stored queue before the hydrating setState applied. The
+  // skip also means a reader who never edits is never pinned to first-visit
+  // seeds: storage stays empty until a real change, so seed updates from
+  // later deploys still reach them.
+  const developerWorkPersistReady = useRef(false);
+  useEffect(() => {
+    const stored = loadDeveloperWorkItems();
+    if (stored) setDeveloperWorkItems(stored);
+  }, []);
+
+  useEffect(() => {
+    if (!developerWorkPersistReady.current) {
+      developerWorkPersistReady.current = true;
+      return;
+    }
+    saveDeveloperWorkItems(developerWorkItems);
+  }, [developerWorkItems]);
+
   useEffect(() => {
     try {
       window.localStorage.setItem(AUTO_RUN_KEY, autoRun ? "1" : "0");
@@ -1293,6 +1320,7 @@ export default function Page() {
         degraded={systems.degraded}
         providersReady={systems.health?.summary.ready ?? null}
         providersTotal={systems.health?.summary.total ?? null}
+        healthUpdatedAt={systems.updatedAt}
         healthUnreachable={Boolean(systems.healthError)}
         /* One statement of provenance for the whole desk. The book is the right
            source for it: it is the payload Portfolio, Risk, Execution and the

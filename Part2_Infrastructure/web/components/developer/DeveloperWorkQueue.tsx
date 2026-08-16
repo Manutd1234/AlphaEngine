@@ -2,6 +2,7 @@
 
 import { FormEvent, useDeferredValue, useMemo, useRef, useState } from "react";
 
+import NumberTicker from "@/components/common/NumberTicker";
 import {
   DEVELOPER_WORK_KINDS,
   DEVELOPER_WORK_PRIORITIES,
@@ -44,7 +45,7 @@ const STATUS_META: ReadonlyArray<{
   { id: "planned", label: "Planned", description: "Ready to pick up" },
   { id: "progress", label: "In progress", description: "Actively owned" },
   { id: "review", label: "In review", description: "Awaiting evidence" },
-  { id: "done", label: "Done", description: "Closed in this session" },
+  { id: "done", label: "Done", description: "Closed in this browser" },
 ];
 
 const STATUS_LABEL = Object.fromEntries(STATUS_META.map((status) => [status.id, status.label])) as Record<
@@ -102,7 +103,7 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
   const move = (item: DeveloperWorkItem, next: DeveloperWorkStatus) => {
     if (item.status === next) return;
     onItemsChange(moveDeveloperWorkItem(items, item.id, next));
-    // The move alone. The session-only caveat is stated once by the pill and
+    // The move alone. The storage caveat is stated once by the pill and
     // defined once by the scope block; repeating it on every move announcement
     // was the same sentence read aloud dozens of times per session.
     setAnnouncement(`${item.id} moved to ${STATUS_LABEL[next]}.`);
@@ -137,27 +138,28 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
         <div>
           <div className="developer-work__eyebrow">
             <span className="page-kicker">Engineering workflow</span>
-            <span className="pill">Mocked · session-only</span>
+            <span className="pill">Sample data · stored in this browser</span>
           </div>
           <h2>Features, bugs &amp; current tickets</h2>
-          {/* The session-only caveat lives in the pill above and the scope
-              block below — twice is labelling, four times was noise. */}
+          {/* The stored-in-this-browser caveat lives in the pill above and the
+              scope block below — twice is labelling, four times was noise. */}
           <p className="sub">
             Capture a change, assign it, and advance it through review with explicit controls.
           </p>
         </div>
         <div className="developer-work__stats" aria-label="Engineering work summary">
-          <div><span>Open</span><strong className="num">{openItems.length}</strong></div>
-          <div className={bugs.length ? "is-warn" : ""}><span>Bugs</span><strong className="num">{bugs.length}</strong></div>
-          <div><span>Active</span><strong className="num">{activeItems.length}</strong></div>
-          <div><span>Review</span><strong className="num">{awaitingReview.length}</strong></div>
+          <div><span>Open</span><strong className="num"><NumberTicker value={openItems.length} /></strong></div>
+          <div className={bugs.length ? "is-warn" : ""}><span>Bugs</span><strong className="num"><NumberTicker value={bugs.length} /></strong></div>
+          <div><span>Active</span><strong className="num"><NumberTicker value={activeItems.length} /></strong></div>
+          <div><span>Review</span><strong className="num"><NumberTicker value={awaitingReview.length} /></strong></div>
         </div>
       </div>
 
       <div className="developer-work__scope">
-        <strong>What “fix” means here:</strong> moving a bug records workflow state in this browser
-        session. An authenticated issue integration and a reviewed source-control change are still
-        required to modify the repository or close a real ticket.
+        <strong>What “fix” means here:</strong> moving a bug records workflow state in this
+        browser — it survives a reload and syncs nowhere. An authenticated issue integration and
+        a reviewed source-control change are still required to modify the repository or close a
+        real ticket.
       </div>
 
       {/* One action with a three-way parameter, not three actions. Add feature,
@@ -183,7 +185,7 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
       </div>
 
       {composerOpen && (
-        <form id="developer-work-composer" className="developer-work__composer" onSubmit={submitNewItem}>
+        <form id="developer-work-composer" className="developer-work__composer mount-fade" onSubmit={submitNewItem}>
           <div className="developer-work__composer-heading">
             <div>
               <span className="page-kicker">New {KIND_LABEL[draft.kind].toLocaleLowerCase()}</span>
@@ -283,6 +285,11 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
                     <span className={`developer-work-kind is-${item.kind}`}>{KIND_LABEL[item.kind]}</span>
                     <span className="developer-work-priority">{item.priority}</span>
                     <code>{item.id}</code>
+                    {/* The data board's live badge, third sanctioned caller:
+                        the word carries the state, the dot decorates it. */}
+                    {item.status === "progress" && (
+                      <span className="data-work-live"><i aria-hidden />Active</span>
+                    )}
                   </div>
                   <strong>{item.title}</strong>
                   <p>{item.summary}</p>
@@ -311,7 +318,11 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
                       ))}
                     </select>
                   </label>
-                  <small>{STATUS_META.find((candidate) => candidate.id === item.status)?.description}</small>
+                  {/* Keyed by id AND status: one flash per real move, never on
+                      render — the value-tick contract. */}
+                  <small className="value-tick" data-tick="changed" key={`${item.id}:${item.status}`}>
+                    {STATUS_META.find((candidate) => candidate.id === item.status)?.description}
+                  </small>
                 </td>
               </tr>
             ))}
@@ -325,9 +336,10 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
         )}
       </div>
 
-      {/* No reset control. This queue is state in one browser tab and says so
-          two paragraphs above; reloading rebuilds it from the same fixture the
-          reset button called, so the control existed only to undo the demo. */}
+      {/* No reset control. The queue persists in this browser's localStorage
+          and says so two paragraphs above; the seeds return only when storage
+          is empty, and clearing site data is the reset. A destructive control
+          on a sample board would exist only to undo the demo. */}
       <div className="developer-work__footer">
         <span aria-live="polite">{announcement || `${visibleItems.length} items shown.`}</span>
       </div>

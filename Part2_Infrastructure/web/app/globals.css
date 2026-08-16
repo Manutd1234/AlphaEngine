@@ -13794,7 +13794,8 @@ button:active:not(:disabled) {
 /* One paint of the arriving row. `prefers-reduced-motion` collapses this to a
    1ms fade globally, so the row is still legible without it — the tint is the
    emphasis, the transition is only the polish. */
-.desk-tape__row.is-fresh {
+.desk-tape__row.is-fresh,
+.row-fresh {
   background: color-mix(in srgb, var(--series-1) 10%, transparent);
   transition: background var(--dur) var(--ease);
 }
@@ -16214,4 +16215,102 @@ html:active-view-transition .view-panel {
   margin: 2px 0 0;
   font-size: var(--fs-title);
   font-weight: 650;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Motion vocabulary — the workspace-wide pass
+   ══════════════════════════════════════════════════════════════════════════
+   The primitives every tab shares, named once. Each class exists because a
+   pattern already lived in one component and a second caller appeared: the
+   halo the data board pulses, the flash the watchlist ticks, the entrance the
+   cockpit verdict takes. Nothing here invents a duration — every rule reads
+   the ladder, and the ratchets in motion.test.ts hold that. */
+
+/* The generic live halo: any dot fed by a live poll may wear it. The dot is
+   decoration by contract — aria-hidden, with the word beside it carrying the
+   state (house-rules.test.ts pins this). Final frame rests at opacity 0, so
+   the reduced-motion clamp leaves a static dot, not a frozen ring. */
+.pulse-live {
+  position: relative;
+}
+
+.pulse-live::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  opacity: 0;
+  animation: live-pulse var(--dur-pulse) var(--ease-out) infinite;
+}
+
+/* One wash behind a value that actually changed. The element is keyed by its
+   value, so the animation runs exactly once per real change — never on poll,
+   render or resize (the watchlist's contract, generalised). Direction is
+   redundant emphasis over the visible figure itself. */
+.value-tick[data-tick="changed"] {
+  border-radius: var(--radius-sm);
+  animation: tick-flash var(--dur-flash) var(--ease-out);
+}
+
+@keyframes tick-flash {
+  from {
+    background-color: color-mix(in srgb, var(--series-1) 16%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+/* The cockpit verdict's entrance as a utility for conditional mounts. */
+.mount-fade {
+  transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+}
+
+@starting-style {
+  .mount-fade {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* The developer work rows host the status select — interactive, so they
+   respond, but in wash rather than space. */
+.developer-work__table tbody tr {
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.developer-work__table tbody tr:hover {
+  background: color-mix(in srgb, var(--series-1) 4%, transparent);
+}
+
+/* The readiness ring's conic angle, registered so the sweep can animate
+   between poll states. Progressive: an engine without @property snaps, and
+   the content is identical. No mount sweep — the inline style is present
+   from the first server-rendered frame, so the transition only runs when a
+   poll actually changes the count. */
+@property --developer-readiness-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.developer-cp-readiness__ring {
+  transition: --developer-readiness-angle var(--dur-reveal) var(--ease-emphasized);
+}
+
+/* One beat per successful health poll: the header dot's key changes on each
+   snapshot, remounting the animation. One-shot, and the reduce block clamps
+   it to its final frame like everything else. */
+@keyframes health-beat {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 45%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+
+.system-health > i {
+  animation: health-beat var(--dur-reveal) var(--ease-out) 1;
 }

@@ -142,6 +142,29 @@ describe("the motion ladder", () => {
     );
   });
 
+  it("the shared pulse and flash read the ladder and rest quiet", () => {
+    // .pulse-live is the generic live halo; .value-tick the one-shot wash.
+    // Both must reuse the existing keyframes at token pace, and live-pulse
+    // must end at opacity 0 so the reduce clamp rests it as a static dot.
+    assert.match(
+      declarations,
+      /\.pulse-live::after \{[^}]*animation: live-pulse var\(--dur-pulse\)/,
+      ".pulse-live must reuse the live-pulse keyframes at the pulse rung",
+    );
+    assert.match(
+      declarations,
+      /\.value-tick\[data-tick="changed"\] \{[^}]*animation: tick-flash var\(--dur-flash\)/,
+      ".value-tick must flash once at the flash rung",
+    );
+    const keyframes = declarations.indexOf("@keyframes live-pulse");
+    assert.notEqual(keyframes, -1);
+    assert.match(
+      declarations.slice(keyframes, keyframes + 400),
+      /(100%|to)[^}]*opacity:\s*0/,
+      "live-pulse must rest at opacity 0",
+    );
+  });
+
   it("the overshoot stays scarce", () => {
     // --ease-pop is reserved for the promotion gate clearing; a second caller
     // dilutes the one moment the overshoot exists to mark.

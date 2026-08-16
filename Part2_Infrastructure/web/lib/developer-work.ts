@@ -90,12 +90,25 @@ const DEVELOPER_WORK_SEEDS: readonly DeveloperWorkSeed[] = [
     id: "BUG-201",
     kind: "bug",
     priority: "P2",
-    status: "triage",
+    status: "done",
     title: "Session work is lost when the dashboard reloads",
-    summary: "Connect an authenticated issue backend before this queue is treated as a system of record.",
-    owner: "Unassigned",
+    summary: "Fixed: the queue persists to this browser's localStorage and rehydrates after mount; seeds apply only when storage is empty.",
+    owner: "Ian",
     area: "Developer portal",
     ageHours: 42,
+  },
+  {
+    // The half of BUG-201 that persistence does not fix, kept open on its own
+    // ticket rather than buried in a closed bug's summary.
+    id: "TKT-413",
+    kind: "ticket",
+    priority: "P3",
+    status: "triage",
+    title: "Connect an authenticated issue backend",
+    summary: "Browser storage records workflow state; a shared system of record still needs a reviewed backend integration.",
+    owner: "Unassigned",
+    area: "Developer portal",
+    ageHours: 2,
   },
   {
     id: "FEAT-071",
@@ -137,6 +150,58 @@ export function createInitialDeveloperWorkItems(now = Date.now()): DeveloperWork
     ...item,
     openedAt: now - ageHours * 3_600_000,
   }));
+}
+
+/** Dotted key, per the user-prefs convention. */
+export const DEVELOPER_WORK_STORAGE_KEY = "alphaengine.developer.work";
+
+function isDeveloperWorkItem(value: unknown): value is DeveloperWorkItem {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Partial<DeveloperWorkItem>;
+  return (
+    typeof item.id === "string"
+    && (DEVELOPER_WORK_KINDS as readonly string[]).includes(item.kind as string)
+    && (DEVELOPER_WORK_PRIORITIES as readonly string[]).includes(item.priority as string)
+    && (DEVELOPER_WORK_STATUSES as readonly string[]).includes(item.status as string)
+    && typeof item.title === "string"
+    && typeof item.summary === "string"
+    && typeof item.owner === "string"
+    && typeof item.area === "string"
+    && typeof item.openedAt === "number"
+    && Number.isFinite(item.openedAt)
+  );
+}
+
+/**
+ * Read the stored queue, or `null` when there is nothing usable — absent key,
+ * blocked storage, corrupt JSON, or a shape from another deploy. The caller
+ * keeps the seeds on `null`; a stored VALID array wins even when empty,
+ * because an emptied queue is a state the reader chose, not an error.
+ * Same failure-collapse contract as `loadExperiments`.
+ */
+export function loadDeveloperWorkItems(): DeveloperWorkItem[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(DEVELOPER_WORK_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    if (!parsed.every(isDeveloperWorkItem)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/** Persist the queue; quota and disabled storage degrade silently. */
+export function saveDeveloperWorkItems(items: readonly DeveloperWorkItem[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(DEVELOPER_WORK_STORAGE_KEY, JSON.stringify(items));
+  } catch {
+    // The in-memory queue still works for this session; silently degrading
+    // beats an error dialog over a sample work board.
+  }
 }
 
 export interface DeveloperWorkFilter {

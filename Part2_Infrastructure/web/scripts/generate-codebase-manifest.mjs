@@ -21,5 +21,27 @@ const files = [...new Set([...trackedAndNewFiles, outputRelativePath])].sort((le
   left.localeCompare(right),
 );
 
-writeFileSync(outputPath, `${JSON.stringify({ version: 1, files }, null, 2)}\n`, "utf8");
-process.stdout.write(`Wrote ${files.length} repository paths to ${outputRelativePath}\n`);
+// Provenance travels with the manifest so the UI can say WHEN the count it
+// shows was measured, not just what it was. Same graceful-degradation shape
+// as next.config.mjs's commitSha(): a tarball without git still generates.
+function shortHead() {
+  try {
+    return execFileSync("git", ["-C", repositoryRoot, "rev-parse", "--short", "HEAD"], {
+      encoding: "utf8",
+    }).trim() || "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+const generatedAt = new Date().toISOString().slice(0, 10);
+const commit = shortHead();
+
+writeFileSync(
+  outputPath,
+  `${JSON.stringify({ version: 2, generatedAt, commit, files }, null, 2)}\n`,
+  "utf8",
+);
+process.stdout.write(
+  `Wrote ${files.length} repository paths to ${outputRelativePath} (as of ${generatedAt} at ${commit})\n`,
+);

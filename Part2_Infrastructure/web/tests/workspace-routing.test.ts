@@ -208,7 +208,7 @@ describe("dense role workspaces expose accessible feature sections", () => {
     assert.match(developerWorkQueue, /aria-live="polite"/);
     assert.ok(!developerWorkQueue.includes("draggable="), "developer work must not rely on drag-only movement");
 
-    assert.equal(repositoryManifest.version, 1);
+    assert.equal(repositoryManifest.version, 2);
     assert.ok(repositoryManifest.files.length >= 221, "repository catalog lost committed paths");
     assert.equal(new Set(repositoryManifest.files).size, repositoryManifest.files.length, "repository catalog has duplicate paths");
     for (const path of [

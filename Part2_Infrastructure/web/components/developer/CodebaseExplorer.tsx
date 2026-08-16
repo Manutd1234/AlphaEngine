@@ -5,6 +5,7 @@ import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   REPOSITORY_AREAS,
   REPOSITORY_FILES,
+  REPOSITORY_MANIFEST_PROVENANCE,
   REPOSITORY_STATS,
   repositoryArea,
   repositoryFilePurpose,
@@ -90,14 +91,16 @@ export default function CodebaseExplorer() {
           <div><span>Areas</span><strong className="num">{REPOSITORY_STATS.areas}</strong></div>
           <div><span>Tests</span><strong className="num">{REPOSITORY_STATS.tests}</strong></div>
           <div><span>API routes</span><strong className="num">{REPOSITORY_STATS.webRoutes}</strong></div>
+          <div><span>As of</span><strong className="num">{REPOSITORY_MANIFEST_PROVENANCE.generatedAt}</strong></div>
         </div>
       </div>
 
       <div className="codebase-explorer__notice">
         <strong>Read-only repository snapshot.</strong>
         <span>
-          Refresh with <code>npm run catalog:refresh</code> when files are added or removed; editing a
-          path here would require an authenticated source-control workflow.
+          Refresh with <code>npm run catalog:refresh</code> when files are added or removed; manifest{" "}
+          <code>{REPOSITORY_MANIFEST_PROVENANCE.commit}</code>. Editing a path here would require an
+          authenticated source-control workflow.
         </span>
       </div>
 

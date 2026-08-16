@@ -12,11 +12,13 @@
 
 import { useMemo, useState, type CSSProperties } from "react";
 
+import NumberTicker from "@/components/common/NumberTicker";
 import CodebaseExplorer from "@/components/developer/CodebaseExplorer";
 import DeveloperApiCatalog, { API_OPERATIONS } from "@/components/developer/DeveloperApiCatalog";
 import DeveloperWorkQueue from "@/components/developer/DeveloperWorkQueue";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import CategoryBars from "@/components/charts/CategoryBars";
+import FreshnessStamp from "@/components/workspace/FreshnessStamp";
 import PageHead from "@/components/workspace/PageHead";
 import { canonicalJson } from "@/lib/canonical-json";
 import type { DeveloperWorkItem } from "@/lib/developer-work";
@@ -25,7 +27,12 @@ import { MC_PARITY_REFERENCE_JSON, MC_PARITY_REFERENCE_SHA256 } from "@/lib/mc-p
 import { DEVELOPER_SECTIONS, type DeveloperSection } from "@/lib/sections";
 import { TEST_COUNTS } from "@/lib/test-counts.generated";
 import { useMcDistribution } from "@/lib/use-mc-distribution";
-import { DEPLOYABLES, GITHUB_SOURCE_ROOT, REPOSITORY_STATS } from "@/lib/repository-catalog";
+import {
+  DEPLOYABLES,
+  GITHUB_SOURCE_ROOT,
+  REPOSITORY_MANIFEST_PROVENANCE,
+  REPOSITORY_STATS,
+} from "@/lib/repository-catalog";
 import type { SystemHealthView } from "@/lib/use-system-health";
 import { APP_COMMIT, APP_DEPLOYMENT_ENV, IS_VERCEL_DEPLOYMENT } from "@/lib/version";
 
@@ -140,10 +147,26 @@ const SCHEMA_GATES = [
   },
 ] as const;
 
-function StatusPill({ state, compact = false, role }: { state: ControlState; compact?: boolean; role?: "cell" }) {
+function StatusPill({
+  state,
+  compact = false,
+  role,
+  live = false,
+}: {
+  state: ControlState;
+  compact?: boolean;
+  role?: "cell";
+  /**
+   * Pulses the dot. Only for states fed by the live 30s poll and currently
+   * reporting — never for committed evidence (test totals, commit identity,
+   * CI rows), where a pulse would impersonate a live conclusion, and never
+   * for a dead service, whose dot has nothing to claim.
+   */
+  live?: boolean;
+}) {
   return (
     <span className={`developer-cp-status is-${state.tone}${compact ? " is-compact" : ""}`} title={state.detail} role={role}>
-      <i aria-hidden="true" />
+      <i aria-hidden="true" className={live ? "pulse-live" : undefined} />
       {state.label}
     </span>
   );
@@ -242,8 +265,15 @@ function stateForDeployable(id: string, view: SystemHealthView): ControlState {
 function PipelineStrip() {
   return (
     <div className="developer-cp-pipeline" aria-label="Configured delivery pipeline">
+      {/* The entrance restates the sequence left to right. The connector stays
+          static: marching ants would assert a running pipeline this tab
+          cannot verify. */}
       {PIPELINE_STAGES.map((stage, index) => (
-        <div className="developer-cp-pipeline__stage" key={stage.name}>
+        <div
+          className="developer-cp-pipeline__stage stagger-reveal"
+          style={{ "--stagger-i": index } as CSSProperties}
+          key={stage.name}
+        >
           <div className={`developer-cp-pipeline__node is-${stage.tone}`} aria-hidden="true">
             {index + 1}
           </div>
@@ -273,8 +303,13 @@ function SchemaGateTable({ view, compact = false }: { view: SystemHealthView; co
       <div className="developer-cp-table__row is-head" role="row">
         <span role="columnheader">Contract</span><span role="columnheader">Baseline</span><span role="columnheader">Candidate</span><span role="columnheader">State</span>
       </div>
-      {rows.map((row) => (
-        <div className="developer-cp-table__row" role="row" key={row.object}>
+      {rows.map((row, index) => (
+        <div
+          className="developer-cp-table__row stagger-reveal"
+          style={{ "--stagger-i": index } as CSSProperties}
+          role="row"
+          key={row.object}
+        >
           <strong role="cell">{row.object}</strong>
           <code role="cell">{row.baseline}</code>
           <span role="cell">{row.candidate}</span>
@@ -292,8 +327,13 @@ function ArtifactLineage({ view, compact = false }: { view: SystemHealthView; co
       <div className="developer-cp-artifacts__row is-head" role="row">
         <span role="columnheader">Commit / build</span><span role="columnheader">Artifact</span><span role="columnheader">Runtime</span><span role="columnheader">Environment</span>
       </div>
-      {DEPLOYABLES.map((deployable) => (
-        <div className="developer-cp-artifacts__row" role="row" key={deployable.id}>
+      {DEPLOYABLES.map((deployable, index) => (
+        <div
+          className="developer-cp-artifacts__row stagger-reveal"
+          style={{ "--stagger-i": index } as CSSProperties}
+          role="row"
+          key={deployable.id}
+        >
           <code role="cell">{deployable.id === "workspace" ? APP_COMMIT : "runtime"}</code>
           <span role="cell"><strong>{deployable.name}</strong><small>{deployable.stack}</small></span>
           <code role="cell">{deployable.entry}</code>
@@ -349,7 +389,9 @@ function DeveloperOverview({
     { label: "Gateway", value: currentGateway.label, passed: currentGateway.tone === "good", detail: currentGateway.detail },
     {
       label: "Providers",
-      value: view.health ? `${view.health.summary.ready}/${view.health.summary.total}` : "Checking",
+      value: view.health
+        ? <><NumberTicker value={view.health.summary.ready} />/{view.health.summary.total}</>
+        : "Checking",
       passed: Boolean(view.health?.summary.total && view.health.summary.ready === view.health.summary.total),
       detail: view.health
         ? `${view.health.summary.configured} configured; ${view.health.summary.ready} currently routable.`
@@ -380,13 +422,17 @@ function DeveloperOverview({
           </div>
           <div className="developer-cp-edge">
             <span>{IS_VERCEL_DEPLOYMENT ? "Vercel edge" : "Local runtime"}</span>
-            <StatusPill state={currentWorkspace} compact />
+            <StatusPill state={currentWorkspace} compact live={currentWorkspace.tone === "good"} />
           </div>
           <div className="developer-cp-topology__line" aria-hidden="true" />
           <div className="developer-cp-topology__nodes">
             {deploymentStates.map(({ deployable, state }, index) => (
-              <article key={deployable.id} className={`developer-cp-node is-${state.tone}`}>
-                <div><span className="num">0{index + 1}</span><StatusPill state={state} compact /></div>
+              <article
+                key={deployable.id}
+                className={`developer-cp-node is-${state.tone} stagger-reveal`}
+                style={{ "--stagger-i": index } as CSSProperties}
+              >
+                <div><span className="num">0{index + 1}</span><StatusPill state={state} compact live={state.tone === "good"} /></div>
                 <h3>{deployable.name}</h3>
                 <p>{deployable.role}</p>
                 <code>{deployable.entry}</code>
@@ -408,12 +454,19 @@ function DeveloperOverview({
             style={{ "--developer-readiness-angle": readinessAngle } as CSSProperties}
             aria-label={`${readyCount} of ${readinessChecks.length} readiness checks pass`}
           >
-            <div><strong>{readyCount}<span>/{readinessChecks.length}</span></strong><small>PASS</small></div>
+            <div><strong><NumberTicker value={readyCount} /><span>/{readinessChecks.length}</span></strong><small>PASS</small></div>
           </div>
-          <strong className="developer-cp-readiness__verdict">{readyCount === readinessChecks.length ? "READY" : "BLOCKED"}</strong>
+          {/* Keyed by verdict: the entrance replays only when the word itself
+              flips, which is the one moment worth marking. */}
+          <strong
+            className="developer-cp-readiness__verdict mount-fade"
+            key={readyCount === readinessChecks.length ? "ready" : "blocked"}
+          >
+            {readyCount === readinessChecks.length ? "READY" : "BLOCKED"}
+          </strong>
           <div className="developer-cp-readiness__checks">
-            {readinessChecks.map((check) => (
-              <div key={check.label}>
+            {readinessChecks.map((check, index) => (
+              <div key={check.label} className="stagger-reveal" style={{ "--stagger-i": index } as CSSProperties}>
                 <i className={check.passed ? "is-good" : "is-warn"} aria-hidden="true">{check.passed ? "✓" : "!"}</i>
                 <span><b>{check.label}</b><small>{check.detail}</small></span><strong>{check.value}</strong>
               </div>
@@ -450,9 +503,11 @@ function DeveloperOverview({
           <p><strong className="num">{workspaceSymbol}</strong> stays shared across research, execution, reliability, and this control plane.</p>
         </div>
         <div className="developer-cp-context__facts">
-          <span><strong>{REPOSITORY_STATS.files}</strong> files</span>
+          <span title={`Manifest generated ${REPOSITORY_MANIFEST_PROVENANCE.generatedAt} at ${REPOSITORY_MANIFEST_PROVENANCE.commit}`}>
+            <strong>{REPOSITORY_STATS.files}</strong> files
+          </span>
           <span><strong>{API_OPERATIONS.length}</strong> API operations</span>
-          <span><strong>{openWork.length}</strong> open tasks</span>
+          <span><strong><NumberTicker value={openWork.length} /></strong> open tasks</span>
         </div>
         <div className="developer-cp-context__actions">
           {/* Three cross-tab links, three identical treatments. One of them
@@ -515,20 +570,28 @@ function DeveloperPipelines({ view }: { view: SystemHealthView }) {
             starts polling the day someone gives it a live source. */}
         {pane === "pipeline" && (
           <>
-            <section className="card developer-cp-section-hero">
+            {/* Panes conditionally remount (the rule recorded above), so the
+                stagger replays exactly on pane switch and never on re-render. */}
+            <section className="card developer-cp-section-hero stagger-reveal" style={{ "--stagger-i": 0 } as CSSProperties}>
               <div>
                 <span>Delivery workflow</span>
                 <h2>Pipeline execution and release custody</h2>
                 <p>Configured checks are visible here; the linked Actions run remains the source of truth for pending, passing, or failed state.</p>
               </div>
               <div className="developer-cp-section-hero__actions">
-                <StatusPill state={{ label: `${totalTests} tests`, detail: "Documented offline baseline across three suites.", tone: "info" }} />
+                <StatusPill
+                  state={{
+                    label: `${totalTests} tests · ${TEST_COUNTS.generatedOn}`,
+                    detail: "Counted by scripts/refresh-test-counts.mjs on that date; not re-measured by this build.",
+                    tone: "info",
+                  }}
+                />
                 <a className="text-action" href={`${GITHUB_REPOSITORY_ROOT}/actions`} target="_blank" rel="noreferrer">Open GitHub Actions ↗</a>
               </div>
             </section>
 
-            <section className="card developer-cp-pipeline-card">
-              <div className="developer-cp-heading"><div><span>Current build path</span><h2>Commit {APP_COMMIT}</h2></div><StatusPill state={workspaceState(view)} /></div>
+            <section className="card developer-cp-pipeline-card stagger-reveal" style={{ "--stagger-i": 1 } as CSSProperties}>
+              <div className="developer-cp-heading"><div><span>Current build path</span><h2>Commit {APP_COMMIT}</h2></div><StatusPill state={workspaceState(view)} live={workspaceState(view).tone === "good"} /></div>
               <PipelineStrip />
             </section>
           </>
@@ -536,12 +599,17 @@ function DeveloperPipelines({ view }: { view: SystemHealthView }) {
 
         {pane === "verification" && (
           <>
-            <section className="card developer-cp-jobs">
-              <div className="developer-cp-heading"><div><span>Verification matrix</span><h2>Configured jobs</h2></div><span>Every push</span></div>
+            <section className="card developer-cp-jobs stagger-reveal" style={{ "--stagger-i": 0 } as CSSProperties}>
+              <div className="developer-cp-heading"><div><span>Verification matrix</span><h2>Configured jobs</h2></div><span>Every push · counts {TEST_COUNTS.generatedOn}</span></div>
               <div className="developer-cp-jobs__table" role="table" aria-label="Continuous integration jobs">
                 <div className="developer-cp-jobs__row is-head" role="row"><span role="columnheader">Job</span><span role="columnheader">Evidence</span><span role="columnheader">Command</span><span role="columnheader">Baseline</span></div>
-                {CI_JOBS.map((job) => (
-                  <div className="developer-cp-jobs__row" role="row" key={job.name}>
+                {CI_JOBS.map((job, index) => (
+                  <div
+                    className="developer-cp-jobs__row stagger-reveal"
+                    style={{ "--stagger-i": index } as CSSProperties}
+                    role="row"
+                    key={job.name}
+                  >
                     <strong role="cell">{job.name}</strong><span role="cell">{job.evidence}</span><code role="cell">{job.command}</code><span role="cell">{job.count === null ? "tree audit" : `${job.count} tests`}</span>
                   </div>
                 ))}
@@ -567,7 +635,7 @@ function DeveloperPipelines({ view }: { view: SystemHealthView }) {
               />
             </section>
 
-            <section className="card developer-cp-artifact-card">
+            <section className="card developer-cp-artifact-card stagger-reveal" style={{ "--stagger-i": 1 } as CSSProperties}>
               <div className="developer-cp-heading"><div><span>Artifact registry</span><h2>Deployable lineage</h2></div><span>Runtime-observed state</span></div>
               <ArtifactLineage view={view} />
               <p className="developer-cp-disclosure">Artifact custody passes only when the pinned Ed25519 signer attests the deployment&apos;s full commit, environment, and content-addressed build provenance. Downloadable release bundles and promotion records remain separate evidence.</p>
@@ -624,7 +692,7 @@ function McBrowserParityCheck() {
     <section className="card developer-cp-schema-card">
       <div className="developer-cp-heading">
         <div><span>Numerics custody</span><h2>Run the parity check in this browser</h2></div>
-        <StatusPill state={state} />
+        <StatusPill state={state} live={requested && simulation.status === "running"} />
       </div>
       <p className="developer-cp-disclosure">
         The committed reference, this deployment&apos;s Node runtime and your browser&apos;s worker all
@@ -701,12 +769,12 @@ function DeveloperInterfaces({ view }: { view: SystemHealthView }) {
             cannot see holding a thread it cannot stop. */}
         {pane === "contracts" && (
           <>
-            <section className="card developer-cp-section-hero">
+            <section className="card developer-cp-section-hero stagger-reveal" style={{ "--stagger-i": 0 } as CSSProperties}>
               <div><span>Contract intelligence</span><h2>API &amp; Schema</h2><p>Browse the current route inventory and see exactly which compatibility gates are automated versus still missing.</p></div>
               <StatusPill state={{ label: `${API_OPERATIONS.length} operations`, detail: "Route handlers indexed from this runtime.", tone: "info" }} />
             </section>
-            <section className="card developer-cp-schema-card">
-              <div className="developer-cp-heading"><div><span>Breaking-change guard</span><h2>Schema compatibility</h2></div><StatusPill state={liveSchema} /></div>
+            <section className="card developer-cp-schema-card stagger-reveal" style={{ "--stagger-i": 1 } as CSSProperties}>
+              <div className="developer-cp-heading"><div><span>Breaking-change guard</span><h2>Schema compatibility</h2></div><StatusPill state={liveSchema} live={liveSchema.tone === "good"} /></div>
               <SchemaGateTable view={view} />
             </section>
           </>
@@ -780,11 +848,13 @@ export default function DeveloperConsole({
           that reads it. Pressing it could not produce a snapshot the poll was
           not already about to fetch, and this tab's evidence is build-time
           identity and committed job definitions, neither of which a refetch
-          can change. */}
+          can change. The stamp beside the metrics states that shared poll's
+          age — it adds no second poll and no refetch. */}
       <PageHead
         kicker="Quant developer"
         title="Developer"
         description="What is deployed, what CI proved, and where the schema contracts stand."
+        actions={<FreshnessStamp updatedAt={view.updatedAt} pollMs={view.pollMs} paused={view.paused} />}
         metrics={[
           { label: "Repository", value: "Developer_Analyst_Infra", note: "committed delivery tree", mono: false },
           { label: "Revision", value: `main@${APP_COMMIT}`, note: HAS_COMMIT_IDENTITY ? "build identity" : "no commit stamped" },
@@ -792,7 +862,7 @@ export default function DeveloperConsole({
           {
             label: "Engineering queue",
             value: `${openWork.length} open`,
-            note: "session-scoped",
+            note: "stored in this browser",
             tone: openWork.length ? "warn" : "good",
           },
         ]}
@@ -853,10 +923,10 @@ export default function DeveloperConsole({
       <WorkspaceSubtabPanel workspaceId="developer" tabId="work" activeId={section}>
         <div className="developer-cp-stack">
           <section className="card developer-cp-section-hero">
-            {/* The session-only caveat is the queue card's own pill and scope
+            {/* The storage caveat is the queue card's own pill and scope
                 block, one screen down — not restated here. */}
             <div><span>Engineering impact</span><h2>Task Queue</h2><p>Features, bugs, and delivery tickets only.</p></div>
-            <StatusPill state={{ label: `${openWork.length} open`, detail: "Session-scoped engineering queue.", tone: openWork.length ? "warn" : "good" }} />
+            <StatusPill state={{ label: `${openWork.length} open`, detail: "Engineering queue stored in this browser.", tone: openWork.length ? "warn" : "good" }} />
           </section>
           <DeveloperWorkQueue items={workItems} onItemsChange={onWorkItemsChange} />
         </div>

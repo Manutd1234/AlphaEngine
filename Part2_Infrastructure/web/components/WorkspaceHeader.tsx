@@ -46,6 +46,12 @@ interface WorkspaceHeaderProps {
   providersTotal: number | null;
   healthUnreachable: boolean;
   /**
+   * When the shared health snapshot last landed. Keys the status dot, so each
+   * successful poll remounts it and replays one health-beat ring — the whole
+   * workspace's wordless heartbeat. Null before the first snapshot.
+   */
+  healthUpdatedAt?: Date | null;
+  /**
    * What the desk's numbers are made of, stated once for everything below.
    * Optional so a surface that mounts the header without a book — the login
    * page's chrome, a future embed — is not forced to invent a provenance.
@@ -75,6 +81,7 @@ export default function WorkspaceHeader({
   providersReady,
   providersTotal,
   healthUnreachable,
+  healthUpdatedAt = null,
   dataSource = null,
   halt,
   riskControl,
@@ -255,7 +262,10 @@ export default function WorkspaceHeader({
           aria-label={`Open reliability. ${healthLabel}`}
           onClick={onOpenProviderHealth}
         >
-          <i aria-hidden />
+          {/* Keyed by snapshot time: each successful poll remounts the dot and
+              replays one health-beat ring. Decoration only — the label beside
+              it carries the state. */}
+          <i aria-hidden key={healthUpdatedAt?.getTime() ?? 0} />
           {healthLabel}
         </button>
         <AccountChip

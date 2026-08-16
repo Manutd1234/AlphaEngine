@@ -273,6 +273,16 @@ export const REPOSITORY_STATS = {
   webRoutes: REPOSITORY_FILES.filter((file) => file.kind === "API route").length,
 } as const;
 
+/**
+ * When and at which commit the manifest was generated. Rendered beside every
+ * figure derived from it — a count with no date is the drift this repo keeps
+ * re-catching (see the CI_JOBS comment in DeveloperConsole).
+ */
+export const REPOSITORY_MANIFEST_PROVENANCE = {
+  generatedAt: manifest.generatedAt,
+  commit: manifest.commit,
+} as const;
+
 export function repositoryArea(areaId: RepositoryAreaId) {
   return REPOSITORY_AREAS.find((area) => area.id === areaId) ?? REPOSITORY_AREAS.at(-1)!;
 }

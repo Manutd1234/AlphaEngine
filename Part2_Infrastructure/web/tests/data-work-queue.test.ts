@@ -72,6 +72,6 @@ describe("the data operations work queue", () => {
     const developerItems = createInitialDeveloperWorkItems(NOW);
     assert.equal(nextDeveloperWorkId("feature", developerItems), "FEAT-078");
     assert.equal(nextDeveloperWorkId("bug", developerItems), "BUG-205");
-    assert.equal(nextDeveloperWorkId("ticket", developerItems), "TKT-413");
+    assert.equal(nextDeveloperWorkId("ticket", developerItems), "TKT-414");
   });
 });
