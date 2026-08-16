@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-16",
-  "commit": "eef667d",
+  "commit": "76abf71",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -136,6 +136,7 @@
     "Part2_Infrastructure/tests/test_supabase_mirror.py",
     "Part2_Infrastructure/tests/test_supabase_schema.py",
     "Part2_Infrastructure/tests/test_tca_engine.py",
+    "Part2_Infrastructure/tests/test_telegram_analytics.py",
     "Part2_Infrastructure/tests/test_telegram_charts.py",
     "Part2_Infrastructure/tests/test_telegram_commands.py",
     "Part2_Infrastructure/tests/test_telegram_controls.py",
