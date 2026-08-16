@@ -8658,8 +8658,10 @@ button.data-trust-action > i {
   background: var(--surface-1);
 }
 
-.codebase-explorer__stats span,
-.developer-work__stats span {
+/* Direct children of each cell only: the figures' NumberTicker renders as a
+   span inside the strong, and the descendant form re-sized it to the label. */
+.codebase-explorer__stats > div > span,
+.developer-work__stats > div > span {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 750;
@@ -10852,7 +10854,9 @@ button.data-trust-action > i {
   border-left: 1px solid var(--border);
 }
 
-.developer-cp-context__facts span {
+/* Direct children only: the figure's NumberTicker renders as a span inside
+   the strong, and the descendant form re-sized it to the caption rung. */
+.developer-cp-context__facts > span {
   display: grid;
   min-width: 0;
   gap: 1px;
