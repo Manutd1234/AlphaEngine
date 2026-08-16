@@ -176,7 +176,7 @@ export default function ExposureHeatmap({
                   fontFamily="var(--mono)">
                   {u == null ? "—" : pct(u, 0)}
                 </text>
-                <text x={plotRight + 8} y={barY + 17} fontSize={9} fill="var(--text-muted)"
+                <text x={plotRight + 8} y={barY + 17} fontSize={9.5} fill="var(--text-muted)"
                   fontFamily="var(--mono)">
                   {pct(cell.share, 1)} gross
                 </text>

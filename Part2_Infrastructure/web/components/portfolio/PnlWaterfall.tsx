@@ -279,7 +279,7 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
                 x={bar.cx}
                 y={yBot + 30}
                 textAnchor="middle"
-                fontSize={9}
+                fontSize={9.5}
                 fill="var(--text-muted)"
               >
                 {bar.isTotal ? "sum" : BASIS_WORD[bar.leg!.basis]}

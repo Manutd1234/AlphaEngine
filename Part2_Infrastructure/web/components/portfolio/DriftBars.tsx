@@ -217,7 +217,7 @@ export default function DriftBars({
           fill="var(--text-muted)" fontFamily="var(--mono)">
           on target
         </text>
-        <text x={x(driftBand)} y={MARGIN.top - 6} textAnchor="middle" fontSize={9}
+        <text x={x(driftBand)} y={MARGIN.top - 6} textAnchor="middle" fontSize={9.5}
           fill="var(--text-muted)" fontFamily="var(--mono)">
           ±{pct(driftBand, 0)} band
         </text>

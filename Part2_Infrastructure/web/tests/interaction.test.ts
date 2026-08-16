@@ -122,8 +122,15 @@ describe("coarse pointers get 44px", () => {
     const body = declarations.slice(blocks[0].index ?? 0);
     assert.match(
       body,
-      /select,\s*\n\s*textarea,\s*\n\s*input:not[^{]*\{[^}]*font-size: 16px/,
-      "the field rule inside the coarse block must set font-size: 16px",
+      /select,\s*\n\s*textarea,\s*\n\s*input:not[^{]*\{[^}]*font-size: var\(--fs-input\)/,
+      "the field rule inside the coarse block must size fields at the input rung",
+    );
+    // The rung itself is pinned so joining the type scale cannot quietly
+    // change the one value that keeps Safari from zooming.
+    assert.match(
+      declarations,
+      /--fs-input:\s*16px/,
+      "--fs-input is the iOS focus-zoom threshold and must stay 16px",
     );
     assert.doesNotMatch(
       declarations,

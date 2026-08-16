@@ -123,7 +123,7 @@ export default function AllocationDonut({
               x={SIZE / 2}
               y={SIZE / 2 - 6}
               textAnchor="middle"
-              fontSize={22}
+              fontSize={23}
               fontWeight={680}
               fontFamily="var(--mono)"
               fill="var(--text-primary)"

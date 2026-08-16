@@ -134,11 +134,11 @@ export default function BreakerStateMachine({
                 fontWeight={700} fill={active ? tone : "var(--text-muted)"}>
                 {nodeCount(node.id)}
               </text>
-              <text x={node.x + NODE_W / 2} y={122} textAnchor="middle" fontSize={9}
+              <text x={node.x + NODE_W / 2} y={122} textAnchor="middle" fontSize={9.5}
                 fill="var(--text-muted)">
                 {node.sub}
               </text>
-              <text x={node.x + NODE_W / 2} y={134} textAnchor="middle" fontSize={9}
+              <text x={node.x + NODE_W / 2} y={134} textAnchor="middle" fontSize={9.5}
                 fill="var(--text-muted)" fontFamily="var(--mono)">
                 {detail(node.id)}
               </text>
@@ -149,14 +149,14 @@ export default function BreakerStateMachine({
         {/* closed → open */}
         <line x1={148} y1={85} x2={208} y2={85} stroke="var(--axis)" strokeWidth={1} />
         <Arrow x={214} y={85} />
-        <text x={178} y={78} textAnchor="middle" fontSize={9} fill="var(--text-secondary)">
+        <text x={178} y={78} textAnchor="middle" fontSize={9.5} fill="var(--text-secondary)">
           {threshold ? `${threshold} in a row` : "consecutive failures"}
         </text>
 
         {/* open → half-open */}
         <line x1={346} y1={85} x2={406} y2={85} stroke="var(--axis)" strokeWidth={1} />
         <Arrow x={412} y={85} />
-        <text x={376} y={78} textAnchor="middle" fontSize={9} fill="var(--text-secondary)">
+        <text x={376} y={78} textAnchor="middle" fontSize={9.5} fill="var(--text-secondary)">
           cooldown ends
         </text>
 
