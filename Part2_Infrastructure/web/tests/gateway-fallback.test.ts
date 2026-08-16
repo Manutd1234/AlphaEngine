@@ -151,6 +151,18 @@ describe("the safety statement describes what the desk actually does", () => {
     // asked, so a fourth tier cannot arrive quietly write-enabled.
     assert.match(badge, /writesEnabled\(provenance\.tier\)/);
   });
+
+  it("the check reports its outcome instead of settling in one silent frame", () => {
+    // "Check the gateway now" was a button whose success painted nothing —
+    // it now times the awaited re-read and renders a result line from the
+    // refreshed provenance.
+    assert.match(badge, /Gateway answered · \{lastCheck\.ms\} ms/);
+    assert.match(badge, /No live answer in \{lastCheck\.ms\} ms/);
+    assert.match(badge, /performance\.now\(\)/);
+    // And page.tsx returns the work so the badge can await it.
+    const page = source("../app/dashboard/page.tsx");
+    assert.match(page, /onRetry: \(\) => Promise\.all\(\[book\.refresh\(true\), systems\.refresh\(true\)\]\)/);
+  });
 });
 
 describe("the badge cannot dress generated data as measured", () => {

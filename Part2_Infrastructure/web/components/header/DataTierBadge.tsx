@@ -31,7 +31,7 @@ interface DataTierBadgeProps {
   retryInSeconds?: number | null;
   /** What failed, in the words the route used. */
   detail?: string | null;
-  onRetry: () => void;
+  onRetry: () => void | Promise<void>;
 }
 
 export default function DataTierBadge({
@@ -42,6 +42,13 @@ export default function DataTierBadge({
 }: DataTierBadgeProps) {
   const [open, setOpen] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  /**
+   * What the last manual check found, so the button reports something rather
+   * than settling in a single frame with nothing on screen. Read at render
+   * from the freshly-refreshed `provenance`, keyed by the moment the check
+   * finished so a re-check replays the line.
+   */
+  const [lastCheck, setLastCheck] = useState<{ at: number; ms: number } | null>(null);
   const wrapper = useRef<HTMLSpanElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
 
@@ -154,13 +161,37 @@ export default function DataTierBadge({
             className="mt-3 w-full rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-left text-[11.5px] font-semibold text-text-primary transition-[background-color] duration-(--dur-fast) ease-(--ease) hover:bg-surface-2"
             onClick={() => {
               setRetrying(true);
+              const started = performance.now();
               // The panel stays open so the button can report the outcome; the
               // badge behind it changes on its own when the probe settles.
-              void Promise.resolve(onRetry()).finally(() => setRetrying(false));
+              void Promise.resolve(onRetry()).finally(() => {
+                setLastCheck({ at: Date.now(), ms: Math.round(performance.now() - started) });
+                setRetrying(false);
+              });
             }}
           >
             {retrying ? "Checking…" : "Check the gateway now"}
           </button>
+
+          {/* The outcome, read from the now-refreshed provenance so success is
+              not silent: a live gateway answered, anything else names the tier
+              and (when the route sent one) why. Keyed by the check time so a
+              repeat check re-plays the line. */}
+          {lastCheck && !retrying && (
+            <p key={lastCheck.at} className="mount-fade mt-2 flex items-start gap-1.5 text-[11px] leading-snug text-text-secondary">
+              {provenance.tier === "live" ? (
+                <>
+                  <i aria-hidden>✓</i>
+                  Gateway answered · {lastCheck.ms} ms · {new Date(lastCheck.at).toLocaleTimeString()}
+                </>
+              ) : (
+                <>
+                  <i aria-hidden>✕</i>
+                  No live answer in {lastCheck.ms} ms{detail ? ` · ${detail}` : ""}
+                </>
+              )}
+            </p>
+          )}
         </AnchoredPanel>
       )}
     </span>

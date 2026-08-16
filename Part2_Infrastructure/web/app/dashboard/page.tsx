@@ -1330,10 +1330,9 @@ export default function Page() {
         dataSource={{
           provenance: book.provenance,
           detail: book.error?.error ?? null,
-          onRetry: () => {
-            void book.refresh(true);
-            void systems.refresh(true);
-          },
+          // Returns the work so the badge can time it and report the outcome:
+          // the two quiet re-reads that decide the tier and the health snapshot.
+          onRetry: () => Promise.all([book.refresh(true), systems.refresh(true)]).then(() => undefined),
         }}
         halt={book.book
           ? {
