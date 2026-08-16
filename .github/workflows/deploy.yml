@@ -456,7 +456,21 @@ jobs:
             fi
 
             echo "==> Healthy. Confirming the port answers"
-            curl -fsS "http://127.0.0.1:${PORT}/health" >/dev/null
+            HEALTH_JSON=$(curl -fsS "http://127.0.0.1:${PORT}/health")
+
+            # Which decision engine shipped. A container that built the native
+            # core reports "native"; one where the build silently fell back to
+            # the Python reference reports "python". This is a WARNING, not a
+            # rollback: the Python engine is correct and, at this book shape,
+            # marginally faster end-to-end — only the nanosecond core figure is
+            # missing from the desk, which the header's "Python fallback" mark
+            # already surfaces. Bricking a working gateway over a display detail
+            # would be the disproportionate response.
+            if printf '%s' "$HEALTH_JSON" | grep -q '"decision_engine": *"native"'; then
+              echo "==> Decision engine: native (compiled core live)"
+            else
+              echo "::warning::Decision engine fell back to Python — the native core did not ship in this image. The gateway is healthy; the nanosecond core figure will be absent until the build is fixed."
+            fi
 
             # Always Free instances have a small boot volume, and one image per
             # push fills it within weeks. Untagged layers only — this never

@@ -20,3 +20,9 @@ __pycache__/
 *.duckdb.wal
 *.sqlite
 .git/
+# The native decision core is compiled inside the builder stage; a locally
+# built .so (darwin on a dev Mac) must never ride into the linux context, and
+# the build tree is regenerated in-image.
+modules/_decision_core*.so
+build/
+native/decision_core/build/

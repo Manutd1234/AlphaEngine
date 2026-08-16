@@ -70,6 +70,22 @@ class TestDockerfile:
         for entry in ("venv/", "web/", "OpenBB_Service/", "data/", ".env"):
             assert entry in DOCKERIGNORE, f".dockerignore lost {entry}"
 
+    def test_native_core_is_built_in_the_builder_and_copied_not_compiled_at_runtime(self):
+        # g++ lives in the builder stage only; a compiler in the runtime image
+        # is the surface this multi-stage split exists to avoid.
+        runtime_start = DOCKERFILE.index("\nFROM python:3.12-slim\n", DOCKERFILE.index("AS builder"))
+        builder = DOCKERFILE[:runtime_start]
+        runtime = DOCKERFILE[runtime_start:]
+        assert "build-essential" in builder, "the builder must install a compiler for the core"
+        assert "apt-get install" not in runtime, "the runtime image must not install anything"
+        assert "build_ext --inplace" in builder, "the core is compiled in the builder"
+        assert re.search(r"COPY --from=builder /build/modules/_decision_core\*\.so modules/", runtime), (
+            "the runtime must copy the finished .so, not rebuild it"
+        )
+        # A locally built darwin .so must never ride into the linux context.
+        assert "modules/_decision_core*.so" in DOCKERIGNORE
+        assert "build/" in DOCKERIGNORE
+
 
 class TestCompose:
     def test_maps_host_port_8000(self):

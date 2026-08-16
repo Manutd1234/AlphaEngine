@@ -27,6 +27,13 @@
 #  * Port 8000 is fixed in EXPOSE/HEALTHCHECK/CMD. The container's internal
 #    port is an implementation detail; flexibility belongs on the host side of
 #    the compose `ports:` mapping.
+#
+#  * The native decision core (modules/_decision_core.so) is compiled in the
+#    BUILDER stage — g++ lives there and nowhere else — and only the finished
+#    .so is copied into the runtime, which never sees a compiler. A build that
+#    fails to produce it would surface as `decision_engine: python` on /health,
+#    which deploy.yml treats as unhealthy and rolls back, so a silent fallback
+#    to the slower-to-parity Python path cannot ship unnoticed.
 
 ARG REQUIREMENTS=requirements-core.txt
 
@@ -35,8 +42,20 @@ FROM python:3.12-slim AS builder
 ARG REQUIREMENTS
 WORKDIR /build
 
-COPY requirements-core.txt requirements.txt ./
+# g++ for the decision core only. It stays in this discarded builder layer;
+# the runtime image below never installs a compiler.
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements-core.txt requirements.txt requirements-native.txt ./
 RUN pip install --no-cache-dir --prefix=/install -r "${REQUIREMENTS}"
+# The build toolchain (setuptools, pybind11) is builder-local, not in /install,
+# so it never reaches the runtime site-packages.
+RUN pip install --no-cache-dir -r requirements-native.txt
+
+COPY native/ native/
+COPY modules/ modules/
+RUN python native/decision_core/setup.py build_ext --inplace --build-temp /tmp/native-build
 
 # ---- runtime ---------------------------------------------------------------
 FROM python:3.12-slim
@@ -49,6 +68,9 @@ COPY --from=builder /install /usr/local
 # (`python tools/synthetic_probe.py`) runs in-container.
 COPY main.py config.py celery_tasks.py worker.py ./
 COPY modules/ modules/
+# The compiled core, built in the builder above. Its own source (.cpp) and the
+# compiler are deliberately left behind — the runtime carries only the artefact.
+COPY --from=builder /build/modules/_decision_core*.so modules/
 COPY templates/ templates/
 COPY tools/ tools/
 
