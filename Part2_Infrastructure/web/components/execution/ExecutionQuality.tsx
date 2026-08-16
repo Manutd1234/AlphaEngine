@@ -19,7 +19,7 @@
 
 import LatencyHistogram from "@/components/execution/LatencyHistogram";
 import { effectiveSpreadBps, priceImprovement, type BlotterRow, type ExecutionSummary } from "@/lib/blotter";
-import { fmt, pct, usd } from "@/lib/format";
+import { fmt, formatDuration, pct, usd } from "@/lib/format";
 
 interface ExecutionQualityProps {
   summary: ExecutionSummary;
@@ -93,10 +93,13 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
                   audit row, and dropping the qualifier to match a shorter label
                   would be the one dishonest edit available on this panel. */}
               <dt>Median gate latency</dt>
-              <dd>{summary.p50LatencyMs != null ? `${fmt(summary.p50LatencyMs, 2)} ms` : "—"}</dd>
+              {/* The wire carries ms; the desk shows the unit the value earns
+                  (a 0.21 ms decision reads 210 µs). Null stays a dash inside
+                  the formatter — never "0 ns". */}
+              <dd>{formatDuration(summary.p50LatencyMs, "ms")}</dd>
               <span className="muted">
-                p90 {summary.p90LatencyMs != null ? `${fmt(summary.p90LatencyMs, 2)} ms` : "—"} ·
-                p99 {summary.p99LatencyMs != null ? `${fmt(summary.p99LatencyMs, 2)} ms` : "—"}
+                p90 {formatDuration(summary.p90LatencyMs, "ms")} ·
+                p99 {formatDuration(summary.p99LatencyMs, "ms")}
               </span>
             </div>
             <div>
@@ -127,11 +130,12 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
             <LatencyHistogram
               values={rows.map((r) => r.latencyMs).filter((v): v is number => v != null)}
               ariaLabel="Distribution of gate decision latency"
+              format={(v) => formatDuration(v, "ms")}
             />
             <small className="muted">
               Time inside the pre-trade battery, not order-to-fill.
               {source === "sandbox"
-                ? " Sandbox latencies are generated uniform 0.14–0.25 ms — the flat shape is the generator, not a gateway."
+                ? " Sandbox latencies are generated uniform 140–250 µs — the flat shape is the generator, not a gateway."
                 : ""}
             </small>
           </div>

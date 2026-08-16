@@ -1,7 +1,7 @@
 "use client";
 
 import { describeTape, useDeskTape } from "@/lib/use-desk-tape";
-import { fmt, usd } from "@/lib/format";
+import { fmt, formatDuration, usd } from "@/lib/format";
 
 /**
  * The live decision tape.
@@ -70,7 +70,7 @@ export default function DeskTape({ symbol }: { symbol: string }) {
                   <td className={row.verdict === "ACCEPTED" ? "pos" : "neg"}>
                     {row.verdict.replaceAll("_", " ").toLowerCase()}
                   </td>
-                  <td className="num">{row.latencyMs == null ? "—" : `${fmt(row.latencyMs, 2)}ms`}</td>
+                  <td className="num">{formatDuration(row.latencyMs, "ms")}</td>
                 </tr>
               ))}
             </tbody>

@@ -23,7 +23,12 @@ import type { ActionOptions } from "@/components/systems/OperatorPanel";
 import type { ActionResponse, GuardMode, SystemHealth } from "@/components/systems/types";
 import { useWireTap, type SocketSummary } from "@/lib/livebook";
 import { emit } from "@/lib/observability";
-import { appendLatencyHistory, type LatencyHistoryPoint } from "@/lib/overview-state";
+import {
+  appendLatencyHistory,
+  deriveDecisionLatency,
+  type DecisionLatencySource,
+  type LatencyHistoryPoint,
+} from "@/lib/overview-state";
 
 /** Quota-fenced and slow enough to be free. */
 export const DEFAULT_POLL_MS = 30_000;
@@ -174,6 +179,14 @@ export interface SystemHealthView {
    * gateway-merged across instances since the shared ledger sync.)
    */
   latencyHistory: LatencyHistoryPoint[];
+
+  /**
+   * Where the gateway's in-process decision figure stands — measured, or a
+   * named reason it is not (no gateway, older build, no orders yet). Derived
+   * once here so the header chip and the Reliability tiles never disagree
+   * about why the same figure is a dash.
+   */
+  decisionLatency: DecisionLatencySource;
 }
 
 /** Per-tab by design: sessionStorage survives a reload, dies with the tab. */
@@ -415,6 +428,8 @@ export function useSystemHealth(workspaceSymbol: string): SystemHealthView {
     [summary],
   );
 
+  const decisionLatency = useMemo(() => deriveDecisionLatency(health), [health]);
+
   const guardMode = health?.guard.mode ?? "locked";
   const operatorReady =
     guardMode === "open-demo" || guardMode === "open-dev"
@@ -454,12 +469,14 @@ export function useSystemHealth(workspaceSymbol: string): SystemHealthView {
       degraded,
       cacheHitRate: summary?.cache.hitRate ?? null,
       latencyHistory,
+      decisionLatency,
     }),
     [
       health, healthError, updatedAt, refresh, pollMs, setPollMs, paused,
       setPaused, route, setRoute, guardMode, token, setToken, operatorReady,
       tokenStatus, busyAction, actionResult, runAction, sockets,
       onReconnectSockets, logLocal, degraded, summary, latencyHistory,
+      decisionLatency,
     ],
   );
 }

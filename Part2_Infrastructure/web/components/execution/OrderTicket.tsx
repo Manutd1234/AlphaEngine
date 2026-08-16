@@ -24,7 +24,7 @@ import { useRef, useState, type CSSProperties } from "react";
 import NumberTicker from "@/components/common/NumberTicker";
 import { useLiveMid } from "@/components/execution/live-mid-context";
 import { type GateCheck, type SandboxDecision, type SandboxOrder } from "@/lib/blotter";
-import { fmt, priceDp, usd } from "@/lib/format";
+import { fmt, formatDuration, priceDp, usd } from "@/lib/format";
 import { operatorHeaders } from "@/lib/risk-control";
 import { classify } from "@/lib/providers/symbols";
 import { strategiesByFamily } from "@/lib/strategy-progress";
@@ -513,7 +513,7 @@ export default function OrderTicket({
             {latest.latency_ms != null ? (
               // Counting up to a sub-millisecond figure is the honest flex.
               <span className="muted">
-                decided in <NumberTicker value={latest.latency_ms} format={(v) => fmt(v, 2)} /> ms
+                decided in <NumberTicker value={latest.latency_ms} format={(v) => formatDuration(v, "ms")} />
               </span>
             ) : null}
           </div>

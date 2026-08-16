@@ -228,6 +228,30 @@ export interface GatewayOpsSnapshot {
     /** A closed vocabulary — never a URL, a key or raw error text. */
     last_error_kind: string | null;
   } | null;
+  /**
+   * The pre-trade decision's own clock, from `modules/operations.py`'s
+   * `DecisionLatencySnapshot`: in-process, every sample since the gateway
+   * process started (a histogram, not a window). Optional because a gateway
+   * build that predates the field omits it; `null` is a state the gateway
+   * itself never sends — the block is present with `samples: 0` before the
+   * first order and its quantiles are null then, because quantiles of
+   * nothing are not zeros (LATENCY_BUDGET §3). `core_*` is the compiled
+   * engine's timing of the arithmetic alone, in nanoseconds; null while the
+   * Python reference runs.
+   */
+  decision_latency?: DecisionLatency | null;
+}
+
+export interface DecisionLatency {
+  engine: "native" | "python";
+  samples: number;
+  p50_us: number | null;
+  p99_us: number | null;
+  p999_us: number | null;
+  max_us: number | null;
+  core_p50_ns?: number | null;
+  core_p99_ns?: number | null;
+  core_max_ns?: number | null;
 }
 
 export type HealthSourceState = "fresh" | "stale" | "not_configured" | "unreachable" | "invalid";

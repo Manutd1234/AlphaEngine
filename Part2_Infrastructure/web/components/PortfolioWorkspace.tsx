@@ -42,7 +42,7 @@ import PnlWaterfall from "@/components/portfolio/PnlWaterfall";
 import LiquidityPanel from "@/components/portfolio/LiquidityPanel";
 import WorkingOrders from "@/components/portfolio/WorkingOrders";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
-import { compact, fmt, pct, signedPct, usd } from "@/lib/format";
+import { compact, fmt, formatDuration, pct, signedPct, usd } from "@/lib/format";
 import { buildPnlWaterfall } from "@/lib/pnl-attribution";
 import { proposeAllocation } from "@/lib/portfolio-risk";
 import { bookStatus } from "@/lib/portfolio";
@@ -300,8 +300,8 @@ export default function PortfolioWorkspace({
       // consumer keeps rendering its dash.
       value: numberOrNull(quality.p99_latency_ms) == null
         ? null
-        : <NumberTicker value={numberOrNull(quality.p99_latency_ms)!} format={(v) => `${fmt(v, 2)} ms`} />,
-      note: `p50 ${numberOrNull(quality.p50_latency_ms) == null ? "—" : fmt(numberOrNull(quality.p50_latency_ms)!, 2)} ms`,
+        : <NumberTicker value={numberOrNull(quality.p99_latency_ms)!} format={(v) => formatDuration(v, "ms")} />,
+      note: `p50 ${formatDuration(numberOrNull(quality.p50_latency_ms), "ms")}`,
     },
     {
       label: "Fees paid",
@@ -1028,7 +1028,7 @@ export default function PortfolioWorkspace({
                           <td className="num">
                             {row.avgLatencyMs == null
                               ? <span className="muted">—</span>
-                              : `${fmt(row.avgLatencyMs, 2)} ms`}
+                              : formatDuration(row.avgLatencyMs, "ms")}
                           </td>
                         </tr>
                       ))}

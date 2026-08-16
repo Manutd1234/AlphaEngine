@@ -45,6 +45,49 @@ export const dateTime = (ms: number): string =>
 /** Price decimals that suit the magnitude — 2dp on BTC, 4dp on a sub-dollar alt. */
 export const priceDp = (v: number): number => (v >= 1000 ? 2 : v >= 1 ? 3 : 5);
 
+export type DurationUnit = "ns" | "us" | "ms";
+
+const DURATION_TO_NS: Record<DurationUnit, number> = { ns: 1, us: 1e3, ms: 1e6 };
+
+/** U+00B5 MICRO SIGN — the glyph the latency budget uses, not Greek mu. */
+const DURATION_BANDS: ReadonlyArray<readonly [string, number]> = [
+  ["ns", 1],
+  ["µs", 1e3],
+  ["ms", 1e6],
+  ["s", 1e9],
+];
+
+/**
+ * A duration in the unit its magnitude earns.
+ *
+ * The desk shows three planes of latency — a compiled decision core in
+ * nanoseconds, the whole decision in microseconds, the network in
+ * milliseconds — and rendering all three in ms would print every healthy
+ * decision as `0.05` (LATENCY_BUDGET §3). So the unit follows the value:
+ * 420 ns, 18.4 µs, 23.4 ms, 1.20 s. Three significant figures with fixed
+ * decimals per band, so a value counting through NumberTicker keeps its
+ * width; the unit boundary is taken at 999.5 so nothing ever reads "1000".
+ * Absences (null, NaN, negative) render as a dash, never as "0 ns" — an
+ * absence is not a measurement of zero.
+ */
+export function formatDuration(value: number | null | undefined, from: DurationUnit = "ns"): string {
+  if (value == null || !Number.isFinite(value) || value < 0) return "—";
+  const ns = value * DURATION_TO_NS[from];
+  for (let i = 0; i < DURATION_BANDS.length; i++) {
+    const [unit, scale] = DURATION_BANDS[i];
+    const v = ns / scale;
+    const last = i === DURATION_BANDS.length - 1;
+    if (v < 999.5 || last) {
+      // U+00A0 between number and unit: a table cell or wrapping note must
+      // never split "18.4" from its "µs".
+      if (unit === "ns") return `${Math.round(v)}\u00A0ns`;
+      const dp = v < 9.995 ? 2 : v < 99.95 ? 1 : 0;
+      return `${v.toFixed(dp)}\u00A0${unit}`;
+    }
+  }
+  return "—";
+}
+
 /**
  * Display pair for a Minimum Track Record Length card.
  *

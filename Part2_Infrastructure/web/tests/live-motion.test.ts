@@ -55,6 +55,40 @@ describe("the header carries the workspace heartbeat", () => {
   });
 });
 
+describe("durations wear the unit their magnitude earns", () => {
+  /**
+   * The wire carries gate latency in ms; a 0.21 ms decision printed as "0.21
+   * ms" hides everything the desk measures below a millisecond. Every surface
+   * that shows a decision duration goes through formatDuration, which also
+   * keeps the null → dash rule inside one function instead of five.
+   */
+  const SURFACES = [
+    "components/execution/ExecutionQuality.tsx",
+    "components/execution/DeskTape.tsx",
+    "components/execution/OrderTicket.tsx",
+    "components/PortfolioWorkspace.tsx",
+  ];
+
+  it("every decision-latency surface imports formatDuration and stops hand-appending ms", () => {
+    for (const path of SURFACES) {
+      const source = read(path);
+      assert.match(source, /formatDuration/, `${path} must format durations through formatDuration`);
+      assert.doesNotMatch(
+        source,
+        /fmt\([^)]*[lL]atency[^)]*\)\}?\s?ms/,
+        `${path} still hand-appends "ms" to a latency figure`,
+      );
+    }
+  });
+
+  it("the histogram's axis takes a formatter so its ends read in the right unit", () => {
+    const histogram = read("components/execution/LatencyHistogram.tsx");
+    assert.match(histogram, /format\?: \(value: number\) => string/);
+    const quality = read("components/execution/ExecutionQuality.tsx");
+    assert.match(quality, /<LatencyHistogram[\s\S]{0,300}format=\{\(v\) => formatDuration\(v, "ms"\)\}/);
+  });
+});
+
 describe("motion never replaces the honest absence", () => {
   it("the work queue still reports an empty result", () => {
     const queue = read("components/developer/DeveloperWorkQueue.tsx");

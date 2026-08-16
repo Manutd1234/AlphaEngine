@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  DECISION_BAD_US,
+  DECISION_EXPECTED_ENGINE,
+  DECISION_MIN_SAMPLES,
+  DECISION_P999_MIN_SAMPLES,
+  DECISION_WARN_US,
   LATENCY_BAD_MS,
   LATENCY_HISTORY_CAP,
   LATENCY_MIN_SAMPLES,
@@ -9,12 +14,18 @@ import {
   type DecisionLoopInputs,
   type LatencyHistoryPoint,
   appendLatencyHistory,
+  decisionTone,
+  deriveDecisionLatency,
   deriveDecisionLoop,
   downsample,
+  formatDecisionChip,
   formatLatencyChip,
+  formatNetworkCaveat,
+  isDecisionLatency,
   killSwitchGate,
   latencyTone,
 } from "../lib/overview-state";
+import type { DecisionLatency, SystemHealth } from "../components/systems/types";
 
 const CLEAR: DecisionLoopInputs = {
   healthPresent: true,
@@ -265,5 +276,169 @@ describe("downsample", () => {
   it("is the identity for short inputs", () => {
     assert.deepEqual(downsample([1, 2, 3], 64), [1, 2, 3]);
     assert.deepEqual(downsample([], 64), []);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The decision plane
+// ---------------------------------------------------------------------------
+
+function measured(overrides: Partial<DecisionLatency> = {}): DecisionLatency {
+  return {
+    engine: "python",
+    samples: 1200,
+    p50_us: 24.9,
+    p99_us: 34.7,
+    p999_us: 54.9,
+    max_us: 65.5,
+    core_p50_ns: null,
+    core_p99_ns: null,
+    core_max_ns: null,
+    ...overrides,
+  };
+}
+
+function healthWith(decision: DecisionLatency | null | undefined, gatewayState: "fresh" | "stale" = "fresh") {
+  const platform = decision === undefined
+    ? ({} as SystemHealth["platform"])
+    : ({ decision_latency: decision } as unknown as SystemHealth["platform"]);
+  return {
+    platform,
+    sources: {
+      providers: { state: "fresh", observedAt: null, receivedAt: "", ageMs: 0, staleAfterMs: null },
+      gateway: { state: gatewayState, observedAt: null, receivedAt: "", ageMs: 0, staleAfterMs: null },
+    },
+  } as unknown as Pick<SystemHealth, "platform" | "sources">;
+}
+
+const NETWORK = { p99: 888, n: 116, errorRate: 0.043 };
+
+describe("decisionTone", () => {
+  it("below the sample floor is muted regardless of the number", () => {
+    assert.equal(decisionTone(5000, DECISION_MIN_SAMPLES - 1).tone, "muted");
+    assert.equal(decisionTone(null, 500).tone, "muted");
+    assert.match(decisionTone(30, 3).label, /collecting · n=3/);
+  });
+
+  it("thresholds sit exactly at the documented boundaries", () => {
+    assert.equal(decisionTone(DECISION_WARN_US - 1, DECISION_MIN_SAMPLES).tone, "good");
+    assert.equal(decisionTone(DECISION_WARN_US, DECISION_MIN_SAMPLES).tone, "warn");
+    assert.equal(decisionTone(DECISION_BAD_US - 1, DECISION_MIN_SAMPLES).tone, "warn");
+    assert.equal(decisionTone(DECISION_BAD_US, DECISION_MIN_SAMPLES).tone, "bad");
+  });
+
+  it("the band is the latency budget's band", () => {
+    // LATENCY_BUDGET: "achievable 5–500 µs for the decision" — 500 is where
+    // "slow" is literally true against the published budget.
+    assert.equal(DECISION_BAD_US, 500);
+    assert.ok(DECISION_WARN_US < DECISION_BAD_US);
+    assert.equal(DECISION_MIN_SAMPLES, LATENCY_MIN_SAMPLES);
+    assert.equal(DECISION_P999_MIN_SAMPLES, 1000);
+  });
+});
+
+describe("deriveDecisionLatency", () => {
+  it("no snapshot yet is 'checking'", () => {
+    assert.equal(deriveDecisionLatency(null).kind, "checking");
+  });
+
+  it("no platform block names the gateway's state", () => {
+    const source = deriveDecisionLatency({ platform: undefined, sources: healthWith(null).sources } as never);
+    assert.equal(source.kind, "no-gateway");
+  });
+
+  it("an older gateway that omits the field is 'not published', not a zero", () => {
+    assert.equal(deriveDecisionLatency(healthWith(undefined)).kind, "not-published");
+  });
+
+  it("a malformed block is withheld as 'not published'", () => {
+    const bad = { engine: "cobol", samples: -1 } as unknown as DecisionLatency;
+    assert.equal(isDecisionLatency(bad), false);
+    assert.equal(deriveDecisionLatency(healthWith(bad)).kind, "not-published");
+  });
+
+  it("null and zero samples are both 'no orders yet'", () => {
+    assert.equal(deriveDecisionLatency(healthWith(null)).kind, "no-orders");
+    const empty = measured({ samples: 0, p50_us: null, p99_us: null, p999_us: null, max_us: null });
+    assert.equal(deriveDecisionLatency(healthWith(empty)).kind, "no-orders");
+  });
+
+  it("a measured block carries the gateway's freshness", () => {
+    const fresh = deriveDecisionLatency(healthWith(measured()));
+    assert.equal(fresh.kind, "measured");
+    if (fresh.kind === "measured") assert.equal(fresh.stale, false);
+    const stale = deriveDecisionLatency(healthWith(measured(), "stale"));
+    if (stale.kind === "measured") assert.equal(stale.stale, true);
+  });
+});
+
+describe("formatDecisionChip", () => {
+  it("the dash branch carries a reason, never the network number", () => {
+    const chip = formatDecisionChip(deriveDecisionLatency(healthWith(null)), NETWORK);
+    assert.equal(chip.headline.kind, "dash");
+    assert.equal(chip.state, "no orders yet");
+    assert.match(chip.caveat, /no orders yet/);
+    // The network figure is present in the CAVEAT, labelled — never promoted
+    // to the headline under the decision label.
+    assert.match(chip.caveat, /network, polled/);
+  });
+
+  it("collecting shows n over the floor", () => {
+    const chip = formatDecisionChip(deriveDecisionLatency(healthWith(measured({ samples: 7 }))), NETWORK);
+    assert.equal(chip.headline.kind, "collecting");
+    assert.equal(chip.state, `7/${DECISION_MIN_SAMPLES}`);
+  });
+
+  it("the caveat names both planes", () => {
+    const chip = formatDecisionChip(deriveDecisionLatency(healthWith(measured())), NETWORK);
+    assert.equal(chip.headline.kind, "measured");
+    assert.match(chip.caveat, /in-process pre-trade decision/);
+    assert.match(chip.caveat, /network, polled/);
+    assert.match(chip.caveat, /excludes kernel and wire/);
+    assert.match(chip.caveat, /since process start/);
+  });
+
+  it("p99.9 is withheld under a thousand samples", () => {
+    const thin = formatDecisionChip(deriveDecisionLatency(healthWith(measured({ samples: 400 }))), NETWORK);
+    assert.match(thin.caveat, /p99\.9 — \(n<1,000\)/);
+    const thick = formatDecisionChip(deriveDecisionLatency(healthWith(measured({ samples: 1200 }))), NETWORK);
+    assert.match(thick.caveat, /p99\.9 54\.9/);
+  });
+
+  it("the Python fallback mark appears only when native was expected", () => {
+    const chip = formatDecisionChip(deriveDecisionLatency(healthWith(measured({ engine: "python" }))), NETWORK);
+    if (DECISION_EXPECTED_ENGINE === "native") assert.match(chip.caveat, /▲ Python fallback/);
+    else assert.doesNotMatch(chip.caveat, /▲ Python fallback/);
+  });
+
+  it("a native core adds its nanosecond figure beside the decision, never instead of it", () => {
+    const stats = measured({ engine: "native", core_p50_ns: 310, core_p99_ns: 620, core_max_ns: 2100 });
+    const chip = formatDecisionChip(deriveDecisionLatency(healthWith(stats)), NETWORK);
+    assert.equal(chip.headline.kind, "measured");
+    if (chip.headline.kind === "measured") {
+      assert.equal(chip.headline.p99Us, 34.7);
+      assert.equal(chip.headline.coreP99Ns, 620);
+    }
+    assert.match(chip.caveat, /core p99 620 ns/);
+    assert.match(chip.caveat, /C\+\+ core/);
+  });
+});
+
+describe("formatNetworkCaveat", () => {
+  it("says which plane it is and whether the pool is warm", () => {
+    const warm = formatNetworkCaveat({ p99: 120, n: 5, errorRate: 0 });
+    assert.match(warm, /network, polled/);
+    assert.match(warm, /collecting n=5\/20/);
+    const hot = formatNetworkCaveat({ p99: 321.4, n: 80, errorRate: 0.1 });
+    assert.match(hot, /upstream p99 321 ms/);
+    assert.match(hot, /15-min pool/);
+    assert.match(hot, /error rate 10%/);
+  });
+
+  it("names the desk hop only when it has its own samples", () => {
+    const withHop = formatNetworkCaveat({ p99: 500, n: 40, errorRate: 0 }, { p99: 24, n: 60 });
+    assert.match(withHop, /desk hop p99 24\.0 ms/);
+    const thinHop = formatNetworkCaveat({ p99: 500, n: 40, errorRate: 0 }, { p99: 24, n: 3 });
+    assert.doesNotMatch(thinHop, /desk hop/);
   });
 });

@@ -28,6 +28,7 @@ export default function LatencyHistogram({
   unit = "ms",
   unitLong = "milliseconds",
   noun = "decisions",
+  format,
 }: {
   values: number[];
   binCount?: number;
@@ -44,8 +45,17 @@ export default function LatencyHistogram({
   unit?: string;
   unitLong?: string;
   noun?: string;
+  /**
+   * Formats an axis label from a raw value. When supplied it carries its own
+   * unit (e.g. `formatDuration(v, "ms")` → "210 µs"), so `unit`/`unitLong`
+   * are not appended; the gate-latency caller uses this so a 0.21 ms decision
+   * reads as 210 µs rather than 0.21.
+   */
+  format?: (value: number) => string;
 }) {
   const usable = values.filter((v) => Number.isFinite(v));
+  const label = format ?? ((v: number) => `${fmt(v, 2)} ${unit}`);
+  const labelLong = format ?? ((v: number) => `${fmt(v, 2)} ${unitLong}`);
   if (usable.length < minSamples) {
     return (
       <p className="muted" style={{ fontSize: 11.5 }}>
@@ -75,7 +85,9 @@ export default function LatencyHistogram({
            the x scale stretches — viewport and viewBox heights match. */
         preserveAspectRatio="none"
         role="img"
-        aria-label={`${ariaLabel} — ${usable.length} ${noun} between ${fmt(lo, 2)} and ${fmt(hi, 2)} ${unitLong}`}
+        aria-label={format
+          ? `${ariaLabel} — ${usable.length} ${noun} between ${labelLong(lo)} and ${labelLong(hi)}`
+          : `${ariaLabel} — ${usable.length} ${noun} between ${fmt(lo, 2)} and ${fmt(hi, 2)} ${unitLong}`}
       >
         {bins.counts.map((count, i) => (
           <rect
@@ -94,8 +106,8 @@ export default function LatencyHistogram({
         className="muted num"
         style={{ display: "flex", justifyContent: "space-between", fontSize: 10 }}
       >
-        <span>{fmt(lo, 2)} {unit}</span>
-        <span>{fmt(hi, 2)} {unit}</span>
+        <span>{label(lo)}</span>
+        <span>{label(hi)}</span>
       </div>
     </div>
   );
