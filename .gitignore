@@ -79,3 +79,4 @@ yarn-error.log*
 # so silently re-ignores it, which would drop any *new* `.env.example` from the
 # repo exactly the way the note at the top of this file describes. Delete those
 # two lines again after re-linking.
+.claude/worktrees/
