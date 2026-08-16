@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-16",
-  "commit": "12f8316",
+  "commit": "eef667d",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -86,6 +86,8 @@
     "Part2_Infrastructure/modules/telegram_charts.py",
     "Part2_Infrastructure/modules/telegram.py",
     "Part2_Infrastructure/modules/web_telemetry.py",
+    "Part2_Infrastructure/native/decision_core/decision_core.cpp",
+    "Part2_Infrastructure/native/decision_core/setup.py",
     "Part2_Infrastructure/notebooks/build_research_template.py",
     "Part2_Infrastructure/notebooks/research_template.ipynb",
     "Part2_Infrastructure/OpenBB_Service/.env.example",
@@ -105,6 +107,7 @@
     "Part2_Infrastructure/README.md",
     "Part2_Infrastructure/requirements-core.txt",
     "Part2_Infrastructure/requirements-dev.txt",
+    "Part2_Infrastructure/requirements-native.txt",
     "Part2_Infrastructure/requirements-openbb.txt",
     "Part2_Infrastructure/requirements.txt",
     "Part2_Infrastructure/templates/miniapp.html",
@@ -112,6 +115,7 @@
     "Part2_Infrastructure/tests/test_api.py",
     "Part2_Infrastructure/tests/test_backtester.py",
     "Part2_Infrastructure/tests/test_container_contract.py",
+    "Part2_Infrastructure/tests/test_decision_core_native.py",
     "Part2_Infrastructure/tests/test_decision_latency.py",
     "Part2_Infrastructure/tests/test_drawdown_alerts.py",
     "Part2_Infrastructure/tests/test_equity_quote.py",
