@@ -701,6 +701,65 @@ def rolling_var_backtest(
     return _kupiec(exceptions, scored, 1.0 - confidence)
 
 
+def rolling_var_path(
+    positions: Sequence[Mapping[str, Any]],
+    returns_by_symbol: Mapping[str, Sequence[float]],
+    equity: float,
+    window: int = 60,
+) -> tuple[list[float], list[float], list[bool]] | None:
+    """The per-bar series behind :func:`rolling_var_backtest`, for a chart.
+
+    Returns ``(pnl_usd, var_usd, breach)`` aligned bar-for-bar — the same
+    rolling estimate the Kupiec test scores, exposed rather than reduced to a
+    single count. ``var_usd`` is the positive-as-loss forecast (``Z95·σ`` of the
+    trailing window's book P&L); a bar breaches when the realised loss exceeds
+    it. Bars where the window has no dispersion are skipped so all three lists
+    stay the same length.
+
+    None below ``window + 20`` bars of shared history, or fewer than 20 scored
+    bars — the same floors the back-test uses, because a path too short to score
+    is a path too short to draw.
+    """
+    symbols = {str(p.get("symbol")) for p in positions}
+    series = {s: list(returns_by_symbol.get(s, ())) for s in symbols}
+    series = {s: v for s, v in series.items() if v}
+    if not series or equity <= 0:
+        return None
+
+    length = min(len(v) for v in series.values())
+    if length < window + 20:
+        return None
+
+    signed: dict[str, float] = {}
+    for p in positions:
+        symbol = str(p.get("symbol"))
+        if symbol not in series:
+            continue
+        direction = -1.0 if str(p.get("side")).upper() == "SHORT" else 1.0
+        signed[symbol] = signed.get(symbol, 0.0) + direction * abs(float(p.get("notional") or 0.0))
+
+    book_returns = [
+        sum(signed.get(s, 0.0) * series[s][len(series[s]) - length + t] for s in series)
+        for t in range(length)
+    ]
+
+    pnl_usd: list[float] = []
+    var_usd: list[float] = []
+    breach: list[bool] = []
+    for t in range(window, length):
+        sigma = _stdev(book_returns[t - window:t])
+        if sigma <= 0:
+            continue
+        forecast = Z95 * sigma
+        pnl_usd.append(book_returns[t])
+        var_usd.append(forecast)
+        breach.append(-book_returns[t] > forecast)
+
+    if len(pnl_usd) < 20:
+        return None
+    return pnl_usd, var_usd, breach
+
+
 # --------------------------------------------------------------------------- #
 # Scenario stress testing
 #

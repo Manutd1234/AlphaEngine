@@ -163,3 +163,72 @@ def telegram_lists():
     settings.telegram_allowed_user_ids[:] = saved[0]
     settings.telegram_allowed_chat_ids[:] = saved[1]
     settings.telegram_alert_chat_ids[:] = saved[2]
+
+
+# A 1×1 PNG, base64'd — a real image the fold-detail commands can decode without
+# depending on the backtester having run.
+_ONE_BY_ONE_PNG = (
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
+    "+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+)
+
+
+@pytest.fixture
+def completed_backtest(bot):
+    """Inject a succeeded backtest JobRecord into the bot's queue.
+
+    Gives the fold-detail commands (/walkforward, /stability, /overfit,
+    /decision) a realistic in-process result to read — three walk-forward folds,
+    six top params, the full DSR family and a decoded equity/heatmap image —
+    without running the backtester. Returns the result dict for assertions.
+    """
+    from datetime import datetime, timezone
+
+    from modules.jobs import JobRecord
+
+    result = {
+        "request": {"symbol": "BTCUSDT", "interval": "1h", "strategy": "ma_cross", "bars": 1500},
+        "combos_tested": 64,
+        "bars": 1500,
+        "best": {"fast": 10, "slow": 40, "sharpe": 1.42, "total_return": 0.31, "max_drawdown": -0.12},
+        "top_results": [
+            {"fast": 10 + index, "slow": 40 + index * 2, "sharpe": 1.4 - index * 0.1}
+            for index in range(6)
+        ],
+        "deflated_sharpe_ratio": 0.96,
+        "probabilistic_sharpe_ratio": 0.91,
+        "min_track_record_bars": 620.0,
+        "dsr_verdict": "PASS",
+        "overfitting_probability": 0.22,
+        "walk_forward": [
+            {
+                "fold": fold,
+                "chosen_fast": 10.0,
+                "chosen_slow": 40.0,
+                "is_sharpe": 1.5 - fold * 0.1,
+                "oos_sharpe": 1.1 - fold * 0.2,
+                "oos_return": 0.08 - fold * 0.01,
+                "oos_rank": fold + 1,
+                "combos_ranked": 64,
+            }
+            for fold in range(3)
+        ],
+        "walk_forward_oos_sharpe": 0.74,
+        "equity_curve_png": _ONE_BY_ONE_PNG,
+        "heatmap_png": _ONE_BY_ONE_PNG,
+    }
+    now = datetime.now(timezone.utc)
+    record = JobRecord(
+        job_id="bt-fixture-1",
+        kind="backtest",
+        status="succeeded",
+        progress=1.0,
+        submitted_at=now,
+        started_at=now,
+        finished_at=now,
+        result=result,
+        backend="in-process",
+        meta={"chat_id": TELEGRAM_TEST_CHAT, "symbol": "BTCUSDT", "actor": "tg:7:operator"},
+    )
+    bot.queue._jobs[record.job_id] = record
+    return result

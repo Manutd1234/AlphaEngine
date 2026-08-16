@@ -12,9 +12,16 @@ import pytest
 from modules.telegram_charts import (
     generate_bars_chart_png,
     generate_equity_chart_png,
+    generate_gate_ladder_png,
     generate_heatmap_png,
     generate_histogram_png,
+    generate_latency_cdf_png,
+    generate_multi_series_png,
+    generate_paired_bars_png,
+    generate_pipeline_png,
+    generate_scatter_png,
     generate_series_chart_png,
+    generate_var_breach_png,
 )
 
 PNG = b"\x89PNG"
@@ -94,6 +101,128 @@ class TestExistingGeneratorsStillHonourTheirContracts:
     def test_bars_chart_returns_none_when_nothing_was_measured(self):
         assert generate_bars_chart_png("t", [], [], "x") is None
         assert generate_bars_chart_png("t", ["A"], [None], "x") is None  # type: ignore[list-item]
+
+
+class TestPairedBars:
+    def test_draws_two_bars_per_label(self):
+        png = generate_paired_bars_png(
+            "IS vs OOS", ["F1", "F2", "F3"], [1.4, 1.1, 0.9], [1.0, 0.6, 0.3],
+            "In-sample", "Out-of-sample", "Sharpe",
+        )
+        assert png[:4] == PNG
+
+    def test_drops_pairs_with_a_missing_leg_and_refuses_empty(self):
+        assert generate_paired_bars_png("t", [], [], [], "a", "b", "y") is None
+        # A single pair whose second leg is None leaves nothing drawable.
+        assert generate_paired_bars_png("t", ["F1"], [1.0], [None], "a", "b", "y") is None
+
+    def test_different_folds_are_different_pictures(self):
+        wide = generate_paired_bars_png("t", ["F1"], [2.0], [0.1], "a", "b", "y")
+        narrow = generate_paired_bars_png("t", ["F1"], [1.0], [0.9], "a", "b", "y")
+        assert wide != narrow
+
+
+class TestGateLadder:
+    def test_draws_utilisation_bars(self):
+        png = generate_gate_ladder_png("Headroom", [
+            ("gross_exposure", 100_000.0, 500_000.0, True),
+            ("daily_drawdown", 0.02, 0.05, True),
+        ])
+        assert png[:4] == PNG
+
+    def test_returns_none_when_no_gate_has_numbers(self):
+        assert generate_gate_ladder_png("t", []) is None
+        assert generate_gate_ladder_png("t", [("kill_switch", None, None, True)]) is None
+
+    def test_utilisation_changes_the_picture(self):
+        low = generate_gate_ladder_png("t", [("g", 100.0, 1000.0, True)])
+        high = generate_gate_ladder_png("t", [("g", 900.0, 1000.0, True)])
+        assert low != high
+
+
+class TestLatencyCdf:
+    def test_draws_a_cdf_above_the_floor(self):
+        buckets = [(float(2 ** power), 3) for power in range(10)] + [(float("inf"), 1)]
+        png = generate_latency_cdf_png("Latency", buckets, [("p50", 8.0), ("p99", 256.0)])
+        assert png[:4] == PNG
+
+    def test_refuses_below_twenty_observations(self):
+        assert generate_latency_cdf_png("t", [(1.0, 5), (float("inf"), 2)], []) is None
+
+    def test_a_wider_tail_is_a_different_picture(self):
+        tight = [(float(2 ** p), 5) for p in range(6)] + [(float("inf"), 0)]
+        wide = [(float(2 ** p), 1) for p in range(6)] + [(float("inf"), 40)]
+        assert generate_latency_cdf_png("t", tight, []) != generate_latency_cdf_png("t", wide, [])
+
+
+class TestScatter:
+    def test_draws_grouped_points_with_a_fit_line(self):
+        png = generate_scatter_png(
+            "Slippage", [1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [2.0, 4.0, 1.0, 3.0, 5.0, 2.0],
+            "Notional", "Slippage", groups=["A", "B", "A", "B", "A", "B"], fit_line=True,
+        )
+        assert png[:4] == PNG
+
+    def test_refuses_below_five_points(self):
+        assert generate_scatter_png("t", [1, 2], [1, 2], "x", "y") is None
+
+    def test_different_clouds_are_different_pictures(self):
+        one = generate_scatter_png("t", [1, 2, 3, 4, 5], [1, 2, 3, 4, 5], "x", "y")
+        two = generate_scatter_png("t", [1, 2, 3, 4, 5], [5, 4, 3, 2, 1], "x", "y")
+        assert one != two
+
+
+class TestMultiSeries:
+    def test_draws_one_line_per_key(self):
+        png = generate_multi_series_png(
+            "Spread", {"BINANCE": [10.0, 11.0, 9.0], "BYBIT": [12.0, 10.0, 11.0]}, "bps",
+        )
+        assert png[:4] == PNG
+
+    def test_refuses_when_no_series_has_two_points(self):
+        assert generate_multi_series_png("t", {}, "y") is None
+        assert generate_multi_series_png("t", {"A": [1.0]}, "y") is None
+
+    def test_normalise_rebases_and_changes_the_picture(self):
+        plain = generate_multi_series_png("t", {"A": [100.0, 200.0]}, "y")
+        indexed = generate_multi_series_png("t", {"A": [100.0, 200.0]}, "y", normalise=True)
+        assert plain != indexed
+
+
+class TestVarBreach:
+    def test_draws_pnl_against_the_var_line(self):
+        pnl = [float((index * 7) % 13 - 6) for index in range(40)]
+        var = [5.0] * 40
+        breaches = [pnl[index] < -5 for index in range(40)]
+        assert generate_var_breach_png("VaR backtest", pnl, var, breaches)[:4] == PNG
+
+    def test_refuses_short_or_ragged_series(self):
+        assert generate_var_breach_png("t", [1.0] * 10, [1.0] * 10, [False] * 10) is None
+        assert generate_var_breach_png("t", [1.0] * 20, [1.0] * 19, [False] * 20) is None
+
+    def test_breaches_change_the_picture(self):
+        pnl = [-6.0] * 20 + [1.0] * 20
+        var = [5.0] * 40
+        none_breach = generate_var_breach_png("t", pnl, var, [False] * 40)
+        some_breach = generate_var_breach_png("t", pnl, var, [True] * 20 + [False] * 20)
+        assert none_breach != some_breach
+
+
+class TestPipeline:
+    def test_draws_the_stages(self):
+        png = generate_pipeline_png("Signal path", [
+            ("OpenBB", "ok", "ready"), ("Feeds", "degraded", "1/2"),
+            ("Book", "down", "stale"), ("Audit", "unknown", ""),
+        ])
+        assert png[:4] == PNG
+
+    def test_refuses_a_single_stage(self):
+        assert generate_pipeline_png("t", [("only", "ok", "")]) is None
+
+    def test_status_changes_the_picture(self):
+        healthy = generate_pipeline_png("t", [("A", "ok", ""), ("B", "ok", "")])
+        broken = generate_pipeline_png("t", [("A", "ok", ""), ("B", "down", "")])
+        assert healthy != broken
 
 
 @pytest.mark.asyncio

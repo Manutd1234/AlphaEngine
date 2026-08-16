@@ -55,9 +55,16 @@ from modules.telegram_charts import (
     generate_depth_chart_png,
     generate_drawdown_chart_png,
     generate_equity_chart_png,
+    generate_gate_ladder_png,
     generate_heatmap_png,
     generate_histogram_png,
+    generate_latency_cdf_png,
+    generate_multi_series_png,
+    generate_paired_bars_png,
+    generate_pipeline_png,
+    generate_scatter_png,
     generate_series_chart_png,
+    generate_var_breach_png,
 )
 
 log = logging.getLogger("alphaengine.telegram")
@@ -565,15 +572,17 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("version", "Essentials · Runtime version and bot mode", "Essentials", "/version", "/version", "_cmd_version", in_menu=False),
     CommandSpec("ping", "Essentials · Check command-path responsiveness", "Essentials", "/ping", "/ping", "_cmd_ping", in_menu=False),
 
-    # Portfolio manager
-    CommandSpec("portfolio", "Portfolio · Whole-book PM summary", "Portfolio", "/portfolio", "/portfolio", "_cmd_portfolio", ("bookstate",)),
+    # Portfolio manager. /portfolio and /risk are the 7th and 8th tab commands —
+    # category "Tabs" so the README's "8 tab commands" is literally true and both
+    # carry a `_tab_footer` mapping to their web rail sections.
+    CommandSpec("portfolio", "Portfolio (Portfolio Manager) · Whole-book PM summary + charts", "Tabs", "/portfolio", "/portfolio", "_cmd_portfolio", ("bookstate",)),
     CommandSpec("equity", "Portfolio · Persisted equity curve and period returns", "Portfolio", "/equity [LIMIT]", "/equity", "_cmd_equity", ("curve", "history")),
     CommandSpec("positions", "Portfolio · Open positions and marks", "Portfolio", "/positions [SYMBOL]", "/positions BTCUSDT", "_cmd_positions", ("toppositions", "position")),
     CommandSpec("pnl", "Portfolio · Realised and unrealised P&L", "Portfolio", "/pnl", "/pnl", "_cmd_pnl"),
     CommandSpec("exposure", "Portfolio · Gross, net and leverage", "Portfolio", "/exposure", "/exposure", "_cmd_exposure"),
     CommandSpec("concentration", "Portfolio · Largest weights and effective bets", "Portfolio", "/concentration", "/concentration", "_cmd_concentration"),
     CommandSpec("headroom", "Portfolio · Remaining capacity before limits", "Portfolio", "/headroom", "/headroom", "_cmd_headroom"),
-    CommandSpec("risk", "Portfolio · Drawdown and gateway budget", "Portfolio", "/risk", "/risk", "_cmd_risk"),
+    CommandSpec("risk", "Risk (Risk Manager) · Drawdown, gateway budget & limit utilisation + charts", "Tabs", "/risk", "/risk", "_cmd_risk"),
     CommandSpec("limits", "Portfolio · Deployed hard risk limits", "Portfolio", "/limits", "/limits", "_cmd_limits"),
     CommandSpec("attribution", "Portfolio · Flow and costs by strategy", "Portfolio", "/attribution", "/attribution", "_cmd_attribution"),
 
@@ -608,13 +617,13 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("researchstatus", "Research · OpenBB and job-system status", "Research", "/researchstatus", "/researchstatus", "_cmd_research_status", in_menu=False),
     CommandSpec("jobs", "Research · Recent research jobs", "Research", "/jobs [COUNT]", "/jobs 10", "_cmd_jobs"),
     CommandSpec("job", "Research · Inspect one job", "Research", "/job JOB_ID", "/job abcd1234", "_cmd_job", in_menu=False),
-    CommandSpec("backtests", "Research · Completed backtest history", "Research", "/backtests [COUNT]", "/backtests 10", "_cmd_backtests"),
+    CommandSpec("backtests", "Research · Completed backtest history", "Research", "/backtests [COUNT]", "/backtests 10", "_cmd_backtests", ("runs", "experiments")),
     CommandSpec("timeline", "Execution · Lifecycle of one order from the audit trail", "Execution", "/timeline ORDER_ID", "/timeline abc123", "_cmd_timeline", ("ordertrace",)),
     CommandSpec("working", "Execution · Orders resting on the book right now", "Execution", "/working [SYMBOL]", "/working", "_cmd_working"),
     CommandSpec("ops", "Essentials · Structured reliability snapshot", "Essentials", "/ops", "/ops", "_cmd_ops"),
     CommandSpec("backtest", "Research · Queue a parameter sweep on the shared jobs engine", "Research", "/backtest SYMBOL [INTERVAL] [STRATEGY]", "/backtest BTCUSDT 1h ma_cross", "_cmd_backtest", ("sweep",)),
     CommandSpec("rag", "Research · Similarity search over this desk's own runs and incidents", "Research", "/rag QUERY", "/rag momentum drawdown", "_cmd_rag", ("similar", "recall")),
-    CommandSpec("strategies", "Research · Supported strategy catalogue", "Research", "/strategies", "/strategies", "_cmd_strategies"),
+    CommandSpec("strategies", "Research · Supported strategy catalogue", "Research", "/strategies [STRATEGY]", "/strategies", "_cmd_strategies", ("codex", "guide")),
     CommandSpec("intervals", "Research · Supported market horizons", "Research", "/intervals", "/intervals", "_cmd_intervals", in_menu=False),
     CommandSpec("events", "Research · Recent risk/audit events", "Research", "/events [COUNT]", "/events 10", "_cmd_events"),
     CommandSpec("incidents", "Research · Warning and critical events", "Research", "/incidents [COUNT]", "/incidents 10", "_cmd_incidents"),
@@ -639,6 +648,24 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("regime", "Risk · Volatility regime for an instrument", "Risk", "/regime SYMBOL [INTERVAL]", "/regime BTCUSDT", "_cmd_regime"),
     CommandSpec("size", "Risk · Kelly position sizing from a win rate", "Risk", "/size WIN_RATE PAYOFF [EQUITY]", "/size 0.55 1.8", "_cmd_size", ("kelly",), in_menu=False),
     CommandSpec("dislocation", "Risk · Cross-venue crossed-book check", "Risk", "/dislocation SYMBOL", "/dislocation BTCUSDT", "_cmd_dislocation", ("arb",), in_menu=False),
+
+    # Research fold detail — reads the newest in-process completed backtest and
+    # falls back to the audit history with an honest note when the run happened
+    # in another process.
+    CommandSpec("walkforward", "Research · In-sample vs out-of-sample Sharpe per fold", "Research", "/walkforward SYMBOL [STRATEGY]", "/walkforward BTCUSDT", "_cmd_walkforward", ("wf",)),
+    CommandSpec("stability", "Research · Parameter-grid heatmap and the stable region", "Research", "/stability SYMBOL [STRATEGY]", "/stability BTCUSDT", "_cmd_stability", ("surface", "paramgrid")),
+    CommandSpec("overfit", "Research · DSR, PSR, PBO and the minimum track record", "Research", "/overfit SYMBOL [STRATEGY]", "/overfit BTCUSDT", "_cmd_overfit", ("pbo", "dsr")),
+    CommandSpec("decision", "Research · Promotion gates and sizing for a candidate", "Research", "/decision SYMBOL [STRATEGY]", "/decision BTCUSDT", "_cmd_decision", ("promote",)),
+
+    # Execution / operations analytics — read-only reads of live state and audit.
+    CommandSpec("lineage", "Execution · Signal path OpenBB→feeds→book→gates→decisions→audit", "Execution", "/lineage [SYMBOL]", "/lineage", "_cmd_lineage", ("signalpath", "loop")),
+    CommandSpec("gates", "Execution · Dry-run the 17 pre-trade gates against current state", "Execution", "/gates [SYMBOL] [NOTIONAL] [BUY|SELL]", "/gates BTCUSDT", "_cmd_gates", ("pretrade", "preflight")),
+    CommandSpec("quality", "Execution · Fill quality by venue or strategy", "Execution", "/quality [venue|strategy]", "/quality", "_cmd_quality", ("fillquality",)),
+    CommandSpec("imbalance", "Execution · Order-book imbalance per venue", "Execution", "/imbalance SYMBOL", "/imbalance BTCUSDT", "_cmd_imbalance", ("imb", "pressure")),
+    CommandSpec("costs", "Execution · Session fees versus slippage", "Execution", "/costs [YYYY-MM-DD]", "/costs", "_cmd_costs", ("sessioncosts",)),
+    CommandSpec("latency", "Execution · Decision-latency CDF and route tail", "Execution", "/latency", "/latency", "_cmd_latency", ("decisionlatency", "tail")),
+    CommandSpec("blotter", "Execution · Merged recent orders and working, rejections by gate", "Execution", "/blotter [all|fills|rejects|working] [N]", "/blotter", "_cmd_blotter", ("tape",)),
+    CommandSpec("spreadhistory", "Execution · Spread, slippage or depth history per venue", "Execution", "/spreadhistory SYMBOL [VENUE] [spread|slip|depth]", "/spreadhistory BTCUSDT", "_cmd_spreadhistory", ("tcahistory", "liqhistory")),
 
     # Controls — gated by TELEGRAM_CONTROL_USER_IDS and a typed challenge.
     CommandSpec("halt", "Controls · Engage the kill switch", "Controls", "/halt [SYMBOL] | /halt CODE", "/halt", "_cmd_halt"),
@@ -2600,9 +2627,26 @@ class TelegramBot:
         ))
 
     async def _cmd_tab_developer(self, args, chat_id, actor) -> None:
+        from modules import research
+
         routes = _committed_route_counts()
+        openbb = await research.openbb_status_async()
+        audit_health = self.audit.health() if self.audit else {}
+        queue_stats = self.queue.stats() if self.queue else {}
         lines = [
             f"Build          <code>{esc(settings.version)}</code> · <code>{esc(settings.environment)}</code>",
+            "",
+            "<b>Deployment units</b>",
+            "Risk gateway   <code>FastAPI · this process, port 8000</code>",
+            "Web desk       <code>Next.js · separate origin</code>",
+            f"OpenBB service <code>{'READY' if openbb.get('ok') else 'UNAVAILABLE'}</code> · stateless",
+            "",
+            "<b>Backends</b>",
+            f"Audit          <code>{esc(audit_health.get('backend') or '—')}</code> · "
+            f"<code>{'available' if audit_health.get('available') else 'unavailable'}</code>",
+            f"Job queue      <code>{esc(queue_stats.get('backend') or '—')}</code> · "
+            f"<code>{queue_stats.get('total', 0)} jobs</code>",
+            "",
             f"Verify gates   <code>{len(_VERIFY_GATES)}</code> must pass before a deploy ships",
         ]
         lines.extend(f"<code>{esc(gate)}</code>" for gate in _VERIFY_GATES)
@@ -2624,12 +2668,13 @@ class TelegramBot:
             "Operations", horizontal=True, value_fmt="{:,.0f}",
         ) if routes else None
         await self.send_media_group(chat_id, [("ci", chart)] if chart else [], caption=text_card(
-            "💻 Developer", "CONFIGURED", lines,
-            source="Committed CI configuration", next_commands="/version · /commands",
+            "💻 Developer topology", "THREE UNITS", lines,
+            source="Committed CI configuration + live backends", next_commands="/version · /lineage · /commands",
         ), reply_markup=_tab_footer(
             "developer",
             [
                 ("Version", cb("version")),
+                ("Lineage", cb("lineage")),
                 ("Ops", cb("ops")),
                 ("Status", cb("status")),
             ],
@@ -2649,8 +2694,12 @@ class TelegramBot:
         from modules.portfolio import build_equity_history
 
         limit = 500
-        if args and args[0].isdigit():
-            limit = max(2, min(2000, int(args[0])))
+        choice = args[0].lower() if args else ""
+        if choice == "all":
+            limit = 2000
+        elif choice.isdigit():
+            limit = max(2, min(2000, int(choice)))
+        switch = kb([_choice_row("equity", [("50", "50"), ("200", "200"), ("all", "all")], choice)])
 
         history = build_equity_history(self.audit, limit=limit)
         points = history.get("points") or []
@@ -2660,7 +2709,7 @@ class TelegramBot:
                 ["The gateway persists equity on a timer; none has been recorded yet.",
                  "<i>This is an empty record, not a flat book.</i>"],
                 source="audit · equity_snapshots", next_commands="/portfolio · /pnl",
-            ))
+            ), reply_markup=switch)
             return
 
         periods = history.get("periods") or {}
@@ -2704,7 +2753,7 @@ class TelegramBot:
         await self.send_media_group(chat_id, charts, caption=text_card(
             "📈 Equity curve", "PERSISTED", lines,
             source="audit · equity_snapshots", next_commands="/portfolio · /var · /pnl",
-        ))
+        ), reply_markup=switch)
 
     async def _cmd_portfolio(self, args, chat_id, actor) -> None:
         from modules.portfolio import format_for_telegram
@@ -2738,7 +2787,16 @@ class TelegramBot:
         if pnl:
             charts.append(("pnl", pnl))
 
-        await self.send_media_group(chat_id, charts, caption=text[:1024])
+        await self.send_media_group(chat_id, charts, caption=text, reply_markup=_tab_footer(
+            "portfolio",
+            [
+                ("Positions", cb("positions")),
+                ("Exposure", cb("exposure")),
+                ("P&L", cb("pnl")),
+                ("Headroom", cb("headroom")),
+            ],
+            refresh=cb("portfolio"),
+        ))
 
     async def _cmd_positions(self, args, chat_id, actor) -> None:
         state = self.gateway.state()
@@ -2850,6 +2908,15 @@ class TelegramBot:
         await self.send_media_group(chat_id, [("limits", chart)] if chart else [], caption=text_card(
             "🛡 Risk gateway", status, lines,
             source="Authoritative risk process", next_commands="/headroom · /positions · /incidents",
+        ), reply_markup=_tab_footer(
+            "risk",
+            [
+                ("VaR", cb("var")),
+                ("Stress", cb("stress")),
+                ("Correlation", cb("correlation")),
+                ("Headroom", cb("headroom")),
+            ],
+            refresh=cb("risk"),
         ))
 
     async def _cmd_limits(self, args, chat_id, actor) -> None:
@@ -2976,28 +3043,41 @@ class TelegramBot:
             source="OpenBB / yfinance",
             next_commands=f"/bars {symbols[0]} 1d 5 · /snapshot {symbols[0]}",
         )
-        await self.send_media_group(chat_id, charts, caption=card)
+        await self.send_media_group(chat_id, charts, caption=card, reply_markup=kb([_symbol_row("quote", symbols[0])]))
 
     async def _bars_payload(self, symbol: str, interval: str, count: int, asset: str) -> dict[str, Any]:
         from modules import research
 
         return await research.bars(symbol, asset, interval, count)
 
+    def _bars_switcher(self, symbol: str, interval: str, count: int) -> dict[str, Any]:
+        """Interval and symbol switch rows for the OHLCV chart commands."""
+        return kb([
+            _interval_row("bars", symbol, interval, str(count)),
+            _symbol_row("bars", symbol, interval, str(count)),
+        ])
+
     async def _cmd_bars(self, args, chat_id, actor) -> None:
         symbol, interval, count, asset = self._bar_args(args)
+        keyboard = self._bars_switcher(symbol, interval, count)
         payload = await self._bars_payload(symbol, interval, count, asset)
         if not payload.get("ok"):
-            await self.send_message(chat_id, self._openbb_error("bars", payload))
+            await self.send_message(chat_id, self._openbb_error("bars", payload), reply_markup=keyboard)
             return
         rows = payload.get("data") or []
         if not rows:
-            await self.send_message(chat_id, self._openbb_error("bars", {"error": "no bars returned"}))
+            await self.send_message(chat_id, self._openbb_error("bars", {"error": "no bars returned"}), reply_markup=keyboard)
             return
         lines = []
         for row in rows[-min(count, 10):]:
             date_label = str(row.get("date") or "")[:16]
             lines.append(f"<code>{esc(date_label):<16}</code> O {_number(row.get('open'))} · H {_number(row.get('high'))} · L {_number(row.get('low'))} · C {_number(row.get('close'))}")
-        await self.send_message(chat_id, text_card(f"🕯 {symbol} · {interval}", f"{len(rows)} DELAYED BARS", lines, source="OpenBB / yfinance", next_commands=f"/trend {symbol} {interval} {count} · /range {symbol} {interval} {count}"))
+        # This command used to answer entirely in text; it now draws the close
+        # series it already fetched, from those closes and nothing else.
+        closes = [value for row in rows if (value := _finite(row.get("close"))) is not None]
+        chart = generate_series_chart_png(symbol, closes, interval, "OpenBB / yfinance") if len(closes) >= 2 else None
+        card = text_card(f"🕯 {symbol} · {interval}", f"{len(rows)} DELAYED BARS", lines, source="OpenBB / yfinance", next_commands=f"/trend {symbol} {interval} {count} · /range {symbol} {interval} {count}")
+        await self.send_media_group(chat_id, [("bars", chart)] if chart else [], caption=card, reply_markup=keyboard)
 
     async def _cmd_trend(self, args, chat_id, actor) -> None:
         symbol, interval, count, asset = self._bar_args(args)
@@ -3040,7 +3120,13 @@ class TelegramBot:
                 "<i>Under 1σ the move is ordinary variation for this instrument "
                 "over this many bars — a direction, not yet evidence.</i>"
             )
-        await self.send_message(chat_id, text_card(f"📈 {symbol} trend · {interval}", f"{len(rows)} DELAYED BARS", lines, source="OpenBB / yfinance", next_commands=f"/range {symbol} {interval} {count} · /volume {symbol} {interval} {count}"))
+        keyboard = kb([
+            _interval_row("trend", symbol, interval, str(count)),
+            _symbol_row("trend", symbol, interval, str(count)),
+        ])
+        chart = generate_series_chart_png(symbol, closes, interval, "OpenBB / yfinance") if len(closes) >= 2 else None
+        card = text_card(f"📈 {symbol} trend · {interval}", f"{len(rows)} DELAYED BARS", lines, source="OpenBB / yfinance", next_commands=f"/range {symbol} {interval} {count} · /volume {symbol} {interval} {count}")
+        await self.send_media_group(chat_id, [("trend", chart)] if chart else [], caption=card, reply_markup=keyboard)
 
     async def _cmd_range(self, args, chat_id, actor) -> None:
         symbol, interval, count, asset = self._bar_args(args)
@@ -3404,7 +3490,41 @@ class TelegramBot:
     # ------------------------------------------------------------------ #
     # Quant risk (read-only)
     # ------------------------------------------------------------------ #
-    async def _risk_inputs(self, interval: str):
+    async def _latest_backtest_result(self, symbol: str, strategy: str | None = None) -> dict[str, Any] | None:
+        """The newest in-process completed backtest for a symbol, or None.
+
+        Scans the shared jobs engine for a succeeded ``backtest`` whose request
+        matches ``symbol`` (and ``strategy`` when given), newest ``finished_at``
+        first. Only runs completed *in this process* carry the fold detail —
+        ``walk_forward``, ``heatmap_png``, the DSR family — because the audit
+        history keeps the headline numbers but not those. Callers fall back to
+        the audit rows with an honest note when this returns None.
+        """
+        jobs = getattr(self.queue, "_jobs", None)
+        if not jobs:
+            return None
+        wanted = symbol.upper()
+        best: dict[str, Any] | None = None
+        best_at = None
+        for job in jobs.values():
+            if getattr(job, "kind", None) != "backtest" or getattr(job, "status", None) != "succeeded":
+                continue
+            result = getattr(job, "result", None)
+            if not isinstance(result, dict):
+                continue
+            request = result.get("request") or {}
+            meta = getattr(job, "meta", {}) or {}
+            job_symbol = str(request.get("symbol") or meta.get("symbol") or "").upper()
+            if job_symbol != wanted:
+                continue
+            if strategy and str(request.get("strategy") or "").lower() != strategy.lower():
+                continue
+            finished = getattr(job, "finished_at", None) or getattr(job, "submitted_at", None)
+            if best_at is None or (finished is not None and finished > best_at):
+                best, best_at = result, finished
+        return best
+
+    async def _risk_inputs(self, interval: str, bars: int = 180):
         """
         Bars for every symbol currently held, plus the book they belong to.
 
@@ -3413,10 +3533,11 @@ class TelegramBot:
         history cannot produce one — and callers say which of those happened
         rather than printing zeros. The raw returns come back too, because
         historical VaR and the scenario betas need the series itself, not its
-        second moment.
+        second moment. ``bars`` bounds the history fetched per symbol.
         """
         from modules.quant_risk import build_covariance, returns_from_closes
 
+        bars = max(60, min(1000, int(bars)))
         report = self._portfolio_report()
         positions = [p for p in report["exposure"]["positions"] if p.get("notional")]
         if not positions:
@@ -3428,7 +3549,7 @@ class TelegramBot:
         # every unheld position has no measurable beta and a stress test would
         # report a flat book under a market-wide shock.
         for symbol in sorted(held | {"BTCUSDT"}):
-            payload = await self._bars_payload(symbol, interval, 180, "crypto")
+            payload = await self._bars_payload(symbol, interval, bars, "crypto")
             rows = payload.get("data") or [] if payload.get("ok") else []
             closes = [float(r["close"]) for r in rows if _finite(r.get("close")) is not None]
             if len(closes) >= 30:
@@ -3440,11 +3561,12 @@ class TelegramBot:
         from modules.quant_risk import historical_var, portfolio_risk
 
         interval = args[0] if args and args[0] in {"15m", "1h", "4h", "1d"} else "1d"
+        switch = kb([_choice_row("var", [(value, value) for value in ("1h", "4h", "1d")], interval)])
         report, cov, returns = await self._risk_inputs(interval)
         equity = float(report["equity"]["current"] or 0.0)
         risk = portfolio_risk(report["exposure"]["positions"], cov, equity) if cov else None
         if not risk:
-            await self.send_message(chat_id, text_card("📉 Portfolio VaR", "NOT MEASURABLE", ["A flat book, or too little shared price history to build a covariance.", "VaR needs at least 30 aligned bars per held symbol."], source="quant_risk", next_commands="/exposure · /positions"))
+            await self.send_message(chat_id, text_card("📉 Portfolio VaR", "NOT MEASURABLE", ["A flat book, or too little shared price history to build a covariance.", "VaR needs at least 30 aligned bars per held symbol."], source="quant_risk", next_commands="/exposure · /positions"), reply_markup=switch)
             return
         lines = [
             f"Book vol    <code>{_percent(risk.annualised_volatility)}</code> annualised",
@@ -3493,17 +3615,18 @@ class TelegramBot:
             if histogram:
                 charts.append(("var-distribution", histogram))
 
-        await self.send_media_group(chat_id, charts, caption=text_card("📉 Portfolio VaR", "LIVE BOOK", lines, source="quant_risk · parametric", next_commands="/riskcontrib · /correlation · /stress"))
+        await self.send_media_group(chat_id, charts, caption=text_card("📉 Portfolio VaR", "LIVE BOOK", lines, source="quant_risk · parametric", next_commands="/riskcontrib · /correlation · /stress · /varbacktest"), reply_markup=switch)
 
     async def _cmd_riskcontrib(self, args, chat_id, actor) -> None:
         from modules.quant_risk import portfolio_risk
 
         interval = args[0] if args and args[0] in {"15m", "1h", "4h", "1d"} else "1d"
+        switch = kb([_choice_row("riskcontrib", [(value, value) for value in _INTERVALS], interval)])
         report, cov, returns = await self._risk_inputs(interval)
         equity = float(report["equity"]["current"] or 0.0)
         risk = portfolio_risk(report["exposure"]["positions"], cov, equity) if cov else None
         if not risk:
-            await self.send_message(chat_id, text_card("🎯 Risk contribution", "NOT MEASURABLE", ["A flat book, or too little shared price history."], source="quant_risk", next_commands="/exposure"))
+            await self.send_message(chat_id, text_card("🎯 Risk contribution", "NOT MEASURABLE", ["A flat book, or too little shared price history."], source="quant_risk", next_commands="/exposure"), reply_markup=switch)
             return
         lines = ["<b>SYMBOL      NOTIONAL   RISK</b>"]
         for c in risk.contributions:
@@ -3516,13 +3639,15 @@ class TelegramBot:
             [float(c.contribution_share) * 100 for c in risk.contributions],
             "Risk contribution (%)", horizontal=True, value_fmt="{:,.1f}%",
         )
-        await self.send_media_group(chat_id, [("risk-contribution", chart)] if chart else [], caption=text_card("🎯 Risk contribution", f"{risk.observations} {interval.upper()} BARS", lines, source="quant_risk", next_commands="/var · /correlation"))
+        await self.send_media_group(chat_id, [("risk-contribution", chart)] if chart else [], caption=text_card("🎯 Risk contribution", f"{risk.observations} {interval.upper()} BARS", lines, source="quant_risk", next_commands="/var · /correlation"), reply_markup=switch)
 
     async def _cmd_correlation(self, args, chat_id, actor) -> None:
         interval = args[0] if args and args[0] in {"15m", "1h", "4h", "1d"} else "1d"
-        _, cov, _returns = await self._risk_inputs(interval)
+        bars = next((max(60, min(1000, int(token))) for token in args if token.isdigit()), 180)
+        switch = kb([_choice_row("correlation", [(value, value) for value in _INTERVALS], interval)])
+        _, cov, _returns = await self._risk_inputs(interval, bars)
         if not cov or len(cov.symbols) < 2:
-            await self.send_message(chat_id, text_card("🔗 Correlation", "NOT MEASURABLE", ["Two or more held symbols with shared history are required."], source="quant_risk", next_commands="/exposure"))
+            await self.send_message(chat_id, text_card("🔗 Correlation", "NOT MEASURABLE", ["Two or more held symbols with shared history are required."], source="quant_risk", next_commands="/exposure"), reply_markup=switch)
             return
         head = "        " + " ".join(f"{s[:4]:>6}" for s in cov.symbols)
         lines = [f"<code>{esc(head)}</code>"]
@@ -3544,7 +3669,7 @@ class TelegramBot:
             [symbol[:8] for symbol in cov.symbols],
             [[float(value) for value in row] for row in cov.correlation],
         )
-        await self.send_media_group(chat_id, [("correlation", heatmap)] if heatmap else [], caption=text_card("🔗 Correlation", "LIVE BOOK", lines, source="quant_risk", next_commands="/riskcontrib · /var"))
+        await self.send_media_group(chat_id, [("correlation", heatmap)] if heatmap else [], caption=text_card("🔗 Correlation", "LIVE BOOK", lines, source="quant_risk", next_commands="/riskcontrib · /var"), reply_markup=switch)
 
     async def _cmd_rebalance(self, args, chat_id, actor) -> None:
         """Target weights and the trades that would reach them. Read-only."""
@@ -3612,6 +3737,12 @@ class TelegramBot:
         """Scenario loss on the book as it stands, with distance to the halt."""
         from modules.quant_risk import SCENARIOS, apply_scenario, run_scenarios
 
+        requested = args[0].lower() if args else None
+        switch = kb([_choice_row(
+            "stress",
+            [(key.replace("_", " ").title(), key) for key in SCENARIOS] + [("-12%", "-12")],
+            requested or "",
+        )])
         report, _cov, returns = await self._risk_inputs("1d")
         positions = [p for p in report["exposure"]["positions"] if p.get("notional")]
         equity = float(report["equity"]["current"] or 0.0)
@@ -3619,10 +3750,9 @@ class TelegramBot:
             await self.send_message(chat_id, text_card(
                 "🌩 Stress test", "FLAT BOOK",
                 ["Nothing is at risk, so every scenario is a zero."],
-                source="quant_risk", next_commands="/positions · /var"))
+                source="quant_risk", next_commands="/positions · /var"), reply_markup=switch)
             return
 
-        requested = args[0].lower() if args else None
         if requested and requested not in SCENARIOS:
             # A percentage is accepted as an ad-hoc shock, because the question
             # is usually "what if BTC drops 12%" rather than a named regime.
@@ -3635,7 +3765,7 @@ class TelegramBot:
                     "🌩 Stress test", "UNKNOWN SCENARIO",
                     [f"Choose one of: <code>{esc(', '.join(SCENARIOS))}</code>",
                      "Or give a percentage, e.g. <code>/stress -12</code>."],
-                    source="quant_risk", next_commands="/stress"))
+                    source="quant_risk", next_commands="/stress"), reply_markup=switch)
                 return
         elif requested:
             spec = SCENARIOS[requested]
@@ -3683,13 +3813,14 @@ class TelegramBot:
         )
         await self.send_media_group(chat_id, [("stress", chart)] if chart else [], caption=text_card(
             "🌩 Stress test", "LIVE BOOK", lines,
-            source="quant_risk · measured betas", next_commands="/var · /riskcontrib · /headroom"))
+            source="quant_risk · measured betas", next_commands="/var · /riskcontrib · /headroom"), reply_markup=switch)
 
     async def _cmd_varbacktest(self, args, chat_id, actor) -> None:
         """Has the VaR the desk quotes actually been right?"""
-        from modules.quant_risk import rolling_var_backtest
+        from modules.quant_risk import rolling_var_backtest, rolling_var_path
 
         interval = args[0] if args and args[0] in {"15m", "1h", "4h", "1d"} else "1d"
+        switch = kb([_choice_row("varbacktest", [(value, value) for value in _INTERVALS], interval)])
         report, _cov, returns = await self._risk_inputs(interval)
         positions = [p for p in report["exposure"]["positions"] if p.get("notional")]
         equity = float(report["equity"]["current"] or 0.0)
@@ -3701,7 +3832,7 @@ class TelegramBot:
                 ["A flat book, or fewer than 80 aligned bars per held symbol.",
                  "The forecast is re-fitted on a rolling window and scored on the next bar, "
                  "so it needs history on both sides."],
-                source="quant_risk · Kupiec POF", next_commands="/var · /positions"))
+                source="quant_risk · Kupiec POF", next_commands="/var · /positions"), reply_markup=switch)
             return
 
         flag = {"green": "🟢", "yellow": "🟡", "red": "🔴"}[result.zone]
@@ -3714,20 +3845,27 @@ class TelegramBot:
             "",
             f"<i>{esc(result.verdict)}</i>",
         ]
-        await self.send_message(chat_id, text_card(
+        # The same rolling forecast the Kupiec test scored, drawn bar-for-bar so a
+        # reader can see where the losses broke through the -VaR line.
+        path = rolling_var_path(positions, returns, equity)
+        chart = generate_var_breach_png(
+            f"Rolling VaR backtest · {interval}", *path,
+        ) if path else None
+        await self.send_media_group(chat_id, [("varbacktest", chart)] if chart else [], caption=text_card(
             "🧪 VaR backtest", "MODEL VALIDATION", lines,
-            source="quant_risk · Kupiec POF", next_commands="/var · /stress"))
+            source="quant_risk · Kupiec POF", next_commands="/var · /stress"), reply_markup=switch)
 
     async def _cmd_regime(self, args, chat_id, actor) -> None:
         from modules.quant_risk import returns_from_closes, volatility_regime
 
         symbol, interval, count, asset = self._bar_args(args)
+        keyboard = kb([_interval_row("regime", symbol, interval, str(count))])
         payload = await self._bars_payload(symbol, interval, max(count, 120), asset)
         rows = payload.get("data") or [] if payload.get("ok") else []
         closes = [float(r["close"]) for r in rows if _finite(r.get("close")) is not None]
         regime = volatility_regime(returns_from_closes(closes), interval=interval) if len(closes) > 45 else None
         if not regime:
-            await self.send_message(chat_id, self._openbb_error("regime", payload if not payload.get("ok") else {"error": "at least 45 bars are required"}))
+            await self.send_message(chat_id, self._openbb_error("regime", payload if not payload.get("ok") else {"error": "at least 45 bars are required"}), reply_markup=keyboard)
             return
         lines = [
             f"Regime      <code>{regime.regime}</code>",
@@ -3736,7 +3874,7 @@ class TelegramBot:
             f"Percentile  <code>{_percent(regime.percentile)}</code> of its own history",
             f"<i>{esc(regime.note)}</i>",
         ]
-        await self.send_message(chat_id, text_card(f"🌡 {symbol} volatility regime", f"{regime.observations} WINDOWS · {interval}", lines, source="quant_risk", next_commands=f"/range {symbol} · /var"))
+        await self.send_message(chat_id, text_card(f"🌡 {symbol} volatility regime", f"{regime.observations} WINDOWS · {interval}", lines, source="quant_risk", next_commands=f"/range {symbol} · /var"), reply_markup=keyboard)
 
     async def _cmd_size(self, args, chat_id, actor) -> None:
         from modules.quant_risk import kelly_fraction
@@ -4205,24 +4343,746 @@ class TelegramBot:
             source="research corpus · pgvector", next_commands="/backtests · /incidents",
         ))
 
+    def _newest_backtest_result(self) -> dict[str, Any] | None:
+        """The newest succeeded backtest completed in THIS process, any symbol."""
+        jobs = getattr(self.queue, "_jobs", None)
+        if not jobs:
+            return None
+        best: dict[str, Any] | None = None
+        best_at = None
+        for job in jobs.values():
+            if getattr(job, "kind", None) != "backtest" or getattr(job, "status", None) != "succeeded":
+                continue
+            result = getattr(job, "result", None)
+            if not isinstance(result, dict):
+                continue
+            finished = getattr(job, "finished_at", None) or getattr(job, "submitted_at", None)
+            if best_at is None or (finished is not None and finished > best_at):
+                best, best_at = result, finished
+        return best
+
+    @staticmethod
+    def _dsr_colour(dsr: Any) -> str:
+        """Green when the deflated Sharpe clears promotion, amber near it, red below."""
+        value = _finite(dsr)
+        if value is None:
+            return "#94a3b8"
+        if value >= 0.95:
+            return "#00e676"
+        if value >= 0.8:
+            return "#f59e0b"
+        return "#ff5252"
+
     async def _cmd_backtests(self, args, chat_id, actor) -> None:
         count = self._limit(args, 0, 10, 25)
         rows = self.audit.recent_backtests(count) if self.audit else []
-        if not rows:
-            await self.send_message(chat_id, text_card("🧪 Backtest history", "EMPTY", ["No completed backtests in the audit log."], source="DuckDB audit log", next_commands="/researchstatus"))
+        newest = self._newest_backtest_result()
+        if not rows and not newest:
+            await self.send_message(chat_id, text_card("🧪 Backtest history", "EMPTY", ["No completed backtests in the audit log, and none queued in this process."], source="DuckDB audit log", next_commands="/researchstatus"))
             return
+
         lines = []
         for row in rows:
             lines.append(f"<code>{esc(str(row.get('ts') or '')[:19])}</code> {esc(row.get('symbol'))} {esc(row.get('strategy'))} · Sharpe <code>{_number(row.get('sharpe'))}</code> · DSR <code>{_number(row.get('dsr'), 3)}</code> · OOS <code>{_number(row.get('oos_sharpe'))}</code>")
-        await self.send_message(chat_id, text_card("🧪 Backtest history", "READ-ONLY AUDIT", lines, source="DuckDB audit log", next_commands="/strategies · /jobs"))
+        if not rows:
+            request = newest.get("request") or {}
+            lines.append(
+                f"No run is in the audit log yet, but one completed in this process: "
+                f"<code>{esc(request.get('symbol'))} · {esc(request.get('strategy'))}</code>. "
+                "Its equity curve is below."
+            )
+
+        # Sharpe by run, coloured by the DSR verdict — a run that overfits and one
+        # that generalises are the same height until the colour separates them.
+        bars = generate_bars_chart_png(
+            "Sharpe by run · colour = DSR (green≥0.95, amber≥0.8, red below)",
+            [f"{row.get('symbol')} {row.get('strategy')}"[:18] for row in rows],
+            [_finite(row.get("sharpe")) for row in rows],
+            "Sharpe",
+            colours=[self._dsr_colour(row.get("dsr")) for row in rows],
+            horizontal=True, value_fmt="{:.2f}",
+        )
+
+        # The newest in-process run carries its own rendered equity curve; the
+        # audit history does not, so this hero photo only appears for a run this
+        # process actually completed.
+        hero = self._decode_b64png(newest.get("equity_curve_png")) if newest else None
+
+        charts: list[tuple[str, bytes]] = []
+        if hero:
+            charts.append(("equity-curve", hero))
+        if bars:
+            charts.append(("sharpe", bars))
+
+        await self.send_media_group(chat_id, charts, caption=text_card(
+            "🧪 Backtest history", "READ-ONLY AUDIT", lines,
+            source="DuckDB audit log", next_commands="/strategies · /walkforward BTCUSDT · /jobs",
+        ))
 
     async def _cmd_strategies(self, args, chat_id, actor) -> None:
-        lines = ["<code>ma_cross</code> — moving-average crossover", "<code>donchian</code> — channel breakout", "<code>rsi_reversion</code> — RSI mean reversion", "", "Queue one with <code>/backtest SYMBOL INTERVAL STRATEGY</code> — the same jobs engine the API and web use."]
-        await self.send_message(chat_id, text_card("🧠 Strategy catalogue", "REFERENCE", lines, source="Backtest request schema", next_commands="/backtests · /researchstatus"))
+        from typing import get_args
+
+        from modules.schemas import BacktestRequest
+
+        strategies = [str(value) for value in get_args(BacktestRequest.model_fields["strategy"].annotation)]
+
+        if args:
+            # One strategy: its grid size and the runs of it the desk has recorded.
+            requested = args[0].lower()
+            if requested not in strategies:
+                await self.send_message(chat_id, text_card(
+                    "🧠 Strategy", "UNKNOWN",
+                    [f"<code>{esc(requested)}</code> is not one of the {len(strategies)} the schema accepts.",
+                     "Send <code>/strategies</code> for the full catalogue."],
+                    source="Backtest request schema", next_commands="/strategies"))
+                return
+            request = BacktestRequest(strategy=requested)
+            fast_n = len(range(request.fast_min, request.fast_max + 1, request.fast_step))
+            slow_n = len(range(request.slow_min, request.slow_max + 1, request.slow_step))
+            runs = [
+                row for row in (self.audit.recent_backtests(50) if self.audit else [])
+                if str(row.get("strategy") or "").lower() == requested
+            ]
+            lines = [
+                f"Strategy    <code>{esc(requested)}</code>",
+                f"Grid        <code>{fast_n * slow_n}</code> combinations "
+                f"(<code>{fast_n}×{slow_n}</code> fast×slow at default steps)",
+                f"Recent runs <code>{len(runs)}</code> in the audit log",
+            ]
+            for row in runs[:8]:
+                lines.append(
+                    f"<code>{esc(str(row.get('ts') or '')[:19])}</code> {esc(row.get('symbol'))}"
+                    f" · Sharpe <code>{_number(row.get('sharpe'))}</code> · DSR <code>{_number(row.get('dsr'), 3)}</code>"
+                )
+            if not runs:
+                lines.append("<i>No run of this strategy is in the audit log yet — queue one below.</i>")
+            await self.send_message(chat_id, text_card(
+                f"🧠 {requested}", "STRATEGY", lines,
+                source="Backtest request schema + audit",
+                next_commands=f"/backtest BTCUSDT 1h {requested} · /strategies"))
+            return
+
+        # The whole catalogue, grouped by the suffix family it belongs to, read
+        # straight from the schema Literal rather than a hand-kept list of three.
+        families: dict[str, list[str]] = {}
+        for name in strategies:
+            family = name.rsplit("_", 1)[-1] if "_" in name else name
+            families.setdefault(family, []).append(name)
+        lines = [f"<b>{len(strategies)} strategies</b>, grouped by family:", ""]
+        for family in sorted(families):
+            lines.append(f"<b>{esc(family)}</b> · <code>{esc(', '.join(families[family]))}</code>")
+        lines += [
+            "",
+            "Queue one with <code>/backtest SYMBOL INTERVAL STRATEGY</code>, or send "
+            "<code>/strategies NAME</code> for its grid size and recent runs.",
+        ]
+        await self.send_message(chat_id, text_card(
+            "🧠 Strategy catalogue", f"{len(strategies)} STRATEGIES", lines,
+            source="Backtest request schema", next_commands="/backtests · /backtest BTCUSDT 1h ma_cross"))
 
     async def _cmd_intervals(self, args, chat_id, actor) -> None:
         lines = ["OpenBB market data <code>15m · 1h · 4h · 1d</code>", "Backtests <code>1m · 5m · 15m · 1h · 4h · 1d</code>", "", "Intraday history availability depends on the upstream provider window."]
         await self.send_message(chat_id, text_card("⏱ Supported intervals", "REFERENCE", lines, source="OpenBB + backtest schemas", next_commands="/bars AAPL 1d 5 · /trend AAPL 1d 20"))
+
+    # ------------------------------------------------------------------ #
+    # Research fold detail (in-process backtest results)
+    # ------------------------------------------------------------------ #
+    def _inprocess_fallback(self, symbol: str) -> tuple[str, list[str]]:
+        """The honest note when no run for a symbol completed in this process.
+
+        Fold detail lives only on runs completed here, so this states that and
+        shows the audit history's headline numbers when there are any — never a
+        blank that reads as "nothing was ever run".
+        """
+        rows = [
+            row for row in (self.audit.recent_backtests(50) if self.audit else [])
+            if str(row.get("symbol") or "").upper() == symbol.upper()
+        ]
+        lines = [
+            "Fold detail (walk-forward, the parameter heatmap, the DSR family) is kept only "
+            "for runs completed in this process; queue one with "
+            f"<code>/backtest {esc(symbol)} 1h ma_cross</code>.",
+        ]
+        if rows:
+            lines.append("")
+            lines.append("<b>Audit history — headline numbers only</b>")
+            for row in rows[:6]:
+                lines.append(
+                    f"<code>{esc(str(row.get('ts') or '')[:19])}</code> {esc(row.get('strategy'))}"
+                    f" · Sharpe <code>{_number(row.get('sharpe'))}</code>"
+                    f" · DSR <code>{_number(row.get('dsr'), 3)}</code>"
+                    f" · OOS <code>{_number(row.get('oos_sharpe'))}</code>"
+                )
+        else:
+            lines.append("")
+            lines.append("<i>No run for this symbol in the audit log either.</i>")
+        return "NOT IN THIS PROCESS", lines
+
+    async def _cmd_walkforward(self, args, chat_id, actor) -> None:
+        symbol = self._symbol(args)
+        strategy = args[1].lower() if len(args) > 1 else None
+        footer = kb([
+            [("Overfit", cb("overfit", symbol)), ("Stability", cb("stability", symbol)), ("Runs", cb("backtests"))],
+            _symbol_row("walkforward", symbol),
+        ])
+        result = await self._latest_backtest_result(symbol, strategy)
+        if not result:
+            status, lines = self._inprocess_fallback(symbol)
+            await self.send_message(chat_id, text_card(
+                f"🔁 Walk-forward · {esc(symbol)}", status, lines,
+                source="jobs engine", next_commands=f"/backtest {symbol} 1h ma_cross · /backtests"), reply_markup=footer)
+            return
+        folds = result.get("walk_forward") or []
+        request = result.get("request") or {}
+        lines = [
+            f"Study      <code>{esc(request.get('symbol'))} · {esc(request.get('interval'))} · {esc(request.get('strategy'))}</code>",
+            f"Folds      <code>{len(folds)}</code> · aggregate OOS Sharpe <code>{_number(result.get('walk_forward_oos_sharpe'))}</code>",
+            "",
+            "<b>FOLD   IS      OOS</b>",
+        ]
+        for fold in folds:
+            lines.append(
+                f"<code>{esc(str(fold.get('fold'))):<4}</code> "
+                f"<code>{_number(fold.get('is_sharpe'))}</code>  <code>{_number(fold.get('oos_sharpe'))}</code>"
+            )
+        lines.append("<i>In-sample beside out-of-sample: a fold whose OOS bar collapses next to its IS bar was fitted to its own training window.</i>")
+        chart = generate_paired_bars_png(
+            f"Walk-forward IS vs OOS Sharpe · {symbol}",
+            [f"F{fold.get('fold')}" for fold in folds],
+            [_finite(fold.get("is_sharpe")) for fold in folds],
+            [_finite(fold.get("oos_sharpe")) for fold in folds],
+            "In-sample", "Out-of-sample", "Sharpe",
+        )
+        await self.send_media_group(chat_id, [("walkforward", chart)] if chart else [], caption=text_card(
+            f"🔁 Walk-forward · {esc(symbol)}", "IN-PROCESS RESULT", lines,
+            source="jobs engine · walk_forward", next_commands=f"/overfit {symbol} · /stability {symbol}"), reply_markup=footer)
+
+    async def _cmd_stability(self, args, chat_id, actor) -> None:
+        symbol = self._symbol(args)
+        strategy = args[1].lower() if len(args) > 1 else None
+        footer = kb([
+            [("Walk-forward", cb("walkforward", symbol)), ("Overfit", cb("overfit", symbol)), ("Runs", cb("backtests"))],
+            _symbol_row("stability", symbol),
+        ])
+        result = await self._latest_backtest_result(symbol, strategy)
+        if not result:
+            status, lines = self._inprocess_fallback(symbol)
+            await self.send_message(chat_id, text_card(
+                f"🗺 Stability · {esc(symbol)}", status, lines,
+                source="jobs engine", next_commands=f"/backtest {symbol} 1h ma_cross · /backtests"), reply_markup=footer)
+            return
+        top = result.get("top_results") or []
+        best = result.get("best") or {}
+        request = result.get("request") or {}
+        lines = [
+            f"Study    <code>{esc(request.get('symbol'))} · {esc(request.get('interval'))} · {esc(request.get('strategy'))}</code>",
+            f"Best     <code>{best.get('fast')}/{best.get('slow')}</code> · Sharpe <code>{_number(best.get('sharpe'))}</code>",
+            f"Combos   <code>{result.get('combos_tested')}</code> tested",
+            "",
+            "<b>TOP PARAMS   FAST/SLOW  SHARPE</b>",
+        ]
+        for row in top[:6]:
+            lines.append(f"<code>{row.get('fast')}/{row.get('slow')}</code>  <code>{_number(row.get('sharpe'))}</code>")
+        lines.append("<i>The heatmap is the run's own rendering — a broad bright plateau is a stable region; a lone bright cell is a parameter that got lucky.</i>")
+        hero = self._decode_b64png(result.get("heatmap_png"))
+        if hero is None:
+            lines.append("<i>This run recorded no heatmap image.</i>")
+        await self.send_media_group(chat_id, [("heatmap", hero)] if hero else [], caption=text_card(
+            f"🗺 Stability · {esc(symbol)}", "IN-PROCESS RESULT", lines,
+            source="jobs engine · parameter grid", next_commands=f"/walkforward {symbol} · /overfit {symbol}"), reply_markup=footer)
+
+    async def _cmd_overfit(self, args, chat_id, actor) -> None:
+        symbol = self._symbol(args)
+        strategy = args[1].lower() if len(args) > 1 else None
+        footer = kb([
+            [("Walk-forward", cb("walkforward", symbol)), ("Stability", cb("stability", symbol)), ("Decision", cb("decision", symbol))],
+            _symbol_row("overfit", symbol),
+        ])
+        result = await self._latest_backtest_result(symbol, strategy)
+        if not result:
+            status, lines = self._inprocess_fallback(symbol)
+            await self.send_message(chat_id, text_card(
+                f"🎲 Overfit · {esc(symbol)}", status, lines,
+                source="jobs engine", next_commands=f"/backtest {symbol} 1h ma_cross · /backtests"), reply_markup=footer)
+            return
+        request = result.get("request") or {}
+        lines = [
+            f"Study     <code>{esc(request.get('symbol'))} · {esc(request.get('interval'))} · {esc(request.get('strategy'))}</code>",
+            f"DSR       <code>{_number(result.get('deflated_sharpe_ratio'), 3)}</code> · verdict <code>{esc(result.get('dsr_verdict') or '—')}</code>",
+            f"PSR       <code>{_number(result.get('probabilistic_sharpe_ratio'), 3)}</code>",
+            f"PBO       <code>{_percent(result.get('overfitting_probability'))}</code> probability of backtest overfitting",
+            f"Min track <code>{_number(result.get('min_track_record_bars'), 0)}</code> bars for the Sharpe to be believed",
+        ]
+        folds = result.get("walk_forward") or []
+        labels, values = [], []
+        for fold in folds:
+            rank = _finite(fold.get("oos_rank"))
+            total = _finite(fold.get("combos_ranked"))
+            if rank is None or not total or total <= 0:
+                continue
+            labels.append(f"F{fold.get('fold')}")
+            values.append(rank / total * 100)
+        lines.append("<i>Per-fold OOS rank of the in-sample-best parameters. 50% is a coin flip — a candidate that did not generalise sits near it.</i>")
+        chart = generate_bars_chart_png(
+            "OOS rank percentile per fold · 50% = coin flip", labels, values,
+            "Percentile (%)", horizontal=True, value_fmt="{:.0f}%",
+        )
+        await self.send_media_group(chat_id, [("overfit", chart)] if chart else [], caption=text_card(
+            f"🎲 Overfit · {esc(symbol)}", "IN-PROCESS RESULT", lines,
+            source="jobs engine · DSR/PSR/PBO", next_commands=f"/decision {symbol} · /walkforward {symbol}"), reply_markup=footer)
+
+    async def _cmd_decision(self, args, chat_id, actor) -> None:
+        symbol = self._symbol(args)
+        strategy = args[1].lower() if len(args) > 1 else None
+        footer = kb([
+            [("Overfit", cb("overfit", symbol)), ("Walk-forward", cb("walkforward", symbol)), ("Gates", cb("gates", symbol))],
+            _symbol_row("decision", symbol),
+        ])
+        result = await self._latest_backtest_result(symbol, strategy)
+        if not result:
+            status, lines = self._inprocess_fallback(symbol)
+            await self.send_message(chat_id, text_card(
+                f"⚖️ Decision · {esc(symbol)}", status, lines,
+                source="jobs engine", next_commands=f"/backtest {symbol} 1h ma_cross · /overfit {symbol}"), reply_markup=footer)
+            return
+        request = result.get("request") or {}
+        dsr = _finite(result.get("deflated_sharpe_ratio"))
+        oos = _finite(result.get("walk_forward_oos_sharpe"))
+        pbo = _finite(result.get("overfitting_probability"))
+        bars = _finite(request.get("bars")) or _finite(result.get("bars"))
+        min_track = _finite(result.get("min_track_record_bars"))
+
+        checks = [
+            ("DSR ≥ 0.95", dsr is not None and dsr >= 0.95),
+            ("OOS Sharpe > 0", oos is not None and oos > 0),
+            ("PBO < 0.5", pbo is not None and pbo < 0.5),
+            ("Bars ≥ min track", bars is not None and min_track is not None and bars >= min_track),
+        ]
+        promote = all(ok for _, ok in checks)
+        lines = [
+            f"Candidate <code>{esc(request.get('symbol'))} · {esc(request.get('strategy'))}</code>",
+            f"DSR ≥ 0.95        {'✅' if checks[0][1] else '❌'} <code>{_number(dsr, 3)}</code>",
+            f"OOS Sharpe &gt; 0    {'✅' if checks[1][1] else '❌'} <code>{_number(oos)}</code>",
+            f"PBO &lt; 0.5         {'✅' if checks[2][1] else '❌'} <code>{_percent(pbo)}</code>",
+            f"Bars ≥ min track  {'✅' if checks[3][1] else '❌'} <code>{_number(bars, 0)}</code> / <code>{_number(min_track, 0)}</code>",
+        ]
+
+        # Sizing — read the live caps the order would meet, not a recomputation.
+        ladder_gates: list[tuple[str, float | None, float | None, bool]] = []
+        state = self.gateway.state() if self.gateway else None
+        if state is not None:
+            sym_cap = _finite(state.limits.get("max_symbol_notional_usd"))
+            held = next((p for p in state.positions if p.symbol == symbol), None)
+            held_notional = abs(held.notional) if held else 0.0
+            remaining = (sym_cap - held_notional) if sym_cap else None
+            lines += [
+                "",
+                f"Verdict           <code>{'PROMOTE' if promote else 'HOLD'}</code>",
+                f"Symbol limit left <code>{_money(remaining)}</code> of <code>{_money(sym_cap)}</code>",
+                f"Max order notional <code>{_money(state.limits.get('max_order_notional_usd'))}</code>",
+                "<i>Kelly payoff is not recorded on a run — use <code>/size WIN PAYOFF</code> for the fraction.</i>",
+            ]
+            if pbo is not None:
+                ladder_gates.append(("PBO vs 0.5", pbo, 0.5, pbo < 0.5))
+            if sym_cap:
+                ladder_gates.append(("Symbol notional", held_notional, sym_cap, held_notional <= sym_cap))
+        chart = generate_gate_ladder_png(f"Sizing headroom · {symbol}", ladder_gates)
+        await self.send_media_group(chat_id, [("decision", chart)] if chart else [], caption=text_card(
+            f"⚖️ Decision · {esc(symbol)}", "PROMOTE" if promote else "HOLD", lines,
+            source="jobs engine + gateway limits", next_commands=f"/overfit {symbol} · /gates {symbol} · /size 0.55 1.8"), reply_markup=footer)
+
+    # ------------------------------------------------------------------ #
+    # Execution / operations analytics (read-only)
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def _decode_b64png(encoded: Any) -> bytes | None:
+        """Decode a base64 chart, or None when it is absent or malformed."""
+        if not encoded:
+            return None
+        try:
+            return base64.b64decode(encoded)
+        except Exception:
+            return None
+
+    async def _cmd_lineage(self, args, chat_id, actor) -> None:
+        from modules import metrics, research
+
+        symbol = self._symbol(args) if args else settings.symbols[0].upper()
+        openbb = await research.openbb_status_async()
+        health = self.tca.health() if self.tca else {}
+        feeds = health.get("feeds", [])
+        connected = sum(1 for feed in feeds if feed.get("connected"))
+        books = [book for book in (self.tca.get_books(symbol, depth=5) if self.tca else []) if book.mid]
+        synthetic = any(getattr(book, "synthetic", False) for book in books)
+        state = self.gateway.state() if self.gateway else None
+        decisions = metrics.decision_latency_summary()
+        audit_health = self.audit.health() if self.audit else {}
+        mirror_on = bool(getattr(settings, "supabase_url", "") or "")
+
+        def feed_status() -> str:
+            if not feeds:
+                return "unknown"
+            if connected == len(feeds):
+                return "ok"
+            return "degraded" if connected else "down"
+
+        def gate_status() -> str:
+            if state is None:
+                return "unknown"
+            if state.kill_switch_active:
+                return "down"
+            return "degraded" if getattr(state, "reduce_only", False) else "ok"
+
+        stages = [
+            ("OpenBB", "ok" if openbb.get("ok") else "down", "research feed"),
+            ("Feeds", feed_status(), f"{connected}/{len(feeds)} live"),
+            ("Book", ("down" if not books else "degraded" if synthetic else "ok"), f"{len(books)} venue(s)"),
+            ("Gates", gate_status(), "17 pre-trade"),
+            ("Decisions", "ok" if decisions.get("samples") else "unknown", f"{int(decisions.get('samples') or 0)} timed"),
+            ("Audit", "ok" if audit_health.get("available") else "down", str(audit_health.get("backend") or "—")),
+            ("Mirror", "ok" if mirror_on else "unknown", "supabase" if mirror_on else "local only"),
+        ]
+        lines = [
+            f"<code>{esc(label):<10}</code> <code>{esc(status.upper())}</code> · {esc(detail)}"
+            for label, status, detail in stages
+        ]
+        lines.append("<i>The path a signal takes from provider to durable record. A degraded or down stage marks where it would stall.</i>")
+        chart = generate_pipeline_png(f"Signal path · {symbol}", stages)
+        await self.send_media_group(chat_id, [("lineage", chart)] if chart else [], caption=text_card(
+            f"🧬 Lineage · {esc(symbol)}", "TOPOLOGY", lines,
+            source="TCA + gateway + metrics + audit", next_commands=f"/latency · /gates {symbol} · /status"),
+            reply_markup=kb([_symbol_row("lineage", symbol)]))
+
+    async def _cmd_gates(self, args, chat_id, actor) -> None:
+        """A read-only preview of the 17 pre-trade gates. Submits nothing.
+
+        Every number here is read from current state — limits, the live mark,
+        gross exposure, projected notionals, the drawdown, a route estimate. No
+        token is consumed, no counter moves, no audit row is written: it is the
+        headroom the next order WOULD meet, not an order.
+        """
+        symbol = self._symbol(args)
+        notional = _finite(args[1]) if len(args) > 1 else float(settings.default_probe_notional)
+        if notional is None or notional <= 0:
+            notional = float(settings.default_probe_notional)
+        side = args[2].upper() if len(args) > 2 else "BUY"
+        if side not in {"BUY", "SELL"}:
+            side = "BUY"
+        notional_arg = str(int(notional))
+
+        state = self.gateway.state() if self.gateway else None
+        mark = self.gateway.mark(symbol) if self.gateway else None
+        if mark is None and self.tca:
+            mark = self.tca.consolidated_mid(symbol)
+        limits = state.limits if state else {}
+
+        numeric: list[tuple[str, float | None, float | None, bool]] = []
+        bool_lines: list[str] = []
+        if state is not None:
+            bool_lines.append(f"kill_switch      {'❌' if state.kill_switch_active else '✅'} <code>{'engaged' if state.kill_switch_active else 'disengaged'}</code>")
+            halted = symbol in (state.halted_symbols or [])
+            bool_lines.append(f"symbol_halt      {'❌' if halted else '✅'} <code>{esc(symbol)}</code>")
+        bool_lines.append(f"price_available  {'✅' if mark else '❌'} <code>{('mark ' + _number(mark)) if mark else 'no live mark'}</code>")
+
+        order_cap = _finite(limits.get("max_order_notional_usd"))
+        if order_cap:
+            numeric.append(("max_order_notional", notional, order_cap, notional <= order_cap))
+        qty = (notional / mark) if mark else None
+        if qty is not None and self.gateway:
+            signed_qty = qty * (1 if side == "BUY" else -1)
+            projected_sym = self.gateway.projected_symbol_notional(symbol, signed_qty, mark)
+            sym_cap = _finite(limits.get("max_symbol_notional_usd"))
+            if sym_cap:
+                numeric.append(("symbol_concentration", projected_sym, sym_cap, projected_sym <= sym_cap))
+            gross_cap = _finite(limits.get("max_gross_exposure_usd"))
+            if gross_cap:
+                projected_gross = self.gateway.gross_exposure() - self.gateway.symbol_notional(symbol) + projected_sym
+                numeric.append(("gross_exposure", projected_gross, gross_cap, projected_gross <= gross_cap))
+        if state is not None:
+            dd = self.gateway.daily_drawdown_pct()
+            dd_cap = _finite(limits.get("max_daily_drawdown_pct"))
+            if dd_cap:
+                numeric.append(("daily_drawdown", dd, dd_cap, dd < dd_cap))
+            rate_cap = _finite(limits.get("max_orders_per_sec"))
+            if rate_cap:
+                numeric.append(("rate_limit", state.orders_last_second, rate_cap, state.orders_last_second < rate_cap))
+            working_cap = _finite(getattr(settings, "max_working_orders", None))
+            if working_cap:
+                numeric.append(("working_book", float(state.working_orders), working_cap, state.working_orders < working_cap))
+
+        est = self.tca.route_estimate(symbol, side, notional) if self.tca else None
+        slip_cap = _finite(limits.get("max_est_slippage_bps"))
+        if est is None:
+            bool_lines.append("est_slippage     ❌ <code>no routable liquidity</code>")
+        elif not est.fillable:
+            bool_lines.append(f"est_slippage     ❌ <code>only {_money(est.filled_notional)} routable</code>")
+        elif est.slippage_bps is not None and slip_cap:
+            numeric.append(("est_slippage", est.slippage_bps, slip_cap, est.slippage_bps <= slip_cap))
+        if self.gateway and self.gateway.reduce_only_active():
+            bool_lines.append("reduce_only      ⚠️ <code>only risk-reducing orders accepted</code>")
+
+        lines = [
+            f"Probe   <code>{side} {_money(notional)} {esc(symbol)}</code>",
+            "<code>dry-run · nothing submitted · reads current state</code>",
+            "",
+        ]
+        lines += [
+            f"<code>{esc(name):<20}</code> {'✅' if ok else '❌'} <code>{_number(obs)}</code> / <code>{_number(lim)}</code>"
+            for name, obs, lim, ok in numeric
+        ]
+        if bool_lines:
+            lines.append("")
+            lines.extend(bool_lines)
+        lines.append("<i>A preview of the 17 pre-trade gates from current state — nothing is submitted and no counter, token or audit row moves.</i>")
+        chart = generate_gate_ladder_png(f"Pre-trade headroom · {side} {symbol}", numeric)
+        footer = kb([
+            _symbol_row("gates", symbol, notional_arg, side),
+            _choice_row("gates", [("25k", "25000"), ("100k", "100000"), ("250k", "250000"), ("1m", "1000000")], notional_arg, prefix_args=(symbol,), suffix_args=(side,)),
+            [("BUY", cb("gates", symbol, notional_arg, "BUY")), ("SELL", cb("gates", symbol, notional_arg, "SELL"))],
+            [("Headroom", cb("headroom")), ("TCA", cb("tca", symbol, notional_arg, side))],
+        ])
+        await self.send_media_group(chat_id, [("gates", chart)] if chart else [], caption=text_card(
+            f"🚦 Pre-trade gates · {esc(symbol)}", "DRY-RUN", lines,
+            source="Gateway read-only state", next_commands=f"/tca {symbol} {notional_arg} {side} · /headroom · /limits"), reply_markup=footer)
+
+    async def _cmd_quality(self, args, chat_id, actor) -> None:
+        dimension = args[0].lower() if args and args[0].lower() in {"venue", "strategy"} else "venue"
+        footer = kb([[("By venue", cb("quality", "venue")), ("By strategy", cb("quality", "strategy"))]])
+        rows = self.audit.execution_quality_by(dimension) if self.audit else []
+        if not rows:
+            await self.send_message(chat_id, text_card(
+                "🎯 Fill quality", "NO FILLS",
+                [f"No fills recorded to group by {esc(dimension)}."],
+                source="DuckDB audit log", next_commands="/orders · /blotter"), reply_markup=footer)
+            return
+        lines = [f"<b>{dimension.upper():<10} FILLS  SLIP(bps)  NOTIONAL</b>"]
+        for row in rows[:8]:
+            lines.append(
+                f"{esc(str(row.get('bucket'))):<10} <code>{row.get('filled') or 0}</code>"
+                f" · <code>{_number(row.get('avg_slippage_bps'), signed=True)}</code>"
+                f" · <code>{_money(row.get('notional'))}</code>"
+            )
+        bars = generate_bars_chart_png(
+            f"Average slippage by {dimension} (bps)",
+            [str(row.get("bucket")) for row in rows[:8]],
+            [_finite(row.get("avg_slippage_bps")) for row in rows[:8]],
+            "Slippage (bps)", horizontal=True, value_fmt="{:+.2f}",
+        )
+        orders = [
+            order for order in (self.audit.recent_orders(200) if self.audit else [])
+            if order.get("accepted") and _finite(order.get("slippage_bps")) is not None
+            and _finite(order.get("notional")) is not None
+        ]
+        scatter = generate_scatter_png(
+            "Slippage vs order notional (accepted fills)",
+            [_finite(order.get("notional")) for order in orders],
+            [_finite(order.get("slippage_bps")) for order in orders],
+            "Notional (USD)", "Slippage (bps)",
+            groups=[str(order.get("venue") or "?") for order in orders], fit_line=True,
+        )
+        if not scatter:
+            lines.append("<i>Fewer than five accepted fills carry both a slippage and a notional, so no scatter.</i>")
+        charts = [(name, blob) for name, blob in (("quality-bars", bars), ("quality-scatter", scatter)) if blob]
+        await self.send_media_group(chat_id, charts, caption=text_card(
+            "🎯 Fill quality", f"BY {dimension.upper()}", lines,
+            source="DuckDB audit log", next_commands="/orders · /slippage · /blotter"), reply_markup=footer)
+
+    async def _cmd_imbalance(self, args, chat_id, actor) -> None:
+        symbol = self._symbol(args)
+        footer = kb([_symbol_row("imbalance", symbol)])
+        books = [book for book in (self.tca.get_books(symbol, depth=20) if self.tca else []) if book.mid]
+        if not books:
+            await self.send_message(chat_id, text_card(
+                f"⚖️ {esc(symbol)} imbalance", "NO LIVE BOOK",
+                ["No venue currently has a fresh book for this symbol."],
+                source="TCA engine", next_commands="/feedstatus"), reply_markup=footer)
+            return
+        lines = ["<b>VENUE        IMBALANCE   BID/ASK DEPTH</b>"]
+        bids: list[tuple[float, float]] = []
+        asks: list[tuple[float, float]] = []
+        for book in books:
+            value = _finite(book.imbalance)
+            lean = "→ bid" if (value or 0) > 0.05 else "→ ask" if (value or 0) < -0.05 else "· flat"
+            lines.append(
+                f"<code>{esc(str(book.venue)):<10}</code> <code>{_number(book.imbalance, signed=True)}</code> {lean}"
+                f" · <code>{_money(book.depth_usd_bid)}</code>/<code>{_money(book.depth_usd_ask)}</code>"
+            )
+            bids.extend((level.price, level.size) for level in book.bids)
+            asks.extend((level.price, level.size) for level in book.asks)
+        lines.append("<i>Imbalance is (bid − ask) depth over their sum: positive is a resting-bid lean, a buy-side pressure.</i>")
+        chart = generate_depth_chart_png(symbol, bids, asks)
+        await self.send_media_group(chat_id, [("depth", chart)] if chart else [], caption=text_card(
+            f"⚖️ {esc(symbol)} imbalance", "SYNTHETIC" if any(book.synthetic for book in books) else "LIVE", lines,
+            source="Cross-venue TCA engine", next_commands=f"/depth {symbol} · /book {symbol}"), reply_markup=footer)
+
+    async def _cmd_costs(self, args, chat_id, actor) -> None:
+        today = datetime.now(timezone.utc).date()
+        requested = args[0] if args else today.isoformat()
+        try:
+            datetime.strptime(requested, "%Y-%m-%d")
+        except ValueError:
+            requested = today.isoformat()
+        yesterday = (today - timedelta(days=1)).isoformat()
+        footer = kb([[("Today", cb("costs", today.isoformat())), ("Yesterday", cb("costs", yesterday))]])
+        costs = self.audit.session_costs(requested) if self.audit else {}
+        fills = costs.get("fills") or 0
+        if not costs or not fills:
+            await self.send_message(chat_id, text_card(
+                f"💸 Session costs · {esc(requested)}", "NO FILLS",
+                ["No fills recorded for this session date."],
+                source="DuckDB audit log", next_commands="/quality · /orders"), reply_markup=footer)
+            return
+        fees = _finite(costs.get("fees")) or 0.0
+        slip = _finite(costs.get("slippage_cost")) or 0.0
+        lines = [
+            f"Session   <code>{esc(requested)}</code>",
+            f"Fills     <code>{fills}</code> · notional <code>{_money(costs.get('notional'))}</code>",
+            f"Fees      <code>{_money(fees)}</code>",
+            f"Slippage  <code>{_money(slip)}</code>",
+            f"Total     <code>{_money(fees + slip)}</code>",
+        ]
+        if costs.get("fills_without_slippage"):
+            lines.append(f"<i>{costs.get('fills_without_slippage')} fills carry no slippage measure — excluded from the slippage total.</i>")
+        bars = generate_bars_chart_png(
+            f"Fees vs slippage · {requested}", ["Fees", "Slippage"], [fees, slip],
+            "USD", colours=["#f59e0b", "#ff5252"], value_fmt="{:,.0f}",
+        )
+        await self.send_media_group(chat_id, [("costs", bars)] if bars else [], caption=text_card(
+            f"💸 Session costs · {esc(requested)}", "AUDIT AGGREGATE", lines,
+            source="DuckDB audit log", next_commands="/quality · /attribution"), reply_markup=footer)
+
+    async def _cmd_latency(self, args, chat_id, actor) -> None:
+        from modules import metrics
+
+        summary = metrics.decision_latency_summary()
+        buckets = metrics.decision_latency_buckets()
+        footer = kb([[("Reliability", cb("reliability")), ("SLIs", cb("ops"))]])
+        samples = int(summary.get("samples") or 0)
+        lines = ["<b>Decision latency (in-process µs)</b>"]
+        # Every key present, so a future core_ns quantile shows up here on its own.
+        for key, value in summary.items():
+            printed = str(int(value)) if key == "samples" else _number(value, 0)
+            lines.append(f"<code>{esc(key):<8}</code> <code>{printed}</code>")
+        if not samples:
+            lines.append("<i>No decision has been timed yet — an empty record, not zero latency.</i>")
+        markers = [(label, _finite(summary.get(label))) for label in ("p50", "p99")]
+        cdf = generate_latency_cdf_png("Decision-latency CDF (µs)", buckets, [(label, value) for label, value in markers if value])
+        route_summary = metrics.request_latency_summary()
+        routes = sorted(route_summary.items(), key=lambda item: item[1].get("p99", 0.0), reverse=True)[:6]
+        route_bars = generate_bars_chart_png(
+            "Route latency p99 (ms, observed)",
+            [route[:18] for route, _ in routes],
+            [_finite(stats.get("p99")) for _, stats in routes],
+            "p99 (ms)", horizontal=True, value_fmt="{:.0f}ms",
+        )
+        lines.append("<i>Decision latency is measured inside this process in microseconds; the network path to Telegram or a venue is separate and not counted here.</i>")
+        charts = [(name, blob) for name, blob in (("latency-cdf", cdf), ("route-p99", route_bars)) if blob]
+        await self.send_media_group(chat_id, charts, caption=text_card(
+            "⏱ Decision latency", f"{samples} TIMED" if samples else "NO SAMPLES", lines,
+            source="metrics · in-process µs", next_commands="/reliability · /ops · /status"), reply_markup=footer)
+
+    async def _cmd_blotter(self, args, chat_id, actor) -> None:
+        view = args[0].lower() if args and args[0].lower() in {"all", "fills", "rejects", "working"} else "all"
+        count = self._limit(args, 1, 12, 30) if len(args) > 1 else 12
+        footer = kb([[
+            ("All", cb("blotter", "all")), ("Fills", cb("blotter", "fills")),
+            ("Rejects", cb("blotter", "rejects")), ("Working", cb("blotter", "working")),
+        ]])
+        orders = self.audit.recent_orders(max(count * 3, count)) if self.audit else []
+        working = self.gateway.list_working(None) if self.gateway else []
+        accepted = [order for order in orders if order.get("accepted")]
+        rejected = [order for order in orders if not order.get("accepted")]
+
+        lines: list[str] = []
+        chart: bytes | None = None
+        if view == "working":
+            title, status = "📋 Blotter · working", f"{len(working)} RESTING"
+            if not working:
+                lines.append("Nothing is resting on the book.")
+            for order in working[:count]:
+                request = getattr(order, "request", None)
+                lines.append(
+                    f"<code>{esc(str(order.symbol)):<8}</code> {esc(str(getattr(request, 'side', '—')))}"
+                    f" <code>{_money(getattr(request, 'notional', None))}</code> @ <code>{_number(order.limit_price)}</code>"
+                )
+        else:
+            if view == "fills":
+                rows, title, status = accepted[:count], "📋 Blotter · fills", f"{len(accepted)} ACCEPTED"
+            elif view == "rejects":
+                rows, title, status = rejected[:count], "📋 Blotter · rejects", f"{len(rejected)} REJECTED"
+            else:
+                rows, title, status = orders[:count], "📋 Blotter · all", f"{len(orders)} DECISIONS"
+            if not rows:
+                lines.append("No matching audit rows.")
+            for order in rows:
+                icon = "✅" if order.get("accepted") else "❌"
+                stamp = str(order.get("ts") or "")[11:19]
+                lines.append(
+                    f"{icon} <code>{esc(stamp)}</code> {esc(order.get('symbol'))} {esc(order.get('side'))}"
+                    f" <code>{_money(order.get('notional'))}</code>"
+                )
+                if not order.get("accepted"):
+                    lines.append(f"   ↳ <code>{esc(str(order.get('rejected_by') or order.get('reason') or 'rejected')[:80])}</code>")
+            lines.append(f"<i>{len(working)} orders still resting — /working for the live set.</i>")
+            if view in {"all", "rejects"} and rejected:
+                from collections import Counter
+
+                counter = Counter(str(order.get("rejected_by") or "unknown") for order in rejected)
+                chart = generate_bars_chart_png(
+                    "Rejections by gate", list(counter.keys()), [float(v) for v in counter.values()],
+                    "Count", horizontal=True, value_fmt="{:.0f}",
+                )
+        await self.send_media_group(chat_id, [("rejections", chart)] if chart else [], caption=text_card(
+            title, status, lines,
+            source="DuckDB audit log + gateway", next_commands="/orders · /working · /quality"), reply_markup=footer)
+
+    async def _cmd_spreadhistory(self, args, chat_id, actor) -> None:
+        symbol = self._symbol(args)
+        venue: str | None = None
+        metric = "spread"
+        for token in args[1:]:
+            low = token.lower()
+            if low in {"spread", "slip", "slippage", "depth"}:
+                metric = "slip" if low in {"slip", "slippage"} else low
+            else:
+                venue = token.upper()
+        footer = kb([
+            _symbol_row("spreadhistory", symbol),
+            _choice_row("spreadhistory", [("Spread", "spread"), ("Slippage", "slip"), ("Depth", "depth")], metric, prefix_args=(symbol,)),
+        ])
+        rows = self.audit.tca_history(symbol, venue) if self.audit else []
+        if not rows:
+            await self.send_message(chat_id, text_card(
+                f"📈 {esc(symbol)} TCA history", "NO SNAPSHOTS",
+                ["The gateway records TCA snapshots on a timer; none for this symbol yet.",
+                 "<i>An empty record, not a zero spread.</i>"],
+                source="audit · tca_snapshots", next_commands=f"/spread {symbol}"), reply_markup=footer)
+            return
+        series: dict[str, list[float]] = {}
+        for row in rows:
+            key = str(row.get("venue") or "?")
+            if metric == "spread":
+                value = _finite(row.get("spread_bps"))
+            elif metric == "slip":
+                buy, sell = _finite(row.get("buy_slip_bps")), _finite(row.get("sell_slip_bps"))
+                value = ((buy or 0.0) + (sell or 0.0)) / 2 if (buy is not None or sell is not None) else None
+            else:
+                bid, ask = _finite(row.get("depth_usd_bid")), _finite(row.get("depth_usd_ask"))
+                value = ((bid or 0.0) + (ask or 0.0)) if (bid is not None or ask is not None) else None
+            if value is not None:
+                series.setdefault(key, []).append(value)
+        ylabel = {"spread": "Spread (bps)", "slip": "Slippage (bps)", "depth": "Depth (USD)"}[metric]
+        lines = [
+            f"Symbol   <code>{esc(symbol)}</code>{(' · ' + esc(venue)) if venue else ''}",
+            f"Metric   <code>{esc(metric)}</code>",
+            f"Rows     <code>{len(rows)}</code> across <code>{len(series)}</code> venue(s)",
+        ]
+        for key, vals in series.items():
+            lines.append(f"<code>{esc(key):<10}</code> latest <code>{_number(vals[-1])}</code> · n=<code>{len(vals)}</code>")
+        chart = generate_multi_series_png(f"{symbol} {metric} history", series, ylabel)
+        await self.send_media_group(chat_id, [("tcahistory", chart)] if chart else [], caption=text_card(
+            f"📈 {esc(symbol)} TCA history", "PERSISTED", lines,
+            source="audit · tca_snapshots", next_commands=f"/spread {symbol} · /depth {symbol}"), reply_markup=footer)
 
     def _event_rows(self, args: list[str], incidents_only: bool = False) -> list[dict[str, Any]]:
         count = self._limit(args, 0, 10, 25)
@@ -4374,6 +5234,7 @@ class TelegramBot:
 
     async def _cmd_digest(self, args, chat_id, actor) -> None:
         from modules import research
+        from modules.portfolio import build_equity_history
 
         report = self._portfolio_report()
         state = self.gateway.state()
@@ -4389,7 +5250,30 @@ class TelegramBot:
             f"Trading <code>{'HALTED' if state.kill_switch_active else 'LIVE'}</code> · OpenBB <code>{'READY' if openbb.get('ok') else 'DOWN'}</code>",
             f"Feeds <code>{sum(1 for feed in health.get('feeds', []) if feed.get('connected'))}/{len(health.get('feeds', []))}</code> · Synthetic <code>{'ON' if health.get('synthetic_active') else 'off'}</code>",
         ]
-        await self.send_message(chat_id, text_card("🗞 AlphaEngine digest", "ON DEMAND", lines, source="Portfolio + risk + TCA + OpenBB", next_commands="/portfolio · /status · /incidents"))
+
+        # One hero: the persisted equity curve when the record has one, else the
+        # book's own gross-exposure bars. A digest that led with an empty frame
+        # would be worse than one that leads with a number.
+        history = build_equity_history(self.audit, limit=500)
+        points = history.get("points") or []
+        hero: bytes | None = None
+        name = "exposure"
+        if points:
+            hero = generate_equity_chart_png(points, points[-1].get("start_of_day"))
+            name = "equity"
+        if hero is None:
+            positions = report["exposure"]["positions"] or []
+            hero = generate_bars_chart_png(
+                "Gross exposure by symbol (USD)",
+                [str(position.get("symbol")) for position in positions[:8]],
+                [_finite(position.get("notional")) or 0.0 for position in positions[:8]],
+                "Notional (USD)", horizontal=True, value_fmt="{:,.0f}",
+            )
+            name = "exposure"
+        await self.send_media_group(chat_id, [(name, hero)] if hero else [], caption=text_card(
+            "🗞 AlphaEngine digest", "ON DEMAND", lines,
+            source="Portfolio + risk + TCA + OpenBB", next_commands="/portfolio · /status · /incidents",
+        ), reply_markup=_menu_keyboard())
 
     async def _watch_tick(self) -> None:
         for subscriber in self._subscribers():
@@ -4462,7 +5346,13 @@ class TelegramBot:
             self.alerts_sent += 1
 
     async def push_backtest_result(self, record) -> None:
-        """Text-only completion update for jobs submitted outside Telegram."""
+        """Completion update for jobs submitted outside Telegram — now with charts.
+
+        The job result already carries a rendered ``equity_curve_png`` and
+        ``heatmap_png``; this used to throw them away and send "TEXT RESULT".
+        Both are decoded (skipping either that is None) and delivered as an
+        album with the same text riding as the caption.
+        """
         if not self.enabled or record.kind != "backtest":
             return
         chat_id = record.meta.get("chat_id")
@@ -4478,6 +5368,7 @@ class TelegramBot:
         result = record.result or {}
         best = result.get("best") or {}
         request = result.get("request") or {}
+        symbol = (str(request.get("symbol") or record.meta.get("symbol") or "").upper()) or "BTCUSDT"
         lines = [
             f"Job <code>{esc(record.job_id)}</code>",
             f"Study <code>{esc(request.get('symbol'))} · {esc(request.get('interval'))} · {esc(request.get('strategy'))}</code>",
@@ -4486,7 +5377,16 @@ class TelegramBot:
             f"DSR <code>{_number(result.get('deflated_sharpe_ratio'), 3)}</code> · OOS Sharpe <code>{_number(result.get('walk_forward_oos_sharpe'))}</code>",
             f"Verdict <code>{esc(result.get('dsr_verdict') or '—')}</code>",
         ]
-        await self.send_message(chat_id, text_card("🧪 Backtest completed", "TEXT RESULT", lines, source="Research job queue", next_commands="/backtests · /researchstatus"))
+        charts: list[tuple[str, bytes]] = []
+        for name, key in (("equity-curve", "equity_curve_png"), ("heatmap", "heatmap_png")):
+            blob = self._decode_b64png(result.get(key))
+            if blob:
+                charts.append((name, blob))
+        await self.send_media_group(chat_id, charts, caption=text_card(
+            "🧪 Backtest completed", "RESULT", lines,
+            source="Research job queue",
+            next_commands=f"/walkforward {symbol} · /stability {symbol} · /overfit {symbol}",
+        ))
 
     def health(self) -> dict[str, Any]:
         return {

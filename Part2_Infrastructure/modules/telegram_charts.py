@@ -15,6 +15,7 @@ backend, no display, and no dependency the gateway does not already ship.
 from __future__ import annotations
 
 import io
+import math
 
 import matplotlib
 
@@ -26,10 +27,41 @@ __all__ = [
     "generate_depth_chart_png",
     "generate_drawdown_chart_png",
     "generate_equity_chart_png",
+    "generate_gate_ladder_png",
     "generate_heatmap_png",
     "generate_histogram_png",
+    "generate_latency_cdf_png",
+    "generate_multi_series_png",
+    "generate_paired_bars_png",
+    "generate_pipeline_png",
+    "generate_scatter_png",
     "generate_series_chart_png",
+    "generate_var_breach_png",
 ]
+
+# One fixed hue order for every categorical/multi-line generator, assigned by
+# entity position and never cycled past its length — a 9th series folds into the
+# palette's repeat only as a last resort. Drawn from the same dark palette
+# `_style_axes` establishes so every bot chart reads as one system.
+_CATEGORICAL = (
+    "#38bdf8", "#f59e0b", "#00e676", "#ff5252",
+    "#a78bfa", "#f472b6", "#22d3ee", "#facc15",
+)
+
+
+def _pair_text(value: float) -> str:
+    """A compact number for a ladder's ``observed / limit`` annotation.
+
+    Picks decimals by magnitude so a drawdown fraction (0.0200) and a dollar
+    notional (150,000) both read correctly — a single ``{:,.0f}`` would print
+    the fraction as ``0``.
+    """
+    magnitude = abs(value)
+    if magnitude >= 1000:
+        return f"{value:,.0f}"
+    if magnitude >= 1:
+        return f"{value:,.2f}"
+    return f"{value:.4f}"
 
 
 def _style_axes(fig, ax) -> None:
@@ -293,4 +325,326 @@ def generate_equity_chart_png(
         color="#e2e8f0", fontsize=10, fontweight="bold",
     )
     ax.set_ylabel("Equity (USD)", color="#94a3b8", fontsize=8)
+    return _finish(fig)
+
+
+def generate_paired_bars_png(
+    title: str,
+    labels: list[str],
+    first: list[float],
+    second: list[float],
+    first_label: str,
+    second_label: str,
+    ylabel: str,
+    *,
+    value_fmt: str = "{:.2f}",
+) -> bytes | None:
+    """Two measured bars per label — in-sample beside out-of-sample, say.
+
+    Keeps only pairs where BOTH values are finite: a fold with one leg missing
+    is dropped rather than drawn against a zero it was never measured at. None
+    below one drawable pair, because a single pair is a comparison of nothing.
+    """
+    pairs = [
+        (str(label), float(a), float(b))
+        for label, a, b in zip(labels, first, second, strict=False)
+        if a is not None and b is not None and a == a and b == b
+    ]
+    if len(pairs) < 1:
+        return None
+
+    names = [name for name, _, _ in pairs]
+    firsts = [a for _, a, _ in pairs]
+    seconds = [b for _, _, b in pairs]
+
+    fig, ax = plt.subplots(figsize=(6.4, 3.2), dpi=120)
+    _style_axes(fig, ax)
+    positions = list(range(len(names)))
+    width = 0.38
+    ax.bar([p - width / 2 for p in positions], firsts, width=width, color=_CATEGORICAL[0], label=first_label)
+    ax.bar([p + width / 2 for p in positions], seconds, width=width, color=_CATEGORICAL[1], label=second_label)
+    for index, (value_a, value_b) in enumerate(zip(firsts, seconds, strict=True)):
+        ax.text(index - width / 2, value_a, value_fmt.format(value_a), color="#f8fafc",
+                fontsize=7, ha="center", va="bottom" if value_a >= 0 else "top")
+        ax.text(index + width / 2, value_b, value_fmt.format(value_b), color="#f8fafc",
+                fontsize=7, ha="center", va="bottom" if value_b >= 0 else "top")
+    ax.axhline(0, color="#64748b", linewidth=1)
+    ax.set_xticks(positions)
+    ax.set_xticklabels(names, fontsize=8)
+    ax.set_ylabel(ylabel, color="#94a3b8", fontsize=8)
+    ax.set_title(title, color="#f8fafc", fontsize=10, fontweight="bold")
+    ax.legend(facecolor="#1e293b", edgecolor="#334155", labelcolor="#f8fafc", fontsize=8)
+    return _finish(fig)
+
+
+def generate_gate_ladder_png(
+    title: str,
+    gates: list[tuple[str, float | None, float | None, bool]],
+) -> bytes | None:
+    """A pre-trade headroom ladder: observed / limit as a % utilisation bar.
+
+    Only gates that carry BOTH a numeric observed value and a limit are drawn;
+    the pass/fail booleans without numbers belong in the caption. Colour AND the
+    printed ``obs / limit`` both say the same thing, so the bar is never the only
+    carrier of state. None when nothing numeric is drawable.
+    """
+    drawable = [
+        (str(name), float(observed), float(limit), bool(passed))
+        for name, observed, limit, passed in gates
+        if observed is not None and limit is not None
+        and observed == observed and limit == limit and limit > 0
+    ]
+    if not drawable:
+        return None
+
+    names = [name for name, *_ in drawable]
+    utilisations = [observed / limit * 100 for _, observed, limit, _ in drawable]
+    colours = []
+    for (_, _, _, passed), used in zip(drawable, utilisations, strict=True):
+        if not passed or used >= 100:
+            colours.append("#ff5252")
+        elif used >= 70:
+            colours.append("#f59e0b")
+        else:
+            colours.append("#00e676")
+
+    fig, ax = plt.subplots(figsize=(6.6, max(2.4, 0.5 * len(drawable) + 1.0)), dpi=120)
+    _style_axes(fig, ax)
+    positions = list(range(len(names)))
+    ax.barh(positions, utilisations, color=colours, height=0.55)
+    ax.axvline(100, color="#94a3b8", linewidth=1, linestyle="--")
+    ax.set_yticks(positions)
+    ax.set_yticklabels(names, fontsize=8)
+    ax.invert_yaxis()
+    ax.set_xlabel("Utilisation (% of limit)", color="#94a3b8", fontsize=8)
+    ax.set_xlim(0, max(110.0, max(utilisations) * 1.15))
+    for index, (_, observed, limit, _) in enumerate(drawable):
+        ax.text(utilisations[index], index, f"  {_pair_text(observed)} / {_pair_text(limit)}",
+                color="#f8fafc", fontsize=7, va="center")
+    ax.set_title(title, color="#f8fafc", fontsize=10, fontweight="bold")
+    return _finish(fig)
+
+
+def generate_latency_cdf_png(
+    title: str,
+    buckets: list[tuple[float, int]],
+    markers: list[tuple[str, float]],
+) -> bytes | None:
+    """A cumulative latency distribution on a log-x axis, p-marks called out.
+
+    ``buckets`` is (upper-edge-µs, count); the final edge is +inf and only adds
+    to the running total, never to the x-axis. None below 20 observations — a
+    CDF of a handful of samples is a staircase of noise.
+    """
+    total = sum(int(count) for _, count in buckets)
+    if total < 20:
+        return None
+
+    xs: list[float] = []
+    ys: list[float] = []
+    cumulative = 0
+    for upper, count in buckets:
+        cumulative += int(count)
+        if math.isfinite(upper) and upper > 0:
+            xs.append(float(upper))
+            ys.append(cumulative / total)
+    if len(xs) < 2:
+        return None
+
+    fig, ax = plt.subplots(figsize=(6.4, 3.2), dpi=120)
+    _style_axes(fig, ax)
+    ax.plot(xs, ys, color=_CATEGORICAL[0], linewidth=2, drawstyle="steps-post")
+    ax.set_xscale("log")
+    ax.set_ylim(0, 1.02)
+    for label, position in markers or []:
+        if position is None or position != position or position <= 0:
+            continue
+        ax.axvline(float(position), color="#f59e0b", linewidth=1.5, linestyle="--")
+        ax.annotate(
+            label, xy=(float(position), 0), xycoords=("data", "axes fraction"),
+            xytext=(3, 6), textcoords="offset points",
+            color="#f59e0b", fontsize=8, fontweight="bold",
+        )
+    ax.set_title(title, color="#f8fafc", fontsize=10, fontweight="bold")
+    ax.set_xlabel("Latency (µs, log scale)", color="#94a3b8", fontsize=8)
+    ax.set_ylabel("Cumulative fraction", color="#94a3b8", fontsize=8)
+    return _finish(fig)
+
+
+def generate_scatter_png(
+    title: str,
+    xs: list[float],
+    ys: list[float],
+    xlabel: str,
+    ylabel: str,
+    *,
+    groups: list[str] | None = None,
+    fit_line: bool = False,
+) -> bytes | None:
+    """A scatter, optionally coloured by group and fitted with a trend line.
+
+    None below five finite points — fewer, and the eye reads a pattern the data
+    has not earned. The least-squares line is drawn only with ≥3 points and a
+    non-degenerate x, computed here from the points themselves.
+    """
+    group_seq = groups if groups is not None else [None] * len(xs)
+    points = [
+        (float(x), float(y), group)
+        for x, y, group in zip(xs, ys, group_seq, strict=False)
+        if x is not None and y is not None and x == x and y == y
+    ]
+    if len(points) < 5:
+        return None
+
+    fig, ax = plt.subplots(figsize=(6.4, 3.4), dpi=120)
+    _style_axes(fig, ax)
+    by_group: dict[object, list[tuple[float, float]]] = {}
+    for x, y, group in points:
+        by_group.setdefault(group, []).append((x, y))
+    for index, (group, pts) in enumerate(by_group.items()):
+        ax.scatter(
+            [p[0] for p in pts], [p[1] for p in pts], s=26,
+            color=_CATEGORICAL[index % len(_CATEGORICAL)],
+            edgecolor="#0f172a", linewidth=0.5,
+            label=str(group) if group is not None else None,
+        )
+
+    if fit_line and len(points) >= 3:
+        xs_f = [p[0] for p in points]
+        ys_f = [p[1] for p in points]
+        count = len(xs_f)
+        mean_x = sum(xs_f) / count
+        mean_y = sum(ys_f) / count
+        var_x = sum((x - mean_x) ** 2 for x in xs_f)
+        if var_x > 0:
+            slope = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs_f, ys_f, strict=True)) / var_x
+            intercept = mean_y - slope * mean_x
+            lo, hi = min(xs_f), max(xs_f)
+            ax.plot([lo, hi], [slope * lo + intercept, slope * hi + intercept],
+                    color="#94a3b8", linewidth=1.5, linestyle="--")
+
+    if any(group is not None for group in by_group):
+        ax.legend(facecolor="#1e293b", edgecolor="#334155", labelcolor="#f8fafc", fontsize=7)
+    ax.set_title(title, color="#f8fafc", fontsize=10, fontweight="bold")
+    ax.set_xlabel(xlabel, color="#94a3b8", fontsize=8)
+    ax.set_ylabel(ylabel, color="#94a3b8", fontsize=8)
+    return _finish(fig)
+
+
+def generate_multi_series_png(
+    title: str,
+    series: dict[str, list[float]],
+    ylabel: str,
+    *,
+    normalise: bool = False,
+    xlabel: str = "",
+) -> bytes | None:
+    """One line per key, in the fixed categorical order. None if no key has ≥2 points.
+
+    ``normalise`` rebases each series to 100 at its own first point, so lines of
+    very different scale can share the one axis this skill allows.
+    """
+    cleaned: dict[str, list[float]] = {}
+    for name, values in series.items():
+        pts = [float(v) for v in values if v is not None and v == v]
+        if len(pts) >= 2:
+            cleaned[name] = pts
+    if not cleaned:
+        return None
+
+    fig, ax = plt.subplots(figsize=(6.4, 3.2), dpi=120)
+    _style_axes(fig, ax)
+    for index, (name, pts) in enumerate(cleaned.items()):
+        plotted = pts
+        if normalise and pts[0]:
+            plotted = [value / pts[0] * 100 for value in pts]
+        ax.plot(range(len(plotted)), plotted, color=_CATEGORICAL[index % len(_CATEGORICAL)],
+                linewidth=2, label=str(name))
+    ax.legend(facecolor="#1e293b", edgecolor="#334155", labelcolor="#f8fafc", fontsize=7)
+    ax.set_title(title, color="#f8fafc", fontsize=10, fontweight="bold")
+    ax.set_ylabel("Indexed to 100" if normalise else ylabel, color="#94a3b8", fontsize=8)
+    if xlabel:
+        ax.set_xlabel(xlabel, color="#94a3b8", fontsize=8)
+    return _finish(fig)
+
+
+def generate_var_breach_png(
+    title: str,
+    pnl: list[float],
+    var: list[float],
+    breaches: list[bool],
+) -> bytes | None:
+    """Rolling book P&L against the -VaR line it was scored on, breaches marked.
+
+    None below 20 bars or when the three series disagree in length — the breach
+    markers must line up with the P&L they flag, or the picture lies about which
+    bar broke the forecast.
+    """
+    if len(pnl) < 20 or len(pnl) != len(var) or len(pnl) != len(breaches):
+        return None
+
+    fig, ax = plt.subplots(figsize=(6.4, 3.2), dpi=120)
+    _style_axes(fig, ax)
+    x = list(range(len(pnl)))
+    ax.plot(x, pnl, color=_CATEGORICAL[0], linewidth=1.5, label="Book P&L")
+    ax.plot(x, [-abs(v) for v in var], color="#f59e0b", linewidth=1.5, linestyle="--", label="-VaR 95")
+    breach_x = [index for index, flag in enumerate(breaches) if flag]
+    if breach_x:
+        ax.scatter(breach_x, [pnl[index] for index in breach_x], color="#ff5252",
+                   s=30, zorder=5, label="Breach")
+    ax.axhline(0, color="#64748b", linewidth=1)
+    ax.legend(facecolor="#1e293b", edgecolor="#334155", labelcolor="#f8fafc", fontsize=7)
+    ax.set_title(title, color="#f8fafc", fontsize=10, fontweight="bold")
+    ax.set_ylabel("P&L (USD)", color="#94a3b8", fontsize=8)
+    ax.set_xlabel("Rolling bar", color="#94a3b8", fontsize=8)
+    return _finish(fig)
+
+
+def generate_pipeline_png(
+    title: str,
+    stages: list[tuple[str, str, str]],
+) -> bytes | None:
+    """A left-to-right signal path, each stage a status box with a mark and detail.
+
+    Status is one of ok / degraded / down / unknown, each carrying its own glyph
+    (● ▲ ✕ ○) as well as its colour so the state survives a greyscale print.
+    None below two stages — a pipeline of one is not a pipeline.
+    """
+    if len(stages) < 2:
+        return None
+
+    from matplotlib.patches import FancyBboxPatch
+
+    style = {
+        "ok": ("#00e676", "●"),
+        "degraded": ("#f59e0b", "▲"),
+        "down": ("#ff5252", "✕"),
+        "unknown": ("#94a3b8", "○"),
+    }
+    count = len(stages)
+    fig, ax = plt.subplots(figsize=(min(12.0, 2.1 * count), 2.8), dpi=120)
+    fig.patch.set_facecolor("#0f172a")
+    ax.set_xlim(0, count)
+    ax.set_ylim(0, 1)
+    ax.axis("off")
+
+    for index, (label, status, detail) in enumerate(stages):
+        colour, mark = style.get(str(status), style["unknown"])
+        box = FancyBboxPatch(
+            (index + 0.08, 0.30), 0.84, 0.40,
+            boxstyle="round,pad=0.02", linewidth=1.6,
+            edgecolor=colour, facecolor="#1e293b",
+        )
+        ax.add_patch(box)
+        ax.text(index + 0.5, 0.58, f"{mark} {label}", ha="center", va="center",
+                color=colour, fontsize=8.5, fontweight="bold")
+        if detail:
+            ax.text(index + 0.5, 0.42, str(detail)[:24], ha="center", va="center",
+                    color="#94a3b8", fontsize=6.5)
+        if index < count - 1:
+            ax.annotate(
+                "", xy=(index + 1.06, 0.5), xytext=(index + 0.94, 0.5),
+                arrowprops={"arrowstyle": "->", "color": "#64748b", "linewidth": 1.5},
+            )
+    ax.set_title(title, color="#f8fafc", fontsize=10, fontweight="bold")
     return _finish(fig)

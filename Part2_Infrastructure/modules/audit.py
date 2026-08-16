@@ -1050,6 +1050,30 @@ class AuditLog:
             (limit,),
         )
 
+    def tca_history(
+        self, symbol: str, venue: str | None = None, limit: int = 240
+    ) -> list[dict[str, Any]]:
+        """Oldest-first TCA snapshots for one symbol — the orphaned time series.
+
+        ``record_tca_snapshot`` has been writing ``tca_snapshots`` on a timer
+        with nothing ever reading it back. This is that reader: newest ``limit``
+        rows taken, then returned ascending because every consumer plots them.
+        ``venue`` narrows to one feed's own history when given.
+        """
+        if venue:
+            return self.query(
+                "SELECT * FROM (SELECT ts, venue, mid, spread_bps, depth_usd_bid, depth_usd_ask, "
+                "buy_slip_bps, sell_slip_bps, synthetic FROM tca_snapshots "
+                "WHERE symbol = ? AND venue = ? ORDER BY ts DESC LIMIT ?) ORDER BY ts ASC",
+                (symbol, venue, limit),
+            )
+        return self.query(
+            "SELECT * FROM (SELECT ts, venue, mid, spread_bps, depth_usd_bid, depth_usd_ask, "
+            "buy_slip_bps, sell_slip_bps, synthetic FROM tca_snapshots "
+            "WHERE symbol = ? ORDER BY ts DESC LIMIT ?) ORDER BY ts ASC",
+            (symbol, limit),
+        )
+
     def execution_stats(self) -> dict[str, Any]:
         rows = self.query(
             "SELECT count(*) AS total, "

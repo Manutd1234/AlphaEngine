@@ -457,8 +457,13 @@ class TestSubscriptionsAndAlerts:
         assert "operational alert" in bot.last and "CRITICAL" in bot.last
         assert "Risk limit reached" in bot.last
 
-    async def test_backtest_completion_is_text_only(self, bot):
+    async def test_backtest_completion_sends_its_rendered_charts(self, bot):
         await bot.handle_update(update("/subscribe", update_id=118))
+        # A 1×1 PNG so the result carries a real image to decode.
+        png_b64 = (
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
+            "+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+        )
 
         class Record:
             job_id, kind, status, error = "j1", "backtest", "succeeded", None
@@ -470,17 +475,22 @@ class TestSubscriptionsAndAlerts:
                 "request": {"symbol": "BTCUSDT", "interval": "1h", "strategy": "ma_cross"},
                 "combos_tested": 74,
                 "dsr_verdict": "PASS",
-                "equity_curve_png": "must-not-be-used",
+                "equity_curve_png": png_b64,
+                "heatmap_png": png_b64,
             }
 
         await bot.push_backtest_result(Record())
-        assert "TEXT RESULT" in bot.last and "DSR" in bot.last
-        assert not any(method == "sendPhoto" for method, _ in bot.api_calls)
+        # The equity curve and heatmap the job already rendered now ride along as
+        # an album, captioned with the same result text.
+        assert "RESULT" in bot.last and "DSR" in bot.last
+        assert "/walkforward BTCUSDT" in bot.last
+        assert bot.albums and len(bot.albums[-1]) == 2
 
         bot.sent.clear()
+        bot.albums.clear()
         settings.telegram_allowed_user_ids[:] = ["88"]
         await bot.push_backtest_result(Record())
-        assert bot.sent == []
+        assert bot.sent == [] and bot.albums == []
 
 
 class TestRenderingAndSafety:
