@@ -1,9 +1,11 @@
-"""AlphaEngine Telegram companion — independent, text-only operational updates.
+"""AlphaEngine Telegram companion — independent operational updates in text, charts and buttons.
 
 The Telegram bot is deliberately separate from every web interface. It does not
 open a Mini App and it never authenticates the website — a binding runs one way,
 from a web identity to a Telegram read. It reads the same authoritative gateway
-state and OpenBB provider layer, then renders compact phone-friendly text cards.
+state and OpenBB provider layer, then renders compact phone-friendly cards:
+HTML text, real-data chart photos, and inline keyboards whose every button is
+a shortcut for a typed command — never a capability of its own.
 
 It IS able to change state, and this paragraph used to deny it: ``/halt`` and
 ``/resume`` move the kill switch, ``/flatten`` submits real closing MARKET
@@ -39,6 +41,7 @@ import secrets
 import time
 import uuid
 from collections import deque
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -384,6 +387,26 @@ _MAX_RETRY_AFTER = 15.0
 _BOOTSTRAP_COMMANDS = {"/start", "/help", "/commands", "/about", "/whoami", "/version"}
 
 
+@dataclass
+class ReplyTarget:
+    """The tapped message a callback's answer should edit in place.
+
+    Carried in a ContextVar rather than threaded through eighty handler
+    signatures: the handlers stay unaware that they are answering a button, and
+    the senders — the only functions that talk to Telegram — decide whether to
+    edit the tapped card or send a fresh one. ``consumed`` flips on first use so
+    a handler that sends twice edits once and appends the rest.
+    """
+
+    chat_id: str
+    message_id: int
+    kind: str          # "text" | "photo"
+    consumed: bool = False
+
+
+_reply_target: ContextVar[ReplyTarget | None] = ContextVar("telegram_reply_target", default=None)
+
+
 def esc(value: Any) -> str:
     """Escape user/provider text for Telegram's HTML parse mode."""
     return html.escape(str(value), quote=False)
@@ -514,6 +537,12 @@ class CommandSpec:
     example: str
     handler: str
     aliases: tuple[str, ...] = ()
+    #: Whether the command appears in Telegram's own "/" command menu, which
+    #: caps out at 100 entries. Every command dispatches either way; /commands
+    #: lists the complete catalogue. Kept False for the niche reference and
+    #: duplicate-view commands so the menu stays under the cap as the
+    #: catalogue grows.
+    in_menu: bool = True
 
 
 COMMAND_SPECS: tuple[CommandSpec, ...] = (
@@ -526,14 +555,15 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("developer", "Developer (Quant Developer) · CI/CD, OpenAPI & repo posture + chart", "Tabs", "/developer", "/developer", "_cmd_tab_developer", ("tab_developer", "dev")),
 
     # Essentials
-    CommandSpec("start", "Essentials · Open the text command centre", "Essentials", "/start", "/start", "_cmd_start"),
+    CommandSpec("start", "Essentials · Open the command centre", "Essentials", "/start", "/start", "_cmd_start"),
+    CommandSpec("menu", "Essentials · Tappable desk menu", "Essentials", "/menu", "/menu", "_cmd_menu", ("home", "tabs")),
     CommandSpec("help", "Essentials · Help by category or command", "Essentials", "/help [CATEGORY|COMMAND]", "/help markets", "_cmd_help"),
     CommandSpec("commands", "Essentials · List the complete command catalogue", "Essentials", "/commands", "/commands", "_cmd_commands"),
     CommandSpec("status", "Essentials · Gateway, feeds, queue and OpenBB", "Essentials", "/status", "/status", "_cmd_status", ("health",)),
     CommandSpec("about", "Essentials · What this independent bot does", "Essentials", "/about", "/about", "_cmd_about"),
     CommandSpec("whoami", "Essentials · Show Telegram user and chat IDs", "Essentials", "/whoami", "/whoami", "_cmd_whoami"),
-    CommandSpec("version", "Essentials · Runtime version and bot mode", "Essentials", "/version", "/version", "_cmd_version"),
-    CommandSpec("ping", "Essentials · Check command-path responsiveness", "Essentials", "/ping", "/ping", "_cmd_ping"),
+    CommandSpec("version", "Essentials · Runtime version and bot mode", "Essentials", "/version", "/version", "_cmd_version", in_menu=False),
+    CommandSpec("ping", "Essentials · Check command-path responsiveness", "Essentials", "/ping", "/ping", "_cmd_ping", in_menu=False),
 
     # Portfolio manager
     CommandSpec("portfolio", "Portfolio · Whole-book PM summary", "Portfolio", "/portfolio", "/portfolio", "_cmd_portfolio", ("bookstate",)),
@@ -548,16 +578,16 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("attribution", "Portfolio · Flow and costs by strategy", "Portfolio", "/attribution", "/attribution", "_cmd_attribution"),
 
     # Market data / OpenBB
-    CommandSpec("openbb", "Markets · OpenBB provider readiness", "Markets", "/openbb", "/openbb", "_cmd_openbb", ("providers",)),
+    CommandSpec("openbb", "Markets · OpenBB provider readiness", "Markets", "/openbb", "/openbb", "_cmd_openbb"),
     CommandSpec("quote", "Markets · OpenBB quote", "Markets", "/quote SYMBOL [equity|crypto]", "/quote AAPL", "_cmd_quote", ("market",)),
     CommandSpec("bars", "Markets · Recent OpenBB OHLCV rows", "Markets", "/bars SYMBOL [15m|1h|4h|1d] [COUNT]", "/bars AAPL 1d 5", "_cmd_bars"),
     CommandSpec("trend", "Markets · Return and direction over recent bars", "Markets", "/trend SYMBOL [INTERVAL] [COUNT]", "/trend NVDA 1d 20", "_cmd_trend"),
-    CommandSpec("range", "Markets · High/low range over recent bars", "Markets", "/range SYMBOL [INTERVAL] [COUNT]", "/range BTCUSDT 4h 12", "_cmd_range"),
-    CommandSpec("volume", "Markets · Latest and average volume", "Markets", "/volume SYMBOL [INTERVAL] [COUNT]", "/volume MSFT 1d 20", "_cmd_volume"),
+    CommandSpec("range", "Markets · High/low range over recent bars", "Markets", "/range SYMBOL [INTERVAL] [COUNT]", "/range BTCUSDT 4h 12", "_cmd_range", in_menu=False),
+    CommandSpec("volume", "Markets · Latest and average volume", "Markets", "/volume SYMBOL [INTERVAL] [COUNT]", "/volume MSFT 1d 20", "_cmd_volume", in_menu=False),
     CommandSpec("news", "Markets · Latest company headlines", "Markets", "/news SYMBOL [COUNT]", "/news AAPL 5", "_cmd_news"),
     CommandSpec("fundamentals", "Markets · Company profile and key metrics", "Markets", "/fundamentals SYMBOL", "/fundamentals NVDA", "_cmd_fundamentals", ("profile", "valuation")),
-    CommandSpec("snapshot", "Markets · Quote, fundamentals and headlines", "Markets", "/snapshot SYMBOL [equity|crypto]", "/snapshot AAPL", "_cmd_snapshot", ("research",)),
-    CommandSpec("symbols", "Markets · Tracked instruments and examples", "Markets", "/symbols", "/symbols", "_cmd_symbols"),
+    CommandSpec("snapshot", "Markets · Quote, fundamentals and headlines", "Markets", "/snapshot SYMBOL [equity|crypto]", "/snapshot AAPL", "_cmd_snapshot"),
+    CommandSpec("symbols", "Markets · Tracked instruments and examples", "Markets", "/symbols", "/symbols", "_cmd_symbols", in_menu=False),
 
     # Execution analytics (read-only)
     CommandSpec("book", "Execution · Top of book across venues", "Execution", "/book SYMBOL", "/book BTCUSDT", "_cmd_book"),
@@ -571,13 +601,13 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("orders", "Execution · Recent gateway decisions", "Execution", "/orders [COUNT]", "/orders 10", "_cmd_orders"),
     CommandSpec("fills", "Execution · Recent accepted fills", "Execution", "/fills [COUNT]", "/fills 10", "_cmd_fills"),
     CommandSpec("rejections", "Execution · Recent rejected orders", "Execution", "/rejections [COUNT]", "/rejections 10", "_cmd_rejections"),
-    CommandSpec("slippage", "Execution · Aggregate execution slippage", "Execution", "/slippage", "/slippage", "_cmd_slippage"),
-    CommandSpec("fees", "Execution · Aggregate execution fees", "Execution", "/fees", "/fees", "_cmd_fees"),
+    CommandSpec("slippage", "Execution · Aggregate execution slippage", "Execution", "/slippage", "/slippage", "_cmd_slippage", in_menu=False),
+    CommandSpec("fees", "Execution · Aggregate execution fees", "Execution", "/fees", "/fees", "_cmd_fees", in_menu=False),
 
     # Research and audit monitoring (no job submission)
-    CommandSpec("researchstatus", "Research · OpenBB and job-system status", "Research", "/researchstatus", "/researchstatus", "_cmd_research_status"),
+    CommandSpec("researchstatus", "Research · OpenBB and job-system status", "Research", "/researchstatus", "/researchstatus", "_cmd_research_status", in_menu=False),
     CommandSpec("jobs", "Research · Recent research jobs", "Research", "/jobs [COUNT]", "/jobs 10", "_cmd_jobs"),
-    CommandSpec("job", "Research · Inspect one job", "Research", "/job JOB_ID", "/job abcd1234", "_cmd_job"),
+    CommandSpec("job", "Research · Inspect one job", "Research", "/job JOB_ID", "/job abcd1234", "_cmd_job", in_menu=False),
     CommandSpec("backtests", "Research · Completed backtest history", "Research", "/backtests [COUNT]", "/backtests 10", "_cmd_backtests"),
     CommandSpec("timeline", "Execution · Lifecycle of one order from the audit trail", "Execution", "/timeline ORDER_ID", "/timeline abc123", "_cmd_timeline", ("ordertrace",)),
     CommandSpec("working", "Execution · Orders resting on the book right now", "Execution", "/working [SYMBOL]", "/working", "_cmd_working"),
@@ -585,17 +615,17 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("backtest", "Research · Queue a parameter sweep on the shared jobs engine", "Research", "/backtest SYMBOL [INTERVAL] [STRATEGY]", "/backtest BTCUSDT 1h ma_cross", "_cmd_backtest", ("sweep",)),
     CommandSpec("rag", "Research · Similarity search over this desk's own runs and incidents", "Research", "/rag QUERY", "/rag momentum drawdown", "_cmd_rag", ("similar", "recall")),
     CommandSpec("strategies", "Research · Supported strategy catalogue", "Research", "/strategies", "/strategies", "_cmd_strategies"),
-    CommandSpec("intervals", "Research · Supported market horizons", "Research", "/intervals", "/intervals", "_cmd_intervals"),
+    CommandSpec("intervals", "Research · Supported market horizons", "Research", "/intervals", "/intervals", "_cmd_intervals", in_menu=False),
     CommandSpec("events", "Research · Recent risk/audit events", "Research", "/events [COUNT]", "/events 10", "_cmd_events"),
     CommandSpec("incidents", "Research · Warning and critical events", "Research", "/incidents [COUNT]", "/incidents 10", "_cmd_incidents"),
 
     # Notification preferences
     CommandSpec("subscribe", "Alerts · Receive operational notifications", "Alerts", "/subscribe", "/subscribe", "_cmd_subscribe", ("unmute",)),
     CommandSpec("unsubscribe", "Alerts · Stop optional notifications", "Alerts", "/unsubscribe", "/unsubscribe", "_cmd_unsubscribe", ("mute",)),
-    CommandSpec("subscriptions", "Alerts · Show notification state", "Alerts", "/subscriptions", "/subscriptions", "_cmd_subscriptions", ("alerts",)),
+    CommandSpec("subscriptions", "Alerts · Show notification state", "Alerts", "/subscriptions", "/subscriptions", "_cmd_subscriptions", ("alerts",), in_menu=False),
     CommandSpec("watch", "Alerts · Watch execution-cost deterioration", "Alerts", "/watch SYMBOL [NOTIONAL] [MAX_BPS]", "/watch BTCUSDT 100000 25", "_cmd_watch"),
-    CommandSpec("unwatch", "Alerts · Remove one or all liquidity watches", "Alerts", "/unwatch [SYMBOL]", "/unwatch BTCUSDT", "_cmd_unwatch"),
-    CommandSpec("watches", "Alerts · Show active liquidity watches", "Alerts", "/watches", "/watches", "_cmd_watches"),
+    CommandSpec("unwatch", "Alerts · Remove one or all liquidity watches", "Alerts", "/unwatch [SYMBOL]", "/unwatch BTCUSDT", "_cmd_unwatch", in_menu=False),
+    CommandSpec("watches", "Alerts · Show active liquidity watches", "Alerts", "/watches", "/watches", "_cmd_watches", in_menu=False),
     CommandSpec("digest", "Alerts · On-demand portfolio and systems digest", "Alerts", "/digest", "/digest", "_cmd_digest"),
 
     # Quant risk — read-only, computed by modules/quant_risk.py against the
@@ -607,8 +637,8 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("varbacktest", "Risk · Has the VaR model been right?", "Risk", "/varbacktest [INTERVAL]", "/varbacktest", "_cmd_varbacktest", ("kupiec",)),
     CommandSpec("rebalance", "Risk · Target weights and the trades to reach them", "Risk", "/rebalance [ew|iv|erc|mv]", "/rebalance", "_cmd_rebalance", ("targets",)),
     CommandSpec("regime", "Risk · Volatility regime for an instrument", "Risk", "/regime SYMBOL [INTERVAL]", "/regime BTCUSDT", "_cmd_regime"),
-    CommandSpec("size", "Risk · Kelly position sizing from a win rate", "Risk", "/size WIN_RATE PAYOFF [EQUITY]", "/size 0.55 1.8", "_cmd_size", ("kelly",)),
-    CommandSpec("dislocation", "Risk · Cross-venue crossed-book check", "Risk", "/dislocation SYMBOL", "/dislocation BTCUSDT", "_cmd_dislocation", ("arb",)),
+    CommandSpec("size", "Risk · Kelly position sizing from a win rate", "Risk", "/size WIN_RATE PAYOFF [EQUITY]", "/size 0.55 1.8", "_cmd_size", ("kelly",), in_menu=False),
+    CommandSpec("dislocation", "Risk · Cross-venue crossed-book check", "Risk", "/dislocation SYMBOL", "/dislocation BTCUSDT", "_cmd_dislocation", ("arb",), in_menu=False),
 
     # Controls — gated by TELEGRAM_CONTROL_USER_IDS and a typed challenge.
     CommandSpec("halt", "Controls · Engage the kill switch", "Controls", "/halt [SYMBOL] | /halt CODE", "/halt", "_cmd_halt"),
@@ -618,23 +648,125 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("resetbook", "Controls · Reset the paper book and session accounting", "Controls", "/resetbook | /resetbook CODE", "/resetbook", "_cmd_resetbook"),
 )
 
-_COMMAND_BY_NAME: dict[str, CommandSpec] = {}
-for _spec in COMMAND_SPECS:
-    _COMMAND_BY_NAME[f"/{_spec.name}"] = _spec
-    for _alias in _spec.aliases:
-        _COMMAND_BY_NAME[f"/{_alias}"] = _spec
+def _build_command_index(specs: tuple[CommandSpec, ...]) -> dict[str, CommandSpec]:
+    """One name, one spec — a collision fails the import, not the user.
 
-BOT_COMMANDS = [(spec.name, spec.description) for spec in COMMAND_SPECS]
-BOT_SHORT_DESCRIPTION = "Independent text alerts, portfolio and risk reads, and five gated emergency controls."
+    The loop this replaces let a later alias silently overwrite an earlier
+    command: `snapshot` carried the alias "research", so `/research` — a
+    registered Tab command with its own handler — dispatched to `/snapshot`
+    for as long as nobody noticed. Raising turns that class of defect into a
+    red test suite instead of a quietly wrong command.
+    """
+    index: dict[str, CommandSpec] = {}
+    for spec in specs:
+        for name in (spec.name, *spec.aliases):
+            key = f"/{name}"
+            if key in index:
+                raise RuntimeError(
+                    f"telegram command registry collision: {key} is claimed by "
+                    f"/{index[key].name} and /{spec.name}"
+                )
+            index[key] = spec
+    return index
+
+
+_COMMAND_BY_NAME: dict[str, CommandSpec] = _build_command_index(COMMAND_SPECS)
+
+# Telegram's setMyCommands accepts at most 100 entries, so the pushed menu is
+# the `in_menu` subset. Every spec dispatches regardless; /commands lists all.
+BOT_COMMANDS = [(spec.name, spec.description) for spec in COMMAND_SPECS if spec.in_menu]
+BOT_SHORT_DESCRIPTION = "Independent alerts and portfolio, market and risk reads — text, charts, buttons — plus five gated controls."
 BOT_DESCRIPTION = (
-    "AlphaEngine Companion is separate from the web workspace. It provides text-only portfolio, "
-    "OpenBB market data, execution analytics, research status and operational alerts. It cannot "
-    "open a position: there is no /order. Research can be queued with /backtest. "
-    "Three controls (/halt, /resume, "
-    "/flatten) need a separate operator allow-list and a single-use code; /flatten closes "
-    "positions through the same pre-trade gates as any order. "
-    "Send /commands for the full catalogue."
+    "AlphaEngine Companion is separate from the web workspace. It reads portfolio state, "
+    "OpenBB market data, execution analytics, research status and operational alerts — as text "
+    "cards, real-data charts and inline buttons; /menu opens the tappable desks. There is no "
+    "/order; /backtest queues research, not trades. Five controls (/halt, /resume, /flatten, "
+    "/reduceonly, /resetbook) are typed, never tapped: they need a separate operator allow-list "
+    "and a single-use code. Send /commands for the full catalogue."
 )
+
+
+# --------------------------------------------------------------------------- #
+# Inline keyboards — the callback-data grammar
+# --------------------------------------------------------------------------- #
+#
+# Stateless on purpose: `v1|<command-name>|<arg>|<arg>...`, at most 64 utf-8
+# bytes (Telegram's own cap). The command is a spec NAME — never an alias, so a
+# renamed alias cannot re-route a button — and the args are the same positional
+# tokens the typed command takes. No secrets and no chat ids ride in a button:
+# authorisation happens at tap time against the TAPPER's user id, exactly as it
+# would for the typed command. A button is a shortcut, never a capability.
+_CALLBACK_RE = re.compile(r"^v1\|[a-z][a-z0-9_]*(\|[A-Za-z0-9_.\-=%+:]*)*$")
+_CALLBACK_ARG_RE = re.compile(r"^[A-Za-z0-9_.\-=%+:]*$")
+_CALLBACK_MAX_BYTES = 64
+
+
+def cb(command: str, *args: Any) -> str:
+    """Build callback data for `command`, validated at build time.
+
+    Raising here rather than at tap time means a bad button is a red test, not
+    a dead button in production a user finds first.
+    """
+    tokens = [str(arg) for arg in args]
+    for token in tokens:
+        # Per-token, before joining: an arg containing the separator would
+        # otherwise join into DIFFERENT valid data — "A|B" arriving as two
+        # arguments — which the whole-string grammar cannot see.
+        if not _CALLBACK_ARG_RE.fullmatch(token):
+            raise ValueError(f"callback argument fails the grammar: {token!r}")
+    data = "|".join(["v1", str(command), *tokens])
+    if not _CALLBACK_RE.fullmatch(data):
+        raise ValueError(f"callback data fails the grammar: {data!r}")
+    if len(data.encode("utf-8")) > _CALLBACK_MAX_BYTES:
+        raise ValueError(f"callback data exceeds {_CALLBACK_MAX_BYTES} utf-8 bytes: {data!r}")
+    spec = _COMMAND_BY_NAME.get(f"/{command}")
+    if spec is None or spec.name != command:
+        raise ValueError(f"callback command must be a registered spec name, never an alias: {command!r}")
+    return data
+
+
+def parse_callback(data: str) -> tuple[str, list[str]] | None:
+    """`(command, args)` for well-formed v1 data; None for anything else.
+
+    None rather than an exception: inbound data is attacker-controlled (any
+    client can press a button that never existed), and the caller answers an
+    ill-formed tap with a toast, not a traceback.
+    """
+    if not isinstance(data, str) or not _CALLBACK_RE.fullmatch(data):
+        return None
+    if len(data.encode("utf-8")) > _CALLBACK_MAX_BYTES:
+        return None
+    parts = data.split("|")
+    return parts[1], parts[2:]
+
+
+def kb(rows: list[list[tuple[str, str]]]) -> dict[str, Any]:
+    """An inline_keyboard reply markup from `(label, callback_data)` rows.
+
+    Enforces Telegram's own ceilings — 8 buttons a row, 100 a keyboard, labels
+    1-40 characters — and re-checks every callback datum against the grammar,
+    so a keyboard that would be refused by the API is refused here first.
+    """
+    keyboard: list[list[dict[str, str]]] = []
+    total = 0
+    for row in rows:
+        if not row:
+            continue
+        if len(row) > 8:
+            raise ValueError(f"a keyboard row carries at most 8 buttons, got {len(row)}")
+        buttons: list[dict[str, str]] = []
+        for label, data in row:
+            text = str(label)
+            if not 1 <= len(text) <= 40:
+                raise ValueError(f"button labels are 1-40 characters, got {text!r}")
+            if not _CALLBACK_RE.fullmatch(data) or len(data.encode("utf-8")) > _CALLBACK_MAX_BYTES:
+                raise ValueError(f"button callback data fails validation: {data!r}")
+            buttons.append({"text": text, "callback_data": data})
+        total += len(buttons)
+        keyboard.append(buttons)
+    if total > 100:
+        raise ValueError(f"a keyboard carries at most 100 buttons, got {total}")
+    return {"inline_keyboard": keyboard}
 
 
 def _category_names() -> list[str]:
@@ -643,14 +775,15 @@ def _category_names() -> list[str]:
 
 def command_catalogue() -> str:
     lines = ["<b>⌨️ AlphaEngine command catalogue</b>",
-             "<code>TEXT ONLY · READ EXCEPT GATED CONTROLS</code>", ""]
+             "<code>TEXT + CHARTS + BUTTONS · READ EXCEPT GATED CONTROLS</code>", ""]
     for category in _category_names():
         specs = [spec for spec in COMMAND_SPECS if spec.category == category]
         lines.append(f"<b>{esc(category)}</b>")
         lines.append(" · ".join(f"/{spec.name}" for spec in specs))
         lines.append("")
     lines += [
-        "Use <code>/help markets</code> for one category or <code>/help quote</code> for exact syntax.",
+        "Use <code>/help markets</code> for one category, <code>/help quote</code> for exact syntax, "
+        "or <code>/menu</code> for the tappable desks.",
         "<i>No command opens or controls the web UI.</i>",
     ]
     return "\n".join(lines)
@@ -661,19 +794,21 @@ def help_text(query: str | None = None) -> str:
         categories = " · ".join(_category_names())
         return text_card(
             "ℹ️ AlphaEngine Companion",
-            "TEXT ONLY · INDEPENDENT FROM WEB UI",
+            "TEXT + CHARTS + BUTTONS · INDEPENDENT FROM WEB UI",
             [
-                "Read portfolio state, OpenBB market data, execution quality and system health.",
-                "Order submission is intentionally unavailable. The three emergency controls "
-                "(/halt, /resume, /flatten) need the operator allow-list and a confirmation code.",
+                "Read portfolio state, OpenBB market data, execution quality and system health — "
+                "as text cards, real-data charts and tappable buttons. <code>/menu</code> opens the desks.",
+                "Order submission is intentionally unavailable. The five emergency controls "
+                "(/halt, /resume, /flatten, /reduceonly, /resetbook) need the operator allow-list "
+                "and a confirmation code, and are typed, never tapped.",
                 "",
                 f"<b>Categories</b>\n{esc(categories)}",
                 "",
-                "Try <code>/portfolio</code>, <code>/snapshot AAPL</code>, "
+                "Try <code>/menu</code>, <code>/portfolio</code>, <code>/snapshot AAPL</code>, "
                 "<code>/tca BTCUSDT 100000 BUY</code> or <code>/digest</code>.",
             ],
             source="AlphaEngine command registry",
-            next_commands="/commands · /help portfolio · /help quote",
+            next_commands="/menu · /commands · /help portfolio · /help quote",
         )
 
     needle = query.strip().lstrip("/").lower()
@@ -715,6 +850,98 @@ def help_text(query: str | None = None) -> str:
 HELP_TEXT = help_text()
 
 
+# --------------------------------------------------------------------------- #
+# Standard keyboards
+# --------------------------------------------------------------------------- #
+#
+# Keyboards are additive: every card that carries one still lists its typed
+# equivalents in the `Next:` line, and every button resolves to a registered
+# command name. Keyboards live on text cards or single-photo cards; albums
+# never carry keyboards — Telegram has nowhere to hang one on a media group.
+
+_INTERVALS = ("15m", "1h", "4h", "1d")
+
+
+def _menu_keyboard() -> dict[str, Any]:
+    """The desk menu: one button per role tab, plus the daily traffic."""
+    return kb([
+        [
+            ("🌐 Overview", cb("overview")),
+            ("🔬 Research", cb("research")),
+            ("⚡ Execution", cb("execution")),
+            ("📁 Portfolio", cb("portfolio")),
+        ],
+        [
+            ("🛡 Risk", cb("risk")),
+            ("📊 Data", cb("data")),
+            ("🛡️ Reliability", cb("reliability")),
+            ("💻 Developer", cb("developer")),
+        ],
+        [
+            ("🗞 Digest", cb("digest")),
+            ("⚙️ Status", cb("status")),
+            ("ℹ️ Help", cb("help")),
+        ],
+    ])
+
+
+def _tab_footer(
+    tab: str,
+    sections: list[tuple[str, str]],
+    *,
+    refresh: str,
+    extra_rows: list[list[tuple[str, str]]] | None = None,
+) -> dict[str, Any]:
+    """A tab card's footer: its sections in rows of four, then refresh + menu.
+
+    `tab` names the card the footer belongs to — carried for callers and logs
+    rather than rendered. `extra_rows` (a symbol row, an interval row) slot in
+    between the sections and the refresh row so validation stays in `kb`.
+    """
+    del tab  # identification only; the layout does not render it
+    rows: list[list[tuple[str, str]]] = [sections[i:i + 4] for i in range(0, len(sections), 4)]
+    if extra_rows:
+        rows.extend(extra_rows)
+    rows.append([("↻ Refresh", refresh), ("⌂ Menu", cb("menu"))])
+    return kb(rows)
+
+
+def _interval_row(command: str, symbol: str, current: str, *tail: str) -> list[tuple[str, str]]:
+    """One button per supported interval; the active one is bulleted."""
+    return [
+        (f"• {interval}" if interval == current else interval, cb(command, symbol, interval, *tail))
+        for interval in _INTERVALS
+    ]
+
+
+def _symbol_row(command: str, current: str, *tail: str) -> list[tuple[str, str]]:
+    """One button per tracked symbol (at most 6); the active one is bulleted."""
+    row: list[tuple[str, str]] = []
+    for symbol in [value.upper() for value in settings.symbols][:6]:
+        row.append((f"• {symbol}" if symbol == current else symbol, cb(command, symbol, *tail)))
+    return row
+
+
+def _choice_row(
+    command: str,
+    choices: list[tuple[str, str]],
+    current: str,
+    prefix_args: tuple = (),
+    suffix_args: tuple = (),
+) -> list[tuple[str, str]]:
+    """One button per `(label, value)` choice; the active value is bulleted."""
+    return [
+        (f"• {label}" if value == current else label, cb(command, *prefix_args, value, *suffix_args))
+        for label, value in choices
+    ]
+
+
+def _category_keyboard() -> dict[str, Any]:
+    """One button per help category, in rows of three."""
+    buttons = [(category, cb("help", category.lower())) for category in _category_names()]
+    return kb([buttons[i:i + 3] for i in range(0, len(buttons), 3)])
+
+
 class TelegramBot:
     def __init__(self, gateway=None, tca=None, queue=None, audit=None) -> None:
         self.gateway = gateway
@@ -749,6 +976,7 @@ class TelegramBot:
         self.me: dict[str, Any] | None = None
         self.started_at: float | None = None
         self.updates_handled = 0
+        self.callbacks_handled = 0
         self.last_error: str | None = None
         self._watch_state: dict[tuple[str, str], bool] = {}
         self.alerts_sent = 0
@@ -862,22 +1090,179 @@ class TelegramBot:
             pace=not polling,
         )
 
-    async def send_message(self, chat_id: str | int, text: str) -> dict[str, Any]:
-        result: dict[str, Any] = {"ok": True}
-        for chunk in split_telegram_html(text):
-            result = await self.api(
-                "sendMessage",
-                chat_id=chat_id,
-                text=chunk,
-                parse_mode="HTML",
-                disable_web_page_preview=True,
+    async def answer_callback_query(
+        self,
+        callback_query_id: str,
+        text: str | None = None,
+        show_alert: bool = False,
+    ) -> dict[str, Any]:
+        """Acknowledge a button tap — with a toast when there is something to say.
+
+        Every tap must be answered or the client spins its progress indicator
+        for a full minute; the handler calls this before any slow work.
+        """
+        params: dict[str, Any] = {"callback_query_id": callback_query_id}
+        if text is not None:
+            params["text"] = text[:200]
+        if show_alert:
+            params["show_alert"] = True
+        return await self.api("answerCallbackQuery", **params)
+
+    async def edit_message_text(
+        self,
+        chat_id: str | int,
+        message_id: int,
+        text: str,
+        reply_markup: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "text": text,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+        }
+        if reply_markup is not None:
+            params["reply_markup"] = json.dumps(reply_markup)
+        return await self.api("editMessageText", **params)
+
+    async def edit_message_caption(
+        self,
+        chat_id: str | int,
+        message_id: int,
+        caption: str,
+        reply_markup: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "caption": caption[:1000],
+            "parse_mode": "HTML",
+        }
+        if reply_markup is not None:
+            params["reply_markup"] = json.dumps(reply_markup)
+        return await self.api("editMessageCaption", **params)
+
+    async def edit_message_reply_markup(
+        self,
+        chat_id: str | int,
+        message_id: int,
+        reply_markup: dict[str, Any],
+    ) -> dict[str, Any]:
+        return await self.api(
+            "editMessageReplyMarkup",
+            chat_id=chat_id,
+            message_id=message_id,
+            reply_markup=json.dumps(reply_markup),
+        )
+
+    async def edit_message_media(
+        self,
+        chat_id: str | int,
+        message_id: int,
+        photo_bytes: bytes,
+        caption: str = "",
+        reply_markup: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Replace a photo message's media in place — multipart, like sendPhoto."""
+        if not self._client:
+            self._client = httpx.AsyncClient(timeout=40.0)
+        media = json.dumps({
+            "type": "photo",
+            "media": "attach://photo",
+            "caption": caption[:1000],
+            "parse_mode": "HTML",
+        })
+        data: dict[str, str] = {
+            "chat_id": str(chat_id),
+            "message_id": str(message_id),
+            "media": media,
+        }
+        if reply_markup is not None:
+            data["reply_markup"] = json.dumps(reply_markup)
+        files = {"photo": ("chart.png", photo_bytes, "image/png")}
+        return await self._post("editMessageMedia", data=data, files=files, chat_id=chat_id)
+
+    async def send_message(
+        self,
+        chat_id: str | int,
+        text: str,
+        *,
+        reply_markup: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        chunks = split_telegram_html(text)
+        target = _reply_target.get()
+        if (
+            target is not None
+            and not target.consumed
+            and target.kind == "text"
+            and target.chat_id == str(chat_id)
+        ):
+            # Answering a button tap on a text card: edit that card in place so
+            # a refresh refreshes rather than piling a second copy underneath.
+            target.consumed = True
+            edited = await self.edit_message_text(
+                chat_id, target.message_id, chunks[0], reply_markup=reply_markup,
             )
+            description = str(edited.get("description") or "")
+            if edited.get("ok") or "message is not modified" in description:
+                # "not modified" is Telegram saying the card is already this
+                # exact text — the tap succeeded, nothing to resend.
+                result: dict[str, Any] = edited if edited.get("ok") else {"ok": True, "description": description}
+                for chunk in chunks[1:]:
+                    result = await self.api(
+                        "sendMessage",
+                        chat_id=chat_id,
+                        text=chunk,
+                        parse_mode="HTML",
+                        disable_web_page_preview=True,
+                    )
+                return result
+            # Any other refusal — too old, deleted, wrong kind — falls through
+            # to a fresh send: the answer matters more than the tidiness.
+
+        result = {"ok": True}
+        for index, chunk in enumerate(chunks):
+            params: dict[str, Any] = {
+                "chat_id": chat_id,
+                "text": chunk,
+                "parse_mode": "HTML",
+                "disable_web_page_preview": True,
+            }
+            if reply_markup is not None and index == len(chunks) - 1:
+                # The keyboard rides on the LAST chunk, the one the reader is
+                # left looking at when a long card splits.
+                params["reply_markup"] = json.dumps(reply_markup)
+            result = await self.api("sendMessage", **params)
         return result
 
-    async def send_photo(self, chat_id: str | int, photo_bytes: bytes, caption: str = "") -> dict[str, Any]:
+    async def send_photo(
+        self,
+        chat_id: str | int,
+        photo_bytes: bytes,
+        caption: str = "",
+        *,
+        reply_markup: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Dispatch visual chart photo to Telegram chat, falling back to text message if photo upload fails."""
         if not self._client:
             self._client = httpx.AsyncClient(timeout=40.0)
+
+        target = _reply_target.get()
+        if (
+            photo_bytes
+            and target is not None
+            and not target.consumed
+            and target.kind == "photo"
+            and target.chat_id == str(chat_id)
+        ):
+            target.consumed = True
+            edited = await self.edit_message_media(
+                chat_id, target.message_id, photo_bytes, caption=caption, reply_markup=reply_markup,
+            )
+            if edited.get("ok") or "message is not modified" in str(edited.get("description") or ""):
+                return edited
+            # Fall through: the tapped photo is too old or gone; send fresh.
 
         if photo_bytes:
             try:
@@ -886,6 +1271,8 @@ class TelegramBot:
                 if caption:
                     data["caption"] = caption[:1000]
                     data["parse_mode"] = "HTML"
+                if reply_markup is not None:
+                    data["reply_markup"] = json.dumps(reply_markup)
 
                 res = await self._post(
                     "sendPhoto", data=data, files=files, chat_id=chat_id,
@@ -896,13 +1283,15 @@ class TelegramBot:
             except Exception as exc:
                 log.warning("sendPhoto upload exception (%s), falling back to text message", exc)
 
-        return await self.send_message(chat_id, caption)
+        return await self.send_message(chat_id, caption, reply_markup=reply_markup)
 
     async def send_media_group(
         self,
         chat_id: str | int,
         photos: list[tuple[str, bytes]],
         caption: str = "",
+        *,
+        reply_markup: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Send several charts as one album.
@@ -916,13 +1305,48 @@ class TelegramBot:
         identifiable. Degrades twice: to sequential photos if the album call
         fails, and to the text card if the photos themselves fail, because the
         numbers matter more than the pictures.
+
+        A keyboard changes the shape, because Telegram gives an album nowhere
+        to hang one: a single usable photo becomes a captioned photo carrying
+        the keyboard, and a real album goes out caption-less followed by a text
+        card that carries both the caption and the keyboard. When the command
+        was itself a button tap, the tapped card's stale keyboard is detached
+        first so the chat never shows two live keyboards for one card.
         """
         usable = [(name, blob) for name, blob in photos if blob]
+
+        if reply_markup is not None:
+            if not usable:
+                return await self.send_message(chat_id, caption, reply_markup=reply_markup)
+            if len(usable) == 1 and len(caption) <= 1000:
+                return await self.send_photo(chat_id, usable[0][1], caption=caption, reply_markup=reply_markup)
+            target = _reply_target.get()
+            if target is not None and not target.consumed and target.chat_id == str(chat_id):
+                # An album cannot edit the tapped card in place; detach that
+                # card's keyboard so the buttons the reader can see are only
+                # ever the freshest ones. Best-effort — the answer still goes
+                # out if the detach is refused.
+                target.consumed = True
+                with contextlib.suppress(Exception):
+                    await self.edit_message_reply_markup(
+                        chat_id, target.message_id, {"inline_keyboard": []},
+                    )
+            await self._send_album(chat_id, usable, caption="")
+            return await self.send_message(chat_id, caption, reply_markup=reply_markup)
+
         if not usable:
             return await self.send_message(chat_id, caption)
         if len(usable) == 1:
             return await self.send_photo(chat_id, usable[0][1], caption=caption)
+        return await self._send_album(chat_id, usable, caption)
 
+    async def _send_album(
+        self,
+        chat_id: str | int,
+        usable: list[tuple[str, bytes]],
+        caption: str = "",
+    ) -> dict[str, Any]:
+        """The sendMediaGroup call and its degradation ladder, unchanged."""
         if not self._client:
             self._client = httpx.AsyncClient(timeout=60.0)
 
@@ -984,7 +1408,7 @@ class TelegramBot:
                 "setWebhook",
                 url=webhook_url,
                 secret_token=secret,
-                allowed_updates=["message"],
+                allowed_updates=["message", "callback_query"],
                 drop_pending_updates=False,
             )
             log.info("Telegram webhook registration: %s", bool(result.get("ok")))
@@ -1021,7 +1445,7 @@ class TelegramBot:
                     "getUpdates",
                     offset=self._offset,
                     timeout=25,
-                    allowed_updates=["message"],
+                    allowed_updates=["message", "callback_query"],
                 )
                 if data.get("ok"):
                     backoff = 1.0
@@ -1190,6 +1614,13 @@ class TelegramBot:
         chat_id: str | None = None
         command = ""
         try:
+            callback = update.get("callback_query")
+            if callback:
+                # Set before the call so the shared failure card below knows
+                # where to go if the handler raises.
+                chat_id = str(((callback.get("message") or {}).get("chat") or {}).get("id") or "")
+                await self._handle_callback(callback)
+                return
             message = update.get("message") or update.get("edited_message")
             if not message:
                 return
@@ -1254,6 +1685,76 @@ class TelegramBot:
                             next_commands=f"/help {command.lstrip('/')} · /status",
                         ),
                     )
+
+    async def _handle_callback(self, callback: dict[str, Any]) -> None:
+        """A button tap, taken through the same gates as a typed command.
+
+        The identity that counts is ``callback["from"]`` — the user who TAPPED
+        — never the author of the message the button sits on. In a group chat
+        those differ: the card was sent to the chat, but authorisation belongs
+        to whoever pressed the button.
+
+        Controls are the one category a button never reaches. A tap is easier
+        to fire by accident than a typed command, and the whole point of the
+        challenge flow is deliberateness — so no challenge is ever issued from
+        a button, not even the first step.
+        """
+        cb_id = str(callback.get("id") or "")
+        user = callback.get("from") or {}
+        user_id = str(user.get("id") or "")
+        message = callback.get("message") or {}
+        chat_id = str((message.get("chat") or {}).get("id") or "")
+        message_id = message.get("message_id")
+        data = str(callback.get("data") or "")
+
+        if not message or not chat_id or not message_id:
+            # A tap on a message too old for Telegram to include, or from an
+            # inline-mode surface this bot does not serve.
+            await self.answer_callback_query(cb_id, text="Open the chat and send the command.")
+            return
+
+        parsed = parse_callback(data)
+        if parsed is None:
+            await self.answer_callback_query(
+                cb_id, text="This button is from an older build. Send the command instead.",
+            )
+            return
+        command, args = parsed
+
+        if not self._authorised(user_id) and f"/{command}" not in _BOOTSTRAP_COMMANDS:
+            await self.answer_callback_query(cb_id, text="Not authorised — send /whoami")
+            return
+        if not self._rate_allowed(user_id):
+            await self.answer_callback_query(cb_id, text="Rate limited: 15 taps per 10 s")
+            return
+
+        spec = _COMMAND_BY_NAME.get(f"/{command}")
+        if spec is None:
+            await self.answer_callback_query(
+                cb_id, text="This button is from an older build. Send the command instead.",
+            )
+            return
+        if spec.category == "Controls":
+            await self.answer_callback_query(
+                cb_id, text=f"Controls are typed, never tapped. Send /{spec.name}.",
+            )
+            return
+
+        # Acknowledged before the slow work, so the client's spinner clears
+        # while the handler reads books and draws charts.
+        await self.answer_callback_query(cb_id)
+        self.callbacks_handled += 1
+        actor = f"tg:{user_id}:{user.get('username') or 'user'}"
+        log.info("Telegram callback %s from user %s", command, user_id)
+        token = _reply_target.set(ReplyTarget(
+            chat_id=chat_id,
+            message_id=int(message_id),
+            kind="photo" if message.get("photo") else "text",
+        ))
+        try:
+            await self._dispatch(f"/{command}", args, chat_id, actor)
+        finally:
+            _reply_target.reset(token)
 
     async def _dispatch(self, command: str, args: list[str], chat_id: str, actor: str) -> None:
         spec = _COMMAND_BY_NAME.get(command)
@@ -1625,17 +2126,43 @@ class TelegramBot:
     async def _cmd_start(self, args, chat_id, actor) -> None:
         # `?start=<payload>` arrives as args[0]; the dispatcher already passes
         # them through. A bare /start keeps its original answer, because someone
-        # who simply found the bot is asking for the command card.
+        # who simply found the bot is asking for the command card. An authorised
+        # user also gets the desk menu keyboard — an unauthorised one does not,
+        # because every button on it leads somewhere the refusal card explains
+        # better.
         if args:
             await self._complete_link(args[0], chat_id, actor)
             return
-        await self.send_message(chat_id, HELP_TEXT)
+        authorised = self._authorised(actor_user_id(actor))
+        await self.send_message(
+            chat_id, HELP_TEXT, reply_markup=_menu_keyboard() if authorised else None,
+        )
+
+    async def _cmd_menu(self, args, chat_id, actor) -> None:
+        await self.send_message(
+            chat_id,
+            text_card(
+                "🎛 Desk menu",
+                "PICK A DESK",
+                [
+                    "Pick a desk. Every button is a shortcut for a typed command, "
+                    "and the tapped card refreshes in place.",
+                ],
+                source="AlphaEngine command registry",
+                next_commands="/overview · /portfolio · /risk · /help",
+            ),
+            reply_markup=_menu_keyboard(),
+        )
 
     async def _cmd_help(self, args, chat_id, actor) -> None:
-        await self.send_message(chat_id, help_text(args[0] if args else None))
+        await self.send_message(
+            chat_id,
+            help_text(args[0] if args else None),
+            reply_markup=_category_keyboard(),
+        )
 
     async def _cmd_commands(self, args, chat_id, actor) -> None:
-        await self.send_message(chat_id, command_catalogue())
+        await self.send_message(chat_id, command_catalogue(), reply_markup=_category_keyboard())
 
     async def _cmd_about(self, args, chat_id, actor) -> None:
         await self.send_message(
@@ -1644,7 +2171,9 @@ class TelegramBot:
                 "ℹ️ AlphaEngine Companion",
                 "INDEPENDENT · READ EXCEPT FIVE GATED CONTROLS",
                 [
-                    "A separate operational channel for portfolio, market, research and execution updates.",
+                    "A separate operational channel for portfolio, market, research and execution updates — "
+                    "text cards, real-data charts and inline buttons. /menu opens the tappable desks; "
+                    "every button is a shortcut for a typed command, never a capability of its own.",
                     "It shares authoritative data services with AlphaEngine but never opens or controls the web UI.",
                     # This card used to say READ-ONLY and that order entry was absent.
                     # `/flatten` submits real orders through `gateway.submit`, so both
@@ -1868,18 +2397,38 @@ class TelegramBot:
             source="Gateway + TCA engine + request middleware",
             next_commands="/research · /execution · /portfolio · /risk · /data · /reliability · /developer",
         )
-        await self.send_media_group(chat_id, charts, caption=text)
+        await self.send_media_group(chat_id, charts, caption=text, reply_markup=_tab_footer(
+            "overview",
+            [
+                ("Portfolio", cb("portfolio")),
+                ("Risk", cb("risk")),
+                ("Orders", cb("orders")),
+                ("Ops", cb("ops")),
+            ],
+            refresh=cb("overview"),
+        ))
 
     async def _cmd_tab_research(self, args, chat_id, actor) -> None:
         symbol = self._symbol(args) if args else settings.symbols[0].upper()
         asset = self._asset(symbol, args)
+        footer = _tab_footer(
+            "research",
+            [
+                ("Backtests", cb("backtests")),
+                ("Strategies", cb("strategies")),
+                ("Regime", cb("regime", symbol)),
+                ("Quote", cb("quote", symbol)),
+            ],
+            refresh=cb("research", symbol),
+            extra_rows=[_symbol_row("research", symbol)],
+        )
         closes = await self._closes_for(symbol, asset)
         if len(closes) < 2:
             await self.send_message(chat_id, text_card(
                 f"🔬 Research · {esc(symbol)}", "NO BARS",
                 ["No daily bars were returned, so nothing can be measured for this symbol."],
                 source="OpenBB / yfinance", next_commands="/quote " + symbol,
-            ))
+            ), reply_markup=footer)
             return
 
         returns = [closes[i] / closes[i - 1] - 1 for i in range(1, len(closes)) if closes[i - 1]]
@@ -1908,17 +2457,28 @@ class TelegramBot:
         await self.send_media_group(chat_id, charts, caption=text_card(
             f"🔬 Research · {esc(symbol)}", "MEASURED", lines,
             source="OpenBB / yfinance", next_commands=f"/backtests · /quote {symbol}",
-        ))
+        ), reply_markup=footer)
 
     async def _cmd_tab_execution(self, args, chat_id, actor) -> None:
         symbol = self._symbol(args) if args else settings.symbols[0].upper()
+        footer = _tab_footer(
+            "execution",
+            [
+                ("Book", cb("book", symbol)),
+                ("TCA", cb("tca", symbol, "100000", "BUY")),
+                ("Working", cb("working")),
+                ("Orders", cb("orders")),
+            ],
+            refresh=cb("execution", symbol),
+            extra_rows=[_symbol_row("execution", symbol)],
+        )
         books = [book for book in self.tca.get_books(symbol, depth=20) if book.mid] if self.tca else []
         if not books:
             await self.send_message(chat_id, text_card(
                 f"⚡ Execution · {esc(symbol)}", "NO LIVE BOOK",
                 ["No venue currently has a fresh book for this symbol, so there is nothing to route against."],
                 source="TCA engine", next_commands="/feedstatus",
-            ))
+            ), reply_markup=footer)
             return
 
         bids: list[tuple[float, float]] = []
@@ -1946,7 +2506,7 @@ class TelegramBot:
         await self.send_media_group(chat_id, charts, caption=text_card(
             f"⚡ Execution · {esc(symbol)}", "SYNTHETIC BOOK" if synthetic else "LIVE BOOK", lines,
             source="TCA engine", next_commands=f"/book {symbol} · /tca {symbol} 100000 BUY",
-        ))
+        ), reply_markup=footer)
 
     async def _cmd_tab_data(self, args, chat_id, actor) -> None:
         from modules import research
@@ -1981,6 +2541,15 @@ class TelegramBot:
         await self.send_media_group(chat_id, [("feeds", chart)] if chart else [], caption=text_card(
             "📊 Data operations", "READY" if openbb.get("ok") else "DEGRADED", lines,
             source="TCA engine + OpenBB", next_commands="/openbb · /feedstatus",
+        ), reply_markup=_tab_footer(
+            "data",
+            [
+                ("Feeds", cb("feedstatus")),
+                ("OpenBB", cb("openbb")),
+                ("Incidents", cb("incidents")),
+                ("Events", cb("events")),
+            ],
+            refresh=cb("data"),
         ))
 
     async def _cmd_tab_reliability(self, args, chat_id, actor) -> None:
@@ -2019,6 +2588,15 @@ class TelegramBot:
         await self.send_media_group(chat_id, charts, caption=text_card(
             "🛡️ Reliability", "MEASURED" if rows else "NO SAMPLES", lines,
             source="Gateway request middleware", next_commands="/status · /incidents",
+        ), reply_markup=_tab_footer(
+            "reliability",
+            [
+                ("Ops", cb("ops")),
+                ("Venues", cb("venues")),
+                ("Incidents", cb("incidents")),
+                ("Status", cb("status")),
+            ],
+            refresh=cb("reliability"),
         ))
 
     async def _cmd_tab_developer(self, args, chat_id, actor) -> None:
@@ -2048,6 +2626,14 @@ class TelegramBot:
         await self.send_media_group(chat_id, [("ci", chart)] if chart else [], caption=text_card(
             "💻 Developer", "CONFIGURED", lines,
             source="Committed CI configuration", next_commands="/version · /commands",
+        ), reply_markup=_tab_footer(
+            "developer",
+            [
+                ("Version", cb("version")),
+                ("Ops", cb("ops")),
+                ("Status", cb("status")),
+            ],
+            refresh=cb("developer"),
         ))
 
     # ------------------------------------------------------------------ #
@@ -3908,6 +4494,10 @@ class TelegramBot:
             "mode": self.mode,
             "username": (self.me or {}).get("username"),
             "updates_handled": self.updates_handled,
+            # Inline keyboards and callback queries are served; every button
+            # resolves to a registered typed command and controls are excluded.
+            "interactive": True,
+            "callbacks_handled": self.callbacks_handled,
             "uptime_s": round(time.time() - self.started_at, 1) if self.started_at else 0.0,
             "alert_targets": len(self._alert_targets()),
             "subscribers": len(self._subscribers()),
@@ -3922,7 +4512,10 @@ class TelegramBot:
             "read_only": False,
             "text_only": False,
             "controls": {
-                "commands": 3,
+                # Derived from the registry, because the hard-coded 3 this
+                # replaces went on reading 3 for two whole controls after
+                # /reduceonly and /resetbook shipped.
+                "commands": sum(1 for spec in COMMAND_SPECS if spec.category == "Controls"),
                 "gated": True,
                 "control_allowlist_configured": bool(self.control_user_ids),
             },
@@ -3965,11 +4558,15 @@ __all__ = [
     "BOT_SHORT_DESCRIPTION",
     "COMMAND_SPECS",
     "HELP_TEXT",
+    "ReplyTarget",
     "TelegramBot",
+    "cb",
     "command_catalogue",
     "esc",
     "get_bot",
     "help_text",
+    "kb",
+    "parse_callback",
     "split_telegram_html",
     "text_card",
 ]

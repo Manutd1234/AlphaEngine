@@ -1,4 +1,4 @@
-"""Text-only Telegram companion: registry, security, rendering and commands."""
+"""Telegram companion: registry, security, rendering and commands."""
 
 from __future__ import annotations
 
@@ -37,22 +37,27 @@ class StubBot(TelegramBot):
         self.sent: list[str] = []
         self.api_calls: list[tuple[str, dict]] = []
         self.albums: list[list[tuple[str, bytes]]] = []
+        # Every reply_markup a sender was handed, None included — so a test can
+        # assert both "this card carried a keyboard" and "that one did not".
+        self.keyboards: list[dict | None] = []
 
     async def api(self, method, **params):
         self.api_calls.append((method, params))
         return {"ok": True, "result": {}}
 
-    async def send_message(self, chat_id, text):
+    async def send_message(self, chat_id, text, *, reply_markup=None):
         self.sent.extend(split_telegram_html(text))
+        self.keyboards.append(reply_markup)
         return {"ok": True}
 
-    async def send_photo(self, chat_id, photo_bytes, caption=""):
+    async def send_photo(self, chat_id, photo_bytes, caption="", *, reply_markup=None):
         if caption:
             self.sent.extend(split_telegram_html(caption))
+        self.keyboards.append(reply_markup)
         self.api_calls.append(("sendPhoto", {"chat_id": chat_id, "photo": photo_bytes, "caption": caption}))
         return {"ok": True}
 
-    async def send_media_group(self, chat_id, photos, caption=""):
+    async def send_media_group(self, chat_id, photos, caption="", *, reply_markup=None):
         # Captured here rather than per-test: without it the chart commands
         # fall through to the real multipart sender, so every album test had
         # to monkeypatch this method itself.
@@ -60,6 +65,7 @@ class StubBot(TelegramBot):
         self.albums.append(usable)
         if caption:
             self.sent.extend(split_telegram_html(caption))
+        self.keyboards.append(reply_markup)
         self.api_calls.append(
             ("sendMediaGroup", {"chat_id": chat_id, "photos": [name for name, _ in usable]})
         )
@@ -100,7 +106,13 @@ class TestRegistry:
             assert re.fullmatch(r"[a-z0-9_]{1,32}", spec.name)
             assert 1 <= len(spec.description) <= 256
             assert hasattr(TelegramBot, spec.handler)
-        assert BOT_COMMANDS == [(spec.name, spec.description) for spec in COMMAND_SPECS]
+        # The pushed menu is the `in_menu` subset — Telegram's setMyCommands
+        # refuses more than 100 entries, and the full catalogue dispatches
+        # regardless of what the menu shows.
+        assert BOT_COMMANDS == [
+            (spec.name, spec.description) for spec in COMMAND_SPECS if spec.in_menu
+        ]
+        assert len(BOT_COMMANDS) <= 100
         assert len(BOT_SHORT_DESCRIPTION) <= 120
         assert len(BOT_DESCRIPTION) <= 512
 
@@ -178,16 +190,17 @@ class TestRegistry:
         assert "/snapshot" in catalogue and "/digest" in catalogue
         quote_help = help_text("quote")
         assert "/quote SYMBOL" in quote_help and "/quote AAPL" in quote_help
-        # Ten since /equity joined the category — the count is rendered from
-        # the registry, so this moves whenever a Portfolio command lands.
-        assert "10 COMMANDS" in help_text("portfolio")
+        # Derived from the registry rather than pinned: the count is rendered
+        # from COMMAND_SPECS, so this follows whenever a Portfolio command lands.
+        portfolio_count = sum(1 for spec in COMMAND_SPECS if spec.category == "Portfolio")
+        assert f"{portfolio_count} COMMANDS" in help_text("portfolio")
 
 
 @pytest.mark.asyncio
 class TestAccessAndDispatch:
-    async def test_start_is_text_only_and_does_not_auto_subscribe(self, bot):
+    async def test_start_states_its_media_and_does_not_auto_subscribe(self, bot):
         await bot.handle_update(update("/start"))
-        assert "TEXT ONLY" in bot.last
+        assert "TEXT + CHARTS + BUTTONS" in bot.last
         assert bot._subscribers() == []
 
     async def test_empty_allowlist_is_bootstrap_only(self, bot):
@@ -328,11 +341,16 @@ class TestOpenBBCommands:
             assert expected in bot.last
 
     async def test_news_fundamentals_and_snapshot(self, bot):
+        # `/research AAPL` reaches the Research TAB, not `/snapshot`: the
+        # snapshot spec used to carry the alias "research", and the registry
+        # let the later alias overwrite the registered Tab command — so
+        # `/research` silently dispatched to `/snapshot` for as long as
+        # nobody noticed. The alias is gone and a collision now fails import.
         for index, (command, expected) in enumerate((
             ("/news AAPL 3", "AAPL headlines"),
             ("/fundamentals AAPL", "Example Corp"),
             ("/snapshot AAPL", "research snapshot"),
-            ("/research AAPL", "research snapshot"),
+            ("/research AAPL", "Research · AAPL"),
         ), 90):
             await bot.handle_update(update(command, update_id=index))
             assert expected in bot.last
@@ -509,8 +527,15 @@ class TestRenderingAndSafety:
         health = bot.health()
         assert health["read_only"] is False
         assert health["text_only"] is False
+        assert health["interactive"] is True
+        assert health["callbacks_handled"] == 0
         assert health["controls"]["gated"] is True
-        assert health["controls"]["commands"] == 3
+        # Five, derived from the registry — the hard-coded 3 this replaces
+        # went on reading 3 after /reduceonly and /resetbook shipped.
+        assert health["controls"]["commands"] == 5
+        assert health["controls"]["commands"] == sum(
+            1 for spec in COMMAND_SPECS if spec.category == "Controls"
+        )
         assert health["controls"]["control_allowlist_configured"] == bool(
             bot.control_user_ids
         )
@@ -601,7 +626,7 @@ class TestBookDerivedCharts:
     async def test_portfolio_and_risk_chart_the_gateway_state(self, bot):
         albums: list[list[tuple[str, bytes]]] = []
 
-        async def capture(chat_id, photos, caption=""):
+        async def capture(chat_id, photos, caption="", **kwargs):
             albums.append(list(photos))
             bot.sent.extend(split_telegram_html(caption))
             return {"ok": True}
@@ -649,7 +674,7 @@ class TestMultiSymbolCharts:
 
         album: list[list[tuple[str, bytes]]] = []
 
-        async def send_media_group(chat_id, photos, caption=""):
+        async def send_media_group(chat_id, photos, caption="", **kwargs):
             album.append(list(photos))
             bot.sent.extend(split_telegram_html(caption))
             return {"ok": True}
@@ -674,7 +699,7 @@ class TestMultiSymbolCharts:
 
         album: list[list[tuple[str, bytes]]] = []
 
-        async def send_media_group(chat_id, photos, caption=""):
+        async def send_media_group(chat_id, photos, caption="", **kwargs):
             album.append(list(photos))
             bot.sent.extend(split_telegram_html(caption))
             return {"ok": True}

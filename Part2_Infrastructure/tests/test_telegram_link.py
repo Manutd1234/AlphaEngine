@@ -401,7 +401,7 @@ async def test_the_legacy_start_payload_signposts_rather_than_erroring(bot):
 @pytest.mark.asyncio
 async def test_bare_start_is_unchanged(bot):
     await bot.handle_update(update("/start", update_id=360))
-    assert "TEXT ONLY" in bot.last
+    assert "TEXT + CHARTS + BUTTONS" in bot.last
 
 
 # --------------------------------------------------------------------------- #
