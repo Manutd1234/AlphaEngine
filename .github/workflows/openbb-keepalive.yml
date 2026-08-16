@@ -1,0 +1,74 @@
+# Keep the OpenBB research service warm.
+#
+# WHY THIS EXISTS
+#
+# The OpenBB service is a stateless Vercel function that imports OpenBB on a
+# cold start — a few seconds the first request after the instance is reaped
+# pays in full. Those cold starts land in the desk's upstream latency tail as
+# genuine multi-second samples (the "P99 3003ms" a reader sees is one), because
+# a timeout is latency the caller paid for and the ledger counts it honestly.
+# A Vercel function stays warm for roughly five to fifteen minutes after a
+# request, so pinging its liveness endpoint every ten minutes keeps the import
+# already done when a real quote arrives.
+#
+# WHY IT IS A JOB AND NOT A VERCEL CRON
+#
+# Vercel Hobby crons run at most once a day — far too coarse to hold a function
+# warm. GitHub Actions is the only scheduler in this project fine-grained
+# enough, the same reason oracle-keepalive.yml lives here.
+#
+# WHY IT IS NOT IN ci.yml
+#
+# ci.yml's rule: a red build means the code broke, never that a service was
+# slow or asleep. This is only ever reporting on a service. A failure notifies
+# whoever owns the deployment without blocking a merge — and mostly it means
+# the URL secret is absent or the deployment was renamed, not that anything is
+# wrong with the code.
+#
+# WHAT THIS IS NOT
+#
+# A warm-keeper, not a health monitor. It hits the PUBLIC liveness route
+# (/healthz), which reports that the process is up, not that any provider is
+# reachable — provider readiness stays authenticated and is checked on the
+# desk, not here.
+
+name: Keep OpenBB service warm
+
+on:
+  schedule:
+    # Every ten minutes, inside the function's warm window so a real request
+    # rarely meets a cold import.
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: openbb-keepalive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    name: Ping liveness, keep the import warm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Warm the service
+        env:
+          # The public liveness URL of the OpenBB service, e.g.
+          # https://alphaengine-openbb.vercel.app — the workflow appends /healthz.
+          OPENBB_BASE_URL: ${{ secrets.OPENBB_BASE_URL }}
+        run: |
+          if [ -z "$OPENBB_BASE_URL" ]; then
+            echo "::notice::OPENBB_BASE_URL absent — nothing to keep warm."
+            exit 0
+          fi
+          url="${OPENBB_BASE_URL%/}/healthz"
+          # Two probes: the first may pay the cold start, the second confirms
+          # the warm path answers quickly. Fail only if the service does not
+          # answer at all, not on how slow the first one was.
+          code=$(curl -s -m 30 -o /dev/null -w '%{http_code}' "$url" || echo 000)
+          sleep 2
+          t=$(curl -s -m 30 -o /dev/null -w '%{time_total}' "$url" || echo 30)
+          echo "healthz -> $code in ${t}s (warm)"
+          if [ "$code" != "200" ]; then
+            echo "::warning::OpenBB liveness returned $code — the service may be down or the URL renamed."
+            exit 1
+          fi

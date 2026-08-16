@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-16",
-  "commit": "418da95",
+  "commit": "2dbe171",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -9,6 +9,7 @@
     ".github/workflows/ci.yml",
     ".github/workflows/deploy.yml",
     ".github/workflows/e2e.yml",
+    ".github/workflows/openbb-keepalive.yml",
     ".github/workflows/oracle-keepalive.yml",
     ".github/workflows/schema.yml",
     ".gitignore",
