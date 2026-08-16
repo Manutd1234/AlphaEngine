@@ -296,9 +296,11 @@ export default function PortfolioWorkspace({
     },
     {
       label: "p99 latency",
+      // The ticker wraps only the measured branch; null stays null and the
+      // consumer keeps rendering its dash.
       value: numberOrNull(quality.p99_latency_ms) == null
         ? null
-        : `${fmt(numberOrNull(quality.p99_latency_ms)!, 2)} ms`,
+        : <NumberTicker value={numberOrNull(quality.p99_latency_ms)!} format={(v) => `${fmt(v, 2)} ms`} />,
       note: `p50 ${numberOrNull(quality.p50_latency_ms) == null ? "—" : fmt(numberOrNull(quality.p50_latency_ms)!, 2)} ms`,
     },
     {

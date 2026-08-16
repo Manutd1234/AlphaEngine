@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import QuantEducationalTooltip from "@/components/common/QuantEducationalTooltip";
 
 /** A single number is not a chart. These are stat tiles, not one-bar bar charts. */
@@ -11,7 +13,8 @@ export default function StatTile({
   explain,
 }: {
   label: string;
-  value: string;
+  /** ReactNode so a poll-fed figure can count through NumberTicker. */
+  value: ReactNode;
   note?: string;
   tone?: "pos" | "neg" | "muted";
   /**

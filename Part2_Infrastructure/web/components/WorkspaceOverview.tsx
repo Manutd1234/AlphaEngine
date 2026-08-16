@@ -13,6 +13,7 @@
  * derives from the same call, one screen higher.
  */
 
+import NumberTicker from "@/components/common/NumberTicker";
 import AuditTrail from "@/components/overview/AuditTrail";
 import DecisionLoopPipeline from "@/components/overview/DecisionLoopPipeline";
 import KpiDeck from "@/components/overview/KpiDeck";
@@ -209,7 +210,7 @@ export default function WorkspaceOverview({
         metrics={[
           {
             label: "Equity",
-            value: equity ? usd(equity.current, 0) : "—",
+            value: equity ? <NumberTicker value={equity.current} format={(v) => usd(v, 0)} /> : "—",
             note: equity ? `start ${usd(equity.start_of_day, 0)} · gateway snapshot` : "book connecting",
             spark: equitySpark.length >= 2 ? (
               <Sparkline
@@ -223,7 +224,11 @@ export default function WorkspaceOverview({
           },
           {
             label: "Day P&L",
-            value: equity ? `${equity.daily_pnl >= 0 ? "+" : "−"}${usd(Math.abs(equity.daily_pnl), 0)}` : "—",
+            // The sign stays outside the ticker so the count never crosses zero
+            // mid-animation with the wrong prefix.
+            value: equity
+              ? <>{equity.daily_pnl >= 0 ? "+" : "−"}<NumberTicker value={Math.abs(equity.daily_pnl)} format={(v) => usd(v, 0)} /></>
+              : "—",
             note: equity ? `${signedPct(equity.daily_return)} · ${dayTone} on the session` : "book connecting",
             tone: equity ? (equity.daily_pnl >= 0 ? "good" : "critical") : "neutral",
           },
@@ -239,7 +244,9 @@ export default function WorkspaceOverview({
           },
           {
             label: "Data plane p99",
-            value: latencyMeasured ? `${Math.round(latency!.p99!)}ms` : "—",
+            value: latencyMeasured
+              ? <NumberTicker value={latency!.p99!} format={(v) => `${Math.round(v)}ms`} />
+              : "—",
             note: latencyMeasured
               ? `${summary?.ready ?? 0}/${summary?.total ?? 0} routes ready${systems.degraded ? ` · ${systems.degraded} degraded` : ""} · measured from this browser's polls`
               : "fewer than 20 polls measured",

@@ -20,7 +20,7 @@
  *    drawdown limit that halts trading" is a decision.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 
 import { fmt, pct, usd } from "@/lib/format";
 import {
@@ -385,10 +385,11 @@ export default function StressTest({
             </tr>
           </thead>
           <tbody>
-            {ranked.map((row) => (
+            {ranked.map((row, index) => (
               <tr
                 key={row.id}
-                className={row.id === scenarioId && !manualActive ? "is-best" : undefined}
+                className={`stagger-reveal${row.id === scenarioId && !manualActive ? " is-best" : ""}`}
+                style={{ "--stagger-i": index } as CSSProperties}
               >
                 <td>{row.label}</td>
                 <td className={`num ${row.pnl >= 0 ? "pos" : "neg"}`}>

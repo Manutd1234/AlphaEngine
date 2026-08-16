@@ -16,6 +16,8 @@
  * meaning; colour reinforces.
  */
 
+import type { CSSProperties } from "react";
+
 import {
   CircleCheck,
   Circle,
@@ -86,7 +88,11 @@ export default function DecisionLoopPipeline({
           const style = STATE_STYLE[stage.state];
           const StateIcon = style.Icon;
           return (
-            <li key={stage.id} className="flex min-w-0 flex-1 items-center gap-1 max-[560px]:flex-[1_1_100%]">
+            <li
+              key={stage.id}
+              className="stagger-reveal flex min-w-0 flex-1 items-center gap-1 max-[560px]:flex-[1_1_100%]"
+              style={{ "--stagger-i": index } as CSSProperties}
+            >
               {/* `font-normal` and `text-left` restore what the desk's base
                   button rule would otherwise impose on the detail line; the
                   rest of the chrome — cursor, focus ring, hover border — is
