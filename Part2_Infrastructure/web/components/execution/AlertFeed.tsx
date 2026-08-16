@@ -83,7 +83,7 @@ export default function AlertFeed({ events, source = "live" }: AlertFeedProps) {
       ) : (
         <ul className="cockpit-alert-list">
           {visible.map((event, index) => (
-            <li key={`${event.ts}-${event.event}-${index}`} className={`is-${tone(event.severity)}`}>
+            <li key={`${event.ts}-${event.event}-${index}`} className={`mount-fade is-${tone(event.severity)}`}>
               <span className="cockpit-alert-list__time">{time(event.ts)}</span>
               <span className={`pill pill--${tone(event.severity)}`}>{event.severity}</span>
               <span className="cockpit-alert-list__event">

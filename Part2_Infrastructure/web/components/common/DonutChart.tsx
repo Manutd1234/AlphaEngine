@@ -63,7 +63,8 @@ export default function DonutChart({
 
   return (
     <div className="donut">
-      <svg viewBox="0 0 100 100" role="img" aria-label={ariaLabel} className="donut__ring">
+      {/* chart-fade replays on remount — the entrance every chart shares. */}
+      <svg viewBox="0 0 100 100" role="img" aria-label={ariaLabel} className="donut__ring chart-fade">
         {arcs.map((arc) => (
           <circle
             key={arc.label}

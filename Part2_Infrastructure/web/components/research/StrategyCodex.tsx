@@ -123,7 +123,7 @@ export default function StrategyCodex({
                   <article
                     key={strategy}
                     id={`codex-card-${strategy}`}
-                    className={`codex-card${strategy === activeStrategy ? " is-active" : ""}`}
+                    className={`codex-card card-interactive${strategy === activeStrategy ? " is-active" : ""}`}
                   >
                     <button
                       type="button"

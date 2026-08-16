@@ -13246,7 +13246,9 @@ h4 {
    would wash out. The values are identical on purpose and the comment there says
    so; a fourth copy is what this consolidation exists to prevent. */
 .signal-workflow__node:hover:not(:disabled),
-.cross-link-tile:hover {
+.cross-link-tile:hover,
+.card-interactive:hover:not(:disabled),
+.card-interactive:focus-within {
   border-color: color-mix(in srgb, var(--series-1) 45%, var(--border));
   box-shadow: 0 8px 18px -14px color-mix(in srgb, var(--series-1) 70%, transparent);
   transform: translateY(-1px);
@@ -16225,6 +16227,16 @@ html:active-view-transition .view-panel {
    halo the data board pulses, the flash the watchlist ticks, the entrance the
    cockpit verdict takes. Nothing here invents a duration — every rule reads
    the ladder, and the ratchets in motion.test.ts hold that. */
+
+/* The house lift as a utility. Hover joins the consolidated lift rule beside
+   the signal-workflow block; this is only the resting transition. Reserved
+   for surfaces that ACT — navigate somewhere or hold the row's control — per
+   the wash doctrine: a lift on an inert card promises a drag the cursor
+   cannot make good on. First caller: the codex strategy cards. */
+.card-interactive {
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
 
 /* The generic live halo: any dot fed by a live poll may wear it. The dot is
    decoration by contract — aria-hidden, with the word beside it carrying the

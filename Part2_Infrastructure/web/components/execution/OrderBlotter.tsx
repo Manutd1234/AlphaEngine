@@ -219,10 +219,13 @@ export default function OrderBlotter({
             <tbody>
               {visible.map((row) => {
                 const open = expanded === row.orderId;
+                // The desk tape's arriving tint: a fill from the last few
+                // seconds wears it, the next poll's re-render ages it out.
+                const fresh = Date.now() - Date.parse(row.ts.endsWith("Z") ? row.ts : `${row.ts}Z`) < 6_000;
                 return [
                   <tr
                     key={row.orderId}
-                    className={row.accepted ? "" : "is-rejected"}
+                    className={`${row.accepted ? "" : "is-rejected"}${fresh ? " row-fresh" : ""}`}
                     onClick={() => setExpanded(open ? null : row.orderId)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
