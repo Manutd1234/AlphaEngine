@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-16",
-  "commit": "76abf71",
+  "commit": "91ae3dd",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -140,6 +140,7 @@
     "Part2_Infrastructure/tests/test_telegram_charts.py",
     "Part2_Infrastructure/tests/test_telegram_commands.py",
     "Part2_Infrastructure/tests/test_telegram_controls.py",
+    "Part2_Infrastructure/tests/test_telegram_docs.py",
     "Part2_Infrastructure/tests/test_telegram_interactive.py",
     "Part2_Infrastructure/tests/test_telegram_link.py",
     "Part2_Infrastructure/tests/test_telegram.py",
@@ -162,6 +163,7 @@
     "Part2_Infrastructure/tools/openapi.json",
     "Part2_Infrastructure/tools/oracle_keepalive.py",
     "Part2_Infrastructure/tools/synthetic_probe.py",
+    "Part2_Infrastructure/tools/telegram_catalogue.py",
     "Part2_Infrastructure/web/.env.example",
     "Part2_Infrastructure/web/.gitignore",
     "Part2_Infrastructure/web/app/api/auth/guest/route.ts",
