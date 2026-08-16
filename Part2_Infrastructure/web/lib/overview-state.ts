@@ -260,10 +260,14 @@ export const DECISION_ENGINE_LABEL: Record<DecisionEngine, string> = {
  * Which engine this build of the desk expects the gateway to be running.
  * The snapshot can say which engine IS running; it cannot say whether the
  * other one was expected — that is a deployment fact, and this constant
- * carries it. Flipped to "native" in the slice that ships the compiled core,
- * so a gateway that quietly fell back to Python earns its ▲ mark then.
+ * carries it. Now "native": the Docker image compiles the core and the
+ * deploy confirms it, so a gateway reporting "python" fell back (the .so
+ * did not ship) and earns its ▲ mark. Not a fault in correctness — the
+ * Python reference is exact and marginally faster end-to-end — but a
+ * deployment-integrity signal worth surfacing, since the whole point of
+ * running native is to show the nanosecond core figure it produces.
  */
-export const DECISION_EXPECTED_ENGINE: DecisionEngine = "python";
+export const DECISION_EXPECTED_ENGINE: DecisionEngine = "native";
 
 /** Same nearest-rank floor as the network p99, one "n/20" vocabulary for both planes. */
 export const DECISION_MIN_SAMPLES = LATENCY_MIN_SAMPLES;
