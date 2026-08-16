@@ -31,6 +31,9 @@ class TestMeta:
         body = client.get("/health").json()
         assert body["status"] in {"ok", "halted"}
         assert {"A_tca", "B_risk", "C_backtest"} <= set(body["modules"])
+        # The decision engine is published beside the backtest engine, for the
+        # same reason: deploy.yml reads it to refuse a quietly degraded container.
+        assert body["modules"]["B_risk"]["decision_engine"] in {"native", "python"}
 
     def test_config_exposes_limits(self, client):
         cfg = client.get("/api/config").json()
@@ -55,6 +58,20 @@ class TestMeta:
         assert body["audit"]["available"] is True
         assert body["telegram"]["status"] == "disabled"
         assert body["route_latency"]["window_seconds"] > 0
+
+        # The decision's own clock. Engine and sample count are always present
+        # so a build that fell back to Python is visible before the first order;
+        # the quantiles are null until something has been measured — never 0.
+        decision = body["decision_latency"]
+        assert decision["engine"] in {"native", "python"}
+        assert decision["samples"] >= 0
+        if decision["samples"] == 0:
+            assert decision["p50_us"] is None and decision["p99_us"] is None
+            assert decision["max_us"] is None
+        else:
+            assert decision["p50_us"] is not None and decision["p99_us"] >= decision["p50_us"]
+        if decision["engine"] == "python":
+            assert decision["core_p99_ns"] is None, "the Python engine has no core clock"
 
         # Raw error messages and deployment identities do not belong on this
         # frequently-polled endpoint even when their safe presence flags do.

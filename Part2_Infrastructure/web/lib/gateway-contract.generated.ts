@@ -51,6 +51,18 @@ export interface CheckResult {
   passed: boolean;
 }
 
+export interface DecisionLatencySnapshot {
+  core_max_ns?: number | null;
+  core_p50_ns?: number | null;
+  core_p99_ns?: number | null;
+  engine: "native" | "python";
+  max_us?: number | null;
+  p50_us?: number | null;
+  p999_us?: number | null;
+  p99_us?: number | null;
+  samples: number;
+}
+
 export interface ExecutionEstimate {
   fillable: boolean;
   filled_notional: number;
@@ -112,6 +124,7 @@ export interface MarketDataSymbolSnapshot {
 
 export interface OperationsSnapshot {
   audit: AuditOperationsSnapshot;
+  decision_latency?: DecisionLatencySnapshot | null;
   environment: string;
   market_data: MarketDataSnapshot;
   observed_at: string;

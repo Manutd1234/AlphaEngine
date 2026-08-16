@@ -1,0 +1,23 @@
+{
+  "generated_on": "2026-08-16",
+  "platform": "macOS-26.5.1-arm64-arm-64bit",
+  "machine": "arm64",
+  "python": "3.12.14",
+  "pinning": "unavailable (darwin)",
+  "gc": "disabled during the loop",
+  "orders": 5000,
+  "warmup": 500,
+  "venues": 2,
+  "repeat": 3,
+  "engines": {
+    "python": {
+      "decision_us": {
+        "p50": 24.916,
+        "p99": 34.708999999999996,
+        "p999": 54.875,
+        "max": 65.5,
+        "n": 5000
+      }
+    }
+  }
+}

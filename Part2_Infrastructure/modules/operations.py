@@ -16,7 +16,12 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from config import settings
-from modules.metrics import REQUEST_LATENCY_WINDOW_SECONDS, request_latency_summary
+from modules.metrics import (
+    REQUEST_LATENCY_WINDOW_SECONDS,
+    core_latency_summary,
+    decision_latency_summary,
+    request_latency_summary,
+)
 
 # The web tier polls every 30 seconds. Freshness describes how long a last-good
 # observation remains trustworthy, not the timeout of one gateway request, so
@@ -125,6 +130,27 @@ class SupabaseMirrorSnapshot(BaseModel):
     last_error_kind: str | None = None
 
 
+class DecisionLatencySnapshot(BaseModel):
+    """The pre-trade decision's own clock, in-process, every sample since start.
+
+    ``engine`` and ``samples`` are always present so a build that fell back to
+    the Python reference is visible before the first order; the quantiles are
+    null until something has been measured — quantiles of nothing are not
+    zeros. ``core_*`` is the native engine's timing of the arithmetic alone,
+    in nanoseconds, and is null while the Python engine runs.
+    """
+
+    engine: Literal["native", "python"]
+    samples: int
+    p50_us: float | None = None
+    p99_us: float | None = None
+    p999_us: float | None = None
+    max_us: float | None = None
+    core_p50_ns: float | None = None
+    core_p99_ns: float | None = None
+    core_max_ns: float | None = None
+
+
 class OperationsSnapshot(BaseModel):
     # Additive optional field only — web/lib/reliability.ts hard-rejects
     # schema_version 2, and an older gateway must keep validating.
@@ -141,6 +167,7 @@ class OperationsSnapshot(BaseModel):
     telegram: TelegramOperationsSnapshot
     route_latency: RouteLatencyOperationsSnapshot
     supabase: SupabaseMirrorSnapshot | None = None
+    decision_latency: DecisionLatencySnapshot | None = None
 
 
 def _finite_float(value: Any, default: float = 0.0) -> float:
@@ -300,6 +327,26 @@ def _route_latency_snapshot() -> RouteLatencyOperationsSnapshot:
     )
 
 
+def _decision_latency_snapshot() -> DecisionLatencySnapshot:
+    from modules.decision_core import ENGINE
+
+    decision = decision_latency_summary()
+    samples = int(decision["samples"])
+    core = core_latency_summary()
+    core_samples = int(core["samples"])
+    return DecisionLatencySnapshot(
+        engine=ENGINE,  # type: ignore[arg-type]
+        samples=samples,
+        p50_us=decision["p50"] if samples else None,
+        p99_us=decision["p99"] if samples else None,
+        p999_us=decision["p999"] if samples else None,
+        max_us=decision["max"] if samples else None,
+        core_p50_ns=core["p50"] if core_samples else None,
+        core_p99_ns=core["p99"] if core_samples else None,
+        core_max_ns=core["max"] if core_samples else None,
+    )
+
+
 def build_operations_snapshot(
     *,
     tca: Any,
@@ -346,4 +393,5 @@ def build_operations_snapshot(
         audit=audit_state,
         telegram=telegram,
         route_latency=_route_latency_snapshot(),
+        decision_latency=_decision_latency_snapshot(),
     )

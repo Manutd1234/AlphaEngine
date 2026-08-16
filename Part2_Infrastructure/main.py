@@ -49,6 +49,7 @@ from config import BASE_DIR, settings
 from modules import research
 from modules.audit import get_audit
 from modules.backtester import VECTORBT_AVAILABLE, run_backtest
+from modules.decision_core import ENGINE as DECISION_ENGINE
 from modules.equity_quote import EquityQuoteUnavailable, fetch_paper_equity_reference, is_equity_symbol
 from modules.jobs import get_queue
 from modules.metrics import RequestTimingMiddleware, render_metrics
@@ -248,6 +249,10 @@ async def health() -> dict[str, Any]:
                 "orders_accepted": state.orders_accepted,
                 "orders_rejected": state.orders_rejected,
                 "drawdown_budget_used_pct": round(state.drawdown_budget_used_pct, 4),
+                # Which engine judges orders. deploy.yml refuses to keep a
+                # container that fell back to the Python reference when native
+                # was built for it — the same precedent as C_backtest.engine.
+                "decision_engine": DECISION_ENGINE,
             },
             "C_backtest": {**queue.stats(), "engine": "vectorbt" if VECTORBT_AVAILABLE else "numpy"},
         },

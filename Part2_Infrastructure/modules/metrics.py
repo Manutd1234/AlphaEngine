@@ -305,6 +305,28 @@ def render_metrics() -> str:
         "decision_samples_total", decisions["samples"],
         help="Pre-trade decisions measured since start.", type="counter",
     )
+    # Which engine made those decisions — a build that quietly fell back to
+    # the Python reference must be visible where the latency is read.
+    from modules.decision_core import ENGINE as _decision_engine  # local: metrics imports first
+
+    out.metric(
+        "decision_engine", 1,
+        help="Active pre-trade decision engine (native = compiled core, python = reference).",
+        labels=(("engine", _decision_engine),),
+    )
+    # The native core's own clock, in nanoseconds; absent until it has run.
+    core = core_latency_summary()
+    if core["samples"]:
+        for quantile, key in (("0.5", "p50"), ("0.99", "p99"), ("0.999", "p999"), ("0.9999", "p9999")):
+            out.metric(
+                "decision_core_latency_ns", core[key],
+                help="Native decision core latency (inside the engine), all samples since start.",
+                labels=(("quantile", quantile),),
+            )
+        out.metric(
+            "decision_core_latency_max_ns", core["max"],
+            help="Slowest native decision core evaluation since start.",
+        )
 
     # -- Audit / observability ------------------------------------------------ #
     audit = get_audit()
@@ -446,79 +468,132 @@ def request_latency_summary() -> dict[str, dict[str, float]]:
 # precision the measurement does not have.
 # --------------------------------------------------------------------------- #
 
-def _build_edges() -> list[float]:
-    edges: list[float] = []
-    for power in range(21):  # 2^0 = 1us .. 2^20 ≈ 1.05s
-        base = float(1 << power)
-        step = base / 8.0
-        for sub in range(8):
-            edges.append(base + step * sub)
-    return edges
+class _LogLinearHistogram:
+    """Counts per log-linear bucket, every sample for the life of the process.
+
+    One class, two instruments: the whole-decision histogram in microseconds
+    (``_decision``) and the native core's own timing in nanoseconds
+    (``_core``). Same edges shape, same nearest-rank quantiles clamped to the
+    observed maximum, so the two never disagree about what a p99 means.
+    """
+
+    __slots__ = ("unit", "edges", "counts", "total", "max_value")
+
+    def __init__(self, unit: str, powers: int) -> None:
+        self.unit = unit
+        edges: list[float] = []
+        for power in range(powers):  # 2^0 .. 2^(powers-1) units, 8 sub-buckets each
+            base = float(1 << power)
+            step = base / 8.0
+            for sub in range(8):
+                edges.append(base + step * sub)
+        #: Upper bound of each bucket. Ascending, so `bisect_left` finds the
+        #: bucket in O(log n) without touching the heap.
+        self.edges = edges
+        self.counts: list[int] = [0] * (len(edges) + 1)
+        self.total = 0
+        self.max_value = 0.0
+
+    def observe(self, value: float) -> None:
+        """Record one sample. Called on the order path; must stay cheap."""
+        if value < 0 or value != value:  # NaN never compares equal
+            return
+        self.counts[bisect_left(self.edges, value)] += 1
+        self.total += 1
+        if value > self.max_value:
+            self.max_value = value
+
+    def reset(self) -> None:
+        for index in range(len(self.counts)):
+            self.counts[index] = 0
+        self.total = 0
+        self.max_value = 0.0
+
+    def quantile(self, target_rank: int) -> float:
+        seen = 0
+        for index, count in enumerate(self.counts):
+            seen += count
+            if seen >= target_rank:
+                # The bucket's upper edge, rounded up rather than interpolated
+                # between two buckets that may have had no samples between them.
+                #
+                # Clamped to the observed maximum, which is not cosmetic: the
+                # edge overestimates by up to the bucket width, so an unclamped
+                # p99.99 reported 1152us against a real maximum of 1125us. A
+                # quantile above the slowest decision ever recorded is not a
+                # rounding artefact to explain in a footnote, it is a number
+                # that cannot be true.
+                if index >= len(self.edges):
+                    return self.max_value
+                return min(self.edges[index], self.max_value)
+        return self.max_value
+
+    def summary(self) -> dict[str, float]:
+        """p50/p99/p99.9/p99.99/max in this histogram's unit, plus the count.
+
+        Quantiles are nearest-rank over bucket upper bounds, matching
+        ``_quantile`` above rather than introducing a second convention.
+        """
+        if self.total == 0:
+            return {"samples": 0, "p50": 0.0, "p99": 0.0, "p999": 0.0, "p9999": 0.0, "max": 0.0}
+        return {
+            "samples": self.total,
+            "p50": self.quantile(math.ceil(0.50 * self.total)),
+            "p99": self.quantile(math.ceil(0.99 * self.total)),
+            "p999": self.quantile(math.ceil(0.999 * self.total)),
+            "p9999": self.quantile(math.ceil(0.9999 * self.total)),
+            "max": self.max_value,
+        }
+
+    def buckets(self) -> list[tuple[float, int]]:
+        """(upper edge, count) per bucket, the last edge being +inf."""
+        out = list(zip(self.edges, self.counts[:-1], strict=True))
+        out.append((math.inf, self.counts[-1]))
+        return out
 
 
-#: Upper bound of each bucket, in microseconds. Ascending, so `bisect_left`
-#: finds the bucket in O(log n) without touching the heap.
-_DECISION_EDGES: list[float] = _build_edges()
-_decision_counts: list[int] = [0] * (len(_DECISION_EDGES) + 1)
-_decision_total: int = 0
-_decision_max_us: float = 0.0
+#: The whole ``RiskGateway.submit`` under its lock, in microseconds:
+#: 2^0 = 1us .. 2^20 ≈ 1.05s.
+_decision = _LogLinearHistogram("us", 21)
+#: The native core's own clock around the arithmetic, in nanoseconds:
+#: 2^0 = 1ns .. 2^24 ≈ 16.8ms. Empty while the Python engine runs.
+_core = _LogLinearHistogram("ns", 25)
+
+# The pre-class names, kept for the callers (and one memory-stability test)
+# that read them: the list objects are the histogram's own, not copies.
+_DECISION_EDGES = _decision.edges
+_decision_counts = _decision.counts
 
 
 def observe_decision_latency(microseconds: float) -> None:
     """Record one pre-trade decision. Called on the order path; must stay cheap."""
-    global _decision_total, _decision_max_us
-    if microseconds < 0 or microseconds != microseconds:  # NaN never compares equal
-        return
-    _decision_counts[bisect_left(_DECISION_EDGES, microseconds)] += 1
-    _decision_total += 1
-    if microseconds > _decision_max_us:
-        _decision_max_us = microseconds
+    _decision.observe(microseconds)
+
+
+def observe_core_latency(nanoseconds: float) -> None:
+    """Record the native core's timing of one decision (its own clock)."""
+    _core.observe(nanoseconds)
 
 
 def reset_decision_latency() -> None:
     """Drop every recorded decision (used by tests to isolate assertions)."""
-    global _decision_total, _decision_max_us
-    for index in range(len(_decision_counts)):
-        _decision_counts[index] = 0
-    _decision_total = 0
-    _decision_max_us = 0.0
-
-
-def _decision_quantile(target_rank: int) -> float:
-    seen = 0
-    for index, count in enumerate(_decision_counts):
-        seen += count
-        if seen >= target_rank:
-            # The bucket's upper edge, rounded up rather than interpolated
-            # between two buckets that may have had no samples between them.
-            #
-            # Clamped to the observed maximum, which is not cosmetic: the edge
-            # overestimates by up to the bucket width, so an unclamped p99.99
-            # reported 1152us against a real maximum of 1125us. A quantile above
-            # the slowest decision ever recorded is not a rounding artefact to
-            # explain in a footnote, it is a number that cannot be true.
-            if index >= len(_DECISION_EDGES):
-                return _decision_max_us
-            return min(_DECISION_EDGES[index], _decision_max_us)
-    return _decision_max_us
+    _decision.reset()
+    _core.reset()
 
 
 def decision_latency_summary() -> dict[str, float]:
-    """p50/p99/p99.9/p99.99/max in microseconds, plus the sample count.
+    """p50/p99/p99.9/p99.99/max in microseconds, plus the sample count."""
+    return _decision.summary()
 
-    Quantiles are nearest-rank over bucket upper bounds, matching
-    ``_quantile`` above rather than introducing a second convention.
-    """
-    if _decision_total == 0:
-        return {"samples": 0, "p50": 0.0, "p99": 0.0, "p999": 0.0, "p9999": 0.0, "max": 0.0}
-    return {
-        "samples": _decision_total,
-        "p50": _decision_quantile(math.ceil(0.50 * _decision_total)),
-        "p99": _decision_quantile(math.ceil(0.99 * _decision_total)),
-        "p999": _decision_quantile(math.ceil(0.999 * _decision_total)),
-        "p9999": _decision_quantile(math.ceil(0.9999 * _decision_total)),
-        "max": _decision_max_us,
-    }
+
+def core_latency_summary() -> dict[str, float]:
+    """p50/p99/p99.9/p99.99/max in nanoseconds for the native core, plus count."""
+    return _core.summary()
+
+
+def decision_latency_buckets() -> list[tuple[float, int]]:
+    """(upper edge in µs, count) per bucket — for a CDF, not a summary."""
+    return _decision.buckets()
 
 
 class RequestTimingMiddleware:

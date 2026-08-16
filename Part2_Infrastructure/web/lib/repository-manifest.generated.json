@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-16",
-  "commit": "eed9223",
+  "commit": "b4c762e",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -18,6 +18,7 @@
     "docker-compose.yml",
     "docs/FEATURE_TOUR.md",
     "docs/LATENCY_BUDGET.md",
+    "docs/latency-bench.generated.json",
     "docs/TLS_FLIP.md",
     "docs/UI_IMPROVEMENTS.md",
     "oracle/01_schema.sql",
@@ -68,6 +69,7 @@
     "Part2_Infrastructure/modules/__init__.py",
     "Part2_Infrastructure/modules/audit.py",
     "Part2_Infrastructure/modules/backtester.py",
+    "Part2_Infrastructure/modules/decision_core.py",
     "Part2_Infrastructure/modules/equity_quote.py",
     "Part2_Infrastructure/modules/jobs.py",
     "Part2_Infrastructure/modules/metrics.py",
@@ -139,6 +141,7 @@
     "Part2_Infrastructure/tools/apply_oracle_schema.py",
     "Part2_Infrastructure/tools/backfill_oracle_rag.py",
     "Part2_Infrastructure/tools/backfill_research_rag.py",
+    "Part2_Infrastructure/tools/bench_decision.py",
     "Part2_Infrastructure/tools/check_repo_complete.sh",
     "Part2_Infrastructure/tools/colocation_probe.py",
     "Part2_Infrastructure/tools/e2e_smoke.py",

@@ -153,11 +153,21 @@ class BookState:
     _rate_window_count: int = 0
     update_rate_hz: float = 0.0
     synthetic: bool = False
+    # Sorted views, built once per mutation rather than once per read. A
+    # decision reads each side of each venue's book about five times (mark,
+    # gross exposure, drawdown, the ladder walk, top of book) and every read
+    # was re-sorting a 50-level dict; measured, that was ~40 of the 78 µs a
+    # two-venue decision cost. The two mutation funnels below are the only
+    # writers, so invalidating there is complete.
+    _sorted_bids_cache: list[tuple[float, float]] | None = field(default=None, repr=False)
+    _sorted_asks_cache: list[tuple[float, float]] | None = field(default=None, repr=False)
 
     # -- mutation ------------------------------------------------------- #
     def apply_snapshot(self, bids: list[tuple[float, float]], asks: list[tuple[float, float]]) -> None:
         self.bids = {p: q for p, q in bids if q > 0}
         self.asks = {p: q for p, q in asks if q > 0}
+        self._sorted_bids_cache = None
+        self._sorted_asks_cache = None
         self._touch()
 
     def apply_delta(self, bids: list[tuple[float, float]], asks: list[tuple[float, float]]) -> None:
@@ -171,6 +181,8 @@ class BookState:
                 self.asks.pop(p, None)
             else:
                 self.asks[p] = q
+        self._sorted_bids_cache = None
+        self._sorted_asks_cache = None
         self._touch()
 
     def _touch(self) -> None:
@@ -200,20 +212,28 @@ class BookState:
         return bool(self.bids) and bool(self.asks)
 
     def sorted_bids(self, depth: int | None = None) -> list[tuple[float, float]]:
-        out = sorted(self.bids.items(), key=lambda kv: -kv[0])
+        out = self._sorted_bids_cache
+        if out is None:
+            out = sorted(self.bids.items(), key=lambda kv: -kv[0])
+            self._sorted_bids_cache = out
         return out[:depth] if depth else out
 
     def sorted_asks(self, depth: int | None = None) -> list[tuple[float, float]]:
-        out = sorted(self.asks.items(), key=lambda kv: kv[0])
+        out = self._sorted_asks_cache
+        if out is None:
+            out = sorted(self.asks.items(), key=lambda kv: kv[0])
+            self._sorted_asks_cache = out
         return out[:depth] if depth else out
 
     @property
     def best_bid(self) -> float | None:
-        return max(self.bids) if self.bids else None
+        levels = self.sorted_bids()
+        return levels[0][0] if levels else None
 
     @property
     def best_ask(self) -> float | None:
-        return min(self.asks) if self.asks else None
+        levels = self.sorted_asks()
+        return levels[0][0] if levels else None
 
     @property
     def mid(self) -> float | None:

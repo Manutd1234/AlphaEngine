@@ -40,6 +40,35 @@ class TestBookState:
         assert b.bids[99.5] == 5.0
         assert b.bids[99.0] == 1.0
 
+    def test_sorted_views_are_cached_and_invalidated_by_every_mutation(self):
+        # The sorted ladders are built once per mutation, not once per read: a
+        # decision reads each side ~5 times and used to re-sort a 50-level dict
+        # every time. The cache is only correct if BOTH mutation funnels drop it
+        # and the cached view equals a fresh sort of the dict.
+        b = make_book()
+        first = b.sorted_bids()
+        assert b.sorted_bids() is first, "a second read must reuse the cached view"
+        assert first == sorted(b.bids.items(), key=lambda kv: -kv[0])
+
+        b.apply_delta(bids=[(99.5, 5.0)], asks=[(102.5, 1.0)])
+        after_delta = b.sorted_bids()
+        assert after_delta is not first, "apply_delta must invalidate the bid cache"
+        assert after_delta == sorted(b.bids.items(), key=lambda kv: -kv[0])
+        assert b.sorted_asks() == sorted(b.asks.items(), key=lambda kv: kv[0])
+        assert b.best_bid == 100.0 and b.best_ask == 101.0
+
+        b.apply_snapshot(bids=[(50.0, 1.0)], asks=[(51.0, 1.0)])
+        assert b.sorted_bids() == [(50.0, 1.0)], "apply_snapshot must invalidate the bid cache"
+        assert b.sorted_asks() == [(51.0, 1.0)], "apply_snapshot must invalidate the ask cache"
+        assert b.best_bid == 50.0 and b.best_ask == 51.0
+
+    def test_depth_slices_never_return_the_cached_list_itself(self):
+        # A caller that mutates a depth-limited slice must not corrupt the cache.
+        b = make_book()
+        top = b.sorted_bids(2)
+        top.append((0.0, 0.0))
+        assert b.sorted_bids()[-1] != (0.0, 0.0)
+
     def test_walk_single_level(self):
         # $505 buys 5 units at 101 exactly.
         est = make_book().walk("BUY", 505.0)
