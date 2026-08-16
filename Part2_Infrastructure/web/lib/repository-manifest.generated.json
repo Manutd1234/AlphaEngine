@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-16",
-  "commit": "46183ac",
+  "commit": "418da95",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -134,6 +134,7 @@
     "Part2_Infrastructure/tests/test_telegram_charts.py",
     "Part2_Infrastructure/tests/test_telegram_commands.py",
     "Part2_Infrastructure/tests/test_telegram_controls.py",
+    "Part2_Infrastructure/tests/test_telegram_interactive.py",
     "Part2_Infrastructure/tests/test_telegram_link.py",
     "Part2_Infrastructure/tests/test_telegram.py",
     "Part2_Infrastructure/tests/test_web_state.py",
