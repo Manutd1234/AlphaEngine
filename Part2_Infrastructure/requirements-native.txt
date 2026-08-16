@@ -1,0 +1,6 @@
+# Build-time only: compiling the native decision core
+# (native/decision_core/setup.py). Deliberately NOT part of
+# requirements-core.txt — the runtime image carries no compiler, and the
+# gateway falls back to the Python reference engine when the .so is absent.
+setuptools>=70
+pybind11>=2.13

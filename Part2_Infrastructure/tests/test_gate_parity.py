@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from modules.risk_proxy import RiskGateway
 from tools.gate_fixture import GATE_ORDER, expected_from, judge
 
 FIXTURE = Path(__file__).resolve().parent.parent / "web" / "tests" / "fixtures" / "gate-parity.json"
@@ -37,6 +38,10 @@ def test_the_fixture_is_present_and_shaped() -> None:
 
 @pytest.mark.parametrize("name", sorted(SCENARIOS))
 def test_python_engine_matches_fixture(name: str, monkeypatch) -> None:
+    # Pin the Python reference engine. Once the native core is built, `auto`
+    # resolves to native, so without this the test named for the Python engine
+    # would quietly run the other one and stop guarding the reference path.
+    monkeypatch.setattr(RiskGateway, "_resolve_decision_core", staticmethod(lambda: None))
     scenario = SCENARIOS[name]
     decision = judge(scenario, monkeypatch)
     assert expected_from(decision) == scenario["expected"], (

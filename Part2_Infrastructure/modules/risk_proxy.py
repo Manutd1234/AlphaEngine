@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import importlib
 import logging
 import math
 import time
@@ -45,7 +46,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Awaitable, Callable
 
 from config import settings
-from modules.metrics import observe_decision_latency
+from modules.metrics import observe_core_latency, observe_decision_latency
 from modules.schemas import (
     CheckResult,
     Fill,
@@ -224,6 +225,11 @@ class RiskGateway:
         # The core's own timing of the last decision, once a native engine
         # exists; the bench harness reads it, the API does not carry it.
         self.last_decision_core_ns: int | None = None
+        # The native decision core, or None when the Python reference is the
+        # active engine. Resolved through ``sys.modules`` (not a bound name) so
+        # the bench harness, which re-imports ``modules.decision_core`` per
+        # engine, gets the module it just selected rather than a stale one.
+        self._decision_core = self._resolve_decision_core()
         self.start_of_day_equity = settings.starting_equity_usd
         self.session_date = _utcnow().strftime("%Y-%m-%d")
         # Realized P&L banked by sessions that have already closed.
@@ -269,6 +275,101 @@ class RiskGateway:
         # loss by the wrong denominator.
         self._restore_session_baseline_from_audit()
         self._restore_positions_from_audit()
+
+    # -- native decision core --------------------------------------------- #
+    @staticmethod
+    def _resolve_decision_core():
+        """The native core module when it is the active engine, else None.
+
+        Resolved via ``importlib`` rather than a module-level ``import`` so the
+        bench harness — which swaps ``DECISION_CORE`` and re-imports
+        ``modules.decision_core`` between runs — hands us the module it just
+        selected, not the one bound when this file was first imported.
+        """
+        try:
+            loader = importlib.import_module("modules.decision_core")
+            return loader.native()
+        except Exception:  # pragma: no cover - a broken loader must not break orders
+            log.exception("decision core loader unavailable; using the Python reference")
+            return None
+
+    def _native_decide(self, req: OrderRequest, paper_equity: bool):
+        """Run the numeric gates and book arithmetic in the native core.
+
+        Returns the core's result object (whose fields ``submit`` renders the
+        CheckResult vector from) or None to fall back to the Python reference.
+        The seventeen-gate control flow, the detail strings and every
+        ``add("<name>", ...)`` literal stay in ``submit``; only the numbers come
+        from here. The book-consolidation and exposure/drawdown arithmetic run
+        in C++; ``est_slippage`` (the routed walk) and the pure input booleans
+        stay in Python — see ``native/decision_core/decision_core.cpp``.
+        """
+        core = self._decision_core
+        if core is None:
+            return None
+        try:
+            symbol = req.symbol
+            order_books = []
+            if not paper_equity and self.tca is not None:
+                # The order symbol's live venue books, in the same iteration
+                # order consolidated_mid folds them. Only the top five levels a
+                # side are marshalled: consolidated_mid weights each venue by
+                # depth_usd(side, 5) and reads the touch for the mid, so deeper
+                # levels never enter the fold — and passing the cached sorted
+                # views avoids re-marshalling (and re-sorting) fifty levels per
+                # decision across the boundary.
+                for book in self.tca._live_books(symbol).values():
+                    ladder = core.BookLadder()
+                    ladder.snapshot(book.sorted_bids(5), book.sorted_asks(5))
+                    order_books.append(ladder)
+
+            pos_quantities: list[float] = []
+            pos_avg_prices: list[float] = []
+            pos_realized: list[float] = []
+            pos_marks: list[float | None] = []
+            pos_is_order_symbol: list[bool] = []
+            for sym, pos in self.positions.items():
+                pos_quantities.append(pos.quantity)
+                pos_avg_prices.append(pos.avg_price)
+                pos_realized.append(pos.realized_pnl)
+                # self.mark(sym): each position's mark is its own multi-venue
+                # consolidation, computed here so the core need only fold it.
+                pos_marks.append(self.mark(sym))
+                pos_is_order_symbol.append(sym == symbol)
+
+            working_buys, working_sells = self.working_qty(symbol)
+            paper_price = req.paper_execution.price if paper_equity else None
+
+            return core.decide(
+                side_is_buy=(req.side == "BUY"),
+                order_type_is_limit=(req.order_type == "LIMIT"),
+                order_quantity=req.quantity,
+                order_notional=req.notional,
+                limit_price=req.limit_price,
+                is_paper=paper_equity,
+                paper_price=paper_price,
+                order_books=order_books,
+                pos_quantities=pos_quantities,
+                pos_avg_prices=pos_avg_prices,
+                pos_realized=pos_realized,
+                pos_marks=pos_marks,
+                pos_is_order_symbol=pos_is_order_symbol,
+                working_buys=working_buys,
+                working_sells=working_sells,
+                starting_equity=settings.starting_equity_usd,
+                carried_realized_pnl=self.carried_realized_pnl,
+                start_of_day_equity=self.start_of_day_equity,
+                max_order_notional_usd=settings.max_order_notional_usd,
+                max_symbol_notional_usd=settings.max_symbol_notional_usd,
+                max_gross_exposure_usd=settings.max_gross_exposure_usd,
+                max_price_deviation_bps=settings.max_price_deviation_bps,
+                max_daily_drawdown_pct=settings.max_daily_drawdown_pct,
+                reduce_only_threshold=settings.reduce_only_threshold,
+                reduce_only_override=self._reduce_only_override,
+            )
+        except Exception:  # pragma: no cover - robustness: never fail an order on the core
+            log.exception("native decision core raised; falling back to the Python reference")
+            return None
 
     # -- wiring ----------------------------------------------------------- #
     def _restore_session_baseline_from_audit(self) -> None:
@@ -1432,19 +1533,36 @@ class RiskGateway:
                 add("rate_limit", allowed, f"{observed_rate:.1f}/s observed",
                     observed=observed_rate, limit=settings.max_orders_per_sec)
 
-                # 6 — price discovery. No mark => no risk assessment => reject.
-                mark = req.paper_execution.price if paper_equity else self.mark(req.symbol)
-                ref_price = req.limit_price or mark
-                has_price = ref_price is not None and ref_price > 0
-                add("price_available", bool(has_price), f"mark={mark}" if mark else "no live mark price")
+                # The native decision core (when it is the active engine) owns
+                # the book arithmetic and the numeric gates that follow. The
+                # seventeen gates' order, their detail strings and every
+                # add("<name>", ...) literal stay here; only the numbers come
+                # from the core. A `None` result — the Python engine, or an
+                # order the core cannot express — runs the reference path below
+                # unchanged.
+                core = self._native_decide(req, paper_equity)
+                if core is not None:
+                    self.last_decision_core_ns = core.elapsed_ns
+                    observe_core_latency(core.elapsed_ns)
 
-                qty = req.quantity
-                notional = req.notional
-                if has_price:
-                    if qty is None and notional is not None:
-                        qty = notional / ref_price
-                    elif notional is None and qty is not None:
-                        notional = qty * ref_price
+                # 6 — price discovery. No mark => no risk assessment => reject.
+                if core is not None:
+                    mark = core.mark
+                    has_price = core.has_price
+                    qty = core.qty
+                    notional = core.notional
+                else:
+                    mark = req.paper_execution.price if paper_equity else self.mark(req.symbol)
+                    ref_price = req.limit_price or mark
+                    has_price = ref_price is not None and ref_price > 0
+                    qty = req.quantity
+                    notional = req.notional
+                    if has_price:
+                        if qty is None and notional is not None:
+                            qty = notional / ref_price
+                        elif notional is None and qty is not None:
+                            notional = qty * ref_price
+                add("price_available", bool(has_price), f"mark={mark}" if mark else "no live mark price")
                 add("order_sized", qty is not None and notional is not None, "quantity or notional required")
 
                 if notional is not None:
@@ -1458,24 +1576,27 @@ class RiskGateway:
                     # both fill, and the book sits at 187% of a hard limit with no gate
                     # having fired. Committed capital is exposure whether or not it has
                     # landed yet.
-                    price_ref = mark or ref_price or 0
-                    signed_qty = (qty or 0) * (1 if req.side == "BUY" else -1)
-                    projected_sym = self.projected_symbol_notional(req.symbol, signed_qty, price_ref)
+                    # 9 — projected gross exposure, likewise.
+                    if core is not None:
+                        projected_sym = core.projected_sym
+                        projected_gross = core.projected_gross
+                    else:
+                        price_ref = mark or ref_price or 0
+                        signed_qty = (qty or 0) * (1 if req.side == "BUY" else -1)
+                        projected_sym = self.projected_symbol_notional(req.symbol, signed_qty, price_ref)
+                        projected_gross = (
+                            self.gross_exposure() - self.symbol_notional(req.symbol) + projected_sym
+                        )
                     add("symbol_concentration", projected_sym <= settings.max_symbol_notional_usd,
                         f"${projected_sym:,.0f} projected vs ${settings.max_symbol_notional_usd:,.0f}",
                         observed=projected_sym, limit=settings.max_symbol_notional_usd)
-
-                    # 9 — projected gross exposure, likewise
-                    projected_gross = (
-                        self.gross_exposure() - self.symbol_notional(req.symbol) + projected_sym
-                    )
                     add("gross_exposure", projected_gross <= settings.max_gross_exposure_usd,
                         f"${projected_gross:,.0f} projected vs ${settings.max_gross_exposure_usd:,.0f}",
                         observed=projected_gross, limit=settings.max_gross_exposure_usd)
 
                 # 10 — limit price sanity (the other half of fat-finger protection)
                 if req.order_type == "LIMIT" and req.limit_price and mark:
-                    dev_bps = abs(req.limit_price - mark) / mark * 1e4
+                    dev_bps = core.dev_bps if core is not None else abs(req.limit_price - mark) / mark * 1e4
                     add("price_band", dev_bps <= settings.max_price_deviation_bps,
                         f"{dev_bps:.1f}bps from mark {mark:,.2f}",
                         observed=dev_bps, limit=settings.max_price_deviation_bps)
@@ -1490,7 +1611,7 @@ class RiskGateway:
                         observed=float(resting), limit=float(settings.max_working_orders))
 
                 # 12 — drawdown budget
-                dd = self.daily_drawdown_pct()
+                dd = core.dd if core is not None else self.daily_drawdown_pct()
                 add("daily_drawdown", dd < settings.max_daily_drawdown_pct,
                     f"{dd:.2%} used of {settings.max_daily_drawdown_pct:.2%}",
                     observed=dd, limit=settings.max_daily_drawdown_pct)
@@ -1499,24 +1620,29 @@ class RiskGateway:
                 # breaker the desk may still close positions but not open or add to
                 # them: a book in trouble needs a way *out*, and refusing the exit
                 # alongside the entry is how a drawdown becomes a liquidation.
-                if self.reduce_only_active() and notional is not None:
-                    pos = self.positions.get(req.symbol)
-                    held = pos.quantity if pos else 0.0
-                    # An unsized order cannot be shown to reduce anything, so it is
-                    # refused rather than assumed either way. Deriving the sign from
-                    # `qty or 0` treated a missing quantity as reducing on a long
-                    # book and not on a short one — the same order, two answers.
-                    signed_qty = qty * (1 if req.side == "BUY" else -1) if qty is not None else None
-                    # Reducing means moving toward flat: opposite sign to the
-                    # position, and no larger than what is held (an over-sized
-                    # "close" that flips the book is an opening trade in disguise).
-                    reducing = (
-                        signed_qty is not None
-                        and abs(held) > 1e-12
-                        and (held > 0) != (signed_qty > 0)
-                        and abs(signed_qty) <= abs(held) + 1e-9
-                    )
-                    budget_used = dd / settings.max_daily_drawdown_pct if settings.max_daily_drawdown_pct else 0.0
+                reduce_only_on = core.reduce_only_active if core is not None else self.reduce_only_active()
+                if reduce_only_on and notional is not None:
+                    if core is not None:
+                        reducing = core.reducing
+                        budget_used = core.budget_used
+                    else:
+                        pos = self.positions.get(req.symbol)
+                        held = pos.quantity if pos else 0.0
+                        # An unsized order cannot be shown to reduce anything, so it is
+                        # refused rather than assumed either way. Deriving the sign from
+                        # `qty or 0` treated a missing quantity as reducing on a long
+                        # book and not on a short one — the same order, two answers.
+                        signed_qty = qty * (1 if req.side == "BUY" else -1) if qty is not None else None
+                        # Reducing means moving toward flat: opposite sign to the
+                        # position, and no larger than what is held (an over-sized
+                        # "close" that flips the book is an opening trade in disguise).
+                        reducing = (
+                            signed_qty is not None
+                            and abs(held) > 1e-12
+                            and (held > 0) != (signed_qty > 0)
+                            and abs(signed_qty) <= abs(held) + 1e-9
+                        )
+                        budget_used = dd / settings.max_daily_drawdown_pct if settings.max_daily_drawdown_pct else 0.0
                     add("reduce_only", reducing,
                         f"reduce-only at {budget_used:.0%} of the drawdown budget — "
                         + ("closing order allowed" if reducing else "only position-reducing orders accepted"),

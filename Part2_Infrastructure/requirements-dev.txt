@@ -2,4 +2,7 @@
 # Kept separate so a reviewer running the test suite does not have to install a
 # linter, and so the runtime image never carries development tooling.
 -r requirements-core.txt
+# The native decision core is built and its parity asserted in the suite, so its
+# build toolchain (setuptools, pybind11) is a dev dependency — never a runtime one.
+-r requirements-native.txt
 ruff>=0.6

@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import gc
+import importlib
 import json
 import os
 import platform
@@ -224,10 +225,15 @@ def main() -> int:
     for engine in engines:
         os.environ["DECISION_CORE"] = engine
         # The loader reads the flag at import; force a fresh read per engine.
+        # `del sys.modules[...]` alone does not suffice: `from modules import
+        # decision_core` would find the stale attribute still bound on the parent
+        # package and skip re-execution, so `--engine both` would resolve the
+        # first engine twice. importlib.import_module re-executes the module when
+        # its sys.modules entry is gone, which is what the gateway itself uses.
         for mod in [m for m in list(sys.modules) if m.startswith("modules.decision_core")]:
             del sys.modules[mod]
         try:
-            from modules import decision_core
+            decision_core = importlib.import_module("modules.decision_core")
         except RuntimeError as exc:
             print(f"[{engine}] unavailable: {exc}")
             continue

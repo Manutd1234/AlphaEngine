@@ -109,6 +109,10 @@ jobs:
           cache: pip
           cache-dependency-path: Part2_Infrastructure/requirements-dev.txt
       - run: pip install -r requirements-dev.txt
+      # The gateway suite runs the native decision core by default; build it so
+      # the parity tests exercise it and a broken core blocks the deploy.
+      - name: Build native decision core
+        run: python native/decision_core/setup.py build_ext --inplace --build-temp build/native
       - run: ruff check .
       - run: python -m pytest
       # The committed OpenAPI snapshot is the contract the web project compiles

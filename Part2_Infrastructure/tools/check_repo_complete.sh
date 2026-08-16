@@ -48,7 +48,7 @@ echo "▸ 1. Source files excluded by .gitignore"
 # true — and a guard that reports a failure on every machine that has run the
 # CLI is a guard people learn to skip.
 ignored_source=$(git ls-files --others --ignored --exclude-standard \
-  | grep -E '\.(ts|tsx|js|jsx|mjs|cjs|py|css|html|json|md|sh|yml|yaml)$' \
+  | grep -E '\.(ts|tsx|js|jsx|mjs|cjs|py|cpp|h|css|html|json|md|sh|yml|yaml)$' \
   | grep -vE 'node_modules/|\.next/|\.vercel/|venv/|__pycache__|\.pytest_cache/|package-lock\.json|next-env\.d\.ts|tsbuildinfo' \
   || true)
 if [[ -n "$ignored_source" ]]; then

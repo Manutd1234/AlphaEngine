@@ -58,6 +58,12 @@ jobs:
           cache-dependency-path: Part2_Infrastructure/requirements-dev.txt
       - run: pip install -r requirements-dev.txt
 
+      # The suite runs native-by-default (DECISION_CORE=auto), so the parity
+      # tests need the extension present. requirements-dev.txt pulls in the
+      # build toolchain; building it here also makes a broken core a red build.
+      - name: Build native decision core
+        run: python native/decision_core/setup.py build_ext --inplace --build-temp build/native
+
       - name: Lint
         run: ruff check .
 
