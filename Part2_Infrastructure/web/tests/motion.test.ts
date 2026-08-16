@@ -98,6 +98,7 @@ describe("the motion ladder", () => {
   it("declares every rung in :root", () => {
     for (const token of [
       "--dur-fast", "--dur", "--dur-slow", "--dur-reveal", "--dur-draw",
+      "--dur-pulse", "--dur-flash", "--dur-shimmer",
       "--ease", "--ease-out", "--ease-emphasized", "--ease-pop",
     ]) {
       assert.match(
@@ -121,6 +122,35 @@ describe("the motion ladder", () => {
       offenders,
       [],
       `transitions timed outside the token ladder:\n  ${offenders.join("\n  ")}`,
+    );
+  });
+
+  it("no animation hardcodes a duration", () => {
+    // The transition ratchet above never covered `animation:` shorthands, and
+    // six literals accumulated in its blind spot — three copies of the
+    // live-pulse loop, both tick flashes and the skeleton shimmer.
+    const offenders: string[] = [];
+    for (const match of declarations.matchAll(/animation:[^;]*;/g)) {
+      if (/\d(?:\.\d+)?(?:ms|s)\b/.test(match[0])) {
+        offenders.push(`globals.css:${lineOf(match.index)} — ${match[0].trim()}`);
+      }
+    }
+    assert.deepEqual(
+      offenders,
+      [],
+      `animations timed outside the token ladder:\n  ${offenders.join("\n  ")}`,
+    );
+  });
+
+  it("the overshoot stays scarce", () => {
+    // --ease-pop is reserved for the promotion gate clearing; a second caller
+    // dilutes the one moment the overshoot exists to mark.
+    const uses = [...declarations.matchAll(/var\(--ease-pop\)/g)];
+    assert.equal(
+      uses.length,
+      1,
+      "var(--ease-pop) callers at: "
+        + uses.map((m) => `globals.css:${lineOf(m.index)}`).join(", "),
     );
   });
 });
@@ -155,5 +185,13 @@ describe("NumberTicker honours the contract CSS cannot reach", () => {
       declarations.slice(rule, declarations.indexOf("}", rule)),
       /min-width:\s*var\(--ticker-w/,
     );
+  });
+
+  it("times its count at the reveal rung", () => {
+    // DURATION_MS claims to match --dur-reveal; a JS constant and a CSS token
+    // can only drift silently, so both halves of the pair are pinned here and
+    // either edit alone goes red.
+    assert.match(source, /DURATION_MS = 420/);
+    assert.match(declarations, /--dur-reveal:\s*420ms/);
   });
 });

@@ -73,6 +73,33 @@ describe("no emoji in the UI", () => {
   });
 });
 
+describe("motion decorates, text means", () => {
+  /**
+   * The live-pulse halo says "this dot is fed by a live poll" — but a pulse
+   * is colour-and-motion, both of which forced-colors and reduced-motion may
+   * strip. So the dot is decoration by contract: every element carrying
+   * `pulse-live` must be `aria-hidden`, with the word beside it carrying the
+   * state. Vacuously green until the first caller lands, red the day someone
+   * hangs meaning on the halo itself.
+   */
+  it("every pulse-live element is aria-hidden decoration", () => {
+    const offenders: string[] = [];
+    for (const file of files) {
+      const source = readFileSync(file, "utf8");
+      source.split("\n").forEach((line, index) => {
+        if (line.includes("pulse-live") && !line.includes("aria-hidden")) {
+          offenders.push(`${file.slice(root.length)}:${index + 1} — ${line.trim().slice(0, 80)}`);
+        }
+      });
+    }
+    assert.deepEqual(
+      offenders,
+      [],
+      `pulse-live carrying meaning without aria-hidden decoration contract:\n  ${offenders.join("\n  ")}`,
+    );
+  });
+});
+
 describe("an empty result is reported, not hidden", () => {
   /**
    * `no-dead-ends.test.ts` already forbids `return null` on a provenance test.

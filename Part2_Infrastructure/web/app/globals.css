@@ -154,6 +154,14 @@
   --dur-slow: 240ms;
   --dur-reveal: 420ms;
   --dur-draw: 700ms;
+  /* The loop-and-flash rungs. These time repetition and one-shot washes, not
+     interaction, and are deliberately absent from hover states: the pulse is
+     the live-feed halo's period, the flash is one wash behind a value that
+     actually changed, the shimmer is the skeleton sweep. They existed as six
+     scattered literals before they were rungs. */
+  --dur-pulse: 2400ms;
+  --dur-flash: 600ms;
+  --dur-shimmer: 1400ms;
   --ease: cubic-bezier(0.2, 0.6, 0.25, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-emphasized: cubic-bezier(0.3, 0, 0, 1);
@@ -1638,7 +1646,7 @@ tbody tr[tabindex]:focus-visible {
     var(--surface-2) 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.4s infinite;
+  animation: shimmer var(--dur-shimmer) infinite;
   border-radius: 8px;
 }
 @keyframes shimmer {
@@ -2004,7 +2012,7 @@ tbody tr[tabindex]:focus-visible {
   border: 1px solid currentColor;
   border-radius: 50%;
   opacity: 0;
-  animation: live-pulse 2400ms var(--ease-out) infinite;
+  animation: live-pulse var(--dur-pulse) var(--ease-out) infinite;
 }
 
 /* Measured, not guessed, and the measurement was a surprise: adding this chip
@@ -2963,7 +2971,7 @@ a.text-action {
   border: 1px solid var(--status-good);
   border-radius: 50%;
   opacity: 0;
-  animation: live-pulse 2400ms var(--ease-out) infinite;
+  animation: live-pulse var(--dur-pulse) var(--ease-out) infinite;
 }
 
 .market-watchlist-shell {
@@ -8081,7 +8089,7 @@ button.data-trust-action > i {
   border: 1px solid currentColor;
   border-radius: 50%;
   opacity: 0;
-  animation: live-pulse 2400ms var(--ease-out) infinite;
+  animation: live-pulse var(--dur-pulse) var(--ease-out) infinite;
 }
 
 /* Shared by the work board's live dot and the header's data-source badge. Named
@@ -14469,11 +14477,11 @@ button:active:not(:disabled) {
 }
 
 .market-watchlist__price[data-tick="up"] {
-  animation: tick-flash-up 600ms var(--ease-out);
+  animation: tick-flash-up var(--dur-flash) var(--ease-out);
 }
 
 .market-watchlist__price[data-tick="down"] {
-  animation: tick-flash-down 600ms var(--ease-out);
+  animation: tick-flash-down var(--dur-flash) var(--ease-out);
 }
 
 /* The verdict banner is conditionally rendered — @starting-style is exactly
