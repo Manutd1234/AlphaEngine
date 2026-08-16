@@ -1,6 +1,6 @@
 # Telegram live checklist
 
-The automated suite dispatches all 81 commands on every push and asserts their
+The automated suite dispatches all 114 commands on every push and asserts their
 replies. What it cannot do is prove the bot is reachable from *your* Telegram
 account, that BotFather is showing the right menu, or that a photo actually
 renders on a phone. That is what this is for: fifteen minutes of tapping,
@@ -50,6 +50,28 @@ workspace and tap **Connect** in the header — the deep link carries a single-u
 code that binds this chat to the desk pass you are already holding. Either way,
 everything below needs it. The binding grants reads only: section 6 still refuses
 you unless your ID is in `TELEGRAM_CONTROL_USER_IDS`.
+
+---
+
+## 1.5 Tap the buttons (2 minutes)
+
+Every card carries an inline keyboard, and every button is a shortcut for a typed
+command — never a capability of its own. This section is the one thing the
+automated suite cannot check: that a tap actually edits the card in place.
+
+| Tap | Expect |
+|---|---|
+| `/menu` | the eight desk tabs plus Digest / Status / Help, each a button |
+| A tab button (e.g. **Risk**) | the tab's card, replacing the menu **in place** — not a new message below it |
+| A tab footer button (e.g. **Feeds** on `/data`) | that command's card, edited into the same message |
+| A switcher row — the interval on `/montecarlo`, the method on `/allocation`, the symbols on `/beta` | the card redraws for the new choice, with the active option bulleted (`•`) |
+| A control's would-be button | there is none: `/remediation` lists the five controls with **no buttons**, because a control is typed and confirmed, never tapped |
+| A stale button after a redeploy | a toast — "This button is from an older build. Send the command instead." — never a wrong command |
+
+The in-place edit is the whole point of the keyboard: a tab you tapped becomes
+the card you asked for, so the chat does not fill with a stack of cards. If a tap
+sends a **new** message instead of editing the tapped one, note it — that is the
+`ReplyTarget` path not firing.
 
 ---
 
@@ -122,6 +144,34 @@ latter, that is a defect worth reporting.
 `/developer` should name gates (`ruff check .`, `python -m pytest`,
 `tools/export_openapi.py --check`, `tools/synthetic_probe.py`) — **not** a
 hardcoded assertion count. If you see "342 assertions" the old card is back.
+
+---
+
+## 5.5 The data, reliability and developer desks (3 minutes)
+
+These are the tab-section commands beyond the eight tab cards. The registry floor
+(`tests/test_telegram_commands.py`) already dispatches every one of them on an
+empty deployment and asserts it answers without error, so what is left for a
+human is to confirm the *populated* card reads honestly — a chart where there is
+data, a stated absence where there is not.
+
+| Command | Expect |
+|---|---|
+| `/montecarlo [1\|5\|20]` | a bootstrapped cone and a terminal-P&L histogram with VaR/CVaR marked — or **NOT AVAILABLE** below 60 bars of book history |
+| `/beta ETHUSDT BTCUSDT` | β, the hedge ratio, and a returns scatter with a fit line — or **NOT MEASURABLE** with too little shared history |
+| `/allocation [ew\|iv\|erc\|mv]` | current-vs-target bars and the drift table, method row bulleted — or **NOT MEASURABLE** on a flat book |
+| `/performance` | realised P&L and fees bars by strategy — or **NO FILLS** on an empty audit |
+| `/trust` | a verdict — TRUSTED / DEGRADED / SYNTHETIC / UNAVAILABLE — and book-age bars, red when a venue is stale |
+| `/dataquality`, `/payload BTCUSDT`, `/providers`, `/tasks` | feed transitions, per-venue provenance (a missing field is `—`, never `0`), provider status, and the web-only work-queue note |
+| `/sli`, `/planes`, `/circuits` | service levels including the native core's **nanosecond** figure, the three dependency planes as a status grid, and the breakers as a headroom ladder |
+| `/traces`, `/remediation`, `/webops` | origin-tagged audit+web events, the five typed controls (no buttons), and the raw web-ops ledger the workspace only summarises |
+| `/readiness`, `/cicd`, `/apis [TAG]`, `/codebase` | the launch-readiness grid, the verify gates by name, the OpenAPI surface by tag, and the repo's line counts by area |
+| `/compare BTCUSDT ETHUSDT 1h` | a normalised overlay indexed to 100, with an interval switcher |
+
+The **NOT AVAILABLE / NOT MEASURABLE / NO FILLS** answers are the ones that
+matter: on an empty or flat deployment every one of these must say what is
+missing rather than draw a confident zero. That is the same house rule §3 checks
+for the risk cards, extended to the new desks.
 
 ---
 

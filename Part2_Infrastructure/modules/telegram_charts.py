@@ -24,6 +24,7 @@ import matplotlib.pyplot as plt
 
 __all__ = [
     "generate_bars_chart_png",
+    "generate_cone_png",
     "generate_depth_chart_png",
     "generate_drawdown_chart_png",
     "generate_equity_chart_png",
@@ -36,6 +37,7 @@ __all__ = [
     "generate_pipeline_png",
     "generate_scatter_png",
     "generate_series_chart_png",
+    "generate_status_grid_png",
     "generate_var_breach_png",
 ]
 
@@ -646,5 +648,118 @@ def generate_pipeline_png(
                 "", xy=(index + 1.06, 0.5), xytext=(index + 0.94, 0.5),
                 arrowprops={"arrowstyle": "->", "color": "#64748b", "linewidth": 1.5},
             )
+    ax.set_title(title, color="#f8fafc", fontsize=10, fontweight="bold")
+    return _finish(fig)
+
+
+def generate_cone_png(
+    title: str,
+    p5: list[float],
+    p25: list[float],
+    p50: list[float],
+    p75: list[float],
+    p95: list[float],
+    *,
+    xlabel: str = "Horizon (bars)",
+    ylabel: str = "Cumulative P&L (USD)",
+) -> bytes | None:
+    """A fan chart of a bootstrapped path: the median with two nested bands.
+
+    One hue at two opacities — the wider 5–95% envelope under the 25–75% core —
+    so the picture reads as one magnitude widening with the horizon rather than
+    a rainbow of unrelated series. Returns None unless all five bands are the
+    same length and that length is at least two: a cone needs a horizon to open
+    over, and mismatched bands would draw a fill between percentiles measured at
+    different steps.
+    """
+    bands = (p5, p25, p50, p75, p95)
+    lengths = {len(band) for band in bands}
+    if len(lengths) != 1:
+        return None
+    n = lengths.pop()
+    if n < 2:
+        return None
+    for band in bands:
+        for value in band:
+            if value is None or value != value:
+                return None
+
+    xs = list(range(1, n + 1))
+    fig, ax = plt.subplots(figsize=(6.4, 3.2), dpi=120)
+    _style_axes(fig, ax)
+    hue = _CATEGORICAL[0]
+    ax.fill_between(xs, list(p5), list(p95), color=hue, alpha=0.12, label="5–95%")
+    ax.fill_between(xs, list(p25), list(p75), color=hue, alpha=0.28, label="25–75%")
+    ax.plot(xs, list(p50), color=hue, linewidth=2, label="Median")
+    ax.axhline(0, color="#64748b", linewidth=1, linestyle="--")
+    ax.legend(facecolor="#1e293b", edgecolor="#334155", labelcolor="#f8fafc", fontsize=7)
+    ax.set_title(title, color="#f8fafc", fontsize=10, fontweight="bold")
+    ax.set_xlabel(xlabel, color="#94a3b8", fontsize=8)
+    ax.set_ylabel(ylabel, color="#94a3b8", fontsize=8)
+    return _finish(fig)
+
+
+def generate_status_grid_png(
+    title: str,
+    rows: list[tuple[str, str, str, str]],
+) -> bytes | None:
+    """A status board: one labelled row per plane, one tile per component.
+
+    Each tile carries its state twice — a glyph (● ▲ ✕ ○) and a colour — so the
+    board survives a greyscale print and a colour-blind reader, the same rule
+    the pipeline chart holds. ``rows`` is ``(plane, component, status, detail)``;
+    components are grouped under their plane in first-seen order. None when there
+    is nothing to place.
+    """
+    if not rows:
+        return None
+
+    from matplotlib.patches import FancyBboxPatch
+
+    style = {
+        "ok": ("#00e676", "●"),
+        "degraded": ("#f59e0b", "▲"),
+        "down": ("#ff5252", "✕"),
+        "unknown": ("#94a3b8", "○"),
+    }
+    planes: list[str] = []
+    grouped: dict[str, list[tuple[str, str, str]]] = {}
+    for plane, component, status, detail in rows:
+        plane = str(plane)
+        if plane not in grouped:
+            grouped[plane] = []
+            planes.append(plane)
+        grouped[plane].append((str(component), str(status), str(detail)))
+
+    cols = max(len(items) for items in grouped.values())
+    n_planes = len(planes)
+    label_w = 1.7
+    fig, ax = plt.subplots(
+        figsize=(min(14.0, label_w + 2.4 * cols), max(2.2, 1.05 * n_planes + 0.7)),
+        dpi=120,
+    )
+    fig.patch.set_facecolor("#0f172a")
+    ax.set_xlim(0, label_w + cols)
+    ax.set_ylim(0, n_planes)
+    ax.axis("off")
+
+    for row_index, plane in enumerate(planes):
+        centre = n_planes - row_index - 0.5
+        ax.text(0.08, centre, str(plane)[:16], ha="left", va="center",
+                color="#e2e8f0", fontsize=9, fontweight="bold")
+        for col_index, (component, status, detail) in enumerate(grouped[plane]):
+            colour, mark = style.get(status, style["unknown"])
+            x0 = label_w + col_index
+            box = FancyBboxPatch(
+                (x0 + 0.05, centre - 0.38), 0.9, 0.76,
+                boxstyle="round,pad=0.02", linewidth=1.6,
+                edgecolor=colour, facecolor="#1e293b",
+            )
+            ax.add_patch(box)
+            ax.text(x0 + 0.5, centre + 0.12, f"{mark} {component}"[:20], ha="center", va="center",
+                    color=colour, fontsize=8, fontweight="bold")
+            if detail:
+                ax.text(x0 + 0.5, centre - 0.16, str(detail)[:22], ha="center", va="center",
+                        color="#94a3b8", fontsize=6.5)
     ax.set_title(title, color="#f8fafc", fontsize=10, fontweight="bold")
     return _finish(fig)

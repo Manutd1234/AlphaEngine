@@ -230,3 +230,36 @@ class TestRoute:
             "latency": [{"key": f"k{i}", "samples": []} for i in range(KEY_CAP + 1)],
         }
         assert client.post("/api/ops/web-state/sync", json=too_many_keys).status_code == 422
+
+
+class TestReadOnlyView:
+    """``view`` is the read half of ``sync`` — it prunes and projects, never ingests.
+
+    It exists for the Telegram companion's ``/providers`` and ``/webops``, which
+    have nothing to contribute but want the same merged ledger the web POSTs
+    into rather than an invented empty instance.
+    """
+
+    def test_view_matches_sync_after_an_ingest(self):
+        state = WebOpsState()
+        sync(state, "web-1", latency=[latency_batch("quote", (NOW, 12.0, True), (NOW, 20.0, False))])
+        # A no-op sync and a bare view see the same projection.
+        via_sync = sync(state, "web-1")
+        via_view = state.view(NOW)
+        assert [k.key for k in via_view.latency] == [k.key for k in via_sync.latency]
+        assert via_view.instances == via_sync.instances
+
+    def test_view_does_not_register_an_instance(self):
+        state = WebOpsState()
+        # No sync has run, so there is no instance and nothing to show.
+        view = state.view(NOW)
+        assert view.instances == []
+        assert view.latency == []
+
+    def test_view_prunes_the_window_without_being_told_to_ingest(self):
+        state = WebOpsState()
+        sync(state, "web-1", latency=[latency_batch("quote", (NOW, 12.0, True))])
+        # Read far enough in the future that the only sample has aged out.
+        later = NOW + RETENTION_MS + 1
+        view = state.view(later)
+        assert view.latency == []

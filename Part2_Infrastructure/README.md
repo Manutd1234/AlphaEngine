@@ -804,18 +804,22 @@ An 82% backtest return that the system refuses to endorse. That is the feature.
 ## 6. Telegram
 
 The companion is optional: the gateway, API and web workspace remain fully
-functional with no Telegram token. When enabled, it is an independent text
-interface for phone-friendly portfolio, OpenBB, execution and health cards. It
-does not render a web page or send web links, and it cannot open a position.
-Five of its eighty-one commands change what the desk is allowed to do — `/halt`,
-`/resume`, `/flatten`, `/reduceonly`, `/resetbook` — and each requires membership
-of `TELEGRAM_CONTROL_USER_IDS` (**Gated controls**, below), which is separate
-from the read allow-list and empty by default. Of the other seventy-six, all but
-one are pure reads; the exception is `/backtest`, which queues a sweep on the
-same jobs engine the API and the web use. That crosses into research, not
-execution: it submits work to the queue and never an order to the gateway.
-Notification preferences and liquidity watches also change from chat, but they
-are the companion's own state rather than the desk's.
+functional with no Telegram token. When enabled, it is an independent text and
+visual-chart interface for phone-friendly portfolio, OpenBB, execution and
+health cards. It does not render a web page or send web links, and it cannot
+open a position. The companion registers **114 commands**; **5** of them change
+what the desk is allowed to do — `/halt`, `/resume`, `/flatten`, `/reduceonly`,
+`/resetbook` — and each requires membership of `TELEGRAM_CONTROL_USER_IDS`
+(**Gated controls**, below), which is separate from the read allow-list and
+empty by default, and **90** are pushed to Telegram's `/` menu (the API caps
+that list at 100; the rest still dispatch, and `/commands` lists them all). Of
+the reads, all but one are pure — the exception is `/backtest`, which queues a
+sweep on the same jobs engine the API and the web use. That crosses into
+research, not execution: it submits work to the queue and never an order to the
+gateway. Notification preferences and liquidity watches also change from chat,
+but they are the companion's own state rather than the desk's. The command
+tables below are generated from the registry by `tools/telegram_catalogue.py`,
+so these counts and the pushed menu cannot drift from what the bot dispatches.
 
 ### Fail-closed bootstrap
 
@@ -876,53 +880,72 @@ the gateway host to enable them. The standalone `OpenBB_Service` remains the
 production `OPENBB_API_URL` target for the Next.js workspace, so web research
 can scale independently from portfolio state.
 
+<!-- telegram-catalogue:start -->
+
+#### Tabs
+
+| Command | Purpose |
+|---|---|
+| `/overview` | System signal & cross-role dashboard + chart |
+| `/research [SYMBOL]` | Strategy sweep & tearsheet + chart |
+| `/execution [SYMBOL]` | Live L2 book & routing + chart |
+| `/data` | Quality, freshness & failover + chart |
+| `/reliability` | Telemetry & latency + chart |
+| `/developer` | CI/CD, OpenAPI & repo posture + chart |
+| `/portfolio` | Whole-book PM summary + charts |
+| `/risk` | Drawdown, gateway budget & limit utilisation + charts |
+
 #### Essentials
 
 | Command | Purpose |
 |---|---|
-| `/start` | Open the text command centre; does not subscribe automatically |
-| `/help [CATEGORY\|COMMAND]` | Category help or exact syntax, for example `/help markets` |
-| `/commands` | Complete categorized command catalogue |
-| `/status` | Gateway, feed, queue and OpenBB status |
-| `/about` | Scope, and which five commands are not reads |
-| `/whoami` | Show Telegram user ID and destination chat ID |
-| `/version` | Gateway version and delivery mode |
-| `/ping` | Command-path responsiveness |
+| `/start` | Open the command centre |
+| `/menu` | Tappable desk menu |
+| `/help [CATEGORY\|COMMAND]` | Help by category or command |
+| `/commands` | List the complete command catalogue |
+| `/status` | Gateway, feeds, queue and OpenBB |
+| `/about` | What this independent bot does |
+| `/whoami` | Show Telegram user and chat IDs |
+| `/version` | Runtime version and bot mode |
+| `/ping` | Check command-path responsiveness |
+| `/ops` | Structured reliability snapshot |
 
-#### Portfolio manager
+#### Portfolio
 
 | Command | Purpose |
 |---|---|
-| `/portfolio` | Whole-book equity, P&L, exposure, concentration and binding limit |
-| `/positions [SYMBOL]` | All positions or one instrument |
-| `/pnl` | Realized and unrealized P&L |
+| `/equity [LIMIT]` | Persisted equity curve and period returns |
+| `/positions [SYMBOL]` | Open positions and marks |
+| `/pnl` | Realised and unrealised P&L |
 | `/exposure` | Gross, net and leverage |
-| `/concentration` | Largest weights, HHI and effective bets |
-| `/headroom` | Remaining capacity before deployed limits bind |
-| `/risk` | Drawdown budget and gateway state |
-| `/limits` | Active hard limits; informational only |
-| `/attribution` | Audit-backed flow and cost by strategy |
+| `/concentration` | Largest weights and effective bets |
+| `/headroom` | Remaining capacity before limits |
+| `/limits` | Deployed hard risk limits |
+| `/attribution` | Flow and costs by strategy |
+| `/allocation [ew\|iv\|erc\|mv]` | Current vs target weights and the rebalance trades |
+| `/performance` | Realised P&L and fees by strategy sleeve |
 
-#### Markets and OpenBB
+#### Markets
 
 | Command | Purpose |
 |---|---|
-| `/openbb` | OpenBB/provider readiness |
-| `/quote SYMBOL [equity\|crypto]` | Normalized quote, for example `/quote AAPL` |
-| `/bars SYMBOL [15m\|1h\|4h\|1d] [COUNT]` | Recent OHLCV rows, for example `/bars AAPL 1d 5` |
+| `/openbb` | OpenBB provider readiness |
+| `/quote SYMBOL [equity\|crypto]` | OpenBB quote |
+| `/bars SYMBOL [15m\|1h\|4h\|1d] [COUNT]` | Recent OpenBB OHLCV rows |
 | `/trend SYMBOL [INTERVAL] [COUNT]` | Return and direction over recent bars |
-| `/range SYMBOL [INTERVAL] [COUNT]` | Period high, low and range |
+| `/range SYMBOL [INTERVAL] [COUNT]` | High/low range over recent bars |
 | `/volume SYMBOL [INTERVAL] [COUNT]` | Latest and average volume |
-| `/news SYMBOL [COUNT]` | Recent company headlines |
+| `/news SYMBOL [COUNT]` | Latest company headlines |
 | `/fundamentals SYMBOL` | Company profile and key metrics |
-| `/snapshot SYMBOL [equity\|crypto]` | Quote, fundamentals and top headlines in one card |
+| `/snapshot SYMBOL [equity\|crypto]` | Quote, fundamentals and headlines |
 | `/symbols` | Tracked instruments and examples |
+| `/compare SYM1 SYM2 [SYM3…] [INTERVAL]` | Normalised price overlay across instruments |
 
-#### Execution analytics
+#### Execution
 
 | Command | Purpose |
 |---|---|
-| `/book SYMBOL` | Top of book across connected venues |
+| `/book SYMBOL` | Top of book across venues |
 | `/spread SYMBOL` | Venue and consolidated spreads |
 | `/depth SYMBOL` | Bid/ask depth by venue |
 | `/tca SYMBOL NOTIONAL [BUY\|SELL]` | VWAP, slippage and smart route |
@@ -935,33 +958,49 @@ can scale independently from portfolio state.
 | `/rejections [COUNT]` | Recent rejected orders |
 | `/slippage` | Aggregate execution slippage |
 | `/fees` | Aggregate execution fees |
+| `/timeline ORDER_ID` | Lifecycle of one order from the audit trail |
+| `/working [SYMBOL]` | Orders resting on the book right now |
+| `/lineage [SYMBOL]` | Signal path OpenBB→feeds→book→gates→decisions→audit |
+| `/gates [SYMBOL] [NOTIONAL] [BUY\|SELL]` | Dry-run the 17 pre-trade gates against current state |
+| `/quality [venue\|strategy]` | Fill quality by venue or strategy |
+| `/imbalance SYMBOL` | Order-book imbalance per venue |
+| `/costs [YYYY-MM-DD]` | Session fees versus slippage |
+| `/latency` | Decision-latency CDF and route tail |
+| `/blotter [all\|fills\|rejects\|working] [N]` | Merged recent orders and working, rejections by gate |
+| `/spreadhistory SYMBOL [VENUE] [spread\|slip\|depth]` | Spread, slippage or depth history per venue |
 
-#### Research and audit monitoring
+#### Research
 
 | Command | Purpose |
 |---|---|
 | `/researchstatus` | OpenBB and job-system status |
-| `/jobs [COUNT]` | Recent externally submitted research jobs |
-| `/job JOB_ID` | Inspect one job without changing it |
+| `/jobs [COUNT]` | Recent research jobs |
+| `/job JOB_ID` | Inspect one job |
 | `/backtests [COUNT]` | Completed backtest history |
-| `/strategies` | Supported strategy reference |
-| `/intervals` | Supported market and backtest horizons |
-| `/events [COUNT]` | Recent risk and audit events |
-| `/incidents [COUNT]` | Warning and critical events only |
+| `/backtest SYMBOL [INTERVAL] [STRATEGY]` | Queue a parameter sweep on the shared jobs engine |
+| `/rag QUERY` | Similarity search over this desk's own runs and incidents |
+| `/strategies [STRATEGY]` | Supported strategy catalogue |
+| `/intervals` | Supported market horizons |
+| `/events [COUNT]` | Recent risk/audit events |
+| `/incidents [COUNT]` | Warning and critical events |
+| `/walkforward SYMBOL [STRATEGY]` | In-sample vs out-of-sample Sharpe per fold |
+| `/stability SYMBOL [STRATEGY]` | Parameter-grid heatmap and the stable region |
+| `/overfit SYMBOL [STRATEGY]` | DSR, PSR, PBO and the minimum track record |
+| `/decision SYMBOL [STRATEGY]` | Promotion gates and sizing for a candidate |
 
-#### Notification preferences
+#### Alerts
 
 | Command | Purpose |
 |---|---|
-| `/subscribe` | Opt this chat into optional operational notifications |
-| `/unsubscribe` | Stop optional notifications; centrally managed destinations are identified clearly |
-| `/subscriptions` | Current notification ownership and state |
-| `/watch SYMBOL [NOTIONAL] [MAX_BPS]` | Alert when execution cost breaches a threshold and when it recovers |
-| `/unwatch [SYMBOL]` | Remove one watch, or all watches when omitted |
-| `/watches` | Active thresholds and current state |
+| `/subscribe` | Receive operational notifications |
+| `/unsubscribe` | Stop optional notifications |
+| `/subscriptions` | Show notification state |
+| `/watch SYMBOL [NOTIONAL] [MAX_BPS]` | Watch execution-cost deterioration |
+| `/unwatch [SYMBOL]` | Remove one or all liquidity watches |
+| `/watches` | Show active liquidity watches |
 | `/digest` | On-demand portfolio and systems digest |
 
-#### Risk analytics
+#### Risk
 
 | Command | Purpose |
 |---|---|
@@ -974,28 +1013,68 @@ can scale independently from portfolio state.
 | `/regime SYMBOL [INTERVAL]` | Volatility regime for an instrument |
 | `/size WIN_RATE PAYOFF [EQUITY]` | Kelly position sizing from a win rate |
 | `/dislocation SYMBOL` | Cross-venue crossed-book check |
+| `/montecarlo [1\|5\|20]` | Bootstrapped terminal-P&L cone over a horizon |
+| `/beta SYM [REF]` | Beta and hedge ratio of a symbol against a reference |
 
-All nine are read-only — `/rebalance` composes a trade list and never sends one —
-and all nine are computed by `modules/quant_risk.py` against the gateway's own
-book, which is the point of §12: a VaR quoted on a phone and the same VaR on the
-risk tab cannot be allowed to disagree.
-
-#### Gated controls
-
-These five are the only commands that change what the desk is allowed to do, and
-they are the reason `TELEGRAM_CONTROL_USER_IDS` exists as a **second, narrower
-allow-list** than the one that grants read access. It is empty unless someone
-sets it: being able to see the book does not imply being able to stop the desk.
-A chat bound through the workspace's **Connect** button never reaches this list
-either — a binding grants reads and nothing else.
+#### Data
 
 | Command | Purpose |
 |---|---|
-| `/halt [SYMBOL]` · `/halt CODE` | Engage the kill switch, book-wide or per instrument |
-| `/resume [SYMBOL]` · `/resume CODE` | Release it; the acting user ID is recorded either way |
-| `/flatten [SYMBOL]` · `/flatten CODE` | Close every open position |
-| `/reduceonly [on\|off]` · `/reduceonly CODE` | Enter or leave the defensive regime: only risk-reducing orders accepted |
-| `/resetbook` · `/resetbook CODE` | Reset the paper book and session accounting |
+| `/trust` | Feed trust verdict and book-age freshness |
+| `/dataquality [N]` | Feed degrade/recover events and reconnect counts |
+| `/payload SYMBOL` | Per-venue provenance for one symbol |
+| `/providers` | OpenBB, venue feeds and web-ops quota/outages |
+| `/tasks` | The Data/Developer work queues (web-only mocked state) |
+
+#### Reliability
+
+| Command | Purpose |
+|---|---|
+| `/sli` | Service-level indicators and the native core's latency |
+| `/planes` | Provider, platform and evidence dependency planes |
+| `/circuits` | Risk breakers as a headroom ladder |
+| `/traces [N]` | Recent audit events merged with web outages |
+| `/remediation` | The five typed controls, their scope and live state |
+| `/webops` | Web telemetry ledger: p50/p99, outages, quota |
+
+#### Developer
+
+| Command | Purpose |
+|---|---|
+| `/readiness` | Launch-readiness grid across runtime and backends |
+| `/cicd` | The verify gates a deploy must pass |
+| `/apis [TAG]` | OpenAPI surface by tag, or one tag's operations |
+| `/codebase` | Python file and line counts by area |
+
+#### Controls
+
+| Command | Purpose |
+|---|---|
+| `/halt [SYMBOL] \| /halt CODE` | Engage the kill switch |
+| `/resume [SYMBOL] \| /resume CODE` | Release the kill switch |
+| `/flatten [SYMBOL] \| /flatten CODE` | Close every open position |
+| `/reduceonly [on\|off] \| /reduceonly CODE` | Accept only risk-reducing orders |
+| `/resetbook \| /resetbook CODE` | Reset the paper book and session accounting |
+
+<!-- telegram-catalogue:end -->
+
+The command tables above are generated from the registry by
+`tools/telegram_catalogue.py --write`, and `--check` fails CI when the tables,
+the intro counts, or the live checklist drift from `COMMAND_SPECS`. Every button,
+`/menu` tab and `Next:` line resolves to a command in one of these tables. The
+whole Risk category is read-only — `/rebalance` and `/allocation` compose a trade
+list and never send one — and computed by `modules/quant_risk.py` against the
+gateway's own book, so a VaR quoted on a phone and the same VaR on the risk tab
+cannot be allowed to disagree.
+
+#### Gated controls, in detail
+
+These five — the **Controls** table above — are the only commands that change what
+the desk is allowed to do, and they are the reason `TELEGRAM_CONTROL_USER_IDS`
+exists as a **second, narrower allow-list** than the one that grants read access.
+It is empty unless someone sets it: being able to see the book does not imply
+being able to stop the desk. A chat bound through the workspace's **Connect**
+button never reaches this list either — a binding grants reads and nothing else.
 
 The two-call shape is the control. The bare command returns a single-use,
 user-bound confirmation code that expires in ninety seconds and is burned even on

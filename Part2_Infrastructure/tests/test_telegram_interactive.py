@@ -156,7 +156,11 @@ class TestCallbackGrammar:
         assert _COMMAND_BY_NAME["/research"].handler == "_cmd_tab_research"
         # The stolen aliases are gone, not merely re-ordered.
         assert "research" not in _COMMAND_BY_NAME["/snapshot"].aliases
-        assert "/providers" not in _COMMAND_BY_NAME
+        # `/providers` is now a Data command in its own right (T4), so it does
+        # resolve — but to its own handler, never back to `/openbb`, whose old
+        # `providers` alias stays removed.
+        assert _COMMAND_BY_NAME["/providers"].name == "providers"
+        assert _COMMAND_BY_NAME["/providers"].handler == "_cmd_providers"
         assert _COMMAND_BY_NAME["/openbb"].aliases == ()
 
     def test_row_builders_mark_the_active_choice(self):

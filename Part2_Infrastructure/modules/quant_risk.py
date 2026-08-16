@@ -26,6 +26,8 @@ Two things here have no TypeScript counterpart yet and are new to both stacks:
 from __future__ import annotations
 
 import math
+import random
+import zlib
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping, Sequence
 
@@ -534,6 +536,124 @@ def historical_var(
         cvar95=-_mean(tail),
         observations=window,
         daily_pnl=tuple(daily_pnl),
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Monte Carlo — bootstrap of the terminal book P&L over a horizon
+#
+# A single-horizon VaR answers "how bad is one bad bar". A desk closing a
+# position over several bars wants the *distribution of where the book lands*,
+# and the honest way to get it without assuming a shape is to resample the days
+# the book actually lived through. This is an i.i.d. bootstrap: draw ``horizon``
+# daily P&L figures with replacement, sum them into a path, repeat. Its one
+# stated limit is that it forgets the ordering — a real drawdown clusters, and a
+# resample that treats each day as independent understates a losing streak. That
+# is why the number is reported beside the historical figure rather than instead
+# of it.
+# --------------------------------------------------------------------------- #
+
+@dataclass
+class MonteCarlo:
+    horizon: int
+    paths: int
+    seed: int
+    observations: int
+    #: Sorted-ascending terminal cumulative P&L across every simulated path.
+    terminal_pnl: tuple[float, ...]
+    #: Positive-as-loss, read off the terminal distribution's 5th percentile.
+    var95: float
+    cvar95: float
+    #: Per-step cumulative-P&L percentile bands, each length ``horizon``. The
+    #: fan a cone chart draws; p50 is the median path, the outer pair the 5/95.
+    p5: tuple[float, ...]
+    p25: tuple[float, ...]
+    p50: tuple[float, ...]
+    p75: tuple[float, ...]
+    p95: tuple[float, ...]
+
+
+def _nearest_rank(sorted_values: Sequence[float], q: float) -> float:
+    """The value some observation actually took — the same nearest-rank rule
+    ``metrics._quantile`` and both TypeScript stacks use, so no two percentiles
+    in this repo are computed two different ways."""
+    if not sorted_values:
+        return 0.0
+    index = min(len(sorted_values) - 1, max(0, math.ceil(q * len(sorted_values)) - 1))
+    return sorted_values[index]
+
+
+def bootstrap_terminal_distribution(
+    book_returns_usd: Sequence[float],
+    horizon: int,
+    *,
+    paths: int = 2000,
+    seed: int | None = None,
+) -> MonteCarlo | None:
+    """I.i.d. bootstrap of the book's cumulative P&L ``horizon`` bars out.
+
+    ``book_returns_usd`` is the book's realised per-bar P&L in dollars — the
+    same series ``historical_var`` replays, so the Monte Carlo and the
+    historical VaR are resampling one distribution rather than two. Each of
+    ``paths`` simulations draws ``horizon`` of those figures with replacement
+    and accumulates them; the terminal values become the P&L distribution and
+    the per-step percentiles become the cone.
+
+    Returns ``None`` below 60 observations: a bootstrap cannot manufacture tail
+    shape a short sample never showed, and a cone drawn from a dozen days would
+    give false confidence to noise.
+
+    The method's limit, stated plainly: this is i.i.d., so it has **no
+    volatility clustering**. It assumes each future bar is an independent draw
+    from the past, which understates a sustained drawdown where losses arrive in
+    runs. Report it beside the historical figure, never as a replacement.
+
+    ``seed`` defaults to ``zlib.crc32`` of the input series, so a refresh with
+    the same book redraws the same cone — reproducible without a stored state.
+    """
+    usable = [float(value) for value in book_returns_usd if value is not None and value == value]
+    if len(usable) < 60 or horizon < 1:
+        return None
+    horizon = int(min(horizon, 60))
+    paths = int(max(200, min(paths, 20_000)))
+
+    if seed is None:
+        payload = ",".join(f"{value:.6g}" for value in usable).encode("utf-8")
+        seed = zlib.crc32(payload)
+    rng = random.Random(seed)
+
+    # Column t across every path, so a percentile can be read per step. Bounded
+    # memory: horizon <= 60 and paths <= 20k.
+    steps: list[list[float]] = [[] for _ in range(horizon)]
+    terminal: list[float] = []
+    n = len(usable)
+    for _ in range(paths):
+        running = 0.0
+        for t in range(horizon):
+            running += usable[rng.randrange(n)]
+            steps[t].append(running)
+        terminal.append(running)
+
+    terminal.sort()
+    k = max(1, math.ceil(0.05 * len(terminal)))
+    tail = terminal[:k]
+
+    def band(q: float) -> tuple[float, ...]:
+        return tuple(_nearest_rank(sorted(column), q) for column in steps)
+
+    return MonteCarlo(
+        horizon=horizon,
+        paths=paths,
+        seed=int(seed),
+        observations=n,
+        terminal_pnl=tuple(terminal),
+        var95=-terminal[k - 1],
+        cvar95=-_mean(tail),
+        p5=band(0.05),
+        p25=band(0.25),
+        p50=band(0.50),
+        p75=band(0.75),
+        p95=band(0.95),
     )
 
 

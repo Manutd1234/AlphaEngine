@@ -11,6 +11,7 @@ import pytest
 
 from modules.telegram_charts import (
     generate_bars_chart_png,
+    generate_cone_png,
     generate_equity_chart_png,
     generate_gate_ladder_png,
     generate_heatmap_png,
@@ -21,10 +22,64 @@ from modules.telegram_charts import (
     generate_pipeline_png,
     generate_scatter_png,
     generate_series_chart_png,
+    generate_status_grid_png,
     generate_var_breach_png,
 )
 
 PNG = b"\x89PNG"
+
+
+class TestCone:
+    def _bands(self, n=10):
+        p5 = [-2.0 * i for i in range(1, n + 1)]
+        p25 = [-1.0 * i for i in range(1, n + 1)]
+        p50 = [0.0] * n
+        p75 = [1.0 * i for i in range(1, n + 1)]
+        p95 = [2.0 * i for i in range(1, n + 1)]
+        return p5, p25, p50, p75, p95
+
+    def test_draws_a_fan_of_five_bands(self):
+        assert generate_cone_png("MC cone", *self._bands())[:4] == PNG
+
+    def test_refuses_ragged_or_short_bands(self):
+        p5, p25, p50, p75, p95 = self._bands()
+        # One leg a step shorter than the rest: the fill would join percentiles
+        # measured at different horizons.
+        assert generate_cone_png("t", p5[:-1], p25, p50, p75, p95) is None
+        # A single step is not a horizon to open over.
+        assert generate_cone_png("t", [1.0], [1.0], [1.0], [1.0], [1.0]) is None
+
+    def test_refuses_a_non_finite_band(self):
+        p5, p25, p50, p75, p95 = self._bands()
+        p50 = [float("nan")] + p50[1:]
+        assert generate_cone_png("t", p5, p25, p50, p75, p95) is None
+
+    def test_a_wider_cone_is_a_different_picture(self):
+        narrow = generate_cone_png("t", *self._bands())
+        p5, p25, p50, p75, p95 = self._bands()
+        wide = generate_cone_png("t", [v * 3 for v in p5], p25, p50, p75, [v * 3 for v in p95])
+        assert narrow != wide
+
+
+class TestStatusGrid:
+    def _rows(self):
+        return [
+            ("Provider", "OpenBB", "ok", "ready"),
+            ("Provider", "Feeds", "degraded", "1/2"),
+            ("Platform", "Gateway", "ok", "8000"),
+            ("Evidence", "Audit", "down", "—"),
+        ]
+
+    def test_draws_tiles_grouped_by_plane(self):
+        assert generate_status_grid_png("Planes", self._rows())[:4] == PNG
+
+    def test_refuses_zero_rows(self):
+        assert generate_status_grid_png("t", []) is None
+
+    def test_status_changes_the_picture(self):
+        healthy = generate_status_grid_png("t", [("A", "x", "ok", ""), ("A", "y", "ok", "")])
+        broken = generate_status_grid_png("t", [("A", "x", "ok", ""), ("A", "y", "down", "")])
+        assert healthy != broken
 
 
 class TestHistogram:

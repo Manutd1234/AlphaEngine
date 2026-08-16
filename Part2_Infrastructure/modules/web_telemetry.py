@@ -232,6 +232,22 @@ class WebOpsState:
         self._ingest_latency(request.latency, now)
         self._ingest_quota(request.quota, request.quota_reset)
         self._ingest_outages(request.outages_set, request.outages_cleared, now)
+        # The read is the same prune-and-project ``view`` performs; calling it
+        # here keeps the sync response and a bare read byte-identical rather than
+        # letting two copies of the projection drift.
+        return self.view(now)
+
+    # -- the read half, without ingesting ----------------------------------- #
+    def view(self, now_ms: float | None = None) -> WebStateView:
+        """Prune to the retention window and project the merged view — no ingest.
+
+        The read half of :meth:`sync`, split out so a reader that has nothing to
+        contribute (the Telegram companion's ``/providers`` and ``/webops``) can
+        see the same ledger the web instances POST into without inventing an
+        empty instance to POST as. ``sync`` calls this after ingesting, so a web
+        poll behaves exactly as it did before this method existed.
+        """
+        now = now_ms if now_ms is not None else time.time() * 1000.0
         self._prune(now)
 
         cutoff = now - RETENTION_MS

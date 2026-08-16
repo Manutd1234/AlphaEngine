@@ -16,6 +16,7 @@ import pytest
 from modules.quant_risk import (
     ES95_MULTIPLIER,
     Z95,
+    bootstrap_terminal_distribution,
     build_covariance,
     find_dislocation,
     kelly_fraction,
@@ -770,3 +771,37 @@ def test_a_p_value_far_below_the_threshold_does_not_render_as_zero():
     # Rounding to 4dp would print 0.0, which reads as a certainty no statistic
     # is entitled to claim.
     assert 0.0 < result.kupiec_p_value < 0.001
+
+
+class TestMonteCarloBootstrap:
+    """The bootstrap resamples what happened; it never invents a distribution."""
+
+    def _series(self, n=180):
+        # A deterministic, varied series — enough observations to clear the floor.
+        return [float((i * 7) % 23) - 11 for i in range(n)]
+
+    def test_refuses_below_sixty_observations(self):
+        assert bootstrap_terminal_distribution([1.0] * 59, 5) is None
+        assert bootstrap_terminal_distribution(self._series(60), 5) is not None
+
+    def test_default_seed_is_reproducible_from_the_data(self):
+        series = self._series()
+        first = bootstrap_terminal_distribution(series, 5)
+        second = bootstrap_terminal_distribution(series, 5)
+        # A refresh with the same book must redraw the same cone.
+        assert first.terminal_pnl == second.terminal_pnl
+        assert first.p50 == second.p50
+
+    def test_bands_are_ordered_and_span_the_horizon(self):
+        mc = bootstrap_terminal_distribution(self._series(), 8, seed=1)
+        assert mc.horizon == 8
+        assert len(mc.p50) == 8 and len(mc.terminal_pnl) == mc.paths
+        for step in range(mc.horizon):
+            # A percentile fan cannot cross itself.
+            assert mc.p5[step] <= mc.p25[step] <= mc.p50[step] <= mc.p75[step] <= mc.p95[step]
+
+    def test_var_is_positive_as_loss_and_read_from_the_terminal_tail(self):
+        # An all-negative book: every terminal draw is a loss, so VaR is positive.
+        mc = bootstrap_terminal_distribution([-5.0] * 80, 4, seed=3)
+        assert mc.var95 > 0
+        assert mc.cvar95 >= mc.var95  # the tail mean is at least as bad as its edge

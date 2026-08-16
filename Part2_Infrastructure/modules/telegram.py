@@ -52,6 +52,7 @@ import httpx
 from config import settings
 from modules.telegram_charts import (
     generate_bars_chart_png,
+    generate_cone_png,
     generate_depth_chart_png,
     generate_drawdown_chart_png,
     generate_equity_chart_png,
@@ -64,6 +65,7 @@ from modules.telegram_charts import (
     generate_pipeline_png,
     generate_scatter_png,
     generate_series_chart_png,
+    generate_status_grid_png,
     generate_var_breach_png,
 )
 
@@ -381,6 +383,67 @@ def _committed_route_counts() -> list[tuple[str, float]]:
     return sorted(((tag, float(n)) for tag, n in counts.items()), key=lambda row: -row[1])
 
 
+def _openapi_operations_by_tag() -> dict[str, list[tuple[str, str, str]]]:
+    """``tag -> [(METHOD, path, summary)]`` from the committed OpenAPI snapshot.
+
+    A synchronous file read on purpose: the ``/apis`` handler is async and
+    ruff's ASYNC rules (rightly) refuse a blocking read inside a coroutine, so
+    the disk touch is isolated here where it is plainly synchronous. Empty when
+    the snapshot is not in the image.
+    """
+    snapshot = Path(__file__).resolve().parent.parent / "tools" / "openapi.json"
+    try:
+        document = json.loads(snapshot.read_text())
+    except (OSError, ValueError):
+        return {}
+    by_tag: dict[str, list[tuple[str, str, str]]] = {}
+    for path, operations in (document.get("paths") or {}).items():
+        for method, operation in operations.items():
+            if not isinstance(operation, dict):
+                continue
+            for tag in operation.get("tags", ["untagged"]):
+                by_tag.setdefault(str(tag), []).append(
+                    (method.upper(), str(path), str(operation.get("summary") or ""))
+                )
+    return by_tag
+
+
+def _codebase_line_counts() -> list[tuple[str, int, int]]:
+    """``(area, files, lines)`` for the Python that ships, walked from disk.
+
+    Synchronous, and called from the async ``/codebase`` handler for the same
+    reason ``_openapi_operations_by_tag`` is: the walk blocks, so it stays out
+    of the coroutine.
+    """
+    import os
+
+    root = Path(__file__).resolve().parent.parent
+    areas = {"modules": root / "modules", "tools": root / "tools", "tests": root / "tests"}
+    counts: list[tuple[str, int, int]] = []
+    for name, path in areas.items():
+        files = 0
+        total_lines = 0
+        if path.exists():
+            for dirpath, _dirs, filenames in os.walk(path):
+                if "__pycache__" in dirpath:
+                    continue
+                for filename in filenames:
+                    if not filename.endswith(".py"):
+                        continue
+                    files += 1
+                    try:
+                        with (Path(dirpath) / filename).open("r", encoding="utf-8", errors="ignore") as handle:
+                            total_lines += sum(1 for _ in handle)
+                    except OSError:
+                        pass
+        counts.append((name, files, total_lines))
+    main = root / "main.py"
+    if main.exists():
+        with main.open("r", encoding="utf-8", errors="ignore") as handle:
+            counts.append(("main.py", 1, sum(1 for _ in handle)))
+    return counts
+
+
 _TELEGRAM_MESSAGE_LIMIT = 3900
 
 # Telegram's published ceilings are ~30 sends a second overall and ~1 a second
@@ -585,6 +648,8 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("risk", "Risk (Risk Manager) · Drawdown, gateway budget & limit utilisation + charts", "Tabs", "/risk", "/risk", "_cmd_risk"),
     CommandSpec("limits", "Portfolio · Deployed hard risk limits", "Portfolio", "/limits", "/limits", "_cmd_limits"),
     CommandSpec("attribution", "Portfolio · Flow and costs by strategy", "Portfolio", "/attribution", "/attribution", "_cmd_attribution"),
+    CommandSpec("allocation", "Portfolio · Current vs target weights and the rebalance trades", "Portfolio", "/allocation [ew|iv|erc|mv]", "/allocation", "_cmd_allocation", ("alloc",)),
+    CommandSpec("performance", "Portfolio · Realised P&L and fees by strategy sleeve", "Portfolio", "/performance", "/performance", "_cmd_performance", ("perf",)),
 
     # Market data / OpenBB
     CommandSpec("openbb", "Markets · OpenBB provider readiness", "Markets", "/openbb", "/openbb", "_cmd_openbb"),
@@ -597,6 +662,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("fundamentals", "Markets · Company profile and key metrics", "Markets", "/fundamentals SYMBOL", "/fundamentals NVDA", "_cmd_fundamentals", ("profile", "valuation")),
     CommandSpec("snapshot", "Markets · Quote, fundamentals and headlines", "Markets", "/snapshot SYMBOL [equity|crypto]", "/snapshot AAPL", "_cmd_snapshot"),
     CommandSpec("symbols", "Markets · Tracked instruments and examples", "Markets", "/symbols", "/symbols", "_cmd_symbols", in_menu=False),
+    CommandSpec("compare", "Markets · Normalised price overlay across instruments", "Markets", "/compare SYM1 SYM2 [SYM3…] [INTERVAL]", "/compare BTCUSDT ETHUSDT", "_cmd_compare", ("overlay",)),
 
     # Execution analytics (read-only)
     CommandSpec("book", "Execution · Top of book across venues", "Execution", "/book SYMBOL", "/book BTCUSDT", "_cmd_book"),
@@ -648,6 +714,8 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("regime", "Risk · Volatility regime for an instrument", "Risk", "/regime SYMBOL [INTERVAL]", "/regime BTCUSDT", "_cmd_regime"),
     CommandSpec("size", "Risk · Kelly position sizing from a win rate", "Risk", "/size WIN_RATE PAYOFF [EQUITY]", "/size 0.55 1.8", "_cmd_size", ("kelly",), in_menu=False),
     CommandSpec("dislocation", "Risk · Cross-venue crossed-book check", "Risk", "/dislocation SYMBOL", "/dislocation BTCUSDT", "_cmd_dislocation", ("arb",), in_menu=False),
+    CommandSpec("montecarlo", "Risk · Bootstrapped terminal-P&L cone over a horizon", "Risk", "/montecarlo [1|5|20]", "/montecarlo", "_cmd_montecarlo", ("mc", "cone")),
+    CommandSpec("beta", "Risk · Beta and hedge ratio of a symbol against a reference", "Risk", "/beta SYM [REF]", "/beta ETHUSDT BTCUSDT", "_cmd_beta", ("hedge",)),
 
     # Research fold detail — reads the newest in-process completed backtest and
     # falls back to the audit history with an honest note when the run happened
@@ -666,6 +734,27 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("latency", "Execution · Decision-latency CDF and route tail", "Execution", "/latency", "/latency", "_cmd_latency", ("decisionlatency", "tail")),
     CommandSpec("blotter", "Execution · Merged recent orders and working, rejections by gate", "Execution", "/blotter [all|fills|rejects|working] [N]", "/blotter", "_cmd_blotter", ("tape",)),
     CommandSpec("spreadhistory", "Execution · Spread, slippage or depth history per venue", "Execution", "/spreadhistory SYMBOL [VENUE] [spread|slip|depth]", "/spreadhistory BTCUSDT", "_cmd_spreadhistory", ("tcahistory", "liqhistory")),
+
+    # Data engineer — feed trust, provenance and the web telemetry ledger.
+    CommandSpec("trust", "Data · Feed trust verdict and book-age freshness", "Data", "/trust", "/trust", "_cmd_trust", ("datatrust",)),
+    CommandSpec("dataquality", "Data · Feed degrade/recover events and reconnect counts", "Data", "/dataquality [N]", "/dataquality", "_cmd_dataquality", ("dq", "quarantine"), in_menu=False),
+    CommandSpec("payload", "Data · Per-venue provenance for one symbol", "Data", "/payload SYMBOL", "/payload BTCUSDT", "_cmd_payload", ("lineagepayload", "provenance"), in_menu=False),
+    CommandSpec("providers", "Data · OpenBB, venue feeds and web-ops quota/outages", "Data", "/providers", "/providers", "_cmd_providers"),
+    CommandSpec("tasks", "Data · The Data/Developer work queues (web-only mocked state)", "Data", "/tasks", "/tasks", "_cmd_tasks", ("queue", "work"), in_menu=False),
+
+    # DevOps / SRE — SLIs, dependency planes, breakers, traces and the runbook.
+    CommandSpec("sli", "Reliability · Service-level indicators and the native core's latency", "Reliability", "/sli", "/sli", "_cmd_sli", ("slis", "attention")),
+    CommandSpec("planes", "Reliability · Provider, platform and evidence dependency planes", "Reliability", "/planes", "/planes", "_cmd_planes", ("dependencies", "deps")),
+    CommandSpec("circuits", "Reliability · Risk breakers as a headroom ladder", "Reliability", "/circuits", "/circuits", "_cmd_circuits", ("breakers",)),
+    CommandSpec("traces", "Reliability · Recent audit events merged with web outages", "Reliability", "/traces [N]", "/traces", "_cmd_traces", ("logs",), in_menu=False),
+    CommandSpec("remediation", "Reliability · The five typed controls, their scope and live state", "Reliability", "/remediation", "/remediation", "_cmd_remediation", ("runbook",), in_menu=False),
+    CommandSpec("webops", "Reliability · Web telemetry ledger: p50/p99, outages, quota", "Reliability", "/webops", "/webops", "_cmd_webops", ("webtelemetry",), in_menu=False),
+
+    # Quant developer — launch readiness, CI gates, the API surface and the repo.
+    CommandSpec("readiness", "Developer · Launch-readiness grid across runtime and backends", "Developer", "/readiness", "/readiness", "_cmd_readiness", ("launchgates",)),
+    CommandSpec("cicd", "Developer · The verify gates a deploy must pass", "Developer", "/cicd", "/cicd", "_cmd_cicd", ("verify", "pipeline"), in_menu=False),
+    CommandSpec("apis", "Developer · OpenAPI surface by tag, or one tag's operations", "Developer", "/apis [TAG]", "/apis", "_cmd_apis", ("routes", "openapi"), in_menu=False),
+    CommandSpec("codebase", "Developer · Python file and line counts by area", "Developer", "/codebase", "/codebase", "_cmd_codebase", ("repo",), in_menu=False),
 
     # Controls — gated by TELEGRAM_CONTROL_USER_IDS and a typed challenge.
     CommandSpec("halt", "Controls · Engage the kill switch", "Controls", "/halt [SYMBOL] | /halt CODE", "/halt", "_cmd_halt"),
@@ -2213,14 +2302,21 @@ class TelegramBot:
                     "",
                     "<b>Web parity</b>",
                     "Mirrored: portfolio, risk and limits, the equity curve (/equity), book and TCA, orders, "
-                    "fills and rejections (/orders, /working, /timeline), jobs and research (/backtest, /rag), "
-                    "the reliability snapshot (/ops) and the gated controls.",
+                    "fills and rejections (/orders, /working, /timeline), the research fold detail "
+                    "(/walkforward, /stability, /overfit, /decision), the pre-trade gate preview (/gates), "
+                    "fill quality (/quality), Monte Carlo (/montecarlo), data trust (/trust), the dependency "
+                    "planes (/planes), the risk breakers (/circuits), launch readiness (/readiness), jobs and "
+                    "research (/backtest, /rag), the reliability snapshot (/ops) and the gated controls.",
+                    "Beyond the web: some cards read a ledger the browser only summarises — /latency and "
+                    "/spreadhistory expose the persisted latency and TCA series, /webops the raw web-ops "
+                    "ledger, /compare a normalised multi-symbol overlay, and the native decision core's "
+                    "nanosecond clock surfaces through /latency and /sli.",
                     "Web-only by nature: the experiment log, favourites, theme and complexity tier live in "
                     "one browser's storage, so there is nothing on the server for chat to read. The Data and "
                     "Developer work queues are mocked browser state.",
-                    "Computed differently on purpose: /var measures VaR in this process from the live book, "
-                    "while the web Monte Carlo panel reads Oracle. Same book, different estimator — each "
-                    "names its own source rather than pretending to be the other.",
+                    "Computed differently on purpose: /var and /montecarlo measure risk in this process from "
+                    "the live book, while the web Monte Carlo panel reads Oracle. Same book, different "
+                    "estimator — each names its own source rather than pretending to be the other.",
                 ],
                 source="AlphaEngine Telegram service",
                 next_commands="/commands · /status · /digest",
@@ -5083,6 +5179,803 @@ class TelegramBot:
         await self.send_media_group(chat_id, [("tcahistory", chart)] if chart else [], caption=text_card(
             f"📈 {esc(symbol)} TCA history", "PERSISTED", lines,
             source="audit · tca_snapshots", next_commands=f"/spread {symbol} · /depth {symbol}"), reply_markup=footer)
+
+    # ------------------------------------------------------------------ #
+    # Portfolio manager — beyond the whole-book summary
+    # ------------------------------------------------------------------ #
+    async def _cmd_allocation(self, args, chat_id, actor) -> None:
+        """Current vs target weights, and the trades between them. Read-only."""
+        from modules.quant_risk import propose_allocation, rebalance_trades
+
+        methods = {"ew": "equal_weight", "iv": "inverse_vol", "erc": "equal_risk", "mv": "min_variance"}
+        chosen = args[0].lower() if args else "iv"
+        method = methods.get(chosen, "inverse_vol")
+        method_arg = next((short for short, full in methods.items() if full == method), "iv")
+        switch = kb([_choice_row("allocation", [("EW", "ew"), ("IV", "iv"), ("ERC", "erc"), ("MV", "mv")], method_arg)])
+
+        report, cov, _returns = await self._risk_inputs("1d")
+        positions = [p for p in report["exposure"]["positions"] if p.get("notional")]
+        equity = float(report["equity"]["current"] or 0.0)
+        proposal = propose_allocation(
+            positions, cov, equity, method=method,
+            max_symbol_notional=settings.max_symbol_notional_usd,
+            max_gross_notional=settings.max_gross_exposure_usd,
+        ) if cov else None
+        if not proposal:
+            await self.send_message(chat_id, text_card(
+                "⚖️ Allocation", "NOT MEASURABLE",
+                ["A flat book, or too little shared price history to build a covariance.",
+                 "Allocation needs a covariance, and a covariance needs history."],
+                source="quant_risk · risk-based", next_commands="/positions · /rebalance"), reply_markup=switch)
+            return
+
+        lines = [f"<b>Method: {esc(proposal.method.replace('_', ' '))}</b>", "",
+                 "<b>SYMBOL     NOW  TARGET   DRIFT</b>"]
+        for target in proposal.targets:
+            cap = " ⚠" if target.clipped_by else ""
+            lines.append(
+                f"<code>{esc(f'{target.symbol[:9]:<9}')}</code> "
+                f"<code>{target.current_weight:>5.0%}</code> "
+                f"<code>{target.target_weight:>6.0%}</code> "
+                f"<code>{target.drift:>+6.1%}</code>{cap}"
+            )
+        trades = rebalance_trades(proposal, positions, drift_band=0.05)
+        if trades:
+            lines += ["", "<b>Trades outside a 5% band</b>"]
+            for trade in trades:
+                lines.append(f"  {trade['side']} <code>{_money(trade['notional'])}</code> {esc(trade['symbol'])}")
+        else:
+            lines += ["", "<i>Everything is inside a 5% drift band — trading it would cost more than the drift.</i>"]
+        lines.append("<i>Risk-based only, and nothing here is sent — a proposal, not an instruction.</i>")
+        chart = generate_paired_bars_png(
+            f"Current vs target notional · {proposal.method.replace('_', ' ')}",
+            [target.symbol for target in proposal.targets],
+            [_finite(target.current_notional) for target in proposal.targets],
+            [_finite(target.target_notional) for target in proposal.targets],
+            "Current", "Target", "Notional (USD)", value_fmt="{:,.0f}",
+        )
+        await self.send_media_group(chat_id, [("allocation", chart)] if chart else [], caption=text_card(
+            "⚖️ Allocation", "PROPOSAL", lines,
+            source="quant_risk · risk-based", next_commands="/rebalance · /exposure · /riskcontrib"), reply_markup=switch)
+
+    async def _cmd_performance(self, args, chat_id, actor) -> None:
+        """Realised P&L and fees by strategy sleeve, replayed from fills."""
+        from modules.portfolio import realized_pnl_by_strategy
+
+        sleeves = realized_pnl_by_strategy(self.audit) if self.audit else {}
+        rows = sorted(sleeves.values(), key=lambda sleeve: -float(sleeve.get("realized_pnl") or 0.0))
+        if not rows:
+            await self.send_message(chat_id, text_card(
+                "📈 Performance", "NO FILLS",
+                ["No accepted fills recorded, so there is no realised P&L to attribute.",
+                 "<i>An empty record, not a flat result.</i>"],
+                source="audit · replayed fills", next_commands="/attribution · /pnl"))
+            return
+        lines = ["<b>STRATEGY      P&amp;L        FEES  WIN%</b>"]
+        for row in rows[:8]:
+            name = str(row.get("strategy"))[:12]
+            win = row.get("win_rate")
+            win_txt = _percent(win, 0) if win is not None else "—"
+            flag = " •" if row.get("has_open_inventory") else ""
+            lines.append(
+                f"<code>{esc(f'{name:<12}')}</code> "
+                f"<code>{_money(row.get('realized_pnl'), signed=True):>9}</code> "
+                f"<code>{_money(row.get('fees')):>7}</code> <code>{win_txt}</code>{flag}"
+            )
+        lines.append("<i>Realised on closed quantity only; open inventory (•) is carried at cost, not marked.</i>")
+        names = [str(row.get("strategy")) for row in rows[:8]]
+        charts: list[tuple[str, bytes]] = []
+        pnl_bars = generate_bars_chart_png(
+            "Realised P&L by strategy (USD)", names,
+            [_finite(row.get("realized_pnl")) for row in rows[:8]],
+            "P&L (USD)", horizontal=True, value_fmt="{:,.0f}",
+        )
+        if pnl_bars:
+            charts.append(("performance-pnl", pnl_bars))
+        fee_bars = generate_bars_chart_png(
+            "Fees by strategy (USD)", names,
+            [_finite(row.get("fees")) for row in rows[:8]],
+            "Fees (USD)", colours=["#f59e0b"] * len(names), horizontal=True, value_fmt="{:,.0f}",
+        )
+        if fee_bars:
+            charts.append(("performance-fees", fee_bars))
+        await self.send_media_group(chat_id, charts, caption=text_card(
+            "📈 Performance", "AUDIT-REPLAYED", lines,
+            source="audit · realized_pnl_by_strategy", next_commands="/attribution · /pnl · /costs"))
+
+    # ------------------------------------------------------------------ #
+    # Risk manager — Monte Carlo and beta
+    # ------------------------------------------------------------------ #
+    async def _cmd_montecarlo(self, args, chat_id, actor) -> None:
+        """A bootstrapped cone of where the book lands over a horizon. Read-only."""
+        from modules.quant_risk import bootstrap_terminal_distribution, historical_var
+
+        horizons = {"1": 1, "5": 5, "20": 20}
+        horizon = horizons.get(args[0], 5) if args else 5
+        switch = kb([_choice_row("montecarlo", [("1d", "1"), ("5d", "5"), ("20d", "20")], str(horizon))])
+        report, _cov, returns = await self._risk_inputs("1d")
+        positions = [p for p in report["exposure"]["positions"] if p.get("notional")]
+        equity = float(report["equity"]["current"] or 0.0)
+        hv = historical_var(positions, returns, equity) if positions else None
+        book_returns = list(hv.daily_pnl) if hv else []
+        mc = bootstrap_terminal_distribution(book_returns, horizon) if book_returns else None
+        if not mc:
+            await self.send_message(chat_id, text_card(
+                f"🎲 Monte Carlo · {horizon}d", "NOT AVAILABLE",
+                ["A flat book, or fewer than 60 aligned bars of book history to resample.",
+                 "The cone bootstraps the daily P&L the book actually lived through, and needs that history to exist."],
+                source="quant_risk · i.i.d. bootstrap", next_commands="/var · /positions"), reply_markup=switch)
+            return
+
+        cushion = _finite(report["risk_budget"]["daily_drawdown"].get("cushion_usd"))
+        lines = [
+            f"Horizon    <code>{mc.horizon}</code> bars · <code>{mc.paths:,}</code> paths · <code>{mc.observations}</code> obs",
+            f"Median     <code>{_money(mc.p50[-1], signed=True)}</code> terminal P&amp;L",
+            f"VaR 95     <code>{_money(mc.var95)}</code> · CVaR 95 <code>{_money(mc.cvar95)}</code>",
+            f"P5 / P95   <code>{_money(mc.p5[-1], signed=True)}</code> / <code>{_money(mc.p95[-1], signed=True)}</code>",
+        ]
+        if cushion is not None and cushion > 0:
+            trip = " · <i>a 95% loss would trip it</i>" if mc.var95 >= cushion else ""
+            lines.append(f"Cushion    <code>{_money(cushion)}</code> to the drawdown breaker{trip}")
+        lines.append("<i>I.i.d. bootstrap: it resamples days independently, so it has no volatility clustering and understates a sustained run of losses. Reported beside the historical figure, never instead of it.</i>")
+
+        cone = generate_cone_png(
+            f"Terminal-P&L cone · {mc.horizon}d",
+            list(mc.p5), list(mc.p25), list(mc.p50), list(mc.p75), list(mc.p95),
+        )
+        markers = [("VaR 95", -mc.var95, "#e8ab3d"), ("CVaR 95", -mc.cvar95, "#f0737c")]
+        if cushion is not None and cushion > 0:
+            markers.append(("Cushion", -cushion, "#38bdf8"))
+        hist = generate_histogram_png(
+            f"Terminal P&L · {mc.paths:,} paths", list(mc.terminal_pnl), "Terminal P&L (USD)", markers,
+        )
+        charts = [(name, blob) for name, blob in (("mc-cone", cone), ("mc-terminal", hist)) if blob]
+        await self.send_media_group(chat_id, charts, caption=text_card(
+            f"🎲 Monte Carlo · {mc.horizon}d", "BOOTSTRAP", lines,
+            source="quant_risk · i.i.d. bootstrap", next_commands="/var · /stress · /varbacktest"), reply_markup=switch)
+
+    async def _cmd_beta(self, args, chat_id, actor) -> None:
+        """Beta and hedge ratio of a symbol against a reference, from returns."""
+        from modules.quant_risk import beta as compute_beta
+        from modules.quant_risk import returns_from_closes
+
+        symbol = self._symbol(args)
+        default_ref = "BTCUSDT" if symbol != "BTCUSDT" else "ETHUSDT"
+        ref = self._symbol(args, 1) if len(args) > 1 else default_ref
+        tracked = [value.upper() for value in settings.symbols][:6]
+        ref_row = [(f"• {sym}" if sym == ref else sym, cb("beta", symbol, sym)) for sym in tracked]
+        footer = kb([_symbol_row("beta", symbol, ref), ref_row])
+
+        if symbol == ref:
+            await self.send_message(chat_id, text_card(
+                f"🧮 Beta · {esc(symbol)} vs {esc(ref)}", "NOT MEASURABLE",
+                ["A symbol is its own reference — beta against itself is 1 by definition.",
+                 "Give a different reference, e.g. <code>/beta ETHUSDT BTCUSDT</code>."],
+                source="quant_risk", next_commands="/correlation · /stress"), reply_markup=footer)
+            return
+
+        def asset_of(instrument: str) -> str:
+            return "crypto" if instrument.endswith(("USDT", "-USD")) else "equity"
+
+        closes_sym = await self._closes_for(symbol, asset_of(symbol), "1d", 150)
+        closes_ref = await self._closes_for(ref, asset_of(ref), "1d", 150)
+        n = min(len(closes_sym), len(closes_ref))
+        rets: dict[str, list[float]] = {}
+        if n >= 21:
+            rets = {
+                symbol: returns_from_closes(closes_sym[-n:]),
+                ref: returns_from_closes(closes_ref[-n:]),
+            }
+        value = compute_beta(symbol, ref, rets) if rets else None
+        if value is None:
+            await self.send_message(chat_id, text_card(
+                f"🧮 Beta · {esc(symbol)} vs {esc(ref)}", "NOT MEASURABLE",
+                [f"Fewer than 20 aligned daily returns for {esc(symbol)} and {esc(ref)}.",
+                 "Beta is a regression, and a regression needs a shared history to run on."],
+                source="quant_risk", next_commands="/correlation · /stress"), reply_markup=footer)
+            return
+
+        lines = [
+            f"Symbol     <code>{esc(symbol)}</code>",
+            f"Reference  <code>{esc(ref)}</code>",
+            f"Beta       <code>{_number(value, 3)}</code> over <code>{len(rets[symbol])}</code> aligned returns",
+            f"Hedge      <code>{_number(-value, 3)}</code> units of {esc(ref)} per unit {esc(symbol)} to neutralise",
+        ]
+        lines.append("<i>β is the slope of the symbol's returns on the reference's — a measurement, not 1.0 by assumption. An unmeasurable beta is left flat rather than guessed.</i>")
+        scatter = generate_scatter_png(
+            f"{symbol} vs {ref} daily returns", rets[ref], rets[symbol],
+            f"{ref} return", f"{symbol} return", fit_line=True,
+        )
+        await self.send_media_group(chat_id, [("beta", scatter)] if scatter else [], caption=text_card(
+            f"🧮 Beta · {esc(symbol)} vs {esc(ref)}", "MEASURED", lines,
+            source="quant_risk · returns regression", next_commands="/correlation · /stress · /montecarlo"), reply_markup=footer)
+
+    # ------------------------------------------------------------------ #
+    # Data engineer — trust, provenance, providers and the work queues
+    # ------------------------------------------------------------------ #
+    async def _cmd_trust(self, args, chat_id, actor) -> None:
+        """A single feed-trust verdict, plus per-venue book freshness."""
+        from modules import research
+
+        health = self.tca.health() if self.tca else {}
+        feeds = health.get("feeds", [])
+        openbb = await research.openbb_status_async()
+        audit_health = self.audit.health() if self.audit else {}
+        synthetic = bool(health.get("synthetic_active"))
+        connected = sum(1 for feed in feeds if feed.get("connected"))
+
+        ages: list[tuple[str, float | None, bool]] = []
+        for feed in feeds:
+            venue = str(feed.get("venue") or feed.get("name") or "?")
+            symbol_states = list((feed.get("symbols") or {}).values())
+            venue_ages = [state.get("age_s") for state in symbol_states if state.get("age_s") is not None]
+            stale = any(state.get("stale") for state in symbol_states)
+            ages.append((venue, max(venue_ages) if venue_ages else None, stale))
+
+        if not feeds:
+            verdict = "UNAVAILABLE"
+        elif synthetic:
+            verdict = "SYNTHETIC"
+        elif connected < len(feeds) or any(stale for _, _, stale in ages):
+            verdict = "DEGRADED"
+        else:
+            verdict = "TRUSTED"
+
+        lines = [
+            f"Verdict     <code>{verdict}</code>",
+            f"Venues      <code>{connected}/{len(feeds)} connected</code>",
+            f"OpenBB      <code>{'READY' if openbb.get('ok') else 'UNAVAILABLE'}</code>",
+            f"Audit       <code>{esc(audit_health.get('backend') or '—')}</code> · "
+            f"<code>{'available' if audit_health.get('available') else 'unavailable'}</code>",
+            f"Synthetic   <code>{'ACTIVE — generated book, not a venue' if synthetic else 'off'}</code>",
+        ]
+        for venue, age, stale in ages:
+            age_txt = _number(age, 1) if age is not None else "—"
+            lines.append(f"<code>{esc(venue):<10}</code> age <code>{age_txt}</code>s{' ⚠ stale' if stale else ''}")
+        lines.append("<i>A verdict of SYNTHETIC means the book is generated because every venue is dark — never trade on it.</i>")
+        chart = generate_bars_chart_png(
+            "Book age by venue (s, lower is fresher)",
+            [venue for venue, _, _ in ages],
+            [_finite(age) for _, age, _ in ages],
+            "Age (s)", colours=["#ff5252" if stale else "#00e676" for _, _, stale in ages],
+            horizontal=True, value_fmt="{:.1f}s",
+        )
+        await self.send_media_group(chat_id, [("trust", chart)] if chart else [], caption=text_card(
+            "🔎 Data trust", verdict, lines,
+            source="TCA feeds + OpenBB + audit", next_commands="/dataquality · /payload BTCUSDT · /feedstatus"))
+
+    async def _cmd_dataquality(self, args, chat_id, actor) -> None:
+        """Feed degrade/recover transitions from the audit log, and reconnects."""
+        count = self._limit(args, 0, 10, 25)
+        health = self.tca.health() if self.tca else {}
+        feeds = health.get("feeds", [])
+        events = [
+            event for event in (self.audit.recent_events(max(count * 4, count)) if self.audit else [])
+            if str(event.get("event") or "") in {"feed_degraded", "feed_recovered"}
+        ][:count]
+        lines = [f"<b>Feed transitions</b> · last <code>{len(events)}</code>"]
+        if events:
+            icon = {"feed_recovered": "✅", "feed_degraded": "⚠️"}
+            for event in events:
+                stamp = str(event.get("ts") or "")[11:19]
+                lines.append(
+                    f"{icon.get(str(event.get('event')), '•')} <code>{esc(stamp)}</code> {esc(event.get('event'))}\n"
+                    f"   <code>{esc(str(event.get('detail') or '')[:120])}</code>"
+                )
+        else:
+            lines.append("<i>No feed degrade or recover events recorded — an empty record, not a promise of perfect feeds.</i>")
+        lines += ["", "<b>Reconnects by venue</b>"]
+        reconnects = [(str(feed.get("venue") or feed.get("name") or "?"), int(feed.get("reconnects") or 0)) for feed in feeds]
+        for venue, total in reconnects:
+            lines.append(f"<code>{esc(venue):<10}</code> <code>{total}</code>")
+        chart = generate_bars_chart_png(
+            "WebSocket reconnects by venue",
+            [venue for venue, _ in reconnects], [float(total) for _, total in reconnects],
+            "Reconnects", horizontal=True, value_fmt="{:.0f}",
+        )
+        await self.send_media_group(chat_id, [("reconnects", chart)] if chart else [], caption=text_card(
+            "🩹 Data quality", f"{len(events)} TRANSITIONS", lines,
+            source="audit feed-watchdog + TCA", next_commands="/trust · /feedstatus · /incidents"))
+
+    async def _cmd_payload(self, args, chat_id, actor) -> None:
+        """Per-venue provenance for one symbol, plus the OpenBB quote's own."""
+        from modules import research
+
+        symbol = self._symbol(args)
+        footer = kb([_symbol_row("payload", symbol)])
+        books = self.tca.get_books(symbol, depth=5) if self.tca else []
+        lines = [f"<b>Venue books · {esc(symbol)}</b>"]
+        if books:
+            for book in books:
+                last = book.last_update.strftime("%H:%M:%S") if getattr(book, "last_update", None) else "—"
+                latency = _number(book.latency_ms, 1) if book.latency_ms is not None else "—"
+                lines.append(
+                    f"<code>{esc(str(book.venue)):<9}</code> upd <code>{last}</code>"
+                    f" · lat <code>{latency}</code>ms"
+                    f" · <code>{'SYNTH' if book.synthetic else 'live'}</code>"
+                    f"{' · ⚠ stale' if book.stale else ''}"
+                )
+        else:
+            lines.append("<i>No venue currently holds a book for this symbol — a missing feed, not a zero price.</i>")
+        asset = "crypto" if symbol.endswith(("USDT", "-USD")) else "equity"
+        quote = await research.quote(symbol, asset)
+        lines += ["", "<b>OpenBB quote provenance</b>"]
+        if quote.get("ok"):
+            data = quote.get("data") or {}
+            lines.append(
+                f"Price <code>{_number(data.get('price'))}</code> · "
+                f"delayed <code>{'yes' if data.get('delayed') else 'no'}</code> · "
+                f"ccy <code>{esc(data.get('currency') or '—')}</code>"
+            )
+        else:
+            lines.append(f"<code>{esc(str(quote.get('error') or 'unavailable'))[:100]}</code>")
+        lines.append("<i>Every field is read straight from the last update; a missing measurement renders as —, never as 0.</i>")
+        await self.send_message(chat_id, text_card(
+            f"🧾 Provenance · {esc(symbol)}", "PER-VENUE", lines,
+            source="TCA books + OpenBB", next_commands=f"/trust · /lineage {symbol}"), reply_markup=footer)
+
+    async def _cmd_providers(self, args, chat_id, actor) -> None:
+        """OpenBB, the venue feeds, and the web-ops ledger the browser POSTs here."""
+        from modules import research
+        from modules.web_telemetry import get_web_ops
+
+        openbb = await research.openbb_status_async()
+        health = self.tca.health() if self.tca else {}
+        feeds = health.get("feeds", [])
+        view = get_web_ops().view()
+        lines = [
+            f"OpenBB      <code>{'READY' if openbb.get('ok') else 'UNAVAILABLE'}</code> · "
+            f"provider <code>{esc(openbb.get('provider') or '—')}</code>",
+            "",
+            "<b>Venue feeds</b>",
+        ]
+        for feed in feeds:
+            venue = str(feed.get("venue") or feed.get("name") or "?")
+            lines.append(
+                f"<code>{esc(venue):<10}</code> <code>{'connected' if feed.get('connected') else 'down'}</code>"
+                f" · reconnects <code>{int(feed.get('reconnects') or 0)}</code>"
+            )
+        lines += ["", "<b>Web-ops ledger</b> (what the browser POSTs here)",
+                  f"Instances <code>{len(view.instances)}</code> · keys <code>{len(view.latency)}</code>"
+                  f" · outages <code>{len(view.outages)}</code> · quota rows <code>{len(view.quota)}</code>"]
+        for outage in view.outages[:4]:
+            lines.append(f"⚠️ outage <code>{esc(outage.provider)}</code> · {esc(outage.note)[:60]}")
+        for entry in view.quota[:4]:
+            lines.append(f"quota <code>{esc(entry.provider)}</code>/{esc(entry.window)} spent <code>{entry.spent}</code>")
+        if not view.instances:
+            lines.append("<i>No web instance has synced telemetry into this gateway yet — the browser fills it within a few polls.</i>")
+        await self.send_message(chat_id, text_card(
+            "🔌 Providers", "READY" if openbb.get("ok") else "DEGRADED", lines,
+            source="OpenBB + TCA + web-ops", next_commands="/webops · /trust · /openbb"))
+
+    async def _cmd_tasks(self, args, chat_id, actor) -> None:
+        """The web work queues are mocked; the research jobs engine is real."""
+        stats = self.queue.stats() if self.queue else {}
+        by_status = stats.get("by_status") or {}
+        lines = [
+            "The Data and Developer work queues in the web workspace are mocked browser state — "
+            "there is no server-side task list for chat to read.",
+            "",
+            f"What this gateway does run is the <b>research jobs engine</b> "
+            f"(<code>{esc(stats.get('backend') or '—')}</code>): "
+            f"<code>{stats.get('total') or 0}</code> jobs · <code>{stats.get('workers') or 0}</code> workers.",
+        ]
+        if by_status:
+            lines.append("")
+            for status, total in sorted(by_status.items()):
+                lines.append(f"<code>{esc(status):<10}</code> <code>{total}</code>")
+        else:
+            lines.append("<i>No research job has been submitted in this process.</i>")
+        chart = generate_bars_chart_png(
+            "Research jobs by status",
+            list(by_status.keys()), [float(value) for value in by_status.values()],
+            "Jobs", horizontal=True, value_fmt="{:.0f}",
+        )
+        await self.send_media_group(chat_id, [("tasks", chart)] if chart else [], caption=text_card(
+            "🗂 Work queues", "JOBS ENGINE", lines,
+            source="jobs engine · by_status", next_commands="/jobs · /researchstatus · /backtests"))
+
+    # ------------------------------------------------------------------ #
+    # DevOps / SRE — SLIs, planes, breakers, traces and the runbook
+    # ------------------------------------------------------------------ #
+    async def _cmd_sli(self, args, chat_id, actor) -> None:
+        """Service-level indicators, including the native core's nanosecond clock."""
+        from modules import metrics
+
+        requests = metrics.request_latency_summary()
+        decision = metrics.decision_latency_summary()
+        core = metrics.core_latency_summary()
+        health = self.tca.health() if self.tca else {}
+        feeds = health.get("feeds", [])
+        uptime = _finite(health.get("uptime_s")) or 0.0
+        state = self.gateway.state() if self.gateway else None
+        connected = sum(1 for feed in feeds if feed.get("connected"))
+        lines = [
+            f"Engine uptime  <code>{uptime:.0f}s</code>",
+            f"Kill switch    <code>{'ACTIVE' if state and state.kill_switch_active else 'inactive'}</code>",
+            f"Feeds          <code>{connected}/{len(feeds)} connected</code>",
+            "",
+            "<b>Request latency (ms, windowed)</b>",
+        ]
+        routes = sorted(requests.items(), key=lambda item: item[1].get("p99", 0.0), reverse=True)[:6]
+        if routes:
+            for route, stats in routes:
+                lines.append(
+                    f"<code>{esc(route)[:20]:<20}</code> p50 <code>{_number(stats.get('p50'), 0)}</code>"
+                    f" · p95 <code>{_number(stats.get('p95'), 0)}</code>"
+                    f" · p99 <code>{_number(stats.get('p99'), 0)}</code>"
+                    f" · err <code>{int(stats.get('errors') or 0)}</code>"
+                )
+        else:
+            lines.append("<i>No request timed in the current window.</i>")
+        lines += ["", "<b>Decision latency</b>"]
+        if int(decision.get("samples") or 0):
+            lines.append(
+                f"in-process <code>{_number(decision.get('p50'), 0)}</code>/"
+                f"<code>{_number(decision.get('p99'), 0)}</code> µs p50/p99 · "
+                f"<code>{int(decision.get('samples'))}</code> timed"
+            )
+        else:
+            lines.append("<i>No decision timed yet — an empty record, not zero latency.</i>")
+        if int(core.get("samples") or 0):
+            lines.append(
+                f"native core <code>{_number(core.get('p50'), 0)}</code>/"
+                f"<code>{_number(core.get('p99'), 0)}</code> ns p50/p99 · "
+                f"<code>{int(core.get('samples'))}</code> timed"
+            )
+        else:
+            lines.append("<i>Native core idle here — its nanosecond clock records only while the compiled engine runs.</i>")
+        charts: list[tuple[str, bytes]] = []
+        p99_chart = generate_bars_chart_png(
+            "Route p99 (ms)", [route[:18] for route, _ in routes],
+            [_finite(stats.get("p99")) for _, stats in routes],
+            "p99 (ms)", horizontal=True, value_fmt="{:.0f}ms",
+        )
+        if p99_chart:
+            charts.append(("sli-p99", p99_chart))
+        error_chart = generate_bars_chart_png(
+            "Route errors (window)", [route[:18] for route, _ in routes],
+            [float(stats.get("errors") or 0) for _, stats in routes],
+            "Errors", colours=["#ff5252"] * len(routes), horizontal=True, value_fmt="{:.0f}",
+        )
+        if error_chart:
+            charts.append(("sli-errors", error_chart))
+        await self.send_media_group(chat_id, charts, caption=text_card(
+            "📟 Service levels", "MEASURED" if routes else "NO SAMPLES", lines,
+            source="metrics + TCA + gateway", next_commands="/latency · /reliability · /circuits"))
+
+    async def _cmd_planes(self, args, chat_id, actor) -> None:
+        """Provider, platform and evidence dependency planes as a status grid."""
+        from modules import research
+
+        openbb = await research.openbb_status_async()
+        health = self.tca.health() if self.tca else {}
+        feeds = health.get("feeds", [])
+        connected = sum(1 for feed in feeds if feed.get("connected"))
+        state = self.gateway.state() if self.gateway else None
+        audit_health = self.audit.health() if self.audit else {}
+        queue_stats = self.queue.stats() if self.queue else {}
+        mirror_on = bool(getattr(settings, "supabase_url", "") or "")
+
+        def feed_status() -> str:
+            if not feeds:
+                return "unknown"
+            if connected == len(feeds):
+                return "ok"
+            return "degraded" if connected else "down"
+
+        rows = [
+            ("Provider", "OpenBB", "ok" if openbb.get("ok") else "down", str(openbb.get("provider") or "—")),
+            ("Provider", "Feeds", feed_status(), f"{connected}/{len(feeds)} live"),
+            ("Platform", "Gateway", "ok" if state is not None else "unknown", "risk engine"),
+            ("Platform", "Kill switch", "down" if state and state.kill_switch_active else "ok",
+             "engaged" if state and state.kill_switch_active else "clear"),
+            ("Platform", "Queue", "ok" if queue_stats.get("backend") else "unknown", str(queue_stats.get("backend") or "—")),
+            ("Evidence", "Audit", "ok" if audit_health.get("available") else "down", str(audit_health.get("backend") or "—")),
+            ("Evidence", "Mirror", "ok" if mirror_on else "unknown", "supabase" if mirror_on else "local only"),
+        ]
+        lines = [
+            f"<code>{esc(plane):<9}</code> <code>{esc(component):<12}</code> <code>{esc(status.upper())}</code> · {esc(detail)}"
+            for plane, component, status, detail in rows
+        ]
+        lines.append("<i>Three planes: who feeds the desk, what runs it, and what records it. A degraded or down tile is where an incident would surface.</i>")
+        chart = generate_status_grid_png("Dependency planes", rows)
+        await self.send_media_group(chat_id, [("planes", chart)] if chart else [], caption=text_card(
+            "🧯 Dependency planes", "TOPOLOGY", lines,
+            source="OpenBB + TCA + gateway + audit", next_commands="/sli · /circuits · /status"))
+
+    async def _cmd_circuits(self, args, chat_id, actor) -> None:
+        """The risk breakers as a headroom ladder. Reads state, moves nothing."""
+        state = self.gateway.state() if self.gateway else None
+        if state is None:
+            await self.send_message(chat_id, text_card(
+                "🧨 Circuit breakers", "NO GATEWAY",
+                ["The risk gateway is not attached in this process."],
+                source="gateway", next_commands="/status"))
+            return
+        limits = state.limits
+        ladder: list[tuple[str, float | None, float | None, bool]] = []
+        dd = _finite(state.daily_drawdown_pct)
+        dd_cap = _finite(limits.get("max_daily_drawdown_pct"))
+        if dd is not None and dd_cap:
+            ladder.append(("daily_drawdown", dd, dd_cap, dd < dd_cap))
+        rate_cap = _finite(limits.get("max_orders_per_sec"))
+        if rate_cap:
+            ladder.append(("rate_limit", _finite(state.orders_last_second) or 0.0, rate_cap, (state.orders_last_second or 0) < rate_cap))
+        working_cap = _finite(getattr(settings, "max_working_orders", None))
+        if working_cap:
+            ladder.append(("working_book", float(state.working_orders), working_cap, state.working_orders < working_cap))
+        gross_cap = _finite(limits.get("max_gross_exposure_usd"))
+        if gross_cap:
+            ladder.append(("gross_exposure", _finite(state.gross_exposure) or 0.0, gross_cap, (state.gross_exposure or 0) <= gross_cap))
+
+        lines = [
+            f"Kill switch  {'❌' if state.kill_switch_active else '✅'} <code>{'ENGAGED' if state.kill_switch_active else 'clear'}</code>",
+            f"Reduce-only  {'⚠️' if state.reduce_only else '✅'} <code>{esc(state.reduce_only_source)}</code>",
+            f"Drawdown     <code>{_percent(state.daily_drawdown_pct)}</code> of <code>{_percent(dd_cap)}</code>"
+            f" · budget used <code>{_percent(state.drawdown_budget_used_pct)}</code>",
+            f"Order rate   <code>{_number(state.orders_last_second)}</code>/s of <code>{_number(rate_cap, 0)}</code>",
+            f"Working book <code>{state.working_orders}</code> of <code>{_number(working_cap, 0)}</code>",
+            f"Gross        <code>{_money(state.gross_exposure)}</code> of <code>{_money(gross_cap)}</code>",
+            "Watchdog     <code>5s monitor loop</code> · re-checks drawdown and feed health",
+            "",
+            "<i>The drawdown breaker is automatic; the kill switch and reduce-only are latched by an operator or the monitor loop. This reads their headroom and moves nothing.</i>",
+        ]
+        chart = generate_gate_ladder_png("Breaker headroom (% of limit)", ladder)
+        status = "ENGAGED" if state.kill_switch_active else ("REDUCE-ONLY" if state.reduce_only else "CLEAR")
+        await self.send_media_group(chat_id, [("circuits", chart)] if chart else [], caption=text_card(
+            "🧨 Circuit breakers", status, lines,
+            source="gateway risk state", next_commands="/risk · /gates · /remediation"))
+
+    async def _cmd_traces(self, args, chat_id, actor) -> None:
+        """Recent audit events merged with web outages, each tagged by origin."""
+        from modules.web_telemetry import get_web_ops
+
+        count = self._limit(args, 0, 12, 30)
+        events = self.audit.recent_events(count) if self.audit else []
+        view = get_web_ops().view()
+        merged: list[tuple[str, str, str]] = []
+        for event in events:
+            merged.append(("audit", str(event.get("ts") or "")[11:19],
+                           f"{event.get('event')} · {str(event.get('detail') or '')[:80]}"))
+        for outage in view.outages:
+            merged.append(("web", "", f"outage {outage.provider} · {outage.note[:60]}"))
+        if not merged:
+            await self.send_message(chat_id, text_card(
+                "🧵 Traces", "NO RECORDS",
+                ["No audit events and no web outages to merge — an empty trace, not a silent one."],
+                source="audit + web-ops", next_commands="/incidents · /events · /providers"))
+            return
+        icon = {"audit": "🗄", "web": "🌐"}
+        lines = [
+            f"{icon.get(origin, '•')} <code>{esc(origin):<5}</code> <code>{esc(when or '—')}</code> {esc(text)}"
+            for origin, when, text in merged[:count]
+        ]
+        lines.append("<i>Two origins in one stream: gateway audit rows and web-reported outages, each tagged so a reader never mistakes one for the other.</i>")
+        await self.send_message(chat_id, text_card(
+            "🧵 Traces", f"{len(merged)} ENTRIES", lines,
+            source="audit + web-ops ledger", next_commands="/incidents · /events · /providers"))
+
+    async def _cmd_remediation(self, args, chat_id, actor) -> None:
+        """The five typed controls, their scope, and the current risk state.
+
+        No control buttons on purpose: a control is typed and confirmed, never
+        tapped, so this card carries only reads and refuses to offer a shortcut
+        the challenge flow deliberately withholds.
+        """
+        state = self.gateway.state() if self.gateway else None
+        controls = [spec for spec in COMMAND_SPECS if spec.category == "Controls"]
+        scope = {
+            "halt": "book-wide or per-symbol kill switch",
+            "resume": "release the kill switch",
+            "flatten": "close every open position through the gates",
+            "reduceonly": "accept only risk-reducing orders",
+            "resetbook": "reset the paper book and session accounting",
+        }
+        lines = [
+            "<b>The five typed controls</b>",
+            "Each needs the separate <code>TELEGRAM_CONTROL_USER_IDS</code> allow-list and a single-use code. "
+            "They are typed, never tapped — this card carries no buttons on purpose.",
+        ]
+        for spec in controls:
+            purpose = scope.get(spec.name, spec.description.split("·", 1)[-1].strip())
+            lines.append(f"<code>/{esc(spec.name)}</code> — {esc(purpose)}")
+        lines += ["", "<b>Live state</b>"]
+        if state is not None:
+            halted = f" · {esc(', '.join(state.halted_symbols))}" if state.halted_symbols else ""
+            lines.append(f"Kill switch <code>{'ENGAGED' if state.kill_switch_active else 'clear'}</code>{halted}")
+            lines.append(f"Reduce-only <code>{esc(state.reduce_only_source)}</code>")
+        else:
+            lines.append("<i>Gateway not attached.</i>")
+        await self.send_message(chat_id, text_card(
+            "🛠 Remediation", "TYPED CONTROLS", lines,
+            source="command registry + gateway state", next_commands="/circuits · /risk · /status"))
+
+    async def _cmd_webops(self, args, chat_id, actor) -> None:
+        """The web telemetry ledger the /providers card only summarises."""
+        from modules.web_telemetry import get_web_ops
+
+        view = get_web_ops().view()
+        lines = [
+            f"Instances <code>{len(view.instances)}</code> · window <code>{view.window_seconds:.0f}s</code>",
+            "",
+            "<b>Per-key latency</b>",
+        ]
+        p99_labels: list[str] = []
+        p99_values: list[float | None] = []
+        if view.latency:
+            for key_view in view.latency:
+                ordered = sorted(sample.ms for sample in key_view.samples)
+                total = len(ordered)
+                errors = sum(1 for sample in key_view.samples if not sample.ok)
+                p50 = ordered[min(total - 1, max(0, math.ceil(0.50 * total) - 1))] if total else None
+                p99 = ordered[min(total - 1, max(0, math.ceil(0.99 * total) - 1))] if total else None
+                rate = errors / total if total else 0.0
+                lines.append(
+                    f"<code>{esc(key_view.key)[:18]:<18}</code> p50 <code>{_number(p50, 0)}</code>"
+                    f" · p99 <code>{_number(p99, 0)}</code> · err <code>{_percent(rate, 0)}</code>"
+                    f" · n=<code>{total}</code>"
+                )
+                p99_labels.append(key_view.key[:18])
+                p99_values.append(p99)
+        else:
+            lines.append("<i>No web instance has synced latency into this gateway — the browser fills it within a few polls.</i>")
+        if view.outages:
+            lines += ["", "<b>Outages</b>"]
+            for outage in view.outages[:6]:
+                lines.append(f"⚠️ <code>{esc(outage.provider)}</code> · {esc(outage.note)[:60]}")
+        if view.quota:
+            lines += ["", "<b>Quota</b>"]
+            for entry in view.quota[:6]:
+                lines.append(f"<code>{esc(entry.provider)}</code>/{esc(entry.window)} spent <code>{entry.spent}</code>")
+        chart = generate_bars_chart_png(
+            "Web key p99 (ms)", p99_labels, [_finite(value) for value in p99_values],
+            "p99 (ms)", horizontal=True, value_fmt="{:.0f}ms",
+        )
+        await self.send_media_group(chat_id, [("webops", chart)] if chart else [], caption=text_card(
+            "🌐 Web telemetry", f"{len(view.instances)} INSTANCES", lines,
+            source="web-ops ledger · get_web_ops().view()", next_commands="/providers · /reliability · /sli"))
+
+    # ------------------------------------------------------------------ #
+    # Quant developer — readiness, CI gates, the API surface and the repo
+    # ------------------------------------------------------------------ #
+    async def _cmd_readiness(self, args, chat_id, actor) -> None:
+        """Launch readiness across the runtime, the contract and the backends."""
+        from modules.decision_core import ENGINE as decision_engine
+
+        routes = _committed_route_counts()
+        op_count = int(sum(count for _, count in routes)) if routes else 0
+        audit_health = self.audit.health() if self.audit else {}
+        try:
+            import matplotlib  # noqa: F401
+            mpl_ok = True
+        except Exception:
+            mpl_ok = False
+        engine = str(decision_engine)
+        rows = [
+            ("Runtime", "Version", "ok", f"{settings.version}/{settings.environment}"),
+            ("Runtime", "Charts", "ok" if mpl_ok else "down", "matplotlib" if mpl_ok else "missing"),
+            ("Runtime", "Decision core", "ok" if engine == "native" else "degraded", engine),
+            ("Contract", "OpenAPI", "ok" if op_count else "unknown", f"{op_count} ops" if op_count else "no snapshot"),
+            ("Backends", "Audit", "ok" if audit_health.get("available") else "down", str(audit_health.get("backend") or "—")),
+            ("Backends", "Telegram", "ok" if self.mode != "disabled" else "degraded", str(self.mode)),
+        ]
+        lines = [
+            f"<code>{esc(plane):<9}</code> <code>{esc(component):<13}</code> <code>{esc(status.upper())}</code> · {esc(detail)}"
+            for plane, component, status, detail in rows
+        ]
+        lines.append("<i>Launch readiness across the runtime, the committed contract and the live backends — a green board is necessary, not sufficient; CI remains the authority.</i>")
+        chart = generate_status_grid_png("Launch readiness", rows)
+        await self.send_media_group(chat_id, [("readiness", chart)] if chart else [], caption=text_card(
+            "🚀 Readiness", "MEASURED", lines,
+            source="settings + OpenAPI snapshot + backends", next_commands="/cicd · /apis · /codebase"))
+
+    async def _cmd_cicd(self, args, chat_id, actor) -> None:
+        """The verify gates a deploy must pass — named, never counted."""
+        lines = [f"<b>{len(_VERIFY_GATES)} verify gates</b> a deploy must pass before it ships:", ""]
+        for gate in _VERIFY_GATES:
+            lines.append(f"✓ <code>{esc(gate)}</code>")
+        lines += ["", "<i>These are the gates committed in <code>.github/workflows/deploy.yml</code>, "
+                       "named rather than counted — not the verdict of the last run, which GitHub Actions remains the authority for.</i>"]
+        await self.send_message(chat_id, text_card(
+            "⚙️ CI/CD gates", f"{len(_VERIFY_GATES)} GATES", lines,
+            source="committed CI configuration", next_commands="/readiness · /developer · /apis"))
+
+    async def _cmd_apis(self, args, chat_id, actor) -> None:
+        """The committed OpenAPI surface by tag, or one tag's operations."""
+        by_tag = _openapi_operations_by_tag()
+        if not by_tag:
+            await self.send_message(chat_id, text_card(
+                "🧭 API surface", "NO SNAPSHOT",
+                ["The committed <code>tools/openapi.json</code> is not in this image, or it lists no operations."],
+                source="OpenAPI snapshot", next_commands="/readiness · /developer"))
+            return
+
+        requested = args[0] if args else None
+        resolved = next((tag for tag in by_tag if tag.lower() == str(requested).lower()), None) if requested else None
+        if resolved:
+            operations = sorted(by_tag[resolved])
+            lines = [f"<b>{esc(resolved)}</b> · <code>{len(operations)}</code> operations"]
+            for method, path, summary in operations[:20]:
+                lines.append(f"<code>{esc(method):<6}</code> <code>{esc(path)}</code>" + (f" — {esc(summary)}" if summary else ""))
+            await self.send_message(chat_id, text_card(
+                f"🧭 API · {esc(resolved)}", f"{len(operations)} OPS", lines,
+                source="committed OpenAPI snapshot", next_commands="/apis · /readiness"),
+                reply_markup=kb([[("All tags", cb("apis"))]]))
+            return
+
+        counts = sorted(((tag, len(ops)) for tag, ops in by_tag.items()), key=lambda row: -row[1])
+        lines = [f"<b>{sum(n for _, n in counts)}</b> operations across <b>{len(counts)}</b> tags", ""]
+        for tag, total in counts:
+            lines.append(f"<code>{esc(tag):<18}</code> <code>{total}</code>")
+        buttons = [(tag[:20], cb("apis", tag)) for tag, _ in counts if _CALLBACK_ARG_RE.fullmatch(tag)]
+        rows = [buttons[index:index + 3] for index in range(0, len(buttons), 3)]
+        chart = generate_bars_chart_png(
+            "API operations by tag", [tag for tag, _ in counts], [float(total) for _, total in counts],
+            "Operations", horizontal=True, value_fmt="{:.0f}",
+        )
+        await self.send_media_group(chat_id, [("apis", chart)] if chart else [], caption=text_card(
+            "🧭 API surface", f"{len(counts)} TAGS", lines,
+            source="committed OpenAPI snapshot", next_commands="/readiness · /cicd"),
+            reply_markup=kb(rows) if rows else None)
+
+    async def _cmd_codebase(self, args, chat_id, actor) -> None:
+        """Python file and line counts by area, walked from the source tree."""
+        counts = _codebase_line_counts()
+        lines = ["<b>AREA        FILES   LINES</b>"]
+        for area, files, total_lines in counts:
+            lines.append(f"<code>{esc(f'{area:<10}')}</code> <code>{files:>5}</code>  <code>{total_lines:>6,}</code>")
+        lines += ["", "The container image ships only <code>main.py config.py celery_tasks.py worker.py "
+                      "modules/ templates/ tools/</code> plus the compiled <code>_decision_core.so</code>, "
+                      "and carries no git history."]
+        chart = generate_bars_chart_png(
+            "Lines of Python by area", [area for area, _, _ in counts],
+            [float(total_lines) for _, _, total_lines in counts],
+            "Lines", horizontal=True, value_fmt="{:,.0f}",
+        )
+        await self.send_media_group(chat_id, [("codebase", chart)] if chart else [], caption=text_card(
+            "📦 Codebase", "STATIC SCAN", lines,
+            source="os.walk over the source tree", next_commands="/apis · /readiness · /developer"))
+
+    # ------------------------------------------------------------------ #
+    # Beyond web — a normalised multi-symbol overlay
+    # ------------------------------------------------------------------ #
+    async def _cmd_compare(self, args, chat_id, actor) -> None:
+        """A normalised price overlay across several instruments."""
+        interval = next((token for token in args if token in _INTERVALS), "1d")
+        symbols = self._symbols([token for token in args if token not in _INTERVALS], limit=4)
+        symbol_args = tuple(symbols)
+        try:
+            interval_row = [
+                (f"• {value}" if value == interval else value, cb("compare", *symbol_args, value))
+                for value in _INTERVALS
+            ]
+            footer = kb([interval_row])
+        except ValueError:
+            footer = None
+
+        series: dict[str, list[float]] = {}
+        for symbol in symbols:
+            asset = "crypto" if symbol.endswith(("USDT", "-USD")) else "equity"
+            closes = await self._closes_for(symbol, asset, interval, 90)
+            if len(closes) >= 2:
+                series[symbol] = closes
+        if not series:
+            await self.send_message(chat_id, text_card(
+                "🔭 Compare", "NO SERIES",
+                ["No instrument returned enough bars to overlay.",
+                 f"Symbols: <code>{esc(', '.join(symbols))}</code> · interval <code>{esc(interval)}</code>"],
+                source="OpenBB", next_commands="/bars · /trend"), reply_markup=footer)
+            return
+        lines = [f"Interval <code>{esc(interval)}</code> · <code>{len(series)}</code> series, indexed to 100 at the first bar"]
+        for symbol, closes in series.items():
+            move = (closes[-1] / closes[0] - 1) * 100 if closes[0] else 0.0
+            lines.append(f"<code>{esc(symbol):<10}</code> {_number(move, 2, signed=True)}% over <code>{len(closes)}</code> bars")
+        lines.append("<i>Rebased to a common 100 so instruments of very different price share one axis — the shapes are comparable, the levels are not.</i>")
+        chart = generate_multi_series_png(f"Normalised overlay · {interval}", series, "Price", normalise=True, xlabel="Bar")
+        await self.send_media_group(chat_id, [("compare", chart)] if chart else [], caption=text_card(
+            "🔭 Compare", "NORMALISED", lines,
+            source="OpenBB / yfinance", next_commands="/trend · /bars · /range"), reply_markup=footer)
 
     def _event_rows(self, args: list[str], incidents_only: bool = False) -> list[dict[str, Any]]:
         count = self._limit(args, 0, 10, 25)
