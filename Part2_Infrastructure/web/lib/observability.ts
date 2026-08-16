@@ -390,6 +390,29 @@ export function globalLatency(now = Date.now()): LatencyStats {
   return statsOf(all);
 }
 
+/**
+ * The same pool, split by what each key measures.
+ *
+ * `globalLatency` blends three things the reader should not: `plane:*` is the
+ * web→gateway hop the health poll itself pays (and, polling every 30s, it
+ * supplies most of the samples), `venue:*` and bare provider ids are the
+ * upstream REST the desk actually routes on. A single p99 over the union is
+ * dominated by whichever the poller manufactures, so a caller that wants to
+ * label the number honestly asks for the class it means. Keys are prefixed at
+ * every `recordLatency` site; a key with no known prefix counts as upstream,
+ * which is the conservative default (it never inflates the hop figure).
+ */
+export function latencyByClass(now = Date.now()): { gatewayHop: LatencyStats; upstream: LatencyStats } {
+  const keys = new Set<string>(latencySamples.keys());
+  if (sharedFresh(now)) for (const key of shared!.latency.keys()) keys.add(key);
+  const hop: LatencySample[] = [];
+  const upstream: LatencySample[] = [];
+  for (const key of keys) {
+    (key.startsWith("plane:") ? hop : upstream).push(...windowedSamples(key, now));
+  }
+  return { gatewayHop: statsOf(hop), upstream: statsOf(upstream) };
+}
+
 // --------------------------------------------------------------------------
 // Cache accounting
 // --------------------------------------------------------------------------

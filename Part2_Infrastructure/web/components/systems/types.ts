@@ -314,7 +314,12 @@ export interface SystemHealth {
     degraded: string[];
     exhausted: string[];
     simulated: string[];
+    /** The blended pool, kept for anything reading it before the split existed. */
     latency: LatencyStats;
+    /** Upstream vendor + venue REST only — the tail the desk actually routes on. */
+    upstreamLatency?: LatencyStats;
+    /** The web→gateway hop the health poll itself pays. Optional so an older snapshot degrades. */
+    gatewayHopLatency?: LatencyStats;
     cache: CacheCounters;
   };
   providers: ProviderRow[];

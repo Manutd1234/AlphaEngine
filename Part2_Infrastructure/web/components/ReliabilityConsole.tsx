@@ -128,7 +128,11 @@ export default function ReliabilityConsole({
     effectivePollMs,
   } = view;
 
-  const latency = health?.summary.latency;
+  // The vendor + venue REST tail, split from the web→gateway hop by
+  // latencyByClass; falls back to the blended pool for a snapshot that predates
+  // the split. The hop rides in the tile's note beside it.
+  const latency = health?.summary.upstreamLatency ?? health?.summary.latency;
+  const hop = health?.summary.gatewayHopLatency;
   const posture = health ? deriveReliabilityPosture(health) : null;
 
   const overallState = view.healthError
@@ -220,15 +224,14 @@ export default function ReliabilityConsole({
       tone: decisionTileTone,
     },
     {
-      // Relabelled: this is the polled NETWORK tail, not the decision. The
-      // ticker wraps only the measured branch; "Collecting" and its sample
-      // count stay exactly as they were.
+      // The polled NETWORK vendor tail, split from the web→gateway hop (which
+      // rides in the note). The ticker wraps only the measured branch.
       label: "Upstream p99",
       value: hasReliableP99 && latency?.p99 != null
         ? <NumberTicker value={latency.p99} format={(v) => formatDuration(v, "ms")} />
         : "Collecting",
       note: hasReliableP99
-        ? `network, polled · 15-min pool · ${latencyState.label} · n=${latency?.n ?? 0}`
+        ? `${hop?.p99 != null && (hop.n ?? 0) >= LATENCY_MIN_SAMPLES ? `desk hop p99 ${formatDuration(hop.p99, "ms")} · ` : ""}network, polled · 15-min pool · ${latencyState.label} · n=${latency?.n ?? 0}`
         : `${latency?.n ?? 0}/${LATENCY_MIN_SAMPLES} samples · not a failure`,
       tone: latencyState.tone === "bad" ? "bad" : latencyState.tone === "warn" ? "warn" : "neutral",
     },

@@ -1317,7 +1317,8 @@ export default function Page() {
         onOpenTailLatency={() => openReliabilitySection("services", "reliability-latency-guide")}
         decisionLatency={systems.decisionLatency}
         onOpenCommandBar={() => setCommandBarOpen(true)}
-        latency={systems.health?.summary.latency ?? null}
+        latency={systems.health?.summary.upstreamLatency ?? systems.health?.summary.latency ?? null}
+        gatewayHopLatency={systems.health?.summary.gatewayHopLatency ?? null}
         degraded={systems.degraded}
         providersReady={systems.health?.summary.ready ?? null}
         providersTotal={systems.health?.summary.total ?? null}

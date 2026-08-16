@@ -26,6 +26,7 @@ import {
   clearSecrets,
   emit,
   eventsSince,
+  latencyByClass,
   latencyStats,
   outageFor,
   percentile,
@@ -167,6 +168,20 @@ describe("percentiles report a latency some request actually experienced", () =>
     recordLatency("py", 5_000, false);
     // 16 minutes later the 15-minute window no longer holds it.
     assert.equal(latencyStats("py", Date.now() + 16 * 60_000).n, 0);
+    resetTelemetry({ latency: true });
+  });
+
+  it("splits the pool so the poll's own gateway hop cannot dominate the vendor tail", () => {
+    resetTelemetry({ latency: true });
+    // The hop, sampled twice per poll, is fast; one vendor call is slow. The
+    // blended p99 would report the vendor as fast; the split must not.
+    for (let i = 0; i < 40; i++) recordLatency("plane:gateway", 11, true);
+    recordLatency("fmp", 900, true);
+    const { gatewayHop, upstream } = latencyByClass();
+    assert.equal(gatewayHop.p99, 11, "the hop pool holds only plane:* samples");
+    assert.equal(upstream.p99, 900, "the upstream pool holds only vendor/venue samples");
+    // A plane sample must not move the upstream figure, and vice versa.
+    assert.ok(upstream.n === 1 && gatewayHop.n === 40);
     resetTelemetry({ latency: true });
   });
 });

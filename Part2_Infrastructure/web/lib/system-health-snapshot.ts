@@ -19,6 +19,7 @@ import {
   cacheStats,
   eventCursor,
   globalLatency,
+  latencyByClass,
   latencyWindow,
   instanceId,
   latencyStats,
@@ -178,7 +179,9 @@ export async function buildSystemHealthSnapshot(priority: Priority): Promise<Sys
       paperOrderDefaultAvailable: paperOrderDefaultAvailable(),
       tokenOverrideAvailable: tokenOverrideAvailable(),
     },
-    summary: {
+    summary: (() => {
+      const latencyClasses = latencyByClass();
+      return {
       total: providers.length,
       configured: providers.filter((p) => p.configured).length,
       ready: ready.length,
@@ -188,8 +191,11 @@ export async function buildSystemHealthSnapshot(priority: Priority): Promise<Sys
         .map((p) => p.id),
       simulated: providers.filter((p) => p.simulatedOutage).map((p) => p.id),
       latency: globalLatency(),
+      upstreamLatency: latencyClasses.upstream,
+      gatewayHopLatency: latencyClasses.gatewayHop,
       cache: cacheStats().total,
-    },
+      };
+    })(),
     /* The trend beneath the scalars above. The samples have always been here;
        only the aggregates ever left the server, so the client could report a
        p95 and had no way to say whether it was climbing. */

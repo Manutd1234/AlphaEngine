@@ -198,10 +198,14 @@ export function latencyTone(p99: number | null, n: number, errorRate = 0): Laten
 /**
  * The network plane, in words, for a title or a tile note.
  *
- * "upstream" rather than "vendors": `globalLatency()` still pools the
- * web→gateway hop (`plane:gateway`) with vendor REST; the wording narrows to
- * "vendors" only once that pool is split. Always says "network, polled" so it
- * can sit beside the in-process decision figure without being mistaken for it.
+ * The pool is split by `latencyByClass`: `network` here is the upstream vendor
+ * and venue REST the desk routes on, `hop` is the web→gateway round trip the
+ * health poll itself pays. Naming them apart is the point — the blended figure
+ * was ~92% the hop, so a single "upstream p99" over the union was really the
+ * poller timing itself. Always says "network, polled" so it can sit beside the
+ * in-process decision figure without being mistaken for it. With no hop figure
+ * (an older snapshot passes the blended pool) it still reads "upstream", which
+ * is honest — the blend is mostly network anyway.
  */
 export function formatNetworkCaveat(
   network: { p99: number | null; n: number; errorRate: number } | null,

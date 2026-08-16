@@ -44,6 +44,8 @@ interface WorkspaceHeaderProps {
   latency: LatencyStats | null;
   /** Where the gateway's in-process decision figure stands; the chip's headline. */
   decisionLatency: DecisionLatencySource;
+  /** The web→gateway hop, split out of the network pool; rides in the chip title. */
+  gatewayHopLatency?: LatencyStats | null;
   degraded: number;
   providersReady: number | null;
   providersTotal: number | null;
@@ -79,6 +81,7 @@ export default function WorkspaceHeader({
   onOpenProviderHealth,
   onOpenTailLatency,
   decisionLatency,
+  gatewayHopLatency = null,
   onOpenCommandBar,
   latency,
   degraded,
@@ -248,7 +251,7 @@ export default function WorkspaceHeader({
           <span aria-hidden>⌘K</span>
           <span className="header-command-button__label">Search</span>
         </button>
-        <LatencyChip decision={decisionLatency} network={latency} onOpenReliability={onOpenTailLatency} />
+        <LatencyChip decision={decisionLatency} network={latency} gatewayHop={gatewayHopLatency} onOpenReliability={onOpenTailLatency} />
         {/* Before the kill switch on purpose: what the numbers are made of
             decides whether the control beside it can be armed at all. */}
         {dataSource && (
