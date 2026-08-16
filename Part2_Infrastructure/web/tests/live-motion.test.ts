@@ -98,7 +98,12 @@ describe("motion never replaces the honest absence", () => {
   it("no nullable metric was coerced to zero on the way to a ticker", () => {
     // `?? 0` feeding a NumberTicker turns "we do not know" into "it is
     // fine" with an animation on top. The two consoles wired so far.
-    for (const path of ["components/DeveloperConsole.tsx", "components/developer/DeveloperWorkQueue.tsx"]) {
+    for (const path of [
+      "components/DeveloperConsole.tsx",
+      "components/developer/DeveloperWorkQueue.tsx",
+      "components/header/LatencyChip.tsx",
+      "components/ReliabilityConsole.tsx",
+    ]) {
       const source = read(path);
       assert.doesNotMatch(
         source,

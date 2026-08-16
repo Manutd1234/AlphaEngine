@@ -144,14 +144,21 @@ export default function HealthMatrix({
         <div>
           <h3 id="reliability-latency-guide-title">Tail latency, explained</h3>
           <p>
-            P99 is the nearest-rank boundary at or below which almost all sampled upstream attempts
-            completed. The rolling 15-minute window includes failures and timeouts, and a P99 is shown
-            only after at least 20 samples.
+            <strong>Decision p99 (header chip)</strong> — in-process, inside the gateway; pushed with
+            the ops snapshot; every sample since the process started; excludes the kernel and the wire.
+            Microseconds are the gateway&apos;s clock, not the browser&apos;s.
+          </p>
+          <p>
+            <strong>Upstream p99 (this table)</strong> — network, polled from this browser; nearest-rank
+            over the rolling 15-minute pool including failures and timeouts; shown only after at least
+            20 samples.
           </p>
         </div>
         <span className="console-percentile-guide__window">
-          <small>Evidence window</small>
+          <small>Network window</small>
           <strong>15 min · n≥20</strong>
+          <small>Decision window</small>
+          <strong>process life</strong>
         </span>
       </section>
 

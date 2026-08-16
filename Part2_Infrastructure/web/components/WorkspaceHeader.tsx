@@ -12,6 +12,7 @@ import QuickSettings from "@/components/header/QuickSettings";
 import BrandLockup from "@/components/common/BrandLockup";
 import DataTierBadge from "@/components/header/DataTierBadge";
 import type { LatencyStats } from "@/components/systems/types";
+import type { DecisionLatencySource } from "@/lib/overview-state";
 import type { Provenance } from "@/lib/data-tier";
 
 export type WorkspaceView =
@@ -41,6 +42,8 @@ interface WorkspaceHeaderProps {
   onOpenProviderHealth: () => void;
   onOpenTailLatency: () => void;
   latency: LatencyStats | null;
+  /** Where the gateway's in-process decision figure stands; the chip's headline. */
+  decisionLatency: DecisionLatencySource;
   degraded: number;
   providersReady: number | null;
   providersTotal: number | null;
@@ -75,6 +78,7 @@ export default function WorkspaceHeader({
   onViewChange,
   onOpenProviderHealth,
   onOpenTailLatency,
+  decisionLatency,
   onOpenCommandBar,
   latency,
   degraded,
@@ -244,7 +248,7 @@ export default function WorkspaceHeader({
           <span aria-hidden>⌘K</span>
           <span className="header-command-button__label">Search</span>
         </button>
-        <LatencyChip latency={latency} onOpenReliability={onOpenTailLatency} />
+        <LatencyChip decision={decisionLatency} network={latency} onOpenReliability={onOpenTailLatency} />
         {/* Before the kill switch on purpose: what the numbers are made of
             decides whether the control beside it can be armed at all. */}
         {dataSource && (

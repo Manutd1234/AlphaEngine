@@ -1,21 +1,27 @@
 "use client";
 
 /**
- * The header's p99 chip. One number, one dot, and — load-bearing — the caveat:
- * these are upstream REST percentiles over the gateway-merged 15-minute pool
- * (falling back to this instance's own window when the ledger sync is down),
- * and a p99 over a handful of calls is not a p99, so small samples render as
- * an em dash with a "warming up" note rather than a confident figure.
+ * The header's latency chip. Its headline is the gateway's own in-process
+ * pre-trade decision p99 — the µs figure pushed on the ops snapshot, and when
+ * a compiled core is running, its nanosecond timing beside it. A browser never
+ * sees microseconds over the wire; it prints the gateway's clock, which is why
+ * the caveat says so and keeps the two apart.
  *
- * A button, not a badge: the number is a doorway to the Reliability tab where
- * the full percentile table lives. No tooltip component exists in this app —
+ * The network figures — the web→gateway hop and the upstream vendor REST tail,
+ * both physically milliseconds and both polled — live in the title and on the
+ * Reliability tab, demoted but never dropped. The model decides every word;
+ * this component only paints it. No tooltip component exists in this app, so
  * the caveat rides the native title and the aria-label.
+ *
+ * A button, not a badge: it is the doorway to the Reliability latency evidence.
  */
 
 import { Gauge } from "lucide-react";
 
+import NumberTicker from "@/components/common/NumberTicker";
 import type { LatencyStats } from "@/components/systems/types";
-import { formatLatencyChip, LATENCY_MIN_SAMPLES, latencyTone } from "@/lib/overview-state";
+import { formatDuration } from "@/lib/format";
+import { formatDecisionChip, type DecisionLatencySource } from "@/lib/overview-state";
 
 const DOT_CLASS: Record<string, string> = {
   good: "bg-status-good",
@@ -25,38 +31,53 @@ const DOT_CLASS: Record<string, string> = {
 };
 
 export default function LatencyChip({
-  latency,
+  decision,
+  network,
+  gatewayHop,
   onOpenReliability,
 }: {
-  latency: LatencyStats | null;
+  decision: DecisionLatencySource;
+  network: LatencyStats | null;
+  /** Reserved for the slice that splits the hop out of the pool; unused until then. */
+  gatewayHop?: LatencyStats | null;
   onOpenReliability: () => void;
 }) {
-  const stats = latency ? { p99: latency.p99, n: latency.n, errorRate: latency.errorRate } : null;
-  const tone = latencyTone(stats?.p99 ?? null, stats?.n ?? 0, stats?.errorRate ?? 0);
-  const chip = formatLatencyChip(stats);
-  const sampleCount = stats?.n ?? 0;
-  const warmingUp = sampleCount < LATENCY_MIN_SAMPLES || stats?.p99 == null;
-  const visibleValue = warmingUp ? "P99 collecting" : chip.value.replace(/^p99 /, "P99 ");
-  const visibleState = warmingUp ? `${sampleCount}/${LATENCY_MIN_SAMPLES} samples` : tone.label;
+  const net = network ? { p99: network.p99, n: network.n, errorRate: network.errorRate } : null;
+  const hop = gatewayHop ? { p99: gatewayHop.p99, n: gatewayHop.n } : null;
+  const chip = formatDecisionChip(decision, net, hop);
+  const { headline } = chip;
 
   return (
     <button
       type="button"
       onClick={onOpenReliability}
       title={chip.caveat}
-      aria-label={`Open reliability tail-latency evidence. ${visibleValue}; ${visibleState}. ${chip.caveat}`}
-      className={`latency-chip is-${tone.tone}`}
+      aria-label={chip.ariaLabel}
+      className={`latency-chip is-${chip.tone}`}
     >
       <span className="latency-chip__icon" aria-hidden>
         <Gauge size={15} />
       </span>
       <span className="latency-chip__copy">
-        <small>Tail latency</small>
-        <strong>{visibleValue}</strong>
+        <small>Decision p99</small>
+        <strong>
+          {headline.kind === "measured" ? (
+            <NumberTicker value={headline.p99Us} format={(v) => formatDuration(v, "us")} />
+          ) : headline.kind === "collecting" ? (
+            "collecting"
+          ) : (
+            "—"
+          )}
+          {headline.kind === "measured" && headline.coreP99Ns != null && (
+            <em className="latency-chip__core">
+              core <NumberTicker value={headline.coreP99Ns} format={(v) => formatDuration(v, "ns")} />
+            </em>
+          )}
+        </strong>
       </span>
       <span className="latency-chip__state">
-        <i aria-hidden className={DOT_CLASS[tone.tone]} />
-        {warmingUp ? `${sampleCount}/${LATENCY_MIN_SAMPLES}` : tone.label}
+        <i aria-hidden className={DOT_CLASS[chip.tone]} />
+        {chip.state}
       </span>
     </button>
   );

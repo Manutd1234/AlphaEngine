@@ -1315,6 +1315,7 @@ export default function Page() {
         onViewChange={navigate}
         onOpenProviderHealth={() => openReliabilitySection("services", "reliability-provider-health")}
         onOpenTailLatency={() => openReliabilitySection("services", "reliability-latency-guide")}
+        decisionLatency={systems.decisionLatency}
         onOpenCommandBar={() => setCommandBarOpen(true)}
         latency={systems.health?.summary.latency ?? null}
         degraded={systems.degraded}

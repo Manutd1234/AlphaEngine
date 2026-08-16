@@ -1,12 +1,11 @@
 {
   "version": 2,
   "generatedAt": "2026-08-16",
-  "commit": "1ff2b81",
+  "commit": "46183ac",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
     ".claude/skills/verify/SKILL.md",
-    ".claude/worktrees/agent-af23be8a8056c70c6/",
     ".github/workflows/ci.yml",
     ".github/workflows/deploy.yml",
     ".github/workflows/e2e.yml",
@@ -496,6 +495,7 @@
     "Part2_Infrastructure/web/tests/data-work-queue.test.ts",
     "Part2_Infrastructure/web/tests/dead-css.test.ts",
     "Part2_Infrastructure/web/tests/deadlines.test.ts",
+    "Part2_Infrastructure/web/tests/decision-latency.test.ts",
     "Part2_Infrastructure/web/tests/delivery-readiness.test.ts",
     "Part2_Infrastructure/web/tests/dependency-graph.test.ts",
     "Part2_Infrastructure/web/tests/deployment-contract.test.ts",

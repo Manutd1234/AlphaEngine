@@ -25,8 +25,14 @@ import RemediationLedger from "@/components/systems/RemediationLedger";
 import TraceConsole from "@/components/systems/TraceConsole";
 import { ConsoleChrome, type ConsoleTile } from "@/components/systems/ConsoleChrome";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
-import { fmt } from "@/lib/format";
-import { LATENCY_MIN_SAMPLES, latencyTone } from "@/lib/overview-state";
+import { formatDuration } from "@/lib/format";
+import {
+  DECISION_ENGINE_LABEL,
+  DECISION_MIN_SAMPLES,
+  decisionTone,
+  LATENCY_MIN_SAMPLES,
+  latencyTone,
+} from "@/lib/overview-state";
 import { deriveReliabilityPosture, type ReliabilityStatus } from "@/lib/reliability";
 import { RELIABILITY_SECTIONS, type ReliabilitySection } from "@/lib/sections";
 import type { SystemHealthView } from "@/lib/use-system-health";
@@ -152,6 +158,20 @@ export default function ReliabilityConsole({
     latency?.p99 != null && (latency?.n ?? 0) >= LATENCY_MIN_SAMPLES,
   );
 
+  const decision = view.decisionLatency;
+  const decisionTone_ = decision.kind === "measured"
+    ? decisionTone(decision.stats.p99_us, decision.stats.samples)
+    : { tone: "muted" as const, label: "" };
+  const decisionTileTone: "good" | "warn" | "bad" | "neutral" =
+    decisionTone_.tone === "bad" ? "bad" : decisionTone_.tone === "warn" ? "warn" : "neutral";
+  const decisionNote = (() => {
+    if (decision.kind !== "measured") return decision.detail;
+    const s = decision.stats;
+    if (s.samples < DECISION_MIN_SAMPLES) return `${s.samples}/${DECISION_MIN_SAMPLES} decisions · not a failure`;
+    const core = s.core_p99_ns != null ? `core p99 ${formatDuration(s.core_p99_ns, "ns")} · ` : "";
+    return `${core}${DECISION_ENGINE_LABEL[s.engine]} · n=${s.samples.toLocaleString("en-US")} · in-process, pushed`;
+  })();
+
   /**
    * Numbers, not links. Two of these tiles carried their own "View every
    * provider" and "Explain p99" actions, and the global header already wires
@@ -190,14 +210,25 @@ export default function ReliabilityConsole({
       tone: postureTone(posture?.paths.research.status),
     },
     {
-      label: "Tail latency (p99)",
-      // The ticker wraps only the measured branch; the "Collecting" gate and
-      // its sample count stay exactly as they were.
-      value: hasReliableP99
-        ? <NumberTicker value={latency?.p99 ?? 0} format={(v) => `${fmt(v, 0)}ms`} />
+      // The gateway's own in-process decision timing, pushed on the ops
+      // snapshot — the header chip's headline, given its own tile here.
+      label: "Decision p99",
+      value: decision.kind === "measured" && decision.stats.samples >= DECISION_MIN_SAMPLES
+        ? <NumberTicker value={decision.stats.p99_us!} format={(v) => formatDuration(v, "us")} />
+        : decision.kind === "measured" ? "Collecting" : "—",
+      note: decisionNote,
+      tone: decisionTileTone,
+    },
+    {
+      // Relabelled: this is the polled NETWORK tail, not the decision. The
+      // ticker wraps only the measured branch; "Collecting" and its sample
+      // count stay exactly as they were.
+      label: "Upstream p99",
+      value: hasReliableP99 && latency?.p99 != null
+        ? <NumberTicker value={latency.p99} format={(v) => formatDuration(v, "ms")} />
         : "Collecting",
       note: hasReliableP99
-        ? `99% completed within this · ${latencyState.label} · n=${latency?.n ?? 0}`
+        ? `network, polled · 15-min pool · ${latencyState.label} · n=${latency?.n ?? 0}`
         : `${latency?.n ?? 0}/${LATENCY_MIN_SAMPLES} samples · not a failure`,
       tone: latencyState.tone === "bad" ? "bad" : latencyState.tone === "warn" ? "warn" : "neutral",
     },

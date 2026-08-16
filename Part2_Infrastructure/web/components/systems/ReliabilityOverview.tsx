@@ -16,7 +16,7 @@ import DependencyMix from "@/components/systems/DependencyMix";
 import DependencyTree from "@/components/systems/DependencyTree";
 import LatencyTrend from "@/components/systems/LatencyTrend";
 import RouteLatencyBars from "@/components/systems/RouteLatencyBars";
-import { fmt } from "@/lib/format";
+import { fmt, formatDuration } from "@/lib/format";
 import { deriveReliabilityPosture, type ReliabilityStatus } from "@/lib/reliability";
 import type { SystemHealthView } from "@/lib/use-system-health";
 import type { GatewayOpsSnapshot, ProviderRow } from "./types";
@@ -436,7 +436,7 @@ export default function ReliabilityOverview({
               <small>
                 {slowestRoute
                   ? slowestRoute.samples >= 20
-                    ? `${slowestRoute.route} · in-process, a different plane from the header p99`
+                    ? `${slowestRoute.route} · gateway HTTP route, in-process · not the decision p99`
                     : `${slowestRoute.samples}/20 samples`
                   : "no gateway ops snapshot"}
               </small>
@@ -605,12 +605,43 @@ export default function ReliabilityOverview({
               the chart below, per route rather than reduced to one. Two places
               reporting the same reduction is two places that can disagree, so
               only the build — which nothing else carries — stays. */}
-          <div className="reliability-platform__sli" aria-label="Gateway build">
+          <div className="reliability-platform__sli" aria-label="Gateway build and decision timing">
             <span>
               <small>Gateway build</small>
               <strong className="num">v{platform.version}</strong>
               <code>{platform.environment}</code>
             </span>
+            {(() => {
+              const d = platform.decision_latency;
+              const measured = d && d.samples > 0 && d.p99_us != null;
+              const dus = (v: number | null | undefined) => formatDuration(v, "us");
+              return (
+                <>
+                  <span>
+                    <small>Decision p99</small>
+                    <strong className="num">{measured ? dus(d!.p99_us) : "—"}</strong>
+                    <code title={measured
+                      ? `p50 ${dus(d!.p50_us)} · p99.9 ${d!.samples >= 1000 ? dus(d!.p999_us) : "—"} · max ${dus(d!.max_us)} · n=${d!.samples.toLocaleString("en-US")} since start`
+                      : "no decision measured yet"}>
+                      {measured
+                        ? `p50 ${dus(d!.p50_us)} · n=${d!.samples.toLocaleString("en-US")}`
+                        : d ? "no orders yet" : "not published"}
+                    </code>
+                  </span>
+                  <span>
+                    <small>Core p99</small>
+                    <strong className="num">
+                      {d && d.core_p99_ns != null ? formatDuration(d.core_p99_ns, "ns") : "—"}
+                    </strong>
+                    <code>
+                      {d && d.core_p99_ns != null
+                        ? `${d.engine} · p50 ${formatDuration(d.core_p50_ns, "ns")} · max ${formatDuration(d.core_max_ns, "ns")}`
+                        : d?.engine === "python" ? "Python engine · no native core" : "no native core"}
+                    </code>
+                  </span>
+                </>
+              );
+            })()}
           </div>
           <details className="disclosure">
             <summary>Why worker slots are not worker heartbeats, and what one process cannot show</summary>

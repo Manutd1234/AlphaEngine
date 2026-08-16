@@ -2275,7 +2275,23 @@ tbody tr[tabindex]:focus-visible {
   color: var(--text-primary);
   font-family: var(--mono);
   font-size: var(--fs-xs);
+  /* Tabular figures so the ticking decision p99 (and its inline core figure)
+     never shift the row's width as they count. */
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* The compiled core's nanosecond figure rides the second copy row inline, at
+   the caption size — it adds width, never a third row, so the 32px contract
+   above holds. Hidden first as the header narrows (see the collapse ladder). */
+.latency-chip__core {
+  margin-left: 6px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: var(--fs-2xs);
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 .latency-chip__state {
@@ -3652,6 +3668,7 @@ a.text-action {
     display: none;
   }
   .latency-chip__copy small,
+  .latency-chip__core,
   .latency-chip__state {
     display: none;
   }
@@ -14836,6 +14853,7 @@ html:active-view-transition .view-panel {
 
   .workspace-header__utility > .header-settings span,
   .workspace-header__utility > .header-anchor > .header-settings span,
+  .latency-chip__core,
   .latency-chip__state {
     display: none;
   }
