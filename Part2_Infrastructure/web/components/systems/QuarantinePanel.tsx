@@ -112,7 +112,7 @@ export default function QuarantinePanel({
         validation?.evaluated ? (
           <p className="sub">
             No flagged payload excerpt is retained. This health-route instance evaluated {validation.evaluated}{" "}
-            normalised quote or bar payload{validation.evaluated === 1 ? "" : "s"} in the bounded
+            normalised quote, bar, news or fundamentals payload{validation.evaluated === 1 ? "" : "s"} in the bounded
             window above; {validation.passed} had no fatal finding. Warnings, drift, and checks that
             could not run remain separate evidence and are not silently counted as clean checks.
           </p>
@@ -192,7 +192,7 @@ export default function QuarantinePanel({
       )}
 
       <p className="research-note">
-        Scope: normalised quote and bar payloads handled by the health-route function instance—not
+        Scope: normalised quote, bar, news and fundamentals payloads handled by the health-route function instance—not
         every request route, provider, symbol, raw vendor schema, or deployed instance. The evidence
         window and quarantine are bounded in memory and reset on restart. Rejected payloads were never
         cached, so failover could try a cleaner source; stored excerpts use the trace console&apos;s

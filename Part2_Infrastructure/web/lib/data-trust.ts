@@ -186,7 +186,7 @@ export function deriveDataTrust(
         }
       : {
           label: "Not yet proven",
-          detail: "No quote or bar payload has been evaluated in this function instance. Zero evidence is not a clean bill of health.",
+          detail: "No contract-checked payload has been evaluated in this function instance. Zero evidence is not a clean bill of health.",
           tone: "unknown",
         };
   } else {
@@ -304,7 +304,7 @@ export function deriveDataTrust(
       label: exactContract || validation?.evaluated ? `Trace ${options.symbol ?? "active instrument"}` : "Create validation evidence",
       detail: exactContract || validation?.evaluated
         ? "Follow provider selection, cache identity, raw evidence and normalised output for the current interval."
-        : "Trace a quote or bar request to exercise the real registry and contract path.",
+        : "Trace a quote, bar, news or fundamentals request to exercise the real registry and contract path.",
       priority: validation?.evaluated ? "inspect" : "now",
     },
     {

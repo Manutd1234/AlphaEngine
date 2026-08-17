@@ -389,7 +389,7 @@ export default function DataTrustOverview({
         <>
           <p className="research-note">
             Everything on this pane is counted by the function instance that answered this request,
-            and the counters are incremented in the quote and bar routes rather than here. Read a
+            and the counters are incremented in the quote, bar, news and fundamentals routes rather than here. Read a
             zero as <strong>&ldquo;not measured in this process&rdquo;</strong>, never as
             &ldquo;nothing went wrong&rdquo;. The Verdict pane names the instance and its scope.
           </p>
@@ -633,7 +633,7 @@ export default function DataTrustOverview({
                 <span className="page-kicker">Validation</span>
                 <h2 id="contract-monitor-heading">Exact payload &amp; instance sample</h2>
               </div>
-              <span className="section-note">quote + bars only</span>
+              <span className="section-note">quote, bars, news and fundamentals</span>
             </div>
 
             <div className={`data-trust-probe is-${probeTone}`}>
@@ -753,7 +753,7 @@ export default function DataTrustOverview({
                 <h3><span aria-hidden>✓</span> Implemented</h3>
                 <ul>
                   <li>Ranked provider failover with circuit, quota, reserve and cache state.</li>
-                  <li>Quote/bar contracts, rejected-payload failover and bounded quarantine evidence.</li>
+                  <li>Quote, bars, news and fundamentals contracts on the normalised payload; rejected-payload failover and bounded quarantine evidence.</li>
                   <li>On-demand cross-source reconciliation and real request lineage for the active symbol and interval.</li>
                   <li>Gateway venue freshness, reconnect and synthetic-feed disclosure when configured.</li>
                 </ul>
@@ -763,7 +763,7 @@ export default function DataTrustOverview({
                 <ul>
                   <li>No durable, cross-instance quality ledger or automated alert escalation.</li>
                   <li>No orchestrator, replay service or backfill scheduler is wired to this UI.</li>
-                  <li>Contracts do not yet cover news, fundamentals or every raw vendor schema.</li>
+                  <li>Contracts validate the normalised shape, not each vendor&apos;s raw JSON schema; raw payloads are visible in the inspector and the quarantine sample.</li>
                   <li>The Work Queue is mocked browser-session state, not a ticket or worker backend.</li>
                 </ul>
               </article>

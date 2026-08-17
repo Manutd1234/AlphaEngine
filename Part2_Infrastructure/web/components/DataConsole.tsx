@@ -26,6 +26,7 @@ import FreshnessStamp from "@/components/workspace/FreshnessStamp";
 import PageHead from "@/components/workspace/PageHead";
 import type { DataWorkItem } from "@/lib/data-work-queue";
 import { deriveDataTrust, deriveTrustSlis } from "@/lib/data-trust";
+import { CONTRACTED_CAPABILITIES } from "@/lib/providers/contracts";
 import { fmt } from "@/lib/format";
 import { DATA_SECTIONS, type DataSection } from "@/lib/sections";
 import type { SystemHealthView } from "@/lib/use-system-health";
@@ -133,9 +134,11 @@ function metricsForSection(
       },
       {
         label: "Contract coverage",
-        value: "Quote + bars",
-        note: "other capabilities not evaluated",
-        tone: "warn",
+        // From the list the façades attach contracts from, so this tile can
+        // never claim a capability the registry does not check.
+        value: CONTRACTED_CAPABILITIES.map((c) => c[0].toUpperCase() + c.slice(1)).join(", "),
+        note: "search and scrape are free text, not contract-checked",
+        tone: "good",
       },
     ];
   }

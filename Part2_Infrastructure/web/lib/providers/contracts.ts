@@ -32,7 +32,15 @@
  * field is null" versus "the vendor renamed the change field".
  */
 
-import type { Capability, OhlcvBar, Quote } from "./types";
+import type { Capability, Fundamentals, NewsItem, OhlcvBar, Quote } from "./types";
+
+/**
+ * The capabilities whose normalised payload is contract-checked before it is
+ * cached or shown. `search` and `scrape` are free text — a document has no
+ * shape a check could fail — so they are named as uncovered wherever this
+ * list is quoted, not left to look covered by omission.
+ */
+export const CONTRACTED_CAPABILITIES = ["quote", "bars", "news", "fundamentals"] as const satisfies readonly Capability[];
 
 export type Severity = "fatal" | "warn" | "drift";
 
@@ -407,6 +415,309 @@ export function checkBars(
 
   return {
     capability: "bars",
+    provider,
+    passed: !violations.some((v) => v.severity === "fatal"),
+    violations,
+    notEvaluated,
+  };
+}
+
+// --------------------------------------------------------------------------
+// News
+// --------------------------------------------------------------------------
+
+/** Older than this a "news" item is an archive result, worth saying so. */
+export const NEWS_MAX_AGE_MS = 2 * 365 * 24 * 3_600_000;
+/** Vendors round to the minute; beyond this a stamp is from the future. */
+export const NEWS_FUTURE_SKEW_MS = 10 * 60_000;
+
+/**
+ * Expectations on a normalised news feed.
+ *
+ * Fatal only for what makes an item unusable or double-counted: an item with
+ * no title or an unparseable URL, a duplicated id, a sentiment score outside
+ * its own range. An empty feed is a WARNING, not a rejection — a quiet ticker
+ * on a quiet day is a legitimate answer, unlike an empty bar series — and the
+ * per-item checks are then simply not evaluated.
+ */
+export function checkNews(
+  provider: string,
+  items: NewsItem[],
+  requestedLimit?: number,
+  now = Date.now(),
+): ContractResult {
+  const violations: Violation[] = [];
+  const notEvaluated: string[] = [];
+
+  if (!items.length) {
+    return {
+      capability: "news",
+      provider,
+      passed: true,
+      violations: [{
+        check: "news.non_empty",
+        severity: "warn",
+        message: "The provider returned no stories for this request.",
+      }],
+      notEvaluated: [
+        "news.items_well_formed", "news.url_https", "news.ids_unique", "news.published_at_parseable",
+        "news.not_from_the_future", "news.freshness", "news.sentiment_range", "news.tickers_well_formed",
+        "news.length_within_limit",
+      ],
+    };
+  }
+
+  let malformed = 0;
+  let insecure = 0;
+  let unparseable = 0;
+  let future = 0;
+  let stale = 0;
+  let sentimentOut = 0;
+  let emptyTicker = 0;
+  const ids = new Set<string>();
+  let duplicated = 0;
+
+  for (const item of items) {
+    let url: URL | null = null;
+    try {
+      url = new URL(item.url);
+    } catch {
+      url = null;
+    }
+    if (!item.title || !item.title.trim() || !url) malformed++;
+    else if (url.protocol !== "https:") insecure++;
+
+    if (ids.has(item.id)) duplicated++;
+    ids.add(item.id);
+
+    const at = item.publishedAt ? Date.parse(item.publishedAt) : NaN;
+    if (Number.isNaN(at)) unparseable++;
+    else {
+      if (at > now + NEWS_FUTURE_SKEW_MS) future++;
+      if (now - at > NEWS_MAX_AGE_MS) stale++;
+    }
+
+    if (item.sentiment !== null && (!finite(item.sentiment) || item.sentiment < -1 || item.sentiment > 1)) {
+      sentimentOut++;
+    }
+    if (item.tickers.some((t) => typeof t !== "string" || !t.trim())) emptyTicker++;
+  }
+
+  if (malformed) {
+    violations.push({
+      check: "news.items_well_formed",
+      severity: "fatal",
+      message: `${malformed} item(s) have no title or an unparseable URL.`,
+      observed: malformed,
+    });
+  }
+  if (insecure) {
+    violations.push({
+      check: "news.url_https",
+      severity: "warn",
+      message: `${insecure} item(s) link over plain http.`,
+      observed: insecure,
+    });
+  }
+  if (duplicated) {
+    // The same headline twice is counted twice by anything that counts.
+    violations.push({
+      check: "news.ids_unique",
+      severity: "fatal",
+      message: `${duplicated} duplicated id(s) — a headline would be counted twice.`,
+      observed: duplicated,
+    });
+  }
+  if (unparseable) {
+    violations.push({
+      check: "news.published_at_parseable",
+      severity: "warn",
+      message: `${unparseable} item(s) carry a publication time that could not be parsed.`,
+      observed: unparseable,
+    });
+    if (unparseable === items.length) notEvaluated.push("news.not_from_the_future", "news.freshness");
+  }
+  if (future) {
+    violations.push({
+      check: "news.not_from_the_future",
+      severity: "warn",
+      message: `${future} item(s) are stamped in the future — check the provider's timezone handling.`,
+      observed: future,
+    });
+  }
+  if (stale) {
+    violations.push({
+      check: "news.freshness",
+      severity: "warn",
+      message: `${stale} item(s) are older than two years — an archive result, not news.`,
+      observed: stale,
+    });
+  }
+  if (sentimentOut) {
+    violations.push({
+      check: "news.sentiment_range",
+      severity: "fatal",
+      message: `${sentimentOut} sentiment score(s) fall outside [-1, 1].`,
+      observed: sentimentOut,
+    });
+  }
+  if (emptyTicker) {
+    // A blank ticker is our mapping of the vendor's field, not the market.
+    violations.push({
+      check: "news.tickers_well_formed",
+      severity: "drift",
+      message: `${emptyTicker} item(s) carry an empty ticker — the vendor may have renamed the field.`,
+      observed: emptyTicker,
+    });
+  }
+  if (requestedLimit) {
+    if (items.length > requestedLimit) {
+      violations.push({
+        check: "news.length_within_limit",
+        severity: "warn",
+        message: `${items.length} items returned for a limit of ${requestedLimit}.`,
+        observed: items.length,
+      });
+    }
+  } else {
+    notEvaluated.push("news.length_within_limit");
+  }
+
+  return {
+    capability: "news",
+    provider,
+    passed: !violations.some((v) => v.severity === "fatal"),
+    violations,
+    notEvaluated,
+  };
+}
+
+// --------------------------------------------------------------------------
+// Fundamentals
+// --------------------------------------------------------------------------
+
+/** Ticker spellings that mean the same listing: `BRK.B`, `BRK-B`, `brk.b`. */
+function canonicalTicker(symbol: string): string {
+  return symbol.toUpperCase().replace(/-/g, ".");
+}
+
+/**
+ * Expectations on a normalised issuer profile.
+ *
+ * Fatal for a profile that is not about the issuer asked for, a profile with
+ * nothing in it, a NaN that survived normalisation, or a market cap or share
+ * count no company can have. Warnings for values that are possible but
+ * unusual enough to check; drift for the two shapes a renamed vendor field
+ * takes that can be told from a value: a missing name beside a present market
+ * cap.
+ */
+export function checkFundamentals(
+  provider: string,
+  profile: Fundamentals,
+  requestedSymbol: string,
+): ContractResult {
+  const violations: Violation[] = [];
+  const notEvaluated: string[] = [];
+
+  if (canonicalTicker(profile.symbol) !== canonicalTicker(requestedSymbol)) {
+    violations.push({
+      check: "fundamentals.symbol_matches",
+      severity: "fatal",
+      message: `Profile is for ${profile.symbol}, not ${requestedSymbol}.`,
+      observed: profile.symbol,
+    });
+  }
+
+  const numeric = [
+    ["marketCap", profile.marketCap], ["peRatio", profile.peRatio], ["eps", profile.eps],
+    ["beta", profile.beta], ["dividendYield", profile.dividendYield], ["sharesOutstanding", profile.sharesOutstanding],
+  ] as const;
+  const nonFinite = numeric.filter(([, v]) => v !== null && !finite(v));
+  if (nonFinite.length) {
+    violations.push({
+      check: "fundamentals.numeric_finite",
+      severity: "fatal",
+      message: `${nonFinite.map(([k]) => k).join(", ")} ${nonFinite.length === 1 ? "is" : "are"} not a finite number.`,
+      observed: nonFinite.map(([k]) => k).join(","),
+    });
+  }
+
+  const empty = profile.name === null && profile.marketCap === null && profile.peRatio === null
+    && profile.eps === null && profile.sharesOutstanding === null;
+  if (empty) {
+    violations.push({
+      check: "fundamentals.non_empty",
+      severity: "fatal",
+      message: "The profile carries no name, market cap, P/E, EPS or share count.",
+    });
+  }
+
+  if (finite(profile.marketCap)) {
+    if (profile.marketCap < 0) {
+      violations.push({
+        check: "fundamentals.market_cap_non_negative",
+        severity: "fatal",
+        message: `Market cap ${profile.marketCap} is negative.`,
+        observed: profile.marketCap,
+      });
+    }
+  } else {
+    notEvaluated.push("fundamentals.market_cap_non_negative");
+  }
+
+  if (finite(profile.sharesOutstanding)) {
+    if (profile.sharesOutstanding <= 0) {
+      violations.push({
+        check: "fundamentals.shares_positive",
+        severity: "fatal",
+        message: `Shares outstanding ${profile.sharesOutstanding} is not positive.`,
+        observed: profile.sharesOutstanding,
+      });
+    }
+  } else {
+    notEvaluated.push("fundamentals.shares_positive");
+  }
+
+  if (finite(profile.peRatio)) {
+    if (Math.abs(profile.peRatio) > 1_000) {
+      violations.push({
+        check: "fundamentals.pe_ratio_sane",
+        severity: "warn",
+        message: `P/E of ${profile.peRatio} — possible, but worth a second look at the earnings figure.`,
+        observed: profile.peRatio,
+      });
+    }
+  } else {
+    notEvaluated.push("fundamentals.pe_ratio_sane");
+  }
+
+  if (finite(profile.dividendYield)) {
+    // Percent, as every adapter here normalises it. A scale drift (a vendor
+    // switching to fractions) is NOT checked: a legitimate 0.5 % yield and a
+    // 0.5 fraction are the same number, and a check that flags AAPL's yield
+    // as drift is a check a reader learns to scroll past.
+    if (profile.dividendYield < 0 || profile.dividendYield > 100) {
+      violations.push({
+        check: "fundamentals.dividend_yield_range",
+        severity: "warn",
+        message: `Dividend yield ${profile.dividendYield}% is outside 0–100.`,
+        observed: profile.dividendYield,
+      });
+    }
+  } else {
+    notEvaluated.push("fundamentals.dividend_yield_range");
+  }
+
+  if (profile.name === null && finite(profile.marketCap)) {
+    violations.push({
+      check: "fundamentals.name_derivable",
+      severity: "drift",
+      message: "The name is null although a market cap is present — the vendor may have renamed the field.",
+    });
+  }
+
+  return {
+    capability: "fundamentals",
     provider,
     passed: !violations.some((v) => v.severity === "fatal"),
     violations,

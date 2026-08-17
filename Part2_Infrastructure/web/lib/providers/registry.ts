@@ -24,7 +24,7 @@ import { alphavantage } from "./alphavantage";
 import { binance } from "./binance";
 import { bybit } from "./bybit";
 import { applicableAssets, inapplicableReason, isApplicable, ROUTE_MATRIX } from "./capabilities";
-import { checkBars, checkQuote } from "./contracts";
+import { checkBars, checkFundamentals, checkNews, checkQuote } from "./contracts";
 import { firecrawl } from "./firecrawl";
 import { fmp } from "./fmp";
 import { massive } from "./massive";
@@ -201,6 +201,7 @@ export async function getNews(
       capability: "news",
       cacheKey: cacheKeys.news(symbols, limit, opts.provider),
       pin: opts.provider,
+      contract: (items, provider) => checkNews(provider, items, limit),
       ...opts,
     },
   );
@@ -222,6 +223,7 @@ export async function getFundamentals(
       capability: "fundamentals",
       cacheKey: cacheKeys.fundamentals(symbol, opts.provider),
       pin: opts.provider,
+      contract: (profile, provider) => checkFundamentals(provider, profile, symbol),
       ...opts,
     },
   );
