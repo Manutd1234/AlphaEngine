@@ -59,7 +59,7 @@ day per team / service / model, over spring 2026. The brief describes it as
 the biggest cost driver, and is that request volume, token volume, or unit cost?
 (3) What assumptions, exclusions and transformations were applied?
 
-**The answers are in §1, below the two setup cells.** Everything after §1 is the
+**The answers are in §1, below the setup cells of §0.** Everything after §1 is the
 working: what was wrong with the data (§2), what was done about it and why (§3),
 the two substantive analyses with their uncertainty (§4, §5), the assumptions
 register (§6), what happens to the conclusions if the cleaning had gone the other
@@ -405,7 +405,7 @@ def clean(
         before = d[col].astype(str)
         d[col] = fn(d[col])
         changed[col] = before.ne(d[col])
-        LABEL_MAP[col] = dict(zip(before[changed[col]], d.loc[changed[col], col]))
+        LABEL_MAP.setdefault(col, {}).update(zip(before[changed[col]], d.loc[changed[col], col]))
     note("`team` case variant", d.index[changed["team"]], "Normalised to Title Case",
          "Same team, two spellings; ungrouped it splits every per-team total.",
          f"team labels {src['team'].nunique()} -> {d['team'].nunique()}")
@@ -789,6 +789,16 @@ _FIG_COUNTER = itertools.count(1)
 def fig_label() -> str:
     return f"Figure {next(_FIG_COUNTER)}"
 
+
+# Axis formatters, shared by every figure.
+USD = lambda v: f"${v:,.0f}"
+CNT = lambda v: f"{v:,.0f}"
+MIL = lambda v: f"{v / 1e6:.2f}M" if v else "0"
+FMT = {"requests": CNT, "tokens": MIL, "cost": USD, "total_tokens": MIL, "cost_usd": USD}
+# A second generator for jitter in strip plots, so decorative randomness never
+# consumes draws from RNG and moves a bootstrap interval.
+JITTER = np.random.default_rng(SEED + 1)
+
 # --- perceptual maths, computed rather than assumed -------------------------
 _LMS = np.array([[0.4122214708, 0.5363325363, 0.0514459929],
                  [0.2119034982, 0.6806995451, 0.1073969566],
@@ -1000,6 +1010,12 @@ for col in ["team", "service", "model"]:
         marker = f"   <-- same entity as {twins}" if twins else ""
         print(f"    {label!s:22} {n:4}{marker}")
     print()
+
+_map = pd.DataFrame([{"column": c, "as delivered": k, "canonical": v,
+                      "rows": int((raw[c].astype(str) == k).sum())}
+                     for c, m in LABEL_MAP.items() for k, v in m.items()])
+print("The canonicalisation map the pipeline applied — every label that changed, and to what:")
+display(_map.style.hide(axis="index"))
 ''')
 
 code(r'''
@@ -1112,6 +1128,57 @@ display(pre.nlargest(3, "ratio")[["date", "team", "service", "model", "requests"
                                   "total_tokens", "cost_usd", "expected_usd", "ratio"]])
 ''')
 
+code(r'''
+_FIGN = fig_label()
+_touched = set(FLAGS.index[FLAGS.any(axis=1)])
+fig, axes = plt.subplots(1, len(RATE), figsize=(12.6, 3.8), gridspec_kw={"wspace": 0.38})
+for ax, svc in zip(axes, SVC.index):                     # cost order, as everywhere
+    p_ = pre[pre["service"] == svc]
+    ok = ~p_["source_row"].isin(_touched)
+    ax.scatter(p_.loc[ok, "total_tokens"], p_.loc[ok, "cost_usd"], s=18, color=C_MUTED,
+               alpha=0.8, edgecolor="white", lw=0.5, zorder=3, label="row as delivered")
+    xs = np.array([0.0, p_["total_tokens"].max() * 1.08])
+    ax.plot(xs, xs * RATE[svc] / 1_000, color=C_INK, lw=1.2, zorder=2,
+            label="tokens x rate(service) / 1000")
+    rep_ = p_[~ok]
+    ax.scatter(rep_["total_tokens"], rep_["cost_usd"], s=64, facecolor="none", edgecolor=C_INK,
+               lw=1.3, zorder=4, label="row §3 touches")
+    for _, r in rep_.iterrows():
+        ratio = r["cost_usd"] / (r["total_tokens"] * RATE[svc] / 1_000)
+        if ratio > 1.5:
+            ax.annotate(f"{ratio:.1f}x the rate\n{r['date']:%-d %b}", (r["total_tokens"], r["cost_usd"]),
+                        xytext=(-9, -2), textcoords="offset points", ha="right", va="top",
+                        fontsize=8.5, color=C_INK)
+    ax.set_title(f"{svc}\n${RATE[svc]:.3f} per 1k tokens", loc="left", fontsize=10, pad=6)
+    ax.set_xlabel("tokens on the row", fontsize=9)
+    ax.xaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda v, _p: f"{v / 1e3:.0f}k"))
+    ax.yaxis.set_major_formatter(mpl.ticker.StrMethodFormatter("${x:,.0f}"))
+    ax.set_xlim(0, xs[1])
+    ax.set_ylim(bottom=0)
+    ax.tick_params(labelsize=8.5)
+axes[0].set_ylabel("cost on the row (USD)", fontsize=9)
+axes[0].legend(frameon=False, fontsize=8, loc="upper left")
+fig.suptitle("Every untouched row sits on its service's line; one row does not",
+             x=0.005, ha="left", fontsize=13, fontweight="bold", y=1.06)
+show_figure(fig, _FIGN,
+            "Four scatter panels of cost against tokens, one per service. In each the "
+            "grey points lie exactly on a straight line through the origin; in the "
+            "doc-analysis panel one ringed point sits far above the line.")
+
+say(f"""
+**{_FIGN}. Cost against tokens for every row, one panel per service, with the line
+`cost = tokens x rate(service) / 1000` through the origin.** Grey: the
+{int((~pre['source_row'].isin(_touched)).sum())} rows this notebook does not touch. Rings:
+the {int(pre['source_row'].isin(_touched).sum())} surviving rows §3 repairs — the two
+imputed cells sit on the line by construction; every other ringed value is as
+delivered. Excluded: the dropped duplicate. *What to conclude:* the rule is not
+approximate — the grey points do not scatter *around* the line, they lie *on* it — and
+it holds at a different slope for each of the three `gpt-4.1-mini` services, which is
+why the rate is taken per service. The one ringed point above its line is the billing
+anomaly of §3.2, at {pre['ratio'].max():.1f}x its service's rate.
+""")
+''')
+
 md(r"""
 ### 2.2 The ambiguous date
 
@@ -1161,6 +1228,70 @@ print(f"  gaps in the {grid.shape[0]} x {grid.shape[1]} panel before this row is
       f"{[f'{d:%Y-%m-%d} {s}' for d, s in gaps]}")
 ''')
 
+code(r'''
+_FIGN = fig_label()
+_svcs = list(SVC.index)
+_far = max(day_first, month_first)
+_after = (month_first - iso_dates.max()).days
+fig, ax = plt.subplots(figsize=(12.6, 3.2))
+ax.axvspan(iso_dates.min(), iso_dates.max(), color=C_MUTED, alpha=0.10, lw=0, zorder=0)
+for yi, s_ in enumerate(_svcs):
+    have = grid.index[grid[s_].notna()]
+    ax.scatter(have, np.full(len(have), yi), marker="|", s=120, color=C_MUTED, lw=1.0, zorder=2,
+               label="a row exists" if yi == 0 else None)
+for k, (d_, g_) in enumerate(gaps):
+    ax.scatter([d_], [_svcs.index(g_)], marker="s", s=70, facecolor="white", edgecolor=C_INK,
+               lw=1.2, zorder=3, label="no row" if k == 0 else None)
+yi = _svcs.index(amb_service)
+ax.scatter([day_first], [yi], marker="D", s=74, color=C_INK, zorder=5,
+           label=f"'{amb['date']}' read day-first")
+ax.scatter([month_first], [yi], marker="D", s=74, facecolor="white", edgecolor=C_INK, lw=1.4,
+           zorder=5, label="the same cell read month-first")
+ax.annotate(f"day-first: {day_first:%-d %b} — fills the gap", (day_first, yi), xytext=(0, 13),
+            textcoords="offset points", ha="center", fontsize=8.5, color=C_INK)
+ax.annotate(f"month-first: {month_first:%-d %b} — {_after} days after the last row, alone",
+            (month_first, yi), xytext=(-2, 13), textcoords="offset points", ha="right",
+            fontsize=8.5, color=C_INK)
+ax.text(iso_dates.max() + (month_first - iso_dates.max()) / 2, 1.5,
+        f"no row from any service for {_after - 1} days", ha="center", fontsize=8.5,
+        color="#52514e", style="italic")
+ax.set_yticks(range(len(_svcs)), _svcs, fontsize=9.5)
+ax.set_ylim(len(_svcs) - 0.3, -1.0)          # inverted: first service at the top, room above
+ax.set_xlim(iso_dates.min() - pd.Timedelta(days=2), _far + pd.Timedelta(days=4))
+ax.xaxis.set_major_locator(mpl.dates.MonthLocator())
+ax.xaxis.set_major_formatter(mpl.dates.DateFormatter("%b %Y"))
+ax.grid(axis="y", alpha=0)
+ax.set_title("Read day-first, the row lands in the only hole in its service's series; "
+             "read month-first, it is stranded", loc="left", pad=10)
+ax.legend(frameon=False, fontsize=8.5, loc="upper right", ncols=2)
+show_figure(fig, _FIGN,
+            "A strip chart with one lane per service, dense grey ticks across April to "
+            "June for the days each service has a row, four hollow squares where a day is "
+            "missing, a filled diamond sitting in the missing ticket-summarizer day in May, "
+            "and a hollow diamond alone in September after a long empty stretch.")
+
+_nb = df[(df["service"] == amb_service) &
+         (df["date"].isin([day_first - pd.Timedelta(days=1), day_first + pd.Timedelta(days=1)]))]
+_svc_days = df[(df["service"] == amb_service) & (df["date"] != day_first)]
+_wkend = _svc_days.loc[_svc_days["date"].dt.dayofweek >= 5, "requests"].median()
+_wkday = _svc_days.loc[_svc_days["date"].dt.dayofweek < 5, "requests"].median()
+_same_dow = day_first.day_name() == month_first.day_name()
+say(f"""
+**{_FIGN}. Which days each service has a row for, from the {len(iso_rows)} unambiguous
+rows, and where the one ambiguous row would land under each reading.** Grey ticks: a
+row exists. Hollow squares: no row. Filled diamond: `{amb['date']}` read day-first;
+hollow diamond: the same cell read month-first. Shaded: the window every unambiguous
+row occupies. *What to conclude:* day-first drops the row into the only hole in
+`{amb_service}`'s series; month-first leaves that hole open and adds a lone point
+{_after} days past the last row in the file. Two things the picture cannot show,
+checked in code: {"both readings fall on a " + day_first.day_name() + ", so the weekday pattern cannot arbitrate" if _same_dow else "the two readings fall on different weekdays (" + day_first.day_name() + " and " + month_first.day_name() + ")"};
+and the row's {int(pd.to_numeric(amb['requests'])):,} requests sit below both its
+would-be neighbours ({int(_nb['requests'].min()):,} and {int(_nb['requests'].max()):,}),
+as a weekend day does for this service (median {_wkend:,.0f} against {_wkday:,.0f} on
+weekdays) — consistent with the day-first reading, though not decisive on its own.
+""")
+''')
+
 md(r"""
 ### 2.3 The defect register
 """)
@@ -1185,6 +1316,45 @@ double-count that makes a data-quality metric untrustworthy.
 Every one of these rows:
 """)
 display(raw[FLAGS.any(axis=1)])
+''')
+
+code(r'''
+_FIGN = fig_label()
+_classes = list(FLAGS.columns)
+_bad = FLAGS.index[FLAGS.any(axis=1)]
+fig, ax = plt.subplots(figsize=(12.6, 3.6))
+for i in _bad:
+    ax.axvline(i + 2, color=C_MUTED, alpha=0.35, lw=0.8, zorder=1)
+    ax.text(i + 2, -0.85, f"row {i + 2}", ha="center", fontsize=8, color="#52514e")
+for yi, c in enumerate(_classes):
+    hits = FLAGS.index[FLAGS[c]]
+    ax.scatter(hits + 2, np.full(len(hits), yi), marker="s", s=70, color=C_INK, zorder=3)
+    ax.text(len(raw) + 2 + 5, yi, f"{len(hits)}", va="center", fontsize=9, fontweight="bold", color=C_INK)
+ax.text(len(raw) + 2 + 5, -0.85, "n", ha="center", fontsize=8, color="#52514e")
+ax.set_yticks(range(len(_classes)), _classes, fontsize=9)
+ax.set_ylim(len(_classes) - 0.4, -1.5)          # inverted, room for the row labels above
+ax.set_xlim(-2, len(raw) + 2 + 12)
+ax.set_xlabel("workbook row, in file order", fontsize=9)
+ax.grid(axis="x", alpha=0)
+ax.set_title(f"{int(FLAGS.to_numpy().sum())} defects in {len(_bad)} rows, spread through the file "
+             f"— not one bad batch", loc="left", pad=10)
+show_figure(fig, _FIGN,
+            "A matrix with one lane per defect class and the workbook's rows along the "
+            "horizontal axis. Seven vertical guide lines mark the defective rows, spaced "
+            "across the whole file; each carries one filled square, except one row which "
+            "carries two.")
+
+say(f"""
+**{_FIGN}. The defect register as a map: one lane per class, one column per workbook
+row.** A filled square is a row that carries that defect; the vertical guides mark the
+{len(_bad)} rows that carry any. *What to conclude:* the defects are spread from row
+{int(_bad.min()) + 2} to row {int(_bad.max()) + 2} of {len(raw) + 1}, one to a row except
+workbook row {int(FLAGS.index[FLAGS.sum(axis=1) > 1][0]) + 2}, which carries both label
+variants. That is what a handful of independent hand-edits looks like, not what a
+corrupted batch or a broken export looks like — the classes do not cluster and no two
+of the same class are adjacent. It is also why the ingestion checks proposed in §9 are
+per-row checks rather than a batch-level alarm.
+""")
 ''')
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1351,19 +1521,152 @@ print("  three days of nil demand and bias every daily mean downward.")
 ''')
 
 code(r'''
+_FIGN = fig_label()
+# "As delivered": the workbook's numbers placed on their day and service. Only what
+# is needed for PLACEMENT is parsed — labels canonicalised, the one non-ISO date
+# read day-first, numbers coerced. Nothing is repaired: the duplicate is summed
+# twice, the blanks stay blank, -25 stays -25 and the anomalous cost stays as billed.
+_asd = raw.copy()
+_asd["service"] = canon_service(_asd["service"])
+_asd["date"], _ = parse_dates(_asd["date"], dayfirst=True)
+for m in MEASURES:
+    _asd[m] = to_number(_asd[m], m)
+_asd_by = _asd.groupby(["date", "service"])[MEASURES].sum(min_count=1)
+_cln_by = df.groupby(["date", "service"])[MEASURES].sum()
+_svcs = list(SVC.index)
+
+# Which panels each defect shows in, and the short mark it gets there. Placement-
+# only defects (the date, the labels) change no value, so they are marked once,
+# in the top row, rather than three times.
+_short = {"duplicate of an earlier row": ("dup x2", MEASURES),
+          "cost_usd missing": ("blank", ["cost_usd"]),
+          "total_tokens missing": ("blank", ["total_tokens"]),
+          "requests <= 0": (f"{int(to_number(raw['requests'])[FLAGS['requests <= 0']].iloc[0])}", ["requests"]),
+          "cost far above the price rule": (f"{pre['ratio'].max():.1f}x", ["cost_usd"]),
+          "date not ISO-8601": ("date", ["requests"]),
+          "team label variant": ("labels", ["requests"]),
+          "service label variant": ("labels", ["requests"])}
+_marks: dict[tuple, set] = {}
+for cls_, (txt, cols_) in _short.items():
+    for i in FLAGS.index[FLAGS[cls_]]:
+        for m in cols_:
+            _marks.setdefault((_asd.loc[i, "date"], _asd.loc[i, "service"], m), set()).add(txt)
+
+_ylab = {"requests": "requests / day", "total_tokens": "tokens / day", "cost_usd": "cost / day (USD)"}
+fig, axes = plt.subplots(len(MEASURES), len(_svcs), figsize=(12.6, 7.4), sharex=True,
+                         gridspec_kw={"hspace": 0.30, "wspace": 0.30})
+for r_, m in enumerate(MEASURES):
+    for c_, s_ in enumerate(_svcs):
+        ax = axes[r_, c_]
+        a_ = _asd_by.xs(s_, level="service")[m]
+        b_ = _cln_by.xs(s_, level="service")[m]
+        ax.plot(a_.index, a_.values, color=HUE[m], lw=2.8, alpha=0.28, label="as delivered")
+        ax.plot(b_.index, b_.values, color=HUE[m], lw=1.1, label="clean")
+        for (d_, sv_, mm_), txts in _marks.items():
+            if sv_ != s_ or mm_ != m:
+                continue
+            y_ = float(b_.get(d_, np.nan))
+            ax.scatter([d_], [y_], s=54, facecolor="white", edgecolor=C_INK, lw=1.2, zorder=5)
+            ax.annotate(" / ".join(sorted(txts)), (d_, y_), xytext=(0, 9), textcoords="offset points",
+                        ha="center", fontsize=7.5, color=C_INK)
+        if r_ == 0:
+            ax.set_title(s_, loc="left", fontsize=10.5, pad=6)
+        if c_ == 0:
+            ax.set_ylabel(_ylab[m], fontsize=9)
+        ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda v, _p, f=FMT[m]: f(v)))
+        ax.tick_params(labelsize=8)
+        lo_ = float(np.nanmin(a_.values))
+        ax.set_ylim(lo_ * 1.25 if lo_ < 0 else 0, None)
+        if lo_ < 0:
+            ax.axhline(0, color=C_INK, lw=0.6)
+axes[0, 0].legend(frameon=False, fontsize=8, loc="upper left")
+fig.suptitle("Where every repair sits: the series as delivered (faint) against the clean series",
+             x=0.005, ha="left", fontsize=13, fontweight="bold", y=0.995)
+fig.autofmt_xdate()
+show_figure(fig, _FIGN,
+            "A grid of twelve small time-series panels, services across and requests, "
+            "tokens and cost down. In each, a faint thick line and a thin solid line "
+            "coincide except at ringed, labelled points: a doubled day in chat-router, a "
+            "dip below zero in doc-analysis requests, a tall spike in doc-analysis cost, "
+            "and two gaps in the faint line where a cell was blank.")
+
+say(f"""
+**{_FIGN}. Daily totals per service — as delivered (faint, thick) against clean
+(solid, thin) — for each of the three measures.** "As delivered" places the workbook's
+numbers on their day and service and repairs nothing: labels are canonicalised and the
+one non-ISO date is read day-first purely so the row can be placed, and the numbers
+are the file's own. Rings mark every row §3 touches, labelled with what was wrong;
+placement-only defects (`date`, `labels`) are marked once, in the top row, because
+they change no value. *What to conclude:* the two lines coincide everywhere except at
+the {len(_marks)} marked points, so the repairs are local and the series are otherwise
+the file's own. The two that would have distorted an analysis are both in
+`{TOP}`: the {pre['ratio'].max():.1f}x cost spike, and the request count that went below
+zero. The doubled day in `{raw.loc[FLAGS['duplicate of an earlier row'], 'service'].iloc[0]}`
+would have inflated one day of every measure by exactly two.
+""")
+''')
+
+code(r'''
 recon = pd.DataFrame({
     "metric": ["rows", "total cost (USD)", "total requests", "total tokens"],
-    "raw as delivered": [len(raw),
-                         pd.to_numeric(raw["cost_usd"], errors="coerce").sum(),
-                         pd.to_numeric(raw["requests"], errors="coerce").sum(),
-                         pd.to_numeric(raw["total_tokens"], errors="coerce").sum()],
+    "raw as delivered": [len(raw), RAW_TOTALS["cost_usd"], RAW_TOTALS["requests"], RAW_TOTALS["total_tokens"]],
     "clean": [len(df), df["cost_usd"].sum(), df["requests"].sum(), df["total_tokens"].sum()],
 }).set_index("metric")
 recon["delta"] = recon["clean"] - recon["raw as delivered"]
 recon["delta %"] = recon["delta"] / recon["raw as delivered"] * 100
-print("Raw -> clean reconciliation. Every difference is accounted for by the register in §6:\n")
+print("Raw -> clean reconciliation. Every difference is accounted for, line by line, by the register in §6:\n")
 display(recon.style.format({"raw as delivered": "{:,.2f}", "clean": "{:,.2f}",
                             "delta": "{:+,.2f}", "delta %": "{:+.2f}%"}))
+
+_FIGN = fig_label()
+_L = pd.DataFrame(DECISIONS)
+_L = _L[(_L[[f"Δ {m}" for m in MEASURES]] != 0).any(axis=1)]
+_sfmt = {"requests": lambda v: f"{v:+,.0f}", "total_tokens": lambda v: f"{v:+,.0f}",
+         "cost_usd": lambda v: f"{v:+,.2f}"}
+_tfmt = {"requests": CNT, "total_tokens": CNT, "cost_usd": lambda v: f"${v:,.2f}"}
+fig, axes = plt.subplots(1, len(MEASURES), figsize=(12.6, 0.62 * len(_L) + 1.6), sharey=True,
+                         gridspec_kw={"wspace": 0.10})
+y = np.arange(len(_L))
+for ax, m in zip(axes, MEASURES):
+    v = _L[f"Δ {m}"].to_numpy(dtype=float)
+    ax.barh(y, v, color=HUE[m], height=0.56)
+    ax.axvline(0, color=C_INK, lw=0.8)
+    lim = float(np.abs(v).max()) * 1.9
+    for yi, vi in zip(y, v):
+        if vi != 0:
+            ax.text(vi + (lim * 0.02 if vi > 0 else -lim * 0.02), yi, _sfmt[m](vi), va="center",
+                    ha="left" if vi > 0 else "right", fontsize=8.5, fontweight="bold", color="#0b0b0b")
+        else:
+            ax.text(0, yi, "no change", va="center", ha="center", fontsize=8, color="#52514e",
+                    style="italic", bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none"))
+    ax.set_xlim(-lim, lim)
+    ax.set_title(f"{m}: {_tfmt[m](RAW_TOTALS[m])} → {_tfmt[m](df[m].sum())}", loc="left", fontsize=10.5, pad=8)
+    ax.xaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda x_, _p, m=m: _sfmt[m](x_)))
+    ax.tick_params(labelsize=8)
+    ax.grid(axis="y", alpha=0)
+axes[0].set_yticks(y, [textwrap.fill(i, 30) for i in _L["Issue"]], fontsize=8.5)
+axes[0].invert_yaxis()
+fig.suptitle("What each repair did to each total, raw → clean", x=0.005, ha="left",
+             fontsize=13, fontweight="bold", y=1.03)
+show_figure(fig, _FIGN,
+            "Three panels of horizontal bars, one per measure, one row per repair. Bars "
+            "extend left for a reduction and right for an addition; most rows are near "
+            "zero and one, the anomalous cost, extends well to the left in the cost panel.")
+
+_big = _L.loc[_L["Δ cost_usd"].abs().idxmax(), "Issue"]
+say(f"""
+**{_FIGN}. The reconciliation, one bar per repair per measure.** Panel titles carry
+the raw and clean totals; each bar is the change one line of the register made to
+that total, and the bars in a panel sum exactly to the difference in its title —
+§0.2 asserts that identity on every run. "No change" is a repair that left that
+measure alone — the negative request count, for instance, never touched a dollar.
+Excluded: the placement-only repairs (the date, the labels), which moved no number
+at all. *What to conclude:* one repair dominates the money:
+*{_big}* accounts for
+{abs(_L.loc[_L['Issue'] == _big, 'Δ cost_usd'].iloc[0]) / _L['Δ cost_usd'].abs().sum():.0%}
+of the absolute movement in cost. Everything else moves totals by fractions of a
+percent, which is the quantitative reason §7 will find those decisions immaterial.
+""")
 ''')
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1411,10 +1714,6 @@ def trend_band(g):
 
 
 _FIGN = fig_label()
-USD = lambda v: f"${v:,.0f}"
-CNT = lambda v: f"{v:,.0f}"
-MIL = lambda v: f"{v / 1e6:.2f}M" if v else "0"
-
 fig, axes = plt.subplots(3, 1, figsize=(11, 9.4), sharex=True, gridspec_kw={"hspace": 0.24})
 panels = [(axes[0], "requests", C_REQ, "Requests per day", CNT),
           (axes[1], "tokens", C_TOK, "Tokens per day", MIL),
@@ -1461,6 +1760,53 @@ rates — {G['requests']['weekly_pct']:+.2f}%, {G['tokens']['weekly_pct']:+.2f}%
 {G['cost']['weekly_pct']:+.2f}% per week — sit within each other's confidence
 intervals. Nothing in this figure distinguishes cost growth from volume growth;
 §4.2 tests that directly.
+""")
+''')
+
+code(r'''
+_FIGN = fig_label()
+_DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+_ctr = {c: (DAILY[c] / DAILY[c].rolling(7, center=True, min_periods=7).mean()).dropna()
+        for c in ["requests", "tokens", "cost"]}
+fig, axes = plt.subplots(1, 3, figsize=(12.6, 3.5), sharey=True, gridspec_kw={"wspace": 0.10})
+_wk_ratio = {}
+for ax, (c, r_) in zip(axes, _ctr.items()):
+    x_ = r_.index.dayofweek.to_numpy()
+    ax.scatter(x_ + JITTER.uniform(-0.18, 0.18, len(r_)), r_.values, s=22, color=HUE[c],
+               alpha=0.55, edgecolor="white", lw=0.4, zorder=3)
+    med = r_.groupby(x_).median()
+    ax.hlines(med.values, med.index - 0.32, med.index + 0.32, color=C_INK, lw=2.2, zorder=4)
+    for xi in (med.idxmax(), med.idxmin()):        # label the extremes only
+        ax.annotate(f"{med[xi]:.2f}x", (xi, med[xi]), xytext=(0, 7 if xi == med.idxmax() else -12),
+                    textcoords="offset points", ha="center", fontsize=8.5, color=C_INK, fontweight="bold")
+    ax.axhline(1, color=C_MUTED, lw=0.9, ls=(0, (4, 3)), zorder=1)
+    ax.set_xticks(range(7), _DOW, fontsize=9)
+    ax.set_title(c, loc="left", fontsize=10.5, pad=6)
+    ax.grid(axis="x", alpha=0)
+    _wk_ratio[c] = (r_[x_ >= 5].median(), r_[x_ < 5].median())
+axes[0].set_ylabel("daily total ÷ centred 7-day mean", fontsize=9.5)
+axes[0].yaxis.set_major_formatter(mpl.ticker.StrMethodFormatter("{x:.1f}x"))
+fig.suptitle("The business-week cycle the weekday dummies absorb", x=0.005, ha="left",
+             fontsize=13, fontweight="bold", y=1.03)
+show_figure(fig, _FIGN,
+            "Three strip plots, one per measure, of each day's total relative to its "
+            "surrounding week, by weekday. Monday to Friday sit above the 1x line and "
+            "Saturday and Sunday clearly below it, with the same shape in all three panels.")
+
+_wr = _wk_ratio["cost"]
+say(f"""
+**{_FIGN}. Each day's total divided by the centred 7-day mean around it, by weekday,
+for the three measures.** Dots: days. Ink bars: the weekday's median; only the highest
+and lowest are labelled. Dashed: parity with the surrounding week. Excluded: the
+{len(DAILY) - len(_ctr['cost'])} edge days, three at each end, which have no complete
+week around them.
+*What to conclude:* the cycle is large and regular — a weekend day of spend runs at
+about **{_wr[0]:.2f}x** its surrounding week against {_wr[1]:.2f}x for a weekday, a swing
+of {(_wr[1] / _wr[0] - 1) * 100:.0f}% — and it is the *same* cycle in all three panels,
+which is one more way of seeing that the mix does not change with the day. It is not
+noise: it is structure, and it is why the trend model carries weekday terms rather
+than fitting a straight line through the sawtooth and letting the residual variance
+inflate the interval.
 """)
 ''')
 
@@ -1557,6 +1903,47 @@ mix shift big enough to matter for a routing decision is not one of them.
 buying proportionally more requests, of the same average size, at the same average
 price. That has a direct consequence for §5: the cost concentration found there is
 *structural*, not a trend that is about to correct itself or get worse on its own.
+""")
+''')
+
+code(r'''
+_FIGN = fig_label()
+_ratios = {"cost/tokens": (DAILY["cost"] / DAILY["tokens"] * 1_000, 1_000, C_COST,
+                           "blended price, $ per 1k tokens", lambda v: f"${v:.3f}"),
+           "tokens/requests": (DAILY["tokens"] / DAILY["requests"], 1, C_TOK,
+                               "tokens per request", CNT)}
+fig, axes = plt.subplots(2, 1, figsize=(11, 6.4), sharex=True, gridspec_kw={"hspace": 0.26})
+for ax, (name, (ser, scale, colour, label, fmt)) in zip(axes, _ratios.items()):
+    g = DIVERGE[name]
+    fit, lo, hi = (v * scale for v in trend_band(g))    # the fit is per token; the axis per 1k
+    ax.plot(ser.index, ser.values, color=colour, lw=0.9, alpha=0.28, label="daily")
+    ax.plot(ser.index, ser.rolling(7, min_periods=4).mean(), color=colour, lw=2.4, label="7-day mean")
+    ax.fill_between(g["index"], lo, hi, color=C_MUTED, alpha=0.30, lw=0, label="fitted trend, 95% band")
+    ax.plot(g["index"], fit, color=C_INK, lw=1.4, ls=(0, (5, 2)), label="fitted trend")
+    ax.set_ylabel(label, fontsize=9.5)
+    ax.set_ylim(bottom=0)
+    ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda v, _p, f=fmt: f(v)))
+    ax.annotate(f"{g['weekly_pct']:+.3f}%/week  (95% CI {g['lo']:+.3f} to {g['hi']:+.3f}, p = {g['p']:.2f})",
+                (0.012, 0.07), xycoords="axes fraction", fontsize=9, color=C_INK)
+    ax.set_xlim(DAILY.index.min() - pd.Timedelta(days=1), DAILY.index.max() + pd.Timedelta(days=1))
+axes[0].legend(frameon=False, fontsize=8.5, loc="lower right", ncols=4)
+axes[0].set_title("Neither ratio trends: unit price and verbosity are flat while volume grows",
+                  loc="left", pad=10)
+fig.autofmt_xdate()
+show_figure(fig, _FIGN,
+            "Two stacked time-series panels: blended price per thousand tokens above, "
+            "tokens per request below. Both wobble around a level line; the fitted trend "
+            "and its band are horizontal in each.")
+
+say(f"""
+**{_FIGN}. The two ratios the test in the table is fitted to — blended price per 1k
+tokens (top) and tokens per request (bottom) — daily, with 7-day mean and fitted
+trend.** Same estimator and same standard errors as Figure 1; the y-axes start at zero
+so that "flat" is flat rather than a rescaled wobble. *What to conclude:* the growth
+in Figure 1 is happening at a constant blended price ({_ct['weekly_pct']:+.3f}%/week,
+p = {_ct['p']:.2f}) and constant request size ({_tr['weekly_pct']:+.3f}%/week,
+p = {_tr['p']:.2f}). Whatever moves the daily line here — the premium service's share of
+the day's traffic, mostly, as the next figure shows — it does not accumulate.
 """)
 ''')
 
@@ -1950,6 +2337,55 @@ print(f"  its lead over the second-biggest spender is at least "
 ''')
 
 code(r'''
+_FIGN = fig_label()
+_order = list(factors)
+fig, ax = plt.subplots(figsize=(11, 3.6))
+y = np.arange(len(_order))[::-1]
+for yi, k in zip(y, _order):
+    lo, hi = ci(factors[k])
+    pt = point[k]
+    is_total = k.startswith("cost per request")
+    colour = C_COST if is_total else C_MUTED
+    ax.hlines(yi, lo, hi, color=colour, lw=3.2, alpha=0.65, zorder=2)
+    ax.scatter([pt], [yi], s=78 if is_total else 62, color=colour, edgecolor="white", lw=0.8,
+               zorder=3, marker="D" if is_total else "o")
+    ax.annotate(f"x{pt:.2f}   ({lo:.2f} to {hi:.2f})", (hi, yi), xytext=(9, 0),
+                textcoords="offset points", va="center", fontsize=9, color=C_INK,
+                fontweight="bold" if is_total else "normal")
+ax.axvline(1, color=C_INK, lw=0.9, ls=(0, (4, 3)), zorder=1)
+ax.annotate("x1 = same as the cheapest service", xy=(1, 0.02), xycoords=("data", "axes fraction"),
+            xytext=(4, 0), textcoords="offset points", fontsize=8.5, color="#52514e", va="bottom")
+ax.set_xscale("log")
+ax.set_xticks([0.25, 0.5, 1, 2, 4, 8, 16, 32])
+ax.xaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda v, _p: f"x{v:g}"))
+ax.xaxis.set_minor_formatter(mpl.ticker.NullFormatter())
+ax.set_xlim(0.2, 90)
+ax.set_yticks(y, [textwrap.fill(k, 26) for k in _order], fontsize=9.5)
+ax.set_xlabel(f"{TOP} relative to {CHEAPEST}, log scale — 95% block-bootstrap intervals",
+              fontsize=9.5)
+ax.set_title(f"Volume pulls {TOP}'s cost down; verbosity and unit price multiply it up",
+             loc="left", pad=10)
+ax.grid(axis="y", alpha=0)
+show_figure(fig, _FIGN,
+            "A dot-and-interval chart on a logarithmic axis with four rows. The volume "
+            "factor sits left of the one-times line; verbosity and unit price sit well to "
+            "the right; the combined cost-per-request factor, in green, sits furthest right "
+            "with a narrow interval.")
+
+say(f"""
+**{_FIGN}. The decomposition of `{TOP}`'s cost per request against `{CHEAPEST}`'s,
+factor by factor, with 95% block-bootstrap intervals.** Log axis, so equal distances
+are equal multiples and the three factors visibly *add* to the combined one. Grey: the
+three factors; green diamond: their product. *What to conclude:* volume is the only
+factor left of x1 — `{TOP}` makes fewer calls — and its interval is the widest; unit
+price is the tightest, because it is a tier rather than an average; and the product
+lands at x{point['cost per request, combined']:.0f} with an interval that does not come
+near the other three. This is the picture of the answer to Q2: the cost lives in
+what each call *is*, not in how many there are.
+""")
+''')
+
+code(r'''
 # Stability: is the share drifting, and does any single day carry it?
 wk_share = (df.pivot_table(index=pd.Grouper(key="date", freq="W-SUN"), columns="service",
                            values="cost_usd", aggfunc="sum")
@@ -1998,6 +2434,59 @@ removing the most influential of the {len(loo)} days moves the share by
 and least expensive {len(hi_days) + len(lo_days)} days together moves it by
 {abs(trim[TOP].sum() / trim.sum().sum() - SVC.loc[TOP, 'cost_share']) * 100:.2f} points.
 This is a structural feature of the workload, not an artefact of the window.
+""")
+''')
+
+code(r'''
+_FIGN = fig_label()
+_wk = df.pivot_table(index=pd.Grouper(key="date", freq="W-SUN"), columns="service",
+                     values="cost_usd", aggfunc="sum")
+_wk_days = df.groupby(pd.Grouper(key="date", freq="W-SUN"))["date"].nunique()
+_shares = _wk.div(_wk.sum(axis=1), axis=0)
+assert _shares.notna().all().all(), "a service is absent for a whole week — that would need saying, not zero-filling"
+_others = [s_ for s_ in SVC.index if s_ != TOP]                # cost order
+_greys = ["#a8a69f", "#c9c7bf", "#e4e2db"]
+fig, ax = plt.subplots(figsize=(11.5, 4.2))
+x = np.arange(len(_shares))
+bottom = np.zeros(len(_shares))
+for s_, colour in [(TOP, C_COST)] + list(zip(_others, _greys)):
+    v = _shares[s_].to_numpy() * 100
+    ax.bar(x, v, bottom=bottom, color=colour, width=0.74, edgecolor="white", lw=1.4, label=s_)
+    ax.text(x[-1] + 0.55, bottom[-1] + v[-1] / 2, s_, va="center", ha="left", fontsize=9, color=C_INK)
+    bottom += v
+ax.axhline(SVC.loc[TOP, "cost_share"] * 100, color=C_INK, lw=1.0, ls=(0, (4, 3)), zorder=4)
+ax.annotate(f"window share {SVC.loc[TOP, 'cost_share']:.1%}", (x[0] - 0.4, SVC.loc[TOP, "cost_share"] * 100),
+            xytext=(0, 5), textcoords="offset points", fontsize=8.5, color=C_INK)
+_partial = [(xi, nd) for xi, nd in zip(x, _wk_days.values) if nd < 7]
+for xi, nd in _partial:
+    ax.text(xi, 101.5, f"{nd} days", ha="center", fontsize=8, color="#52514e", style="italic")
+_gap_week = wk_share.idxmin()
+xi_gap = list(_shares.index).index(_gap_week)
+ax.text(xi_gap, -7, "one day\nunrecorded", ha="center", va="top", fontsize=7.5, color="#52514e")
+ax.set_xticks(x, [f"{d - pd.Timedelta(days=6):%-d %b}" for d in _shares.index], fontsize=8.5)
+ax.set_xlim(-0.7, len(x) + 1.9)
+ax.set_ylim(-16, 108)
+ax.set_yticks([0, 25, 50, 75, 100])
+ax.set_ylabel("share of the week's cost", fontsize=9.5)
+ax.set_xlabel("week beginning", fontsize=9)
+ax.yaxis.set_major_formatter(mpl.ticker.StrMethodFormatter("{x:.0f}%"))
+ax.set_title(f"{TOP}'s share of cost is flat week to week", loc="left", pad=10)
+ax.legend(frameon=False, fontsize=8.5, loc="upper left", bbox_to_anchor=(0, -0.16), ncols=4)
+ax.grid(axis="x", alpha=0)
+show_figure(fig, _FIGN,
+            "Stacked bars, one per week, each summing to one hundred percent. The bottom "
+            "green segment, the biggest cost driver, is a little over half in every week; "
+            "the three grey segments above it keep the same proportions throughout.")
+
+say(f"""
+**{_FIGN}. Each week's cost, split by service, as a share of that week.** Green:
+`{TOP}`; greys: the other {len(_others)}, in cost order. Dashed: `{TOP}`'s share of the whole
+window. Weeks with fewer than seven recorded days are labelled; the week containing
+the one day `{TOP}` has no row at all is marked. *What to conclude:* the split is the
+same in every week — `{TOP}` runs between {wk_share.min():.0%} and {wk_share.max():.0%},
+and the only week that dips is the one missing a day of it. This is the stability the
+bootstrap intervals in the table above are measuring, made visible: nothing about the
+concentration is a feature of which weeks happened to be in the file.
 """)
 ''')
 
