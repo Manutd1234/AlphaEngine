@@ -2,6 +2,7 @@
 
 Everything you need to get AlphaEngine running, in the order you need it.
 `README.md` explains what it is and why; this file only gets it on screen.
+Every command and count here was re-run against the tree on 2026-08-17.
 
 ---
 
@@ -89,7 +90,31 @@ tested path — FastAPI, uvicorn, pandas, numpy, DuckDB, pytest. The full
 `requirements.txt` pulls vectorbt and numba, which frequently fail to build from
 source and buy you only a faster backtest engine; without them the backtester
 falls back to its built-in NumPy engine and every number is identical. CI itself
-installs `requirements-dev.txt`, which is core plus `ruff`.
+installs `requirements-dev.txt`, which is core plus `ruff` and the build-time
+`requirements-native.txt`.
+
+### The native decision core (optional to run, required for the full suite)
+
+The gateway's pre-trade arithmetic exists twice — the Python reference in
+`modules/risk_proxy.py` and a C++ core in `native/decision_core/` — and
+`DECISION_CORE=auto` (the default) uses the compiled one when it imports and
+the Python one otherwise, publishing which on `/health`. Nothing needs it to
+*run*. Two test files need it to *pass*: `tests/test_decision_core_native.py`
+and `tests/test_core_self_measure.py` fail rather than skip when
+`modules/_decision_core` is absent, because a broken build has to turn CI red.
+Building it takes a compiler and about ten seconds:
+
+```bash
+cd Part2_Infrastructure
+venv/bin/python -m pip install -r requirements-native.txt      # setuptools + pybind11
+venv/bin/python native/decision_core/setup.py build_ext --inplace --build-temp build/native
+```
+
+That drops `modules/_decision_core.cpython-312-darwin.so` (or the matching ABI tag) beside the Python modules; the
+Docker image builds the same thing in its builder stage so the runtime image
+carries the `.so` and no compiler. `DECISION_CORE=native` refuses to start
+without it (the setting for a deploy that must not degrade quietly);
+`DECISION_CORE=python` pins the reference.
 
 ### Run both processes
 
@@ -154,10 +179,10 @@ trusting the counts — they drift, and a number nobody re-measured is a number
 nobody should quote.
 
 ```bash
-# Gateway suite — 692 passed
+# Gateway suite — 832 passed, nothing skipped (native core built, Python 3.12)
 cd Part2_Infrastructure && venv/bin/python -m pytest
 
-# Web suite — 2174 passed across 548 suites, no browser needed
+# Web suite — 2313 passed across 592 suites, no browser needed
 cd Part2_Infrastructure/web && npm test
 
 # Research service — 13 passed
@@ -179,15 +204,21 @@ passed`. It needs no network — market data falls back to simulation.
 a missing script; that is not a broken linter. Linting is Python-side, via
 `ruff`, which is in `requirements-dev.txt` only.
 
-**`npm run build` runs a gate before Next.js starts.** The `prebuild` hook is
-`scripts/check-gateway-openapi-digest.mjs`. It canonicalises `tools/openapi.json`,
-SHA-256s it, and compares the result against a digest committed in
+**`npm run build` runs two gates before Next.js starts.** The `prebuild` hook is
+`scripts/check-gateway-openapi-digest.mjs && scripts/generate-codebase-manifest.mjs --check`.
+The first canonicalises `tools/openapi.json`, SHA-256s it, and compares the
+result against a digest committed in
 `web/lib/gateway-openapi-digest.generated.ts`. On a match it prints
 `Gateway OpenAPI digest verified: <hash>`. On drift it exits 1 with
 `Gateway OpenAPI digest is stale`. That is an intentional contract assertion
 between two separately deployed units, not a broken build — regenerate the
 snapshot with `python tools/export_openapi.py` and update the digest module
-deliberately.
+deliberately. The second refuses to build if the committed repository manifest
+(`web/lib/repository-manifest.generated.json`) no longer matches the tree —
+`npm run catalog:refresh` regenerates it. A third generated file,
+`web/lib/test-counts.generated.ts`, holds the counts the desk displays;
+`npm run counts:refresh` regenerates it and CI checks it against the run it
+just made.
 
 ### Advanced: the desk sweep
 
@@ -301,11 +332,16 @@ Telegram is an independent notification companion, never an auth provider.
 | | |
 |---|---|
 | Desk workspace | https://alphaengine-workspace.vercel.app |
-| Risk gateway | http://149.118.48.255:8000 |
+| Risk gateway | http://149.118.48.255:8000 — and `https://149.118.48.255:8443` behind the Caddy sidecar's pinned internal CA (`docs/TLS_FLIP.md`); both answered `/health` on 2026-08-17 |
 
-The gateway deploys itself from `main` via `.github/workflows/deploy.yml` — build,
-push to GHCR, SSH, pull, swap, verify, roll back on failure. The web workspace
-and the OpenBB service are Vercel projects that deploy from git on their own.
+The gateway deploys itself from `main` via `.github/workflows/deploy.yml` — the
+suite runs first (with the native core built), then build, push to GHCR, SSH,
+pull, swap, verify, roll back on failure. The verify step also reads which
+decision engine the container came up on and emits a workflow warning if it
+fell back to Python. The web workspace and the OpenBB service are Vercel
+projects that deploy from git on their own; `.github/workflows/openbb-keepalive.yml`
+pings the OpenBB service's `/healthz` every ten minutes so a research quote
+rarely meets a cold import.
 
 ---
 
