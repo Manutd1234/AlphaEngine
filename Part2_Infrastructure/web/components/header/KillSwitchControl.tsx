@@ -161,8 +161,8 @@ export default function KillSwitchControl({
             /* Sanctioned fixed red: --status-critical fails contrast with white
                text in dark theme (2.82:1); #b3242e carries it at 6.55:1 in both
                themes — same rationale as .handoff-fire in globals.css. */
-            ? "inline-flex items-center gap-1.5 rounded-[9px] border border-[#b3242e] bg-[#b3242e] px-2.5 py-1.5 text-[12px] font-bold uppercase tracking-[0.04em] text-white"
-            : "inline-flex items-center gap-1.5 rounded-[9px] border border-transparent bg-transparent px-2 py-1.5 text-[12px] font-semibold text-text-secondary hover:border-border hover:bg-surface-2"
+            ? "inline-flex items-center gap-1.5 rounded-[9px] border border-[#b3242e] bg-[#b3242e] px-2.5 py-1.5 text-fs-chrome-chip font-bold uppercase tracking-[0.04em] text-white"
+            : "inline-flex items-center gap-1.5 rounded-[9px] border border-transparent bg-transparent px-2 py-1.5 text-fs-chrome-chip font-semibold text-text-secondary hover:border-border hover:bg-surface-2"
         }
       >
         <OctagonX size={14} aria-hidden />
@@ -177,10 +177,10 @@ export default function KillSwitchControl({
       {open && (
         <AnchoredPanel id="kill-switch-panel" labelledBy="kill-switch-title" width={340}>
           <span className="page-kicker">Circuit breaker</span>
-          <h3 id="kill-switch-title" className="mt-0.5 text-[16px]">
+          <h3 id="kill-switch-title" className="mt-0.5 text-fs-title">
             {halted ? "Resume trading" : "Halt trading"}
           </h3>
-          <p className="mt-1 text-[12.5px] leading-snug text-text-secondary">
+          <p className="mt-1 text-fs-body leading-snug text-text-secondary">
             {halted
               ? `The kill switch is active${halt?.haltedSymbols.length ? ` for ${halt.haltedSymbols.join(", ")}` : " across the book"}. Resuming re-opens the pre-trade gates.`
               : "Trips the gateway's kill switch: every subsequent pre-trade check rejects until it is cleared, and the event lands in the audit log."}
@@ -191,7 +191,7 @@ export default function KillSwitchControl({
               rather than guessing at a stopped local server — a deployed desk
               has no uvicorn to restart, and that instruction was the only thing
               it offered. */}
-          <p className="mt-2 flex items-center gap-1.5 text-[12px]">
+          <p className="mt-2 flex items-center gap-1.5 text-fs-sm">
             {gatewayConnected === null ? (
               <span className="text-text-muted">Checking gateway connection…</span>
             ) : gatewayConnected ? (
@@ -202,7 +202,7 @@ export default function KillSwitchControl({
             {halt?.sandbox && <span className="text-notice-text">; sandbox mode</span>}
           </p>
           {gatewayConnected === false && gatewayReason && (
-            <p className="mt-1 text-[12px] leading-snug text-text-secondary">
+            <p className="mt-1 text-fs-sm leading-snug text-text-secondary">
               {gatewayReason}{" "}
               {gatewayReason.startsWith("No gateway URL")
                 ? "Set ALPHAENGINE_GATEWAY_URL, or run the gateway locally with "
@@ -211,7 +211,7 @@ export default function KillSwitchControl({
             </p>
           )}
 
-          <label className="mt-3 block text-[12px] font-semibold text-text-secondary" htmlFor="kill-switch-reason">
+          <label className="mt-3 block text-fs-sm font-semibold text-text-secondary" htmlFor="kill-switch-reason">
             Reason (audited)
           </label>
           <input
@@ -226,7 +226,7 @@ export default function KillSwitchControl({
 
           {riskControl.guardMode === "token" && (
             <>
-              <label className="mt-2.5 block text-[12px] font-semibold text-text-secondary" htmlFor="kill-switch-token">
+              <label className="mt-2.5 block text-fs-sm font-semibold text-text-secondary" htmlFor="kill-switch-token">
                 Operator token <span className="font-normal text-text-muted">(shared with the Reliability tab)</span>
               </label>
               <input
@@ -240,7 +240,7 @@ export default function KillSwitchControl({
             </>
           )}
 
-          <label className="mt-2.5 block text-[12px] font-semibold text-text-secondary" htmlFor="kill-switch-confirm">
+          <label className="mt-2.5 block text-fs-sm font-semibold text-text-secondary" htmlFor="kill-switch-confirm">
             Type <strong className="font-mono">{gate.confirmWord}</strong> to arm
           </label>
           <div className="mt-1 flex gap-2">
@@ -267,7 +267,7 @@ export default function KillSwitchControl({
             </button>
           </div>
           {gate.blockedReason && (
-            <small id="kill-switch-blocked" className="mt-1.5 block text-[11.5px] text-text-muted">
+            <small id="kill-switch-blocked" className="mt-1.5 block text-fs-xs text-text-muted">
               <span aria-hidden>◌</span> {gate.blockedReason}
             </small>
           )}

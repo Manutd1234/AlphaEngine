@@ -493,7 +493,7 @@ export default function LoginScreen() {
                   aria-pressed={showPassword}
                   aria-controls="auth-password"
                   aria-label={showPassword ? "Hide password" : "Show password"}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 border-none bg-transparent px-1.5 py-1 text-[13px] font-semibold text-text-secondary underline"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 border-none bg-transparent px-1.5 py-1 text-fs-md font-semibold text-text-secondary underline"
                 >
                   {showPassword ? "Hide" : "Show"}
                 </button>
@@ -503,7 +503,7 @@ export default function LoginScreen() {
 
           {showRemember && (
             <div className="flex items-center justify-between gap-3">
-              <label className="flex items-center gap-2 text-[13.5px] text-text-secondary" htmlFor="auth-remember">
+              <label className="flex items-center gap-2 text-fs-lg text-text-secondary" htmlFor="auth-remember">
                 <input
                   id="auth-remember"
                   type="checkbox"
@@ -532,7 +532,7 @@ export default function LoginScreen() {
 
         {showProviders && (
           <>
-            <p className="mt-5 mb-3 text-center text-[12px] uppercase tracking-[0.08em] text-text-muted">
+            <p className="mt-5 mb-3 text-center text-fs-sm uppercase tracking-[0.08em] text-text-muted">
               {/* Not a bare "or" while the probe is out: a divider above nothing
                   is the headless-section case, and saying what is being waited
                   for costs one word. */}
@@ -549,7 +549,7 @@ export default function LoginScreen() {
                * warning at all, which is the defect this whole branch exists to
                * bound.
                */
-              <p className="mb-3 text-center text-[12.5px] leading-snug text-text-muted">
+              <p className="mb-3 text-center text-fs-body leading-snug text-text-muted">
                 We could not check which of these are enabled here, so one may not complete.
               </p>
             )}
@@ -569,7 +569,7 @@ export default function LoginScreen() {
           </>
         )}
 
-        <div className="mt-5 border-t border-grid pt-4 text-[13.5px] text-text-secondary">
+        <div className="mt-5 border-t border-grid pt-4 text-fs-lg text-text-secondary">
           {mode === "signin" ? (
             <>
               No account?{" "}

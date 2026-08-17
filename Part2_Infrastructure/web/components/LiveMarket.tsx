@@ -482,7 +482,7 @@ export default function LiveMarket({
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr 1fr",
-                fontSize: 11,
+                fontSize: "var(--fs-2xs)",
                 textTransform: "uppercase",
                 letterSpacing: "0.06em",
                 color: "var(--text-muted)",
@@ -504,10 +504,10 @@ export default function LiveMarket({
                 borderBottom: "1px solid var(--grid)",
               }}
             >
-              <span className="num" style={{ fontSize: 18, fontWeight: 650 }}>
+              <span className="num" style={{ fontSize: "var(--fs-h2)", fontWeight: 650 }}>
                 {fmt(snap?.consolidatedMid, dp)}
               </span>
-              <span className="num muted" style={{ fontSize: 12.5 }}>
+              <span className="num muted" style={{ fontSize: "var(--fs-body)" }}>
                 spread {fmt(snap?.spreadBps, 2)} bps
               </span>
             </div>
@@ -603,7 +603,7 @@ export default function LiveMarket({
               aria-pressed={notional === n}
               title={`Set the target notional to $${compact(n)}`}
               onClick={() => onNotionalChange(n)}
-              style={{ fontFamily: "var(--mono)", fontSize: 12.5 }}
+              style={{ fontFamily: "var(--mono)", fontSize: "var(--fs-body)" }}
             >
               {notional === n ? <span aria-hidden>✓ </span> : null}
               ${compact(n)}
@@ -679,7 +679,7 @@ export default function LiveMarket({
                       title={on
                         ? `Exclude ${v.venue} from the what-if route`
                         : `Include ${v.venue} in the what-if route`}
-                      style={{ fontSize: 12.5 }}
+                      style={{ fontSize: "var(--fs-body)" }}
                       onClick={() => {
                         const all = (snap?.venues ?? []).map((x) => x.venue);
                         const current = includedVenues ?? all;
@@ -697,7 +697,7 @@ export default function LiveMarket({
                     arrived, which reads as a control with its options missing
                     rather than as a probe with nothing to route yet. */}
                 {(snap?.venues ?? []).length === 0 && (
-                  <span className="muted" style={{ fontSize: 12.5 }}>
+                  <span className="muted" style={{ fontSize: "var(--fs-body)" }}>
                     No venue is streaming yet, so there is nothing to include or exclude.
                   </span>
                 )}
@@ -799,7 +799,7 @@ export default function LiveMarket({
                   ) : null}
                 </>
               ) : (
-                <div style={{ width: "100%", background: "var(--surface-2)", display: "grid", placeItems: "center", fontSize: 12, color: "var(--text-muted)" }}>
+                <div style={{ width: "100%", background: "var(--surface-2)", display: "grid", placeItems: "center", fontSize: "var(--fs-sm)", color: "var(--text-muted)" }}>
                   {whatIfActive ? "no venue included in this what-if" : "no routable liquidity"}
                 </div>
               )}
@@ -821,7 +821,7 @@ export default function LiveMarket({
               </div>
             )}
             {tca.cappedBy ? (
-              <p className="muted" style={{ fontSize: 12.5, marginBottom: 10 }}>
+              <p className="muted" style={{ fontSize: "var(--fs-body)", marginBottom: 10 }}>
                 Routable ${compact(tca.filledNotional)} of ${compact(tca.requestedNotional)}
                 {tca.cappedBy === "slippage"
                   ? ` — the remainder would breach the ${capBps} bps cap.`
@@ -858,7 +858,7 @@ export default function LiveMarket({
             />
           </>
         ) : (
-          <p className="muted" style={{ fontSize: 14 }}>Waiting for a live book on both venues…</p>
+          <p className="muted" style={{ fontSize: "var(--fs-xl)" }}>Waiting for a live book on both venues…</p>
         )}
       </div>
 

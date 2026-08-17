@@ -157,13 +157,13 @@ export default function AuthCallback() {
       <div className="card auth-card" role="status" aria-live="polite">
         {phase === "working" ? (
           <>
-            <h1 className="text-[20px]">Signing you in…</h1>
+            <h1 className="text-fs-h2">Signing you in…</h1>
             <p className="sub">Completing the link and starting your session.</p>
             <div className="skeleton" style={{ height: 56, marginTop: 12 }} aria-busy="true" />
           </>
         ) : (
           <>
-            <h1 className="text-[20px]">This link did not complete</h1>
+            <h1 className="text-fs-h2">This link did not complete</h1>
             <p className="sub">{detail}</p>
             <a href="/login" className="primary-action mt-3 inline-flex">
               Back to sign in

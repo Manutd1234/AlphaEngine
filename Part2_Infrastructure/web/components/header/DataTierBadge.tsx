@@ -115,10 +115,10 @@ export default function DataTierBadge({
       {open && (
         <AnchoredPanel id="data-tier-panel" labelledBy="data-tier-title" width={300}>
           <span className="page-kicker">Data source</span>
-          <h3 id="data-tier-title" className="mt-0.5 text-[16px]">
+          <h3 id="data-tier-title" className="mt-0.5 text-fs-title">
             {badge.label}
           </h3>
-          <p className="mt-1 text-[12.5px] leading-snug text-text-secondary">{badge.detail}</p>
+          <p className="mt-1 text-fs-body leading-snug text-text-secondary">{badge.detail}</p>
 
           {/* The safety statement, and the reason it is safe to fill the desk in
               at all. Shown in every tier so its absence is never the only signal.
@@ -131,7 +131,7 @@ export default function DataTierBadge({
               tier-gated at all: the kill switch answers to the guard mode and to
               the gateway answering a probe. A badge that describes a lockout
               nobody performs teaches the reader to distrust the badge. */}
-          <p className="mt-3 flex items-start gap-1.5 text-[12px] leading-snug text-text-secondary">
+          <p className="mt-3 flex items-start gap-1.5 text-fs-sm leading-snug text-text-secondary">
             <i aria-hidden>{writesEnabled(provenance.tier) ? "○" : "⦸"}</i>
             {writesEnabled(provenance.tier)
               ? "Orders submitted from this desk reach the gateway."
@@ -139,18 +139,18 @@ export default function DataTierBadge({
                 ? "The ticket stays open and judges every order in this browser using the gateway's own gate logic, against the generated book. Nothing is sent."
                 : "The ticket is closed while no gateway is answering, rather than ending a click in an error it could not explain."}
           </p>
-          <p className="mt-1 flex items-start gap-1.5 text-[12px] leading-snug text-text-muted">
+          <p className="mt-1 flex items-start gap-1.5 text-fs-sm leading-snug text-text-muted">
             <i aria-hidden>○</i>
             Operator controls answer to the guard mode and to the gateway, not to
             this tier.
           </p>
 
           {detail && (
-            <p className="mt-2 text-[12px] leading-snug text-text-muted">{detail}</p>
+            <p className="mt-2 text-fs-sm leading-snug text-text-muted">{detail}</p>
           )}
 
           {retryInSeconds !== null && (
-            <p className="mt-2 text-[12px] text-text-muted">
+            <p className="mt-2 text-fs-sm text-text-muted">
               Retrying automatically in about {retryInSeconds}s.
             </p>
           )}
@@ -158,7 +158,7 @@ export default function DataTierBadge({
           <button
             type="button"
             disabled={retrying}
-            className="mt-3 w-full rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-left text-[12.5px] font-semibold text-text-primary transition-[background-color] duration-(--dur-fast) ease-(--ease) hover:bg-surface-2"
+            className="mt-3 w-full rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-left text-fs-body font-semibold text-text-primary transition-[background-color] duration-(--dur-fast) ease-(--ease) hover:bg-surface-2"
             onClick={() => {
               setRetrying(true);
               const started = performance.now();
@@ -178,7 +178,7 @@ export default function DataTierBadge({
               and (when the route sent one) why. Keyed by the check time so a
               repeat check re-plays the line. */}
           {lastCheck && !retrying && (
-            <p key={lastCheck.at} className="mount-fade mt-2 flex items-start gap-1.5 text-[12px] leading-snug text-text-secondary">
+            <p key={lastCheck.at} className="mount-fade mt-2 flex items-start gap-1.5 text-fs-sm leading-snug text-text-secondary">
               {provenance.tier === "live" ? (
                 <>
                   <i aria-hidden>✓</i>

@@ -116,7 +116,7 @@ function HistogramChart({ result }: { result: McDistributionResult }) {
       </svg>
       <div
         className="muted num"
-        style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}
+        style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--fs-2xs)" }}
       >
         <span>{usd(lo, 0)}</span>
         <span>break-even at $0</span>
@@ -214,7 +214,7 @@ export default function MonteCarloDistribution({
       {state.status === "running" && (
         <>
           <div className="skeleton" style={{ height: 180 }} />
-          <p className="muted num" style={{ fontSize: 12.5 }}>
+          <p className="muted num" style={{ fontSize: "var(--fs-body)" }}>
             simulating: {(state.progress?.done ?? 0).toLocaleString()} /{" "}
             {(state.progress?.total ?? paths).toLocaleString()} paths
           </p>

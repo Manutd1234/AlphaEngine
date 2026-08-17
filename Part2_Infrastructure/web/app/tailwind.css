@@ -87,6 +87,32 @@
   /* Type and shape */
   --font-sans: var(--sans);
   --font-mono: var(--mono);
+
+  /* The type scale, bridged as `text-fs-*` utilities. Stock text-xs…9xl are
+     stripped first: their sizes are not the ladder's, and `text-sm` reading
+     as 14px here and 12px there is the drift the ladder exists to end. The
+     `fs-` prefix keeps the token name greppable; `--color-text-*` is a
+     different namespace, so the ink roles are untouched. */
+  --text-*: initial;
+  --text-fs-tick: var(--fs-tick);
+  --text-fs-2xs: var(--fs-2xs);
+  --text-fs-xs: var(--fs-xs);
+  --text-fs-sm: var(--fs-sm);
+  --text-fs-body: var(--fs-body);
+  --text-fs-md: var(--fs-md);
+  --text-fs-lg: var(--fs-lg);
+  --text-fs-xl: var(--fs-xl);
+  --text-fs-2xl: var(--fs-2xl);
+  --text-fs-title: var(--fs-title);
+  --text-fs-input: var(--fs-input);
+  --text-fs-h2: var(--fs-h2);
+  --text-fs-h1: var(--fs-h1);
+  --text-fs-figure: var(--fs-figure);
+  --text-fs-display: var(--fs-display);
+  --text-fs-chrome-tab: var(--fs-chrome-tab);
+  --text-fs-chrome-chip: var(--fs-chrome-chip);
+  --text-fs-chrome-caption: var(--fs-chrome-caption);
+  --text-fs-chrome-brand: var(--fs-chrome-brand);
   /* Was `var(--radius)`, which globals declared at 14px alongside an identical
      `--radius-lg`. One name per step now. */
   --radius-card: var(--radius-lg);

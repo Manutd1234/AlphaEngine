@@ -78,7 +78,7 @@ export default function DecisionLoopPipeline({
       {/* The band's local accent via the var shorthand — the plane is fixed
           dark in both themes, so this ink is fixed too and lives on
           .overview-hero rather than :root. */}
-      <span className="text-[12px] font-bold uppercase tracking-[0.05em] text-(--plane-accent)">Decision loop</span>
+      <span className="text-fs-sm font-bold uppercase tracking-[0.05em] text-(--plane-accent)">Decision loop</span>
       <ol
         className="mt-2 flex list-none flex-nowrap items-stretch gap-x-1 p-0 max-[560px]:flex-wrap max-[560px]:gap-y-2"
         aria-label="Pipeline stages"
@@ -110,15 +110,15 @@ export default function DecisionLoopPipeline({
                    follows the theme like every other control. */
                 className="grid min-w-0 flex-1 gap-1 rounded-[var(--radius-control)] border border-axis bg-surface-2 px-3 py-2.5 text-left font-normal"
               >
-                <span className="flex min-w-0 items-center gap-1.5 text-[13.5px] font-semibold text-text-primary">
+                <span className="flex min-w-0 items-center gap-1.5 text-fs-lg font-semibold text-text-primary">
                   <StageIcon size={15} aria-hidden className="shrink-0" />
                   <span className="min-w-0 truncate">{stage.label}</span>
-                  <span className="flex shrink-0 items-center gap-1 text-[12px] font-bold" style={{ color: style.hex }}>
+                  <span className="flex shrink-0 items-center gap-1 text-fs-sm font-bold" style={{ color: style.hex }}>
                     <StateIcon size={12} aria-hidden className={stage.state === "active" ? "animate-spin" : undefined} />
                     {style.word}
                   </span>
                 </span>
-                <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[12px] text-text-secondary">
+                <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-fs-sm text-text-secondary">
                   {stage.detail}
                 </span>
               </button>

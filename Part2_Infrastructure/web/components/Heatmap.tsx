@@ -160,7 +160,7 @@ export default function Heatmap({
           alignItems: "center",
           gap: 10,
           marginBottom: 10,
-          fontSize: 13,
+          fontSize: "var(--fs-md)",
           color: "var(--text-secondary)",
           flexWrap: "wrap",
         }}
@@ -177,7 +177,7 @@ export default function Heatmap({
                     borderRadius: 3,
                   }}
                 />
-                <span style={{ fontSize: 12 }}>
+                <span style={{ fontSize: "var(--fs-sm)" }}>
                   <span aria-hidden>{KIND_STYLE[kind].glyph} </span>
                   {kind}
                 </span>
@@ -186,7 +186,7 @@ export default function Heatmap({
           </span>
         )}
         <span style={{ display: showKinds ? "none" : "flex", alignItems: "center", gap: 5 }}>
-          <span className="num" style={{ fontSize: 12 }}>
+          <span className="num" style={{ fontSize: "var(--fs-sm)" }}>
             {fmt(-absMax, 1)}
           </span>
           <span
@@ -200,7 +200,7 @@ export default function Heatmap({
               background: `linear-gradient(90deg, ${negStops})`,
             }}
           />
-          <span className="num" style={{ fontSize: 12, color: "var(--text-muted)" }}>
+          <span className="num" style={{ fontSize: "var(--fs-sm)", color: "var(--text-muted)" }}>
             0
           </span>
           <span
@@ -214,11 +214,11 @@ export default function Heatmap({
               background: `linear-gradient(90deg, ${posStops})`,
             }}
           />
-          <span className="num" style={{ fontSize: 12 }}>
+          <span className="num" style={{ fontSize: "var(--fs-sm)" }}>
             +{fmt(absMax, 1)}
           </span>
         </span>
-        <span className="muted" style={{ fontSize: 12.5 }}>
+        <span className="muted" style={{ fontSize: "var(--fs-body)" }}>
           {showKinds
             ? "click a cell to inspect those parameters"
             : "grey = no edge; click a cell to inspect those parameters"}
@@ -358,7 +358,7 @@ export default function Heatmap({
         style={{
           minHeight: 34,
           marginTop: 8,
-          fontSize: 13.5,
+          fontSize: "var(--fs-lg)",
           fontFamily: "var(--mono)",
           color: active ? "var(--text-primary)" : "var(--text-muted)",
         }}

@@ -129,7 +129,7 @@ export default function AccountChip({
            and an unnamed link is a link a screen reader announces as "link". */
         aria-label="Sign in"
         title="Sign in"
-        className="inline-flex items-center gap-1.5 rounded-[9px] border border-transparent px-2 py-1.5 text-[12px] font-semibold text-text-secondary no-underline hover:border-border hover:bg-surface-2"
+        className="inline-flex items-center gap-1.5 rounded-[9px] border border-transparent px-2 py-1.5 text-fs-chrome-chip font-semibold text-text-secondary no-underline hover:border-border hover:bg-surface-2"
       >
         <UserRound size={14} aria-hidden />
         <span className="header-signin-label max-[520px]:hidden">Sign in</span>
@@ -158,11 +158,11 @@ export default function AccountChip({
            rule fills every <button> with --surface-2, so at rest this sat in a
            grey pill while the four status chips beside it were transparent —
            the avatar read as the one pressed control in the row. */
-        className="inline-flex items-center rounded-[9px] border border-transparent bg-transparent p-1 text-[12px] font-semibold text-text-secondary transition-[background-color,border-color] duration-(--dur-fast) ease-(--ease) hover:border-border hover:bg-surface-2"
+        className="inline-flex items-center rounded-[9px] border border-transparent bg-transparent p-1 text-fs-chrome-chip font-semibold text-text-secondary transition-[background-color,border-color] duration-(--dur-fast) ease-(--ease) hover:border-border hover:bg-surface-2"
       >
         <span
           aria-hidden
-          className="grid h-[22px] w-[22px] place-items-center rounded-[50%] bg-[color-mix(in_srgb,var(--series-1)_16%,var(--surface-2))] text-[10px] font-bold tracking-[0.02em] text-series-1"
+          className="grid h-[22px] w-[22px] place-items-center rounded-[50%] bg-[color-mix(in_srgb,var(--series-1)_16%,var(--surface-2))] text-fs-tick font-bold tracking-[0.02em] text-series-1"
         >
           {initials}
         </span>
@@ -171,7 +171,7 @@ export default function AccountChip({
       {open && (
         <AnchoredPanel id="account-panel" labelledBy="account-panel-title" width={280}>
           <span className="page-kicker">Account</span>
-          <h3 id="account-panel-title" className="mt-0.5 text-[14px] break-words">
+          <h3 id="account-panel-title" className="mt-0.5 text-fs-xl break-words">
             {label}
           </h3>
           {/*
@@ -181,7 +181,7 @@ export default function AccountChip({
             "Session active" is the honest claim: it says this browser holds a
             live session, not that the person is present.
           */}
-          <p className="mt-1 flex items-center gap-1.5 text-[12px] text-text-secondary">
+          <p className="mt-1 flex items-center gap-1.5 text-fs-sm text-text-secondary">
             <i
               aria-hidden
               className="block h-[6px] w-[6px] rounded-[50%] bg-status-good shadow-[0_0_0_3px_color-mix(in_srgb,var(--status-good)_14%,transparent)]"
@@ -195,14 +195,14 @@ export default function AccountChip({
               `pointer: coarse` block rather than a second one. */}
           <a
             href="/profile"
-            className="mt-3 block w-full rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-left text-[12.5px] font-semibold text-text-primary no-underline transition-[background-color] duration-(--dur-fast) ease-(--ease) hover:bg-surface-2"
+            className="mt-3 block w-full rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-left text-fs-body font-semibold text-text-primary no-underline transition-[background-color] duration-(--dur-fast) ease-(--ease) hover:bg-surface-2"
           >
             Account and security
           </a>
 
           <button
             type="button"
-            className="mt-2 w-full rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-left text-[12.5px] font-semibold text-text-primary transition-[background-color] duration-(--dur-fast) ease-(--ease) hover:bg-surface-2"
+            className="mt-2 w-full rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-left text-fs-body font-semibold text-text-primary transition-[background-color] duration-(--dur-fast) ease-(--ease) hover:bg-surface-2"
             onClick={() => {
               close(false);
               onOpenPreferences();
@@ -217,7 +217,7 @@ export default function AccountChip({
             /* Destructive, and it reads as destructive without relying on the
                colour alone: the label says Log out and the border carries the
                critical token, which survives forced-colors as a real border. */
-            className="mt-2 w-full rounded-[9px] border border-[color-mix(in_srgb,var(--status-critical)_45%,var(--border))] bg-surface-1 px-3 py-2 text-left text-[12.5px] font-semibold text-critical-text transition-[background-color] duration-(--dur-fast) ease-(--ease) hover:bg-[color-mix(in_srgb,var(--status-critical)_8%,var(--surface-1))]"
+            className="mt-2 w-full rounded-[9px] border border-[color-mix(in_srgb,var(--status-critical)_45%,var(--border))] bg-surface-1 px-3 py-2 text-left text-fs-body font-semibold text-critical-text transition-[background-color] duration-(--dur-fast) ease-(--ease) hover:bg-[color-mix(in_srgb,var(--status-critical)_8%,var(--surface-1))]"
             onClick={() => {
               if (signingOut) return;
               setSigningOut(true);

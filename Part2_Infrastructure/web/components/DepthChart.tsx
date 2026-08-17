@@ -81,7 +81,7 @@ export default function DepthChart({
 
   if (!bidPts.length || !askPts.length || !mid) {
     return (
-      <div ref={ref} style={{ height, display: "grid", placeItems: "center", color: "var(--text-muted)", fontSize: 14 }}>
+      <div ref={ref} style={{ height, display: "grid", placeItems: "center", color: "var(--text-muted)", fontSize: "var(--fs-xl)" }}>
         waiting for book…
       </div>
     );

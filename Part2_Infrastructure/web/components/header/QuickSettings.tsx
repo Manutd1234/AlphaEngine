@@ -155,10 +155,10 @@ export default function QuickSettings({
             </button>
           )}
           <span className="page-kicker">Viewing preferences</span>
-          <h3 id="quick-settings-title" className="mt-0.5 text-[16px]">
+          <h3 id="quick-settings-title" className="mt-0.5 text-fs-title">
             Quick settings
           </h3>
-          <p className="mt-1 text-[12px] leading-snug text-text-secondary">
+          <p className="mt-1 text-fs-sm leading-snug text-text-secondary">
             All four are about this browser. None of them change what the desk can do.
           </p>
 
@@ -167,14 +167,14 @@ export default function QuickSettings({
               a three-segment group sharing a row with its own label is 288px of
               panel doing two jobs badly. */}
           <div className="mt-3">
-            <span className="text-[12px] font-semibold text-text-secondary">Theme</span>
+            <span className="text-fs-sm font-semibold text-text-secondary">Theme</span>
             <div className="mt-1.5">
               <ThemeToggle />
             </div>
           </div>
 
           <div className="mt-3 border-t border-grid pt-3">
-            <span className="text-[12px] font-semibold text-text-secondary">Detail level</span>
+            <span className="text-fs-sm font-semibold text-text-secondary">Detail level</span>
             <div className="mt-1.5">
               <ComplexityToggle />
             </div>
@@ -182,7 +182,7 @@ export default function QuickSettings({
 
           <div className="mt-3 border-t border-grid pt-3">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-[12px] font-semibold text-text-secondary">Formatting</span>
+              <span className="text-fs-sm font-semibold text-text-secondary">Formatting</span>
               {/*
                 Disabled, not absent, and not a working selector that changes
                 nothing. There is no i18n layer here: lib/format.ts hardwires
@@ -196,12 +196,12 @@ export default function QuickSettings({
                 type="button"
                 disabled
                 aria-describedby="quick-settings-locale-note"
-                className="rounded-[8px] border border-border bg-surface-2 px-2 py-1 text-[12px] font-semibold text-text-secondary opacity-[0.55]"
+                className="rounded-[8px] border border-border bg-surface-2 px-2 py-1 text-fs-sm font-semibold text-text-secondary opacity-[0.55]"
               >
                 English (US)
               </button>
             </div>
-            <p id="quick-settings-locale-note" className="mt-1.5 text-[11.5px] leading-snug text-text-muted">
+            <p id="quick-settings-locale-note" className="mt-1.5 text-fs-xs leading-snug text-text-muted">
               Numbers format as en-US and dates as en-GB throughout. Other locales are not
               implemented yet, so this is fixed rather than offered.
             </p>
@@ -209,7 +209,7 @@ export default function QuickSettings({
 
           <div className="mt-3 border-t border-grid pt-3">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-[12px] font-semibold text-text-secondary">System status</span>
+              <span className="text-fs-sm font-semibold text-text-secondary">System status</span>
               {/* The mirrored chip IS the door — the base button rule supplies
                   the house chrome, .system-health the dot and the label voice.
                   Not .system-health-action: its narrow-width rules collapse the

@@ -199,7 +199,7 @@ export default function TelegramCta() {
      py-1 this chip stood ~37px tall with a 10px radius — the same standing-
      proud defect the latency chip's own fix narrates in globals.css. */
   const chrome =
-    "inline-flex min-h-[32px] items-center gap-2 rounded-[9px] border px-2 py-0.5 text-[12px] font-semibold no-underline "
+    "inline-flex min-h-[32px] items-center gap-2 rounded-[9px] border px-2 py-0.5 text-fs-chrome-chip font-semibold no-underline "
     + (linked
       /* Connected wears the house green, and green is never the only carrier:
          the word changes to "Connected", a ✓ appears beside the mark, and the
@@ -237,7 +237,7 @@ export default function TelegramCta() {
           <path d="M21.94 4.3 18.9 19.1c-.23 1.02-.84 1.27-1.7.79l-4.7-3.47-2.27 2.19c-.25.25-.46.46-.95.46l.34-4.8 8.73-7.9c.38-.34-.08-.53-.59-.19L6.98 13.1 2.34 11.6c-1.01-.31-1.03-1.01.21-1.5L20.63 3.1c.84-.31 1.57.19 1.31 1.2Z" />
         </svg>
       </span>
-      {mark ? <span aria-hidden className="text-[13px] leading-none">{mark}</span> : null}
+      {mark ? <span aria-hidden className="text-fs-chrome-tab leading-none">{mark}</span> : null}
       <span className="max-[1580px]:hidden">{label}</span>
     </>
   );

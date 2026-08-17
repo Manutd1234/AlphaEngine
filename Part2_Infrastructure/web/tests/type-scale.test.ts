@@ -200,14 +200,17 @@ describe("inline sizes stay on the scale", () => {
     return out;
   }
 
-  it("every numeric fontSize in a component is a rung", () => {
+  it("every numeric SVG fontSize in a component is a rung", () => {
+    // SVG `<text fontSize={N}>` is user units — charts lay out in px and their
+    // labels neither follow the rem ramp nor the Text-size step — so those
+    // stay numeric and on the inline list. HTML text does not get a number.
     const offenders: string[] = [];
     for (const file of [...sources(join(root, "components")), ...sources(join(root, "app"))]) {
       // The icon generators draw a glyph into a fixed bitmap, not UI text.
       if (/app\/(apple-icon|icon)\.tsx$/.test(file)) continue;
       const source = readFileSync(file, "utf8");
       source.split("\n").forEach((line, index) => {
-        for (const match of line.matchAll(/fontSize[:=][ {]*([\d.]+)/g)) {
+        for (const match of line.matchAll(/fontSize=\{\s*([\d.]+)/g)) {
           if (!INLINE_SIZES.has(Number(match[1]))) {
             offenders.push(`${file.slice(root.length)}:${index + 1} — fontSize ${match[1]}`);
           }
@@ -219,5 +222,24 @@ describe("inline sizes stay on the scale", () => {
       [],
       `inline sizes off the scale:\n  ${offenders.join("\n  ")}`,
     );
+  });
+
+  it("no HTML text carries a literal size — not a Tailwind px, not a stock text-*, not a numeric style", () => {
+    // Ninety `text-[12px]`-style literals and twenty-one `style={{ fontSize: 12.5 }}`
+    // used to live beside the ladder, equal to its rungs by coincidence and
+    // left behind by any change to them. Components read the ladder through
+    // the bridged `text-fs-*` utilities or `var(--fs-*)`; nothing else.
+    const offenders: string[] = [];
+    for (const file of [...sources(join(root, "components")), ...sources(join(root, "app"))]) {
+      if (/app\/(apple-icon|icon)\.tsx$/.test(file)) continue;
+      const source = readFileSync(file, "utf8");
+      source.split("\n").forEach((line, index) => {
+        const where = `${file.slice(root.length)}:${index + 1}`;
+        for (const m of line.matchAll(/text-\[[\d.]+px\]/g)) offenders.push(`${where} — ${m[0]}`);
+        for (const m of line.matchAll(/(?<![\w-])text-(xs|sm|base|lg|xl|\dxl)(?![\w-])/g)) offenders.push(`${where} — stock ${m[0]}`);
+        for (const m of line.matchAll(/fontSize:\s*[\d.]+/g)) offenders.push(`${where} — ${m[0]}`);
+      });
+    }
+    assert.deepEqual(offenders, [], `literal sizes off the ladder:\n  ${offenders.join("\n  ")}`);
   });
 });

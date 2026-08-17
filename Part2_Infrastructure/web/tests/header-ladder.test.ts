@@ -141,9 +141,9 @@ describe("the header's words are one size class", () => {
       assert.match(value, /^\d+(\.\d+)?px$/, `${token} must be a fixed px value, got ${value}`);
     }
     assert.ok(Number(root.match(/--fs-chrome-tab:\s*([\d.]+)px/)![1]) > Number(root.match(/--fs-chrome-chip:\s*([\d.]+)px/)![1]));
-    // The triggers, not the panels behind them (panel field labels are 11px on purpose).
-    assert.match(read("components/header/KillSwitchControl.tsx"), /py-1\.5 text-\[12px\] font-semibold text-text-secondary hover:border-border/);
-    assert.match(read("components/header/AccountChip.tsx"), /py-1\.5 text-\[12px\] font-semibold text-text-secondary no-underline/);
-    assert.match(read("components/header/TelegramCta.tsx"), /text-\[12px\] font-semibold no-underline/);
+    // The triggers, not the panels behind them (panel copy uses content rungs).
+    assert.match(read("components/header/KillSwitchControl.tsx"), /py-1\.5 text-fs-chrome-chip font-semibold text-text-secondary hover:border-border/);
+    assert.match(read("components/header/AccountChip.tsx"), /py-1\.5 text-fs-chrome-chip font-semibold text-text-secondary no-underline/);
+    assert.match(read("components/header/TelegramCta.tsx"), /text-fs-chrome-chip font-semibold no-underline/);
   });
 });
