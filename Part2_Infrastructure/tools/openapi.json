@@ -320,6 +320,470 @@
         "title": "CheckResult",
         "type": "object"
       },
+      "DataQualityCapabilityRow": {
+        "properties": {
+          "capability": {
+            "title": "Capability",
+            "type": "string"
+          },
+          "drift": {
+            "title": "Drift",
+            "type": "integer"
+          },
+          "evaluated": {
+            "title": "Evaluated",
+            "type": "integer"
+          },
+          "fatal": {
+            "title": "Fatal",
+            "type": "integer"
+          },
+          "not_evaluated": {
+            "title": "Not Evaluated",
+            "type": "integer"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "integer"
+          },
+          "warn": {
+            "title": "Warn",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "evaluated",
+          "passed",
+          "fatal",
+          "warn",
+          "drift",
+          "not_evaluated",
+          "capability"
+        ],
+        "title": "DataQualityCapabilityRow",
+        "type": "object"
+      },
+      "DataQualityCounts": {
+        "properties": {
+          "drift": {
+            "title": "Drift",
+            "type": "integer"
+          },
+          "evaluated": {
+            "title": "Evaluated",
+            "type": "integer"
+          },
+          "fatal": {
+            "title": "Fatal",
+            "type": "integer"
+          },
+          "not_evaluated": {
+            "title": "Not Evaluated",
+            "type": "integer"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "integer"
+          },
+          "warn": {
+            "title": "Warn",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "evaluated",
+          "passed",
+          "fatal",
+          "warn",
+          "drift",
+          "not_evaluated"
+        ],
+        "title": "DataQualityCounts",
+        "type": "object"
+      },
+      "DataQualityEscalationView": {
+        "properties": {
+          "channel": {
+            "anyOf": [
+              {
+                "enum": [
+                  "telegram",
+                  "log"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "evaluated": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluated"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "notified_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notified At"
+          },
+          "opened_at": {
+            "format": "date-time",
+            "title": "Opened At",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "rule": {
+            "enum": [
+              "fatal_burst",
+              "fail_rate"
+            ],
+            "title": "Rule",
+            "type": "string"
+          },
+          "window_minutes": {
+            "title": "Window Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "rule",
+          "provider",
+          "opened_at",
+          "window_minutes",
+          "count",
+          "evaluated",
+          "detail",
+          "notified_at",
+          "channel",
+          "resolved_at"
+        ],
+        "title": "DataQualityEscalationView",
+        "type": "object"
+      },
+      "DataQualityFindingView": {
+        "properties": {
+          "capability": {
+            "title": "Capability",
+            "type": "string"
+          },
+          "checks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "instance": {
+            "title": "Instance",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "boolean"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "fatal",
+              "warn",
+              "drift",
+              "clean"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "web",
+              "replay",
+              "backfill"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol"
+          }
+        },
+        "required": [
+          "id",
+          "observed_at",
+          "instance",
+          "source",
+          "capability",
+          "provider",
+          "symbol",
+          "key",
+          "passed",
+          "severity",
+          "checks"
+        ],
+        "title": "DataQualityFindingView",
+        "type": "object"
+      },
+      "DataQualityFindingsResponse": {
+        "properties": {
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/DataQualityFindingView"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "retention_days": {
+            "title": "Retention Days",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "window_minutes": {
+            "title": "Window Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "findings",
+          "total",
+          "retention_days",
+          "window_minutes",
+          "observed_at"
+        ],
+        "title": "DataQualityFindingsResponse",
+        "type": "object"
+      },
+      "DataQualityProviderRow": {
+        "properties": {
+          "drift": {
+            "title": "Drift",
+            "type": "integer"
+          },
+          "evaluated": {
+            "title": "Evaluated",
+            "type": "integer"
+          },
+          "fail_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fail Rate"
+          },
+          "fatal": {
+            "title": "Fatal",
+            "type": "integer"
+          },
+          "not_evaluated": {
+            "title": "Not Evaluated",
+            "type": "integer"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "integer"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "warn": {
+            "title": "Warn",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "evaluated",
+          "passed",
+          "fatal",
+          "warn",
+          "drift",
+          "not_evaluated",
+          "provider",
+          "fail_rate"
+        ],
+        "title": "DataQualityProviderRow",
+        "type": "object"
+      },
+      "DataQualityView": {
+        "description": "The merged ledger, as every instance reads it back.\n\nEvery field is required on purpose (the same house rule as\n``WebStateView``): a response field with a default publishes itself as\noptional in the OpenAPI contract, and a generated client would then hedge\nagainst an absence that cannot happen.",
+        "properties": {
+          "backend": {
+            "const": "sqlite",
+            "title": "Backend",
+            "type": "string"
+          },
+          "by_capability": {
+            "items": {
+              "$ref": "#/components/schemas/DataQualityCapabilityRow"
+            },
+            "title": "By Capability",
+            "type": "array"
+          },
+          "by_provider": {
+            "items": {
+              "$ref": "#/components/schemas/DataQualityProviderRow"
+            },
+            "title": "By Provider",
+            "type": "array"
+          },
+          "escalations": {
+            "items": {
+              "$ref": "#/components/schemas/DataQualityEscalationView"
+            },
+            "title": "Escalations",
+            "type": "array"
+          },
+          "first_observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Observed At"
+          },
+          "instances": {
+            "title": "Instances",
+            "type": "integer"
+          },
+          "last_observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Observed At"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "recent": {
+            "items": {
+              "$ref": "#/components/schemas/DataQualityFindingView"
+            },
+            "title": "Recent",
+            "type": "array"
+          },
+          "retention_days": {
+            "title": "Retention Days",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "total": {
+            "$ref": "#/components/schemas/DataQualityCounts"
+          },
+          "window_minutes": {
+            "title": "Window Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "backend",
+          "retention_days",
+          "window_minutes",
+          "observed_at",
+          "first_observed_at",
+          "last_observed_at",
+          "instances",
+          "total",
+          "by_provider",
+          "by_capability",
+          "recent",
+          "escalations"
+        ],
+        "title": "DataQualityView",
+        "type": "object"
+      },
       "DecisionLatencySnapshot": {
         "description": "The pre-trade decision's own clock, in-process, every sample since start.\n\n``engine`` and ``samples`` are always present so a build that fell back to\nthe Python reference is visible before the first order; the quantiles are\nnull until something has been measured \u2014 quantiles of nothing are not\nzeros. ``core_*`` is the native engine's timing of the arithmetic alone,\nin nanoseconds, and is null while the Python engine runs. The core\nhistogram may include a startup self-measure of the same compiled battery\non a synthetic two-venue book \u2014 ``core_self_test_samples`` says how many of\nits samples that contributed, null when there is no core histogram at all;\nthe decision (\u00b5s) histogram never does, so ``samples`` counts submitted\norders only.",
         "properties": {
@@ -2533,6 +2997,132 @@
         "title": "VenueBook",
         "type": "object"
       },
+      "WebContractCheck": {
+        "properties": {
+          "check": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Check",
+            "type": "string"
+          },
+          "message": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Message",
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "fatal",
+              "warn",
+              "drift"
+            ],
+            "title": "Severity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "check",
+          "severity"
+        ],
+        "title": "WebContractCheck",
+        "type": "object"
+      },
+      "WebContractFinding": {
+        "description": "One contract evaluation, as the web instance recorded it.\n\n``seq`` is the instance's own monotonic counter: with ``UNIQUE(instance,\nseq)`` a batch the instance restores and re-pushes after a failed sync is\nde-duplicated rather than counted twice.",
+        "properties": {
+          "capability": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Capability",
+            "type": "string"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/WebContractCheck"
+            },
+            "maxItems": 32,
+            "title": "Checks",
+            "type": "array"
+          },
+          "drift": {
+            "default": 0,
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Drift",
+            "type": "integer"
+          },
+          "fatal": {
+            "default": 0,
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Fatal",
+            "type": "integer"
+          },
+          "key": {
+            "default": "",
+            "maxLength": 160,
+            "title": "Key",
+            "type": "string"
+          },
+          "not_evaluated": {
+            "default": 0,
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Not Evaluated",
+            "type": "integer"
+          },
+          "observed_at": {
+            "description": "Epoch milliseconds, client clock",
+            "minimum": 0.0,
+            "title": "Observed At",
+            "type": "number"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "boolean"
+          },
+          "provider": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Provider",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 0.0,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "maxLength": 24,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol"
+          },
+          "warn": {
+            "default": 0,
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Warn",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seq",
+          "observed_at",
+          "capability",
+          "provider",
+          "passed"
+        ],
+        "title": "WebContractFinding",
+        "type": "object"
+      },
       "WebLatencyBatch": {
         "properties": {
           "key": {
@@ -2732,6 +3322,14 @@
       },
       "WebStateSyncRequest": {
         "properties": {
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/WebContractFinding"
+            },
+            "maxItems": 200,
+            "title": "Findings",
+            "type": "array"
+          },
           "instance": {
             "maxLength": 64,
             "minLength": 1,
@@ -2794,6 +3392,9 @@
       },
       "WebStateView": {
         "properties": {
+          "data_quality": {
+            "$ref": "#/components/schemas/DataQualityView"
+          },
           "instances": {
             "items": {
               "type": "string"
@@ -2844,7 +3445,8 @@
           "instances",
           "latency",
           "outages",
-          "quota"
+          "quota",
+          "data_quality"
         ],
         "title": "WebStateView",
         "type": "object"
@@ -3513,6 +4115,220 @@
         ]
       }
     },
+    "/api/data-quality/findings": {
+      "get": {
+        "description": "Older findings than the view carries, filtered; newest first.",
+        "operationId": "data_quality_findings_api_data_quality_findings_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "provider",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider"
+            }
+          },
+          {
+            "in": "query",
+            "name": "capability",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Capability"
+            }
+          },
+          {
+            "in": "query",
+            "name": "severity",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(fatal|warn|drift|clean)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Severity"
+            }
+          },
+          {
+            "description": "ISO-8601; only findings observed at or after this",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ISO-8601; only findings observed at or after this",
+              "title": "Since"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataQualityFindingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Data Quality Findings",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/api/data-quality/view": {
+      "get": {
+        "description": "The merged, durable contract-finding ledger \u2014 the same view the sync returns.",
+        "operationId": "data_quality_view_api_data_quality_view_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataQualityView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Data Quality View",
+        "tags": [
+          "data"
+        ]
+      }
+    },
     "/api/jobs": {
       "get": {
         "operationId": "list_jobs_api_jobs_get",
@@ -3736,7 +4552,7 @@
     },
     "/api/ops/web-state/sync": {
       "post": {
-        "description": "Merge one web instance's telemetry deltas and return the shared view.\n\nThe Vercel workspace runs on rotating serverless instances whose in-memory\nledgers disagree; this gateway is the one long-lived process they share.\nPush and pull happen in a single round trip so a health poll pays exactly\none extra request. Observability only \u2014 no trading state passes this way.",
+        "description": "Merge one web instance's telemetry deltas and return the shared view.\n\nThe Vercel workspace runs on rotating serverless instances whose in-memory\nledgers disagree; this gateway is the one long-lived process they share.\nPush and pull happen in a single round trip so a health poll pays exactly\none extra request. Observability only \u2014 no trading state passes this way.\n\nContract findings in the same body are persisted by the data-quality\nledger; any escalation they open is delivered on a task of its own so the\nround trip never pays for a chat.",
         "operationId": "web_state_sync_api_ops_web_state_sync_post",
         "parameters": [
           {

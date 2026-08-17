@@ -17,16 +17,25 @@ Deliberately in-process, like every other ledger here: one VM, one process, no
 new infrastructure. A gateway restart forgets this state — that is disclosed by
 ``observed_at`` plus the retention window, and the web re-fills it within a few
 polls. Nothing in here is load-bearing for trading; it is observability truth.
+
+One half of the sync is different: the contract findings each instance pushes
+are persisted by ``modules.data_quality`` (SQLite on the data volume) rather
+than kept in memory, and the merged quality view rides back in the same
+response. That half survives a restart on purpose — a quality ledger that
+forgets on deploy is not a ledger.
 """
 
 from __future__ import annotations
 
 import time
 from collections import deque
+from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Literal
 
 from pydantic import BaseModel, Field
+
+from modules.data_quality import FINDINGS_BATCH_CAP, DataQualityView, WebContractFinding
 
 # One retention window for everything, matching the web ledger's own 15-minute
 # read window so both sides describe the same "now".
@@ -90,6 +99,9 @@ class WebStateSyncRequest(BaseModel):
     quota_reset: list[WebQuotaReset] = Field(default_factory=list, max_length=16)
     outages_set: list[WebOutageCommand] = Field(default_factory=list, max_length=16)
     outages_cleared: list[str] = Field(default_factory=list, max_length=32, description='Provider ids; "*" clears all')
+    # Contract findings since the instance's last successful sync. Persisted by
+    # the data-quality ledger, not merged in memory like the rest.
+    findings: list[WebContractFinding] = Field(default_factory=list, max_length=FINDINGS_BATCH_CAP)
 
 
 class WebLatencyKeyView(BaseModel):
@@ -123,6 +135,8 @@ class WebStateView(BaseModel):
     latency: list[WebLatencyKeyView]
     outages: list[WebOutageView]
     quota: list[WebQuotaView]
+    # The merged, durable quality ledger — required, like every other field.
+    data_quality: DataQualityView
 
 
 # --------------------------------------------------------------------------- #
@@ -135,11 +149,14 @@ class WebOpsState:
     writes, so the single event loop serialises access without a lock.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, ledger_view: Callable[[float], DataQualityView] | None = None) -> None:
         self._samples: dict[str, deque[tuple[float, float, bool]]] = {}
         self._outages: dict[str, tuple[float, str]] = {}
         self._quota: dict[tuple[str, str], int] = {}
         self._instances: dict[str, float] = {}
+        # Injected so the store can be driven with an in-memory ledger under
+        # test, and so this module never opens the SQLite file itself.
+        self._ledger_view = ledger_view or _in_memory_ledger_view()
 
     def reset(self) -> None:
         self._samples.clear()
@@ -275,7 +292,15 @@ class WebOpsState:
                 WebQuotaView(provider=provider, window=window, spent=spent)
                 for (provider, window), spent in sorted(self._quota.items())
             ],
+            data_quality=self._ledger_view(now),
         )
+
+
+def _in_memory_ledger_view() -> Callable[[float], DataQualityView]:
+    from modules.data_quality import DataQualityLedger
+
+    ledger = DataQualityLedger.in_memory()
+    return ledger.view
 
 
 _web_ops: WebOpsState | None = None
@@ -284,5 +309,7 @@ _web_ops: WebOpsState | None = None
 def get_web_ops() -> WebOpsState:
     global _web_ops
     if _web_ops is None:
-        _web_ops = WebOpsState()
+        from modules.data_quality import get_data_quality
+
+        _web_ops = WebOpsState(get_data_quality().view)
     return _web_ops

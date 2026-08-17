@@ -1,0 +1,244 @@
+"use client";
+
+/**
+ * The durable data-quality ledger, as the Data tab shows it.
+ *
+ * Every web instance's contract findings, merged on the gateway and kept in
+ * SQLite on its data volume — the ledger this deployment used to name as a
+ * production gap. Escalations lead: an operator reading this card wants to
+ * know first whether anything was escalated, to which channel, and whether it
+ * has since cleared. Then the per-provider table (a fail rate is a dash until
+ * something was evaluated — never 0), then the most recent findings, with a
+ * way to load older ones through the gateway.
+ *
+ * When the gateway did not return a ledger, the card says so and says what
+ * that absence does not prove: this instance's own window is what the other
+ * panels then show, and it is not the fleet's history.
+ */
+
+import { useCallback, useState } from "react";
+
+import type { DataQualityEscalation, DataQualityFinding, ValidationTelemetry } from "@/components/systems/types";
+import { probeGateway } from "@/lib/use-gateway-connection";
+
+interface DataQualityLedgerProps {
+  validation: ValidationTelemetry | null | undefined;
+  /** False while the console has no health snapshot at all. */
+  healthLoaded: boolean;
+}
+
+const RULE_LABEL: Record<DataQualityEscalation["rule"], string> = {
+  fatal_burst: "fatal burst",
+  fail_rate: "fail rate",
+};
+
+const SEVERITY_MARK: Record<DataQualityFinding["severity"], string> = {
+  fatal: "✕",
+  warn: "▲",
+  drift: "≠",
+  clean: "●",
+};
+
+function utc(iso: string | null): string {
+  if (!iso) return "—";
+  const parsed = Date.parse(iso);
+  if (Number.isNaN(parsed)) return iso;
+  return new Date(parsed).toISOString().replace("T", " ").slice(0, 16) + " UTC";
+}
+
+function pct(rate: number | null): string {
+  return rate === null ? "—" : `${Math.round(rate * 100)}%`;
+}
+
+export default function DataQualityLedger({ validation, healthLoaded }: DataQualityLedgerProps) {
+  const ledger = validation?.scope === "gateway-ledger" ? validation.ledger ?? null : null;
+  const [older, setOlder] = useState<DataQualityFinding[] | null>(null);
+  const [olderTotal, setOlderTotal] = useState<number | null>(null);
+  const [olderState, setOlderState] = useState<"idle" | "loading" | "error">("idle");
+  const [olderError, setOlderError] = useState<string | null>(null);
+
+  const loadOlder = useCallback(async () => {
+    setOlderState("loading");
+    setOlderError(null);
+    // Through probeGateway, so a gateway that accepts and never answers cannot
+    // hold this button in "Loading…" forever — the same deadline every other
+    // gateway read carries.
+    const outcome = await probeGateway<{ findings: DataQualityFinding[]; total: number }>(
+      "/api/gateway/data/quality?limit=100",
+    );
+    if (!outcome.ok) {
+      setOlderState("error");
+      setOlderError(outcome.failure.timedOut
+        ? "The gateway did not answer within the deadline; the ledger is unreachable from here right now."
+        : outcome.failure.message);
+      return;
+    }
+    setOlder(outcome.payload.findings);
+    setOlderTotal(outcome.payload.total);
+    setOlderState("idle");
+  }, []);
+
+  const open = ledger?.escalations.filter((e) => e.resolved_at === null) ?? [];
+  const resolved = ledger?.escalations.filter((e) => e.resolved_at !== null) ?? [];
+  const providers = ledger
+    ? Object.entries(validation!.byProvider).sort(([a], [b]) => a.localeCompare(b))
+    : [];
+
+  return (
+    <section className="card console-card" aria-labelledby="data-quality-ledger-heading">
+      <div className="section-heading compact">
+        <div>
+          <span className="page-kicker">Data quality</span>
+          <h2 id="data-quality-ledger-heading">Quality ledger and escalations</h2>
+        </div>
+        <span className="section-note">
+          {ledger
+            ? `gateway SQLite, ${ledger.retentionDays}-day retention; ${ledger.instances} ${ledger.instances === 1 ? "instance" : "instances"} reporting`
+            : healthLoaded
+              ? "gateway ledger not returned"
+              : "waiting for the health snapshot"}
+        </span>
+      </div>
+
+      {!ledger && (
+        // The absence, and what it does not prove. The other panels fall back
+        // to this instance's own window; that is not the fleet's history.
+        <p className="sub">
+          {healthLoaded
+            ? "The gateway did not return its quality ledger on the last sync, so the counts on this tab are this instance's own window. That says nothing about what other instances or earlier hours recorded."
+            : "The ledger arrives with the first health snapshot."}
+        </p>
+      )}
+
+      {ledger && (
+        <>
+          <dl className="console-facts console-facts--tight" aria-label="Ledger totals">
+            <div>
+              <dt>Window</dt>
+              <dd>{ledger.windowMinutes >= 1440 ? `${Math.round(ledger.windowMinutes / 60)} h` : `${ledger.windowMinutes} min`}</dd>
+            </div>
+            <div>
+              <dt>Payloads evaluated</dt>
+              <dd>{validation!.evaluated}</dd>
+            </div>
+            <div>
+              <dt>Findings</dt>
+              <dd>{validation!.fatal} fatal, {validation!.warn} warn, {validation!.drift} drift</dd>
+            </div>
+            <div>
+              <dt>Escalations open</dt>
+              <dd>{open.length}</dd>
+            </div>
+          </dl>
+
+          <p className="console-subhead">
+            Escalations
+            <small className="muted"> — a burst of fatal findings, or a fail rate over the threshold, per provider; one per cooldown, auto-resolved when it clears.</small>
+          </p>
+          {ledger.escalations.length === 0 ? (
+            <p className="sub">
+              No escalation in the last {ledger.windowMinutes >= 1440 ? `${Math.round(ledger.windowMinutes / 60)} hours` : `${ledger.windowMinutes} minutes`};{" "}
+              {validation!.evaluated} {validation!.evaluated === 1 ? "payload" : "payloads"} evaluated. An empty list here means the rules did not fire, not that every payload was clean — see the findings below.
+            </p>
+          ) : (
+            <ul className="console-skips" aria-label="Escalations">
+              {[...open, ...resolved].map((e) => (
+                <li key={e.id}>
+                  <strong>
+                    <span aria-hidden>{e.resolved_at ? "✓" : "▲"}</span>{" "}
+                    {e.resolved_at ? "Cleared" : "Open"}: {RULE_LABEL[e.rule]}, {e.provider}
+                  </strong>
+                  <span className="console-skip__reason">
+                    {e.channel === "telegram"
+                      ? `escalated to Telegram at ${utc(e.notified_at)}`
+                      : e.channel === "log"
+                        ? `escalated to the gateway log at ${utc(e.notified_at)} (Telegram not configured)`
+                        : "delivery pending"}
+                  </span>
+                  <small className="muted console-wrap">
+                    {e.detail}; opened {utc(e.opened_at)}{e.resolved_at ? `; cleared ${utc(e.resolved_at)}` : ""}.
+                  </small>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <p className="console-subhead">
+            By provider
+            <small className="muted"> — a fail rate is a dash until something was evaluated.</small>
+          </p>
+          {providers.length === 0 ? (
+            <p className="sub">No provider has a finding in the window.</p>
+          ) : (
+            <div className="table-wrap table-wrap--clamped">
+              <table>
+                <caption className="sr-only">Contract findings by provider in the ledger window.</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Provider</th>
+                    <th scope="col">Evaluated</th>
+                    <th scope="col">Passed</th>
+                    <th scope="col">Fail rate</th>
+                    <th scope="col">Fatal</th>
+                    <th scope="col">Warn</th>
+                    <th scope="col">Drift</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {providers.map(([provider, counts]) => (
+                    <tr key={provider}>
+                      <td>{provider}</td>
+                      <td className="num">{counts.evaluated}</td>
+                      <td className="num">{counts.passed}</td>
+                      <td className="num">{pct(ledger.byProviderFailRate[provider] ?? null)}</td>
+                      <td className="num">{counts.fatal}</td>
+                      <td className="num">{counts.warn}</td>
+                      <td className="num">{counts.drift}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <p className="console-subhead">
+            Recent findings
+            <small className="muted"> — newest first; every instance and every replay job writes here.</small>
+          </p>
+          {(older ?? ledger.recent).length === 0 ? (
+            <p className="sub">No finding recorded in the window.</p>
+          ) : (
+            <ul className="console-skips" aria-label="Recent findings">
+              {(older ?? ledger.recent).map((f) => (
+                <li key={f.id}>
+                  <strong>
+                    <span aria-hidden>{SEVERITY_MARK[f.severity]}</span> {f.severity}: {f.capability}, {f.provider}
+                    {f.symbol ? `, ${f.symbol}` : ""}
+                  </strong>
+                  <span className="console-skip__reason">{utc(f.observed_at)}, {f.source === "web" ? `instance ${f.instance}` : f.source}</span>
+                  {f.checks.length > 0 && (
+                    <small className="muted console-wrap">{f.checks.join(", ")}</small>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="console-inspector__controls" style={{ marginTop: 8, marginBottom: 0 }}>
+            <button type="button" onClick={() => void loadOlder()} disabled={olderState === "loading"}>
+              {olderState === "loading" ? "Loading…" : older ? "Reload older findings" : "Load older findings"}
+            </button>
+            {olderTotal !== null && (
+              <span className="muted">{olderTotal} in the ledger; showing {older?.length ?? 0}</span>
+            )}
+          </div>
+          {olderState === "error" && (
+            <div className="banner error" role="alert">
+              <span aria-hidden>✕</span>
+              <div>{olderError}</div>
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  );
+}

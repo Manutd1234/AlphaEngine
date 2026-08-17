@@ -32,6 +32,7 @@ export const API_OPERATIONS: readonly ApiOperation[] = [
   { method: "POST", path: "/api/backtest", purpose: "Synchronous parameter sweep", group: "research" },
   { method: "GET", path: "/api/research?symbol=BTCUSDT", purpose: "Research-service proxy and evidence lookup", group: "research" },
   { method: "GET", path: "/api/gateway/audit?feed=orders", purpose: "Audited orders and risk events", group: "gateway" },
+  { method: "GET", path: "/api/gateway/data/quality?limit=100", purpose: "Older findings from the durable data-quality ledger", group: "gateway" },
   { method: "GET", path: "/api/gateway/orders", purpose: "Order blotter from the authoritative gateway", group: "gateway" },
   { method: "POST", path: "/api/gateway/orders", purpose: "Risk-gated paper-order submission", group: "gateway" },
   { method: "GET", path: "/api/gateway/orders/working", purpose: "Orders resting on the book right now", group: "gateway" },

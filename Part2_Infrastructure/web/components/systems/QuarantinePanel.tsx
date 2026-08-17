@@ -79,7 +79,10 @@ export default function QuarantinePanel({
           <h2>Quarantine</h2>
         </div>
         <span className="section-note">
-          {size === 0 ? "0 records in health-route buffer" : `${size} flagged payload${size === 1 ? "" : "s"}`}
+          {size === 0 ? "0 records in this instance's buffer" : `${size} flagged payload${size === 1 ? "" : "s"}`}
+          {validation?.scope === "gateway-ledger" && validation.ledger
+            ? `; ledger persisted on the gateway, ${validation.ledger.retentionDays}-day retention`
+            : ""}
         </span>
       </div>
 
@@ -103,7 +106,11 @@ export default function QuarantinePanel({
           </div>
           <div>
             <dt>Evidence window</dt>
-            <dd>{validation.retained} / {validation.capacity} per instance</dd>
+            <dd>
+              {validation.scope === "gateway-ledger" && validation.ledger
+                ? `${validation.retained} findings in the gateway ledger, ${validation.ledger.windowMinutes >= 1440 ? `${Math.round(validation.ledger.windowMinutes / 60)} h` : `${validation.ledger.windowMinutes} min`} window`
+                : `${validation.retained} / ${validation.capacity ?? "—"} per instance`}
+            </dd>
           </div>
         </dl>
       )}
@@ -111,8 +118,11 @@ export default function QuarantinePanel({
       {size === 0 ? (
         validation?.evaluated ? (
           <p className="sub">
-            No flagged payload excerpt is retained. This health-route instance evaluated {validation.evaluated}{" "}
-            normalised quote, bar, news or fundamentals payload{validation.evaluated === 1 ? "" : "s"} in the bounded
+            No flagged payload excerpt is retained.{" "}
+            {validation.scope === "gateway-ledger"
+              ? `The gateway ledger holds ${validation.evaluated} evaluated`
+              : `This health-route instance evaluated ${validation.evaluated}`}{" "}
+            normalised quote, bar, news or fundamentals payload{validation.evaluated === 1 ? "" : "s"} in the
             window above; {validation.passed} had no fatal finding. Warnings, drift, and checks that
             could not run remain separate evidence and are not silently counted as clean checks.
           </p>
@@ -192,11 +202,23 @@ export default function QuarantinePanel({
       )}
 
       <p className="research-note">
-        Scope: normalised quote, bar, news and fundamentals payloads handled by the health-route function instance—not
-        every request route, provider, symbol, raw vendor schema, or deployed instance. The evidence
-        window and quarantine are bounded in memory and reset on restart. Rejected payloads were never
-        cached, so failover could try a cleaner source; stored excerpts use the trace console&apos;s
-        redaction rules.
+        {validation?.scope === "gateway-ledger" ? (
+          <>
+            Scope: the aggregate counts are the gateway&apos;s durable ledger — every web instance&apos;s
+            normalised quote, bar, news and fundamentals findings, merged and kept across restarts. The
+            quarantine excerpts below are still this health-route instance&apos;s bounded buffer and reset
+            with it. Rejected payloads were never cached, so failover could try a cleaner source; stored
+            excerpts use the trace console&apos;s redaction rules.
+          </>
+        ) : (
+          <>
+            Scope: normalised quote, bar, news and fundamentals payloads handled by the health-route function
+            instance—not every request route, provider, symbol, raw vendor schema, or deployed instance. The
+            evidence window and quarantine are bounded in memory and reset on restart. Rejected payloads were
+            never cached, so failover could try a cleaner source; stored excerpts use the trace console&apos;s
+            redaction rules.
+          </>
+        )}
       </p>
     </div>
   );

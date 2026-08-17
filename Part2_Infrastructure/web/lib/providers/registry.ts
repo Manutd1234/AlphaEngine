@@ -156,6 +156,7 @@ export async function getQuote(symbol: string, opts: Options = {}): Promise<Sour
       capability: "quote",
       cacheKey: cacheKeys.quote(symbol, opts.provider),
       pin: opts.provider,
+      symbol,
       // The façade is the only layer that knows the payload's shape, so it is
       // where the expectations are attached.
       contract: (quote, provider) => checkQuote(provider, quote),
@@ -179,6 +180,7 @@ export async function getBars(
       capability: "bars",
       cacheKey: cacheKeys.bars(symbol, interval, limit, opts.provider),
       pin: opts.provider,
+      symbol,
       contract: (bars, provider) => checkBars(provider, bars, limit),
       ...opts,
     },
@@ -201,6 +203,7 @@ export async function getNews(
       capability: "news",
       cacheKey: cacheKeys.news(symbols, limit, opts.provider),
       pin: opts.provider,
+      symbol: symbols[0] ?? null,
       contract: (items, provider) => checkNews(provider, items, limit),
       ...opts,
     },
@@ -223,6 +226,7 @@ export async function getFundamentals(
       capability: "fundamentals",
       cacheKey: cacheKeys.fundamentals(symbol, opts.provider),
       pin: opts.provider,
+      symbol,
       contract: (profile, provider) => checkFundamentals(provider, profile, symbol),
       ...opts,
     },

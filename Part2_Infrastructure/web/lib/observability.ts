@@ -50,6 +50,8 @@
  * whose ring you are reading).
  */
 
+import { isDataQualityView, type DataQualityViewWire } from "@/lib/data-quality-ledger";
+
 // --------------------------------------------------------------------------
 // Instance identity
 // --------------------------------------------------------------------------
@@ -550,6 +552,23 @@ export interface SharedLatencySampleWire {
   ok: boolean;
 }
 
+/** One contract evaluation, as the gateway ledger stores it. */
+export interface SharedContractFindingWire {
+  /** This instance's monotonic counter — the gateway de-duplicates on (instance, seq). */
+  seq: number;
+  observed_at: number;
+  capability: string;
+  provider: string;
+  symbol: string | null;
+  key: string;
+  passed: boolean;
+  fatal: number;
+  warn: number;
+  drift: number;
+  not_evaluated: number;
+  checks: Array<{ check: string; severity: "fatal" | "warn" | "drift"; message: string }>;
+}
+
 /** Request body of `POST /api/ops/web-state/sync` — the gateway's wire shape. */
 export interface SharedOpsSyncBody {
   schema_version: 1;
@@ -559,6 +578,7 @@ export interface SharedOpsSyncBody {
   quota_reset: Array<{ provider: string; window: string }>;
   outages_set: Array<{ provider: string; expires_at: number; note: string }>;
   outages_cleared: string[];
+  findings: SharedContractFindingWire[];
 }
 
 /** Response body of the same route. */
@@ -570,10 +590,22 @@ export interface SharedOpsViewWire {
   latency: Array<{ key: string; samples: SharedLatencySampleWire[] }>;
   outages: Array<{ provider: string; expires_at: number; note: string }>;
   quota: Array<{ provider: string; window: string; spent: number }>;
+  /**
+   * The durable quality ledger, merged. Required by the contract; a gateway
+   * still on the previous build omits it, so readers go through
+   * `sharedDataQuality()`, which guards the shape rather than trusting it.
+   */
+  data_quality: DataQualityViewWire;
 }
+
+/** Findings queued since the last successful push; the cap bounds a long-lived instance. */
+const PENDING_FINDINGS_CAP = 200;
+/** This instance's monotonic finding counter — the de-duplication key the gateway uses. */
+let findingSeq = 0;
 
 const pending = {
   samples: [] as Array<{ key: string; ts: number; ms: number; ok: boolean }>,
+  findings: [] as SharedContractFindingWire[],
   /** Delta spend per `${provider}|${window}` since the last successful push. */
   quota: new Map<string, number>(),
   quotaResets: [] as Array<{ provider: string; window: string }>,
@@ -590,6 +622,8 @@ let shared: {
   instances: string[];
   latency: Map<string, LatencySample[]>;
   outages: Map<string, SimulatedOutage>;
+  /** The durable quality ledger, when the gateway sent one it could vouch for. */
+  dataQuality: DataQualityViewWire | null;
 } | null = null;
 
 function sharedFresh(now: number): boolean {
@@ -644,13 +678,66 @@ export function takePendingOps(): SharedOpsSyncBody {
       note: o.note,
     })),
     outages_cleared: pending.outageCleared.slice(),
+    findings: pending.findings.slice(),
   };
   pending.samples = [];
   pending.quota.clear();
   pending.quotaResets = [];
   pending.outageSet = [];
   pending.outageCleared = [];
+  pending.findings = [];
   return body;
+}
+
+/**
+ * Queue one contract evaluation for the gateway ledger.
+ *
+ * Called by dispatch beside the per-instance record, so the ring buffer and
+ * the durable ledger see the same event. Messages are redacted here, before
+ * they are stored: a vendor's error text can quote the URL that carried the
+ * key. The seq is this instance's own counter; the gateway keys on
+ * (instance, seq), so a batch restored and re-pushed after a failed sync is
+ * absorbed rather than counted twice.
+ */
+export function queueContractFinding(input: {
+  capability: string;
+  provider: string;
+  symbol: string | null;
+  key: string;
+  passed: boolean;
+  violations: Array<{ check: string; severity: "fatal" | "warn" | "drift"; message: string }>;
+  notEvaluated: number;
+  at?: number;
+}): void {
+  findingSeq += 1;
+  const checks = input.violations.slice(0, 32).map((v) => ({
+    check: v.check.slice(0, 64),
+    severity: v.severity,
+    message: redact(v.message).slice(0, 200),
+  }));
+  pending.findings.push({
+    seq: findingSeq,
+    observed_at: input.at ?? Date.now(),
+    capability: input.capability.slice(0, 32),
+    provider: input.provider.slice(0, 64),
+    symbol: input.symbol ? input.symbol.slice(0, 24) : null,
+    key: input.key.slice(0, 160),
+    passed: input.passed,
+    fatal: checks.filter((c) => c.severity === "fatal").length,
+    warn: checks.filter((c) => c.severity === "warn").length,
+    drift: checks.filter((c) => c.severity === "drift").length,
+    not_evaluated: input.notEvaluated,
+    checks,
+  });
+  if (pending.findings.length > PENDING_FINDINGS_CAP) {
+    pending.findings.splice(0, pending.findings.length - PENDING_FINDINGS_CAP);
+  }
+}
+
+/** The merged ledger, when the overlay is fresh and the gateway sent one. */
+export function sharedDataQuality(now = Date.now()): DataQualityViewWire | null {
+  if (!shared || !sharedFresh(now)) return null;
+  return shared.dataQuality;
 }
 
 /**
@@ -686,6 +773,10 @@ export function restorePendingOps(body: SharedOpsSyncBody): void {
     if (provider !== "*" && pending.outageSet.some((p) => p.provider === provider)) continue;
     if (!pending.outageCleared.includes(provider)) pending.outageCleared.push(provider);
   }
+  // Findings are keyed by seq, so a restore cannot duplicate one already queued.
+  const queued = new Set(pending.findings.map((f) => f.seq));
+  const restoredFindings = body.findings.filter((f) => !queued.has(f.seq));
+  pending.findings = [...restoredFindings, ...pending.findings].slice(-PENDING_FINDINGS_CAP);
 }
 
 /** Install the gateway's merged view as the read overlay. */
@@ -708,6 +799,9 @@ export function applySharedOpsState(view: SharedOpsViewWire, drainedAtMs: number
         .filter((o) => o.expires_at > now)
         .map((o) => [o.provider, { provider: o.provider, expiresAt: o.expires_at, note: o.note }]),
     ),
+    // Guarded, not trusted: a gateway on the previous build sends no ledger,
+    // and the fallback is this instance's own window, disclosed as such.
+    dataQuality: isDataQualityView(view.data_quality) ? view.data_quality : null,
   };
 }
 
@@ -1033,5 +1127,7 @@ export function resetTelemetry(
     pending.quotaResets = [];
     pending.outageSet = [];
     pending.outageCleared = [];
+    pending.findings = [];
+    findingSeq = 0;
   }
 }

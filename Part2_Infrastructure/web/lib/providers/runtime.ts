@@ -38,6 +38,7 @@
 import {
   emit,
   outageFor,
+  queueContractFinding,
   recordCacheLookup,
   recordLatency,
   recordQuotaReset,
@@ -774,6 +775,8 @@ export interface DispatchOptions<T = unknown> {
   pin?: string | null;
   env?: NodeJS.ProcessEnv;
   store?: Store;
+  /** The instrument the request was about, for the ledger's finding rows. */
+  symbol?: string | null;
   /**
    * Expectations the normalised payload must meet before it is believed.
    *
@@ -909,8 +912,19 @@ export async function dispatch<T>(
         // fails over and warnings still travel with provenance.
         try {
           validationTelemetry.record(contract);
+          // The same event, queued for the gateway's durable ledger: pushed on
+          // the next ops sync, merged across instances, kept past a restart.
+          queueContractFinding({
+            capability: opts.capability,
+            provider: id,
+            symbol: opts.symbol ?? null,
+            key: opts.cacheKey,
+            passed: contract.passed,
+            violations: contract.violations,
+            notEvaluated: contract.notEvaluated.length,
+          });
         } catch {
-          // Best-effort, per-instance observability only.
+          // Best-effort observability only.
         }
       }
       const contractFailed = Boolean(contract && !contract.passed);

@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import NumberTicker from "@/components/common/NumberTicker";
+import DataQualityLedger from "@/components/data/DataQualityLedger";
 import DataTrustOverview from "@/components/data/DataTrustOverview";
 import DataWorkBoard, { PROGRESS_WIP_LIMIT } from "@/components/data/DataWorkBoard";
 import CrossSourceCheck from "@/components/systems/CrossSourceCheck";
@@ -82,15 +83,22 @@ function metricsForSection(
   if (section === "quality") {
     return [
       {
-        label: "Instance payloads evaluated",
+        // The scope word travels with the number: the gateway's durable ledger
+        // when the sync returned one, else this instance's own window.
+        label: "Payloads evaluated",
         value: validation ? String(validation.evaluated) : "—",
-        note: validation?.lastValidationAt ? `last ${absoluteTime(validation.lastValidationAt)}` : "no validation evidence",
+        note: validation?.scope === "gateway-ledger" && validation.ledger
+          ? `gateway ledger, ${validation.ledger.windowMinutes >= 1440 ? `${Math.round(validation.ledger.windowMinutes / 60)} h` : `${validation.ledger.windowMinutes} min`}${validation.lastValidationAt ? `; last ${absoluteTime(validation.lastValidationAt)}` : ""}`
+          : validation?.lastValidationAt ? `this instance; last ${absoluteTime(validation.lastValidationAt)}` : "no validation evidence",
         tone: validation?.evaluated ? "good" : "neutral",
       },
       {
         label: "Fatal findings",
         value: validation ? String(validation.fatal) : "—",
-        note: "individual contract findings",
+        note: (() => {
+          const open = validation?.ledger?.escalations.filter((e) => e.resolved_at === null).length ?? 0;
+          return open ? `individual contract findings; ${open} ${open === 1 ? "escalation" : "escalations"} open` : "individual contract findings";
+        })(),
         tone: validation?.fatal ? "bad" : validation?.evaluated ? "good" : "neutral",
       },
       {
@@ -460,6 +468,7 @@ export default function DataConsole({
             validation={validation}
           />
         </div>
+        <DataQualityLedger validation={validation} healthLoaded={health !== null} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="data" tabId="lineage" activeId={section}>

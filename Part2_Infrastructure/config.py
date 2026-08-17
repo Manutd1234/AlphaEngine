@@ -90,6 +90,30 @@ class Settings:
         )
     )
 
+    # ---- Data operations: quality ledger, work queue, jobs -----------------
+    # The durable data-plane state lives in one stdlib sqlite3 file on the
+    # same volume as the audit database (modules/data_ops_store.py).
+    data_ops_db_path: Path = field(
+        default_factory=lambda: Path(
+            _env("DATA_OPS_DB_PATH", str(Path(_env("DATA_DIR", str(BASE_DIR / "data"))) / "data_ops.sqlite"))
+        )
+    )
+    # Contract findings pushed by every web instance are kept this long.
+    data_quality_retention_days: int = field(default_factory=lambda: max(1, min(90, _env_int("DATA_QUALITY_RETENTION_DAYS", 7))))
+    # The window the aggregate view summarises, and the number of recent
+    # findings it carries.
+    data_quality_view_window_minutes: int = field(default_factory=lambda: _env_int("DATA_QUALITY_VIEW_WINDOW_MINUTES", 1440))
+    data_quality_recent_limit: int = field(default_factory=lambda: _env_int("DATA_QUALITY_RECENT_LIMIT", 25))
+    # Escalation rules. R1: this many fatal findings from one provider inside
+    # the window. R2: a contract-fail rate above this fraction, once at least
+    # min_samples payloads were evaluated. One escalation per (rule, provider)
+    # per cooldown; auto-resolved when the condition clears.
+    data_quality_escalate_fatal_count: int = field(default_factory=lambda: _env_int("DATA_QUALITY_ESCALATE_FATAL_COUNT", 3))
+    data_quality_escalate_window_minutes: int = field(default_factory=lambda: _env_int("DATA_QUALITY_ESCALATE_WINDOW_MINUTES", 15))
+    data_quality_escalate_fail_rate: float = field(default_factory=lambda: _env_float("DATA_QUALITY_ESCALATE_FAIL_RATE", 0.25))
+    data_quality_escalate_min_samples: int = field(default_factory=lambda: _env_int("DATA_QUALITY_ESCALATE_MIN_SAMPLES", 8))
+    data_quality_escalate_cooldown_minutes: int = field(default_factory=lambda: _env_int("DATA_QUALITY_ESCALATE_COOLDOWN_MINUTES", 60))
+
     # ---- Module A: TCA / market data --------------------------------------
     symbols: list[str] = field(default_factory=lambda: _env_list("SYMBOLS", ["BTCUSDT", "ETHUSDT", "SOLUSDT"]))
     venues: list[str] = field(default_factory=lambda: _env_list("VENUES", ["BINANCE", "BYBIT"]))
@@ -327,6 +351,7 @@ class Settings:
     def ensure_dirs(self) -> None:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self.data_ops_db_path.parent.mkdir(parents=True, exist_ok=True)
 
     def risk_limits_dict(self) -> dict[str, float]:
         """Flat view of every hard limit — surfaced by /risk/limits and /limits."""

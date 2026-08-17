@@ -175,7 +175,8 @@ gate used.
 | Market-data quality and freshness at a glance | The Data tab opens on an overview-first trust cockpit for the active instrument, bringing freshness, validation evidence, quarantine, lineage and provider capacity into one triage path |
 | Ingestion that survives a bad feed | Sequence-gap detection forces a resubscribe; per-venue staleness clocks; automatic synthetic fallback, always tagged |
 | Provider failover I can see | Ranked registry across 7 providers with circuit breakers, a quota ledger, and a failover graph showing which node a request would land on *and why each other was skipped* |
-| Validation on content, not just transport | Quote, bar, news and fundamentals contracts check positive/ranged prices, unique ordered timestamps, valid highs/lows and freshness, well-formed and de-duplicated headlines with sane sentiment scores, and an issuer profile that is about the issuer asked for and non-empty. The active-quote probe carries the contract result for that exact payload; separate aggregate counters are bounded to the health-route instance, and zero evaluated payloads is **unknown**, never a clean bill of health |
+| Validation on content, not just transport | Quote, bar, news and fundamentals contracts check positive/ranged prices, unique ordered timestamps, valid highs/lows and freshness, well-formed and de-duplicated headlines with sane sentiment scores, and an issuer profile that is about the issuer asked for and non-empty. The active-quote probe carries the contract result for that exact payload; zero evaluated payloads is **unknown**, never a clean bill of health |
+| A quality record that survives a restart and spans every instance | Every web instance pushes its contract findings through the ops-sync round trip; the gateway persists them in SQLite on its data volume (`DATA_QUALITY_RETENTION_DAYS`, default 7) and returns the merged view in the same response. Two rules escalate — a burst of fatal findings from one provider, or a fail rate over a threshold — to the Telegram alert chats and the audit log, one per cooldown, auto-resolved when the condition clears; the Data tab shows each escalation with the channel it went to |
 | The difference between bad data and a renamed field | Three severities — `fatal` (rejected, failed over), `warn` (served, labelled), `drift` (our mapping looks stale, not the market) |
 | Somewhere to look at a suspect payload | Bounded, health-route-instance quarantine on the Data tab with violations, cache key and a redacted excerpt. Serverless request routes do not reliably share that memory, so an empty buffer is never treated as proof; rejected payloads are never cached |
 | Lineage from vendor bytes to rendered number | Pipeline inspector follows the workspace's active symbol and selected bar interval through cache key, TTL, provenance, every skipped provider, upstream calls, raw vendor JSON and normalised output |
@@ -189,9 +190,8 @@ This directly addresses the assessment's market-data quality/freshness monitor,
 infrastructure quality and reliability criteria while keeping the first answer
 usable to a trader under pressure: *trust, review, or insufficient evidence?*
 The improvement that matters is not more data — it is data whose provenance,
-scope and quality are visible at the point of use. The UI does not turn its
-instance-local evidence into a claim of durable orchestration or scheduled
-backfill.
+scope and quality are visible at the point of use, and whose record outlives
+the instance that produced it.
 
 ### DevOps / SRE — *"Is it healthy, and what do I do at 3am?"*
 
@@ -1188,6 +1188,8 @@ order rather than around them.
 | `GET` | `/health` | all three modules + feed health |
 | `GET` | `/metrics` | Prometheus text exposition — feeds, risk, queue, latency |
 | `GET` | `/api/ops/snapshot` | authenticated, versioned and secret-free SRE snapshot — feed freshness, risk mode, queue, audit, alerting and route latency |
+| `POST` | `/api/ops/web-state/sync` | one web instance's telemetry deltas in, the merged cross-instance view out — including the durable data-quality ledger |
+| `GET` | `/api/data-quality/view` · `findings` | the merged contract-finding ledger (SQLite on the data volume, seven-day retention) and its older rows, filtered |
 | `GET` | `/api/config` | symbols, venues, limits |
 | `GET` | `/api/book/{symbol}` | per-venue L2 ladders |
 | `GET` | `/api/tca/{symbol}` | VWAP, slippage, smart route |
@@ -1300,6 +1302,17 @@ FROM orders GROUP BY symbol;
 Every value in `config.py` is env-overridable; see `.env.example`. Defaults match
 the assessment brief: **$50k** max order, **5 orders/sec**, **5%** daily drawdown,
 **$100k** TCA probe size.
+
+The data-quality ledger adds its own, all with defaults that need no setting:
+
+| Variable | Default | What it sets |
+|---|---|---|
+| `DATA_OPS_DB_PATH` | `$DATA_DIR/data_ops.sqlite` | the SQLite file holding the quality ledger (and, later, work items and schedules) |
+| `DATA_QUALITY_RETENTION_DAYS` | `7` | how long findings are kept (1–90) |
+| `DATA_QUALITY_VIEW_WINDOW_MINUTES` | `1440` | the window the merged view summarises |
+| `DATA_QUALITY_ESCALATE_FATAL_COUNT` / `_WINDOW_MINUTES` | `3` / `15` | rule 1: this many payloads with a fatal finding from one provider inside the window |
+| `DATA_QUALITY_ESCALATE_FAIL_RATE` / `_MIN_SAMPLES` | `0.25` / `8` | rule 2: a contract-fail rate above the fraction once at least this many payloads were evaluated |
+| `DATA_QUALITY_ESCALATE_COOLDOWN_MINUTES` | `60` | one escalation per (rule, provider) per cooldown |
 
 The resting book and paper-equity adapter add seven of their own:
 

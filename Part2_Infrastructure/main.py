@@ -27,6 +27,7 @@ import logging
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import (
@@ -49,6 +50,12 @@ from config import BASE_DIR, settings
 from modules import research
 from modules.audit import get_audit
 from modules.backtester import VECTORBT_AVAILABLE, run_backtest
+from modules.data_quality import (
+    DataQualityFindingsResponse,
+    DataQualityView,
+    get_data_quality,
+    publish_escalation,
+)
 from modules.decision_core import ENGINE as DECISION_ENGINE
 from modules.equity_quote import EquityQuoteUnavailable, fetch_paper_equity_reference, is_equity_symbol
 from modules.jobs import get_queue
@@ -309,8 +316,49 @@ async def web_state_sync(
     ledgers disagree; this gateway is the one long-lived process they share.
     Push and pull happen in a single round trip so a health poll pays exactly
     one extra request. Observability only — no trading state passes this way.
+
+    Contract findings in the same body are persisted by the data-quality
+    ledger; any escalation they open is delivered on a task of its own so the
+    round trip never pays for a chat.
     """
-    return get_web_ops().sync(request)
+    opened = get_data_quality().ingest(request.findings, instance=request.instance)
+    view = get_web_ops().sync(request)
+    for escalation in opened:
+        asyncio.create_task(publish_escalation(escalation))
+    return view
+
+
+@app.get("/api/data-quality/view", response_model=DataQualityView, tags=["data"])
+async def data_quality_view(_actor: str = Depends(trader_identity)) -> DataQualityView:
+    """The merged, durable contract-finding ledger — the same view the sync returns."""
+    return get_data_quality().view()
+
+
+@app.get("/api/data-quality/findings", response_model=DataQualityFindingsResponse, tags=["data"])
+async def data_quality_findings(
+    limit: int = Query(default=100, ge=1, le=500),
+    provider: str | None = Query(default=None, max_length=64),
+    capability: str | None = Query(default=None, max_length=32),
+    severity: str | None = Query(default=None, pattern=r"^(fatal|warn|drift|clean)$"),
+    since: datetime | None = Query(default=None, description="ISO-8601; only findings observed at or after this"),
+    _actor: str = Depends(trader_identity),
+) -> DataQualityFindingsResponse:
+    """Older findings than the view carries, filtered; newest first."""
+    ledger = get_data_quality()
+    rows, total = ledger.findings(
+        limit=limit,
+        provider=provider,
+        capability=capability,
+        severity=severity,
+        since_ms=since.timestamp() * 1000.0 if since else None,
+    )
+    return DataQualityFindingsResponse(
+        findings=rows,
+        total=total,
+        retention_days=ledger.retention_days,
+        window_minutes=ledger.view_window_minutes,
+        observed_at=datetime.now(timezone.utc),
+    )
 
 
 @app.get("/api/config", tags=["meta"])

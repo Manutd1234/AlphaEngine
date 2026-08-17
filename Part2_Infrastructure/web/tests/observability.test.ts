@@ -30,6 +30,7 @@ import {
   latencyStats,
   outageFor,
   percentile,
+  queueContractFinding,
   recordLatency,
   recordQuotaReset,
   recordQuotaSpend,
@@ -38,6 +39,7 @@ import {
   registerSecret,
   resetTelemetry,
   restorePendingOps,
+  sharedDataQuality,
   sharedOpsStatus,
   simulateOutage,
   takePendingOps,
@@ -639,6 +641,20 @@ describe("events carry the origin they were produced at", () => {
 });
 
 describe("the shared ledger sync: queues, overlay, and honest fallback", () => {
+  const emptyLedger = (): SharedOpsViewWire["data_quality"] => ({
+    backend: "sqlite",
+    retention_days: 7,
+    window_minutes: 1440,
+    observed_at: new Date().toISOString(),
+    first_observed_at: null,
+    last_observed_at: null,
+    instances: 0,
+    total: { evaluated: 0, passed: 0, fatal: 0, warn: 0, drift: 0, not_evaluated: 0 },
+    by_provider: [],
+    by_capability: [],
+    recent: [],
+    escalations: [],
+  });
   const view = (overrides: Partial<SharedOpsViewWire> = {}): SharedOpsViewWire => ({
     schema_version: 1,
     observed_at: new Date().toISOString(),
@@ -647,6 +663,7 @@ describe("the shared ledger sync: queues, overlay, and honest fallback", () => {
     latency: [],
     outages: [],
     quota: [],
+    data_quality: emptyLedger(),
     ...overrides,
   });
 
@@ -772,5 +789,61 @@ describe("the shared ledger sync: queues, overlay, and honest fallback", () => {
     assert.equal(isSharedOpsView({ ...view(), observed_at: "not-a-date" }), false);
     assert.equal(isSharedOpsView({ ...view(), latency: "nope" }), false);
     assert.equal(isSharedOpsView(null), false);
+  });
+
+  it("contract findings drain into the sync body with a per-instance seq, and a restore never doubles one", () => {
+    resetTelemetry({ shared: true });
+    queueContractFinding({
+      capability: "quote", provider: "fmp", symbol: "AAPL", key: "quote:AAPL:*", passed: false,
+      violations: [{ check: "quote.price_positive", severity: "fatal", message: "no positive price" }],
+      notEvaluated: 1,
+    });
+    queueContractFinding({
+      capability: "bars", provider: "massive", symbol: null, key: "bars:AAPL:1d:120:*", passed: true,
+      violations: [], notEvaluated: 0,
+    });
+    const body = takePendingOps();
+    assert.equal(body.findings.length, 2);
+    assert.deepEqual(body.findings.map((f) => f.seq), [1, 2], "the seq is monotonic from this instance");
+    assert.equal(body.findings[0].fatal, 1);
+    assert.equal(body.findings[0].passed, false);
+    assert.equal(body.findings[1].symbol, null);
+    assert.deepEqual(takePendingOps().findings, [], "a drain empties the queue");
+    // A push that failed after the drain: the body comes back, but a finding
+    // queued meanwhile keeps its own seq, and re-restoring cannot double any.
+    queueContractFinding({ capability: "quote", provider: "fmp", symbol: "MSFT", key: "k", passed: true, violations: [], notEvaluated: 0 });
+    restorePendingOps(body);
+    restorePendingOps(body);
+    const again = takePendingOps();
+    assert.deepEqual(again.findings.map((f) => f.seq), [1, 2, 3]);
+    resetTelemetry({ shared: true });
+  });
+
+  it("a finding's message is redacted before it is queued", () => {
+    resetTelemetry({ shared: true });
+    registerSecret("hunter2hunter2hunter2");
+    queueContractFinding({
+      capability: "quote", provider: "alphavantage", symbol: "AAPL", key: "k", passed: true,
+      violations: [{ check: "quote.freshness", severity: "warn", message: "stale — https://v.test/q?apikey=hunter2hunter2hunter2" }],
+      notEvaluated: 0,
+    });
+    const [finding] = takePendingOps().findings;
+    assert.doesNotMatch(finding.checks[0].message, /hunter2hunter2hunter2/);
+    clearSecrets();
+    resetTelemetry({ shared: true });
+  });
+
+  it("the merged quality ledger is read only while the overlay is fresh, and a missing block is null", () => {
+    resetTelemetry({ shared: true });
+    const now = Date.now();
+    applySharedOpsState(view(), now, now);
+    const ledger = sharedDataQuality(now);
+    assert.ok(ledger, "a fresh sync carries the ledger");
+    assert.equal(ledger!.backend, "sqlite");
+    assert.equal(sharedDataQuality(now + SHARED_STALE_MS + 1), null, "a stale overlay is not believed");
+    // An older gateway omits the block: guarded, not trusted.
+    applySharedOpsState({ ...view(), data_quality: undefined as unknown as SharedOpsViewWire["data_quality"] }, now, now);
+    assert.equal(sharedDataQuality(now), null);
+    resetTelemetry({ shared: true });
   });
 });

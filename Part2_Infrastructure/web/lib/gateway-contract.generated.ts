@@ -51,6 +51,88 @@ export interface CheckResult {
   passed: boolean;
 }
 
+export interface DataQualityCapabilityRow {
+  capability: string;
+  drift: number;
+  evaluated: number;
+  fatal: number;
+  not_evaluated: number;
+  passed: number;
+  warn: number;
+}
+
+export interface DataQualityCounts {
+  drift: number;
+  evaluated: number;
+  fatal: number;
+  not_evaluated: number;
+  passed: number;
+  warn: number;
+}
+
+export interface DataQualityEscalationView {
+  channel: "telegram" | "log" | null;
+  count: number;
+  detail: string;
+  evaluated: number | null;
+  id: number;
+  notified_at: string | null;
+  opened_at: string;
+  provider: string;
+  resolved_at: string | null;
+  rule: "fatal_burst" | "fail_rate";
+  window_minutes: number;
+}
+
+export interface DataQualityFindingView {
+  capability: string;
+  checks: Array<string>;
+  id: number;
+  instance: string;
+  key: string;
+  observed_at: string;
+  passed: boolean;
+  provider: string;
+  severity: "fatal" | "warn" | "drift" | "clean";
+  source: "web" | "replay" | "backfill";
+  symbol: string | null;
+}
+
+export interface DataQualityFindingsResponse {
+  findings: Array<DataQualityFindingView>;
+  observed_at: string;
+  retention_days: number;
+  total: number;
+  window_minutes: number;
+}
+
+export interface DataQualityProviderRow {
+  drift: number;
+  evaluated: number;
+  fail_rate: number | null;
+  fatal: number;
+  not_evaluated: number;
+  passed: number;
+  provider: string;
+  warn: number;
+}
+
+export interface DataQualityView {
+  backend: "sqlite";
+  by_capability: Array<DataQualityCapabilityRow>;
+  by_provider: Array<DataQualityProviderRow>;
+  escalations: Array<DataQualityEscalationView>;
+  first_observed_at: string | null;
+  instances: number;
+  last_observed_at: string | null;
+  observed_at: string;
+  recent: Array<DataQualityFindingView>;
+  retention_days: number;
+  schema_version?: 1;
+  total: DataQualityCounts;
+  window_minutes: number;
+}
+
 export interface DecisionLatencySnapshot {
   core_max_ns?: number | null;
   core_p50_ns?: number | null;
@@ -424,6 +506,27 @@ export interface VenueBook {
   venue: string;
 }
 
+export interface WebContractCheck {
+  check: string;
+  message?: string;
+  severity: "fatal" | "warn" | "drift";
+}
+
+export interface WebContractFinding {
+  capability: string;
+  checks?: Array<WebContractCheck>;
+  drift?: number;
+  fatal?: number;
+  key?: string;
+  not_evaluated?: number;
+  observed_at: number;
+  passed: boolean;
+  provider: string;
+  seq: number;
+  symbol?: string | null;
+  warn?: number;
+}
+
 export interface WebLatencyBatch {
   key: string;
   samples?: Array<WebLatencySample>;
@@ -470,6 +573,7 @@ export interface WebQuotaView {
 }
 
 export interface WebStateSyncRequest {
+  findings?: Array<WebContractFinding>;
   instance: string;
   latency?: Array<WebLatencyBatch>;
   outages_cleared?: Array<string>;
@@ -480,6 +584,7 @@ export interface WebStateSyncRequest {
 }
 
 export interface WebStateView {
+  data_quality: DataQualityView;
   instances: Array<string>;
   latency: Array<WebLatencyKeyView>;
   observed_at: string;
@@ -518,6 +623,8 @@ export interface GatewayOperations {
   "POST /api/backtest": { request: BacktestRequest; response: Record<string, unknown> };
   "GET /api/book/{symbol}": { response: Array<VenueBook> };
   "GET /api/config": { response: Record<string, unknown> };
+  "GET /api/data-quality/findings": { response: DataQualityFindingsResponse };
+  "GET /api/data-quality/view": { response: DataQualityView };
   "GET /api/jobs": { response: Record<string, unknown> };
   "GET /api/jobs/{job_id}": { response: Record<string, unknown> };
   "GET /api/ops/snapshot": { response: OperationsSnapshot };
@@ -561,6 +668,8 @@ export const GATEWAY_CONTRACT_PATHS = [
   "/api/backtest",
   "/api/book/{symbol}",
   "/api/config",
+  "/api/data-quality/findings",
+  "/api/data-quality/view",
   "/api/jobs",
   "/api/jobs/{job_id}",
   "/api/ops/snapshot",

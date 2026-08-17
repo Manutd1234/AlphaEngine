@@ -179,6 +179,45 @@ timestamp and quietly halves the volatility a backtest measures.
   went null while everything around it stayed intact. Usually a renamed vendor
   field, and the fix is in the adapter, not the vendor.
 
+The aggregate counts on the Data tab come from the gateway's ledger, not the
+instance you happen to be talking to: every web instance pushes its findings
+through the ops sync and the gateway keeps them in `data_ops.sqlite` on the
+data volume for `DATA_QUALITY_RETENTION_DAYS` (7). `GET /api/data-quality/view`
+is the same view the tab renders; `GET /api/data-quality/findings?provider=…&severity=fatal`
+pages older rows.
+
+---
+
+## Data-quality escalation fired
+
+**Where:** the Telegram alert chat (or the gateway log when the bot is off), a
+`data_quality_escalation` row in `/api/audit/events`, and Data tab → Quality &
+Incidents → Quality ledger and escalations, which shows the rule, the provider,
+the channel it went to and when it cleared.
+
+Two rules, evaluated when findings arrive:
+
+* **fatal burst** — `DATA_QUALITY_ESCALATE_FATAL_COUNT` (3) payloads with a
+  fatal finding from one provider inside `DATA_QUALITY_ESCALATE_WINDOW_MINUTES` (15).
+* **fail rate** — more than `DATA_QUALITY_ESCALATE_FAIL_RATE` (25 %) of a
+  provider's payloads failed their contract, once at least
+  `DATA_QUALITY_ESCALATE_MIN_SAMPLES` (8) were evaluated in the window.
+
+One escalation per (rule, provider) per `DATA_QUALITY_ESCALATE_COOLDOWN_MINUTES`
+(60). There is no acknowledgement step: an escalation resolves itself when the
+condition no longer holds in the window, and the card shows "Cleared" with the
+time. What to do:
+
+1. Read the recent findings on the same card — the check ids name the defect
+   (`bars.unique_timestamps`, `quote.price_positive`, `news.ids_unique`).
+2. Trace the symbol on Lineage & Payloads with **Trace (bypass cache)** and
+   read the raw payload; a `drift` finding is our adapter, a `fatal` one is
+   the vendor.
+3. If the vendor is the problem, the chain has already failed over; consider
+   an operator outage on it (Reliability → Remediation) until it recovers.
+4. If the rule is too sensitive for a vendor's normal behaviour, raise the
+   threshold in the environment rather than muting the channel.
+
 ---
 
 ## Gateway unreachable

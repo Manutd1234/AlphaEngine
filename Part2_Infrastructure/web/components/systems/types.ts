@@ -106,13 +106,58 @@ export interface ValidationCounts {
 }
 
 export interface ValidationTelemetry extends ValidationCounts {
-  scope: "per-instance";
+  /**
+   * `per-instance`: this function instance's ring buffer, reset on restart.
+   * `gateway-ledger`: the durable, cross-instance ledger the gateway keeps
+   * (SQLite on its data volume), merged from every instance's findings.
+   */
+  scope: "per-instance" | "gateway-ledger";
   windowStart: string | null;
   lastValidationAt: string | null;
   retained: number;
-  capacity: number;
+  /** The ring buffer's bound; null for the ledger, whose bound is a retention window, not a count. */
+  capacity: number | null;
   byCapability: Partial<Record<string, ValidationCounts>>;
   byProvider: Record<string, ValidationCounts>;
+  /** Present when the scope is the gateway ledger. */
+  ledger?: {
+    backend: "sqlite";
+    retentionDays: number;
+    windowMinutes: number;
+    observedAt: string;
+    instances: number;
+    escalations: DataQualityEscalation[];
+    recent: DataQualityFinding[];
+    byProviderFailRate: Record<string, number | null>;
+  };
+}
+
+export interface DataQualityFinding {
+  id: number;
+  observed_at: string;
+  instance: string;
+  source: "web" | "replay" | "backfill";
+  capability: string;
+  provider: string;
+  symbol: string | null;
+  key: string;
+  passed: boolean;
+  severity: "fatal" | "warn" | "drift" | "clean";
+  checks: string[];
+}
+
+export interface DataQualityEscalation {
+  id: number;
+  rule: "fatal_burst" | "fail_rate";
+  provider: string;
+  opened_at: string;
+  window_minutes: number;
+  count: number;
+  evaluated: number | null;
+  detail: string;
+  notified_at: string | null;
+  channel: "telegram" | "log" | null;
+  resolved_at: string | null;
 }
 
 export type GuardMode = "token" | "open-dev" | "open-demo" | "locked";

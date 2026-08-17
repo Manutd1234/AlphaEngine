@@ -24,9 +24,11 @@ import {
   instanceId,
   latencyStats,
   recordLatency,
+  sharedDataQuality,
   sharedOpsStatus,
   startedAt,
 } from "@/lib/observability";
+import { ledgerValidation } from "@/lib/data-quality-ledger";
 import { syncSharedOpsState } from "@/lib/ops-sync";
 import { oracleReadiness } from "@/lib/oracle/health";
 import { openBBReadiness } from "@/lib/providers/openbb-health";
@@ -71,6 +73,7 @@ export async function buildSystemHealthSnapshot(priority: Priority): Promise<Sys
   // per-instance buckets, which `instance.scope` then discloses.
   await syncSharedOpsState();
   const sharedOps = sharedOpsStatus();
+  const sharedLedger = sharedDataQuality();
 
   const base = providerStatus();
   const configuredOpenBBUrl = process.env.OPENBB_API_URL?.trim() ?? "";
@@ -244,10 +247,11 @@ export async function buildSystemHealthSnapshot(priority: Priority): Promise<Sys
       byProvider: quarantine.byProvider(),
       recent: quarantine.list(12),
     },
-    // Contract evidence is intentionally a bounded window owned by this
-    // function instance. Zero means no payload was evaluated here; it must not
-    // be rendered as a clean bill of health.
-    validation: validationTelemetry.snapshot(),
+    // Contract evidence: the gateway's durable, cross-instance ledger when the
+    // sync just returned one, else this function instance's bounded window —
+    // and the `scope` word says which. Zero means no payload was evaluated
+    // in that scope; it must not be rendered as a clean bill of health.
+    validation: sharedLedger ? ledgerValidation(sharedLedger) : validationTelemetry.snapshot(),
     delivery: {
       schema: schemaEvidence,
       // The numerics gate: this instance recomputed the committed Monte Carlo

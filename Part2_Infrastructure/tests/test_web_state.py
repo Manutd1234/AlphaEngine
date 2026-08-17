@@ -222,7 +222,13 @@ class TestRoute:
             "latency",
             "outages",
             "quota",
+            "data_quality",
         }
+        # The durable half rides in the same response, required and shaped.
+        quality = view["data_quality"]
+        assert quality["schema_version"] == 1
+        assert quality["backend"] == "sqlite"
+        assert set(quality) >= {"retention_days", "window_minutes", "total", "by_provider", "recent", "escalations"}
 
     def test_unbounded_bodies_are_rejected_not_truncated(self, client):
         too_many_keys = {
