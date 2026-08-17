@@ -637,6 +637,14 @@ a:not([class]):active {
   .tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  /* One rung down for the figure on a phone. The Execution tiles size their
+     own columns (auto-fit, 150px floor) and land three across at 520px, and a
+     nine-character mono figure at --fs-figure is 5px wider than that column;
+     the tile has nowhere to put it but over its neighbour. */
+  .tiles .stat-tile__value {
+    font-size: var(--fs-h1);
+  }
 }
 
 
@@ -9258,10 +9266,18 @@ button.data-trust-action > i {
   box-shadow: inset 3px 0 0 var(--axis);
 }
 
+/* Prose in a table the house default keeps on one line. `td { white-space:
+   nowrap }` is right for the numeric tables it was written for; here the
+   first cell carries a title and a summary, and at 1100px the summary ran
+   under the owner and status columns as one 990px line. Both wrap within
+   their own measure; `anywhere` so an identifier like ALPHAENGINE_GATEWAY_URL
+   breaks rather than overflows. */
 .developer-work__table td:first-child > strong {
   display: block;
   margin-top: 7px;
   font-size: var(--fs-md);
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .developer-work__table td:first-child > p {
@@ -9270,6 +9286,8 @@ button.data-trust-action > i {
   color: var(--text-secondary);
   font-size: var(--fs-xs);
   line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .developer-work__badges {
@@ -13260,7 +13278,12 @@ h4 {
   align-items: center;
   gap: 8px;
   flex: 1 1 0;
-  min-width: 0;
+  /* Not `min-width: 0`: the node inside has a 152px floor and the stage was
+     shrinking below it, so at 1100px five nodes overflowed their own stages
+     and each metric row ran under the next box. The floor lives on the stage
+     (node + gap + arrow) and the track above scrolls — that is what its
+     `overflow-x: auto` is for. The print block overrides this for its grid. */
+  min-width: 176px;
 }
 
 .signal-workflow__node {
