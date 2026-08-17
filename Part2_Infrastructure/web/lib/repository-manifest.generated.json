@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-17",
-  "commit": "5744edb",
+  "commit": "3bba98d",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -115,6 +115,7 @@
     "Part2_Infrastructure/tests/test_api.py",
     "Part2_Infrastructure/tests/test_backtester.py",
     "Part2_Infrastructure/tests/test_container_contract.py",
+    "Part2_Infrastructure/tests/test_core_self_measure.py",
     "Part2_Infrastructure/tests/test_decision_core_native.py",
     "Part2_Infrastructure/tests/test_decision_latency.py",
     "Part2_Infrastructure/tests/test_drawdown_alerts.py",
