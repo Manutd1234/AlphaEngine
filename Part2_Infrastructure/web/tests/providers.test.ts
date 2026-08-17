@@ -13,7 +13,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { eventCursor, eventsSince } from "../lib/observability";
+import { eventCursor, eventsSince, latencyStats } from "../lib/observability";
 import { assertPublicUrl } from "../lib/providers/firecrawl";
 import { iso, num, pctChange, str } from "../lib/providers/parse";
 import {
@@ -26,7 +26,10 @@ import { classify, candidatesFor, getFundamentals, isValidSymbol } from "../lib/
 import {
   MemoryStore,
   breakerOpen,
+  breakerSnapshot,
+  clearLicence,
   dispatch,
+  licenceBlock,
   quotaBlock,
   quotaState,
   recordFailure,
@@ -34,7 +37,13 @@ import {
   spendQuota,
   windowKey,
 } from "../lib/providers/runtime";
-import { Adapter, NotApplicableError, ProviderError, Quote } from "../lib/providers/types";
+import {
+  Adapter,
+  kindFromStatus,
+  NotApplicableError,
+  ProviderError,
+  Quote,
+} from "../lib/providers/types";
 
 // --------------------------------------------------------------------------
 // Test doubles
@@ -69,6 +78,16 @@ const failing = (id: string) =>
   fake(id, () => {
     throw new ProviderError(id, "boom", 500, false);
   });
+
+/** An adapter that answers, correctly, that it has nothing — or refuses. */
+const throwing = (id: string, status: number, message = `HTTP ${status}`) =>
+  fake(id, () => {
+    throw new ProviderError(id, message, status, false);
+  });
+
+/** Distinct latency keys per test: the ledger is module-scoped. */
+let seq = 0;
+const uid = (base: string) => `${base}-${++seq}`;
 
 // --------------------------------------------------------------------------
 // Coercion funnel
@@ -196,6 +215,146 @@ test("inapplicableReason names the capability, the scope and the symbol", () => 
     "Fundamentals describe an issuer, so the capability is equity-only; BTCUSDT is classified as crypto, so no provider is asked and nothing is spent.",
   );
   assert.doesNotMatch(inapplicableReason("fundamentals", "ETHUSDT", "crypto"), / · /);
+});
+
+// --------------------------------------------------------------------------
+// Error taxonomy — what a thrown error costs the vendor's record
+// --------------------------------------------------------------------------
+
+test("kindFromStatus: the four kinds by status", () => {
+  assert.equal(kindFromStatus(401), "unlicensed");
+  assert.equal(kindFromStatus(402), "unlicensed");
+  assert.equal(kindFromStatus(403), "unlicensed");
+  assert.equal(kindFromStatus(400), "no_data");
+  assert.equal(kindFromStatus(404), "no_data");
+  assert.equal(kindFromStatus(422), "no_data");
+  assert.equal(kindFromStatus(424), "no_data");
+  assert.equal(kindFromStatus(429), "quota");
+  assert.equal(kindFromStatus(500), "failed");
+  assert.equal(kindFromStatus(503), "failed");
+  assert.equal(kindFromStatus(408), "failed");
+  assert.equal(kindFromStatus(null), "failed");
+  assert.equal(new ProviderError("x", "m", 404).kind, "no_data");
+  assert.equal(new ProviderError("x", "m", 424, false, "failed").kind, "failed", "an explicit kind wins");
+});
+
+test("dispatch: a 404 is no_data — fails over, counts as a healthy sample, never the breaker", async () => {
+  const s = new MemoryStore();
+  const id = uid("nodata");
+  const primary = throwing(id, 404, "no profile for TEST");
+  const backup = fake(uid("backup"), () => ({ ...QUOTE, price: 7 }));
+  const r = await dispatch(
+    [primary.adapter, backup.adapter],
+    (a, ctx) => a.quote!("TEST", "equity", ctx),
+    { capability: "quote", cacheKey: uid("k"), store: s, env: {} as NodeJS.ProcessEnv },
+  );
+  assert.equal(r.data.price, 7);
+  assert.deepEqual(r.attempts.map((a) => [a.provider, a.reason]), [[id, "no_data"]]);
+  assert.match(r.attempts[0].detail ?? "", /no profile/);
+  // The vendor answered its question. That is a round trip that succeeded,
+  // and it never touches the breaker.
+  assert.equal(breakerSnapshot(id, s).failures, 0);
+  const stats = latencyStats(id);
+  assert.equal(stats.n, 1);
+  assert.equal(stats.errorRate, 0);
+});
+
+test("dispatch: a 403 is unlicensed — no breaker count, no latency sample, remembered", async () => {
+  const s = new MemoryStore();
+  const id = uid("unlic");
+  const primary = throwing(id, 403, "You do not have permission to access the News API");
+  const backup = fake(uid("backup"), () => QUOTE);
+  const r = await dispatch(
+    [primary.adapter, backup.adapter],
+    (a, ctx) => a.quote!("TEST", "equity", ctx),
+    { capability: "quote", cacheKey: uid("k"), store: s, env: {} as NodeJS.ProcessEnv },
+  );
+  assert.deepEqual(r.attempts.map((a) => [a.provider, a.reason]), [[id, "unlicensed"]]);
+  assert.equal(breakerSnapshot(id, s).failures, 0);
+  assert.equal(latencyStats(id).n, 0, "a refusal is neither a success nor an outage sample");
+  const block = licenceBlock(id, "quote", s);
+  assert.ok(block, "the refusal is remembered per provider and capability");
+  assert.equal(block.status, 403);
+});
+
+test("dispatch: a remembered licence refusal is skipped without a call, per capability", async () => {
+  const s = new MemoryStore();
+  const id = uid("tiingo");
+  const primary = throwing(id, 403);
+  const backup = fake(uid("backup"), () => QUOTE);
+  const pool = [primary.adapter, backup.adapter];
+  const run = (capability: "quote" | "bars") => dispatch(
+    pool,
+    (a, ctx) => a.quote!("TEST", "equity", ctx),
+    { capability, cacheKey: uid("k"), store: s, env: {} as NodeJS.ProcessEnv },
+  );
+  await run("quote");
+  assert.equal(primary.calls(), 1);
+  const second = await run("quote");
+  assert.equal(primary.calls(), 1, "the second dispatch did not contact the unlicensed provider");
+  assert.equal(second.attempts[0].reason, "unlicensed");
+  assert.match(second.attempts[0].detail ?? "", /re-probes in \d+ h \(this instance\)/);
+  // Scoped to the capability: bars on the same provider is still attempted.
+  await run("bars");
+  assert.equal(primary.calls(), 2, "a licence block on quote must not block bars");
+  // The operator's "Close circuit" forgets it.
+  assert.equal(clearLicence(id, s), 2);
+  await run("quote");
+  assert.equal(primary.calls(), 3);
+});
+
+test("dispatch: a 429 is rate_limited — no breaker, no sample", async () => {
+  const s = new MemoryStore();
+  const id = uid("busy");
+  const primary = throwing(id, 429, "Thank you for using Alpha Vantage");
+  const backup = fake(uid("backup"), () => QUOTE);
+  const r = await dispatch(
+    [primary.adapter, backup.adapter],
+    (a, ctx) => a.quote!("TEST", "equity", ctx),
+    { capability: "quote", cacheKey: uid("k"), store: s, env: {} as NodeJS.ProcessEnv },
+  );
+  assert.deepEqual(r.attempts.map((a) => a.reason), ["rate_limited"]);
+  assert.equal(breakerSnapshot(id, s).failures, 0);
+  assert.equal(latencyStats(id).n, 0);
+});
+
+test("dispatch: three 404s do not open the breaker; three 500s still do", async () => {
+  const s = new MemoryStore();
+  const nodata = throwing(uid("nd"), 404);
+  const dead = failing(uid("dead"));
+  for (let i = 0; i < 3; i += 1) {
+    await dispatch([nodata.adapter], (a, ctx) => a.quote!("T", "equity", ctx),
+      { capability: "quote", cacheKey: uid("k"), store: s, env: {} as NodeJS.ProcessEnv }).catch(() => undefined);
+    await dispatch([dead.adapter], (a, ctx) => a.quote!("T", "equity", ctx),
+      { capability: "quote", cacheKey: uid("k"), store: s, env: {} as NodeJS.ProcessEnv }).catch(() => undefined);
+  }
+  assert.equal(breakerOpen(nodata.adapter.meta.id, s), false, "honest no-data answers opened a breaker");
+  assert.equal(breakerOpen(dead.adapter.meta.id, s), true, "three real failures must still open it");
+});
+
+test("dispatch: when every reached provider had no data the terminal error is 404, otherwise 503", async () => {
+  const s = new MemoryStore();
+  await assert.rejects(
+    dispatch([throwing(uid("a"), 404).adapter, throwing(uid("b"), 404).adapter],
+      (a, ctx) => a.quote!("T", "equity", ctx),
+      { capability: "quote", cacheKey: uid("k"), store: s, env: {} as NodeJS.ProcessEnv }),
+    (err: unknown) => {
+      assert.ok(err instanceof ProviderError);
+      assert.equal(err.status, 404);
+      assert.match(err.message, /no provider has quote data for this request/);
+      return true;
+    },
+  );
+  await assert.rejects(
+    dispatch([throwing(uid("a"), 404).adapter, failing(uid("b")).adapter],
+      (a, ctx) => a.quote!("T", "equity", ctx),
+      { capability: "quote", cacheKey: uid("k"), store: s, env: {} as NodeJS.ProcessEnv }),
+    (err: unknown) => {
+      assert.ok(err instanceof ProviderError);
+      assert.equal(err.status, 503, "a real failure in the list keeps the retryable status");
+      return true;
+    },
+  );
 });
 
 // --------------------------------------------------------------------------

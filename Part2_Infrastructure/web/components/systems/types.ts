@@ -49,6 +49,11 @@ export interface ProviderRow {
   breaker: BreakerSnapshot;
   latency: LatencyStats;
   simulatedOutage: { expiresAt: number; note: string } | null;
+  /**
+   * Capabilities this key was refused (401/402/403), learned by dispatch on
+   * the answering instance. Optional: an older health route omits it.
+   */
+  licence?: Array<{ capability: string; status: number | null; expiresAt: number }>;
   ready: boolean;
   statusDetail: string;
 }
@@ -58,6 +63,7 @@ export type RouteState =
   | "simulated_outage"
   | "not_configured"
   | "circuit_open"
+  | "unlicensed"
   | "quota_exhausted"
   | "quota_reserved";
 
@@ -529,6 +535,9 @@ export const SKIP_LABEL: Record<string, string> = {
   simulated_outage: "simulated outage",
   asset_unsupported: "asset unsupported",
   no_capability: "capability unsupported",
+  no_data: "no data for this symbol",
+  unlicensed: "not licensed on this key",
+  rate_limited: "rate-limited by the vendor",
   failed: "failed",
 };
 
@@ -547,5 +556,9 @@ export const ROUTE_STATE_STYLE: Record<RouteState, { icon: string; label: string
   simulated_outage: { icon: "▲", label: "DEGRADED (Simulated Outage)", tone: "var(--notice-text)" },
   quota_exhausted: { icon: "▲", label: "DEGRADED (Quota Spent)", tone: "var(--warning-text)" },
   quota_reserved: { icon: "▲", label: "DEGRADED (Quota Reserved)", tone: "var(--warning-text)" },
+  // An absence rather than a fault: the key is not entitled to this
+  // capability. Same mark and tone as "not configured", and the words say
+  // which capability and that the block is per instance.
+  unlicensed: { icon: "○", label: "NOT LICENSED (This Key)", tone: "var(--text-secondary)" },
   not_configured: { icon: "○", label: "NOT CONFIGURED", tone: "var(--text-secondary)" },
 };

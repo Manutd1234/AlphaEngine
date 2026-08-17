@@ -428,7 +428,17 @@ function RestTrace({ result, interval }: { result: InspectResponse; interval?: s
         <div className="banner warn" role="status">
           <span aria-hidden>!</span>
           <div>
-            <strong>No provider could answer.</strong> {result.error}
+            {/* "Could not answer" and "has no data" are different findings.
+                When every provider that was reached said "nothing here" (or
+                was never reachable for a licence or key reason), the pool is
+                healthy and the symbol is the question. */}
+            <strong>
+              {result.attempts.length > 0
+                && result.attempts.every((a) => a.reason === "no_data" || a.reason === "not_configured" || a.reason === "unlicensed")
+                ? `No provider has ${result.capability} data for ${result.symbol}.`
+                : "No provider could answer."}
+            </strong>{" "}
+            {result.error}
           </div>
         </div>
       )}

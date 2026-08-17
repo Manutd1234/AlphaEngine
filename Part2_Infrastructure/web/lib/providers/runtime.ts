@@ -61,6 +61,7 @@ import {
   FetchCtx,
   Priority,
   ProviderError,
+  type ProviderErrorKind,
   Provenance,
   Sourced,
 } from "./types";
@@ -100,7 +101,7 @@ interface Entry {
  * Losing a cached quote costs one upstream call; losing the quota ledger costs
  * a vendor's daily allowance.
  */
-const PROTECTED_PREFIXES = ["quota:", "breaker:"];
+const PROTECTED_PREFIXES = ["quota:", "breaker:", "licence:"];
 
 export class MemoryStore implements Store {
   private map = new Map<string, Entry>();
@@ -502,6 +503,88 @@ export function resetBreaker(id: string, s: Store = store): boolean {
 }
 
 // --------------------------------------------------------------------------
+// Learned licence state
+// --------------------------------------------------------------------------
+
+/**
+ * A capability-scoped breaker for a refusal that will not change.
+ *
+ * Tiingo declares `news` and answers 403 on the free plan; before this, every
+ * uncached news dispatch paid a Tiingo round trip to read the same refusal,
+ * booked it as a failure, and three of them could open Tiingo's circuit for
+ * quotes and bars as well. A 401/402/403 on a declared capability is now
+ * remembered per (provider, capability) for a day; while the record lives the
+ * dispatch loop skips that provider for that capability without a call and
+ * says why. Per instance, like the breaker — the ops-sync body is pinned to
+ * the gateway contract, and a licence is not worth a wire change.
+ *
+ * "Close circuit" from the operator console forgets these too, so the next
+ * request re-probes: that is the retry affordance.
+ */
+export const LICENCE_TTL_MS = 24 * 60 * 60_000;
+
+export interface LicenceBlock {
+  status: number | null;
+  learnedAt: number;
+  detail: string;
+}
+
+function licenceKey(id: string, capability: Capability): string {
+  return `licence:${id}:${capability}`;
+}
+
+export function markUnlicensed(
+  id: string,
+  capability: Capability,
+  status: number | null,
+  detail: string,
+  s: Store = store,
+): void {
+  const already = s.get<LicenceBlock>(licenceKey(id, capability));
+  s.set<LicenceBlock>(licenceKey(id, capability), { status, learnedAt: Date.now(), detail }, LICENCE_TTL_MS);
+  if (already) return;
+  emit({
+    level: "warn",
+    source: "Licence",
+    message: `${id} ${capability}: HTTP ${status ?? "?"} — not licensed on this key; skipping for ${LICENCE_TTL_MS / 3_600_000}h on this instance`,
+    fields: { provider: id, capability, status },
+  });
+}
+
+export function licenceBlock(
+  id: string,
+  capability: Capability,
+  s: Store = store,
+): (LicenceBlock & { expiresInMs: number }) | null {
+  const block = s.get<LicenceBlock>(licenceKey(id, capability));
+  if (!block) return null;
+  return { ...block, expiresInMs: s.ttl(licenceKey(id, capability)) ?? 0 };
+}
+
+/** Every capability this provider has been recorded as unlicensed for. */
+export function licenceBlocks(id: string, s: Store = store): Array<LicenceBlock & { capability: Capability; expiresInMs: number }> {
+  return s.keys(`licence:${id}:`).flatMap((key) => {
+    const block = s.get<LicenceBlock>(key);
+    if (!block) return [];
+    return [{ ...block, capability: key.slice(`licence:${id}:`.length) as Capability, expiresInMs: s.ttl(key) ?? 0 }];
+  });
+}
+
+/** Operator forget. Returns how many blocks were holding this provider out. */
+export function clearLicence(id: string, s: Store = store): number {
+  const keys = s.keys(`licence:${id}:`);
+  for (const key of keys) s.del(key);
+  return keys.length;
+}
+
+function describeLicenceSkip(block: LicenceBlock & { expiresInMs: number }, now = Date.now()): string {
+  const agoMin = Math.max(0, Math.round((now - block.learnedAt) / 60_000));
+  const ago = agoMin < 60 ? `${agoMin} min ago` : `${Math.round(agoMin / 60)} h ago`;
+  const left = Math.max(1, Math.round(block.expiresInMs / 3_600_000));
+  return `HTTP ${block.status ?? "?"} learned ${ago}; re-probes in ${left} h (this instance)`;
+}
+
+// --------------------------------------------------------------------------
 // HTTP
 // --------------------------------------------------------------------------
 
@@ -597,11 +680,14 @@ export async function httpJson(
         parsed = JSON.parse(text);
       } catch {
         report(false, res.status, { error: "expected JSON, got a non-JSON body" });
+        // Explicitly `failed`: a 2xx that will not parse is the vendor not
+        // answering, whatever the status line says.
         throw new ProviderError(
           provider,
           `expected JSON, got ${text.slice(0, 120)}`,
           res.status,
           false,
+          "failed",
         );
       }
       // Reporting sits outside the parse guard on purpose: a fault in the
@@ -761,6 +847,15 @@ export async function dispatch<T>(
       attempts.push({ provider: id, reason: "circuit_open", detail: "recent consecutive failures" });
       continue;
     }
+    // A capability-scoped breaker sits after the provider-scoped one and before
+    // the quota checks: there is no point reporting reserve arithmetic for a
+    // call the vendor would refuse. Applies to a pinned dispatch too, like the
+    // breaker; the operator clears it with the same "Close circuit".
+    const licence = licenceBlock(id, opts.capability, s);
+    if (licence) {
+      attempts.push({ provider: id, reason: "unlicensed", detail: describeLicenceSkip(licence) });
+      continue;
+    }
     const blocked = quotaBlock(adapter, priority, s);
     if (blocked) {
       const st = quotaState(adapter, s)!;
@@ -892,37 +987,65 @@ export async function dispatch<T>(
       });
       return out;
     } catch (err) {
-      recordLatency(id, Date.now() - startedAt, false);
-      recordFailure(id, s);
-      attempts.push({
-        provider: id,
-        reason: "failed",
-        // Redacted before it is stored, not before it is rendered. Alpha Vantage
-        // and FMP carry the key in the query string, and both answer an auth
-        // failure with an HTML page that echoes the request URL — which
-        // `httpJson` then quotes into this message. Without this, a 401 puts a
-        // live credential into the attempts list of a public API response.
-        detail: redact(err instanceof Error ? err.message : String(err)).slice(0, 200),
-      });
+      const ms = Date.now() - startedAt;
+      const kind: ProviderErrorKind = err instanceof ProviderError ? err.kind : "failed";
+      // Redacted before it is stored, not before it is rendered. Alpha Vantage
+      // and FMP carry the key in the query string, and both answer an auth
+      // failure with an HTML page that echoes the request URL — which
+      // `httpJson` then quotes into this message. Without this, a 401 puts a
+      // live credential into the attempts list of a public API response.
+      const detail = redact(err instanceof Error ? err.message : String(err)).slice(0, 200);
+
+      // Not every thrown error is a provider failing. The taxonomy on
+      // ProviderErrorKind decides what each one costs the vendor's record:
+      //   failed      — breaker + error sample, as before
+      //   no_data     — the vendor answered correctly that there is nothing
+      //                 here; a healthy round trip that fails over. Recorded
+      //                 as an OK sample (an answer was paid for and received),
+      //                 never as a failure. Before this, four "no profile"
+      //                 answers made four healthy vendors read as degraded.
+      //   unlicensed  — a refusal, not an answer: no sample either way (ok:false
+      //                 would make an unlicensed feature look like an outage,
+      //                 ok:true would claim a success). Remembered so the
+      //                 next dispatch skips without a call.
+      //   quota       — a decline; no sample, no breaker.
+      if (kind === "failed") {
+        recordLatency(id, ms, false);
+        recordFailure(id, s);
+        attempts.push({ provider: id, reason: "failed", detail });
+      } else if (kind === "no_data") {
+        recordLatency(id, ms, true);
+        attempts.push({ provider: id, reason: "no_data", detail });
+      } else if (kind === "unlicensed") {
+        markUnlicensed(id, opts.capability, err instanceof ProviderError ? err.status : null, detail, s);
+        attempts.push({ provider: id, reason: "unlicensed", detail });
+      } else {
+        attempts.push({ provider: id, reason: "rate_limited", detail });
+      }
     }
   }
 
+  // When every provider that was actually asked answered "nothing here", the
+  // request is a 404, not a 503: the pool is healthy and the symbol is the
+  // problem. Any real failure, licence refusal or rate limit in the list keeps
+  // the 503, because then a retry or a different key could change the answer.
+  const asked = attempts.filter((a) => a.reason === "failed" || a.reason === "no_data"
+    || a.reason === "unlicensed" || a.reason === "rate_limited");
+  const onlyNoData = asked.length > 0 && asked.every((a) => a.reason === "no_data");
+  const message = onlyNoData
+    ? `no provider has ${opts.capability} data for this request`
+    : `no provider could serve ${opts.capability}`;
   emit({
-    level: "error",
+    level: onlyNoData ? "warn" : "error",
     source: "Dispatch",
-    message: `no provider could serve ${opts.capability}`,
+    message,
     fields: {
       capability: opts.capability,
       key: opts.cacheKey,
       skipped: attempts.map((a) => `${a.provider}:${a.reason}`).join(",") || null,
     },
   });
-  const err = new ProviderError(
-    "registry",
-    `no provider could serve ${opts.capability}`,
-    503,
-    false,
-  );
+  const err = new ProviderError("registry", message, onlyNoData ? 404 : 503, false);
   (err as ProviderError & { attempts: Attempt[] }).attempts = attempts;
   throw err;
 }

@@ -65,52 +65,76 @@ function names(ids: string[], providers: ProviderRow[]): string {
   return ids.map((id) => labels.get(id) ?? id).join(", ");
 }
 
-function hasSuccessfulTraffic(provider: ProviderRow): boolean {
-  return provider.latency.n > 0 && provider.latency.errorRate < 1;
-}
-
-function hasLiveEvidence(provider: ProviderRow): boolean {
-  return hasSuccessfulTraffic(provider) || (provider.id === "openbb" && provider.ready);
-}
-
+/**
+ * One word per provider, and a sentence that says how it was earned.
+ *
+ * Healthy, Degraded and Failing need observed calls in the fifteen-minute
+ * window; only calls that actually failed count against a provider — a vendor
+ * answering "no data for this symbol" or refusing a capability the key does
+ * not hold is recorded as such by dispatch, never as an error, so a trace on
+ * the wrong asset class cannot mark four healthy vendors as degraded. Idle is
+ * configured, within quota and not behind an open circuit, with no call in
+ * the window; only OpenBB is probed automatically, so it earns "Probe healthy"
+ * without traffic. A provider whose every call failed is Failing, not idle —
+ * that reading used to fall through to "no live call observed".
+ */
 function providerSignal(provider: ProviderRow): {
   label: string;
   detail: string;
   tone: "good" | "warn" | "critical" | "neutral";
 } {
+  const licence = provider.licence?.length
+    ? `; ${provider.licence.map((block) => block.capability).join(", ")} not licensed on this key`
+    : "";
   if (!provider.configured) {
     return {
       label: "Not configured",
-      detail: `Missing ${provider.keyEnv}`,
+      detail: `Set ${provider.keyEnv} to enable this provider.`,
       tone: "warn",
     };
   }
   if (!provider.ready) {
     return {
       label: "Blocked",
-      detail: provider.statusDetail,
+      detail: `${provider.statusDetail}${licence}`,
       tone: "critical",
     };
   }
-  if (hasSuccessfulTraffic(provider)) {
-    const successes = Math.max(0, Math.round(provider.latency.n * (1 - provider.latency.errorRate)));
-    const degraded = provider.latency.errorRate > 0.05;
+  const n = provider.latency.n;
+  if (n > 0) {
+    // Integers from a non-nullable rate: `errorRate` is 0–1 over `n` samples.
+    const failures = Math.round(n * provider.latency.errorRate);
+    const successes = n - failures;
+    if (failures === n) {
+      return {
+        label: "Failing",
+        detail: `All ${n} ${n === 1 ? "call" : "calls"} failed in the last 15 minutes${licence}.`,
+        tone: "critical",
+      };
+    }
+    if (provider.latency.errorRate > 0.05) {
+      return {
+        label: "Degraded",
+        detail: `${failures} of ${n} calls failed in the last 15 minutes${licence}.`,
+        tone: "warn",
+      };
+    }
     return {
-      label: degraded ? "Successes + errors" : "Success observed",
-      detail: `Configured · ${successes}/${provider.latency.n} attempts succeeded in the last 15m`,
-      tone: degraded ? "warn" : "good",
+      label: "Healthy",
+      detail: `${successes} of ${n} ${n === 1 ? "call" : "calls"} succeeded in the last 15 minutes${licence}.`,
+      tone: "good",
     };
   }
   if (provider.id === "openbb") {
     return {
-      label: "Live probe",
-      detail: "Configured · readiness endpoint answered",
+      label: "Probe healthy",
+      detail: `Configured; the readiness endpoint answered${licence}.`,
       tone: "good",
     };
   }
   return {
-    label: "Routable",
-    detail: "Configured · no live call observed in the last 15m",
+    label: "Idle",
+    detail: `Configured; no call in the last 15 minutes${licence}.`,
     tone: "neutral",
   };
 }
@@ -152,7 +176,6 @@ export default function ReliabilityOverview({
   );
   const configuredProviders = providers.filter((provider) => provider.configured).length;
   const routableProviders = providers.filter((provider) => provider.ready).length;
-  const providersWithLiveEvidence = providers.filter(hasLiveEvidence).length;
   const quarantined = health?.quarantine?.size ?? 0;
   const posture = health ? deriveReliabilityPosture(health) : null;
   const platform = health?.platform;
@@ -503,10 +526,12 @@ export default function ReliabilityOverview({
           {!health && <li className="is-loading">Loading all provider states…</li>}
         </ul>
         <details className="disclosure">
-          <summary>What &ldquo;routable&rdquo; means, and why only OpenBB is probed automatically</summary>
+          <summary>What Idle means, and why only OpenBB is probed automatically</summary>
           <p className="reliability-window-note">
-            “Routable” means configured, within quota and not held behind an open circuit. Success evidence needs an observed successful call;
-            only OpenBB is probed automatically because probing every paid API on each health refresh would consume quota.
+            Idle means configured, within quota and not held behind an open circuit, with no call observed in the
+            fifteen-minute window. Healthy and Degraded need observed calls, and only calls that failed count against
+            a provider — a vendor answering that it has no data for a symbol is not an error. Only OpenBB is probed
+            automatically, because probing every paid API on each health refresh would consume quota.
           </p>
         </details>
       </section>

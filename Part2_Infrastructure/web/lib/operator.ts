@@ -46,7 +46,7 @@ import {
 import { resetOpenBBHealthCache } from "./providers/openbb-health";
 import { BY_ID, cacheKeys, getQuote, searchWeb } from "./providers/registry";
 import { registerEnvSecrets } from "./providers/trace";
-import { resetBreaker, resetQuota, store, Store } from "./providers/runtime";
+import { clearLicence, resetBreaker, resetQuota, store, Store } from "./providers/runtime";
 import type { Capability } from "./providers/types";
 
 // --------------------------------------------------------------------------
@@ -399,16 +399,27 @@ export async function applyAction(
     case "reset_breaker": {
       const targets = action.provider === "all" ? [...BY_ID.keys()] : [action.provider!];
       const reopened = targets.filter((id) => resetBreaker(id, s));
-      log(action, `reset breakers: ${reopened.join(", ") || "none were open"}`);
+      // Learned licence blocks are capability-scoped breakers; "Close circuit"
+      // is their retry affordance too, so the next request re-probes a
+      // capability that answered 401/403.
+      const forgotten = targets.reduce((n, id) => n + clearLicence(id, s), 0);
+      log(action, `reset breakers: ${reopened.join(", ") || "none were open"}; forgot ${forgotten} licence blocks`);
+      const circuits = reopened.length
+        ? `Closed ${reopened.length} open ${reopened.length === 1 ? "circuit" : "circuits"}: ${reopened.join(", ")}.`
+        : "No circuit was open — nothing to reset.";
+      const licences = forgotten
+        ? ` Forgot ${forgotten} learned licence ${forgotten === 1 ? "block" : "blocks"}.`
+        : "";
       return {
         action: action.action,
-        summary: reopened.length
-          ? `Closed ${reopened.length} open ${reopened.length === 1 ? "circuit" : "circuits"}: ${reopened.join(", ")}.`
-          : "No circuit was open — nothing to reset.",
-        caveat: reopened.length
-          ? "If the provider is still failing, three more consecutive failures reopen it."
+        summary: circuits + licences,
+        caveat: reopened.length || forgotten
+          ? [
+              reopened.length ? "If the provider is still failing, three more consecutive failures reopen it." : null,
+              forgotten ? "The next request re-probes any capability that answered 401 or 403." : null,
+            ].filter(Boolean).join(" ")
           : undefined,
-        data: { reset: reopened },
+        data: { reset: reopened, licencesForgotten: forgotten },
       };
     }
 
@@ -571,7 +582,11 @@ async function probeProvider(
     // "counts toward the circuit breaker exactly as a real request would" there
     // would have an operator chasing a provider that was never contacted.
     const attempts = (err as { attempts?: { provider: string; reason: string; detail?: string }[] }).attempts ?? [];
-    const skipped = attempts.find((a) => a.provider === providerId && a.reason !== "failed");
+    // Reasons that mean the request WAS sent and the vendor answered — a 404,
+    // a licence refusal, a 429 — are not skips: quota was spent, so the probe
+    // must report them as a real answer, not as "not contacted".
+    const sent = new Set(["failed", "no_data", "unlicensed", "rate_limited"]);
+    const skipped = attempts.find((a) => a.provider === providerId && !sent.has(a.reason));
     emit({
       level: "error",
       source: "Operator",

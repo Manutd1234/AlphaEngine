@@ -53,7 +53,15 @@ function assertOk(payload: unknown): Record<string, unknown> {
   // with HTTP 200, so that a missing downstream key is a *routing* signal here
   // rather than a 500 that the breaker would count against the service itself.
   if (o["ok"] === false) {
-    throw new ProviderError(ID, str(o["error"]) ?? "openbb call failed", 424, false);
+    const message = str(o["error"]) ?? "openbb call failed";
+    // The service folds two different things into `ok:false`: a downstream
+    // provider that timed out or is temporarily unavailable (the service's own
+    // words, in provider.py) — a real failure worth the breaker — and "no
+    // fundamentals / no news for this symbol", which is an answer. The words
+    // are the only signal, so they are read here rather than guessed at by
+    // status.
+    const kind = /timed out|temporarily unavailable/i.test(message) ? "failed" : "no_data";
+    throw new ProviderError(ID, message, 424, false, kind);
   }
   return o;
 }

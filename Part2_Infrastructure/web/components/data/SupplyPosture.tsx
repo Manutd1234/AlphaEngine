@@ -29,6 +29,7 @@ const STATE_ORDER: RouteState[] = [
   "quota_exhausted",
   "circuit_open",
   "simulated_outage",
+  "unlicensed",
   "not_configured",
 ];
 

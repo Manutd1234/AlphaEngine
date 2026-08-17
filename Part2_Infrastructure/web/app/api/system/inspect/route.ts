@@ -286,7 +286,7 @@ function lineage(input: {
     stages.push({
       stage: "Reliability policy",
       detail: input.attempts.length
-        ? input.attempts.map((a) => `${a.provider}: ${a.reason}`).join(" · ")
+        ? input.attempts.map((a) => `${a.provider}: ${a.reason}`).join("; ")
         : "no provider was skipped — the top-ranked candidate was eligible",
       providers: input.attempts.map((a) => a.provider),
     });

@@ -33,9 +33,13 @@ const ID = "massive";
 
 function assertOk(payload: unknown): Record<string, unknown> {
   const o = obj(payload);
-  if (str(o["status"]) === "ERROR" || str(o["status"]) === "NOT_AUTHORIZED") {
-    throw new ProviderError(ID, str(o["error"]) ?? str(o["message"]) ?? "error", 403, false);
-  }
+  const status = str(o["status"]);
+  const message = str(o["error"]) ?? str(o["message"]) ?? "error";
+  // NOT_AUTHORIZED is an entitlement problem — remembered as unlicensed. A
+  // bare ERROR is the vendor declining this request (unknown ticker, bad
+  // range) and must not be booked as a licence refusal or a failure.
+  if (status === "NOT_AUTHORIZED") throw new ProviderError(ID, message, 403, false);
+  if (status === "ERROR") throw new ProviderError(ID, message, 400, false);
   return o;
 }
 

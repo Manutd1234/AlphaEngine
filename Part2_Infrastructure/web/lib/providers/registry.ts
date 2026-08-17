@@ -34,6 +34,8 @@ import {
   breakerSnapshot,
   dispatch,
   isConfigured,
+  licenceBlock,
+  licenceBlocks,
   quotaState,
   store,
   Store,
@@ -394,6 +396,11 @@ export interface ProviderStatus {
   latency: LatencyStats;
   /** Set while an operator is deliberately holding this provider out of routing. */
   simulatedOutage: { expiresAt: number; note: string } | null;
+  /**
+   * Capabilities this key has been refused (401/402/403), learned by dispatch
+   * on this instance and skipped without a call until they expire.
+   */
+  licence: Array<{ capability: Capability; status: number | null; expiresAt: number }>;
 }
 
 /**
@@ -430,6 +437,11 @@ export function providerStatus(
       breaker,
       latency: latencyStats(a.meta.id),
       simulatedOutage: outage ? { expiresAt: outage.expiresAt, note: outage.note } : null,
+      licence: licenceBlocks(a.meta.id, s).map((block) => ({
+        capability: block.capability,
+        status: block.status,
+        expiresAt: Date.now() + block.expiresInMs,
+      })),
     };
   });
 }
@@ -444,6 +456,8 @@ export type RouteState =
   | "simulated_outage"
   | "not_configured"
   | "circuit_open"
+  /** This key was refused this capability (401/402/403); skipped until the block expires. */
+  | "unlicensed"
   | "quota_exhausted"
   | "quota_reserved";
 
@@ -491,6 +505,7 @@ export interface FailoverRoute {
  */
 function routeState(
   adapter: Adapter,
+  capability: Capability,
   env: NodeJS.ProcessEnv,
   s: Store,
   priority: Priority,
@@ -508,6 +523,14 @@ function routeState(
     return {
       state: "circuit_open",
       detail: `${breaker.failures} consecutive failures — probes in ${Math.ceil(breaker.cooldownRemainingMs / 1000)}s`,
+    };
+  }
+  const licence = licenceBlock(adapter.meta.id, capability, s);
+  if (licence) {
+    const hours = Math.max(1, Math.round(licence.expiresInMs / 3_600_000));
+    return {
+      state: "unlicensed",
+      detail: `HTTP ${licence.status ?? "?"} on ${capability}; learned on this instance, re-probes in ${hours} h`,
     };
   }
   const quota = quotaState(adapter, s);
@@ -544,7 +567,7 @@ export function failoverRoute(
   let activeProvider: string | null = null;
 
   const nodes: FailoverNode[] = chain.map((adapter, index) => {
-    const { state, detail } = routeState(adapter, env, s, priority);
+    const { state, detail } = routeState(adapter, capability, env, s, priority);
     // First ready node in ranked order wins, exactly as the dispatch loop does.
     const active = state === "ready" && activeProvider === null;
     if (active) activeProvider = adapter.meta.id;

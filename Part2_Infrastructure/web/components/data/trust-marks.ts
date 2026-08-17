@@ -35,6 +35,9 @@ export const ROUTE_STATE_FILL: Record<RouteState, string> = {
   quota_exhausted: "var(--status-warning)",
   circuit_open: "var(--status-critical)",
   simulated_outage: "var(--series-2)",
+  // Not a fault either: the key is not entitled to this capability. Grey, like
+  // "never configured"; the row note carries the word that tells them apart.
+  unlicensed: "var(--axis)",
   not_configured: "var(--axis)",
 };
 
@@ -45,5 +48,6 @@ export const ROUTE_STATE_WORD: Record<RouteState, string> = {
   quota_exhausted: "quota spent",
   circuit_open: "circuit open",
   simulated_outage: "drill",
+  unlicensed: "not licensed",
   not_configured: "no key",
 };

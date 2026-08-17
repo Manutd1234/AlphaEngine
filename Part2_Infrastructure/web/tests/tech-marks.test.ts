@@ -165,3 +165,39 @@ describe("the tree stopped claiming to be an ARIA tree", () => {
     assert.match(tree, /\{node\.source\}/);
   });
 });
+
+describe("the provider digest speaks one vocabulary and earns every word", () => {
+  // Reliability → Dependencies → Providers. The words are the contract: an
+  // operator reads "Degraded" and goes looking for a failing vendor, so only a
+  // failed call may earn it. Dispatch books a vendor's "no data for this
+  // symbol" and a licence refusal as their own reasons, never as errors, so a
+  // trace on the wrong asset class cannot degrade four healthy providers.
+  const signal = code(overview.slice(overview.indexOf("function providerSignal"), overview.indexOf("const POSTURE_LABEL")));
+
+  it("uses the enterprise vocabulary and nothing else", () => {
+    const labels = [...signal.matchAll(/label: "([^"]+)"/g)].map((m) => m[1]);
+    assert.deepEqual(
+      [...new Set(labels)].sort(),
+      ["Blocked", "Degraded", "Failing", "Healthy", "Idle", "Not configured", "Probe healthy"].sort(),
+    );
+    for (const retired of ["Success observed", "Successes + errors", "Routable", "Live probe"]) {
+      assert.ok(!overview.includes(`"${retired}"`), `${retired} is retired vocabulary`);
+    }
+  });
+
+  it("a provider whose every call failed is Failing, never Idle", () => {
+    assert.match(signal, /failures === n/);
+    assert.match(signal, /label: "Failing"/);
+  });
+
+  it("every detail is a sentence with counts, and no middle dot", () => {
+    assert.match(signal, /of \$\{n\} calls failed in the last 15 minutes/);
+    assert.match(signal, /succeeded in the last 15 minutes/);
+    assert.doesNotMatch(signal, / · /, "detail templates are prose, not compounds");
+  });
+
+  it("names the capabilities this key was refused", () => {
+    assert.match(signal, /not licensed on this key/);
+    assert.match(signal, /provider\.licence\?\.length/);
+  });
+});

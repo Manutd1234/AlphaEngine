@@ -58,6 +58,7 @@ import {
   breakerSnapshot,
   dispatch,
   hydrateQuotaLedger,
+  markUnlicensed,
   recordFailure,
   resetBreaker,
 } from "../lib/providers/runtime";
@@ -483,6 +484,24 @@ describe("the failover graph agrees with the code it describes", () => {
     const route = failoverRoute("fundamentals", "equity", EMPTY_ENV, s);
     assert.equal(route.activeProvider, null);
     assert.ok(route.nodes.every((n) => !n.active));
+  });
+
+  it("a learned licence refusal shows on the route node and the provider row", () => {
+    const s = new MemoryStore();
+    const env = { ...EMPTY_ENV, TIINGO_API_KEY: "k" } as NodeJS.ProcessEnv;
+    markUnlicensed("tiingo", "news", 403, "You do not have permission to access the News API", s);
+    const news = failoverRoute("news", "equity", env, s);
+    const tiingo = news.nodes.find((n) => n.provider === "tiingo")!;
+    assert.equal(tiingo.state, "unlicensed");
+    assert.match(tiingo.detail, /HTTP 403 on news; learned on this instance, re-probes in \d+ h/);
+    assert.equal(tiingo.active, false, "an unlicensed node must not be the one serving");
+    // Scoped to the capability: the same key still routes quotes.
+    const quote = failoverRoute("quote", "equity", env, s);
+    assert.equal(quote.nodes.find((n) => n.provider === "tiingo")!.state, "ready");
+    // And the provider row lists what the key was refused.
+    const row = providerStatus(env, s).find((r) => r.id === "tiingo")!;
+    assert.deepEqual(row.licence.map((b) => [b.capability, b.status]), [["news", 403]]);
+    assert.ok(row.licence[0].expiresAt > Date.now());
   });
 
   it("providerStatus exposes the breaker shape and does not mutate it", () => {

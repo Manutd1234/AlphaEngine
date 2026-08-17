@@ -193,6 +193,20 @@ export type SkipReason =
    * someone caused deliberately must never be mistaken for one they did not.
    */
   | "simulated_outage"
+  /**
+   * The provider was asked and answered, correctly, that it has nothing for
+   * this request — an unknown symbol, an interval it does not serve. Not a
+   * failure: it never counts toward the breaker or the error rate.
+   */
+  | "no_data"
+  /**
+   * The credential is not entitled to this capability. Learned from a 401/
+   * 402/403 and remembered per (provider, capability), so later dispatches
+   * skip here without a call.
+   */
+  | "unlicensed"
+  /** The vendor answered 429 after our retries backed off. Not the breaker. */
+  | "rate_limited"
   | "failed";
 
 export interface Attempt {
@@ -216,15 +230,50 @@ export interface Sourced<T> {
 }
 
 /** Thrown by adapters; carries whether a retry could plausibly help. */
+/**
+ * What kind of thing went wrong — the distinction the reliability policy
+ * needs, which an HTTP status alone blurs.
+ *
+ *   failed      the vendor did not answer its question: timeout, network,
+ *               5xx, a 200 whose body would not parse. Counts toward the
+ *               breaker and as an error sample.
+ *   no_data     the vendor answered correctly that there is nothing here:
+ *               unknown symbol, unsupported interval, no profile. A healthy
+ *               round trip that fails over; never the breaker.
+ *   unlicensed  the credential is not entitled to this capability (401/402/
+ *               403). Deterministic — retrying burns quota to read the same
+ *               refusal — so the runtime remembers it per (provider,
+ *               capability) and skips without a call.
+ *   quota       the vendor rate-limited us (429). Backed off, not counted.
+ *
+ * Every 400 thrown in this codebase is a deterministic decline (Alpha
+ * Vantage's "Error Message" for a bad symbol, "interval not offered", FMP's
+ * "Error Message"), and a 400 our own malformed request earned would be just
+ * as deterministic — re-sending it three times to open a breaker helps nobody.
+ */
+export type ProviderErrorKind = "failed" | "no_data" | "unlicensed" | "quota";
+
+export function kindFromStatus(status: number | null): ProviderErrorKind {
+  if (status === 401 || status === 402 || status === 403) return "unlicensed";
+  if (status === 400 || status === 404 || status === 410 || status === 422 || status === 424) return "no_data";
+  if (status === 429) return "quota";
+  // null (timeout, network), 408, 5xx, and a 2xx that failed to parse.
+  return "failed";
+}
+
 export class ProviderError extends Error {
+  readonly kind: ProviderErrorKind;
+
   constructor(
     readonly provider: string,
     message: string,
     readonly status: number | null = null,
     readonly retryable = false,
+    kind?: ProviderErrorKind,
   ) {
     super(message);
     this.name = "ProviderError";
+    this.kind = kind ?? kindFromStatus(status);
   }
 }
 
