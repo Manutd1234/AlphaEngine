@@ -1685,8 +1685,13 @@ _L = _L[(_L[[f"Δ {m}" for m in MEASURES]] != 0).any(axis=1)]
 _sfmt = {"requests": lambda v: f"{v:+,.0f}", "total_tokens": lambda v: f"{v:+,.0f}",
          "cost_usd": lambda v: f"{v:+,.2f}"}
 # One "$...$" pair in a title trips matplotlib's mathtext, so escape the sign.
+# Raw f-string: "\$" is not a recognised escape, so a plain f-string kept the
+# backslash but emitted a SyntaxWarning into the notebook's own output — and a
+# submission that warns about itself on every run reads as unfinished. Python
+# 3.15 turns that warning into a SyntaxError, so this is also the version that
+# keeps running.
 _tfmt = {"requests": CNT, "total_tokens": lambda v: f"{v / 1e6:,.2f}M",
-         "cost_usd": lambda v: f"\${v:,.2f}"}
+         "cost_usd": lambda v: rf"\${v:,.2f}"}
 fig, axes = plt.subplots(1, len(MEASURES), figsize=(12.6, 0.62 * len(_L) + 1.6), sharey=True,
                          gridspec_kw={"wspace": 0.10})
 y = np.arange(len(_L))
