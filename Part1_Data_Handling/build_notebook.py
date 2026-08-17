@@ -568,6 +568,61 @@ print(f"raw {len(raw):,} rows -> clean {len(df):,} rows, "
 ''')
 
 md(r"""
+The post-conditions above prove the pipeline behaved on *this* file. The cell
+below proves the **rules** behave on inputs this file happens not to contain —
+a thousands separator, a currency sign, both readings of an ambiguous date, a
+label variant with an underscore, a conflicting restatement. Each rule is
+exercised on a synthetic value with a known right answer, so a regression in any
+parser fails the run here, three cells in, rather than surfacing as a wrong
+number in §4. The same discipline as the parity fixtures in Part 2: the contract
+is tested where it is defined, not where it eventually breaks something.
+""")
+
+code(r'''
+# --- unit checks on the cleaning rules, independent of the workbook -----------
+_s = lambda *v: pd.Series(list(v))
+
+# Numeric parsing: separators, whitespace, currency signs; blanks become NaN;
+# garbage refuses to parse rather than becoming NaN.
+assert to_number(_s("1,234", " 5 ", "$6.70", 8, None, "")).tolist()[:4] == [1234.0, 5.0, 6.7, 8.0]
+assert to_number(_s("1,234", None)).isna().tolist() == [False, True]
+try:
+    to_number(_s("12o4"), "probe"); raise AssertionError("garbage numeric was coerced silently")
+except ValueError:
+    pass
+
+# Date parsing: ISO wins; the fallback obeys the stated day/month order; an
+# unparseable date raises rather than becoming NaT.
+assert parse_dates(_s("2026-04-01", "09/05/2026"), dayfirst=True)[0].tolist() == \
+       [pd.Timestamp("2026-04-01"), pd.Timestamp("2026-05-09")]
+assert parse_dates(_s("09/05/2026"), dayfirst=False)[0].iloc[0] == pd.Timestamp("2026-09-05")
+assert parse_dates(_s("2026-04-01", "09/05/2026"), dayfirst=True)[1].tolist() == [False, True]
+try:
+    parse_dates(_s("2026-13-45"), dayfirst=True); raise AssertionError("an impossible date parsed")
+except ValueError:
+    pass
+
+# Label canonicalisation: case, whitespace, separator variants collapse; clean
+# labels pass through unchanged.
+assert canon_service(_s("Chat Router", " chat_router ", "chat-router")).nunique() == 1
+assert canon_team(_s("platform", " PLATFORM", "Platform")).nunique() == 1
+assert canon_model(_s("GPT-4.1", "gpt-4.1 ")).nunique() == 1
+
+# Duplicate policy: byte-identical twins collapse to one; the same key with
+# DIFFERENT measures is a conflict that stops the pipeline.
+_twin = pd.concat([raw.iloc[[0]], raw.iloc[[0]]]).reset_index(drop=True).astype(object)
+assert len(clean(_twin.assign(requests=[100, 100]))[0]) == 1
+try:
+    clean(_twin.assign(requests=[100, 999]))
+    raise AssertionError("a conflicting restatement was silently resolved")
+except ValueError:
+    pass
+
+print("all unit checks pass: numeric parsing, date parsing (both orders), "
+      "label canonicalisation, duplicate policy")
+''')
+
+md(r"""
 ### 0.3 The two estimators, defined once
 
 Two quantities carry the argument: a **growth rate** (§4) and a **cost
@@ -792,9 +847,10 @@ def fig_label() -> str:
 
 # Axis formatters, shared by every figure.
 USD = lambda v: f"${v:,.0f}"
+USD_G = lambda v: f"${v:,.2f}" if abs(v) < 10 else f"${v:,.0f}"   # small axes need cents
 CNT = lambda v: f"{v:,.0f}"
 MIL = lambda v: f"{v / 1e6:.2f}M" if v else "0"
-FMT = {"requests": CNT, "tokens": MIL, "cost": USD, "total_tokens": MIL, "cost_usd": USD}
+FMT = {"requests": CNT, "tokens": MIL, "cost": USD, "total_tokens": MIL, "cost_usd": USD_G}
 # A second generator for jitter in strip plots, so decorative randomness never
 # consumes draws from RNG and moves a bootstrap interval.
 JITTER = np.random.default_rng(SEED + 1)
@@ -1152,12 +1208,14 @@ for ax, svc in zip(axes, SVC.index):                     # cost order, as everyw
     ax.set_title(f"{svc}\n${RATE[svc]:.3f} per 1k tokens", loc="left", fontsize=10, pad=6)
     ax.set_xlabel("tokens on the row", fontsize=9)
     ax.xaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda v, _p: f"{v / 1e3:.0f}k"))
-    ax.yaxis.set_major_formatter(mpl.ticker.StrMethodFormatter("${x:,.0f}"))
+    ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda v, _p: USD_G(v)))
     ax.set_xlim(0, xs[1])
     ax.set_ylim(bottom=0)
     ax.tick_params(labelsize=8.5)
 axes[0].set_ylabel("cost on the row (USD)", fontsize=9)
-axes[0].legend(frameon=False, fontsize=8, loc="upper left")
+# The legend lives on the second panel: the first's corners are taken by the
+# anomaly annotation and by its own flatter line.
+axes[1].legend(frameon=False, fontsize=8, loc="upper left")
 fig.suptitle("Every untouched row sits on its service's line; one row does not",
              x=0.005, ha="left", fontsize=13, fontweight="bold", y=1.06)
 show_figure(fig, _FIGN,
@@ -1323,16 +1381,17 @@ _FIGN = fig_label()
 _classes = list(FLAGS.columns)
 _bad = FLAGS.index[FLAGS.any(axis=1)]
 fig, ax = plt.subplots(figsize=(12.6, 3.6))
-for i in _bad:
+for k_, i in enumerate(_bad):
     ax.axvline(i + 2, color=C_MUTED, alpha=0.35, lw=0.8, zorder=1)
-    ax.text(i + 2, -0.85, f"row {i + 2}", ha="center", fontsize=8, color="#52514e")
+    ax.text(i + 2, -0.75 if k_ % 2 == 0 else -1.45, f"row {i + 2}", ha="center",
+            fontsize=8, color="#52514e")
 for yi, c in enumerate(_classes):
     hits = FLAGS.index[FLAGS[c]]
     ax.scatter(hits + 2, np.full(len(hits), yi), marker="s", s=70, color=C_INK, zorder=3)
     ax.text(len(raw) + 2 + 5, yi, f"{len(hits)}", va="center", fontsize=9, fontweight="bold", color=C_INK)
-ax.text(len(raw) + 2 + 5, -0.85, "n", ha="center", fontsize=8, color="#52514e")
+ax.text(len(raw) + 2 + 5, -0.75, "n", ha="center", fontsize=8, color="#52514e")
 ax.set_yticks(range(len(_classes)), _classes, fontsize=9)
-ax.set_ylim(len(_classes) - 0.4, -1.5)          # inverted, room for the row labels above
+ax.set_ylim(len(_classes) - 0.4, -2.0)          # inverted, room for the staggered row labels
 ax.set_xlim(-2, len(raw) + 2 + 12)
 ax.set_xlabel("workbook row, in file order", fontsize=9)
 ax.grid(axis="x", alpha=0)
@@ -1579,10 +1638,12 @@ for r_, m in enumerate(MEASURES):
         ax.set_ylim(lo_ * 1.25 if lo_ < 0 else 0, None)
         if lo_ < 0:
             ax.axhline(0, color=C_INK, lw=0.6)
+for ax in axes[-1]:
+    ax.xaxis.set_major_locator(mpl.dates.MonthLocator())
+    ax.xaxis.set_major_formatter(mpl.dates.DateFormatter("%-d %b"))
 axes[0, 0].legend(frameon=False, fontsize=8, loc="upper left")
 fig.suptitle("Where every repair sits: the series as delivered (faint) against the clean series",
              x=0.005, ha="left", fontsize=13, fontweight="bold", y=0.995)
-fig.autofmt_xdate()
 show_figure(fig, _FIGN,
             "A grid of twelve small time-series panels, services across and requests, "
             "tokens and cost down. In each, a faint thick line and a thin solid line "
@@ -1623,7 +1684,9 @@ _L = pd.DataFrame(DECISIONS)
 _L = _L[(_L[[f"Δ {m}" for m in MEASURES]] != 0).any(axis=1)]
 _sfmt = {"requests": lambda v: f"{v:+,.0f}", "total_tokens": lambda v: f"{v:+,.0f}",
          "cost_usd": lambda v: f"{v:+,.2f}"}
-_tfmt = {"requests": CNT, "total_tokens": CNT, "cost_usd": lambda v: f"${v:,.2f}"}
+# One "$...$" pair in a title trips matplotlib's mathtext, so escape the sign.
+_tfmt = {"requests": CNT, "total_tokens": lambda v: f"{v / 1e6:,.2f}M",
+         "cost_usd": lambda v: f"\${v:,.2f}"}
 fig, axes = plt.subplots(1, len(MEASURES), figsize=(12.6, 0.62 * len(_L) + 1.6), sharey=True,
                          gridspec_kw={"wspace": 0.10})
 y = np.arange(len(_L))
@@ -1640,10 +1703,13 @@ for ax, m in zip(axes, MEASURES):
             ax.text(0, yi, "no change", va="center", ha="center", fontsize=8, color="#52514e",
                     style="italic", bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none"))
     ax.set_xlim(-lim, lim)
-    ax.set_title(f"{m}: {_tfmt[m](RAW_TOTALS[m])} → {_tfmt[m](df[m].sum())}", loc="left", fontsize=10.5, pad=8)
-    ax.xaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda x_, _p, m=m: _sfmt[m](x_)))
-    ax.tick_params(labelsize=8)
+    ax.set_title(f"{m}:  {_tfmt[m](RAW_TOTALS[m])} → {_tfmt[m](df[m].sum())}",
+                 loc="left", fontsize=10, pad=8)
+    # The bars carry their own values; ticks would only repeat them, badly.
+    ax.set_xticks([0])
+    ax.set_xticklabels(["0"], fontsize=8)
     ax.grid(axis="y", alpha=0)
+    ax.grid(axis="x", alpha=0)
 axes[0].set_yticks(y, [textwrap.fill(i, 30) for i in _L["Issue"]], fontsize=8.5)
 axes[0].invert_yaxis()
 fig.suptitle("What each repair did to each total, raw → clean", x=0.005, ha="left",
