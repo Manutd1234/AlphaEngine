@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-17",
-  "commit": "58cc29f",
+  "commit": "88779ae",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -353,6 +353,7 @@
     "Part2_Infrastructure/web/components/systems/TraceConsole.tsx",
     "Part2_Infrastructure/web/components/systems/types.ts",
     "Part2_Infrastructure/web/components/Tables.tsx",
+    "Part2_Infrastructure/web/components/TextSizeToggle.tsx",
     "Part2_Infrastructure/web/components/ThemeToggle.tsx",
     "Part2_Infrastructure/web/components/Verdict.tsx",
     "Part2_Infrastructure/web/components/workspace/FreshnessStamp.tsx",
@@ -464,6 +465,7 @@
     "Part2_Infrastructure/web/lib/tech-marks.ts",
     "Part2_Infrastructure/web/lib/telegram-link.ts",
     "Part2_Infrastructure/web/lib/test-counts.generated.ts",
+    "Part2_Infrastructure/web/lib/text-size.ts",
     "Part2_Infrastructure/web/lib/theme.ts",
     "Part2_Infrastructure/web/lib/types.ts",
     "Part2_Infrastructure/web/lib/use-book.ts",
@@ -626,6 +628,7 @@
     "Part2_Infrastructure/web/tests/tech-marks.test.ts",
     "Part2_Infrastructure/web/tests/telegram-cta.test.ts",
     "Part2_Infrastructure/web/tests/telegram-link.test.ts",
+    "Part2_Infrastructure/web/tests/text-size.test.ts",
     "Part2_Infrastructure/web/tests/theme.test.ts",
     "Part2_Infrastructure/web/tests/tile-anatomy.test.ts",
     "Part2_Infrastructure/web/tests/tour-truth.test.ts",

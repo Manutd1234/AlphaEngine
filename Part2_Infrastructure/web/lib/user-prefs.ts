@@ -39,6 +39,7 @@ import { subscribeSession, type SessionInfo } from "./use-session";
 import { COMPLEXITY_STORAGE_KEY, isComplexity } from "./complexity";
 import { setComplexity } from "./use-complexity";
 import { THEME_STORAGE_KEY, applyDocumentThemePreference, isThemePreference } from "./theme";
+import { applyDocumentTextSize, isTextSize, TEXT_SIZE_STORAGE_KEY } from "./text-size";
 import { RECENTS_KEY } from "@/components/header/CommandBar";
 
 /** The research auto-run switch. Mirrors the literal in `app/page.tsx`. */
@@ -54,6 +55,7 @@ export const PREF_LAST_USER_KEY = "alphaengine.prefs.last-user";
 export const SYNCED_PREF_KEYS: readonly string[] = [
   THEME_STORAGE_KEY,
   COMPLEXITY_STORAGE_KEY,
+  TEXT_SIZE_STORAGE_KEY,
   AUTO_RUN_KEY,
   RECENTS_KEY,
   WORKSPACE_LOCATION_KEY,
@@ -199,6 +201,10 @@ function applyRemoteValue(key: string, value: string): void {
   }
   if (key === COMPLEXITY_STORAGE_KEY && isComplexity(value)) {
     setComplexity(value);
+    return;
+  }
+  if (key === TEXT_SIZE_STORAGE_KEY && isTextSize(value)) {
+    applyDocumentTextSize(value);
   }
   // The palette re-reads its recents each time it opens, the research switch
   // has its own effect, and the stored location is read on next visit — none

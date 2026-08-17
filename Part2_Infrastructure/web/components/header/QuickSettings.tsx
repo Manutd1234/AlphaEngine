@@ -30,6 +30,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Settings2 } from "lucide-react";
 
 import ComplexityToggle from "@/components/ComplexityToggle";
+import TextSizeToggle from "@/components/TextSizeToggle";
 import AnchoredPanel from "@/components/header/AnchoredPanel";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -159,7 +160,7 @@ export default function QuickSettings({
             Quick settings
           </h3>
           <p className="mt-1 text-fs-sm leading-snug text-text-secondary">
-            All four are about this browser. None of them change what the desk can do.
+            All five are about this browser. None of them change what the desk can do.
           </p>
 
           {/* Stacked, like Detail level below it. The theme control grew from a
@@ -177,6 +178,13 @@ export default function QuickSettings({
             <span className="text-fs-sm font-semibold text-text-secondary">Detail level</span>
             <div className="mt-1.5">
               <ComplexityToggle />
+            </div>
+          </div>
+
+          <div className="mt-3 border-t border-grid pt-3">
+            <span className="text-fs-sm font-semibold text-text-secondary">Text size</span>
+            <div className="mt-1.5">
+              <TextSizeToggle />
             </div>
           </div>
 

@@ -105,6 +105,10 @@ try {
   if (savedTheme === 'light' || savedTheme === 'dark') {
     document.documentElement.dataset.theme = savedTheme;
   }
+  var savedTextSize = localStorage.getItem('alphaengine-text-size');
+  if (savedTextSize === 'compact' || savedTextSize === 'large') {
+    document.documentElement.dataset.textSize = savedTextSize;
+  }
 } catch (e) {}
 `;
 

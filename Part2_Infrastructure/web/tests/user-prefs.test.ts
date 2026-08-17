@@ -27,6 +27,7 @@ import {
   type PrefEntry,
 } from "../lib/user-prefs";
 import { COMPLEXITY_STORAGE_KEY } from "../lib/complexity";
+import { TEXT_SIZE_STORAGE_KEY } from "../lib/text-size";
 import { THEME_STORAGE_KEY } from "../lib/theme";
 
 const read = (relative: string) =>
@@ -133,12 +134,13 @@ describe("the merge compares fields, not blobs", () => {
 });
 
 describe("what syncs is a decision, not an accident", () => {
-  it("is exactly the five viewing preferences", () => {
+  it("is exactly the six viewing preferences", () => {
     assert.deepEqual([...SYNCED_PREF_KEYS].sort(), [
       AUTO_RUN_KEY,
       RECENTS,
       WORKSPACE_LOCATION_KEY,
       COMPLEXITY_STORAGE_KEY,
+      TEXT_SIZE_STORAGE_KEY,
       THEME_STORAGE_KEY,
     ].sort());
   });
@@ -165,6 +167,7 @@ describe("what syncs is a decision, not an accident", () => {
     // Two spellings of the same key is a sync that silently mirrors nothing.
     assert.match(code(engine), /import \{ THEME_STORAGE_KEY/s);
     assert.match(code(engine), /COMPLEXITY_STORAGE_KEY/);
+    assert.match(code(engine), /TEXT_SIZE_STORAGE_KEY \} from "\.\/text-size"/);
     assert.match(code(engine), /RECENTS_KEY/);
     // And the literal this file asserts against is the one CommandBar exports.
     assert.match(
@@ -184,6 +187,7 @@ describe("the stores announce, and never import the engine", () => {
   it("each store emits at its existing write site", () => {
     for (const [file, key] of [
       ["../lib/theme.ts", "THEME_STORAGE_KEY"],
+      ["../lib/text-size.ts", "TEXT_SIZE_STORAGE_KEY"],
       ["../lib/use-complexity.ts", "COMPLEXITY_STORAGE_KEY"],
       ["../components/header/CommandBar.tsx", "RECENTS_KEY"],
     ] as const) {
@@ -193,7 +197,7 @@ describe("the stores announce, and never import the engine", () => {
   });
 
   it("no store imports the sync engine", () => {
-    for (const file of ["../lib/theme.ts", "../lib/use-complexity.ts", "../components/header/CommandBar.tsx"]) {
+    for (const file of ["../lib/theme.ts", "../lib/text-size.ts", "../lib/use-complexity.ts", "../components/header/CommandBar.tsx"]) {
       assert.doesNotMatch(code(read(file)), /user-prefs/, file);
     }
   });

@@ -259,6 +259,21 @@
 
 }
 
+/* The Text size preference (Quick Settings; lib/text-size.ts). One number,
+   multiplied into every content rung above; the chrome tokens carry no step,
+   so the header does not move. Comfortable is the :root value and stamps no
+   attribute — the same rule as the theme's System — so an unset preference
+   and the default are one state. Outside the first :root block on purpose:
+   theme.test.ts and tailwind-bridge.test.ts read that block up to its first
+   closing brace. */
+:root[data-text-size="compact"] {
+  --type-step: 0.9375;
+}
+
+:root[data-text-size="large"] {
+  --type-step: 1.125;
+}
+
 @media (prefers-color-scheme: dark) {
   :root:where(:not([data-theme="light"])) {
     color-scheme: dark;
@@ -2100,7 +2115,10 @@ tbody tr[tabindex]:focus-visible {
 }
 
 .data-tier__dot {
-  font-size: var(--fs-2xs);
+  /* A chrome glyph: the chip's caption size, not a content rung — the one
+     header element that still moved under the Text-size step, by 1.6px, and
+     the ladder's proof of immunity is a byte-identical sweep. */
+  font-size: var(--fs-chrome-caption);
   line-height: var(--lh-none);
 }
 
