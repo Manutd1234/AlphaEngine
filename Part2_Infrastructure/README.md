@@ -1,5 +1,9 @@
 # AlphaEngine Trading Automation — NUSSIF Developer Analyst Case Study (Part 2)
 
+*Updated 2026-08-17. Counts, versions and measurements are what the tree, the
+runners and the deployed gateway reported on that date; §6's command tables are
+generated from the code and checked in CI.*
+
 > **NUSSIF 2026 Infra Assessment Alignment**  
 > This infrastructure project supports quant traders, researchers, portfolio managers, risk officers, and data/SRE engineers across the assessment themes: **Portfolio Risk Dashboard (Theme #2)**, **Market Data Quality/Freshness Monitor (Theme #3)**, **Alternative Data & Signal Pipeline (Theme #6)**, **TCA / Execution Automation**, and **Infrastructure Reliability**.
 
@@ -9,7 +13,7 @@
 
 1. **Alpha & Signal Utility**: Real-time cross-venue L2 order book depth (Binance + Bybit) prevents adverse selection. Pre-trade TCA estimates VWAP & slippage before order entry. Deflated Sharpe ratios (DSR) prevent backtest overfitting.
 2. **Implemented vs. Mocked Components**:
-   - **Implemented**: Live Binance/Bybit WebSocket depth streaming, 17 pre-trade risk gates, FastAPI risk gateway, DuckDB append-only audit log, OpenBB provider layer, Next.js web workspace, Telegram companion bot with matplotlib PNG chart generation.
+   - **Implemented**: Live Binance/Bybit WebSocket depth streaming, 17 pre-trade risk gates evaluated by two engines (the Python reference and a bit-exact C++ core that times its own arithmetic in nanoseconds), FastAPI risk gateway, DuckDB append-only audit log, OpenBB provider layer, Next.js web workspace, Telegram companion bot (114 commands, inline keyboards, in-place card edits, sixteen matplotlib PNG chart generators).
    - **Mocked**: Paper order execution (simulated fills at L2 touch; resting limit orders).
 3. **Production Architecture & Data Collection Frequency**:
    - **100ms** L2 depth polling & book consolidation.
@@ -17,14 +21,15 @@
    - **30s** persistent DuckDB audit log flushes.
 4. **Trader & PM Signal Consumption**:
    - **Interactive Web Workspace**: 8 Role-Explicit workspaces (`Overview (All Roles)`, `Research (Quant Researcher)`, `Execution (Quant Trader)`, `Portfolio (Portfolio Manager)`, `Risk (Risk Manager)`, `Data (Data Engineer)`, `Reliability (DevOps/SRE)`, `Developer (Quant Developer)`).
-   - **Telegram Mobile Companion**: 8 tab commands (`/overview`, `/research`, `/execution`, `/portfolio`, `/risk`, `/data`, `/reliability`, `/developer`) delivering both formatted statistics and visual chart PNGs.
+   - **Telegram Mobile Companion**: 8 tab commands (`/overview`, `/research`, `/execution`, `/portfolio`, `/risk`, `/data`, `/reliability`, `/developer`) delivering formatted statistics, visual chart PNGs and tappable inline keyboards that switch sections, symbols and intervals and refresh a card in place.
 5. **Validation & Risk Constraints**: Kupiec Likelihood Ratio test for VaR model validation, hard risk limits, and rate limiting (15 commands per 10s).
 
 ---
 
 Unified execution-quality, pre-trade-risk and strategy-research infrastructure
 with three deliberately separate surfaces: an always-on stateful gateway, a
-Vercel web workspace, and an independent **text-only & visual chart Telegram companion**. The
+Vercel web workspace, and an independent **Telegram companion** — text cards, charts and
+inline keyboards on a phone. The
 companion reports portfolio, market-data and operational state, and — for
 explicitly listed operators only — can halt, resume, flatten, set reduce-only or
 reset the paper book. It never opens or authenticates a web UI, and it cannot
@@ -48,7 +53,7 @@ Everything writes to an append-only DuckDB audit log.
 
 ```
  Telegram companion                 Next.js web workspace
- text cards + pushed alerts       portfolio · research · execution
+ cards, charts, buttons + alerts  portfolio · research · execution
  /portfolio /quote /status              │                 │
           │ read + gated controls        │ portfolio       │ OpenBB
           ▼                              ▼                 ▼
@@ -83,7 +88,7 @@ missing (§9 has the detail):
 | **Risk Manager** | *Is the model right, and will the limits hold?* | Kupiec VaR backtest, stress scenarios, reduce-only mode, kill switch | No margin or liquidation modelling |
 | **Data Engineer** | *Can I trust this data?* | Overview-first trust cockpit, provider registry, failover, data contracts, quarantine and lineage | No durable quality ledger, orchestration or backfill scheduler |
 | **DevOps / SRE** | *Is it healthy, and what do I do at 3am?* | `/health`, `/metrics`, systems console, alert rules, runbook | No log aggregation or distributed tracing |
-| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, parity suites, CI, 692 + 2,174 + 13 tests | No generated client, no property-based fuzzing |
+| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, parity suites (Python ↔ TypeScript to 1e-4, Python ↔ C++ to the bit), CI, 832 + 2,313 + 13 tests | No generated client, no property-based fuzzing |
 
 ### Quant Traders — *"Can I send this, and what will it cost?"*
 
@@ -92,7 +97,7 @@ missing (§9 has the detail):
 | See real liquidity before committing | Consolidated L2 ladder, streaming from Binance + Bybit |
 | Know the cost *before* the fill | `/tca BTCUSDT 100000 BUY` — VWAP, slippage in bps, routing split |
 | Is the consolidated book crossed right now | Cross-venue dislocation strip, sized to the smaller resting leg and quoted **gross** — because two taker legs usually cost more than the edge |
-| Not send the order with the extra zero | 15 pre-trade gates in ~0.2 ms; a rejection returns the full check vector |
+| Not send the order with the extra zero | 15 pre-trade gates decided in tens of microseconds — 15 µs p50 on the compiled engine, 23 µs on the Python reference (dev Mac), the arithmetic core itself 83 ns there and ~320 ns on the production VM; a rejection returns the full check vector |
 | Stop everything, now | Authenticated gateway console, `POST /api/risk/kill`, the web workspace's risk panel, or `/halt` in Telegram — the last two gated by a separate operator allow-list and a typed confirmation |
 | Know when something breaks without watching a screen | Push alerts on breaches, halts, feed outages and `/watch` liquidity thresholds — to Telegram *and* to the Alerts panel on the Execution tab |
 | See my own flow, not just the market | Execution cockpit: order blotter with the full check vector per row, live P&L strip, execution-quality summary (fill rate, realised slippage, tail latency) |
@@ -124,7 +129,7 @@ about the *whole book*. The same numbers do not serve both, which is why
 
 | Need | Where |
 |---|---|
-| Test an idea across a parameter grid | Sweep in the Vercel workspace or submit through the authenticated backtest API; Telegram only monitors jobs and completed results |
+| Test an idea across a parameter grid | Sweep in the Vercel workspace, submit through the authenticated backtest API, or queue one from Telegram with `/backtest` on the same jobs engine; the companion then reports progress and results as cards and charts |
 | Not be fooled by the best of N draws | **Deflated Sharpe Ratio** — the hurdle a random search of the same size clears |
 | Know it generalises | Walk-forward: parameters chosen in-sample, scored on the next unseen fold |
 | See *robustness*, not just a winner | Sharpe surface — a plateau survives; an isolated peak is an overfit |
@@ -200,7 +205,7 @@ backfill.
 | To break it on purpose and watch it recover | Bounded, self-expiring simulated outages from the operator panel |
 | One command that proves the money path works | `python tools/synthetic_probe.py` — health → book → cost → risk gate → audit, in-process and offline, non-zero exit on any failure |
 | A deploy that cannot ship a file that was never committed | `tools/check_repo_complete.sh` builds an export of HEAD, not the working tree |
-| CI on every push | `.github/workflows/ci.yml`: three suites, lint, the OpenAPI contract snapshot, the repo guard and the journey probe |
+| CI on every push | `.github/workflows/ci.yml`: three suites (the gateway's with the native core built first), lint, the OpenAPI contract snapshot, the committed test-count check, the repo guard and the journey probe. `deploy.yml` then ships the gateway to OCI — build, GHCR, SSH swap, verify, roll back — and warns if the container came up on the Python engine; `openbb-keepalive.yml` keeps the research service warm every ten minutes |
 
 ### Quant Developers — *"Can I change this safely?"*
 
@@ -209,9 +214,9 @@ backfill.
 | Typed contracts, not conventions | Pydantic models on every route, with `response_model` — the schema is the code |
 | A published, versioned API | `/docs` live, plus a committed `tools/openapi.json` snapshot; a test fails if the API changes without regenerating it |
 | Documented tunables | `BacktestRequest` carries bounds *and* descriptions, so `/docs` doubles as the researcher's parameter registry |
-| Confidence that two implementations agree | Python↔TypeScript parity suites for the **backtest engine** and the **risk engine**, both driven by fixtures the Python reference emits |
+| Confidence that two implementations agree | Python↔TypeScript parity suites for the **backtest engine** and the **risk engine**, both driven by fixtures the Python reference emits; and Python↔C++ parity for the **pre-trade decision** — the twenty-scenario `gate-parity.json` fixture, reproduced bit-for-bit (`tests/test_gate_parity.py`, `tests/test_decision_core_native.py`) |
 | To debug a request without guessing | Pipeline inspector down to raw vendor JSON; bounded trace ring with redaction; `/api/system/inspect` |
-| Tests that run anywhere | 692 gateway + 2,174 web + 13 service tests, all offline by construction — no network, no fixtures fetched at test time. Each figure is what its runner prints: `venv/bin/python -m pytest`, `(cd web && npm test)`, `venv/bin/python -m pytest OpenBB_Service/tests` |
+| Tests that run anywhere | 832 gateway + 2,313 web + 13 service tests (2026-08-17), all offline by construction — no network, no fixtures fetched at test time. Each figure is what its runner prints: `venv/bin/python -m pytest`, `(cd web && npm test)`, `venv/bin/python -m pytest OpenBB_Service/tests`; `web/lib/test-counts.generated.ts` records them and CI checks it |
 | A lint gate that catches defects, not style | ruff with bugbear, async and bandit rules; `tsc --strict` on the web tier |
 | To add a provider or an endpoint without breaking things | Uniform `Adapter` interface with declared capabilities; the recipe is in §7 and in `web/README.md` |
 
@@ -242,7 +247,7 @@ one must scale without touching risk state.
 
 ### 1. The gateway — Python / FastAPI (this directory)
 
-Live order books, the risk gateway and the optional text-only Telegram
+Live order books, the risk gateway and the optional Telegram
 companion. This unit needs a long-lived process because it owns WebSocket
 subscriptions, portfolio state, the kill switch and the audit log. Sections 1–10
 below document it.
@@ -257,7 +262,7 @@ gateway and its OpenBB adapter to the separate stateless service.
 cd web
 npm install
 npm run dev    # http://localhost:3000
-npm test       # 2,174 tests across 548 suites
+npm test       # 2,313 tests across 592 suites
 ```
 
 Live-feed endpoints (public, no key):
@@ -343,9 +348,9 @@ pytest                                   # deterministic; no network required
 
 ```
  Telegram companion          Gateway console / API         Next.js workspace
- text-only, operational      authenticated controls        portfolio proxy
+ cards, charts, buttons      authenticated controls        portfolio proxy
  /portfolio /quote /status        │                              │
-          │ read + 3 controls     │                              │
+          │ read + 5 controls     │                              │
           └──────────────┬────────┘                              │
                          ▼                                       │
               FastAPI stateful gateway ◄─────────────────────────┘
@@ -354,6 +359,7 @@ pytest                                   # deterministic; no network required
            ┌────────▼─┐ ┌───▼────┐ ┌▼──────────────┐
            │ A · TCA  │ │ B · risk│ │ C · backtest │
            │ L2 + VWAP│ │ 17 gates│ │ jobs + DSR   │
+           │          │ │ py + C++│ │              │
            └────┬─────┘ └────┬────┘ └──────┬───────┘
                 └────────────┼──────────────┘
                              ▼
@@ -374,9 +380,9 @@ fetches and serverless scaling from sharing the gateway's mutable risk state.
 
 ## Tech Stack
 
-Versions are what is **actually deployed or locked** as of 2026-08-08 — read
-from the running container, the lockfile and the live database, not from
-minimum pins. Rows marked *optional* degrade gracefully when absent; a managed
+Versions are what is **actually deployed or locked** as of 2026-08-17 — read
+from `web/package-lock.json`, the Python 3.12 virtualenv CI mirrors, the live
+database and the running container, not from minimum pins. Rows marked *optional* degrade gracefully when absent; a managed
 service carries no pinned version.
 
 ### Frontend Core
@@ -393,13 +399,14 @@ service carries no pinned version.
 
 | Component | Version | Role in AlphaEngine |
 |---|---|---|
-| **[Python](https://www.python.org)** | `3.12.13` | The gateway runtime inside the container. |
+| **[Python](https://www.python.org)** | `3.12.14` | The gateway runtime inside the container (`python:3.12-slim`, two stages). |
 | **[FastAPI](https://fastapi.tiangolo.com)** | `0.141.1` | **38 documented paths carrying 39 operations.** The OpenAPI schema is a committed contract (`tools/openapi.json`) whose SHA-256 the web build verifies at `prebuild`. The three figures below look contradictory and are not — each is counted on a different basis, so state the basis rather than reconciling them into agreement. `main.py` declares **43 route decorators** (29 `@app.get` + 13 `@app.post` + 1 `@app.websocket`). Four never reach the schema: the `/ws/book/{symbol}` WebSocket, which OpenAPI does not describe, and the three HTML routes (`/`, `/app`, `/ui`) marked `include_in_schema=False` — leaving **39 operations**. Those 39 collapse onto **38 paths** because `/api/orders` serves two verbs: `POST` submits an order through the gates, `GET` lists the resting book. |
-| **[Uvicorn](https://www.uvicorn.org)** | `0.52.1` | **One process, no workers, by design** — the risk gateway holds a mutable in-memory book, a resting-order book, a token bucket and the kill switch; a second worker would fork the book and localise the halt. |
+| **[Uvicorn](https://www.uvicorn.org)** | `0.52.3` | **One process, no workers, by design** — the risk gateway holds a mutable in-memory book, a resting-order book, a token bucket and the kill switch; a second worker would fork the book and localise the halt. |
 | **[Pydantic](https://docs.pydantic.dev)** | `2.13.4` | Every API payload, risk decision and bot read-model shares one schema module (`modules/schemas.py`). |
 | **[httpx](https://www.python-httpx.org)** | `0.28.1` | All outbound HTTP, including the Supabase mirror — chosen over `supabase-py` to keep the import graph network-free for CI. |
 | **[websockets](https://websockets.readthedocs.io)** | `17.0.1` | Venue WebSocket ingest: Binance and Bybit L2 depth streams. |
-| **[NumPy](https://numpy.org)** | `2.5.1` | The reference backtest engine and all TCA/risk maths. |
+| **[NumPy](https://numpy.org)** | `2.5.2` | The reference backtest engine and all TCA/risk maths. |
+| **[pybind11](https://pybind11.readthedocs.io)** | `3.1.0` *(build-time)* | Binds the C++ decision core (`native/decision_core/decision_core.cpp` → `modules/_decision_core*.so`). Listed in `requirements-native.txt`, installed only in the Docker builder stage and by `requirements-dev.txt`; the runtime image carries the `.so` and no compiler. `DECISION_CORE=auto\|native\|python` selects the engine, `/health`, `/metrics` and the ops snapshot publish which one is live, and the deploy workflow warns if a container came up on Python. |
 | **[pandas](https://pandas.pydata.org)** | `3.0.5` | Bar/series handling across the backtester and analytics. |
 | **[vectorbt](https://vectorbt.dev)** | *optional* | Accelerator in `requirements.txt`. The NumPy engine is the documented fallback and `/health` reports which is live. |
 | **[Celery](https://docs.celeryq.dev) + Redis** | *optional* | Set `REDIS_URL` and the job queue switches from the in-process pool automatically; same task callables either way. |
@@ -417,12 +424,12 @@ service carries no pinned version.
 
 | Component | Version | Role in AlphaEngine |
 |---|---|---|
-| **[Docker](https://www.docker.com)** | `29.7.2` | Two-stage `python:3.12-slim` image ([`docker/gateway.Dockerfile`](docker/gateway.Dockerfile)), non-root uid 10001, stdlib health probe, compose file at the repo root. `tests/test_container_contract.py` rejects any secret-shaped literal in the committed files. |
+| **[Docker](https://www.docker.com)** | `29.7.2` | Two-stage `python:3.12-slim` image ([`docker/gateway.Dockerfile`](docker/gateway.Dockerfile)): the builder stage installs `requirements-native.txt` and compiles the decision core, the runtime stage copies the `.so` and nothing else from it; non-root uid 10001, stdlib health probe, compose file at the repo root. `tests/test_container_contract.py` rejects any secret-shaped literal in the committed files. |
 | **[Caddy](https://caddyserver.com)** | `2-alpine` | TLS termination on the VM: the deploy workflow runs a Caddy sidecar on `:8443` with its **internal CA** (a bare IP gets no public issuance; the single client that matters pins the root instead — [`docs/TLS_FLIP.md`](../docs/TLS_FLIP.md)), so the gateway token need not cross the internet in cleartext. |
 | **[Supabase CLI](https://supabase.com/docs/guides/cli)** | `2.112.0` | Migration push via the IPv4 session pooler (the direct DB host is IPv6-only) and edge-function deploys. |
 | **[Oracle Cloud](https://www.oracle.com/cloud/)** | managed | The always-on host (Singapore). Region is load-bearing: US egress gets Binance HTTP 451 / Bybit 403 (§11). |
 | **[Vercel](https://vercel.com)** | managed | Two serverless projects (web portal, OpenBB service) from one repo with different Root Directories, region `sin1`. Artifact custody via an Ed25519-signed build attestation against a trust root pinned in reviewed source (`web/lib/artifact-trust.mjs`). |
-| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free jobs (gateway, OpenBB, web, repo-audit): a red build means the code broke, never that an exchange was slow. 692 gateway + 2,174 web + 13 service tests. |
+| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free jobs (gateway, OpenBB, web, repo-audit) plus a manual live-smoke: a red build means the code broke, never that an exchange was slow. 832 gateway + 2,313 web + 13 service tests. Three more workflows: `deploy.yml` (gateway CD to OCI with rollback and an engine check), `openbb-keepalive.yml` and `oracle-keepalive.yml` (schedulers Vercel Hobby and Always Free cannot provide), `schema.yml` (Supabase migrations). |
 
 ### API Keys & Secrets
 
@@ -442,7 +449,7 @@ credentials**, and the service-role key never leaves the gateway host.
 | `ALPHAVANTAGE_API_KEY` | [Alpha Vantage](https://www.alphavantage.co) | fallback quotes/bars | Vercel (server-side) |
 | `FIRECRAWL_API_KEY` | [Firecrawl](https://firecrawl.dev) | open-web research search | Vercel (server-side) |
 | `OPENBB_API_URL` / `_TOKEN` | the OpenBB service | quotes, bars, news, fundamentals | Vercel + service env |
-| `TELEGRAM_BOT_TOKEN` (+ allowlists) | [Telegram Bot API](https://core.telegram.org/bots/api) | the text-only companion; fail-closed user allowlist | gateway `.env` |
+| `TELEGRAM_BOT_TOKEN` (+ allowlists) | [Telegram Bot API](https://core.telegram.org/bots/api) | the companion; fail-closed user allowlist | gateway `.env` |
 | `TELEGRAM_LINK_SECRET` *(optional, ≥32 chars)* | Connect-button account linking | HMACs the single-use deep link that binds a chat to a web desk pass; below 32 characters the feature stays off | gateway `.env` **and** Vercel, identical |
 | `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` | Supabase PostgREST | the order mirror + RAG writes | **gateway `.env` only — never Vercel** |
 | `NEXT_PUBLIC_SUPABASE_URL` / `_ANON_KEY` | Supabase (browser) | the browser Realtime client (`web/lib/supabaseClient.ts`) and, in `web/proxy.ts`, the single test for whether this deployment can authenticate anyone at all — absent, the edge mints a guest pass instead of asking for a sign-in. Publishable on purpose: RLS scopes the anon key to gateway-decided, unowned rows on the public demo desk and nothing else | Vercel |
@@ -489,21 +496,29 @@ Part2_Infrastructure/
 ├── worker.py               Celery worker entrypoint (optional)
 ├── modules/
 │   ├── tca_engine.py       A · L2 ingest, book state, VWAP/slippage, routing
-│   ├── risk_proxy.py       B · gates, positions, resting book, breaker, kill switch
+│   ├── risk_proxy.py       B · gates, positions, resting book, breaker, kill switch,
+│   │                       the startup core self-measure
+│   ├── decision_core.py    B · which engine decides (DECISION_CORE=auto|native|python)
 │   ├── backtester.py       C · signals, engines, DSR/PSR, walk-forward, plots
 │   ├── portfolio.py        PM view: concentration, headroom, binding constraint
 │   ├── research.py         Local OpenBB bridge for bot/compatibility use
+│   ├── research_rag.py     pgvector research index (off by default)
 │   ├── jobs.py             Async job queue (in-process pool ⇄ Celery)
 │   ├── audit.py            DuckDB append-only audit log
-│   ├── telegram.py         Text-only read models, alerts, webhook/polling
+│   ├── telegram.py         Read models, cards, inline keyboards, alerts, webhook/polling
+│   ├── telegram_charts.py  Sixteen matplotlib PNG generators for the companion
 │   ├── quant_risk.py       VaR/ES, risk contribution, Kelly, regime, dislocation
+│   ├── operations.py       Typed, secret-free ops snapshot (/api/ops/snapshot)
 │   ├── metrics.py          Prometheus text exposition, hand-rolled (no client lib)
 │   └── schemas.py          Pydantic contracts shared by API, UI and bot
+├── native/decision_core/   decision_core.cpp + setup.py — the C++ pre-trade
+│                           arithmetic battery, built into modules/_decision_core*.so
 ├── templates/miniapp.html  Independent gateway console (single file, no build step)
 ├── tests/                  Gateway, risk, portfolio, research and bot tests
-├── tools/                  Parity-fixture generator + committed-tree build guard
+├── tools/                  Parity-fixture generators, bench_decision.py, the Telegram
+│                           catalogue generator, committed-tree build guard
 ├── docker/                 gateway.Dockerfile + deploy notes (compose file at repo root)
-├── requirements.txt
+├── requirements.txt        (+ -core, -dev, -native, -openbb variants)
 │
 ├── web/                    Unit 2 — Next.js research portal (deployed to Vercel)
 ├── OpenBB_Service/         Unit 3 — stateless OpenBB API (deployed separately)
@@ -605,7 +620,17 @@ vendor quote instead of a live L2 ladder — and never run against a crypto orde
 | 16 | `reduce_only` | *adding* risk once 80% of the drawdown budget is spent, while still allowing the exit |
 | 17 | `est_slippage` | illiquid size — measured on the **routed** execution, not the mid |
 
-Measured on live books: **0.14 – 0.24 ms** per decision. `reduce_only` was added
+Measured: **15 µs p50** for the whole decision on the compiled engine and
+**23 µs** on the Python reference (5 000 orders, two venues, dev Mac,
+`tools/bench_decision.py`); the arithmetic battery inside it — the consolidated
+mark, sizing, projected exposure, price band, drawdown, reduce-only and the
+cross-venue routed slippage walk — runs in a C++ core that times its own work
+with `steady_clock` at **83 ns p50** on that Mac and **~320 ns p50 / 352 ns
+p99** on the shared production VM (read from the live `/metrics` on
+2026-08-17). The three figures are three planes and never blended — the
+decision in µs, the core in ns, the ~70 ms round trip to the venue in ms —
+and [`docs/LATENCY_BUDGET.md`](../docs/LATENCY_BUDGET.md) is the full
+argument, with the regenerated table. `reduce_only` was added
 with the reduce-only work and the count moved from twelve to fourteen; the two
 that were previously one row are now their own, because a hard stop and a
 graduated throttle are different controls and a reader should be able to see
@@ -620,6 +645,32 @@ cannot have — a stale reference price and an order type the quote cannot honou
 and both were already being refused in code before either had a named row here.
 An unnamed refusal is worse than a strict one: the trader sees a rejection with
 nothing to look up.
+
+**Two engines, one battery, one fixture.** The seventeen gates exist twice on
+the server: the Python reference in `risk_proxy.py::RiskGateway.submit`, and a
+native core (`native/decision_core/decision_core.cpp`, pybind11) that owns the
+book ladders and every gate that is arithmetic — rows 8–13 and 15–17 above,
+including the routed walk that prices `est_slippage`. The eight it does not
+evaluate are not arithmetic: kill switch, symbol halt, whitelist, the two
+paper-equity gates, duplicate-order membership, the rate-limit token consume
+(which mutates and so runs exactly once, in Python) and the working-book depth
+are state reads, evaluated before the core's clock starts. `DECISION_CORE=auto`
+uses the compiled core when it imports and the reference otherwise; `native`
+refuses to start without it; `python` pins the reference. Which one is live is
+on `/health`, `/metrics` (`alphaengine_decision_engine{engine=…}`), the ops
+snapshot and the desk header. The standard between them is bit-for-bit, not a
+tolerance: `tools/make_gate_fixture.py` records the reference's verdict for
+twenty scenarios into `web/tests/fixtures/gate-parity.json`, and
+`tests/test_gate_parity.py` (Python) and `tests/test_decision_core_native.py`
+(C++) each assert the same accept/reject, the same gate order and the same
+observed and limit floats. Getting there surfaced three silent-wrongness traps
+worth naming — CPython's Neumaier-compensated `sum()`, FMA contraction, and
+`list.sort`'s stability under `reverse=True` deciding which venue fills a price
+tie — each now pinned. At startup the gateway also times the compiled battery
+once on a synthetic two-venue book (`RiskGateway.run_core_self_measure`, 300
+samples after 50 warm-ups) so the nanosecond figure is published before the
+first order; those samples land only in the core (ns) histogram, counted
+separately as `core_self_test_samples`, and never in the decision (µs) one.
 
 Nine of the seventeen are conditional on the order in front of them.
 `paper_execution_model` and `reference_freshness` need a paper-equity quote to
@@ -724,7 +775,7 @@ resting orders existed.
    smaller. An order that rested before the threshold was crossed does not know
    that, and one that fills afterwards makes the book bigger — which would leave
    the regime a claim rather than a control. The sweep pulls every resting order
-   that would add risk, by the same reducing test gate 14 applies to an incoming one.
+   that would add risk, by the same reducing test gate 16 (`reduce_only`) applies to an incoming one.
 3. **Session rollover and book reset.** Every resting order dies at the boundary,
    `DAY` or not. That is what guarantees a decision and its fill land in the same
    UTC session and on the same side of a `book_reset` — the property the
@@ -796,8 +847,9 @@ An 82% backtest return that the system refuses to endorse. That is the feature.
   is what makes an offline environment work.
 - Outputs an equity curve (with drawdown panel and the DSR verdict rendered into
   the image) and a Sharpe surface heatmap — a smooth plateau is a robust region,
-  an isolated peak is an overfit. Telegram reports a compact text result for jobs
-  submitted elsewhere; it cannot start a sweep.
+  an isolated peak is an overfit. Telegram can queue a sweep on the same jobs
+  engine (`/backtest`) and reports progress and results as cards and charts —
+  research, never execution: it cannot send an order.
 
 ---
 
@@ -820,6 +872,23 @@ gateway. Notification preferences and liquidity watches also change from chat,
 but they are the companion's own state rather than the desk's. The command
 tables below are generated from the registry by `tools/telegram_catalogue.py`,
 so these counts and the pushed menu cannot drift from what the bot dispatches.
+
+**It is interactive, not a text pager.** The command centre (`/start`,
+`/menu`), the eight tab cards and their section cards carry inline keyboards
+built by `kb()` against the same registry, so a button that points at nothing
+is a red test rather than a dead button a user finds first; a tap is authorised
+on the *tapper* (`callback.from`), never on the tapped message's author, and
+the Controls category is refused from a button outright — no confirmation
+challenge is ever issued by a tap. Refresh edits the tapped card in place
+(Telegram's "message is not modified" means the tap already succeeded and
+nothing is resent; any other refusal falls through to a fresh send). Symbol and
+interval rows switch a card without retyping. Sixteen chart generators in
+`modules/telegram_charts.py` — series, bars, depth, drawdown, histogram,
+heatmap, equity, paired bars, gate ladder, latency CDF, scatter, multi-series,
+VaR breach, pipeline, cone, status grid — draw what they were handed or return
+`None`, never a placeholder captioned as data. Charts and buttons come from
+`modules/telegram_charts.py` and `modules/telegram.py` alone; the companion
+still renders no web page and sends no web link.
 
 ### Fail-closed bootstrap
 
@@ -1236,7 +1305,7 @@ The resting book and paper-equity adapter add seven of their own:
 | Variable | Default | What it sets |
 |---|---|---|
 | `WORKING_ORDER_SWEEP_S` | `1.0` | how often the resting book is checked against the consolidated touch |
-| `MAX_WORKING_ORDERS` | `200` | the ceiling gate 12 (`working_book`) enforces |
+| `MAX_WORKING_ORDERS` | `200` | the ceiling gate 14 (`working_book`) enforces |
 | `PAPER_MAKER_FEE_BPS` | `1.0` | what a resting fill pays, against the taker `PAPER_FEE_BPS` (`4.0`) |
 | `PAPER_EQUITY_SLIPPAGE_BPS` | `8.0` | explicit cost applied to a server-verified equity quote; this model never claims L2 routing |
 | `PAPER_EQUITY_QUOTE_MAX_AGE_S` | `604800` | oldest trusted equity quote the gateway will size a paper MARKET order against |
@@ -1251,9 +1320,15 @@ This used to read "verified on 3.11 – 3.14, including vectorbt + numba on
 3.14", and that was wrong in a way worth recording. numba publishes no 3.14
 wheel, so on a 3.14 interpreter vectorbt does not install — and the suite does
 not fail, it *skips*: `tests/test_backtester.py:99`, "vectorbt not installed".
-The summary line reads 691 passed, 1 skipped and looks healthy while the
-vectorbt engine goes entirely untested. On 3.12 the same tree is 692 passed,
-nothing skipped.
+The summary line reads 831 passed, 1 skipped and looks healthy while the
+vectorbt engine goes entirely untested. On 3.12 the same tree is 832 passed,
+nothing skipped (2026-08-17). The 832 also needs the native decision core
+built — `pip install -r requirements-native.txt`, then
+`python native/decision_core/setup.py build_ext --inplace --build-temp build/native`
+— because `tests/test_decision_core_native.py` and
+`tests/test_core_self_measure.py` fail rather than skip without it; a broken
+build has to turn CI red, and CI builds it before the suite for exactly that
+reason.
 
 If numba genuinely will not build on your platform, use
 `requirements-core.txt` — the backtester falls back to its NumPy engine and
@@ -1263,7 +1338,7 @@ loudly in one place rather than quietly everywhere.
 **Celery/Redis is optional.** Set `REDIS_URL` and the job queue switches from the
 in-process thread pool to Celery automatically; `python worker.py` starts a
 worker. Without a broker, the same task callables run in-process. The API,
-gateway console and text-only companion consume the same job status contract;
+gateway console and Telegram companion consume the same job status contract;
 that abstraction matters more than the broker choice.
 
 **Supabase is optional and off by default.** With none of these set, the mirror
@@ -1291,8 +1366,10 @@ position accounting, the drawdown breaker and the kill switch; the resting-order
 lifecycle — five states, three times in force, the touch-crossing matcher,
 cancel and replace, maker fills priced and charged separately from taker fills,
 and the three invariants that empty the book; vectorbt parameter sweeps on live
-Binance klines; DSR and walk-forward; the DuckDB audit log; and the fail-closed,
-text-only Telegram webhook/polling companion. The Data workspace reads live
+Binance klines; DSR and walk-forward; the DuckDB audit log; the compiled
+decision core and its bit-exact parity with the reference; and the fail-closed
+Telegram webhook/polling companion with its cards, charts and inline keyboards.
+The Data workspace reads live
 registry, freshness, cache, lineage and provider-capacity evidence; its contract
 and quarantine telemetry is bounded to the function instance that observed it.
 
@@ -1392,12 +1469,12 @@ Key risks and their mitigations, all implemented here:
 
 ## 10. Testing
 
-**29 suites**, counted as `tests/test_*.py`. The `tests/` directory holds 30 `.py`
-files: those 29 plus `conftest.py`, which is fixtures rather than a suite. Both
+**35 suites**, counted as `tests/test_*.py`. The `tests/` directory holds 36 `.py`
+files: those 35 plus `conftest.py`, which is fixtures rather than a suite. Both
 figures are `ls`, not memory — `ls tests/test_*.py | wc -l` and
-`ls tests/*.py | wc -l`. No per-suite test counts are quoted below, because
-parametrised cases mean a file's `def test_` count is not the number it
-contributes to the 692.
+`ls tests/*.py | wc -l` (2026-08-17). No per-suite test counts are quoted below,
+because parametrised cases mean a file's `def test_` count is not the number it
+contributes to the 832.
 
 *Modules A, B and C — the engines*
 
@@ -1422,6 +1499,20 @@ tests/test_strategy_catalog.py
 tests/test_decision_latency.py
                            the pre-trade decision histogram: the arithmetic, and
                            that a decision is recorded at all
+tests/test_gate_parity.py  the running gateway still decides what the committed
+                           twenty-scenario fixture recorded — same accept/reject,
+                           gate order, observed and limit numbers
+tests/test_decision_core_native.py
+                           the C++ core builds and imports (a red build, never a
+                           skip), reproduces the same fixture to the bit, folds a
+                           book identically to Python over random deltas, keeps
+                           the persistent ladders a bit-exact mirror, and agrees
+                           with `route_estimate` on random multi-venue books to
+                           the last bit of `slippage_bps`
+tests/test_core_self_measure.py
+                           the startup self-measure lands in the core (ns)
+                           histogram, counted as self-test samples, and never in
+                           the decision (µs) one
 tests/test_drawdown_alerts.py
                            the drawdown warning fires on the edge, not on every
                            tick
@@ -1480,7 +1571,7 @@ tests/test_research_rag.py the research index's honesty contract, verified
                            offline
 ```
 
-*Telegram — five suites, because it is the one companion that can change risk
+*Telegram — eight suites, because it is the one companion that can change risk
 state*
 
 ```
@@ -1500,6 +1591,19 @@ tests/test_telegram_charts.py
                            every generator plots what it was handed, or returns
                            None — the module once shipped a sine wave captioned
                            as real data
+tests/test_telegram_interactive.py
+                           the interactivity layer: every button resolves to a
+                           registered command, a tap is authorised on the tapper
+                           and never issues a control challenge, and in-place
+                           editing degrades to sending
+tests/test_telegram_analytics.py
+                           the fold-detail reads, the read-only gate preview and
+                           the symbol/interval switchers
+tests/test_telegram_docs.py
+                           README §6 and the live checklist are the generator's
+                           own output — `tools/telegram_catalogue.py --check`
+                           run inside the suite, so a new command that is not in
+                           the docs turns the tests red
 ```
 
 *Persistence, packaging and deployment*
@@ -1548,7 +1652,11 @@ Design decisions live as comments in
 `docker-compose.yml`; the load-bearing ones: **one uvicorn process** (a second
 worker would fork the in-memory book and localise the kill switch),
 `requirements-core.txt` in the image (NumPy engine fallback; vectorbt via
-`--build-arg REQUIREMENTS=requirements.txt`), a **named volume** for
+`--build-arg REQUIREMENTS=requirements.txt`), the **native decision core
+compiled in the builder stage** (`requirements-native.txt` and
+`build-essential` live there only; the runtime stage copies
+`modules/_decision_core*.so` and nothing else across, so the image runs the
+compiled engine and carries no compiler), a **named volume** for
 `/app/data` so the audit log survives rebuilds (a bind mount arrives owned by
 the host and uid 10001 cannot write it), non-root user, and a stdlib health
 probe against the unauthenticated `/health`. Secrets arrive only through
@@ -1585,6 +1693,27 @@ OCI instance:
 If Always Free: Oracle reclaims *idle* Always Free instances, and a quiet
 gateway can look idle — upgrading the account to Pay-As-You-Go keeps the free
 resources free while exempting it from reclamation.
+
+**Continuous deployment.** None of steps 3–5 is repeated by hand after the first
+time. [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) runs on
+every push to `main`: the gateway suite first (native core built, schema
+checked, money-path probe), then the image is built and pushed to GHCR under a
+lowercased path, then an SSH session pulls it, swaps the container with the
+audit volume (`alphaengine_alphaengine_audit`, compose-prefixed) intact,
+verifies `/health` from inside the VM and rolls back to the previous image on
+failure. The verify step also reads `decision_engine` off the health payload:
+`native` is logged as such, and a container that fell back to Python emits a
+workflow warning — the gateway is healthy either way, but the nanosecond figure
+would be missing from the desk and that should be visible in the run, not only
+in the header's "Python fallback" mark. A `reachable` job then probes `:8000`
+from a GitHub runner (a failure here is the OCI security list or the instance
+firewall) and `:8443` advisorily. Two schedulers live beside it because neither
+Vercel Hobby nor Always Free offers one fine enough:
+`openbb-keepalive.yml` pings the OpenBB service's `/healthz` every ten minutes
+so a research quote rarely meets a cold import, and `oracle-keepalive.yml`
+keeps the Autonomous Database from auto-stopping. The web workspace and the
+OpenBB service deploy themselves from git as Vercel projects and are
+deliberately not in `deploy.yml` — putting them there would deploy them twice.
 
 ### Vercel — research portal (`web/`)
 
@@ -1673,6 +1802,11 @@ That test caught two real bugs in the port. It is regenerated with:
 python tools/make_parity_fixture.py
 ```
 
+The pre-trade decision is the third instance of the same discipline, held to a
+stricter standard because it can be: Python and C++ evaluate the same battery
+against the same twenty-scenario fixture and must agree to the bit — see
+*Two engines, one battery, one fixture* in §4.
+
 The risk maths is deliberately doubled the same way.
 [`modules/quant_risk.py`](modules/quant_risk.py) and
 [`web/lib/portfolio-risk.ts`](web/lib/portfolio-risk.ts) are two implementations
@@ -1706,10 +1840,11 @@ on different iterations and disagree by more than the fixture allows.
 Everything a reviewer needs to check runs offline:
 
 ```bash
-pytest                                    # 692 gateway + companion tests (1 skipped)
+pytest                                    # 832 gateway + companion tests, nothing skipped (3.12, native core built)
+python tools/bench_decision.py            # regenerates the latency table in docs/LATENCY_BUDGET.md §2.1
 python tools/synthetic_probe.py           # end-to-end: book → cost → gate → audit
 cd OpenBB_Service && pytest               # 13 stateless service tests
-cd web && npm install && npm test         # 2,174 workspace tests, incl. both parity suites
+cd web && npm install && npm test         # 2,313 workspace tests across 592 suites, incl. the parity suites
 bash tools/check_repo_complete.sh         # builds the *committed* tree
 ```
 
@@ -1727,7 +1862,9 @@ and `tools/make_risk_fixture.py` emit the Python reference's answers, and the
 TypeScript tests assert reproduction to the fourth decimal.
 
 The same commands run in CI on every push (`.github/workflows/ci.yml`), plus
-`ruff check .` and `python tools/export_openapi.py --check`.
+`ruff check .`, `python tools/export_openapi.py --check`, the native-core build
+before the gateway suite, and `scripts/check-test-counts.mjs` against
+`web/lib/test-counts.generated.ts`.
 
 The last one exists because of a real incident: a bare `lib/` pattern inherited
 from GitHub's Python `.gitignore` template silently swallowed the web app's
@@ -1750,12 +1887,14 @@ not).
   `X-Telegram-Bot-Api-Secret-Token`. Polling mode needs no public endpoint.
 - The link between the web workspace and the bot runs one way only: the header
   offers a deep link out to Telegram, and nothing comes back.
-- The Telegram companion cannot enqueue backtests, authenticate a browser, or
-  open a web workspace. It *can* halt, resume and flatten — but only for user
-  IDs in `TELEGRAM_CONTROL_USER_IDS`, only with a single-use user-bound
-  confirmation code that expires in 90 seconds and is burned even on a wrong
-  guess, and `/flatten` goes through the same pre-trade gates as any other order
-  rather than around them.
+- The Telegram companion cannot open a position, authenticate a browser, or
+  open a web workspace. It *can* queue a research sweep (`/backtest`, on the
+  jobs engine, never the order path), and it *can* halt, resume, flatten, set
+  reduce-only and reset the book — but only for user IDs in
+  `TELEGRAM_CONTROL_USER_IDS`, only with a single-use user-bound confirmation
+  code that expires in 90 seconds and is burned even on a wrong guess, never
+  from an inline button, and `/flatten` goes through the same pre-trade gates
+  as any other order rather than around them.
 - The web project keeps `ALPHAENGINE_GATEWAY_TOKEN` and `OPENBB_API_TOKEN`
   server-side and connects to two separate services with distinct URLs.
 - Risk limits are a frozen dataclass with env overrides: changing a hard limit
