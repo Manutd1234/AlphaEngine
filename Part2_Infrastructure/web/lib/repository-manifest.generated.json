@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-17",
-  "commit": "99868c0",
+  "commit": "3e89f1d",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -21,7 +21,6 @@
     "docs/LATENCY_BUDGET.md",
     "docs/latency-bench.generated.json",
     "docs/TLS_FLIP.md",
-    "docs/UI_IMPROVEMENTS.md",
     "oracle/01_schema.sql",
     "oracle/02_monte_carlo.sql",
     "oracle/03_app_user.sql",

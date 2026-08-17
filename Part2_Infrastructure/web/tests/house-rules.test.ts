@@ -1,7 +1,7 @@
 /**
  * The house rules that were written down and never enforced.
  *
- * `UI_OVERHAUL_PLAN.md` §2 and `docs/UI_IMPROVEMENTS.md` §4 both list them:
+ * Two planning notes, both kept outside this repository, listed them:
  * no new npm dependencies, no emoji in UI, no colour-only meaning, honest
  * provenance labels, `prefers-reduced-motion` respected everywhere. Four of
  * those have tests. "No emoji" did not, and by the time this file was written

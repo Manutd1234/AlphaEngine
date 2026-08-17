@@ -399,9 +399,9 @@ rather than hidden.
 
 ---
 
-*All eight slices of the UI overhaul are shipped — the audit they answer is
-[`UI_IMPROVEMENTS.md`](UI_IMPROVEMENTS.md), and the plan that sequenced them is a working note
-kept outside this repository. Their moments are woven into the tabs above: the Strategies
+*All eight slices of the UI overhaul are shipped — the audit they answer and the plan that
+sequenced them are working notes kept outside this repository, and each rule they raised is
+now a test rather than a paragraph. Their moments are woven into the tabs above: the Strategies
 section and the gate-clear pulse on Research,
 the order-gate cascade and tick flashes on Execution, drawing charts throughout, ⌘K fuzzy
 search with recents, and View Transitions between tabs. The passes that followed — one type

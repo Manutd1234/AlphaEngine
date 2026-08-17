@@ -56,12 +56,12 @@ table does the explaining instead.
 
 ### The map
 
-What is where — 663 tracked files (`git ls-files | wc -l`, 2026-08-17), two levels deep. The table
+What is where — 662 tracked files (`git ls-files | wc -l`, 2026-08-17), two levels deep. The table
 above explains *why* each path is where it is; this is the *what*:
 
 ```
 ├── README.md · SETUP.md · CLAUDE.md      this file; the running instructions; the agent notes
-├── docs/                                 FEATURE_TOUR · LATENCY_BUDGET (+ generated bench) · UI_IMPROVEMENTS · TLS_FLIP
+├── docs/                                 FEATURE_TOUR · LATENCY_BUDGET (+ generated bench) · TLS_FLIP
 ├── docker-compose.yml                    one-command always-on gateway
 ├── .github/workflows/                    ci · deploy (gateway CD) · e2e · schema · two keepalives
 ├── Part1_Data_Handling/                  the notebook (ipynb + executed HTML), its builder, its README
@@ -166,14 +166,13 @@ architecture, the design arguments, and what is implemented versus mocked.
 
 **→ [`docs/FEATURE_TOUR.md`](docs/FEATURE_TOUR.md)** — the guided walkthrough of the whole
 platform, tab by tab, with the zero-config / keyed / gateway-backed capability map and the
-verify-it-yourself E2E checklist. **[`docs/UI_IMPROVEMENTS.md`](docs/UI_IMPROVEMENTS.md)** is
-the UI audit the overhaul stood on — every finding cites file and line, and its eight
-independently shippable slices are all shipped and named in the tour, with the passes that
-followed (type scale, the moving desk, the header's priority ladder, the decision chip)
-appended in its own style. **[`docs/LATENCY_BUDGET.md`](docs/LATENCY_BUDGET.md)** is the
-three-plane latency argument with its regenerated bench table. The two planning documents
-that sequenced and succeeded that work are working notes kept outside this repository; the
-audit and the tour are the parts worth reading.
+verify-it-yourself E2E checklist; the UI overhaul's slices and the passes that followed
+(one type scale in rem, the moving desk, the header's priority ladder, the decision chip)
+are named in it where they land. **[`docs/LATENCY_BUDGET.md`](docs/LATENCY_BUDGET.md)** is
+the three-plane latency argument with its regenerated bench table. The audit that findings
+were raised against and the plans that sequenced the work are working notes kept outside
+this repository; what survives them is enforced by the design-system tests, which is the
+only form a constraint keeps.
 
 **→ [`.claude/skills/`](.claude/skills/)** — three Claude Code skills,
 `/start-alpha-engine`, `/tour` and `/verify`, described in
