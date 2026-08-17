@@ -47,9 +47,20 @@ echo "▸ 1. Source files excluded by .gitignore"
 # as "source that will never reach the deployment", which is the opposite of
 # true — and a guard that reports a failure on every machine that has run the
 # CLI is a guard people learn to skip.
+#
+# The same argument covers BUILD OUTPUT. This check reads extensions, so a
+# compiled bundle is indistinguishable from hand-written source by suffix
+# alone: `dist/client/_next/static/chunks/page-zMhHQnqq.js` is emitted, not
+# authored, and it is ignored for exactly the right reason. The
+# developer-console app's three output directories (`dist/`, `.vinext/`,
+# `.wrangler/`) turned this check red on any machine that had ever built it —
+# twelve confident FAIL lines about files nobody wrote. Excluded by path, not
+# by extension, so a real source file appearing in one of them is still caught
+# on its way past every other rule here.
 ignored_source=$(git ls-files --others --ignored --exclude-standard \
   | grep -E '\.(ts|tsx|js|jsx|mjs|cjs|py|cpp|h|css|html|json|md|sh|yml|yaml)$' \
   | grep -vE 'node_modules/|\.next/|\.vercel/|venv/|__pycache__|\.pytest_cache/|package-lock\.json|next-env\.d\.ts|tsbuildinfo' \
+  | grep -vE '(^|/)(dist|build|out|coverage)/|/\.vinext/|/\.wrangler/|/\.turbo/|/\.svelte-kit/' \
   || true)
 if [[ -n "$ignored_source" ]]; then
   bad "these source files are ignored and will never reach the deployment:"
