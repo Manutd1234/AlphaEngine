@@ -320,6 +320,228 @@
         "title": "CheckResult",
         "type": "object"
       },
+      "DataBackfillRequest": {
+        "description": "Fetch bars for a date range, contract-check them, merge into the bar cache.",
+        "properties": {
+          "from_at": {
+            "format": "date-time",
+            "title": "From At",
+            "type": "string"
+          },
+          "interval": {
+            "default": "1h",
+            "enum": [
+              "15m",
+              "1h",
+              "4h",
+              "1d"
+            ],
+            "title": "Interval",
+            "type": "string"
+          },
+          "symbol": {
+            "maxLength": 20,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9.\\-]+$",
+            "title": "Symbol",
+            "type": "string"
+          },
+          "to_at": {
+            "format": "date-time",
+            "title": "To At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "from_at",
+          "to_at"
+        ],
+        "title": "DataBackfillRequest",
+        "type": "object"
+      },
+      "DataJobAccepted": {
+        "properties": {
+          "backend": {
+            "title": "Backend",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "data.replay",
+              "data.backfill"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "poll": {
+            "title": "Poll",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "kind",
+          "status",
+          "backend",
+          "poll"
+        ],
+        "title": "DataJobAccepted",
+        "type": "object"
+      },
+      "DataJobView": {
+        "properties": {
+          "actor": {
+            "default": "",
+            "title": "Actor",
+            "type": "string"
+          },
+          "backend": {
+            "default": "in-process",
+            "title": "Backend",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "message": {
+            "default": "",
+            "title": "Message",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          },
+          "progress": {
+            "default": 0.0,
+            "title": "Progress",
+            "type": "number"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          }
+        },
+        "required": [
+          "job_id",
+          "kind",
+          "status",
+          "submitted_at"
+        ],
+        "title": "DataJobView",
+        "type": "object"
+      },
+      "DataJobsResponse": {
+        "properties": {
+          "backend": {
+            "title": "Backend",
+            "type": "string"
+          },
+          "executor_configured": {
+            "title": "Executor Configured",
+            "type": "boolean"
+          },
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/DataJobView"
+            },
+            "title": "Jobs",
+            "type": "array"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "retained_in_process": {
+            "title": "Retained In Process",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "observed_at",
+          "backend",
+          "retained_in_process",
+          "executor_configured",
+          "jobs"
+        ],
+        "title": "DataJobsResponse",
+        "type": "object"
+      },
       "DataQualityCapabilityRow": {
         "properties": {
           "capability": {
@@ -782,6 +1004,188 @@
           "escalations"
         ],
         "title": "DataQualityView",
+        "type": "object"
+      },
+      "DataReplayRequest": {
+        "description": "Re-run one capability through the web workspace's validated fetch path,\nbypassing its cache, and record the contract result in the quality ledger.",
+        "properties": {
+          "bars": {
+            "default": 120,
+            "maximum": 1000.0,
+            "minimum": 10.0,
+            "title": "Bars",
+            "type": "integer"
+          },
+          "capability": {
+            "default": "quote",
+            "enum": [
+              "quote",
+              "bars",
+              "news",
+              "fundamentals"
+            ],
+            "title": "Capability",
+            "type": "string"
+          },
+          "interval": {
+            "default": "4h",
+            "enum": [
+              "15m",
+              "1h",
+              "4h",
+              "1d"
+            ],
+            "title": "Interval",
+            "type": "string"
+          },
+          "symbol": {
+            "maxLength": 20,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9.\\-]+$",
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol"
+        ],
+        "title": "DataReplayRequest",
+        "type": "object"
+      },
+      "DataScheduleView": {
+        "properties": {
+          "cadence": {
+            "title": "Cadence",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "expression": {
+            "title": "Expression",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "replay",
+              "backfill"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "last_job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Job Id"
+          },
+          "last_outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Outcome"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run At"
+          },
+          "next_due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Due At"
+          },
+          "valid": {
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "expression",
+          "valid",
+          "cadence",
+          "next_due_at",
+          "last_run_at",
+          "last_job_id",
+          "last_outcome",
+          "error"
+        ],
+        "title": "DataScheduleView",
+        "type": "object"
+      },
+      "DataSchedulesResponse": {
+        "properties": {
+          "executor_configured": {
+            "title": "Executor Configured",
+            "type": "boolean"
+          },
+          "max_backfill_bars": {
+            "title": "Max Backfill Bars",
+            "type": "integer"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "schedules": {
+            "items": {
+              "$ref": "#/components/schemas/DataScheduleView"
+            },
+            "title": "Schedules",
+            "type": "array"
+          },
+          "tick_seconds": {
+            "title": "Tick Seconds",
+            "type": "number"
+          }
+        },
+        "required": [
+          "observed_at",
+          "tick_seconds",
+          "executor_configured",
+          "max_backfill_bars",
+          "schedules"
+        ],
+        "title": "DataSchedulesResponse",
         "type": "object"
       },
       "DecisionLatencySnapshot": {
@@ -4658,6 +5062,302 @@
           }
         },
         "summary": "Data Quality View",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/api/data/backfill": {
+      "post": {
+        "description": "Queue a backfill: bars for a date range, contract-checked, merged into the bar cache.",
+        "operationId": "data_backfill_api_data_backfill_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DataBackfillRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataJobAccepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Data Backfill",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/api/data/jobs": {
+      "get": {
+        "description": "Recent replay and backfill jobs \u2014 the queue's in-process memory; the audit log keeps status rows.",
+        "operationId": "data_jobs_api_data_jobs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataJobsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Data Jobs",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/api/data/replay": {
+      "post": {
+        "description": "Queue a replay: one capability, through the workspace's validated fetch path, cache bypassed.",
+        "operationId": "data_replay_api_data_replay_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DataReplayRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataJobAccepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Data Replay",
+        "tags": [
+          "data"
+        ]
+      }
+    },
+    "/api/data/schedules": {
+      "get": {
+        "description": "The configured replay/backfill schedule, valid or not, and when each last ran.",
+        "operationId": "data_schedules_api_data_schedules_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataSchedulesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Data Schedules",
         "tags": [
           "data"
         ]

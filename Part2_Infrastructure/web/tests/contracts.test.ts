@@ -688,3 +688,24 @@ describe("a provider that returns broken data is failed like one that returns no
     assert.equal(result.provenance.provider, "vendor");
   });
 });
+
+describe("the bar contract exists twice and the two agree", () => {
+  // checkBars here; check_bars_rows in modules/data_jobs.py for backfilled
+  // bars. Both suites evaluate the same fixture and must report the same
+  // check ids and the same verdict — the discipline gate-parity.json applies
+  // to the pre-trade arithmetic, applied to the data contract.
+  it("checkBars reports the fixture's check ids and verdicts", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { fileURLToPath } = await import("node:url");
+    const fixture = JSON.parse(readFileSync(fileURLToPath(new URL("./fixtures/bars-contract-parity.json", import.meta.url)), "utf8")) as {
+      cases: Array<{ name: string; requested: number; bars: number[][]; passed: boolean; checks: string[] }>;
+    };
+    assert.ok(fixture.cases.length >= 5);
+    for (const testCase of fixture.cases) {
+      const bars: OhlcvBar[] = testCase.bars.map(([t, o, h, l, c, v]) => ({ t, o, h, l, c, v }));
+      const result = checkBars("fixture", bars, testCase.requested);
+      assert.equal(result.passed, testCase.passed, testCase.name);
+      assert.deepEqual(result.violations.map((v) => v.check).sort(), [...testCase.checks].sort(), testCase.name);
+    }
+  });
+});

@@ -220,8 +220,10 @@ contract re-checks are one derivation seen three ways rather than one very long 
 is, whether its last payload validated, and — the part that makes it a section rather than a
 table — what to do next about the ones that did not. Quality & Incidents holds reconciliation,
 contract failures and quarantine; Lineage & Payloads is per-request provenance — which provider
-answered, what was cached, what got coerced; Providers & Capacity is failover, quota and
-reserve. Quality & Incidents also carries the gateway's durable quality ledger and its
+answered, what was cached, what got coerced — plus replay and backfill: one capability re-run
+through the workspace's own validated path, or bars for a date range contract-checked and
+merged into the gateway's bar cache, on demand or on the gateway's configured schedule;
+Providers & Capacity is failover, quota and reserve. Quality & Incidents also carries the gateway's durable quality ledger and its
 escalations. The Work Queue is persisted on the gateway — versioned rows, audit-logged
 edits — and its pill says so, or says "edits held locally" when the gateway cannot be
 reached: the honest-labels rule applied to a whole section.

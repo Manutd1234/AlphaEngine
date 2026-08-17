@@ -176,6 +176,7 @@ gate used.
 | Ingestion that survives a bad feed | Sequence-gap detection forces a resubscribe; per-venue staleness clocks; automatic synthetic fallback, always tagged |
 | Provider failover I can see | Ranked registry across 7 providers with circuit breakers, a quota ledger, and a failover graph showing which node a request would land on *and why each other was skipped* |
 | Validation on content, not just transport | Quote, bar, news and fundamentals contracts check positive/ranged prices, unique ordered timestamps, valid highs/lows and freshness, well-formed and de-duplicated headlines with sane sentiment scores, and an issuer profile that is about the issuer asked for and non-empty. The active-quote probe carries the contract result for that exact payload; zero evaluated payloads is **unknown**, never a clean bill of health |
+| Replay and backfill I can trigger and schedule | `POST /api/data/replay` re-runs one capability through the workspace's own validated fetch path and records the contract result in the ledger; `POST /api/data/backfill` fetches bars for a date range (Binance for a pair, the workspace's registry for an equity), runs the same bar contract in Python (`modules/data_jobs.py`, pinned to the web's by `web/tests/fixtures/bars-contract-parity.json`) and merges a clean series into the gateway's bar cache — the backtester's offline tier, which no longer wipes deep history on a live refresh. `DATA_SCHEDULES` drives both on a cadence; Lineage & Payloads shows the jobs and the schedule |
 | A quality record that survives a restart and spans every instance | Every web instance pushes its contract findings through the ops-sync round trip; the gateway persists them in SQLite on its data volume (`DATA_QUALITY_RETENTION_DAYS`, default 7) and returns the merged view in the same response. Two rules escalate — a burst of fatal findings from one provider, or a fail rate over a threshold — to the Telegram alert chats and the audit log, one per cooldown, auto-resolved when the condition clears; the Data tab shows each escalation with the channel it went to |
 | The difference between bad data and a renamed field | Three severities — `fatal` (rejected, failed over), `warn` (served, labelled), `drift` (our mapping looks stale, not the market) |
 | Somewhere to look at a suspect payload | Bounded, health-route-instance quarantine on the Data tab with violations, cache key and a redacted excerpt. Serverless request routes do not reliably share that memory, so an empty buffer is never treated as proof; rejected payloads are never cached |
@@ -1192,6 +1193,8 @@ order rather than around them.
 | `GET` | `/api/data-quality/view` · `findings` | the merged contract-finding ledger (SQLite on the data volume, seven-day retention) and its older rows, filtered |
 | `GET` `POST` | `/api/data/work-items` | the Data tab's persisted work queue: list, and create (versioned, audit-logged) |
 | `PATCH` | `/api/data/work-items/{id}` | a versioned edit; a stale version answers **409** with the current row |
+| `POST` | `/api/data/replay` · `/api/data/backfill` | queue a replay (one capability through the workspace's validated fetch path, cache bypassed) or a backfill (bars for a date range, contract-checked, merged into the bar cache) → `job_id` |
+| `GET` | `/api/data/jobs` · `/api/data/schedules` | recent replay/backfill jobs (the queue's memory) and the configured schedule, invalid entries with their error |
 | `GET` | `/api/config` | symbols, venues, limits |
 | `GET` | `/api/book/{symbol}` | per-venue L2 ladders |
 | `GET` | `/api/tca/{symbol}` | VWAP, slippage, smart route |
@@ -1316,6 +1319,11 @@ The data-quality ledger adds its own, all with defaults that need no setting:
 | `DATA_QUALITY_ESCALATE_FAIL_RATE` / `_MIN_SAMPLES` | `0.25` / `8` | rule 2: a contract-fail rate above the fraction once at least this many payloads were evaluated |
 | `DATA_QUALITY_ESCALATE_COOLDOWN_MINUTES` | `60` | one escalation per (rule, provider) per cooldown |
 | `DATA_WORK_SEED` | `true` | seed the work queue with its nine sample rows the first time the table is empty |
+| `WEB_WORKSPACE_URL` | origin of `PAPER_EQUITY_QUOTE_URL`, else empty | the web workspace the replay executor (and an equity backfill) calls back into |
+| `DATA_JOB_TIMEOUT_S` | `20` | the replay/backfill executor's HTTP timeout |
+| `DATA_BACKFILL_MAX_BARS` | `20000` | the most bars one backfill may span |
+| `DATA_SCHEDULES` | empty | semicolon-separated `replay:<cap>:<SYMBOL>@every=1h` / `backfill:<SYMBOL>:<interval>:<lookback>@daily=HH:MM` entries |
+| `DATA_SCHEDULER_TICK_S` | `30` | how often the scheduler checks what is due |
 
 The resting book and paper-equity adapter add seven of their own:
 

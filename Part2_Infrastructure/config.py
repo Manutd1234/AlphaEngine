@@ -116,6 +116,19 @@ class Settings:
     # Seed the Data tab's work queue with its nine sample rows the first time
     # the table is empty; they are marked as samples and can be edited away.
     data_work_seed: bool = field(default_factory=lambda: _env_bool("DATA_WORK_SEED", True))
+    # Replay and backfill jobs. Replay re-runs a capability through the web
+    # workspace's own validated fetch path (its adapters, credentials and
+    # contracts live only there); the base URL defaults to the origin of the
+    # paper-equity quote façade when that is set. Backfill fetches bars in a
+    # date range and merges them into the gateway's bar cache after a contract
+    # check. Schedules are a config-driven list; see modules/data_scheduler.py.
+    web_workspace_url: str = field(default_factory=lambda: _env("WEB_WORKSPACE_URL", "").rstrip("/"))
+    data_job_timeout_s: float = field(default_factory=lambda: _env_float("DATA_JOB_TIMEOUT_S", 20.0))
+    data_backfill_max_bars: int = field(default_factory=lambda: _env_int("DATA_BACKFILL_MAX_BARS", 20_000))
+    data_schedules: list[str] = field(default_factory=lambda: [
+        item.strip() for item in _env("DATA_SCHEDULES", "").split(";") if item.strip()
+    ])
+    data_scheduler_tick_s: float = field(default_factory=lambda: _env_float("DATA_SCHEDULER_TICK_S", 30.0))
 
     # ---- Module A: TCA / market data --------------------------------------
     symbols: list[str] = field(default_factory=lambda: _env_list("SYMBOLS", ["BTCUSDT", "ETHUSDT", "SOLUSDT"]))
@@ -322,6 +335,19 @@ class Settings:
     @property
     def telegram_enabled(self) -> bool:
         return bool(self.telegram_bot_token)
+
+    @property
+    def resolved_web_workspace_url(self) -> str:
+        """The web workspace's origin: explicit, else the paper-equity façade's origin, else empty."""
+        if self.web_workspace_url:
+            return self.web_workspace_url
+        if self.paper_equity_quote_url:
+            from urllib.parse import urlsplit
+
+            parts = urlsplit(self.paper_equity_quote_url)
+            if parts.scheme and parts.netloc:
+                return f"{parts.scheme}://{parts.netloc}"
+        return ""
 
     @property
     def resolved_telegram_mode(self) -> str:

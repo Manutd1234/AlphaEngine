@@ -124,6 +124,56 @@ def fetch_ohlcv(symbol: str, interval: str, bars: int) -> tuple[pd.DataFrame, st
     return _synthetic_ohlcv(symbol, interval, bars), "synthetic"
 
 
+def fetch_binance_range(
+    symbol: str,
+    interval: str,
+    start_ms: int,
+    end_ms: int,
+    *,
+    max_bars: int = 20_000,
+    client: Any | None = None,
+) -> list[list[Any]]:
+    """Klines inside [start_ms, end_ms], paged forward by ``startTime``.
+
+    The backfill path: the backtester's fetcher pages *backward* from now for
+    the newest N bars; a backfill wants a date range and must not stop at the
+    first empty page it happens to hit. Raw rows, oldest first, ``max_bars``
+    as the safety cap. ``client`` is injectable so a test can hand in a
+    transport without touching the network.
+    """
+    import httpx
+
+    out: list[list[Any]] = []
+    cursor = int(start_ms)
+    owned = client is None
+    http = client or httpx.Client(timeout=15.0)
+    try:
+        while cursor <= end_ms and len(out) < max_bars:
+            params: dict[str, Any] = {
+                "symbol": symbol, "interval": interval, "startTime": cursor, "endTime": int(end_ms),
+                "limit": min(1000, max_bars - len(out)),
+            }
+            resp = http.get(f"{settings.binance_rest_url}/api/v3/klines", params=params)
+            resp.raise_for_status()
+            chunk = resp.json()
+            if not chunk:
+                break
+            out.extend(chunk)
+            last_open = int(chunk[-1][0])
+            # Stop on an empty page or on no progress — not on a short page.
+            # The vendor returns short pages at the end of a range, but so
+            # would a rate-limited or partial answer, and a backfill that
+            # stops early on one of those has a hole it does not know about.
+            # The price is one extra, empty request per backfill.
+            if last_open < cursor:
+                break
+            cursor = last_open + 1
+    finally:
+        if owned:
+            http.close()
+    return out
+
+
 def _fetch_binance_klines(symbol: str, interval: str, bars: int) -> pd.DataFrame:
     import httpx
 

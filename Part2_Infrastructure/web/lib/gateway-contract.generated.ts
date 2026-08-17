@@ -51,6 +51,45 @@ export interface CheckResult {
   passed: boolean;
 }
 
+export interface DataBackfillRequest {
+  from_at: string;
+  interval?: "15m" | "1h" | "4h" | "1d";
+  symbol: string;
+  to_at: string;
+}
+
+export interface DataJobAccepted {
+  backend: string;
+  job_id: string;
+  kind: "data.replay" | "data.backfill";
+  poll: string;
+  status: string;
+}
+
+export interface DataJobView {
+  actor?: string;
+  backend?: string;
+  error?: string | null;
+  finished_at?: string | null;
+  job_id: string;
+  kind: string;
+  message?: string;
+  params?: Record<string, unknown>;
+  progress?: number;
+  started_at?: string | null;
+  status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+  submitted_at: string;
+  summary?: Record<string, unknown> | null;
+}
+
+export interface DataJobsResponse {
+  backend: string;
+  executor_configured: boolean;
+  jobs: Array<DataJobView>;
+  observed_at: string;
+  retained_in_process: boolean;
+}
+
 export interface DataQualityCapabilityRow {
   capability: string;
   drift: number;
@@ -131,6 +170,34 @@ export interface DataQualityView {
   schema_version?: 1;
   total: DataQualityCounts;
   window_minutes: number;
+}
+
+export interface DataReplayRequest {
+  bars?: number;
+  capability?: "quote" | "bars" | "news" | "fundamentals";
+  interval?: "15m" | "1h" | "4h" | "1d";
+  symbol: string;
+}
+
+export interface DataScheduleView {
+  cadence: string;
+  error: string | null;
+  expression: string;
+  id: string;
+  kind: "replay" | "backfill";
+  last_job_id: string | null;
+  last_outcome: string | null;
+  last_run_at: string | null;
+  next_due_at: string | null;
+  valid: boolean;
+}
+
+export interface DataSchedulesResponse {
+  executor_configured: boolean;
+  max_backfill_bars: number;
+  observed_at: string;
+  schedules: Array<DataScheduleView>;
+  tick_seconds: number;
 }
 
 export interface DecisionLatencySnapshot {
@@ -676,6 +743,10 @@ export interface GatewayOperations {
   "GET /api/config": { response: Record<string, unknown> };
   "GET /api/data-quality/findings": { response: DataQualityFindingsResponse };
   "GET /api/data-quality/view": { response: DataQualityView };
+  "POST /api/data/backfill": { request: DataBackfillRequest; response: DataJobAccepted };
+  "GET /api/data/jobs": { response: DataJobsResponse };
+  "POST /api/data/replay": { request: DataReplayRequest; response: DataJobAccepted };
+  "GET /api/data/schedules": { response: DataSchedulesResponse };
   "GET /api/data/work-items": { response: WorkItemsResponse };
   "POST /api/data/work-items": { request: WorkItemCreate; response: WorkItemView };
   "PATCH /api/data/work-items/{item_id}": { request: WorkItemPatch; response: WorkItemView };
@@ -724,6 +795,10 @@ export const GATEWAY_CONTRACT_PATHS = [
   "/api/config",
   "/api/data-quality/findings",
   "/api/data-quality/view",
+  "/api/data/backfill",
+  "/api/data/jobs",
+  "/api/data/replay",
+  "/api/data/schedules",
   "/api/data/work-items",
   "/api/data/work-items/{item_id}",
   "/api/jobs",

@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 
 import NumberTicker from "@/components/common/NumberTicker";
 import DataQualityLedger from "@/components/data/DataQualityLedger";
+import ReplayBackfillPanel from "@/components/data/ReplayBackfillPanel";
 import DataTrustOverview from "@/components/data/DataTrustOverview";
 import DataWorkBoard, { PROGRESS_WIP_LIMIT, type DataWorkMutation } from "@/components/data/DataWorkBoard";
 import CrossSourceCheck from "@/components/systems/CrossSourceCheck";
@@ -502,6 +503,15 @@ export default function DataConsole({
           pollMs={effectivePollMs}
           onEvent={logLocal}
           active={active && section === "lineage"}
+        />
+        <ReplayBackfillPanel
+          symbol={workspaceSymbol}
+          interval={workspaceInterval}
+          pollMs={effectivePollMs}
+          active={active && section === "lineage"}
+          guard={guard}
+          operatorReady={operatorReady}
+          operatorToken={view.token}
         />
       </WorkspaceSubtabPanel>
 

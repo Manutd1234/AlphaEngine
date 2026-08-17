@@ -53,5 +53,30 @@ def backtest_task(self, req_dict: dict[str, Any]) -> dict[str, Any]:
     return run_backtest(req_dict, job_id=self.request.id, progress=progress)
 
 
+@celery_app.task(bind=True, name="alphaengine.data.replay")
+def data_replay_task(self, params: dict[str, Any]) -> dict[str, Any]:
+    """Re-run one capability through the web workspace's validated fetch path.
+    Persistence happens in the gateway's completion hook, never in a worker."""
+    from modules.data_jobs import run_replay
+
+    return run_replay(params)
+
+
+@celery_app.task(bind=True, name="alphaengine.data.backfill")
+def data_backfill_task(self, params: dict[str, Any]) -> dict[str, Any]:
+    """Fetch bars for a date range and contract-check them; the gateway hook
+    merges them into the bar cache."""
+    from modules.data_jobs import run_backfill
+
+    def progress(pct: float, message: str = "") -> None:
+        self.update_state(state="PROGRESS", meta={"progress": pct, "message": message})
+
+    return run_backfill(params, progress=progress)
+
+
 # Consumed by modules.jobs to map a job "kind" onto a registered task.
-TASK_MAP = {"backtest": backtest_task}
+TASK_MAP = {
+    "backtest": backtest_task,
+    "data.replay": data_replay_task,
+    "data.backfill": data_backfill_task,
+}

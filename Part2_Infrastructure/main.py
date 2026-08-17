@@ -50,12 +50,21 @@ from config import BASE_DIR, settings
 from modules import research
 from modules.audit import get_audit
 from modules.backtester import VECTORBT_AVAILABLE, run_backtest
+from modules.data_jobs import (
+    DATA_KIND_PREFIX,
+    executor_configured,
+    job_view,
+    on_data_job_complete,
+    submit_backfill,
+    submit_replay,
+)
 from modules.data_quality import (
     DataQualityFindingsResponse,
     DataQualityView,
     get_data_quality,
     publish_escalation,
 )
+from modules.data_scheduler import get_scheduler
 from modules.decision_core import ENGINE as DECISION_ENGINE
 from modules.equity_quote import EquityQuoteUnavailable, fetch_paper_equity_reference, is_equity_symbol
 from modules.jobs import get_queue
@@ -67,6 +76,11 @@ from modules.risk_proxy import get_gateway
 from modules.schemas import (
     BacktestRequest,
     CancelRequest,
+    DataBackfillRequest,
+    DataJobAccepted,
+    DataJobsResponse,
+    DataReplayRequest,
+    DataSchedulesResponse,
     KillSwitchRequest,
     OrderAck,
     OrderEvent,
@@ -146,11 +160,18 @@ async def lifespan(app: FastAPI):
     gateway.add_decision_hook(rag.on_decision)
     queue.on_complete(rag.on_backtest_complete)
 
+    # Replay and backfill jobs persist through the gateway's own hook — the
+    # finding to the quality ledger, clean bars to the cache — on this loop,
+    # never in a worker.
+    queue.on_complete(on_data_job_complete)
+
     await tca.start()
     await gateway.start()
     await bot.start()
     await mirror.start()
     await rag.start()
+    scheduler = get_scheduler()
+    scheduler.start()
 
     # Time the compiled decision battery once, on a synthetic two-venue book,
     # so the desk's nanosecond figure exists before the first order and after
@@ -176,6 +197,7 @@ async def lifespan(app: FastAPI):
     finally:
         log.info("shutting down…")
         audit.record_risk_event("gateway_stop", severity="info", actor="system", detail="clean shutdown")
+        await scheduler.stop()
         await bot.stop()
         await rag.stop()
         await mirror.stop()
@@ -399,6 +421,54 @@ async def patch_work_item(item_id: str, patch: WorkItemPatch, actor: str = Depen
     if updated is None:
         raise HTTPException(status_code=404, detail=f"no work item {item_id}")
     return updated
+
+
+@app.post("/api/data/replay", response_model=DataJobAccepted, tags=["data"])
+async def data_replay(req: DataReplayRequest, actor: str = Depends(trader_identity)) -> DataJobAccepted:
+    """Queue a replay: one capability, through the workspace's validated fetch path, cache bypassed."""
+    if not executor_configured():
+        raise HTTPException(status_code=503, detail="replay executor not configured — set WEB_WORKSPACE_URL on the gateway")
+    record = submit_replay(req, actor=actor)
+    return DataJobAccepted(job_id=record.job_id, kind="data.replay", status=record.status, backend=record.backend, poll=f"/api/jobs/{record.job_id}")
+
+
+@app.post("/api/data/backfill", response_model=DataJobAccepted, tags=["data"])
+async def data_backfill(req: DataBackfillRequest, actor: str = Depends(trader_identity)) -> DataJobAccepted:
+    """Queue a backfill: bars for a date range, contract-checked, merged into the bar cache."""
+    from modules.data_jobs import INTERVAL_MS, is_equity
+
+    span = int((req.to_at - req.from_at).total_seconds() * 1000 / INTERVAL_MS[req.interval]) + 1
+    if span > settings.data_backfill_max_bars:
+        raise HTTPException(status_code=422, detail=f"the range spans {span} bars; DATA_BACKFILL_MAX_BARS is {settings.data_backfill_max_bars}")
+    if is_equity(req.symbol.upper()) and not executor_configured():
+        raise HTTPException(status_code=503, detail="an equity backfill needs the workspace — set WEB_WORKSPACE_URL on the gateway")
+    record = submit_backfill(req, actor=actor)
+    return DataJobAccepted(job_id=record.job_id, kind="data.backfill", status=record.status, backend=record.backend, poll=f"/api/jobs/{record.job_id}")
+
+
+@app.get("/api/data/jobs", response_model=DataJobsResponse, tags=["data"])
+async def data_jobs(limit: int = Query(default=25, ge=1, le=100), _actor: str = Depends(trader_identity)) -> DataJobsResponse:
+    """Recent replay and backfill jobs — the queue's in-process memory; the audit log keeps status rows."""
+    queue = get_queue()
+    return DataJobsResponse(
+        observed_at=datetime.now(timezone.utc),
+        backend=queue.backend,
+        retained_in_process=True,
+        executor_configured=executor_configured(),
+        jobs=[job_view(record) for record in queue.list(limit, kind_prefix=DATA_KIND_PREFIX)],  # type: ignore[arg-type]
+    )
+
+
+@app.get("/api/data/schedules", response_model=DataSchedulesResponse, tags=["data"])
+async def data_schedules(_actor: str = Depends(trader_identity)) -> DataSchedulesResponse:
+    """The configured replay/backfill schedule, valid or not, and when each last ran."""
+    return DataSchedulesResponse(
+        observed_at=datetime.now(timezone.utc),
+        tick_seconds=settings.data_scheduler_tick_s,
+        executor_configured=executor_configured(),
+        max_backfill_bars=settings.data_backfill_max_bars,
+        schedules=get_scheduler().views(),
+    )
 
 
 @app.get("/api/config", tags=["meta"])

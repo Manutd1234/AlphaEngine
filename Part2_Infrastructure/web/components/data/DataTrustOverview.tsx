@@ -733,7 +733,7 @@ export default function DataTrustOverview({
       {/*
         Static documentation, and the only block on this tab that is not a
         reading of the running system: it states what the data plane implements
-        and where the production gap is.
+        and what still bounds it.
 
         OUTSIDE the pane switcher on purpose. A boundary that disappears when a
         reader changes view is a boundary they can miss entirely, and this one
@@ -749,7 +749,7 @@ export default function DataTrustOverview({
                 with the repeat, and the section carries an aria-label instead
                 of pointing at a heading that no longer exists. */}
             <summary>
-              Assessment boundary — what is implemented, and where the production gap is
+              Assessment boundary — what is implemented, and what still bounds it
             </summary>
             <div>
               <article>
@@ -758,16 +758,19 @@ export default function DataTrustOverview({
                   <li>Ranked provider failover with circuit, quota, reserve and cache state.</li>
                   <li>Quote, bars, news and fundamentals contracts on the normalised payload; rejected-payload failover and bounded quarantine evidence.</li>
                   <li>A durable, cross-instance quality ledger on the gateway (SQLite on its data volume, seven-day retention), fed by every web instance&apos;s sync, with rule-based escalation to the Telegram alert chats and the audit log.</li>
+                  <li>Replay and backfill jobs orchestrated by the gateway queue — replay re-runs a capability through this workspace&apos;s own validated fetch path, backfill merges contract-checked bars into the gateway&apos;s bar cache — with a config-driven schedule and results in Lineage &amp; Payloads.</li>
                   <li>A Work Queue persisted on the gateway — versioned, audit-logged, a stale edit refused with the current row — with edits held locally and disclosed when the gateway is unreachable.</li>
                   <li>On-demand cross-source reconciliation and real request lineage for the active symbol and interval.</li>
                   <li>Gateway venue freshness, reconnect and synthetic-feed disclosure when configured.</li>
                 </ul>
               </article>
               <article>
-                <h3><span aria-hidden>△</span> Explicit production gaps</h3>
+                <h3><span aria-hidden>△</span> Remaining boundaries</h3>
                 <ul>
-                  <li>No orchestrator, replay service or backfill scheduler is wired to this UI.</li>
+                  <li>The quality ledger, the schedule runs and the Work Queue live in one gateway process and one SQLite file on its data volume — durable across restarts and deploys, not replicated across regions or gateways.</li>
                   <li>Contracts validate the normalised shape, not each vendor&apos;s raw JSON schema; raw payloads are visible in the inspector and the quarantine sample.</li>
+                  <li>The scheduler is in-process and config-driven; the job list is the queue&apos;s memory (the audit log keeps status rows) and there is no retry queue beyond the job backend.</li>
+                  <li>Escalation is one channel with a cooldown and auto-resolve — no acknowledgement workflow or paging rota.</li>
                 </ul>
               </article>
             </div>

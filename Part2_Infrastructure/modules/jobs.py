@@ -287,8 +287,11 @@ class JobQueue:
     def get(self, job_id: str) -> JobRecord | None:
         return self._jobs.get(job_id)
 
-    def list(self, limit: int = 25) -> list[JobRecord]:
-        return sorted(self._jobs.values(), key=lambda r: r.submitted_at, reverse=True)[:limit]
+    def list(self, limit: int = 25, kind_prefix: str | None = None) -> list[JobRecord]:
+        records = self._jobs.values()
+        if kind_prefix:
+            records = [r for r in records if r.kind.startswith(kind_prefix)]
+        return sorted(records, key=lambda r: r.submitted_at, reverse=True)[:limit]
 
     def stats(self) -> dict[str, Any]:
         by_status: dict[str, int] = {}

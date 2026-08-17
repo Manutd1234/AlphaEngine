@@ -130,6 +130,19 @@ means the decision is waiting on something it should not.
 
 ## Job backlog
 
+Two more job kinds share this queue since 2026-08-17: `data.replay` and
+`data.backfill` (Data tab → Lineage & Payloads → Replay and backfill, or
+`POST /api/data/replay` / `/api/data/backfill`). A succeeded job reads
+"persisting…" until the gateway's completion hook has written the finding to
+the quality ledger and, for a clean backfill, the bars to the cache; if it
+never clears, read the gateway log for `persist failed`. `GET /api/data/jobs`
+lists what the queue remembers; `GET /api/data/schedules` shows the configured
+cadence and when each entry last fired (kept in `data_ops.sqlite`, so a
+restart does not re-fire a daily job). A replay needs `WEB_WORKSPACE_URL`;
+without it the route answers 503 and the panel says so.
+
+### Backtests
+
 **Alerts:** `AlphaEngineJobQueueBacklog`, `AlphaEngineJobFailures`
 
 Research jobs are queuing or failing. **This does not affect trading** — the
