@@ -1,5 +1,9 @@
 # UI Improvements — the audit behind the overhaul
 
+*The audit (§1–3) is kept as it was written, because it is the acceptance test the slices
+were built against; the ledger (§4) and the closing table (§5) are current to 2026-08-17 and
+carry the passes that followed the eight slices.*
+
 **Verdict first.** The workspace's engine outgrew its chrome. Forty-six documented strategies
 hide behind a flat `<select>`, the promotion gate — the most dramatic moment in the product —
 renders as a static list, and a 12,900-line design system contains exactly three animations.
@@ -155,17 +159,24 @@ Test-enforced properties every slice must keep green:
 |---|---|
 | `tests/theme.test.ts` | the two dark-theme CSS blocks stay byte-identical; text colours use `-text` tokens (AA arithmetic-checked) |
 | `tests/layering.test.ts` | every z-index resolves to a `--z-*` ladder token |
-| `tests/dead-css.test.ts` | unreferenced-class ratchet (baseline 29, floor 23): a new class must be rendered in the same commit |
+| `tests/dead-css.test.ts` | unreferenced-class ratchet (baseline 24 as of 2026-08-17, and no more than six below it — a baseline far above reality stops being a ratchet): a new class must be rendered in the same commit |
 | `tests/tailwind-bridge.test.ts` | bridged tokens must exist in globals.css; preflight never loads |
 | `tests/workspace-routing.test.ts` | tab + rail lists byte-identical across all three complexity tiers |
+| `tests/motion.test.ts` *(Slice 2)* | one reduce block that collapses durations rather than deleting animations, no literal-duration transitions outside the token ladder, NumberTicker's mount/reduce guards |
+| `tests/house-rules.test.ts` | the rules that were written down and never enforced — no emoji in any component or route (the typographic glyphs stay), every `pulse-live` element is aria-hidden decoration, an empty result is reported rather than hidden — with the two shipped emoji violations (provider counts, kill switch) as the reason it exists |
+| `tests/forced-colors.test.ts` | Windows High Contrast: nothing means by colour alone |
+| `tests/type-scale.test.ts` | one type scale in `:root` (9.5 → 28px, fourteen rungs), two font stacks, inline sizes on the scale; sanctioned exceptions annotated at their declaration |
+| `tests/accent-budget.test.ts` | the saturated `--series-1` fill belongs to controls that commit something; a selected segment is not one of them (BUY/SELL is the deliberate exception, asserted as hard as the rule) |
+| `tests/null-honesty.test.ts` | an unmeasured number is dashed, not zeroed; an unanswered order says so; legends are lists without bullets |
+| `tests/live-motion.test.ts` | live values move (NumberTicker, freshness affordances) and honest absences stay still; durations wear the unit their magnitude earns |
+| `tests/interaction.test.ts` | links respond, disabled fields say so, elevation only for what floats, 44px for coarse pointers, chrome offsets measured |
+| `tests/decision-latency.test.ts` | the header chip headlines the gateway's in-process decision p99 from the model, the network figures are demoted to the title, Reliability teaches the two planes apart, no per-order ms sneaks back beside the µs |
+| `tests/header-ladder.test.ts` | the header's nine-rung priority ladder: each rung takes only what it says, the essentials are never on it, the row wraps at 1090, tabs one rung above the chips and every chip word 12px |
+| `tests/tour-truth.test.ts` | `docs/FEATURE_TOUR.md` names every rail section the app ships and quotes the 43-section total |
 
-House rules, enforced by review rather than test: no new npm dependencies, no emoji in UI, no
-colour-only meaning, honest labels ("mocked", "from this browser's run log"),
-`prefers-reduced-motion` respected everywhere.
-
-(`tests/motion.test.ts`, added in Slice 2, joined the ledger: one reduce block that collapses
-durations rather than deleting animations, no literal-duration transitions outside the token
-ladder, and NumberTicker's mount/reduce guards.)
+House rules, enforced by test since `house-rules.test.ts` and by review before it: no new npm
+dependencies, no emoji in UI, no colour-only meaning, honest labels ("mocked", "from this
+browser's run log"), `prefers-reduced-motion` respected everywhere.
 
 ---
 
@@ -190,3 +201,22 @@ Every slice shipped; the deliberately-not-done list in §3 held. What each slice
 | StatTile / KpiDeck / PageMetric consolidation into one primitive | pixel parity nobody sees; bridge-test churn risk — Verdict's conversion was the cheap, high-value subset |
 | Chart library, animation library, achievement system, locked content, family colour tokens, persisted rail state | §3 — each negation still holds after eight slices |
 | Historical "twenty-six" prose in `benchmark.test.ts` / `route.ts` comments | those describe a past coercion bug at its historical size; rewriting history is its own dishonesty. Present-tense claims were updated to forty-six |
+
+### Since the eight slices — the passes that followed, to 2026-08-17
+
+Same boundary sentence, same test-first shape. Each row names the finding it answered, in
+the audit's own form, and where to see it.
+
+| Shipped | Finding it answered | Where to see it |
+|---|---|---|
+| **One type scale** (2026-08-16): forty distinct font sizes — a half-pixel px ramp, pt, em and rem naming nearly the same steps — became fourteen `--fs-*` rungs from 9.5 to 28px, two font stacks, and a `<small>` that defaults to the reading floor rather than the UA's 8.3px | adjacent rungs no reader could tell apart and no author could choose between; sizes off the scale by ratios no rung named | `globals.css` `:root`; `tests/type-scale.test.ts` |
+| **The moving desk** (2026-08-16): NumberTicker and the freshness affordances reach Data, Reliability, Developer, Research and Execution; the header carries the workspace heartbeat; a counting figure keeps its figure's size; the animation shorthand joined the motion ladder | "not dynamic" meant two things — no hover/pulse/transition, and figures that did not move on poll — and neither may ever replace a dash with a zero or a "Collecting" gate with a confident number | any console on poll; `tests/live-motion.test.ts`, `tests/null-honesty.test.ts` |
+| **The header chip headlines the decision, not the network** (2026-08-17): DECISION P99 in µs from the gateway's in-process histogram, the compiled core's ns figure beside it, network p99 demoted to the title and the Reliability tiles; before the first order the chip reads `— · core N ns · no orders yet` and its title names the startup self-measure as the provenance | the one chip on every tab quoted a Vercel-hop millisecond figure under a label a reader took for the risk decision | `WorkspaceHeader`, `lib/overview-state.ts` (`formatDecisionChip`); `tests/decision-latency.test.ts` |
+| **The Reliability tiles say which plane** (2026-08-17): decision µs, core ns and network ms as three tiles that never blend, the core tile carrying `· self-measure 300` (its title saying which samples those are) when that is where its number came from, and the guide teaching the planes apart | three units on one surface with nothing saying which was which | Reliability → Attention & SLIs; `tests/decision-latency.test.ts` |
+| **The header's priority ladder** (2026-08-17): nine small rungs from 1860px down to 1170px — the Search label and the providers sentence's short form, the chip's state word, the Settings label, the data-tier label, the Connect label, the providers chip to its dot, the brand tagline and tab padding, the decision figure to its gauge, and last the Kill switch and Sign in labels — each measured to land just before the next clip; Settings, the account chip, the kill switch and the tabs are never on it; the core annotation is *not* a rung because it adds no width | `.workspace-header__utility` is `overflow-x: clip`, so a fully-labelled row (~1805px as a guest) silently lost Settings from 1722px down and by 298px at 1381 — the band that first replaced it folded 250px of labels at once at 1700 | the "The header's priority ladder" comment in `globals.css`; `tests/header-ladder.test.ts` |
+| **Larger header type** (2026-08-17): tabs at `--fs-xl` (13px), every chip word at `--fs-md` (12px) — the data tier, the providers sentence, Settings, Kill switch, Sign in and Connect — with the ladder re-measured for the new widths | the row's words sat one and two rungs under the panels they opened | the same comment; the "one size class" contract in `tests/header-ladder.test.ts` |
+| **The Telegram companion became interactive** (2026-08-17): inline keyboards on every card, callback dispatch gated on the tapper (never the tapped message's author), refresh edits the card in place and degrades to a fresh send, sixteen chart generators; 114 commands catalogued from the one registry that drives dispatch, with README §6 and the live checklist generated from it | a text-only companion whose docs counted its commands by hand and drifted three times | `modules/telegram.py`, `modules/telegram_charts.py`; `tests/test_telegram_interactive.py`, `tests/test_telegram_docs.py` (gateway suite) |
+
+What did *not* change: no new dependency for any of it, no emoji, no colour-only meaning,
+one reduce block, and every one of the eight slices' tests still green (2,313 web tests across
+592 suites on 2026-08-17).
