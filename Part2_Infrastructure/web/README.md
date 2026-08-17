@@ -90,7 +90,7 @@ npm install
 npm run dev        # http://localhost:3000 (Turbopack)
 npm run build      # Turbopack production build
 npm run typecheck  # tsc --noEmit
-npm test           # 2,313 tests across 592 suites, no network required (2026-08-17;
+npm test           # 2,410 tests across 620 suites, no network required (2026-08-17;
                    # lib/test-counts.generated.ts records the figure and CI checks it)
 ```
 
@@ -454,7 +454,7 @@ web/
 │   ├── globals.css           design tokens (palette, light + dark)
 │   ├── login/page.tsx        optional sign-in — outside the workspace shell
 │   ├── profile/page.tsx      account and security centre — the other one
-│   └── api/                  32 routes (2026-08-17). Re-derive: find app/api -name route.ts
+│   └── api/                  37 routes (2026-08-17). Re-derive: find app/api -name route.ts
 │       │                     This list read 11 for a long time, having been
 │       │                     written when it was true and never rebuilt; every
 │       │                     route added since — the whole gateway proxy, auth,
@@ -472,11 +472,14 @@ web/
 │       ├── providers/route.ts  supply-chain health: keys, quotas, breakers
 │       ├── favourites/route.ts pinned runs, per identity
 │       ├── auth/             guest · login · logout · session — 4 routes
-│       ├── gateway/          the risk gateway proxy — 9 routes
+│       ├── gateway/          the risk gateway proxy — 14 routes
 │       │   ├── risk/route.ts   halt · resume · flatten, and the reachability probe
 │       │   ├── orders/         submit · working · [id]/cancel · [id]/replace
 │       │   ├── portfolio/      book, and history
 │       │   ├── audit/route.ts  the append-only log
+│       │   ├── data/          quality · work-items · [id] · jobs · schedules — the
+│       │   │                  durable quality ledger, the persisted work queue and
+│       │   │                  the replay/backfill jobs and their schedule
 │       │   └── research/rag/route.ts  retrieval over the research corpus
 │       ├── oracle/           research · var — 2 routes, optional backend
 │       ├── system/           actions · events · health · inspect — 4 routes
@@ -492,20 +495,27 @@ web/
 │   ├── format.ts             number/date formatting shared by the UI
 │   ├── types.ts              shared contracts
 │   └── providers/            the seven-provider registry
-│       ├── types.ts          capability contracts, normalised payloads, provenance
-│       ├── runtime.ts        quota ledger, circuit breaker, cache, dispatch
+│       ├── types.ts          capability contracts, normalised payloads, provenance,
+│       │                      the error taxonomy (failed / no_data / unlicensed / quota)
+│       ├── capabilities.ts    which capability applies to which asset class — the
+│       │                      table the route matrix is derived from
+│       ├── contracts.ts       the quote, bars, news and fundamentals contracts
+│       ├── runtime.ts        quota ledger, circuit breaker, cache, learned licence
+│       │                      state, dispatch
 │       ├── registry.ts       ranked routing, consensus quotes, status
+│       ├── route-labels.ts   a route's name in prose ("Crypto quotes")
 │       ├── symbols.ts        asset classification (BTCUSDT≠BTC-the-stock)
 │       ├── parse.ts          NaN-safe coercion funnel (vendor JSON is hostile)
 │       ├── http.ts           route glue: one error shape, edge cache headers
 │       └── …one adapter per vendor (binance, fmp, tiingo, massive,
 │            alphavantage, firecrawl, openbb)
 ├── components/               charts (hand-rolled SVG), controls, tables
-└── tests/                   2,313 tests across 592 suites, incl. cross-engine,
+└── tests/                   2,410 tests across 620 suites, incl. cross-engine,
                               risk-engine and gate parity, and the design-system
                               ratchets (type-scale, motion, house-rules, dead-css,
                               accent-budget, null-honesty, live-motion, forced-colors,
-                              interaction, header-ladder, decision-latency, tour-truth)
+                              interaction, header-ladder, decision-latency, middle-dot,
+                              text-size, tour-truth)
 ```
 
 **Why the sweep runs server-side.** Binance's public API is called from the

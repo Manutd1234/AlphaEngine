@@ -86,9 +86,9 @@ missing (§9 has the detail):
 | **Quant Researcher** | *Does this actually work?* | Sweep engine, Deflated Sharpe, walk-forward, PBO, promotion gate | No feature store; per-browser experiment log |
 | **Portfolio Manager** | *Where am I exposed, and what should I own?* | Portfolio view, risk contributions, allocation proposal, rebalance | No benchmark-relative attribution |
 | **Risk Manager** | *Is the model right, and will the limits hold?* | Kupiec VaR backtest, stress scenarios, reduce-only mode, kill switch | No margin or liquidation modelling |
-| **Data Engineer** | *Can I trust this data?* | Overview-first trust cockpit, provider registry, failover, data contracts, quarantine and lineage | No durable quality ledger, orchestration or backfill scheduler |
+| **Data Engineer** | *Can I trust this data?* | Overview-first trust cockpit, provider registry, failover, quote/bars/news/fundamentals contracts, quarantine and lineage, a durable cross-instance quality ledger with rule-based escalation, replay and backfill jobs on a config-driven schedule, a persisted versioned work queue | One gateway process and one SQLite file — durable across restarts and deploys, not replicated across regions; contracts check the normalised shape, not each vendor's raw JSON |
 | **DevOps / SRE** | *Is it healthy, and what do I do at 3am?* | `/health`, `/metrics`, systems console, alert rules, runbook | No log aggregation or distributed tracing |
-| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, parity suites (Python ↔ TypeScript to 1e-4, Python ↔ C++ to the bit), CI, 832 + 2,313 + 13 tests | No generated client, no property-based fuzzing |
+| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, parity suites (Python ↔ TypeScript to 1e-4, Python ↔ C++ to the bit), CI, 864 + 2,410 + 14 tests | No generated client, no property-based fuzzing |
 
 ### Quant Traders — *"Can I send this, and what will it cost?"*
 
@@ -217,7 +217,7 @@ the instance that produced it.
 | Documented tunables | `BacktestRequest` carries bounds *and* descriptions, so `/docs` doubles as the researcher's parameter registry |
 | Confidence that two implementations agree | Python↔TypeScript parity suites for the **backtest engine** and the **risk engine**, both driven by fixtures the Python reference emits; and Python↔C++ parity for the **pre-trade decision** — the twenty-scenario `gate-parity.json` fixture, reproduced bit-for-bit (`tests/test_gate_parity.py`, `tests/test_decision_core_native.py`) |
 | To debug a request without guessing | Pipeline inspector down to raw vendor JSON; bounded trace ring with redaction; `/api/system/inspect` |
-| Tests that run anywhere | 832 gateway + 2,313 web + 13 service tests (2026-08-17), all offline by construction — no network, no fixtures fetched at test time. Each figure is what its runner prints: `venv/bin/python -m pytest`, `(cd web && npm test)`, `venv/bin/python -m pytest OpenBB_Service/tests`; `web/lib/test-counts.generated.ts` records them and CI checks it |
+| Tests that run anywhere | 864 gateway + 2,410 web + 14 service tests (2026-08-17), all offline by construction — no network, no fixtures fetched at test time. Each figure is what its runner prints: `venv/bin/python -m pytest`, `(cd web && npm test)`, `venv/bin/python -m pytest OpenBB_Service/tests`; `web/lib/test-counts.generated.ts` records them and CI checks it |
 | A lint gate that catches defects, not style | ruff with bugbear, async and bandit rules; `tsc --strict` on the web tier |
 | To add a provider or an endpoint without breaking things | Uniform `Adapter` interface with declared capabilities; the recipe is in §7 and in `web/README.md` |
 
@@ -263,7 +263,7 @@ gateway and its OpenBB adapter to the separate stateless service.
 cd web
 npm install
 npm run dev    # http://localhost:3000
-npm test       # 2,313 tests across 592 suites
+npm test       # 2,410 tests across 620 suites
 ```
 
 Live-feed endpoints (public, no key):
@@ -430,7 +430,7 @@ service carries no pinned version.
 | **[Supabase CLI](https://supabase.com/docs/guides/cli)** | `2.112.0` | Migration push via the IPv4 session pooler (the direct DB host is IPv6-only) and edge-function deploys. |
 | **[Oracle Cloud](https://www.oracle.com/cloud/)** | managed | The always-on host (Singapore). Region is load-bearing: US egress gets Binance HTTP 451 / Bybit 403 (§11). |
 | **[Vercel](https://vercel.com)** | managed | Two serverless projects (web portal, OpenBB service) from one repo with different Root Directories, region `sin1`. Artifact custody via an Ed25519-signed build attestation against a trust root pinned in reviewed source (`web/lib/artifact-trust.mjs`). |
-| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free jobs (gateway, OpenBB, web, repo-audit) plus a manual live-smoke: a red build means the code broke, never that an exchange was slow. 832 gateway + 2,313 web + 13 service tests. Three more workflows: `deploy.yml` (gateway CD to OCI with rollback and an engine check), `openbb-keepalive.yml` and `oracle-keepalive.yml` (schedulers Vercel Hobby and Always Free cannot provide), `schema.yml` (Supabase migrations). |
+| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free jobs (gateway, OpenBB, web, repo-audit) plus a manual live-smoke: a red build means the code broke, never that an exchange was slow. 864 gateway + 2,410 web + 14 service tests. Three more workflows: `deploy.yml` (gateway CD to OCI with rollback and an engine check), `openbb-keepalive.yml` and `oracle-keepalive.yml` (schedulers Vercel Hobby and Always Free cannot provide), `schema.yml` (Supabase migrations). |
 
 ### API Keys & Secrets
 
@@ -511,6 +511,12 @@ Part2_Infrastructure/
 │   ├── quant_risk.py       VaR/ES, risk contribution, Kelly, regime, dislocation
 │   ├── operations.py       Typed, secret-free ops snapshot (/api/ops/snapshot)
 │   ├── metrics.py          Prometheus text exposition, hand-rolled (no client lib)
+│   ├── web_telemetry.py    Cross-instance ops ledger the web instances sync into
+│   ├── data_ops_store.py   Strict SQLite store (WAL, one lock) for the data-ops tables
+│   ├── data_quality.py     Contract-finding ledger, escalation rules, Telegram + audit publish
+│   ├── work_items.py       The Data tab's persisted, versioned, audit-logged work queue
+│   ├── data_jobs.py        Replay and backfill executors, and the Python bar contract
+│   ├── data_scheduler.py   Config-driven cadence for replay and backfill (DATA_SCHEDULES)
 │   └── schemas.py          Pydantic contracts shared by API, UI and bot
 ├── native/decision_core/   decision_core.cpp + setup.py — the C++ pre-trade
 │                           arithmetic battery, built into modules/_decision_core*.so
@@ -1345,9 +1351,9 @@ This used to read "verified on 3.11 – 3.14, including vectorbt + numba on
 3.14", and that was wrong in a way worth recording. numba publishes no 3.14
 wheel, so on a 3.14 interpreter vectorbt does not install — and the suite does
 not fail, it *skips*: `tests/test_backtester.py:99`, "vectorbt not installed".
-The summary line reads 831 passed, 1 skipped and looks healthy while the
-vectorbt engine goes entirely untested. On 3.12 the same tree is 832 passed,
-nothing skipped (2026-08-17). The 832 also needs the native decision core
+The summary line reads 863 passed, 1 skipped and looks healthy while the
+vectorbt engine goes entirely untested. On 3.12 the same tree is 864 passed,
+nothing skipped (2026-08-17). The 864 also needs the native decision core
 built — `pip install -r requirements-native.txt`, then
 `python native/decision_core/setup.py build_ext --inplace --build-temp build/native`
 — because `tests/test_decision_core_native.py` and
@@ -1495,12 +1501,12 @@ Key risks and their mitigations, all implemented here:
 
 ## 10. Testing
 
-**35 suites**, counted as `tests/test_*.py`. The `tests/` directory holds 36 `.py`
-files: those 35 plus `conftest.py`, which is fixtures rather than a suite. Both
+**38 suites**, counted as `tests/test_*.py`. The `tests/` directory holds 39 `.py`
+files: those 38 plus `conftest.py`, which is fixtures rather than a suite. Both
 figures are `ls`, not memory — `ls tests/test_*.py | wc -l` and
 `ls tests/*.py | wc -l` (2026-08-17). No per-suite test counts are quoted below,
 because parametrised cases mean a file's `def test_` count is not the number it
-contributes to the 832.
+contributes to the 864.
 
 *Modules A, B and C — the engines*
 
@@ -1585,6 +1591,26 @@ tests/test_web_state.py    the shared web-ops ledger: merge semantics, bounds an
                            the wire contract
 tests/test_jobs_security.py
                            credential handling at the Celery process boundary
+```
+
+*The data-ops plane — the ledger, the queue and the jobs*
+
+```
+tests/test_data_quality.py the contract-finding ledger: two instances merging into
+                           one window, a retried push deduped by sequence, stale
+                           and future findings refused, pruning, a fail rate that
+                           stays null rather than becoming zero, both escalation
+                           rules opening once per cooldown and resolving
+                           themselves, and the publish path with the bot disabled
+tests/test_work_items.py   the persisted work queue: seeding once, id allocation
+                           per prefix, a version bumped on every patch, a stale
+                           edit refused with the current row rather than
+                           overwritten, and an audit row per mutation
+tests/test_data_jobs.py    replay and backfill: the Python bar contract pinned to
+                           the web's by a shared fixture, each replay outcome over
+                           a mocked transport, forward-paged Binance backfill, the
+                           completion hook persisting clean bars and dropping the
+                           rows, and the scheduler's grammar and restart safety
 ```
 
 *Research and the corpus*
@@ -1866,11 +1892,11 @@ on different iterations and disagree by more than the fixture allows.
 Everything a reviewer needs to check runs offline:
 
 ```bash
-pytest                                    # 832 gateway + companion tests, nothing skipped (3.12, native core built)
+pytest                                    # 864 gateway + companion tests, nothing skipped (3.12, native core built)
 python tools/bench_decision.py            # regenerates the latency table in docs/LATENCY_BUDGET.md §2.1
 python tools/synthetic_probe.py           # end-to-end: book → cost → gate → audit
 cd OpenBB_Service && pytest               # 13 stateless service tests
-cd web && npm install && npm test         # 2,313 workspace tests across 592 suites, incl. the parity suites
+cd web && npm install && npm test         # 2,410 workspace tests across 620 suites, incl. the parity suites
 bash tools/check_repo_complete.sh         # builds the *committed* tree
 ```
 

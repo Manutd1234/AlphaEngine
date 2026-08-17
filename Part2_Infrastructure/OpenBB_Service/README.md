@@ -21,9 +21,13 @@ The routes are compatible with AlphaEngine's existing OpenBB adapter:
 GET /api/research/openbb/health
 GET /api/research/openbb/quote?symbol=AAPL&asset=equity
 GET /api/research/openbb/bars?symbol=AAPL&asset=equity&interval=1d&limit=500
-GET /api/research/openbb/news?symbols=AAPL,MSFT&limit=20
+GET /api/research/openbb/news?symbols=AAPL,MSFT&limit=20&asset=equity
 GET /api/research/openbb/fundamentals?symbol=AAPL
 ```
+
+`asset=crypto` on `news` spells each symbol the way YFinance names a pair
+(`BTCUSDT` → `BTC-USD`), as `quote` and `bars` already did; the default is
+`equity`, so an existing caller is unaffected.
 
 Successful data calls return `{"ok":true,"data":...}`. A downstream provider
 failure returns HTTP 200 with `{"ok":false,"error":"..."}` so AlphaEngine can
@@ -52,7 +56,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt
 uvicorn app:app --reload --port 8010
-pytest        # 13 passed (2026-08-17)
+pytest        # 14 passed (2026-08-17)
 ```
 
 The automated tests replace the provider fetchers with deterministic fakes and

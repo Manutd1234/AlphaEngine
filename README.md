@@ -26,7 +26,7 @@ Two parts, in two directories. Start with whichever question you came for.
 - **Verify the claims rather than trusting them:** the [verify block below](#verify-it-end-to-end) runs
   everything offline; `web/lib/test-counts.generated.ts` is the dated record of what the runners printed.
 
-**The headline numbers, all re-measured 2026-08-17:** 832 gateway + 2,313 web + 13 service tests, none
+**The headline numbers, all re-measured 2026-08-17:** 864 gateway + 2,410 web + 14 service tests, none
 skipped and none needing a network; 17 pre-trade gates (15 reachable by any order), decided in ~15 µs on
 the compiled engine with the arithmetic core at 83 ns (dev Mac; ~320 ns on the production VM); 20/20
 gate-parity scenarios bit-exact across both engines; 114 Telegram commands from one generated catalogue;
@@ -56,7 +56,7 @@ table does the explaining instead.
 
 ### The map
 
-What is where — 633 tracked files (`git ls-files | wc -l`, 2026-08-17), two levels deep. The table
+What is where — 663 tracked files (`git ls-files | wc -l`, 2026-08-17), two levels deep. The table
 above explains *why* each path is where it is; this is the *what*:
 
 ```
@@ -65,15 +65,15 @@ above explains *why* each path is where it is; this is the *what*:
 ├── docker-compose.yml                    one-command always-on gateway
 ├── .github/workflows/                    ci · deploy (gateway CD) · e2e · schema · two keepalives
 ├── Part1_Data_Handling/                  the notebook (ipynb + executed HTML), its builder, its README
-├── Part2_Infrastructure/                 582 files — the platform
+├── Part2_Infrastructure/                 612 files — the platform
 │   ├── main.py · config.py · modules/    the FastAPI risk gateway: routes, limits, the 17-gate battery
 │   ├── native/decision_core/             the C++ (pybind11) decision core — bit-exact vs Python
-│   ├── tests/                            35 pytest suites (832 tests)
+│   ├── tests/                            38 pytest suites (864 tests)
 │   ├── tools/                            fixture generators, OpenAPI export, bench, probes, Telegram catalogue
 │   ├── docker/                           the two-stage gateway image (builder compiles the core)
 │   ├── docs/                             RUNBOOK · telegram-live-checklist
-│   ├── web/                              the Next.js desk (446 files: app/ · components/ · lib/ · 126 test files)
-│   ├── OpenBB_Service/                   the stateless research service (own pyproject, 13 tests)
+│   ├── web/                              the Next.js desk (468 files: app/ · components/ · lib/ · 133 test files)
+│   ├── OpenBB_Service/                   the stateless research service (own pyproject, 14 tests)
 │   ├── developer-console/                experimental; not part of the assessed deliverable
 │   └── notebooks/ · templates/           research template; the gateway's single-file console
 ├── supabase/                             16 migrations, seed, 2 edge functions — the Postgres mirror + RAG
@@ -225,7 +225,7 @@ the RAG/ML pipeline) is in
 | **[Caddy](https://caddyserver.com)** | `2.6.2` | Automatic HTTPS in front of the gateway. |
 | **[Oracle Cloud](https://www.oracle.com/cloud/)** | managed | Always-on host, Singapore — region is load-bearing for venue egress. |
 | **[Vercel](https://vercel.com)** | managed | Two serverless projects from one repo; builds are Ed25519-attested against a trust root pinned in reviewed source. |
-| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free CI jobs (`gateway`, `openbb-service`, `web`, `repo-audit`) plus a manual `live-smoke`: 832 gateway + 2,313 web + 13 service tests. `deploy.yml` ships the gateway (build → GHCR → SSH swap → verify → roll back, and a warning if the container fell back to the Python engine); `openbb-keepalive.yml` pings the research service every ten minutes. |
+| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free CI jobs (`gateway`, `openbb-service`, `web`, `repo-audit`) plus a manual `live-smoke`: 864 gateway + 2,410 web + 14 service tests. `deploy.yml` ships the gateway (build → GHCR → SSH swap → verify → roll back, and a warning if the container fell back to the Python engine); `openbb-keepalive.yml` pings the research service every ten minutes. |
 
 ### Verify it end to end
 
@@ -241,10 +241,10 @@ From a tree that is already set up:
 
 ```bash
 cd Part2_Infrastructure
-venv/bin/python -m pytest                            # 832 passed
+venv/bin/python -m pytest                            # 864 passed
 venv/bin/python tools/synthetic_probe.py             # book → cost → risk gate → audit
-(cd web && npm test)                                 # 2,313 tests across 592 suites
-(cd OpenBB_Service && ../venv/bin/python -m pytest)  # 13 passed
+(cd web && npm test)                                 # 2,410 tests across 620 suites
+(cd OpenBB_Service && ../venv/bin/python -m pytest)  # 14 passed
 ```
 
 Those commands *are* the source of the three numbers — each figure is the count
@@ -252,7 +252,7 @@ its own runner prints on the last line (`pytest` summary; `node --test`'s
 `ℹ pass`), and `web/lib/test-counts.generated.ts` (regenerated by
 `npm run counts:refresh`, checked in CI) is where the desk reads them from.
 Re-run them rather than trusting this paragraph: a test count quoted from memory
-goes stale the week after it is written. The 832 needs the native core built
+goes stale the week after it is written. The 864 needs the native core built
 (`venv/bin/python native/decision_core/setup.py build_ext --inplace --build-temp build/native`,
 after `pip install -r requirements-native.txt`); the parity suites fail rather
 than skip without it.

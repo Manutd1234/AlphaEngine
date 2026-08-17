@@ -179,13 +179,13 @@ trusting the counts — they drift, and a number nobody re-measured is a number
 nobody should quote.
 
 ```bash
-# Gateway suite — 832 passed, nothing skipped (native core built, Python 3.12)
+# Gateway suite — 864 passed, nothing skipped (native core built, Python 3.12)
 cd Part2_Infrastructure && venv/bin/python -m pytest
 
-# Web suite — 2313 passed across 592 suites, no browser needed
+# Web suite — 2410 passed across 620 suites, no browser needed
 cd Part2_Infrastructure/web && npm test
 
-# Research service — 13 passed
+# Research service — 14 passed
 cd Part2_Infrastructure && venv/bin/python -m pytest OpenBB_Service/tests
 
 # Types, lint, production build
@@ -272,7 +272,8 @@ Both `.env.example` files are the reference and are heavily commented. Read
 those rather than any list here, which would go stale:
 
 - `Part2_Infrastructure/.env.example` — gateway: risk limits, market data,
-  Telegram, Supabase mirror.
+  Telegram, data ops (the quality ledger, the work queue, replay and backfill),
+  Supabase mirror.
 - `Part2_Infrastructure/web/.env.example` — web: provider keys, gateway
   connection, Oracle, Supabase, operator token.
 
@@ -298,6 +299,10 @@ capability and nothing else changes; each one you leave unset produces an honest
 - Oracle vector search and in-database VaR: `ORACLE_CONN_STRING`,
   `ORACLE_PASSWORD`, `ORACLE_USER`.
 - Research service: `OPENBB_API_URL`, `OPENBB_API_TOKEN`.
+- Data-ops cadence: `WEB_WORKSPACE_URL`, `DATA_SCHEDULES`. The quality ledger,
+  the persisted work queue and the replay/backfill routes all work with neither
+  set — a schedule is the only thing that needs one, and a replay says which
+  variable is missing rather than failing quietly.
 - Telegram: see below.
 
 **3. Deployment only.** `VERCEL_*`, `ALPHAENGINE_ARTIFACT_SIGNING_KEY`. Never
