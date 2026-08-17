@@ -12,13 +12,35 @@ import {
   type DataWorkItem,
   type DataWorkKind,
   type DataWorkPriority,
+  type DataWorkSource,
   type DataWorkSort,
   type DataWorkStatus,
 } from "@/lib/data-work-queue";
 
+/** What the board asks the workspace to persist; the workspace owns the network. */
+export type DataWorkMutation =
+  | { type: "move"; item: DataWorkItem; status: DataWorkStatus }
+  | { type: "create"; item: DataWorkItem };
+
 interface DataWorkBoardProps {
   items: DataWorkItem[];
   onItemsChange: (items: DataWorkItem[]) => void;
+  /**
+   * Where `items` came from. Absent means the workspace has not wired
+   * persistence (a test render); the board then behaves as it always did.
+   */
+  source?: DataWorkSource;
+  /**
+   * Called after the optimistic local change, so the workspace can PATCH or
+   * POST it to the gateway and reconcile — the board never fetches itself.
+   */
+  onMutation?: (mutation: DataWorkMutation) => void;
+  /** Number of local edits the workspace is holding because the gateway was unreachable. */
+  pendingWrites?: number;
+  /** True when writes are refused on this deployment (operator guard locked). */
+  readOnly?: boolean;
+  /** Why they are refused, for the note beside the disabled controls. */
+  readOnlyReason?: string;
 }
 
 interface NewItemDraft {
@@ -103,7 +125,15 @@ function slaState(
   return { label: `SLA due in ${Math.floor(remaining / 60)}h`, tone: remaining <= 120 ? "warn" : "good" };
 }
 
-export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardProps) {
+export default function DataWorkBoard({
+  items,
+  onItemsChange,
+  source,
+  onMutation,
+  pendingWrites = 0,
+  readOnly = false,
+  readOnlyReason,
+}: DataWorkBoardProps) {
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [kind, setKind] = useState<DataWorkKind | "all">("all");
@@ -152,6 +182,7 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
     if (item.status === status) return;
     const nextItems = moveDataWorkItem(items, item.id, status);
     onItemsChange(nextItems);
+    onMutation?.({ type: "move", item, status });
     const nextProgressCount = nextItems.filter((candidate) => candidate.status === "progress").length;
     const wipWarning = status === "progress" && nextProgressCount > progressLimit
       ? ` Warning: In progress is above its work-in-progress limit of ${progressLimit}.`
@@ -180,8 +211,11 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
       area: draft.area,
       openedAt: createdAt,
       slaDueAt: createdAt + SLA_HOURS[draft.priority] * 3_600_000,
+      version: 1,
+      createdBy: "desk",
     };
     onItemsChange([item, ...items]);
+    onMutation?.({ type: "create", item });
     setNow(createdAt);
     setDraft(DEFAULT_DRAFT);
     setComposerOpen(false);
@@ -202,9 +236,18 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
         <div>
           <div className="data-workboard__eyebrow">
             <span className="page-kicker">Operations queue</span>
-            <span className="pill">Mocked, session-only</span>
+            {/* The pill is the honest one-line source. Persisted on the gateway
+                is the steady state; local hold is a disclosed degradation, never
+                a silent one; and a render with no source wired says so. */}
+            <span className="pill">
+              {source?.kind === "gateway"
+                ? `Persisted on the gateway, ${source.count} ${source.count === 1 ? "item" : "items"}`
+                : source?.kind === "local"
+                  ? `Gateway unreachable — edits held locally${pendingWrites ? ` (${pendingWrites} pending)` : ""}`
+                  : "Loading the persisted queue"}
+            </span>
           </div>
-          <h2>Sample requests, tickets &amp; bugs</h2>
+          <h2>Requests, tickets &amp; bugs</h2>
           <p className="sub">
             Triage by impact, protect active work with a visible limit, and move every item with a
             keyboard-accessible status control.
@@ -224,9 +267,25 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
       </div>
 
       <p className="data-workboard__scope">
-        Demonstration data only. Edits live in browser memory for the current app session and are
-        neither persisted nor connected to a production ticket system. Operational evidence is kept
-        in the Overview, Quality, Lineage and Providers sections.
+        {source?.kind === "gateway" ? (
+          <>
+            Stored in the gateway&apos;s SQLite work-item table on its data volume; every create and status
+            change is versioned and audit-logged, and a stale edit is refused rather than overwritten.
+            {source.seeded > 0
+              ? ` ${source.seeded} of these ${source.seeded === 1 ? "is a seeded sample row" : "are seeded sample rows"}, marked ‹sample›.`
+              : ""}
+            {" "}This is a queue, not a ticket system with a workflow engine behind it.
+          </>
+        ) : source?.kind === "local" ? (
+          <>
+            The gateway could not be reached ({source.reason}), so this list is the last one loaded — or the
+            seeded sample when nothing has loaded yet — and edits are held in this browser until the
+            gateway answers again. Nothing here is lost silently, and nothing here is confirmed either.
+          </>
+        ) : (
+          <>The persisted queue arrives with the first read from the gateway.</>
+        )}
+        {readOnly && readOnlyReason ? ` ${readOnlyReason}` : ""}
       </p>
 
       <div className="data-workboard__toolbar">
@@ -347,7 +406,7 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
           </label>
           {/* The card's one commit, in the budgeted spelling of primary —
               accent-budget.test.ts's roll call names this file for it. */}
-          <button type="submit" className="primary-action w-full">Add to Intake</button>
+          <button type="submit" className="primary-action w-full" disabled={readOnly}>Add to Intake</button>
         </form>
       )}
 
@@ -404,7 +463,10 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
                             {item.priority}
                           </span>
                         </div>
-                        <span className="data-work-card__id num">{item.id}</span>
+                        <span className="data-work-card__id num">
+                          {item.id}
+                          {item.createdBy === "seed" && <small className="muted"> ‹sample›</small>}
+                        </span>
                         <h4>{item.title}</h4>
                         <p>{item.summary}</p>
                         <dl className="data-work-card__meta">
@@ -423,6 +485,7 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
                             value={item.status}
                             onChange={(event) => move(item, event.target.value as DataWorkStatus)}
                             aria-label={`Status for ${item.id}`}
+                            disabled={readOnly}
                           >
                             {DATA_WORK_STATUSES.map((itemStatus) => (
                               <option key={itemStatus} value={itemStatus}>{STATUS_LABEL[itemStatus]}</option>
@@ -447,12 +510,9 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
       <div className="data-workboard__footer">
         <span>{visible.length} of {items.length} items shown</span>
         {/* "Reset sample queue" stood here and restored the seeded items. It
-            demonstrated the mock rather than the workflow: the badge and the
-            scope paragraph above already say the queue is session-only, the
-            section head carries a Persistence metric reading None, and the
-            dashboard reseeds the same sample on every reload anyway — so this
-            was a control that looked like it acted on a ticket system and did
-            what closing the tab does. */}
+            demonstrated the mock rather than the workflow; now that the queue
+            is the gateway's, a reset would be a destructive write dressed as a
+            convenience, and there is still no such control. */}
         <div>
           {(query || kind !== "all" || sort !== "priority") && (
             <button type="button" onClick={clearFilters}>Clear filters</button>

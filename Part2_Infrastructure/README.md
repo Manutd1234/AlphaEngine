@@ -182,7 +182,7 @@ gate used.
 | Lineage from vendor bytes to rendered number | Pipeline inspector follows the workspace's active symbol and selected bar interval through cache key, TTL, provenance, every skipped provider, upstream calls, raw vendor JSON and normalised output |
 | Cross-source agreement | On-demand consensus quotes show available, configured and answering source counts, absolute source timestamps and any leg more than 50 bps from the median |
 | Provider capacity before a lookup fails | Failover order, readiness, quota consumption, reserve boundaries and cache state sit together in **Providers & Capacity** |
-| Operational triage without overstating persistence | **Work Queue** is explicitly mocked sample data, editable only in browser memory for the current session; it is not a ticket system |
+| Operational triage that outlives the tab | **Work Queue** rows live in the gateway's SQLite work-item table (`GET/POST /api/data/work-items`, `PATCH …/{id}`): every create and status change is versioned and audit-logged, a stale edit is refused with the current row rather than overwritten, and the nine seeded samples are marked as such. When the gateway is unreachable the board says so and holds edits locally until it answers; it is a queue, not a ticket system with a workflow engine behind it |
 | Query the record without an ETL step | DuckDB, append-only: `SELECT quantile(latency_ms, 0.99) FROM orders` against the same file the gateway writes |
 | Feed health as a time series | `/metrics` exports per-venue book age, update rate, reconnects and staleness |
 
@@ -1094,7 +1094,7 @@ can scale independently from portfolio state.
 | `/dataquality [N]` | Feed degrade/recover events and reconnect counts |
 | `/payload SYMBOL` | Per-venue provenance for one symbol |
 | `/providers` | OpenBB, venue feeds and web-ops quota/outages |
-| `/tasks` | The Data/Developer work queues (web-only mocked state) |
+| `/tasks` | The persisted Data work queue by status, and the research jobs engine |
 
 #### Reliability
 
@@ -1190,6 +1190,8 @@ order rather than around them.
 | `GET` | `/api/ops/snapshot` | authenticated, versioned and secret-free SRE snapshot — feed freshness, risk mode, queue, audit, alerting and route latency |
 | `POST` | `/api/ops/web-state/sync` | one web instance's telemetry deltas in, the merged cross-instance view out — including the durable data-quality ledger |
 | `GET` | `/api/data-quality/view` · `findings` | the merged contract-finding ledger (SQLite on the data volume, seven-day retention) and its older rows, filtered |
+| `GET` `POST` | `/api/data/work-items` | the Data tab's persisted work queue: list, and create (versioned, audit-logged) |
+| `PATCH` | `/api/data/work-items/{id}` | a versioned edit; a stale version answers **409** with the current row |
 | `GET` | `/api/config` | symbols, venues, limits |
 | `GET` | `/api/book/{symbol}` | per-venue L2 ladders |
 | `GET` | `/api/tca/{symbol}` | VWAP, slippage, smart route |
@@ -1313,6 +1315,7 @@ The data-quality ledger adds its own, all with defaults that need no setting:
 | `DATA_QUALITY_ESCALATE_FATAL_COUNT` / `_WINDOW_MINUTES` | `3` / `15` | rule 1: this many payloads with a fatal finding from one provider inside the window |
 | `DATA_QUALITY_ESCALATE_FAIL_RATE` / `_MIN_SAMPLES` | `0.25` / `8` | rule 2: a contract-fail rate above the fraction once at least this many payloads were evaluated |
 | `DATA_QUALITY_ESCALATE_COOLDOWN_MINUTES` | `60` | one escalation per (rule, provider) per cooldown |
+| `DATA_WORK_SEED` | `true` | seed the work queue with its nine sample rows the first time the table is empty |
 
 The resting book and paper-equity adapter add seven of their own:
 
@@ -1394,9 +1397,10 @@ so it has no queue ahead of it, which is the **queue position and partial fills*
 row of the table below. This is exactly what a pre-production risk gateway does
 before it is pointed at a venue, and it is the only honest thing to do without a
 funded account. The synthetic order book (§3) is a clearly-labelled offline
-fallback, never a silent substitute. The Data tab's **Work Queue** is also
-deliberately mocked: its sample cards and edits exist only in the current browser
-session and are not presented as a durable ticketing or incident system.
+fallback, never a silent substitute. The Data tab's **Work Queue** is persisted
+on the gateway (versioned, audit-logged, seeded samples marked as such); what it
+is not is a ticketing or incident system with a workflow engine — the board says
+"queue" and means it.
 
 **Mirror and RAG (Supabase):** the Postgres mirror and the pgvector research
 index are real code with real tests, and **off by default** — the gateway is

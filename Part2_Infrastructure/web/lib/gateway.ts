@@ -103,7 +103,7 @@ export function misconfigured(state: Extract<GatewayState, { kind: "invalid" | "
 }
 
 export interface CallOptions {
-  method?: "GET" | "POST";
+  method?: "GET" | "POST" | "PATCH";
   body?: unknown;
   timeoutMs?: number;
   /** Reject a 200 whose shape this app cannot safely render. */

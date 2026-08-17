@@ -740,7 +740,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("dataquality", "Data · Feed degrade/recover events and reconnect counts", "Data", "/dataquality [N]", "/dataquality", "_cmd_dataquality", ("dq", "quarantine"), in_menu=False),
     CommandSpec("payload", "Data · Per-venue provenance for one symbol", "Data", "/payload SYMBOL", "/payload BTCUSDT", "_cmd_payload", ("lineagepayload", "provenance"), in_menu=False),
     CommandSpec("providers", "Data · OpenBB, venue feeds and web-ops quota/outages", "Data", "/providers", "/providers", "_cmd_providers"),
-    CommandSpec("tasks", "Data · The Data/Developer work queues (web-only mocked state)", "Data", "/tasks", "/tasks", "_cmd_tasks", ("queue", "work"), in_menu=False),
+    CommandSpec("tasks", "Data · The persisted Data work queue by status, and the research jobs engine", "Data", "/tasks", "/tasks", "_cmd_tasks", ("queue", "work"), in_menu=False),
 
     # DevOps / SRE — SLIs, dependency planes, breakers, traces and the runbook.
     CommandSpec("sli", "Reliability · Service-level indicators and the native core's latency", "Reliability", "/sli", "/sli", "_cmd_sli", ("slis", "attention")),
@@ -5549,31 +5549,55 @@ class TelegramBot:
             source="OpenBB + TCA + web-ops", next_commands="/webops · /trust · /openbb"))
 
     async def _cmd_tasks(self, args, chat_id, actor) -> None:
-        """The web work queues are mocked; the research jobs engine is real."""
+        """The Data work queue is the gateway's now; the Developer queue is still the browser's."""
+        from modules.work_items import get_work_items
+
+        lines: list[str] = []
+        try:
+            items = get_work_items().list()
+        except Exception as exc:  # pragma: no cover - the store is best-effort from chat
+            items = []
+            lines.append(f"<i>The work-item store could not be read ({esc(type(exc).__name__)}).</i>")
+        open_items = [item for item in items if item.status != "resolved"]
+        by_work_status: dict[str, int] = {}
+        for item in items:
+            by_work_status[item.status] = by_work_status.get(item.status, 0) + 1
+        seeded = sum(1 for item in items if item.created_by == "seed")
+        lines += [
+            f"<b>Data work queue</b> — persisted on this gateway (SQLite): "
+            f"<code>{len(items)}</code> items, <code>{len(open_items)}</code> open, "
+            f"<code>{seeded}</code> seeded samples.",
+        ]
+        for status in ("intake", "ready", "progress", "resolved"):
+            lines.append(f"<code>{status:<10}</code> <code>{by_work_status.get(status, 0)}</code>")
+        urgent = [item for item in open_items if item.priority in ("P0", "P1")]
+        if urgent:
+            lines.append("")
+            lines.append("<b>P0 / P1 open</b>")
+            for item in sorted(urgent, key=lambda i: (i.priority, i.opened_at))[:5]:
+                lines.append(f"<code>{esc(item.id)}</code> {esc(item.priority)} · {esc(item.title)}")
+        lines.append("")
+        lines.append("The Developer work queue in the web workspace is still browser storage — no server list to read.")
         stats = self.queue.stats() if self.queue else {}
         by_status = stats.get("by_status") or {}
-        lines = [
-            "The Data and Developer work queues in the web workspace are mocked browser state — "
-            "there is no server-side task list for chat to read.",
+        lines += [
             "",
-            f"What this gateway does run is the <b>research jobs engine</b> "
-            f"(<code>{esc(stats.get('backend') or '—')}</code>): "
+            f"<b>Research jobs engine</b> (<code>{esc(stats.get('backend') or '—')}</code>): "
             f"<code>{stats.get('total') or 0}</code> jobs · <code>{stats.get('workers') or 0}</code> workers.",
         ]
         if by_status:
-            lines.append("")
             for status, total in sorted(by_status.items()):
                 lines.append(f"<code>{esc(status):<10}</code> <code>{total}</code>")
         else:
             lines.append("<i>No research job has been submitted in this process.</i>")
         chart = generate_bars_chart_png(
-            "Research jobs by status",
-            list(by_status.keys()), [float(value) for value in by_status.values()],
-            "Jobs", horizontal=True, value_fmt="{:.0f}",
+            "Data work queue by status",
+            list(by_work_status.keys()), [float(value) for value in by_work_status.values()],
+            "Items", horizontal=True, value_fmt="{:.0f}",
         )
         await self.send_media_group(chat_id, [("tasks", chart)] if chart else [], caption=text_card(
-            "🗂 Work queues", "JOBS ENGINE", lines,
-            source="jobs engine · by_status", next_commands="/jobs · /researchstatus · /backtests"))
+            "🗂 Work queues", "DATA QUEUE + JOBS", lines,
+            source="work_items store · jobs engine", next_commands="/jobs · /researchstatus · /backtests"))
 
     # ------------------------------------------------------------------ #
     # DevOps / SRE — SLIs, planes, breakers, traces and the runbook

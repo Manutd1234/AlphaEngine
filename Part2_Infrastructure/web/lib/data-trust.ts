@@ -336,8 +336,8 @@ export function deriveDataTrust(
 // measures rather than borrowing a name it cannot support:
 //
 //   "Market feed SLA %"    no SLA target is defined anywhere in the tree — the
-//                          only `SLA` in it is the data work board's own mocked,
-//                          session-only queue. Ships as books within the
+//                          only `SLA` in it is the data work board's own
+//                          per-item due time. Ships as books within the
 //                          freshness budget the gateway publishes.
 //   "Missing packet rate"  no sequence-gap or expected-vs-received counter
 //                          exists on any feed. Ships as reconnects, each of

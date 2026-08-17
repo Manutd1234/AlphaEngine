@@ -43,6 +43,8 @@ def test_every_client_facing_route_is_published(schema):
         "/api/ops/web-state/sync",
         "/api/data-quality/view",
         "/api/data-quality/findings",
+        "/api/data/work-items",
+        "/api/data/work-items/{item_id}",
         "/api/config",
         "/api/book/{symbol}",
         "/api/tca/{symbol}",

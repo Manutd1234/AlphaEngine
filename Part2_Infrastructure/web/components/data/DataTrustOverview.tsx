@@ -758,6 +758,7 @@ export default function DataTrustOverview({
                   <li>Ranked provider failover with circuit, quota, reserve and cache state.</li>
                   <li>Quote, bars, news and fundamentals contracts on the normalised payload; rejected-payload failover and bounded quarantine evidence.</li>
                   <li>A durable, cross-instance quality ledger on the gateway (SQLite on its data volume, seven-day retention), fed by every web instance&apos;s sync, with rule-based escalation to the Telegram alert chats and the audit log.</li>
+                  <li>A Work Queue persisted on the gateway — versioned, audit-logged, a stale edit refused with the current row — with edits held locally and disclosed when the gateway is unreachable.</li>
                   <li>On-demand cross-source reconciliation and real request lineage for the active symbol and interval.</li>
                   <li>Gateway venue freshness, reconnect and synthetic-feed disclosure when configured.</li>
                 </ul>
@@ -767,7 +768,6 @@ export default function DataTrustOverview({
                 <ul>
                   <li>No orchestrator, replay service or backfill scheduler is wired to this UI.</li>
                   <li>Contracts validate the normalised shape, not each vendor&apos;s raw JSON schema; raw payloads are visible in the inspector and the quarantine sample.</li>
-                  <li>The Work Queue is mocked browser-session state, not a ticket or worker backend.</li>
                 </ul>
               </article>
             </div>

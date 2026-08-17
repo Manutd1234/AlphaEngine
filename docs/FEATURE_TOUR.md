@@ -221,8 +221,10 @@ is, whether its last payload validated, and — the part that makes it a section
 table — what to do next about the ones that did not. Quality & Incidents holds reconciliation,
 contract failures and quarantine; Lineage & Payloads is per-request provenance — which provider
 answered, what was cached, what got coerced; Providers & Capacity is failover, quota and
-reserve. The Work Queue is labelled **"Mocked, session-only workflow"** — the honest-labels
-rule applied to a whole section.
+reserve. Quality & Incidents also carries the gateway's durable quality ledger and its
+escalations. The Work Queue is persisted on the gateway — versioned rows, audit-logged
+edits — and its pill says so, or says "edits held locally" when the gateway cannot be
+reached: the honest-labels rule applied to a whole section.
 
 **The moment worth showing:** lineage on the symbol you were just researching — the sweep's
 data hash traces back to a provider, a cache state and a validation pass.

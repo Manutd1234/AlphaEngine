@@ -79,7 +79,7 @@ export const DATA_SECTIONS = [
   { id: "quality", label: "Quality & Incidents", description: "Reconcile, contracts & quarantine" },
   { id: "lineage", label: "Lineage & Payloads", description: "Trace source, cache & coercion" },
   { id: "providers", label: "Providers & Capacity", description: "Failover, quota & reserve" },
-  { id: "queue", label: "Work Queue", description: "Mocked, session-only workflow" },
+  { id: "queue", label: "Work Queue", description: "Persisted requests, tickets & bugs" },
 ] as const;
 export type DataSection = (typeof DATA_SECTIONS)[number]["id"];
 export const DATA_SECTION_IDS = DATA_SECTIONS.map((s) => s.id) as readonly DataSection[];

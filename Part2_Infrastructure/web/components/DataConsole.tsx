@@ -4,8 +4,8 @@
  * Data engineer control plane: can the desk trust the number it is about to use?
  *
  * The first view is evidence, not administration. Quality, lineage and provider
- * capacity are live diagnostic surfaces; the work queue is deliberately last
- * and labelled as a session-only case-assessment sample.
+ * capacity are live diagnostic surfaces; the work queue is deliberately last,
+ * persisted on the gateway and labelled with where its rows came from.
  */
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -13,7 +13,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import NumberTicker from "@/components/common/NumberTicker";
 import DataQualityLedger from "@/components/data/DataQualityLedger";
 import DataTrustOverview from "@/components/data/DataTrustOverview";
-import DataWorkBoard, { PROGRESS_WIP_LIMIT } from "@/components/data/DataWorkBoard";
+import DataWorkBoard, { PROGRESS_WIP_LIMIT, type DataWorkMutation } from "@/components/data/DataWorkBoard";
 import CrossSourceCheck from "@/components/systems/CrossSourceCheck";
 import FailoverGraph from "@/components/systems/FailoverGraph";
 import { OperatorActionResult } from "@/components/systems/OperatorPanel";
@@ -25,7 +25,7 @@ import type { InspectResponse } from "@/components/systems/types";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import FreshnessStamp from "@/components/workspace/FreshnessStamp";
 import PageHead from "@/components/workspace/PageHead";
-import type { DataWorkItem } from "@/lib/data-work-queue";
+import type { DataWorkItem, DataWorkSource } from "@/lib/data-work-queue";
 import { deriveDataTrust, deriveTrustSlis } from "@/lib/data-trust";
 import { CONTRACTED_CAPABILITIES } from "@/lib/providers/contracts";
 import { fmt } from "@/lib/format";
@@ -52,6 +52,12 @@ export interface DataConsoleProps {
   onSectionChange: (section: DataSection) => void;
   workItems: DataWorkItem[];
   onWorkItemsChange: (items: DataWorkItem[]) => void;
+  /** Where the work items came from and how to persist an edit; absent in a bare render. */
+  workSource?: DataWorkSource;
+  onWorkMutation?: (mutation: DataWorkMutation) => void;
+  pendingWorkWrites?: number;
+  /** The last thing the gateway said about a work-queue write. */
+  workNotice?: string | null;
   /** False while this workspace is mounted but hidden behind another tab. */
   active?: boolean;
 }
@@ -68,6 +74,8 @@ function metricsForSection(
   symbol: string,
   interval: string,
   workItems: DataWorkItem[],
+  workSource: DataWorkSource | undefined,
+  pendingWorkWrites: number,
   probe: InspectResponse | null,
   probeLoading: boolean,
   probeError: string | null,
@@ -186,12 +194,21 @@ function metricsForSection(
 
   if (section === "queue") {
     return [
-      { label: "Open samples", value: String(openWork.length), note: "browser session only", tone: openWork.length ? "warn" : "good" },
-      { label: "P0 / P1", value: String(urgentWork.length), note: "sample priority labels", tone: urgentWork.length ? "warn" : "good" },
+      { label: "Open items", value: String(openWork.length), note: workSource?.kind === "gateway" ? "gateway-persisted" : "local list", tone: openWork.length ? "warn" : "good" },
+      { label: "P0 / P1", value: String(urgentWork.length), note: "priority labels", tone: urgentWork.length ? "warn" : "good" },
       // n/limit, the same fraction the board enforces — a bare count here
       // beside the board's own n/limit read as two different numbers.
       { label: "Active WIP", value: `${activeWork.length}/${PROGRESS_WIP_LIMIT}`, note: "not a live worker queue", tone: activeWork.length > PROGRESS_WIP_LIMIT ? "warn" : "neutral" },
-      { label: "Persistence", value: "None", note: "reset on reload", tone: "neutral" },
+      {
+        label: "Persistence",
+        value: workSource?.kind === "gateway" ? "Gateway SQLite" : "Local (offline)",
+        note: workSource?.kind === "gateway"
+          ? `${workSource.count} items, ${workSource.seeded} samples; audit-logged`
+          : workSource?.kind === "local"
+            ? `${workSource.reason}${pendingWorkWrites ? `; ${pendingWorkWrites} edits held` : ""}`
+            : "loading",
+        tone: workSource?.kind === "gateway" ? "good" : "warn",
+      },
     ];
   }
 
@@ -285,6 +302,10 @@ export default function DataConsole({
   onSectionChange,
   workItems,
   onWorkItemsChange,
+  workSource,
+  onWorkMutation,
+  pendingWorkWrites = 0,
+  workNotice = null,
   active = true,
 }: DataConsoleProps) {
   const {
@@ -373,6 +394,8 @@ export default function DataConsole({
     workspaceSymbol,
     workspaceInterval,
     workItems,
+    workSource,
+    pendingWorkWrites,
     currentProbe,
     currentProbeLoading,
     currentProbeError,
@@ -549,7 +572,16 @@ export default function DataConsole({
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="data" tabId="queue" activeId={section}>
-        <DataWorkBoard items={workItems} onItemsChange={onWorkItemsChange} />
+        <DataWorkBoard
+          items={workItems}
+          onItemsChange={onWorkItemsChange}
+          source={workSource}
+          onMutation={onWorkMutation}
+          pendingWrites={pendingWorkWrites}
+          readOnly={guard === "locked"}
+          readOnlyReason={guard === "locked" ? "Operator actions are disabled on this deployment, so the queue is read-only here." : undefined}
+        />
+        {workNotice && <p className="sr-only" role="status" aria-live="polite">{workNotice}</p>}
       </WorkspaceSubtabPanel>
     </div>
   );

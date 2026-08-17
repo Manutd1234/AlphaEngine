@@ -89,6 +89,15 @@ from modules.supabase_mirror import get_mirror
 from modules.tca_engine import get_engine
 from modules.telegram import decode_link_probe, get_bot
 from modules.web_telemetry import WebStateSyncRequest, WebStateView, get_web_ops
+from modules.work_items import (
+    VersionConflict,
+    WorkItemConflict,
+    WorkItemCreate,
+    WorkItemPatch,
+    WorkItemsResponse,
+    WorkItemView,
+    get_work_items,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -359,6 +368,37 @@ async def data_quality_findings(
         window_minutes=ledger.view_window_minutes,
         observed_at=datetime.now(timezone.utc),
     )
+
+
+@app.get("/api/data/work-items", response_model=WorkItemsResponse, tags=["data"])
+async def list_work_items(_actor: str = Depends(trader_identity)) -> WorkItemsResponse:
+    """The Data tab's work queue — persisted, versioned, audit-logged; seeded rows say so."""
+    return get_work_items().response()
+
+
+@app.post("/api/data/work-items", response_model=WorkItemView, tags=["data"])
+async def create_work_item(payload: WorkItemCreate, actor: str = Depends(trader_identity)) -> WorkItemView:
+    return get_work_items().create(payload, actor=actor)
+
+
+@app.patch(
+    "/api/data/work-items/{item_id}",
+    response_model=WorkItemView,
+    responses={404: {"description": "unknown item"}, 409: {"model": WorkItemConflict, "description": "stale version"}},
+    tags=["data"],
+)
+async def patch_work_item(item_id: str, patch: WorkItemPatch, actor: str = Depends(trader_identity)) -> WorkItemView:
+    """A versioned edit: a stale version is refused with the current row, never overwritten."""
+    try:
+        updated = get_work_items().patch(item_id, patch, actor=actor)
+    except VersionConflict as conflict:
+        return JSONResponse(
+            status_code=409,
+            content=WorkItemConflict(error="version_conflict", current=conflict.current).model_dump(mode="json"),
+        )  # type: ignore[return-value]
+    if updated is None:
+        raise HTTPException(status_code=404, detail=f"no work item {item_id}")
+    return updated
 
 
 @app.get("/api/config", tags=["meta"])

@@ -38,7 +38,7 @@ import WorkspaceHeader, { NAV_ITEMS, type WorkspaceView } from "@/components/Wor
 import WorkspaceIntro from "@/components/WorkspaceIntro";
 import WorkspaceOverview from "@/components/WorkspaceOverview";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
-import { createInitialDataWorkItems, type DataWorkItem } from "@/lib/data-work-queue";
+import { useDataWorkQueue } from "@/lib/use-data-work-queue";
 import {
   createInitialDeveloperWorkItems,
   loadDeveloperWorkItems,
@@ -242,7 +242,6 @@ export default function Page() {
   // render — the rule tests/workspace-routing.test.ts enforces per component.
   // A fixed default, never a tier-derived one; both panes exist at every level.
   const [attributionPane, setAttributionPane] = useState<AttributionPane>("explain");
-  const [dataWorkItems, setDataWorkItems] = useState<DataWorkItem[]>(createInitialDataWorkItems);
   const [developerWorkItems, setDeveloperWorkItems] = useState<DeveloperWorkItem[]>(createInitialDeveloperWorkItems);
   const [experiments, setExperiments] = useState<ExperimentRecord[]>([]);
   const activeRun = useRef<AbortController | null>(null);
@@ -279,6 +278,9 @@ export default function Page() {
   // second source of truth.
   const book = useBook();
   const systems = useSystemHealth(req.symbol);
+  // The Data tab's work queue lives on the gateway; the hook owns the load,
+  // the versioned writes and the offline hold, and the board renders `items`.
+  const dataWork = useDataWorkQueue({ token: systems.token || null, active: view === "data" });
   const selectedSleeveAttribution = book.book?.attribution.by_strategy.find(
     (row) => row.strategy === executionStrategy,
   ) ?? null;
@@ -2072,8 +2074,12 @@ export default function Page() {
               onOpenReliability={openReliabilityOverview}
               section={dataSection}
               onSectionChange={changeDataSection}
-              workItems={dataWorkItems}
-              onWorkItemsChange={setDataWorkItems}
+              workItems={dataWork.items}
+              onWorkItemsChange={dataWork.setItems}
+              workSource={dataWork.source}
+              onWorkMutation={dataWork.mutate}
+              pendingWorkWrites={dataWork.pendingWrites}
+              workNotice={dataWork.notice}
             />
             <NextStepFooter currentView="data" currentSection={dataSection} onNavigate={openSection} />
           </section>

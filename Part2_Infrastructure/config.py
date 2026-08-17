@@ -113,6 +113,9 @@ class Settings:
     data_quality_escalate_fail_rate: float = field(default_factory=lambda: _env_float("DATA_QUALITY_ESCALATE_FAIL_RATE", 0.25))
     data_quality_escalate_min_samples: int = field(default_factory=lambda: _env_int("DATA_QUALITY_ESCALATE_MIN_SAMPLES", 8))
     data_quality_escalate_cooldown_minutes: int = field(default_factory=lambda: _env_int("DATA_QUALITY_ESCALATE_COOLDOWN_MINUTES", 60))
+    # Seed the Data tab's work queue with its nine sample rows the first time
+    # the table is empty; they are marked as samples and can be edited away.
+    data_work_seed: bool = field(default_factory=lambda: _env_bool("DATA_WORK_SEED", True))
 
     # ---- Module A: TCA / market data --------------------------------------
     symbols: list[str] = field(default_factory=lambda: _env_list("SYMBOLS", ["BTCUSDT", "ETHUSDT", "SOLUSDT"]))

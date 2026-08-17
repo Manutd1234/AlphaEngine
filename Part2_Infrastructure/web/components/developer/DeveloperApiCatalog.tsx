@@ -3,7 +3,7 @@
 import { useDeferredValue, useMemo, useState } from "react";
 
 type ApiGroup = "market" | "research" | "gateway" | "system";
-type ApiMethod = "GET" | "POST" | "DELETE";
+type ApiMethod = "GET" | "POST" | "PATCH" | "DELETE";
 
 interface ApiOperation {
   method: ApiMethod;
@@ -33,6 +33,9 @@ export const API_OPERATIONS: readonly ApiOperation[] = [
   { method: "GET", path: "/api/research?symbol=BTCUSDT", purpose: "Research-service proxy and evidence lookup", group: "research" },
   { method: "GET", path: "/api/gateway/audit?feed=orders", purpose: "Audited orders and risk events", group: "gateway" },
   { method: "GET", path: "/api/gateway/data/quality?limit=100", purpose: "Older findings from the durable data-quality ledger", group: "gateway" },
+  { method: "GET", path: "/api/gateway/data/work-items", purpose: "The persisted Data work queue, versioned and audit-logged", group: "gateway" },
+  { method: "POST", path: "/api/gateway/data/work-items", purpose: "Create a work item (operator-gated)", group: "gateway" },
+  { method: "PATCH", path: "/api/gateway/data/work-items/{id}", purpose: "Versioned edit; a stale version returns the current row", group: "gateway" },
   { method: "GET", path: "/api/gateway/orders", purpose: "Order blotter from the authoritative gateway", group: "gateway" },
   { method: "POST", path: "/api/gateway/orders", purpose: "Risk-gated paper-order submission", group: "gateway" },
   { method: "GET", path: "/api/gateway/orders/working", purpose: "Orders resting on the book right now", group: "gateway" },
@@ -100,7 +103,7 @@ export default function DeveloperApiCatalog() {
     const origin = window.location.origin;
     const command = operation.method === "GET"
       ? `curl '${origin}${operation.path}'`
-      : `curl -X POST '${origin}${operation.path}' -H 'Content-Type: application/json' -d '{}'`;
+      : `curl -X ${operation.method} '${origin}${operation.path}' -H 'Content-Type: application/json' -d '{}'`;
     try {
       await navigator.clipboard.writeText(command);
       setAnnouncement(`Copied ${operation.method} ${operation.path}.`);

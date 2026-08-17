@@ -367,9 +367,15 @@ describe("the sample work queue no longer reseeds itself from a button", () => {
     );
   });
 
-  it("still says it is session-only, which is what the reset was standing in for", () => {
-    assert.match(workBoard, /Mocked, session-only/);
-    assert.match(workBoard, /neither persisted nor connected to a production ticket system/);
+  it("says where the list came from — persisted on the gateway, or held locally, never silently either", () => {
+    // The queue moved to the gateway (versioned rows, audit-logged); the pill
+    // and the scope paragraph name the source, and the offline hold is a
+    // disclosed degradation rather than a quiet one.
+    assert.match(workBoard, /Persisted on the gateway/);
+    assert.match(workBoard, /Gateway unreachable — edits held locally/);
+    assert.match(workBoard, /a stale edit is refused rather than overwritten/);
+    assert.match(workBoard, /Nothing here is lost silently, and nothing here is confirmed either/);
+    assert.doesNotMatch(workBoard, /session-only/, "the session-only claim is no longer true");
   });
 
   it("does not leave the arrival highlight without a way to be cleared", () => {

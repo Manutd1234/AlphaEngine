@@ -110,9 +110,11 @@ describe("the labels say what is now true", () => {
     assert.match(console_, /stored in this browser/);
   });
 
-  it("the data board still claims session-only, because it still is", () => {
-    // The two queues now deliberately differ; both claims are pinned.
-    assert.match(dataBoard, /Mocked, session-only/);
+  it("the data board claims the gateway, because that is where its rows live now", () => {
+    // The two queues differ in the other direction now: the developer queue
+    // is this browser's storage, the data queue is the gateway's SQLite.
+    assert.match(dataBoard, /Persisted on the gateway/);
+    assert.ok(!dataBoard.includes("session-only"), "the session-only claim is no longer true");
   });
 });
 

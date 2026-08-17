@@ -75,3 +75,36 @@ describe("the data operations work queue", () => {
     assert.equal(nextDeveloperWorkId("ticket", developerItems), "TKT-414");
   });
 });
+
+describe("the persisted queue's wire mapping and merge", () => {
+  it("maps a gateway row into the board's item and keeps the version", async () => {
+    const { fromWire, isDataWorkItemWire, upsertDataWorkItem } = await import("../lib/data-work-queue");
+    const wire = {
+      id: "BUG-101", kind: "bug", priority: "P1", status: "ready", title: "t", summary: "s", owner: "Mei", area: "Pipeline",
+      opened_at: NOW, sla_due_at: NOW + 3_600_000, resolved_at: null, created_by: "seed", updated_at: NOW, updated_by: "seed", version: 3,
+    };
+    assert.equal(isDataWorkItemWire(wire), true);
+    assert.equal(isDataWorkItemWire({ ...wire, kind: "epic" }), false);
+    assert.equal(isDataWorkItemWire({ ...wire, version: "3" }), false);
+    const item = fromWire(wire as never);
+    assert.equal(item.openedAt, NOW);
+    assert.equal(item.slaDueAt, NOW + 3_600_000);
+    assert.equal(item.version, 3);
+    assert.equal(item.createdBy, "seed");
+    // Upsert replaces in place, or prepends a row the list has never seen.
+    const list = createInitialDataWorkItems(NOW);
+    const replaced = upsertDataWorkItem(list, { ...list[2], status: "resolved", version: 2 });
+    assert.equal(replaced[2].status, "resolved");
+    assert.equal(replaced.length, list.length);
+    const added = upsertDataWorkItem(list, item);
+    assert.equal(added[0].id, "BUG-101");
+    assert.equal(added.length, list.length + 1);
+  });
+
+  it("the seeds mirror the gateway's: nine rows, marked as seeds, at version 1", () => {
+    const items = createInitialDataWorkItems(NOW);
+    assert.equal(items.length, 9);
+    assert.ok(items.every((i) => i.version === 1 && i.createdBy === "seed"));
+    assert.deepEqual(items.map((i) => i.id), ["BUG-091", "BUG-094", "TKT-322", "REQ-184", "REQ-187", "TKT-319", "REQ-179", "TKT-311", "BUG-088"]);
+  });
+});

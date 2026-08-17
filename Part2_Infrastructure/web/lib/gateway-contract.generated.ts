@@ -594,6 +594,57 @@ export interface WebStateView {
   window_seconds: number;
 }
 
+export interface WorkItemConflict {
+  current: WorkItemView;
+  error: "version_conflict";
+}
+
+export interface WorkItemCreate {
+  area?: string;
+  kind: "request" | "ticket" | "bug";
+  owner?: string;
+  priority: "P0" | "P1" | "P2" | "P3";
+  sla_hours?: number | null;
+  summary?: string;
+  title: string;
+}
+
+export interface WorkItemPatch {
+  area?: string | null;
+  owner?: string | null;
+  priority?: "P0" | "P1" | "P2" | "P3" | null;
+  status?: "intake" | "ready" | "progress" | "resolved" | null;
+  summary?: string | null;
+  title?: string | null;
+  version: number;
+}
+
+export interface WorkItemView {
+  area: string;
+  created_by: string;
+  id: string;
+  kind: "request" | "ticket" | "bug";
+  opened_at: number;
+  owner: string;
+  priority: "P0" | "P1" | "P2" | "P3";
+  resolved_at: number | null;
+  sla_due_at: number | null;
+  status: "intake" | "ready" | "progress" | "resolved";
+  summary: string;
+  title: string;
+  updated_at: number;
+  updated_by: string;
+  version: number;
+}
+
+export interface WorkItemsResponse {
+  backend: "sqlite";
+  count: number;
+  items: Array<WorkItemView>;
+  observed_at: string;
+  seeded: number;
+}
+
 export interface WorkingOrder {
   accepted_at: string;
   age_seconds: number;
@@ -625,6 +676,9 @@ export interface GatewayOperations {
   "GET /api/config": { response: Record<string, unknown> };
   "GET /api/data-quality/findings": { response: DataQualityFindingsResponse };
   "GET /api/data-quality/view": { response: DataQualityView };
+  "GET /api/data/work-items": { response: WorkItemsResponse };
+  "POST /api/data/work-items": { request: WorkItemCreate; response: WorkItemView };
+  "PATCH /api/data/work-items/{item_id}": { request: WorkItemPatch; response: WorkItemView };
   "GET /api/jobs": { response: Record<string, unknown> };
   "GET /api/jobs/{job_id}": { response: Record<string, unknown> };
   "GET /api/ops/snapshot": { response: OperationsSnapshot };
@@ -670,6 +724,8 @@ export const GATEWAY_CONTRACT_PATHS = [
   "/api/config",
   "/api/data-quality/findings",
   "/api/data-quality/view",
+  "/api/data/work-items",
+  "/api/data/work-items/{item_id}",
   "/api/jobs",
   "/api/jobs/{job_id}",
   "/api/ops/snapshot",
