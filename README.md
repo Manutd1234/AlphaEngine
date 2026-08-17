@@ -1,5 +1,9 @@
 # NUSSIF Developer Analyst Case Study — Ian Wangsa
 
+*Updated 2026-08-17. Every count and measurement below is what the tree and the
+deployed system reported on that date; the commands that produced them are
+quoted beside them.*
+
 Two parts, in two directories. Start with whichever question you came for.
 
 | | What it answers | Where |
@@ -18,9 +22,9 @@ Two parts, in two directories. Start with whichever question you came for.
 | **Database — Postgres mirror** | [`supabase/`](supabase/) | The Supabase CLI resolves `supabase/` from the **repository root**. `supabase db push` in `schema.yml` runs from here. |
 | **Database — Oracle ADB** | [`oracle/`](oracle/) | Plain DDL, applied by `tools/apply_oracle_schema.py`. |
 | **DevOps — CI/CD** | [`.github/workflows/`](.github/workflows/) | GitHub's own convention; it cannot live anywhere else. |
-| **Infrastructure — containers** | [`Part2_Infrastructure/docker/`](Part2_Infrastructure/docker/) | Gateway image, built by `deploy.yml` and run on OCI. |
+| **Infrastructure — containers** | [`Part2_Infrastructure/docker/`](Part2_Infrastructure/docker/) | Gateway image, built by `deploy.yml` and run on OCI. The builder stage compiles the native decision core (`native/decision_core/`) so the runtime image carries the `.so` and no compiler. |
 | **Operations — scripts** | `Part2_Infrastructure/tools/` | Schema appliers, probes, fixture generators, the OpenAPI exporter. |
-| **Documentation** | [`docs/`](docs/), [`SETUP.md`](SETUP.md), [`CLAUDE.md`](CLAUDE.md) | Feature tour, latency budget, TLS runbook; setup instructions; the things an agent otherwise gets wrong. |
+| **Documentation** | [`docs/`](docs/), [`SETUP.md`](SETUP.md), [`CLAUDE.md`](CLAUDE.md) | Feature tour, UI audit, latency budget (with the generated bench table), TLS runbook; setup instructions; the things an agent otherwise gets wrong. |
 
 Every one of those locations is fixed by the tool that reads it — Vercel, the
 Supabase CLI, GitHub Actions, uvicorn, pytest — rather than chosen for looks. A
@@ -68,15 +72,22 @@ text rather than buried in cell JSON.
 > *One engine, two implementations, one test that proves it.*
 
 An always-on FastAPI gateway, a Next.js desk workspace, a stateless research
-microservice, and a Telegram companion — sharing one append-only audit log.
+microservice, and a Telegram companion (114 commands, inline keyboards, in-place
+card edits, 16 chart generators) — sharing one append-only audit log.
 
 * **Module A** — cross-venue L2 order books from Binance and Bybit, with
   sequence-gap detection, staleness clocks, and transaction-cost analysis on the
   routed execution rather than the mid.
-* **Module B** — a pre-trade risk gateway: 17 gates in ~0.2 ms on the single
-  order path — fifteen any order can reach, plus two that fire only for
-  paper-equity orders — an automatic drawdown breaker, reduce-only mode before
-  the halt, and a kill switch reachable from four surfaces.
+* **Module B** — a pre-trade risk gateway: 17 gates on the single order path
+  — fifteen any order can reach, plus two that fire only for paper-equity
+  orders — decided in tens of microseconds (15 µs p50 on the compiled engine,
+  23 µs on the Python reference, dev Mac, `tools/bench_decision.py`), with the
+  arithmetic battery itself timed inside a C++ core at 83 ns p50 on that Mac
+  and ~320 ns p50 on the shared production VM — plus an automatic drawdown
+  breaker, reduce-only mode before the halt, and a kill switch reachable from
+  four surfaces. The core is bit-exact against the Python reference and the
+  gateway self-measures it at startup, so the nanosecond figure is on the desk
+  before the first order.
 * **Module C** — asynchronous parameter sweeps that report the Deflated Sharpe
   Ratio, walk-forward out-of-sample results, and the probability the search
   itself is overfitting — and that will tell you a good-looking equity curve
@@ -93,7 +104,8 @@ TypeScript for the browser — because neither runtime can call the other. That 
 two chances to be wrong, so the Python side is the reference, `tools/` emits its
 answers as fixtures, and the TypeScript suites assert it reproduces them. A VaR
 quoted on a phone cannot disagree with the one on the screen without a test
-failing.
+failing. The pre-trade arithmetic exists a third time, in C++, and there the
+standard is bit-for-bit: the same twenty-scenario fixture pins both engines.
 
 **→ [`SETUP.md`](SETUP.md)** to get it running — it starts with the zero-config
 path (three commands, no Python, no keys, no `.env`) and only then adds the
@@ -108,9 +120,12 @@ architecture, the design arguments, and what is implemented versus mocked.
 platform, tab by tab, with the zero-config / keyed / gateway-backed capability map and the
 verify-it-yourself E2E checklist. **[`docs/UI_IMPROVEMENTS.md`](docs/UI_IMPROVEMENTS.md)** is
 the UI audit the overhaul stood on — every finding cites file and line, and its eight
-independently shippable slices are all shipped and named in the tour. The two planning
-documents that sequenced and succeeded that work are working notes kept outside this
-repository; the audit and the tour are the parts worth reading.
+independently shippable slices are all shipped and named in the tour, with the passes that
+followed (type scale, the moving desk, the header's priority ladder, the decision chip)
+appended in its own style. **[`docs/LATENCY_BUDGET.md`](docs/LATENCY_BUDGET.md)** is the
+three-plane latency argument with its regenerated bench table. The two planning documents
+that sequenced and succeeded that work are working notes kept outside this repository; the
+audit and the tour are the parts worth reading.
 
 **→ [`.claude/skills/`](.claude/skills/)** — three Claude Code skills,
 `/start-alpha-engine`, `/tour` and `/verify`, described in
@@ -118,9 +133,10 @@ repository; the audit and the tour are the parts worth reading.
 
 ## Tech Stack
 
-Versions are as deployed/locked on 2026-08-08 — read from the running
-container, the lockfile and the live database. Full detail (every dependency's
-*why*, the API-key table and the RAG/ML pipeline) is in
+Versions are as locked and deployed on 2026-08-17 — read from `web/package-lock.json`,
+the gateway virtualenv that CI mirrors (Python 3.12), the live database and the
+running container. Full detail (every dependency's *why*, the API-key table and
+the RAG/ML pipeline) is in
 [`Part2_Infrastructure/README.md` §Tech Stack](Part2_Infrastructure/README.md).
 
 ### Frontend Core
@@ -136,10 +152,11 @@ container, the lockfile and the live database. Full detail (every dependency's
 
 | Component | Version | Role |
 |---|---|---|
-| **[Python](https://www.python.org)** | `3.12.13` | The gateway runtime. |
+| **[Python](https://www.python.org)** | `3.12.14` | The gateway runtime (`python:3.12-slim`, two-stage image; the builder stage compiles the decision core). |
 | **[FastAPI](https://fastapi.tiangolo.com)** | `0.141.1` | 38 documented paths carrying 39 operations, behind a committed OpenAPI contract. (`main.py` declares 43 route decorators; the WebSocket and three `include_in_schema=False` HTML routes do not reach the schema, and `/api/orders` serves two verbs on one path.) |
-| **[Uvicorn](https://www.uvicorn.org)** | `0.52.1` | One stateful process by design — in-memory book + kill switch. |
-| **[NumPy](https://numpy.org)** | `2.5.1` | Reference engine for TCA, risk and backtesting; vectorbt optional. |
+| **[Uvicorn](https://www.uvicorn.org)** | `0.52.3` | One stateful process by design — in-memory book + kill switch. |
+| **[NumPy](https://numpy.org)** | `2.5.2` | Reference engine for TCA, risk and backtesting; vectorbt optional. |
+| **[pybind11](https://pybind11.readthedocs.io)** | `3.1.0` (build-time) | Binds the C++ decision core (`native/decision_core/`) — `requirements-native.txt`, builder stage only; `DECISION_CORE=auto\|native\|python` selects the engine and `/health` publishes which one is live. |
 | **[pandas](https://pandas.pydata.org)** | `3.0.5` | Bar/series handling across analytics. |
 | **[websockets](https://websockets.readthedocs.io)** | `17.0.1` | Keyless Binance + Bybit L2 ingest. |
 
@@ -160,7 +177,7 @@ container, the lockfile and the live database. Full detail (every dependency's
 | **[Caddy](https://caddyserver.com)** | `2.6.2` | Automatic HTTPS in front of the gateway. |
 | **[Oracle Cloud](https://www.oracle.com/cloud/)** | managed | Always-on host, Singapore — region is load-bearing for venue egress. |
 | **[Vercel](https://vercel.com)** | managed | Two serverless projects from one repo; builds are Ed25519-attested against a trust root pinned in reviewed source. |
-| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free CI jobs: 692 gateway + 2,174 web + 13 service tests. |
+| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free CI jobs (`gateway`, `openbb-service`, `web`, `repo-audit`) plus a manual `live-smoke`: 832 gateway + 2,313 web + 13 service tests. `deploy.yml` ships the gateway (build → GHCR → SSH swap → verify → roll back, and a warning if the container fell back to the Python engine); `openbb-keepalive.yml` pings the research service every ten minutes. |
 
 ### Verify it end to end
 
@@ -176,19 +193,25 @@ From a tree that is already set up:
 
 ```bash
 cd Part2_Infrastructure
-venv/bin/python -m pytest                            # 692 passed
+venv/bin/python -m pytest                            # 832 passed
 venv/bin/python tools/synthetic_probe.py             # book → cost → risk gate → audit
-(cd web && npm test)                                 # 2,174 tests across 548 suites
+(cd web && npm test)                                 # 2,313 tests across 592 suites
 (cd OpenBB_Service && ../venv/bin/python -m pytest)  # 13 passed
 ```
 
 Those commands *are* the source of the three numbers — each figure is the count
 its own runner prints on the last line (`pytest` summary; `node --test`'s
-`ℹ pass`). Re-run them rather than trusting this paragraph: a test count quoted
-from memory goes stale the week after it is written.
+`ℹ pass`), and `web/lib/test-counts.generated.ts` (regenerated by
+`npm run counts:refresh`, checked in CI) is where the desk reads them from.
+Re-run them rather than trusting this paragraph: a test count quoted from memory
+goes stale the week after it is written. The 832 needs the native core built
+(`venv/bin/python native/decision_core/setup.py build_ext --inplace --build-temp build/native`,
+after `pip install -r requirements-native.txt`); the parity suites fail rather
+than skip without it.
 
-`.github/workflows/ci.yml` runs the same three suites plus lint, the API
-contract snapshot, the committed-tree guard and the journey probe on every push.
+`.github/workflows/ci.yml` runs the same three suites plus lint, the native-core
+build, the API contract snapshot, the committed test-count check, the
+committed-tree guard and the journey probe on every push.
 
 ---
 
