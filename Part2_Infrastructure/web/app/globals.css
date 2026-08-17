@@ -169,32 +169,36 @@
 
   /* The type scale. Forty distinct font sizes had accumulated — a half-pixel
      ramp, pt, em, rem and px all naming nearly the same steps — so the ramp
-     the file already used most is now the only one. 10px is the floor for
-     reading text; --fs-tick is SVG chart furniture (axis ticks, bar labels),
-     never prose. The three hero clamps keep their fluid behaviour as rungs.
-     Sanctioned exceptions, each annotated in place: the print block sizes in
-     pt, the brand and tech lettermarks, and `font-size: 0` icon-text hiding. */
-  --fs-tick: 9.5px;
-  --fs-2xs: 10px;
-  --fs-xs: 10.5px;
-  --fs-sm: 11px;
-  --fs-body: 11.5px;
-  --fs-md: 12px;
-  --fs-lg: 12.5px;
-  --fs-xl: 13px;
-  --fs-2xl: 14px;
-  --fs-title: 15px;
+     the file already used most is now the only one. Lifted one step across
+     the board on 2026-08-17 (the desk read small on a laptop and had the room
+     not to): 11px is now the floor for reading text; --fs-tick is SVG chart
+     furniture (axis ticks, bar labels), never prose. The three hero clamps
+     keep their fluid behaviour as rungs. Sanctioned exceptions, each
+     annotated in place: the print block sizes in pt, the brand and tech
+     lettermarks, and `font-size: 0` icon-text hiding. */
+  --fs-tick: 10px;
+  --fs-2xs: 11px;
+  --fs-xs: 11.5px;
+  --fs-sm: 12px;
+  --fs-body: 12.5px;
+  --fs-md: 13px;
+  --fs-lg: 13.5px;
+  --fs-xl: 14px;
+  --fs-2xl: 15px;
+  --fs-title: 16px;
   /* Not typography: 16px is the iOS focus-zoom threshold, the one size at
      which Safari leaves the page alone when a field takes focus. Semantic,
-     used only by the coarse-pointer field rules, never for reading text. */
+     used only by the coarse-pointer field rules, never for reading text.
+     (It now happens to equal --fs-title; the two are kept apart because one
+     is a size and the other is a threshold, and the threshold cannot move.) */
   --fs-input: 16px;
-  --fs-h2: 17px;
-  --fs-h1: 20px;
-  --fs-figure: 23px;
-  --fs-display: 28px;
-  --fs-hero-line: clamp(19px, 1.7vw, 23px);
-  --fs-hero-sub: clamp(21px, 2.3vw, 30px);
-  --fs-hero: clamp(26px, 2.6vw, 38px);
+  --fs-h2: 18px;
+  --fs-h1: 22px;
+  --fs-figure: 25px;
+  --fs-display: 30px;
+  --fs-hero-line: clamp(20px, 1.8vw, 25px);
+  --fs-hero-sub: clamp(22px, 2.4vw, 32px);
+  --fs-hero: clamp(28px, 2.8vw, 40px);
 
   /* One card scale. --card-pad is the house default; dense panels step down to
      --card-pad-tight rather than inventing a third value. */
@@ -452,7 +456,7 @@ html {
 
 /* First rung of the header's priority ladder — the full ladder, with the
    measurements behind it, sits under "The header's priority ladder" below. */
-@media (max-width: 1860px) {
+@media (max-width: 1880px) {
   .header-command-button__label {
     display: none;
   }
@@ -2011,7 +2015,7 @@ tbody tr[tabindex]:focus-visible {
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   background: transparent;
-  font-size: var(--fs-md);
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-secondary);
   transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
@@ -2066,7 +2070,7 @@ tbody tr[tabindex]:focus-visible {
    distinct shapes for three states. The full sentence is in the aria-label, the
    panel behind the button, and — on any tab reading a generated book — the
    in-page banner that already says the positions do not exist. */
-@media (max-width: 1610px) {
+@media (max-width: 1630px) {
   .data-tier__label {
     display: none;
   }
@@ -2179,7 +2183,7 @@ tbody tr[tabindex]:focus-visible {
 
 .brand-copy small {
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-2xs);
   font-weight: 650;
   letter-spacing: 0.07em;
   line-height: 1.35;
@@ -2205,7 +2209,7 @@ tbody tr[tabindex]:focus-visible {
   align-items: center;
   gap: 7px;
   color: var(--text-secondary);
-  font-size: var(--fs-md);
+  font-size: var(--fs-sm);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -2268,7 +2272,7 @@ tbody tr[tabindex]:focus-visible {
 
 .latency-chip__copy small {
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-2xs);
   font-weight: 750;
   letter-spacing: .075em;
   text-transform: uppercase;
@@ -2277,7 +2281,7 @@ tbody tr[tabindex]:focus-visible {
 .latency-chip__copy strong {
   color: var(--text-primary);
   font-family: var(--mono);
-  font-size: var(--fs-md);
+  font-size: var(--fs-sm);
   /* Tabular figures so the ticking decision p99 (and its inline core figure)
      never shift the row's width as they count. */
   font-variant-numeric: tabular-nums;
@@ -2291,7 +2295,7 @@ tbody tr[tabindex]:focus-visible {
   margin-left: 6px;
   color: var(--text-muted);
   font-family: var(--mono);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-2xs);
   font-style: normal;
   font-weight: 600;
   letter-spacing: 0;
@@ -2302,7 +2306,7 @@ tbody tr[tabindex]:focus-visible {
   align-items: center;
   gap: 5px;
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-2xs);
   font-weight: 700;
   white-space: nowrap;
 }
@@ -2363,12 +2367,11 @@ tbody tr[tabindex]:focus-visible {
   white-space: nowrap;
 }
 
-/* 12px, matching the four status chips beside it (all of them moved up one
-   rung together — the row had a lot of empty space at laptop widths and 11px
-   words in it). It was 10.5px once — the only half-step in the row, and small
-   enough beside "Kill switch" to read as a different class of control. */
+/* The chip rung, matching the four status chips beside it. It was a half-step
+   below them once — the only half-step in the row, and small enough beside
+   "Kill switch" to read as a different class of control. */
 .header-settings span {
-  font-size: var(--fs-md);
+  font-size: var(--fs-sm);
   font-weight: 650;
 }
 
@@ -2434,8 +2437,8 @@ tbody tr[tabindex]:focus-visible {
 
 .workspace-tabs button span {
   /* One rung up from the chips beside them: the eight destinations are the
-     row's primary text, and at 12px they read as a chip among chips. */
-  font-size: var(--fs-xl);
+     row's primary text, and at the chip size they read as a chip among chips. */
+  font-size: var(--fs-md);
   font-weight: 680;
 }
 
@@ -12713,8 +12716,8 @@ h4 {
 
    Most of that is paid for by the chip showing a monogram instead of the full
    address, which reclaims about 140px, and by the priority ladder above
-   (labels fold rung by rung from 1860px down), which leaves the bar one row
-   from 1091px up — measured as a guest, the wider of the two rows, since
+   (labels fold rung by rung from 1880px down), which leaves the bar one row
+   from 1111px up — measured as a guest, the wider of the two rows, since
    "Sign in" is 73px where the monogram is 32. Below that the row genuinely
    cannot hold everything, so it wraps — the same answer the ≤900px block
    already relies on, just starting earlier.
@@ -12727,7 +12730,7 @@ h4 {
 
    `--header-h` is measured by a ResizeObserver, so every sticky offset and
    deep-link scroll margin follows the taller bar on its own. */
-@media (max-width: 1090px) {
+@media (max-width: 1110px) {
   .workspace-header__utility {
     flex-wrap: wrap;
     /* The containing block the panels below switch to. Declared here rather
@@ -14829,7 +14832,7 @@ html:active-view-transition .view-panel {
     border-radius: calc(var(--radius-md) - 3px);
     background: var(--surface-1);
     color: var(--text-primary);
-    font: 680 12px/1.2 var(--sans);
+    font: 680 var(--fs-md)/1.2 var(--sans);
   }
 }
 
@@ -14878,9 +14881,9 @@ html:active-view-transition .view-panel {
    go. Guest and signed-in rows are one structure, so every rung holds for
    both.
 
-   Rung 1 (≤1860, with the Search label rule near the top of this file): the
+   Rung 1 (≤1880, with the Search label rule near the top of this file): the
    Search label, and the providers sentence becomes its short form. */
-@media (min-width: 901px) and (max-width: 1860px) {
+@media (min-width: 901px) and (max-width: 1880px) {
   .system-health__label {
     display: none;
   }
@@ -14890,9 +14893,9 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 2 (≤1760): the decision chip's state word — the dot keeps the tone,
+/* Rung 2 (≤1780): the decision chip's state word — the dot keeps the tone,
    the title keeps the words. */
-@media (min-width: 901px) and (max-width: 1760px) {
+@media (min-width: 901px) and (max-width: 1780px) {
   .latency-chip__state {
     display: none;
   }
@@ -14903,8 +14906,8 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 3 (≤1670): the Settings label. */
-@media (min-width: 901px) and (max-width: 1670px) {
+/* Rung 3 (≤1690): the Settings label. */
+@media (min-width: 901px) and (max-width: 1690px) {
   .workspace-header__utility > .header-settings,
   .workspace-header__utility > .header-anchor > .header-settings {
     width: 36px;
@@ -14918,18 +14921,18 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 4 (≤1610): the data-tier label — the rule sits with the chip's own
-   comment, above. Rung 5 (≤1560): the Connect / Connected label — the
-   max-[1560px] class in TelegramCta.
+/* Rung 4 (≤1630): the data-tier label — the rule sits with the chip's own
+   comment, above. Rung 5 (≤1580): the Connect / Connected label — the
+   max-[1580px] class in TelegramCta.
 
    Not a rung: the core annotation inside the decision chip. Measured, it adds
    no width — the DECISION P99 caption above it is the wider line of the two —
    so hiding it would take the nanosecond figure off the row and buy nothing.
    It stays until the chip's own copy folds (rung 8). */
 
-/* Rung 6 (≤1480): the providers chip is its dot alone — the count is one tap
+/* Rung 6 (≤1500): the providers chip is its dot alone — the count is one tap
    away in Settings and the panel it opens; the aria-label keeps the sentence. */
-@media (min-width: 901px) and (max-width: 1480px) {
+@media (min-width: 901px) and (max-width: 1500px) {
   .system-health-action {
     width: 44px;
     min-width: 44px;
@@ -14946,9 +14949,9 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 7 (≤1410): the brand tagline, the tabs' side padding, and the tab
+/* Rung 7 (≤1430): the brand tagline, the tabs' side padding, and the tab
    labels back to the chip size. */
-@media (min-width: 901px) and (max-width: 1410px) {
+@media (min-width: 901px) and (max-width: 1430px) {
   .brand-copy small {
     display: none;
   }
@@ -14958,13 +14961,13 @@ html:active-view-transition .view-panel {
   }
 
   .workspace-tabs button span {
-    font-size: var(--fs-md);
+    font-size: var(--fs-sm);
   }
 }
 
-/* Rung 8 (≤1250): the decision figure folds to its gauge; the title still
+/* Rung 8 (≤1270): the decision figure folds to its gauge; the title still
    names both planes and the Reliability tab has the numbers. */
-@media (min-width: 901px) and (max-width: 1250px) {
+@media (min-width: 901px) and (max-width: 1270px) {
   .latency-chip__copy {
     display: none;
   }
@@ -14975,11 +14978,11 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 9 (≤1170): the Kill switch and Sign in labels fold to their icons —
+/* Rung 9 (≤1190): the Kill switch and Sign in labels fold to their icons —
    the same fold the ≤520px rule makes, a rung earlier for the widths between
    the last one-row fit and the wrap. Both controls keep their aria-label and
    title; HALTED is never folded. */
-@media (min-width: 901px) and (max-width: 1170px) {
+@media (min-width: 901px) and (max-width: 1190px) {
   .header-kill-label,
   .header-signin-label {
     display: none;
@@ -15242,7 +15245,7 @@ html:active-view-transition .view-panel {
     border-radius: var(--radius-sm);
     background-color: var(--surface-1);
     color: var(--text-primary);
-    font: 680 12px/1.2 var(--sans);
+    font: 680 var(--fs-md)/1.2 var(--sans);
   }
 
   .workspace-subtabs__actions {

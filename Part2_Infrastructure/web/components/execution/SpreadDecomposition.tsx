@@ -141,16 +141,16 @@ export default function SpreadDecomposition({
                   <title>{`${venue.venue} — realized spread not measured`}</title>
                 </rect>
                 <text x={x0 + barW * 2 + 12 + barW / 2} y={MARGIN.top + plotH * 0.3}
-                  textAnchor="middle" fontSize={9.5} fill="var(--text-muted)" fontFamily="var(--mono)">
+                  textAnchor="middle" fontSize={10} fill="var(--text-muted)" fontFamily="var(--mono)">
                   n/a
                 </text>
 
                 <text x={x0 + (barW * 3 + 12) / 2} y={base + 16} textAnchor="middle"
-                  fontSize={10.5} fill="var(--text-secondary)" fontWeight={650}>
+                  fontSize={11.5} fill="var(--text-secondary)" fontWeight={650}>
                   {venue.venue}
                 </text>
                 <text x={x0 + (barW * 3 + 12) / 2} y={base + 29} textAnchor="middle"
-                  fontSize={9.5} fill="var(--text-muted)" fontFamily="var(--mono)">
+                  fontSize={10} fill="var(--text-muted)" fontFamily="var(--mono)">
                   {venue.fills} fills
                 </text>
               </g>

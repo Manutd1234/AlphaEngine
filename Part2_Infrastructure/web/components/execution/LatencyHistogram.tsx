@@ -58,7 +58,7 @@ export default function LatencyHistogram({
   const labelLong = format ?? ((v: number) => `${fmt(v, 2)} ${unitLong}`);
   if (usable.length < minSamples) {
     return (
-      <p className="muted" style={{ fontSize: 11.5 }}>
+      <p className="muted" style={{ fontSize: 12.5 }}>
         collecting samples · n={usable.length} of {minSamples}
       </p>
     );
@@ -104,7 +104,7 @@ export default function LatencyHistogram({
       </svg>
       <div
         className="muted num"
-        style={{ display: "flex", justifyContent: "space-between", fontSize: 10 }}
+        style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}
       >
         <span>{label(lo)}</span>
         <span>{label(hi)}</span>

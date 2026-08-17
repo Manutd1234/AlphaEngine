@@ -134,7 +134,7 @@ describe("the panel behaves like the house dropdown", () => {
      * — off the screen, and then clipped by the row's own `overflow-x: clip`.
      * The panel was the right size in the wrong place.
      */
-    const wrapped = css.slice(css.indexOf("@media (max-width: 1090px)"));
+    const wrapped = css.slice(css.indexOf("@media (max-width: 1110px)"));
     // `static` is the whole mechanism: it hands the panel's containing block
     // from the trigger to the row, so the offset below is measured from an edge
     // that does not move when the row wraps.

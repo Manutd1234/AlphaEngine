@@ -56,7 +56,7 @@ function KpiCard({
    */
   return (
     <div className="grid min-w-0 gap-0.5 rounded-card border border-border bg-surface-1 px-[var(--card-pad)] py-[var(--card-pad-tight)]">
-      <span className="text-[10px] font-bold uppercase tracking-[0.07em] text-text-muted">{label}</span>
+      <span className="text-[11px] font-bold uppercase tracking-[0.07em] text-text-muted">{label}</span>
       {/* The value owns its own row.
           It used to share one with the sparkline, and that row carried no
           `min-w-0` — so as a grid item its automatic minimum size was its
@@ -70,7 +70,7 @@ function KpiCard({
            parameters, which are the half worth reading. The full string stays
            available on hover. */
         title={typeof value === "string" ? value : titleText}
-        className={`min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[17px] leading-[1.25] ${mono ? "num" : ""}`}
+        className={`min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[18px] leading-[1.25] ${mono ? "num" : ""}`}
       >
         {value}
       </strong>
@@ -81,7 +81,7 @@ function KpiCard({
           A tooltip is not the fix here: this deck is read on tablets and
           phones, where there is no hover to recover a clipped line with. */}
       <div className="flex min-w-0 items-start justify-between gap-2">
-        <small className="kpi-card__note min-w-0 text-[11px] text-text-muted">{note}</small>
+        <small className="kpi-card__note min-w-0 text-[12px] text-text-muted">{note}</small>
         {spark}
       </div>
     </div>

@@ -113,7 +113,7 @@ export default function BreakerStateMachine({
         <path d="M280 62 L280 26 L82 26 L82 58" stroke="var(--axis)" strokeWidth={1}
           strokeDasharray="4 3" fill="none" />
         <Arrow x={82} y={58} dir="up" />
-        <text x={181} y={20} textAnchor="middle" fontSize={9.5} fill="var(--text-muted)">
+        <text x={181} y={20} textAnchor="middle" fontSize={10} fill="var(--text-muted)">
           operator reset — “Close all circuits”
         </text>
 
@@ -126,19 +126,19 @@ export default function BreakerStateMachine({
               <rect x={node.x} y={62} width={NODE_W} height={NODE_H} rx={8}
                 fill="var(--surface-2)" stroke={active ? tone : "var(--border)"}
                 strokeWidth={active ? 1.6 : 1} />
-              <text x={node.x + NODE_W / 2} y={80} textAnchor="middle" fontSize={10.5}
+              <text x={node.x + NODE_W / 2} y={80} textAnchor="middle" fontSize={11.5}
                 fontWeight={750} fill="var(--text-primary)" fontFamily="var(--mono)">
                 {node.label}
               </text>
-              <text x={node.x + NODE_W / 2} y={95} textAnchor="middle" fontSize={13}
+              <text x={node.x + NODE_W / 2} y={95} textAnchor="middle" fontSize={14}
                 fontWeight={700} fill={active ? tone : "var(--text-muted)"}>
                 {nodeCount(node.id)}
               </text>
-              <text x={node.x + NODE_W / 2} y={122} textAnchor="middle" fontSize={9.5}
+              <text x={node.x + NODE_W / 2} y={122} textAnchor="middle" fontSize={10}
                 fill="var(--text-muted)">
                 {node.sub}
               </text>
-              <text x={node.x + NODE_W / 2} y={134} textAnchor="middle" fontSize={9.5}
+              <text x={node.x + NODE_W / 2} y={134} textAnchor="middle" fontSize={10}
                 fill="var(--text-muted)" fontFamily="var(--mono)">
                 {detail(node.id)}
               </text>
@@ -149,26 +149,26 @@ export default function BreakerStateMachine({
         {/* closed → open */}
         <line x1={148} y1={85} x2={208} y2={85} stroke="var(--axis)" strokeWidth={1} />
         <Arrow x={214} y={85} />
-        <text x={178} y={78} textAnchor="middle" fontSize={9.5} fill="var(--text-secondary)">
+        <text x={178} y={78} textAnchor="middle" fontSize={10} fill="var(--text-secondary)">
           {threshold ? `${threshold} in a row` : "consecutive failures"}
         </text>
 
         {/* open → half-open */}
         <line x1={346} y1={85} x2={406} y2={85} stroke="var(--axis)" strokeWidth={1} />
         <Arrow x={412} y={85} />
-        <text x={376} y={78} textAnchor="middle" fontSize={9.5} fill="var(--text-secondary)">
+        <text x={376} y={78} textAnchor="middle" fontSize={10} fill="var(--text-secondary)">
           cooldown ends
         </text>
 
         {/* half-open → closed */}
         <path d="M478 108 L478 156 L82 156 L82 112" stroke="var(--axis)" strokeWidth={1} fill="none" />
         <Arrow x={82} y={110} dir="up" />
-        <text x={280} y={169} textAnchor="middle" fontSize={9.5} fill="var(--text-secondary)">
+        <text x={280} y={169} textAnchor="middle" fontSize={10} fill="var(--text-secondary)">
           probe succeeds
         </text>
 
         {/* The edge that is NOT here, said out loud. */}
-        <text x={280} y={195} textAnchor="middle" fontSize={9.5} fill="var(--text-muted)">
+        <text x={280} y={195} textAnchor="middle" fontSize={10} fill="var(--text-muted)">
           there is no half-open → open edge: a failed probe restarts the count from one
         </text>
       </svg>

@@ -160,7 +160,7 @@ export default function Heatmap({
           alignItems: "center",
           gap: 10,
           marginBottom: 10,
-          fontSize: 12,
+          fontSize: 13,
           color: "var(--text-secondary)",
           flexWrap: "wrap",
         }}
@@ -177,7 +177,7 @@ export default function Heatmap({
                     borderRadius: 3,
                   }}
                 />
-                <span style={{ fontSize: 11 }}>
+                <span style={{ fontSize: 12 }}>
                   <span aria-hidden>{KIND_STYLE[kind].glyph} </span>
                   {kind}
                 </span>
@@ -186,7 +186,7 @@ export default function Heatmap({
           </span>
         )}
         <span style={{ display: showKinds ? "none" : "flex", alignItems: "center", gap: 5 }}>
-          <span className="num" style={{ fontSize: 11 }}>
+          <span className="num" style={{ fontSize: 12 }}>
             {fmt(-absMax, 1)}
           </span>
           <span
@@ -200,7 +200,7 @@ export default function Heatmap({
               background: `linear-gradient(90deg, ${negStops})`,
             }}
           />
-          <span className="num" style={{ fontSize: 11, color: "var(--text-muted)" }}>
+          <span className="num" style={{ fontSize: 12, color: "var(--text-muted)" }}>
             0
           </span>
           <span
@@ -214,11 +214,11 @@ export default function Heatmap({
               background: `linear-gradient(90deg, ${posStops})`,
             }}
           />
-          <span className="num" style={{ fontSize: 11 }}>
+          <span className="num" style={{ fontSize: 12 }}>
             +{fmt(absMax, 1)}
           </span>
         </span>
-        <span className="muted" style={{ fontSize: 11.5 }}>
+        <span className="muted" style={{ fontSize: 12.5 }}>
           {showKinds
             ? "click a cell to inspect those parameters"
             : "grey = no edge · click a cell to inspect those parameters"}
@@ -324,7 +324,7 @@ export default function Heatmap({
             y={padT + fi * cellH + cellH / 2}
             textAnchor="end"
             dominantBaseline="middle"
-            fontSize={10.5}
+            fontSize={11.5}
             fontFamily="var(--mono)"
             fill="var(--text-muted)"
           >
@@ -338,7 +338,7 @@ export default function Heatmap({
               x={padL + si * cellW + cellW / 2}
               y={padT + fasts.length * cellH + 15}
               textAnchor="middle"
-              fontSize={10.5}
+              fontSize={11.5}
               fontFamily="var(--mono)"
               fill="var(--text-muted)"
             >
@@ -346,10 +346,10 @@ export default function Heatmap({
             </text>
           ) : null,
         )}
-        <text x={padL} y={height - 3} fontSize={10.5} fill="var(--text-muted)">
+        <text x={padL} y={height - 3} fontSize={11.5} fill="var(--text-muted)">
           slow period →
         </text>
-        <text x={0} y={11} fontSize={10.5} fill="var(--text-muted)">
+        <text x={0} y={11} fontSize={11.5} fill="var(--text-muted)">
           fast period ↓
         </text>
       </svg>
@@ -358,7 +358,7 @@ export default function Heatmap({
         style={{
           minHeight: 34,
           marginTop: 8,
-          fontSize: 12.5,
+          fontSize: 13.5,
           fontFamily: "var(--mono)",
           color: active ? "var(--text-primary)" : "var(--text-muted)",
         }}

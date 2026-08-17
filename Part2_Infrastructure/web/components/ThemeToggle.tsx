@@ -86,7 +86,7 @@ export default function ThemeToggle() {
               aria-pressed={preference === candidate}
               onClick={() => setPreference(applyDocumentThemePreference(candidate))}
               title={LABELS[candidate].title}
-              className="inline-flex items-center justify-center gap-1 text-[11px] font-semibold"
+              className="inline-flex items-center justify-center gap-1 text-[12px] font-semibold"
             >
               <Icon size={12} aria-hidden />
               <span>{LABELS[candidate].label}</span>
@@ -94,7 +94,7 @@ export default function ThemeToggle() {
           );
         })}
       </div>
-      <p className="mt-1.5 text-[10.5px] leading-snug text-text-muted">
+      <p className="mt-1.5 text-[11.5px] leading-snug text-text-muted">
         {preference === null ? DESCRIPTIONS.system : DESCRIPTIONS[preference]}
       </p>
     </div>

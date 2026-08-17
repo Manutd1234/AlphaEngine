@@ -35,13 +35,13 @@ export default function ComplexityToggle() {
             aria-pressed={tier === candidate}
             onClick={() => setComplexity(candidate)}
             title={COMPLEXITY_LABELS[candidate].description}
-            className="text-[11px] font-semibold"
+            className="text-[12px] font-semibold"
           >
             {COMPLEXITY_LABELS[candidate].label}
           </button>
         ))}
       </div>
-      <p className="mt-1.5 text-[10.5px] leading-snug text-text-muted">
+      <p className="mt-1.5 text-[11.5px] leading-snug text-text-muted">
         {description} Every tab and section is available at every level; only how much is expanded
         changes.
       </p>

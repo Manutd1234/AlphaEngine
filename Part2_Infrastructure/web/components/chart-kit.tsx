@@ -182,7 +182,7 @@ export function Grid({
             textAnchor="end"
             dominantBaseline="middle"
             fill="var(--text-muted)"
-            fontSize={10.5}
+            fontSize={11.5}
             fontFamily="var(--mono)"
           >
             {format(t)}
@@ -242,7 +242,7 @@ export function XAxis({
           y={y + 15}
           textAnchor={k === 0 ? "start" : i === points.length - 1 ? "end" : "middle"}
           fill="var(--text-muted)"
-          fontSize={10.5}
+          fontSize={11.5}
           fontFamily="var(--mono)"
         >
           {format(points[i])}
@@ -309,7 +309,7 @@ export function Tooltip({
         fill="var(--surface-1)"
         stroke="var(--border)"
       />
-      <text x={left + 10} y={24} fontSize={10.5} fill="var(--text-muted)" fontFamily="var(--mono)">
+      <text x={left + 10} y={24} fontSize={11.5} fill="var(--text-muted)" fontFamily="var(--mono)">
         {title}
       </text>
       {rows.map((r, i) => (
@@ -320,7 +320,7 @@ export function Tooltip({
           <text
             x={left + (r.color ? 23 : 10)}
             y={38 + i * 16}
-            fontSize={11}
+            fontSize={12}
             fill="var(--text-secondary)"
           >
             {r.label}
@@ -328,7 +328,7 @@ export function Tooltip({
           <text
             x={left + w - 10}
             y={38 + i * 16}
-            fontSize={11}
+            fontSize={12}
             textAnchor="end"
             fill="var(--text-primary)"
             fontFamily="var(--mono)"

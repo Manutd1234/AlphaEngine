@@ -140,7 +140,7 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
                   x={centre}
                   y={height - m.bottom + 14}
                   textAnchor="middle"
-                  fontSize={10.5}
+                  fontSize={11.5}
                   fontFamily="var(--mono)"
                   fill="var(--text-muted)"
                 >
@@ -150,7 +150,7 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
                   x={centre}
                   y={height - m.bottom + 27}
                   textAnchor="middle"
-                  fontSize={9.5}
+                  fontSize={10}
                   fontFamily="var(--mono)"
                   fill="var(--text-muted)"
                 >

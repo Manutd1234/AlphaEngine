@@ -180,7 +180,7 @@ export default function EquityChart({
         <text
           x={x1 + 5}
           y={L.yEq(last.equity)}
-          fontSize={10.5}
+          fontSize={11.5}
           fill="var(--series-1)"
           fontFamily="var(--mono)"
           fontWeight={600}
@@ -191,7 +191,7 @@ export default function EquityChart({
         <text
           x={x1 + 5}
           y={L.yEq(last.buyHold)}
-          fontSize={10.5}
+          fontSize={11.5}
           fill="var(--text-secondary)"
           fontFamily="var(--mono)"
           dominantBaseline="middle"

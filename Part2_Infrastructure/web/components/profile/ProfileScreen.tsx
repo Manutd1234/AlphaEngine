@@ -336,8 +336,8 @@ export default function ProfileScreen() {
     return (
       <Shell>
         <div className="card p-5">
-          <h2 className="text-[15px]">Sign in to manage your account</h2>
-          <p className="mt-1 text-[12px] leading-snug text-text-secondary">
+          <h2 className="text-[16px]">Sign in to manage your account</h2>
+          <p className="mt-1 text-[13px] leading-snug text-text-secondary">
             This page manages an identity. The desk itself needs no account and stays fully
             browsable without one.
           </p>
@@ -390,7 +390,7 @@ export default function ProfileScreen() {
       {/* ---- identity ---- */}
       <section className="card mt-4 p-5">
         <span className="page-kicker">Identity</span>
-        <h2 className="mt-0.5 text-[15px]">Name and avatar</h2>
+        <h2 className="mt-0.5 text-[16px]">Name and avatar</h2>
 
         <div className="mt-4 flex flex-wrap items-start gap-4">
           <div className="flex flex-col items-center gap-2">
@@ -410,18 +410,18 @@ export default function ProfileScreen() {
             ) : (
               <span
                 aria-hidden
-                className="grid h-16 w-16 place-items-center rounded-[50%] border border-border bg-[color-mix(in_srgb,var(--series-1)_14%,var(--surface-2))] text-[20px] font-bold text-series-1"
+                className="grid h-16 w-16 place-items-center rounded-[50%] border border-border bg-[color-mix(in_srgb,var(--series-1)_14%,var(--surface-2))] text-[22px] font-bold text-series-1"
               >
                 {initials}
               </span>
             )}
-            <span className="text-[10.5px] text-text-muted">
+            <span className="text-[11.5px] text-text-muted">
               {avatarState === "busy" ? "Working…" : avatarUrl ? "Your avatar" : "Initials"}
             </span>
           </div>
 
           <div className="min-w-[220px] flex-1">
-            <label className="block text-[11px] font-semibold text-text-secondary" htmlFor="profile-name">
+            <label className="block text-[12px] font-semibold text-text-secondary" htmlFor="profile-name">
               Display name
             </label>
             <input
@@ -433,7 +433,7 @@ export default function ProfileScreen() {
               autoComplete="name"
               className="mt-1 w-full"
             />
-            <p className="mt-1.5 text-[10.5px] leading-snug text-text-muted">
+            <p className="mt-1.5 text-[11.5px] leading-snug text-text-muted">
               Stored against this account under a key no sign-in provider writes to. Using the
               provider&rsquo;s own name field would mean Google or GitHub silently restoring the old
               value the next time you signed in with it.
@@ -444,13 +444,13 @@ export default function ProfileScreen() {
                 type="button"
                 disabled={savingName}
                 onClick={() => void onSaveName()}
-                className="rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-[11.5px] font-semibold text-text-primary hover:bg-surface-2"
+                className="rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-[12.5px] font-semibold text-text-primary hover:bg-surface-2"
               >
                 {savingName ? "Saving…" : "Save name"}
               </button>
 
               {avatarState === "unconfigured" ? (
-                <span className="text-[10.5px] text-text-muted">
+                <span className="text-[11.5px] text-text-muted">
                   Avatar storage is not set up on this project yet.
                 </span>
               ) : (
@@ -459,7 +459,7 @@ export default function ProfileScreen() {
                     type="button"
                     disabled={avatarState === "busy"}
                     onClick={() => fileInput.current?.click()}
-                    className="rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-[11.5px] font-semibold text-text-primary hover:bg-surface-2"
+                    className="rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-[12.5px] font-semibold text-text-primary hover:bg-surface-2"
                   >
                     {avatarUrl ? "Replace avatar" : "Upload avatar"}
                   </button>
@@ -468,7 +468,7 @@ export default function ProfileScreen() {
                       type="button"
                       disabled={avatarState === "busy"}
                       onClick={() => void onRemoveAvatar()}
-                      className="inline-flex items-center gap-1.5 rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-[11.5px] font-semibold text-text-secondary hover:bg-surface-2"
+                      className="inline-flex items-center gap-1.5 rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-[12.5px] font-semibold text-text-secondary hover:bg-surface-2"
                     >
                       <Trash2 size={13} aria-hidden />
                       Remove
@@ -489,7 +489,7 @@ export default function ProfileScreen() {
                 </>
               )}
             </div>
-            <p className="mt-2 text-[10.5px] leading-snug text-text-muted">
+            <p className="mt-2 text-[11.5px] leading-snug text-text-muted">
               Avatars live in a private bucket and are fetched through a signed link that expires.
               Nobody can read yours by guessing its address.
             </p>
@@ -500,10 +500,10 @@ export default function ProfileScreen() {
       {/* ---- connected accounts ---- */}
       <section className="card mt-4 p-5">
         <span className="page-kicker">Sign-in methods</span>
-        <h2 className="mt-0.5 text-[15px]">Connected accounts</h2>
+        <h2 className="mt-0.5 text-[16px]">Connected accounts</h2>
 
         {identitiesState === "unconfigured" ? (
-          <p className="mt-2 text-[11.5px] leading-snug text-text-secondary">
+          <p className="mt-2 text-[12.5px] leading-snug text-text-secondary">
             Identity linking is not available on this project.
           </p>
         ) : identitiesState === "loading" ? (
@@ -516,7 +516,7 @@ export default function ProfileScreen() {
                   key={identity.identity_id}
                   className="flex flex-wrap items-center justify-between gap-2 rounded-[9px] border border-grid bg-surface-2 px-3 py-2"
                 >
-                  <span className="text-[11.5px] font-semibold">
+                  <span className="text-[12.5px] font-semibold">
                     {providerLabel(identity.provider)}
                   </span>
                   <button
@@ -524,7 +524,7 @@ export default function ProfileScreen() {
                     disabled={!canUnlink(identityCount) || linkBusy === identity.provider}
                     onClick={() => void onUnlink(identity)}
                     aria-describedby={canUnlink(identityCount) ? undefined : "profile-unlink-note"}
-                    className="rounded-[8px] border border-border bg-surface-1 px-2.5 py-1.5 text-[11px] font-semibold text-text-secondary hover:bg-surface-2 disabled:opacity-[0.55]"
+                    className="rounded-[8px] border border-border bg-surface-1 px-2.5 py-1.5 text-[12px] font-semibold text-text-secondary hover:bg-surface-2 disabled:opacity-[0.55]"
                   >
                     {linkBusy === identity.provider ? "Working…" : "Unlink"}
                   </button>
@@ -533,14 +533,14 @@ export default function ProfileScreen() {
             </ul>
 
             {!canUnlink(identityCount) && (
-              <p id="profile-unlink-note" className="mt-2 text-[10.5px] leading-snug text-text-muted">
+              <p id="profile-unlink-note" className="mt-2 text-[11.5px] leading-snug text-text-muted">
                 Unlink needs a second method to fall back on. With one, removing it would leave no
                 way into this account, so the library refuses and this stays disabled.
               </p>
             )}
 
             <div className="mt-3 border-t border-grid pt-3">
-              <span className="text-[11px] font-semibold text-text-secondary">Add a method</span>
+              <span className="text-[12px] font-semibold text-text-secondary">Add a method</span>
               <div className="mt-2 flex flex-wrap gap-2">
                 {LINKABLE_PROVIDERS.filter((provider) => !linked.has(provider.id)).map((provider) => {
                   const known = enabledProviders?.has(provider.id) ?? true;
@@ -551,7 +551,7 @@ export default function ProfileScreen() {
                       disabled={!known || linkBusy === provider.id}
                       title={known ? undefined : "Not configured for this deployment"}
                       onClick={() => void onLink(provider.id)}
-                      className="inline-flex items-center gap-1.5 rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-[11.5px] font-semibold text-text-primary hover:bg-surface-2 disabled:opacity-[0.55]"
+                      className="inline-flex items-center gap-1.5 rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-[12.5px] font-semibold text-text-primary hover:bg-surface-2 disabled:opacity-[0.55]"
                     >
                       <Link2 size={13} aria-hidden />
                       {provider.label}
@@ -559,7 +559,7 @@ export default function ProfileScreen() {
                   );
                 })}
                 {LINKABLE_PROVIDERS.every((provider) => linked.has(provider.id)) && (
-                  <span className="text-[10.5px] text-text-muted">Every provider is already linked.</span>
+                  <span className="text-[11.5px] text-text-muted">Every provider is already linked.</span>
                 )}
               </div>
             </div>
@@ -570,10 +570,10 @@ export default function ProfileScreen() {
       {/* ---- sessions ---- */}
       <section className="card mt-4 p-5">
         <span className="page-kicker">Devices</span>
-        <h2 className="mt-0.5 text-[15px]">Active sessions</h2>
+        <h2 className="mt-0.5 text-[16px]">Active sessions</h2>
 
         {sessionsState === "unconfigured" ? (
-          <p className="mt-2 text-[11.5px] leading-snug text-text-secondary">
+          <p className="mt-2 text-[12.5px] leading-snug text-text-secondary">
             The session listing is not installed on this project, so this cannot say where the
             account is signed in.
           </p>
@@ -581,7 +581,7 @@ export default function ProfileScreen() {
           <span className="skeleton mt-3 block h-[11px] w-[60%]" />
         ) : (
           <>
-            <p className="mt-1 text-[11.5px] leading-snug text-text-secondary">
+            <p className="mt-1 text-[12.5px] leading-snug text-text-secondary">
               {describeSessionSource(source, sessions?.length ?? 0)}
             </p>
             <ul className="mt-3 flex list-none flex-col gap-2 p-0">
@@ -593,18 +593,18 @@ export default function ProfileScreen() {
                     className="rounded-[9px] border border-grid bg-surface-2 px-3 py-2"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-[11.5px] font-semibold" title={row.user_agent ?? undefined}>
+                      <span className="text-[12.5px] font-semibold" title={row.user_agent ?? undefined}>
                         {describeDevice(row.user_agent)}
                       </span>
                       {/* Word, not a coloured dot. A dot alone carries nothing
                           for a reader who cannot see the colour. */}
                       {row.is_current && (
-                        <span className="rounded-[6px] border border-border px-1.5 py-0.5 text-[10px] font-semibold text-success-text">
+                        <span className="rounded-[6px] border border-border px-1.5 py-0.5 text-[11px] font-semibold text-success-text">
                           This device
                         </span>
                       )}
                     </div>
-                    <p className="mt-1 text-[10.5px] text-text-muted">
+                    <p className="mt-1 text-[11.5px] text-text-muted">
                       {seen ? `Last active ${dateTime(seen)}` : "Last active unknown"}
                       {row.ip ? ` · reported from ${formatIp(row.ip)}` : ""}
                     </p>
@@ -618,7 +618,7 @@ export default function ProfileScreen() {
                 type="button"
                 disabled={revoking}
                 onClick={() => void onRevokeOthers()}
-                className="mt-3 inline-flex items-center gap-1.5 rounded-[9px] border border-[color-mix(in_srgb,var(--status-critical)_45%,var(--border))] bg-surface-1 px-3 py-2 text-[11.5px] font-semibold text-critical-text hover:bg-[color-mix(in_srgb,var(--status-critical)_8%,var(--surface-1))]"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-[9px] border border-[color-mix(in_srgb,var(--status-critical)_45%,var(--border))] bg-surface-1 px-3 py-2 text-[12.5px] font-semibold text-critical-text hover:bg-[color-mix(in_srgb,var(--status-critical)_8%,var(--surface-1))]"
               >
                 <ShieldCheck size={13} aria-hidden />
                 {revoking ? "Revoking…" : `Revoke ${otherSessions} other session${otherSessions === 1 ? "" : "s"}`}
@@ -631,13 +631,13 @@ export default function ProfileScreen() {
       {/* ---- password ---- */}
       <section className="card mt-4 p-5">
         <span className="page-kicker">Credentials</span>
-        <h2 className="mt-0.5 text-[15px]">Change password</h2>
-        <p className="mt-1 text-[11.5px] leading-snug text-text-secondary">
+        <h2 className="mt-0.5 text-[16px]">Change password</h2>
+        <p className="mt-1 text-[12.5px] leading-snug text-text-secondary">
           Change the password first, then revoke other sessions above if you want them ended.
           Doing it the other way round ends this session too, and the change never lands.
         </p>
 
-        <label className="mt-3 block text-[11px] font-semibold text-text-secondary" htmlFor="profile-password">
+        <label className="mt-3 block text-[12px] font-semibold text-text-secondary" htmlFor="profile-password">
           New password
         </label>
         <div className="relative mt-1 flex max-w-[360px]">
@@ -656,7 +656,7 @@ export default function ProfileScreen() {
             aria-pressed={showPassword}
             aria-controls="profile-password"
             aria-label={showPassword ? "Hide password" : "Show password"}
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 border-none bg-transparent px-1.5 py-1 text-[11px] font-semibold text-text-secondary underline"
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 border-none bg-transparent px-1.5 py-1 text-[12px] font-semibold text-text-secondary underline"
           >
             {showPassword ? "Hide" : "Show"}
           </button>
@@ -684,11 +684,11 @@ export default function ProfileScreen() {
               }}
             />
           </span>
-          <span className="min-w-[72px] text-[11px] font-semibold text-text-secondary">
+          <span className="min-w-[72px] text-[12px] font-semibold text-text-secondary">
             {strength.label}
           </span>
         </div>
-        <p className="mt-1.5 max-w-[360px] text-[10.5px] leading-snug text-text-muted">
+        <p className="mt-1.5 max-w-[360px] text-[11.5px] leading-snug text-text-muted">
           {strength.hint}
         </p>
 
@@ -696,7 +696,7 @@ export default function ProfileScreen() {
           type="button"
           disabled={changingPassword || password.length < MIN_PASSWORD_LENGTH}
           onClick={() => void onChangePassword()}
-          className="mt-3 rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-[11.5px] font-semibold text-text-primary hover:bg-surface-2 disabled:opacity-[0.55]"
+          className="mt-3 rounded-[9px] border border-border bg-surface-1 px-3 py-2 text-[12.5px] font-semibold text-text-primary hover:bg-surface-2 disabled:opacity-[0.55]"
         >
           {changingPassword ? "Changing…" : "Change password"}
         </button>
@@ -713,13 +713,13 @@ function Shell({ children }: { children: ReactNode }) {
           from a page only a signed-in visitor can reach costs a needless hop. */}
       <a
         href="/dashboard"
-        className="mb-4 inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-text-secondary no-underline hover:underline"
+        className="mb-4 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-text-secondary no-underline hover:underline"
       >
         <ArrowLeft size={13} aria-hidden />
         Back to the workspace
       </a>
       {children}
-      <p className="mt-6 flex items-center gap-1.5 text-[10.5px] text-text-muted">
+      <p className="mt-6 flex items-center gap-1.5 text-[11.5px] text-text-muted">
         <UserRound size={12} aria-hidden />
         AlphaEngine stores workspace preferences against this account. It holds no funds and places
         no real orders.

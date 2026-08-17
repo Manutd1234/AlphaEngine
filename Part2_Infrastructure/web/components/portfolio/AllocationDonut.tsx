@@ -123,7 +123,7 @@ export default function AllocationDonut({
               x={SIZE / 2}
               y={SIZE / 2 - 6}
               textAnchor="middle"
-              fontSize={23}
+              fontSize={25}
               fontWeight={680}
               fontFamily="var(--mono)"
               fill="var(--text-primary)"
@@ -134,7 +134,7 @@ export default function AllocationDonut({
               x={SIZE / 2}
               y={SIZE / 2 + 12}
               textAnchor="middle"
-              fontSize={9.5}
+              fontSize={10}
               fontFamily="var(--sans)"
               fill="var(--text-muted)"
             >

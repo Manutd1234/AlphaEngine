@@ -159,7 +159,7 @@ export default function PriceChart({
         <text
           x={x1 + 5}
           y={yScale(last.close)}
-          fontSize={10.5}
+          fontSize={11.5}
           fill="var(--text-secondary)"
           fontFamily="var(--mono)"
           dominantBaseline="middle"

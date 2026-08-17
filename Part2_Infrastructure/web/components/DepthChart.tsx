@@ -81,7 +81,7 @@ export default function DepthChart({
 
   if (!bidPts.length || !askPts.length || !mid) {
     return (
-      <div ref={ref} style={{ height, display: "grid", placeItems: "center", color: "var(--text-muted)", fontSize: 13 }}>
+      <div ref={ref} style={{ height, display: "grid", placeItems: "center", color: "var(--text-muted)", fontSize: 14 }}>
         waiting for book…
       </div>
     );
@@ -143,7 +143,7 @@ export default function DepthChart({
 
         {/* the neutral midpoint of the diverging scale */}
         <line x1={x(mid)} x2={x(mid)} y1={y1} y2={y0} stroke="var(--text-muted)" strokeWidth={1} />
-        <text x={x(mid)} y={y1 + 9} textAnchor="middle" fontSize={10} fill="var(--text-muted)" fontFamily="var(--mono)">
+        <text x={x(mid)} y={y1 + 9} textAnchor="middle" fontSize={11} fill="var(--text-muted)" fontFamily="var(--mono)">
           mid {fmt(mid, dp)}
         </text>
 
@@ -154,7 +154,7 @@ export default function DepthChart({
             x={x(p)}
             y={y0 + 15}
             textAnchor={i === 0 ? "start" : i === 2 ? "end" : "middle"}
-            fontSize={10.5}
+            fontSize={11.5}
             fill="var(--text-muted)"
             fontFamily="var(--mono)"
           >

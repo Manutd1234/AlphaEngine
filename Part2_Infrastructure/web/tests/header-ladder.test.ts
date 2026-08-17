@@ -31,32 +31,32 @@ function rung(max: number): string {
   return css.slice(start, end);
 }
 
-const RUNGS = [1860, 1760, 1670, 1480, 1410, 1250, 1170] as const;
+const RUNGS = [1880, 1780, 1690, 1500, 1430, 1270, 1190] as const;
 
 describe("the rungs exist, in priority order, and each takes only what it says", () => {
-  it("rung 1 (≤1860): the Search label and the providers sentence → short form", () => {
-    assert.match(css, /@media \(max-width: 1860px\) \{\n  \.header-command-button__label \{\n    display: none;/);
-    const r = rung(1860);
+  it("rung 1 (≤1880): the Search label and the providers sentence → short form", () => {
+    assert.match(css, /@media \(max-width: 1880px\) \{\n  \.header-command-button__label \{\n    display: none;/);
+    const r = rung(1880);
     assert.match(r, /\.system-health__label \{\n    display: none;/);
     assert.match(r, /\.system-health__label--short \{\n    display: inline;/);
     assert.doesNotMatch(r, /header-settings|latency-chip|telegram/);
   });
 
-  it("rung 2 (≤1760): only the chip's state word", () => {
-    const r = rung(1760);
+  it("rung 2 (≤1780): only the chip's state word", () => {
+    const r = rung(1780);
     assert.match(r, /\.latency-chip__state \{\n    display: none;/);
     assert.doesNotMatch(r, /\.latency-chip__copy|\.latency-chip__core|header-settings/);
   });
 
-  it("rung 3 (≤1670): only the Settings label", () => {
-    const r = rung(1670);
+  it("rung 3 (≤1690): only the Settings label", () => {
+    const r = rung(1690);
     assert.match(r, /\.workspace-header__utility > \.header-anchor > \.header-settings span,/);
     assert.doesNotMatch(r, /latency-chip|system-health|brand-copy/);
   });
 
-  it("rung 4 (≤1610): the data-tier label; rung 5 (≤1560): the Connect label", () => {
-    assert.match(css, /@media \(max-width: 1610px\) \{\n  \.data-tier__label \{\n    display: none;/);
-    assert.match(read("components/header/TelegramCta.tsx"), /max-\[1560px\]:hidden/);
+  it("rung 4 (≤1630): the data-tier label; rung 5 (≤1580): the Connect label", () => {
+    assert.match(css, /@media \(max-width: 1630px\) \{\n  \.data-tier__label \{\n    display: none;/);
+    assert.match(read("components/header/TelegramCta.tsx"), /max-\[1580px\]:hidden/);
   });
 
   it("the core annotation is NOT a rung — it adds no width and stays until the chip folds", () => {
@@ -66,25 +66,25 @@ describe("the rungs exist, in priority order, and each takes only what it says",
     assert.match(css, /Not a rung: the core annotation inside the decision chip/);
   });
 
-  it("rung 6 (≤1480): the providers chip to its dot, aria keeps the sentence", () => {
-    const r = rung(1480);
+  it("rung 6 (≤1500): the providers chip to its dot, aria keeps the sentence", () => {
+    const r = rung(1500);
     assert.match(r, /\.system-health-action \{[\s\S]*font-size: 0;/);
     assert.match(read("components/WorkspaceHeader.tsx"), /aria-label=\{`Open reliability\. \$\{healthLabel\}`\}/);
   });
 
-  it("rung 7 (≤1410): brand tagline and tab padding, nothing of the chip", () => {
-    const r = rung(1410);
+  it("rung 7 (≤1430): brand tagline and tab padding, nothing of the chip", () => {
+    const r = rung(1430);
     assert.match(r, /\.brand-copy small \{\n    display: none;/);
     assert.match(r, /\.workspace-tabs button \{\n    padding-inline: 5px;/);
     assert.doesNotMatch(r, /latency-chip/);
   });
 
-  it("rung 8 (≤1250): the decision figure folds to its gauge — last of the chip", () => {
-    assert.match(rung(1250), /\.latency-chip__copy \{\n    display: none;/);
+  it("rung 8 (≤1270): the decision figure folds to its gauge — last of the chip", () => {
+    assert.match(rung(1270), /\.latency-chip__copy \{\n    display: none;/);
   });
 
-  it("rung 9 (≤1170): Kill switch and Sign in labels fold to icons that keep their names", () => {
-    const r = rung(1170);
+  it("rung 9 (≤1190): Kill switch and Sign in labels fold to icons that keep their names", () => {
+    const r = rung(1190);
     assert.match(r, /\.header-kill-label,\n  \.header-signin-label \{\n    display: none;/);
     const kill = read("components/header/KillSwitchControl.tsx");
     assert.match(kill, /aria-label=\{halted \? "Trading is halted — open the resume control" : "Open the kill switch"\}/);
@@ -94,8 +94,8 @@ describe("the rungs exist, in priority order, and each takes only what it says",
     assert.match(account, /className="header-signin-label max-\[520px\]:hidden"/);
   });
 
-  it("the row wraps at 1090, where even the icons no longer fit on one row", () => {
-    assert.match(css, /@media \(max-width: 1090px\) \{\n  \.workspace-header__utility \{\n    flex-wrap: wrap;/);
+  it("the row wraps at 1110, where even the icons no longer fit on one row", () => {
+    assert.match(css, /@media \(max-width: 1110px\) \{\n  \.workspace-header__utility \{\n    flex-wrap: wrap;/);
   });
 
   it("the rungs descend — no rung is wider than the one before it", () => {
@@ -122,13 +122,13 @@ describe("the essentials are never on the ladder", () => {
 });
 
 describe("the header's words are one size class", () => {
-  it("tabs sit one rung above the chips; every chip word is 12px", () => {
-    assert.match(css, /\.workspace-tabs button span \{[\s\S]{0,220}font-size: var\(--fs-xl\);/);
+  it("tabs sit one rung above the chips; every chip word is the --fs-sm rung", () => {
+    assert.match(css, /\.workspace-tabs button span \{[\s\S]{0,220}font-size: var\(--fs-md\);/);
     for (const sel of ["\n.data-tier {", "\n.system-health {", "\n.header-settings span {"]) {
       const i = css.indexOf(sel);
       assert.notEqual(i, -1, sel);
       const block = css.slice(i, css.indexOf("\n}\n", i));
-      assert.match(block, /font-size: var\(--fs-md\);/, `${sel.trim()} is not 12px`);
+      assert.match(block, /font-size: var\(--fs-sm\);/, `${sel.trim()} is not the --fs-sm rung`);
     }
     // The triggers, not the panels behind them (panel field labels are 11px on purpose).
     assert.match(read("components/header/KillSwitchControl.tsx"), /py-1\.5 text-\[12px\] font-semibold text-text-secondary hover:border-border/);

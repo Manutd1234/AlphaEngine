@@ -61,7 +61,7 @@ const RUNGS = [
 ] as const;
 
 /** Inline chart/SVG sizes the components may use, in px. */
-const INLINE_SIZES = new Set([9.5, 10, 10.5, 11, 11.5, 12, 12.5, 13, 14, 15, 17, 20, 23, 28]);
+const INLINE_SIZES = new Set([10, 11, 11.5, 12, 12.5, 13, 13.5, 14, 15, 16, 18, 20, 22, 25, 30]);
 
 /** Off-scale declarations sanctioned above, matched exactly. */
 const SANCTIONED = new Set(["0", "7px", "7.5px", "25px"]);
@@ -114,7 +114,7 @@ describe("one type scale", () => {
     const tick = declarations.match(/--fs-tick:\s*([\d.]+)px/);
     assert.ok(tick && Number(tick[1]) >= 9, "--fs-tick must stay a legible tick size");
     const floor = declarations.match(/--fs-2xs:\s*([\d.]+)px/);
-    assert.ok(floor && Number(floor[1]) >= 10, "--fs-2xs is the reading floor: 10px");
+    assert.ok(floor && Number(floor[1]) >= 10, "--fs-2xs is the reading floor: never below 10px");
   });
 });
 

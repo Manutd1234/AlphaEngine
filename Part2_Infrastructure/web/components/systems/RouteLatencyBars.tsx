@@ -106,7 +106,7 @@ export default function RouteLatencyBars({
             <g key={tick}>
               <line x1={x(tick)} x2={x(tick)} y1={MARGIN.top} y2={MARGIN.top + routes.length * ROW_H}
                 stroke="var(--grid)" strokeWidth={1} shapeRendering="crispEdges" />
-              <text x={x(tick)} y={height - 8} textAnchor="middle" fontSize={10}
+              <text x={x(tick)} y={height - 8} textAnchor="middle" fontSize={11}
                 fill="var(--text-muted)" fontFamily="var(--mono)">
                 {Math.round(tick)}ms
               </text>
@@ -121,14 +121,14 @@ export default function RouteLatencyBars({
             return (
               <g key={route.route}>
                 <text x={MARGIN.left - 10} y={mid} textAnchor="end" dominantBaseline="middle"
-                  fontSize={10.5} fill="var(--text-secondary)" fontFamily="var(--mono)">
+                  fontSize={11.5} fill="var(--text-secondary)" fontFamily="var(--mono)">
                   {label(route)}
                 </text>
 
                 {thin ? (
                   // Numbers without geometry: too few calls to shape a
                   // distribution, and a bar would imply one.
-                  <text x={MARGIN.left + 4} y={mid} dominantBaseline="middle" fontSize={10}
+                  <text x={MARGIN.left + 4} y={mid} dominantBaseline="middle" fontSize={11}
                     fill="var(--text-muted)" fontFamily="var(--mono)">
                     n={route.samples}/{MIN_SAMPLES} — too thin to plot
                   </text>
@@ -151,7 +151,7 @@ export default function RouteLatencyBars({
                   </>
                 )}
 
-                <text x={MARGIN.left + plotW + 8} y={mid} dominantBaseline="middle" fontSize={9.5}
+                <text x={MARGIN.left + plotW + 8} y={mid} dominantBaseline="middle" fontSize={10}
                   fill="var(--text-muted)" fontFamily="var(--mono)">
                   {thin
                     ? `p50 ${Math.round(route.p50_ms)}`
