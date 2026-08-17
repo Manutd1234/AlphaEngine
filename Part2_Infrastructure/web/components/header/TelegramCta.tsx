@@ -238,7 +238,7 @@ export default function TelegramCta() {
         </svg>
       </span>
       {mark ? <span aria-hidden className="text-[12px] leading-none">{mark}</span> : null}
-      <span className="max-[1380px]:hidden">{label}</span>
+      <span className="max-[1780px]:hidden">{label}</span>
     </>
   );
 

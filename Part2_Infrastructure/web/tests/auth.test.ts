@@ -650,8 +650,11 @@ describe("the header cannot clip its own controls", () => {
 
   it("wraps only in the band that cannot fit one row", () => {
     // Unconditional wrap costs 24px of height at 1440px for nothing: the
-    // spacer's flex:1 makes the line overfull and wraps early.
-    assert.match(css, /@media \(max-width: 1024px\) \{\s*\.workspace-header__utility \{\s*flex-wrap: wrap;/);
+    // spacer's flex:1 makes the line overfull and wraps early. The band's top
+    // is 1060px — measured as a guest with every rung of the header's priority
+    // ladder applied (header-ladder.test.ts), the last width at which even the
+    // icon-only row fits; it was 1024 when the ladder did not exist.
+    assert.match(css, /@media \(max-width: 1060px\) \{\s*\.workspace-header__utility \{\s*flex-wrap: wrap;/);
   });
 
   it("does not shrink the tab strip to buy the room", () => {

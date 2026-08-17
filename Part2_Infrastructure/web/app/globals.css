@@ -450,7 +450,9 @@ html {
   color: var(--text-muted);
 }
 
-@media (max-width: 1380px) {
+/* First rung of the header's priority ladder — the full ladder, with the
+   measurements behind it, sits under "The header's priority ladder" below. */
+@media (max-width: 1780px) {
   .header-command-button__label {
     display: none;
   }
@@ -2433,6 +2435,13 @@ tbody tr[tabindex]:focus-visible {
   font-weight: 680;
 }
 
+
+/* The providers chip carries two labels and shows one: the sentence at rest,
+   the short form on the ladder's middle rungs, neither from rung 4 down where
+   the dot alone remains. Both are the same fact; only one is ever painted. */
+.system-health__label--short {
+  display: none;
+}
 
 .system-health-action {
   min-height: 32px;
@@ -12699,9 +12708,12 @@ h4 {
    nothing to see in a screenshot taken at 1600.
 
    Most of that is paid for by the chip showing a monogram instead of the full
-   address, which reclaims about 140px and leaves the bar one row from 1050px
-   up. Below that the row genuinely cannot hold everything, so it wraps — the
-   same answer the ≤900px block already relies on, just starting earlier.
+   address, which reclaims about 140px, and by the priority ladder above
+   (labels fold rung by rung from 1780px down), which leaves the bar one row
+   from 1061px up — measured as a guest, the wider of the two rows, since
+   "Sign in" is 73px where the monogram is 32. Below that the row genuinely
+   cannot hold everything, so it wraps — the same answer the ≤900px block
+   already relies on, just starting earlier.
 
    Not `flex-wrap: wrap` unconditionally: the spacer's `flex: 1` makes the line
    overfull and wraps at widths that would otherwise have fitted, costing 24px
@@ -12711,7 +12723,7 @@ h4 {
 
    `--header-h` is measured by a ResizeObserver, so every sticky offset and
    deep-link scroll margin follows the taller bar on its own. */
-@media (max-width: 1024px) {
+@media (max-width: 1060px) {
   .workspace-header__utility {
     flex-wrap: wrap;
     /* The containing block the panels below switch to. Declared here rather
@@ -14839,11 +14851,41 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* CrossFlow drops secondary header context before it lets the workspace nav
-   clip. AlphaEngine has eight destinations, so the same rule is applied to
-   viewing preferences and status prose while their labelled controls remain
-   fully accessible through title and aria-label. */
-@media (min-width: 901px) and (max-width: 1380px) {
+/* The header's priority ladder.
+
+   `.workspace-header__utility` is `overflow-x: clip`, so a row wider than the
+   viewport does not wrap or scroll — it loses its rightmost controls, and
+   those are Settings and, for a guest, Sign in. Measured on production as a
+   guest (the widest the row gets: "Sign in" is 73px where the signed-in
+   monogram is 32), the fully-labelled row needs ~1735px, and until this pass
+   nothing collapsed above 1380px: Settings was clipped from 1722px down and
+   by 298px at 1381. Below 1380 the old band collapsed everything at once and
+   still fell 24px short at 1300 for a guest.
+
+   CrossFlow's rule stands — drop secondary context before letting the
+   workspace nav clip — but as rungs, lowest priority first, each measured to
+   land before the next clip: labels the aria-label already carries go first;
+   the decision chip's annotations go next; the brand tagline and tab padding
+   after that; the decision figure folds to its gauge; last, the Kill switch
+   and Sign in labels fold to their icons. Settings, the account chip, the
+   kill switch and the tabs themselves never go. Guest and signed-in rows are
+   one structure, so every rung holds for both.
+
+   Rung 1 (≤1780, with the Search label rule near the top of this file and
+   the Connect label's max-[1780px] in TelegramCta): the Connect and Search
+   labels, and the providers sentence becomes its short form. */
+@media (min-width: 901px) and (max-width: 1780px) {
+  .system-health__label {
+    display: none;
+  }
+
+  .system-health__label--short {
+    display: inline;
+  }
+}
+
+/* Rung 2 (≤1620): the Settings label and the decision chip's state word. */
+@media (min-width: 901px) and (max-width: 1620px) {
   .workspace-header__utility > .header-settings,
   .workspace-header__utility > .header-anchor > .header-settings {
     width: 36px;
@@ -14853,7 +14895,6 @@ html:active-view-transition .view-panel {
 
   .workspace-header__utility > .header-settings span,
   .workspace-header__utility > .header-anchor > .header-settings span,
-  .latency-chip__core,
   .latency-chip__state {
     display: none;
   }
@@ -14862,7 +14903,19 @@ html:active-view-transition .view-panel {
     grid-template-columns: auto auto;
     padding-right: 7px;
   }
+}
 
+/* Rung 3 (≤1430): the core annotation beside the decision figure. The µs
+   figure stays; the ns one is still in the title and on the Reliability tab. */
+@media (min-width: 901px) and (max-width: 1430px) {
+  .latency-chip__core {
+    display: none;
+  }
+}
+
+/* Rung 4 (≤1420): the providers chip is its dot alone — the count is one tap
+   away in Settings and the panel it opens; the aria-label keeps the sentence. */
+@media (min-width: 901px) and (max-width: 1420px) {
   .system-health-action {
     width: 44px;
     min-width: 44px;
@@ -14879,15 +14932,10 @@ html:active-view-transition .view-panel {
   }
 }
 
-@media (min-width: 901px) and (max-width: 1160px) {
-  .brand-copy small,
-  .latency-chip__copy {
+/* Rung 5 (≤1360): the brand tagline and the tabs' side padding. */
+@media (min-width: 901px) and (max-width: 1360px) {
+  .brand-copy small {
     display: none;
-  }
-
-  .latency-chip {
-    grid-template-columns: auto;
-    padding: 5px;
   }
 
   .workspace-tabs button {
@@ -14896,6 +14944,32 @@ html:active-view-transition .view-panel {
 
   .workspace-tabs button span {
     font-size: var(--fs-sm);
+  }
+}
+
+/* Rung 6 (≤1220): the decision figure folds to its gauge; the title still
+   names both planes and the Reliability tab has the numbers. */
+@media (min-width: 901px) and (max-width: 1220px) {
+  .latency-chip__copy {
+    display: none;
+  }
+
+  .latency-chip {
+    grid-template-columns: auto;
+    padding: 5px;
+  }
+}
+
+/* Rung 7 (≤1120): the Kill switch and Sign in labels fold to their icons —
+   the same fold the ≤520px rule makes, a rung earlier for the widths between
+   the last one-row fit and the 1060px wrap. Both controls keep their
+   aria-label and title; HALTED is never folded. Measured as a guest with every
+   rung above applied, the row was still 53px over at 1040px; below 1060 even
+   the icons do not fit on one row, and the wrap block takes over. */
+@media (min-width: 901px) and (max-width: 1120px) {
+  .header-kill-label,
+  .header-signin-label {
+    display: none;
   }
 }
 

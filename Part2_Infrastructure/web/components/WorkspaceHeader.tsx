@@ -177,6 +177,16 @@ export default function WorkspaceHeader({
         ? `${degraded} provider${degraded === 1 ? "" : "s"} degraded`
         : `${providersReady ?? 0}/${providersTotal} providers routable`
       : "Checking data plane";
+  // The middle rungs of the header's priority ladder (globals.css) swap the
+  // sentence for this: the count survives, the noun survives, "routable" —
+  // the qualifier the aria-label and the panel still carry — is what goes.
+  const healthLabelShort = healthUnreachable
+    ? "Health ✕"
+    : providersTotal != null
+      ? degraded
+        ? `${degraded} degraded`
+        : `${providersReady ?? 0}/${providersTotal} providers`
+      : "Checking";
   const healthNeedsAttention =
     healthUnreachable
     || degraded > 0
@@ -273,7 +283,8 @@ export default function WorkspaceHeader({
               replays one health-beat ring. Decoration only — the label beside
               it carries the state. */}
           <i aria-hidden key={healthUpdatedAt?.getTime() ?? 0} />
-          {healthLabel}
+          <span className="system-health__label">{healthLabel}</span>
+          <span className="system-health__label--short" aria-hidden>{healthLabelShort}</span>
         </button>
         <AccountChip
           onOpenPreferences={() => setSettingsSignal((n) => n + 1)}

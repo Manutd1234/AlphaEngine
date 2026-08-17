@@ -166,7 +166,10 @@ export default function KillSwitchControl({
         }
       >
         <OctagonX size={14} aria-hidden />
-        <span className={halted ? undefined : "max-[520px]:hidden"}>
+        {/* HALTED never folds: a halted desk says so in words at every width.
+            The resting label follows the header's priority ladder (globals.css)
+            and the ≤520px rule; aria-label and title carry it throughout. */}
+        <span className={halted ? undefined : "header-kill-label max-[520px]:hidden"}>
           {halted ? "HALTED" : "Kill switch"}
         </span>
       </button>

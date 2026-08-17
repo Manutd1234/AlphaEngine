@@ -124,10 +124,15 @@ export default function AccountChip({
     return (
       <a
         href="/login"
+        /* Named on the anchor, not only in the span: the label folds to the
+           icon on the header's narrowest rungs (globals.css) and at ≤520px,
+           and an unnamed link is a link a screen reader announces as "link". */
+        aria-label="Sign in"
+        title="Sign in"
         className="inline-flex items-center gap-1.5 rounded-[9px] border border-transparent px-2 py-1.5 text-[11px] font-semibold text-text-secondary no-underline hover:border-border hover:bg-surface-2"
       >
         <UserRound size={14} aria-hidden />
-        <span className="max-[520px]:hidden">Sign in</span>
+        <span className="header-signin-label max-[520px]:hidden">Sign in</span>
       </a>
     );
   }

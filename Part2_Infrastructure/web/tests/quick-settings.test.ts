@@ -81,8 +81,8 @@ describe("the gear replaces the two loose buttons", () => {
     assert.match(code(panel), /className="icon header-settings"/);
     assert.match(code(panel), /className="header-anchor"/);
     assert.match(css, /\.workspace-header__utility > \.header-anchor > \.header-settings \{/);
-    // The collapse band between 901 and 1380px drops the label; without this
-    // the gear keeps a 96px minimum and squeezes the nav instead.
+    // Rung 2 of the header's priority ladder (901–1620px) drops the label;
+    // without this the gear keeps a 96px minimum and squeezes the nav instead.
     assert.match(css, /\.workspace-header__utility > \.header-anchor > \.header-settings span,/);
   });
 });
@@ -134,7 +134,7 @@ describe("the panel behaves like the house dropdown", () => {
      * — off the screen, and then clipped by the row's own `overflow-x: clip`.
      * The panel was the right size in the wrong place.
      */
-    const wrapped = css.slice(css.indexOf("@media (max-width: 1024px)"));
+    const wrapped = css.slice(css.indexOf("@media (max-width: 1060px)"));
     // `static` is the whole mechanism: it hands the panel's containing block
     // from the trigger to the row, so the offset below is measured from an edge
     // that does not move when the row wraps.
