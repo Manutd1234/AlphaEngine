@@ -262,11 +262,10 @@ committed-tree guard and the journey probe on every push.
 
 ---
 
-## Submission contents
+## Navigating the Repo
 
 | Item | File |
 |---|---|
-| CV | `CV_Ian_Wangsa.pdf` — belongs at the root of this folder before zipping |
 | How to run any of it | [`SETUP.md`](SETUP.md) |
 | Part 1 notebook (HTML export) | `Part1_Data_Handling/Part1_Data_Handling.html` |
 | Part 1 notebook (source) | `Part1_Data_Handling/Part1_Data_Handling.ipynb` |
