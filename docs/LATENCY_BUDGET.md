@@ -433,11 +433,14 @@ Separate budget, and much less demanding.
   snapshots and publishing to React at 5 Hz. One hop, no backend. Routing this
   through the gateway would make it slower, not faster.
 * **Portfolio, P&L and risk are the stale ones**, and the cause is server-side:
-  the gateway re-marks the book every 5 s (`risk_proxy.py`, `_monitor_loop`),
-  and the browser polls at 4 s / 5 s / 15 s. Worst case ≈ 20 s.
-* **The fix is ordered.** Tightening the poll before the 5 s recompute would
-  deliver the same stale number more often. The recompute is split first, then
-  the transport.
+  the gateway re-marks the book every 1 s (`risk_proxy.py`, `_monitor_loop`,
+  `RISK_MONITOR_INTERVAL_S` — it was 5 s, and the tick is arithmetic over an
+  in-memory book, so 1 s costs almost nothing and the breaker trips up to four
+  seconds sooner), and the browser polls at 4 s / 5 s / 15 s. Worst case ≈ 16 s,
+  and the polls are now the floor.
+* **The fix was ordered.** Tightening the poll before the recompute would have
+  delivered the same stale number more often — so the recompute was split
+  first (done, the 1 s above), then the transport.
 * **A browser cannot open an `EventSource` to the gateway directly.** The page
   is HTTPS and the gateway is `http://…:8000`; that is blocked as mixed content
   with no override. (The Caddy sidecar on `:8443` does not change this: its

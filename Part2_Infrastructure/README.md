@@ -156,7 +156,7 @@ out-of-sample Sharpe gets a red FAIL, not a green tick.
 | Checks that are strict, visible and hard to bypass | 15 pre-trade gates on the single order path; the full vector is audited for accepts *and* rejects |
 | Limits that a compromised service cannot move | Limits are a frozen dataclass in `config.py` — changing one is a code change, a review and a deploy |
 | A graduated response, not a cliff | Reduce-only mode from 80% of the drawdown budget: closing orders pass, opening orders do not. A desk in trouble needs a way *out* |
-| Exposure, concentration and drawdown continuously | Live from the gateway, marked to market every 5 s by the same loop that trips the breaker |
+| Exposure, concentration and drawdown continuously | Live from the gateway, marked to market every 1 s by the same loop that trips the breaker |
 | Tail risk, not just variance | Parametric **and** historical VaR/CVaR side by side — where they diverge is the fat tail the normal model cannot see |
 | **Do I trust my own VaR?** | Kupiec proportion-of-failures backtest with a Basel traffic light. The forecast is re-fitted on a rolling window and scored on the *next* bar, never on data it was fitted to |
 | Scenario loss on today's book | Named historical scenarios with **measured** betas. Every leg reports how its move was decided — explicit shock, measured beta, the scenario's blanket assumption, or left flat because none of those applied — so an assumption can never be read as a measurement |
@@ -694,7 +694,8 @@ would be the same mistake as reporting a missing number as zero.
    this get through?" without re-running anything. A rejection returns HTTP 200 —
    it is a business outcome, not an error.
 3. **The breaker is automatic.** A background monitor marks positions to market
-   every 5s and trips the kill switch itself at the drawdown limit, with a warning
+   every 1 s (`RISK_MONITOR_INTERVAL_S`; it was 5 s) and trips the kill switch
+   itself at the drawdown limit, with a warning
    alert at 80% of budget. No human required.
 4. **Limits live in code with env overrides.** A limit that a compromised service
    can mutate at runtime is not a limit. `Settings` is a frozen dataclass; changing
