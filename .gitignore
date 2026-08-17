@@ -27,6 +27,11 @@ Thumbs.db
 # ── Python (scoped to the gateway) ───────────────────────────────────────────
 /Part2_Infrastructure/venv/
 /Part2_Infrastructure/.venv/
+
+# ── Part 1 notebook (venv and the assessment's own workbook — never commit) ──
+/Part1_Data_Handling/venv/
+/Part1_Data_Handling/.venv/
+/Part1_Data_Handling/NUSSIF_2026_INFRA_ASSESSMENT.xlsx
 /Part2_Infrastructure/build/
 /Part2_Infrastructure/dist/
 /Part2_Infrastructure/.eggs/
