@@ -36,7 +36,9 @@ decision label. Before the first order of a session it reads `— · core N ns �
 the core figure is real, because the gateway times its own compiled battery at startup on a
 synthetic two-venue book, and the title says exactly that. The row never clips: a
 nine-rung **priority ladder** (`globals.css`, "The header's priority ladder") folds secondary
-context first as the viewport narrows — Search label, the chip's state word, the Settings
+context first as the viewport narrows (re-measured by script for the 2026-08-17 chrome lift;
+the reader's Text-size preference under the gear scales the workspace and never this row) —
+Search label, the chip's state word, the Settings
 label, the data-tier label, the Connect label, the providers chip to its dot, the brand
 tagline, the decision figure to its gauge, and last the Kill switch and Sign in labels — and
 Settings, the account chip, the kill switch and the tabs are never on it. Every fold keeps

@@ -80,6 +80,11 @@ These are enforced by tests, not by convention — `web/tests/house-rules.test.t
   that animate in JS (`NumberTicker`) check the query themselves.
 - **Empty results are reported, not hidden.** A panel with nothing to show says
   so; it does not render as though it were still loading.
+- **Type reads the ladder, never a literal.** Sizes are the `--fs-*` rungs in
+  `globals.css` (rem × `--type-step`, fluid), reached from components as
+  `text-fs-*` utilities or `var(--fs-*)`; the header uses the fixed
+  `--fs-chrome-*` tokens and its priority ladder is re-measured with
+  `web/scripts/header-ladder-measure.mjs` whenever they change.
 - **The middle dot is not a word.** Never on a heading, kicker, `<summary>`,
   label, section note, button, pill or aria-label; notes and captions are prose
   (comma list for peer facts, semicolon for a qualifier, words for a two-part
