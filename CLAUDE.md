@@ -46,10 +46,10 @@ exits 1 with `Gateway OpenAPI digest is stale`. That is the contract between two
 separately deployed units asserting itself, not a build failure. If you changed
 a gateway route, regenerate the snapshot (`python tools/export_openapi.py`) and
 update the digest module deliberately. The second refuses to build if the
-committed repository manifest (`lib/codebase-manifest.generated.json`) no longer
+committed repository manifest (`lib/repository-manifest.generated.json`) no longer
 matches the tree — `npm run catalog:refresh` regenerates it, and CI's
-"Committed test counts match the suite" step does the same for
-`lib/test-counts.generated.ts` (`npm run counts:refresh`).
+"Committed test counts match the suite" step (`scripts/check-test-counts.mjs`) checks
+`lib/test-counts.generated.ts` against the run it just made (`npm run counts:refresh` regenerates it).
 
 ## House rules
 
