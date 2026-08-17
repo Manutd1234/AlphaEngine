@@ -72,8 +72,11 @@ def test_route_envelopes_and_normalizes_inputs(monkeypatch):
         seen["bars"] = (symbol, asset, interval, limit)
         return [{"date": "2026-01-01", "close": 101.0}]
 
+    news_calls: list[tuple[list[str], int]] = []
+
     async def fake_news(symbols: list[str], limit: int):
-        seen["news"] = (symbols, limit)
+        news_calls.append((symbols, limit))
+        seen["news"] = tuple(news_calls)
         return [{"title": "Update", "url": "https://example.test/story"}]
 
     async def fake_fundamentals(symbol: str):
@@ -95,6 +98,9 @@ def test_route_envelopes_and_normalizes_inputs(monkeypatch):
         news_response = client.get(
             "/api/research/openbb/news?symbols=aapl,msft,goog,amzn,meta,nvda,tsla&limit=5"
         )
+        crypto_news_response = client.get(
+            "/api/research/openbb/news?symbols=btcusdt,ethusd,sol-usd&asset=crypto&limit=5"
+        )
         fundamentals_response = client.get(
             "/api/research/openbb/fundamentals?symbol=msft"
         )
@@ -102,11 +108,18 @@ def test_route_envelopes_and_normalizes_inputs(monkeypatch):
     assert quote_response.json()["ok"] is True
     assert bars_response.json()["ok"] is True
     assert news_response.json()["ok"] is True
+    assert crypto_news_response.json()["ok"] is True
     assert fundamentals_response.json()["ok"] is True
     assert seen == {
         "quote": ("AAPL", "equity"),
         "bars": ("BTCUSDT", "crypto", "4h", 10),
-        "news": (["AAPL", "MSFT", "GOOG", "AMZN", "META", "NVDA"], 5),
+        # Equity symbols pass through upper-cased and capped at six; a crypto
+        # list is spelled the way YFinance names a pair, `BTC-USD`, before it
+        # reaches the provider — a bare BTCUSDT used to reach Yahoo verbatim.
+        "news": (
+            (["AAPL", "MSFT", "GOOG", "AMZN", "META", "NVDA"], 5),
+            (["BTC-USD", "ETH-USD", "SOL-USD"], 5),
+        ),
         "fundamentals": "MSFT",
     }
 

@@ -12,6 +12,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.responses import JSONResponse
 from provider import (
     ProviderUnavailable,
+    _crypto_symbol,
     bars,
     fundamentals,
     news,
@@ -139,11 +140,16 @@ async def openbb_bars(
 async def openbb_news(
     symbols: Annotated[str, Query(max_length=200)] = "",
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    asset: Annotated[str, Query(pattern=r"^(equity|crypto)$")] = "equity",
 ) -> dict[str, Any]:
     parsed = [item.strip().upper() for item in symbols.split(",") if item.strip()]
     if any(len(item) > 20 or not SYMBOL_RE.fullmatch(item) for item in parsed):
         raise HTTPException(status_code=422, detail="invalid symbol list")
     parsed = parsed[:6]
+    # YFinance names a pair `BTC-USD`. Quote and bars already spell it that
+    # way; news sent the caller's `BTCUSDT` verbatim and found nothing.
+    if asset == "crypto":
+        parsed = [_crypto_symbol(item) for item in parsed]
     return await _envelope("news", lambda: news(parsed, limit))
 
 

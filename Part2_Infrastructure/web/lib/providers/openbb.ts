@@ -20,6 +20,7 @@
  */
 
 import { arr, iso, isoOrNow, num, obj, str } from "./parse";
+import { classify } from "./symbols";
 import {
   Adapter,
   AssetClass,
@@ -134,8 +135,12 @@ export const openbb: Adapter = {
   },
 
   async news(symbols: string[], limit: number, ctx: FetchCtx): Promise<NewsItem[]> {
+    // The service maps a crypto pair to YFinance's `BTC-USD` only when told
+    // the asset class; a bare `BTCUSDT` reaches Yahoo verbatim and finds
+    // nothing.
+    const asset = symbols.length ? classify(symbols[0]) : "equity";
     const o = assertOk(
-      await serviceRequest(ctx, "news", { symbols: symbols.join(","), limit: String(limit) }),
+      await serviceRequest(ctx, "news", { symbols: symbols.join(","), limit: String(limit), asset }),
     );
     return arr(o["data"])
       .map((row): NewsItem | null => {

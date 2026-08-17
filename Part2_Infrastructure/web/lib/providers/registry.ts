@@ -86,7 +86,8 @@ import { classify } from "./symbols";
 
 export function candidatesFor(capability: Capability, asset: AssetClass): Adapter[] {
   return ADAPTERS.filter(
-    (a) => a.meta.capabilities.includes(capability) && a.meta.assets.includes(asset),
+    (a) => a.meta.capabilities.includes(capability)
+      && (a.meta.capabilityAssets?.[capability] ?? a.meta.assets).includes(asset),
   ).sort((a, b) => (a.meta.rank[capability] ?? 99) - (b.meta.rank[capability] ?? 99));
 }
 

@@ -44,6 +44,21 @@ export function isValidSymbol(symbol: string): boolean {
   return EQUITY_SYMBOL_RE.test(s) || PAIR_SYMBOL_RE.test(s);
 }
 
+/**
+ * The base asset of a crypto pair — `BTCUSDT` → `BTC`, `SOLUSDC` → `SOL` — or
+ * null for anything `classify` does not call crypto. Alpha Vantage's news
+ * endpoint wants `CRYPTO:BTC`, YFinance wants `BTC-USD`; both start here.
+ */
+export function cryptoBase(symbol: string): string | null {
+  const s = symbol.toUpperCase();
+  for (const q of CRYPTO_QUOTES) {
+    if (s.length > q.length && s.endsWith(q) && CRYPTO_BASES.has(s.slice(0, -q.length))) {
+      return s.slice(0, -q.length);
+    }
+  }
+  return null;
+}
+
 /** `BTCUSDT` → `BTCUSD`: most equity-first vendors quote crypto against USD. */
 export function usdPair(symbol: string): string {
   const s = symbol.toUpperCase();

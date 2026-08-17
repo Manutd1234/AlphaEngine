@@ -18,6 +18,7 @@
  */
 
 import { arr, iso, isoOrNow, num, obj, pctChange, str } from "./parse";
+import { classify } from "./symbols";
 import {
   Adapter,
   AssetClass,
@@ -69,6 +70,11 @@ export const massive: Adapter = {
     docs: "https://massive.com/docs",
     capabilities: ["quote", "bars", "news", "fundamentals"],
     assets: ["equity", "crypto", "fx"],
+    // Massive documents `/v2/reference/news` under Stocks only (docs index,
+    // Aug 2026); there is no crypto news endpoint we can verify an
+    // entitlement for, so the crypto news chain does not include us. `news()`
+    // still spells a crypto ticker the vendor's way in case this flips.
+    capabilityAssets: { news: ["equity"] },
     keyEnv: "MASSIVE_API_KEY",
     baseUrlEnv: "MASSIVE_BASE_URL",
     // A burst cap, not a volume cap: 5/minute on the free tier.
@@ -182,7 +188,7 @@ export const massive: Adapter = {
 
   async news(symbols: string[], limit: number, ctx: FetchCtx): Promise<NewsItem[]> {
     const q = new URLSearchParams({ limit: String(Math.min(1_000, Math.max(1, limit))) });
-    if (symbols.length) q.set("ticker", symbols[0].toUpperCase());
+    if (symbols.length) q.set("ticker", ticker(symbols[0], classify(symbols[0])));
 
     const o = assertOk(await ctx.json(`${ctx.baseUrl}/v2/reference/news?${q}`, auth(ctx)));
     return arr(o["results"])

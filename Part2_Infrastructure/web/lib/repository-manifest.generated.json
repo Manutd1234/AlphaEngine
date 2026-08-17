@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-17",
-  "commit": "79ec339",
+  "commit": "f976bef",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -482,6 +482,7 @@
     "Part2_Infrastructure/web/scripts/verify-oracle.mjs",
     "Part2_Infrastructure/web/tests/accent-budget.test.ts",
     "Part2_Infrastructure/web/tests/account-schema.test.ts",
+    "Part2_Infrastructure/web/tests/adapter-symbols.test.ts",
     "Part2_Infrastructure/web/tests/allocation-donut.test.ts",
     "Part2_Infrastructure/web/tests/api-catalogue.test.ts",
     "Part2_Infrastructure/web/tests/artifact-signing-key.test.ts",

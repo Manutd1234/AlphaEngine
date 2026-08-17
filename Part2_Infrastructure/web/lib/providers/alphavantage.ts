@@ -14,6 +14,7 @@
  */
 
 import { arr, iso, isoOrNow, num, obj, pctChange, str } from "./parse";
+import { classify, cryptoBase } from "./symbols";
 import {
   Adapter,
   AssetClass,
@@ -173,7 +174,20 @@ export const alphavantage: Adapter = {
       function: "NEWS_SENTIMENT",
       limit: String(Math.min(1000, Math.max(1, limit))),
     };
-    if (symbols.length) params.tickers = symbols.join(",");
+    // NEWS_SENTIMENT namespaces non-equity tickers: `tickers=COIN,CRYPTO:BTC,
+    // FOREX:USD` (the vendor's own example). A bare `BTCUSDT` is not an
+    // error — it is an empty feed with HTTP 200, which read as "no stories
+    // for this symbol" until the spelling was fixed here.
+    if (symbols.length) {
+      params.tickers = symbols
+        .map((symbol) => {
+          const base = cryptoBase(symbol);
+          if (base) return `CRYPTO:${base}`;
+          if (classify(symbol) === "fx") return `FOREX:${symbol.toUpperCase().slice(0, 3)}`;
+          return symbol.toUpperCase();
+        })
+        .join(",");
+    }
 
     const o = assertOk(await ctx.json(query(ctx, params)));
     return arr(o["feed"])

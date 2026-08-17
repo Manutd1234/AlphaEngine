@@ -193,3 +193,14 @@ def test_service_uses_direct_provider_fetchers_only():
     assert "openbb-yfinance==1.6.3" in requirements
     assert "yfinance==1.5.2" in requirements
     assert not any(line.startswith("openbb==") for line in requirements)
+
+
+def test_crypto_symbol_spells_pairs_the_yfinance_way():
+    from provider import _crypto_symbol
+
+    # The mapping news now shares with quote and bars: stablecoin quotes fold
+    # to USD, an already-hyphenated pair is left alone, an equity is untouched.
+    assert _crypto_symbol("BTCUSDT") == "BTC-USD"
+    assert _crypto_symbol("ethusd") == "ETH-USD"
+    assert _crypto_symbol("SOL-USD") == "SOL-USD"
+    assert _crypto_symbol("AAPL") == "AAPL"

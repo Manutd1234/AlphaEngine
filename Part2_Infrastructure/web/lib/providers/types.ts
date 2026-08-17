@@ -57,6 +57,12 @@ export interface ProviderMeta {
   docs: string;
   capabilities: Capability[];
   assets: AssetClass[];
+  /**
+   * Narrows `assets` for one capability; absent means `assets` applies. For a
+   * vendor that serves crypto prices but documents its news feed for equities
+   * only, so the crypto news chain never asks it.
+   */
+  capabilityAssets?: Partial<Record<Capability, AssetClass[]>>;
   /** Env var holding the credential. Absent from the environment ⇒ not configured. */
   keyEnv: string;
   /** Optional env var overriding the base URL (self-hosted OpenBB, Massive's legacy polygon.io host). */

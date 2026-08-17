@@ -12,6 +12,7 @@
  */
 
 import { arr, iso, isoOrNow, num, obj, pctChange, str } from "./parse";
+import { classify } from "./symbols";
 import {
   Adapter,
   AssetClass,
@@ -185,7 +186,10 @@ export const tiingo: Adapter = {
 
   async news(symbols: string[], limit: number, ctx: FetchCtx): Promise<NewsItem[]> {
     const q = new URLSearchParams({ limit: String(Math.min(100, Math.max(1, limit))) });
-    if (symbols.length) q.set("tickers", symbols.join(",").toLowerCase());
+    // The same spelling the quote and bars paths use for a pair: `btcusd`.
+    if (symbols.length) {
+      q.set("tickers", symbols.map((s) => (classify(s) === "crypto" ? cryptoTicker(s) : s.toLowerCase())).join(","));
+    }
 
     const rows = arr(await ctx.json(`${ctx.baseUrl}/tiingo/news?${q}`, auth(ctx)));
     return rows
