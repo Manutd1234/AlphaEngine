@@ -63,7 +63,9 @@ export const tiingo: Adapter = {
     baseUrlEnv: "TIINGO_BASE_URL",
     quota: { calls: 1_000, window: "day", reserve: 0.15 },
     // bars 2 -> 3: see the note in massive.ts. Relative order preserved.
-    rank: { quote: 2, bars: 3, news: 1 },
+    // news 1 -> 2 (2026-08-17): the free plan answers 403 for it, and OpenBB
+    // now leads; a licensed key would still be asked before Alpha Vantage.
+    rank: { quote: 2, bars: 3, news: 2 },
     signup: "Free key at tiingo.com — 1,000 requests/day, personal use.",
   },
 

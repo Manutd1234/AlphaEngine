@@ -86,7 +86,9 @@ export const massive: Adapter = {
     // and equal ranks resolve by position in the ADAPTERS array — a keyed
     // vendor and a keyless venue silently swapping places based on an import
     // list is not a decision anyone would find later.
-    rank: { quote: 3, bars: 2, news: 3, fundamentals: 2 },
+    // news 3 -> 4 (2026-08-17): behind Alpha Vantage, which is known to
+    // answer; this endpoint's entitlement on the desk's key is unmeasured.
+    rank: { quote: 3, bars: 2, news: 4, fundamentals: 2 },
     signup: "Free key at massive.com — 5 requests/minute, end-of-day data.",
   },
 

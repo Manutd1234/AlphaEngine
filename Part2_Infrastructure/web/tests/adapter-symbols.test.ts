@@ -99,3 +99,19 @@ describe("Tiingo news", () => {
     assert.match(urls[0], /tickers=btcusd%2Caapl/);
   });
 });
+
+describe("the news chain leads with the feed that answers", () => {
+  // Measured against production on 2026-08-17: Tiingo 403, FMP 402 (news is
+  // not in either free plan), Massive equities-only, Alpha Vantage answers
+  // but has 25 calls a day for every capability it backs. OpenBB/YFinance
+  // news is free and uncapped and serves a pair as BTC-USD, so it goes first;
+  // Alpha Vantage stays as the fallback that carries sentiment.
+  it("OpenBB first, Tiingo (if ever licensed) second, Alpha Vantage third", () => {
+    const crypto = candidatesFor("news", "crypto").map((a) => a.meta.id);
+    assert.deepEqual(crypto.slice(0, 3), ["openbb", "tiingo", "alphavantage"]);
+    assert.ok(!crypto.includes("massive"));
+    assert.equal(crypto[crypto.length - 1], "fmp", "the plan-restricted endpoint is asked last");
+    const equity = candidatesFor("news", "equity").map((a) => a.meta.id);
+    assert.deepEqual(equity.slice(0, 3), ["openbb", "tiingo", "alphavantage"]);
+  });
+});

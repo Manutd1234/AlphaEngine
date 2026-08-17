@@ -80,7 +80,13 @@ export const openbb: Adapter = {
     // Whatever OpenBB's downstream limits are, they are the downstream's. We do
     // not model a budget we cannot observe.
     quota: null,
-    rank: { quote: 6, bars: 6, news: 5, fundamentals: 4 },
+    // News first, measured on 2026-08-17: on the desk's keys Tiingo answers
+    // 403 and FMP 402 (news is not in either plan), Massive documents news
+    // for equities only, and Alpha Vantage — the one that does answer — has
+    // twenty-five calls a day for every capability it backs. YFinance news
+    // through this service is free, uncapped, and serves a pair as BTC-USD.
+    // Alpha Vantage stays behind it as the fallback that carries sentiment.
+    rank: { quote: 6, bars: 6, news: 1, fundamentals: 4 },
     signup: "Deploy OpenBB_Service and set OPENBB_API_URL to its stable HTTPS origin.",
   },
 

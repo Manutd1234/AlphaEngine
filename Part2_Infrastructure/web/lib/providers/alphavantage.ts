@@ -78,7 +78,10 @@ export const alphavantage: Adapter = {
     // A 40% reserve on 25 calls leaves 10 for a person. Higher than the others
     // because the allowance is so small that a single auto-refreshing panel
     // would otherwise own the whole day.
-    rank: { quote: 5, bars: 5, fundamentals: 3, news: 2 },
+    // news 2 -> 3 (2026-08-17): behind OpenBB and Tiingo. Twenty-five calls a
+    // day back every capability here; the free, uncapped feed goes first and
+    // this one answers — with sentiment — when it does not.
+    rank: { quote: 5, bars: 5, fundamentals: 3, news: 3 },
     signup: "Free key at alphavantage.co/support/#api-key — 25 requests/day.",
   },
 

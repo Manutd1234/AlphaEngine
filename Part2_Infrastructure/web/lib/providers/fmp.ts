@@ -49,7 +49,10 @@ export const fmp: Adapter = {
     baseUrlEnv: "FMP_BASE_URL",
     quota: { calls: 250, window: "day", reserve: 0.2 },
     // bars 3 -> 4: see the note in massive.ts. Relative order preserved.
-    rank: { quote: 1, bars: 4, fundamentals: 1, news: 4 },
+    // news 4 -> 5 (2026-08-17): the current plan answers 402 for both news
+    // endpoints (measured), so it is asked last; the runtime learns the
+    // refusal and skips it without a call.
+    rank: { quote: 1, bars: 4, fundamentals: 1, news: 5 },
     signup: "Free key at financialmodelingprep.com — 250 requests/day.",
   },
 

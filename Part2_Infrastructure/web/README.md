@@ -378,15 +378,17 @@ public endpoints; each key adds capability without touching code.
 | Provider | Capabilities | Free tier assumed | Env var |
 |---|---|---|---|
 | Binance (public) | crypto quote, bars | keyless | — |
-| Financial Modeling Prep | quote¹, fundamentals¹, bars, news | 250/day | `FMP_API_KEY` |
-| Tiingo | quote, bars, news¹ (IEX + crypto) | 1,000/day | `TIINGO_API_KEY` |
-| Massive (ex-Polygon.io) | bars¹, quote, news, reference | 5/min, EOD | `MASSIVE_API_KEY` |
+| Financial Modeling Prep | quote¹, fundamentals¹, bars, news² | 250/day | `FMP_API_KEY` |
+| Tiingo | quote, bars, news² (IEX + crypto) | 1,000/day | `TIINGO_API_KEY` |
+| Massive (ex-Polygon.io) | bars¹, quote, news (equities), reference | 5/min, EOD | `MASSIVE_API_KEY` |
 | Alpha Vantage | quote, bars, fundamentals, news+sentiment | 25/day | `ALPHAVANTAGE_API_KEY` |
 | Firecrawl | web search¹, scrape¹ | 1,000 credits/mo | `FIRECRAWL_API_KEY` |
-| OpenBB | stateless OpenBB/YFinance service | n/a | `OPENBB_API_URL` + `OPENBB_API_TOKEN` |
+| OpenBB | stateless OpenBB/YFinance service — news¹ (free, uncapped) | n/a | `OPENBB_API_URL` + `OPENBB_API_TOKEN` |
 
-¹ = ranked first for that capability. Full signup pointers in
-[`.env.example`](.env.example).
+¹ = ranked first for that capability. ² = declared, and on the free plans it
+answers 403/402 — the runtime learns the refusal per capability and skips it
+without a call for a day; a licensed key would simply start answering. Full
+signup pointers in [`.env.example`](.env.example).
 
 The reliability layer (`lib/providers/runtime.ts`) is what makes seven flaky
 free tiers behave like one dependable feed:
