@@ -11,6 +11,28 @@ Two parts, in two directories. Start with whichever question you came for.
 | **Part 1** | What is wrong with 298 rows of LLM usage data, and what does the spend actually tell you? | [`Part1_Data_Handling/`](Part1_Data_Handling/) |
 | **Part 2** | **AlphaEngine** — infrastructure a quant desk runs on, built end to end | [`Part2_Infrastructure/`](Part2_Infrastructure/) |
 
+### Start here, with ten minutes
+
+- **What it is:** the [Part 2 summary below](#part-2--alphaengine) — one paragraph, three modules, and
+  [`docs/FEATURE_TOUR.md`](docs/FEATURE_TOUR.md) when a walkthrough beats a summary.
+- **See it running:** the desk at <https://alphaengine-workspace.vercel.app> ("Continue as guest" — no
+  account needed) and the gateway's own `GET /health` at `http://149.118.48.255:8000/health`.
+- **Judge the engineering from three files:** the seventeen-gate battery in
+  [`Part2_Infrastructure/modules/risk_proxy.py`](Part2_Infrastructure/modules/risk_proxy.py), the C++
+  core that reproduces it bit-for-bit in
+  [`Part2_Infrastructure/native/decision_core/decision_core.cpp`](Part2_Infrastructure/native/decision_core/decision_core.cpp)
+  (its header comment is the design document), and the fixture that pins them to each other in
+  [`Part2_Infrastructure/web/tests/fixtures/gate-parity.json`](Part2_Infrastructure/web/tests/fixtures/gate-parity.json).
+- **Verify the claims rather than trusting them:** the [verify block below](#verify-it-end-to-end) runs
+  everything offline; `web/lib/test-counts.generated.ts` is the dated record of what the runners printed.
+
+**The headline numbers, all re-measured 2026-08-17:** 832 gateway + 2,313 web + 13 service tests, none
+skipped and none needing a network; 17 pre-trade gates (15 reachable by any order), decided in ~15 µs on
+the compiled engine with the arithmetic core at 83 ns (dev Mac; ~320 ns on the production VM); 20/20
+gate-parity scenarios bit-exact across both engines; 114 Telegram commands from one generated catalogue;
+and the deployed gateway's live `/openapi.json` confirmed byte-identical to the committed contract that
+same day.
+
 ### Where each concern lives
 
 | Concern | Directory | Why it is there and not somewhere tidier |
@@ -31,6 +53,32 @@ Supabase CLI, GitHub Actions, uvicorn, pytest — rather than chosen for looks. 
 `frontend/ backend/ database/` reshuffle would read tidier in a file listing and
 would break four separate deployments, so the layout follows the tools and this
 table does the explaining instead.
+
+### The map
+
+What is where — 633 tracked files (`git ls-files | wc -l`, 2026-08-17), two levels deep. The table
+above explains *why* each path is where it is; this is the *what*:
+
+```
+├── README.md · SETUP.md · CLAUDE.md      this file; the running instructions; the agent notes
+├── docs/                                 FEATURE_TOUR · LATENCY_BUDGET (+ generated bench) · UI_IMPROVEMENTS · TLS_FLIP
+├── docker-compose.yml                    one-command always-on gateway
+├── .github/workflows/                    ci · deploy (gateway CD) · e2e · schema · two keepalives
+├── Part1_Data_Handling/                  the notebook (ipynb + executed HTML), its builder, its README
+├── Part2_Infrastructure/                 582 files — the platform
+│   ├── main.py · config.py · modules/    the FastAPI risk gateway: routes, limits, the 17-gate battery
+│   ├── native/decision_core/             the C++ (pybind11) decision core — bit-exact vs Python
+│   ├── tests/                            35 pytest suites (832 tests)
+│   ├── tools/                            fixture generators, OpenAPI export, bench, probes, Telegram catalogue
+│   ├── docker/                           the two-stage gateway image (builder compiles the core)
+│   ├── docs/                             RUNBOOK · telegram-live-checklist
+│   ├── web/                              the Next.js desk (446 files: app/ · components/ · lib/ · 126 test files)
+│   ├── OpenBB_Service/                   the stateless research service (own pyproject, 13 tests)
+│   ├── developer-console/                experimental; not part of the assessed deliverable
+│   └── notebooks/ · templates/           research template; the gateway's single-file console
+├── supabase/                             16 migrations, seed, 2 edge functions — the Postgres mirror + RAG
+└── oracle/                               plain DDL: schema, in-DB Monte Carlo VaR, least-privilege user
+```
 
 ---
 
