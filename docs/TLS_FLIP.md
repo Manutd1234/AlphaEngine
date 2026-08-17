@@ -10,6 +10,16 @@ keeps serving throughout, so nothing breaks while the flip is partial.
 Everything below is deliberate operator action — none of it happens
 automatically.
 
+**Where the flip stands (2026-08-17).** Step 2 is done: the root is committed at
+`Part2_Infrastructure/web/certs/gateway-ca.pem` (since 2026-08-11). Step 1 is
+done: `https://149.118.48.255:8443/health` answered from outside the VM on
+2026-08-17, as did `:8000`. Steps 3–5 are Vercel-side settings and cannot be
+read from this repository — verify them with §4 rather than assuming; the
+`reachable` job's notice line says which state it found. Nothing here is
+load-bearing until step 3 is made: the workspace keeps talking to `:8000`
+exactly as before, and the smoke tool's default `E2E_GATEWAY_URL` is still the
+plaintext port.
+
 ## 1. Open ingress TCP 8443
 
 OCI Console → Networking → your VCN → Security List: add an ingress rule for
@@ -23,8 +33,8 @@ notice (never a failure) until this is open.
 
 ## 2. Copy the pinned root certificate
 
-Open the latest **Deploy** run → job *"Ship the gateway to the OCI VM"* → step
-*"TLS sidecar — Caddy with a pinned internal CA on :8443"*. The step ends by
+Open the latest **Deploy gateway to OCI** run → job *"Swap the container on
+the OCI VM"* → step *"TLS sidecar — Caddy with a pinned internal CA on :8443"*. The step ends by
 printing the CA root certificate (`-----BEGIN CERTIFICATE----- …`). This is a
 public certificate; printing and committing it is the point.
 
@@ -49,7 +59,9 @@ Oracle and every other TLS peer verify exactly as before. If the path is ever
 wrong, Node logs a boot warning and gateway calls fail with
 `gateway_unreachable` (a certificate error, honestly reported) — flip
 `ALPHAENGINE_GATEWAY_URL` back to `http://<IP>:8000` and nothing else is
-affected.
+affected. `web/lib/gateway.ts` names each failure separately — an untrusted
+root, `https://` aimed at the plaintext port, a handshake failure — so the
+Reliability tab says which one happened rather than a bare `unreachable`.
 
 Redeploy the web project (any push, or "Redeploy" in the dashboard).
 
