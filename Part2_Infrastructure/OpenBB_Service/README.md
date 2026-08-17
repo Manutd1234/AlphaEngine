@@ -31,7 +31,11 @@ fail over to another data provider. Invalid caller input remains HTTP 422.
 
 `GET /healthz` is an unauthenticated process-liveness route. It does not claim
 that Yahoo is reachable. The OpenBB readiness route imports and verifies the
-pinned provider classes.
+pinned provider classes. In production,
+`.github/workflows/openbb-keepalive.yml` pings `/healthz` every ten minutes to
+hold the function warm — a cold start pays the OpenBB import in full, and that
+multi-second sample would otherwise land honestly in the desk's upstream
+latency tail.
 
 ## Authentication
 
@@ -48,7 +52,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt
 uvicorn app:app --reload --port 8010
-pytest
+pytest        # 13 passed (2026-08-17)
 ```
 
 The automated tests replace the provider fetchers with deterministic fakes and
