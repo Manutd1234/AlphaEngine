@@ -14,9 +14,10 @@ to the browser. A separate stateless OpenBB service adds quotes, bars, news and
 fundamentals. Provider keys (also optional) extend coverage through the
 seven-provider registry — see [Data providers](#data-providers).
 
-The Telegram companion is a separate text-only notification client. The header
-carries a one-way deep link out to it, but the web workspace never embeds it and
-never authenticates through it, and the bot never opens or controls this UI.
+The Telegram companion is a separate client — text cards, charts and inline
+keyboards on a phone, 114 commands. The header carries a one-way deep link out
+to it (**Connect**), but the web workspace never embeds it and never
+authenticates through it, and the bot never opens or controls this UI.
 
 ---
 
@@ -89,7 +90,8 @@ npm install
 npm run dev        # http://localhost:3000 (Turbopack)
 npm run build      # Turbopack production build
 npm run typecheck  # tsc --noEmit
-npm test           # 2,174 tests across 548 suites, no network required
+npm test           # 2,313 tests across 592 suites, no network required (2026-08-17;
+                   # lib/test-counts.generated.ts records the figure and CI checks it)
 ```
 
 Built on **Next.js 16** with **Turbopack**, which is the default bundler for both
@@ -450,7 +452,7 @@ web/
 │   ├── globals.css           design tokens (palette, light + dark)
 │   ├── login/page.tsx        optional sign-in — outside the workspace shell
 │   ├── profile/page.tsx      account and security centre — the other one
-│   └── api/                  32 routes. Re-derive: find app/api -name route.ts
+│   └── api/                  32 routes (2026-08-17). Re-derive: find app/api -name route.ts
 │       │                     This list read 11 for a long time, having been
 │       │                     written when it was true and never rebuilt; every
 │       │                     route added since — the whole gateway proxy, auth,
@@ -468,7 +470,7 @@ web/
 │       ├── providers/route.ts  supply-chain health: keys, quotas, breakers
 │       ├── favourites/route.ts pinned runs, per identity
 │       ├── auth/             guest · login · logout · session — 4 routes
-│       ├── gateway/          the risk gateway proxy — 7 routes
+│       ├── gateway/          the risk gateway proxy — 9 routes
 │       │   ├── risk/route.ts   halt · resume · flatten, and the reachability probe
 │       │   ├── orders/         submit · working · [id]/cancel · [id]/replace
 │       │   ├── portfolio/      book, and history
@@ -497,7 +499,11 @@ web/
 │       └── …one adapter per vendor (binance, fmp, tiingo, massive,
 │            alphavantage, firecrawl, openbb)
 ├── components/               charts (hand-rolled SVG), controls, tables
-└── tests/                   2,174 tests incl. cross-engine and risk-engine parity
+└── tests/                   2,313 tests across 592 suites, incl. cross-engine,
+                              risk-engine and gate parity, and the design-system
+                              ratchets (type-scale, motion, house-rules, dead-css,
+                              accent-budget, null-honesty, live-motion, forced-colors,
+                              interaction, header-ladder, decision-latency, tour-truth)
 ```
 
 **Why the sweep runs server-side.** Binance's public API is called from the
@@ -562,20 +568,26 @@ need a long-lived process, which is why they are not deployed here:
 
 - **Module A** — live L2 order books from Binance and Bybit over WebSocket, with
   VWAP, slippage and cross-venue smart routing.
-- **Module B** — a pre-trade risk gateway (17 gates, 15 on every order path, in ~0.2 ms), a resting-order
-  book with cancel and replace, and an emergency kill switch controlled only
-  through authenticated gateway surfaces — engaging it also cancels the resting
-  book, because a halt that leaves orders working is not a halt.
+- **Module B** — a pre-trade risk gateway (17 gates, 15 on any order path,
+  decided in tens of microseconds — the compiled core inside it runs the
+  arithmetic in nanoseconds, and the header chip here shows both planes), a
+  resting-order book with cancel and replace, and an emergency kill switch
+  controlled only through authenticated gateway surfaces — engaging it also
+  cancels the resting book, because a halt that leaves orders working is not a
+  halt.
 
 Serverless functions cannot hold a WebSocket subscription open or keep risk state
 between invocations, so those run on the always-on gateway. This workspace reads
 portfolio state through its server-only proxy. The Telegram companion is a
-separate, text-only client of the same authoritative state: it reports halts,
-risk, portfolio and execution quality, and it cannot open this workspace, submit
-orders or queue a backtest. It *can* halt, resume and flatten — those three
-commands are reserved for a second, narrower operator allow-list and each needs
-a single-use confirmation code, because a desk that can only be stopped from a
-laptop is a desk that cannot be stopped from a train.
+separate client of the same authoritative state — cards, charts and inline
+keyboards: it reports halts, risk, portfolio and execution quality, and it
+cannot open this workspace or submit an order. It *can* queue a research sweep
+(`/backtest`, on the shared jobs engine, never the order path), and it *can*
+halt, resume, flatten, set reduce-only and reset the paper book — five commands
+reserved for a second, narrower operator allow-list, each needing a single-use
+confirmation code and never fired from an inline button, because a desk that
+can only be stopped from a laptop is a desk that cannot be stopped from a
+train.
 
 OpenBB is separate again: the web adapter calls the stateless
 [`../OpenBB_Service`](../OpenBB_Service) using `OPENBB_API_URL` and
