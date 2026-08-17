@@ -34,31 +34,41 @@ function ruleBody(css: string, selector: string): string {
   return css.slice(start + 1, end);
 }
 
-/* The chip anatomy, from the rules below. Kept here so a change to any one of
-   them has to be reflected in the floor, rather than silently outgrowing it. */
-const BORDER = 1 * 2;
-const PADDING = 9 * 2;
-const LABEL_LINE = 15;
-const ROW_GAPS = 2 * 2;
-const VALUE_LINE = 14.5 * 1.24;
-const NOTE_LINES = 10 * 1.34 * 2;
-const REQUIRED = BORDER + PADDING + LABEL_LINE + ROW_GAPS + VALUE_LINE + NOTE_LINES;
+/* The chip's fixed anatomy — border, padding and the two row gaps. The three
+   line-heights are read off the rules below and checked against the floor's
+   own arithmetic, so a change to any one of them has to be reflected in the
+   floor rather than silently outgrowing it. */
+const FIXED_PX = 1 * 2 + 9 * 2 + 2 * 2;
+
+/** The line-height a rule declares, resolving the --lh-* tokens. */
+function lineHeightOf(body: string): number {
+  const raw = /line-height:\s*([^;]+);/.exec(body)?.[1]?.trim();
+  assert.ok(raw, "rule declares no line-height");
+  const tokens: Record<string, number> = { "var(--lh-none)": 1, "var(--lh-tight)": 1.2, "var(--lh-snug)": 1.35, "var(--lh-body)": 1.5, "var(--lh-loose)": 1.6 };
+  const value = tokens[raw!] ?? Number(raw);
+  assert.ok(Number.isFinite(value), `unreadable line-height ${raw}`);
+  return value;
+}
 
 describe("the metric chip is sized by its anatomy, not by its copy", () => {
-  it("the floor fits a label, a value and a two-line note", () => {
+  it("the floor is the anatomy's own arithmetic, in the tokens the rows are drawn with", () => {
     const body = ruleBody(globals, ".page-insight");
-    const declared = /min-height:\s*(\d+(?:\.\d+)?)px/.exec(body);
-    assert.ok(declared, ".page-insight must declare a min-height — without one the chip is copy-sized");
-    const floor = Number(declared[1]);
-    assert.ok(
-      floor >= REQUIRED,
-      `.page-insight floors at ${floor}px but its own anatomy needs ${REQUIRED.toFixed(2)}px. ` +
-        "A chip whose note wraps will overflow the floor and stretch its whole row, " +
-        "which is how Data and Reliability opened taller than the other six tabs.",
-    );
-    /* Not arbitrarily tall either: a floor well above the anatomy is padding
-       pretending to be a contract. */
-    assert.ok(floor < REQUIRED + 4, `.page-insight floors at ${floor}px, more than its anatomy explains`);
+    const declared = /min-height:\s*calc\(([^;]+)\);/.exec(body);
+    assert.ok(declared, ".page-insight must declare a calc() min-height — a px number drifts from the anatomy, and did");
+    const calc = declared![1];
+    // Fixed part.
+    assert.match(calc, new RegExp(`^${FIXED_PX}px \\+`), `the fixed part must be ${FIXED_PX}px (border, padding, gaps)`);
+    // The three lines, each multiplier read from its rule.
+    const label = lineHeightOf(ruleBody(globals, ".page-insight > span"));
+    const value = lineHeightOf(ruleBody(globals, ".page-insight > strong"));
+    const note = lineHeightOf(ruleBody(globals, ".page-insight > small"));
+    assert.match(calc, new RegExp(`\\+ ${label} \\* var\\(--fs-2xs\\)`), `label line must be ${label} × --fs-2xs`);
+    assert.match(calc, new RegExp(`\\+ ${value} \\* var\\(--fs-title\\)`), `value line must be ${value} × --fs-title`);
+    assert.match(calc, new RegExp(`\\+ ${(note * 2).toFixed(2)} \\* var\\(--fs-2xs\\)`), `note lines must be ${note} × 2 × --fs-2xs`);
+    // And the label's rung and the value's rung are the ones the calc names.
+    assert.match(ruleBody(globals, ".page-insight > span"), /font-size:\s*var\(--fs-2xs\)/);
+    assert.match(ruleBody(globals, ".page-insight > strong"), /font-size:\s*var\(--fs-title\)/);
+    assert.match(ruleBody(globals, ".page-insight > small"), /font-size:\s*var\(--fs-2xs\)/);
   });
 
   it("the note slot reserves its second line whether or not the note fills it", () => {

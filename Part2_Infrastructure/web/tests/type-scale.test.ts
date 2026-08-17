@@ -123,12 +123,28 @@ describe("one type scale", () => {
     // the compact step must not take it under 10px either.
     const tick = declarations.match(/--fs-tick:\s*([\d.]+)px/);
     assert.ok(tick && Number(tick[1]) >= 9, "--fs-tick must stay a legible px tick size");
-    const floor = declarations.match(/--fs-2xs:\s*calc\(([\d.]+)rem \* var\(--type-step\)\)/);
+    // Fluid or fixed, the floor is the clamp's minimum: what a laptop and a
+    // phone get.
+    const floor = declarations.match(/--fs-2xs:\s*calc\((?:clamp\()?([\d.]+)rem/);
     assert.ok(floor, "--fs-2xs must be rem × --type-step");
     const px = Number(floor![1]) * 16;
     assert.ok(px >= 10, `--fs-2xs is the reading floor: never below 10px (got ${px})`);
     const compact = declarations.match(/\[data-text-size="compact"\]\s*\{[^}]*--type-step:\s*([\d.]+)/);
     if (compact) assert.ok(px * Number(compact[1]) >= 10, "the compact step must keep the floor legible");
+  });
+
+  it("every fluid rung's maximum is above its minimum, and the viewport term is gentle", () => {
+    // clamp(min, intercept + slope·vw, max): min < max, and a slope small
+    // enough that 200 % zoom (CSS viewport 960 → every rung at min) still
+    // yields ≥ 1.85× the size at 100 % — resizable text, not a ladder that
+    // shrinks back as the reader zooms in.
+    const root = declarations.slice(declarations.indexOf(":root {"), declarations.indexOf("\n}\n", declarations.indexOf(":root {")));
+    for (const m of root.matchAll(/--fs-[a-z0-9-]+:\s*calc\(clamp\(([\d.]+)rem,\s*[\d.]+rem \+ ([\d.]+)vw,\s*([\d.]+)rem\)/g)) {
+      const [, min, slope, max] = m;
+      assert.ok(Number(max) > Number(min), `${m[0].slice(0, 20)}: max must exceed min`);
+      assert.ok(Number(slope) <= 0.7, `${m[0].slice(0, 20)}: a viewport term above 0.7vw fights the reader's zoom`);
+      assert.ok(Number(max) / Number(min) <= 1.2, `${m[0].slice(0, 20)}: a rung must not grow more than a fifth across the range`);
+    }
   });
 
   it("every content rung is rem × the Text-size step, in ascending order", () => {

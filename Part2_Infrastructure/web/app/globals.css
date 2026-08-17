@@ -177,9 +177,12 @@
      preference and page zoom now scale the desk (WCAG 1.4.4), which a px
      ladder ignored. Every content rung is `calc(<rem> * var(--type-step))`,
      where --type-step is the reader's Text size preference (Quick Settings:
-     compact 0.9375, comfortable 1, large 1.125). The values below compute
-     to exactly the px they replaced at step 1; the fluid retargeting is a
-     separate, deliberate change.
+     compact 0.9375, comfortable 1, large 1.125). On the same day the ladder
+     was retargeted one step up and made fluid between 1280 and 1920px — the
+     desk read small on a laptop and smaller still on a wide monitor, and a
+     ladder that is the same size at 1280 and 2560 wastes the room the wide
+     desk has. Compact (×0.9375) lands within a quarter-pixel of the ladder
+     this replaced.
 
      Two rungs are not typography and stay px: --fs-tick is SVG chart
      furniture (axis ticks, bar labels — user units, never prose) and
@@ -195,29 +198,33 @@
      brand and tech lettermarks, and `font-size: 0` icon-text hiding. */
   --type-step: 1;
   --fs-tick: 10px;
-  --fs-2xs: calc(0.6875rem * var(--type-step));   /* 11px  */
-  --fs-xs: calc(0.71875rem * var(--type-step));   /* 11.5px */
-  --fs-sm: calc(0.75rem * var(--type-step));      /* 12px  */
-  --fs-body: calc(0.78125rem * var(--type-step)); /* 12.5px */
-  --fs-md: calc(0.8125rem * var(--type-step));    /* 13px  */
-  --fs-lg: calc(0.84375rem * var(--type-step));   /* 13.5px */
-  --fs-xl: calc(0.875rem * var(--type-step));     /* 14px  */
-  --fs-2xl: calc(0.9375rem * var(--type-step));   /* 15px  */
-  --fs-title: calc(1rem * var(--type-step));      /* 16px  */
+  /* Fluid between a 1280px laptop and a 1920px desk: min is one step above
+     the ladder this replaced, max a further step; below 1280 the min holds
+     (a phone gets the laptop's type), above 1920 the max. Formula per rung:
+     clamp(min, (3·min − 2·max) + (max − min)/6.4 vw, max), in rem. The small
+     rungs step by half a pixel; the headings sit on a 1.2 ratio from --fs-md.
+     Comments give the px at 1280 → 1920, step 1, 16px root. */
+  --fs-2xs: calc(clamp(0.75rem, 0.625rem + 0.15625vw, 0.8125rem) * var(--type-step));      /* 12 → 13     */
+  --fs-xs: calc(clamp(0.78125rem, 0.65625rem + 0.15625vw, 0.84375rem) * var(--type-step)); /* 12.5 → 13.5 */
+  --fs-sm: calc(clamp(0.8125rem, 0.6875rem + 0.15625vw, 0.875rem) * var(--type-step));     /* 13 → 14     */
+  --fs-body: calc(clamp(0.84375rem, 0.71875rem + 0.15625vw, 0.90625rem) * var(--type-step)); /* 13.5 → 14.5 */
+  --fs-md: calc(clamp(0.875rem, 0.75rem + 0.15625vw, 0.9375rem) * var(--type-step));       /* 14 → 15     */
+  --fs-lg: calc(clamp(0.90625rem, 0.78125rem + 0.15625vw, 0.96875rem) * var(--type-step)); /* 14.5 → 15.5 */
+  --fs-xl: calc(clamp(0.9375rem, 0.8125rem + 0.15625vw, 1rem) * var(--type-step));         /* 15 → 16     */
+  --fs-2xl: calc(clamp(1rem, 0.875rem + 0.15625vw, 1.0625rem) * var(--type-step));         /* 16 → 17     */
+  --fs-title: calc(clamp(1.0625rem, 0.9375rem + 0.15625vw, 1.125rem) * var(--type-step));  /* 17 → 18     */
   /* Not typography: 16px is the iOS focus-zoom threshold, the one size at
      which Safari leaves the page alone when a field takes focus. Semantic,
      used only by the coarse-pointer field rules, never for reading text.
-     (It happens to equal --fs-title at step 1; the two are kept apart because
-     one is a size and the other is a threshold, and the threshold cannot
-     move — not with zoom, not with the Text size preference.) */
+     A threshold cannot move — not with zoom, not with the Text-size step. */
   --fs-input: 16px;
-  --fs-h2: calc(1.125rem * var(--type-step));     /* 18px  */
-  --fs-h1: calc(1.375rem * var(--type-step));     /* 22px  */
-  --fs-figure: calc(1.5625rem * var(--type-step)); /* 25px */
-  --fs-display: calc(1.875rem * var(--type-step)); /* 30px */
-  --fs-hero-line: calc(clamp(1.25rem, 1.8vw, 1.5625rem) * var(--type-step));
-  --fs-hero-sub: calc(clamp(1.375rem, 2.4vw, 2rem) * var(--type-step));
-  --fs-hero: calc(clamp(1.75rem, 2.8vw, 2.5rem) * var(--type-step));
+  --fs-h2: calc(clamp(1.25rem, 1rem + 0.3125vw, 1.375rem) * var(--type-step));             /* 20 → 22     */
+  --fs-h1: calc(clamp(1.5rem, 1.25rem + 0.3125vw, 1.625rem) * var(--type-step));           /* 24 → 26     */
+  --fs-figure: calc(clamp(1.75rem, 1.5rem + 0.3125vw, 1.875rem) * var(--type-step));       /* 28 → 30     */
+  --fs-display: calc(clamp(2.125rem, 1.875rem + 0.3125vw, 2.25rem) * var(--type-step));    /* 34 → 36     */
+  --fs-hero-line: calc(clamp(1.625rem, 1.375rem + 0.3125vw, 1.75rem) * var(--type-step));  /* 26 → 28     */
+  --fs-hero-sub: calc(clamp(2.125rem, 1.625rem + 0.625vw, 2.375rem) * var(--type-step));   /* 34 → 38     */
+  --fs-hero: calc(clamp(2.625rem, 2.125rem + 0.625vw, 2.875rem) * var(--type-step));       /* 42 → 46     */
 
   /* The chrome tokens: the header row, the ≤900 switcher and the ≤620 bottom
      bar. Fixed px, no --type-step, for the reason above. */
@@ -11471,21 +11478,22 @@ button.data-trust-action > i {
      lines all fit on one line is exactly as tall as Data, whose notes need
      both. Grid stretches the rest of the row to match.
 
-     This used to read 81px, which is the height of a chip whose note is ONE
-     line, so the intent above was never actually delivered: Data and
-     Reliability wrap a note and opened 171px against everyone else's 168px,
-     and the gap widened to 47px by 900px. The floor is now the arithmetic it
-     always claimed to be, so the number cannot drift from the anatomy again:
+     This used to read 81px, then 84px — a number that claimed to be the
+     anatomy and drifted from it as soon as the type scale moved (the real
+     chip was 89.8px against an 84px floor). The floor is now the arithmetic
+     itself, in the tokens the rows are drawn with, so it cannot drift again
+     and it follows the reader's zoom and Text-size step:
 
-       2 × 1px   border            =  2.00
-       2 × 9px   padding           = 18.00
-       1 × 15px  label line        = 15.00
-       2 × 2px   row gap           =  4.00
-       14.5px × 1.24  value line   = 17.98
-       10px × 1.34 × 2  note lines = 26.80
-                                     ------
-                                      83.78  →  84px */
-  min-height: 84px;
+       2 × 1px    border                                 = 24px, with
+       2 × 9px    padding                                  the gaps
+       2 × 2px    row gap
+       label line   1.5  × --fs-2xs   (--lh-body, inherited)
+       value line   1.24 × --fs-title (.page-insight > strong)
+       note lines   1.34 × --fs-2xs × 2 (.page-insight > small)
+
+     tests/page-head-contract.test.ts reads those three multipliers off the
+     rules and checks them against this calc. */
+  min-height: calc(24px + 1.5 * var(--fs-2xs) + 1.24 * var(--fs-title) + 2.68 * var(--fs-2xs));
   padding: 9px 12px 9px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -11513,6 +11521,7 @@ button.data-trust-action > i {
 .page-insight > span {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
+  line-height: var(--lh-body);
   font-weight: 750;
   /* 0.05em, not 0.07em. The label went up a point with the rest of the small
      type, and at the old tracking "Books within freshness budget" needed 202px
