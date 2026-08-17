@@ -1,13 +1,23 @@
 # Latency budget
 
-Every number here was measured on the deployed system, with the method stated.
-Where something could not be measured, it says so rather than estimating.
+Every number here was measured, with the method and the machine stated. Where
+something could not be measured, it says so rather than estimating. Last
+re-measured 2026-08-17; the table in §2.1 regenerates from
+`tools/bench_decision.py` and the production figures were read off the live
+`/metrics` on that date.
 
-**The conclusion first.** The desk's own risk decision runs in ~50 µs. The market
-data it decides on is ~34 ms old when it arrives. The compute is **0.07 %** of the
-path, and no amount of further optimisation to it changes the system's latency in
-any way a trader could observe. The only lever that moves the number by orders of
-magnitude is moving the gateway to the region the matching engine is already in.
+**The conclusion first.** The desk's own risk decision runs in **~15 µs** on the
+compiled engine and **~23 µs** on the Python reference (p50, dev Mac, whole
+decision under the lock); the arithmetic battery inside it takes **83 ns** on
+that Mac and **~320 ns** on the shared production VM. The market data it decides
+on is ~34 ms old when it arrives, and the order takes ~70 ms to reach the venue.
+The compute is **0.02 %** of the path, and no amount of further optimisation to
+it changes the system's latency in any way a trader could observe. The only
+lever that moves the number by orders of magnitude is moving the gateway to the
+region the matching engine is already in.
+
+Three planes, three units, never blended: the whole decision in µs, the core in
+ns, the network in ms. Every surface that shows one names which.
 
 ---
 
@@ -95,9 +105,10 @@ a system, and this one was 34 % optimistic.
 **What was deliberately not done.** Building the `detail` string only on failure
 measured a further 0.87 µs. It was rejected: passing checks would lose their
 detail, which the UI renders, and 0.87 µs against a 68 ms network is not worth a
-change to what the API reports. Likewise no Rust or C++ rewrite — 50 µs is
-already three orders of magnitude inside the 5–500 µs target band, and the
-constraint is elsewhere.
+change to what the API reports. Likewise, at that pass, no Rust or C++ rewrite
+— 50 µs was already three orders of magnitude inside the 5–500 µs target band,
+and the constraint is elsewhere. (That call was later reversed deliberately and
+measured honestly; the compiled-core paragraphs below are the record.)
 
 **Where the time actually went, measured later.** Profiling the deployed
 two-venue shape (`tools/bench_decision.py`, which now regenerates the table
@@ -190,6 +201,37 @@ two; a randomised differential test against `route_estimate` — 400 cases on a
 shared price grid, where 106 of the 125 multi-venue cases diverge if the
 tie-break is reversed — is what holds the third.
 
+**The core measures itself at startup, so the figure exists before the first
+order.** The core histogram used to hold only submitted orders and to empty on
+every restart, so after each deploy the desk read "no orders yet" with the
+nanosecond figure nowhere in sight. `RiskGateway.run_core_self_measure` now
+runs the *same* compiled `decide()` the order path runs — same battery, same
+`steady_clock` inside it, two venues supplied so the routed walk is part of what
+is timed — against two synthetic `BookLadder`s built directly from the
+extension: fifty warm-up calls unrecorded, then three hundred recorded through
+`observe_core_self_test_latency`. The count of synthetic samples is published
+beside the total (`core_self_test_samples` on the ops snapshot,
+`alphaengine_decision_core_self_test_samples` on `/metrics`) so a reader can
+tell provenance rather than infer it, and the desk's chip says
+"— · core N ns · no orders yet" with the title naming the self-measure. What
+it deliberately never touches: the decision (µs) histogram, the order counters,
+the audit log, the token bucket or the TCA engine. A self-measure is evidence
+about the core; the µs plane is the whole `submit()` under its lock, which
+nothing synthetic may enter, and `tests/test_core_self_measure.py` holds that
+line. On the Python engine it is a silent no-op — there is no core to time.
+
+**Measured on production, not only on the development machine.** The bench
+table above is the dev Mac (arm64, `steady_clock` in ~41.67 ns steps). The
+gateway on the OCI VM — `VM.Standard3.Flex`, 2 OCPU of a shared Xeon 8358, x86
+— read, on 2026-08-17 from its own `/metrics`: **core p50 320 ns, p99 352 ns,
+max 2 754 ns**, n = 301 (300 self-measure samples plus the first order of the
+session), engine `native`. Roughly four times the Mac figure, which is what a
+virtualised, shared, older x86 core against an M-series laptop should look
+like; still three orders of magnitude inside a microsecond, and still 0.0005 %
+of the round trip to Binance. The two figures are published side by side rather
+than one chosen: the Mac number is what the code can do, the VM number is what
+the deployment does.
+
 ### 2.2 The tail is the operating system, not the language
 
 Disabling the cyclic garbage collector (`gc.freeze()` + `gc.disable()`) around
@@ -234,13 +276,17 @@ from the existing Singapore VM — 11.7× closer than Binance, for no spend at
 all.** Both venues are already wired into this gateway.
 
 ```
- 72 700 µs   order entry to Binance, origin     ← 1 446× the decision  (was budgeted at 2 400)
- 69 100 µs   market data from Binance           ← 1 374× the decision
-  6 160 µs   order entry to Bybit, origin       ←   123× the decision
-     50 µs   the risk decision
+ 72 700 µs   order entry to Binance, origin     ← 4 850× the decision  (was budgeted at 2 400)
+ 69 100 µs   market data from Binance           ← 4 600× the decision
+  6 160 µs   order entry to Bybit, origin       ←   410× the decision
+     15 µs   the risk decision (native p50; 23 µs on the Python reference)
+   0.08 µs   the arithmetic core inside it (83 ns dev Mac; ~320 ns production VM)
 ```
 
 **Optimising the gate from 54.5 µs to 50.3 µs improved end-to-end by 0.006 %.**
+Moving the whole arithmetic battery into C++ afterwards (23 µs → 15 µs) improved
+it by another 0.01 %. Both were done for what they prove about the compute, and
+neither is claimed as a latency win a trader would notice.
 
 ### 2.4 The only lever that matters
 
@@ -326,11 +372,11 @@ Bybit resolves through CloudFront and needs the same probe. If the two venues do
 not co-locate in one region, cross-exchange arbitrage is bounded by whichever is
 further, and that is a finding to publish rather than hide.
 
-### 2.5 What is out of scope, and why
+### 2.6 What is out of scope, and why
 
 * **FPGA** — no crypto venue rents an FPGA feed-handler path, and with the
-  decision at 50 µs against a millisecond-scale network there is nothing for one
-  to save.
+  decision at 15–23 µs against a millisecond-scale network there is nothing for
+  one to save.
 * **Microwave** — microwave links exist between physical exchange datacentres
   because the great-circle path beats fibre. Binance and Bybit are *inside AWS*;
   there is no microwave route into a cloud region, and the relevant distance is
@@ -344,22 +390,37 @@ further, and that is a finding to publish rather than hide.
 ## 3. Reading the numbers on a live desk
 
 ```bash
-curl -s http://<gateway>:8000/metrics | grep decision_latency
+curl -s http://<gateway>:8000/metrics | grep decision_
 ```
 
 ```
-alphaengine_decision_latency_us{quantile="0.5"}     52
-alphaengine_decision_latency_us{quantile="0.99"}    80
-alphaengine_decision_latency_us{quantile="0.999"}  144
-alphaengine_decision_latency_max_us                237
-alphaengine_decision_samples_total                5200
+alphaengine_decision_latency_us{quantile="0.5"}         213.354
+alphaengine_decision_latency_us{quantile="0.99"}        213.354
+alphaengine_decision_latency_us{quantile="0.999"}       213.354
+alphaengine_decision_latency_max_us                     213.354
+alphaengine_decision_samples_total                      1
+alphaengine_decision_engine{engine="native"}            1
+alphaengine_decision_core_latency_ns{quantile="0.5"}    320
+alphaengine_decision_core_latency_ns{quantile="0.99"}   352
+alphaengine_decision_core_latency_ns{quantile="0.999"}  2754
+alphaengine_decision_core_latency_max_ns                2754
+alphaengine_decision_core_self_test_samples             300
 ```
 
-Microseconds, not milliseconds — in ms every healthy decision reports as `0.05`
-and every quantile becomes indistinguishable. `decision_samples_total` exists at
-zero before the first order so a dashboard has a series to draw; the quantiles
+That is the production gateway on 2026-08-17, verbatim, one order into the
+session: the µs plane has a single sample (a first, cold decision at 213 µs —
+one sample is a maximum wearing a decimal point, and the desk's chip says
+"collecting" rather than quoting it as a p99), the ns plane has 301, of which
+300 are the startup self-measure and the line after says so. Microseconds, not
+milliseconds — in ms every healthy decision reports as `0.02` and every quantile
+becomes indistinguishable; nanoseconds for the core, because in µs it would be
+`0.3` and the p50/p99 gap would vanish. `decision_samples_total` exists at zero
+before the first order so a dashboard has a series to draw; the µs quantiles
 are simply absent until something has been measured, because quantiles of
-nothing are not zeros.
+nothing are not zeros. `decision_engine` names which implementation is
+answering, so a container that fell back to Python is visible on the desk (the
+header shows a "Python fallback" mark) and in the deploy log, not only in a
+warning nobody reads.
 
 ---
 
@@ -379,7 +440,9 @@ Separate budget, and much less demanding.
   the transport.
 * **A browser cannot open an `EventSource` to the gateway directly.** The page
   is HTTPS and the gateway is `http://…:8000`; that is blocked as mixed content
-  with no override. Streaming would therefore have to be proxied through a
+  with no override. (The Caddy sidecar on `:8443` does not change this: its
+  internal CA is pinned by the Vercel project's server-side proxy, and a
+  browser has no reason to trust it.) Streaming would therefore have to be proxied through a
   Vercel route handler, costing ~25 ms — measured, and irrelevant against a 1 s
   recompute.
 * **The transport half is not wired, and the proxy that anticipated it has been
@@ -400,8 +463,9 @@ connect. Vercel serves the web project from `sin1`, the same city as the VM.
 
 | Hop | Measured | Notes |
 |---|---|---|
-| Risk decision (crypto path, up to 15 of 17 gates) | **50.3 µs** p50 | in-process; excludes kernel and wire |
-| Decision tail | 90.9 µs p99.9 | scheduler jitter, not GC |
+| Risk decision (crypto path, up to 15 of 17 gates) | **15.0 µs** p50 native · 22.9 µs Python | whole `submit()` under the lock, dev Mac, `tools/bench_decision.py`; in-process, excludes kernel and wire |
+| Decision tail | 40.9 µs p99.9 native · 54.4 µs Python | scheduler jitter, not GC |
+| Arithmetic core (inside the decision) | **83 ns** p50 dev Mac · **320 ns** p50 / 352 ns p99 production VM | C++ battery incl. the routed walk, timed with `steady_clock` inside the engine; self-measured at startup, bit-exact vs Python |
 | Market data → gateway | **69.1 ms** RTT | Binance, Tokyo → Singapore; **the constraint** |
 | Order entry → venue | **72.7 ms** origin RTT | Binance; 1.6 ms to the CDN edge, which is not where it matches |
 | Order entry → Bybit | **6.2 ms** origin RTT | the free alternative, measured on the same host |
@@ -410,5 +474,6 @@ connect. Vercel serves the web project from `sin1`, the same city as the VM.
 | Browser order book | 100 ms | direct from venue, already optimal |
 
 The honest headline: **the decision is fast, the system is not, and the gap is
-entirely geography.** A sub-millisecond claim about this deployment would be true
-of the gate and false of everything the gate depends on.
+entirely geography.** A sub-microsecond claim about this deployment is true of
+the arithmetic core, a sub-millisecond one is true of the whole decision, and
+both are false of everything the decision depends on.
