@@ -112,8 +112,11 @@ is which gate and why.
 
 **Alert:** `AlphaEngineGateLatencyHigh`
 
-The seventeen gates normally decide in well under a millisecond. Hundreds of
-milliseconds means the decision is waiting on something it should not.
+The seventeen gates normally decide in tens of microseconds (the µs histogram
+on `/metrics` is the evidence; the compiled core's nanosecond histogram sits
+beside it and includes the 300-sample startup self-measure, counted separately
+as `alphaengine_decision_core_self_test_samples`). Hundreds of milliseconds
+means the decision is waiting on something it should not.
 
 1. **Check the audit backend.** `/health` → `audit.backend`. A DuckDB store on a
    slow or full disk is the usual cause; the SQLite fallback is slower still.
@@ -278,7 +281,9 @@ container's logs. The desk stays on the last good build.
 ```bash
 docker logs --tail 100 alphaengine_gateway     # why the new image refused to start
 docker inspect --format '{{.Config.Image}}' alphaengine_gateway   # what is running now
-docker volume inspect alphaengine_audit        # the decision log, which survives every swap
+docker volume inspect alphaengine_alphaengine_audit   # the decision log, which survives every swap
+                                               # (compose prefixes the project name — the
+                                               # unprefixed name is a different, empty volume)
 ```
 
 Re-run without a code change from Actions → *Deploy gateway to OCI* → *Run
