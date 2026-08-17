@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-17",
-  "commit": "3bba98d",
+  "commit": "c7c2776",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -532,6 +532,7 @@
     "Part2_Infrastructure/web/tests/gateway-contract.test.ts",
     "Part2_Infrastructure/web/tests/gateway-fallback.test.ts",
     "Part2_Infrastructure/web/tests/gateway-transport.test.ts",
+    "Part2_Infrastructure/web/tests/header-ladder.test.ts",
     "Part2_Infrastructure/web/tests/heatmap-keyboard.test.ts",
     "Part2_Infrastructure/web/tests/house-rules.test.ts",
     "Part2_Infrastructure/web/tests/interaction.test.ts",
