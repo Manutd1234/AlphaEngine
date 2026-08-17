@@ -18,33 +18,46 @@ a conda env or a uv env produces an unhandled `ENOENT` that looks nothing like
 
 **2. The web app has no `lint` script.** `web/package.json` has exactly `dev`,
 `dev:gateway`, `dev:all`, `prebuild`, `build`, `catalog:refresh`, `start`,
-`typecheck`, `test`. `npm run lint` there fails as a missing script — it is not
-a broken linter. Linting is Python-side: `ruff check .` from
+`typecheck`, `test`, `counts:refresh`. `npm run lint` there fails as a missing
+script — it is not a broken linter. Linting is Python-side: `ruff check .` from
 `Part2_Infrastructure`, configured in `pyproject.toml`, installed only by
 `requirements-dev.txt`.
 
 **3. The venv must be Python 3.12, and a newer one silently loses a test.**
 CI pins 3.12 — the only version the gateway (3.11–3.14) and the OpenBB service
-(`>=3.12,<3.15`) both accept. A 3.14 venv looks fine: 691 pass, one skip. That
+(`>=3.12,<3.15`) both accept. A 3.14 venv looks fine: 831 pass, one skip. That
 skip is `tests/test_backtester.py:99`, "vectorbt not installed", because numba
 has no 3.14 wheel — so the vectorbt engine goes untested and the summary line
-still reads green. On 3.12 it is **692 passed, nothing skipped**. Build it with
-`python3.12 -m venv venv` explicitly; the default `python3` on a current
-macOS/Homebrew is 3.14.
+still reads green. On 3.12 it is **832 passed, nothing skipped** (the figure
+CI printed on 2026-08-17; `web/lib/test-counts.generated.ts` carries the
+current one). Build it with `python3.12 -m venv venv` explicitly; the default
+`python3` on a current macOS/Homebrew is 3.14. Two more things the 832 needs:
+`requirements-native.txt` and a built native decision core
+(`python native/decision_core/setup.py build_ext --inplace --build-temp
+build/native`) — `tests/test_decision_core_native.py` and
+`tests/test_core_self_measure.py` *fail*, not skip, when `modules/_decision_core`
+is missing, unless `DECISION_CORE=python` was set on purpose.
 
-**4. `npm run build` runs a contract gate before Next.js starts.** The
-`prebuild` hook is `scripts/check-gateway-openapi-digest.mjs`: it canonicalises
-`tools/openapi.json`, SHA-256s it, and compares against the digest committed in
-`lib/gateway-openapi-digest.generated.ts`. A mismatch exits 1 with
-`Gateway OpenAPI digest is stale`. That is the contract between two separately
-deployed units asserting itself, not a build failure. If you changed a gateway
-route, regenerate the snapshot (`python tools/export_openapi.py`) and update the
-digest module deliberately.
+**4. `npm run build` runs two gates before Next.js starts.** The `prebuild`
+hook is `scripts/check-gateway-openapi-digest.mjs && scripts/generate-codebase-manifest.mjs --check`.
+The first canonicalises `tools/openapi.json`, SHA-256s it, and compares against
+the digest committed in `lib/gateway-openapi-digest.generated.ts`. A mismatch
+exits 1 with `Gateway OpenAPI digest is stale`. That is the contract between two
+separately deployed units asserting itself, not a build failure. If you changed
+a gateway route, regenerate the snapshot (`python tools/export_openapi.py`) and
+update the digest module deliberately. The second refuses to build if the
+committed repository manifest (`lib/codebase-manifest.generated.json`) no longer
+matches the tree — `npm run catalog:refresh` regenerates it, and CI's
+"Committed test counts match the suite" step does the same for
+`lib/test-counts.generated.ts` (`npm run counts:refresh`).
 
 ## House rules
 
 These are enforced by tests, not by convention — `web/tests/house-rules.test.ts`,
-`motion.test.ts`, `forced-colors.test.ts`. Breaking one turns the suite red.
+`motion.test.ts`, `forced-colors.test.ts`, `type-scale.test.ts`,
+`accent-budget.test.ts`, `null-honesty.test.ts`, `live-motion.test.ts`,
+`interaction.test.ts`, `dead-css.test.ts`, `header-ladder.test.ts`,
+`decision-latency.test.ts`. Breaking one turns the suite red.
 
 - **No new npm dependencies.** The workspace ships on Next, React,
   `lucide-react`, `@supabase/supabase-js` and `oracledb`. Everything else is
@@ -73,7 +86,9 @@ These are enforced by tests, not by convention — `web/tests/house-rules.test.t
 ```
 Part2_Infrastructure/
   main.py, config.py, modules/   FastAPI risk gateway (port 8000)
-  tools/                         fixture generators, OpenAPI export, probes
+  native/decision_core/          the C++ (pybind11) decision core; built into
+                                 modules/_decision_core*.so, DECISION_CORE=auto|native|python
+  tools/                         fixture generators, OpenAPI export, probes, bench_decision.py
   tests/                         gateway pytest suite
   web/                           Next.js desk workspace (port 3000)
   OpenBB_Service/                stateless research service, own pyproject
@@ -97,3 +112,16 @@ docs/                            feature tour, runbook, latency budget
   other. Python is the reference. Change a formula on one side and the parity
   fixtures make the other side fail; that is the design, so regenerate the
   fixture deliberately rather than loosening the tolerance.
+- The pre-trade arithmetic exists a third time, in C++
+  (`native/decision_core/decision_core.cpp`), and there the standard is
+  bit-exact, not tolerance: `tests/test_decision_core_native.py` and
+  `tests/test_gate_parity.py` pin both engines to the same twenty-scenario
+  fixture (`web/tests/fixtures/gate-parity.json`). Python remains the reference.
+- Three latency planes, never blended: the whole decision in µs
+  (`RiskDecision.latency_ms`, the µs histogram), the compiled core in ns
+  (timed inside the engine; the gateway self-measures it at startup so the
+  figure exists before the first order), and the network to the venue in ms.
+  A doc or a tile that puts a ns figure under a µs label is the defect.
+- Telegram §6 of `Part2_Infrastructure/README.md` is generated:
+  `venv/bin/python tools/telegram_catalogue.py --write` from
+  `Part2_Infrastructure`, then `--check`. Never edit the tables by hand.
