@@ -206,52 +206,60 @@ const NEXT_FROM: Record<string, { view: WorkspaceView; section: string; why: str
 /* Sentence case and British spelling, like the contextual variant above it —
    the ring used to shout Title Case and American "Center" while the measured
    steps spoke the house voice, two registers in one footer. */
-const FLOW_MAP: Record<WorkspaceView, { nextId: WorkspaceView; roleLabel: string; title: string; hint: string }> = {
+const FLOW_MAP: Record<WorkspaceView, { nextId: WorkspaceView; roleLabel: string; kicker: string; title: string; hint: string }> = {
   overview: {
     nextId: "research",
     roleLabel: "Quant researcher",
+    kicker: "Next step for the quant researcher",
     title: "Validate strategy and signal evidence",
     hint: "Move from desk overview to parameter sweeps, stability metrics, and walk-forward analysis.",
   },
   research: {
     nextId: "live",
     roleLabel: "Quant trader",
+    kicker: "Next step for the quant trader",
     title: "Stage paper execution and market depth",
     hint: "Inspect the consolidated L2 order book, venue routing costs, and pre-trade gate validation.",
   },
   live: {
     nextId: "portfolio",
     roleLabel: "Portfolio manager",
+    kicker: "Next step for the portfolio manager",
     title: "Review positions and P&L attribution",
     hint: "Reconcile the equity curve, sleeve breakdown, concentration, and intraday P&L waterfall.",
   },
   portfolio: {
     nextId: "risk",
     roleLabel: "Risk manager",
+    kicker: "Next step for the risk manager",
     title: "Audit pre-trade risk and limits",
     hint: "Check gross/net headroom, historical VaR, stress scenario testing, and kill switch state.",
   },
   risk: {
     nextId: "data",
     roleLabel: "Data engineer",
+    kicker: "Next step for the data engineer",
     title: "Verify data lineage and feed freshness",
     hint: "Audit market feed freshness, provider quotas, contract evidence, and the pipeline DAG.",
   },
   data: {
     nextId: "reliability",
     roleLabel: "DevOps / SRE",
+    kicker: "Next step for DevOps and SRE",
     title: "Check SRE telemetry and circuit health",
     hint: "Monitor provider API latency percentiles, active incident alerts, and recovery workflows.",
   },
   reliability: {
     nextId: "developer",
     roleLabel: "Quant developer",
+    kicker: "Next step for the quant developer",
     title: "Inspect CI/CD and schema contracts",
     hint: "Verify deployment topology, the launch readiness ring, OpenAPI diffs, and the task queue.",
   },
   developer: {
     nextId: "overview",
     roleLabel: "Desk command centre",
+    kicker: "Next step around the decision loop",
     title: "Return to the desk overview",
     hint: "Complete the operating loop and return to the unified desk dashboard.",
   },
@@ -259,7 +267,7 @@ const FLOW_MAP: Record<WorkspaceView, { nextId: WorkspaceView; roleLabel: string
 
 /**
  * The tab's own visible label, not its accessible one: this names the tab the
- * reader is about to land on, and "Next step · Data operations" would send them
+ * reader is about to land on, and "Next step in Data operations" would send them
  * looking for a tab that reads "Data".
  */
 function workspaceLabel(view: WorkspaceView): string {
@@ -280,7 +288,7 @@ export default function NextStepFooter({ currentView, currentSection, onNavigate
     ? {
         view: contextual.view,
         section: contextual.section as string | undefined,
-        kicker: `Next step · ${workspaceLabel(contextual.view)}`,
+        kicker: `Next step in ${workspaceLabel(contextual.view)}`,
         title: `${destination.label} — ${destination.description}`,
         hint: contextual.why,
         action: `Open ${destination.label}`,
@@ -288,7 +296,7 @@ export default function NextStepFooter({ currentView, currentSection, onNavigate
     : {
         view: ring.nextId,
         section: undefined,
-        kicker: `Decision loop flow · ${ring.roleLabel}`,
+        kicker: ring.kicker,
         title: ring.title,
         hint: ring.hint,
         action: "Next step",

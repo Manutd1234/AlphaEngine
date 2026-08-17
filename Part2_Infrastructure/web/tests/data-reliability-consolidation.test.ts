@@ -368,7 +368,7 @@ describe("the sample work queue no longer reseeds itself from a button", () => {
   });
 
   it("still says it is session-only, which is what the reset was standing in for", () => {
-    assert.match(workBoard, /Mocked · session-only/);
+    assert.match(workBoard, /Mocked, session-only/);
     assert.match(workBoard, /neither persisted nor connected to a production ticket system/);
   });
 

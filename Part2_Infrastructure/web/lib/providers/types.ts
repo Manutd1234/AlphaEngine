@@ -169,6 +169,8 @@ export interface Provenance {
   delayed: boolean;
   /** null when the provider publishes no quota we can account for. */
   quotaRemaining: number | null;
+  /** The allowance the remainder is out of, so a reader sees "23 of 25". */
+  quotaLimit: number | null;
   quotaWindow: string | null;
   /**
    * Data-contract outcome for the exact payload stored in this envelope.

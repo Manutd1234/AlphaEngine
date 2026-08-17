@@ -202,7 +202,7 @@ export default function DataWorkBoard({ items, onItemsChange }: DataWorkBoardPro
         <div>
           <div className="data-workboard__eyebrow">
             <span className="page-kicker">Operations queue</span>
-            <span className="pill">Mocked · session-only</span>
+            <span className="pill">Mocked, session-only</span>
           </div>
           <h2>Sample requests, tickets &amp; bugs</h2>
           <p className="sub">

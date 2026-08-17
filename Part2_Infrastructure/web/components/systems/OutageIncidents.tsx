@@ -79,7 +79,7 @@ export default function OutageIncidents({
               <span aria-hidden style={{ color: "var(--warning-text)" }}>▲</span>
               <div>
                 <strong>{providerLabels[outage.provider] ?? outage.provider}</strong>{" "}
-                held out of routing · restores in {seconds}s
+                held out of routing; restores in {seconds} s
                 {outage.note && <small className="console-wrap"> {outage.note}</small>}
               </div>
             </li>

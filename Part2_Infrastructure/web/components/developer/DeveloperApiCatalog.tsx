@@ -115,7 +115,7 @@ export default function DeveloperApiCatalog() {
           <span className="page-kicker">Developer surface</span>
           <h2>{API_OPERATIONS.length} web API operations</h2>
         </div>
-        <span className="section-note">{API_ROUTE_HANDLER_COUNT} route handlers · grouped by responsibility</span>
+        <span className="section-note">{API_ROUTE_HANDLER_COUNT} route handlers, grouped by responsibility</span>
       </div>
 
       <div className="developer-api-catalog__toolbar">

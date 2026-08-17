@@ -138,7 +138,7 @@ export function deriveDependencyTree(
       health: state,
       detail: stats.n === 0
         ? "No call observed in the rolling window."
-        : `p95 ${stats.p95 == null ? "—" : `${Math.round(stats.p95)}ms`} · n=${stats.n} · `
+        : `p95 ${stats.p95 == null ? "—" : `${Math.round(stats.p95)} ms`}, n=${stats.n}, `
           + `${(stats.errorRate * 100).toFixed(1)}% failed`,
       source: `health.venues[${venue.id}].latency`,
     };
@@ -188,7 +188,7 @@ export function deriveDependencyTree(
           : "degraded",
         detail: `${platform.market_data.feeds.filter((f) => f.connected).length}`
           + `/${platform.market_data.feeds.length} connected`
-          + (platform.market_data.synthetic_active ? " · synthetic fallback active" : ""),
+          + (platform.market_data.synthetic_active ? "; synthetic fallback active" : ""),
         source: "health.platform.market_data.status",
       }),
       behindGateway({
@@ -197,7 +197,7 @@ export function deriveDependencyTree(
         role: "gate battery",
         health: platform.risk.status === "halted" ? "down"
           : platform.risk.status === "reduce_only" ? "degraded" : "ok",
-        detail: `${platform.risk.status} · ${platform.risk.working_orders} working · `
+        detail: `${platform.risk.status}, ${platform.risk.working_orders} working, `
           + `kill switch ${platform.risk.kill_switch_active ? "engaged" : "clear"}`,
         source: "health.platform.risk.status",
       }),
@@ -216,7 +216,7 @@ export function deriveDependencyTree(
         health: platform.queue.broker_configured && platform.queue.backend !== "celery"
           ? "degraded" : "ok",
         detail: `${(platform.queue.by_status.queued ?? 0) + (platform.queue.by_status.running ?? 0)}`
-          + ` active · ${platform.queue.workers ?? 0} configured slots (not worker heartbeats)`,
+          + ` active; ${platform.queue.workers ?? 0} configured slots (not worker heartbeats)`,
         source: "health.platform.queue",
       }),
       /**
@@ -237,7 +237,7 @@ export function deriveDependencyTree(
           : !platform.supabase.configured
             ? "Mirror not configured."
             : `${platform.supabase.written ?? 0} mirrored`
-              + ((platform.supabase.dropped ?? 0) > 0 ? ` · ${platform.supabase.dropped} DROPPED` : ""),
+              + ((platform.supabase.dropped ?? 0) > 0 ? `; ${platform.supabase.dropped} DROPPED` : ""),
         source: "health.platform.supabase",
       }),
     ]
@@ -250,7 +250,7 @@ export function deriveDependencyTree(
     health: gatewayHealth,
     detail: gatewaySource?.detail
       ?? (platform
-        ? `${platform.status} · build ${platform.version} · ${platform.environment}`
+        ? `${platform.status}, build ${platform.version}, ${platform.environment}`
         : "No ops snapshot observed."),
     source: "health.sources.gateway.state",
     children: gatewayChildren,
@@ -271,10 +271,10 @@ export function deriveDependencyTree(
     label: "Next.js runtime",
     role: "this instance",
     health: "ok",
-    detail: `instance ${health.instance.id} · up ${humanMs(health.instance.uptimeMs)}`
+    detail: `instance ${health.instance.id}, up ${humanMs(health.instance.uptimeMs)}`
       + (shared?.backed && shared.instances.length
-        ? ` · ${shared.instances.length} instance${shared.instances.length === 1 ? "" : "s"} in the shared ledger`
-        : " · per-instance ledger"),
+        ? `; ${shared.instances.length} instance${shared.instances.length === 1 ? "" : "s"} in the shared ledger`
+        : "; per-instance ledger"),
     source: "health.instance",
     children: [registry, ...venueNodes, gateway],
   };

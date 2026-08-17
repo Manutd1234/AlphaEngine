@@ -495,6 +495,8 @@ export interface InspectResponse {
     cached: boolean;
     delayed: boolean;
     quotaRemaining: number | null;
+    /** Optional: an older instance's cached provenance predates it. */
+    quotaLimit?: number | null;
     quotaWindow: string | null;
     /** Contract result attached to this exact cached or upstream payload. */
     contract?: {

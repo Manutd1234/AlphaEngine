@@ -92,7 +92,7 @@ export default function RouteLatencyBars({
           <span className="page-kicker">In-process timing</span>
           <h2>Route response time</h2>
         </div>
-        <span className="section-note">{routes.length} routes · {windowMinutes}m window</span>
+        <span className="section-note">{routes.length} routes, {windowMinutes}-minute window</span>
       </div>
 
       <div ref={ref}>
@@ -157,7 +157,7 @@ export default function RouteLatencyBars({
                     ? `p50 ${Math.round(route.p50_ms)}`
                     : `${Math.round(route.p50_ms)}/${Math.round(route.p95_ms)}/${Math.round(route.p99_ms)}`}
                   {` n=${route.samples}`}
-                  {route.errors_total > 0 ? ` · ${route.errors_total}e` : ""}
+                  {route.errors_total > 0 ? `, ${route.errors_total} ${route.errors_total === 1 ? "error" : "errors"}` : ""}
                 </text>
               </g>
             );

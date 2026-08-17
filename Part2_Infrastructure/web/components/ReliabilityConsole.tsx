@@ -171,13 +171,13 @@ export default function ReliabilityConsole({
   const decisionNote = (() => {
     if (decision.kind === "no-orders" && decision.core) {
       // The core has timed itself at startup; the µs plane is still empty.
-      return `core p99 ${formatDuration(decision.core.p99Ns, "ns")} · startup self-measure · no orders yet`;
+      return `core p99 ${formatDuration(decision.core.p99Ns, "ns")} from the startup self-measure; no orders yet`;
     }
     if (decision.kind !== "measured") return decision.detail;
     const s = decision.stats;
-    if (s.samples < DECISION_MIN_SAMPLES) return `${s.samples}/${DECISION_MIN_SAMPLES} decisions · not a failure`;
-    const core = s.core_p99_ns != null ? `core p99 ${formatDuration(s.core_p99_ns, "ns")} · ` : "";
-    return `${core}${DECISION_ENGINE_LABEL[s.engine]} · n=${s.samples.toLocaleString("en-US")} · in-process, pushed`;
+    if (s.samples < DECISION_MIN_SAMPLES) return `${s.samples} of ${DECISION_MIN_SAMPLES} decisions; not a failure`;
+    const core = s.core_p99_ns != null ? `core p99 ${formatDuration(s.core_p99_ns, "ns")}; ` : "";
+    return `${core}${DECISION_ENGINE_LABEL[s.engine]}, n=${s.samples.toLocaleString("en-US")}, in-process, pushed`;
   })();
 
   /**
@@ -197,7 +197,7 @@ export default function ReliabilityConsole({
       note: view.healthError
         ? health ? "last good snapshot retained" : "no health snapshot available"
         : posture
-          ? `trading ${POSTURE_LABEL[posture.paths.trading.status].toLowerCase()} · research ${POSTURE_LABEL[posture.paths.research.status].toLowerCase()}`
+          ? `trading ${POSTURE_LABEL[posture.paths.trading.status].toLowerCase()}; research ${POSTURE_LABEL[posture.paths.research.status].toLowerCase()}`
           : "awaiting snapshot",
       tone: view.healthError
         ? "bad"
@@ -213,7 +213,7 @@ export default function ReliabilityConsole({
       label: "Provider APIs",
       value: health ? <><NumberTicker value={health.summary.ready} />/{health.summary.total}</> : "—",
       note: health
-        ? `${health.summary.configured} configured · ${health.summary.ready} routable`
+        ? `${health.summary.configured} configured, ${health.summary.ready} routable`
         : "checking provider registry",
       tone: postureTone(posture?.paths.research.status),
     },
@@ -235,8 +235,8 @@ export default function ReliabilityConsole({
         ? <NumberTicker value={latency.p99} format={(v) => formatDuration(v, "ms")} />
         : "Collecting",
       note: hasReliableP99
-        ? `${hop?.p99 != null && (hop.n ?? 0) >= LATENCY_MIN_SAMPLES ? `desk hop p99 ${formatDuration(hop.p99, "ms")} · ` : ""}network, polled · 15-min pool · ${latencyState.label} · n=${latency?.n ?? 0}`
-        : `${latency?.n ?? 0}/${LATENCY_MIN_SAMPLES} samples · not a failure`,
+        ? `${hop?.p99 != null && (hop.n ?? 0) >= LATENCY_MIN_SAMPLES ? `desk hop p99 ${formatDuration(hop.p99, "ms")}; ` : ""}network, polled; 15-min pool, n=${latency?.n ?? 0}; ${latencyState.label}`
+        : `${latency?.n ?? 0} of ${LATENCY_MIN_SAMPLES} samples; not a failure`,
       tone: latencyState.tone === "bad" ? "bad" : latencyState.tone === "warn" ? "warn" : "neutral",
     },
   ];

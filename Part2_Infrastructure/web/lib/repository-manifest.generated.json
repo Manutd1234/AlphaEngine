@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-17",
-  "commit": "f4e5670",
+  "commit": "dc80ddf",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -547,6 +547,7 @@
     "Part2_Infrastructure/web/tests/marketdata-routing.test.ts",
     "Part2_Infrastructure/web/tests/mc-distribution.test.ts",
     "Part2_Infrastructure/web/tests/mc-parity.test.ts",
+    "Part2_Infrastructure/web/tests/middle-dot.test.ts",
     "Part2_Infrastructure/web/tests/montecarlo.test.ts",
     "Part2_Infrastructure/web/tests/motion.test.ts",
     "Part2_Infrastructure/web/tests/no-dead-ends.test.ts",

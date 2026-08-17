@@ -992,7 +992,7 @@ export default function Page() {
     return {
       returns: displayedResult.bestRunReturns,
       seed: mcSeedFor(displayedResult.dataHash, displayedResult.best.fast, displayedResult.best.slow),
-      label: `${STRATEGY_LABELS[displayedResult.request.strategy]} · ${displayedResult.best.fast}/${displayedResult.best.slow}`,
+      label: `${STRATEGY_LABELS[displayedResult.request.strategy]} ${displayedResult.best.fast}/${displayedResult.best.slow}`,
       interval: displayedResult.request.interval,
     };
   }, [displayedResult]);
@@ -1137,7 +1137,7 @@ export default function Page() {
     for (const s of RESEARCH_SYMBOLS) {
       list.push({
         id: `sym-${s.symbol}`,
-        label: `${s.symbol} — ${s.name} · ${s.sector}`,
+        label: `${s.symbol} — ${s.name}, ${s.sector}`,
         category: "Symbol",
         action: () => { updateSymbol(s.symbol); navigate("live"); },
       });
@@ -1248,7 +1248,7 @@ export default function Page() {
           costs.impactBps > 0 ? `+${fmt(costs.impactBps, 1)} bps impact` : null,
           costs.fundingBpsPer8h !== 0 ? `funding ${fmt(costs.fundingBpsPer8h, 1)} bps/8h` : null,
           costs.borrowBpsAnnual > 0 ? `borrow ${fmt(costs.borrowBpsAnnual, 0)} bps/yr` : null,
-        ].filter(Boolean).join(" · ")
+        ].filter(Boolean).join(", ")
       : null;
     return (
       <div className="tiles research-tiles">

@@ -960,6 +960,7 @@ export async function dispatch<T>(
         cached: false,
         delayed: DELAYED_TIERS.has(id),
         quotaRemaining: q?.remaining ?? null,
+        quotaLimit: q?.limit ?? null,
         quotaWindow: q?.window ?? null,
         ...(contract
           ? { contract: {

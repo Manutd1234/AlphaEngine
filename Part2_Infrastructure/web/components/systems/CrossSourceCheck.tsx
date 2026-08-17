@@ -257,7 +257,7 @@ export default function CrossSourceCheck({ symbol }: CrossSourceCheckProps) {
               Not answering:{" "}
               {attempts
                 .map((a) => `${a.provider} (${SKIP_LABEL[a.reason] ?? a.reason})`)
-                .join(" · ")}
+                .join("; ")}
             </p>
           )}
         </>

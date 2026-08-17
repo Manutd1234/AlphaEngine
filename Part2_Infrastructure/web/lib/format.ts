@@ -18,6 +18,22 @@ export const signedPct = (v: number | null | undefined, d = 1): string =>
 export const usd = (v: number | null | undefined, d = 0): string =>
   v == null || !Number.isFinite(v) ? "—" : `$${fmt(v, d)}`;
 
+/**
+ * The one place a middle dot may join words.
+ *
+ * In a tabular readout — peer measurements of the same kind, in mono type,
+ * "p50 120 ms · p99 400 ms · n=4" — the dot is a column rule the eye scans
+ * across. In running text it is an unexplained abbreviation, so headers,
+ * kickers, labels, notes and captions never use it: those are prose, and
+ * prose has commas and semicolons. Every surviving separator goes through
+ * here so a grep for the raw literal finds nothing, and the helper's name
+ * states the contract. Absent parts (null, undefined, empty) drop out.
+ */
+export const metricRow = (parts: ReadonlyArray<string | number | null | undefined>): string =>
+  parts.filter((part): part is string | number => part !== null && part !== undefined && part !== "")
+    .map(String)
+    .join(" · ");
+
 export const compact = (v: number): string =>
   Math.abs(v) >= 1e9
     ? `${(v / 1e9).toFixed(2)}B`
@@ -115,6 +131,6 @@ export function trackRecordNote(
       : `~${fmt((needed / ann) * 12, 1)} mo`
     : `${needed.toLocaleString("en-US")} bars`;
   const met = windowBars >= needed;
-  const counts = `needs ${needed.toLocaleString("en-US")} bars · window has ${windowBars.toLocaleString("en-US")}`;
+  const counts = `needs ${needed.toLocaleString("en-US")} bars; the window has ${windowBars.toLocaleString("en-US")}`;
   return { value, note: met ? `met — ${counts}` : counts, met };
 }

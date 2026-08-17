@@ -97,7 +97,7 @@ export default function LatencyTrend({ history }: { history: LatencyHistoryPoint
           <h2>Tail latency over the observed window</h2>
         </div>
         <span className="section-note">
-          {view ? `${history.length} polls · peak p99 ${view.peak}ms` : "collecting samples"}
+          {view ? `${history.length} polls; peak p99 ${view.peak} ms` : "collecting samples"}
         </span>
       </div>
 

@@ -138,7 +138,7 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
         <div>
           <div className="developer-work__eyebrow">
             <span className="page-kicker">Engineering workflow</span>
-            <span className="pill">Sample data · stored in this browser</span>
+            <span className="pill">Sample data, stored in this browser</span>
           </div>
           <h2>Features, bugs &amp; current tickets</h2>
           {/* The stored-in-this-browser caveat lives in the pill above and the

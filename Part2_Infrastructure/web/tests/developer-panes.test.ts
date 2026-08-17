@@ -236,7 +236,7 @@ describe("one control per capability in the engineering queue", () => {
   });
 
   it("drops the demo reset without dropping the fixture", () => {
-    // The panel is self-labelled "Mocked · session-only" and the items are
+    // The panel is self-labelled "Mocked, session-only" and the items are
     // built by `createInitialDeveloperWorkItems` in page.tsx on mount, so a
     // reload is the reset. A button that re-seeds a fixture is demo furniture.
     const source = code(queue);

@@ -18,7 +18,7 @@
 
 import RowMenu from "@/components/common/RowMenu";
 import { UI_OUTAGE_MS, type ActionOptions } from "@/components/systems/OperatorPanel";
-import { fmt } from "@/lib/format";
+import { fmt, metricRow } from "@/lib/format";
 import {
   type FailoverRoute,
   type GuardMode,
@@ -48,8 +48,8 @@ function latencyCell(latency: LatencyStats) {
   return (
     <span className="console-latency-cell">
       <strong>{fmt(latency.p95 ?? 0, 0)}ms</strong>
-      <small className="muted">
-        p50 {fmt(latency.p50 ?? 0, 0)} · p99 {fmt(latency.p99 ?? 0, 0)} · n={latency.n}
+      <small className="muted num">
+        {metricRow([`p50 ${fmt(latency.p50 ?? 0, 0)}`, `p99 ${fmt(latency.p99 ?? 0, 0)}`, `n=${latency.n}`])}
       </small>
     </span>
   );
@@ -156,7 +156,7 @@ export default function HealthMatrix({
         </div>
         <span className="console-percentile-guide__window">
           <small>Network window</small>
-          <strong>15 min · n≥20</strong>
+          <strong>15 min window, n≥20</strong>
           <small>Decision window</small>
           <strong>process life</strong>
         </span>

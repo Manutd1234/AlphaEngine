@@ -37,6 +37,7 @@ function quote(overrides: Partial<Quote> = {}): Sourced<Quote> {
       cached: false,
       delayed: false,
       quotaRemaining: 249,
+      quotaLimit: 250,
       quotaWindow: "day",
       contract: { passed: true, violations: [], notEvaluated: [] },
     },

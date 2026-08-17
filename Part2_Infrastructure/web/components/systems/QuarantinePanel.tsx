@@ -95,7 +95,7 @@ export default function QuarantinePanel({
           </div>
           <div>
             <dt>Findings</dt>
-            <dd>{validation.fatal} fatal · {validation.warn} warn · {validation.drift} drift</dd>
+            <dd>{validation.fatal} fatal, {validation.warn} warn, {validation.drift} drift</dd>
           </div>
           <div>
             <dt>Checks not evaluated</dt>

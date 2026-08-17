@@ -30,6 +30,7 @@
  */
 
 import type { SystemHealth } from "@/components/systems/types";
+import { metricRow } from "@/lib/format";
 
 export type StageState = "ok" | "degraded" | "down" | "absent" | "unknown";
 
@@ -68,8 +69,8 @@ const MIN_SAMPLES = 20;
 
 function latencyLabel(stats: { n: number; p50: number | null } | undefined): string | null {
   if (!stats || stats.n === 0) return null;
-  if (stats.n < MIN_SAMPLES || stats.p50 == null) return `collecting · n=${stats.n} of ${MIN_SAMPLES}`;
-  return `p50 ${Math.round(stats.p50)}ms · n=${stats.n}`;
+  if (stats.n < MIN_SAMPLES || stats.p50 == null) return `collecting, n=${stats.n} of ${MIN_SAMPLES}`;
+  return metricRow([`p50 ${Math.round(stats.p50)} ms`, `n=${stats.n}`]);
 }
 
 function fromErrorRate(stats: { n: number; errorRate: number } | undefined): StageState {
@@ -196,9 +197,9 @@ export function deriveSignalPath(
     state: gatewayState,
     measured:
       slowest && slowest.samples >= MIN_SAMPLES
-        ? `slowest route p95 ${Math.round(slowest.p95_ms)}ms · ${slowest.route}`
+        ? `slowest route p95 ${Math.round(slowest.p95_ms)} ms on ${slowest.route}`
         : slowest
-          ? `collecting · n=${slowest.samples} of ${MIN_SAMPLES}`
+          ? `collecting, n=${slowest.samples} of ${MIN_SAMPLES}`
           : null,
     source: "health.sources.gateway.state + platform.risk.status",
     detail: platform

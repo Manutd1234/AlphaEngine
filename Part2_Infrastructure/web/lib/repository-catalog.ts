@@ -128,7 +128,7 @@ export const DEPLOYABLES = [
     name: "Next.js workspace",
     role: "Interactive desk portal",
     entry: "Part2_Infrastructure/web/app/page.tsx",
-    stack: "Next.js · React · TypeScript",
+    stack: "Next.js, React, TypeScript",
     detail: "Role workflows plus twenty server-side API handlers.",
   },
   {
@@ -136,7 +136,7 @@ export const DEPLOYABLES = [
     name: "FastAPI gateway",
     role: "Authoritative trading service",
     entry: "Part2_Infrastructure/main.py",
-    stack: "FastAPI · Python · DuckDB",
+    stack: "FastAPI, Python, DuckDB",
     detail: "Execution, portfolio, risk, audit, jobs, and Telegram control.",
   },
   {
@@ -144,7 +144,7 @@ export const DEPLOYABLES = [
     name: "OpenBB service",
     role: "Stateless research data",
     entry: "Part2_Infrastructure/OpenBB_Service/app.py",
-    stack: "FastAPI · OpenBB · Python",
+    stack: "FastAPI, OpenBB, Python",
     detail: "Quote, bars, news, and fundamentals behind one provider facade.",
   },
 ] as const;

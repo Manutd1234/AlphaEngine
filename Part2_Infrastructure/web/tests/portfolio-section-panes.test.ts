@@ -265,8 +265,8 @@ describe("Performance is split along its time base, and says so", () => {
   it("names the time base in the visible label, not only in the hint", () => {
     const block = workspace.slice(workspace.indexOf("const PERFORMANCE_PANES"));
     const list = block.slice(0, block.indexOf("];"));
-    assert.match(list, /label: "Flow · lifetime"/);
-    assert.match(list, /label: "Trend · this session"/);
+    assert.match(list, /label: "Flow, lifetime"/);
+    assert.match(list, /label: "Trend, this session"/);
   });
 
   it("keeps the lifetime cards together and the session card alone", () => {

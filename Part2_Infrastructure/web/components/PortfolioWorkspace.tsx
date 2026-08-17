@@ -180,8 +180,8 @@ const ALLOCATION_PANES: Array<{ id: AllocationPane; label: string; hint: string 
  * left the boundary the prose is warning about inside one of the halves.
  */
 const PERFORMANCE_PANES: Array<{ id: PerformancePane; label: string; hint: string }> = [
-  { id: "flow", label: "Flow · lifetime", hint: "Every audited order since the log was opened — attributed by sleeve, by instrument, and totalled desk-wide" },
-  { id: "trend", label: "Trend · this session", hint: "How far under water this session went and whether its return was worth its own variance, measured from the equity track this tab has collected" },
+  { id: "flow", label: "Flow, lifetime", hint: "Every audited order since the log was opened — attributed by sleeve, by instrument, and totalled desk-wide" },
+  { id: "trend", label: "Trend, this session", hint: "How far under water this session went and whether its return was worth its own variance, measured from the equity track this tab has collected" },
 ];
 
 /**
@@ -639,7 +639,7 @@ export default function PortfolioWorkspace({
               targetSection="limits"
               metrics={[
                 {
-                  label: "VaR 95 · 1 day",
+                  label: "VaR 95, 1 day",
                   value: risk ? usd(risk.var95, 0) : "—",
                   note: risk
                     ? `${pct(risk.var95 / Math.max(1, book.equity.current), 2)} of equity`

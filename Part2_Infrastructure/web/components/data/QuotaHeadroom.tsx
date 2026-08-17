@@ -29,7 +29,7 @@ export default function QuotaHeadroom({ health }: { health: SystemHealth | null 
 
   const bars: BarRow[] = rows.map((row) => ({
     label: row.label,
-    note: `${row.used}/${row.limit} per ${row.window} · ${row.reserve} held`,
+    note: `${row.used} of ${row.limit} per ${row.window}; ${row.reserve} held in reserve`,
     segments: [
       { label: "spent", value: row.spentPct, color: "var(--series-1)" },
       { label: "free for background", value: row.freePct, color: "var(--status-good)" },
@@ -45,7 +45,7 @@ export default function QuotaHeadroom({ health }: { health: SystemHealth | null 
           <h2 id="trust-quota-heading">Quota headroom</h2>
         </div>
         <span className="section-note">
-          {rows.length ? `${rows.length} metered · tightest first` : "no metered provider"}
+          {rows.length ? `${rows.length} metered, tightest first` : "no metered provider"}
         </span>
       </div>
 

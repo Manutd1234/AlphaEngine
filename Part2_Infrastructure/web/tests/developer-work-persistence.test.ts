@@ -112,7 +112,7 @@ describe("the labels say what is now true", () => {
 
   it("the data board still claims session-only, because it still is", () => {
     // The two queues now deliberately differ; both claims are pinned.
-    assert.match(dataBoard, /Mocked · session-only/);
+    assert.match(dataBoard, /Mocked, session-only/);
   });
 });
 

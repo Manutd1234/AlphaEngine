@@ -48,6 +48,7 @@ import {
   type DataTrustDestination,
   type DataTrustTone,
 } from "@/lib/data-trust";
+import { metricRow } from "@/lib/format";
 import { DATA_SECTIONS } from "@/lib/sections";
 
 import FeedThroughput from "./FeedThroughput";
@@ -182,9 +183,9 @@ export default function DataTrustOverview({
         note: rate == null ? `${hits} cached` : `${Math.round(rate * 100)}% cached`,
         segments: [
           { label: "served from cache", value: hits, color: "var(--series-3)" },
-          { label: "fetched · contract passed", value: checks?.passed ?? 0, color: "var(--series-1)" },
-          { label: "fetched · flagged", value: flagged, color: "var(--status-warning)" },
-          { label: "fetched · not evaluated", value: checks?.notEvaluated ?? 0, color: "var(--axis)" },
+          { label: "fetched, contract passed", value: checks?.passed ?? 0, color: "var(--series-1)" },
+          { label: "fetched, flagged", value: flagged, color: "var(--status-warning)" },
+          { label: "fetched, not evaluated", value: checks?.notEvaluated ?? 0, color: "var(--axis)" },
         ],
       };
     })
@@ -208,9 +209,9 @@ export default function DataTrustOverview({
   );
   const provenanceSlices: DonutSlice[] = [
     { label: "served from cache", value: provenanceTotals["served from cache"] ?? 0, colour: "var(--series-3)" },
-    { label: "contract passed", value: provenanceTotals["fetched · contract passed"] ?? 0, colour: "var(--series-1)" },
-    { label: "flagged", value: provenanceTotals["fetched · flagged"] ?? 0, colour: "var(--status-warning)" },
-    { label: "not evaluated", value: provenanceTotals["fetched · not evaluated"] ?? 0, colour: "var(--axis)" },
+    { label: "contract passed", value: provenanceTotals["fetched, contract passed"] ?? 0, colour: "var(--series-1)" },
+    { label: "flagged", value: provenanceTotals["fetched, flagged"] ?? 0, colour: "var(--status-warning)" },
+    { label: "not evaluated", value: provenanceTotals["fetched, not evaluated"] ?? 0, colour: "var(--axis)" },
   ];
   const provenanceAnswers = provenanceSlices.reduce((acc, slice) => acc + slice.value, 0);
 
@@ -351,9 +352,11 @@ export default function DataTrustOverview({
                         {/* Withheld, not zeroed: no fifteen-minute aggregate is
                             published for a plane probe, and "p95 0ms" would be
                             the fastest possible lie. */}
-                        {source.stats?.p95 != null ? `p95 ${Math.round(source.stats.p95)}ms` : "p95 n/a"}
-                        {` · n=${source.stats?.n ?? windowSamples}`}
-                        {gaps ? ` · ${gaps} quiet min` : ""}
+                        {metricRow([
+                          source.stats?.p95 != null ? `p95 ${Math.round(source.stats.p95)} ms` : "p95 n/a",
+                          `n=${source.stats?.n ?? windowSamples}`,
+                          gaps ? `${gaps} quiet min` : null,
+                        ])}
                       </span>
                     </li>
                   );
@@ -438,7 +441,7 @@ export default function DataTrustOverview({
                 rows={[
                   {
                     label: "Findings",
-                    note: `${validationWindow?.fatal ?? 0} fatal · ${validationWindow?.warn ?? 0} warn · ${validationWindow?.drift ?? 0} drift`,
+                    note: `${validationWindow?.fatal ?? 0} fatal, ${validationWindow?.warn ?? 0} warn, ${validationWindow?.drift ?? 0} drift`,
                     segments: [
                       { label: "fatal", value: validationWindow?.fatal ?? 0, color: "var(--status-critical)" },
                       { label: "warn", value: validationWindow?.warn ?? 0, color: "var(--status-warning)" },
@@ -478,7 +481,7 @@ export default function DataTrustOverview({
               <CategoryBars
                 rows={providerValidation.map(([provider, counts]) => ({
                   label: provider,
-                  note: `${counts.evaluated} evaluated · ${counts.fatal} fatal · ${counts.warn}w/${counts.drift}d`,
+                  note: `${counts.evaluated} evaluated, ${counts.fatal} fatal, ${counts.warn} warn, ${counts.drift} drift`,
                   segments: [
                     { label: "no fatal finding", value: counts.passed, color: "var(--status-good)" },
                     {
@@ -644,12 +647,12 @@ export default function DataTrustOverview({
                   : probeError
                     ? "probe failed"
                     : probe?.provenance?.contract
-                      ? `${probe.provenance.provider} · ${probe.cache.state} · contract attached`
+                      ? `${probe.provenance.provider}, cache ${probe.cache.state}, contract attached`
                       : "no exact-payload contract result"}
               </strong>
               <small>
                 {probe?.provenance?.contract
-                  ? `${probe.provenance.contract.violations.length} findings · ${probe.provenance.contract.notEvaluated.length} checks not evaluated · fetched ${absoluteTime(probe.provenance.fetchedAt)}`
+                  ? `${probe.provenance.contract.violations.length} findings; ${probe.provenance.contract.notEvaluated.length} checks not evaluated; fetched ${absoluteTime(probe.provenance.fetchedAt)}`
                   : probeError ?? "A green verdict is withheld until this exact response carries validation evidence."}
               </small>
             </div>
@@ -693,8 +696,8 @@ export default function DataTrustOverview({
 
             <p className="console-footnote">
               Window {trust.validation ? `${trust.validation.retained}/${trust.validation.capacity}` : "not exposed"}
-              {trust.validation?.windowStart ? ` · since ${absoluteTime(trust.validation.windowStart)}` : ""}
-              {trust.validation?.lastValidationAt ? ` · last ${absoluteTime(trust.validation.lastValidationAt)}` : ""}.
+              {trust.validation?.windowStart ? `; since ${absoluteTime(trust.validation.windowStart)}` : ""}
+              {trust.validation?.lastValidationAt ? `; last ${absoluteTime(trust.validation.lastValidationAt)}` : ""}.
               Aggregate counts reset with the health-route function instance and are not tied to {symbol}.
             </p>
           </section>

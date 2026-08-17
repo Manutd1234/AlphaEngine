@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
 
       series.push({
         id: recipe.id,
-        label: `${recipe.symbol} · ${STRATEGY_LABELS[req.strategy]} ${recipe.fast}/${recipe.slow}`,
+        label: `${recipe.symbol}, ${STRATEGY_LABELS[req.strategy]} ${recipe.fast}/${recipe.slow}`,
         symbol: recipe.symbol,
         timestamps: loaded.bars.map((b) => b.t),
         returns: Array.from(combo.returns),

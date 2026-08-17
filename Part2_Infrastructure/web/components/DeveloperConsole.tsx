@@ -74,19 +74,19 @@ const CI_JOBS = [
     name: "Gateway",
     count: TEST_COUNTS.gateway.total,
     command: "python -m pytest",
-    evidence: "pytest · ruff · OpenAPI snapshot · money-path probe",
+    evidence: "pytest, ruff, the OpenAPI snapshot and the money-path probe",
   },
   {
     name: "Web workspace",
     count: TEST_COUNTS.web.total,
     command: "npm test && npm run typecheck && npm run build",
-    evidence: "domain tests · contract fixtures · strict TypeScript · Next.js build",
+    evidence: "domain tests, contract fixtures, strict TypeScript and the Next.js build",
   },
   {
     name: "OpenBB service",
     count: TEST_COUNTS.service.total,
     command: "python -m pytest",
-    evidence: "provider facade · authentication · API contracts",
+    evidence: "the provider façade, authentication and API contracts",
   },
   {
     name: "Repository audit",
@@ -141,7 +141,7 @@ const SCHEMA_GATES = [
   {
     object: "Monte Carlo numerics",
     baseline: "Committed reference",
-    candidate: "Node · this instance",
+    candidate: "Node, this instance",
     impact: "Not connected",
     tone: "warn" as const,
   },
@@ -199,7 +199,7 @@ function gatewayState(view: SystemHealthView): ControlState {
   if (platform.status === "degraded" || source?.state === "stale") {
     return { label: "Degraded", detail: `Gateway ${platform.version}; ${source?.detail ?? "degraded"}.`, tone: "warn" };
   }
-  return { label: "Healthy", detail: `Gateway ${platform.version} · ${platform.environment}.`, tone: "good" };
+  return { label: "Healthy", detail: `Gateway ${platform.version} in ${platform.environment}.`, tone: "good" };
 }
 
 function schemaCompatibilityState(view: SystemHealthView): ControlState {
@@ -581,7 +581,7 @@ function DeveloperPipelines({ view }: { view: SystemHealthView }) {
               <div className="developer-cp-section-hero__actions">
                 <StatusPill
                   state={{
-                    label: `${totalTests} tests · ${TEST_COUNTS.generatedOn}`,
+                    label: `${totalTests} tests, counted ${TEST_COUNTS.generatedOn}`,
                     detail: "Counted by scripts/refresh-test-counts.mjs on that date; not re-measured by this build.",
                     tone: "info",
                   }}
@@ -600,7 +600,7 @@ function DeveloperPipelines({ view }: { view: SystemHealthView }) {
         {pane === "verification" && (
           <>
             <section className="card developer-cp-jobs stagger-reveal" style={{ "--stagger-i": 0 } as CSSProperties}>
-              <div className="developer-cp-heading"><div><span>Verification matrix</span><h2>Configured jobs</h2></div><span>Every push · counts {TEST_COUNTS.generatedOn}</span></div>
+              <div className="developer-cp-heading"><div><span>Verification matrix</span><h2>Configured jobs</h2></div><span>Every push; counts as of {TEST_COUNTS.generatedOn}</span></div>
               <div className="developer-cp-jobs__table" role="table" aria-label="Continuous integration jobs">
                 <div className="developer-cp-jobs__row is-head" role="row"><span role="columnheader">Job</span><span role="columnheader">Evidence</span><span role="columnheader">Command</span><span role="columnheader">Baseline</span></div>
                 {CI_JOBS.map((job, index) => (

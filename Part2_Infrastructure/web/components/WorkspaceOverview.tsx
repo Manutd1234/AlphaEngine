@@ -233,7 +233,7 @@ export default function WorkspaceOverview({
             tone: equity ? (equity.daily_pnl >= 0 ? "good" : "critical") : "neutral",
           },
           {
-            label: "VaR 95 · 1 day",
+            label: "VaR 95, 1 day",
             value: risk ? usd(risk.var95, 0) : "—",
             /* No CVaR here: the KPI deck's "Loss beyond VaR" card one screen
                down has it as its headline, and the deck's own rule is that it

@@ -63,7 +63,7 @@ describe("Reliability teaches the two planes apart", () => {
   it("the console and the strip name the self-measure where the core figure came from", () => {
     const console_ = read("components/ReliabilityConsole.tsx");
     assert.match(console_, /decision\.kind === "no-orders" && decision\.core/);
-    assert.match(console_, /startup self-measure · no orders yet/);
+    assert.match(console_, /from the startup self-measure; no orders yet/);
     const overview = read("components/systems/ReliabilityOverview.tsx");
     assert.match(overview, /core_self_test_samples/);
     assert.match(overview, /self-measure \$\{d\.core_self_test_samples/);

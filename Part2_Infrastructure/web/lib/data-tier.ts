@@ -126,14 +126,14 @@ export function describeTier(p: Provenance, now = Date.now()): TierBadge {
     return {
       glyph: "△",
       label: "Sandbox",
-      detail: "gateway incident · simulated",
+      detail: "simulated gateway incident",
       tone: "warn",
     };
   }
   return {
     glyph: "◇",
     label: "Sandbox",
-    detail: p.cause === "chosen" ? "simulated · your choice" : "simulated · no gateway here",
+    detail: p.cause === "chosen" ? "simulated, your choice" : "simulated; no gateway here",
     tone: "neutral",
   };
 }

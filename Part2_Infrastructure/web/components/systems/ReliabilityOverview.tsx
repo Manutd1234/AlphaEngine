@@ -16,7 +16,7 @@ import DependencyMix from "@/components/systems/DependencyMix";
 import DependencyTree from "@/components/systems/DependencyTree";
 import LatencyTrend from "@/components/systems/LatencyTrend";
 import RouteLatencyBars from "@/components/systems/RouteLatencyBars";
-import { fmt, formatDuration } from "@/lib/format";
+import { fmt, formatDuration, metricRow } from "@/lib/format";
 import { deriveReliabilityPosture, type ReliabilityStatus } from "@/lib/reliability";
 import type { SystemHealthView } from "@/lib/use-system-health";
 import type { GatewayOpsSnapshot, ProviderRow } from "./types";
@@ -204,7 +204,7 @@ export default function ReliabilityOverview({
       : gatewayState === "unreachable" ? "Unreachable"
       : gatewayState === "not_configured" ? "Not configured"
       : "—",
-    note: health?.sources?.gateway?.detail ?? "one FastAPI process · no fleet to count",
+    note: health?.sources?.gateway?.detail ?? "one FastAPI process; there is no fleet to count",
   };
 
   /**
@@ -218,7 +218,7 @@ export default function ReliabilityOverview({
   const routeErrorTile = {
     value: !routeErrors ? "—"
       : routeErrors.samples >= 20
-        ? `${routeErrors.errors}/${routeErrors.samples} · ${((routeErrors.errors / routeErrors.samples) * 100).toFixed(1)}%`
+        ? `${routeErrors.errors}/${routeErrors.samples} (${((routeErrors.errors / routeErrors.samples) * 100).toFixed(1)}%)`
         : `${routeErrors.errors}/${routeErrors.samples}`,
     note: !routeErrors
       ? "no gateway ops snapshot"
@@ -459,7 +459,7 @@ export default function ReliabilityOverview({
               <small>
                 {slowestRoute
                   ? slowestRoute.samples >= 20
-                    ? `${slowestRoute.route} · gateway HTTP route, in-process · not the decision p99`
+                    ? `${slowestRoute.route}; a gateway HTTP route, in-process, not the decision p99`
                     : `${slowestRoute.samples}/20 samples`
                   : "no gateway ops snapshot"}
               </small>
@@ -559,29 +559,29 @@ export default function ReliabilityOverview({
               <strong>{platform.market_data.status.replace("_", " ")}</strong>
               <small>
                 {realFeeds.length
-                  ? `${connectedFeeds}/${realFeeds.length} venue feeds connected · ${staleBooks}/${books.length} books stale`
+                  ? `${connectedFeeds} of ${realFeeds.length} venue feeds connected, ${staleBooks} of ${books.length} books stale`
                   : "No live venue feeds observed"}
-                {platform.market_data.synthetic_active ? " · synthetic fallback active" : ""}
+                {platform.market_data.synthetic_active ? "; synthetic fallback active" : ""}
               </small>
             </article>
             <article className={`is-${platform.risk.status}`}>
               <span>Pre-trade risk</span>
               <strong>{platform.risk.status.replace("_", " ")}</strong>
               <small>
-                {platform.risk.working_orders} working orders · {fmt(platform.risk.drawdown_budget_used_pct * 100, 0)}% drawdown budget used
+                {platform.risk.working_orders} working orders, {fmt(platform.risk.drawdown_budget_used_pct * 100, 0)}% of the drawdown budget used
               </small>
             </article>
             <article className={platform.queue.broker_configured && platform.queue.backend !== "celery" ? "is-degraded" : "is-nominal"}>
               <span>Research queue</span>
               <strong>{platform.queue.backend}</strong>
               <small>
-                {queueActive} queued / running · {platform.queue.workers} configured worker slots
+                {queueActive} queued or running; {platform.queue.workers} configured worker slots
               </small>
             </article>
             <article className={platform.audit.available ? "is-nominal" : "is-critical"}>
               <span>Audit store</span>
               <strong>{platform.audit.available ? "available" : "unavailable"}</strong>
-              <small>{platform.audit.backend} · append-only decision evidence</small>
+              <small>{platform.audit.backend}; append-only decision evidence</small>
             </article>
             {/* The gateway has always emitted these counters; nothing rendered
                 them, so the durability of the Postgres mirror was invisible in
@@ -615,10 +615,10 @@ export default function ReliabilityOverview({
                 <small>
                   {platform.supabase.configured
                     ? <>
-                        {platform.supabase.written} mirrored · {platform.supabase.queued} queued
-                        {platform.supabase.dropped > 0 && ` · ${platform.supabase.dropped} DROPPED`}
-                        {platform.supabase.failed > 0 && ` · ${platform.supabase.failed} failed`}
-                        {platform.supabase.last_error_kind && ` · last error: ${platform.supabase.last_error_kind}`}
+                        {platform.supabase.written} mirrored, {platform.supabase.queued} queued
+                        {platform.supabase.dropped > 0 && `; ${platform.supabase.dropped} DROPPED`}
+                        {platform.supabase.failed > 0 && `; ${platform.supabase.failed} failed`}
+                        {platform.supabase.last_error_kind && `; last error: ${platform.supabase.last_error_kind}`}
                       </>
                     : "DuckDB stays authoritative; the mirror is optional durability"}
                 </small>
@@ -646,10 +646,10 @@ export default function ReliabilityOverview({
                     <small>Decision p99</small>
                     <strong className="num">{measured ? dus(d!.p99_us) : "—"}</strong>
                     <code title={measured
-                      ? `p50 ${dus(d!.p50_us)} · p99.9 ${d!.samples >= 1000 ? dus(d!.p999_us) : "—"} · max ${dus(d!.max_us)} · n=${d!.samples.toLocaleString("en-US")} since start`
+                      ? metricRow([`p50 ${dus(d!.p50_us)}`, `p99.9 ${d!.samples >= 1000 ? dus(d!.p999_us) : "—"}`, `max ${dus(d!.max_us)}`, `n=${d!.samples.toLocaleString("en-US")} since start`])
                       : "no decision measured yet"}>
                       {measured
-                        ? `p50 ${dus(d!.p50_us)} · n=${d!.samples.toLocaleString("en-US")}`
+                        ? metricRow([`p50 ${dus(d!.p50_us)}`, `n=${d!.samples.toLocaleString("en-US")}`])
                         : d ? "no orders yet" : "not published"}
                     </code>
                   </span>
@@ -662,8 +662,8 @@ export default function ReliabilityOverview({
                       ? `${d.core_self_test_samples.toLocaleString("en-US")} of the core samples are the startup self-measure — the compiled battery on a synthetic two-venue book; the decision µs figure never includes them`
                       : undefined}>
                       {d && d.core_p99_ns != null
-                        ? `${d.engine} · p50 ${formatDuration(d.core_p50_ns, "ns")} · max ${formatDuration(d.core_max_ns, "ns")}${d.core_self_test_samples ? ` · self-measure ${d.core_self_test_samples.toLocaleString("en-US")}` : ""}`
-                        : d?.engine === "python" ? "Python engine · no native core" : "no native core"}
+                        ? metricRow([d.engine, `p50 ${formatDuration(d.core_p50_ns, "ns")}`, `max ${formatDuration(d.core_max_ns, "ns")}`, d.core_self_test_samples ? `self-measure ${d.core_self_test_samples.toLocaleString("en-US")}` : null])
+                        : d?.engine === "python" ? "Python engine, no native core" : "no native core"}
                     </code>
                   </span>
                 </>

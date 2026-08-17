@@ -317,7 +317,7 @@ describe("decisionTone", () => {
   it("below the sample floor is muted regardless of the number", () => {
     assert.equal(decisionTone(5000, DECISION_MIN_SAMPLES - 1).tone, "muted");
     assert.equal(decisionTone(null, 500).tone, "muted");
-    assert.match(decisionTone(30, 3).label, /collecting · n=3/);
+    assert.match(decisionTone(30, 3).label, /collecting, n=3/);
   });
 
   it("thresholds sit exactly at the documented boundaries", () => {

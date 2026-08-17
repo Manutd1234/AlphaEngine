@@ -41,7 +41,7 @@ export default function FeedThroughput({ health }: { health: SystemHealth | null
         </div>
         <span className="section-note">
           {feeds.length
-            ? `${feeds.length} venue${feeds.length === 1 ? "" : "s"} · ${books.length} book${books.length === 1 ? "" : "s"}`
+            ? `${feeds.length} venue${feeds.length === 1 ? "" : "s"}, ${books.length} book${books.length === 1 ? "" : "s"}`
             : "no gateway snapshot"}
         </span>
       </div>
@@ -58,14 +58,14 @@ export default function FeedThroughput({ health }: { health: SystemHealth | null
         feeds.map((feed) => {
           const rows: BarRow[] = feed.books.map((book) => ({
             label: book.symbol,
-            note: `${fmt(book.updateRateHz, 2)} Hz · ${
-              book.ageSeconds == null ? "age n/a" : `${fmt(book.ageSeconds, 2)}s old`
-            }${book.stale ? " · stale" : ""}`,
+            note: `${fmt(book.updateRateHz, 2)} Hz, ${
+              book.ageSeconds == null ? "age n/a" : `${fmt(book.ageSeconds, 2)} s old`
+            }${book.stale ? "; stale" : ""}`,
             segments: [
               {
                 // Two labels, so the legend names the colour whenever a stale
                 // book is present rather than leaving amber unexplained.
-                label: book.stale ? "updates/s · stale book" : "updates/s",
+                label: book.stale ? "updates/s, stale book" : "updates/s",
                 value: book.updateRateHz,
                 color: book.stale
                   ? "var(--status-warning)"
@@ -82,15 +82,15 @@ export default function FeedThroughput({ health }: { health: SystemHealth | null
                 <span aria-hidden>{STATUS_GLYPH[feed.status] ?? "◌"}</span> {feed.venue}
                 <small className="muted">
                   {" "}— {feed.status}
-                  {feed.connected ? "" : " · disconnected"}
-                  {" · up "}{humanDuration(feed.uptimeSeconds * 1000)}
-                  {" · "}{compact(feed.updatesTotal)} updates
-                  {" · mean "}
+                  {feed.connected ? "" : ", disconnected"}
+                  {"; up "}{humanDuration(feed.uptimeSeconds * 1000)}
+                  {", "}{compact(feed.updatesTotal)} updates
+                  {", mean "}
                   {/* Never 0 Hz for a venue with no uptime to divide by: that
                       would report a dead tape where there is no denominator. */}
                   {feed.meanRateHz == null ? "n/a" : `${fmt(feed.meanRateHz, 2)} Hz`}
-                  {feed.reconnects ? ` · ${feed.reconnects} reconnect${feed.reconnects === 1 ? "" : "s"}` : ""}
-                  {feed.synthetic ? " · synthetic" : ""}
+                  {feed.reconnects ? `; ${feed.reconnects} reconnect${feed.reconnects === 1 ? "" : "s"}` : ""}
+                  {feed.synthetic ? "; synthetic" : ""}
                 </small>
               </p>
               <CategoryBars

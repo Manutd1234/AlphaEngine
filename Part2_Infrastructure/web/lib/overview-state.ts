@@ -188,7 +188,7 @@ export interface LatencyToneResult {
 
 export function latencyTone(p99: number | null, n: number, errorRate = 0): LatencyToneResult {
   if (p99 == null || n < LATENCY_MIN_SAMPLES) {
-    return { tone: "muted", label: `warming up · n=${n}` };
+    return { tone: "muted", label: `warming up, n=${n}` };
   }
   if (errorRate >= 0.25 || p99 >= LATENCY_BAD_MS) return { tone: "bad", label: "slow" };
   if (errorRate > 0.05 || p99 >= LATENCY_WARN_MS) return { tone: "warn", label: "elevated" };
@@ -222,7 +222,7 @@ export function formatNetworkCaveat(
     parts.push(`error rate ${Math.round(network.errorRate * 100)}%`);
   }
   parts.push("15-min pool");
-  return `network, polled — ${parts.join(" · ")}`;
+  return `network, polled — ${parts.join(", ")}`;
 }
 
 /** The pre-decision chip's copy; retired when the chip headlines the decision plane. */
@@ -289,7 +289,7 @@ export const DECISION_BAD_US = 500;
 
 export function decisionTone(p99Us: number | null, samples: number): LatencyToneResult {
   if (p99Us == null || samples < DECISION_MIN_SAMPLES) {
-    return { tone: "muted", label: `collecting · n=${samples}` };
+    return { tone: "muted", label: `collecting, n=${samples}` };
   }
   if (p99Us >= DECISION_BAD_US) return { tone: "bad", label: "slow" };
   if (p99Us >= DECISION_WARN_US) return { tone: "warn", label: "elevated" };
@@ -447,7 +447,7 @@ export function formatDecisionChip(
       core.selfTestSamples != null ? `n=${core.selfTestSamples.toLocaleString("en-US")} self-measure samples` : null,
       "decision µs awaits the first order",
       networkCaveat,
-    ].filter(Boolean).join(" · ");
+    ].filter(Boolean).join("; ");
     return finish("muted", { kind: "core-only", coreP99Ns: core.p99Ns }, "no orders yet", caveat);
   }
 
@@ -469,7 +469,7 @@ export function formatDecisionChip(
     "excludes kernel and wire",
     stale ? "gateway snapshot stale" : null,
     networkCaveat,
-  ].filter(Boolean).join(" · ");
+  ].filter(Boolean).join("; ");
 
   if (stats.samples < DECISION_MIN_SAMPLES) {
     return finish("muted", { kind: "collecting" }, `${stats.samples}/${DECISION_MIN_SAMPLES}`, caveat);

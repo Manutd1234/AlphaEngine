@@ -135,7 +135,7 @@ describe("the signal path reports rather than asserts", () => {
       health({ summary: { ...health().summary, latency: latency({ n: 4 }) } }),
       null,
     );
-    assert.match(byId(thin, "registry").measured ?? "", /collecting · n=4 of 20/);
+    assert.match(byId(thin, "registry").measured ?? "", /collecting, n=4 of 20/);
   });
 
   it("degrades the registry when only some providers route", () => {

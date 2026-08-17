@@ -99,11 +99,11 @@ export default function QuotaMeters({ providers, cacheByCapability, cacheEntries
 
             <div className="console-quota-row__foot">
               <small className="muted">
-                {quota.remaining} left · {quota.reserve} reserved for interactive
+                {quota.remaining} left, {quota.reserve} reserved for interactive lookups
                 {usedPct >= reserveMarkPct && quota.remaining > 0 && (
-                  <strong className="console-warn"> · background refresh already fenced out</strong>
+                  <strong className="console-warn">; background refresh already fenced out</strong>
                 )}
-                {quota.remaining <= 0 && <strong className="console-warn"> · exhausted</strong>}
+                {quota.remaining <= 0 && <strong className="console-warn">; exhausted</strong>}
               </small>
               {resetIn !== null && (
                 <small className="muted">resets in {humanDuration(resetIn)} (UTC)</small>

@@ -40,6 +40,15 @@ const LIVE_SYMBOLS = new Set<string>(SYMBOLS);
 /** The equity the callout offers when a capability cannot answer for the desk symbol. */
 const EQUITY_EXAMPLE = "AAPL";
 
+/** "23 of 25 left today" — the remainder, its allowance and its window, as words. */
+function quotaSentence(remaining: number, limit: number | null, window: string | null): string {
+  const when = window === "day" ? " today"
+    : window === "minute" ? " this minute"
+      : window === "month" ? " this month"
+        : window ? ` this ${window}` : "";
+  return limit === null ? `${remaining} left${when}` : `${remaining} of ${limit} left${when}`;
+}
+
 interface PipelineInspectorProps {
   symbol: string;
   onSymbolChange: (symbol: string) => void;
@@ -186,7 +195,7 @@ export default function PipelineInspector({
           <h2>Pipeline inspector</h2>
         </div>
         <span className="section-note">
-          {symbol}{capability === "bars" ? ` · ${interval}` : ""}
+          {symbol}{capability === "bars" ? ` at ${interval}` : ""}
         </span>
       </div>
 
@@ -390,8 +399,8 @@ function RestTrace({ result, interval }: { result: InspectResponse; interval?: s
             <div>
               <dt>Delivery</dt>
               <dd>
-                {result.provenance.cached ? "cache hit" : "upstream"}
-                {` · ${result.provenance.delayed ? "delayed" : "live tier"}`}
+                {result.provenance.cached ? "Cache hit" : "Upstream"}
+                {result.provenance.delayed ? ", delayed tier" : ", live tier"}
               </dd>
             </div>
             <div>
@@ -399,7 +408,7 @@ function RestTrace({ result, interval }: { result: InspectResponse; interval?: s
               <dd>
                 {result.provenance.quotaRemaining === null
                   ? "not metered"
-                  : `${result.provenance.quotaRemaining}${result.provenance.quotaWindow ? ` · ${result.provenance.quotaWindow}` : ""}`}
+                  : quotaSentence(result.provenance.quotaRemaining, result.provenance.quotaLimit ?? null, result.provenance.quotaWindow)}
               </dd>
             </div>
           </dl>
@@ -505,10 +514,10 @@ function RestTrace({ result, interval }: { result: InspectResponse; interval?: s
               <a href={item.url} target="_blank" rel="noopener noreferrer">{item.title}</a>
               <small className="muted">
                 {item.source}
-                {item.publishedAt && ` · ${new Date(item.publishedAt).toLocaleString()}`}
+                {item.publishedAt && `, ${new Date(item.publishedAt).toLocaleString()}`}
                 {/* null sentiment = not scored; only a real score renders */}
                 {item.sentiment != null
-                  && ` · sentiment ${item.sentiment >= 0 ? "+" : ""}${fmt(item.sentiment, 2)}`}
+                  && `; sentiment ${item.sentiment >= 0 ? "+" : ""}${fmt(item.sentiment, 2)}`}
               </small>
             </li>
           ))}
@@ -520,7 +529,7 @@ function RestTrace({ result, interval }: { result: InspectResponse; interval?: s
       <details open={result.capability !== "news"}>
         <summary>
           {result.capability === "bars" && interval
-            ? `bars · ${interval} after coercion`
+            ? `${interval} bars after coercion`
             : `${result.capability} after coercion`}
         </summary>
         <JsonTree value={result.data} initialDepth={2} />
@@ -610,7 +619,7 @@ function SocketTrace({
               <summary>
                 Last raw frame
                 {venue.lastFrameAt && (
-                  <span className="muted"> · {new Date(venue.lastFrameAt).toLocaleTimeString()}</span>
+                  <span className="muted"> at {new Date(venue.lastFrameAt).toLocaleTimeString()}</span>
                 )}
               </summary>
               <JsonTree value={venue.lastFrame} initialDepth={2} />

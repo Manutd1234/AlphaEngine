@@ -219,7 +219,7 @@ export default function OperatorPanel({
           <span className="page-kicker">Control</span>
           <h2>Operator actions</h2>
         </div>
-        <span className="section-note">Routing instance only · preview required for disruptive actions.</span>
+        <span className="section-note">Routing instance only; preview required for disruptive actions.</span>
       </div>
 
       <section className="remediation-scope" aria-label="What these controls would act on">
@@ -278,7 +278,7 @@ export default function OperatorPanel({
           <span className="page-kicker">Server mutations</span>
           <strong>Provider routing controls</strong>
         </div>
-        <small>Authenticated in production · provider-routing scope</small>
+        <small>Authenticated in production; provider-routing scope</small>
       </div>
 
       {pending ? (
@@ -331,7 +331,7 @@ export default function OperatorPanel({
       <div className="console-action">
         <div className="console-action__head">
           <strong>Purge cached responses</strong>
-          <span className="console-action__figure num">{figure(counters?.cacheEntries, "cached") ?? "—"}{counters?.stateEntries != null ? ` · ${counters.stateEntries} state` : ""}</span>
+          <span className="console-action__figure num">{figure(counters?.cacheEntries, "cached") ?? "—"}{counters?.stateEntries != null ? `, ${counters.stateEntries} state` : ""}</span>
           <div className="console-action__controls">
             <label className="sr-only" htmlFor="console-purge-scope">Purge scope</label>
             <select
@@ -377,7 +377,7 @@ export default function OperatorPanel({
       <div className="console-action">
         <div className="console-action__head">
           <strong>Restore routing</strong>
-          <span className="console-action__figure num">{`${openCircuits} open · ${simulated} simulated`}</span>
+          <span className="console-action__figure num">{`${openCircuits} open, ${simulated} simulated`}</span>
           <div className="console-action__controls">
             <button
               type="button"

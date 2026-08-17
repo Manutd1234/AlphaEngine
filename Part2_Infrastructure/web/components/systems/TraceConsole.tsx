@@ -180,8 +180,8 @@ export default function TraceConsole({ pollMs, active, filterRequest }: TraceCon
         </div>
         <span className="section-note" aria-live="polite">
           {visible.length}/{lines.length} entries
-          {paused ? <span> · stream paused</span> : null}
-          {!connected ? <span className="console-warn"> · server unreachable</span> : null}
+          {paused ? <span>; stream paused</span> : null}
+          {!connected ? <span className="console-warn">; server unreachable</span> : null}
         </span>
       </div>
 

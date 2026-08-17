@@ -57,7 +57,7 @@ These are enforced by tests, not by convention — `web/tests/house-rules.test.t
 `motion.test.ts`, `forced-colors.test.ts`, `type-scale.test.ts`,
 `accent-budget.test.ts`, `null-honesty.test.ts`, `live-motion.test.ts`,
 `interaction.test.ts`, `dead-css.test.ts`, `header-ladder.test.ts`,
-`decision-latency.test.ts`. Breaking one turns the suite red.
+`decision-latency.test.ts`, `middle-dot.test.ts`. Breaking one turns the suite red.
 
 - **No new npm dependencies.** The workspace ships on Next, React,
   `lucide-react`, `@supabase/supabase-js` and `oracledb`. Everything else is
@@ -80,6 +80,12 @@ These are enforced by tests, not by convention — `web/tests/house-rules.test.t
   that animate in JS (`NumberTicker`) check the query themselves.
 - **Empty results are reported, not hidden.** A panel with nothing to show says
   so; it does not render as though it were still loading.
+- **The middle dot is not a word.** Never on a heading, kicker, `<summary>`,
+  label, section note, button, pill or aria-label; notes and captions are prose
+  (comma list for peer facts, semicolon for a qualifier, words for a two-part
+  label — "23 of 25 left today", not "23 · day"). It survives only between
+  same-kind measurements in tabular mono type, and only through `metricRow` in
+  `web/lib/format.ts`; the raw literal count is a ratchet in `middle-dot.test.ts`.
 
 ## Layout
 

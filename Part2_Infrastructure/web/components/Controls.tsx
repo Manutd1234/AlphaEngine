@@ -204,7 +204,7 @@ export default function Controls({
         (req.borrowBpsAnnual ?? 0) > 0 && `borrow ${req.borrowBpsAnnual} bps/yr`,
       ]
         .filter(Boolean)
-        .join(" · ")
+        .join(", ")
     : null;
 
   return (

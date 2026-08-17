@@ -164,7 +164,7 @@ export default function RemediationLedger({ active }: { active: boolean }) {
               <dt>Closed again</dt>
               <dd className="num">
                 {model.recoveredAutomatically + model.recoveredByOperator}
-                {model.rate != null ? ` · ${Math.round(model.rate * 100)}%` : ""}
+                {model.rate != null ? `, ${Math.round(model.rate * 100)}%` : ""}
               </dd>
             </div>
             <div><dt>Still open</dt><dd className="num">{model.stillOpen}</dd></div>
@@ -174,7 +174,7 @@ export default function RemediationLedger({ active }: { active: boolean }) {
                 {model.medianCloseMs != null
                   ? `median ${duration(model.medianCloseMs)}`
                   : "—"}
-                {model.longestCloseMs != null ? ` · longest ${duration(model.longestCloseMs)}` : ""}
+                {model.longestCloseMs != null ? `; longest ${duration(model.longestCloseMs)}` : ""}
               </dd>
             </div>
           </dl>

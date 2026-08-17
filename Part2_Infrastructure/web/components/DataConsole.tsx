@@ -102,7 +102,7 @@ function metricsForSection(
       {
         label: "Quarantine buffer",
         value: health?.quarantine ? String(quarantined) : "—",
-        note: health?.quarantine ? `${rejected} rejected · ${health.quarantine.byProvider.length} providers represented` : "not exposed by this deployment",
+        note: health?.quarantine ? `${rejected} rejected across ${health.quarantine.byProvider.length} providers` : "not exposed by this deployment",
         tone: rejected
           ? "bad"
           : quarantined
@@ -129,7 +129,7 @@ function metricsForSection(
         value: view.cacheHitRate === null
           ? "—"
           : <NumberTicker value={view.cacheHitRate * 100} format={(v) => `${fmt(v, 1)}%`} />,
-        note: health ? `${health.summary.cache.hits} hits · ${health.summary.cache.misses} misses` : "no observations",
+        note: health ? `${health.summary.cache.hits} hits, ${health.summary.cache.misses} misses` : "no observations",
         tone: "neutral",
       },
       {
@@ -204,7 +204,7 @@ function metricsForSection(
               : "Quote checked"
             : "No proof",
       note: probeContract
-        ? `active ${symbol} payload · ${probeContract.notEvaluated.length} checks not evaluated`
+        ? `active ${symbol} payload; ${probeContract.notEvaluated.length} checks not evaluated`
         : probeError ?? "exact-payload contract result not observed",
       tone: probeError
         ? "bad"
@@ -523,7 +523,7 @@ export default function DataConsole({
               </div>
               <div className="cross-link-metrics">
                 <div><span>Route issues</span><strong className={`num${view.degraded ? " warn" : ""}`}>{view.degraded}</strong><small>degraded or exhausted</small></div>
-                <div><span>Sockets</span><strong className="num">{view.sockets.length}</strong><small>{view.sockets.length ? view.sockets.map((socket) => socket.venue).join(" · ") : "wire tap idle"}</small></div>
+                <div><span>Sockets</span><strong className="num">{view.sockets.length}</strong><small>{view.sockets.length ? view.sockets.map((socket) => socket.venue).join(", ") : "wire tap idle"}</small></div>
               </div>
               <button className="text-action" onClick={onOpenReliability}>Open Reliability →</button>
             </aside>

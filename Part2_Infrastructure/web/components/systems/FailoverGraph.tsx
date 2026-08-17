@@ -21,7 +21,7 @@
  */
 
 import { UI_OUTAGE_MS, type ActionOptions } from "@/components/systems/OperatorPanel";
-import { fmt } from "@/lib/format";
+import { fmt, metricRow } from "@/lib/format";
 import { routeLabel, routeNoun } from "@/lib/providers/route-labels";
 import {
   type FailoverRoute,
@@ -172,9 +172,9 @@ export default function FailoverGraph({
                       still attempt it and fail over after the timeout.
                     </small>
                   )}
-                  <small className="muted">
+                  <small className="muted num">
                     {node.latency.n
-                      ? `p50 ${fmt(node.latency.p50 ?? 0, 0)}ms · n=${node.latency.n}`
+                      ? metricRow([`p50 ${fmt(node.latency.p50 ?? 0, 0)} ms`, `n=${node.latency.n}`])
                       : "no samples yet"}
                   </small>
                   {node.state === "simulated_outage" ? (

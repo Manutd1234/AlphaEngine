@@ -62,7 +62,7 @@ function evidenceToneForSource(source: HealthSourceFreshness | undefined): DataT
 function sourceDetail(source: HealthSourceFreshness | undefined): string {
   if (!source) return "not exposed by this deployment";
   if (source.state === "not_configured") return source.detail ?? "source not configured";
-  if (source.ageMs !== null) return `${source.state} · observed ${Math.max(0, Math.round(source.ageMs / 1000))}s ago`;
+  if (source.ageMs !== null) return `${source.state}, observed ${Math.max(0, Math.round(source.ageMs / 1000))} s ago`;
   return source.detail ?? source.state.replace("_", " ");
 }
 
@@ -243,7 +243,7 @@ export function deriveDataTrust(
       label: "Feed freshness",
       value: feedCounts.total ? `${feedCounts.up}/${feedCounts.total} up` : gatewaySource?.state ?? "not observed",
       detail: feedCounts.total
-        ? `${feedCounts.covering} cover ${options.symbol ?? "active scope"} · ${feedCounts.stale} stale · ${feedCounts.synthetic} synthetic · ${sourceDetail(gatewaySource)}`
+        ? `${feedCounts.covering} cover ${options.symbol ?? "active scope"}, ${feedCounts.stale} stale, ${feedCounts.synthetic} synthetic; ${sourceDetail(gatewaySource)}`
         : sourceDetail(gatewaySource),
       tone: freshnessTone,
     },
@@ -260,11 +260,11 @@ export function deriveDataTrust(
           ? `${validation.passed}/${validation.evaluated}`
           : "no denominator",
       detail: hasExactProbe && exactContract
-        ? `${exactContract.violations.length} findings · ${exactContract.notEvaluated.length} checks not evaluated${exactContractFallback ? " · a higher-ranked provider failed contract checks" : ""}`
+        ? `${exactContract.violations.length} findings, ${exactContract.notEvaluated.length} checks not evaluated${exactContractFallback ? "; a higher-ranked provider failed contract checks" : ""}`
         : hasExactProbe
           ? options.probeError ?? "waiting for a contract result tied to this payload"
           : validation
-            ? `${validation.fatal} fatal · ${validation.warn} warn · ${validation.drift} drift · ${validation.notEvaluated} checks not evaluated`
+            ? `${validation.fatal} fatal, ${validation.warn} warn, ${validation.drift} drift; ${validation.notEvaluated} checks not evaluated`
             : "validation telemetry is absent on this deployment",
       tone: contractTone,
     },
@@ -273,7 +273,7 @@ export function deriveDataTrust(
       label: "Lineage evidence",
       value: health ? `${health.events.retained} events` : "not observed",
       detail: health
-        ? `${health.cache.entries} cache entries · trace ${options.symbol ?? "the active instrument"} on demand`
+        ? `${health.cache.entries} cache entries; trace ${options.symbol ?? "the active instrument"} on demand`
         : "waiting for the instance event ring",
       tone: health ? "good" : "unknown",
     },
@@ -282,7 +282,7 @@ export function deriveDataTrust(
       label: "Provider supply",
       value: health ? `${health.summary.ready}/${health.summary.total} ready` : "not observed",
       detail: health
-        ? `${health.summary.configured} configured · ${health.summary.degraded.length} degraded · ${health.summary.exhausted.length} exhausted`
+        ? `${health.summary.configured} configured, ${health.summary.degraded.length} degraded, ${health.summary.exhausted.length} exhausted`
         : sourceDetail(providerSource),
       tone: supplyTone,
     },
@@ -396,7 +396,7 @@ export function deriveTrustSlis(health: SystemHealth | null): TrustSli[] {
       value: noSnapshot ? "—" : `${books.length - stale}/${books.length}`,
       note: noSnapshot
         ? "no gateway feed snapshot — the provider registry cannot prove stream freshness"
-        : `${budget ?? "?"}s budget · one snapshot, no period SLA is measured anywhere`,
+        : `${budget ?? "?"} s budget; one snapshot, no period SLA is measured anywhere`,
       tone: noSnapshot ? "unknown" : stale === 0 ? "good" : stale < books.length ? "warn" : "bad",
     },
     {
@@ -414,7 +414,7 @@ export function deriveTrustSlis(health: SystemHealth | null): TrustSli[] {
         : `${((successRate ?? 0) * 100).toFixed(1)}%`,
       note: attempts < TRUST_MIN_SAMPLES
         ? `${attempts}/${TRUST_MIN_SAMPLES} samples — a thin window, not a failure`
-        : `provider and venue calls in the rolling 15m window · per-provider uptime is not measurable, they are observed only when called`,
+        : `provider and venue calls in the rolling 15-minute window; per-provider uptime is not measurable, they are observed only when called`,
       tone: attempts < TRUST_MIN_SAMPLES
         ? "unknown"
         : (successRate ?? 0) >= 0.99 ? "good" : (successRate ?? 0) >= 0.9 ? "warn" : "bad",
@@ -503,7 +503,7 @@ export function deriveInstanceScope(health: SystemHealth | null): InstanceScopeF
       value: backed && reporting > 0 ? String(reporting) : "n/a",
       detail: backed && reporting > 0
         ? `${shared!.instances.slice(0, 4).join(", ")}${reporting > 4 ? ` +${reporting - 4} more` : ""}`
-          + `${shared!.windowSeconds ? ` · ${shared!.windowSeconds}s merge window` : ""}`
+          + `${shared!.windowSeconds ? `; ${shared!.windowSeconds} s merge window` : ""}`
         : instance
           ? "The gateway ledger sync is unavailable, so every counter on this tab was measured by this lambda alone."
           : "Waiting for the first health snapshot.",

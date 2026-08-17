@@ -424,7 +424,7 @@ export function limitRows(book: PortfolioPayload): LimitRow[] {
   if (largest) {
     rows.push({
       id: "symbol_limit",
-      label: `Largest position · ${largest.symbol}`,
+      label: `Largest position, ${largest.symbol}`,
       unit: "usd",
       used: largest.symbol_limit.used,
       limit: largest.symbol_limit.limit,

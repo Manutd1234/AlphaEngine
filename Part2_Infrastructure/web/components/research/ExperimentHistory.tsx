@@ -104,7 +104,7 @@ export default function ExperimentHistory({
       const parts = [`${result.added} added`, `${result.replaced} replaced`];
       if (result.skippedOlder) parts.push(`${result.skippedOlder} older skipped`);
       if (result.invalid) parts.push(`${result.invalid} invalid dropped`);
-      setIoStatus(`Imported — ${parts.join(" · ")}.`);
+      setIoStatus(`Imported — ${parts.join(", ")}.`);
     };
     reader.onerror = () => setIoStatus("Import failed: the file could not be read.");
     reader.readAsText(file);

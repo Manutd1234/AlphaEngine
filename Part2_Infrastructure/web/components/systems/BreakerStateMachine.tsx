@@ -201,7 +201,7 @@ export default function BreakerStateMachine({
                   <small className="muted">
                     {fraction != null
                       ? `probes again in ${secs(circuit.remaining)}`
-                      : `probes again in ${secs(circuit.remaining)} · elapsed unknown`}
+                      : `probes again in ${secs(circuit.remaining)}; elapsed unknown`}
                   </small>
                 </div>
               </div>
