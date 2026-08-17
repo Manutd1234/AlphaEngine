@@ -161,8 +161,8 @@ export default function KillSwitchControl({
             /* Sanctioned fixed red: --status-critical fails contrast with white
                text in dark theme (2.82:1); #b3242e carries it at 6.55:1 in both
                themes — same rationale as .handoff-fire in globals.css. */
-            ? "inline-flex items-center gap-1.5 rounded-[9px] border border-[#b3242e] bg-[#b3242e] px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.04em] text-white"
-            : "inline-flex items-center gap-1.5 rounded-[9px] border border-transparent bg-transparent px-2 py-1.5 text-[11px] font-semibold text-text-secondary hover:border-border hover:bg-surface-2"
+            ? "inline-flex items-center gap-1.5 rounded-[9px] border border-[#b3242e] bg-[#b3242e] px-2.5 py-1.5 text-[12px] font-bold uppercase tracking-[0.04em] text-white"
+            : "inline-flex items-center gap-1.5 rounded-[9px] border border-transparent bg-transparent px-2 py-1.5 text-[12px] font-semibold text-text-secondary hover:border-border hover:bg-surface-2"
         }
       >
         <OctagonX size={14} aria-hidden />

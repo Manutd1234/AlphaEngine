@@ -654,7 +654,7 @@ describe("the header cannot clip its own controls", () => {
     // is 1060px — measured as a guest with every rung of the header's priority
     // ladder applied (header-ladder.test.ts), the last width at which even the
     // icon-only row fits; it was 1024 when the ladder did not exist.
-    assert.match(css, /@media \(max-width: 1060px\) \{\s*\.workspace-header__utility \{\s*flex-wrap: wrap;/);
+    assert.match(css, /@media \(max-width: 1090px\) \{\s*\.workspace-header__utility \{\s*flex-wrap: wrap;/);
   });
 
   it("does not shrink the tab strip to buy the room", () => {
