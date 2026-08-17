@@ -15,6 +15,13 @@ Secrets arrive only through `Part2_Infrastructure/.env` (copy
 `.env.example`); the committed files contain none and
 `tests/test_container_contract.py` keeps it that way.
 
+The image is two stages: the builder installs `requirements-native.txt` and
+compiles the C++ decision core (`native/decision_core/`), and the runtime
+stage copies the resulting `modules/_decision_core*.so` across — so the
+container decides on the compiled engine while carrying no compiler.
+`/health` reports `decision_engine` and the deploy workflow warns if a build
+came up on the Python fallback.
+
 ## Verifying the volume actually persists
 
 Ask the **running process**, not a second one. DuckDB is single-writer: a
