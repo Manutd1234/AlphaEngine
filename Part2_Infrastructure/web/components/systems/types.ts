@@ -240,6 +240,11 @@ export interface GatewayOpsSnapshot {
    * sizing, exposure, drawdown and the routed slippage walk, but none of the
    * state reads or response construction around them — in nanoseconds; null
    * while the Python reference runs. It is never the same span as `*_us`.
+   * The core histogram may include a startup self-measure of the same
+   * compiled battery on a synthetic two-venue book — `core_self_test_samples`
+   * says how many of its samples that contributed (null when there is no core
+   * histogram at all); the `*_us` histogram never does, so `samples` counts
+   * submitted orders only.
    */
   decision_latency?: DecisionLatency | null;
 }
@@ -254,6 +259,7 @@ export interface DecisionLatency {
   core_p50_ns?: number | null;
   core_p99_ns?: number | null;
   core_max_ns?: number | null;
+  core_self_test_samples?: number | null;
 }
 
 export type HealthSourceState = "fresh" | "stale" | "not_configured" | "unreachable" | "invalid";

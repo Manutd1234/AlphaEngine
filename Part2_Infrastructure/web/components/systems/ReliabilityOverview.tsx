@@ -633,9 +633,11 @@ export default function ReliabilityOverview({
                     <strong className="num">
                       {d && d.core_p99_ns != null ? formatDuration(d.core_p99_ns, "ns") : "—"}
                     </strong>
-                    <code>
+                    <code title={d && d.core_self_test_samples
+                      ? `${d.core_self_test_samples.toLocaleString("en-US")} of the core samples are the startup self-measure — the compiled battery on a synthetic two-venue book; the decision µs figure never includes them`
+                      : undefined}>
                       {d && d.core_p99_ns != null
-                        ? `${d.engine} · p50 ${formatDuration(d.core_p50_ns, "ns")} · max ${formatDuration(d.core_max_ns, "ns")}`
+                        ? `${d.engine} · p50 ${formatDuration(d.core_p50_ns, "ns")} · max ${formatDuration(d.core_max_ns, "ns")}${d.core_self_test_samples ? ` · self-measure ${d.core_self_test_samples.toLocaleString("en-US")}` : ""}`
                         : d?.engine === "python" ? "Python engine · no native core" : "no native core"}
                     </code>
                   </span>

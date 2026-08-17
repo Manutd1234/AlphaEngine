@@ -46,7 +46,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Awaitable, Callable
 
 from config import settings
-from modules.metrics import observe_core_latency, observe_decision_latency
+from modules.metrics import observe_core_latency, observe_core_self_test_latency, observe_decision_latency
 from modules.schemas import (
     CheckResult,
     Fill,
@@ -433,6 +433,103 @@ class RiskGateway:
         except Exception:  # pragma: no cover - robustness: never fail an order on the core
             log.exception("native decision core raised; falling back to the Python reference")
             return None, ()
+
+    #: The startup self-measure's synthetic book: two venues, five levels a
+    #: side, one cent apart around 100.0, the second venue a cent wider, 5 000
+    #: units at every level. Fixed on purpose — a self-measure that varied its
+    #: input would be measuring its input.
+    _SELF_MEASURE_LADDERS: tuple[tuple[list[tuple[float, float]], list[tuple[float, float]]], ...] = (
+        (
+            [(99.99, 5000.0), (99.98, 5000.0), (99.97, 5000.0), (99.96, 5000.0), (99.95, 5000.0)],
+            [(100.01, 5000.0), (100.02, 5000.0), (100.03, 5000.0), (100.04, 5000.0), (100.05, 5000.0)],
+        ),
+        (
+            [(99.98, 5000.0), (99.97, 5000.0), (99.96, 5000.0), (99.95, 5000.0), (99.94, 5000.0)],
+            [(100.02, 5000.0), (100.03, 5000.0), (100.04, 5000.0), (100.05, 5000.0), (100.06, 5000.0)],
+        ),
+    )
+    _SELF_MEASURE_WARMUP = 50
+    _SELF_MEASURE_SAMPLES = 300
+
+    def run_core_self_measure(self) -> int:
+        """Time the compiled battery once at startup, on a synthetic two-venue book.
+
+        The core histogram otherwise contains only submitted orders and empties
+        on every restart, so the desk read "no orders yet" after each deploy
+        with the nanosecond figure nowhere in sight. This runs the *same*
+        ``decide()`` the order path runs — same compiled battery, same
+        ``steady_clock`` inside it — against two ``BookLadder`` objects built
+        directly from the extension, and records each measured iteration
+        through ``observe_core_self_test_latency`` so the count of synthetic
+        samples is published beside the total. Fifty warm-up calls first (not
+        recorded), then three hundred measured; the whole thing costs well
+        under a millisecond.
+
+        What it deliberately does not do: touch the decision (µs) histogram,
+        the order counters, the audit log, the token bucket or the TCA engine.
+        A self-measure is evidence about the *core*, and the µs plane is the
+        whole ``submit()`` under its lock, which nothing synthetic may enter.
+
+        Returns the number of samples recorded: 0 on the Python engine (a
+        silent no-op — there is no core to time), and 0 on any failure, which
+        is logged and leaves the histogram untouched. Never raises.
+        """
+        core = self._decision_core
+        if core is None:
+            return 0
+        try:
+            ladders = []
+            for bids, asks in self._SELF_MEASURE_LADDERS:
+                ladder = core.BookLadder()
+                ladder.snapshot(bids, asks)
+                ladders.append(ladder)
+            # The arguments mirror `_native_decide` for a live (non-paper) BUY
+            # by notional against the two ladders above, holding one position
+            # in the order symbol, with the deployed limits — the shape a real
+            # decision takes, minus the strings. Nothing here reads gateway
+            # state that an order could have moved.
+            kwargs = dict(
+                side_is_buy=True,
+                order_type_is_limit=False,
+                order_quantity=None,
+                order_notional=10_000.0,
+                limit_price=None,
+                is_paper=False,
+                paper_price=None,
+                order_books=ladders,
+                pos_quantities=[0.5],
+                pos_avg_prices=[99.5],
+                pos_realized=[0.0],
+                pos_marks=[100.0],
+                pos_is_order_symbol=[True],
+                working_buys=0.0,
+                working_sells=0.0,
+                starting_equity=settings.starting_equity_usd,
+                carried_realized_pnl=0.0,
+                start_of_day_equity=settings.starting_equity_usd,
+                max_order_notional_usd=settings.max_order_notional_usd,
+                max_symbol_notional_usd=settings.max_symbol_notional_usd,
+                max_gross_exposure_usd=settings.max_gross_exposure_usd,
+                max_price_deviation_bps=settings.max_price_deviation_bps,
+                max_daily_drawdown_pct=settings.max_daily_drawdown_pct,
+                reduce_only_threshold=settings.reduce_only_threshold,
+                reduce_only_override=False,
+                # Two ladders are supplied, so the routed walk — the expensive
+                # end of the battery — is part of what is timed.
+                route_enabled=True,
+            )
+            for _ in range(self._SELF_MEASURE_WARMUP):
+                core.decide(**kwargs)
+            recorded = 0
+            for _ in range(self._SELF_MEASURE_SAMPLES):
+                result = core.decide(**kwargs)
+                observe_core_self_test_latency(result.elapsed_ns)
+                recorded += 1
+            log.info("decision core self-measure: %d samples on the synthetic two-venue book", recorded)
+            return recorded
+        except Exception:
+            log.warning("decision core self-measure failed; the core histogram is untouched", exc_info=True)
+            return 0
 
     # -- wiring ----------------------------------------------------------- #
     def _restore_session_baseline_from_audit(self) -> None:

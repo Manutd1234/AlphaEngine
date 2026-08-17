@@ -307,8 +307,25 @@ export type DecisionLatencySource =
   | { kind: "checking"; detail: string }
   | { kind: "no-gateway"; state: HealthSourceState; detail: string }
   | { kind: "not-published"; detail: string }
-  | { kind: "no-orders"; detail: string }
+  | { kind: "no-orders"; detail: string; core: DecisionCoreSelfMeasure | null }
   | { kind: "measured"; stats: DecisionLatency; stale: boolean };
+
+/**
+ * The compiled core's own figure when no order has been decided yet. It exists
+ * because the gateway times the battery once at startup on a synthetic
+ * two-venue book (`RiskGateway.run_core_self_measure`), so the nanosecond
+ * plane is evidence from the first second of the process while the
+ * microsecond plane honestly waits for the first order. `selfTestSamples` is
+ * how many of the core histogram's samples that self-measure contributed —
+ * published so the desk can say where the number came from, never implied.
+ */
+export interface DecisionCoreSelfMeasure {
+  engine: DecisionEngine;
+  p50Ns: number | null;
+  p99Ns: number;
+  maxNs: number | null;
+  selfTestSamples: number | null;
+}
 
 export function isDecisionLatency(value: unknown): value is DecisionLatency {
   if (!value || typeof value !== "object") return false;
@@ -319,6 +336,8 @@ export function isDecisionLatency(value: unknown): value is DecisionLatency {
     && typeof v.samples === "number" && Number.isInteger(v.samples) && v.samples >= 0
     && finiteOrNull(v.p50_us) && finiteOrNull(v.p99_us) && finiteOrNull(v.p999_us) && finiteOrNull(v.max_us)
     && finiteOrNull(v.core_p50_ns) && finiteOrNull(v.core_p99_ns) && finiteOrNull(v.core_max_ns)
+    && (v.core_self_test_samples === null || v.core_self_test_samples === undefined
+      || (typeof v.core_self_test_samples === "number" && Number.isInteger(v.core_self_test_samples) && v.core_self_test_samples >= 0))
   );
 }
 
@@ -340,13 +359,23 @@ export function deriveDecisionLatency(
   }
   const block = platform.decision_latency;
   if (block === null) {
-    return { kind: "no-orders", detail: "no orders yet — quantiles of nothing are not zeros" };
+    return { kind: "no-orders", detail: "no orders yet — quantiles of nothing are not zeros", core: null };
   }
   if (!isDecisionLatency(block)) {
     return { kind: "not-published", detail: "decision_latency failed its contract and was withheld" };
   }
   if (block.samples === 0 || block.p99_us == null) {
-    return { kind: "no-orders", detail: "no orders yet — quantiles of nothing are not zeros" };
+    // The µs plane is empty, but the core may already have measured itself.
+    const core: DecisionCoreSelfMeasure | null = block.core_p99_ns != null
+      ? {
+        engine: block.engine,
+        p50Ns: block.core_p50_ns ?? null,
+        p99Ns: block.core_p99_ns,
+        maxNs: block.core_max_ns ?? null,
+        selfTestSamples: block.core_self_test_samples ?? null,
+      }
+      : null;
+    return { kind: "no-orders", detail: "no orders yet — quantiles of nothing are not zeros", core };
   }
   return { kind: "measured", stats: block, stale: health.sources?.gateway?.state === "stale" };
 }
@@ -356,6 +385,8 @@ export interface DecisionChipModel {
   headline:
     | { kind: "measured"; p99Us: number; coreP99Ns: number | null }
     | { kind: "collecting" }
+    /** No order decided yet, but the compiled core has timed itself at startup. */
+    | { kind: "core-only"; coreP99Ns: number }
     | { kind: "dash" };
   /** The state word beside the dot. */
   state: string;
@@ -378,6 +409,7 @@ export function formatDecisionChip(
   ): DecisionChipModel => {
     const headlineText = headline.kind === "measured"
       ? `${formatDuration(headline.p99Us, "us")}${headline.coreP99Ns != null ? ` · core ${formatDuration(headline.coreP99Ns, "ns")}` : ""}`
+      : headline.kind === "core-only" ? `— · core ${formatDuration(headline.coreP99Ns, "ns")}`
       : headline.kind === "collecting" ? "collecting" : "—";
     return {
       tone,
@@ -399,7 +431,24 @@ export function formatDecisionChip(
     return finish("muted", { kind: "dash" }, "not published", `${source.detail} · ${networkCaveat}`);
   }
   if (source.kind === "no-orders") {
-    return finish("muted", { kind: "dash" }, "no orders yet", `${source.detail} · ${networkCaveat}`);
+    const core = source.core;
+    if (core == null) {
+      return finish("muted", { kind: "dash" }, "no orders yet", `${source.detail} · ${networkCaveat}`);
+    }
+    // The core figure alone: it is real (the compiled battery, timed inside
+    // the engine) but its provenance is the startup self-measure, and the
+    // title says so before it says anything else.
+    const ns = (v: number | null) => formatDuration(v, "ns");
+    const caveat = [
+      `core p99 ${ns(core.p99Ns)} from the startup self-measure — the compiled battery on a synthetic two-venue book`,
+      DECISION_ENGINE_LABEL[core.engine],
+      `core p50 ${ns(core.p50Ns)}`,
+      `core max ${ns(core.maxNs)}`,
+      core.selfTestSamples != null ? `n=${core.selfTestSamples.toLocaleString("en-US")} self-measure samples` : null,
+      "decision µs awaits the first order",
+      networkCaveat,
+    ].filter(Boolean).join(" · ");
+    return finish("muted", { kind: "core-only", coreP99Ns: core.p99Ns }, "no orders yet", caveat);
   }
 
   const { stats, stale } = source;

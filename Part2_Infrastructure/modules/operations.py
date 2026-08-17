@@ -137,7 +137,12 @@ class DecisionLatencySnapshot(BaseModel):
     the Python reference is visible before the first order; the quantiles are
     null until something has been measured — quantiles of nothing are not
     zeros. ``core_*`` is the native engine's timing of the arithmetic alone,
-    in nanoseconds, and is null while the Python engine runs.
+    in nanoseconds, and is null while the Python engine runs. The core
+    histogram may include a startup self-measure of the same compiled battery
+    on a synthetic two-venue book — ``core_self_test_samples`` says how many of
+    its samples that contributed, null when there is no core histogram at all;
+    the decision (µs) histogram never does, so ``samples`` counts submitted
+    orders only.
     """
 
     engine: Literal["native", "python"]
@@ -149,6 +154,7 @@ class DecisionLatencySnapshot(BaseModel):
     core_p50_ns: float | None = None
     core_p99_ns: float | None = None
     core_max_ns: float | None = None
+    core_self_test_samples: int | None = None
 
 
 class OperationsSnapshot(BaseModel):
@@ -344,6 +350,7 @@ def _decision_latency_snapshot() -> DecisionLatencySnapshot:
         core_p50_ns=core["p50"] if core_samples else None,
         core_p99_ns=core["p99"] if core_samples else None,
         core_max_ns=core["max"] if core_samples else None,
+        core_self_test_samples=int(core["self_test_samples"]) if core_samples else None,
     )
 
 

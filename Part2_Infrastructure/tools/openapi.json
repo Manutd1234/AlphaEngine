@@ -321,7 +321,7 @@
         "type": "object"
       },
       "DecisionLatencySnapshot": {
-        "description": "The pre-trade decision's own clock, in-process, every sample since start.\n\n``engine`` and ``samples`` are always present so a build that fell back to\nthe Python reference is visible before the first order; the quantiles are\nnull until something has been measured \u2014 quantiles of nothing are not\nzeros. ``core_*`` is the native engine's timing of the arithmetic alone,\nin nanoseconds, and is null while the Python engine runs.",
+        "description": "The pre-trade decision's own clock, in-process, every sample since start.\n\n``engine`` and ``samples`` are always present so a build that fell back to\nthe Python reference is visible before the first order; the quantiles are\nnull until something has been measured \u2014 quantiles of nothing are not\nzeros. ``core_*`` is the native engine's timing of the arithmetic alone,\nin nanoseconds, and is null while the Python engine runs. The core\nhistogram may include a startup self-measure of the same compiled battery\non a synthetic two-venue book \u2014 ``core_self_test_samples`` says how many of\nits samples that contributed, null when there is no core histogram at all;\nthe decision (\u00b5s) histogram never does, so ``samples`` counts submitted\norders only.",
         "properties": {
           "core_max_ns": {
             "anyOf": [
@@ -355,6 +355,17 @@
               }
             ],
             "title": "Core P99 Ns"
+          },
+          "core_self_test_samples": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Core Self Test Samples"
           },
           "engine": {
             "enum": [

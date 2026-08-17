@@ -169,6 +169,10 @@ export default function ReliabilityConsole({
   const decisionTileTone: "good" | "warn" | "bad" | "neutral" =
     decisionTone_.tone === "bad" ? "bad" : decisionTone_.tone === "warn" ? "warn" : "neutral";
   const decisionNote = (() => {
+    if (decision.kind === "no-orders" && decision.core) {
+      // The core has timed itself at startup; the µs plane is still empty.
+      return `core p99 ${formatDuration(decision.core.p99Ns, "ns")} · startup self-measure · no orders yet`;
+    }
     if (decision.kind !== "measured") return decision.detail;
     const s = decision.stats;
     if (s.samples < DECISION_MIN_SAMPLES) return `${s.samples}/${DECISION_MIN_SAMPLES} decisions · not a failure`;

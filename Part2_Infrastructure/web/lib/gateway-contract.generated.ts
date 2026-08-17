@@ -55,6 +55,7 @@ export interface DecisionLatencySnapshot {
   core_max_ns?: number | null;
   core_p50_ns?: number | null;
   core_p99_ns?: number | null;
+  core_self_test_samples?: number | null;
   engine: "native" | "python";
   max_us?: number | null;
   p50_us?: number | null;

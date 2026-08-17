@@ -363,6 +363,39 @@ describe("deriveDecisionLatency", () => {
     assert.equal(deriveDecisionLatency(healthWith(empty)).kind, "no-orders");
   });
 
+  it("zero orders with a self-measured core is 'no orders yet' WITH the core figure", () => {
+    const selfMeasured = measured({
+      engine: "native", samples: 0, p50_us: null, p99_us: null, p999_us: null, max_us: null,
+      core_p50_ns: 44, core_p99_ns: 84, core_max_ns: 84, core_self_test_samples: 300,
+    });
+    const source = deriveDecisionLatency(healthWith(selfMeasured));
+    assert.equal(source.kind, "no-orders");
+    if (source.kind === "no-orders") {
+      assert.ok(source.core, "the core figure rides the no-orders state");
+      assert.equal(source.core?.p99Ns, 84);
+      assert.equal(source.core?.selfTestSamples, 300);
+      assert.equal(source.core?.engine, "native");
+    }
+  });
+
+  it("zero orders on the Python engine carries no core — the state stays a plain dash", () => {
+    const empty = measured({
+      engine: "python", samples: 0, p50_us: null, p99_us: null, p999_us: null, max_us: null,
+      core_p50_ns: null, core_p99_ns: null, core_max_ns: null, core_self_test_samples: null,
+    });
+    const source = deriveDecisionLatency(healthWith(empty));
+    assert.equal(source.kind, "no-orders");
+    if (source.kind === "no-orders") assert.equal(source.core, null);
+  });
+
+  it("a negative or fractional self-measure count fails the contract", () => {
+    const bad = measured({ core_self_test_samples: -1 } as Partial<DecisionLatency>);
+    assert.equal(isDecisionLatency(bad), false);
+    const frac = measured({ core_self_test_samples: 1.5 } as Partial<DecisionLatency>);
+    assert.equal(isDecisionLatency(frac), false);
+    assert.equal(isDecisionLatency(measured({ core_self_test_samples: null } as Partial<DecisionLatency>)), true);
+  });
+
   it("a measured block carries the gateway's freshness", () => {
     const fresh = deriveDecisionLatency(healthWith(measured()));
     assert.equal(fresh.kind, "measured");
@@ -381,6 +414,30 @@ describe("formatDecisionChip", () => {
     // The network figure is present in the CAVEAT, labelled — never promoted
     // to the headline under the decision label.
     assert.match(chip.caveat, /network, polled/);
+  });
+
+  it("no orders yet with a self-measured core shows the ns figure and names the method", () => {
+    const selfMeasured = measured({
+      engine: "native", samples: 0, p50_us: null, p99_us: null, p999_us: null, max_us: null,
+      core_p50_ns: 44, core_p99_ns: 84, core_max_ns: 84, core_self_test_samples: 300,
+    });
+    const chip = formatDecisionChip(deriveDecisionLatency(healthWith(selfMeasured)), NETWORK);
+    assert.equal(chip.headline.kind, "core-only");
+    if (chip.headline.kind === "core-only") assert.equal(chip.headline.coreP99Ns, 84);
+    // The µs plane is still honestly empty: the state word does not change.
+    assert.equal(chip.state, "no orders yet");
+    assert.equal(chip.tone, "muted");
+    // Provenance first — the title says where the number came from before it
+    // says anything else, and it says the µs plane is still waiting.
+    assert.match(chip.caveat, /^core p99 84\u00A0ns from the startup self-measure/);
+    assert.match(chip.caveat, /synthetic two-venue book/);
+    assert.match(chip.caveat, /decision µs awaits the first order/);
+    assert.match(chip.caveat, /n=300 self-measure samples/);
+    assert.match(chip.caveat, /network, polled/);
+    // The self-measure must never leak into the µs plane: no "p99 … µs" claim.
+    assert.doesNotMatch(chip.caveat, /p99 \d[\d.]* µs/);
+    assert.doesNotMatch(chip.caveat, /in-process pre-trade decision/);
+    assert.match(chip.ariaLabel, /— · core 84\u00A0ns/);
   });
 
   it("collecting shows n over the floor", () => {

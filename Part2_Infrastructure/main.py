@@ -136,6 +136,12 @@ async def lifespan(app: FastAPI):
     await mirror.start()
     await rag.start()
 
+    # Time the compiled decision battery once, on a synthetic two-venue book,
+    # so the desk's nanosecond figure exists before the first order and after
+    # every restart. Core histogram only — the decision (us) histogram waits
+    # for real orders. A no-op on the Python engine; never raises.
+    gateway.run_core_self_measure()
+
     audit.record_risk_event(
         "gateway_start", severity="info", actor="system",
         detail=f"{settings.app_name} v{settings.version}",

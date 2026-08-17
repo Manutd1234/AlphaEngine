@@ -336,6 +336,17 @@ def render_metrics() -> str:
             "decision_core_latency_max_ns", core["max"],
             help="Slowest native decision core evaluation since start.",
         )
+        # How many of the core samples above are the startup self-measure —
+        # the same battery on a synthetic two-venue book — rather than real
+        # orders. Never part of decision_latency_us.
+        out.metric(
+            "decision_core_self_test_samples", core["self_test_samples"],
+            help=(
+                "Native decision core samples contributed by the startup "
+                "self-measure (synthetic two-venue book, same compiled battery); "
+                "the remainder are submitted orders."
+            ),
+        )
 
     # -- Audit / observability ------------------------------------------------ #
     audit = get_audit()
@@ -567,6 +578,13 @@ _decision = _LogLinearHistogram("us", 21)
 #: The native core's own clock around the arithmetic, in nanoseconds:
 #: 2^0 = 1ns .. 2^24 ≈ 16.8ms. Empty while the Python engine runs.
 _core = _LogLinearHistogram("ns", 25)
+#: How many of ``_core``'s samples came from the startup self-measure — the
+#: same compiled battery, timed by the same clock, on a synthetic two-venue
+#: book rather than a submitted order (``RiskGateway.run_core_self_measure``).
+#: Published beside the count so a reader can tell "the core has been timed"
+#: from "the core has been timed on real orders". The decision histogram
+#: (``_decision``) never receives a synthetic sample.
+_core_self_test_samples = 0
 
 # The pre-class names, kept for the callers (and one memory-stability test)
 # that read them: the list objects are the histogram's own, not copies.
@@ -584,10 +602,27 @@ def observe_core_latency(nanoseconds: float) -> None:
     _core.observe(nanoseconds)
 
 
+def observe_core_self_test_latency(nanoseconds: float) -> None:
+    """Record one startup self-measure sample of the native core.
+
+    The same histogram ``observe_core_latency`` feeds — it *is* the compiled
+    battery under its own clock — but counted separately, so the summary can
+    say how many of the core's samples were synthetic. Never called on the
+    order path.
+    """
+    global _core_self_test_samples
+    before = _core.total
+    observe_core_latency(nanoseconds)
+    if _core.total != before:  # the histogram accepted it (not NaN, not negative)
+        _core_self_test_samples += 1
+
+
 def reset_decision_latency() -> None:
     """Drop every recorded decision (used by tests to isolate assertions)."""
+    global _core_self_test_samples
     _decision.reset()
     _core.reset()
+    _core_self_test_samples = 0
 
 
 def decision_latency_summary() -> dict[str, float]:
@@ -596,8 +631,14 @@ def decision_latency_summary() -> dict[str, float]:
 
 
 def core_latency_summary() -> dict[str, float]:
-    """p50/p99/p99.9/p99.99/max in nanoseconds for the native core, plus count."""
-    return _core.summary()
+    """p50/p99/p99.9/p99.99/max in nanoseconds for the native core, plus counts.
+
+    ``samples`` is every sample; ``self_test_samples`` is how many of those the
+    startup self-measure contributed (see ``observe_core_self_test_latency``).
+    """
+    summary = _core.summary()
+    summary["self_test_samples"] = _core_self_test_samples
+    return summary
 
 
 def decision_latency_buckets() -> list[tuple[float, int]]:

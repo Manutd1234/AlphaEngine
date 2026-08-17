@@ -68,9 +68,9 @@ export default function LatencyChip({
           ) : (
             "—"
           )}
-          {headline.kind === "measured" && headline.coreP99Ns != null && (
+          {((headline.kind === "measured" && headline.coreP99Ns != null) || headline.kind === "core-only") && (
             <em className="latency-chip__core">
-              core <NumberTicker value={headline.coreP99Ns} format={(v) => formatDuration(v, "ns")} />
+              core <NumberTicker value={headline.coreP99Ns!} format={(v) => formatDuration(v, "ns")} />
             </em>
           )}
         </strong>

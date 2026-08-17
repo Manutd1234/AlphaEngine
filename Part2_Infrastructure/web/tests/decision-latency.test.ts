@@ -32,6 +32,17 @@ describe("the header chip is fed by the model, not by hand", () => {
     assert.match(chip, /formatDuration\(v, "ns"\)/);
   });
 
+  it("shows the core figure before the first order, and keeps the dash beside it", () => {
+    // The gateway self-measures the compiled battery at startup, so the ns
+    // plane exists while the µs plane is honestly empty. The chip renders the
+    // core em in that state and STILL prints the dash for the decision — the
+    // self-measure must never be promoted to a decision figure.
+    assert.match(chip, /headline\.kind === "core-only"/);
+    assert.match(chip, /\(\(headline\.kind === "measured" && headline\.coreP99Ns != null\) \|\| headline\.kind === "core-only"\)/);
+    // The dash branch is the fall-through: only measured/collecting print words.
+    assert.match(chip, /"collecting"\s*\)\s*:\s*\(\s*"—"/);
+  });
+
   it("the header threads both planes into it", () => {
     const header = read("components/WorkspaceHeader.tsx");
     assert.match(header, /<LatencyChip decision=\{decisionLatency\} network=\{latency\}/);
@@ -47,6 +58,20 @@ describe("Reliability teaches the two planes apart", () => {
     assert.match(guide, /in-process/);
     assert.match(guide, /Upstream p99 \(this table\)/);
     assert.match(guide, /network, polled/);
+  });
+
+  it("the console and the strip name the self-measure where the core figure came from", () => {
+    const console_ = read("components/ReliabilityConsole.tsx");
+    assert.match(console_, /decision\.kind === "no-orders" && decision\.core/);
+    assert.match(console_, /startup self-measure · no orders yet/);
+    const overview = read("components/systems/ReliabilityOverview.tsx");
+    assert.match(overview, /core_self_test_samples/);
+    assert.match(overview, /self-measure \$\{d\.core_self_test_samples/);
+    // Provenance in the title, in words: synthetic book, never the µs plane.
+    assert.match(overview, /synthetic two-venue book; the decision µs figure never includes them/);
+    // The types carry the field the gateway publishes.
+    const types = read("components/systems/types.ts");
+    assert.match(types, /core_self_test_samples\?: number \| null;/);
   });
 
   it("the console has both a Decision and an Upstream tile", () => {
