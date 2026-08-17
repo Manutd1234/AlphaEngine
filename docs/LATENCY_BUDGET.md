@@ -473,7 +473,7 @@ connect. Vercel serves the web project from `sin1`, the same city as the VM.
 | Order entry → venue | **72.7 ms** origin RTT | Binance; 1.6 ms to the CDN edge, which is not where it matches |
 | Order entry → Bybit | **6.2 ms** origin RTT | the free alternative, measured on the same host |
 | Gateway → browser (dev machine) | 21–27 ms | |
-| Book recompute | 5 s | server-side; the observability floor |
+| Book recompute | 1 s | server-side; the browser polls (4–15 s) are now the observability floor |
 | Browser order book | 100 ms | direct from venue, already optimal |
 
 The honest headline: **the decision is fast, the system is not, and the gap is
