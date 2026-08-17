@@ -16,7 +16,13 @@ import { test } from "node:test";
 import { eventCursor, eventsSince } from "../lib/observability";
 import { assertPublicUrl } from "../lib/providers/firecrawl";
 import { iso, num, pctChange, str } from "../lib/providers/parse";
-import { classify, candidatesFor, isValidSymbol } from "../lib/providers/registry";
+import {
+  applicableAssets,
+  inapplicableReason,
+  isApplicable,
+  ROUTE_MATRIX,
+} from "../lib/providers/capabilities";
+import { classify, candidatesFor, getFundamentals, isValidSymbol } from "../lib/providers/registry";
 import {
   MemoryStore,
   breakerOpen,
@@ -28,7 +34,7 @@ import {
   spendQuota,
   windowKey,
 } from "../lib/providers/runtime";
-import { Adapter, ProviderError, Quote } from "../lib/providers/types";
+import { Adapter, NotApplicableError, ProviderError, Quote } from "../lib/providers/types";
 
 // --------------------------------------------------------------------------
 // Test doubles
@@ -135,6 +141,61 @@ test("candidatesFor orders by rank and filters by asset", () => {
   assert.equal(cr[0], "binance"); // keyless baseline first — Bybit serves bars only
   const crBars = candidatesFor("bars", "crypto").map((a) => a.meta.id);
   assert.equal(crBars[0], "bybit"); // the nearer origin: 6.2ms vs 72.7ms
+});
+
+// --------------------------------------------------------------------------
+// Applicability — the gate before dispatch
+// --------------------------------------------------------------------------
+
+test("CAPABILITY_ASSETS: the failover graph draws exactly the nine desk routes", () => {
+  const pairs = ROUTE_MATRIX.flatMap((r) => r.assets.map((a) => `${r.capability}/${a}`));
+  assert.deepEqual(pairs, [
+    "quote/crypto", "quote/equity",
+    "bars/crypto", "bars/equity",
+    "news/crypto", "news/equity",
+    "fundamentals/equity",
+    "search/equity",
+    "scrape/equity",
+  ]);
+  // fx is accepted by the price façades even though the desk draws no fx route:
+  // classify("EURUSD") is fx and /api/quote?symbol=EURUSD reaches a vendor today.
+  assert.equal(isApplicable("quote", "fx"), true);
+  assert.equal(isApplicable("fundamentals", "crypto"), false);
+  assert.equal(isApplicable("fundamentals", "fx"), false);
+  assert.deepEqual([...applicableAssets("fundamentals")], ["equity"]);
+  assert.deepEqual([...applicableAssets("search")], []);
+  assert.equal(isApplicable("scrape", "crypto"), true, "symbol-less capabilities are never gated");
+});
+
+test("getFundamentals: a crypto symbol is refused before any provider is asked", async () => {
+  const s = new MemoryStore();
+  await assert.rejects(
+    getFundamentals("BTCUSDT", { store: s, env: {} as NodeJS.ProcessEnv }),
+    (err: unknown) => {
+      assert.ok(err instanceof NotApplicableError, "a NotApplicableError, not a generic failure");
+      assert.equal(err.status, 422);
+      assert.equal(err.provider, "registry");
+      assert.equal(err.capability, "fundamentals");
+      assert.equal(err.asset, "crypto");
+      assert.deepEqual([...err.applicable], ["equity"]);
+      assert.match(err.message, /equity-only/);
+      assert.match(err.message, /BTCUSDT is classified as crypto/);
+      assert.match(err.message, /nothing is spent/);
+      return true;
+    },
+  );
+  // Nothing was spent and nothing was counted: the ledger has no quota or
+  // breaker record for any provider, because none was reached.
+  assert.deepEqual(s.keys("quota:"), []);
+  assert.deepEqual(s.keys("breaker:"), []);
+});
+
+test("inapplicableReason names the capability, the scope and the symbol", () => {
+  assert.equal(
+    inapplicableReason("fundamentals", "BTCUSDT", "crypto"),
+    "Fundamentals describe an issuer, so the capability is equity-only; BTCUSDT is classified as crypto, so no provider is asked and nothing is spent.",
+  );
+  assert.doesNotMatch(inapplicableReason("fundamentals", "ETHUSDT", "crypto"), / · /);
 });
 
 // --------------------------------------------------------------------------

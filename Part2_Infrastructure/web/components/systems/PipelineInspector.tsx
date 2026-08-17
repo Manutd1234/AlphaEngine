@@ -28,12 +28,17 @@ import JsonTree from "@/components/systems/JsonTree";
 import { SKIP_LABEL, type InspectResponse } from "@/components/systems/types";
 import { fmt } from "@/lib/format";
 import { useLiveBook } from "@/lib/livebook";
+import { applicableAssets, inapplicableReason, isApplicable } from "@/lib/providers/capabilities";
+import { classify } from "@/lib/providers/symbols";
 import { SYMBOLS } from "@/lib/venues";
 
 const CAPABILITIES = ["quote", "bars", "news", "fundamentals"] as const;
 type Capability = (typeof CAPABILITIES)[number];
 
 const LIVE_SYMBOLS = new Set<string>(SYMBOLS);
+
+/** The equity the callout offers when a capability cannot answer for the desk symbol. */
+const EQUITY_EXAMPLE = "AAPL";
 
 interface PipelineInspectorProps {
   symbol: string;
@@ -68,6 +73,12 @@ export default function PipelineInspector({
   const autoInspectKey = useRef<string | null>(null);
   const requestedInterval = capability === "bars" ? interval : null;
   const inspectionKey = `${symbol}:${capability}:${requestedInterval ?? "-"}:${raw ? "raw" : "normalised"}`;
+  // The applicability gate, mirrored here so a request the registry would
+  // refuse is never sent — not on the first load, and not on every poll after.
+  // Fundamentals describe an issuer; a crypto pair has none, and tracing it
+  // used to spend four provider calls per poll to be told so four times.
+  const asset = classify(symbol);
+  const inapplicable = !isApplicable(capability, asset);
 
   useEffect(() => setDraft(symbol), [symbol]);
 
@@ -137,18 +148,20 @@ export default function PipelineInspector({
 
   useEffect(() => {
     if (!active || tab !== "rest") return;
+    if (inapplicable) return;
     if (autoInspectKey.current === inspectionKey) return;
     autoInspectKey.current = inspectionKey;
     void inspect(false, false);
-  }, [active, tab, inspect, inspectionKey]);
+  }, [active, tab, inspect, inspectionKey, inapplicable]);
 
   useEffect(() => {
     if (!active || tab !== "rest" || !pollMs) return;
+    if (inapplicable) return;
     const timer = setInterval(() => {
       if (!document.hidden) void inspect(false, true);
     }, pollMs);
     return () => clearInterval(timer);
-  }, [active, tab, pollMs, inspect]);
+  }, [active, tab, pollMs, inspect, inapplicable]);
 
   const submit = () => {
     const next = draft.trim().toUpperCase();
@@ -186,7 +199,12 @@ export default function PipelineInspector({
           aria-label="Symbol to inspect"
           spellCheck={false}
         />
-        <button type="button" onClick={() => void inspect(true, false)} disabled={busy}>
+        <button
+          type="button"
+          onClick={() => void inspect(true, false)}
+          disabled={busy || inapplicable}
+          title={inapplicable ? inapplicableReason(capability, symbol, asset) : undefined}
+        >
           {busy ? "Tracing…" : "Trace (bypass cache)"}
         </button>
       </div>
@@ -198,16 +216,25 @@ export default function PipelineInspector({
       </p>
 
       <div className="seg console-seg" role="group" aria-label="Capability to inspect">
-        {CAPABILITIES.map((item) => (
-          <button
-            key={item}
-            type="button"
-            aria-pressed={item === capability}
-            onClick={() => setCapability(item)}
-          >
-            {item}
-          </button>
-        ))}
+        {CAPABILITIES.map((item) => {
+          const applies = isApplicable(item, asset);
+          const scope = applicableAssets(item);
+          return (
+            <button
+              key={item}
+              type="button"
+              aria-pressed={item === capability}
+              onClick={() => setCapability(item)}
+              title={applies ? undefined : `${item}: ${scope.join(", ")} only; ${symbol} is ${asset}`}
+            >
+              {item}
+              {/* The word, not a colour: the chip stays selectable so the
+                  reader can see the refusal explained, but says up front
+                  that this symbol is not one it can answer for. */}
+              {!applies && <small className="muted"> {scope.length === 1 ? `${scope[0]} only` : "n/a"}</small>}
+            </button>
+          );
+        })}
       </div>
 
       <label className="console-check">
@@ -231,7 +258,30 @@ export default function PipelineInspector({
         </div>
       )}
 
-      {tab === "rest" && (
+      {tab === "rest" && inapplicable && (
+        // The refusal, explained where the trace would have been. Nothing was
+        // sent, so there is no lineage to show — and no auto-poll to keep
+        // re-sending it. Both buttons change desk-wide state, the same way the
+        // symbol input above already does.
+        <div className="banner warn" role="status">
+          <span aria-hidden>!</span>
+          <div>
+            <strong>Not applicable.</strong> {inapplicableReason(capability, symbol, asset)}
+            <div className="console-inspector__controls" style={{ marginTop: 8, marginBottom: 0 }}>
+              {applicableAssets(capability).includes("equity") && (
+                <button type="button" onClick={() => onSymbolChange(EQUITY_EXAMPLE)}>
+                  Trace {EQUITY_EXAMPLE} instead
+                </button>
+              )}
+              <button type="button" onClick={() => setCapability("quote")}>
+                Back to quote
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === "rest" && !inapplicable && (
         <>
           {!resultMatchesControls && busy && <div className="skeleton" style={{ height: 160 }} />}
           {resultMatchesControls && result && (

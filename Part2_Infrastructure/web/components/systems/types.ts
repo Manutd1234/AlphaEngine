@@ -460,6 +460,14 @@ export interface UpstreamCall {
 export interface InspectResponse {
   fetchedAt: string;
   ok: boolean;
+  /**
+   * Set when the registry refused before dispatch: the capability does not
+   * apply to the symbol's asset class. No provider was contacted, so
+   * `attempts` and `upstream.calls` are empty and `provenance` is null.
+   */
+  reason?: "not_applicable";
+  /** The asset classes the capability does answer for, when refused. */
+  applicable?: string[];
   symbol: string;
   asset: string;
   capability: string;

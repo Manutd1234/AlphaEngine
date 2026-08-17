@@ -229,6 +229,24 @@ export class ProviderError extends Error {
 }
 
 /**
+ * The registry refused before dispatch: the capability does not apply to the
+ * symbol's asset class (fundamentals for a crypto pair). Nothing was contacted,
+ * spent or counted. 422 — the request is well-formed and cannot be satisfied.
+ */
+export class NotApplicableError extends ProviderError {
+  constructor(
+    readonly capability: Capability,
+    readonly symbol: string,
+    readonly asset: AssetClass,
+    readonly applicable: readonly AssetClass[],
+    message: string,
+  ) {
+    super("registry", message, 422, false);
+    this.name = "NotApplicableError";
+  }
+}
+
+/**
  * The adapter surface. Every method is optional — capability is declared in
  * `meta.capabilities` and checked before dispatch, so an adapter implements only
  * what its vendor actually serves.

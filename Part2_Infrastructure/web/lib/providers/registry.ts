@@ -23,6 +23,7 @@ import {
 import { alphavantage } from "./alphavantage";
 import { binance } from "./binance";
 import { bybit } from "./bybit";
+import { applicableAssets, inapplicableReason, isApplicable, ROUTE_MATRIX } from "./capabilities";
 import { checkBars, checkQuote } from "./contracts";
 import { firecrawl } from "./firecrawl";
 import { fmp } from "./fmp";
@@ -47,6 +48,7 @@ import {
   Document,
   Fundamentals,
   NewsItem,
+  NotApplicableError,
   OhlcvBar,
   Priority,
   Quote,
@@ -73,6 +75,7 @@ export const BY_ID = new Map(ADAPTERS.map((a) => [a.meta.id, a]));
 // --------------------------------------------------------------------------
 
 export { classify, EQUITY_SYMBOL_RE, isValidSymbol, PAIR_SYMBOL_RE } from "./symbols";
+export { applicableAssets, CAPABILITY_ASSETS, inapplicableReason, isApplicable, ROUTE_MATRIX } from "./capabilities";
 import { classify } from "./symbols";
 
 // --------------------------------------------------------------------------
@@ -90,6 +93,23 @@ export interface Options {
   provider?: string | null;
   env?: NodeJS.ProcessEnv;
   store?: Store;
+}
+
+/**
+ * The applicability gate, consulted by every symbol-keyed façade before
+ * dispatch. A capability the asset class cannot answer is refused here — no
+ * provider contacted, no quota spent, no breaker or latency sample touched —
+ * rather than discovered four vendors later at a call each.
+ */
+function assertApplicable(capability: Capability, symbol: string, asset: AssetClass): void {
+  if (isApplicable(capability, asset)) return;
+  throw new NotApplicableError(
+    capability,
+    symbol,
+    asset,
+    applicableAssets(capability),
+    inapplicableReason(capability, symbol, asset),
+  );
 }
 
 // --------------------------------------------------------------------------
@@ -121,8 +141,11 @@ export const cacheKeys = {
 // Capability façades
 // --------------------------------------------------------------------------
 
-export function getQuote(symbol: string, opts: Options = {}): Promise<Sourced<Quote>> {
+// `async` so the applicability refusal is a rejection, never a synchronous
+// throw a `.catch()` caller would miss.
+export async function getQuote(symbol: string, opts: Options = {}): Promise<Sourced<Quote>> {
   const asset = classify(symbol);
+  assertApplicable("quote", symbol, asset);
   return dispatch(
     candidatesFor("quote", asset),
     (a, ctx) => a.quote!(symbol, asset, ctx),
@@ -138,13 +161,14 @@ export function getQuote(symbol: string, opts: Options = {}): Promise<Sourced<Qu
   );
 }
 
-export function getBars(
+export async function getBars(
   symbol: string,
   interval: string,
   limit: number,
   opts: Options = {},
 ): Promise<Sourced<OhlcvBar[]>> {
   const asset = classify(symbol);
+  assertApplicable("bars", symbol, asset);
   return dispatch(
     candidatesFor("bars", asset),
     (a, ctx) => a.bars!(symbol, asset, interval, limit, ctx),
@@ -158,7 +182,7 @@ export function getBars(
   );
 }
 
-export function getNews(
+export async function getNews(
   symbols: string[],
   limit: number,
   opts: Options = {},
@@ -166,6 +190,7 @@ export function getNews(
   // News is asked per-issuer, so the asset class of the *first* symbol picks the
   // pool; a mixed list would otherwise silently exclude every crypto-only feed.
   const asset = symbols.length ? classify(symbols[0]) : "equity";
+  if (symbols.length) assertApplicable("news", symbols[0], asset);
   return dispatch(
     candidatesFor("news", asset),
     (a, ctx) => a.news!(symbols, limit, ctx),
@@ -178,12 +203,17 @@ export function getNews(
   );
 }
 
-export function getFundamentals(
+export async function getFundamentals(
   symbol: string,
   opts: Options = {},
 ): Promise<Sourced<Fundamentals>> {
+  // Classified, not pinned to equity: this façade used to hard-code the
+  // equity pool, so a crypto symbol walked the whole chain — four calls,
+  // one of them Alpha Vantage's, to be told four times there is no issuer.
+  const asset = classify(symbol);
+  assertApplicable("fundamentals", symbol, asset);
   return dispatch(
-    candidatesFor("fundamentals", "equity"),
+    candidatesFor("fundamentals", asset),
     (a, ctx) => a.fundamentals!(symbol, ctx),
     {
       capability: "fundamentals",
@@ -535,23 +565,11 @@ export function failoverRoute(
 }
 
 /**
- * The asset classes each capability is actually asked for.
- *
- * Not the cross product. `getFundamentals`, `searchWeb` and `scrapeUrl` pass
- * `"equity"` unconditionally, so a `search · crypto` chain describes a request
- * this codebase never issues — and a routing diagram that shows routes the code
- * cannot take is the same defect as one that hides routes it can.
+ * Every capability/asset pair a façade can actually dispatch. The pairs come
+ * from `ROUTE_MATRIX` in `./capabilities`, derived from the same table the
+ * façades gate on — a routing diagram that shows a route the gate refuses is
+ * the same defect as one that hides a route it admits.
  */
-export const ROUTE_MATRIX: { capability: Capability; assets: AssetClass[] }[] = [
-  { capability: "quote", assets: ["crypto", "equity"] },
-  { capability: "bars", assets: ["crypto", "equity"] },
-  { capability: "news", assets: ["crypto", "equity"] },
-  { capability: "fundamentals", assets: ["equity"] },
-  { capability: "search", assets: ["equity"] },
-  { capability: "scrape", assets: ["equity"] },
-];
-
-/** Every capability/asset pair a façade can actually dispatch. */
 export function failoverGraph(
   env: NodeJS.ProcessEnv = process.env,
   s: Store = store,

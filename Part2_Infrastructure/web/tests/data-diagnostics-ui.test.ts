@@ -79,3 +79,34 @@ describe("the pipeline inspector separates zones instead of narrating them", () 
     assert.ok(pipeline.includes("No frame received yet."));
   });
 });
+
+describe("a capability the symbol cannot answer is refused, not traced", () => {
+  // Fundamentals describe an issuer. Tracing them on a crypto pair used to walk
+  // the whole equity chain — four provider calls, one of them Alpha Vantage's,
+  // to be told four times there is no issuer — and then re-walk it on every
+  // poll. The gate lives in one table (lib/providers/capabilities.ts); the
+  // route consults it before the cache and the inspector before the request.
+  const route = read("../app/api/system/inspect/route.ts");
+
+  it("the inspect route refuses before the cache is read and says nothing was sent", () => {
+    assert.match(route, /if \(!isApplicable\(capability, asset\)\)/);
+    assert.ok(route.indexOf("isApplicable(capability, asset)") < route.indexOf("store.ttl(cacheKey)"));
+    assert.ok(route.includes('reason: "not_applicable"'));
+    assert.ok(route.includes("No HTTP call was made; the registry declined before dispatch."));
+    assert.match(route, /provenance: null,\s*attempts: \[\]/);
+  });
+
+  it("the inspector never sends a request the registry would refuse — first load or poll", () => {
+    assert.match(pipeline, /const inapplicable = !isApplicable\(capability, asset\);/);
+    const gates = pipeline.match(/if \(inapplicable\) return;/g) ?? [];
+    assert.equal(gates.length, 2, "both the auto-inspect and the poll effect must be gated");
+    assert.match(pipeline, /disabled=\{busy \|\| inapplicable\}/);
+  });
+
+  it("the refusal is explained in place, with a way out that changes real state", () => {
+    assert.ok(pipeline.includes("Not applicable."));
+    assert.ok(pipeline.includes("Trace {EQUITY_EXAMPLE} instead"));
+    assert.ok(pipeline.includes("Back to quote"));
+    assert.match(pipeline, /onSymbolChange\(EQUITY_EXAMPLE\)/);
+  });
+});

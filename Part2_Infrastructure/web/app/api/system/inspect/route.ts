@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { redact, type UpstreamCall } from "@/lib/observability";
 import { clampInt, parseEnum } from "@/lib/params";
 import { parsePriority, parseSymbols } from "@/lib/providers/http";
+import { applicableAssets, inapplicableReason, isApplicable } from "@/lib/providers/capabilities";
 import {
   cacheKeys,
   candidatesFor,
@@ -88,6 +89,54 @@ export async function GET(request: NextRequest) {
 
   const asset = classify(symbol);
   const cacheKey = keyFor(capability, symbol, interval, bars, limit);
+
+  // The applicability gate, before the cache is even read. Fundamentals on a
+  // crypto pair used to walk the whole equity chain — four vendors, four
+  // "no issuer here" answers, one of them from Alpha Vantage's twenty-five a
+  // day — and each answer was booked as a provider failure. Now the trace says
+  // so in two stages and spends nothing; a refused lookup is still a
+  // successful inspection, so this is HTTP 200 with `ok: false`.
+  if (!isApplicable(capability, asset)) {
+    const reason = inapplicableReason(capability, symbol, asset);
+    return NextResponse.json(
+      {
+        fetchedAt: new Date().toISOString(),
+        ok: false,
+        reason: "not_applicable",
+        symbol,
+        asset,
+        capability,
+        applicable: applicableAssets(capability),
+        totalMs: 0,
+        cache: {
+          key: cacheKey,
+          state: "miss",
+          configuredTtlMs: TTL_MS[capability],
+          ttlRemainingMs: null,
+          ageMs: 0,
+          refreshed: false,
+        },
+        lineage: [
+          {
+            stage: "Request",
+            detail: `${capability} for ${symbol}, classified as ${asset}, priority ${priority}`,
+          },
+          { stage: "Registry", detail: reason, providers: [] },
+        ] satisfies LineageStage[],
+        provenance: null,
+        attempts: [],
+        upstream: {
+          captured: wantRaw,
+          calls: [],
+          note: "No HTTP call was made; the registry declined before dispatch.",
+        },
+        data: null,
+        error: reason,
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
   const chain = candidatesFor(capability, asset);
 
   if (wantRefresh) store.del(cacheKey);

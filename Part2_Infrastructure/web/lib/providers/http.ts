@@ -12,7 +12,7 @@ import { NextResponse } from "next/server";
 
 import { redact } from "../observability";
 import { isValidSymbol } from "./registry";
-import { Attempt, Priority, ProviderError } from "./types";
+import { Attempt, NotApplicableError, Priority, ProviderError } from "./types";
 
 export function parseSymbols(raw: string | null, max = 8): string[] {
   if (!raw) return [];
@@ -46,6 +46,24 @@ interface WithAttempts {
 }
 
 export function failure(err: unknown): NextResponse {
+  if (err instanceof NotApplicableError) {
+    // Refused before dispatch: the capability does not apply to the symbol's
+    // asset class. Nothing upstream was asked, so there is no attempt list.
+    return NextResponse.json(
+      {
+        error: err.message,
+        provider: err.provider,
+        reason: "not_applicable",
+        capability: err.capability,
+        symbol: err.symbol,
+        asset: err.asset,
+        applicable: err.applicable,
+        attempts: [],
+        hint: err.applicable.includes("equity") ? "Try an equity ticker such as AAPL." : undefined,
+      },
+      { status: err.status ?? 422 },
+    );
+  }
   if (err instanceof ProviderError) {
     const attempts = (err as ProviderError & WithAttempts).attempts ?? [];
     // 503 rather than 502: every configured provider declined or failed, which
