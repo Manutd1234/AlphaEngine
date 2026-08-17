@@ -50,10 +50,10 @@ stale.
 
 | § | Section |
 |---|---|
-| 0 | Provenance, and the cleaning pipeline defined once as a parameterised function |
+| 0 | Provenance; the schema contract; the cleaning pipeline defined once as a parameterised function, with unit checks on its rules; the figure style and its colour audit |
 | 1 | Executive summary — the three answers and the one consequential caveat |
-| 2 | What is wrong with the data, including the price rule and the ambiguous date |
-| 3 | The cleaning decisions and the argument for each |
+| 2 | What is wrong with the data, including the price rule and the ambiguous date — each argued with a figure |
+| 3 | The cleaning decisions and the argument for each, with every repair drawn in place |
 | 4 | Q1 — usage trend, fitted with confidence intervals |
 | 5 | Q2 — cost driver, decomposed with bootstrap intervals |
 | 6 | Q3 — assumptions, exclusions and transformations |
@@ -64,6 +64,12 @@ stale.
 The pipeline is a single function rather than a sequence of mutating cells because
 §7 has to run it nine different ways. That is also what makes the sensitivity
 analysis a measurement rather than a second implementation.
+
+Fifteen figures, numbered in execution order by a counter rather than by hand, each
+captioned with what it shows, what was excluded, and the one thing to conclude from
+it. Every figure carries a written text alternative, and no set of axes ever asks a
+reader to tell two of the notebook's three identity hues apart — an invariant a
+helper asserts on every figure before it is displayed.
 
 ## What it found in the data
 
@@ -151,6 +157,34 @@ reader who rejects the date argument must also give up the growth estimate.
 
 Everything else is near-immaterial — under 0.51 points on the cost share. Notably,
 reading `requests = -25` as a sign flip changes no cost figure at all.
+
+## What changed on 2026-08-17
+
+The notebook's three answers did not move; everything around them tightened.
+
+**More of the argument is drawn.** Six figures became fifteen. The additions put a
+picture under each claim that previously rested on a table: the price rule as a
+per-service scatter with the one disobedient row ringed; the ambiguous date shown
+against every service's day-by-day coverage under both readings; the defect
+register as a row-by-class map; every repair marked on the as-delivered versus
+clean daily series; the reconciliation as one bar per repair per measure; the
+weekday cycle the trend model's dummies absorb; the two ratio series behind the
+"no drift" finding, with their fitted bands; the Q2 decomposition as a
+dot-and-interval plot on a log axis; and the cost leader's share stacked week by
+week.
+
+**The handling now states its contract and proves its rules.** §0.1 validates the
+workbook against an explicit schema — columns, delivered types, value rules —
+failing loudly on drift and printing one row per column. The parsers refuse to
+guess: unparseable numbers and dates raise instead of becoming `NaN`, and rows
+sharing a key with *different* measures stop the pipeline as a conflicting
+restatement (a policy the file never triggers, tested anyway). The register now
+records, per repair, the workbook rows touched and the change to each measure,
+and the build asserts that raw totals plus logged deltas equal clean totals to
+the cent, that row counts reconcile, and that `clean(clean(x)) == clean(x)`. A
+unit-check cell exercises every parsing and canonicalisation rule on synthetic
+values — thousands separators, currency signs, both date orders, underscore label
+variants — so a regression fails the run three cells in.
 
 ## Submission checklist
 
