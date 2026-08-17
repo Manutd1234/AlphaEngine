@@ -224,8 +224,8 @@ line. On the Python engine it is a silent no-op — there is no core to time.
 table above is the dev Mac (arm64, `steady_clock` in ~41.67 ns steps). The
 gateway on the OCI VM — `VM.Standard3.Flex`, 2 OCPU of a shared Xeon 8358, x86
 — read, on 2026-08-17 from its own `/metrics`: **core p50 320 ns, p99 352 ns,
-max 2 754 ns**, n = 301 (300 self-measure samples plus the first order of the
-session), engine `native`. Roughly four times the Mac figure, which is what a
+max 2 754 ns** — 300 self-measure samples plus the session's orders (one, at
+that point, and the 2.7 µs outlier is that first cold call), engine `native`. Roughly four times the Mac figure, which is what a
 virtualised, shared, older x86 core against an M-series laptop should look
 like; still three orders of magnitude inside a microsecond, and still 0.0005 %
 of the round trip to Binance. The two figures are published side by side rather
@@ -410,8 +410,8 @@ alphaengine_decision_core_self_test_samples             300
 That is the production gateway on 2026-08-17, verbatim, one order into the
 session: the µs plane has a single sample (a first, cold decision at 213 µs —
 one sample is a maximum wearing a decimal point, and the desk's chip says
-"collecting" rather than quoting it as a p99), the ns plane has 301, of which
-300 are the startup self-measure and the line after says so. Microseconds, not
+"collecting" rather than quoting it as a p99), the ns plane has the startup
+self-measure's 300 samples plus that order, and the last line says which. Microseconds, not
 milliseconds — in ms every healthy decision reports as `0.02` and every quantile
 becomes indistinguishable; nanoseconds for the core, because in µs it would be
 `0.3` and the p50/p99 gap would vanish. `decision_samples_total` exists at zero
