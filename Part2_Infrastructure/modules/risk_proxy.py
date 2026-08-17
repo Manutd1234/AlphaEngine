@@ -38,8 +38,8 @@ import contextlib
 import importlib
 import logging
 import math
+import os
 import time
-import uuid
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -66,6 +66,52 @@ AlertHook = Callable[[str, str], Awaitable[None]]  # (severity, message)
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+# --------------------------------------------------------------------------- #
+# Order identity
+# --------------------------------------------------------------------------- #
+class _OrderIdPool:
+    """Sixteen lowercase hex characters, drawn a block at a time.
+
+    Exactly the shape ``uuid.uuid4().hex[:16]`` produced, because that string
+    reaches the audit log, the working-order dict, the Supabase mirror and the
+    Telegram ``/order`` lookup, and none of them may notice this changed.
+
+    What changed is the cost. ``uuid4()`` was ~1.5 µs of every decision — an
+    ``os.urandom(16)`` syscall, a ``UUID`` object and a 32-character hex string,
+    of which sixteen characters were kept and the rest thrown away. One
+    ``os.urandom`` block per 256 orders amortises to ~0.2 µs and is, if
+    anything, *more* random than what it replaces: ``uuid4().hex[:16]`` carries
+    sixty random bits and a constant version nibble at index 12; these carry
+    sixty-four.
+
+    Deliberately not a counter. Order ids reach a durable audit log that
+    outlives the process, and ``_restore_positions_from_audit`` refuses to
+    replay two accepted fills that share one. A per-process counter would have
+    to be seeded from something that survives a restart to keep that promise;
+    random draws keep it without being told.
+    """
+
+    __slots__ = ("_batch", "_block", "_index")
+
+    def __init__(self, batch: int = 256) -> None:
+        self._batch = batch
+        self._block: list[str] = []
+        self._index = 0
+
+    def next(self) -> str:
+        index = self._index
+        block = self._block
+        if index >= len(block):
+            raw = os.urandom(8 * self._batch).hex()
+            block = self._block = [raw[i : i + 16] for i in range(0, len(raw), 16)]
+            index = 0
+        self._index = index + 1
+        return block[index]
+
+
+_order_ids = _OrderIdPool()
 
 
 # --------------------------------------------------------------------------- #
@@ -294,34 +340,46 @@ class RiskGateway:
             return None
 
     def _native_decide(self, req: OrderRequest, paper_equity: bool):
-        """Run the numeric gates and book arithmetic in the native core.
+        """Run the numeric gates, the book arithmetic and the routed walk natively.
 
-        Returns the core's result object (whose fields ``submit`` renders the
-        CheckResult vector from) or None to fall back to the Python reference.
+        Returns ``(core_result, venue_names)``, or ``(None, ())`` to fall back to
+        the Python reference. ``venue_names`` is positional with the ladders the
+        core walked, so ``submit`` can name the routing legs from the core's
+        ``route_venue_order`` *after* its clock has stopped — no string work
+        happens inside the measured region.
+
         The seventeen-gate control flow, the detail strings and every
         ``add("<name>", ...)`` literal stay in ``submit``; only the numbers come
-        from here. The book-consolidation and exposure/drawdown arithmetic run
-        in C++; ``est_slippage`` (the routed walk) and the pure input booleans
-        stay in Python — see ``native/decision_core/decision_core.cpp``.
+        from here. The book consolidation, the exposure and drawdown arithmetic
+        and the routed slippage walk run in C++; the pure input booleans, the set
+        memberships and the clock reads stay in Python — see
+        ``native/decision_core/decision_core.cpp`` for the exact line.
         """
         core = self._decision_core
         if core is None:
-            return None
+            return None, ()
         try:
             symbol = req.symbol
             order_books = []
+            venue_names: tuple[str, ...] = ()
             if not paper_equity and self.tca is not None:
                 # The order symbol's live venue books, in the same iteration
-                # order consolidated_mid folds them. Only the top five levels a
-                # side are marshalled: consolidated_mid weights each venue by
-                # depth_usd(side, 5) and reads the touch for the mid, so deeper
-                # levels never enter the fold — and passing the cached sorted
-                # views avoids re-marshalling (and re-sorting) fifty levels per
-                # decision across the boundary.
-                for book in self.tca._live_books(symbol).values():
-                    ladder = core.BookLadder()
-                    ladder.snapshot(book.sorted_bids(5), book.sorted_asks(5))
+                # order `consolidated_mid` folds them and `_merged_walk` extends
+                # them. These are BookState's PERSISTENT C++ mirrors, borrowed
+                # rather than rebuilt: nothing is re-marshalled per decision, and
+                # the routed walk needs every level, not the five the mark reads.
+                names: list[str] = []
+                for name, book in self.tca._live_books(symbol).items():
+                    ladder = book.native_ladder()
+                    if ladder is None:
+                        # A book with no mirror (extension absent, or the engine
+                        # switched under a book that has never updated since).
+                        # The Python reference decides the whole order rather
+                        # than half of it deciding natively.
+                        return None, ()
                     order_books.append(ladder)
+                    names.append(name)
+                venue_names = tuple(names)
 
             pos_quantities: list[float] = []
             pos_avg_prices: list[float] = []
@@ -340,7 +398,7 @@ class RiskGateway:
             working_buys, working_sells = self.working_qty(symbol)
             paper_price = req.paper_execution.price if paper_equity else None
 
-            return core.decide(
+            result = core.decide(
                 side_is_buy=(req.side == "BUY"),
                 order_type_is_limit=(req.order_type == "LIMIT"),
                 order_quantity=req.quantity,
@@ -366,10 +424,15 @@ class RiskGateway:
                 max_daily_drawdown_pct=settings.max_daily_drawdown_pct,
                 reduce_only_threshold=settings.reduce_only_threshold,
                 reduce_only_override=self._reduce_only_override,
+                # submit() gates on the routed walk only where it has a router
+                # to route with; without a TCA engine there is no est_slippage
+                # check at all, and the core must not invent one.
+                route_enabled=self.tca is not None,
             )
+            return result, venue_names
         except Exception:  # pragma: no cover - robustness: never fail an order on the core
             log.exception("native decision core raised; falling back to the Python reference")
-            return None
+            return None, ()
 
     # -- wiring ----------------------------------------------------------- #
     def _restore_session_baseline_from_audit(self) -> None:
@@ -1486,7 +1549,7 @@ class RiskGateway:
     async def submit(self, req: OrderRequest, source: str = "api") -> RiskDecision:
         t0 = time.perf_counter_ns()
         checks: list[CheckResult] = []
-        order_id = uuid.uuid4().hex[:16]
+        order_id = _order_ids.next()
 
         def add(name: str, passed: bool, detail: str, observed=None, limit=None) -> bool:
             checks.append(CheckResult(name=name, passed=passed, detail=detail, observed=observed, limit=limit))
@@ -1534,13 +1597,13 @@ class RiskGateway:
                     observed=observed_rate, limit=settings.max_orders_per_sec)
 
                 # The native decision core (when it is the active engine) owns
-                # the book arithmetic and the numeric gates that follow. The
-                # seventeen gates' order, their detail strings and every
-                # add("<name>", ...) literal stay here; only the numbers come
-                # from the core. A `None` result — the Python engine, or an
-                # order the core cannot express — runs the reference path below
-                # unchanged.
-                core = self._native_decide(req, paper_equity)
+                # the book arithmetic, the numeric gates that follow and the
+                # routed slippage walk. The seventeen gates' order, their detail
+                # strings and every add("<name>", ...) literal stay here; only
+                # the numbers come from the core. A `None` result — the Python
+                # engine, or an order the core cannot express — runs the
+                # reference path below unchanged.
+                core, route_venues = self._native_decide(req, paper_equity)
                 if core is not None:
                     self.last_decision_core_ns = core.elapsed_ns
                     observe_core_latency(core.elapsed_ns)
@@ -1660,17 +1723,40 @@ class RiskGateway:
                         limit=settings.max_est_slippage_bps,
                     )
                 elif self.tca and notional:
-                    est = self.tca.route_estimate(req.symbol, req.side, notional)
-                    if est is None:
+                    # The merged-ladder walk itself — the k-way merge, the greedy
+                    # consumption and the blended VWAP — is what the core now
+                    # evaluates; `route_estimate` remains the reference and still
+                    # serves every other caller. Both produce the same four
+                    # figures, and the parity fixture is what says so.
+                    #
+                    # `round()` and the leg string stay here, deliberately:
+                    # Python's round is decimal-half-even, and rounding inside
+                    # C++ would be a parity break waiting to happen. Both are
+                    # display work, and both run after the core's clock stops.
+                    if core is not None and core.route_ran:
+                        routed = None if core.route_none else (
+                            core.route_fillable,
+                            round(core.route_filled_notional, 2),
+                            core.route_slippage_bps if core.route_has_slip else None,
+                            "+".join(route_venues[i] for i in core.route_venue_order),
+                        )
+                    else:
+                        est = self.tca.route_estimate(req.symbol, req.side, notional)
+                        routed = None if est is None else (
+                            est.fillable, est.filled_notional, est.slippage_bps, est.venue,
+                        )
+                    if routed is None:
                         add("est_slippage", False, "no routable liquidity")
-                    elif not est.fillable:
-                        add("est_slippage", False,
-                            f"only ${est.filled_notional:,.0f} of ${notional:,.0f} routable across "
-                            f"{est.venue or 'all venues'}")
-                    elif est.slippage_bps is not None:
-                        add("est_slippage", est.slippage_bps <= settings.max_est_slippage_bps,
-                            f"{est.slippage_bps:+.2f}bps routing {est.venue}",
-                            observed=est.slippage_bps, limit=settings.max_est_slippage_bps)
+                    else:
+                        fillable, filled_notional, slippage_bps, route_venue = routed
+                        if not fillable:
+                            add("est_slippage", False,
+                                f"only ${filled_notional:,.0f} of ${notional:,.0f} routable across "
+                                f"{route_venue or 'all venues'}")
+                        elif slippage_bps is not None:
+                            add("est_slippage", slippage_bps <= settings.max_est_slippage_bps,
+                                f"{slippage_bps:+.2f}bps routing {route_venue}",
+                                observed=slippage_bps, limit=settings.max_est_slippage_bps)
 
                 rejected_by = [c.name for c in checks if not c.passed]
                 accepted = not rejected_by

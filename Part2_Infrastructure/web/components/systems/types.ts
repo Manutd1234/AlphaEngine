@@ -236,8 +236,10 @@ export interface GatewayOpsSnapshot {
    * itself never sends — the block is present with `samples: 0` before the
    * first order and its quantiles are null then, because quantiles of
    * nothing are not zeros (LATENCY_BUDGET §3). `core_*` is the compiled
-   * engine's timing of the arithmetic alone, in nanoseconds; null while the
-   * Python reference runs.
+   * engine's timing of the gate arithmetic alone — book consolidation,
+   * sizing, exposure, drawdown and the routed slippage walk, but none of the
+   * state reads or response construction around them — in nanoseconds; null
+   * while the Python reference runs. It is never the same span as `*_us`.
    */
   decision_latency?: DecisionLatency | null;
 }

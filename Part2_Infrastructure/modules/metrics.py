@@ -315,12 +315,21 @@ def render_metrics() -> str:
         labels=(("engine", _decision_engine),),
     )
     # The native core's own clock, in nanoseconds; absent until it has run.
+    # Published beside `decision_latency_us`, never instead of it: this one is
+    # the gate arithmetic, that one is the whole `submit()` under the lock, and
+    # blending them would report a number neither clock ever read.
     core = core_latency_summary()
     if core["samples"]:
         for quantile, key in (("0.5", "p50"), ("0.99", "p99"), ("0.999", "p999"), ("0.9999", "p9999")):
             out.metric(
                 "decision_core_latency_ns", core[key],
-                help="Native decision core latency (inside the engine), all samples since start.",
+                help=(
+                    "Native decision core: the pre-trade gate arithmetic — book "
+                    "consolidation, sizing, exposure, drawdown and the routed "
+                    "slippage walk — timed inside the engine. Excludes the "
+                    "Python-side state reads (kill switch, halts, whitelist, "
+                    "duplicate, rate limit) and all response construction."
+                ),
                 labels=(("quantile", quantile),),
             )
         out.metric(

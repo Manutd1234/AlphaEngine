@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import importlib
 import json
 import logging
 import math
@@ -135,6 +136,39 @@ def _dust(target_notional: float) -> float:
 
 
 # --------------------------------------------------------------------------- #
+# The native ladder mirror
+# --------------------------------------------------------------------------- #
+def _new_native_ladder():
+    """A fresh C++ ``BookLadder``, or None when the extension is not built.
+
+    Deliberately keyed on whether ``modules._decision_core`` *imports*, not on
+    ``modules.decision_core.native()`` — that is, on the extension existing
+    rather than on which engine ``DECISION_CORE`` selected. Those are different
+    questions and conflating them is a bug the first draft of this shipped: a
+    caller that forces the native engine (the parity suite does, so a build that
+    quietly degraded turns CI red) would find every book unmirrored under
+    ``DECISION_CORE=python`` and fall back to Python without saying so — the
+    silent fall-back that suite exists to catch, caused by the mechanism meant
+    to make it fast.
+
+    A mirror nobody reads costs one ladder rebuild per feed update, which is
+    ~60/s per book against a decision path that is per order. That is the right
+    side to spend on.
+
+    Resolved at first use rather than by a module-level import so the absence of
+    the ``.so`` is never an import error for the whole engine.
+    """
+    try:
+        core = importlib.import_module("modules._decision_core")
+    except ImportError:
+        return None  # not built for this platform; books keep no mirror
+    except Exception:  # pragma: no cover - a broken extension must not break ingestion
+        log.exception("native decision core unusable; books keep no mirror")
+        return None
+    return core.BookLadder()
+
+
+# --------------------------------------------------------------------------- #
 # Book state
 # --------------------------------------------------------------------------- #
 @dataclass
@@ -161,6 +195,19 @@ class BookState:
     # writers, so invalidating there is complete.
     _sorted_bids_cache: list[tuple[float, float]] | None = field(default=None, repr=False)
     _sorted_asks_cache: list[tuple[float, float]] | None = field(default=None, repr=False)
+    # The C++ mirror of the two ladders, when a native decision core is the
+    # active engine. Built lazily on the first mutation and refreshed in the
+    # same two funnels that invalidate the caches above — which is what makes
+    # "the mirror is never stale" a property of this class rather than a rule
+    # every caller has to remember. The decision path then walks a ladder that
+    # already exists instead of building one per order; that rebuild was ~3 µs
+    # of every two-venue decision.
+    #
+    # Non-compared as well as non-repr, unlike the caches: a pybind object
+    # compares by identity, so two books holding identical prices would
+    # otherwise never compare equal.
+    _native_ladder: object | None = field(default=None, repr=False, compare=False)
+    _native_ladder_resolved: bool = field(default=False, repr=False, compare=False)
 
     # -- mutation ------------------------------------------------------- #
     def apply_snapshot(self, bids: list[tuple[float, float]], asks: list[tuple[float, float]]) -> None:
@@ -168,6 +215,7 @@ class BookState:
         self.asks = {p: q for p, q in asks if q > 0}
         self._sorted_bids_cache = None
         self._sorted_asks_cache = None
+        self._mirror()
         self._touch()
 
     def apply_delta(self, bids: list[tuple[float, float]], asks: list[tuple[float, float]]) -> None:
@@ -183,7 +231,40 @@ class BookState:
                 self.asks[p] = q
         self._sorted_bids_cache = None
         self._sorted_asks_cache = None
+        self._mirror()
         self._touch()
+
+    def _mirror(self) -> None:
+        """Rebuild the native ladder from the dicts as they now stand.
+
+        A full re-snapshot, not an incremental delta. These funnels run at the
+        feed's update rate (~60/s per book) while a decision runs per order, so
+        the side that stays simple is the one that runs on the cheap path — and
+        a rebuild cannot drift from the dict the way a hand-maintained delta
+        can. The C++ side applies the same semantics the dict comprehension
+        above does (size > 0, last size per price wins) and the same sort, so
+        this is a mirror rather than an approximation.
+        """
+        if not self._native_ladder_resolved:
+            self._native_ladder_resolved = True
+            self._native_ladder = _new_native_ladder()
+        ladder = self._native_ladder
+        if ladder is not None:
+            ladder.snapshot(list(self.bids.items()), list(self.asks.items()))
+
+    def native_ladder(self):
+        """This book's C++ ladder, or None when no native core is active.
+
+        Every caller must handle the None: the extension is optional, and a
+        book that has never been mutated has no mirror yet.
+
+        The ladder is *borrowed*, not copied, so a reader holds it only for the
+        length of one synchronous call. That is safe for the same reason the
+        sorted-view caches above are: the feeds and the gateway share one event
+        loop, and neither the decision battery nor a funnel awaits in the middle
+        of using them.
+        """
+        return self._native_ladder
 
     def _touch(self) -> None:
         now = time.time()
