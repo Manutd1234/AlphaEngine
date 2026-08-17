@@ -195,11 +195,11 @@ export default function KillSwitchControl({
             {gatewayConnected === null ? (
               <span className="text-text-muted">Checking gateway connection…</span>
             ) : gatewayConnected ? (
-              <span className="text-success-text"><span aria-hidden>●</span> GATEWAY ONLINE · guard: {riskControl.guardMode}</span>
+              <span className="text-success-text"><span aria-hidden>●</span> GATEWAY ONLINE; guard {riskControl.guardMode}</span>
             ) : (
               <span className="text-critical-text"><span aria-hidden>✕</span> GATEWAY UNREACHABLE</span>
             )}
-            {halt?.sandbox && <span className="text-notice-text">· sandbox mode</span>}
+            {halt?.sandbox && <span className="text-notice-text">; sandbox mode</span>}
           </p>
           {gatewayConnected === false && gatewayReason && (
             <p className="mt-1 text-[12px] leading-snug text-text-secondary">

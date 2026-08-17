@@ -168,7 +168,7 @@ export default function RiskAdjustedTrend({
         fill
       />
 
-      <div className="field">Rolling Sharpe · per observation</div>
+      <div className="field">Rolling Sharpe, per observation</div>
       <Plot
         values={sharpe.map((p) => p.sharpe)}
         times={sharpe.map((p) => p.t)}

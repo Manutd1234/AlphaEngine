@@ -104,7 +104,7 @@ export default function ExposureHeatmap({
           <h2>Exposure and limit pressure</h2>
         </div>
         <span>
-          {cells.length} positions{withheld ? ` · ${withheld} without a published limit` : ""}
+          {cells.length} positions{withheld ? `; ${withheld} without a published limit` : ""}
         </span>
       </div>
 

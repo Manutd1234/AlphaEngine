@@ -164,7 +164,7 @@ export default function OracleVarPanel({
               label="Oracle VaR 99"
               value={usd(result.var99, 0)}
               tone="neg"
-              note={`${result.pathsUsed.toLocaleString()} paths · ${horizonDays}d`}
+              note={`${result.pathsUsed.toLocaleString()} paths over ${horizonDays} d`}
             />
             <StatTile
               label="Parametric VaR 99"
@@ -180,7 +180,7 @@ export default function OracleVarPanel({
             <StatTile
               label="Expected equity"
               value={usd(result.expectedEquity, 0)}
-              note={`mean terminal value · ${result.computedInMs}ms`}
+              note={`mean terminal value; computed in ${result.computedInMs} ms`}
             />
           </div>
           <p className="sub">

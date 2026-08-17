@@ -152,7 +152,7 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
     <div className="card">
       <div className="portfolio-card-heading">
         <div>
-          <span className="page-kicker">Capital allocation{manual ? " · manual" : ""}</span>
+          <span className="page-kicker">Capital allocation{manual ? ", manual" : ""}</span>
           <h2>
             Target weights
             {manual && <span className="allocation-override-chip">Override</span>}
@@ -216,7 +216,7 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
           direct manipulation of the chart rather than an unrelated setting. */}
       <div className="allocation-band">
         <label>
-          <span>Drift band · {pct(driftBand, 0)}</span>
+          <span>Drift band {pct(driftBand, 0)}</span>
           <input
             type="range"
             min={0.01}
@@ -255,9 +255,9 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
                 <tr key={target.symbol}>
                   <td>
                     {target.symbol}
-                    {isPinned && <small className="muted"> · pinned</small>}
+                    {isPinned && <small className="muted">, pinned</small>}
                     {target.clippedBy && (
-                      <small className="muted"> · capped by {target.clippedBy}</small>
+                      <small className="muted">, capped by {target.clippedBy}</small>
                     )}
                   </td>
                   <td className="num">{pct(target.currentWeight, 1)}</td>

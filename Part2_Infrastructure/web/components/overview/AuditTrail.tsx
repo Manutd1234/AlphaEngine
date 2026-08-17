@@ -144,7 +144,7 @@ export default function AuditTrail({ active, seed }: { active: boolean; seed?: n
                           <span aria-hidden>✕</span> {row.rejected_by ?? "refused"}
                         </span>
                       )}
-                      {row.reason && <small className="muted"> · {row.reason}</small>}
+                      {row.reason && <small className="muted">, {row.reason}</small>}
                     </td>
                     <td className="num">
                       {row.latency_ms === null ? "—" : `${fmt(row.latency_ms, 1)}ms`}
@@ -155,10 +155,10 @@ export default function AuditTrail({ active, seed }: { active: boolean; seed?: n
             </table>
           </div>
           <p className="research-note">
-            {state.rows.length} most recent rows ·{" "}
+            {state.rows.length} most recent rows;{" "}
             {state.kind === "ready"
-              ? `read ${state.fetchedAt.toLocaleTimeString()} · paper-only, recorded by the gateway itself.`
-              : "generated for this session · paper-only, recorded by nothing."}
+              ? `read ${state.fetchedAt.toLocaleTimeString()}; paper-only, recorded by the gateway itself.`
+              : "generated for this session; paper-only, recorded by nothing."}
           </p>
         </>
       )}

@@ -3,7 +3,7 @@
  *
  * `navigate(view)` writes `${view}/${sectionByViewRef.current[view]}` — the
  * section the reader last had open in that workspace. That is right for a tab
- * click and wrong for every contextual link: a tile headed "VaR 95 · Gross
+ * click and wrong for every contextual link: a tile headed "VaR 95, Gross
  * headroom · Drawdown cushion · Binding constraint" whose button reads *Open
  * Risk* opened whichever risk panel had been read last, which on a second visit
  * is rarely the one explaining those four numbers. Twenty-two of the desk's

@@ -317,7 +317,7 @@ export default function OrderTicket({
           </label>
           <small className="muted">
             {operatorToken?.trim()
-              ? "Override ready · held in memory for this tab only."
+              ? "Override ready; held in memory for this tab only."
               : paperOrderDefaultAvailable
                 ? "Using the deployment credential. Paste a token to override this request."
                 : "Required for live orders. Held in memory for this tab only."}
@@ -522,14 +522,14 @@ export default function OrderTicket({
 
           {latest.fill ? (
             <p className="muted">
-              Filled {fmt(latest.fill.quantity, 6)} @ {usd(latest.fill.price, 2)} on {latest.fill.venue} ·
-              slippage {fmt(latest.fill.slippage_bps, 1)} bps · fee {usd(latest.fill.fee_usd, 2)}
+              Filled {fmt(latest.fill.quantity, 6)} @ {usd(latest.fill.price, 2)} on {latest.fill.venue};
+              slippage {fmt(latest.fill.slippage_bps, 1)} bps, fee {usd(latest.fill.fee_usd, 2)}
               {latest.order_type === "LIMIT"
                 // A marketable limit crosses the spread and pays for it; one that
                 // rests is filled by someone crossing to reach it and takes its
                 // own price. Naming which happened is the difference between a
                 // cost the desk paid and one it collected.
-                ? <> · marketable limit — crossed the spread at route VWAP</>
+                ? <>; marketable limit — crossed the spread at route VWAP</>
                 : null}
             </p>
           ) : null}

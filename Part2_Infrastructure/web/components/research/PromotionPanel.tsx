@@ -119,7 +119,7 @@ export default function PromotionPanel({
       <div className="promotion-handoff">
         <div>
           <strong className="num">
-            {symbol} · {strategyLabel} {fast}/{slow}
+            {symbol}, {strategyLabel} {fast}/{slow}
           </strong>
           <small>
             {blocked

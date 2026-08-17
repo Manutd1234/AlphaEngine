@@ -303,8 +303,8 @@ export default function LiveMarket({
               </span>
               <span className="venue-status__metrics num">
                 {venue.status === "live" ? `${venue.updates.toLocaleString()} updates` : status.icon}
-                {venue.book.latencyMs ? ` · ${fmt(venue.book.latencyMs, 0)}ms` : ""}
-                {venue.reconnects > 0 ? ` · ${venue.reconnects} reconnects` : ""}
+                {venue.book.latencyMs ? `, ${fmt(venue.book.latencyMs, 0)} ms` : ""}
+                {venue.reconnects > 0 ? `; ${venue.reconnects} reconnects` : ""}
               </span>
             </div>
           );
@@ -370,7 +370,7 @@ export default function LiveMarket({
         <i aria-hidden />
         {paperEquity
           ? quotePreview
-            ? `Covered US ticker · as of ${new Date(quotePreview.asOf).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+            ? `Covered US ticker, as of ${new Date(quotePreview.asOf).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
             : quotePreviewPending ? "Checking equity coverage" : "Equity quote unavailable"
           : !liveSupported ? "Quote only" : snap ? `${liveVenues} venues live` : "Connecting"}
       </span>
@@ -523,12 +523,12 @@ export default function LiveMarket({
           <div className="workflow-handoff execution-handoff">
             <div>
               <span className="page-kicker">Research context attached</span>
-              <strong>{STRATEGY_LABELS[research.request.strategy]} {research.best.fast}/{research.best.slow} · {research.verdict.level.toUpperCase()}</strong>
+              <strong>{STRATEGY_LABELS[research.request.strategy]} {research.best.fast}/{research.best.slow}, {research.verdict.level.toUpperCase()}</strong>
               <small>
                 Model budget {research.request.slippageBps} bps
                 {costVsModel == null
-                  ? " · live impact pending"
-                  : ` · live impact is ${Math.abs(costVsModel).toFixed(2)} bps ${costVsModel <= 0 ? "inside" : "above"} budget`}
+                  ? "; live impact pending"
+                  : `; live impact is ${Math.abs(costVsModel).toFixed(2)} bps ${costVsModel <= 0 ? "inside" : "above"} budget`}
               </small>
             </div>
             <div>
@@ -830,7 +830,7 @@ export default function LiveMarket({
             ) : null}
 
             <div className="tiles" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))" }}>
-              <StatTile label="Blended VWAP" value={fmt(tca.vwap, dp)} note="aggressive · pay the spread, fill now" />
+              <StatTile label="Blended VWAP" value={fmt(tca.vwap, dp)} note="aggressive: pay the spread, fill now" />
               <StatTile
                 label="Slippage"
                 value={tca.slippageBps == null ? "—" : `${fmt(tca.slippageBps, 2)} bps`}
@@ -842,7 +842,7 @@ export default function LiveMarket({
                 value={tca.passive == null ? "—" : fmt(tca.passive.price, dp)}
                 note={tca.passive?.spreadCaptureBps == null
                   ? "no touch to join"
-                  : `earns ${fmt(tca.passive.spreadCaptureBps, 2)} bps — if filled · no guarantee`}
+                  : `earns ${fmt(tca.passive.spreadCaptureBps, 2)} bps — if filled; no guarantee`}
               />
               <StatTile
                 label="Saved vs worst venue"

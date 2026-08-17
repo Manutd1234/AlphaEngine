@@ -221,7 +221,7 @@ export default function Heatmap({
         <span className="muted" style={{ fontSize: 12.5 }}>
           {showKinds
             ? "click a cell to inspect those parameters"
-            : "grey = no edge · click a cell to inspect those parameters"}
+            : "grey = no edge; click a cell to inspect those parameters"}
         </span>
       </div>
 
@@ -368,9 +368,9 @@ export default function Heatmap({
             <strong>
               {active.fast}/{active.slow}
             </strong>{" "}
-            · Sharpe {fmt(active.sharpe, 2)} · return {pct(active.totalReturn)} · maxDD{" "}
-            {pct(active.maxDrawdown)} · {active.trades} trades
-            {active.fast === best.fast && active.slow === best.slow ? " · ← grid winner" : ""}
+            — Sharpe {fmt(active.sharpe, 2)}, return {pct(active.totalReturn)}, max DD{" "}
+            {pct(active.maxDrawdown)}, {active.trades} trades
+            {active.fast === best.fast && active.slow === best.slow ? "; ← grid winner" : ""}
           </>
         ) : (
           "Hover a cell for its metrics."

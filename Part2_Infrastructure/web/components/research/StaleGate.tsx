@@ -62,14 +62,14 @@ export default function StaleGate({
               <>
                 <span className="page-kicker">Recomputing</span>
                 <small>
-                  {targetSymbol} · {targetInterval} — this result is replaced as soon as the sweep lands.
+                  {targetSymbol} at {targetInterval} — this result is replaced as soon as the sweep lands.
                 </small>
               </>
             ) : (
               <>
                 <span className="page-kicker">Desk context changed</span>
                 <button className="primary-action" onClick={onRerun} disabled={running}>
-                  {running ? "Running sweep…" : `Rerun sweep for ${targetSymbol} · ${targetInterval}`}
+                  {running ? "Running sweep…" : `Rerun sweep for ${targetSymbol} at ${targetInterval}`}
                 </button>
               </>
             )}

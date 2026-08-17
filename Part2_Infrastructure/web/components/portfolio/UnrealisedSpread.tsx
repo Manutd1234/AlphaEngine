@@ -56,7 +56,7 @@ export default function UnrealisedSpread({
           <h2>Unrealised by position</h2>
         </div>
         <span>
-          {spread.winners} up · {spread.losers} down{spread.flat ? ` · ${spread.flat} flat` : ""}
+          {spread.winners} up, {spread.losers} down{spread.flat ? `, ${spread.flat} flat` : ""}
         </span>
       </div>
 

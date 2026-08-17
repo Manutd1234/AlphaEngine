@@ -148,7 +148,7 @@ export default function FavouritesPanel({ records }: { records: ExperimentRecord
                 <span className="num">{record.symbol}</span>{" "}
                 {STRATEGY_LABELS[record.strategy]} {record.fast}/{record.slow}
                 <small className="muted">
-                  {" "}Sharpe {fmt(record.sharpe, 2)} · {record.interval}
+                  {" "}Sharpe {fmt(record.sharpe, 2)} at {record.interval}
                 </small>
               </label>
             </li>

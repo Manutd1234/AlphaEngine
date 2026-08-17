@@ -106,7 +106,7 @@ export default function WorkspaceOverview({
 
   const shown = result ?? staleResult;
   const candidate = shown
-    ? `${STRATEGY_LABELS[shown.request.strategy]} · ${shown.best.fast}/${shown.best.slow}`
+    ? `${STRATEGY_LABELS[shown.request.strategy]} ${shown.best.fast}/${shown.best.slow}`
     : STRATEGY_LABELS[request.strategy];
   const validation = result
     ? result.walkForwardOosSharpe == null
@@ -117,9 +117,9 @@ export default function WorkspaceOverview({
       : "Pending";
   const providers = summary ? `${summary.ready}/${summary.total}` : "Checking";
   const researchStatus = researchStale
-    ? "Context changed · rerun required"
+    ? "Context changed; rerun required"
     : result
-      ? `${result.verdict.level.toUpperCase()} · ${validation} OOS Sharpe`
+      ? `${result.verdict.level.toUpperCase()}, ${validation} OOS Sharpe`
       : running
         ? "Baseline running"
         : "Awaiting validation";
@@ -211,7 +211,7 @@ export default function WorkspaceOverview({
           {
             label: "Equity",
             value: equity ? <NumberTicker value={equity.current} format={(v) => usd(v, 0)} /> : "—",
-            note: equity ? `start ${usd(equity.start_of_day, 0)} · gateway snapshot` : "book connecting",
+            note: equity ? `start ${usd(equity.start_of_day, 0)}; gateway snapshot` : "book connecting",
             spark: equitySpark.length >= 2 ? (
               <Sparkline
                 variant="area"
@@ -229,7 +229,7 @@ export default function WorkspaceOverview({
             value: equity
               ? <>{equity.daily_pnl >= 0 ? "+" : "−"}<NumberTicker value={Math.abs(equity.daily_pnl)} format={(v) => usd(v, 0)} /></>
               : "—",
-            note: equity ? `${signedPct(equity.daily_return)} · ${dayTone} on the session` : "book connecting",
+            note: equity ? `${signedPct(equity.daily_return)}, ${dayTone} on the session` : "book connecting",
             tone: equity ? (equity.daily_pnl >= 0 ? "good" : "critical") : "neutral",
           },
           {
@@ -239,7 +239,7 @@ export default function WorkspaceOverview({
                down has it as its headline, and the deck's own rule is that it
                does not restate the band above it. */
             note: risk
-              ? `${book.varValidation ? `zone ${book.varValidation.zone} · ` : ""}backtested in this browser`
+              ? `${book.varValidation ? `zone ${book.varValidation.zone}; ` : ""}backtested in this browser`
               : "needs price history",
           },
           {
@@ -248,7 +248,7 @@ export default function WorkspaceOverview({
               ? <NumberTicker value={latency!.p99!} format={(v) => `${Math.round(v)}ms`} />
               : "—",
             note: latencyMeasured
-              ? `${summary?.ready ?? 0}/${summary?.total ?? 0} routes ready${systems.degraded ? ` · ${systems.degraded} degraded` : ""} · measured from this browser's polls`
+              ? `${summary?.ready ?? 0} of ${summary?.total ?? 0} routes ready${systems.degraded ? `, ${systems.degraded} degraded` : ""}; measured from this browser's polls`
               : "fewer than 20 polls measured",
           },
         ]}

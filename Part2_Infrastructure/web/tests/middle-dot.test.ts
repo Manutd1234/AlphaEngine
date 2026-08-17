@@ -20,9 +20,9 @@
  *      grep for the raw literal finds nothing, and the helper's name states
  *      the contract.
  *
- * Part 3 is a ratchet, in the shape of dead-css.test.ts: the count of raw
- * separators may only go down, and a sweep that removes them must lower the
- * baseline in the same commit so the number stays a measurement.
+ * Part 3 began as a ratchet in the shape of dead-css.test.ts and ran down to
+ * zero in one day; it is now a contract — no raw separator anywhere outside
+ * the helper.
  */
 
 import assert from "node:assert/strict";
@@ -94,24 +94,17 @@ describe("the middle dot never names a thing", () => {
   });
 });
 
-describe("the raw separator count ratchets down", () => {
-  // Measured after the Data, Reliability and Developer sweep on 2026-08-17.
-  // Each sweep that follows (Overview, Header, Portfolio/Risk/Research/
-  // Execution) lowers this in the same commit; the floor keeps the number
-  // honest — a baseline far above reality stops being a ratchet.
-  const BASELINE = 163;
-  const FLOOR = BASELINE - 40;
-
-  it(`no more than ${BASELINE} raw separators outside metricRow, and the baseline is not stale`, () => {
+describe("no raw separator survives outside metricRow", () => {
+  // The ratchet ran down to zero on 2026-08-17: Data, Reliability and
+  // Developer first, then Overview, the header, Portfolio, Risk, Research,
+  // Execution and the profile. From here the count is a contract, not a
+  // measurement — a new one must go through metricRow or become prose.
+  it("every middle dot used as a separator has been rewritten", () => {
     const found = offendersOf(SEPARATOR, "separator");
-    assert.ok(
-      found.length <= BASELINE,
-      `${found.length} raw middle-dot separators (baseline ${BASELINE}). New ones must go through metricRow ` +
-        `or become prose:\n  ${found.slice(-12).join("\n  ")}`,
-    );
-    assert.ok(
-      found.length >= FLOOR,
-      `only ${found.length} raw separators remain — lower BASELINE to ${found.length} so the ratchet keeps biting`,
+    assert.deepEqual(
+      found,
+      [],
+      `raw middle-dot separators — route them through metricRow (tabular mono only) or write prose:\n  ${found.join("\n  ")}`,
     );
   });
 

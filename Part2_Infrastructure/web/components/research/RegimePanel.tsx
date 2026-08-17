@@ -101,9 +101,9 @@ export default function RegimePanel({ regimes }: { regimes: RegimeReport }) {
             {w.covered && w.stat ? (
               <span className="num">
                 <span className={sign(w.stat.totalReturn)}>{signedPct(w.stat.totalReturn)}</span>
-                {" · max DD "}
+                {", max DD "}
                 <span className="neg">{pct(w.stat.maxDrawdown, 1)}</span>
-                {` · ${w.stat.bars} bars`}
+                {`, ${w.stat.bars} bars`}
               </span>
             ) : (
               <span className="muted">

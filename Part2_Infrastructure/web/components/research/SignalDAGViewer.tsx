@@ -82,7 +82,7 @@ export default function SignalDAGViewer({
               onClick={() => setSelected(selected === stage.id ? null : stage.id)}
             >
               <span className="signal-workflow__step">
-                Step {index + 1} · {stage.role}
+                Step {index + 1}: {stage.role}
               </span>
               <strong>{stage.name}</strong>
               <span className="signal-workflow__meta">

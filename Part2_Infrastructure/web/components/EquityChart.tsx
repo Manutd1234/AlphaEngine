@@ -129,7 +129,7 @@ export default function EquityChart({
         {mc && (
           <span>
             <i style={{ background: "color-mix(in srgb, var(--series-1) 25%, var(--surface-1))" }} />
-            MC 5–95% · {mc.paths} resamples
+            MC 5–95%, {mc.paths} resamples
           </span>
         )}
       </div>

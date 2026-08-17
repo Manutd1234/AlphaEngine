@@ -156,7 +156,7 @@ describe("the safety statement describes what the desk actually does", () => {
     // "Check the gateway now" was a button whose success painted nothing —
     // it now times the awaited re-read and renders a result line from the
     // refreshed provenance.
-    assert.match(badge, /Gateway answered · \{lastCheck\.ms\} ms/);
+    assert.match(badge, /Gateway answered in \{lastCheck\.ms\} ms/);
     assert.match(badge, /No live answer in \{lastCheck\.ms\} ms/);
     assert.match(badge, /performance\.now\(\)/);
     // And page.tsx returns the work so the badge can await it.

@@ -13,7 +13,7 @@
  */
 
 import type { DecisionLatency, HealthSourceState, SystemHealth } from "@/components/systems/types";
-import { formatDuration } from "@/lib/format";
+import { formatDuration, metricRow } from "@/lib/format";
 
 export type StageId = "data" | "research" | "risk" | "execution";
 export type StageState = "ok" | "active" | "attention" | "halted" | "idle";
@@ -117,7 +117,7 @@ export function deriveDecisionLoop(i: DecisionLoopInputs): DecisionStage[] {
 
   const risk: DecisionStage = (() => {
     const base = { id: "risk" as const, label: "Risk" };
-    const sandboxSuffix = i.bookSandbox ? " · sandbox book" : "";
+    const sandboxSuffix = i.bookSandbox ? "; sandbox book" : "";
     if (!i.bookPresent) {
       if (i.bookConnection === "error") {
         return { ...base, state: "attention" as const, detail: gatewayFailureDetail(i.bookErrorCode) };
@@ -157,8 +157,8 @@ export function deriveDecisionLoop(i: DecisionLoopInputs): DecisionStage[] {
       }
       return { ...base, state: "idle" as const, detail: "connecting to gateway" };
     }
-    const fill = i.fillRate != null ? ` · ${Math.round(i.fillRate * 100)}% fill` : "";
-    return { ...base, state: "ok" as const, detail: `paper gates active${fill}${i.bookSandbox ? " · sandbox" : ""}` };
+    const fill = i.fillRate != null ? `, ${Math.round(i.fillRate * 100)}% fill` : "";
+    return { ...base, state: "ok" as const, detail: `paper gates active${fill}${i.bookSandbox ? "; sandbox" : ""}` };
   })();
 
   return [data, research, risk, execution];
@@ -240,7 +240,7 @@ export function formatLatencyChip(
   return {
     value: `p99 ${Math.round(latency.p99)}ms`,
     caveat:
-      `upstream p99 ${Math.round(latency.p99)}ms · error rate ${Math.round(latency.errorRate * 100)}% · `
+      `upstream p99 ${Math.round(latency.p99)}ms, error rate ${Math.round(latency.errorRate * 100)}%; `
       + `rolling 15-minute window, n=${latency.n}`,
   };
 }
@@ -407,9 +407,11 @@ export function formatDecisionChip(
     state: string,
     caveat: string,
   ): DecisionChipModel => {
+    // Two same-kind latency figures in the chip's mono figure — the one
+    // place the separator is a column rule rather than a word.
     const headlineText = headline.kind === "measured"
-      ? `${formatDuration(headline.p99Us, "us")}${headline.coreP99Ns != null ? ` · core ${formatDuration(headline.coreP99Ns, "ns")}` : ""}`
-      : headline.kind === "core-only" ? `— · core ${formatDuration(headline.coreP99Ns, "ns")}`
+      ? metricRow([formatDuration(headline.p99Us, "us"), headline.coreP99Ns != null ? `core ${formatDuration(headline.coreP99Ns, "ns")}` : null])
+      : headline.kind === "core-only" ? metricRow(["—", `core ${formatDuration(headline.coreP99Ns, "ns")}`])
       : headline.kind === "collecting" ? "collecting" : "—";
     return {
       tone,
@@ -421,19 +423,19 @@ export function formatDecisionChip(
   };
 
   if (source.kind === "checking") {
-    return finish("muted", { kind: "dash" }, "checking", `${source.detail} · ${networkCaveat}`);
+    return finish("muted", { kind: "dash" }, "checking", `${source.detail}; ${networkCaveat}`);
   }
   if (source.kind === "no-gateway") {
     const word = source.state === "not_configured" ? "no gateway" : source.state === "invalid" ? "invalid" : "unreachable";
-    return finish("muted", { kind: "dash" }, word, `${source.detail} · ${networkCaveat}`);
+    return finish("muted", { kind: "dash" }, word, `${source.detail}; ${networkCaveat}`);
   }
   if (source.kind === "not-published") {
-    return finish("muted", { kind: "dash" }, "not published", `${source.detail} · ${networkCaveat}`);
+    return finish("muted", { kind: "dash" }, "not published", `${source.detail}; ${networkCaveat}`);
   }
   if (source.kind === "no-orders") {
     const core = source.core;
     if (core == null) {
-      return finish("muted", { kind: "dash" }, "no orders yet", `${source.detail} · ${networkCaveat}`);
+      return finish("muted", { kind: "dash" }, "no orders yet", `${source.detail}; ${networkCaveat}`);
     }
     // The core figure alone: it is real (the compiled battery, timed inside
     // the engine) but its provenance is the startup self-measure, and the

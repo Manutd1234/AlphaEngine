@@ -104,7 +104,7 @@ export function qualityScore(input: QualityInput): QualityScore {
     label: "Risk-adjusted",
     score: dsrPoints * 0.67 + sharpePoints * 0.33,
     weight: 35,
-    detail: `DSR ${input.deflatedSharpeRatio.toFixed(2)} · Sharpe ${input.sharpe.toFixed(2)}`,
+    detail: `DSR ${input.deflatedSharpeRatio.toFixed(2)}, Sharpe ${input.sharpe.toFixed(2)}`,
   });
 
   // ── Robustness, 20 ────────────────────────────────────────────────────────
@@ -122,7 +122,7 @@ export function qualityScore(input: QualityInput): QualityScore {
     score: hasWalkForward ? efficiencyPoints * 0.4 + pboPoints * 0.35 + oosPoints * 0.25 : 0,
     weight: 20,
     detail: hasWalkForward
-      ? `efficiency ${(input.medianEfficiency ?? 0).toFixed(2)} · PBO ${((input.overfittingProbability ?? 0) * 100).toFixed(0)}%`
+      ? `efficiency ${(input.medianEfficiency ?? 0).toFixed(2)}, PBO ${((input.overfittingProbability ?? 0) * 100).toFixed(0)}%`
       : "walk-forward did not run — unmeasured, scored zero",
   });
 
@@ -137,7 +137,7 @@ export function qualityScore(input: QualityInput): QualityScore {
     label: "Drawdown & tail",
     score: ddPoints * 0.6 + calmarPoints * 0.4,
     weight: 15,
-    detail: `max drawdown ${(input.maxDrawdown * 100).toFixed(1)}% · Calmar ${input.calmar.toFixed(2)}`,
+    detail: `max drawdown ${(input.maxDrawdown * 100).toFixed(1)}%, Calmar ${input.calmar.toFixed(2)}`,
   });
 
   // ── Versus benchmark, 15 ──────────────────────────────────────────────────
@@ -179,7 +179,7 @@ export function qualityScore(input: QualityInput): QualityScore {
     label: "Trade quality",
     score: samplePoints * 0.65 + winPoints * 0.35,
     weight: 8,
-    detail: `${input.trades} trades · ${(input.winRate * 100).toFixed(0)}% won`,
+    detail: `${input.trades} trades, ${(input.winRate * 100).toFixed(0)}% won`,
   });
 
   // ── Absolute return, 7 ────────────────────────────────────────────────────

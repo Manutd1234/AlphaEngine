@@ -186,7 +186,7 @@ export default function AccountChip({
               aria-hidden
               className="block h-[6px] w-[6px] rounded-[50%] bg-status-good shadow-[0_0_0_3px_color-mix(in_srgb,var(--status-good)_14%,transparent)]"
             />
-            Session active · preferences follow this account
+            Session active; preferences follow this account
           </p>
 
           {/* A link, not a button: it is a destination, and middle-click and

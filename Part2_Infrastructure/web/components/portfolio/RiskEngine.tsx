@@ -125,12 +125,12 @@ export default function RiskEngine({
         <StatTile
           label="Book volatility"
           value={pct(risk.annualisedVolatility, 1)}
-          note={`annualised · ${pct(risk.volatility, 2)} per day`}
+          note={`annualised; ${pct(risk.volatility, 2)} per day`}
         />
         <StatTile
-          label="VaR 95 · 1 day"
+          label="VaR 95, 1 day"
           value={usd(risk.var95, 0)}
-          note="parametric · normal assumption"
+          note="parametric, normal assumption"
           tone="neg"
         />
         <StatTile

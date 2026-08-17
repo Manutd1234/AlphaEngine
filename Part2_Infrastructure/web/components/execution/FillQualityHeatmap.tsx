@@ -117,8 +117,8 @@ export default function FillQualityHeatmap({
             <h3>Fill quality by hour and venue</h3>
             <p className="muted" role="status">
               {source === "unavailable"
-                ? "no priced fills to grid · the audit feed has no source while Live gateway is selected"
-                : `collecting priced fills · n=${view.fillCount} of ${MIN_FILLS}, across at least 2 UTC hours`}
+                ? "no priced fills to grid; the audit feed has no source while Live gateway is selected"
+                : `collecting priced fills, n=${view.fillCount} of ${MIN_FILLS}, across at least 2 UTC hours`}
             </p>
           </div>
         </header>
@@ -135,7 +135,7 @@ export default function FillQualityHeatmap({
           <h3>Fill quality by hour and venue</h3>
           <p className="muted">
             Mean realised slippage (bps) across {view.fillCount}
-            {source === "sandbox" ? " generated" : ""} priced fills · UTC hours ·
+            {source === "sandbox" ? " generated" : ""} priced fills by UTC hour;
             red pays up, blue beats the reference.
           </p>
         </div>
@@ -167,7 +167,7 @@ export default function FillQualityHeatmap({
                       key={hour}
                       className="num"
                       style={{ background: colour(cell.mean) }}
-                      title={`${venue} · ${String(hour).padStart(2, "0")}:00 UTC · ${fmt(cell.mean, 2)} bps over ${cell.count} fill${cell.count === 1 ? "" : "s"}`}
+                      title={`${venue} at ${String(hour).padStart(2, "0")}:00 UTC: ${fmt(cell.mean, 2)} bps over ${cell.count} fill${cell.count === 1 ? "" : "s"}`}
                     >
                       {fmt(cell.mean, 1)}
                     </td>

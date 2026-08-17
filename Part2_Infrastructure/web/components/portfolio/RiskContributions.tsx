@@ -71,11 +71,11 @@ export default function RiskContributions({ contributions }: RiskContributionsPr
                     {pct(c.contributionShare, 1)}
                     {/* A hedge takes risk OUT. Worth naming, since a negative
                         percentage is easy to read as an error. */}
-                    {c.contributionShare < 0 && <span className="muted"> · hedge</span>}
+                    {c.contributionShare < 0 && <span className="muted">, hedge</span>}
                     {diverges && c.contributionShare >= 0 && (
                       <span className="muted">
                         {" "}
-                        · {c.contributionShare > notionalShare ? "over" : "under"}-risks its size
+                        ; {c.contributionShare > notionalShare ? "over" : "under"}-risks its size
                       </span>
                     )}
                   </td>

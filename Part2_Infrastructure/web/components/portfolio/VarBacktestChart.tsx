@@ -112,7 +112,7 @@ export default function VarBacktestChart({
         </span>
         {show99 && (
           <span>
-            <i style={{ background: "var(--text-muted)" }} aria-hidden /> VaR 99 · drawn, not scored
+            <i style={{ background: "var(--text-muted)" }} aria-hidden /> VaR 99, drawn but not scored
           </span>
         )}
         <span>

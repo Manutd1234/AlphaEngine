@@ -289,9 +289,9 @@ export default function OrderBlotter({
                         <div className="cockpit-detail">
                           <p>
                             <code>{row.orderId}</code>
-                            {row.clientOrderId ? <> · client <code>{row.clientOrderId}</code></> : null}
-                            {row.source ? <> · via {row.source}</> : null}
-                            {row.feeUsd != null ? <> · fee {usd(row.feeUsd, 2)}</> : null}
+                            {row.clientOrderId ? <>; client <code>{row.clientOrderId}</code></> : null}
+                            {row.source ? <>; via {row.source}</> : null}
+                            {row.feeUsd != null ? <>; fee {usd(row.feeUsd, 2)}</> : null}
                           </p>
                           {row.reason ? <p>{row.reason}</p> : null}
 

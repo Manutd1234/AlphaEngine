@@ -93,7 +93,7 @@ Run recorded ${savedIso}; original dataset fingerprint ${record.dataHash ?? "n/a
 
 Expected metrics from the recorded run (the final bar of the original window
 may still have been forming, so allow small drift on a re-fetch):
-    sharpe ${record.sharpe.toFixed(4)} · return ${(record.totalReturn * 100).toFixed(2)}% · max DD ${(record.maxDrawdown * 100).toFixed(2)}% · trades ${record.trades}
+    sharpe ${record.sharpe.toFixed(4)}, return ${(record.totalReturn * 100).toFixed(2)}%, max DD ${(record.maxDrawdown * 100).toFixed(2)}%, trades ${record.trades}
 
 Dependencies: numpy (pip install numpy). Everything else is stdlib.
 """

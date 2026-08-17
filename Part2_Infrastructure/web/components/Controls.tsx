@@ -218,7 +218,7 @@ export default function Controls({
         <div>
           <h2>Experiment setup</h2>
           <p className="sub">
-            {req.symbol} · {req.interval} · {STRATEGY_LABELS[req.strategy]} · {combos} combos
+            {req.symbol} at {req.interval}, {STRATEGY_LABELS[req.strategy]}, {combos} combos
           </p>
         </div>
         <button
@@ -438,7 +438,7 @@ export default function Controls({
               className={frictionsOn ? "friction-badge is-on" : "friction-badge"}
               title={frictionSummary ?? undefined}
             >
-              {frictionSummary ? `modelled · ${frictionSummary}` : "flat bps only"}
+              {frictionSummary ? `modelled: ${frictionSummary}` : "flat bps only"}
             </span>
           </summary>
 

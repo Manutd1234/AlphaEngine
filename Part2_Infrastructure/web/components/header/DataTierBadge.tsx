@@ -182,12 +182,12 @@ export default function DataTierBadge({
               {provenance.tier === "live" ? (
                 <>
                   <i aria-hidden>✓</i>
-                  Gateway answered · {lastCheck.ms} ms · {new Date(lastCheck.at).toLocaleTimeString()}
+                  Gateway answered in {lastCheck.ms} ms at {new Date(lastCheck.at).toLocaleTimeString()}
                 </>
               ) : (
                 <>
                   <i aria-hidden>✕</i>
-                  No live answer in {lastCheck.ms} ms{detail ? ` · ${detail}` : ""}
+                  No live answer in {lastCheck.ms} ms{detail ? `; ${detail}` : ""}
                 </>
               )}
             </p>

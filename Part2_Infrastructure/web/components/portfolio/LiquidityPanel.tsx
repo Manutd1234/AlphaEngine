@@ -171,8 +171,8 @@ export default function LiquidityPanel({
                         {quote.expectedSlippageBps != null
                           ? `${quote.expectedSlippageBps.toFixed(1)} bps`
                           : "not priced"}
-                        {!quote.fillable && ` · book covers $${fmt(quote.routedNotional)} of it`}
-                        {" · "}
+                        {!quote.fillable && `; book covers $${fmt(quote.routedNotional)} of it`}
+                        {"; "}
                         {quote.fetchedAt}
                       </small>
                     ) : (

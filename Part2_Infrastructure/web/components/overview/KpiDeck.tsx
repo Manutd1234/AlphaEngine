@@ -116,23 +116,23 @@ export default function KpiDeck({
 
   // ---- research candidate ------------------------------------------------
   const candidateTitle = shown
-    ? `${STRATEGY_LABELS[shown.request.strategy]} · ${shown.best.fast}/${shown.best.slow}`
+    ? `${STRATEGY_LABELS[shown.request.strategy]} ${shown.best.fast}/${shown.best.slow}`
     : STRATEGY_LABELS[request.strategy];
   // The parameters tick when a sweep lands on a new winner; the label never
   // animates — a strategy name has no intermediate values.
   const candidateValue = shown
     ? (
       <>
-        {STRATEGY_LABELS[shown.request.strategy]} · <NumberTicker value={shown.best.fast} />/<NumberTicker value={shown.best.slow} />
+        {STRATEGY_LABELS[shown.request.strategy]} <NumberTicker value={shown.best.fast} />/<NumberTicker value={shown.best.slow} />
       </>
     )
     : STRATEGY_LABELS[request.strategy];
   const candidateNote = running
     ? "sweep in progress"
     : researchStale && shown
-      ? `context changed — was ${shown.request.symbol} · rerun required`
+      ? `context changed — was ${shown.request.symbol}; rerun required`
       : shown
-        ? `${shown.verdict.level.toUpperCase()} · Sharpe ${fmt(shown.best.sharpe, 2)}`
+        ? `${shown.verdict.level.toUpperCase()}, Sharpe ${fmt(shown.best.sharpe, 2)}`
         : "no completed run";
   const equitySpark = shown ? downsample(shown.series.map((p) => p.equity), 64) : [];
 
@@ -149,8 +149,8 @@ export default function KpiDeck({
       ? trl.bars == null
         ? "no finite record proves this edge"
         : trl.sufficient
-          ? `track record met · ${signedPct(shown.best.totalReturn)} in-sample`
-          : `needs ~${fmt(trl.years, 1)}y of history · ${signedPct(shown.best.totalReturn)} in-sample`
+          ? `track record met; ${signedPct(shown.best.totalReturn)} in-sample`
+          : `needs ~${fmt(trl.years, 1)} y of history; ${signedPct(shown.best.totalReturn)} in-sample`
       : `${signedPct(shown.best.totalReturn)} in-sample return`
     : "awaiting result";
 
@@ -159,9 +159,9 @@ export default function KpiDeck({
   const exposure = book.book?.exposure;
   const headroom = book.book?.risk_budget.gross_exposure;
   const intentNote = book.book
-    ? `${usd(modeledCost, 0)} modeled cost · gross ${usd(exposure?.gross ?? 0, 0)}${
-        headroom ? ` · ${usd(headroom.remaining, 0)} headroom` : ""
-      }${book.book.sandbox ? " · sandbox" : ""}`
+    ? `${usd(modeledCost, 0)} modeled cost, gross ${usd(exposure?.gross ?? 0, 0)}${
+        headroom ? `, ${usd(headroom.remaining, 0)} headroom` : ""
+      }${book.book.sandbox ? "; sandbox" : ""}`
     : "book connecting";
 
   // ---- data plane --------------------------------------------------------
@@ -176,9 +176,9 @@ export default function KpiDeck({
   const dataNote = systems.healthError
     ? `unreachable — snapshot from ${systems.updatedAt?.toLocaleTimeString() ?? "earlier"}`
     : summary
-      ? `p99 ${latency?.p99 != null && (latency?.n ?? 0) >= 20 ? `${Math.round(latency.p99)}ms` : "—"} · `
+      ? `p99 ${latency?.p99 != null && (latency?.n ?? 0) >= 20 ? `${Math.round(latency.p99)} ms` : "—"}, `
         + `cache ${systems.cacheHitRate == null ? "no lookups yet" : `${Math.round(systems.cacheHitRate * 100)}%`}`
-        + `${systems.health?.quarantine?.size ? ` · ${systems.health.quarantine.size} quarantined` : ""}`
+        + `${systems.health?.quarantine?.size ? `; ${systems.health.quarantine.size} quarantined` : ""}`
       : "checking data plane";
 
   // ---- what the desk is carrying ----------------------------------------
@@ -244,7 +244,7 @@ export default function KpiDeck({
         value={exposure ? usd(exposure.gross, 0) : "—"}
         note={
           exposure
-            ? `net ${usd(exposure.net, 0)} · ${fmt(exposure.leverage, 2)}× leverage`
+            ? `net ${usd(exposure.net, 0)}, ${fmt(exposure.leverage, 2)}× leverage`
             : "book connecting"
         }
       />
@@ -257,7 +257,7 @@ export default function KpiDeck({
         }
         note={
           constraintName && headroom
-            ? `${constraintName.replace(/_/g, " ")} · ${usd(headroom.remaining, 0)} left of ${usd(headroom.limit, 0)}`
+            ? `${constraintName.replace(/_/g, " ")}: ${usd(headroom.remaining, 0)} left of ${usd(headroom.limit, 0)}`
             : constraintName
               ? constraintName.replace(/_/g, " ")
               : "no limit engaged yet"
@@ -269,7 +269,7 @@ export default function KpiDeck({
         note={
           risk
             ? `${signedPct(risk.annualisedVolatility)} annualised vol`
-              + `${book.varValidation ? ` · zone ${book.varValidation.zone}` : ""}`
+              + `${book.varValidation ? `; zone ${book.varValidation.zone}` : ""}`
             : "needs price history"
         }
       />
@@ -282,8 +282,8 @@ export default function KpiDeck({
         }
         note={
           concentration
-            ? `${concentration.positions} held · largest ${Math.round(concentration.largest_share * 100)}%`
-              + `${quarantined ? ` · ${quarantined} feed quarantined` : ""}`
+            ? `${concentration.positions} held, largest ${Math.round(concentration.largest_share * 100)}%`
+              + `${quarantined ? `; ${quarantined} feed quarantined` : ""}`
             : "book connecting"
         }
       />

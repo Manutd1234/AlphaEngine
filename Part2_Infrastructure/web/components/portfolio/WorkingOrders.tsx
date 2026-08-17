@@ -196,7 +196,7 @@ export default function WorkingOrders({
             {rows.length
               ? `${usd(committed, 0)} across ${rows.length} order${rows.length === 1 ? "" : "s"}`
               : "nothing resting"}
-            {visible.length !== rows.length ? ` · showing ${visible.length}` : ""}
+            {visible.length !== rows.length ? `, showing ${visible.length}` : ""}
           </span>
           {/* Its own header, not the blotter's 18 columns: a resting order has
               no verdict, no fill and no latency, and exporting it through that
@@ -291,7 +291,7 @@ export default function WorkingOrders({
                 <tr key={row.orderId} className={row.symbol === focusSymbol ? "is-best" : undefined}>
                   <th scope="row">
                     {clock(row.acceptedAt)}
-                    <small className="muted"> · {age(row.ageSeconds)}</small>
+                    <small className="muted">, {age(row.ageSeconds)}</small>
                   </th>
                   <td>
                     {onFocusSymbol ? (

@@ -60,7 +60,7 @@ export default function FreshnessStamp({
       </span>
       <small className="num">
         {ago}
-        {paused ? " · polling paused" : pollMs ? ` · every ${Math.round(pollMs / 1000)}s` : ""}
+        {paused ? "; polling paused" : pollMs ? `; every ${Math.round(pollMs / 1000)} s` : ""}
       </small>
     </span>
   );

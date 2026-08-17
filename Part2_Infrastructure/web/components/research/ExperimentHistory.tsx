@@ -143,7 +143,7 @@ export default function ExperimentHistory({
         </div>
         <div className="blotter-toolbar">
           <span className="section-note">
-            {records.length} run{records.length === 1 ? "" : "s"} · {promoted.length} promotable
+            {records.length} run{records.length === 1 ? "" : "s"}, {promoted.length} promotable
           </span>
           {/* The archive's three management actions in one disclosure, the
               same consolidation the blotter's exports went through: a
@@ -255,8 +255,8 @@ export default function ExperimentHistory({
                         <div className="run-hypothesis">
                           <strong>{STRATEGY_LABELS[r.strategy]}</strong>
                           <small className="muted">
-                            {r.symbol} · {r.interval} · {r.fast}/{r.slow} · {r.combosTested} combos
-                            {r.modelledFrictions && " · frictions modelled"}
+                            {r.symbol} at {r.interval}, {r.fast}/{r.slow}, {r.combosTested} combos
+                            {r.modelledFrictions && "; frictions modelled"}
                           </small>
                           {r.tags?.length ? (
                             <div className="run-tags">

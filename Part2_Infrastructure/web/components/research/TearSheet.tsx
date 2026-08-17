@@ -42,7 +42,7 @@ export default function TearSheet({
           <h2>Tail risk &amp; return distribution</h2>
         </div>
         <span className="section-note">
-          per {interval} bar · {tail.totalBars.toLocaleString()} observations
+          per {interval} bar, {tail.totalBars.toLocaleString()} observations
         </span>
       </div>
 
@@ -156,7 +156,7 @@ export default function TearSheet({
                             {(cell.return * 100).toFixed(1)}
                           </span>
                         ) : (
-                          <span className="muted">·</span>
+                          <span className="muted" aria-label="no observation">—</span>
                         )}
                       </td>
                     );

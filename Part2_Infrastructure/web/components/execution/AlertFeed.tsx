@@ -88,7 +88,7 @@ export default function AlertFeed({ events, source = "live" }: AlertFeedProps) {
               <span className={`pill pill--${tone(event.severity)}`}>{event.severity}</span>
               <span className="cockpit-alert-list__event">
                 <strong>{event.event.replace(/_/g, " ")}</strong>
-                {event.symbol ? <span className="muted"> · {event.symbol}</span> : null}
+                {event.symbol ? <span className="muted">, {event.symbol}</span> : null}
                 {event.detail ? <span className="cockpit-alert-list__detail">{event.detail}</span> : null}
               </span>
               <span className="muted cockpit-alert-list__actor">{event.actor ?? "system"}</span>

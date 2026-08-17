@@ -59,7 +59,7 @@ export default function LatencyHistogram({
   if (usable.length < minSamples) {
     return (
       <p className="muted" style={{ fontSize: 12.5 }}>
-        collecting samples · n={usable.length} of {minSamples}
+        collecting samples, n={usable.length} of {minSamples}
       </p>
     );
   }

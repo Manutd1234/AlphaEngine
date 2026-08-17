@@ -215,7 +215,7 @@ export default function MonteCarloDistribution({
         <>
           <div className="skeleton" style={{ height: 180 }} />
           <p className="muted num" style={{ fontSize: 12.5 }}>
-            simulating · {(state.progress?.done ?? 0).toLocaleString()} /{" "}
+            simulating: {(state.progress?.done ?? 0).toLocaleString()} /{" "}
             {(state.progress?.total ?? paths).toLocaleString()} paths
           </p>
           <span className="sr-only" role="status">
@@ -291,7 +291,7 @@ export default function MonteCarloDistribution({
           )}
 
           <p className="research-note">
-            Reproducible: seed {result.seed} · mean block {result.meanBlockLength} bars ·{" "}
+            Reproducible: seed {result.seed}, mean block {result.meanBlockLength} bars,{" "}
             {result.paths.toLocaleString()} paths on {compact(equityForRun)} equity. Rerunning the
             same sweep redraws this exact distribution.
           </p>

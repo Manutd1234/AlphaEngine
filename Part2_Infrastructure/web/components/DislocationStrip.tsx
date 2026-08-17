@@ -66,7 +66,7 @@ export default function DislocationStrip({
         <span className="num">{fmt(dislocation.sellPrice, 2)}</span>
       </span>
       <span className="disloc-edge num">
-        {fmt(dislocation.edgeBps, 1)} bps · {usd(dislocation.grossEdgeUsd, 2)} gross on{" "}
+        {fmt(dislocation.edgeBps, 1)} bps, {usd(dislocation.grossEdgeUsd, 2)} gross on{" "}
         {fmt(dislocation.executableSize, 4)} units
       </span>
       <span className="disloc-note">

@@ -80,7 +80,7 @@ export default function FactorPanel({ report }: { report: FactorReport | null })
             {signedPct(r.alphaAnnualised)}
           </strong>
           <small>
-            t = {fmt(r.alphaTStat, 2)} ·{" "}
+            t = {fmt(r.alphaTStat, 2)},{" "}
             {alphaSignificant ? "distinguishable from zero" : "not distinguishable from zero"}
           </small>
         </div>
@@ -92,7 +92,7 @@ export default function FactorPanel({ report }: { report: FactorReport | null })
         <div className="stability-tile">
           <span>Explained by factors</span>
           <strong className="num">{pct(r.rSquared, 1)}</strong>
-          <small>R² · adjusted {pct(r.adjRSquared, 1)}</small>
+          <small>R², adjusted {pct(r.adjRSquared, 1)}</small>
         </div>
         <div className="stability-tile">
           <span>Idiosyncratic</span>
@@ -199,7 +199,7 @@ export default function FactorPanel({ report }: { report: FactorReport | null })
               {r.collinearity.map((c) => (
                 <tr key={`${c.a}-${c.b}`}>
                   <td>
-                    {c.a} · {c.b}
+                    {c.a} against {c.b}
                   </td>
                   <td>{fmt(c.corr, 3)}</td>
                 </tr>

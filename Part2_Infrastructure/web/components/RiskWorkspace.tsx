@@ -179,7 +179,7 @@ export default function RiskWorkspace({
                       <td>
                         {row.label}
                         {/* icon + word, never colour alone */}
-                        {row.binding && <span className="muted"> · ▲ binds first</span>}
+                        {row.binding && <span className="muted">; ▲ binds first</span>}
                       </td>
                       <td className="num">{limitValue(row.used, row.unit)}</td>
                       <td className="num">{limitValue(row.limit, row.unit)}</td>
@@ -242,7 +242,7 @@ export default function RiskWorkspace({
               {
                 label: "Gross exposure",
                 value: usd(book.exposure.gross, 0),
-                note: `${fmt(book.exposure.leverage, 2)}× · net ${usd(book.exposure.net, 0)}`,
+                note: `${fmt(book.exposure.leverage, 2)}×, net ${usd(book.exposure.net, 0)}`,
               },
               {
                 label: "Positions",

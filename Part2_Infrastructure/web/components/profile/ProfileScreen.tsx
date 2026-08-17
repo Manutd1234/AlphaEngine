@@ -606,7 +606,7 @@ export default function ProfileScreen() {
                     </div>
                     <p className="mt-1 text-[11.5px] text-text-muted">
                       {seen ? `Last active ${dateTime(seen)}` : "Last active unknown"}
-                      {row.ip ? ` · reported from ${formatIp(row.ip)}` : ""}
+                      {row.ip ? `, reported from ${formatIp(row.ip)}` : ""}
                     </p>
                   </li>
                 );

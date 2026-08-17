@@ -62,7 +62,7 @@ export default function CorrelationMatrix({ model, worst, observations }: Correl
           <h2>Correlation</h2>
         </div>
         <span>
-          {symbols.length} instruments · {observations} daily observations
+          {symbols.length} instruments, {observations} daily observations
         </span>
       </div>
 

@@ -73,7 +73,7 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
             <div>
               <dt>Fill rate</dt>
               <dd>{pct(summary.fillRate, 0)}</dd>
-              <span className="muted">{summary.accepted} filled · {summary.rejected} rejected</span>
+              <span className="muted">{summary.accepted} filled, {summary.rejected} rejected</span>
             </div>
             <div>
               <dt>Avg slippage</dt>
@@ -98,7 +98,7 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
                   the formatter — never "0 ns". */}
               <dd>{formatDuration(summary.p50LatencyMs, "ms")}</dd>
               <span className="muted">
-                p90 {formatDuration(summary.p90LatencyMs, "ms")} ·
+                p90 {formatDuration(summary.p90LatencyMs, "ms")},
                 p99 {formatDuration(summary.p99LatencyMs, "ms")}
               </span>
             </div>
@@ -107,7 +107,7 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
               <dd>{improvement.rate != null ? pct(improvement.rate, 0) : "—"}</dd>
               <span className="muted">
                 {improvement.n
-                  ? <>{improvement.improved} of {improvement.n} beat the mid{improvement.meanBps != null ? ` · mean ${fmt(improvement.meanBps, 1)} bps` : ""}</>
+                  ? <>{improvement.improved} of {improvement.n} beat the mid{improvement.meanBps != null ? `; mean ${fmt(improvement.meanBps, 1)} bps` : ""}</>
                   : "no priced fills"}
               </span>
             </div>

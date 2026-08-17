@@ -183,7 +183,7 @@ export default function SpreadDecomposition({
                 <td className="num">{venue.effectiveSpreadBps!.toFixed(1)} bps</td>
                 <td className="num">{venue.meanFeeBps != null ? `${venue.meanFeeBps.toFixed(1)} bps` : "—"}</td>
                 <td className="num">—</td>
-                <td>measured · measured · not measurable</td>
+                <td>measured, measured, not measurable</td>
               </tr>
             ))}
           </tbody>

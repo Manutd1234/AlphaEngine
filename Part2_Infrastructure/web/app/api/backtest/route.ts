@@ -177,7 +177,7 @@ function explainShortWindow(
   asked: number,
 ): string {
   const head =
-    `${symbol} · ${interval} returned only ${got} bars from ${source}, and a sweep needs at least ${MIN_BARS}.`;
+    `${symbol} at ${interval} returned only ${got} bars from ${source}, and a sweep needs at least ${MIN_BARS}.`;
 
   if (source === "synthetic") {
     return `${head} No provider could serve this symbol, so nothing was measured.`;

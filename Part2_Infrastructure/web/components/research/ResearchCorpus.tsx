@@ -108,7 +108,7 @@ export default function ResearchCorpus() {
         >
           {status === "error" && <span aria-hidden>! </span>}
           {status === "searching" ? "Searching the corpus…" : outcome}
-          {elapsedMs != null && status === "done" && ` · ${elapsedMs}ms`}
+          {elapsedMs != null && status === "done" && ` in ${elapsedMs} ms`}
         </p>
       )}
 
@@ -129,9 +129,9 @@ export default function ResearchCorpus() {
               </div>
               <div className="corpus-result__meta muted">
                 <span>{match.kind.replace("_", " ")}</span>
-                {match.symbol && <span> · {match.symbol}</span>}
-                {match.strategy && <span> · {match.strategy}</span>}
-                <span> · {new Date(match.occurred_at).toLocaleDateString()}</span>
+                {match.symbol && <span>, {match.symbol}</span>}
+                {match.strategy && <span>, {match.strategy}</span>}
+                <span>, {new Date(match.occurred_at).toLocaleDateString()}</span>
               </div>
               <p className="corpus-result__body">{match.body}</p>
             </li>

@@ -283,7 +283,7 @@ export default function Page() {
     (row) => row.strategy === executionStrategy,
   ) ?? null;
   const selectedSleeveDetail = selectedSleeveAttribution
-    ? `${selectedSleeveAttribution.filled} accepted · ${selectedSleeveAttribution.orders} orders`
+    ? `${selectedSleeveAttribution.filled} accepted of ${selectedSleeveAttribution.orders} orders`
     : "no audited orders yet";
   const refreshBookAfterOrder = useCallback(() => {
     void book.refresh(true);
@@ -1058,7 +1058,7 @@ export default function Page() {
       stop("Overview → Decision loop", "The desk in one screen; every pipeline stage links into its tab — research reaches execution only through the risk gate.", "overview", "loop", () => setOverviewSection("loop")),
       stop("Research → Summary", "The reproducibility capsule and the PASS/MARGINAL/FAIL verdict; drag a slider and the six-veto promotion gate re-clears.", "research", "summary", () => setResearchSection("summary")),
       stop("Execution → Trade", "Fire the Fat finger $500k preset — the gate vector names the exact check that refused it, decided in ~0.2 ms.", "live", "trade", () => setExecutionSection("trade")),
-      stop("Portfolio → Overview", "The same book Risk reads; the covariance card says “Measured · N aligned bars”, never an assumption.", "portfolio", "overview", () => setPortfolioSection("overview")),
+      stop("Portfolio → Overview", "The same book Risk reads; the covariance card says “Measured, N aligned bars”, never an assumption.", "portfolio", "overview", () => setPortfolioSection("overview")),
       stop("Risk → Monte Carlo", "10,000 bootstrap paths against the live drawdown budget — the P95 loss verdict, in dollars.", "risk", "montecarlo", () => setRiskSection("montecarlo")),
       stop("Data → Quality & Incidents", "Simulate a provider outage and watch the incident row, failover graph and consensus react — then self-restore.", "data", "quality", () => setDataSection("quality")),
       stop("Reliability → Telemetry & SLIs", "Fleet-truth p99 and provider circuits — the latency chip in every header resolves here.", "reliability", "overview", () => setReliabilitySection("overview")),
@@ -1259,7 +1259,7 @@ export default function Page() {
           tone={shown.sharpe > displayedResult.benchmark.sharpe ? "pos" : "muted"}
           explain={{
             definition: "Excess return per unit of volatility, scaled to a year.",
-            formula: "√periods · mean(r) ÷ stdev(r)",
+            formula: "√periods·mean(r) ÷ stdev(r)",
             plainEnglish:
               "How much return the strategy earned for the amount it bounced around. "
               + "Compare it to buy-and-hold below — beating the market matters less than "
@@ -1301,7 +1301,7 @@ export default function Page() {
         <StatTile
           label="Costs paid"
           value={usd(shown.feesPaid)}
-          note={frictionNote ? `on a $100k book · ${frictionNote}` : "on a $100k book"}
+          note={frictionNote ? `on a $100k book; ${frictionNote}` : "on a $100k book"}
         />
       </div>
     );
@@ -1474,14 +1474,14 @@ export default function Page() {
                     ? usd(book.risk.historicalVar95 ?? book.risk.var95, 0)
                     : book.riskLoading ? "Measuring" : "Pending",
                   detail: book.varValidation
-                    ? `${book.varValidation.zone} validation · ${book.varValidation.observations} obs`
-                    : "historical VaR 95 · 1 day",
+                    ? `${book.varValidation.zone} validation, ${book.varValidation.observations} obs`
+                    : "historical VaR 95, 1 day",
                   tone: book.varValidation?.zone === "red" ? "critical" : book.varValidation?.zone === "yellow" ? "warn" : "accent",
                 },
                 {
                   label: "Execution sleeve",
                   value: STRATEGY_LABELS[executionStrategy],
-                  detail: `${selectedSleeveDetail} · aggregate book risk below`,
+                  detail: `${selectedSleeveDetail}; aggregate book risk below`,
                   tone: selectedSleeveAttribution?.filled ? "good" : "accent",
                 },
               ]}
@@ -1589,8 +1589,8 @@ export default function Page() {
               <div className="banner context-change" role="status">
                 <span aria-hidden>↻</span>
                 <div>
-                  <strong>Desk context changed.</strong> The result below belongs to {data.request.symbol} · {data.request.interval}.
-                  Use Run now to refresh it for {req.symbol} · {req.interval}.
+                  <strong>Desk context changed.</strong> The result below belongs to {data.request.symbol} at {data.request.interval}.
+                  Use Run now to refresh it for {req.symbol} at {req.interval}.
                 </div>
               </div>
             )}
@@ -1686,7 +1686,7 @@ export default function Page() {
                         <dl>
                           <div>
                             <dt>Instrument</dt>
-                            <dd className="num">{displayedResult.request.symbol} · {displayedResult.request.interval}</dd>
+                            <dd className="num">{displayedResult.request.symbol} at {displayedResult.request.interval}</dd>
                           </div>
                           <div>
                             <dt>Dataset</dt>
@@ -1748,7 +1748,7 @@ export default function Page() {
                               </label>
                             </div>
                             <p className="sub">
-                              {displayedResult.request.symbol} · {displayedResult.request.interval} · {STRATEGY_LABELS[displayedResult.request.strategy]} {displayedResult.best.fast}/{displayedResult.best.slow}.
+                              {displayedResult.request.symbol} at {displayedResult.request.interval}, {STRATEGY_LABELS[displayedResult.request.strategy]} {displayedResult.best.fast}/{displayedResult.best.slow}.
                             </p>
                             <EquityChart
                               series={displayedResult.series}

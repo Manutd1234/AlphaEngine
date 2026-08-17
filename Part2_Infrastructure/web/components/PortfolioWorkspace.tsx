@@ -387,7 +387,7 @@ export default function PortfolioWorkspace({
             <span>Exposure</span>
             <strong className="num">{usd(book.exposure.gross, 0)}</strong>
             <small>
-              net {usd(book.exposure.net, 0)} · {fmt(book.exposure.leverage, 2)}× · {positions.length} position{positions.length === 1 ? "" : "s"}
+              net {usd(book.exposure.net, 0)}, {fmt(book.exposure.leverage, 2)}×, {positions.length} position{positions.length === 1 ? "" : "s"}
             </small>
           </div>
           <div>
@@ -399,7 +399,7 @@ export default function PortfolioWorkspace({
             <span>Concentration</span>
             <strong className="num">{fmt(book.concentration.effective_positions, 1)}</strong>
             <small>
-              effective positions · largest {fmt(book.concentration.largest_share * 100, 1)}% · top two{" "}
+              effective positions; largest {fmt(book.concentration.largest_share * 100, 1)}%, top two{" "}
               {fmt(book.concentration.top_two_share * 100, 1)}%
             </small>
           </div>
@@ -968,7 +968,7 @@ export default function PortfolioWorkspace({
                                 number reads as a final verdict on the sleeve. */}
                             {strategy.has_open_inventory && (
                               <small className="muted" title="This sleeve still holds inventory, so its realised P&L is only part of the story">
-                                {" "}· open
+                                {", "}open
                               </small>
                             )}
                           </td>
