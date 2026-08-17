@@ -228,9 +228,9 @@
 
   /* The chrome tokens: the header row, the ≤900 switcher and the ≤620 bottom
      bar. Fixed px, no --type-step, for the reason above. */
-  --fs-chrome-tab: 13px;
-  --fs-chrome-chip: 12px;
-  --fs-chrome-caption: 11px;
+  --fs-chrome-tab: 14px;
+  --fs-chrome-chip: 13px;
+  --fs-chrome-caption: 12px;
   --fs-chrome-brand: 16px;
 
   /* Line-height and tracking, as tokens. The sheet carried nineteen distinct
@@ -508,7 +508,7 @@ html {
 
 /* First rung of the header's priority ladder — the full ladder, with the
    measurements behind it, sits under "The header's priority ladder" below. */
-@media (max-width: 1880px) {
+@media (max-width: 1940px) {
   .header-command-button__label {
     display: none;
   }
@@ -2144,7 +2144,7 @@ tbody tr[tabindex]:focus-visible {
    distinct shapes for three states. The full sentence is in the aria-label, the
    panel behind the button, and — on any tab reading a generated book — the
    in-page banner that already says the positions do not exist. */
-@media (max-width: 1630px) {
+@media (max-width: 1690px) {
   .data-tier__label {
     display: none;
   }
@@ -2305,9 +2305,13 @@ tbody tr[tabindex]:focus-visible {
    This chip carries two lines of copy and so had sized itself to fit them —
    38px tall with a 10px radius, standing a full 6px proud of its seven
    neighbours and rounding differently at the corners. It reads as the one
-   control that did not get the memo. The copy still fits: 9.5px over 10.5px is
-   23px of text, which clears 32px with 4px of padding either side, and the icon
-   comes down with it rather than setting the floor on its own. */
+   control that did not get the memo. The copy still fits: a 12px caption over
+   a 13px figure at line-height 1.05 is 26.25px of text, which with 3px of
+   padding either side and the border is 34.25px — the height the row's other
+   two-line control (the Telegram CTA) already stands at — and the icon comes
+   down with it rather than setting the floor on its own. (Measured by
+   scripts/header-ladder-measure.mjs, which prints the chip's height at every
+   width; the earlier 1.15 stood 36.7px after the chrome lift.) */
 .latency-chip {
   display: inline-grid;
   grid-template-columns: auto auto auto;
@@ -2341,7 +2345,7 @@ tbody tr[tabindex]:focus-visible {
 .latency-chip__copy {
   display: grid;
   gap: 0;
-  line-height: 1.15;
+  line-height: 1.05;
 }
 
 .latency-chip__copy small {
@@ -14958,13 +14962,20 @@ html:active-view-transition .view-panel {
    those are Settings and, for a guest, Sign in. Measured on production as a
    guest (the widest the row gets: "Sign in" is 73px where the signed-in
    monogram is 32) with the compiled core's annotation in the decision chip,
-   the fully-labelled row needs ~1805px at this type size, and until this
-   pass nothing collapsed above 1380px: Settings was clipped from 1722px down
-   and by 298px at 1381. The band that replaced it folded too much at once —
-   at 1700px the row sat with 250px of empty spacer and its labels already
-   gone — so the rungs are small and each is measured to land just before
-   the next clip, on the local harness with the guest chip and the core
-   annotation injected (a few px harder than production).
+   the fully-labelled row needed ~1805px at the previous chrome type, and
+   until this pass nothing collapsed above 1380px: Settings was clipped from
+   1722px down and by 298px at 1381. The band that replaced it folded too
+   much at once — at 1700px the row sat with 250px of empty spacer and its
+   labels already gone — so the rungs are small and each is measured to land
+   just before the next clip. Re-measured on 2026-08-17 for the chrome lift
+   (tabs 14px, chips 13px, captions 12px) with scripts/header-ladder-measure.mjs
+   — the local harness, guest row, widest production strings injected: the
+   full row now needs ~1950px, every rung moved 60px up (the top four bands
+   end at exactly zero slack; the lower ones were tightened to within 10–30px
+   of their clip), and the icon-only row still fits down to 1052px, so the
+   1110px wrap stands. The chrome tokens are fixed px, so the Text-size
+   preference cannot move any of this — the script's --text-size=large run
+   is byte-identical to the default, and that is the proof.
 
    CrossFlow's rule stands — drop secondary context before letting the
    workspace nav clip — lowest priority first: what the aria-label already
@@ -14974,9 +14985,9 @@ html:active-view-transition .view-panel {
    go. Guest and signed-in rows are one structure, so every rung holds for
    both.
 
-   Rung 1 (≤1880, with the Search label rule near the top of this file): the
+   Rung 1 (≤1940, with the Search label rule near the top of this file): the
    Search label, and the providers sentence becomes its short form. */
-@media (min-width: 901px) and (max-width: 1880px) {
+@media (min-width: 901px) and (max-width: 1940px) {
   .system-health__label {
     display: none;
   }
@@ -14986,9 +14997,9 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 2 (≤1780): the decision chip's state word — the dot keeps the tone,
+/* Rung 2 (≤1840): the decision chip's state word — the dot keeps the tone,
    the title keeps the words. */
-@media (min-width: 901px) and (max-width: 1780px) {
+@media (min-width: 901px) and (max-width: 1840px) {
   .latency-chip__state {
     display: none;
   }
@@ -14999,8 +15010,8 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 3 (≤1690): the Settings label. */
-@media (min-width: 901px) and (max-width: 1690px) {
+/* Rung 3 (≤1750): the Settings label. */
+@media (min-width: 901px) and (max-width: 1750px) {
   .workspace-header__utility > .header-settings,
   .workspace-header__utility > .header-anchor > .header-settings {
     width: 36px;
@@ -15014,8 +15025,8 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 4 (≤1630): the data-tier label — the rule sits with the chip's own
-   comment, above. Rung 5 (≤1580): the Connect / Connected label — the
+/* Rung 4 (≤1690): the data-tier label — the rule sits with the chip's own
+   comment, above. Rung 5 (≤1640): the Connect / Connected label — the
    max-[1580px] class in TelegramCta.
 
    Not a rung: the core annotation inside the decision chip. Measured, it adds
@@ -15023,9 +15034,9 @@ html:active-view-transition .view-panel {
    so hiding it would take the nanosecond figure off the row and buy nothing.
    It stays until the chip's own copy folds (rung 8). */
 
-/* Rung 6 (≤1500): the providers chip is its dot alone — the count is one tap
+/* Rung 6 (≤1560): the providers chip is its dot alone — the count is one tap
    away in Settings and the panel it opens; the aria-label keeps the sentence. */
-@media (min-width: 901px) and (max-width: 1500px) {
+@media (min-width: 901px) and (max-width: 1560px) {
   .system-health-action {
     width: 44px;
     min-width: 44px;
@@ -15042,9 +15053,9 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 7 (≤1430): the brand tagline, the tabs' side padding, and the tab
+/* Rung 7 (≤1470): the brand tagline, the tabs' side padding, and the tab
    labels back to the chip size. */
-@media (min-width: 901px) and (max-width: 1430px) {
+@media (min-width: 901px) and (max-width: 1470px) {
   .brand-copy small {
     display: none;
   }
@@ -15058,9 +15069,9 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 8 (≤1270): the decision figure folds to its gauge; the title still
+/* Rung 8 (≤1300): the decision figure folds to its gauge; the title still
    names both planes and the Reliability tab has the numbers. */
-@media (min-width: 901px) and (max-width: 1270px) {
+@media (min-width: 901px) and (max-width: 1300px) {
   .latency-chip__copy {
     display: none;
   }
@@ -15071,11 +15082,11 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 9 (≤1190): the Kill switch and Sign in labels fold to their icons —
+/* Rung 9 (≤1140): the Kill switch and Sign in labels fold to their icons —
    the same fold the ≤520px rule makes, a rung earlier for the widths between
    the last one-row fit and the wrap. Both controls keep their aria-label and
    title; HALTED is never folded. */
-@media (min-width: 901px) and (max-width: 1190px) {
+@media (min-width: 901px) and (max-width: 1140px) {
   .header-kill-label,
   .header-signin-label {
     display: none;

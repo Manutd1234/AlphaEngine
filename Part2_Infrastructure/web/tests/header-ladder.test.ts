@@ -31,32 +31,32 @@ function rung(max: number): string {
   return css.slice(start, end);
 }
 
-const RUNGS = [1880, 1780, 1690, 1500, 1430, 1270, 1190] as const;
+const RUNGS = [1940, 1840, 1750, 1560, 1470, 1300, 1140] as const;
 
 describe("the rungs exist, in priority order, and each takes only what it says", () => {
-  it("rung 1 (≤1880): the Search label and the providers sentence → short form", () => {
-    assert.match(css, /@media \(max-width: 1880px\) \{\n  \.header-command-button__label \{\n    display: none;/);
-    const r = rung(1880);
+  it("rung 1 (≤1940): the Search label and the providers sentence → short form", () => {
+    assert.match(css, /@media \(max-width: 1940px\) \{\n  \.header-command-button__label \{\n    display: none;/);
+    const r = rung(1940);
     assert.match(r, /\.system-health__label \{\n    display: none;/);
     assert.match(r, /\.system-health__label--short \{\n    display: inline;/);
     assert.doesNotMatch(r, /header-settings|latency-chip|telegram/);
   });
 
-  it("rung 2 (≤1780): only the chip's state word", () => {
-    const r = rung(1780);
+  it("rung 2 (≤1840): only the chip's state word", () => {
+    const r = rung(1840);
     assert.match(r, /\.latency-chip__state \{\n    display: none;/);
     assert.doesNotMatch(r, /\.latency-chip__copy|\.latency-chip__core|header-settings/);
   });
 
-  it("rung 3 (≤1690): only the Settings label", () => {
-    const r = rung(1690);
+  it("rung 3 (≤1750): only the Settings label", () => {
+    const r = rung(1750);
     assert.match(r, /\.workspace-header__utility > \.header-anchor > \.header-settings span,/);
     assert.doesNotMatch(r, /latency-chip|system-health|brand-copy/);
   });
 
-  it("rung 4 (≤1630): the data-tier label; rung 5 (≤1580): the Connect label", () => {
-    assert.match(css, /@media \(max-width: 1630px\) \{\n  \.data-tier__label \{\n    display: none;/);
-    assert.match(read("components/header/TelegramCta.tsx"), /max-\[1580px\]:hidden/);
+  it("rung 4 (≤1690): the data-tier label; rung 5 (≤1640): the Connect label", () => {
+    assert.match(css, /@media \(max-width: 1690px\) \{\n  \.data-tier__label \{\n    display: none;/);
+    assert.match(read("components/header/TelegramCta.tsx"), /max-\[1640px\]:hidden/);
   });
 
   it("the core annotation is NOT a rung — it adds no width and stays until the chip folds", () => {
@@ -66,25 +66,25 @@ describe("the rungs exist, in priority order, and each takes only what it says",
     assert.match(css, /Not a rung: the core annotation inside the decision chip/);
   });
 
-  it("rung 6 (≤1500): the providers chip to its dot, aria keeps the sentence", () => {
-    const r = rung(1500);
+  it("rung 6 (≤1560): the providers chip to its dot, aria keeps the sentence", () => {
+    const r = rung(1560);
     assert.match(r, /\.system-health-action \{[\s\S]*font-size: 0;/);
     assert.match(read("components/WorkspaceHeader.tsx"), /aria-label=\{`Open reliability\. \$\{healthLabel\}`\}/);
   });
 
-  it("rung 7 (≤1430): brand tagline and tab padding, nothing of the chip", () => {
-    const r = rung(1430);
+  it("rung 7 (≤1470): brand tagline and tab padding, nothing of the chip", () => {
+    const r = rung(1470);
     assert.match(r, /\.brand-copy small \{\n    display: none;/);
     assert.match(r, /\.workspace-tabs button \{\n    padding-inline: 5px;/);
     assert.doesNotMatch(r, /latency-chip/);
   });
 
-  it("rung 8 (≤1270): the decision figure folds to its gauge — last of the chip", () => {
-    assert.match(rung(1270), /\.latency-chip__copy \{\n    display: none;/);
+  it("rung 8 (≤1300): the decision figure folds to its gauge — last of the chip", () => {
+    assert.match(rung(1300), /\.latency-chip__copy \{\n    display: none;/);
   });
 
-  it("rung 9 (≤1190): Kill switch and Sign in labels fold to icons that keep their names", () => {
-    const r = rung(1190);
+  it("rung 9 (≤1140): Kill switch and Sign in labels fold to icons that keep their names", () => {
+    const r = rung(1140);
     assert.match(r, /\.header-kill-label,\n  \.header-signin-label \{\n    display: none;/);
     const kill = read("components/header/KillSwitchControl.tsx");
     assert.match(kill, /aria-label=\{halted \? "Trading is halted — open the resume control" : "Open the kill switch"\}/);

@@ -128,13 +128,13 @@ describe("connected is unmistakably connected", () => {
   });
 
   it("carries the state with a mark as well as a colour", () => {
-    // House rule, and the reason it exists: below 1580px the label span is
+    // House rule, and the reason it exists: below 1640px the label span is
     // hidden, so a green chip with no word would be colour and nothing else —
     // invisible to a colour-blind reader, a greyscale screenshot and Windows
     // High Contrast alike. The ✓ sits OUTSIDE the collapsing span.
     assert.match(code(cta), /mark = "✓"/);
     const markSpan = code(cta).indexOf("{mark ?");
-    const labelSpan = code(cta).indexOf("max-[1580px]:hidden");
+    const labelSpan = code(cta).indexOf("max-[1640px]:hidden");
     assert.ok(markSpan !== -1 && markSpan < labelSpan, "the mark must not collapse with the label");
   });
 
@@ -160,7 +160,7 @@ describe("connected is unmistakably connected", () => {
   });
 
   it("keeps the handle available without widening the chip", () => {
-    // The header collapses labels under 1580px and the nav sits beside this
+    // The header collapses labels under 1640px and the nav sits beside this
     // chip, so `Connected · @somebody` is a layout change disguised as a label.
     // The handle rides in the description, which is both title and aria-label.
     assert.match(code(cta), /as @\$\{connectedTo\}/);
@@ -271,7 +271,7 @@ describe("it sits in the header without disturbing the nav", () => {
   it("keeps its label only where the header has room", () => {
     // The first rung of the header's priority ladder (see globals.css); the icon tile carries the
     // meaning below it, and the aria-label carries it for everyone.
-    assert.match(code(cta), /max-\[1580px\]:hidden/);
+    assert.match(code(cta), /max-\[1640px\]:hidden/);
     assert.match(code(cta), /aria-label=\{description\}/);
   });
 
