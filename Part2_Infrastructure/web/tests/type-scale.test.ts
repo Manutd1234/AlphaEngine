@@ -58,13 +58,21 @@ const RUNGS = [
   "--fs-lg", "--fs-xl", "--fs-2xl", "--fs-title", "--fs-input", "--fs-h2",
   "--fs-h1", "--fs-figure", "--fs-display", "--fs-hero-line", "--fs-hero-sub",
   "--fs-hero",
+  // The chrome tokens: the header row, the switcher, the bottom bar. Fixed.
+  "--fs-chrome-tab", "--fs-chrome-chip", "--fs-chrome-caption", "--fs-chrome-brand",
 ] as const;
+
+/** Content rungs: rem × the Text-size step. Chrome, tick and input are not. */
+const CONTENT_RUNGS = RUNGS.filter(
+  (r) => !r.startsWith("--fs-chrome") && r !== "--fs-tick" && r !== "--fs-input",
+);
 
 /** Inline chart/SVG sizes the components may use, in px. */
 const INLINE_SIZES = new Set([10, 11, 11.5, 12, 12.5, 13, 13.5, 14, 15, 16, 18, 20, 22, 25, 30]);
 
-/** Off-scale declarations sanctioned above, matched exactly. */
-const SANCTIONED = new Set(["0", "7px", "7.5px", "25px"]);
+/** Off-scale declarations sanctioned above, matched exactly. `100%` is the
+ *  root: the browser's own size, which every rem rung is defined against. */
+const SANCTIONED = new Set(["0", "7px", "7.5px", "25px", "100%"]);
 
 describe("one type scale", () => {
   it("declares every rung in :root", () => {
@@ -108,13 +116,45 @@ describe("one type scale", () => {
     }
   });
 
-  it("reading text never drops below the 10px floor", () => {
-    // --fs-tick is SVG chart furniture; no rung below it, and no text rung
-    // below 10px. The floor came in one commit after small type crept to 7pt.
+  it("reading text never drops below the floor, in rem, at the browser's default size", () => {
+    // --fs-tick is SVG chart furniture; no rung below it. The reading floor
+    // is --fs-2xs, in rem × step: at 16px root and step 1 it must not fall
+    // under 10px (it came in one commit after small type crept to 7pt), and
+    // the compact step must not take it under 10px either.
     const tick = declarations.match(/--fs-tick:\s*([\d.]+)px/);
-    assert.ok(tick && Number(tick[1]) >= 9, "--fs-tick must stay a legible tick size");
-    const floor = declarations.match(/--fs-2xs:\s*([\d.]+)px/);
-    assert.ok(floor && Number(floor[1]) >= 10, "--fs-2xs is the reading floor: never below 10px");
+    assert.ok(tick && Number(tick[1]) >= 9, "--fs-tick must stay a legible px tick size");
+    const floor = declarations.match(/--fs-2xs:\s*calc\(([\d.]+)rem \* var\(--type-step\)\)/);
+    assert.ok(floor, "--fs-2xs must be rem × --type-step");
+    const px = Number(floor![1]) * 16;
+    assert.ok(px >= 10, `--fs-2xs is the reading floor: never below 10px (got ${px})`);
+    const compact = declarations.match(/\[data-text-size="compact"\]\s*\{[^}]*--type-step:\s*([\d.]+)/);
+    if (compact) assert.ok(px * Number(compact[1]) >= 10, "the compact step must keep the floor legible");
+  });
+
+  it("every content rung is rem × the Text-size step, in ascending order", () => {
+    // rem so the reader's browser preference and zoom scale the desk;
+    // × --type-step so the Quick Settings preference reaches every rung at
+    // once; ascending so no two rungs trade places under either.
+    const root = declarations.slice(declarations.indexOf(":root {"), declarations.indexOf("\n}\n", declarations.indexOf(":root {")));
+    assert.match(root, /--type-step:\s*1;/, "--type-step defaults to 1 in :root");
+    const rem = (token: string): number => {
+      const m = root.match(new RegExp(`${token}:\\s*calc\\((?:clamp\\()?([\\d.]+)rem`));
+      assert.ok(m, `${token} must be calc(<rem> * var(--type-step)) (or a rem clamp inside it)`);
+      assert.match(root, new RegExp(`${token}:[^;]*\\* var\\(--type-step\\)`), `${token} does not multiply by --type-step`);
+      return Number(m![1]);
+    };
+    const order = ["--fs-2xs", "--fs-xs", "--fs-sm", "--fs-body", "--fs-md", "--fs-lg", "--fs-xl", "--fs-2xl", "--fs-title", "--fs-h2", "--fs-h1", "--fs-figure", "--fs-display"];
+    const mins = order.map(rem);
+    for (let i = 1; i < mins.length; i += 1) {
+      assert.ok(mins[i] > mins[i - 1], `${order[i]} (${mins[i]}rem) must be above ${order[i - 1]} (${mins[i - 1]}rem)`);
+    }
+    for (const token of CONTENT_RUNGS) rem(token);
+    // The two that are not typography stay px, unstepped.
+    assert.match(root, /--fs-input:\s*16px;/);
+    assert.match(root, /--fs-tick:\s*\d+px;/);
+    // The root is the browser's own size and carries no rung.
+    assert.match(declarations, /\nhtml \{\n  font-size: 100%;/);
+    assert.doesNotMatch(declarations, /\nhtml,\nbody \{[^}]*font-size:/, "html/body must not share a rung — rem would double-scale");
   });
 });
 

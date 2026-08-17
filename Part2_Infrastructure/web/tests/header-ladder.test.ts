@@ -122,14 +122,25 @@ describe("the essentials are never on the ladder", () => {
 });
 
 describe("the header's words are one size class", () => {
-  it("tabs sit one rung above the chips; every chip word is the --fs-sm rung", () => {
-    assert.match(css, /\.workspace-tabs button span \{[\s\S]{0,220}font-size: var\(--fs-md\);/);
+  // The header is chrome: its words use the four fixed --fs-chrome-* tokens,
+  // never a content rung, so the ladder below — a px measurement — cannot be
+  // moved by the Text-size preference or by a rung retarget it was not
+  // measured under. Tabs sit one token above the chips.
+  it("tabs sit one token above the chips; every chip word is the --fs-chrome-chip token", () => {
+    assert.match(css, /\.workspace-tabs button span \{[\s\S]{0,220}font-size: var\(--fs-chrome-tab\);/);
     for (const sel of ["\n.data-tier {", "\n.system-health {", "\n.header-settings span {"]) {
       const i = css.indexOf(sel);
       assert.notEqual(i, -1, sel);
       const block = css.slice(i, css.indexOf("\n}\n", i));
-      assert.match(block, /font-size: var\(--fs-sm\);/, `${sel.trim()} is not the --fs-sm rung`);
+      assert.match(block, /font-size: var\(--fs-chrome-chip\);/, `${sel.trim()} is not the --fs-chrome-chip token`);
     }
+    // The chrome tokens are fixed px — no viewport term, no --type-step.
+    const root = css.slice(css.indexOf(":root {"), css.indexOf("\n}\n", css.indexOf(":root {")));
+    for (const token of ["--fs-chrome-tab", "--fs-chrome-chip", "--fs-chrome-caption", "--fs-chrome-brand"]) {
+      const value = root.match(new RegExp(`${token}:\\s*([^;]+);`))?.[1] ?? "";
+      assert.match(value, /^\d+(\.\d+)?px$/, `${token} must be a fixed px value, got ${value}`);
+    }
+    assert.ok(Number(root.match(/--fs-chrome-tab:\s*([\d.]+)px/)![1]) > Number(root.match(/--fs-chrome-chip:\s*([\d.]+)px/)![1]));
     // The triggers, not the panels behind them (panel field labels are 11px on purpose).
     assert.match(read("components/header/KillSwitchControl.tsx"), /py-1\.5 text-\[12px\] font-semibold text-text-secondary hover:border-border/);
     assert.match(read("components/header/AccountChip.tsx"), /py-1\.5 text-\[12px\] font-semibold text-text-secondary no-underline/);

@@ -167,38 +167,83 @@
   --ease-emphasized: cubic-bezier(0.3, 0, 0, 1);
   --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  /* The type scale. Forty distinct font sizes had accumulated — a half-pixel
-     ramp, pt, em, rem and px all naming nearly the same steps — so the ramp
-     the file already used most is now the only one. Lifted one step across
-     the board on 2026-08-17 (the desk read small on a laptop and had the room
-     not to): 11px is now the floor for reading text; --fs-tick is SVG chart
-     furniture (axis ticks, bar labels), never prose. The three hero clamps
-     keep their fluid behaviour as rungs. Sanctioned exceptions, each
-     annotated in place: the print block sizes in pt, the brand and tech
-     lettermarks, and `font-size: 0` icon-text hiding. */
+  /* The type scale.
+     ---------------
+     Forty distinct font sizes had accumulated — a half-pixel ramp, pt, em, rem
+     and px all naming nearly the same steps — so the ramp the file already
+     used most became the only one (2026-08-16), lifted one step on 2026-08-17.
+
+     On 2026-08-17 the ladder moved from px to rem: a reader's browser font
+     preference and page zoom now scale the desk (WCAG 1.4.4), which a px
+     ladder ignored. Every content rung is `calc(<rem> * var(--type-step))`,
+     where --type-step is the reader's Text size preference (Quick Settings:
+     compact 0.9375, comfortable 1, large 1.125). The values below compute
+     to exactly the px they replaced at step 1; the fluid retargeting is a
+     separate, deliberate change.
+
+     Two rungs are not typography and stay px: --fs-tick is SVG chart
+     furniture (axis ticks, bar labels — user units, never prose) and
+     --fs-input is the iOS focus-zoom threshold. The three hero clamps keep
+     their fluid behaviour as rungs.
+
+     THE HEADER IS CHROME. Its words use the four --fs-chrome-* tokens below,
+     fixed px with no --type-step: the header's priority ladder is a px
+     measurement (see "The header's priority ladder"), so its type must not
+     move with a preference the ladder was not measured under, and a reader
+     whose browser text is set Large keeps a toolbar that fits. Sanctioned
+     exceptions, each annotated in place: the print block sizes in pt, the
+     brand and tech lettermarks, and `font-size: 0` icon-text hiding. */
+  --type-step: 1;
   --fs-tick: 10px;
-  --fs-2xs: 11px;
-  --fs-xs: 11.5px;
-  --fs-sm: 12px;
-  --fs-body: 12.5px;
-  --fs-md: 13px;
-  --fs-lg: 13.5px;
-  --fs-xl: 14px;
-  --fs-2xl: 15px;
-  --fs-title: 16px;
+  --fs-2xs: calc(0.6875rem * var(--type-step));   /* 11px  */
+  --fs-xs: calc(0.71875rem * var(--type-step));   /* 11.5px */
+  --fs-sm: calc(0.75rem * var(--type-step));      /* 12px  */
+  --fs-body: calc(0.78125rem * var(--type-step)); /* 12.5px */
+  --fs-md: calc(0.8125rem * var(--type-step));    /* 13px  */
+  --fs-lg: calc(0.84375rem * var(--type-step));   /* 13.5px */
+  --fs-xl: calc(0.875rem * var(--type-step));     /* 14px  */
+  --fs-2xl: calc(0.9375rem * var(--type-step));   /* 15px  */
+  --fs-title: calc(1rem * var(--type-step));      /* 16px  */
   /* Not typography: 16px is the iOS focus-zoom threshold, the one size at
      which Safari leaves the page alone when a field takes focus. Semantic,
      used only by the coarse-pointer field rules, never for reading text.
-     (It now happens to equal --fs-title; the two are kept apart because one
-     is a size and the other is a threshold, and the threshold cannot move.) */
+     (It happens to equal --fs-title at step 1; the two are kept apart because
+     one is a size and the other is a threshold, and the threshold cannot
+     move — not with zoom, not with the Text size preference.) */
   --fs-input: 16px;
-  --fs-h2: 18px;
-  --fs-h1: 22px;
-  --fs-figure: 25px;
-  --fs-display: 30px;
-  --fs-hero-line: clamp(20px, 1.8vw, 25px);
-  --fs-hero-sub: clamp(22px, 2.4vw, 32px);
-  --fs-hero: clamp(28px, 2.8vw, 40px);
+  --fs-h2: calc(1.125rem * var(--type-step));     /* 18px  */
+  --fs-h1: calc(1.375rem * var(--type-step));     /* 22px  */
+  --fs-figure: calc(1.5625rem * var(--type-step)); /* 25px */
+  --fs-display: calc(1.875rem * var(--type-step)); /* 30px */
+  --fs-hero-line: calc(clamp(1.25rem, 1.8vw, 1.5625rem) * var(--type-step));
+  --fs-hero-sub: calc(clamp(1.375rem, 2.4vw, 2rem) * var(--type-step));
+  --fs-hero: calc(clamp(1.75rem, 2.8vw, 2.5rem) * var(--type-step));
+
+  /* The chrome tokens: the header row, the ≤900 switcher and the ≤620 bottom
+     bar. Fixed px, no --type-step, for the reason above. */
+  --fs-chrome-tab: 13px;
+  --fs-chrome-chip: 12px;
+  --fs-chrome-caption: 11px;
+  --fs-chrome-brand: 16px;
+
+  /* Line-height and tracking, as tokens. The sheet carried nineteen distinct
+     line-heights and thirteen trackings; these are the rungs the rules mean.
+     --lh-none is a figure sitting on its own line; --lh-tight a heading;
+     --lh-snug a dense caption or table cell; --lh-body reading text;
+     --lh-loose a paragraph that must breathe. --ls-caps is the small-caps
+     kicker family, --ls-caps-wide the louder eyebrow, --ls-kicker the page
+     kicker itself; --ls-tight and --ls-figure are the two negative trackings
+     large type earns (typography.test.ts holds the floor at -0.03em). */
+  --lh-none: 1;
+  --lh-tight: 1.2;
+  --lh-snug: 1.35;
+  --lh-body: 1.5;
+  --lh-loose: 1.6;
+  --ls-caps: 0.06em;
+  --ls-caps-wide: 0.08em;
+  --ls-kicker: 0.11em;
+  --ls-tight: -0.02em;
+  --ls-figure: -0.01em;
 
   /* One card scale. --card-pad is the house default; dense panels step down to
      --card-pad-tight rather than inventing a third value. */
@@ -416,7 +461,7 @@ html {
     border-radius: 0;
     background: transparent;
     color: var(--text-muted);
-    font-size: var(--fs-sm);
+    font-size: var(--fs-chrome-chip);
     font-weight: 600;
   }
 
@@ -444,13 +489,13 @@ html {
   min-height: 32px;
   padding: 0 11px;
   color: var(--text-secondary);
-  font-size: var(--fs-md);
+  font-size: var(--fs-chrome-chip);
   font-weight: 600;
 }
 
 .header-command-button span[aria-hidden] {
   font-family: var(--mono);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-chrome-chip);
   color: var(--text-muted);
 }
 
@@ -462,15 +507,29 @@ html {
   }
 }
 
+/* The root font-size stays the browser's own — 100 %, i.e. 16px unless the
+   reader has set otherwise — so every rem rung above follows the reader's
+   preference and zoom. It must never carry a rung or the Text-size step:
+   rem is defined against this element, and a stepped root would multiply
+   every rung by the step twice. */
+html {
+  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 html,
 body {
   background: var(--surface-0);
   color: var(--text-primary);
   font-family: var(--sans);
-  font-size: var(--fs-title);
-  line-height: 1.5;
+  line-height: var(--lh-body);
   -webkit-font-smoothing: antialiased;
   min-height: 100%;
+}
+
+body {
+  font-size: var(--fs-title);
 }
 
 /* An unstyled <small> takes the UA's relative `smaller` — roughly 0.83em —
@@ -562,7 +621,7 @@ a:not([class]):active {
 
 .brand {
   font-weight: 650;
-  letter-spacing: -0.02em;
+  letter-spacing: var(--ls-tight);
   font-size: var(--fs-h2);
 }
 .brand span {
@@ -673,7 +732,7 @@ a:not([class]):active {
   margin: 10px 0 0;
   color: var(--text-muted);
   font-size: var(--fs-sm);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 
 .reliability-overview__split {
@@ -798,7 +857,7 @@ a:not([class]):active {
   overflow: hidden;
   color: var(--text-muted);
   font-size: var(--fs-xs);
-  line-height: 1.35;
+  line-height: var(--lh-snug);
 }
 
 .reliability-attention-list__action {
@@ -843,7 +902,7 @@ a:not([class]):active {
 }
 
 .reliability-response-steps strong { font-size: var(--fs-md); }
-.reliability-response-steps small { color: var(--text-muted); font-size: var(--fs-xs); line-height: 1.35; }
+.reliability-response-steps small { color: var(--text-muted); font-size: var(--fs-xs); line-height: var(--lh-snug); }
 
 .reliability-dependency-summary {
   display: grid;
@@ -862,7 +921,7 @@ a:not([class]):active {
 }
 
 .reliability-dependency-summary > div:last-child { border-right: 0; }
-.reliability-dependency-summary span { color: var(--text-muted); font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.reliability-dependency-summary span { color: var(--text-muted); font-size: var(--fs-2xs); font-weight: 700; letter-spacing: var(--ls-caps); text-transform: uppercase; }
 .reliability-dependency-summary strong { font-size: var(--fs-h2); }
 .reliability-dependency-summary strong.warn { color: var(--warning-text); }
 .reliability-dependency-summary strong.critical { color: var(--critical-text); }
@@ -1022,7 +1081,7 @@ a:not([class]):active {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 700;
-  letter-spacing: .06em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
 }
 
@@ -1169,7 +1228,7 @@ a:not([class]):active {
   display: block;
   color: var(--text-secondary);
   font-size: var(--fs-sm);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 
 .console-action-result small {
@@ -1177,7 +1236,7 @@ a:not([class]):active {
   margin-top: 3px;
   color: var(--text-secondary);
   font-size: var(--fs-sm);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 
 .operator-group-heading {
@@ -1550,7 +1609,7 @@ th {
   text-align: right;
   font-size: var(--fs-xs);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ls-caps);
   color: var(--text-muted);
   font-weight: 600;
   padding: 0 10px 8px;
@@ -1891,7 +1950,7 @@ tbody tr[tabindex]:focus-visible {
   margin: 0;
   text-align: center;
   font-size: var(--fs-body);
-  line-height: 1.5;
+  line-height: var(--lh-body);
   color: var(--text-muted);
 }
 
@@ -1963,14 +2022,14 @@ tbody tr[tabindex]:focus-visible {
    rather than drifting apart one arbitrary utility at a time. */
 .auth-card h1 {
   font-size: var(--fs-display);
-  line-height: 1.2;
+  line-height: var(--lh-tight);
   letter-spacing: -0.015em;
 }
 
 .auth-card .auth-blurb {
   margin-top: 6px;
   font-size: var(--fs-xl);
-  line-height: 1.5;
+  line-height: var(--lh-body);
   color: var(--text-secondary);
 }
 
@@ -2023,7 +2082,7 @@ tbody tr[tabindex]:focus-visible {
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   background: transparent;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-chrome-chip);
   font-weight: 600;
   color: var(--text-secondary);
   transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
@@ -2035,7 +2094,7 @@ tbody tr[tabindex]:focus-visible {
 
 .data-tier__dot {
   font-size: var(--fs-2xs);
-  line-height: 1;
+  line-height: var(--lh-none);
 }
 
 .data-tier--good .data-tier__dot { color: var(--status-good); }
@@ -2150,7 +2209,7 @@ tbody tr[tabindex]:focus-visible {
   font-family: Georgia, "Times New Roman", serif;
   font-size: 25px;
   font-weight: 700;
-  line-height: 1;
+  line-height: var(--lh-none);
 }
 
 .brand-mark__rails {
@@ -2184,17 +2243,17 @@ tbody tr[tabindex]:focus-visible {
 
 .brand-copy strong {
   color: var(--text-primary);
-  font-size: var(--fs-title);
-  line-height: 1.2;
+  font-size: var(--fs-chrome-brand);
+  line-height: var(--lh-tight);
   letter-spacing: -0.03em;
 }
 
 .brand-copy small {
   color: var(--text-muted);
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-chrome-caption);
   font-weight: 650;
   letter-spacing: 0.07em;
-  line-height: 1.35;
+  line-height: var(--lh-snug);
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -2203,7 +2262,7 @@ tbody tr[tabindex]:focus-visible {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 750;
-  letter-spacing: 0.11em;
+  letter-spacing: var(--ls-kicker);
   line-height: 1.4;
   text-transform: uppercase;
 }
@@ -2217,7 +2276,7 @@ tbody tr[tabindex]:focus-visible {
   align-items: center;
   gap: 7px;
   color: var(--text-secondary);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-chrome-chip);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -2280,7 +2339,7 @@ tbody tr[tabindex]:focus-visible {
 
 .latency-chip__copy small {
   color: var(--text-muted);
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-chrome-caption);
   font-weight: 750;
   letter-spacing: .075em;
   text-transform: uppercase;
@@ -2289,7 +2348,7 @@ tbody tr[tabindex]:focus-visible {
 .latency-chip__copy strong {
   color: var(--text-primary);
   font-family: var(--mono);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-chrome-chip);
   /* Tabular figures so the ticking decision p99 (and its inline core figure)
      never shift the row's width as they count. */
   font-variant-numeric: tabular-nums;
@@ -2303,7 +2362,7 @@ tbody tr[tabindex]:focus-visible {
   margin-left: 6px;
   color: var(--text-muted);
   font-family: var(--mono);
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-chrome-caption);
   font-style: normal;
   font-weight: 600;
   letter-spacing: 0;
@@ -2314,7 +2373,7 @@ tbody tr[tabindex]:focus-visible {
   align-items: center;
   gap: 5px;
   color: var(--text-muted);
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-chrome-caption);
   font-weight: 700;
   white-space: nowrap;
 }
@@ -2379,7 +2438,7 @@ tbody tr[tabindex]:focus-visible {
    below them once — the only half-step in the row, and small enough beside
    "Kill switch" to read as a different class of control. */
 .header-settings span {
-  font-size: var(--fs-sm);
+  font-size: var(--fs-chrome-chip);
   font-weight: 650;
 }
 
@@ -2416,7 +2475,7 @@ tbody tr[tabindex]:focus-visible {
   gap: 4px;
   text-align: center;
   white-space: nowrap;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-chrome-chip);
 }
 
 .workspace-tabs button::after {
@@ -2446,7 +2505,7 @@ tbody tr[tabindex]:focus-visible {
 .workspace-tabs button span {
   /* One rung up from the chips beside them: the eight destinations are the
      row's primary text, and at the chip size they read as a chip among chips. */
-  font-size: var(--fs-md);
+  font-size: var(--fs-chrome-tab);
   font-weight: 680;
 }
 
@@ -2518,7 +2577,7 @@ tbody tr[tabindex]:focus-visible {
 .section-heading :is(h2, h3) {
   margin-top: 4px;
   font-size: var(--fs-h1);
-  line-height: 1.2;
+  line-height: var(--lh-tight);
   letter-spacing: -0.025em;
 }
 
@@ -2553,7 +2612,7 @@ tbody tr[tabindex]:focus-visible {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 750;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--ls-caps-wide);
   text-transform: uppercase;
 }
 
@@ -2581,7 +2640,7 @@ tbody tr[tabindex]:focus-visible {
 .pipeline-card h3 {
   overflow: hidden;
   font-size: var(--fs-title);
-  line-height: 1.35;
+  line-height: var(--lh-snug);
   letter-spacing: -0.015em;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2590,7 +2649,7 @@ tbody tr[tabindex]:focus-visible {
 .pipeline-card__value {
   overflow: hidden;
   font-size: var(--fs-xl);
-  line-height: 1.35;
+  line-height: var(--lh-snug);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2631,7 +2690,7 @@ tbody tr[tabindex]:focus-visible {
 .card > h2 {
   font-size: var(--fs-sm);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--ls-caps-wide);
   color: var(--text-muted);
   font-weight: 600;
   margin-bottom: 3px;
@@ -2923,7 +2982,7 @@ a.text-action {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
 }
 
@@ -3000,7 +3059,7 @@ a.text-action {
 .market-context-card__heading h2 {
   margin-top: 2px;
   font-size: var(--fs-h2);
-  letter-spacing: -0.02em;
+  letter-spacing: var(--ls-tight);
 }
 
 .market-context-card__mode {
@@ -3377,8 +3436,8 @@ a.text-action {
 .portfolio-card-heading h2 {
   margin-top: 3px;
   font-size: var(--fs-h2);
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tight);
 }
 
 .portfolio-card-heading > span {
@@ -4073,7 +4132,7 @@ button
 .console-node__next {
   margin-top: 4px;
   font-size: var(--fs-2xs);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
   color: var(--text-muted);
 }
@@ -4100,7 +4159,7 @@ button
   padding-top: 12px;
   border-top: 1px solid var(--border);
   font-size: var(--fs-md);
-  line-height: 1.6;
+  line-height: var(--lh-loose);
   color: var(--text-secondary);
 }
 
@@ -4153,7 +4212,7 @@ button
 .console-trace-cost {
   margin: -2px 0 10px;
   font-size: var(--fs-sm);
-  line-height: 1.5;
+  line-height: var(--lh-body);
   color: var(--text-muted);
 }
 
@@ -4290,7 +4349,7 @@ button
   display: block;
   font-family: var(--mono);
   font-size: var(--fs-xs);
-  line-height: 1.5;
+  line-height: var(--lh-body);
   color: var(--text-secondary);
   overflow-wrap: anywhere;
 }
@@ -4351,7 +4410,7 @@ button
 .console-call__url {
   display: block;
   font-size: var(--fs-xs);
-  line-height: 1.5;
+  line-height: var(--lh-body);
   overflow-wrap: anywhere;
 }
 
@@ -4398,7 +4457,7 @@ button
 .console-log-gap {
   margin-bottom: 8px;
   font-size: var(--fs-sm);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 
 /* The dark plane. Tokens are redefined on the container rather than colours
@@ -4636,7 +4695,7 @@ button
   display: block;
   margin-top: 3px;
   font-size: var(--fs-sm);
-  line-height: 1.5;
+  line-height: var(--lh-body);
   color: var(--text-secondary);
 }
 
@@ -4648,7 +4707,7 @@ button
   border-top: 1px solid var(--border);
   font-family: var(--mono);
   font-size: var(--fs-xs);
-  line-height: 1.6;
+  line-height: var(--lh-loose);
   tab-size: 2;
 }
 
@@ -4667,7 +4726,7 @@ button
   background: transparent;
   color: var(--text-muted);
   font-size: var(--fs-2xs);
-  line-height: 1;
+  line-height: var(--lh-none);
   width: 11px;
 }
 
@@ -4806,7 +4865,7 @@ button
 
 .stability-verdict p {
   font-size: var(--fs-md);
-  line-height: 1.6;
+  line-height: var(--lh-loose);
   color: var(--text-secondary);
   max-width: none;
 }
@@ -4840,8 +4899,8 @@ button
 .stability-tile > strong {
   font-size: var(--fs-h1);
   font-weight: 680;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
+  letter-spacing: var(--ls-tight);
+  line-height: var(--lh-tight);
 }
 
 .stability-tile > small {
@@ -4865,7 +4924,7 @@ button
 .research-note {
   margin-top: 12px;
   font-size: var(--fs-sm);
-  line-height: 1.6;
+  line-height: var(--lh-loose);
   color: var(--text-muted);
   /* No measure cap. A fixed ch cap inside a card the reader already sized is
      two constraints fighting: it stopped every note ~300px short of the card
@@ -5009,7 +5068,7 @@ button
 
 .promotion-body small {
   font-size: var(--fs-xs);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 
 .promotion-handoff {
@@ -5544,7 +5603,7 @@ button
   border: 0;
   background: none;
   font-size: var(--fs-xl);
-  line-height: 1;
+  line-height: var(--lh-none);
   color: var(--text-muted);
 }
 
@@ -5606,7 +5665,7 @@ button
 .stress-result strong {
   font-size: var(--fs-h1);
   font-weight: 680;
-  letter-spacing: -0.02em;
+  letter-spacing: var(--ls-tight);
 }
 
 .stress-result.is-loss > div:first-child strong {
@@ -5787,7 +5846,7 @@ button
   display: block;
   margin-top: 6px;
   font-size: var(--fs-xs);
-  line-height: 1.5;
+  line-height: var(--lh-body);
   color: var(--text-muted);
 }
 
@@ -5896,7 +5955,7 @@ button
   flex: 1 1 auto;
   min-width: 0;
   font-family: var(--mono);
-  letter-spacing: 0.08em;
+  letter-spacing: var(--ls-caps-wide);
   text-transform: uppercase;
 }
 
@@ -5933,7 +5992,7 @@ button
   display: block;
   margin-top: 3px;
   font-size: var(--fs-sm);
-  line-height: 1.5;
+  line-height: var(--lh-body);
   color: var(--text-secondary);
 }
 
@@ -6238,7 +6297,7 @@ button
 .cockpit-strip__metrics dt {
   font-size: var(--fs-xs);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ls-caps);
   color: var(--text-muted);
   font-weight: 600;
 }
@@ -6378,7 +6437,7 @@ button
 
 .cockpit-ticket__credential small {
   margin-left: auto;
-  line-height: 1.35;
+  line-height: var(--lh-snug);
   flex: 0 1 360px;
 }
 
@@ -6657,7 +6716,7 @@ button
   padding: 6px 2px;
   font-size: var(--fs-md);
   color: var(--text-secondary);
-  line-height: 1.6;
+  line-height: var(--lh-loose);
 }
 
 .cockpit-detail code {
@@ -6697,7 +6756,7 @@ button
 .cockpit-quality__metrics dt {
   font-size: var(--fs-xs);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ls-caps);
   color: var(--text-muted);
   font-weight: 600;
 }
@@ -6764,7 +6823,7 @@ button
   display: block;
   color: var(--text-secondary);
   font-size: var(--fs-md);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 
 .cockpit-alert-list__actor {
@@ -6827,7 +6886,7 @@ button
   font-style: italic;
   white-space: normal;
   max-width: 46ch;
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 
 .run-annotate {
@@ -6903,7 +6962,7 @@ button
   gap: 12px;
   font-size: var(--fs-sm);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ls-caps);
   color: var(--text-muted);
   font-weight: 600;
 }
@@ -7081,7 +7140,7 @@ button
 .allocation-method-label {
   font-size: var(--fs-2xs);
   font-weight: 750;
-  letter-spacing: 0.11em;
+  letter-spacing: var(--ls-kicker);
   text-transform: uppercase;
   color: var(--text-muted);
 }
@@ -7230,7 +7289,7 @@ button
   gap: 10px;
   align-items: baseline;
   color: var(--text-secondary);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 
 .quarantine-violations code {
@@ -7382,7 +7441,7 @@ button
 .data-trust-hero h2 {
   margin-top: 3px;
   font-size: var(--fs-hero-sub);
-  letter-spacing: -0.02em;
+  letter-spacing: var(--ls-tight);
 }
 
 .data-trust-hero p {
@@ -7535,7 +7594,7 @@ button
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 750;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
 }
 
@@ -7586,7 +7645,7 @@ button
   margin: 4px 0 0;
   color: var(--text-muted);
   font-size: var(--fs-2xs);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 
 .data-trust-actions {
@@ -7758,7 +7817,7 @@ button.data-trust-action > i {
 .data-workboard__heading h2 {
   margin-top: 3px;
   font-size: var(--fs-h1);
-  letter-spacing: -0.02em;
+  letter-spacing: var(--ls-tight);
 }
 
 .data-workboard__heading .sub {
@@ -7802,7 +7861,7 @@ button.data-trust-action > i {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
 }
 
@@ -7822,7 +7881,7 @@ button.data-trust-action > i {
   background: var(--surface-2);
   color: var(--text-muted);
   font-size: var(--fs-xs);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 
 .data-workboard__toolbar {
@@ -8020,7 +8079,7 @@ button.data-trust-action > i {
   color: var(--series-1);
   font-size: var(--fs-2xl);
   font-weight: 700;
-  line-height: 1;
+  line-height: var(--lh-none);
   pointer-events: none;
 }
 
@@ -8040,7 +8099,7 @@ button.data-trust-action > i {
 
 .data-work-column__heading h3 {
   font-size: var(--fs-lg);
-  line-height: 1.35;
+  line-height: var(--lh-snug);
 }
 
 .data-work-column__heading small {
@@ -8146,8 +8205,8 @@ button.data-trust-action > i {
   color: var(--series-1);
   font-size: var(--fs-2xs);
   font-weight: 800;
-  letter-spacing: 0.06em;
-  line-height: 1;
+  letter-spacing: var(--ls-caps);
+  line-height: var(--lh-none);
   text-transform: uppercase;
 }
 
@@ -8194,8 +8253,8 @@ button.data-trust-action > i {
   border-radius: var(--radius-pill);
   font-size: var(--fs-2xs);
   font-weight: 800;
-  letter-spacing: 0.06em;
-  line-height: 1;
+  letter-spacing: var(--ls-caps);
+  line-height: var(--lh-none);
   text-transform: uppercase;
 }
 
@@ -8702,7 +8761,7 @@ button.data-trust-action > i {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 750;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
 }
 
@@ -8727,7 +8786,7 @@ button.data-trust-action > i {
   background: var(--surface-2);
   color: var(--text-muted);
   font-size: var(--fs-xs);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 
 .codebase-explorer__notice strong,
@@ -9056,7 +9115,7 @@ button.data-trust-action > i {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 750;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
 }
 
@@ -9089,7 +9148,7 @@ button.data-trust-action > i {
   margin-top: 5px;
   color: var(--text-secondary);
   font-size: var(--fs-xs);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 
 .codebase-detail__safe-edit {
@@ -9223,7 +9282,7 @@ button.data-trust-action > i {
   background: var(--surface-2);
   color: var(--text-muted);
   font-size: var(--fs-2xs);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ls-caps);
   text-align: left;
   text-transform: uppercase;
 }
@@ -9768,7 +9827,7 @@ button.data-trust-action > i {
 .reliability-platform__grid article > small {
   color: var(--text-secondary);
   font-size: var(--fs-xs);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 
 .reliability-platform__sli {
@@ -9806,7 +9865,7 @@ button.data-trust-action > i {
   margin: 9px 0 0;
   color: var(--text-muted);
   font-size: var(--fs-2xs);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 
 .reliability-evidence__grid {
@@ -9835,7 +9894,7 @@ button.data-trust-action > i {
   grid-column: 1 / -1;
   color: var(--text-muted);
   font-size: var(--fs-xs);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 
 .reliability-evidence__state {
@@ -10173,7 +10232,7 @@ button.data-trust-action > i {
 .operator-confirmation > p,
 .operator-confirmation > small {
   margin: 0;
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 
 .operator-confirmation > p {
@@ -10299,7 +10358,7 @@ button.data-trust-action > i {
   color: var(--text-secondary);
   font-size: var(--fs-xs);
   font-weight: 700;
-  line-height: 1;
+  line-height: var(--lh-none);
   white-space: nowrap;
 }
 
@@ -10604,8 +10663,8 @@ button.data-trust-action > i {
   font-family: var(--mono);
   font-size: var(--fs-display);
   font-weight: 650;
-  letter-spacing: -0.01em;
-  line-height: 1;
+  letter-spacing: var(--ls-figure);
+  line-height: var(--lh-none);
 }
 
 /* The denominator only. The numerator is a NumberTicker, which renders as a
@@ -10786,7 +10845,7 @@ button.data-trust-action > i {
   border-top: 1px solid var(--border);
   color: var(--text-muted);
   font-size: var(--fs-2xs);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 
 .developer-cp-schema-card {
@@ -11163,7 +11222,7 @@ button.data-trust-action > i {
 .next-step-footer__kicker {
   font-size: var(--fs-body);
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
   color: var(--series-1);
 }
@@ -11472,7 +11531,7 @@ button.data-trust-action > i {
   font-size: var(--fs-title);
   font-weight: 700;
   line-height: 1.24;
-  letter-spacing: -0.01em;
+  letter-spacing: var(--ls-figure);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -11602,7 +11661,7 @@ button.page-insight:hover:not(:disabled) {
   color: var(--series-1);
   font-size: var(--fs-2xs);
   font-weight: 600;
-  line-height: 1.35;
+  line-height: var(--lh-snug);
   cursor: pointer;
 }
 
@@ -11735,7 +11794,7 @@ button.page-insight:hover:not(:disabled) {
   color: var(--text-muted);
   font-family: var(--mono);
   font-size: var(--fs-2xs);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 
 .command-bar__results {
@@ -11773,7 +11832,7 @@ button.page-insight:hover:not(:disabled) {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
 }
 
@@ -11858,7 +11917,7 @@ button.page-insight:hover:not(:disabled) {
   font-size: var(--fs-sm);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--ls-caps-wide);
 }
 
 .shortcuts-overlay__keys {
@@ -11894,7 +11953,7 @@ button.page-insight:hover:not(:disabled) {
   color: var(--text-muted);
   font-family: var(--mono);
   font-size: var(--fs-2xs);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 
 .shortcuts-overlay__tour {
@@ -12434,12 +12493,12 @@ button.page-insight:hover:not(:disabled) {
 
 .next-step-footer__kicker {
   font-size: var(--fs-2xs);
-  letter-spacing: 0.08em;
+  letter-spacing: var(--ls-caps-wide);
 }
 
 .next-step-footer__title {
   font-size: var(--fs-xl);
-  letter-spacing: -0.01em;
+  letter-spacing: var(--ls-figure);
 }
 
 /* A sentence, so it wraps like one. It was `nowrap` and lost its tail on any
@@ -12654,7 +12713,7 @@ h1 {
 h2 {
   font-size: var(--fs-h2);
   line-height: 1.22;
-  letter-spacing: -0.02em;
+  letter-spacing: var(--ls-tight);
 }
 
 h3 {
@@ -12665,7 +12724,7 @@ h3 {
 
 h4 {
   font-size: var(--fs-xl);
-  line-height: 1.35;
+  line-height: var(--lh-snug);
 }
 
 /* ---------- panel alignment ---------- */
@@ -12869,7 +12928,7 @@ h4 {
      ring, sized to the geometry it decorates, not to be read as prose. */
   font-size: 7px;
   font-weight: 750;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--ls-caps-wide);
   text-transform: uppercase;
 }
 
@@ -13328,7 +13387,7 @@ h4 {
   color: var(--series-1);
   font-size: var(--fs-2xs);
   font-weight: 750;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--ls-caps-wide);
   text-transform: uppercase;
 }
 
@@ -13942,7 +14001,7 @@ button:active:not(:disabled) {
   gap: 4px;
   font-variant-numeric: tabular-nums;
 }
-.quality-total > strong { font-size: var(--fs-display); line-height: 1; }
+.quality-total > strong { font-size: var(--fs-display); line-height: var(--lh-none); }
 .quality-total > small { color: var(--text-secondary); }
 .quality-total.is-good > strong { color: var(--success-text); }
 .quality-total.is-warning > strong { color: var(--warning-text); }
@@ -14037,7 +14096,7 @@ button:active:not(:disabled) {
 .strategy-doc__grid dd {
   margin: 0;
   font-size: var(--fs-sm);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 /* A left rule rather than coloured body text: tinting a paragraph costs
    contrast in one theme or the other, and the marker carries the meaning
@@ -14248,7 +14307,7 @@ button:active:not(:disabled) {
   background: none;
   color: var(--text-secondary);
   font-size: var(--fs-2xs);
-  line-height: 1;
+  line-height: var(--lh-none);
   cursor: pointer;
 }
 
@@ -14401,7 +14460,7 @@ button:active:not(:disabled) {
   color: var(--text-secondary);
   font-size: var(--fs-sm);
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ls-caps);
 }
 
 .codex-family__thesis {
@@ -14748,7 +14807,7 @@ html:active-view-transition .view-panel {
   color: var(--verdict-text);
   font-weight: 700;
   font-size: var(--fs-lg);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ls-caps);
 }
 
 .verdict-headline {
@@ -14758,7 +14817,7 @@ html:active-view-transition .view-panel {
 
 .verdict-headline h3 {
   font-size: var(--fs-h2);
-  letter-spacing: -0.01em;
+  letter-spacing: var(--ls-figure);
   margin-bottom: 4px;
 }
 
@@ -14788,7 +14847,7 @@ html:active-view-transition .view-panel {
 .stat-tile__value,
 .verdict-metric__value {
   font-weight: 650;
-  letter-spacing: -0.02em;
+  letter-spacing: var(--ls-tight);
   color: var(--text-primary);
 }
 
@@ -14805,7 +14864,7 @@ html:active-view-transition .view-panel {
 .verdict-metric__note {
   font-size: var(--fs-sm);
   color: var(--text-muted);
-  line-height: 1.35;
+  line-height: var(--lh-snug);
 }
 
 .verdict-benchmark {
@@ -14842,9 +14901,9 @@ html:active-view-transition .view-panel {
   .workspace-switcher > span {
     padding-left: 7px;
     color: var(--text-muted);
-    font-size: var(--fs-2xs);
+    font-size: var(--fs-chrome-caption);
     font-weight: 750;
-    letter-spacing: .08em;
+    letter-spacing: var(--ls-caps-wide);
     text-transform: uppercase;
   }
 
@@ -14857,7 +14916,7 @@ html:active-view-transition .view-panel {
     border-radius: calc(var(--radius-md) - 3px);
     background: var(--surface-1);
     color: var(--text-primary);
-    font: 680 var(--fs-md)/1.2 var(--sans);
+    font: 680 var(--fs-chrome-tab)/1.2 var(--sans);
   }
 }
 
@@ -14986,7 +15045,7 @@ html:active-view-transition .view-panel {
   }
 
   .workspace-tabs button span {
-    font-size: var(--fs-sm);
+    font-size: var(--fs-chrome-chip);
   }
 }
 
@@ -15257,7 +15316,7 @@ html:active-view-transition .view-panel {
     color: var(--text-muted);
     font-size: var(--fs-2xs);
     font-weight: 750;
-    letter-spacing: .08em;
+    letter-spacing: var(--ls-caps-wide);
     text-transform: uppercase;
   }
 
@@ -16054,7 +16113,7 @@ html:active-view-transition .view-panel {
 .allocation-mixes small {
   display: block;
   margin-top: var(--space-2);
-  line-height: 1.5;
+  line-height: var(--lh-body);
 }
 
 /* ---------- data trust: verdict ring and freshness rows ---------- */
@@ -16224,7 +16283,7 @@ html:active-view-transition .view-panel {
   font-family: var(--mono);
   font-weight: 700;
   letter-spacing: 0.02em;
-  line-height: 1;
+  line-height: var(--lh-none);
 }
 
 .tech-mark--md .tech-mark__letters { font-size: var(--fs-sm); }
@@ -16262,7 +16321,7 @@ html:active-view-transition .view-panel {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 750;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
 }
 
@@ -16346,7 +16405,7 @@ html:active-view-transition .view-panel {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 750;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--ls-caps-wide);
   text-transform: uppercase;
 }
 
