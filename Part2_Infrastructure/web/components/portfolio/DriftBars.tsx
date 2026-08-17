@@ -159,7 +159,7 @@ export default function DriftBars({
 
           return (
             <g key={target.symbol}>
-              <text x={MARGIN.left - 8} y={barY + 9} textAnchor="end" fontSize={12}
+              <text x={MARGIN.left - 8} y={barY + 9} textAnchor="end" fontSize={13}
                 fill="var(--text-secondary)" fontWeight={650}>
                 {target.symbol}
               </text>
@@ -186,7 +186,7 @@ export default function DriftBars({
                 x={placed.x}
                 y={barY + 9.5}
                 textAnchor={placed.anchor}
-                fontSize={11}
+                fontSize={12}
                 fontFamily="var(--mono)"
                 fill={inside ? "var(--text-muted)" : "var(--text-primary)"}
               >

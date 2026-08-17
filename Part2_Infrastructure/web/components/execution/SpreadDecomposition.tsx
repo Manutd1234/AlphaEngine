@@ -146,7 +146,7 @@ export default function SpreadDecomposition({
                 </text>
 
                 <text x={x0 + (barW * 3 + 12) / 2} y={base + 16} textAnchor="middle"
-                  fontSize={11.5} fill="var(--text-secondary)" fontWeight={650}>
+                  fontSize={12.5} fill="var(--text-secondary)" fontWeight={650}>
                   {venue.venue}
                 </text>
                 <text x={x0 + (barW * 3 + 12) / 2} y={base + 29} textAnchor="middle"

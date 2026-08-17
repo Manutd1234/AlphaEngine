@@ -67,12 +67,32 @@ const CONTENT_RUNGS = RUNGS.filter(
   (r) => !r.startsWith("--fs-chrome") && r !== "--fs-tick" && r !== "--fs-input",
 );
 
-/** Inline chart/SVG sizes the components may use, in px. */
-const INLINE_SIZES = new Set([10, 11, 11.5, 12, 12.5, 13, 13.5, 14, 15, 16, 18, 20, 22, 25, 30]);
+/** Inline SVG sizes the charts may use, in user units (px at 1:1). Ticks at
+ *  10 and the donut figure at 25 stay; the reading labels stepped 11 → 12,
+ *  11.5 → 12.5, 12 → 13 and 14 → 15 with the 2026-08-17 lift. */
+const INLINE_SIZES = new Set([10, 12, 12.5, 13, 15, 25]);
 
 /** Off-scale declarations sanctioned above, matched exactly. `100%` is the
  *  root: the browser's own size, which every rem rung is defined against. */
 const SANCTIONED = new Set(["0", "7px", "7.5px", "25px", "100%"]);
+
+describe("the stylesheet parses", () => {
+  // None of the sheet-reading tests parse CSS; a stray brace passed every one
+  // of them and broke the dev server. Depth never negative, zero at the end.
+  it("braces balance in globals.css", () => {
+    let depth = 0;
+    let line = 1;
+    for (const ch of declarations) {
+      if (ch === "\n") line += 1;
+      if (ch === "{") depth += 1;
+      if (ch === "}") {
+        depth -= 1;
+        assert.ok(depth >= 0, `an unmatched } at globals.css:${line}`);
+      }
+    }
+    assert.equal(depth, 0, `${depth} unclosed block(s) at the end of globals.css`);
+  });
+});
 
 describe("one type scale", () => {
   it("declares every rung in :root", () => {
@@ -165,9 +185,12 @@ describe("one type scale", () => {
       assert.ok(mins[i] > mins[i - 1], `${order[i]} (${mins[i]}rem) must be above ${order[i - 1]} (${mins[i - 1]}rem)`);
     }
     for (const token of CONTENT_RUNGS) rem(token);
-    // The two that are not typography stay px, unstepped.
+    // The two that are not typography stay px, unstepped — and the SVG
+    // inline floor is the tick size.
     assert.match(root, /--fs-input:\s*16px;/);
-    assert.match(root, /--fs-tick:\s*\d+px;/);
+    const tick = root.match(/--fs-tick:\s*(\d+)px;/);
+    assert.ok(tick);
+    assert.equal(Math.min(...INLINE_SIZES), Number(tick![1]), "the smallest inline SVG size is --fs-tick");
     // The root is the browser's own size and carries no rung.
     assert.match(declarations, /\nhtml \{\n  font-size: 100%;/);
     assert.doesNotMatch(declarations, /\nhtml,\nbody \{[^}]*font-size:/, "html/body must not share a rung — rem would double-scale");

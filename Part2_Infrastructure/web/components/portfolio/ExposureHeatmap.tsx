@@ -135,7 +135,7 @@ export default function ExposureHeatmap({
 
             return (
               <g key={cell.symbol}>
-                <text x={MARGIN.left - 8} y={barY + 9} textAnchor="end" fontSize={12}
+                <text x={MARGIN.left - 8} y={barY + 9} textAnchor="end" fontSize={13}
                   fill="var(--text-secondary)" fontWeight={650}>
                   {cell.symbol}
                 </text>
@@ -165,14 +165,14 @@ export default function ExposureHeatmap({
                     {u > 1 && (
                       // Clamped for the bar, honest in the text. The caret says
                       // the value ran past the axis rather than stopping at it.
-                      <text x={x(1) + 4} y={barY + 9.5} fontSize={12} fill="var(--status-critical)">
+                      <text x={x(1) + 4} y={barY + 9.5} fontSize={13} fill="var(--status-critical)">
                         ›
                       </text>
                     )}
                   </>
                 )}
 
-                <text x={plotRight + 8} y={barY + 6} fontSize={11.5} fill="var(--text-primary)"
+                <text x={plotRight + 8} y={barY + 6} fontSize={12.5} fill="var(--text-primary)"
                   fontFamily="var(--mono)">
                   {u == null ? "—" : pct(u, 0)}
                 </text>

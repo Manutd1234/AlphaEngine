@@ -126,11 +126,11 @@ export default function BreakerStateMachine({
               <rect x={node.x} y={62} width={NODE_W} height={NODE_H} rx={8}
                 fill="var(--surface-2)" stroke={active ? tone : "var(--border)"}
                 strokeWidth={active ? 1.6 : 1} />
-              <text x={node.x + NODE_W / 2} y={80} textAnchor="middle" fontSize={11.5}
+              <text x={node.x + NODE_W / 2} y={80} textAnchor="middle" fontSize={12.5}
                 fontWeight={750} fill="var(--text-primary)" fontFamily="var(--mono)">
                 {node.label}
               </text>
-              <text x={node.x + NODE_W / 2} y={95} textAnchor="middle" fontSize={14}
+              <text x={node.x + NODE_W / 2} y={95} textAnchor="middle" fontSize={15}
                 fontWeight={700} fill={active ? tone : "var(--text-muted)"}>
                 {nodeCount(node.id)}
               </text>

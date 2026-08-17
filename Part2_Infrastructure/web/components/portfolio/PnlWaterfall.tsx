@@ -220,7 +220,7 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
                     x={bar.cx}
                     y={zeroY - 8}
                     textAnchor="middle"
-                    fontSize={11}
+                    fontSize={12}
                     fill="var(--text-muted)"
                     fontFamily="var(--mono)"
                   >
@@ -251,7 +251,7 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
                   x={bar.cx}
                   y={top - 6 < yTop + 10 ? top + height + 13 : top - 6}
                   textAnchor="middle"
-                  fontSize={11.5}
+                  fontSize={12.5}
                   fill="var(--text-primary)"
                   fontFamily="var(--mono)"
                 >
@@ -270,7 +270,7 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
                 x={bar.cx}
                 y={yBot + 16}
                 textAnchor="middle"
-                fontSize={12}
+                fontSize={13}
                 fill="var(--text-secondary)"
               >
                 {bar.label}

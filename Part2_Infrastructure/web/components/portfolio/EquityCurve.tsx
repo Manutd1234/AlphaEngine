@@ -212,17 +212,17 @@ export default function EquityCurve({
             x={x1 + 6}
             y={yScale(last.equity)}
             dominantBaseline="middle"
-            fontSize={11.5}
+            fontSize={12.5}
             fontFamily="var(--mono)"
             fill="var(--text-primary)"
           >
             ${compact(last.equity)}
           </text>
 
-          <text x={x0} y={height - 8} fontSize={11} fontFamily="var(--mono)" fill="var(--text-muted)">
+          <text x={x0} y={height - 8} fontSize={12} fontFamily="var(--mono)" fill="var(--text-muted)">
             {stamp(points[0].t)}
           </text>
-          <text x={x1} y={height - 8} textAnchor="end" fontSize={11} fontFamily="var(--mono)" fill="var(--text-muted)">
+          <text x={x1} y={height - 8} textAnchor="end" fontSize={12} fontFamily="var(--mono)" fill="var(--text-muted)">
             {stamp(last.t)}
           </text>
         </svg>

@@ -274,6 +274,27 @@
   --type-step: 1.125;
 }
 
+/* Wrapping. Headings balance so a two-line title does not leave one word
+   orphaned; prose is pretty-wrapped so a paragraph does not end on a single
+   short line. Both are progressive — a browser without them wraps as before. */
+h1, h2, h3,
+.page-heading h1,
+.section-heading :is(h2, h3),
+.portfolio-card-heading :is(h2, h3) {
+  text-wrap: balance;
+}
+
+p, li, .sub, .console-footnote, .research-note, .page-heading p, small {
+  text-wrap: pretty;
+}
+
+/* The one prose block that runs the full width of a card is the footnote;
+   the rest are sized by their card on purpose (see the max-width: none
+   opt-outs). Seventy-two characters is the top of the comfortable measure. */
+.console-footnote {
+  max-width: 72ch;
+}
+
 @media (prefers-color-scheme: dark) {
   :root:where(:not([data-theme="light"])) {
     color-scheme: dark;
@@ -801,7 +822,7 @@ a:not([class]):active {
 }
 
 .reliability-all-clear strong { font-size: var(--fs-xl); }
-.reliability-all-clear small { color: var(--text-muted); font-size: var(--fs-sm); line-height: 1.45; }
+.reliability-all-clear small { color: var(--text-muted); font-size: var(--fs-sm); line-height: var(--lh-body); }
 
 .reliability-all-clear.is-loading {
   border-color: var(--border);
@@ -1088,7 +1109,7 @@ a:not([class]):active {
   max-width: none;
   color: var(--text-secondary);
   font-size: var(--fs-xs);
-  line-height: 1.45;
+  line-height: var(--lh-body);
 }
 
 .console-percentile-guide__window {
@@ -1180,7 +1201,7 @@ a:not([class]):active {
   min-height: 440px;
   max-height: min(58vh, 520px);
   font-size: var(--fs-sm);
-  line-height: 1.55;
+  line-height: var(--lh-body);
 }
 
 .console-log__line {
@@ -1410,7 +1431,7 @@ label.field {
   display: block;
   font-size: var(--fs-sm);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: var(--ls-caps);
   color: var(--text-muted);
   margin-bottom: 5px;
   font-weight: 600;
@@ -1750,7 +1771,7 @@ tbody tr[tabindex]:focus-visible {
   flex-direction: column;
   gap: 8px;
   max-width: none;
-  line-height: 1.55;
+  line-height: var(--lh-body);
 }
 
 .drift-legend li {
@@ -2045,7 +2066,7 @@ tbody tr[tabindex]:focus-visible {
 .auth-card h1 {
   font-size: var(--fs-display);
   line-height: var(--lh-tight);
-  letter-spacing: -0.015em;
+  letter-spacing: var(--ls-figure);
 }
 
 .auth-card .auth-blurb {
@@ -2277,7 +2298,7 @@ tbody tr[tabindex]:focus-visible {
   color: var(--text-muted);
   font-size: var(--fs-chrome-caption);
   font-weight: 650;
-  letter-spacing: 0.07em;
+  letter-spacing: var(--ls-caps);
   line-height: var(--lh-snug);
   text-transform: uppercase;
   white-space: nowrap;
@@ -2288,7 +2309,7 @@ tbody tr[tabindex]:focus-visible {
   font-size: var(--fs-2xs);
   font-weight: 750;
   letter-spacing: var(--ls-kicker);
-  line-height: 1.4;
+  line-height: var(--lh-snug);
   text-transform: uppercase;
 }
 
@@ -2607,7 +2628,7 @@ tbody tr[tabindex]:focus-visible {
   margin-top: 4px;
   font-size: var(--fs-h1);
   line-height: var(--lh-tight);
-  letter-spacing: -0.025em;
+  letter-spacing: var(--ls-tight);
 }
 
 .section-heading.compact {
@@ -2670,7 +2691,7 @@ tbody tr[tabindex]:focus-visible {
   overflow: hidden;
   font-size: var(--fs-title);
   line-height: var(--lh-snug);
-  letter-spacing: -0.015em;
+  letter-spacing: var(--ls-figure);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2681,6 +2702,7 @@ tbody tr[tabindex]:focus-visible {
   line-height: var(--lh-snug);
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .pipeline-card__status {
@@ -2716,13 +2738,18 @@ tbody tr[tabindex]:focus-visible {
   background: var(--surface-1);
   border: 1px solid var(--border);
 }
+/* A card's own title is a title, not an eyebrow. This read as a 12px muted
+   uppercase label — under an 11px uppercase kicker on the profile cards, and
+   smaller than the h3s inside the card it named. The eyebrow voice belongs to
+   .page-kicker; the card title sits one rung under the section h2. */
 .card > h2 {
-  font-size: var(--fs-sm);
-  text-transform: uppercase;
-  letter-spacing: var(--ls-caps-wide);
-  color: var(--text-muted);
-  font-weight: 600;
-  margin-bottom: 3px;
+  font-size: var(--fs-title);
+  font-weight: 650;
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-figure);
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  text-wrap: balance;
 }
 .card > .sub {
   font-size: var(--fs-md);
@@ -2884,7 +2911,7 @@ tbody tr[tabindex]:focus-visible {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 750;
-  letter-spacing: 0.07em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
 }
 
@@ -2977,7 +3004,7 @@ a.text-action {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 750;
-  letter-spacing: 0.055em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
 }
 
@@ -3299,7 +3326,7 @@ a.text-action {
 .capability-empty h2 {
   margin-top: 5px;
   font-size: var(--fs-figure);
-  letter-spacing: -0.025em;
+  letter-spacing: var(--ls-tight);
 }
 
 .capability-empty p {
@@ -3404,7 +3431,7 @@ a.text-action {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 700;
-  letter-spacing: 0.07em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
 }
 
@@ -3901,7 +3928,7 @@ button
   display: block;
   max-width: 34ch;
   white-space: normal;
-  line-height: 1.45;
+  line-height: var(--lh-body);
 }
 
 .console-subhead {
@@ -3909,7 +3936,7 @@ button
   font-size: var(--fs-sm);
   font-weight: 650;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: var(--ls-caps);
   color: var(--text-secondary);
 }
 
@@ -3923,7 +3950,7 @@ button
 .console-footnote {
   margin-top: 10px;
   font-size: var(--fs-body);
-  line-height: 1.55;
+  line-height: var(--lh-body);
   color: var(--text-muted);
 }
 
@@ -4117,7 +4144,7 @@ button
   font-size: var(--fs-2xs);
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: var(--ls-caps);
   color: var(--text-muted);
 }
 
@@ -4142,7 +4169,7 @@ button
 
 .console-node small {
   font-size: var(--fs-xs);
-  line-height: 1.45;
+  line-height: var(--lh-body);
 }
 
 .console-node .console-wrap {
@@ -4179,7 +4206,7 @@ button
 .console-edge__label {
   font-size: var(--fs-2xs);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: var(--ls-caps);
   color: var(--text-muted);
 }
 
@@ -4287,7 +4314,7 @@ button
   font-size: var(--fs-2xs);
   font-weight: 650;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: var(--ls-caps);
   color: var(--text-muted);
 }
 
@@ -4295,7 +4322,7 @@ button
   font-family: var(--mono);
   font-size: var(--fs-md);
   font-variant-numeric: tabular-nums;
-  line-height: 1.4;
+  line-height: var(--lh-snug);
 }
 
 /* A full-width tile for identity facts — the cache key is part of the verdict
@@ -4371,7 +4398,7 @@ button
   font-size: var(--fs-md);
   font-weight: 650;
   letter-spacing: 0.01em;
-  line-height: 1.4;
+  line-height: var(--lh-snug);
 }
 
 .console-lineage small {
@@ -4527,7 +4554,7 @@ button
   color: #d4d4d8;
   font-family: var(--mono);
   font-size: var(--fs-xs);
-  line-height: 1.65;
+  line-height: var(--lh-loose);
   tab-size: 2;
 }
 
@@ -4653,6 +4680,7 @@ button
   color: var(--text-secondary);
   font-size: var(--fs-xs);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .console-action__controls {
@@ -4687,7 +4715,7 @@ button
      scoped to the controls panel — but the operator panel mounts nowhere else,
      so the base size was a size nothing ever rendered. */
   font-size: var(--fs-body);
-  line-height: 1.55;
+  line-height: var(--lh-body);
 }
 
 .console-token {
@@ -4700,7 +4728,7 @@ button
   font-size: var(--fs-2xs);
   font-weight: 650;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: var(--ls-caps);
   color: var(--text-muted);
 }
 
@@ -4839,7 +4867,7 @@ button
   border-radius: var(--radius-control);
   background: var(--surface-1);
   font-size: var(--fs-body);
-  line-height: 1.45;
+  line-height: var(--lh-body);
 }
 
 .console-headlines small {
@@ -4921,7 +4949,7 @@ button
   font-size: var(--fs-2xs);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: var(--ls-caps);
   color: var(--text-muted);
 }
 
@@ -4934,7 +4962,7 @@ button
 
 .stability-tile > small {
   font-size: var(--fs-xs);
-  line-height: 1.45;
+  line-height: var(--lh-body);
   color: var(--text-muted);
 }
 
@@ -4982,7 +5010,7 @@ button
 
 .factor-name small {
   font-size: var(--fs-2xs);
-  line-height: 1.45;
+  line-height: var(--lh-body);
   white-space: normal;
 }
 
@@ -5068,7 +5096,7 @@ button
 
 .promotion-mark {
   font-size: var(--fs-xl);
-  line-height: 1.4;
+  line-height: var(--lh-snug);
   font-weight: 700;
 }
 
@@ -5202,7 +5230,7 @@ button
   font-size: var(--fs-2xs);
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--ls-caps);
   padding: 2px 6px;
   border-radius: var(--radius-pill);
   background: var(--surface-3);
@@ -5216,7 +5244,7 @@ button
 
 .friction-note {
   font-size: var(--fs-xs);
-  line-height: 1.55;
+  line-height: var(--lh-body);
   color: var(--text-muted);
 }
 
@@ -5318,7 +5346,7 @@ button
   margin: 14px 0 6px;
   font-size: var(--fs-sm);
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
   color: var(--text-muted);
 }
@@ -5687,7 +5715,7 @@ button
   font-size: var(--fs-2xs);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: var(--ls-caps);
   color: var(--text-muted);
 }
 
@@ -5756,7 +5784,7 @@ button
   color: #d4d4d8;
   font-family: var(--mono);
   font-size: var(--fs-sm);
-  line-height: 1.65;
+  line-height: var(--lh-loose);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   overflow-x: auto;
@@ -5778,7 +5806,7 @@ button
 .handoff-actions small {
   flex: 1 1 300px;
   font-size: var(--fs-xs);
-  line-height: 1.55;
+  line-height: var(--lh-body);
 }
 
 @media (max-width: 900px) {
@@ -5828,7 +5856,7 @@ button
   font-size: var(--fs-xs);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: var(--ls-caps);
   color: var(--text-muted);
 }
 
@@ -6079,7 +6107,7 @@ button
   flex: 0 0 auto;
   font-family: var(--mono);
   font-size: var(--fs-2xs);
-  letter-spacing: 0.07em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
   padding: 2px 7px;
   border-radius: 4px;
@@ -6147,7 +6175,7 @@ button
 .regime-tag {
   font-family: var(--mono);
   font-size: var(--fs-2xs);
-  letter-spacing: 0.07em;
+  letter-spacing: var(--ls-caps);
   padding: 2px 7px;
   border-radius: 4px;
   background: var(--surface-3);
@@ -6186,7 +6214,7 @@ button
 .regime-note {
   margin: 0;
   font-size: var(--fs-body);
-  line-height: 1.55;
+  line-height: var(--lh-body);
   color: var(--text-muted);
 }
 
@@ -6381,7 +6409,7 @@ button
   border-radius: var(--radius-pill);
   font-size: var(--fs-xs);
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -6412,7 +6440,7 @@ button
   border-radius: var(--radius-md);
   padding: 10px 13px;
   font-size: var(--fs-lg);
-  line-height: 1.55;
+  line-height: var(--lh-body);
   color: var(--text-secondary);
   background: var(--surface-2);
   margin: 12px 0;
@@ -6683,13 +6711,13 @@ button
   gap: 12px;
   flex-wrap: wrap;
   font-family: var(--mono);
-  letter-spacing: 0.05em;
+  letter-spacing: var(--ls-caps);
 }
 
 .cockpit-verdict p {
   margin: 8px 0 0;
   color: var(--text-secondary);
-  line-height: 1.55;
+  line-height: var(--lh-body);
 }
 
 .cockpit-checks {
@@ -6957,7 +6985,7 @@ button
 .run-comparison__subhead {
   font-size: var(--fs-sm);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: var(--ls-caps);
   color: var(--text-muted);
   margin: 18px 0 8px;
 }
@@ -6999,7 +7027,7 @@ button
 .var-validation p {
   margin: 8px 0 0;
   font-size: var(--fs-lg);
-  line-height: 1.55;
+  line-height: var(--lh-body);
   color: var(--text-secondary);
 }
 
@@ -7041,7 +7069,7 @@ button
   background: var(--surface-2);
   color: var(--text-secondary);
   font-size: var(--fs-xl);
-  line-height: 1.4;
+  line-height: var(--lh-snug);
   user-select: none;
 }
 
@@ -7111,7 +7139,7 @@ button
 .portfolio-alerts li > strong {
   font-size: var(--fs-2xs);
   font-weight: 750;
-  letter-spacing: 0.09em;
+  letter-spacing: var(--ls-caps-wide);
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -7197,7 +7225,7 @@ button
   border-radius: var(--radius-pill);
   font-size: var(--fs-2xs);
   font-weight: 750;
-  letter-spacing: 0.09em;
+  letter-spacing: var(--ls-caps-wide);
   text-transform: uppercase;
   vertical-align: middle;
   color: var(--notice-text);
@@ -7238,7 +7266,7 @@ button
 .stress-subhead {
   font-size: var(--fs-sm);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: var(--ls-caps);
   color: var(--text-muted);
   margin: 18px 0 8px;
 }
@@ -7478,7 +7506,7 @@ button
   margin: 6px 0 0;
   color: var(--text-secondary);
   font-size: var(--fs-body);
-  line-height: 1.55;
+  line-height: var(--lh-body);
 }
 
 .data-trust-verdict {
@@ -7554,7 +7582,7 @@ button
 .data-trust-evidence > div small {
   font-size: var(--fs-2xs);
   font-weight: 750;
-  letter-spacing: 0.055em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
 }
 
@@ -7569,7 +7597,7 @@ button
   margin: 0;
   color: var(--text-muted);
   font-size: var(--fs-2xs);
-  line-height: 1.45;
+  line-height: var(--lh-body);
 }
 
 /* Response pane's shared row: the per-source sparklines and the quota bars are
@@ -7634,7 +7662,7 @@ button
 .data-trust-probe > small {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
-  line-height: 1.45;
+  line-height: var(--lh-body);
 }
 
 .data-trust-monitor table {
@@ -7704,7 +7732,7 @@ button.data-trust-action > span {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 800;
-  letter-spacing: 0.065em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
 }
 
@@ -7716,7 +7744,7 @@ button.data-trust-action > small {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 450;
-  line-height: 1.45;
+  line-height: var(--lh-body);
 }
 
 button.data-trust-action > i {
@@ -7769,7 +7797,7 @@ button.data-trust-action > i {
   padding-left: 17px;
   color: var(--text-muted);
   font-size: var(--fs-2xs);
-  line-height: 1.45;
+  line-height: var(--lh-body);
 }
 
 .data-console-stack {
@@ -7896,6 +7924,7 @@ button.data-trust-action > i {
 
 .data-workboard__stats strong {
   font-size: var(--fs-h2);
+  font-variant-numeric: tabular-nums;
 }
 
 .data-workboard__stats .is-warn strong {
@@ -8013,7 +8042,7 @@ button.data-trust-action > i {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
 }
 
@@ -8149,6 +8178,7 @@ button.data-trust-action > i {
   font-size: var(--fs-2xs);
   font-weight: 750;
   text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .data-work-column.is-over-limit .data-work-column__count {
@@ -8163,7 +8193,7 @@ button.data-trust-action > i {
   background: color-mix(in srgb, var(--status-warning) 10%, var(--surface-1));
   color: var(--warning-text);
   font-size: var(--fs-2xs);
-  line-height: 1.4;
+  line-height: var(--lh-snug);
 }
 
 .data-work-column__list {
@@ -8321,13 +8351,13 @@ button.data-trust-action > i {
 
 .data-work-card h4 {
   font-size: var(--fs-lg);
-  line-height: 1.4;
+  line-height: var(--lh-snug);
 }
 
 .data-work-card > p {
   color: var(--text-muted);
   font-size: var(--fs-xs);
-  line-height: 1.45;
+  line-height: var(--lh-body);
 }
 
 .data-work-card__meta {
@@ -8348,7 +8378,7 @@ button.data-trust-action > i {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
 }
 
@@ -8393,7 +8423,7 @@ button.data-trust-action > i {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
 }
 
@@ -8754,7 +8784,7 @@ button.data-trust-action > i {
 .codebase-explorer__heading h2 {
   margin-top: 3px;
   font-size: var(--fs-h1);
-  letter-spacing: -0.025em;
+  letter-spacing: var(--ls-tight);
 }
 
 .codebase-explorer__heading .sub {
@@ -8797,6 +8827,7 @@ button.data-trust-action > i {
 .codebase-explorer__stats strong,
 .developer-work__stats strong {
   font-size: var(--fs-h2);
+  font-variant-numeric: tabular-nums;
 }
 
 .developer-work__stats .is-warn strong {
@@ -8852,7 +8883,7 @@ button.data-trust-action > i {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 750;
-  letter-spacing: 0.055em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
 }
 
@@ -9089,7 +9120,7 @@ button.data-trust-action > i {
 .codebase-detail__header h3 {
   margin-top: 4px;
   font-size: var(--fs-h1);
-  letter-spacing: -0.025em;
+  letter-spacing: var(--ls-tight);
 }
 
 .codebase-detail__header code {
@@ -9119,7 +9150,7 @@ button.data-trust-action > i {
   background: var(--surface-2);
   color: var(--text-secondary);
   font-size: var(--fs-body);
-  line-height: 1.55;
+  line-height: var(--lh-body);
 }
 
 .codebase-detail__meta {
@@ -9205,7 +9236,7 @@ button.data-trust-action > i {
 .developer-work__heading h2 {
   margin-top: 3px;
   font-size: var(--fs-h1);
-  letter-spacing: -0.025em;
+  letter-spacing: var(--ls-tight);
 }
 
 .developer-work__heading .sub {
@@ -9369,7 +9400,7 @@ button.data-trust-action > i {
   margin-top: 4px;
   color: var(--text-secondary);
   font-size: var(--fs-xs);
-  line-height: 1.4;
+  line-height: var(--lh-snug);
   white-space: normal;
   overflow-wrap: anywhere;
 }
@@ -10120,7 +10151,7 @@ button.data-trust-action > i {
 .console-trace-detail__title h3 {
   margin: 0;
   font-size: var(--fs-2xl);
-  line-height: 1.4;
+  line-height: var(--lh-snug);
   overflow-wrap: anywhere;
 }
 
@@ -10182,7 +10213,7 @@ button.data-trust-action > i {
   margin: 0;
   padding: 18px 13px;
   font-size: var(--fs-sm);
-  line-height: 1.55;
+  line-height: var(--lh-body);
 }
 
 /* Disruptive controls pause at an inline, keyboard-focusable preview. This is
@@ -10221,7 +10252,7 @@ button.data-trust-action > i {
   color: var(--critical-text);
   font-size: var(--fs-2xs);
   font-weight: 750;
-  letter-spacing: .05em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
 }
 
@@ -10246,7 +10277,7 @@ button.data-trust-action > i {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 700;
-  letter-spacing: .05em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
 }
 
@@ -10254,7 +10285,7 @@ button.data-trust-action > i {
   margin: 0;
   color: var(--text-secondary);
   font-size: var(--fs-xs);
-  line-height: 1.4;
+  line-height: var(--lh-snug);
   overflow-wrap: anywhere;
 }
 
@@ -10369,7 +10400,7 @@ button.data-trust-action > i {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 750;
-  letter-spacing: 0.085em;
+  letter-spacing: var(--ls-caps-wide);
   text-transform: uppercase;
 }
 
@@ -10497,7 +10528,7 @@ button.data-trust-action > i {
   color: var(--text-primary);
   font-size: var(--fs-title);
   font-weight: 710;
-  letter-spacing: -0.018em;
+  letter-spacing: var(--ls-figure);
   line-height: 1.25;
   text-transform: none;
 }
@@ -10603,7 +10634,7 @@ button.data-trust-action > i {
   display: block;
   color: var(--text-muted);
   font-size: var(--fs-2xs);
-  line-height: 1.45;
+  line-height: var(--lh-body);
 }
 
 /* Paths wrap rather than truncate. Cutting the tail off a path removes the
@@ -10708,7 +10739,7 @@ button.data-trust-action > i {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 750;
-  letter-spacing: 0.1em;
+  letter-spacing: var(--ls-caps-wide);
 }
 
 .developer-cp-readiness__verdict {
@@ -10716,7 +10747,7 @@ button.data-trust-action > i {
   color: var(--warning-text);
   font-family: var(--mono);
   font-size: var(--fs-sm);
-  letter-spacing: 0.09em;
+  letter-spacing: var(--ls-caps-wide);
   text-align: center;
 }
 
@@ -10786,7 +10817,7 @@ button.data-trust-action > i {
   margin-top: 11px;
   color: var(--text-muted);
   font-size: var(--fs-2xs);
-  line-height: 1.45;
+  line-height: var(--lh-body);
 }
 
 .developer-cp-pipeline-card {
@@ -10930,7 +10961,7 @@ button.data-trust-action > i {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 750;
-  letter-spacing: 0.07em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
 }
 
@@ -11074,7 +11105,7 @@ button.data-trust-action > i {
   max-width: none;
   color: var(--text-secondary);
   font-size: var(--fs-sm);
-  line-height: 1.55;
+  line-height: var(--lh-body);
 }
 
 .developer-cp-jobs {
@@ -11431,7 +11462,7 @@ button.data-trust-action > i {
   margin-top: 1px;
   font-size: var(--fs-hero-line);
   line-height: 1.14;
-  letter-spacing: -0.018em;
+  letter-spacing: var(--ls-figure);
 }
 
 .page-heading p {
@@ -11549,7 +11580,7 @@ button.data-trust-action > i {
      type, and at the old tracking "Books within freshness budget" needed 202px
      of a 201px box — tracking is the cheapest 6px on the row, and the label
      still reads as a label. */
-  letter-spacing: 0.05em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
@@ -11565,6 +11596,7 @@ button.data-trust-action > i {
   letter-spacing: var(--ls-figure);
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Two lines, then clip. The provenance line is the half a reader checks when a
@@ -11717,7 +11749,7 @@ button.page-insight:hover:not(:disabled) {
   color: var(--text-secondary);
   box-shadow: var(--shadow-sm), 0 10px 25px -5px rgba(9, 13, 18, 0.3);
   font-size: var(--fs-sm);
-  line-height: 1.45;
+  line-height: var(--lh-body);
   /* Hover opens it; letting it take the pointer would make it flicker as the
      cursor crosses the gap between trigger and panel. */
   pointer-events: none;
@@ -12399,7 +12431,7 @@ button.page-insight:hover:not(:disabled) {
   margin-top: 4px;
   font-size: var(--fs-hero);
   line-height: 1.08;
-  letter-spacing: -0.025em;
+  letter-spacing: var(--ls-tight);
 }
 
 .overview-hero .page-heading p {
@@ -12737,20 +12769,20 @@ button.primary-action:disabled {
  */
 h1 {
   font-size: var(--fs-figure);
-  line-height: 1.15;
-  letter-spacing: -0.018em;
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-figure);
 }
 
 h2 {
   font-size: var(--fs-h2);
-  line-height: 1.22;
+  line-height: var(--lh-tight);
   letter-spacing: var(--ls-tight);
 }
 
 h3 {
   font-size: var(--fs-title);
-  line-height: 1.3;
-  letter-spacing: -0.012em;
+  line-height: var(--lh-snug);
+  letter-spacing: var(--ls-figure);
 }
 
 h4 {
@@ -12792,7 +12824,7 @@ h4 {
   gap: 12px;
   flex-wrap: wrap;
   font-size: var(--fs-md);
-  line-height: 1.45;
+  line-height: var(--lh-body);
 }
 
 .portfolio-statusbar > div > span:last-child {
@@ -12951,6 +12983,7 @@ h4 {
   font-family: var(--mono);
   font-size: var(--fs-title);
   font-weight: 650;
+  font-variant-numeric: tabular-nums;
 }
 
 .donut__label {
@@ -13037,7 +13070,7 @@ h4 {
   color: var(--text-muted);
   font-size: var(--fs-2xs);
   font-weight: 750;
-  letter-spacing: 0.07em;
+  letter-spacing: var(--ls-caps);
   text-transform: uppercase;
 }
 
@@ -13425,7 +13458,7 @@ h4 {
 .signal-workflow__node > strong {
   font-size: var(--fs-body);
   font-weight: 700;
-  line-height: 1.3;
+  line-height: var(--lh-snug);
 }
 
 .signal-workflow__meta {
@@ -13668,7 +13701,7 @@ button:active:not(:disabled) {
    keep the larger label. */
 .row label.field {
   font-size: var(--fs-2xs);
-  letter-spacing: 0.05em;
+  letter-spacing: var(--ls-caps);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -13686,7 +13719,7 @@ button:active:not(:disabled) {
   background: var(--surface-1);
   color: var(--text-secondary);
   font-size: var(--fs-2xs);
-  line-height: 1.3;
+  line-height: var(--lh-snug);
   white-space: nowrap;
 }
 
@@ -13865,6 +13898,7 @@ button:active:not(:disabled) {
   color: var(--text-muted);
   font-size: var(--fs-xs);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .category-bars__legend {
@@ -14561,14 +14595,14 @@ button:active:not(:disabled) {
 
 .codex-card__summary {
   font-size: var(--fs-md);
-  line-height: 1.45;
+  line-height: var(--lh-body);
   color: var(--text-secondary);
 }
 
 /* The half that usually goes unwritten gets equal billing on every card. */
 .codex-card__fails {
   font-size: var(--fs-body);
-  line-height: 1.45;
+  line-height: var(--lh-body);
   color: var(--text-muted);
 }
 
@@ -14871,7 +14905,7 @@ html:active-view-transition .view-panel {
 .verdict-metric__label {
   font-size: var(--fs-xs);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: var(--ls-caps);
   color: var(--text-muted);
 }
 
@@ -16561,4 +16595,18 @@ html:active-view-transition .view-panel {
 
 .system-health > i {
   animation: health-beat var(--dur-reveal) var(--ease-out) 1;
+}
+
+/* Windows "More contrast" and the like (at the end of the file on purpose:
+   theme.test.ts locates the dark palette by the first `:root[data-theme="dark"]`
+   in the sheet, and this selector list must not be it): the muted ink steps up to the
+   secondary role and hairlines to the axis colour, in both palettes. Token
+   re-pointing only — the AA contrast the theme test asserts is unchanged,
+   this only widens the gap for readers who asked for more. */
+@media (prefers-contrast: more) {
+  :root,
+  :root[data-theme="dark"] {
+    --text-muted: var(--text-secondary);
+    --border: var(--axis);
+  }
 }

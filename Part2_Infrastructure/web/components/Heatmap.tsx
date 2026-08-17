@@ -324,7 +324,7 @@ export default function Heatmap({
             y={padT + fi * cellH + cellH / 2}
             textAnchor="end"
             dominantBaseline="middle"
-            fontSize={11.5}
+            fontSize={12.5}
             fontFamily="var(--mono)"
             fill="var(--text-muted)"
           >
@@ -338,7 +338,7 @@ export default function Heatmap({
               x={padL + si * cellW + cellW / 2}
               y={padT + fasts.length * cellH + 15}
               textAnchor="middle"
-              fontSize={11.5}
+              fontSize={12.5}
               fontFamily="var(--mono)"
               fill="var(--text-muted)"
             >
@@ -346,10 +346,10 @@ export default function Heatmap({
             </text>
           ) : null,
         )}
-        <text x={padL} y={height - 3} fontSize={11.5} fill="var(--text-muted)">
+        <text x={padL} y={height - 3} fontSize={12.5} fill="var(--text-muted)">
           slow period →
         </text>
-        <text x={0} y={11} fontSize={11.5} fill="var(--text-muted)">
+        <text x={0} y={11} fontSize={12.5} fill="var(--text-muted)">
           fast period ↓
         </text>
       </svg>
