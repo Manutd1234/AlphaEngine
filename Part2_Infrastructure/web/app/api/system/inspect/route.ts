@@ -4,6 +4,7 @@ import { redact, type UpstreamCall } from "@/lib/observability";
 import { clampInt, parseEnum } from "@/lib/params";
 import { parsePriority, parseSymbols } from "@/lib/providers/http";
 import { applicableAssets, inapplicableReason, isApplicable } from "@/lib/providers/capabilities";
+import { routeNoun } from "@/lib/providers/route-labels";
 import {
   cacheKeys,
   candidatesFor,
@@ -270,8 +271,8 @@ function lineage(input: {
     {
       stage: "Registry",
       detail: input.chain.length
-        ? `${input.chain.length} candidate${input.chain.length === 1 ? "" : "s"} ranked for ${input.capability}/${input.asset}`
-        : `no adapter serves ${input.capability} for ${input.asset}`,
+        ? `${input.chain.length} candidate${input.chain.length === 1 ? "" : "s"} ranked for ${routeNoun(input.capability, input.asset)}`
+        : `no adapter serves ${routeNoun(input.capability, input.asset)}`,
       providers: input.chain,
     },
     {

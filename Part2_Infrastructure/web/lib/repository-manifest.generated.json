@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-17",
-  "commit": "f976bef",
+  "commit": "f4e5670",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -418,6 +418,7 @@
     "Part2_Infrastructure/web/lib/providers/parse.ts",
     "Part2_Infrastructure/web/lib/providers/quarantine.ts",
     "Part2_Infrastructure/web/lib/providers/registry.ts",
+    "Part2_Infrastructure/web/lib/providers/route-labels.ts",
     "Part2_Infrastructure/web/lib/providers/runtime.ts",
     "Part2_Infrastructure/web/lib/providers/symbols.ts",
     "Part2_Infrastructure/web/lib/providers/tiingo.ts",
@@ -585,6 +586,7 @@
     "Part2_Infrastructure/web/tests/risk-actions.test.ts",
     "Part2_Infrastructure/web/tests/risk-control.test.ts",
     "Part2_Infrastructure/web/tests/risk-parity.test.ts",
+    "Part2_Infrastructure/web/tests/route-labels.test.ts",
     "Part2_Infrastructure/web/tests/sandbox-desk.test.ts",
     "Part2_Infrastructure/web/tests/sandbox-seed.test.ts",
     "Part2_Infrastructure/web/tests/shell-viewport.test.ts",

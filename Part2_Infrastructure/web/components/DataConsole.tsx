@@ -164,7 +164,7 @@ function metricsForSection(
       {
         label: "Route graphs",
         value: health ? String(health.routes.length) : "—",
-        note: "capability × asset paths",
+        note: "one per capability and asset class",
         tone: "neutral",
       },
       {

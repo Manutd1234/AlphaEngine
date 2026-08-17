@@ -3816,10 +3816,6 @@ button
   line-height: 1.45;
 }
 
-.console-sep {
-  color: var(--text-muted);
-}
-
 .console-subhead {
   margin: 18px 0 8px;
   font-size: var(--fs-sm);

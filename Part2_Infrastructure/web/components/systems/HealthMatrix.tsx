@@ -82,7 +82,7 @@ function bestRank(provider: ProviderRow, routes: FailoverRoute[]): string {
     (route) => route.capability === capability && route.nodes.some((n) => n.provider === provider.id),
   );
   const position = chain?.nodes.find((n) => n.provider === provider.id)?.rank;
-  return position ? `${position}/${chain!.nodes.length} · ${capability}` : `— · ${capability}`;
+  return position ? `${position} of ${chain!.nodes.length} for ${capability}` : `unranked for ${capability}`;
 }
 
 export default function HealthMatrix({
@@ -198,7 +198,7 @@ export default function HealthMatrix({
                   <td>
                     <div className="console-provider">
                       <strong>{provider.label}</strong>
-                      <small className="muted">{provider.capabilities.join(" · ")}</small>
+                      <small className="muted">{provider.capabilities.join(", ")}</small>
                     </div>
                   </td>
 

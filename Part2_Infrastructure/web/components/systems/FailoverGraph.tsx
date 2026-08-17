@@ -22,6 +22,7 @@
 
 import { UI_OUTAGE_MS, type ActionOptions } from "@/components/systems/OperatorPanel";
 import { fmt } from "@/lib/format";
+import { routeLabel, routeNoun } from "@/lib/providers/route-labels";
 import {
   type FailoverRoute,
   type GuardMode,
@@ -113,9 +114,7 @@ export default function FailoverGraph({
               aria-pressed={key === selected}
               onClick={() => onSelect(key)}
             >
-              {r.capability}
-              <span className="console-sep"> · </span>
-              {r.asset}
+              {routeLabel(r.capability, r.asset)}
             </button>
           );
         })}
@@ -125,7 +124,7 @@ export default function FailoverGraph({
 
       {route && (
         <>
-          <ol className="console-dag" aria-label={`Failover chain for ${route.capability} on ${route.asset}`}>
+          <ol className="console-dag" aria-label={`Failover chain for ${routeNoun(route.capability, route.asset)}`}>
             <li className="console-node console-node--fixed">
               <span className="console-node__role">Entry</span>
               <strong>Client request</strong>
@@ -140,7 +139,7 @@ export default function FailoverGraph({
                 {hitRate === null ? "no lookups yet" : `${fmt(hitRate * 100, 1)}% hit`}
               </strong>
               <small className="muted">
-                {route.capability} · TTL {Math.round(route.cacheTtlMs / 1000)}s · in-process
+                {routeNoun(route.capability, route.asset)} cache; TTL {Math.round(route.cacheTtlMs / 1000)} s; in-process
               </small>
             </li>
 
@@ -217,15 +216,15 @@ export default function FailoverGraph({
           <p className="console-dag-note">
             {route.activeProvider ? (
               <>
-                A request for <strong>{route.capability}</strong> on a <strong>{route.asset}</strong> symbol
+                A request for <strong>{routeNoun(route.capability, route.asset)}</strong>{" "}
                 would be served by <strong>{route.nodes.find((n) => n.active)?.label}</strong>
                 {route.nodes.filter((n) => n.rank < (route.nodes.find((x) => x.active)?.rank ?? 0)).length > 0
                   && ", after skipping every higher-ranked provider above it"}.
               </>
             ) : (
               <>
-                No provider in this chain is routable — a request for {route.capability} on a {route.asset}{" "}
-                symbol would return <strong>503</strong> with the full skip list attached.
+                No provider in this chain is routable — a request for {routeNoun(route.capability, route.asset)}{" "}
+                would return <strong>503</strong> with the full skip list attached.
               </>
             )}
           </p>

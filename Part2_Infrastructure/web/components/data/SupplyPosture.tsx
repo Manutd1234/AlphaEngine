@@ -19,6 +19,7 @@ import CategoryBars, { type BarRow } from "@/components/charts/CategoryBars";
 import DonutChart, { type DonutSlice } from "@/components/common/DonutChart";
 import type { RouteState, SystemHealth } from "@/components/systems/types";
 import { deriveFailoverDepth, deriveProviderSupply } from "@/lib/data-trust";
+import { routeLabel } from "@/lib/providers/route-labels";
 
 import { ROUTE_STATE_FILL, ROUTE_STATE_WORD } from "./trust-marks";
 
@@ -47,13 +48,13 @@ export default function SupplyPosture({ health }: { health: SystemHealth | null 
   ];
 
   const rows: BarRow[] = depth.map((route) => ({
-    label: `${route.capability} · ${route.asset}`,
+    label: routeLabel(route.capability, route.asset),
     // Colour is never the only carrier: the note names every state present in
     // the chain and prints its count, so the row survives greyscale.
     note: STATE_ORDER
       .filter((state) => route.byState[state] > 0)
       .map((state) => `${route.byState[state]} ${ROUTE_STATE_WORD[state]}`)
-      .join(" · "),
+      .join(", "),
     segments: STATE_ORDER.map((state) => ({
       label: ROUTE_STATE_WORD[state],
       value: route.byState[state],
