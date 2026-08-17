@@ -10612,7 +10612,10 @@ button.data-trust-action > i {
   line-height: 1;
 }
 
-.developer-cp-readiness__ring strong span {
+/* The denominator only. The numerator is a NumberTicker, which renders as a
+   span of its own inside the strong; a bare descendant selector demoted the
+   ticking figure to the muted title size beside its own slash. */
+.developer-cp-readiness__ring strong > span:not(.number-ticker) {
   color: var(--text-muted);
   font-size: var(--fs-title);
 }
@@ -10661,19 +10664,22 @@ button.data-trust-action > i {
   font-weight: 800;
 }
 
-.developer-cp-readiness__checks span {
+/* Direct children only. The Providers row's value is a NumberTicker, which
+   renders as a span inside the strong; the descendant form of this rule made
+   that span a grid box, so "8/8" broke into "8" over "/8". */
+.developer-cp-readiness__checks > div > span {
   display: grid;
   gap: 1px;
   min-width: 0;
   color: var(--text-secondary);
 }
 
-.developer-cp-readiness__checks span b {
+.developer-cp-readiness__checks > div > span > b {
   font-size: var(--fs-2xs);
   font-weight: 600;
 }
 
-.developer-cp-readiness__checks span small {
+.developer-cp-readiness__checks > div > span > small {
   overflow: hidden;
   color: var(--text-muted);
   font-size: var(--fs-2xs);
@@ -10683,7 +10689,7 @@ button.data-trust-action > i {
   white-space: nowrap;
 }
 
-.developer-cp-readiness__checks strong {
+.developer-cp-readiness__checks > div > strong {
   color: var(--text-primary);
   font-family: var(--mono);
   font-size: var(--fs-2xs);
@@ -11112,7 +11118,7 @@ button.data-trust-action > i {
     gap: 6px;
   }
 
-  .developer-cp-context__facts span {
+  .developer-cp-context__facts > span {
     grid-template-columns: auto 1fr;
     align-items: baseline;
     text-align: left;

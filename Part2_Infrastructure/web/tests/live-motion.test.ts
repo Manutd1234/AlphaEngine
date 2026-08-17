@@ -43,6 +43,32 @@ describe("the Developer console is fed, stamped and pulsing", () => {
   });
 });
 
+describe("a NumberTicker keeps its box wherever it counts", () => {
+  // The ticker renders as a span of its own. A descendant `span` rule on the
+  // surface around it restyles that span too — the readiness rows made it a
+  // grid box, so "8/8" rendered as "8" over "/8", and the ring demoted its
+  // numerator to the muted denominator size. Direct-child selectors only.
+  const css = read("app/globals.css");
+
+  it("the readiness rows style their own cells, not the ticker inside them", () => {
+    assert.match(css, /\.developer-cp-readiness__checks > div > span \{/);
+    assert.match(css, /\.developer-cp-readiness__checks > div > span > b \{/);
+    assert.match(css, /\.developer-cp-readiness__checks > div > span > small \{/);
+    assert.match(css, /\.developer-cp-readiness__checks > div > strong \{/);
+    assert.doesNotMatch(css, /\.developer-cp-readiness__checks span \{/);
+    assert.doesNotMatch(css, /\.developer-cp-readiness__checks strong \{/);
+  });
+
+  it("the ring's denominator rule excludes the ticking numerator", () => {
+    assert.match(css, /\.developer-cp-readiness__ring strong > span:not\(\.number-ticker\) \{/);
+    assert.doesNotMatch(css, /\.developer-cp-readiness__ring strong span \{/);
+  });
+
+  it("the context facts style direct spans only", () => {
+    assert.doesNotMatch(css, /\.developer-cp-context__facts span \{/);
+  });
+});
+
 describe("the header carries the workspace heartbeat", () => {
   const source = read("components/WorkspaceHeader.tsx");
 

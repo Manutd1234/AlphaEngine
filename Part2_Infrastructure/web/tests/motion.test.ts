@@ -202,7 +202,9 @@ describe("NumberTicker honours the contract CSS cannot reach", () => {
 
   it("reserves its width so counting never reflows neighbours", () => {
     assert.match(source, /--ticker-w/);
-    const rule = declarations.indexOf(".number-ticker");
+    // The rule itself, not the first mention: another selector may name the
+    // class inside a `:not()` to keep its hands off the ticker.
+    const rule = declarations.indexOf(".number-ticker {");
     assert.notEqual(rule, -1, ".number-ticker has no stylesheet rule");
     assert.match(
       declarations.slice(rule, declarations.indexOf("}", rule)),
