@@ -6,9 +6,15 @@ loop itself — **Overview → Research → Execution → Portfolio → Risk →
 Developer** — because that is the order a desk makes decisions in, and the workspace's tabs are
 that loop made navigable.
 
+*Walked against the deployed system on 2026-08-17; the rail lists are pinned to
+`lib/sections.ts` by `web/tests/tour-truth.test.ts`, so a rail here cannot drift from the app
+without the suite saying so.*
+
 **Live URLs.**
 - Portal: <https://alphaengine-workspace.vercel.app> (also answers on `developer-analyst-infra.vercel.app`)
-- Gateway (OCI, Singapore): `http://149.118.48.255:8000` — `GET /health` answers keyless.
+- Gateway (OCI, Singapore): `http://149.118.48.255:8000` — `GET /health` answers keyless and
+  names the decision engine (`native` on 2026-08-17); `https://149.118.48.255:8443` is the same
+  gateway behind the Caddy sidecar's pinned internal CA (`docs/TLS_FLIP.md`).
 - Local: `cd Part2_Infrastructure/web && npm run dev:all` starts both (gateway on `:8000`,
   portal on `:3000`).
 
@@ -18,6 +24,23 @@ all 46 models ("hull" finds Hull trend) and every research symbol, and opens on 
 recent commands when the query is empty. On Research, `⌘Enter` runs the sweep and records it.
 On Chromium, tab switches cross-fade under the fixed header via View Transitions; elsewhere,
 and always under reduced motion, they cut cleanly.
+
+**The header, on every tab.** One row, one structure for guest and signed-in alike: the brand,
+the eight tabs (13px), and a utility strip whose words are all 12px — the data-tier chip, the
+providers sentence, the **DECISION P99** chip, Connect, the Kill switch, Settings and the account
+chip or Sign in. The decision chip is the one figure on every screen and it headlines the
+gateway's own in-process decision p99 in **microseconds**, with the compiled core's
+**nanosecond** figure beside it (`15.0 µs · core 84 ns`-shaped on the dev Mac; `core 352 ns` on
+the production VM); the network p99 lives in its title and on Reliability, never under the
+decision label. Before the first order of a session it reads `— · core N ns · no orders yet` —
+the core figure is real, because the gateway times its own compiled battery at startup on a
+synthetic two-venue book, and the title says exactly that. The row never clips: a
+nine-rung **priority ladder** (`globals.css`, "The header's priority ladder") folds secondary
+context first as the viewport narrows — Search label, the chip's state word, the Settings
+label, the data-tier label, the Connect label, the providers chip to its dot, the brand
+tagline, the decision figure to its gauge, and last the Kill switch and Sign in labels — and
+Settings, the account chip, the kill switch and the tabs are never on it. Every fold keeps
+its aria-label and title; HALTED is never folded.
 
 **Where the rail lists below come from.** Every rail in this document is transcribed from
 `Part2_Infrastructure/web/lib/sections.ts`, which is the single definition the rails, the
@@ -78,8 +101,8 @@ capability the desk does not already give a guest.
 deck reads the book's equity, day P&L, tail risk and system latency from the same snapshots
 every other tab uses. Below it, the **DecisionLoopPipeline** draws the loop this tour follows —
 each stage is a link. Desk roles gives one surface per role; Audit trail is every paper order,
-accounted. The system strip at the top of every tab shows provider readiness and p99 latency;
-if the gateway is unreachable it says so here first.
+accounted. The header on every tab shows provider readiness and the decision p99; if the
+gateway is unreachable it says so here first.
 
 **The moment worth showing:** the pipeline. It is the product's thesis as a diagram — research
 flows to execution only through a risk gate.
@@ -123,7 +146,8 @@ On Trade, the order ticket carries three presets — **Valid $25k** (passes ever
 the live ladder), **Fat finger $500k** (blocked by the per-order notional cap), **Rate-limit
 burst** (twelve $1k orders; the token bucket stops the tail). Fire all three. Each decision
 comes back with its full gate vector — **15 checks on any order path, with the one that failed
-named** — decided in ~0.2 ms by the gateway. Liquidity is the consolidated Binance+Bybit L2
+named** — decided by the gateway in tens of microseconds (15 µs p50 on the compiled engine,
+23 µs on the Python reference; `docs/LATENCY_BUDGET.md` §2.1 has the regenerated table). Liquidity is the consolidated Binance+Bybit L2
 book; click a ladder price to stage a limit order back on Trade. Routing & TCA prices the same
 order across venues against the routed execution, not the mid. **Fill quality** closes the loop
 the other three open: realised cost against the cost the model predicted, which is the only
@@ -131,8 +155,10 @@ honest test of a TCA number. Blotter is orders, tape and alerts.
 
 **The moment worth showing:** a rejected preset's gate vector — the checks now cascade in at
 40ms steps per decision, the verdict banner slides in, and "decided in X ms" counts up to its
-sub-millisecond figure. A rejection that names its gate is the whole pre-trade thesis in one
-row, and with motion off the failing gate is still findable instantly by its ✗ mark. This is
+figure — a fraction of a millisecond for the whole decision under the lock, while the header
+chip shows the same decision's p99 in microseconds and the arithmetic core inside it in
+nanoseconds. A rejection that names its gate is the whole pre-trade thesis in one row, and
+with motion off the failing gate is still findable instantly by its ✗ mark. This is
 the guided demo of Module B. The watchlist beside it flashes a directional wash on real price
 movement only — the signed 24h% next to each price stays the accessible signal.
 
@@ -225,7 +251,17 @@ failed" is readable without opening a row. That is `lib/dependency-graph.ts` dra
 described. Nothing on this panel is an availability figure: it is one snapshot of a live poll,
 and this system publishes no uptime percentage anywhere.
 
-**The moment worth showing:** the provider-health drilldown the header's latency chip links to
+**Attention & SLIs is also where the three latency planes are taught apart.** Three tiles that
+never blend: the whole decision in µs (the gateway's in-process histogram, `n=` since start
+printed beside it, and the header chip says "collecting" rather than quoting a p99 until twenty
+orders have been decided, because a p99 of one sample is a maximum wearing a decimal point),
+the compiled core in ns (`native · p50 320 ns · max 2.75 µs · self-measure 300`
+on the production VM on 2026-08-17 — the last figure saying how many of the core's samples came
+from the startup self-measure rather than orders), and the network to the venue in ms. A
+gateway that fell back to the Python engine says so here and in the header, with a mark, not
+only in a deploy log.
+
+**The moment worth showing:** the provider-health drilldown the header's decision chip links to
 — the same chip visible on every tab resolves here to per-provider circuits. The numbers under
 it are **fleet truth, not lambda truth**: every serverless instance syncs its latency samples,
 quota spend and outage flags with the gateway's shared web-ops ledger each poll, so a
@@ -242,10 +278,11 @@ Queue**. Topology is the runtime map and the context the three deployment units 
 **Readiness** is the gate in front of a release — launch gates, schema state and artifacts —
 and it is separate from CI / CD on purpose: a green pipeline says the code compiles and the
 tests pass, which is not the same claim as "this is safe to ship". CI / CD carries the four
-network-free jobs (**692 gateway + 2,174 web + 13 service tests** — each figure is what its own
-runner prints, so re-run rather than trust the sentence), API & Schema the committed OpenAPI
-contract with drift detection, Code & Diffs the repository manifest, Task Queue the
-engineering-impact work.
+network-free jobs (**832 gateway + 2,313 web + 13 service tests** on 2026-08-17 — each figure is
+what its own runner prints and `web/lib/test-counts.generated.ts` is where the desk reads it
+from, so re-run rather than trust the sentence), API & Schema the committed OpenAPI contract
+with drift detection, Code & Diffs the repository manifest, Task Queue the engineering-impact
+work.
 
 **The three route figures, and why they disagree without contradicting.** State the basis or a
 reader will "correct" one of them into agreement with another:
@@ -274,6 +311,18 @@ header carries a **Connect** chip. The bot is
 [`@alpha_engine_nussif_bot`](https://t.me/alpha_engine_nussif_bot), and it is a companion, never
 an auth provider: a binding runs **one way**, from a web identity to a Telegram read, and the
 bot never authenticates the website.
+
+**What the companion is, today.** 114 commands from one registry that also drives dispatch and
+the `/` menu (README §6 and the live checklist are generated from it, and a test fails when
+they drift); the command centre, the tab cards and the section cards carry **inline
+keyboards**, so a read is a tap rather than a typed command, taps are authorised on the tapper
+and never on the tapped message's author, and a refresh edits the card in place rather than
+sending another; sixteen matplotlib chart
+generators (series, bars, depth, drawdown, histogram, heatmap, equity, paired bars, gate
+ladder, latency CDF, scatter, multi-series, VaR breach, pipeline, cone, status grid); and eight
+tab commands — `/overview` … `/developer` — that mirror the desk's eight tabs with a chart
+apiece. `/sli` and `/latency` quote the native core's nanosecond figure beside the decision's
+microseconds — the same two planes the header chip keeps apart.
 
 **What connecting does.** The chip mints a single-use token and hands it to Telegram as a deep
 link. Following it binds that chat to the web desk identity you already hold — an account, or
@@ -349,6 +398,9 @@ rather than hidden.
 kept outside this repository. Their moments are woven into the tabs above: the Strategies
 section and the gate-clear pulse on Research,
 the order-gate cascade and tick flashes on Execution, drawing charts throughout, ⌘K fuzzy
-search with recents, and View Transitions between tabs. This tour doubles as the acceptance
-script: walking it end to end — once with motion on, once with the OS reduce-motion switch set —
-is the manual verification pass.*
+search with recents, and View Transitions between tabs. The passes that followed — one type
+scale, the moving desk, the decision chip and its three planes, the header's priority ladder
+and larger type, the interactive Telegram companion — are recorded in the audit's closing table
+(to 2026-08-17). This tour doubles as the acceptance script: walking it end to end — once with
+motion on, once with the OS reduce-motion switch set, and once at ~1200px wide to watch the
+header fold without clipping — is the manual verification pass.*
