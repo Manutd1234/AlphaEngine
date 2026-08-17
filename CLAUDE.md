@@ -85,7 +85,7 @@ These are enforced by tests, not by convention — `web/tests/house-rules.test.t
   (comma list for peer facts, semicolon for a qualifier, words for a two-part
   label — "23 of 25 left today", not "23 · day"). It survives only between
   same-kind measurements in tabular mono type, and only through `metricRow` in
-  `web/lib/format.ts`; the raw literal count is a ratchet in `middle-dot.test.ts`.
+  `web/lib/format.ts`; `middle-dot.test.ts` holds the raw-literal count at zero.
 
 ## Layout
 
