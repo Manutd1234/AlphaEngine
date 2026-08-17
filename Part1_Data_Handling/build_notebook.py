@@ -92,9 +92,12 @@ column to `NaN` without saying so. The point is to *see* the raw state first.
 
 code(r'''
 import base64
+import datetime as _dt
 import hashlib
 import io
+import itertools
 import platform
+import re
 import textwrap
 import warnings
 from html import escape as html_escape
@@ -182,20 +185,171 @@ raw.head()
 ''')
 
 md(r"""
-### 0.1 The cleaning pipeline, defined once
+### 0.1 The schema contract
+
+What the file is *supposed* to look like, written down before anything is read
+from it: the columns in order, the type each may hold, and the rule a conforming
+value must pass. The cell checks the workbook against it and prints one row per
+column.
+
+Two kinds of failure are kept apart on purpose. **Drift** — a column missing,
+renamed, or carrying a type the contract does not admit — stops the notebook,
+because everything downstream would be computing on the wrong thing. A
+**non-conforming value** — a blank, a negative count, a date in the wrong format
+— is counted here and dealt with in §2 and §3, because finding and repairing
+those is the exercise. The one is a broken pipe; the other is the water.
+""")
+
+code(r'''
+def _blank(v) -> bool:
+    "A cell that holds nothing: None, NaN, or an empty / whitespace-only string."
+    return v is None or (isinstance(v, float) and np.isnan(v)) or (isinstance(v, str) and not v.strip())
+
+
+def _positive_count(v) -> bool:
+    return not _blank(v) and float(v) > 0 and float(v).is_integer()
+
+
+# Column -> (types the cell may hold as delivered, rule a conforming value passes,
+# description). `dtype=object` on load keeps the delivered types visible, which is
+# what lets `kinds` be checked at all.
+SCHEMA = {
+    "date":         (frozenset({str}), lambda v: bool(re.fullmatch(r"\d{4}-\d{2}-\d{2}", v)),
+                     "ISO-8601 `yyyy-mm-dd` text"),
+    "team":         (frozenset({str}), lambda v: bool(re.fullmatch(r"[A-Z][a-z]+", v)),
+                     "one Title-case word"),
+    "service":      (frozenset({str}), lambda v: bool(re.fullmatch(r"[a-z]+(-[a-z]+)*", v)),
+                     "lowercase, hyphen-separated identifier"),
+    "model":        (frozenset({str}), lambda v: bool(re.fullmatch(r"[a-z0-9]+([.-][a-z0-9]+)*", v)),
+                     "lowercase model identifier"),
+    "requests":     (frozenset({int, float}), _positive_count, "positive integer count"),
+    "total_tokens": (frozenset({int, float}), _positive_count, "positive integer count"),
+    "cost_usd":     (frozenset({int, float}), lambda v: not _blank(v) and float(v) > 0,
+                     "positive amount, USD"),
+}
+
+
+def validate_schema(frame: pd.DataFrame, schema: dict = SCHEMA) -> tuple[pd.DataFrame, dict]:
+    """One row per contracted column. Raises on structural drift; COUNTS value-level
+    non-conformance and returns the offending row ids per column for §2 to use."""
+    drift = []
+    if list(frame.columns) != list(schema):
+        drift.append(f"columns as delivered {list(frame.columns)} != contract {list(schema)}")
+    rows, fails = [], {}
+    for col, (kinds, rule, describe) in schema.items():
+        if col not in frame.columns:
+            continue
+        s = frame[col]
+        blank = s.map(_blank)
+        bad_kind = ~blank & ~s.map(lambda v: type(v) in kinds)
+        if bad_kind.any():
+            drift.append(f"`{col}` holds {sorted({type(v).__name__ for v in s[bad_kind]})}, "
+                         f"which the contract does not admit, at workbook rows "
+                         f"{[int(i) + 2 for i in s.index[bad_kind][:5]]}")
+        checkable = ~blank & ~bad_kind
+        conforms = s[checkable].map(rule)
+        fails[col] = list(conforms.index[~conforms]) + list(s.index[blank])
+        num = pd.to_numeric(s.where(checkable), errors="coerce") if kinds & {int, float} else None
+        rows.append({
+            "column": col, "contract": describe,
+            "kinds as delivered": ", ".join(f"{k} x{n}" for k, n in
+                                            s.map(lambda v: type(v).__name__).value_counts().items()),
+            "blank": int(blank.sum()),
+            "non-conforming": int((~conforms).sum()),
+            "at workbook row": ", ".join(str(int(i) + 2) for i in fails[col]) or "—",
+            "range / distinct": (f"{num.min():,.{0 if rule is _positive_count else 2}f} to "
+                                 f"{num.max():,.{0 if rule is _positive_count else 2}f}"
+                                 if num is not None else f"{s[checkable].nunique()} distinct"),
+        })
+    if drift:
+        raise ValueError("Schema drift — the file is not the shape this notebook was written for:\n  "
+                         + "\n  ".join(drift))
+    return pd.DataFrame(rows).set_index("column"), fails
+
+
+SCHEMA_TABLE, SCHEMA_FAILS = validate_schema(raw)
+display(SCHEMA_TABLE)
+
+_n_fail_cells = sum(len(v) for v in SCHEMA_FAILS.values())
+_n_fail_rows = len(set().union(*SCHEMA_FAILS.values()))
+say(f"""
+**No drift: all {len(SCHEMA)} contracted columns are present, in order, holding only
+the types the contract admits.** At the value level the contract flags
+**{_n_fail_cells} cells in {_n_fail_rows} rows** — the per-column, per-cell defects.
+What a column-wise contract *cannot* see is anything relational: a row that is a
+copy of another row, or a cost that disagrees with the row's own token count. §2
+adds those checks, and §2.3 reconciles the two counts.
+""")
+''')
+
+md(r"""
+### 0.2 The cleaning pipeline, defined once
 
 The whole of §3 is an argument about seven judgement calls. §7 then re-runs the
 analysis with each of those calls made the *other* way, to see which conclusions
 survive. That is only possible if the pipeline is a single parameterised function
 rather than a sequence of cells mutating a dataframe in place — so it is one.
 
-Read it now if you want the method in forty lines; §2 and §3 justify every branch
-in it. `DECISIONS` accumulates a machine-readable record of every alteration,
-printed as a register in §6.
+Read it now if you want the method in one function; §2 and §3 justify every branch
+in it. Three properties are worth knowing before reading it. Every keyword is a
+decision §7 flips. Every alteration is appended to `DECISIONS` **as it is made**,
+with the workbook rows it touched and the change it made to each measure, so the
+register printed in §6 reconciles the raw totals to the clean ones by construction
+rather than by inspection. And the parsers refuse to guess: a number that does not
+parse, a date that does not parse, or two rows that share a key but disagree on
+their measures stop the pipeline rather than becoming a `NaN` three cells later.
 """)
 
 code(r'''
 DECISIONS: list[dict] = []
+LABEL_MAP: dict[str, dict[str, str]] = {}    # column -> {label as delivered: canonical}, filled by clean()
+
+
+# --- canonical labels: one definition, used by the pipeline AND the diagnostics ---
+def canon_team(s: pd.Series) -> pd.Series:
+    return s.astype(str).str.strip().str.title()
+
+
+def canon_service(s: pd.Series) -> pd.Series:
+    return s.astype(str).str.strip().str.lower().str.replace(r"[\s_]+", "-", regex=True)
+
+
+def canon_model(s: pd.Series) -> pd.Series:
+    return s.astype(str).str.strip().str.lower()
+
+
+CANON = {"team": canon_team, "service": canon_service, "model": canon_model}
+
+
+# --- parsers that refuse to guess ---------------------------------------------
+def to_number(s: pd.Series, name: str = "") -> pd.Series:
+    """Text-tolerant numeric parse. Strips whitespace, thousands separators and a
+    currency sign, then coerces. A blank cell becomes NaN — that is a defect the
+    register handles. Anything else that fails to parse is drift, and raises."""
+    txt = s.map(lambda v: re.sub(r"[,\s$]", "", v) if isinstance(v, str) else v)
+    out = pd.to_numeric(txt.map(lambda v: np.nan if _blank(v) else v), errors="coerce")
+    lost = out.isna() & ~s.map(_blank)
+    if lost.any():
+        raise ValueError(f"`{name}`: {int(lost.sum())} non-blank value(s) do not parse as numbers, "
+                         f"at workbook rows {[int(i) + 2 for i in s.index[lost][:10]]}: "
+                         f"{s[lost].tolist()[:5]}")
+    return out
+
+
+def parse_dates(s: pd.Series, *, dayfirst: bool) -> tuple[pd.Series, pd.Series]:
+    """ISO-8601 first, then ONE fallback parse of the remainder in the stated
+    day/month order. Returns (dates, was_not_iso). Refuses to return NaT: an
+    unparseable date is drift, not a value to be coerced away."""
+    txt = s.map(lambda v: v.strftime("%Y-%m-%d") if isinstance(v, (pd.Timestamp, _dt.datetime, _dt.date))
+                else str(v).strip())
+    out = pd.to_datetime(txt, format="%Y-%m-%d", errors="coerce")
+    not_iso = out.isna()
+    if not_iso.any():
+        out.loc[not_iso] = pd.to_datetime(txt[not_iso], dayfirst=dayfirst, errors="coerce")
+    if out.isna().any():
+        raise ValueError(f"{int(out.isna().sum())} date(s) failed to parse, at workbook rows "
+                         f"{[int(i) + 2 for i in s.index[out.isna()][:10]]}: {txt[out.isna()].tolist()[:5]}")
+    return out, not_iso
 
 
 def unit_rate(d: pd.DataFrame, by: str = "service") -> pd.Series:
@@ -215,59 +369,90 @@ def clean(
     *,
     dayfirst: bool = True,          # §2.2  the one non-ISO date: 9 May, or 5 September?
     dedupe: bool = True,            # §3    the byte-identical row: export artefact, or real?
+    key_dupes: str = "raise",       # §3    same key, DIFFERENT measures: "raise" | "keep_first" | "keep_last"
     missing: str = "impute",        # §3.1  "impute" | "drop"
     neg: str = "impute",            # §3.2  "impute" | "abs" | "drop"   requests = -25
-    anomaly: str = "restate",       # §3.2  "restate" | "keep" | "drop" cost 4.8x the rate
+    anomaly: str = "restate",       # §3.2  "restate" | "keep" | "drop" cost far above the rate
+    anomaly_factor: float = 2.0,    # §3.2  billed / rule above this is an anomaly, not variance
     rate_by: str = "service",       # §2.3  the price tier is per service, not per model
     log: list | None = None,
 ) -> tuple[pd.DataFrame, pd.Series]:
-    """Raw -> analysis-ready. Every keyword is a decision §7 flips."""
-    def note(issue, rows, action, rationale, impact=""):
+    """Raw -> analysis-ready. Every keyword is a decision §7 flips.
+
+    Every alteration is logged with the workbook rows it touched and the change it
+    made to each measure, so raw totals + logged deltas == clean totals — an identity
+    the calling cell asserts.
+    """
+    def sums(frame):
+        return {m: float(np.nansum(pd.to_numeric(frame[m], errors="coerce").to_numpy(dtype=float)))
+                for m in MEASURES}
+
+    def note(issue, at, action, rationale, impact="", *, delta=None, dropped=False):
         if log is not None:
-            log.append({"Issue": issue, "Rows": int(rows), "Action": action,
-                        "Rationale": rationale, "Impact": impact})
+            at = list(at)
+            log.append({"Issue": issue, "Rows": len(at), "Action": action, "Rationale": rationale,
+                        "Impact": impact,
+                        "Workbook rows": ", ".join(str(int(i) + 2) for i in at) or "—",
+                        "Rows dropped": len(at) if dropped else 0,
+                        **{f"Δ {m}": float((delta or {}).get(m, 0.0)) for m in MEASURES}})
 
     d = src.copy()
 
     # 1. Labels first: otherwise one entity is counted under two names everywhere,
     #    and 'Chat Router' never collides with its own duplicate row.
-    n_team, n_svc = d["team"].nunique(), d["service"].nunique()
-    d["team"] = d["team"].astype(str).str.strip().str.title()
-    d["service"] = (d["service"].astype(str).str.strip().str.lower()
-                    .str.replace(r"[\s_]+", "-", regex=True))
-    d["model"] = d["model"].astype(str).str.strip().str.lower()
-    note("`team` case variant", n_team - d["team"].nunique(), "Normalised to Title Case",
+    changed = {}
+    for col, fn in CANON.items():
+        before = d[col].astype(str)
+        d[col] = fn(d[col])
+        changed[col] = before.ne(d[col])
+        LABEL_MAP[col] = dict(zip(before[changed[col]], d.loc[changed[col], col]))
+    note("`team` case variant", d.index[changed["team"]], "Normalised to Title Case",
          "Same team, two spellings; ungrouped it splits every per-team total.",
-         f"team labels {n_team} -> {d['team'].nunique()}")
-    note("`service` label variant", n_svc - d["service"].nunique(),
+         f"team labels {src['team'].nunique()} -> {d['team'].nunique()}")
+    note("`service` label variant", d.index[changed["service"]],
          "Normalised to lowercase-hyphenated",
          "Same service, two spellings; the cost-driver ranking depends on grouping it as one.",
-         f"service labels {n_svc} -> {d['service'].nunique()}")
+         f"service labels {src['service'].nunique()} -> {d['service'].nunique()}")
+    if changed["model"].any():
+        note("`model` label variant", d.index[changed["model"]], "Normalised to lowercase",
+             "Same model, two spellings.", f"model labels {src['model'].nunique()} -> {d['model'].nunique()}")
 
     # 2. Dates: ISO for the bulk, then a single fallback parse for the remainder.
-    iso = pd.to_datetime(d["date"], format="ISO8601", errors="coerce")
-    rest = pd.to_datetime(d.loc[iso.isna(), "date"], dayfirst=dayfirst, errors="coerce")
-    iso.loc[rest.index] = rest
-    d["date"] = iso
-    assert d["date"].notna().all(), "a date failed to parse"
-    note("`date` mixes ISO-8601 with another format", rest.notna().sum(),
+    d["date"], not_iso = parse_dates(d["date"], dayfirst=dayfirst)
+    note("`date` mixes ISO-8601 with another format", d.index[not_iso],
          f"ISO first, then {'day' if dayfirst else 'month'}-first for the remainder",
          "Day-first is forced by the data — see §2.2.",
          f"all {len(d)} rows now datetime64[ns]")
 
-    # 3. Measures to numbers. errors='coerce' is safe only because §2 confirmed
-    #    the only non-numeric entries are genuine blanks.
+    # 3. Measures to numbers. Blank -> NaN (a defect, handled below); anything
+    #    else that fails to parse raises inside to_number rather than becoming NaN.
     for c in MEASURES:
-        d[c] = pd.to_numeric(d[c], errors="coerce")
+        d[c] = to_number(d[c], c)
 
     # 4. De-duplicate BEFORE imputing, so a doubled row cannot skew the rate.
     if dedupe:
-        n0 = len(d)
-        d = d.drop_duplicates()
-        note("Byte-identical duplicate row", n0 - len(d), "Dropped, keeping the first",
+        dup = d.duplicated(keep="first")
+        note("Byte-identical duplicate row", d.index[dup], "Dropped, keeping the first",
              "Identical in all seven columns. A restatement would differ in at least "
              "one measure; identical rows are a double-counted export.",
-             f"{n0} -> {len(d)} rows")
+             f"{len(d)} -> {len(d) - int(dup.sum())} rows",
+             delta={m: -v for m, v in sums(d[dup]).items()}, dropped=True)
+        d = d[~dup]
+    #    Same key, DIFFERENT measures, is a different thing: a conflicting
+    #    restatement. None in this file; the policy is stated and tested regardless.
+    #    (Byte-identical twins are the dedupe case above, whatever `dedupe` says.)
+    kd = d.duplicated(KEY, keep=False) & ~d.duplicated(keep=False)
+    if kd.any():
+        if key_dupes == "raise":
+            raise ValueError(f"{int(kd.sum())} rows share {KEY} but differ in their measures — "
+                             f"a conflicting restatement the pipeline will not silently resolve; "
+                             f"workbook rows {[int(i) + 2 for i in d.index[kd]]}")
+        keep = "first" if key_dupes == "keep_first" else "last"
+        drop = d.duplicated(KEY, keep=keep)
+        note("Conflicting restatement (same key, different measures)", d.index[drop],
+             f"Kept the {keep} row per key", "Policy set by `key_dupes`.",
+             delta={m: -v for m, v in sums(d[drop]).items()}, dropped=True)
+        d = d[~drop]
 
     # 5. The price rule. §2.3 shows cost = tokens x rate(service) / 1000 exactly.
     rate = unit_rate(d, rate_by)
@@ -276,53 +461,66 @@ def clean(
     if missing == "impute":
         d.loc[mc, "cost_usd"] = (d.loc[mc, "total_tokens"] * key[mc].map(rate) / 1_000).round(2)
         d.loc[mt, "total_tokens"] = (d.loc[mt, "cost_usd"] / key[mt].map(rate) * 1_000).round()
-        note("Missing `cost_usd`", mc.sum(), f"Imputed = tokens x rate({rate_by}) / 1000",
+        note("Missing `cost_usd`", d.index[mc], f"Imputed = tokens x rate({rate_by}) / 1000",
              "The price rule reproduces every other cost in the file to the cent, so "
              "this cell is recoverable by arithmetic rather than estimated.",
-             f"+${d.loc[mc, 'cost_usd'].sum():,.2f}")
-        note("Missing `total_tokens`", mt.sum(), f"Imputed = cost / rate({rate_by}) x 1000",
+             f"+${d.loc[mc, 'cost_usd'].sum():,.2f}",
+             delta={"cost_usd": float(d.loc[mc, "cost_usd"].sum())})
+        note("Missing `total_tokens`", d.index[mt], f"Imputed = cost / rate({rate_by}) x 1000",
              "The inverse of the above; billing is present, so the token count is implied.",
-             f"+{d.loc[mt, 'total_tokens'].sum():,.0f} tokens")
+             f"+{d.loc[mt, 'total_tokens'].sum():,.0f} tokens",
+             delta={"total_tokens": float(d.loc[mt, "total_tokens"].sum())})
     else:
-        d = d[~(mc | mt)]
+        gone = mc | mt
+        note("Missing `cost_usd` / `total_tokens`", d.index[gone], "Rows dropped",
+             "Alternative treatment: refuse to reconstruct anything.", f"-{int(gone.sum())} rows",
+             delta={m: -v for m, v in sums(d[gone]).items()}, dropped=True)
+        d = d[~gone]
         key = d[rate_by]
-        note("Missing `cost_usd` / `total_tokens`", int((mc | mt).sum()), "Rows dropped",
-             "Alternative treatment: refuse to reconstruct anything.", f"-{int((mc | mt).sum())} rows")
 
     # 6. Impossible request count. §3.2 shows the row's OTHER fields are sound.
     ng = d["requests"] <= 0
     if ng.any():
+        was = sums(d[ng])
         if neg == "impute":
             tpr = (d[~ng].assign(r=d.loc[~ng, "total_tokens"] / d.loc[~ng, "requests"])
                          .groupby("service")["r"].median())
             d.loc[ng, "requests"] = (d.loc[ng, "total_tokens"] / d.loc[ng, "service"].map(tpr)).round()
             act = f"Imputed from the service's median tokens/request -> {int(d.loc[ng, 'requests'].iloc[0])}"
+            delta = {"requests": sums(d[ng])["requests"] - was["requests"]}
         elif neg == "abs":
             d.loc[ng, "requests"] = d.loc[ng, "requests"].abs()
-            act = "Sign flipped (abs)"
+            act, delta = "Sign flipped (abs)", {"requests": sums(d[ng])["requests"] - was["requests"]}
         else:
-            d, key, act = d[~ng], d.loc[~ng, rate_by], "Row dropped"
-        note("Impossible `requests` <= 0", ng.sum(), act,
+            act, delta = "Row dropped", {m: -v for m, v in was.items()}
+        note("Impossible `requests` <= 0", d.index[ng], act,
              "Tokens and cost on that row obey the price rule exactly, so only the "
              "request count is corrupt — see §3.2.",
-             "affects the request series only; cost and tokens untouched")
+             "affects the request series only; cost and tokens untouched", delta=delta,
+             dropped=(neg == "drop"))
+        if neg == "drop":
+            d, key = d[~ng], d.loc[~ng, rate_by]
 
     # 7. Billing anomaly: cost far above what the price rule implies.
     expected = d["total_tokens"] * key.map(rate) / 1_000
-    an = (d["cost_usd"] / expected) > 2          # 2x a published rate is not variance
+    an = (d["cost_usd"] / expected) > anomaly_factor
     if an.any():
-        over = float((d.loc[an, "cost_usd"] - expected[an]).sum())
+        billed = float(d.loc[an, "cost_usd"].sum())
+        over = billed - float(expected[an].sum())
         if anomaly == "restate":
             d.loc[an, "cost_usd"] = expected[an].round(2)
             act = f"Restated at the price rule (${expected[an].sum():,.2f})"
+            delta = {"cost_usd": float(d.loc[an, "cost_usd"].sum()) - billed}
         elif anomaly == "drop":
-            d, act = d[~an], "Row dropped"
+            act, delta = "Row dropped", {m: -v for m, v in sums(d[an]).items()}
         else:
-            act = "Left as billed"
-        note("Cost far above the model's published rate", an.sum(), act,
+            act, delta = "Left as billed", {}
+        note(f"Cost more than {anomaly_factor:g}x the service's rate", d.index[an], act,
              "Tokens/request on that row is normal for the service, so usage was "
              "ordinary and the billed amount is the outlier — see §3.2.",
-             f"${over:,.2f} of anomalous spend")
+             f"${over:,.2f} of anomalous spend", delta=delta, dropped=(anomaly == "drop"))
+        if anomaly == "drop":
+            d = d[~an]
 
     # 8. Types and derived fields. `source_row` keeps every surviving row traceable
     #    to its line in the workbook — the frame is re-sorted and re-indexed below,
@@ -334,7 +532,7 @@ def clean(
     d["tokens_per_request"] = d["total_tokens"] / d["requests"]
     d["usd_per_1k_tokens"] = d["cost_usd"] / d["total_tokens"] * 1_000
     d["usd_per_request"] = d["cost_usd"] / d["requests"]
-    return d.sort_values("date").reset_index(drop=True), rate
+    return d.sort_values("date", kind="stable").reset_index(drop=True), rate
 
 
 df, RATE = clean(raw, log=DECISIONS)
@@ -345,13 +543,32 @@ assert (df[MEASURES] > 0).all().all(), "a non-positive measure survived"
 assert not df.duplicated(KEY).any(), "a duplicate key survived"
 assert df["requests"].dtype.kind == "i" and df["total_tokens"].dtype.kind == "i", "counts are not integers"
 
+# Reconciliation identity: raw totals + every logged delta == clean totals, and
+# rows in - rows dropped == rows out. If a step ever changes a number without
+# logging it, this is the line that fails.
+_LOG = pd.DataFrame(DECISIONS)
+RAW_TOTALS = {m: float(np.nansum(to_number(raw[m], m).to_numpy(dtype=float))) for m in MEASURES}
+for m in MEASURES:
+    assert abs(RAW_TOTALS[m] + _LOG[f"Δ {m}"].sum() - df[m].sum()) < 0.006, \
+        f"reconciliation of {m} does not close: a step altered it without logging the change"
+assert len(raw) - int(_LOG["Rows dropped"].sum()) == len(df), "row count does not reconcile"
+
+# Idempotence: cleaning the cleaned data must change nothing and log no repairs.
+_again_log: list = []
+_again, _ = clean(df[list(raw.columns)].assign(date=df["date"].dt.strftime("%Y-%m-%d")).astype(object),
+                  log=_again_log)
+assert sum(r["Rows"] for r in _again_log) == 0, "clean() is not idempotent: it repaired its own output"
+assert (_again.sort_values(KEY).reset_index(drop=True)[KEY + MEASURES]
+        .equals(df.sort_values(KEY).reset_index(drop=True)[KEY + MEASURES])), "clean(clean(x)) != clean(x)"
+
 print(f"raw {len(raw):,} rows -> clean {len(df):,} rows, "
       f"{df['date'].min():%d %b %Y} to {df['date'].max():%d %b %Y} "
-      f"({df['date'].nunique()} days, {df['service'].nunique()} services); all post-conditions hold")
+      f"({df['date'].nunique()} days, {df['service'].nunique()} services); "
+      f"all post-conditions hold, totals reconcile to the cent, clean(clean(x)) == clean(x)")
 ''')
 
 md(r"""
-### 0.2 The two estimators, defined once
+### 0.3 The two estimators, defined once
 
 Two quantities carry the argument: a **growth rate** (§4) and a **cost
 decomposition** (§5). Both are defined here as functions, for the same reason the
@@ -470,18 +687,16 @@ def defect_flags(src: pd.DataFrame, rate: pd.Series) -> pd.DataFrame:
     one defect — and here one does, which is why 'number of defects' and 'number
     of bad rows' are different numbers.
     """
-    svc = (src["service"].astype(str).str.strip().str.lower()
-              .str.replace(r"[\s_]+", "-", regex=True))
-    tok = pd.to_numeric(src["total_tokens"], errors="coerce")
-    cost = pd.to_numeric(src["cost_usd"], errors="coerce")
+    svc = canon_service(src["service"])
+    tok, cost, req = (to_number(src[c], c) for c in ["total_tokens", "cost_usd", "requests"])
     return pd.DataFrame({
         "date not ISO-8601": ~src["date"].astype(str).str.match(r"^\d{4}-\d{2}-\d{2}$"),
-        "team label variant": src["team"].astype(str).ne(src["team"].astype(str).str.strip().str.title()),
+        "team label variant": src["team"].astype(str).ne(canon_team(src["team"])),
         "service label variant": src["service"].astype(str).ne(svc),
         "duplicate of an earlier row": src.duplicated(keep="first"),
         "cost_usd missing": cost.isna(),
         "total_tokens missing": tok.isna(),
-        "requests <= 0": pd.to_numeric(src["requests"], errors="coerce").le(0).fillna(False),
+        "requests <= 0": req.le(0).fillna(False),
         "cost far above the price rule": (cost / (tok * svc.map(rate) / 1_000) > 2).fillna(False),
     }, index=src.index)
 
@@ -526,6 +741,143 @@ DIVERGE = {"cost/tokens": ratio_growth(DAILY["cost"], DAILY["tokens"]),
 TOP, CHEAPEST = SVC.index[0], SVC["usd_per_request"].idxmin()
 print(f"estimated: {len(DAILY)} daily observations, {len(SVC)} services; "
       f"biggest spender = {TOP}")
+''')
+
+md(r"""
+### 0.4 House style for figures, and a check that colour is never load-bearing
+
+Figures start in §2, so the style is set here, once: three fixed hues that a
+series keeps for the whole notebook regardless of what else is plotted, one
+neutral, and one ink for annotation. The audit below is the part
+worth reading: it computes the perceptual distance between the hues under
+simulated colour-vision deficiency, and their contrast ratio in greyscale, rather
+than asserting that the palette is fine.
+
+Greyscale is the harder constraint of the two, and this palette does not clear it
+on its own — as the numbers below show. The design rule that makes that acceptable
+is stated as an executable invariant instead of a promise: **no single set of axes
+in this notebook ever carries more than one of the three identity hues**, so no
+reader is ever asked to tell two of them apart. Series are separated by panel,
+and every line is labelled at its own end. `audit_figure()` enforces it, and it is
+called on every figure that follows.
+""")
+
+code(r'''
+mpl.rcParams.update({
+    "figure.dpi": 110, "savefig.dpi": 110,
+    "font.size": 10, "axes.titlesize": 12, "axes.titleweight": "bold",
+    "axes.spines.top": False, "axes.spines.right": False,
+    "axes.grid": True, "grid.alpha": 0.25, "grid.linewidth": 0.6,
+    "axes.axisbelow": True, "figure.facecolor": "white", "axes.edgecolor": "#c3c2b7",
+    "xtick.color": "#52514e", "ytick.color": "#52514e", "axes.labelcolor": "#52514e",
+    "hatch.linewidth": 1.6,          # texture is a redundant encoder; it has to be legible
+})
+
+# Three identity hues, fixed order, never cycled. C_MUTED is a neutral, not an
+# identity: it may share axes with anything. C_INK is for annotation and for
+# marks whose meaning is carried by shape or label rather than colour.
+C_REQ, C_TOK, C_COST, C_MUTED, C_INK = "#2a78d6", "#eb6834", "#1baf7a", "#898781", "#2b2a26"
+IDENTITY = {C_REQ: "requests", C_TOK: "tokens", C_COST: "cost"}
+HUE = {"requests": C_REQ, "tokens": C_TOK, "cost": C_COST,
+       "total_tokens": C_TOK, "cost_usd": C_COST}       # measure -> its hue, by either name
+
+# Figures are numbered in the order they are executed, so inserting one never
+# leaves a stale "Figure 4" in a caption two sections later.
+_FIG_COUNTER = itertools.count(1)
+
+
+def fig_label() -> str:
+    return f"Figure {next(_FIG_COUNTER)}"
+
+# --- perceptual maths, computed rather than assumed -------------------------
+_LMS = np.array([[0.4122214708, 0.5363325363, 0.0514459929],
+                 [0.2119034982, 0.6806995451, 0.1073969566],
+                 [0.0883024619, 0.2817188376, 0.6299787005]])
+_LAB = np.array([[0.2104542553, 0.7936177850, -0.0040720468],
+                 [1.9779984951, -2.4285922050, 0.4505937099],
+                 [0.0259040371, 0.7827717662, -0.8086757660]])
+# Machado, Oliveira & Fernandes (2009), severity 1.0, applied to linear sRGB.
+_DEUT = np.array([[0.367322, 0.860646, -0.227968], [0.280085, 0.672501, 0.047413],
+                  [-0.011820, 0.042940, 0.968610]])
+_PROT = np.array([[0.152286, 1.052583, -0.204868], [0.114503, 0.786281, 0.099216],
+                  [-0.003882, -0.048116, 1.051998]])
+
+
+def _linear(hexcolour):
+    c = np.array([int(hexcolour[i:i + 2], 16) for i in (1, 3, 5)], float) / 255
+    return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+
+
+def delta_e(a, b, sim=None):
+    "Perceptual distance in OKLab x100, optionally under a CVD simulation."
+    la, lb = _linear(a), _linear(b)
+    if sim is not None:
+        la, lb = sim @ la, sim @ lb
+    return float(np.linalg.norm(_LAB @ np.cbrt(_LMS @ la) - _LAB @ np.cbrt(_LMS @ lb)) * 100)
+
+
+def grey_contrast(a, b):
+    "WCAG contrast ratio of the two colours' luminances, i.e. how they print in mono."
+    ya, yb = (float(np.dot([0.2126, 0.7152, 0.0722], _linear(c))) for c in (a, b))
+    return (max(ya, yb) + 0.05) / (min(ya, yb) + 0.05)
+
+
+def audit_figure(fig, name=""):
+    "Fail loudly if any axes carries two identity hues — see the design rule above."
+    for ax in fig.axes:
+        used = {ln.get_color() for ln in ax.get_lines()} | {
+            p.get_facecolor() for p in ax.patches}
+        hues = {c for c in IDENTITY if c in used or c in {
+            mpl.colors.to_hex(u) if not isinstance(u, str) else u for u in used}}
+        assert len(hues) <= 1, f"{name}: axes mixes identity hues {hues}"
+    return fig
+
+
+def show_figure(fig, name, alt):
+    """Audit the figure, then display it with a real text alternative.
+
+    The alt text is not decoration: this notebook argues at length that colour must
+    never be the only carrier of meaning, and a figure with no text alternative is
+    the same failure in a different medium.
+
+    Two representations are emitted. `text/html` carries the `alt` attribute and is
+    what nbconvert's HTML exporter renders — its template drops alt text held in
+    output metadata, so metadata alone would silently lose it. `image/png` is
+    emitted alongside so that anything reading the notebook programmatically still
+    finds a plain image output.
+    """
+    audit_figure(fig, name)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight", facecolor=fig.get_facecolor())
+    b64 = base64.b64encode(buf.getvalue()).decode()
+    text = html_escape(f"{name}. {alt}", quote=True)
+    display({"image/png": b64,
+             "text/html": f'<img alt="{text}" src="data:image/png;base64,{b64}" '
+                          f'style="max-width:100%;height:auto">'},
+            raw=True, metadata={"image/png": {"alt": text}})
+    plt.close(fig)
+
+
+pairs = [(C_REQ, C_TOK), (C_REQ, C_COST), (C_TOK, C_COST)]
+audit = pd.DataFrame(
+    [{"pair": f"{IDENTITY[a]} vs {IDENTITY[b]}",
+      "ΔE normal": delta_e(a, b), "ΔE deuteranopia": delta_e(a, b, _DEUT),
+      "ΔE protanopia": delta_e(a, b, _PROT), "greyscale contrast": grey_contrast(a, b)}
+     for a, b in pairs]).set_index("pair")
+display(audit.style.format({"ΔE normal": "{:.1f}", "ΔE deuteranopia": "{:.1f}",
+                            "ΔE protanopia": "{:.1f}", "greyscale contrast": "{:.2f}:1"}))
+
+say(f"""
+Colour-vision separation holds: the worst pair is
+**ΔE {audit[["ΔE deuteranopia", "ΔE protanopia"]].min().min():.1f}** under simulation,
+against a working floor of 8 — so a colour-blind reader can tell the hues apart on
+screen.
+
+**Greyscale does not hold**, and the notebook does not pretend otherwise: printed in
+mono the worst pair sits at **{audit["greyscale contrast"].min():.2f}:1**, effectively
+identical. That is why the invariant above exists rather than a claim that the palette
+is print-safe. Every figure below is checked against it before it is displayed.
+""")
 ''')
 
 md(r"""
@@ -843,7 +1195,7 @@ md(r"""
 
 ## 3. The cleaning decisions, and why each went the way it did
 
-Order matters, and the pipeline in §0.1 fixes it. Labels are canonicalised
+Order matters, and the pipeline in §0.2 fixes it. Labels are canonicalised
 *before* de-duplication — otherwise `Chat Router` and `chat-router` are two rows
 rather than one entity, and the duplicate never collides with its twin.
 De-duplication runs *before* the rate is derived, so a doubled row cannot skew the
@@ -1021,130 +1373,7 @@ md(r"""
 ---
 
 ## 4. Q1 — What is the overall usage trend?
-
-### 4.0 House style, and a check that colour is never load-bearing
-
-One style block, applied once, and three fixed hues that a series keeps for the
-whole notebook regardless of what else is plotted. The audit below is the part
-worth reading: it computes the perceptual distance between the hues under
-simulated colour-vision deficiency, and their contrast ratio in greyscale, rather
-than asserting that the palette is fine.
-
-Greyscale is the harder constraint of the two, and this palette does not clear it
-on its own — as the numbers below show. The design rule that makes that acceptable
-is stated as an executable invariant instead of a promise: **no single set of axes
-in this notebook ever carries more than one of the three identity hues**, so no
-reader is ever asked to tell two of them apart. Series are separated by panel,
-and every line is labelled at its own end. `audit_figure()` enforces it, and it is
-called on every figure that follows.
 """)
-
-code(r'''
-mpl.rcParams.update({
-    "figure.dpi": 110, "savefig.dpi": 110,
-    "font.size": 10, "axes.titlesize": 12, "axes.titleweight": "bold",
-    "axes.spines.top": False, "axes.spines.right": False,
-    "axes.grid": True, "grid.alpha": 0.25, "grid.linewidth": 0.6,
-    "axes.axisbelow": True, "figure.facecolor": "white", "axes.edgecolor": "#c3c2b7",
-    "xtick.color": "#52514e", "ytick.color": "#52514e", "axes.labelcolor": "#52514e",
-    "hatch.linewidth": 1.6,          # texture is a redundant encoder; it has to be legible
-})
-
-# Three identity hues, fixed order, never cycled. C_MUTED is a neutral, not an
-# identity: it may share axes with anything.
-C_REQ, C_TOK, C_COST, C_MUTED = "#2a78d6", "#eb6834", "#1baf7a", "#898781"
-IDENTITY = {C_REQ: "requests", C_TOK: "tokens", C_COST: "cost"}
-
-# --- perceptual maths, computed rather than assumed -------------------------
-_LMS = np.array([[0.4122214708, 0.5363325363, 0.0514459929],
-                 [0.2119034982, 0.6806995451, 0.1073969566],
-                 [0.0883024619, 0.2817188376, 0.6299787005]])
-_LAB = np.array([[0.2104542553, 0.7936177850, -0.0040720468],
-                 [1.9779984951, -2.4285922050, 0.4505937099],
-                 [0.0259040371, 0.7827717662, -0.8086757660]])
-# Machado, Oliveira & Fernandes (2009), severity 1.0, applied to linear sRGB.
-_DEUT = np.array([[0.367322, 0.860646, -0.227968], [0.280085, 0.672501, 0.047413],
-                  [-0.011820, 0.042940, 0.968610]])
-_PROT = np.array([[0.152286, 1.052583, -0.204868], [0.114503, 0.786281, 0.099216],
-                  [-0.003882, -0.048116, 1.051998]])
-
-
-def _linear(hexcolour):
-    c = np.array([int(hexcolour[i:i + 2], 16) for i in (1, 3, 5)], float) / 255
-    return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
-
-
-def delta_e(a, b, sim=None):
-    "Perceptual distance in OKLab x100, optionally under a CVD simulation."
-    la, lb = _linear(a), _linear(b)
-    if sim is not None:
-        la, lb = sim @ la, sim @ lb
-    return float(np.linalg.norm(_LAB @ np.cbrt(_LMS @ la) - _LAB @ np.cbrt(_LMS @ lb)) * 100)
-
-
-def grey_contrast(a, b):
-    "WCAG contrast ratio of the two colours' luminances, i.e. how they print in mono."
-    ya, yb = (float(np.dot([0.2126, 0.7152, 0.0722], _linear(c))) for c in (a, b))
-    return (max(ya, yb) + 0.05) / (min(ya, yb) + 0.05)
-
-
-def audit_figure(fig, name=""):
-    "Fail loudly if any axes carries two identity hues — see the design rule above."
-    for ax in fig.axes:
-        used = {ln.get_color() for ln in ax.get_lines()} | {
-            p.get_facecolor() for p in ax.patches}
-        hues = {c for c in IDENTITY if c in used or c in {
-            mpl.colors.to_hex(u) if not isinstance(u, str) else u for u in used}}
-        assert len(hues) <= 1, f"{name}: axes mixes identity hues {hues}"
-    return fig
-
-
-def show_figure(fig, name, alt):
-    """Audit the figure, then display it with a real text alternative.
-
-    The alt text is not decoration: this notebook argues at length that colour must
-    never be the only carrier of meaning, and a figure with no text alternative is
-    the same failure in a different medium.
-
-    Two representations are emitted. `text/html` carries the `alt` attribute and is
-    what nbconvert's HTML exporter renders — its template drops alt text held in
-    output metadata, so metadata alone would silently lose it. `image/png` is
-    emitted alongside so that anything reading the notebook programmatically still
-    finds a plain image output.
-    """
-    audit_figure(fig, name)
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", bbox_inches="tight", facecolor=fig.get_facecolor())
-    b64 = base64.b64encode(buf.getvalue()).decode()
-    text = html_escape(f"{name}. {alt}", quote=True)
-    display({"image/png": b64,
-             "text/html": f'<img alt="{text}" src="data:image/png;base64,{b64}" '
-                          f'style="max-width:100%;height:auto">'},
-            raw=True, metadata={"image/png": {"alt": text}})
-    plt.close(fig)
-
-
-pairs = [(C_REQ, C_TOK), (C_REQ, C_COST), (C_TOK, C_COST)]
-audit = pd.DataFrame(
-    [{"pair": f"{IDENTITY[a]} vs {IDENTITY[b]}",
-      "ΔE normal": delta_e(a, b), "ΔE deuteranopia": delta_e(a, b, _DEUT),
-      "ΔE protanopia": delta_e(a, b, _PROT), "greyscale contrast": grey_contrast(a, b)}
-     for a, b in pairs]).set_index("pair")
-display(audit.style.format({"ΔE normal": "{:.1f}", "ΔE deuteranopia": "{:.1f}",
-                            "ΔE protanopia": "{:.1f}", "greyscale contrast": "{:.2f}:1"}))
-
-say(f"""
-Colour-vision separation holds: the worst pair is
-**ΔE {audit[["ΔE deuteranopia", "ΔE protanopia"]].min().min():.1f}** under simulation,
-against a working floor of 8 — so a colour-blind reader can tell the hues apart on
-screen.
-
-**Greyscale does not hold**, and the notebook does not pretend otherwise: printed in
-mono the worst pair sits at **{audit["greyscale contrast"].min():.2f}:1**, effectively
-identical. That is why the invariant above exists rather than a claim that the palette
-is print-safe. Every figure below is checked against it before it is displayed.
-""")
-''')
 
 md(r"""
 ### 4.1 The trend
@@ -1152,7 +1381,7 @@ md(r"""
 Daily totals are noisy on a weekly business cycle, so each panel carries a **7-day
 rolling mean**: exactly one full week per point, which removes the weekday/weekend
 swing without smoothing away the trend itself. Over it sits the **fitted
-log-linear trend and its 95% band**, from the model specified in §0.2 — the
+log-linear trend and its 95% band**, from the model specified in §0.3 — the
 rolling mean is a description, the fit is the estimate, and only the fit comes
 with an interval.
 
@@ -1181,6 +1410,7 @@ def trend_band(g):
             np.exp(pred["mean_ci_upper"].values))
 
 
+_FIGN = fig_label()
 USD = lambda v: f"${v:,.0f}"
 CNT = lambda v: f"{v:,.0f}"
 MIL = lambda v: f"{v / 1e6:.2f}M" if v else "0"
@@ -1216,13 +1446,13 @@ axes[0].legend(frameon=False, fontsize=8.5, loc="lower left", ncols=4)
 axes[0].set_title("All three measures grow at the same rate — about 3.5% a week",
                   loc="left", pad=12)
 fig.autofmt_xdate()
-show_figure(fig, "Figure 1",
+show_figure(fig, _FIGN,
             "Three stacked time-series panels — daily requests, tokens and cost — each "
             "rising steadily from left to right, with a fitted trend line and narrow "
             "confidence band running through the middle of each.")
 
 say(f"""
-**Figure 1. Daily requests, tokens and cost, 
+**{_FIGN}. Daily requests, tokens and cost, 
 {DAILY.index.min():%d %b} – {DAILY.index.max():%d %b %Y} ({len(DAILY)} days).**
 Faint line: daily total. Solid: 7-day rolling mean. Dashed with grey band: the
 fitted log-linear trend and its 95% confidence band, weekday effects held at their
@@ -1348,6 +1578,7 @@ Xf = Xs.copy(); Xf[:, 2:] = Xf[:, 2:].mean(axis=0)
 pf = ms.get_prediction(Xf).summary_frame(alpha=0.05)
 slo, shi = ms.conf_int()[1]
 
+_FIGN = fig_label()
 fig, ax = plt.subplots(figsize=(11, 3.8))
 ax.plot(share.index, share.values, color=C_TOK, lw=0.9, alpha=0.35, label="daily share")
 ax.plot(share.index, share.rolling(7, min_periods=4).mean(), color=C_TOK, lw=2.4,
@@ -1364,13 +1595,13 @@ ax.annotate(f"{ms.params[1] * len(share):+.1f} pts over the window "
 ax.legend(frameon=False, fontsize=8.5, loc="upper left", ncols=4)
 ax.set_xlim(share.index.min() - pd.Timedelta(days=1), share.index.max() + pd.Timedelta(days=1))
 fig.autofmt_xdate()
-show_figure(fig, "Figure 2",
+show_figure(fig, _FIGN,
             "A time series of the premium model's share of daily tokens, oscillating "
             "around a quarter of all tokens with no visible upward or downward slope; "
             "the fitted trend line is flat.")
 
 say(f"""
-**Figure 2. Share of daily tokens served by `{premium}`, the premium tier
+**{_FIGN}. Share of daily tokens served by `{premium}`, the premium tier
 (${SVC['usd_per_1k'].max():.3f} per 1k tokens against
 ${SVC['usd_per_1k'].min():.3f} for the cheapest).**
 Faint: daily. Solid: 7-day mean. Dashed with band: fitted linear trend, 95%,
@@ -1417,6 +1648,7 @@ pairs_ = [(j - i, ((wkf["cost"].iloc[j] / wkf["cost"].iloc[i]) ** (1 / (j - i)) 
           for i in range(len(wkf)) for j in range(i + 2, len(wkf))]
 span, gaps = (np.array(x) for x in zip(*pairs_))
 
+_FIGN = fig_label()
 fit_gap = ratio_growth(DAILY["cost"], DAILY["requests"])
 
 fig, ax = plt.subplots(figsize=(11, 3.6))
@@ -1433,14 +1665,14 @@ ax.set_title("The endpoint method answers whatever you ask it; the fit does not"
              loc="left", pad=10)
 ax.legend(frameon=False, fontsize=8.5, loc="upper left", ncols=4)
 ax.set_ylim(1.2, span.max() + 1.6)
-show_figure(fig, "Figure 3",
+show_figure(fig, _FIGN,
             "A scatter of week-pair estimates, widely spread at short spans and "
             "converging toward zero as the endpoints move further apart, against a "
             "narrow fitted interval straddling zero.")
 
 _wrong = np.mean(np.sign(gaps) != np.sign(fit_gap["weekly_pct"]))
 say(f"""
-**Figure 3. What a first-week-versus-last-week comparison would have concluded, for
+**{_FIGN}. What a first-week-versus-last-week comparison would have concluded, for
 every pair of complete weeks at least two weeks apart ({len(gaps)} pairs).**
 Each grey dot is one pair, positioned by the gap it implies between cost growth and
 request growth, and by how far apart the two endpoint weeks are. Green line and band:
@@ -1466,7 +1698,7 @@ resid = ols.resid
 lb = sm.stats.acorr_ljungbox(resid, lags=[7], return_df=True)
 jb_stat, jb_p, skew, kurt = sm.stats.stattools.jarque_bera(resid)
 
-print("Diagnostics for the log-linear cost model (§0.2):\n")
+print("Diagnostics for the log-linear cost model (§0.3):\n")
 print(f"  Durbin-Watson              {sm.stats.stattools.durbin_watson(resid):.2f}   "
       f"(2.0 = no first-order autocorrelation)")
 print(f"  Ljung-Box Q(7)             p = {lb['lb_pvalue'].iloc[0]:.3f}   "
@@ -1581,6 +1813,7 @@ uninteresting; the biggest cost driver here is the *smallest* by request volume.
 """)
 
 code(r'''
+_FIGN = fig_label()
 fig, axes = plt.subplots(1, 3, figsize=(12.5, 4.2), sharex=True,
                          gridspec_kw={"wspace": 0.34})
 order = SVC.index.tolist()
@@ -1612,13 +1845,13 @@ fig.suptitle(f"{TOP}: {SVC.loc[TOP, 'req_share']:.0%} of requests, "
              f"{SVC.loc[TOP, 'tok_share']:.0%} of tokens, "
              f"{SVC.loc[TOP, 'cost_share']:.0%} of cost",
              x=0.005, ha="left", fontsize=13, fontweight="bold", y=1.02)
-show_figure(fig, "Figure 4",
+show_figure(fig, _FIGN,
             "Three bar panels on a shared scale. The biggest cost driver has the "
             "shortest bar for share of requests and by far the longest for share of "
             "cost; the ordering is reversed between the first and third panels.")
 
 say(f"""
-**Figure 4. Each service's share of requests, tokens and spend over the window.**
+**{_FIGN}. Each service's share of requests, tokens and spend over the window.**
 Services in descending order of cost in all three panels, and **one shared x-scale**,
 so a bar's vertical position is fixed and length is comparable across panels as well
 as within them. *What to conclude:* `{TOP}` is
@@ -1769,6 +2002,7 @@ This is a structural feature of the workload, not an artefact of the window.
 ''')
 
 code(r'''
+_FIGN = fig_label()
 fig, ax = plt.subplots(figsize=(9.5, 3.6))
 vals = SVC["usd_per_request"].sort_values()
 bars = ax.barh(np.arange(len(vals)), vals.values, color=C_MUTED, height=0.6)
@@ -1790,14 +2024,14 @@ ax.xaxis.set_major_formatter(mpl.ticker.StrMethodFormatter("${x:.3f}"))
 for i, v in enumerate(vals.values):
     ax.text(v * 1.03, i, f"${v:.4f}", va="center", fontsize=9.5, fontweight="bold")
 ax.set_xlim(0, vals.max() * 1.22)
-show_figure(fig, "Figure 5",
+show_figure(fig, _FIGN,
             "A horizontal bar chart of cost per request by service. Three bars are "
             "short and nearly equal; the fourth, hatched, is roughly twenty-five "
             "times longer.")
 
 _lo, _hi = ci(factors["cost per request, combined"])
 say(f"""
-**Figure 5. Cost of one request, by service.** Hatched and coloured bar: the biggest
+**{_FIGN}. Cost of one request, by service.** Hatched and coloured bar: the biggest
 cost driver. *What to conclude:* the per-unit economics, which the share chart cannot
 show. `{TOP}` costs **${SVC.loc[TOP, 'usd_per_request']:.4f}** per request against
 **${SVC.loc[CHEAPEST, 'usd_per_request']:.4f}** for `{CHEAPEST}` — a ratio of
@@ -1894,15 +2128,19 @@ re-deriving the notebook, and §7 shows what disagreeing would cost.
 
 code(r'''
 log = pd.DataFrame(DECISIONS)
-display(log.style.hide(axis="index")
+display(log.drop(columns=["Rows dropped"]).style.hide(axis="index")
+           .format({f"Δ {m}": "{:+,.2f}" for m in MEASURES})
            .set_properties(**{"text-align": "left", "white-space": "pre-wrap",
                               "vertical-align": "top"}))
 
 say(f"""
-**{len(log)} transformations, touching {log['Rows'].sum()} cells across
-{int(FLAGS.any(axis=1).sum())} of {len(raw):,} rows ({FLAGS.any(axis=1).mean():.1%}).**
-Of those, {int(log.loc[log['Action'].str.startswith('Dropped'), 'Rows'].sum())} row was
-removed from the analysis and the rest were repaired in place.
+**{len(log)} transformations{"" if (log['Rows'] > 0).all() else f", {int((log['Rows'] > 0).sum())} of which touched anything"},
+altering {log['Rows'].sum()} cells across {int(FLAGS.any(axis=1).sum())} of {len(raw):,} rows
+({FLAGS.any(axis=1).mean():.1%}).** Of those, {int(log['Rows dropped'].sum())} row was
+removed from the analysis and the rest were repaired in place. The three `Δ` columns
+are the reconciliation: raw total plus the column's sum equals the clean total for
+each measure — {", ".join(f"{m} {RAW_TOTALS[m]:,.2f} {log[f'Δ {m}'].sum():+,.2f} = {df[m].sum():,.2f}" for m in MEASURES)}
+— an identity §0.2 asserts on every run rather than a table a reader has to check.
 """)
 ''')
 
@@ -2058,6 +2296,7 @@ display(show.style.format({
 ''')
 
 code(r'''
+_FIGN = fig_label()
 fig, axes = plt.subplots(1, 2, figsize=(12.6, 4.6), gridspec_kw={"wspace": 0.06})
 labels = [textwrap.fill(v, 44) for v in SENS.index]
 y = np.arange(len(SENS))[::-1]
@@ -2091,7 +2330,7 @@ axes[0].annotate("baseline", (SENS["leader_share"].iloc[0] * 100, y[0]), xytext=
                  textcoords="offset points", fontsize=8.5, color="#2b2a26")
 fig.suptitle("Every alternative cleaning leaves both answers standing — except one",
              x=0.005, ha="left", fontsize=13, fontweight="bold", y=1.02)
-show_figure(fig, "Figure 6",
+show_figure(fig, _FIGN,
             "Two dot panels, one per headline answer, with one dot per alternative "
             "cleaning. In the left panel all dots cluster tightly on the baseline. In "
             "the right panel all but one confidence bar sits clear of zero.")
@@ -2101,7 +2340,7 @@ _worst_growth = (SENS["weekly_pct"] - SENS["weekly_pct"].iloc[0]).abs().idxmax()
 _insig = SENS[(SENS["lo"] < 0) & (SENS["hi"] > 0)]
 
 say(f"""
-**Figure 6. Both headline answers under {len(SENS)} cleanings — the baseline (green
+**{_FIGN}. Both headline answers under {len(SENS)} cleanings — the baseline (green
 diamond) and {len(SENS) - 1} single-decision alternatives (grey).**
 Left: `{TOP}`'s share of total cost. Right: fitted weekly growth in cost, with each
 variant's own 95% confidence interval as a horizontal bar. Dashed line: the baseline
