@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyboardEvent, ReactNode, useEffect, useRef } from "react";
+import { KeyboardEvent, ReactNode, useEffect, useRef, useState } from "react";
 
 export interface WorkspaceSubtab<T extends string> {
   id: T;
@@ -185,6 +185,27 @@ interface WorkspaceSubtabPanelProps<T extends string> {
   children: ReactNode;
 }
 
+/**
+ * A section mounts the first time it is opened, and stays mounted after.
+ *
+ * Every panel used to render its children immediately and merely hide the ones
+ * that were not active, which meant arriving on Research built all eight of its
+ * sections at once — the tear sheet, the walk-forward timeline, the fourteen
+ * strategy cards, the lineage DAG, the run history — to show one. Measured at
+ * 4x CPU throttle that was a 69 ms long task, the only switch on the desk that
+ * produced one at all.
+ *
+ * Deferring is not the same as unmounting. Once a section has been opened it
+ * stays mounted for the life of the workspace, so its scroll position, its
+ * expanded disclosures and any run it is holding survive switching away and
+ * back — which is the property the always-render version was protecting, and
+ * the reason this is a latch rather than `activeId === tabId`.
+ *
+ * The <section> itself always renders. It carries the tabpanel role and the
+ * aria-labelledby that the rail's buttons point at, and a tab control whose
+ * aria-controls names an element that does not exist is broken for a screen
+ * reader whether or not anyone can see it.
+ */
 export function WorkspaceSubtabPanel<T extends string>({
   workspaceId,
   tabId,
@@ -192,6 +213,12 @@ export function WorkspaceSubtabPanel<T extends string>({
   className,
   children,
 }: WorkspaceSubtabPanelProps<T>) {
+  const active = activeId === tabId;
+  const [opened, setOpened] = useState(active);
+  useEffect(() => {
+    if (active) setOpened(true);
+  }, [active]);
+
   return (
     <section
       id={`${workspaceId}-subpanel-${tabId}`}
@@ -199,10 +226,10 @@ export function WorkspaceSubtabPanel<T extends string>({
       data-workspace-id={workspaceId}
       role="tabpanel"
       aria-labelledby={`${workspaceId}-subtab-${tabId}`}
-      hidden={activeId !== tabId}
+      hidden={!active}
       tabIndex={0}
     >
-      {children}
+      {opened ? children : null}
     </section>
   );
 }
