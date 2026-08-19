@@ -189,6 +189,33 @@ class Settings:
     max_price_deviation_bps: float = field(default_factory=lambda: _env_float("MAX_PRICE_DEVIATION_BPS", 500.0))
     # Reject an order whose *estimated* slippage exceeds this (liquidity guard).
     max_est_slippage_bps: float = field(default_factory=lambda: _env_float("MAX_EST_SLIPPAGE_BPS", 75.0))
+    # --- pushed risk alerts (modules/telegram.py, _risk_tick) ------------- #
+    # Each rule is a fraction of equity (or of the book, for concentration) at
+    # or above which the desk pushes a breach to its subscribers, and below
+    # which it pushes a recovery. Zero disables a rule outright rather than
+    # setting an unreachable threshold — "off" and "never fires in practice"
+    # are different states and only one of them is honest on /thresholds.
+    #
+    # Drawdown leads at 3 % because it is the figure the breaker itself reads
+    # (RiskGateway.daily_drawdown_pct), so the alert and the halt cannot
+    # disagree about what is happening. It sits well below the 5 % default of
+    # MAX_DAILY_DRAWDOWN_PCT on purpose: an alert that fires at the same
+    # moment as the kill switch is a notification, not a warning.
+    alert_drawdown_pct: float = field(default_factory=lambda: _env_float("ALERT_DRAWDOWN_PCT", 0.03))
+    # 1-day 95 % historical VaR as a fraction of equity. Forward-looking and a
+    # model estimate, which is why it is reported beside the realised drawdown
+    # rather than instead of it.
+    alert_var95_pct: float = field(default_factory=lambda: _env_float("ALERT_VAR95_PCT", 0.03))
+    # Gross exposure over equity. Off by default: a desk running deliberate
+    # leverage would be paged constantly, and the right number is a house
+    # decision rather than something this file can guess.
+    alert_gross_exposure_pct: float = field(default_factory=lambda: _env_float("ALERT_GROSS_EXPOSURE_PCT", 0.0))
+    # Largest single position as a share of gross. Off by default for the same
+    # reason: a one-instrument desk is 100 % concentrated and correct.
+    alert_concentration_pct: float = field(default_factory=lambda: _env_float("ALERT_CONCENTRATION_PCT", 0.0))
+    # How often the rules are evaluated. The liquidity watch runs at 20 s and
+    # walks the book; these are arithmetic over state already in memory.
+    alert_risk_interval_s: float = field(default_factory=lambda: _env_float("ALERT_RISK_INTERVAL_S", 20.0))
     # Notional starting equity for the paper book.
     starting_equity_usd: float = field(default_factory=lambda: _env_float("STARTING_EQUITY_USD", 1_000_000.0))
     # Persist a mark-to-market equity observation every N seconds (0 disables).
@@ -391,6 +418,10 @@ class Settings:
             "max_orders_per_sec": self.max_orders_per_sec,
             "rate_limit_burst": float(self.rate_limit_burst),
             "max_daily_drawdown_pct": self.max_daily_drawdown_pct,
+            "alert_drawdown_pct": self.alert_drawdown_pct,
+            "alert_var95_pct": self.alert_var95_pct,
+            "alert_gross_exposure_pct": self.alert_gross_exposure_pct,
+            "alert_concentration_pct": self.alert_concentration_pct,
             "max_price_deviation_bps": self.max_price_deviation_bps,
             "max_est_slippage_bps": self.max_est_slippage_bps,
             "starting_equity_usd": self.starting_equity_usd,
