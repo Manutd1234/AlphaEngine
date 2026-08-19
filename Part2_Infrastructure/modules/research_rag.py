@@ -114,6 +114,54 @@ def render_backtest_card(row: dict[str, Any]) -> tuple[str, str]:
     return title, body
 
 
+def render_ml_card(run: dict[str, Any]) -> tuple[str, str]:
+    """(title, body) for one supervised run.
+
+    Deliberately shaped like ``render_backtest_card`` — same vocabulary, same
+    order, so an ML run and a sweep retrieved by the same query read as two
+    answers to one question rather than two kinds of document.
+
+    Three lines exist here that a sweep has no equivalent for, and each is the
+    reason this is its own kind. The ENGINE says whether the hand-rolled models
+    or the optional scikit-learn ran, because a run that fell back is a
+    different run. The FEATURES line carries the spec hash, which is what makes
+    two runs comparable at all. And the PURGE is stated per fold, because an
+    out-of-sample Sharpe from an unpurged fold is not an out-of-sample Sharpe.
+    """
+    title = (
+        f"ML run {run.get('symbol')} {run.get('interval')} "
+        f"{run.get('model')} seed {run.get('seed')}"
+    )
+    folds = run.get("folds") or []
+    features = run.get("features") or {}
+    purges = {int(f.get("purge_bars", 0)) for f in folds}
+    purge = (
+        "no folds recorded" if not folds
+        else f"{purges.pop()} bars" if len(purges) == 1
+        else f"{min(purges)}–{max(purges)} bars"
+    )
+    positive = sum(1 for f in folds if (f.get("oos_sharpe") or 0) > 0)
+    body = "\n".join([
+        title,
+        _line("Engine", run.get("engine") or "unrecorded"),
+        _line("Status", run.get("status")),
+        _line("Out-of-sample Sharpe", run.get("oos_sharpe") if run.get("oos_sharpe") is not None else "not computed"),
+        _line("Deflated Sharpe (DSR)", run.get("deflated_sharpe") if run.get("deflated_sharpe") is not None else "not computed"),
+        _line("Overfit probability (PBO)", run.get("pbo") if run.get("pbo") is not None else "not computed"),
+        _line("Folds", f"{positive} of {len(folds)} positive out-of-sample" if folds else "none recorded"),
+        _line("Purge per fold", purge),
+        _line(
+            "Features",
+            f"{features.get('feature_count')} predicting {features.get('label')} "
+            f"over {features.get('label_horizon_bars')} bars, spec {features.get('spec_hash', '')[:8]}"
+            if features else "unrecorded",
+        ),
+        _line("Data hash", run.get("data_hash") or "unrecorded"),
+        _line("Build", run.get("git_sha")[:8] if run.get("git_sha") else "unrecorded"),
+    ])
+    return title, body
+
+
 def render_incident_card(
     kind: str, decision: RiskDecision, request: OrderRequest, detail: str
 ) -> tuple[str, str]:

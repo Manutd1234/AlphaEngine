@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-19",
-  "commit": "6d63a97",
+  "commit": "6092716",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -157,6 +157,7 @@
     "Part2_Infrastructure/tests/test_research_crag_bands.py",
     "Part2_Infrastructure/tests/test_research_crag.py",
     "Part2_Infrastructure/tests/test_research_graph.py",
+    "Part2_Infrastructure/tests/test_research_ml_card.py",
     "Part2_Infrastructure/tests/test_research_rag.py",
     "Part2_Infrastructure/tests/test_research_router.py",
     "Part2_Infrastructure/tests/test_research.py",
@@ -698,6 +699,7 @@
     "supabase/migrations/20260820090300_ml_artefacts.sql",
     "supabase/migrations/20260820090400_research_edges.sql",
     "supabase/migrations/20260820090500_research_graph_traverse.sql",
+    "supabase/migrations/20260820090600_research_doc_kind_ml_run.sql",
     "supabase/README.md",
     "supabase/seed.sql"
   ]
