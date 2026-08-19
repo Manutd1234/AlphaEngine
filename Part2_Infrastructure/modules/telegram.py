@@ -6418,6 +6418,35 @@ class TelegramBot:
             f"Rule <code>{esc(key)}</code> · interval <code>{settings.alert_risk_interval_s:g}s</code>",
         ]
 
+    #: Which desk roles a risk breach is addressed to. A chat with no role set
+    #: is NOT excluded — see _risk_alert_targets.
+    RISK_ALERT_ROLES: frozenset[str] = frozenset({"pm", "risk"})
+
+    def _risk_alert_targets(self) -> list[str]:
+        """Chats a risk breach should reach.
+
+        Two rules, in this order.
+
+        A deployment that configures TELEGRAM_ALERT_CHAT_IDS has named its
+        escalation path explicitly, and a per-chat preference must not quietly
+        narrow it. That list wins, unfiltered, exactly as it does for every
+        other pushed alert.
+
+        Otherwise the breach goes to the roles whose job it is — pm and risk —
+        plus every chat that has not set a role at all. That last clause is the
+        important one: a role is opt-in, and a chat subscribed before roles
+        existed keeps receiving what it received yesterday. The alternative is
+        a schema migration that silently stops paging someone, which nobody
+        discovers until the day it matters.
+        """
+        if settings.telegram_alert_chat_ids:
+            return self._alert_targets()
+        return [
+            subscriber["chat_id"]
+            for subscriber in self._subscribers()
+            if not (subscriber.get("role") or "") or subscriber.get("role") in self.RISK_ALERT_ROLES
+        ]
+
     async def _push_risk_alert(self, key: str, observed: float, threshold: float, breached: bool) -> None:
         label = self.RISK_RULE_LABELS.get(key, key)
         lines = self._risk_line(key, observed, threshold)
@@ -6428,7 +6457,9 @@ class TelegramBot:
             source="Gateway risk state",
             next_commands="/risk · /limits · /thresholds",
         )
-        for chat_id in self._alert_targets():
+        for chat_id in self._risk_alert_targets():
+            # Re-checked immediately before the network call, like the
+            # liquidity watch: an allow-list revocation must not race a tick.
             if not self._delivery_allowed(chat_id):
                 continue
             await self.send_message(chat_id, message)
