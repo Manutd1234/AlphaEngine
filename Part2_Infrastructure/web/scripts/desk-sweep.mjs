@@ -53,7 +53,7 @@ const CDP = process.env.SWEEP_CDP ?? "http://127.0.0.1:9222";
  *  section here is a section nobody swept, so the count is asserted below. */
 const TABS = {
   overview: ["loop", "desks", "audit"],
-  research: ["summary", "parameters", "walkforward", "attribution", "lineage", "decision", "runs", "codex"],
+  research: ["summary", "parameters", "walkforward", "attribution", "lineage", "decision", "runs", "fitted", "codex"],
   live: ["trade", "liquidity", "routing", "quality", "activity"],
   portfolio: ["overview", "equity", "positions", "allocation", "performance"],
   risk: ["limits", "model", "montecarlo", "scenarios", "controls"],
@@ -62,7 +62,7 @@ const TABS = {
   developer: ["overview", "readiness", "quality", "apis", "codebase", "work"],
 };
 
-const EXPECTED_SECTIONS = 43;
+const EXPECTED_SECTIONS = 44;
 
 /**
  * The two tabs whose job is to report infrastructure truth.

@@ -32,6 +32,7 @@ export const RESEARCH_SECTIONS = [
   { id: "lineage", label: "Lineage", description: "Signal path & desk memory" },
   { id: "decision", label: "Decision", description: "Promotion & sizing" },
   { id: "runs", label: "Runs", description: "Experiment history" },
+  { id: "fitted", label: "Fitted models", description: "Supervised runs & folds" },
   // Renamed from "Codex" — the id stays `codex` because ids are deep links.
   { id: "codex", label: "Strategies", description: "Models & strategy guide" },
 ] as const;

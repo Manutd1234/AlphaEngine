@@ -46,7 +46,7 @@ its aria-label and title; HALTED is never folded.
 
 **Where the rail lists below come from.** Every rail in this document is transcribed from
 `Part2_Infrastructure/web/lib/sections.ts`, which is the single definition the rails, the
-command palette, the hash whitelist and "Copy link to this view" all read. **43 sections across
+command palette, the hash whitelist and "Copy link to this view" all read. **44 sections across
 the eight tabs.** Three ids deliberately disagree with their labels, because the deep link came
 first and ids never change: view `live` renders "Execution", section `codex` renders
 "Strategies", section `activity` renders "Blotter". If a rail here disagrees with the app,
@@ -114,7 +114,7 @@ flows to execution only through a risk gate.
 **The question it answers:** is this strategy evidence, or noise that survived a search?
 
 **60 seconds:** the rail reads **Summary → Parameters → Walk-forward → Attribution → Lineage →
-Decision → Runs → Strategies**. A sweep auto-runs on load (BTCUSDT daily by default —
+Decision → Runs → Fitted models → Strategies**. A sweep auto-runs on load (BTCUSDT daily by default —
 zero-config tier). Summary opens with the reproducibility capsule (data hash, source, bar count,
 combos, runtime, build commit), the PASS/MARGINAL/FAIL verdict, and the equity chart with its
 Monte Carlo band. Parameters shows the stability heatmap — click any cell to inspect that pair

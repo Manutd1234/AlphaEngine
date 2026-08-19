@@ -20,6 +20,7 @@ import BenchmarkPanel from "@/components/research/BenchmarkPanel";
 import PromotionPanel from "@/components/research/PromotionPanel";
 import QualityScorePanel from "@/components/research/QualityScorePanel";
 import ResearchCorpus from "@/components/research/ResearchCorpus";
+import FittedModels from "@/components/research/FittedModels";
 import StrategyCodex from "@/components/research/StrategyCodex";
 import RegimePanel from "@/components/research/RegimePanel";
 import SizingPanel from "@/components/research/SizingPanel";
@@ -2017,6 +2018,9 @@ export default function Page() {
                 {/* Reference material, outside both the empty-state map and
                     the data gate: the codex is about the catalogue, not the
                     current sweep, so it neither goes stale nor needs a run. */}
+                <WorkspaceSubtabPanel workspaceId="research" tabId="fitted" activeId={researchSection}>
+                  <FittedModels />
+                </WorkspaceSubtabPanel>
                 <WorkspaceSubtabPanel workspaceId="research" tabId="codex" activeId={researchSection}>
                   <StrategyDocCard
                     strategy={req.strategy}
