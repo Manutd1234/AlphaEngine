@@ -320,6 +320,14 @@ public:
         double avg_price = 0.0;
         double realized = 0.0;
         std::vector<BookLadder *> books;
+        /* The owning Python objects, held so `books` cannot dangle.
+           BookState.native_ladder() documents the ladder as BORROWED — "a
+           reader holds it only for the length of one synchronous call" — which
+           is true of decide()'s order_books and is exactly what a stored mirror
+           breaks. Keeping the raw pointers alone segfaulted the suite the first
+           time a mirrored BookState was collected. These references are the
+           mirror paying the cost that invariant was avoiding. */
+        std::vector<py::object> book_refs;
         std::optional<double> paper_mark;
     };
 
@@ -334,7 +342,7 @@ public:
     void upsert(const std::string &symbol, double quantity, double avg_price, double realized) {
         Entry *found = find(symbol);
         if (found == nullptr) {
-            entries.push_back(Entry{symbol, quantity, avg_price, realized, {}, std::nullopt});
+            entries.push_back(Entry{symbol, quantity, avg_price, realized, {}, {}, std::nullopt});
             return;
         }
         found->quantity = quantity;
@@ -342,23 +350,32 @@ public:
         found->realized = realized;
     }
 
-    void set_books(const std::string &symbol, const std::vector<BookLadder *> &books) {
-        for (BookLadder *book : books) {
-            if (book == nullptr)
-                throw std::invalid_argument("books contains None; every entry must be a BookLadder");
+    /** Takes the ladders as Python objects so their lifetime is owned here. */
+    void set_books(const std::string &symbol, const py::sequence &ladders) {
+        std::vector<BookLadder *> raw;
+        std::vector<py::object> refs;
+        raw.reserve(py::len(ladders));
+        refs.reserve(py::len(ladders));
+        for (const auto &item : ladders) {
+            py::object held = py::reinterpret_borrow<py::object>(item);
+            if (held.is_none())
+                throw std::invalid_argument("ladders contains None; every entry must be a BookLadder");
+            raw.push_back(held.cast<BookLadder *>());
+            refs.push_back(std::move(held));
         }
         Entry *found = find(symbol);
         if (found == nullptr) {
-            entries.push_back(Entry{symbol, 0.0, 0.0, 0.0, books, std::nullopt});
+            entries.push_back(Entry{symbol, 0.0, 0.0, 0.0, std::move(raw), std::move(refs), std::nullopt});
             return;
         }
-        found->books = books;
+        found->books = std::move(raw);
+        found->book_refs = std::move(refs);
     }
 
     void set_paper_mark(const std::string &symbol, std::optional<double> mark) {
         Entry *found = find(symbol);
         if (found == nullptr) {
-            entries.push_back(Entry{symbol, 0.0, 0.0, 0.0, {}, mark});
+            entries.push_back(Entry{symbol, 0.0, 0.0, 0.0, {}, {}, mark});
             return;
         }
         found->paper_mark = mark;

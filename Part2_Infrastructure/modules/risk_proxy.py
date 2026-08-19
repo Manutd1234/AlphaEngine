@@ -276,6 +276,22 @@ class RiskGateway:
         # the bench harness, which re-imports ``modules.decision_core`` per
         # engine, gets the module it just selected rather than a stale one.
         self._decision_core = self._resolve_decision_core()
+        #: The held book, mirrored in C++. Mutated where positions actually
+        #: change — a fill, a paper execution, a restore from the audit log —
+        #: rather than rebuilt per order, which is the whole reason it exists.
+        #: None when no native core is active; every reader handles that.
+        self._position_book = (
+            self._decision_core.PositionBook() if self._decision_core is not None else None
+        )
+        #: Which venues were LIVE for each held symbol when the mirror last
+        #: took its ladder pointers. The pointers themselves are stable — a
+        #: BookState's ladder object outlives every tick, so the feed mutating
+        #: a ladder needs no resync at all. What does need noticing is
+        #: TCAEngine._live_books changing its mind: it filters on has_book and
+        #: staleness, so a venue can drop out of a consolidation with no fill
+        #: and no disconnection, just a feed going quiet. -1 marks the mirror
+        #: abandoned.
+        self._position_book_live: dict[str, tuple[str, ...]] | None = None
         self.start_of_day_equity = settings.starting_equity_usd
         self.session_date = _utcnow().strftime("%Y-%m-%d")
         # Realized P&L banked by sessions that have already closed.
@@ -339,6 +355,80 @@ class RiskGateway:
             log.exception("decision core loader unavailable; using the Python reference")
             return None
 
+    def _sync_position_book(self) -> None:
+        """Re-mirror the held book into the native PositionBook.
+
+        Called where positions change, not where they are read: a fill, a paper
+        execution, and the audit replay at startup. Between those the mirror is
+        already correct, including its marks — it holds pointers to the same
+        BookLadder objects the feed funnels mutate, so a venue tick updates
+        what the mirror sees without anything crossing the boundary.
+
+        Cheap to call and safe to call twice; it is a full rebuild rather than
+        a diff because a diff of five floats per position is more code than the
+        rebuild it would save, and this runs on fills.
+        """
+        book = self._position_book
+        if book is None:
+            return
+        book.clear()
+        live: dict[str, tuple[str, ...]] = {}
+        for symbol, position in self.positions.items():
+            book.upsert(symbol, position.quantity, position.avg_price, position.realized_pnl)
+            paper = self._paper_marks.get(symbol)
+            if paper is not None:
+                book.set_paper_mark(symbol, paper)
+            names: tuple[str, ...] = ()
+            if self.tca is not None:
+                ladders = []
+                books = self.tca._live_books(symbol)
+                for state in books.values():
+                    ladder = state.native_ladder()
+                    # A book with no mirror cannot contribute to a mark. Leaving
+                    # it out would silently change the consolidation, so the
+                    # whole mirror is abandoned and submit() takes the vector
+                    # path, exactly as it does when the extension is absent.
+                    if ladder is None:
+                        self._position_book_live = None
+                        book.clear()
+                        return
+                    ladders.append(ladder)
+                book.set_books(symbol, ladders)
+                names = tuple(books.keys())
+            live[symbol] = names
+        self._position_book_live = live
+
+    def _position_book_for(self, symbol: str):
+        """The mirror, if it is currently trustworthy.
+
+        Returns None when there is no native core, when the mirror was
+        abandoned, or when the set of venue books has changed since it took its
+        pointers — in which case it re-syncs first and answers with the fresh
+        one. The check is a single integer compare; noticing a new venue any
+        other way would cost more than the mirror saves.
+        """
+        book = self._position_book
+        if book is None:
+            return None
+        mirrored = self._position_book_live
+        if mirrored is None or len(mirrored) != len(self.positions):
+            self._sync_position_book()
+            mirrored = self._position_book_live
+            if mirrored is None:
+                return None
+        if self.tca is not None:
+            for symbol in self.positions:
+                if mirrored.get(symbol) != tuple(self.tca._live_books(symbol).keys()):
+                    # A venue joined or dropped out of this symbol's
+                    # consolidation. Re-mirror rather than decide against a set
+                    # of ladders the desk no longer considers live.
+                    self._sync_position_book()
+                    mirrored = self._position_book_live
+                    if mirrored is None:
+                        return None
+                    break
+        return book if len(book) == len(self.positions) else None
+
     def _native_decide(self, req: OrderRequest, paper_equity: bool):
         """Run the numeric gates, the book arithmetic and the routed walk natively.
 
@@ -381,19 +471,26 @@ class RiskGateway:
                     names.append(name)
                 venue_names = tuple(names)
 
+            # The mirror, when it is trustworthy: the core then expands the
+            # held book itself, inside its own timed region, and consolidates
+            # each position's mark from ladders it already owns. Nothing about
+            # the book crosses the boundary per order.
+            position_book = self._position_book_for(symbol)
             pos_quantities: list[float] = []
             pos_avg_prices: list[float] = []
             pos_realized: list[float] = []
             pos_marks: list[float | None] = []
             pos_is_order_symbol: list[bool] = []
-            for sym, pos in self.positions.items():
-                pos_quantities.append(pos.quantity)
-                pos_avg_prices.append(pos.avg_price)
-                pos_realized.append(pos.realized_pnl)
-                # self.mark(sym): each position's mark is its own multi-venue
-                # consolidation, computed here so the core need only fold it.
-                pos_marks.append(self.mark(sym))
-                pos_is_order_symbol.append(sym == symbol)
+            if position_book is None:
+                for sym, pos in self.positions.items():
+                    pos_quantities.append(pos.quantity)
+                    pos_avg_prices.append(pos.avg_price)
+                    pos_realized.append(pos.realized_pnl)
+                    # self.mark(sym): each position's mark is its own
+                    # multi-venue consolidation, computed here so the core need
+                    # only fold it.
+                    pos_marks.append(self.mark(sym))
+                    pos_is_order_symbol.append(sym == symbol)
 
             working_buys, working_sells = self.working_qty(symbol)
             paper_price = req.paper_execution.price if paper_equity else None
@@ -435,6 +532,8 @@ class RiskGateway:
                 # to route with; without a TCA engine there is no est_slippage
                 # check at all, and the core must not invent one.
                 self.tca is not None,                   # route_enabled
+                position_book,                          # position_book
+                symbol,                                 # order_symbol
             )
             return result, venue_names
         except Exception:  # pragma: no cover - robustness: never fail an order on the core
@@ -789,6 +888,8 @@ class RiskGateway:
                 self._paper_marks[symbol] = price
 
         self.positions.update(restored)
+        # The replayed session is a position change like any other.
+        self._sync_position_book()
         if fills:
             log.info(
                 "rehydrated %d accepted fills into %d current-session positions",
@@ -1004,6 +1105,14 @@ class RiskGateway:
         self.carried_realized_pnl = banked
         for pos in self.positions.values():
             pos.realized_pnl = 0.0
+        # The rollover zeroes every per-position realized counter, which is a
+        # position change the mirror cannot see: it holds copies of those
+        # numbers, not references to the PositionState objects. Missing this
+        # left the mirror carrying yesterday's realized P&L into today's
+        # drawdown and tripped reduce-only on the first opening order of a new
+        # session — caught by test_session_rollover, and the reason every
+        # mutation of self.positions in this file now ends in this call.
+        self._sync_position_book()
         self.start_of_day_equity = baseline
         # The warning latch is scoped to a session like everything else here.
         # Left set, a desk that ended yesterday in the warning band would start
@@ -1460,6 +1569,7 @@ class RiskGateway:
                 fill = self._maker_fill(wo, wo.limit_price, venue)
                 position = self.positions.setdefault(wo.symbol, PositionState(wo.symbol))
                 position.apply_fill(wo.side, fill.quantity, fill.price, fill.fee_usd)
+                self._sync_position_book()
                 self.orders_accepted += 1
                 filled.append(self._retire(
                     wo, "FILLED", fill=fill,
@@ -1909,6 +2019,7 @@ class RiskGateway:
                         fill = self._paper_fill(req, qty, notional, mark)
                         position = self.positions.setdefault(req.symbol, PositionState(req.symbol))
                         position.apply_fill(req.side, fill.quantity, fill.price, fill.fee_usd)
+                        self._sync_position_book()
                         self.orders_accepted += 1
                         self._fill_stamp(req.symbol, decided_at)
                     elif tif == "IOC":
