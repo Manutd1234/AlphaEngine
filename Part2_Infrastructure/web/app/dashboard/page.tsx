@@ -1200,6 +1200,31 @@ export default function Page() {
           });
         },
       },
+      /* Execution verbs. The palette could already reach every section of
+         this tab and change nothing once it arrived — navigation without
+         verbs. These four set the two inputs the whole Routing & TCA surface
+         is a function of, and land the reader where the answer redraws.
+         Nothing here submits, cancels or routes: the ticket keeps those, and
+         the kill switch stays a navigation entry precisely so a fuzzy match
+         cannot fire it. */
+      {
+        id: "action-flip-side",
+        label: `Execution: flip the intent to ${side === "BUY" ? "SELL" : "BUY"}`,
+        category: "Action",
+        action: () => {
+          setSide(side === "BUY" ? "SELL" : "BUY");
+          navigate("live", false, { apply: () => setExecutionSection("routing"), hash: "live/routing" });
+        },
+      },
+      ...([10_000, 100_000, 1_000_000] as const).map((preset) => ({
+        id: `action-probe-${preset}`,
+        label: `Execution: probe ${usd(preset, 0)}`,
+        category: "Action" as const,
+        action: () => {
+          setNotional(preset);
+          navigate("live", false, { apply: () => setExecutionSection("routing"), hash: "live/routing" });
+        },
+      })),
       {
         id: "action-toggle-theme",
         // Names what it does now that Theme has three states. This verb flips
@@ -1233,6 +1258,7 @@ export default function Page() {
     pinRun,
     researchSection,
     run,
+    side,
     running,
     showMcBands,
     updateStrategy,
