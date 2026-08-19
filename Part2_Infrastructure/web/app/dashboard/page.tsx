@@ -1456,7 +1456,10 @@ export default function Page() {
             <WorkspaceIntro
               kicker="Risk manager"
               title="Risk"
-              description={<>Limits, validated loss estimates, forward-looking scenarios and emergency controls.</>}
+              /* The worst of the three: this was all five section tabs —
+                 Limits, VaR & model, Monte Carlo, Stress tests, Controls — in
+                 the order they appear, restated a line above them. */
+              description={<>How much this book can lose before a limit stops it, and what does the stopping.</>}
               insights={[
                 {
                   label: "Trading state",
