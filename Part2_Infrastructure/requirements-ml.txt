@@ -1,0 +1,19 @@
+# Optional supervised-learning extra.
+#
+# Deliberately NOT part of requirements-core.txt. The desk's ridge and logistic
+# regression are hand-rolled in modules/ml/models.py and always available; this
+# adds the model families that do not solve in closed form.
+#
+#   pip install -r requirements-ml.txt
+#
+# When it is absent, modules/ml/engine.py reports the ML strategies as
+# UNAVAILABLE with the import error attached, and ml_runs.engine records
+# 'numpy' for every run that took the hand-rolled path. A run that fell back is
+# a different run and must not be ranked as though it were not — which is why
+# the column exists and why this file does not quietly become a core
+# dependency.
+#
+# scikit-learn is pinned to a major line rather than floated: a solver that
+# changes between releases changes yesterday's coefficients, and the
+# coefficients are the research result.
+scikit-learn>=1.5,<2.0
