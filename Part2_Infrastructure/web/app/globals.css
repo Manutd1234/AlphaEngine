@@ -232,9 +232,9 @@
 
   /* The chrome tokens: the header row, the ≤900 switcher and the ≤620 bottom
      bar. Fixed px, no --type-step, for the reason above. */
-  --fs-chrome-tab: 14px;
-  --fs-chrome-chip: 13px;
-  --fs-chrome-caption: 12px;
+  --fs-chrome-tab: 13px;
+  --fs-chrome-chip: 12px;
+  --fs-chrome-caption: 11px;
   --fs-chrome-brand: 16px;
 
   /* Line-height and tracking, as tokens. The sheet carried nineteen distinct
@@ -2348,13 +2348,14 @@ tbody tr[tabindex]:focus-visible {
    This chip carries two lines of copy and so had sized itself to fit them —
    38px tall with a 10px radius, standing a full 6px proud of its seven
    neighbours and rounding differently at the corners. It reads as the one
-   control that did not get the memo. The copy still fits: a 12px caption over
-   a 13px figure at line-height 1.05 is 26.25px of text, which with 3px of
-   padding either side and the border is 34.25px — the height the row's other
+   control that did not get the memo. The copy still fits: an 11px caption over
+   a 12px figure at line-height 1.15 is 26.45px of text, which with 3px of
+   padding either side and the border is 34.45px — the height the row's other
    two-line control (the Telegram CTA) already stands at — and the icon comes
    down with it rather than setting the floor on its own. (Measured by
    scripts/header-ladder-measure.mjs, which prints the chip's height at every
-   width; the earlier 1.15 stood 36.7px after the chrome lift.) */
+   width. 1.05 belonged to the lifted chrome, where 1.15 stood 36.7px; with
+   the chrome back at 12/11 it is 1.15 that lands on the row's norm.) */
 .latency-chip {
   display: inline-grid;
   grid-template-columns: auto auto auto;
@@ -2388,7 +2389,7 @@ tbody tr[tabindex]:focus-visible {
 .latency-chip__copy {
   display: grid;
   gap: 0;
-  line-height: 1.05;
+  line-height: 1.15;
 }
 
 .latency-chip__copy small {
