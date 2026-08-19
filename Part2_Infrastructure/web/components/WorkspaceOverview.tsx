@@ -164,7 +164,6 @@ export default function WorkspaceOverview({
    */
   const equity = book.book?.equity ?? null;
   const equitySpark = downsample(book.equityTrack.map((p) => p.equity), 64);
-  const dayTone = equity ? (equity.daily_pnl >= 0 ? "up" : "down") : null;
   const risk = book.risk;
   const latency = summary?.latency ?? null;
   const latencyMeasured = latency?.p99 != null && (latency.n ?? 0) >= 20;
@@ -206,7 +205,12 @@ export default function WorkspaceOverview({
            .page-heading h1` rule scales this up to headline size — the band
            is meant to be the eye-catching surface on the desk. */
         title="From market signal to governed decision."
-        description={<>{request.symbol} research evidence, portfolio risk, execution intent and data health share one context — and reconcile to the same audit trail.</>}
+        /* The four planes are not listed here: the decision loop directly
+           below names them in order, and a sentence that enumerates what the
+           next element enumerates is a caption for a diagram nobody has read
+           yet. What survives is the claim the loop cannot make on its own —
+           one context, one audit trail. */
+        description={<>One {request.symbol} context across the loop below, reconciling to the same audit trail.</>}
         metrics={[
           {
             label: "Equity",
@@ -229,7 +233,10 @@ export default function WorkspaceOverview({
             value: equity
               ? <>{equity.daily_pnl >= 0 ? "+" : "−"}<NumberTicker value={Math.abs(equity.daily_pnl)} format={(v) => usd(v, 0)} /></>
               : "—",
-            note: equity ? `${signedPct(equity.daily_return)}, ${dayTone} on the session` : "book connecting",
+            // "up on the session" said the sign a third time — the value
+            // carries + or −, and so does the percentage. The period is the
+            // only fact here the figure above does not already state.
+            note: equity ? `${signedPct(equity.daily_return)} on the session` : "book connecting",
             tone: equity ? (equity.daily_pnl >= 0 ? "good" : "critical") : "neutral",
           },
           {
