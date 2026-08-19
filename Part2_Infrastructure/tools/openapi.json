@@ -1466,6 +1466,441 @@
         "title": "KillSwitchRequest",
         "type": "object"
       },
+      "MLFeatureView": {
+        "description": "The feature set a run was fitted on. A model is its features.",
+        "properties": {
+          "feature_count": {
+            "title": "Feature Count",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "label_horizon_bars": {
+            "title": "Label Horizon Bars",
+            "type": "integer"
+          },
+          "spec": {
+            "additionalProperties": true,
+            "title": "Spec",
+            "type": "object"
+          },
+          "spec_hash": {
+            "title": "Spec Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "spec",
+          "spec_hash",
+          "feature_count",
+          "label",
+          "label_horizon_bars"
+        ],
+        "title": "MLFeatureView",
+        "type": "object"
+      },
+      "MLFoldView": {
+        "description": "One walk-forward fold, out-of-sample only.\n\n``purge_bars`` and ``embargo_bars`` are not optional and are not decoration.\nA fold that cannot state its purge is a fold whose leakage is unknown, and\nunknown leakage is indistinguishable from none by the only reader who\nmatters \u2014 the one deciding whether to allocate.",
+        "properties": {
+          "embargo_bars": {
+            "title": "Embargo Bars",
+            "type": "integer"
+          },
+          "fold_index": {
+            "title": "Fold Index",
+            "type": "integer"
+          },
+          "oos_max_drawdown": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oos Max Drawdown"
+          },
+          "oos_return": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oos Return"
+          },
+          "oos_sharpe": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oos Sharpe"
+          },
+          "purge_bars": {
+            "title": "Purge Bars",
+            "type": "integer"
+          },
+          "test_end": {
+            "format": "date-time",
+            "title": "Test End",
+            "type": "string"
+          },
+          "test_rows": {
+            "title": "Test Rows",
+            "type": "integer"
+          },
+          "test_start": {
+            "format": "date-time",
+            "title": "Test Start",
+            "type": "string"
+          },
+          "trades": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trades"
+          },
+          "train_end": {
+            "format": "date-time",
+            "title": "Train End",
+            "type": "string"
+          },
+          "train_rows": {
+            "title": "Train Rows",
+            "type": "integer"
+          },
+          "train_start": {
+            "format": "date-time",
+            "title": "Train Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fold_index",
+          "train_start",
+          "train_end",
+          "test_start",
+          "test_end",
+          "train_rows",
+          "test_rows",
+          "purge_bars",
+          "embargo_bars"
+        ],
+        "title": "MLFoldView",
+        "type": "object"
+      },
+      "MLRunDetail": {
+        "description": "One run with the evidence its verdict rests on.",
+        "properties": {
+          "data_hash": {
+            "title": "Data Hash",
+            "type": "string"
+          },
+          "deflated_sharpe": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deflated Sharpe"
+          },
+          "engine": {
+            "title": "Engine",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "features": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MLFeatureView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "folds": {
+            "items": {
+              "$ref": "#/components/schemas/MLFoldView"
+            },
+            "title": "Folds",
+            "type": "array"
+          },
+          "git_sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Git Sha"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "interval": {
+            "title": "Interval",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "oos_sharpe": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oos Sharpe"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          },
+          "pbo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pbo"
+          },
+          "seed": {
+            "title": "Seed",
+            "type": "integer"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "model",
+          "symbol",
+          "interval",
+          "data_hash",
+          "seed",
+          "engine",
+          "status",
+          "started_at"
+        ],
+        "title": "MLRunDetail",
+        "type": "object"
+      },
+      "MLRunSummary": {
+        "description": "One run, as the list shows it.",
+        "properties": {
+          "data_hash": {
+            "title": "Data Hash",
+            "type": "string"
+          },
+          "deflated_sharpe": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deflated Sharpe"
+          },
+          "engine": {
+            "title": "Engine",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "git_sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Git Sha"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "interval": {
+            "title": "Interval",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "oos_sharpe": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oos Sharpe"
+          },
+          "pbo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pbo"
+          },
+          "seed": {
+            "title": "Seed",
+            "type": "integer"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "model",
+          "symbol",
+          "interval",
+          "data_hash",
+          "seed",
+          "engine",
+          "status",
+          "started_at"
+        ],
+        "title": "MLRunSummary",
+        "type": "object"
+      },
+      "MLRunsResponse": {
+        "description": "The run list, and whether there was a corpus to list.\n\n``state`` distinguishes \"no runs\" from \"no store\", which are different\nfacts. An empty list under state='unavailable' would report a missing\nSupabase as a desk that has never run anything.",
+        "properties": {
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/MLRunSummary"
+            },
+            "title": "Runs",
+            "type": "array"
+          },
+          "state": {
+            "enum": [
+              "ok",
+              "unavailable"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "observed_at",
+          "state",
+          "runs"
+        ],
+        "title": "MLRunsResponse",
+        "type": "object"
+      },
       "MarketDataFeedSnapshot": {
         "properties": {
           "connected": {
@@ -6466,6 +6901,159 @@
         "summary": "Portfolio History",
         "tags": [
           "B \u00b7 Risk"
+        ]
+      }
+    },
+    "/api/research/ml/runs": {
+      "get": {
+        "description": "Supervised research runs, newest first \u2014 model, engine, and the deflated Sharpe.\n\n`state` separates \"no runs\" from \"no store\". An empty list under\n`unavailable` would report a deployment without Supabase as a desk that has\nnever run anything, which is the confusion this codebase refuses everywhere\nelse it fetches.\n\nSCOPE. The rows are filtered by `desk_id` in the query, not by row-level\nsecurity. The gateway holds the service-role key, which bypasses RLS, and\n`trader_identity` resolves to an access decision rather than a user \u2014 so\nthere is no `auth.uid()` here for the table's policy to compare against.\nThe deployment is single-desk, which makes that honest today; the day a\nsecond desk exists this filter is the line that has to change.",
+        "operationId": "ml_runs_api_research_ml_runs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MLRunsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ml Runs",
+        "tags": [
+          "research"
+        ]
+      }
+    },
+    "/api/research/ml/runs/{run_id}": {
+      "get": {
+        "description": "One run with the evidence its verdict rests on: every fold, and the feature set.\n\nThe folds carry their purge and embargo because those are what make the\nout-of-sample figures mean anything. A reader who cannot see them is being\nasked to take the Sharpe on trust.",
+        "operationId": "ml_run_detail_api_research_ml_runs__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MLRunDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ml Run Detail",
+        "tags": [
+          "research"
         ]
       }
     },

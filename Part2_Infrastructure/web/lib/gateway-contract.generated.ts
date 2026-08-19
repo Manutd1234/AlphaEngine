@@ -244,6 +244,75 @@ export interface KillSwitchRequest {
   symbol?: string | null;
 }
 
+export interface MLFeatureView {
+  feature_count: number;
+  label: string;
+  label_horizon_bars: number;
+  spec: Record<string, unknown>;
+  spec_hash: string;
+}
+
+export interface MLFoldView {
+  embargo_bars: number;
+  fold_index: number;
+  oos_max_drawdown?: number | null;
+  oos_return?: number | null;
+  oos_sharpe?: number | null;
+  purge_bars: number;
+  test_end: string;
+  test_rows: number;
+  test_start: string;
+  trades?: number | null;
+  train_end: string;
+  train_rows: number;
+  train_start: string;
+}
+
+export interface MLRunDetail {
+  data_hash: string;
+  deflated_sharpe?: number | null;
+  engine: string;
+  error?: string | null;
+  features?: MLFeatureView | null;
+  finished_at?: string | null;
+  folds?: Array<MLFoldView>;
+  git_sha?: string | null;
+  id: string;
+  interval: string;
+  model: string;
+  oos_sharpe?: number | null;
+  params?: Record<string, unknown>;
+  pbo?: number | null;
+  seed: number;
+  started_at: string;
+  status: string;
+  symbol: string;
+}
+
+export interface MLRunSummary {
+  data_hash: string;
+  deflated_sharpe?: number | null;
+  engine: string;
+  error?: string | null;
+  finished_at?: string | null;
+  git_sha?: string | null;
+  id: string;
+  interval: string;
+  model: string;
+  oos_sharpe?: number | null;
+  pbo?: number | null;
+  seed: number;
+  started_at: string;
+  status: string;
+  symbol: string;
+}
+
+export interface MLRunsResponse {
+  observed_at: string;
+  runs: Array<MLRunSummary>;
+  state: "ok" | "unavailable";
+}
+
 export interface MarketDataFeedSnapshot {
   connected: boolean;
   error_present?: boolean;
@@ -761,6 +830,8 @@ export interface GatewayOperations {
   "POST /api/orders/{order_id}/replace": { request: ReplaceRequest; response: RiskDecision };
   "GET /api/portfolio": { response: Record<string, unknown> };
   "GET /api/portfolio/history": { response: Record<string, unknown> };
+  "GET /api/research/ml/runs": { response: MLRunsResponse };
+  "GET /api/research/ml/runs/{run_id}": { response: MLRunDetail };
   "GET /api/research/openbb/bars": { response: Record<string, unknown> };
   "GET /api/research/openbb/fundamentals": { response: Record<string, unknown> };
   "GET /api/research/openbb/health": { response: Record<string, unknown> };
@@ -811,6 +882,8 @@ export const GATEWAY_CONTRACT_PATHS = [
   "/api/orders/{order_id}/replace",
   "/api/portfolio",
   "/api/portfolio/history",
+  "/api/research/ml/runs",
+  "/api/research/ml/runs/{run_id}",
   "/api/research/openbb/bars",
   "/api/research/openbb/fundamentals",
   "/api/research/openbb/health",

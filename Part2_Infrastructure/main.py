@@ -69,6 +69,7 @@ from modules.decision_core import ENGINE as DECISION_ENGINE
 from modules.equity_quote import EquityQuoteUnavailable, fetch_paper_equity_reference, is_equity_symbol
 from modules.jobs import get_queue
 from modules.metrics import RequestTimingMiddleware, render_metrics
+from modules.ml.store import MLRunStore
 from modules.operations import OperationsSnapshot, build_operations_snapshot
 from modules.portfolio import build_equity_history, build_portfolio
 from modules.research_rag import EMBEDDING_DIMENSIONS, EMBEDDING_MODEL, get_rag
@@ -82,6 +83,9 @@ from modules.schemas import (
     DataReplayRequest,
     DataSchedulesResponse,
     KillSwitchRequest,
+    MLRunDetail,
+    MLRunsResponse,
+    MLRunSummary,
     OrderAck,
     OrderEvent,
     OrderRequest,
@@ -444,6 +448,71 @@ async def data_backfill(req: DataBackfillRequest, actor: str = Depends(trader_id
         raise HTTPException(status_code=503, detail="an equity backfill needs the workspace — set WEB_WORKSPACE_URL on the gateway")
     record = submit_backfill(req, actor=actor)
     return DataJobAccepted(job_id=record.job_id, kind="data.backfill", status=record.status, backend=record.backend, poll=f"/api/jobs/{record.job_id}")
+
+
+_ml_store: MLRunStore | None = None
+
+
+def get_ml_store() -> MLRunStore:
+    """The ML run store, built once.
+
+    Lazily, like the other Supabase-backed helpers: constructing an httpx
+    client at import time would make a module import depend on the network
+    being reachable.
+    """
+    global _ml_store
+    if _ml_store is None:
+        _ml_store = MLRunStore()
+    return _ml_store
+
+
+@app.get("/api/research/ml/runs", response_model=MLRunsResponse, tags=["research"])
+async def ml_runs(
+    limit: int = Query(default=25, ge=1, le=100),
+    _actor: str = Depends(trader_identity),
+) -> MLRunsResponse:
+    """Supervised research runs, newest first — model, engine, and the deflated Sharpe.
+
+    `state` separates "no runs" from "no store". An empty list under
+    `unavailable` would report a deployment without Supabase as a desk that has
+    never run anything, which is the confusion this codebase refuses everywhere
+    else it fetches.
+
+    SCOPE. The rows are filtered by `desk_id` in the query, not by row-level
+    security. The gateway holds the service-role key, which bypasses RLS, and
+    `trader_identity` resolves to an access decision rather than a user — so
+    there is no `auth.uid()` here for the table's policy to compare against.
+    The deployment is single-desk, which makes that honest today; the day a
+    second desk exists this filter is the line that has to change.
+    """
+    store = get_ml_store()
+    if not store.enabled:
+        return MLRunsResponse(
+            observed_at=datetime.now(timezone.utc), state="unavailable", runs=[],
+        )
+    rows = await store.list_runs(limit=limit)
+    return MLRunsResponse(
+        observed_at=datetime.now(timezone.utc),
+        state="ok",
+        runs=[MLRunSummary(**row) for row in rows],
+    )
+
+
+@app.get("/api/research/ml/runs/{run_id}", response_model=MLRunDetail, tags=["research"])
+async def ml_run_detail(run_id: str, _actor: str = Depends(trader_identity)) -> MLRunDetail:
+    """One run with the evidence its verdict rests on: every fold, and the feature set.
+
+    The folds carry their purge and embargo because those are what make the
+    out-of-sample figures mean anything. A reader who cannot see them is being
+    asked to take the Sharpe on trust.
+    """
+    store = get_ml_store()
+    if not store.enabled:
+        raise HTTPException(status_code=503, detail="no research corpus is configured on this deployment")
+    row = await store.get_run(run_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"no such ML run: {run_id}")
+    return MLRunDetail(**row)
 
 
 @app.get("/api/data/jobs", response_model=DataJobsResponse, tags=["data"])

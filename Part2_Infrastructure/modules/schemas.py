@@ -698,3 +698,90 @@ class ResearchRagStatus(BaseModel):
     dropped: int
     last_anomaly_at: datetime | None = None
     last_anomaly_matches: list[ResearchRagAnomalyMatch] = Field(default_factory=list)
+
+
+# --------------------------------------------------------------------------- #
+# Supervised research runs
+# --------------------------------------------------------------------------- #
+class MLFoldView(BaseModel):
+    """One walk-forward fold, out-of-sample only.
+
+    ``purge_bars`` and ``embargo_bars`` are not optional and are not decoration.
+    A fold that cannot state its purge is a fold whose leakage is unknown, and
+    unknown leakage is indistinguishable from none by the only reader who
+    matters — the one deciding whether to allocate.
+    """
+
+    fold_index: int
+    train_start: datetime
+    train_end: datetime
+    test_start: datetime
+    test_end: datetime
+    train_rows: int
+    test_rows: int
+    purge_bars: int
+    embargo_bars: int
+    oos_return: float | None = None
+    oos_sharpe: float | None = None
+    oos_max_drawdown: float | None = None
+    trades: int | None = None
+
+
+class MLFeatureView(BaseModel):
+    """The feature set a run was fitted on. A model is its features."""
+
+    spec: dict[str, Any]
+    # Digest of the canonical spec, so two runs are compared for feature
+    # identity with an equality test rather than by reading two JSON blobs.
+    spec_hash: str
+    feature_count: int
+    label: str
+    label_horizon_bars: int
+
+
+class MLRunSummary(BaseModel):
+    """One run, as the list shows it."""
+
+    id: str
+    model: str
+    symbol: str
+    interval: str
+    # The exact bars the run saw — same meaning as BacktestResult.data_hash, so
+    # an ML run and a sweep over the same window are comparable.
+    data_hash: str
+    seed: int
+    # The tree that fitted it. A fitted model is a function of its code in a way
+    # a moving average is not. None on a build with no git.
+    git_sha: str | None = None
+    # numpy (hand-rolled) or sklearn (optional extra). A run that fell back is a
+    # different run and must not be ranked as though it were not.
+    engine: str
+    status: str
+    oos_sharpe: float | None = None
+    deflated_sharpe: float | None = None
+    pbo: float | None = None
+    started_at: datetime
+    finished_at: datetime | None = None
+    # Never null on a failed row — the table refuses it.
+    error: str | None = None
+
+
+class MLRunsResponse(BaseModel):
+    """The run list, and whether there was a corpus to list.
+
+    ``state`` distinguishes "no runs" from "no store", which are different
+    facts. An empty list under state='unavailable' would report a missing
+    Supabase as a desk that has never run anything.
+    """
+
+    observed_at: datetime
+    state: Literal["ok", "unavailable"]
+    runs: list[MLRunSummary]
+
+
+class MLRunDetail(MLRunSummary):
+    """One run with the evidence its verdict rests on."""
+
+    params: dict[str, Any] = Field(default_factory=dict)
+    folds: list[MLFoldView] = Field(default_factory=list)
+    features: MLFeatureView | None = None

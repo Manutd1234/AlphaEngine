@@ -124,6 +124,85 @@ class MLRunStore:
         except Exception:  # noqa: BLE001
             log.warning("ml store: could not mark run %s failed", run_id)
 
+    # ---------------------------------------------------------------- #
+    # Reading
+    # ---------------------------------------------------------------- #
+    # THE RLS CAVEAT, STATED WHERE THE QUERY IS.
+    #
+    # ml_runs' SELECT policy is `auth.uid() = user_id`, written for a browser
+    # holding a user's JWT. This client holds the SERVICE ROLE key, which
+    # bypasses RLS entirely, and the gateway's own auth (`trader_identity`)
+    # resolves to 'web:token' or 'web:anonymous' — an access decision, not an
+    # identity. There is no uid here to scope by.
+    #
+    # So the scope is applied in the QUERY, by desk_id, and that is the only
+    # thing standing between one desk and another on this path. It is honest
+    # today because the deployment is single-desk — desk_id has one value and
+    # a default — and it is written here rather than assumed so that the day a
+    # second desk exists, this is the line that has to change. A policy that
+    # cannot fire is not a policy; pretending otherwise is how a boundary is
+    # discovered to have never existed.
+    DEFAULT_DESK_ID = "00000000-0000-0000-0000-000000000001"
+
+    async def list_runs(self, limit: int = 25, desk_id: str | None = None) -> list[dict[str, Any]]:
+        """Recent runs, newest first. Empty list when unconfigured is WRONG —
+        callers get None so they can tell 'no runs' from 'no corpus'."""
+        if not self.enabled:
+            return []
+        if self._client is None:
+            await self.start()
+        if self._client is None:
+            return []
+        params = {
+            "desk_id": f"eq.{desk_id or self.DEFAULT_DESK_ID}",
+            "select": (
+                "id,model,symbol,interval,data_hash,seed,git_sha,engine,status,"
+                "oos_sharpe,deflated_sharpe,pbo,started_at,finished_at,error"
+            ),
+            "order": "started_at.desc",
+            "limit": str(max(1, min(int(limit), 100))),
+        }
+        response = await self._client.get("/rest/v1/ml_runs", params=params)
+        if response.status_code >= 400:
+            log.warning("ml store: list_runs HTTP %s", response.status_code)
+            return []
+        return response.json() or []
+
+    async def get_run(self, run_id: str, desk_id: str | None = None) -> dict[str, Any] | None:
+        """One run with its folds and feature spec, or None when there is no
+        such run on this desk. None is 'not found', never 'not configured' —
+        the caller distinguishes those and so must this."""
+        if not self.enabled:
+            return None
+        if self._client is None:
+            await self.start()
+        if self._client is None:
+            return None
+        scope = f"eq.{desk_id or self.DEFAULT_DESK_ID}"
+
+        runs = await self._client.get("/rest/v1/ml_runs", params={
+            "id": f"eq.{run_id}", "desk_id": scope, "select": "*",
+        })
+        if runs.status_code >= 400 or not runs.json():
+            return None
+        run = runs.json()[0]
+
+        folds = await self._client.get("/rest/v1/ml_folds", params={
+            "run_id": f"eq.{run_id}",
+            "select": ("fold_index,train_start,train_end,test_start,test_end,train_rows,"
+                       "test_rows,purge_bars,embargo_bars,oos_return,oos_sharpe,"
+                       "oos_max_drawdown,trades"),
+            "order": "fold_index.asc",
+        })
+        features = await self._client.get("/rest/v1/ml_features", params={
+            "run_id": f"eq.{run_id}",
+            "select": "spec,spec_hash,feature_count,label,label_horizon_bars",
+        })
+        run["folds"] = folds.json() if folds.status_code < 400 else []
+        feature_rows = features.json() if features.status_code < 400 else []
+        run["features"] = feature_rows[0] if feature_rows else None
+        return run
+
     async def persist(
         self,
         *,
