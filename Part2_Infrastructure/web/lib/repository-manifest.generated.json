@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-19",
-  "commit": "f376ed1",
+  "commit": "ddcfcf7",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -221,6 +221,7 @@
     "Part2_Infrastructure/web/app/api/gateway/orders/working/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/portfolio/history/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/portfolio/route.ts",
+    "Part2_Infrastructure/web/app/api/gateway/research/graph/[id]/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/research/ml/runs/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/research/rag/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/risk/route.ts",
@@ -339,6 +340,7 @@
     "Part2_Infrastructure/web/components/profile/ProfileScreen.tsx",
     "Part2_Infrastructure/web/components/ReliabilityConsole.tsx",
     "Part2_Infrastructure/web/components/research/BenchmarkPanel.tsx",
+    "Part2_Infrastructure/web/components/research/ConnectedDocuments.tsx",
     "Part2_Infrastructure/web/components/research/ExperimentHistory.tsx",
     "Part2_Infrastructure/web/components/research/FactorPanel.tsx",
     "Part2_Infrastructure/web/components/research/FavouritesPanel.tsx",

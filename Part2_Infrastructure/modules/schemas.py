@@ -785,3 +785,35 @@ class MLRunDetail(MLRunSummary):
     params: dict[str, Any] = Field(default_factory=dict)
     folds: list[MLFoldView] = Field(default_factory=list)
     features: MLFeatureView | None = None
+
+
+class ResearchGraphNeighbour(BaseModel):
+    """One document reachable from another, and how it was reached."""
+
+    id: str
+    kind: str
+    source_ref: str
+    symbol: str | None = None
+    strategy: str | None = None
+    occurred_at: datetime
+    title: str
+    depth: int
+    # The last relation traversed, so a reader is told "shares a data hash"
+    # rather than "is related".
+    arrived_by: str
+    # What that relation had in common — the hash, the symbol, the regime.
+    evidence: str | None = None
+
+
+class ResearchGraphResponse(BaseModel):
+    """Reachable documents, or the fact that the graph could not be walked.
+
+    `unavailable` is a state and never an empty list: "connected to nothing"
+    and "could not ask" are different answers and the workspace renders them
+    differently. A deployment predating the traversal migration reports
+    unavailable rather than an error — a corpus that cannot traverse yet is
+    not a broken corpus.
+    """
+
+    state: Literal["ok", "unavailable"]
+    connected: list[ResearchGraphNeighbour]

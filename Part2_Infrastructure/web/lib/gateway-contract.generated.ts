@@ -439,6 +439,24 @@ export interface ReplaceRequest {
   reason?: string;
 }
 
+export interface ResearchGraphNeighbour {
+  arrived_by: string;
+  depth: number;
+  evidence?: string | null;
+  id: string;
+  kind: string;
+  occurred_at: string;
+  source_ref: string;
+  strategy?: string | null;
+  symbol?: string | null;
+  title: string;
+}
+
+export interface ResearchGraphResponse {
+  connected: Array<ResearchGraphNeighbour>;
+  state: "ok" | "unavailable";
+}
+
 export interface ResearchRagAnomalyMatch {
   kind: string;
   occurred_at: string;
@@ -830,6 +848,7 @@ export interface GatewayOperations {
   "POST /api/orders/{order_id}/replace": { request: ReplaceRequest; response: RiskDecision };
   "GET /api/portfolio": { response: Record<string, unknown> };
   "GET /api/portfolio/history": { response: Record<string, unknown> };
+  "GET /api/research/graph/{document_id}": { response: ResearchGraphResponse };
   "GET /api/research/ml/runs": { response: MLRunsResponse };
   "GET /api/research/ml/runs/{run_id}": { response: MLRunDetail };
   "GET /api/research/openbb/bars": { response: Record<string, unknown> };
@@ -882,6 +901,7 @@ export const GATEWAY_CONTRACT_PATHS = [
   "/api/orders/{order_id}/replace",
   "/api/portfolio",
   "/api/portfolio/history",
+  "/api/research/graph/{document_id}",
   "/api/research/ml/runs",
   "/api/research/ml/runs/{run_id}",
   "/api/research/openbb/bars",

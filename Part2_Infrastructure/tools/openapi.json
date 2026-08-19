@@ -2632,6 +2632,110 @@
         "title": "ReplaceRequest",
         "type": "object"
       },
+      "ResearchGraphNeighbour": {
+        "description": "One document reachable from another, and how it was reached.",
+        "properties": {
+          "arrived_by": {
+            "title": "Arrived By",
+            "type": "string"
+          },
+          "depth": {
+            "title": "Depth",
+            "type": "integer"
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "source_ref": {
+            "title": "Source Ref",
+            "type": "string"
+          },
+          "strategy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strategy"
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "source_ref",
+          "occurred_at",
+          "title",
+          "depth",
+          "arrived_by"
+        ],
+        "title": "ResearchGraphNeighbour",
+        "type": "object"
+      },
+      "ResearchGraphResponse": {
+        "description": "Reachable documents, or the fact that the graph could not be walked.\n\n`unavailable` is a state and never an empty list: \"connected to nothing\"\nand \"could not ask\" are different answers and the workspace renders them\ndifferently. A deployment predating the traversal migration reports\nunavailable rather than an error \u2014 a corpus that cannot traverse yet is\nnot a broken corpus.",
+        "properties": {
+          "connected": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchGraphNeighbour"
+            },
+            "title": "Connected",
+            "type": "array"
+          },
+          "state": {
+            "enum": [
+              "ok",
+              "unavailable"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "connected"
+        ],
+        "title": "ResearchGraphResponse",
+        "type": "object"
+      },
       "ResearchRagAnomalyMatch": {
         "properties": {
           "kind": {
@@ -6901,6 +7005,105 @@
         "summary": "Portfolio History",
         "tags": [
           "B \u00b7 Risk"
+        ]
+      }
+    },
+    "/api/research/graph/{document_id}": {
+      "get": {
+        "description": "What is CONNECTED to one research document \u2014 the question similarity cannot answer.\n\n`/api/research/rag/search` finds what a document resembles. This walks\nresearch_edges instead: every run that saw the same bars, the incident that\nfollowed a promotion, the regime a parameter set was fitted in. Those are\nrelations between documents, and a fused similarity ranking has no way to\nexpress one \u2014 the two documents at either end of the most useful edge here\ntypically read nothing alike.\n\nDepth is capped at 4 by the SQL function regardless of what is asked for,\nand every row carries the relation and the evidence that reached it.",
+        "operationId": "research_graph_api_research_graph__document_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_depth",
+            "required": false,
+            "schema": {
+              "default": 2,
+              "maximum": 4,
+              "minimum": 1,
+              "title": "Max Depth",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchGraphResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Research Graph",
+        "tags": [
+          "C \u00b7 Research"
         ]
       }
     },

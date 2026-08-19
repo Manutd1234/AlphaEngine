@@ -16,6 +16,7 @@
 
 import { useState } from "react";
 
+import ConnectedDocuments from "@/components/research/ConnectedDocuments";
 import { fmt } from "@/lib/format";
 import { SearchBackend, useResearchSearch } from "@/lib/use-research-search";
 
@@ -134,6 +135,7 @@ export default function ResearchCorpus() {
                 <span>, {new Date(match.occurred_at).toLocaleDateString()}</span>
               </div>
               <p className="corpus-result__body">{match.body}</p>
+              <ConnectedDocuments documentId={match.id} />
             </li>
           ))}
         </ol>

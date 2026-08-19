@@ -92,6 +92,7 @@ from modules.schemas import (
     OrderTimeline,
     ReduceOnlyRequest,
     ReplaceRequest,
+    ResearchGraphResponse,
     ResearchRagEmbedRequest,
     ResearchRagEmbedResponse,
     ResearchRagSearchRequest,
@@ -899,6 +900,29 @@ async def research_rag_embed(
         model=EMBEDDING_MODEL,
         dimensions=EMBEDDING_DIMENSIONS,
     )
+
+
+@app.get("/api/research/graph/{document_id}", response_model=ResearchGraphResponse, tags=["C · Research"])
+async def research_graph(
+    document_id: str,
+    max_depth: int = Query(default=2, ge=1, le=4),
+    limit: int = Query(default=10, ge=1, le=50),
+    _actor: str = Depends(trader_identity),
+) -> ResearchGraphResponse:
+    """What is CONNECTED to one research document — the question similarity cannot answer.
+
+    `/api/research/rag/search` finds what a document resembles. This walks
+    research_edges instead: every run that saw the same bars, the incident that
+    followed a promotion, the regime a parameter set was fitted in. Those are
+    relations between documents, and a fused similarity ranking has no way to
+    express one — the two documents at either end of the most useful edge here
+    typically read nothing alike.
+
+    Depth is capped at 4 by the SQL function regardless of what is asked for,
+    and every row carries the relation and the evidence that reached it.
+    """
+    result = await get_rag().connected(document_id, max_depth=max_depth, match_count=limit)
+    return ResearchGraphResponse(**result)
 
 
 @app.get("/api/research/rag/status", tags=["C · Research"])

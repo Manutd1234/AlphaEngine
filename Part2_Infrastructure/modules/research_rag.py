@@ -499,6 +499,48 @@ class ResearchRag:
             ),
         }
 
+    async def connected(
+        self, document_id: str, max_depth: int = 2, match_count: int = 10
+    ) -> dict[str, Any]:
+        """Documents reachable from one document over research_edges.
+
+        The other question the corpus can be asked. ``search`` answers "what is
+        similar to this"; this answers "what is CONNECTED to this" — every run
+        that saw the same bars, the incident that followed a promotion. Those
+        are relations, and a fused similarity ranking cannot express one.
+
+        Typed like ``search``: ``unavailable`` is a state and never an empty
+        list, because "this document is connected to nothing" and "I could not
+        ask" are different facts and the panel renders them differently.
+
+        A 404 from the RPC means the deployment predates the traversal
+        migration, which is a real state during a rollout. It is reported as
+        ``unavailable`` rather than as an error, because a corpus that cannot
+        traverse yet is not a broken corpus.
+        """
+        if not self.enabled or not self._client:
+            return {"state": "unavailable", "connected": []}
+        try:
+            response = await self._client.post(
+                "/rest/v1/rpc/traverse_research_graph",
+                json={
+                    "start_id": document_id,
+                    "max_depth": max(1, min(int(max_depth), 4)),
+                    "match_count": max(1, min(int(match_count), 50)),
+                },
+            )
+        except httpx.HTTPError:
+            return {"state": "unavailable", "connected": []}
+        if response.status_code == 404:
+            return {"state": "unavailable", "connected": []}
+        if response.status_code >= 300:
+            return {"state": "unavailable", "connected": []}
+        try:
+            rows = response.json() or []
+        except ValueError:
+            return {"state": "unavailable", "connected": []}
+        return {"state": "ok", "connected": rows}
+
     def status(self) -> dict[str, Any]:
         """Counters and the cached anomaly matches — no URL, no key."""
         return {
