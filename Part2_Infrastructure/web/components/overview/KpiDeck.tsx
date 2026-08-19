@@ -158,10 +158,12 @@ export default function KpiDeck({
   const modeledCost = (notional * request.slippageBps) / 1e4;
   const exposure = book.book?.exposure;
   const headroom = book.book?.risk_budget.gross_exposure;
+  // Gross and headroom are not repeated here: Gross exposure is a card in
+  // this same grid with that figure as its headline, and Binding constraint's
+  // note is "<limit>: <headroom> left of <limit>". What only this card knows
+  // is what the intent would cost and whose book it would touch.
   const intentNote = book.book
-    ? `${usd(modeledCost, 0)} modeled cost, gross ${usd(exposure?.gross ?? 0, 0)}${
-        headroom ? `, ${usd(headroom.remaining, 0)} headroom` : ""
-      }${book.book.sandbox ? "; sandbox" : ""}`
+    ? `${usd(modeledCost, 0)} modeled cost${book.book.sandbox ? "; sandbox" : ""}`
     : "book connecting";
 
   // ---- data plane --------------------------------------------------------
@@ -176,8 +178,10 @@ export default function KpiDeck({
   const dataNote = systems.healthError
     ? `unreachable — snapshot from ${systems.updatedAt?.toLocaleTimeString() ?? "earlier"}`
     : summary
-      ? `p99 ${latency?.p99 != null && (latency?.n ?? 0) >= 20 ? `${Math.round(latency.p99)} ms` : "—"}, `
-        + `cache ${systems.cacheHitRate == null ? "no lookups yet" : `${Math.round(systems.cacheHitRate * 100)}%`}`
+      // No p99 here — it is the headline of the band's own Data plane p99
+      // tile, directly above this grid. The cache and the quarantine are
+      // this card's alone.
+      ? `cache ${systems.cacheHitRate == null ? "no lookups yet" : `${Math.round(systems.cacheHitRate * 100)}%`}`
         + `${systems.health?.quarantine?.size ? `; ${systems.health.quarantine.size} quarantined` : ""}`
       : "checking data plane";
 
@@ -266,12 +270,11 @@ export default function KpiDeck({
       <KpiCard
         label="Loss beyond VaR"
         value={risk ? usd(risk.cvar95, 0) : "—"}
-        note={
-          risk
-            ? `${signedPct(risk.annualisedVolatility)} annualised vol`
-              + `${book.varValidation ? `; zone ${book.varValidation.zone}` : ""}`
-            : "needs price history"
-        }
+        /* The zone belongs to the band's VaR tile, which states it under the
+           figure it validates. This deck's rule is that it does not restate
+           the band above it — the same rule that keeps CVaR out of that tile
+           and puts it here. */
+        note={risk ? `${signedPct(risk.annualisedVolatility)} annualised vol` : "needs price history"}
       />
       <KpiCard
         label="Book concentration"
