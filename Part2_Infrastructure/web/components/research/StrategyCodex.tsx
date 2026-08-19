@@ -110,7 +110,13 @@ export default function StrategyCodex({
                 <p className="codex-family__thesis">{FAMILY_THESIS[family]}</p>
               </div>
               <span className="codex-family__progress">
-                explored <NumberTicker value={explored} /> of {strategies.length}
+                {/* The sentence is ONE element. Its container is a grid, and a
+                    grid wraps every run of bare text in an anonymous item of
+                    its own — so "explored", the ticker and "of 14" were three
+                    rows rather than three words. */}
+                <span className="codex-family__progress-count">
+                  explored <NumberTicker value={explored} /> of {strategies.length}
+                </span>
                 <small>from this browser&apos;s run log (last 60 runs)</small>
               </span>
             </header>

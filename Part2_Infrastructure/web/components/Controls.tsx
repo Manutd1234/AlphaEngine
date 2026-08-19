@@ -432,13 +432,26 @@ export default function Controls({
             footnote, since a cost assumption a researcher forgot they enabled
             is indistinguishable from a strategy that stopped working. */}
         <details className="friction-group" open={frictionsOn}>
+          {/* The row is a child of the summary, not the summary itself. A
+              `display: flex` summary loses the browser's disclosure marker —
+              the marker only renders for `display: list-item` — which left
+              this control with no sign it opened at all, and the state badge
+              on the right reading as the thing to click. Every other <details>
+              on the desk uses the native marker; this one does again. */}
           <summary>
-            Microstructure frictions
-            <span
-              className={frictionsOn ? "friction-badge is-on" : "friction-badge"}
-              title={frictionSummary ?? undefined}
-            >
-              {frictionSummary ? `modelled: ${frictionSummary}` : "flat bps only"}
+            <span className="friction-group__row">
+              {/* "Microstructure frictions" needed 272px of a 235px row and
+                  wrapped the badge onto a second line. The word doing the work
+                  is not "microstructure" — the note one line below already
+                  says "Beyond flat fee and slippage", which is the same
+                  distinction with room to make it. */}
+              <span className="friction-group__label">Frictions</span>
+              <span
+                className={frictionsOn ? "friction-badge is-on" : "friction-badge"}
+                title={frictionSummary ?? undefined}
+              >
+                {frictionSummary ? `modelled: ${frictionSummary}` : "flat bps only"}
+              </span>
             </span>
           </summary>
 

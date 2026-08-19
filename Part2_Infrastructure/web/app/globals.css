@@ -5209,16 +5209,47 @@ button
   padding: 0;
 }
 
+/* list-item, not flex: the disclosure marker only renders for a list-item, and
+   a summary that has been flexed shows no marker in any browser. This control
+   spent its life looking like a static label with a pill beside it, and the
+   pill — which is a STATE, "flat bps only" — was what people clicked. The row
+   inside carries the flex now, so the layout is unchanged and the marker is
+   back. */
 .friction-group > summary {
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  display: list-item;
+  list-style-position: inside;
   padding: 9px 11px;
   font-size: var(--fs-body);
   font-weight: 600;
   color: var(--text-secondary);
+}
+
+/* The marker is the affordance, so it gets the ink of a control rather than
+   the muted grey of the label it sits beside. */
+.friction-group > summary::marker {
+  color: var(--text-secondary);
+}
+
+/* inline-flex so it sits on the marker's own line rather than starting a new
+   one under it, which is what a block-level row would do. */
+.friction-group__row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  /* One line. The badge is the state and must stay whole; if a narrower
+     viewport ever arrives, the label is what gives, not the answer. */
+  flex-wrap: nowrap;
+  gap: 8px;
+  width: calc(100% - 1.2em);
+  vertical-align: middle;
+}
+
+.friction-group__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .friction-group > summary:focus-visible {
@@ -14584,6 +14615,11 @@ button:active:not(:disabled) {
 }
 
 /* The honest progress line: derived from the run log, and it says so. */
+/* Two rows, and exactly two: the count sentence, then its provenance.
+   This was `display: grid` around bare inline text, which CSS Grid wraps in an
+   anonymous grid item per run — "explored", the ticker and "of 14" each took a
+   row of their own and the header read as a column of fragments. The sentence
+   is now a single element child, so the grid has two children and two rows. */
 .codex-family__progress {
   margin-left: auto;
   flex: 0 0 auto;
@@ -14592,6 +14628,10 @@ button:active:not(:disabled) {
   justify-items: end;
   font-size: var(--fs-md);
   color: var(--text-secondary);
+}
+
+.codex-family__progress-count {
+  white-space: nowrap;
 }
 
 .codex-family__progress small {
