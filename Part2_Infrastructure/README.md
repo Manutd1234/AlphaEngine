@@ -867,11 +867,11 @@ The companion is optional: the gateway, API and web workspace remain fully
 functional with no Telegram token. When enabled, it is an independent text and
 visual-chart interface for phone-friendly portfolio, OpenBB, execution and
 health cards. It does not render a web page or send web links, and it cannot
-open a position. The companion registers **118 commands**; **5** of them change
+open a position. The companion registers **121 commands**; **5** of them change
 what the desk is allowed to do — `/halt`, `/resume`, `/flatten`, `/reduceonly`,
 `/resetbook` — and each requires membership of `TELEGRAM_CONTROL_USER_IDS`
 (**Gated controls**, below), which is separate from the read allow-list and
-empty by default, and **93** are pushed to Telegram's `/` menu (the API caps
+empty by default, and **96** are pushed to Telegram's `/` menu (the API caps
 that list at 100; the rest still dispatch, and `/commands` lists them all). Of
 the reads, all but one are pure — the exception is `/backtest`, which queues a
 sweep on the same jobs engine the API and the web use. That crosses into
@@ -1037,6 +1037,7 @@ can scale independently from portfolio state.
 | `/fees` | Aggregate execution fees |
 | `/timeline ORDER_ID` | Lifecycle of one order from the audit trail |
 | `/working [SYMBOL]` | Orders resting on the book right now |
+| `/probe [NOTIONAL] [BUY\|SELL]` | Cost of the default probe, no arguments needed |
 | `/lineage [SYMBOL]` | Signal path OpenBB→feeds→book→gates→decisions→audit |
 | `/gates [SYMBOL] [NOTIONAL] [BUY\|SELL]` | Dry-run the 17 pre-trade gates against current state |
 | `/quality [venue\|strategy]` | Fill quality by venue or strategy |
@@ -1081,6 +1082,22 @@ can scale independently from portfolio state.
 | `/watches` | Show active liquidity watches |
 | `/digest` | On-demand portfolio and systems digest |
 
+#### Developer
+
+| Command | Purpose |
+|---|---|
+| `/engine` | Which decision engine is running, and its measured cost |
+| `/readiness` | Launch-readiness grid across runtime and backends |
+| `/cicd` | The verify gates a deploy must pass |
+| `/apis [TAG]` | OpenAPI surface by tag, or one tag's operations |
+| `/codebase` | Python file and line counts by area |
+
+#### Overview
+
+| Command | Purpose |
+|---|---|
+| `/refresh` | Re-read the desk from the gateway right now |
+
 #### Risk
 
 | Command | Purpose |
@@ -1117,15 +1134,6 @@ can scale independently from portfolio state.
 | `/traces [N]` | Recent audit events merged with web outages |
 | `/remediation` | The five typed controls, their scope and live state |
 | `/webops` | Web telemetry ledger: p50/p99, outages, quota |
-
-#### Developer
-
-| Command | Purpose |
-|---|---|
-| `/readiness` | Launch-readiness grid across runtime and backends |
-| `/cicd` | The verify gates a deploy must pass |
-| `/apis [TAG]` | OpenAPI surface by tag, or one tag's operations |
-| `/codebase` | Python file and line counts by area |
 
 #### Controls
 

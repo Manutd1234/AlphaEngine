@@ -702,6 +702,9 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("thresholds", "Alerts · Risk rules, their limits and what they read now", "Alerts", "/thresholds", "/thresholds", "_cmd_thresholds", ("rules",)),
     CommandSpec("live", "Alerts · Stream the desk into one message that updates itself", "Alerts", "/live [on|off]", "/live on", "_cmd_live", ("stream",)),
     CommandSpec("livestatus", "Alerts · What is streaming, and how often", "Alerts", "/livestatus", "/livestatus", "_cmd_livestatus", in_menu=False),
+    CommandSpec("probe", "Execution · Cost of the default probe, no arguments needed", "Execution", "/probe [NOTIONAL] [BUY|SELL]", "/probe", "_cmd_probe", ("cost_probe",)),
+    CommandSpec("engine", "Developer · Which decision engine is running, and its measured cost", "Developer", "/engine", "/engine", "_cmd_engine", ("core",)),
+    CommandSpec("refresh", "Overview · Re-read the desk from the gateway right now", "Overview", "/refresh", "/refresh", "_cmd_refresh", ("resync",)),
     CommandSpec("watch", "Alerts · Watch execution-cost deterioration", "Alerts", "/watch SYMBOL [NOTIONAL] [MAX_BPS]", "/watch BTCUSDT 100000 25", "_cmd_watch"),
     CommandSpec("unwatch", "Alerts · Remove one or all liquidity watches", "Alerts", "/unwatch [SYMBOL]", "/unwatch BTCUSDT", "_cmd_unwatch", in_menu=False),
     CommandSpec("watches", "Alerts · Show active liquidity watches", "Alerts", "/watches", "/watches", "_cmd_watches", in_menu=False),
@@ -6387,6 +6390,81 @@ class TelegramBot:
                 continue
             self._risk_state[key] = breached
             await self._push_risk_alert(key, observed, threshold, breached)
+
+    async def _cmd_probe(self, args, chat_id, actor) -> None:
+        """The palette's probe presets, as a command that needs no arguments.
+
+        /tca already does this and already defaults every argument — that is
+        what the usage strings were corrected to say. This is the same walk
+        under the name a reader reaches for, so "what would this cost" does not
+        require knowing that the answer lives under a three-letter acronym.
+        """
+        symbol, notional, side = self._trade_args(args)
+        if self.tca is None:
+            raise ValueError("no execution engine is attached on this deployment")
+        report = self.tca.tca_report(symbol, side, notional)
+        if not report.per_venue:
+            await self.send_message(chat_id, text_card(
+                f"🎯 {symbol} probe", "NO LIVE BOOK",
+                ["No venue is streaming this instrument, so there is nothing to walk."],
+                source="TCA engine", next_commands="/feedstatus · /venues"))
+            return
+        best = min(report.per_venue, key=lambda e: e.slippage_bps if e.slippage_bps is not None else 1e9)
+        lines = [
+            f"Probe   <code>{side} · {_money(notional)}</code>",
+            f"Mid     <code>{_number(report.consolidated_mid)}</code>",
+            f"Best    <code>{esc(best.venue)}</code> at <code>{_number(best.slippage_bps, signed=True)} bps</code>",
+        ]
+        if report.smart_route:
+            lines.append(
+                f"Routed  <code>{_number(report.smart_route_slippage_bps, signed=True)} bps</code>"
+                f" across <code>{len(report.smart_route)}</code>"
+            )
+        await self.send_message(chat_id, text_card(
+            f"🎯 {symbol} probe", "SYNTHETIC" if report.synthetic else "LIVE", lines,
+            source="Cross-venue TCA engine",
+            next_commands=f"/tca {symbol} {notional:g} {side} · /liquidity {symbol}"))
+
+    async def _cmd_engine(self, args, chat_id, actor) -> None:
+        """Which decision engine is running, and what it measured itself at.
+
+        The desk publishes this on /health and on the Developer tab. It is a
+        question worth being able to ask from a phone, because the answer
+        "python" on a deployment that expected "native" is a silent
+        degradation — the gateway starts fine either way.
+        """
+        from modules.decision_core import ENGINE, IMPORT_ERROR, REQUESTED
+
+        core_ns = getattr(self.gateway, "last_decision_core_ns", None) if self.gateway else None
+        lines = [
+            f"Engine    <code>{esc(ENGINE)}</code> (requested <code>{esc(REQUESTED)}</code>)",
+            f"Core      <code>{f'{core_ns} ns' if core_ns else 'not yet measured'}</code>"
+            " — the compiled battery only, not the whole decision",
+        ]
+        if ENGINE != "native" and IMPORT_ERROR is not None:
+            lines.append(f"Fell back <code>{esc(str(IMPORT_ERROR)[:120])}</code>")
+        await self.send_message(chat_id, text_card(
+            "⚙️ Decision engine", ENGINE.upper(), lines,
+            source="modules.decision_core + gateway self-measure",
+            next_commands="/status · /ops"))
+
+    async def _cmd_refresh(self, args, chat_id, actor) -> None:
+        """Re-read the desk now rather than waiting for the next poll."""
+        if not self.gateway:
+            raise ValueError("no risk gateway is attached on this deployment")
+        state = self.gateway.state()
+        observations = self._risk_observations()
+        lines = [
+            f"Equity    <code>{_money(_finite(state.equity))}</code>",
+            f"Day P&L   <code>{_money(_finite(state.daily_pnl))}</code>",
+            f"Drawdown  <code>{_percent(observations.get('daily_drawdown'))}</code>",
+            f"Positions <code>{len(state.positions)}</code>"
+            f" · halted <code>{'YES' if state.kill_switch_active else 'no'}</code>",
+        ]
+        await self.send_message(chat_id, text_card(
+            "🔄 Desk snapshot", "HALTED" if state.kill_switch_active else "READ NOW", lines,
+            source="Gateway risk state, read on demand",
+            next_commands="/portfolio · /risk · /live on"))
 
     async def _cmd_thresholds(self, args, chat_id, actor) -> None:
         """The rules, their limits, and what each reads right now."""
