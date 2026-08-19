@@ -540,9 +540,12 @@ export default function LiveMarket({
 
       <div className="card">
         <h2>Execution cost probe</h2>
+        {/* "see what it would actually cost" was the h2 above it in a longer
+            form. What the heading does not say is that the walk is over the
+            live ladder rather than a model, and that the split comes with it. */}
         <p className="sub">
-          Walk the live ladder for a target order and see what it would actually cost, plus the
-          cross-venue split that minimises it.
+          Walks the live ladder for a target order, and the cross-venue split
+          that minimises it.
         </p>
 
         <div className="row" style={{ marginBottom: 12, alignItems: "flex-end" }}>
