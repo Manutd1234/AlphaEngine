@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-19",
-  "commit": "c467aaa",
+  "commit": "09e8458",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -136,6 +136,7 @@
     "Part2_Infrastructure/tests/test_rehydration.py",
     "Part2_Infrastructure/tests/test_research_rag.py",
     "Part2_Infrastructure/tests/test_research.py",
+    "Part2_Infrastructure/tests/test_risk_alerts.py",
     "Part2_Infrastructure/tests/test_risk_proxy.py",
     "Part2_Infrastructure/tests/test_session_rollover.py",
     "Part2_Infrastructure/tests/test_strategy_catalog.py",
