@@ -1400,7 +1400,11 @@ export default function Page() {
             <WorkspaceIntro
               kicker="Portfolio manager"
               title="Portfolio"
-              description={<>What the book holds, how capital is spread, and which sleeve earned the P&amp;L.</>}
+              /* Not the section rail in prose: "what the book holds" is
+                 Positions, "how capital is spread" is Allocation, "which sleeve
+                 earned the P&L" is Performance — three of the five tabs below.
+                 This is the question those five sections answer together. */
+              description={<>Whether the book is where it was meant to be, and where the P&amp;L came from.</>}
               insights={[
                 {
                   label: "Book source",
