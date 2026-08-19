@@ -49,6 +49,21 @@ interface MonteCarloDistributionProps {
 }
 
 const PATH_CHOICES = [2_000, 10_000, 50_000] as const;
+/* 1 is the i.i.d. degenerate case and is offered deliberately: comparing the
+   cone against it is how a reader sees what volatility clustering is worth. */
+const BLOCK_CHOICES = [1, 5, 10, 20, 50] as const;
+
+/** The confidences a result was computed at.
+ *
+ * `lossBands` is present only when the caller asked for something other than
+ * the default three — that absence is what keeps a default result's canonical
+ * JSON byte-identical for lib/mc-parity.ts. So its absence MEANS 50/95/99,
+ * and reading it that way is how every label stays true to its figure. */
+function bandConfidences(result: McDistributionResult): [number, number, number] {
+  const bands = result.lossBands;
+  if (!bands || bands.length !== 3) return [50, 95, 99];
+  return [bands[0].confidence, bands[1].confidence, bands[2].confidence];
+}
 
 function HistogramChart({ result }: { result: McDistributionResult }) {
   const [ref, width] = useMeasuredWidth<HTMLDivElement>();
@@ -63,10 +78,15 @@ function HistogramChart({ result }: { result: McDistributionResult }) {
   const y = linearScale(0, peak, height, 0);
   const barW = width / bins.counts.length;
 
+  // Labels come from the RESULT, never from a constant. With tail bands
+  // selected these are 90/99/99.9, and printing a 99.9 % loss under a "P99"
+  // label would be a figure wearing the wrong name — which is worse than not
+  // offering the choice at all.
+  const [c50, c95, c99] = bandConfidences(result);
   const markers = [
-    { label: "P50", value: result.pnl.p50 },
-    { label: "P95", value: -result.loss.p95 },
-    { label: "P99", value: -result.loss.p99 },
+    { label: `P${c50}`, value: result.pnl.p50 },
+    { label: `P${c95}`, value: -result.loss.p95 },
+    { label: `P${c99}`, value: -result.loss.p99 },
   ];
 
   return (
@@ -136,6 +156,17 @@ export default function MonteCarloDistribution({
   onOpenResearch,
 }: MonteCarloDistributionProps) {
   const [paths, setPaths] = useState<number>(10_000);
+  /* "auto" is the √N heuristic the equity band uses; 1 makes the resampler
+     i.i.d., which is the resampler choice rather than a separate control —
+     with pNew = 1 every draw starts a new block, so blocks never form. The
+     option says what that costs, because i.i.d. destroys the volatility
+     clustering these returns have and narrows the cone in exactly the tail
+     the cone exists to show. */
+  const [blockLength, setBlockLength] = useState<"auto" | number>("auto");
+  /* The three loss confidences. "standard" keeps 50/95/99, and keeping it the
+     default matters beyond taste: a default request serialises exactly as it
+     always has, which is what lib/mc-parity.ts compares byte for byte. */
+  const [confidences, setConfidences] = useState<"standard" | "tail">("standard");
 
   // Quantised so a live book repolling every 15s does not re-simulate on
   // every equity tick — the same restraint OracleVarPanel applies.
@@ -148,16 +179,22 @@ export default function MonteCarloDistribution({
       returns: driver.returns,
       horizonBars: Math.max(1, Math.round(horizonDays * barsPerDay)),
       paths,
+      ...(blockLength === "auto" ? {} : { meanBlockLength: blockLength }),
+      ...(confidences === "standard" ? {} : { lossConfidences: [90, 99, 99.9] as [number, number, number] }),
       seed: driver.seed,
       equity: equityForRun,
       // Not read by the simulation — changes request identity so the palette
       // action re-runs with identical inputs (and provably identical output).
       nonce: runNonce,
     };
-  }, [driver, horizonDays, paths, equityForRun, runNonce]);
+  }, [driver, horizonDays, paths, blockLength, confidences, equityForRun, runNonce]);
 
   const state = useMcDistribution(request);
   const result = state.result;
+  // Read once, beside the result it describes. Every label below is built from
+  // these rather than from a literal, so a figure cannot be printed under a
+  // confidence it was not computed at.
+  const lossBands = result ? bandConfidences(result) : ([50, 95, 99] as [number, number, number]);
 
   if (!driver || driver.returns.length === 0) {
     return (
@@ -203,6 +240,35 @@ export default function MonteCarloDistribution({
             ))}
           </select>
         </label>
+        <label className="rail-toggle">
+          Block
+          <select
+            value={String(blockLength)}
+            onChange={(event) => {
+              const next = event.target.value;
+              setBlockLength(next === "auto" ? "auto" : Number(next));
+            }}
+            aria-label="Mean bootstrap block length, in bars"
+          >
+            <option value="auto">auto (&radic;N)</option>
+            {BLOCK_CHOICES.map((choice) => (
+              <option key={choice} value={choice}>
+                {choice === 1 ? "1 — i.i.d." : `${choice} bars`}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="rail-toggle">
+          Bands
+          <select
+            value={confidences}
+            onChange={(event) => setConfidences(event.target.value as "standard" | "tail")}
+            aria-label="Loss confidences to report"
+          >
+            <option value="standard">50 / 95 / 99</option>
+            <option value="tail">90 / 99 / 99.9</option>
+          </select>
+        </label>
       </div>
       <p className="sub">
         Resamples <strong>{driver.label}</strong>&apos;s realised {driver.interval} returns — the
@@ -246,18 +312,18 @@ export default function MonteCarloDistribution({
               tone={result.pnl.mean < 0 ? "neg" : "pos"}
               note={`${fmt(result.probLoss * 100, 1)}% of paths end in loss`}
             />
-            <StatTile label="P50 outcome" value={usd(result.pnl.p50, 0)} note="median terminal P&L" />
+            <StatTile label={`P${lossBands[0]} outcome`} value={usd(result.pnl.p50, 0)} note="median terminal P&L" />
             <StatTile
-              label="P95 loss"
+              label={`P${lossBands[1]} loss`}
               value={usd(result.loss.p95, 0)}
               tone="neg"
-              note="not exceeded in 95% of paths"
+              note={`not exceeded in ${lossBands[1]}% of paths`}
             />
             <StatTile
-              label="P99 loss"
+              label={`P${lossBands[2]} loss`}
               value={usd(result.loss.p99, 0)}
               tone="neg"
-              note="not exceeded in 99% of paths"
+              note={`not exceeded in ${lossBands[2]}% of paths`}
             />
             <StatTile
               label="Worst case"
@@ -279,7 +345,7 @@ export default function MonteCarloDistribution({
                 <strong>
                   {withinHeadroom ? "Within headroom." : "Breaches headroom."}
                 </strong>{" "}
-                P95 loss {usd(result.loss.p95, 0)} over {horizonDays} days against the{" "}
+                P{lossBands[1]} loss {usd(result.loss.p95, 0)} over {horizonDays} days against the{" "}
                 {usd(cushionUsd, 0)} left in the drawdown-to-halt budget on the Limits tab
                 {withinHeadroom
                   ? "."
@@ -296,7 +362,7 @@ export default function MonteCarloDistribution({
             same sweep redraws this exact distribution.
           </p>
           <span className="sr-only" role="status">
-            Monte Carlo complete: P95 loss {usd(result.loss.p95, 0)},{" "}
+            Monte Carlo complete: P{lossBands[1]} loss {usd(result.loss.p95, 0)},{" "}
             {withinHeadroom ? "within" : "breaching"} drawdown headroom.
           </span>
         </>

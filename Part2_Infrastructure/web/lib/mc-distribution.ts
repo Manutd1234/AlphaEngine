@@ -31,6 +31,26 @@ export interface McDistributionRequest {
   equity: number;
   /** Ignored by the math — changes request identity to force a re-run. */
   nonce?: number;
+  /**
+   * Mean block length for the stationary bootstrap, in bars. Omitted, the
+   * driver's own √N heuristic is used — the same one the equity band uses,
+   * because the autocorrelation does not change with the question being asked
+   * of it.
+   *
+   * **1 degenerates to an i.i.d. bootstrap**, which is the resampler choice
+   * rather than a separate flag: with pNew = 1 every draw starts a new block,
+   * so blocks never form. That is worth knowing before choosing it — i.i.d.
+   * destroys the volatility clustering crypto returns actually have, and
+   * reports a cone too narrow in exactly the tail the cone exists to show.
+   */
+  meanBlockLength?: number;
+  /**
+   * The three loss confidences to report, e.g. [50, 95, 99]. Omitted, those
+   * three are used and the result is byte-identical to a request that never
+   * mentioned them — which is what keeps lib/mc-parity.ts's committed
+   * reference valid.
+   */
+  lossConfidences?: [number, number, number];
 }
 
 export interface McDistributionResult {
@@ -47,6 +67,13 @@ export interface McDistributionResult {
    * quantile ended in profit.
    */
   loss: { p50: number; p95: number; p99: number };
+  /**
+   * The requested confidences and their losses, present only when the caller
+   * asked for something other than the default 50/95/99. Absent by default so
+   * a default result serialises exactly as it always has — lib/mc-parity.ts
+   * compares the canonical JSON byte for byte.
+   */
+  lossBands?: Array<{ confidence: number; loss: number }>;
   /** Share of paths that ended below the starting equity. */
   probLoss: number;
   /** Histogram over $ P&L. `edges.length === counts.length + 1`. */
@@ -133,8 +160,17 @@ export function mcSimulationFactory(): (req: McDistributionRequest) => McSimulat
     const paths = Math.min(MAX_PATHS, Math.max(MIN_PATHS, Math.floor(req.paths)));
     const equity = req.equity;
     // Same block-length heuristic as the band — the driver's autocorrelation
-    // does not change with the question being asked of it.
-    const meanBlockLength = Math.min(100, Math.max(5, Math.round(Math.sqrt(n))));
+    // does not change with the question being asked of it. A caller may
+    // override it; 1 makes the resampler i.i.d. (see the request type).
+    const meanBlockLength = req.meanBlockLength != null
+      ? Math.min(100, Math.max(1, Math.round(req.meanBlockLength)))
+      : Math.min(100, Math.max(5, Math.round(Math.sqrt(n))));
+    // The three confidences, and whether they were asked for. Default 50/95/99
+    // maps to the 50th, 5th and 1st percentiles of P&L.
+    const customConfidences = req.lossConfidences != null;
+    const confidences: [number, number, number] = customConfidences
+      ? (req.lossConfidences!.map((c) => Math.min(99.99, Math.max(0.01, c))) as [number, number, number])
+      : [50, 95, 99];
     const rand = mulberry32(req.seed);
     const drivers = Float64Array.from(returns);
     const outcomes = new Float64Array(paths);
@@ -173,11 +209,22 @@ export function mcSimulationFactory(): (req: McDistributionRequest) => McSimulat
             best: sorted[sorted.length - 1],
             worst: sorted[0],
           },
+          // A confidence C is the loss not exceeded in C% of paths, which is
+          // the (100 − C)th percentile of P&L negated.
           loss: {
-            p50: -percentileOf(sorted, 50),
-            p95: -percentileOf(sorted, 5),
-            p99: -percentileOf(sorted, 1),
+            p50: -percentileOf(sorted, 100 - confidences[0]),
+            p95: -percentileOf(sorted, 100 - confidences[1]),
+            p99: -percentileOf(sorted, 100 - confidences[2]),
           },
+          // Present ONLY when the caller asked for something other than the
+          // default three. Adding this key unconditionally would change the
+          // canonical serialisation of every result and invalidate the
+          // committed parity reference, which is the one thing this file may
+          // not do.
+          ...(customConfidences ? { lossBands: confidences.map((confidence) => ({
+            confidence,
+            loss: -percentileOf(sorted, 100 - confidence),
+          })) } : {}),
           probLoss: losses / paths,
           histogram: histogram(pnl, BINS),
         };
