@@ -54,9 +54,9 @@ describe("the rungs exist, in priority order, and each takes only what it says",
     assert.doesNotMatch(r, /latency-chip|system-health|brand-copy/);
   });
 
-  it("rung 4 (≤1690): the data-tier label; rung 5 (≤1640): the Connect label", () => {
-    assert.match(css, /@media \(max-width: 1690px\) \{\n  \.data-tier__label \{\n    display: none;/);
-    assert.match(read("components/header/TelegramCta.tsx"), /max-\[1640px\]:hidden/);
+  it("rung 4 (≤1630): the data-tier label; rung 5 (≤1580): the Connect label", () => {
+    assert.match(css, /@media \(max-width: 1630px\) \{\n  \.data-tier__label \{\n    display: none;/);
+    assert.match(read("components/header/TelegramCta.tsx"), /max-\[1580px\]:hidden/);
   });
 
   it("the core annotation is NOT a rung — it adds no width and stays until the chip folds", () => {
