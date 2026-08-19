@@ -177,12 +177,11 @@
      preference and page zoom now scale the desk (WCAG 1.4.4), which a px
      ladder ignored. Every content rung is `calc(<rem> * var(--type-step))`,
      where --type-step is the reader's Text size preference (Quick Settings:
-     compact 0.9375, comfortable 1, large 1.125). On the same day the ladder
-     was retargeted one step up and made fluid between 1280 and 1920px — the
-     desk read small on a laptop and smaller still on a wide monitor, and a
-     ladder that is the same size at 1280 and 2560 wastes the room the wide
-     desk has. Compact (×0.9375) lands within a quarter-pixel of the ladder
-     this replaced.
+     compact 0.9375, comfortable 1, large 1.125). It was then lifted a step and
+     made fluid between 1280 and 1920px, which overshot: on a wide desk that
+     put headings near 25px and figures near 29px. On 2026-08-20 the content
+     rungs became one size each again, centred on --fs-body: 14px — between the
+     ladder before the lift and the fluid one after it, and quotable.
 
      Two rungs are not typography and stay px: --fs-tick is SVG chart
      furniture (axis ticks, bar labels — user units, never prose) and
@@ -198,30 +197,32 @@
      brand and tech lettermarks, and `font-size: 0` icon-text hiding. */
   --type-step: 1;
   --fs-tick: 10px;
-  /* Fluid between a 1280px laptop and a 1920px desk: min is one step above
-     the ladder this replaced, max a further step; below 1280 the min holds
-     (a phone gets the laptop's type), above 1920 the max. Formula per rung:
-     clamp(min, (3·min − 2·max) + (max − min)/6.4 vw, max), in rem. The small
-     rungs step by half a pixel; the headings sit on a 1.2 ratio from --fs-md.
-     Comments give the px at 1280 → 1920, step 1, 16px root. */
-  --fs-2xs: calc(clamp(0.75rem, 0.625rem + 0.15625vw, 0.8125rem) * var(--type-step));      /* 12 → 13     */
-  --fs-xs: calc(clamp(0.78125rem, 0.65625rem + 0.15625vw, 0.84375rem) * var(--type-step)); /* 12.5 → 13.5 */
-  --fs-sm: calc(clamp(0.8125rem, 0.6875rem + 0.15625vw, 0.875rem) * var(--type-step));     /* 13 → 14     */
-  --fs-body: calc(clamp(0.84375rem, 0.71875rem + 0.15625vw, 0.90625rem) * var(--type-step)); /* 13.5 → 14.5 */
-  --fs-md: calc(clamp(0.875rem, 0.75rem + 0.15625vw, 0.9375rem) * var(--type-step));       /* 14 → 15     */
-  --fs-lg: calc(clamp(0.90625rem, 0.78125rem + 0.15625vw, 0.96875rem) * var(--type-step)); /* 14.5 → 15.5 */
-  --fs-xl: calc(clamp(0.9375rem, 0.8125rem + 0.15625vw, 1rem) * var(--type-step));         /* 15 → 16     */
-  --fs-2xl: calc(clamp(1rem, 0.875rem + 0.15625vw, 1.0625rem) * var(--type-step));         /* 16 → 17     */
-  --fs-title: calc(clamp(1.0625rem, 0.9375rem + 0.15625vw, 1.125rem) * var(--type-step));  /* 17 → 18     */
+  /* One size per rung, centred on --fs-body: 14px. The fluid version of this
+     ladder read too large on a wide desk — headings near 25px and figures near
+     29px at 1720px — and a rung whose value depends on the viewport is a rung
+     nobody can quote. The reading rungs step by half a pixel; the headings sit
+     a little under a 1.2 ratio from --fs-title. Comments give the px at step 1
+     on a 16px root; the reader's zoom and Text size still scale all of it.
+     Only the three hero rungs below stay fluid — a hero is the one place the
+     extra room on a wide monitor is worth spending. */
+  --fs-2xs: calc(0.75rem * var(--type-step));                 /* 12px */
+  --fs-xs: calc(0.78125rem * var(--type-step));               /* 12.5px */
+  --fs-sm: calc(0.8125rem * var(--type-step));                /* 13px */
+  --fs-body: calc(0.875rem * var(--type-step));               /* 14px */
+  --fs-md: calc(0.90625rem * var(--type-step));               /* 14.5px */
+  --fs-lg: calc(0.9375rem * var(--type-step));                /* 15px */
+  --fs-xl: calc(0.96875rem * var(--type-step));               /* 15.5px */
+  --fs-2xl: calc(1rem * var(--type-step));                    /* 16px */
+  --fs-title: calc(1.0625rem * var(--type-step));             /* 17px */
   /* Not typography: 16px is the iOS focus-zoom threshold, the one size at
      which Safari leaves the page alone when a field takes focus. Semantic,
      used only by the coarse-pointer field rules, never for reading text.
      A threshold cannot move — not with zoom, not with the Text-size step. */
   --fs-input: 16px;
-  --fs-h2: calc(clamp(1.25rem, 1rem + 0.3125vw, 1.375rem) * var(--type-step));             /* 20 → 22     */
-  --fs-h1: calc(clamp(1.5rem, 1.25rem + 0.3125vw, 1.625rem) * var(--type-step));           /* 24 → 26     */
-  --fs-figure: calc(clamp(1.75rem, 1.5rem + 0.3125vw, 1.875rem) * var(--type-step));       /* 28 → 30     */
-  --fs-display: calc(clamp(2.125rem, 1.875rem + 0.3125vw, 2.25rem) * var(--type-step));    /* 34 → 36     */
+  --fs-h2: calc(1.1875rem * var(--type-step));                /* 19px */
+  --fs-h1: calc(1.4375rem * var(--type-step));                /* 23px */
+  --fs-figure: calc(1.625rem * var(--type-step));             /* 26px */
+  --fs-display: calc(2rem * var(--type-step));                /* 32px */
   --fs-hero-line: calc(clamp(1.625rem, 1.375rem + 0.3125vw, 1.75rem) * var(--type-step));  /* 26 → 28     */
   --fs-hero-sub: calc(clamp(2.125rem, 1.625rem + 0.625vw, 2.375rem) * var(--type-step));   /* 34 → 38     */
   --fs-hero: calc(clamp(2.625rem, 2.125rem + 0.625vw, 2.875rem) * var(--type-step));       /* 42 → 46     */
