@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-19",
-  "commit": "dee8ef0",
+  "commit": "4a6ad83",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -670,6 +670,7 @@
     "supabase/migrations/20260813120000_telegram_link.sql",
     "supabase/migrations/20260820090000_ml_runs.sql",
     "supabase/migrations/20260820090100_ml_folds.sql",
+    "supabase/migrations/20260820090200_ml_features.sql",
     "supabase/README.md",
     "supabase/seed.sql"
   ]
