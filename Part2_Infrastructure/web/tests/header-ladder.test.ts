@@ -31,25 +31,25 @@ function rung(max: number): string {
   return css.slice(start, end);
 }
 
-const RUNGS = [1940, 1840, 1750, 1560, 1470, 1300, 1140] as const;
+const RUNGS = [1880, 1780, 1690, 1560, 1470, 1300, 1140] as const;
 
 describe("the rungs exist, in priority order, and each takes only what it says", () => {
-  it("rung 1 (≤1940): the Search label and the providers sentence → short form", () => {
-    assert.match(css, /@media \(max-width: 1940px\) \{\n  \.header-command-button__label \{\n    display: none;/);
-    const r = rung(1940);
+  it("rung 1 (≤1880): the Search label and the providers sentence → short form", () => {
+    assert.match(css, /@media \(max-width: 1880px\) \{\n  \.header-command-button__label \{\n    display: none;/);
+    const r = rung(1880);
     assert.match(r, /\.system-health__label \{\n    display: none;/);
     assert.match(r, /\.system-health__label--short \{\n    display: inline;/);
     assert.doesNotMatch(r, /header-settings|latency-chip|telegram/);
   });
 
-  it("rung 2 (≤1840): only the chip's state word", () => {
-    const r = rung(1840);
+  it("rung 2 (≤1780): only the chip's state word", () => {
+    const r = rung(1780);
     assert.match(r, /\.latency-chip__state \{\n    display: none;/);
     assert.doesNotMatch(r, /\.latency-chip__copy|\.latency-chip__core|header-settings/);
   });
 
-  it("rung 3 (≤1750): only the Settings label", () => {
-    const r = rung(1750);
+  it("rung 3 (≤1690): only the Settings label", () => {
+    const r = rung(1690);
     assert.match(r, /\.workspace-header__utility > \.header-anchor > \.header-settings span,/);
     assert.doesNotMatch(r, /latency-chip|system-health|brand-copy/);
   });

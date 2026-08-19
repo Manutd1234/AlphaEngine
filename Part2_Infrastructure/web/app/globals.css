@@ -548,7 +548,7 @@ html {
 
 /* First rung of the header's priority ladder — the full ladder, with the
    measurements behind it, sits under "The header's priority ladder" below. */
-@media (max-width: 1940px) {
+@media (max-width: 1880px) {
   .header-command-button__label {
     display: none;
   }
@@ -15042,9 +15042,9 @@ html:active-view-transition .view-panel {
    go. Guest and signed-in rows are one structure, so every rung holds for
    both.
 
-   Rung 1 (≤1940, with the Search label rule near the top of this file): the
+   Rung 1 (≤1880, with the Search label rule near the top of this file): the
    Search label, and the providers sentence becomes its short form. */
-@media (min-width: 901px) and (max-width: 1940px) {
+@media (min-width: 901px) and (max-width: 1880px) {
   .system-health__label {
     display: none;
   }
@@ -15054,9 +15054,9 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 2 (≤1840): the decision chip's state word — the dot keeps the tone,
+/* Rung 2 (≤1780): the decision chip's state word — the dot keeps the tone,
    the title keeps the words. */
-@media (min-width: 901px) and (max-width: 1840px) {
+@media (min-width: 901px) and (max-width: 1780px) {
   .latency-chip__state {
     display: none;
   }
@@ -15067,8 +15067,8 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 3 (≤1750): the Settings label. */
-@media (min-width: 901px) and (max-width: 1750px) {
+/* Rung 3 (≤1690): the Settings label. */
+@media (min-width: 901px) and (max-width: 1690px) {
   .workspace-header__utility > .header-settings,
   .workspace-header__utility > .header-anchor > .header-settings {
     width: 36px;
