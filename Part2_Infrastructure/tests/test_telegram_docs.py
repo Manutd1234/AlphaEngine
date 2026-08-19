@@ -59,7 +59,7 @@ def test_checklist_states_the_current_command_count():
 def test_help_and_description_name_five_controls_and_never_say_text_only():
     """`text_only` was retired from the health contract; the prose must agree."""
     controls = [spec.name for spec in COMMAND_SPECS if spec.category == "Controls"]
-    assert len(controls) == 5, "there must be exactly five gated controls"
+    assert len(controls) == 6, "there must be exactly six gated controls"
     for surface in (help_text(), BOT_DESCRIPTION):
         assert "TEXT ONLY" not in surface.upper(), (
             "the companion sends charts and buttons — it is not text-only"

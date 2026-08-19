@@ -156,7 +156,7 @@ class TestRegistry:
         # Five since reduce-only (the soft halt) and the paper-book reset
         # joined. What matters is not the count but that every one of them
         # inherits the gating asserted below.
-        assert controls == {"halt", "resume", "flatten", "reduceonly", "resetbook"}
+        assert controls == {"halt", "resume", "flatten", "reduceonly", "resetbook", "replay"}
 
         # 1. Never reachable before authorisation.
         assert not ({f"/{name}" for name in controls} & _BOOTSTRAP_COMMANDS)
@@ -542,7 +542,7 @@ class TestRenderingAndSafety:
         assert health["controls"]["gated"] is True
         # Five, derived from the registry — the hard-coded 3 this replaces
         # went on reading 3 after /reduceonly and /resetbook shipped.
-        assert health["controls"]["commands"] == 5
+        assert health["controls"]["commands"] == 6
         assert health["controls"]["commands"] == sum(
             1 for spec in COMMAND_SPECS if spec.category == "Controls"
         )

@@ -20,7 +20,7 @@ Operational data is fail-closed behind two named grants, and only two:
 workspace's Connect button. With neither, the bot exposes only bootstrap
 commands such as ``/whoami`` so an operator can obtain their Telegram user ID
 safely. A binding grants READING and never control — ``/halt``, ``/resume``,
-``/flatten``, ``/reduceonly`` and ``/resetbook`` read
+``/flatten``, ``/reduceonly``, ``/resetbook`` and ``/replay`` read
 ``TELEGRAM_CONTROL_USER_IDS`` alone. See `TelegramBot._authorised` for why the
 second grant is not an authentication bypass.
 """
@@ -769,6 +769,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("flatten", "Controls · Close every open position", "Controls", "/flatten [SYMBOL] | /flatten CODE", "/flatten", "_cmd_flatten"),
     CommandSpec("reduceonly", "Controls · Accept only risk-reducing orders", "Controls", "/reduceonly [on|off] | /reduceonly CODE", "/reduceonly on", "_cmd_reduceonly", ("softhalt",)),
     CommandSpec("resetbook", "Controls · Reset the paper book and session accounting", "Controls", "/resetbook | /resetbook CODE", "/resetbook", "_cmd_resetbook"),
+    CommandSpec("replay", "Controls · Re-fetch a capability through the validated path and record the contract result", "Controls", "/replay [SYMBOL] | /replay CODE", "/replay BTCUSDT", "_cmd_replay", ("refetch",)),
 )
 
 def _build_command_index(specs: tuple[CommandSpec, ...]) -> dict[str, CommandSpec]:
@@ -798,13 +799,13 @@ _COMMAND_BY_NAME: dict[str, CommandSpec] = _build_command_index(COMMAND_SPECS)
 # Telegram's setMyCommands accepts at most 100 entries, so the pushed menu is
 # the `in_menu` subset. Every spec dispatches regardless; /commands lists all.
 BOT_COMMANDS = [(spec.name, spec.description) for spec in COMMAND_SPECS if spec.in_menu]
-BOT_SHORT_DESCRIPTION = "Independent alerts and portfolio, market and risk reads — text, charts, buttons — plus five gated controls."
+BOT_SHORT_DESCRIPTION = "Independent alerts and portfolio, market and risk reads — text, charts, buttons — plus six gated controls."
 BOT_DESCRIPTION = (
     "AlphaEngine Companion is separate from the web workspace. It reads portfolio state, "
     "OpenBB market data, execution analytics, research status and operational alerts — as text "
     "cards, real-data charts and inline buttons; /menu opens the tappable desks. There is no "
     "/order; /backtest queues research, not trades. Five controls (/halt, /resume, /flatten, "
-    "/reduceonly, /resetbook) are typed, never tapped: they need a separate operator allow-list "
+    "/reduceonly, /resetbook, /replay) are typed, never tapped: they need a separate operator allow-list "
     "and a single-use code. Send /commands for the full catalogue."
 )
 
@@ -922,7 +923,7 @@ def help_text(query: str | None = None) -> str:
                 "Read portfolio state, OpenBB market data, execution quality and system health — "
                 "as text cards, real-data charts and tappable buttons. <code>/menu</code> opens the desks.",
                 "Order submission is intentionally unavailable. The five emergency controls "
-                "(/halt, /resume, /flatten, /reduceonly, /resetbook) need the operator allow-list "
+                "(/halt, /resume, /flatten, /reduceonly, /resetbook, /replay) need the operator allow-list "
                 "and a confirmation code, and are typed, never tapped.",
                 "",
                 f"<b>Categories</b>\n{esc(categories)}",
@@ -2253,7 +2254,7 @@ class TelegramBot:
                 "Exactly what a desk pass already shows you in the browser — one shared book, one kill "
                 "switch, one set of counters. None of it is private to you, and none of it is new.",
                 "It does <b>not</b> grant the controls. /halt, /resume, /flatten, /reduceonly and "
-                "/resetbook stay behind <code>TELEGRAM_CONTROL_USER_IDS</code>, which only an operator changes.",
+                "/resetbook and /replay stay behind <code>TELEGRAM_CONTROL_USER_IDS</code>, which only an operator changes.",
                 "",
                 "<b>Where the link is kept</b>",
                 *where,
@@ -2308,7 +2309,7 @@ class TelegramBot:
             chat_id,
             text_card(
                 "ℹ️ AlphaEngine Companion",
-                "INDEPENDENT · READ EXCEPT FIVE GATED CONTROLS",
+                "INDEPENDENT · READ EXCEPT SIX GATED CONTROLS",
                 [
                     "A separate operational channel for portfolio, market, research and execution updates — "
                     "text cards, real-data charts and inline buttons. /menu opens the tappable desks; "
@@ -2319,7 +2320,7 @@ class TelegramBot:
                     # were false — and a security note the product itself contradicts is
                     # worse than no note at all.
                     "Most commands only read. The five that do not — /halt, /resume, /flatten, /reduceonly, "
-                    "/resetbook — need the separate control allow-list and a single-use confirmation code.",
+                    "/resetbook, /replay — need the separate control allow-list and a single-use confirmation code.",
                     "/flatten enters closing orders, and they face the same pre-trade gates as any other order "
                     "rather than going around them. There is no /order; /backtest queues research, not trades.",
                     "",
@@ -3437,7 +3438,7 @@ class TelegramBot:
         # This line used to read `user_id = str(actor)`, which handed the whole
         # composite "tg:<id>:<username>" to a membership test against a list of
         # bare numeric ids. `"tg:12345:ian" in ["12345"]` is false for every
-        # possible configuration, so all five controls were permanently refused
+        # possible configuration, so every control was permanently refused
         # — including on a deployment that had configured an operator and had
         # no way to discover the switch was dead short of trying it.
         #
@@ -3490,6 +3491,7 @@ class TelegramBot:
                 "reduceonly": "Pre-trade checks accept only orders that reduce an existing position until released.",
                 "reduceonly_off": "Reduce-only is released; ordinary orders are accepted again.",
                 "resetbook": "Positions and session accounting on the PAPER book are cleared. This is not an order and sends nothing to a venue.",
+                "replay": "One capability is re-fetched through the validated path with its cache bypassed. It spends provider quota and writes a contract result to the data-quality ledger, which can escalate.",
             }[action]
             await self.send_message(chat_id, text_card(
                 f"⚠ Confirm /{action}", "ACTION NOT YET TAKEN",
@@ -3535,6 +3537,22 @@ class TelegramBot:
                 "<i>A soft halt: risk-reducing orders still pass, so a position can "
                 "always be closed while it is on.</i>" if enabled else
                 "<i>Ordinary orders are accepted again.</i>",
+            ]
+        if action == "replay":
+            from modules.data_jobs import submit_replay
+            from modules.schemas import DataReplayRequest
+
+            # The symbol the challenge was issued for, so the code cannot be
+            # reused against a different instrument than the one confirmed.
+            target = (symbol or settings.symbols[0]).upper()
+            record = submit_replay(DataReplayRequest(symbol=target), actor=actor)
+            return [
+                f"Replay queued <code>{esc(target)}</code>",
+                f"Job <code>{esc(str(getattr(record, 'id', '') or 'unknown'))}</code>"
+                f" · kind <code>{esc(str(getattr(record, 'kind', '') or 'replay'))}</code>",
+                f"Actor <code>{esc(actor)}</code>",
+                "<i>Runs on the shared jobs engine. The contract result lands in "
+                "the data-quality ledger; /jobs and /job follow it.</i>",
             ]
         if action == "resetbook":
             gateway.reset_book(actor=actor)
@@ -3605,6 +3623,12 @@ class TelegramBot:
 
     async def _cmd_flatten(self, args, chat_id, actor) -> None:
         await self._control("flatten", args, chat_id, actor)
+
+    async def _cmd_replay(self, args, chat_id, actor) -> None:
+        # A control, not a read. It spends provider quota, writes a row to the
+        # data-quality ledger, and can escalate from that ledger — three
+        # outward effects, which is the line the CODE flow exists to guard.
+        await self._control("replay", args, chat_id, actor)
 
     # ------------------------------------------------------------------ #
     # Quant risk (read-only)

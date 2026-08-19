@@ -74,7 +74,7 @@ def test_reading_the_book_does_not_imply_stopping_the_desk(unwired: TelegramBot)
 
 def test_control_commands_are_registered_in_their_own_category():
     controls = {s.name for s in COMMAND_SPECS if s.category == "Controls"}
-    assert controls == {"halt", "resume", "flatten", "reduceonly", "resetbook"}
+    assert controls == {"halt", "resume", "flatten", "reduceonly", "resetbook", "replay"}
     # Kept out of the bootstrap set, which is reachable before authorisation.
     from modules.telegram import _BOOTSTRAP_COMMANDS
     assert not ({"/halt", "/resume", "/flatten"} & _BOOTSTRAP_COMMANDS)
@@ -230,3 +230,90 @@ def test_the_actor_format_and_its_parser_move_together():
     # Anything else is no identity at all, never a name to compare.
     for rubbish in ("12345", "tg:12345", "", "tg::ian", "tg:0:ian"):
         assert actor_user_id(rubbish) == "", rubbish
+
+
+# --------------------------------------------------------------------------- #
+# /replay — the sixth control
+# --------------------------------------------------------------------------- #
+# A read command spends nothing. /replay re-fetches a capability with its cache
+# bypassed, which spends provider quota and writes a contract result to the
+# data-quality ledger that can escalate from there. Three outward effects is
+# what puts it behind the same allow-list and confirmation code as /halt rather
+# than beside /quote, and these pin that it stays there.
+
+
+@pytest.mark.asyncio
+async def test_replay_asks_for_a_code_before_it_spends_anything(bot, monkeypatch):
+    _set("telegram_allowed_user_ids", [TELEGRAM_TEST_USER])
+    _set("telegram_control_user_ids", [TELEGRAM_TEST_USER])
+
+    submitted: list[tuple[str, str]] = []
+    import modules.data_jobs as data_jobs
+
+    monkeypatch.setattr(
+        data_jobs, "submit_replay",
+        lambda req, *, actor: submitted.append((req.symbol, actor)),
+    )
+
+    await bot.handle_update(update("/replay BTCUSDT", update_id=9101))
+    assert "ACTION NOT YET TAKEN" in bot.last
+    assert "quota" in bot.last.lower(), "the impact line must say what it spends"
+    assert submitted == [], "the first message must not have fetched anything"
+
+
+@pytest.mark.asyncio
+async def test_replay_without_the_control_list_is_refused(bot):
+    _set("telegram_allowed_user_ids", [TELEGRAM_TEST_USER])
+    _set("telegram_control_user_ids", [])
+
+    await bot.handle_update(update("/replay BTCUSDT", update_id=9102))
+    assert "not permitted" in bot.last
+    assert "TELEGRAM_CONTROL_USER_IDS" in bot.last
+
+
+@pytest.mark.asyncio
+async def test_a_confirmed_replay_queues_the_symbol_it_was_confirmed_for(bot, monkeypatch):
+    _set("telegram_allowed_user_ids", [TELEGRAM_TEST_USER])
+    _set("telegram_control_user_ids", [TELEGRAM_TEST_USER])
+
+    submitted: list[tuple[str, str]] = []
+    import modules.data_jobs as data_jobs
+
+    class _Record:
+        id = "job-1234"
+        kind = "data.replay"
+
+    monkeypatch.setattr(
+        data_jobs, "submit_replay",
+        lambda req, *, actor: (submitted.append((req.symbol, actor)), _Record())[1],
+    )
+
+    await bot.handle_update(update("/replay ETHUSDT", update_id=9103))
+    code = re.search(r"/replay (\d{4})", bot.last)
+    assert code, "the challenge must offer a four-digit code"
+
+    await bot.handle_update(update(f"/replay {code.group(1)}", update_id=9104))
+    assert "applied" in bot.last.lower()
+    assert len(submitted) == 1
+    symbol, actor = submitted[0]
+    # The symbol the CODE was issued against, not the default and not whatever
+    # a second message happened to name.
+    assert symbol == "ETHUSDT"
+    assert actor.startswith("tg:"), "the audit row wants the composite actor"
+
+
+@pytest.mark.asyncio
+async def test_a_replay_code_is_single_use(bot, monkeypatch):
+    _set("telegram_allowed_user_ids", [TELEGRAM_TEST_USER])
+    _set("telegram_control_user_ids", [TELEGRAM_TEST_USER])
+
+    calls: list[str] = []
+    import modules.data_jobs as data_jobs
+
+    monkeypatch.setattr(data_jobs, "submit_replay", lambda req, *, actor: calls.append(req.symbol))
+
+    await bot.handle_update(update("/replay BTCUSDT", update_id=9105))
+    code = re.search(r"/replay (\d{4})", bot.last).group(1)
+    await bot.handle_update(update(f"/replay {code}", update_id=9106))
+    await bot.handle_update(update(f"/replay {code}", update_id=9107))
+    assert len(calls) == 1, "a replayed code must not replay the fetch"

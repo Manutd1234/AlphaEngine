@@ -867,11 +867,11 @@ The companion is optional: the gateway, API and web workspace remain fully
 functional with no Telegram token. When enabled, it is an independent text and
 visual-chart interface for phone-friendly portfolio, OpenBB, execution and
 health cards. It does not render a web page or send web links, and it cannot
-open a position. The companion registers **121 commands**; **5** of them change
+open a position. The companion registers **122 commands**; **6** of them change
 what the desk is allowed to do — `/halt`, `/resume`, `/flatten`, `/reduceonly`,
 `/resetbook` — and each requires membership of `TELEGRAM_CONTROL_USER_IDS`
 (**Gated controls**, below), which is separate from the read allow-list and
-empty by default, and **96** are pushed to Telegram's `/` menu (the API caps
+empty by default, and **97** are pushed to Telegram's `/` menu (the API caps
 that list at 100; the rest still dispatch, and `/commands` lists them all). Of
 the reads, all but one are pure — the exception is `/backtest`, which queues a
 sweep on the same jobs engine the API and the web use. That crosses into
@@ -1144,6 +1144,7 @@ can scale independently from portfolio state.
 | `/flatten [SYMBOL] \| /flatten CODE` | Close every open position |
 | `/reduceonly [on\|off] \| /reduceonly CODE` | Accept only risk-reducing orders |
 | `/resetbook \| /resetbook CODE` | Reset the paper book and session accounting |
+| `/replay [SYMBOL] \| /replay CODE` | Re-fetch a capability through the validated path and record the contract result |
 
 <!-- telegram-catalogue:end -->
 
