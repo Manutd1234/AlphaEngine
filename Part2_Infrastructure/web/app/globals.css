@@ -204,7 +204,10 @@
      a little under a 1.2 ratio from --fs-title. Comments give the px at step 1
      on a 16px root; the reader's zoom and Text size still scale all of it.
      Only the three hero rungs below stay fluid — a hero is the one place the
-     extra room on a wide monitor is worth spending. */
+     extra room on a wide monitor is worth spending, and they carry one line
+     of type where a pixel of growth costs no layout. Their formula is the one
+     the content rungs used: clamp(min, (3·min − 2·max) + (max − min)/6.4 vw,
+     max), so each reaches its minimum at 1280px and its maximum at 1920px. */
   --fs-2xs: calc(0.75rem * var(--type-step));                 /* 12px */
   --fs-xs: calc(0.78125rem * var(--type-step));               /* 12.5px */
   --fs-sm: calc(0.8125rem * var(--type-step));                /* 13px */
@@ -223,9 +226,9 @@
   --fs-h1: calc(1.4375rem * var(--type-step));                /* 23px */
   --fs-figure: calc(1.625rem * var(--type-step));             /* 26px */
   --fs-display: calc(2rem * var(--type-step));                /* 32px */
-  --fs-hero-line: calc(clamp(1.625rem, 1.375rem + 0.3125vw, 1.75rem) * var(--type-step));  /* 26 → 28     */
-  --fs-hero-sub: calc(clamp(2.125rem, 1.625rem + 0.625vw, 2.375rem) * var(--type-step));   /* 34 → 38     */
-  --fs-hero: calc(clamp(2.625rem, 2.125rem + 0.625vw, 2.875rem) * var(--type-step));       /* 42 → 46     */
+  --fs-hero-line: calc(clamp(1.375rem, 0.875rem + 0.625vw, 1.625rem) * var(--type-step)); /* 22 → 26 */
+  --fs-hero-sub: calc(clamp(1.875rem, 1.375rem + 0.625vw, 2.125rem) * var(--type-step)); /* 30 → 34 */
+  --fs-hero: calc(clamp(2.375rem, 1.875rem + 0.625vw, 2.625rem) * var(--type-step)); /* 38 → 42 */
 
   /* The chrome tokens: the header row, the ≤900 switcher and the ≤620 bottom
      bar. Fixed px, no --type-step, for the reason above. */
