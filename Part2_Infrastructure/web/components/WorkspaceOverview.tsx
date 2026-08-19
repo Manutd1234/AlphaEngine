@@ -210,7 +210,7 @@ export default function WorkspaceOverview({
            next element enumerates is a caption for a diagram nobody has read
            yet. What survives is the claim the loop cannot make on its own —
            one context, one audit trail. */
-        description={<>One {request.symbol} context across the loop below, reconciling to the same audit trail.</>}
+        description={<>One {request.symbol} context across the loop below, and one record they all reconcile to.</>}
         metrics={[
           {
             label: "Equity",
