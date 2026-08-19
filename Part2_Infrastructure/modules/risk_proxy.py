@@ -398,36 +398,43 @@ class RiskGateway:
             working_buys, working_sells = self.working_qty(symbol)
             paper_price = req.paper_execution.price if paper_equity else None
 
+            # Positional, not by keyword. pybind11 resolves py::arg names
+            # through a dict on every call, and this one has twenty-six of
+            # them on the per-order path; the argument order below is the
+            # order of decide()'s C++ signature and is checked by the parity
+            # fixtures, which would fail loudly on any transposition. The
+            # self-measure probe further down keeps the keyword form on
+            # purpose — it runs once at startup, where naming beats speed.
             result = core.decide(
-                side_is_buy=(req.side == "BUY"),
-                order_type_is_limit=(req.order_type == "LIMIT"),
-                order_quantity=req.quantity,
-                order_notional=req.notional,
-                limit_price=req.limit_price,
-                is_paper=paper_equity,
-                paper_price=paper_price,
-                order_books=order_books,
-                pos_quantities=pos_quantities,
-                pos_avg_prices=pos_avg_prices,
-                pos_realized=pos_realized,
-                pos_marks=pos_marks,
-                pos_is_order_symbol=pos_is_order_symbol,
-                working_buys=working_buys,
-                working_sells=working_sells,
-                starting_equity=settings.starting_equity_usd,
-                carried_realized_pnl=self.carried_realized_pnl,
-                start_of_day_equity=self.start_of_day_equity,
-                max_order_notional_usd=settings.max_order_notional_usd,
-                max_symbol_notional_usd=settings.max_symbol_notional_usd,
-                max_gross_exposure_usd=settings.max_gross_exposure_usd,
-                max_price_deviation_bps=settings.max_price_deviation_bps,
-                max_daily_drawdown_pct=settings.max_daily_drawdown_pct,
-                reduce_only_threshold=settings.reduce_only_threshold,
-                reduce_only_override=self._reduce_only_override,
+                (req.side == "BUY"),                    # side_is_buy
+                (req.order_type == "LIMIT"),            # order_type_is_limit
+                req.quantity,                           # order_quantity
+                req.notional,                           # order_notional
+                req.limit_price,                        # limit_price
+                paper_equity,                           # is_paper
+                paper_price,                            # paper_price
+                order_books,                            # order_books
+                pos_quantities,                         # pos_quantities
+                pos_avg_prices,                         # pos_avg_prices
+                pos_realized,                           # pos_realized
+                pos_marks,                              # pos_marks
+                pos_is_order_symbol,                    # pos_is_order_symbol
+                working_buys,                           # working_buys
+                working_sells,                          # working_sells
+                settings.starting_equity_usd,           # starting_equity
+                self.carried_realized_pnl,              # carried_realized_pnl
+                self.start_of_day_equity,               # start_of_day_equity
+                settings.max_order_notional_usd,        # max_order_notional_usd
+                settings.max_symbol_notional_usd,       # max_symbol_notional_usd
+                settings.max_gross_exposure_usd,        # max_gross_exposure_usd
+                settings.max_price_deviation_bps,       # max_price_deviation_bps
+                settings.max_daily_drawdown_pct,        # max_daily_drawdown_pct
+                settings.reduce_only_threshold,         # reduce_only_threshold
+                self._reduce_only_override,             # reduce_only_override
                 # submit() gates on the routed walk only where it has a router
                 # to route with; without a TCA engine there is no est_slippage
                 # check at all, and the core must not invent one.
-                route_enabled=self.tca is not None,
+                self.tca is not None,                   # route_enabled
             )
             return result, venue_names
         except Exception:  # pragma: no cover - robustness: never fail an order on the core
