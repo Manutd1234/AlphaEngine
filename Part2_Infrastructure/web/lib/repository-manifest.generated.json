@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-19",
-  "commit": "8e2ba25",
+  "commit": "b360705",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -87,6 +87,7 @@
     "Part2_Infrastructure/modules/portfolio.py",
     "Part2_Infrastructure/modules/quant_risk.py",
     "Part2_Infrastructure/modules/research_crag.py",
+    "Part2_Infrastructure/modules/research_graph.py",
     "Part2_Infrastructure/modules/research_rag.py",
     "Part2_Infrastructure/modules/research.py",
     "Part2_Infrastructure/modules/risk_proxy.py",
@@ -149,6 +150,7 @@
     "Part2_Infrastructure/tests/test_quant_risk.py",
     "Part2_Infrastructure/tests/test_rehydration.py",
     "Part2_Infrastructure/tests/test_research_crag.py",
+    "Part2_Infrastructure/tests/test_research_graph.py",
     "Part2_Infrastructure/tests/test_research_rag.py",
     "Part2_Infrastructure/tests/test_research.py",
     "Part2_Infrastructure/tests/test_risk_alerts.py",
