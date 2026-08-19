@@ -39,6 +39,8 @@ export const NAV_ITEMS: { id: WorkspaceView; label: string; role: string; access
 interface WorkspaceHeaderProps {
   view: WorkspaceView;
   onViewChange: (view: WorkspaceView) => void;
+  /** Fired when a reader looks like they are about to open a tab. */
+  onViewIntent?: (view: WorkspaceView) => void;
   onOpenProviderHealth: () => void;
   onOpenTailLatency: () => void;
   latency: LatencyStats | null;
@@ -78,6 +80,7 @@ interface WorkspaceHeaderProps {
 export default function WorkspaceHeader({
   view,
   onViewChange,
+  onViewIntent,
   onOpenProviderHealth,
   onOpenTailLatency,
   decisionLatency,
@@ -218,6 +221,15 @@ export default function WorkspaceHeader({
               aria-controls={`panel-${item.id}`}
               tabIndex={view === item.id ? 0 : -1}
               onClick={() => onViewChange(item.id)}
+              /* Intent, not arrival. The three console panels are dynamic
+                 imports warmed on requestIdleCallback, and on a busy machine
+                 idle can lose the race to a click — which is exactly the
+                 machine where the loading box is most noticeable. A pointer
+                 crossing the tab, or focus landing on it, is several hundred
+                 milliseconds of warning and costs nothing when the chunk is
+                 already there. */
+              onPointerEnter={() => onViewIntent?.(item.id)}
+              onFocus={() => onViewIntent?.(item.id)}
               onKeyDown={(event) => onTabKeyDown(event, index)}
               title={item.role}
             >

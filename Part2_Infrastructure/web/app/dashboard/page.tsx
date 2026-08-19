@@ -339,6 +339,16 @@ export default function Page() {
   // on Data / Reliability / Developer finds its code already downloaded. A
   // prefetch is a hint, not a dependency — failures here surface nothing and
   // the tab's own loading box covers the cold case.
+  const warmView = useCallback((next: WorkspaceView) => {
+    // Idle usually wins this race. When it does not — a busy machine, which is
+    // the one where a loading box is most visible — a pointer crossing the tab
+    // has already started the download by the time the click lands. Import is
+    // idempotent and cached, so a hover after the idle warm-up costs nothing.
+    if (next === "data") void import("@/components/DataConsole");
+    else if (next === "reliability") void import("@/components/ReliabilityConsole");
+    else if (next === "developer") void import("@/components/DeveloperConsole");
+  }, []);
+
   useEffect(() => {
     const prefetch = () => {
       void import("@/components/DataConsole");
@@ -1341,6 +1351,7 @@ export default function Page() {
       <WorkspaceHeader
         view={view}
         onViewChange={navigate}
+            onViewIntent={warmView}
         onOpenProviderHealth={() => openReliabilitySection("services", "reliability-provider-health")}
         onOpenTailLatency={() => openReliabilitySection("services", "reliability-latency-guide")}
         decisionLatency={systems.decisionLatency}
