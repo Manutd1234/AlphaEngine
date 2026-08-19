@@ -174,7 +174,8 @@ _DDL = [
         watches       VARCHAR,
         user_id       VARCHAR,
         web_identity  VARCHAR,
-        linked_at     TIMESTAMP
+        linked_at     TIMESTAMP,
+        role          VARCHAR
     )
     """,
     """
@@ -290,6 +291,16 @@ class AuditLog:
                         f"ALTER TABLE subscribers ADD COLUMN {column} "  # noqa: S608
                         f"{'TEXT' if self.backend == 'sqlite' and sql_type == 'TIMESTAMP' else sql_type}"
                     )
+
+            # Which desk role a chat speaks for, so a risk breach can reach the
+            # people whose job it is. NULL is not "no role" in the sense of
+            # "receives nothing" — it is the pre-existing state, and the
+            # delivery rule treats it as "receives everything", so adding this
+            # column cannot silently mute a chat that was subscribed before it
+            # existed. Opting IN to a narrower role is a deliberate act (/role);
+            # being opted out by a migration would not be.
+            if "role" not in subscriber_columns:
+                self._conn.execute("ALTER TABLE subscribers ADD COLUMN role VARCHAR")
 
             # Reproducibility metadata added after the first databases existed.
             # Older rows keep NULL rather than being back-filled with a guess: a
@@ -880,20 +891,24 @@ class AuditLog:
     def upsert_subscriber(self, chat_id: str, username: str | None,
                           alerts: bool = True, watches: list[dict] | None = None,
                           *, user_id: str | None = None,
-                          web_identity: Any = _KEEP, linked_at: Any = _KEEP) -> None:
+                          web_identity: Any = _KEEP, linked_at: Any = _KEEP,
+                          role: Any = _KEEP) -> None:
         existing = self.get_subscriber(chat_id) or {}
         payload = json.dumps(watches if watches is not None else existing.get("watches", []))
         owner_id = str(user_id) if user_id is not None else None
         identity = existing.get("web_identity") if web_identity is _KEEP else web_identity
         bound_at = existing.get("linked_at") if linked_at is _KEEP else linked_at
+        # _KEEP, like the two above: /subscribe must not reset a role the chat
+        # chose, and /role must not clear a binding the chat did not mention.
+        desk_role = existing.get("role") if role is _KEEP else role
         self._exec("DELETE FROM subscribers WHERE chat_id = ?", (str(chat_id),))
         self._exec(
             "INSERT INTO subscribers "
-            "(chat_id, username, subscribed_at, alerts, watches, user_id, web_identity, linked_at) "
-            "VALUES (?,?,?,?,?,?,?,?)",
+            "(chat_id, username, subscribed_at, alerts, watches, user_id, web_identity, linked_at, role) "
+            "VALUES (?,?,?,?,?,?,?,?,?)",
             (str(chat_id), username,
              existing.get("subscribed_at") or _utcnow(), alerts, payload, owner_id,
-             identity, bound_at),
+             identity, bound_at, desk_role),
         )
 
     def web_bindings(self) -> list[dict[str, Any]]:
