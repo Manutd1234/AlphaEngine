@@ -14342,6 +14342,17 @@ button:active:not(:disabled) {
    below is ours, so "open shows everything" is a decision rather than a fight
    with the platform.
    -------------------------------------------------------------------------- */
+/* The caret's hit area and the clear space the value keeps from it. Declared
+   on the combobox AND on the row cell that holds one, because three rules read
+   them — the input's padding, the caret button's width, and the cell's
+   flex-basis — and a custom property only reaches down. Two numbers, one
+   place, so they cannot drift apart. That drift is what the bug was. */
+.symbol-combo,
+.row > div:has(> .symbol-combo) {
+  --combo-caret: 22px;
+  --combo-caret-gap: 8px;
+}
+
 .symbol-combo {
   position: relative;
 }
@@ -14357,10 +14368,43 @@ button:active:not(:disabled) {
    characters, the default symbol — no longer fit. A field that cannot show its
    own value is a worse control than the one this replaced, so the button is
    positioned and the input simply reserves padding for it. */
-.symbol-combo__field input {
+/* The :not() chain is not decoration — it is the specificity this rule needs.
+   The base control rule near the top of this sheet is
+   `select, input:not([type="range"]):not([type="checkbox"]):not([type="radio"])
+   :not([type="submit"]):not([type="button"]) { padding: 8px 10px }`, which
+   scores (0,5,1). A plain `.symbol-combo__field input` scores (0,1,1) and
+   loses, so the padding-right this rule has declared since the caret was
+   overlaid never applied at all: measured in the browser, the input reported
+   padding-right 10px and the value's right edge sat 12.8px PAST the caret's
+   left edge. Matching the chain scores (0,6,1) and the reservation is real. */
+.symbol-combo__field input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]) {
   flex: 1 1 auto;
   min-width: 0;
-  padding-right: 22px;
+  padding-right: calc(var(--combo-caret) + var(--combo-caret-gap));
+}
+
+/* And the cell has to be wide enough to hold what it reserves. `.row > div`
+   gives all three controls in this row `flex: 1 1 0` — an equal share of the
+   space — but this one carries a seven-character mono ticker at --fs-xl, 65px
+   of glyphs, while its neighbours carry "None" and "4h". Measured before the
+   fix: an 85.3px field with a 43.3px content box holding 65.1px of text.
+   Measured, the row is 276px wide. Three labelled controls sharing it as equal
+   thirds is 85.3px each, and the symbol field needs 118px to hold eight mono
+   characters (the longest tracked ticker: AVAXUSDT, DOGEUSDT, LINKUSDT) plus
+   the caret and its gap. Taking those 118px out of 276 left Benchmark at 69px
+   with its own label clipped to "BENCHM…" — the same bug moved next door.
+
+   So the row wraps and the symbol takes a line of its own. That is not a
+   concession, it is the shape the rest of the panel already uses: MODEL is
+   full width above HISTORY and DIRECTION as a pair, and this is now SYMBOL
+   full width above BENCHMARK and INTERVAL as a pair. `gap` covers the wrapped
+   row, so the two lines sit 10px apart with no extra rule. */
+.row:has(> div > .symbol-combo) {
+  flex-wrap: wrap;
+}
+
+.row > div:has(> .symbol-combo) {
+  flex: 1 1 100%;
 }
 
 .symbol-combo__toggle {
@@ -14371,7 +14415,7 @@ button:active:not(:disabled) {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
+  width: var(--combo-caret);
   padding: 0;
   border: 0;
   background: none;
