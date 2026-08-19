@@ -29,7 +29,10 @@ def _engine_under(env_value: str | None):
     env = {"PATH": "/usr/bin:/bin"}
     if env_value is not None:
         env["ML_ENGINE"] = env_value
-    out = subprocess.run(
+    # noqa S603: the argv is a literal in this file and `code` is the constant
+    # above it — nothing here is caller-supplied. A fresh interpreter is the
+    # only way to exercise an import-time branch, which is what ML_ENGINE is.
+    out = subprocess.run(  # noqa: S603
         [sys.executable, "-c", code], cwd=ROOT, env=env,
         capture_output=True, text=True, check=True,
     )
