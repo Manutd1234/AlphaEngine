@@ -478,6 +478,42 @@ warning nobody reads.
 
 Separate budget, and much less demanding.
 
+**Switching tabs was measured on 2026-08-20 and there is nothing to fix.**
+`web/scripts/tab-switch-measure.mjs` drives the production build over CDP at
+4x CPU throttle — so every figure below is roughly four times worse than the
+machine a reader is on:
+
+| tab | click → paint | click → idle | longest task | blocking |
+|---|---|---|---|---|
+| Research | 12.4 ms | 199.4 ms | 68 ms | 18 ms |
+| Execution | 28.9 ms | 125.5 ms | 0 | 0 |
+| Portfolio | 18.3 ms | 59.2 ms | 0 | 0 |
+| Risk | 10.4 ms | 66.9 ms | 0 | 0 |
+| Data | 16.6 ms | 123.9 ms | 0 | 0 |
+| Reliability | 20.7 ms | 78.4 ms | 0 | 0 |
+| Developer | 20.4 ms | 72.4 ms | 0 | 0 |
+| Overview | 18.0 ms | 39.7 ms | 0 | 0 |
+
+Seven of the eight tabs produce **no long task at all** and therefore no
+blocking time; the paint lands inside two frames even throttled. The one
+outlier is Research, whose 68 ms task is the sweep and its charts, and which is
+the only switch on the desk a reader could notice.
+
+Two things that were assumed to be wrong and are not. Requests per switch,
+measured against the production build, are 0–4 with a single duplicate across
+all eight — the browser is not re-fetching a tab's data on arrival, because
+`lib/use-book.ts` and `lib/use-system-health.ts` own those polls for every tab
+that reads them and `workspace-routing.test.ts` fails if a panel fetches them
+itself. And measuring this in `next dev` inflates it: `reactStrictMode: true`
+double-invokes effects, which is where the "duplicate request per switch"
+impression comes from.
+
+The switch is fast because of a deliberate earlier change, recorded in
+`app/dashboard/page.tsx`: `startTransition` with no `startViewTransition` and no
+smooth scroll. The comment there says the view transition froze painting for
+30–100 ms while React rendered the incoming workspace synchronously. These
+numbers are that comment being true.
+
 * **The order book is already optimal.** The browser opens its own WebSocket
   directly to Binance and Bybit (`web/lib/livebook.ts`), receiving 100 ms depth
   snapshots and publishing to React at 5 Hz. One hop, no backend. Routing this

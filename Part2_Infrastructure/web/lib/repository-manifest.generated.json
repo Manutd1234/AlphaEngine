@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-19",
-  "commit": "4b4e955",
+  "commit": "c467aaa",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -500,6 +500,7 @@
     "Part2_Infrastructure/web/scripts/header-ladder-measure.mjs",
     "Part2_Infrastructure/web/scripts/refresh-test-counts.mjs",
     "Part2_Infrastructure/web/scripts/start-dev-all.mjs",
+    "Part2_Infrastructure/web/scripts/tab-switch-measure.mjs",
     "Part2_Infrastructure/web/scripts/verify-oracle.mjs",
     "Part2_Infrastructure/web/tests/accent-budget.test.ts",
     "Part2_Infrastructure/web/tests/account-schema.test.ts",
