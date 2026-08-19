@@ -110,6 +110,34 @@ change to what the API reports. Likewise, at that pass, no Rust or C++ rewrite
 and the constraint is elsewhere. (That call was later reversed deliberately and
 measured honestly; the compiled-core paragraphs below are the record.)
 
+**What was deliberately not done, second pass (2026-08-20).** The remaining
+Python work on the per-order path is the preamble in `RiskGateway._native_decide`:
+five list builds over every position, plus the memoised `mark()` each one needs.
+Moving it into a persistent C++ `PositionBook`, so a decision passes deltas
+instead of re-marshalling the book, was planned and then measured first with
+`tools/bench_preamble.py`:
+
+| positions | preamble p50 | p99 | share of a 15 µs decision |
+|---|---|---|---|
+| 1 | 0.17 µs | 0.25 µs | 1.1 % |
+| 4 | 0.29 µs | 0.42 µs | 1.9 % |
+| 20 | 1.08 µs | 1.50 µs | 7.2 % |
+| 100 | 5.38 µs | 6.92 µs | 35.8 % |
+
+At the shape this desk actually runs — four held positions — the entire
+preamble is 0.29 µs. That is smaller than the ~1 µs the positional-call change
+banked in the same pass, and it sits inside the ±5 % run-to-run spread of the
+p50 itself on an unpinned machine, so the work could not have been shown to
+help even if it did. Against that: a `PositionBook` mirror is a new mutable
+surface on the pre-trade gate battery, whose correctness standard is bit-exact
+against `web/tests/fixtures/gate-parity.json` rather than merely close.
+
+So it is not done, and the threshold at which to reconsider is written down
+rather than left to judgement: **around twenty held positions** the preamble
+reaches 7 % and becomes measurable; by a hundred it is a third of the decision.
+Re-run `tools/bench_preamble.py` before revisiting — the answer is a property
+of the book, not of the code.
+
 **Where the time actually went, measured later.** Profiling the deployed
 two-venue shape (`tools/bench_decision.py`, which now regenerates the table
 above) put the decision at **78 µs p50**, and roughly forty of those were the

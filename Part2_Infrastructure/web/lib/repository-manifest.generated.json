@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-19",
-  "commit": "e14ffbb",
+  "commit": "4b4e955",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -159,6 +159,7 @@
     "Part2_Infrastructure/tools/backfill_oracle_rag.py",
     "Part2_Infrastructure/tools/backfill_research_rag.py",
     "Part2_Infrastructure/tools/bench_decision.py",
+    "Part2_Infrastructure/tools/bench_preamble.py",
     "Part2_Infrastructure/tools/check_repo_complete.sh",
     "Part2_Infrastructure/tools/colocation_probe.py",
     "Part2_Infrastructure/tools/e2e_smoke.py",
