@@ -14619,7 +14619,10 @@ button:active:not(:disabled) {
 
 .codex-card__meta {
   display: flex;
-  align-items: baseline;
+  /* flex-start, not baseline: the links are a column now, and baseline would
+     align the chip to the FIRST link's text, leaving the chip floating a few
+     pixels down from the row it belongs to. */
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
   padding: 0 12px 10px;
@@ -14638,15 +14641,32 @@ button:active:not(:disabled) {
 .codex-chip[data-verdict="marginal"] { color: var(--warning-text); }
 .codex-chip[data-verdict="fail"] { color: var(--critical-text); }
 
+/* A right-aligned column, one link per line, on every card.
+   It was a wrapping row: the first link sat on the chip's line and the rest
+   wrapped underneath, so how many links shared that line depended on how long
+   their labels happened to be. Fourteen cards produced fourteen different
+   shapes — "EMA crossover" beside the chip on one card, a label of the same
+   width starting a fresh line on the next. A column is the same shape every
+   time, and the count of related strategies is legible at a glance because
+   one link is one line.
+
+   text-align: right matters as much as the column does. These labels wrap
+   ("Moving-average crossover", "Percentage price oscillator"), and a wrapped
+   line that does not share the block's alignment leaves a ragged right edge
+   against the card's padding — the thing the eye actually reads as crooked. */
 .codex-card__similar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 2px 8px;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  text-align: right;
 }
 
 .codex-card__similar .text-action {
   font-size: var(--fs-xs);
+  /* .text-action carries margin-top: 5px for its usual inline use. In a gapped
+     column that is a second, competing spacing rule. */
+  margin-top: 0;
 }
 
 @media (max-width: 720px) {
