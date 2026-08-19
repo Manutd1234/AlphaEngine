@@ -698,6 +698,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("subscribe", "Alerts · Receive operational notifications", "Alerts", "/subscribe", "/subscribe", "_cmd_subscribe", ("unmute",)),
     CommandSpec("unsubscribe", "Alerts · Stop optional notifications", "Alerts", "/unsubscribe", "/unsubscribe", "_cmd_unsubscribe", ("mute",)),
     CommandSpec("subscriptions", "Alerts · Show notification state", "Alerts", "/subscriptions", "/subscriptions", "_cmd_subscriptions", ("alerts",), in_menu=False),
+    CommandSpec("role", "Alerts · Set this chat's desk role for targeted alerts", "Alerts", "/role [pm|risk|trader|dev|any]", "/role pm", "_cmd_role", ("desk",)),
     CommandSpec("watch", "Alerts · Watch execution-cost deterioration", "Alerts", "/watch SYMBOL [NOTIONAL] [MAX_BPS]", "/watch BTCUSDT 100000 25", "_cmd_watch"),
     CommandSpec("unwatch", "Alerts · Remove one or all liquidity watches", "Alerts", "/unwatch [SYMBOL]", "/unwatch BTCUSDT", "_cmd_unwatch", in_menu=False),
     CommandSpec("watches", "Alerts · Show active liquidity watches", "Alerts", "/watches", "/watches", "_cmd_watches", in_menu=False),
@@ -6099,6 +6100,64 @@ class TelegramBot:
         enabled = self._subscriber_is_authorised(sub) and (central or bool((sub or {}).get("alerts")))
         lines = [f"Notifications <code>{'ON' if enabled else 'OFF'}</code>", f"Managed by <code>{'deployment' if central else 'chat preference'}</code>", f"Liquidity watches <code>{len(watches)}</code>"]
         await self.send_message(chat_id, text_card("🔔 Notification state", "ACTIVE" if enabled else "MUTED", lines, source="Configuration + subscriber registry", next_commands="/subscribe · /unsubscribe · /watches"))
+
+    #: The desk roles a chat can speak for. "any" is not a role — it is the
+    #: absence of one, stored as NULL, and it is what every chat has until it
+    #: says otherwise. A chat with no role receives every alert, which is what
+    #: chats did before roles existed and is the only default that cannot
+    #: silently stop paging someone.
+    DESK_ROLES: tuple[str, ...] = ("pm", "risk", "trader", "dev")
+
+    ROLE_LABELS: dict[str, str] = {
+        "pm": "Portfolio manager",
+        "risk": "Risk manager",
+        "trader": "Quant trader",
+        "dev": "Quant developer",
+    }
+
+    async def _cmd_role(self, args, chat_id, actor) -> None:
+        sub = self.audit.get_subscriber(str(chat_id)) if self.audit else None
+        current = (sub or {}).get("role")
+
+        if not args:
+            lines = [
+                f"Role <code>{esc(current or 'any')}</code>",
+                f"Receives <code>{esc(self.ROLE_LABELS[current] if current in self.ROLE_LABELS else 'every alert')}</code>",
+                "Set one with <code>/role pm</code>, clear it with <code>/role any</code>.",
+            ]
+            await self.send_message(chat_id, text_card(
+                "🧭 Desk role", "SET" if current else "UNSET", lines,
+                source="Persistent subscriber registry",
+                next_commands="/role pm · /subscriptions · /watches"))
+            return
+
+        choice = str(args[0]).strip().lower()
+        if choice in {"any", "none", "clear", "all"}:
+            choice = ""
+        elif choice not in self.DESK_ROLES:
+            raise ValueError(
+                f"role must be one of {', '.join(self.DESK_ROLES)}, or 'any' to clear it"
+            )
+
+        if not self.audit:
+            raise ValueError("no subscriber registry is available on this deployment")
+        # Registers the chat if it is new, so /role is a complete action rather
+        # than one that silently does nothing until /subscribe is run.
+        self.audit.upsert_subscriber(
+            str(chat_id), actor,
+            alerts=bool((sub or {}).get("alerts", True)),
+            role=choice or None,
+        )
+        lines = (
+            [f"Role <code>{esc(choice)}</code> — {esc(self.ROLE_LABELS[choice])}",
+             "Risk breaches route here. Every other alert is unchanged."]
+            if choice else
+            ["Role cleared.", "This chat receives every alert again."]
+        )
+        await self.send_message(chat_id, text_card(
+            "🧭 Desk role updated", "SET" if choice else "CLEARED", lines,
+            source="Persistent subscriber registry",
+            next_commands="/subscriptions · /watches"))
 
     async def _cmd_watch(self, args, chat_id, actor) -> None:
         symbol = self._symbol(args)
