@@ -699,6 +699,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("unsubscribe", "Alerts · Stop optional notifications", "Alerts", "/unsubscribe", "/unsubscribe", "_cmd_unsubscribe", ("mute",)),
     CommandSpec("subscriptions", "Alerts · Show notification state", "Alerts", "/subscriptions", "/subscriptions", "_cmd_subscriptions", ("alerts",), in_menu=False),
     CommandSpec("role", "Alerts · Set this chat's desk role for targeted alerts", "Alerts", "/role [pm|risk|trader|dev|any]", "/role pm", "_cmd_role", ("desk",)),
+    CommandSpec("thresholds", "Alerts · Risk rules, their limits and what they read now", "Alerts", "/thresholds", "/thresholds", "_cmd_thresholds", ("rules",)),
     CommandSpec("watch", "Alerts · Watch execution-cost deterioration", "Alerts", "/watch SYMBOL [NOTIONAL] [MAX_BPS]", "/watch BTCUSDT 100000 25", "_cmd_watch"),
     CommandSpec("unwatch", "Alerts · Remove one or all liquidity watches", "Alerts", "/unwatch [SYMBOL]", "/unwatch BTCUSDT", "_cmd_unwatch", in_menu=False),
     CommandSpec("watches", "Alerts · Show active liquidity watches", "Alerts", "/watches", "/watches", "_cmd_watches", in_menu=False),
@@ -1096,6 +1097,14 @@ class TelegramBot:
         self.callbacks_handled = 0
         self.last_error: str | None = None
         self._watch_state: dict[tuple[str, str], bool] = {}
+        #: Per-rule breach state for the pushed risk alerts. Edge-triggered like
+        #: the liquidity watch above: a rule sitting on its threshold sends one
+        #: message, not one every tick.
+        self._risk_state: dict[str, bool] = {}
+        #: Monotonic deadline for the next VaR evaluation. VaR needs a bar
+        #: fetch per held symbol, which must not run at the alert interval.
+        self._risk_var_due: float = 0.0
+        self._risk_task: asyncio.Task | None = None
         self.alerts_sent = 0
 
     @property
@@ -1534,6 +1543,7 @@ class TelegramBot:
             self._poll_task = asyncio.create_task(self._poll_loop(), name="telegram-poll")
 
         self._watch_task = asyncio.create_task(self._watch_loop(), name="telegram-watch")
+        self._risk_task = asyncio.create_task(self._risk_loop(), name="telegram-risk")
         log.info("Telegram alert subscribers restored: %d", len(self._subscribers()))
 
     async def _register_profile(self) -> None:
@@ -1545,7 +1555,7 @@ class TelegramBot:
         await self.api("setMyDescription", description=BOT_DESCRIPTION)
 
     async def stop(self) -> None:
-        for task in (self._poll_task, self._watch_task):
+        for task in (self._poll_task, self._watch_task, self._risk_task):
             if task:
                 task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
@@ -6279,6 +6289,160 @@ class TelegramBot:
                     continue
                 await self.send_message(chat_id, message)
                 self.alerts_sent += 1
+
+    #: The pushed risk rules. Each is (key, label, unit, how to read the
+    #: observation off the desk). The threshold for each lives in settings, and
+    #: a threshold of zero means the rule is off — not "fires at zero".
+    RISK_RULE_LABELS: dict[str, str] = {
+        "daily_drawdown": "Daily drawdown",
+        "var95": "VaR 95, 1 day",
+        "gross_exposure": "Gross exposure",
+        "concentration": "Book concentration",
+    }
+
+    def _risk_thresholds(self) -> dict[str, float]:
+        return {
+            "daily_drawdown": settings.alert_drawdown_pct,
+            "var95": settings.alert_var95_pct,
+            "gross_exposure": settings.alert_gross_exposure_pct,
+            "concentration": settings.alert_concentration_pct,
+        }
+
+    def _risk_observations(self) -> dict[str, float | None]:
+        """What the three in-memory rules currently read.
+
+        Arithmetic over state the gateway already holds — no fetch, no await —
+        which is what lets this run at the alert interval. VaR is absent here
+        on purpose and is evaluated on its own slower cadence in ``_risk_tick``.
+
+        A rule whose inputs are missing reads ``None`` and is skipped, never
+        coerced to zero: "we cannot measure the book" and "the book is flat"
+        are different states and only one of them is safe to not alert on.
+        """
+        if not self.gateway:
+            return {}
+        state = self.gateway.state()
+        equity = _finite(state.equity)
+        observations: dict[str, float | None] = {
+            "daily_drawdown": _finite(state.daily_drawdown_pct),
+        }
+        gross = _finite(state.gross_exposure)
+        observations["gross_exposure"] = (
+            gross / equity if gross is not None and equity else None
+        )
+        notionals = [
+            abs(_finite(getattr(p, "notional", None)) or 0.0) for p in (state.positions or [])
+        ]
+        total = sum(notionals)
+        observations["concentration"] = (max(notionals) / total) if notionals and total else None
+        return observations
+
+    async def _risk_var95(self) -> float | None:
+        """1-day 95 % historical VaR over equity, or None when unmeasurable."""
+        from modules.quant_risk import historical_var
+
+        report, _cov, returns = await self._risk_inputs("1d")
+        positions = [p for p in report["exposure"]["positions"] if p.get("notional")]
+        equity = _finite(report["equity"]["current"])
+        if not positions or not equity:
+            return None
+        hv = historical_var(positions, returns, equity)
+        if hv is None:
+            return None
+        loss = _finite(getattr(hv, "var95", None))
+        return (loss / equity) if loss is not None and equity else None
+
+    async def _risk_tick(self) -> None:
+        thresholds = self._risk_thresholds()
+        observations = self._risk_observations()
+
+        # VaR costs a bar fetch per held symbol, so it runs on its own clock
+        # rather than the alert interval — and only when its rule is enabled.
+        if thresholds.get("var95", 0.0) > 0:
+            now = time.monotonic()
+            if now >= self._risk_var_due:
+                self._risk_var_due = now + max(60.0, settings.alert_risk_interval_s * 15)
+                try:
+                    observations["var95"] = await self._risk_var95()
+                except Exception as exc:  # a provider outage is not an alert
+                    log.info("risk alert: VaR unmeasurable (%s)", type(exc).__name__)
+
+        for key, threshold in thresholds.items():
+            if threshold <= 0:
+                continue
+            observed = observations.get(key)
+            if observed is None:
+                continue
+            breached = observed >= threshold
+            if breached == self._risk_state.get(key, False):
+                continue
+            self._risk_state[key] = breached
+            await self._push_risk_alert(key, observed, threshold, breached)
+
+    async def _cmd_thresholds(self, args, chat_id, actor) -> None:
+        """The rules, their limits, and what each reads right now."""
+        thresholds = self._risk_thresholds()
+        observations = self._risk_observations()
+        lines: list[str] = []
+        for key, threshold in thresholds.items():
+            label = self.RISK_RULE_LABELS.get(key, key)
+            if threshold <= 0:
+                # Off is a state worth printing. A rule silently absent from
+                # this list reads as a rule that is passing.
+                lines.append(f"{esc(label)} <code>off</code>")
+                continue
+            observed = observations.get(key)
+            if key == "var95" and observed is None:
+                reading = "on its own slower clock"
+            elif observed is None:
+                reading = "unmeasurable"
+            else:
+                reading = f"{_percent(observed)} now"
+            breached = self._risk_state.get(key, False)
+            mark = "▲" if breached else "●"
+            lines.append(
+                f"{mark} {esc(label)} <code>{_percent(threshold)}</code> — {esc(reading)}"
+            )
+        lines.append(f"Evaluated every <code>{settings.alert_risk_interval_s:g}s</code>")
+        await self.send_message(chat_id, text_card(
+            "📏 Risk alert thresholds",
+            "ARMED" if any(t > 0 for t in thresholds.values()) else "ALL OFF",
+            lines,
+            source="Deployment settings + gateway risk state",
+            next_commands="/risk · /limits · /role"))
+
+    def _risk_line(self, key: str, observed: float, threshold: float) -> list[str]:
+        label = self.RISK_RULE_LABELS.get(key, key)
+        return [
+            f"{esc(label)} <code>{_percent(observed)}</code> against <code>{_percent(threshold)}</code>",
+            f"Rule <code>{esc(key)}</code> · interval <code>{settings.alert_risk_interval_s:g}s</code>",
+        ]
+
+    async def _push_risk_alert(self, key: str, observed: float, threshold: float, breached: bool) -> None:
+        label = self.RISK_RULE_LABELS.get(key, key)
+        lines = self._risk_line(key, observed, threshold)
+        message = text_card(
+            f"⚠️ {label} over limit" if breached else f"✅ {label} back within limit",
+            "THRESHOLD BREACH" if breached else "RECOVERED",
+            lines,
+            source="Gateway risk state",
+            next_commands="/risk · /limits · /thresholds",
+        )
+        for chat_id in self._alert_targets():
+            if not self._delivery_allowed(chat_id):
+                continue
+            await self.send_message(chat_id, message)
+            self.alerts_sent += 1
+
+    async def _risk_loop(self) -> None:
+        while True:
+            await asyncio.sleep(max(5.0, settings.alert_risk_interval_s))
+            try:
+                await self._risk_tick()
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                log.error("Telegram risk loop error (%s)", type(exc).__name__)
 
     async def _watch_loop(self) -> None:
         while True:
