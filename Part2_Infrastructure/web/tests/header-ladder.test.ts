@@ -31,7 +31,7 @@ function rung(max: number): string {
   return css.slice(start, end);
 }
 
-const RUNGS = [1880, 1780, 1690, 1560, 1470, 1300, 1140] as const;
+const RUNGS = [1880, 1780, 1690, 1500, 1430, 1270, 1190] as const;
 
 describe("the rungs exist, in priority order, and each takes only what it says", () => {
   it("rung 1 (≤1880): the Search label and the providers sentence → short form", () => {
@@ -66,25 +66,25 @@ describe("the rungs exist, in priority order, and each takes only what it says",
     assert.match(css, /Not a rung: the core annotation inside the decision chip/);
   });
 
-  it("rung 6 (≤1560): the providers chip to its dot, aria keeps the sentence", () => {
-    const r = rung(1560);
+  it("rung 6 (≤1500): the providers chip to its dot, aria keeps the sentence", () => {
+    const r = rung(1500);
     assert.match(r, /\.system-health-action \{[\s\S]*font-size: 0;/);
     assert.match(read("components/WorkspaceHeader.tsx"), /aria-label=\{`Open reliability\. \$\{healthLabel\}`\}/);
   });
 
-  it("rung 7 (≤1470): brand tagline and tab padding, nothing of the chip", () => {
-    const r = rung(1470);
+  it("rung 7 (≤1430): brand tagline and tab padding, nothing of the chip", () => {
+    const r = rung(1430);
     assert.match(r, /\.brand-copy small \{\n    display: none;/);
     assert.match(r, /\.workspace-tabs button \{\n    padding-inline: 5px;/);
     assert.doesNotMatch(r, /latency-chip/);
   });
 
-  it("rung 8 (≤1300): the decision figure folds to its gauge — last of the chip", () => {
-    assert.match(rung(1300), /\.latency-chip__copy \{\n    display: none;/);
+  it("rung 8 (≤1270): the decision figure folds to its gauge — last of the chip", () => {
+    assert.match(rung(1270), /\.latency-chip__copy \{\n    display: none;/);
   });
 
-  it("rung 9 (≤1140): Kill switch and Sign in labels fold to icons that keep their names", () => {
-    const r = rung(1140);
+  it("rung 9 (≤1190): Kill switch and Sign in labels fold to icons that keep their names", () => {
+    const r = rung(1190);
     assert.match(r, /\.header-kill-label,\n  \.header-signin-label \{\n    display: none;/);
     const kill = read("components/header/KillSwitchControl.tsx");
     assert.match(kill, /aria-label=\{halted \? "Trading is halted — open the resume control" : "Open the kill switch"\}/);

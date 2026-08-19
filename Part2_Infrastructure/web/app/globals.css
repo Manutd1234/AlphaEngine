@@ -15091,9 +15091,9 @@ html:active-view-transition .view-panel {
    so hiding it would take the nanosecond figure off the row and buy nothing.
    It stays until the chip's own copy folds (rung 8). */
 
-/* Rung 6 (≤1560): the providers chip is its dot alone — the count is one tap
+/* Rung 6 (≤1500): the providers chip is its dot alone — the count is one tap
    away in Settings and the panel it opens; the aria-label keeps the sentence. */
-@media (min-width: 901px) and (max-width: 1560px) {
+@media (min-width: 901px) and (max-width: 1500px) {
   .system-health-action {
     width: 44px;
     min-width: 44px;
@@ -15110,9 +15110,9 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 7 (≤1470): the brand tagline, the tabs' side padding, and the tab
+/* Rung 7 (≤1430): the brand tagline, the tabs' side padding, and the tab
    labels back to the chip size. */
-@media (min-width: 901px) and (max-width: 1470px) {
+@media (min-width: 901px) and (max-width: 1430px) {
   .brand-copy small {
     display: none;
   }
@@ -15126,9 +15126,9 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 8 (≤1300): the decision figure folds to its gauge; the title still
+/* Rung 8 (≤1270): the decision figure folds to its gauge; the title still
    names both planes and the Reliability tab has the numbers. */
-@media (min-width: 901px) and (max-width: 1300px) {
+@media (min-width: 901px) and (max-width: 1270px) {
   .latency-chip__copy {
     display: none;
   }
@@ -15139,11 +15139,11 @@ html:active-view-transition .view-panel {
   }
 }
 
-/* Rung 9 (≤1140): the Kill switch and Sign in labels fold to their icons —
+/* Rung 9 (≤1190): the Kill switch and Sign in labels fold to their icons —
    the same fold the ≤520px rule makes, a rung earlier for the widths between
    the last one-row fit and the wrap. Both controls keep their aria-label and
    title; HALTED is never folded. */
-@media (min-width: 901px) and (max-width: 1140px) {
+@media (min-width: 901px) and (max-width: 1190px) {
   .header-kill-label,
   .header-signin-label {
     display: none;
