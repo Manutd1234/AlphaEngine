@@ -240,7 +240,9 @@ export default function ReplayBackfillPanel({
               {busy === "replay" ? "Queuing…" : `Replay ${capability}`}
             </button>
           </div>
-          <p className="console-trace-cost">Spends one interactive provider call through this workspace; the gateway records the contract result.</p>
+          {/* The subhead above already ends "the result lands in the quality
+              ledger", and that ledger is the gateway's. Only the price is new. */}
+          <p className="console-trace-cost">Spends one interactive provider call through this workspace.</p>
         </form>
 
         <form onSubmit={onBackfill} aria-label="Backfill bars">

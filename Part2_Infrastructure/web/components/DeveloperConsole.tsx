@@ -923,10 +923,16 @@ export default function DeveloperConsole({
       <WorkspaceSubtabPanel workspaceId="developer" tabId="work" activeId={section}>
         <div className="developer-cp-stack">
           <section className="card developer-cp-section-hero">
-            {/* The storage caveat is the queue card's own pill and scope
-                block, one screen down — not restated here. */}
-            <div><span>Engineering impact</span><h2>Task Queue</h2><p>Features, bugs, and delivery tickets only.</p></div>
-            <StatusPill state={{ label: `${openWork.length} open`, detail: "Engineering queue stored in this browser.", tone: openWork.length ? "warn" : "good" }} />
+            {/* Two things used to be restated here and the comment that stood
+                in their place claimed otherwise. The queue card one screen down
+                heads itself "Features, bugs & current tickets", so the noun
+                list was printed twice in one viewport; and the count was
+                rendered three times — the PageHead tile above the rail reads
+                "Engineering queue / N open / stored in this browser", this
+                pill repeated both, and the queue's own stats row prints it a
+                third time. What is left is the boundary only this line draws:
+                where the OTHER kind of work is triaged. */}
+            <div><span>Engineering impact</span><h2>Task Queue</h2><p>Data-pipeline work is triaged in Data operations.</p></div>
           </section>
           <DeveloperWorkQueue items={workItems} onItemsChange={onWorkItemsChange} />
         </div>

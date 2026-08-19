@@ -43,7 +43,14 @@ describe("the panel", () => {
   });
 
   it("states what each submit spends and where the result goes", () => {
-    assert.match(panel, /Spends one interactive provider call through this workspace; the gateway records the contract result\./);
+    // The rule, not the sentence. Each form states its PRICE beside its button
+    // and its DESTINATION in its own subhead — the replay's result lands in the
+    // quality ledger, the backfill's merges into the bar cache. The cost line
+    // used to repeat the replay subhead's destination back ("; the gateway
+    // records the contract result"), which is the same fact eleven lines apart.
+    assert.match(panel, /Spends one interactive provider call through this workspace\./);
+    assert.match(panel, /the result lands in the quality ledger/);
+    assert.match(panel, /merged into the gateway(&apos;|')s bar cache/);
     assert.match(panel, /Binance for a crypto pair, this workspace(&apos;|')s registry for an equity/);
   });
 

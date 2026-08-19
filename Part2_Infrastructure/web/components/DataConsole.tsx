@@ -137,7 +137,10 @@ function metricsForSection(
       {
         label: "Lineage events",
         value: health ? String(health.events.retained) : "—",
-        note: health ? `${health.events.retained}/${health.events.capacity} retained` : "waiting for health snapshot",
+        // The value above is already the retained count; a note repeating it
+        // with a denominator says the same number twice. The capacity is the
+        // fact only the note has.
+        note: health ? `ring capacity ${health.events.capacity}` : "waiting for health snapshot",
         tone: health && health.events.retained >= health.events.capacity ? "warn" : "neutral",
       },
       {
@@ -561,7 +564,10 @@ export default function DataConsole({
               <div>
                 <span className="page-kicker">Owned by reliability</span>
                 <h2>Need transport diagnostics?</h2>
-                <p className="sub">Breaker timelines, latency SLOs, failure drills and remediation controls live with the SRE workflow.</p>
+                {/* "live with the SRE workflow" is the kicker above ("Owned by
+                    reliability") and the button below ("Open Reliability") saying
+                    it a third time. The list is what this card alone tells you. */}
+                <p className="sub">Breaker timelines, latency SLOs, failure drills and remediation controls.</p>
               </div>
               <div className="cross-link-metrics">
                 <div><span>Route issues</span><strong className={`num${view.degraded ? " warn" : ""}`}>{view.degraded}</strong><small>degraded or exhausted</small></div>
