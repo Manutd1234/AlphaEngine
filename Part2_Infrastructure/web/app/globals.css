@@ -2956,6 +2956,12 @@ tbody tr[tabindex]:focus-visible {
   width: fit-content;
   margin-top: 5px;
   margin-inline-start: auto;
+  /* Explicit, because a <button> is text-align: center in every UA and a
+     right-aligned box full of centred text is the thing that looked crooked:
+     "Volume-confirmed breakout" wrapped to two lines and centred them inside a
+     button whose own right edge was already flush. Setting it on the container
+     did not reach here — the button's own default wins. */
+  text-align: right;
   padding: 0;
   border: 0;
   background: transparent;
