@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "generatedAt": "2026-08-17",
-  "commit": "3e89f1d",
+  "generatedAt": "2026-08-19",
+  "commit": "e14ffbb",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -518,6 +518,7 @@
     "Part2_Infrastructure/web/tests/command-score.test.ts",
     "Part2_Infrastructure/web/tests/complexity.test.ts",
     "Part2_Infrastructure/web/tests/contracts.test.ts",
+    "Part2_Infrastructure/web/tests/copy-audit.test.ts",
     "Part2_Infrastructure/web/tests/covariance-source.test.ts",
     "Part2_Infrastructure/web/tests/data-diagnostics-ui.test.ts",
     "Part2_Infrastructure/web/tests/data-provider-panes.test.ts",
