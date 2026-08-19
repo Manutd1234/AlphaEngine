@@ -2942,10 +2942,20 @@ tbody tr[tabindex]:focus-visible {
   margin-bottom: 18px;
 }
 
+/* The desk's blue hand-off link: the last thing in a card, pointing at the
+   section that carries the detail. Twenty of them, and they sat wherever their
+   container happened to put them — left under a heading on Portfolio, left
+   under a paragraph on Risk, right inside the codex cards — so the same role
+   had three positions and none of them read as a convention.
+   `margin-inline-start: auto` on a fit-content block pins every one to the
+   right edge of its box, which is where the eye goes looking for "and then
+   what". Containers that already right-align (the codex column) are unaffected;
+   this only removes the ones that did not. */
 .text-action {
   display: block;
   width: fit-content;
   margin-top: 5px;
+  margin-inline-start: auto;
   padding: 0;
   border: 0;
   background: transparent;
