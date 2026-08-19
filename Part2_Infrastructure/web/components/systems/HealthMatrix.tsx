@@ -154,12 +154,7 @@ export default function HealthMatrix({
             20 samples.
           </p>
         </div>
-        <span className="console-percentile-guide__window">
-          <small>Network window</small>
-          <strong>15 min window, n≥20</strong>
-          <small>Decision window</small>
-          <strong>process life</strong>
-        </span>
+
       </section>
 
       <p className="console-note console-matrix-action-note" id="health-matrix-action-note">

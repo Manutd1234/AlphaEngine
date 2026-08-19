@@ -1116,27 +1116,6 @@ a:not([class]):active {
   line-height: var(--lh-body);
 }
 
-.console-percentile-guide__window {
-  display: grid;
-  gap: 2px;
-  min-width: 112px;
-  padding-left: 13px;
-  border-left: 1px solid var(--border);
-}
-
-.console-percentile-guide__window small {
-  color: var(--text-muted);
-  font-size: var(--fs-2xs);
-  font-weight: 700;
-  letter-spacing: var(--ls-caps);
-  text-transform: uppercase;
-}
-
-.console-percentile-guide__window strong {
-  font-family: var(--mono);
-  font-size: var(--fs-sm);
-}
-
 /* `isolation: isolate` seals the table's internal ladder into its own stacking
    context. `overflow: auto` alone does NOT create one, so without this the
    three sticky tiers below are competing with page chrome rather than only
@@ -1354,13 +1333,6 @@ a:not([class]):active {
 
   .console-percentile-guide {
     grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .console-percentile-guide__window {
-    grid-column: 2;
-    padding: 7px 0 0;
-    border-top: 1px solid var(--border);
-    border-left: 0;
   }
 
 }

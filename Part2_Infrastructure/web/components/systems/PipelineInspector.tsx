@@ -221,7 +221,7 @@ export default function PipelineInspector({
           control on this card that costs something real, so it stays visible
           with its cost stated rather than folded into a disclosure. */}
       <p className="console-trace-cost">
-        Trace skips the registry cache and spends one interactive provider call.
+        Spends one interactive provider call.
       </p>
 
       <div className="seg console-seg" role="group" aria-label="Capability to inspect">

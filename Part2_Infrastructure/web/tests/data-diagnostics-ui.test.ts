@@ -58,7 +58,10 @@ describe("the pipeline inspector separates zones instead of narrating them", () 
     // The house rule is that a cost stays visible next to the action; folding
     // it into a disclosure would make the expensive button the quiet one.
     assert.ok(pipeline.includes("Trace (bypass cache)"));
-    assert.ok(pipeline.includes("spends one interactive provider call"));
+    // Case-insensitive: the sentence used to open "Trace skips the registry
+    // cache and spends…", which was the button's own parenthesis spelled out.
+    // It now opens with the price, so "Spends" is capitalised.
+    assert.match(pipeline, /spends one interactive provider call/i);
   });
 
   it("renders the executed path as an ordered list, with the key in the verdict grid", () => {

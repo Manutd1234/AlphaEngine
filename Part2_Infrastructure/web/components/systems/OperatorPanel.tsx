@@ -234,7 +234,9 @@ export default function OperatorPanel({
           <div>
             <dt>Open circuits</dt>
             <dd className="num">{openCircuits}</dd>
-            <small>{openCircuits ? "closing one asks the provider again" : "nothing held open"}</small>
+            {/* What the state IS. What closing one does is stated beside the
+                button that does it, which is where a caveat belongs. */}
+            <small>{openCircuits ? "held out of routing until a probe closes them" : "nothing held open"}</small>
           </div>
           <div>
             <dt>Simulated outages</dt>
@@ -278,7 +280,7 @@ export default function OperatorPanel({
           <span className="page-kicker">Server mutations</span>
           <strong>Provider routing controls</strong>
         </div>
-        <small>Authenticated in production; provider-routing scope</small>
+        <small>Authenticated in production</small>
       </div>
 
       {pending ? (

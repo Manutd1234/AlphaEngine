@@ -213,7 +213,9 @@ export default function ReliabilityConsole({
       label: "Provider APIs",
       value: health ? <><NumberTicker value={health.summary.ready} />/{health.summary.total}</> : "—",
       note: health
-        ? `${health.summary.configured} configured, ${health.summary.ready} routable`
+        // Not "N routable": the value above is already ready/total, so the
+        // numerator would be printed twice. The note carries the third number.
+        ? `${health.summary.configured} configured`
         : "checking provider registry",
       tone: postureTone(posture?.paths.research.status),
     },

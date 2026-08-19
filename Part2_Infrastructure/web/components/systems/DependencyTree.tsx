@@ -139,9 +139,7 @@ export default function DependencyTree({
         <summary>How to read this tree, and why two of the five states are not faults</summary>
         <p className="sub">
           Read top-down: everything indented under a node depends on it. Five states, because{" "}
-          <em>not configured</em> and <em>not observed</em> are not faults — and when the gateway
-          cannot be reached, everything behind it reports <em>not observed</em> rather than down,
-          since one dead transport is not five broken components.
+          <em>not configured</em> and <em>not observed</em> are not faults.
         </p>
         <p className="sub">
           A healthy row states its reading to a screen reader but not on screen: on a node that is
