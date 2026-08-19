@@ -549,23 +549,27 @@ cd ../Part2_Infrastructure && python tools/make_parity_fixture.py
 
 One ladder, in `app/globals.css` `:root`, and everything reads it.
 
-| Rung | 1280px → 1920px, Comfortable | Use |
+| Rung | Comfortable, 16px root | Use |
 |---|---|---|
-| `--fs-2xs` | 12 → 13px | the reading floor: kickers, captions, table notes |
-| `--fs-xs` · `--fs-sm` · `--fs-body` | 12.5 → 13.5 · 13 → 14 · 13.5 → 14.5 | small labels, notes, body |
-| `--fs-md` · `--fs-lg` · `--fs-xl` · `--fs-2xl` | 14 → 15 · 14.5 → 15.5 · 15 → 16 · 16 → 17 | controls, mono tables, emphasis |
-| `--fs-title` · `--fs-h2` · `--fs-h1` | 17 → 18 · 20 → 22 · 24 → 26 | card titles, section and page headings |
-| `--fs-figure` · `--fs-display` · the three `--fs-hero-*` | 28 → 30 · 34 → 36 · 26–46 | figures, the readiness ring, the page heroes |
-| `--fs-chrome-tab` · `-chip` · `-caption` · `-brand` | 14 · 13 · 12 · 16px, fixed | the header row, the ≤900 switcher, the ≤620 bottom bar |
+| `--fs-2xs` | 12px | the reading floor: kickers, captions, table notes |
+| `--fs-xs` · `--fs-sm` · `--fs-body` | 12.5 · 13 · **14** | small labels, notes, body |
+| `--fs-md` · `--fs-lg` · `--fs-xl` · `--fs-2xl` | 14.5 · 15 · 15.5 · 16 | controls, mono tables, emphasis |
+| `--fs-title` · `--fs-h2` · `--fs-h1` | 17 · 19 · 23 | card titles, section and page headings |
+| `--fs-figure` · `--fs-display` | 26 · 32 | figures and the readiness ring |
+| the three `--fs-hero-*` | 22 → 26 · 30 → 34 · 38 → 42, fluid 1280→1920 | the page heroes |
+| `--fs-chrome-tab` · `-chip` · `-caption` · `-brand` | 13 · 12 · 11 · 16px, fixed | the header row, the ≤900 switcher, the ≤620 bottom bar |
 | `--fs-tick` · `--fs-input` | 10px · 16px, fixed | SVG axis ticks; the iOS focus-zoom threshold |
 
-Every content rung is `calc(clamp(min, intercept + slope·vw, max) × var(--type-step))`
-in **rem** — the reader's browser font preference and page zoom scale the desk (WCAG
-1.4.4), the ladder is fluid between a 1280px laptop and a 1920px desk (a phone gets the
-laptop's type, a 4K monitor the desk's), and `--type-step` is the **Text size**
-preference in Quick Settings (compact 0.9375, comfortable 1, large 1.125; `lib/text-size.ts`,
-synced with the account like the theme). The root stays `html { font-size: 100% }` and
-carries no rung — a stepped root would multiply every rung by the step twice.
+Every content rung is `calc(<rem> × var(--type-step))` — one size each, centred on
+`--fs-body: 14px`. **rem**, so the reader's browser font preference and page zoom scale
+the desk (WCAG 1.4.4); `--type-step` is the **Text size** preference in Quick Settings
+(compact 0.9375, comfortable 1, large 1.125; `lib/text-size.ts`, synced with the account
+like the theme). The root stays `html { font-size: 100% }` and carries no rung — a
+stepped root would multiply every rung by the step twice.
+
+The content rungs were briefly fluid between 1280 and 1920px and it overshot: a 1720px
+desk drew 25px headings and 29px figures. Only the three heroes stay fluid now — a hero
+is one line of type on its own row, where a pixel of growth costs no layout.
 
 The header is chrome. Its words use the four fixed px `--fs-chrome-*` tokens and never a
 content rung, because the header's nine-rung priority ladder is a px measurement that a
