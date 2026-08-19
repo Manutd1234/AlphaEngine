@@ -24,8 +24,12 @@
  * The embedder. The rankings that go in are produced by whatever ran the query;
  * this scores the FUSION of two orderings against a labelled answer key. A
  * regression in gte-small itself would show up here only as worse input, which
- * is a real limitation and the reason `scripts/rag-eval.mjs` exists to run the
- * same metrics against the live index.
+ * is a real limitation. `scripts/rag-eval.mjs` closes it: same four metrics,
+ * run against the live index through the real query path, so a change to the
+ * embedder, the migration, the RRF constant or the corpus moves a number
+ * there. It needs a case file — labels are a judgement about this desk's own
+ * corpus, and none is committed, because a fabricated answer key produces a
+ * figure that looks like evidence and is not.
  */
 
 /** Cormack et al.'s original constant. Not tuned — see the migration comment. */

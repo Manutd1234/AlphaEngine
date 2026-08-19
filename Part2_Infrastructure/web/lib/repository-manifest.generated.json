@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-19",
-  "commit": "b360705",
+  "commit": "ecc4cb3",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -516,6 +516,7 @@
     "Part2_Infrastructure/web/scripts/generate-mc-parity.ts",
     "Part2_Infrastructure/web/scripts/generate-seed-run.ts",
     "Part2_Infrastructure/web/scripts/header-ladder-measure.mjs",
+    "Part2_Infrastructure/web/scripts/rag-eval.mjs",
     "Part2_Infrastructure/web/scripts/refresh-test-counts.mjs",
     "Part2_Infrastructure/web/scripts/start-dev-all.mjs",
     "Part2_Infrastructure/web/scripts/tab-switch-measure.mjs",
