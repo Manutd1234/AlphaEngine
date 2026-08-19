@@ -193,7 +193,52 @@ export const TRANSPORT_HINTS: Record<string, string> = {
   ECONNRESET: `The gateway closed the connection mid-request.`,
 };
 
+/**
+ * GETs in flight right now, keyed by path.
+ *
+ * Two route handlers asking the gateway for the same payload in the same
+ * moment made two upstream round trips. The browser side of this was already
+ * solved at a better layer — `lib/use-book.ts` and `lib/use-system-health.ts`
+ * own the shared polls and `workspace-routing.test.ts` fails the build if a
+ * panel fetches them itself — so what is left is server-side collapsing:
+ * separate requests, separate lambdas' worth of work, one upstream call.
+ *
+ * GET only. POST and PATCH move state and two of them are two intentions, not
+ * one repeated question; collapsing them would silently drop an order.
+ *
+ * Safe to key on the path alone because the gateway credential is this
+ * SERVER's, from the environment — `gatewayHeaders` reads no per-user value —
+ * so the answer does not vary by who asked. If a per-identity header is ever
+ * added to that function, this key has to grow with it or one desk will read
+ * another's book. That is the one way this goes wrong.
+ */
+const inflightGets = new Map<string, Promise<GatewayResult<unknown>>>();
+
+/** Structured-cloned per waiter: a shared success would hand two callers the
+ *  same object, and a route that mutated its payload before serialising would
+ *  corrupt the other's. The clone costs microseconds against a network hop. */
+function cloneResult<T>(result: GatewayResult<unknown>): GatewayResult<T> {
+  if (!result.ok) return result as GatewayResult<T>;
+  return { ok: true, data: structuredClone(result.data) as T };
+}
+
 export async function callGateway<T = unknown>(path: string, options: CallOptions = {}): Promise<GatewayResult<T>> {
+  const method = options.method ?? "GET";
+  if (method === "GET") {
+    const pending = inflightGets.get(path);
+    if (pending) return cloneResult<T>(await pending);
+    const started = callGatewayUncached<unknown>(path, options);
+    inflightGets.set(path, started);
+    try {
+      return cloneResult<T>(await started);
+    } finally {
+      inflightGets.delete(path);
+    }
+  }
+  return callGatewayUncached<T>(path, options);
+}
+
+async function callGatewayUncached<T = unknown>(path: string, options: CallOptions = {}): Promise<GatewayResult<T>> {
   // Before the configuration check: a caller passing the wrong body type is a
   // programming error, and it must not stay hidden on deployments where the
   // gateway happens to be unset — that is exactly how this one survived review.

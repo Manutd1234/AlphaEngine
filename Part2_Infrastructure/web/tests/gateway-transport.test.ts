@@ -22,7 +22,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { GATEWAY_TOKEN_ENV, GATEWAY_URL_ENV, TRANSPORT_HINTS, transportCause } from "../lib/gateway";
+import { callGateway, GATEWAY_TOKEN_ENV, GATEWAY_URL_ENV, TRANSPORT_HINTS, transportCause } from "../lib/gateway";
 
 const source = readFileSync(fileURLToPath(new URL("../lib/gateway.ts", import.meta.url)), "utf8");
 const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
@@ -176,5 +176,81 @@ describe("the deployment probes the hop it actually depends on", () => {
     // only as useful as the sentence it can quote.
     assert.match(smoke, /body\.get\("hint"\)/);
     assert.match(smoke, /fix=hint or \(/);
+  });
+});
+
+/**
+ * In-flight GET collapsing.
+ *
+ * Two route handlers wanting the same payload in the same moment made two
+ * upstream round trips. These pin the three properties that make collapsing
+ * them safe rather than merely faster.
+ */
+describe("concurrent GETs for one path make one upstream call", () => {
+  it("collapses simultaneous GETs and gives each caller its own object", async () => {
+    const seen: string[] = [];
+    const original = globalThis.fetch;
+    globalThis.fetch = (async (url: URL | RequestInfo) => {
+      seen.push(String(url));
+      await new Promise((r) => setTimeout(r, 15));
+      return new Response(JSON.stringify({ equity: 1, nested: { held: 2 } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }) as typeof fetch;
+    process.env.ALPHAENGINE_GATEWAY_URL = "https://gateway.example";
+    try {
+      const [a, b, c] = await Promise.all([
+        callGateway<{ nested: { held: number } }>("/state"),
+        callGateway<{ nested: { held: number } }>("/state"),
+        callGateway<{ nested: { held: number } }>("/state"),
+      ]);
+      assert.equal(seen.length, 1, "three callers, one upstream request");
+      assert.ok(a.ok && b.ok && c.ok);
+      if (a.ok && b.ok) {
+        assert.notEqual(a.data, b.data, "each caller gets its own object");
+        assert.notEqual(a.data.nested, b.data.nested, "the clone is deep");
+        assert.deepEqual(a.data, b.data, "…holding equal values");
+      }
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
+  it("never collapses a POST — two orders are two intentions", async () => {
+    const seen: string[] = [];
+    const original = globalThis.fetch;
+    globalThis.fetch = (async (url: URL | RequestInfo) => {
+      seen.push(String(url));
+      await new Promise((r) => setTimeout(r, 10));
+      return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
+    }) as typeof fetch;
+    process.env.ALPHAENGINE_GATEWAY_URL = "https://gateway.example";
+    try {
+      await Promise.all([
+        callGateway("/orders", { method: "POST", body: { id: 1 } }),
+        callGateway("/orders", { method: "POST", body: { id: 2 } }),
+      ]);
+      assert.equal(seen.length, 2, "collapsing these would drop an order");
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
+  it("releases the path once the request settles", async () => {
+    const seen: string[] = [];
+    const original = globalThis.fetch;
+    globalThis.fetch = (async (url: URL | RequestInfo) => {
+      seen.push(String(url));
+      return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
+    }) as typeof fetch;
+    process.env.ALPHAENGINE_GATEWAY_URL = "https://gateway.example";
+    try {
+      await callGateway("/state");
+      await callGateway("/state");
+      assert.equal(seen.length, 2, "a later GET is a new question, not a cached answer");
+    } finally {
+      globalThis.fetch = original;
+    }
   });
 });
