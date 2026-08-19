@@ -1998,7 +1998,11 @@ export default function Page() {
             <WorkspaceIntro
               kicker="Quant trader"
               title="Execution"
-              description={<>Trade {req.symbol}, inspect liquidity, compare routing cost and review fills.</>}
+              /* Not a list of the section tabs directly below — those read
+                 Trade, Liquidity, Routing & TCA, Fill quality, Blotter, which
+                 is the same sentence in less space. This says what the tab is
+                 for: the modelled cost of an order, and what it really cost. */
+              description={<>What it would cost to trade {req.symbol} now, and what it actually cost.</>}
               insights={[
                 { label: "Instrument", value: req.symbol, detail: "consolidated L2", tone: "accent", mono: true },
                 { label: "Intent", value: `${side} ${usd(notional, 0)}`, detail: "editable in the ticket", tone: side === "BUY" ? "good" : "warn", mono: true },
