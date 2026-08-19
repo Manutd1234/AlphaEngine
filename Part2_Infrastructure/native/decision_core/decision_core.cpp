@@ -266,6 +266,129 @@ struct CoreResult {
     std::vector<int> route_venue_order;
 };
 
+// --------------------------------------------------------------------------- //
+// consolidated_mid — TCAEngine.consolidated_mid, fold for fold.
+//
+// Depth-weighted mean of each venue's mid, weighted by the first five levels a
+// side. A PLAIN `+=` accumulation, deliberately: the Python reference hand-rolls
+// this loop rather than calling sum(), so reproducing it with the Neumaier
+// compensation used for depth_usd would be a silent 1-ULP parity break. The
+// split between the two is the contract — see the Neumaier note at the top.
+//
+// Extracted so the order symbol's mark and every held position's mark are the
+// same arithmetic rather than two implementations that agree today.
+// --------------------------------------------------------------------------- //
+static std::optional<double> consolidated_mid(const std::vector<BookLadder *> &books) {
+    double num = 0.0;
+    double den = 0.0;
+    for (const BookLadder *book : books) {
+        if (book == nullptr) continue;
+        auto m = book->mid();
+        if (!m) continue;
+        double w = book->depth_usd("bid", 5) + book->depth_usd("ask", 5);
+        w = std::max(w, 1.0);
+        num += (*m) * w;
+        den += w;
+    }
+    if (den != 0.0) return num / den;
+    return std::nullopt;
+}
+
+// --------------------------------------------------------------------------- //
+// PositionBook — the held book, mirrored in C++ and mutated on fills.
+//
+// submit() used to rebuild five Python lists over every position on every
+// order, and call RiskGateway.mark() once per position to fill the fifth.
+// Those five lists change only when a fill lands; the marks change whenever a
+// venue ticks, and they are derivable from ladders this core already owns.
+//
+// So the book lives here and the gateway mutates it at the two moments it
+// actually changes — a fill, and a position closing — while the marks are
+// computed inside decide()'s timed region from the mirrored ladders, using the
+// same consolidated_mid() the order symbol uses.
+//
+// Mark resolution reproduces `live or paper` from RiskGateway.mark(): Python's
+// `or` treats 0.0 as falsy, so a live mid of exactly zero falls through to the
+// paper mark rather than being used. Spelled out below rather than written as
+// `value_or`, because the two are not the same function.
+// --------------------------------------------------------------------------- //
+class PositionBook {
+public:
+    struct Entry {
+        std::string symbol;
+        double quantity = 0.0;
+        double avg_price = 0.0;
+        double realized = 0.0;
+        std::vector<BookLadder *> books;
+        std::optional<double> paper_mark;
+    };
+
+    std::vector<Entry> entries;
+
+    void clear() { entries.clear(); }
+
+    std::size_t size() const { return entries.size(); }
+
+    /** Insert or update one holding. Insertion order is the iteration order the
+     *  Python dict had, which is what the parity fixture's folds depend on. */
+    void upsert(const std::string &symbol, double quantity, double avg_price, double realized) {
+        Entry *found = find(symbol);
+        if (found == nullptr) {
+            entries.push_back(Entry{symbol, quantity, avg_price, realized, {}, std::nullopt});
+            return;
+        }
+        found->quantity = quantity;
+        found->avg_price = avg_price;
+        found->realized = realized;
+    }
+
+    void set_books(const std::string &symbol, const std::vector<BookLadder *> &books) {
+        for (BookLadder *book : books) {
+            if (book == nullptr)
+                throw std::invalid_argument("books contains None; every entry must be a BookLadder");
+        }
+        Entry *found = find(symbol);
+        if (found == nullptr) {
+            entries.push_back(Entry{symbol, 0.0, 0.0, 0.0, books, std::nullopt});
+            return;
+        }
+        found->books = books;
+    }
+
+    void set_paper_mark(const std::string &symbol, std::optional<double> mark) {
+        Entry *found = find(symbol);
+        if (found == nullptr) {
+            entries.push_back(Entry{symbol, 0.0, 0.0, 0.0, {}, mark});
+            return;
+        }
+        found->paper_mark = mark;
+    }
+
+    void remove(const std::string &symbol) {
+        for (auto it = entries.begin(); it != entries.end(); ++it) {
+            if (it->symbol == symbol) {
+                entries.erase(it);
+                return;
+            }
+        }
+    }
+
+    /** `self.tca.last_price(sym) or self._paper_marks.get(sym)`. */
+    std::optional<double> mark_of(const Entry &entry) const {
+        auto live = consolidated_mid(entry.books);
+        if (live && *live != 0.0) return live;
+        return entry.paper_mark;
+    }
+
+private:
+    Entry *find(const std::string &symbol) {
+        for (Entry &entry : entries) {
+            if (entry.symbol == symbol) return &entry;
+        }
+        return nullptr;
+    }
+};
+
 static CoreResult decide(
     bool side_is_buy,
     bool order_type_is_limit,
@@ -292,7 +415,14 @@ static CoreResult decide(
     double max_daily_drawdown_pct,
     double reduce_only_threshold,
     bool reduce_only_override,
-    bool route_enabled) {
+    bool route_enabled,
+    // When a PositionBook is supplied it SUPERSEDES the five pos_* vectors:
+    // the gateway has mirrored the held book here and the marks are derived
+    // below from ladders this core already owns, so nothing about the book
+    // crosses the boundary per order. Null keeps the vector path, which is
+    // what the parity fixture drives and what runs when no mirror exists.
+    const PositionBook *position_book,
+    const std::string &order_symbol) {
     (void)max_order_notional_usd;
     (void)max_symbol_notional_usd;
     (void)max_gross_exposure_usd;
@@ -322,17 +452,7 @@ static CoreResult decide(
     if (is_paper) {
         mark = paper_price;
     } else {
-        double num = 0.0;
-        double den = 0.0;
-        for (const BookLadder *book : order_books) {
-            auto m = book->mid();
-            if (!m) continue;
-            double w = book->depth_usd("bid", 5) + book->depth_usd("ask", 5);
-            w = std::max(w, 1.0);
-            num += (*m) * w;
-            den += w;
-        }
-        if (den != 0.0) mark = num / den;
+        mark = consolidated_mid(order_books);
     }
 
     // --- price discovery and sizing --------------------------------------- //
@@ -365,13 +485,44 @@ static CoreResult decide(
         price_ref = 0.0;
     }
 
+    // --- the held book -----------------------------------------------------
+    // Either the five vectors the caller passed, or the mirrored PositionBook
+    // expanded here. Expanding INSIDE the timer is the point: this is the work
+    // that used to be five Python list-builds and one mark() call per held
+    // position, and moving it means measuring it here rather than not at all.
+    // Scratch is thread_local and reused, so a steady desk allocates nothing.
+    static thread_local std::vector<double> bk_qty;
+    static thread_local std::vector<double> bk_avg;
+    static thread_local std::vector<double> bk_realized;
+    static thread_local std::vector<std::optional<double>> bk_marks;
+    static thread_local std::vector<bool> bk_is_order;
+    if (position_book != nullptr) {
+        const std::size_t count = position_book->entries.size();
+        bk_qty.clear(); bk_qty.reserve(count);
+        bk_avg.clear(); bk_avg.reserve(count);
+        bk_realized.clear(); bk_realized.reserve(count);
+        bk_marks.clear(); bk_marks.reserve(count);
+        bk_is_order.clear(); bk_is_order.reserve(count);
+        for (const auto &entry : position_book->entries) {
+            bk_qty.push_back(entry.quantity);
+            bk_avg.push_back(entry.avg_price);
+            bk_realized.push_back(entry.realized);
+            bk_marks.push_back(position_book->mark_of(entry));
+            bk_is_order.push_back(entry.symbol == order_symbol);
+        }
+    }
+    const std::vector<double> &pos_qty_v = position_book ? bk_qty : pos_quantities;
+    const std::vector<double> &pos_avg_v = position_book ? bk_avg : pos_avg_prices;
+    const std::vector<double> &pos_real_v = position_book ? bk_realized : pos_realized;
+    const std::vector<std::optional<double>> &pos_mark_v = position_book ? bk_marks : pos_marks;
+
     // held quantity of the order symbol (positions are keyed by symbol, so at
     // most one row is flagged).
     double held = 0.0;
-    const std::size_t n = pos_quantities.size();
+    const std::size_t n = pos_qty_v.size();
     for (std::size_t i = 0; i < n; ++i) {
-        if (pos_is_order_symbol[i]) {
-            held = pos_quantities[i];
+        if (position_book ? bk_is_order[i] : pos_is_order_symbol[i]) {
+            held = pos_qty_v[i];
             break;
         }
     }
@@ -386,11 +537,11 @@ static CoreResult decide(
     double gross = 0.0;
     double sym_notional_order = 0.0;
     for (std::size_t i = 0; i < n; ++i) {
-        const auto &pm = pos_marks[i];
-        double m = (pm && *pm != 0.0) ? *pm : pos_avg_prices[i];
-        double contrib = std::abs(pos_quantities[i]) * m;
+        const auto &pm = pos_mark_v[i];
+        double m = (pm && *pm != 0.0) ? *pm : pos_avg_v[i];
+        double contrib = std::abs(pos_qty_v[i]) * m;
         gross += contrib;
-        if (pos_is_order_symbol[i]) sym_notional_order = contrib;
+        if (position_book ? bk_is_order[i] : pos_is_order_symbol[i]) sym_notional_order = contrib;
     }
     r.projected_gross = gross - sym_notional_order + r.projected_sym;
 
@@ -400,14 +551,14 @@ static CoreResult decide(
     // unrealized generator yields 0.0 for a position with no mark or zero qty
     // (adding 0.0 is a no-op under Neumaier), so every position is folded.
     Neumaier realized_acc;
-    for (std::size_t i = 0; i < n; ++i) realized_acc.add(pos_realized[i]);
+    for (std::size_t i = 0; i < n; ++i) realized_acc.add(pos_real_v[i]);
     const double realized = realized_acc.value();
     Neumaier unrealized_acc;
     for (std::size_t i = 0; i < n; ++i) {
-        const auto &pm = pos_marks[i];
+        const auto &pm = pos_mark_v[i];
         // PositionState.unrealized(mark): 0.0 unless mark truthy and qty != 0.
-        double term = (pm && *pm != 0.0 && pos_quantities[i] != 0.0)
-                          ? (*pm - pos_avg_prices[i]) * pos_quantities[i]
+        double term = (pm && *pm != 0.0 && pos_qty_v[i] != 0.0)
+                          ? (*pm - pos_avg_v[i]) * pos_qty_v[i]
                           : 0.0;
         unrealized_acc.add(term);
     }
@@ -611,6 +762,23 @@ PYBIND11_MODULE(_decision_core, m) {
         .def_property_readonly(
             "asks", [](const BookLadder &b) { return b.asks; });
 
+    py::class_<PositionBook>(m, "PositionBook")
+        .def(py::init<>())
+        .def("clear", &PositionBook::clear, "Drop every holding.")
+        .def("upsert", &PositionBook::upsert,
+             py::arg("symbol"), py::arg("quantity"), py::arg("avg_price"), py::arg("realized"),
+             "Insert or update one holding. Insertion order is preserved and is "
+             "the order the folds run in, matching the Python dict it mirrors.")
+        .def("set_books", &PositionBook::set_books,
+             py::arg("symbol"), py::arg("books"),
+             "The venue ladders this symbol's mark is consolidated from.")
+        .def("set_paper_mark", &PositionBook::set_paper_mark,
+             py::arg("symbol"), py::arg("mark"),
+             "The paper mark used when no live mid is available (or it is zero).")
+        .def("remove", &PositionBook::remove, py::arg("symbol"),
+             "Forget a holding. A no-op when it was never held.")
+        .def("__len__", &PositionBook::size);
+
     py::class_<CoreResult>(m, "CoreResult")
         .def_readonly("elapsed_ns", &CoreResult::elapsed_ns)
         .def_readonly("mark", &CoreResult::mark)
@@ -659,6 +827,8 @@ PYBIND11_MODULE(_decision_core, m) {
           py::arg("reduce_only_threshold"),
           py::arg("reduce_only_override"),
           py::arg("route_enabled"),
+          py::arg("position_book") = nullptr,
+          py::arg("order_symbol") = std::string(),
           "Evaluate the book arithmetic, the numeric gates and the routed "
           "slippage walk, timing only the compute with steady_clock. "
           "``order_books`` are the caller's persistent BookLadder objects and "
