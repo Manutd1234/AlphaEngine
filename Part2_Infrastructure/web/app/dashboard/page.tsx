@@ -1513,7 +1513,7 @@ export default function Page() {
             <WorkspaceIntro
               kicker="Quant researcher"
               title="Research lab"
-              description={<>Build, validate and promote {req.symbol} experiments through focused evidence sections.</>}
+              description={<>Build, validate and promote {req.symbol} experiments.</>}
               insights={[
                 { label: "Instrument", value: req.symbol, detail: req.interval, tone: "accent", mono: true },
                 {

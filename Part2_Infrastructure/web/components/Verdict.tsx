@@ -16,7 +16,7 @@
 import { type CSSProperties } from "react";
 
 import { SweepResponse } from "@/lib/types";
-import { fmt, signedPct, trackRecordNote } from "@/lib/format";
+import { fmt, trackRecordNote } from "@/lib/format";
 
 const STATUS = {
   pass: { icon: "✓", label: "PASS" },
@@ -93,11 +93,15 @@ export default function Verdict({ data }: { data: SweepResponse }) {
         />
       </div>
 
+      {/* The two benchmark figures are not repeated here. The stat row
+          immediately below this card carries them where they belong — beside
+          the strategy's own numbers, as "buy & hold −1.11" under Annualised
+          Sharpe and "buy & hold −40.7%" under Total return — which is where a
+          reader compares them. This line is the standard those comparisons are
+          held to, and that is all it needs to be. */}
       <p className="verdict-benchmark">
-        Buy &amp; hold over the same window returned{" "}
-        <strong className="num">{signedPct(data.benchmark.totalReturn)}</strong> at Sharpe{" "}
-        <strong className="num">{fmt(data.benchmark.sharpe, 2)}</strong>. A strategy that does not
-        beat that after costs has not earned its complexity.
+        A strategy that does not beat buy &amp; hold after costs has not earned
+        its complexity.
       </p>
     </div>
   );
