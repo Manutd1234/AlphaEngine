@@ -15024,15 +15024,21 @@ html:active-view-transition .view-panel {
    1722px down and by 298px at 1381. The band that replaced it folded too
    much at once — at 1700px the row sat with 250px of empty spacer and its
    labels already gone — so the rungs are small and each is measured to land
-   just before the next clip. Re-measured on 2026-08-17 for the chrome lift
-   (tabs 14px, chips 13px, captions 12px) with scripts/header-ladder-measure.mjs
-   — the local harness, guest row, widest production strings injected: the
-   full row now needs ~1950px, every rung moved 60px up (the top four bands
-   end at exactly zero slack; the lower ones were tightened to within 10–30px
-   of their clip), and the icon-only row still fits down to 1052px, so the
-   1110px wrap stands. The chrome tokens are fixed px, so the Text-size
-   preference cannot move any of this — the script's --text-size=large run
-   is byte-identical to the default, and that is the proof.
+   just before the next clip. The rungs moved 60px out on 2026-08-17 for the
+   chrome lift (tabs 14px, chips 13px, captions 12px) and came back on
+   2026-08-20 when the chrome returned to 13/12/11, and both times the numbers
+   were measured rather than reasoned about.
+
+   The 2026-08-20 sweep, scripts/header-ladder-measure.mjs on the local
+   harness — guest row, widest production strings injected, 2000 → 1080 in
+   2px steps: slack is positive at every width, the row stays one row
+   throughout, and the tightest band bottoms out at 35px of spare (just above
+   rung 3, at 1700). The decision chip measures 34.4px while it carries copy,
+   which is the row's two-line norm and within a tenth of the 34.45px its own
+   comment predicts from the type; below rung 8 the copy folds and the icon
+   sets 36px. The chrome tokens are fixed px, so the Text-size preference
+   cannot move any of this — the --text-size=large run is byte-identical to
+   the default, and that is the proof rather than the claim.
 
    CrossFlow's rule stands — drop secondary context before letting the
    workspace nav clip — lowest priority first: what the aria-label already
