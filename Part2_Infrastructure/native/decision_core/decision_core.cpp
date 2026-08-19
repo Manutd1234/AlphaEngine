@@ -128,8 +128,8 @@ public:
     // or below zero are dropped and never delete an earlier positive size.
     void snapshot(const std::vector<std::pair<double, double>> &bids_in,
                   const std::vector<std::pair<double, double>> &asks_in) {
-        bids = build(bids_in, /*descending=*/true);
-        asks = build(asks_in, /*descending=*/false);
+        build(bids_in, /*descending=*/true, bids);
+        build(asks_in, /*descending=*/false, asks);
     }
 
     std::optional<double> best_bid() const {
@@ -170,31 +170,60 @@ public:
     }
 
 private:
-    static std::vector<std::pair<double, double>>
-    build(const std::vector<std::pair<double, double>> &side, bool descending) {
-        // Dict semantics: last positive size per price wins.
-        std::unordered_map<double, double> book;
-        book.reserve(side.size() * 2);
+    // Dict semantics — {p: q for p, q in side if q > 0} — then a sort, without
+    // the dict.
+    //
+    // This used to build an unordered_map<double, double>, walk it out into a
+    // vector and sort that: a hash of every price, a node allocation per
+    // distinct price, and a fresh vector per side per update. It runs in the
+    // feed funnels, which is the hot path — BookState._mirror() calls it on
+    // every snapshot and every delta, ~60 times a second per book, against a
+    // decision that runs per order.
+    //
+    // And on that path the dict was doing nothing. _mirror() passes
+    // `list(self.bids.items())`, whose keys are unique by construction, so
+    // every insert was a hash lookup that could not collide followed by an
+    // allocation that could not be reused. The dedupe is still implemented
+    // here, because snapshot() is also bound to Python directly and raw lists
+    // reach it from tests and callers, but it is now a scan rather than a map.
+    //
+    // The semantics are unchanged and the order is identical:
+    //   * sizes at or below zero are dropped and never delete an earlier size;
+    //   * a stable sort by price leaves equal prices in input order, so taking
+    //     the LAST of each equal-price run is exactly "a later size at a price
+    //     replaces an earlier one";
+    //   * bids descend, asks ascend.
+    // Scratch is thread_local and reused, so a steady feed does no allocation
+    // at all after the first update of each size.
+    static void build(const std::vector<std::pair<double, double>> &side,
+                      bool descending,
+                      std::vector<std::pair<double, double>> &out) {
+        static thread_local std::vector<std::pair<double, double>> scratch;
+        scratch.clear();
+        scratch.reserve(side.size());
         for (const auto &lvl : side) {
-            if (lvl.second > 0.0) book[lvl.first] = lvl.second;
+            if (lvl.second > 0.0) scratch.push_back(lvl);
         }
-        std::vector<std::pair<double, double>> out;
-        out.reserve(book.size());
-        for (const auto &kv : book) out.emplace_back(kv.first, kv.second);
         if (descending) {
-            std::sort(out.begin(), out.end(),
-                      [](const std::pair<double, double> &a,
-                         const std::pair<double, double> &b) {
-                          return a.first > b.first;
-                      });
+            std::stable_sort(scratch.begin(), scratch.end(),
+                             [](const std::pair<double, double> &a,
+                                const std::pair<double, double> &b) {
+                                 return a.first > b.first;
+                             });
         } else {
-            std::sort(out.begin(), out.end(),
-                      [](const std::pair<double, double> &a,
-                         const std::pair<double, double> &b) {
-                          return a.first < b.first;
-                      });
+            std::stable_sort(scratch.begin(), scratch.end(),
+                             [](const std::pair<double, double> &a,
+                                const std::pair<double, double> &b) {
+                                 return a.first < b.first;
+                             });
         }
-        return out;
+        out.clear();
+        out.reserve(scratch.size());
+        for (std::size_t i = 0; i < scratch.size(); ++i) {
+            // Not the last of its run: a later entry at this price supersedes it.
+            if (i + 1 < scratch.size() && scratch[i].first == scratch[i + 1].first) continue;
+            out.push_back(scratch[i]);
+        }
     }
 };
 
