@@ -571,6 +571,11 @@ class MonteCarlo:
     p50: tuple[float, ...]
     p75: tuple[float, ...]
     p95: tuple[float, ...]
+    #: Mean block length of the stationary bootstrap, in bars. 1 is an i.i.d.
+    #: draw — what this function did exclusively until blocks were added, and
+    #: what it still does by default so the figure a desk has been reading does
+    #: not change under it. Defaulted, so it sits last.
+    mean_block_length: int = 1
 
 
 def _nearest_rank(sorted_values: Sequence[float], q: float) -> float:
@@ -589,6 +594,7 @@ def bootstrap_terminal_distribution(
     *,
     paths: int = 2000,
     seed: int | None = None,
+    mean_block_length: int = 1,
 ) -> MonteCarlo | None:
     """I.i.d. bootstrap of the book's cumulative P&L ``horizon`` bars out.
 
@@ -603,10 +609,21 @@ def bootstrap_terminal_distribution(
     shape a short sample never showed, and a cone drawn from a dozen days would
     give false confidence to noise.
 
-    The method's limit, stated plainly: this is i.i.d., so it has **no
-    volatility clustering**. It assumes each future bar is an independent draw
-    from the past, which understates a sustained drawdown where losses arrive in
-    runs. Report it beside the historical figure, never as a replacement.
+    ``mean_block_length`` selects the resampler, and 1 — the default — is the
+    i.i.d. draw this function did exclusively until blocks were added. It stays
+    the default so the figure a desk has been reading does not change under it.
+
+    Above 1 it is the stationary bootstrap (Politis & Romano 1994): blocks of
+    geometric length with the given expected size, which is the same resampler
+    the workspace's equity band uses. That matters because the two sides
+    otherwise answer the same question with different methods and neither says
+    so.
+
+    The method's limit, stated plainly, and it is the reason blocks exist:
+    an i.i.d. draw has **no volatility clustering**. It assumes each future bar
+    is an independent draw from the past, which understates a sustained
+    drawdown where losses arrive in runs. Report either beside the historical
+    figure, never as a replacement.
 
     ``seed`` defaults to ``zlib.crc32`` of the input series, so a refresh with
     the same book redraws the same cone — reproducible without a stored state.
@@ -627,12 +644,38 @@ def bootstrap_terminal_distribution(
     steps: list[list[float]] = [[] for _ in range(horizon)]
     terminal: list[float] = []
     n = len(usable)
-    for _ in range(paths):
-        running = 0.0
-        for t in range(horizon):
-            running += usable[rng.randrange(n)]
-            steps[t].append(running)
-        terminal.append(running)
+    block = max(1, min(int(mean_block_length), max(1, n)))
+
+    if block == 1:
+        # The i.i.d. draw, UNCHANGED, and separated on purpose.
+        #
+        # The block loop below consumes two rng values per step (a uniform to
+        # decide whether to start a block, then an index) where this consumes
+        # one. Routing block == 1 through it would therefore produce a
+        # different sequence for the same seed — every existing Monte Carlo
+        # figure would move, silently, with no code that looks like it changed
+        # a number. The default must stay bit-for-bit what it was.
+        for _ in range(paths):
+            running = 0.0
+            for t in range(horizon):
+                running += usable[rng.randrange(n)]
+                steps[t].append(running)
+            terminal.append(running)
+    else:
+        # Stationary bootstrap: with probability 1/block start a new block at a
+        # uniform position, otherwise continue sequentially and wrap, so
+        # end-of-sample bars are not under-drawn. The same convention — and the
+        # same two-draws-per-step order — as lib/montecarlo.ts.
+        p_new = 1.0 / block
+        for _ in range(paths):
+            running = 0.0
+            cursor = rng.randrange(n)
+            for t in range(horizon):
+                if t > 0:
+                    cursor = rng.randrange(n) if rng.random() < p_new else (cursor + 1) % n
+                running += usable[cursor]
+                steps[t].append(running)
+            terminal.append(running)
 
     terminal.sort()
     k = max(1, math.ceil(0.05 * len(terminal)))
@@ -646,6 +689,7 @@ def bootstrap_terminal_distribution(
         paths=paths,
         seed=int(seed),
         observations=n,
+        mean_block_length=block,
         terminal_pnl=tuple(terminal),
         var95=-terminal[k - 1],
         cvar95=-_mean(tail),

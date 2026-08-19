@@ -721,7 +721,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("regime", "Risk · Volatility regime for an instrument", "Risk", "/regime SYMBOL [INTERVAL]", "/regime BTCUSDT", "_cmd_regime"),
     CommandSpec("size", "Risk · Kelly position sizing from a win rate", "Risk", "/size WIN_RATE PAYOFF [EQUITY]", "/size 0.55 1.8", "_cmd_size", ("kelly",), in_menu=False),
     CommandSpec("dislocation", "Risk · Cross-venue crossed-book check", "Risk", "/dislocation SYMBOL", "/dislocation BTCUSDT", "_cmd_dislocation", ("arb",), in_menu=False),
-    CommandSpec("montecarlo", "Risk · Bootstrapped terminal-P&L cone over a horizon", "Risk", "/montecarlo [1|5|20]", "/montecarlo", "_cmd_montecarlo", ("mc", "cone")),
+    CommandSpec("montecarlo", "Risk · Bootstrapped terminal-P&L cone over a horizon", "Risk", "/montecarlo [1|5|20] [BLOCK]", "/montecarlo 5 10", "_cmd_montecarlo", ("mc", "cone")),
     CommandSpec("beta", "Risk · Beta and hedge ratio of a symbol against a reference", "Risk", "/beta SYM [REF]", "/beta ETHUSDT BTCUSDT", "_cmd_beta", ("hedge",)),
 
     # Research fold detail — reads the newest in-process completed backtest and
@@ -5339,24 +5339,36 @@ class TelegramBot:
 
         horizons = {"1": 1, "5": 5, "20": 20}
         horizon = horizons.get(args[0], 5) if args else 5
+        # Second argument selects the resampler. 1 (the default) is the i.i.d.
+        # draw this command has always reported; above it, the stationary
+        # bootstrap the workspace's cone uses. Reported in the card either way,
+        # because two runs that used different resamplers are not comparable.
+        block = 1
+        if len(args) > 1:
+            requested = _finite(args[1])
+            if requested is None or requested < 1 or requested > 100:
+                raise ValueError("block length must be between 1 and 100 bars")
+            block = int(requested)
         switch = kb([_choice_row("montecarlo", [("1d", "1"), ("5d", "5"), ("20d", "20")], str(horizon))])
         report, _cov, returns = await self._risk_inputs("1d")
         positions = [p for p in report["exposure"]["positions"] if p.get("notional")]
         equity = float(report["equity"]["current"] or 0.0)
         hv = historical_var(positions, returns, equity) if positions else None
         book_returns = list(hv.daily_pnl) if hv else []
-        mc = bootstrap_terminal_distribution(book_returns, horizon) if book_returns else None
+        mc = (bootstrap_terminal_distribution(book_returns, horizon, mean_block_length=block)
+              if book_returns else None)
         if not mc:
             await self.send_message(chat_id, text_card(
                 f"🎲 Monte Carlo · {horizon}d", "NOT AVAILABLE",
                 ["A flat book, or fewer than 60 aligned bars of book history to resample.",
                  "The cone bootstraps the daily P&L the book actually lived through, and needs that history to exist."],
-                source="quant_risk · i.i.d. bootstrap", next_commands="/var · /positions"), reply_markup=switch)
+                source="quant_risk · bootstrap", next_commands="/var · /positions"), reply_markup=switch)
             return
 
         cushion = _finite(report["risk_budget"]["daily_drawdown"].get("cushion_usd"))
         lines = [
             f"Horizon    <code>{mc.horizon}</code> bars · <code>{mc.paths:,}</code> paths · <code>{mc.observations}</code> obs",
+            f"Resampler  <code>{'i.i.d.' if mc.mean_block_length == 1 else f'blocks of ~{mc.mean_block_length}'}</code>",
             f"Median     <code>{_money(mc.p50[-1], signed=True)}</code> terminal P&amp;L",
             f"VaR 95     <code>{_money(mc.var95)}</code> · CVaR 95 <code>{_money(mc.cvar95)}</code>",
             f"P5 / P95   <code>{_money(mc.p5[-1], signed=True)}</code> / <code>{_money(mc.p95[-1], signed=True)}</code>",
@@ -5364,7 +5376,15 @@ class TelegramBot:
         if cushion is not None and cushion > 0:
             trip = " · <i>a 95% loss would trip it</i>" if mc.var95 >= cushion else ""
             lines.append(f"Cushion    <code>{_money(cushion)}</code> to the drawdown breaker{trip}")
-        lines.append("<i>I.i.d. bootstrap: it resamples days independently, so it has no volatility clustering and understates a sustained run of losses. Reported beside the historical figure, never instead of it.</i>")
+        lines.append(
+            "<i>I.i.d. bootstrap: it resamples days independently, so it has no "
+            "volatility clustering and understates a sustained run of losses. "
+            "Reported beside the historical figure, never instead of it.</i>"
+            if mc.mean_block_length == 1 else
+            f"<i>Stationary bootstrap, blocks of ~{mc.mean_block_length} bars: it keeps the "
+            "clustering an i.i.d. draw destroys, which widens the tail where losses "
+            "arrive in runs. Reported beside the historical figure, never instead of it.</i>"
+        )
 
         cone = generate_cone_png(
             f"Terminal-P&L cone · {mc.horizon}d",
@@ -5379,7 +5399,7 @@ class TelegramBot:
         charts = [(name, blob) for name, blob in (("mc-cone", cone), ("mc-terminal", hist)) if blob]
         await self.send_media_group(chat_id, charts, caption=text_card(
             f"🎲 Monte Carlo · {mc.horizon}d", "BOOTSTRAP", lines,
-            source="quant_risk · i.i.d. bootstrap", next_commands="/var · /stress · /varbacktest"), reply_markup=switch)
+            source=f"quant_risk · {'i.i.d.' if mc.mean_block_length == 1 else 'stationary'} bootstrap", next_commands="/var · /stress · /varbacktest"), reply_markup=switch)
 
     async def _cmd_beta(self, args, chat_id, actor) -> None:
         """Beta and hedge ratio of a symbol against a reference, from returns."""

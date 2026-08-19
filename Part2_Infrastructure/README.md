@@ -1111,7 +1111,7 @@ can scale independently from portfolio state.
 | `/regime SYMBOL [INTERVAL]` | Volatility regime for an instrument |
 | `/size WIN_RATE PAYOFF [EQUITY]` | Kelly position sizing from a win rate |
 | `/dislocation SYMBOL` | Cross-venue crossed-book check |
-| `/montecarlo [1\|5\|20]` | Bootstrapped terminal-P&L cone over a horizon |
+| `/montecarlo [1\|5\|20] [BLOCK]` | Bootstrapped terminal-P&L cone over a horizon |
 | `/beta SYM [REF]` | Beta and hedge ratio of a symbol against a reference |
 
 #### Data

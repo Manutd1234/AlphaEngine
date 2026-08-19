@@ -805,3 +805,58 @@ class TestMonteCarloBootstrap:
         mc = bootstrap_terminal_distribution([-5.0] * 80, 4, seed=3)
         assert mc.var95 > 0
         assert mc.cvar95 >= mc.var95  # the tail mean is at least as bad as its edge
+
+
+class TestTheBootstrapResampler:
+    """Block length selects the resampler, and 1 must not move an old figure."""
+
+    @staticmethod
+    def _series(n: int = 200) -> list[float]:
+        return [((-1) ** i) * (i % 7) - 1.0 for i in range(n)]
+
+    def test_the_default_is_bit_for_bit_the_iid_draw_it_always_was(self):
+        # The block loop consumes two rng values per step where the i.i.d. loop
+        # consumes one, so routing block==1 through it would produce a
+        # different sequence for the same seed — every existing Monte Carlo
+        # figure would move with no code that looks like it changed a number.
+        series = self._series()
+        default = bootstrap_terminal_distribution(series, 5, paths=300, seed=99)
+        explicit = bootstrap_terminal_distribution(
+            series, 5, paths=300, seed=99, mean_block_length=1,
+        )
+        assert default.terminal_pnl == explicit.terminal_pnl
+        assert default.var95 == explicit.var95
+        assert default.p5 == explicit.p5
+
+    def test_a_block_length_above_one_draws_differently(self):
+        series = self._series()
+        iid = bootstrap_terminal_distribution(series, 5, paths=300, seed=99)
+        blocked = bootstrap_terminal_distribution(
+            series, 5, paths=300, seed=99, mean_block_length=10,
+        )
+        assert blocked.terminal_pnl != iid.terminal_pnl
+
+    def test_the_result_records_which_resampler_ran(self):
+        # Two runs that used different resamplers are not comparable, and a
+        # result that cannot say which one it used cannot be checked.
+        series = self._series()
+        assert bootstrap_terminal_distribution(series, 5, paths=200, seed=1).mean_block_length == 1
+        assert bootstrap_terminal_distribution(
+            series, 5, paths=200, seed=1, mean_block_length=12,
+        ).mean_block_length == 12
+
+    def test_a_block_longer_than_the_sample_is_clamped_not_refused(self):
+        series = self._series(80)
+        result = bootstrap_terminal_distribution(
+            series, 5, paths=100, seed=3, mean_block_length=5_000,
+        )
+        assert result.mean_block_length == 80
+        # 200 rather than the 100 asked for: paths has its own long-standing
+        # floor, which this test is not about and must not quietly assert away.
+        assert len(result.terminal_pnl) == 200
+
+    def test_a_blocked_draw_is_reproducible_from_its_seed(self):
+        series = self._series()
+        first = bootstrap_terminal_distribution(series, 6, paths=250, seed=7, mean_block_length=8)
+        second = bootstrap_terminal_distribution(series, 6, paths=250, seed=7, mean_block_length=8)
+        assert first.terminal_pnl == second.terminal_pnl
