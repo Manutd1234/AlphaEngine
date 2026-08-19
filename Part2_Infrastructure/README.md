@@ -1022,12 +1022,12 @@ can scale independently from portfolio state.
 
 | Command | Purpose |
 |---|---|
-| `/book SYMBOL` | Top of book across venues |
-| `/spread SYMBOL` | Venue and consolidated spreads |
-| `/depth SYMBOL` | Bid/ask depth by venue |
-| `/tca SYMBOL NOTIONAL [BUY\|SELL]` | VWAP, slippage and smart route |
-| `/route SYMBOL NOTIONAL [BUY\|SELL]` | Smart-route allocation only |
-| `/liquidity SYMBOL [NOTIONAL]` | Fillability and route capacity |
+| `/book [SYMBOL]` | Top of book across venues |
+| `/spread [SYMBOL]` | Venue and consolidated spreads |
+| `/depth [SYMBOL]` | Bid/ask depth by venue |
+| `/tca [SYMBOL] [NOTIONAL] [BUY\|SELL]` | VWAP, slippage and smart route |
+| `/route [SYMBOL] [NOTIONAL] [BUY\|SELL]` | Smart-route allocation only |
+| `/liquidity [SYMBOL] [NOTIONAL]` | Fillability and route capacity |
 | `/venues` | Venue connectivity overview |
 | `/feedstatus` | Detailed market-feed health |
 | `/orders [COUNT]` | Recent gateway decisions |

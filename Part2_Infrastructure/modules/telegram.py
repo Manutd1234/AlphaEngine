@@ -665,12 +665,12 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("compare", "Markets · Normalised price overlay across instruments", "Markets", "/compare SYM1 SYM2 [SYM3…] [INTERVAL]", "/compare BTCUSDT ETHUSDT", "_cmd_compare", ("overlay",)),
 
     # Execution analytics (read-only)
-    CommandSpec("book", "Execution · Top of book across venues", "Execution", "/book SYMBOL", "/book BTCUSDT", "_cmd_book"),
-    CommandSpec("spread", "Execution · Venue and consolidated spreads", "Execution", "/spread SYMBOL", "/spread BTCUSDT", "_cmd_spread"),
-    CommandSpec("depth", "Execution · Bid/ask depth by venue", "Execution", "/depth SYMBOL", "/depth ETHUSDT", "_cmd_depth"),
-    CommandSpec("tca", "Execution · VWAP, slippage and smart route", "Execution", "/tca SYMBOL NOTIONAL [BUY|SELL]", "/tca BTCUSDT 100000 BUY", "_cmd_tca", ("cost",)),
-    CommandSpec("route", "Execution · Smart-route allocation only", "Execution", "/route SYMBOL NOTIONAL [BUY|SELL]", "/route BTCUSDT 50000 SELL", "_cmd_route"),
-    CommandSpec("liquidity", "Execution · Fillability and route capacity", "Execution", "/liquidity SYMBOL [NOTIONAL]", "/liquidity BTCUSDT 250000", "_cmd_liquidity"),
+    CommandSpec("book", "Execution · Top of book across venues", "Execution", "/book [SYMBOL]", "/book BTCUSDT", "_cmd_book"),
+    CommandSpec("spread", "Execution · Venue and consolidated spreads", "Execution", "/spread [SYMBOL]", "/spread BTCUSDT", "_cmd_spread"),
+    CommandSpec("depth", "Execution · Bid/ask depth by venue", "Execution", "/depth [SYMBOL]", "/depth ETHUSDT", "_cmd_depth"),
+    CommandSpec("tca", "Execution · VWAP, slippage and smart route", "Execution", "/tca [SYMBOL] [NOTIONAL] [BUY|SELL]", "/tca BTCUSDT 100000 BUY", "_cmd_tca", ("cost",)),
+    CommandSpec("route", "Execution · Smart-route allocation only", "Execution", "/route [SYMBOL] [NOTIONAL] [BUY|SELL]", "/route BTCUSDT 50000 SELL", "_cmd_route"),
+    CommandSpec("liquidity", "Execution · Fillability and route capacity", "Execution", "/liquidity [SYMBOL] [NOTIONAL]", "/liquidity BTCUSDT 250000", "_cmd_liquidity"),
     CommandSpec("venues", "Execution · Venue connectivity overview", "Execution", "/venues", "/venues", "_cmd_venues"),
     CommandSpec("feedstatus", "Execution · Detailed market-feed health", "Execution", "/feedstatus", "/feedstatus", "_cmd_feedstatus"),
     CommandSpec("orders", "Execution · Recent gateway decisions", "Execution", "/orders [COUNT]", "/orders 10", "_cmd_orders"),
