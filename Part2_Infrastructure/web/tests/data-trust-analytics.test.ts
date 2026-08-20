@@ -354,26 +354,50 @@ describe("every latency series resolves to the source it measures", () => {
 // --------------------------------------------------------------------------
 
 describe("Trust Summary splits without hiding or double-mounting", () => {
+  /**
+   * The panes are files now, and this scan follows them.
+   *
+   * `DataTrustOverview` was 747 lines with five panes inline. It kept the pane
+   * state, both segmented controls and the Verdict pane; the other four moved
+   * to siblings, mounted by the same conditionals they were rendered behind.
+   *
+   * Every assertion below reads the file its subject actually lives in, and the
+   * NEGATIVE ones read the whole surface. That distinction is the point: a
+   * "must not appear" scoped to the shell alone would still pass with `p95 ?? 0`
+   * or a resurrected boundary block sitting in a pane file, which is a test
+   * agreeing with itself about a file that no longer holds its subject.
+   */
   const overview = read("../components/data/DataTrustOverview.tsx");
-  const code = overview.replace(/\{\/\*[\s\S]*?\*\/\}/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
+  const panes = {
+    response: read("../components/data/TrustResponsePane.tsx"),
+    composition: read("../components/data/TrustCompositionPane.tsx"),
+    freshness: read("../components/data/FeedsFreshnessPane.tsx"),
+    contracts: read("../components/data/FeedsContractsPane.tsx"),
+  };
+  const strip = (source: string) =>
+    source.replace(/\{\/\*[\s\S]*?\*\/\}/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
+  /** The switcher's own file — where the pane state and both segs live. */
+  const shell = strip(overview);
+  /** Every file the surface is drawn from, for the assertions that forbid. */
+  const code = [overview, ...Object.values(panes)].map(strip).join("\n");
 
   it("offers three panes, not four", () => {
-    const panes = [...code.matchAll(/\{\s*id: "(verdict|response|composition)"/g)];
-    assert.equal(panes.length, 3, "a four-button seg forces abbreviated labels");
+    const declared = [...shell.matchAll(/\{\s*id: "(verdict|response|composition)"/g)];
+    assert.equal(declared.length, 3, "a four-button seg forces abbreviated labels");
   });
 
   it("uses the house segmented control rather than a second tab rail", () => {
     // A nested WorkspaceSubtabs publishes `--rail-h` from a ResizeObserver and
     // asserts exactly one rail is mounted; a second fights the first over every
     // sticky offset in the app.
-    assert.match(code, /className="seg" role="group"/);
-    assert.match(code, /aria-pressed=\{pane === option\.id\}/);
+    assert.match(shell, /className="seg" role="group"/);
+    assert.match(shell, /aria-pressed=\{pane === option\.id\}/);
     assert.ok(!code.includes("WorkspaceSubtabs"), "a nested rail would contend for --rail-h");
   });
 
   it("renders panes conditionally so a switched-away one stops observing", () => {
     for (const pane of ["verdict", "response", "composition"]) {
-      assert.match(code, new RegExp(`pane === "${pane}" &&`));
+      assert.match(shell, new RegExp(`pane === "${pane}" &&`));
     }
     assert.ok(
       !/hidden=\{!summary\}/.test(code) && !/hidden=\{!feedsView\}/.test(code),
@@ -395,20 +419,30 @@ describe("Trust Summary splits without hiding or double-mounting", () => {
   });
 
   it("lands on the verdict, which is what the tab is for", () => {
-    assert.match(code, /useState<TrustPane>\("verdict"\)/);
+    assert.match(shell, /useState<TrustPane>\("verdict"\)/);
   });
 
   it("draws the analytics on the half of the payload that is populated", () => {
     // The ring-backed counters are incremented in the quote lambdas, not in the
     // health route, so charts over them are empty on a busy deployment too.
-    for (const panel of ["InstanceScope", "SupplyPosture", "FeedThroughput", "QuotaHeadroom"]) {
-      assert.ok(overview.includes(`<${panel} health={health} />`), `${panel} is imported but never rendered`);
+    // Each is asserted in the file that imports it. Left pointed at the shell,
+    // the two that moved into the Response pane would have gone red — which is
+    // how this re-anchor was found — and pointing them all at the concatenation
+    // instead would stop noticing which file draws what.
+    const owners: Array<[string, string, string]> = [
+      ["InstanceScope", overview, "DataTrustOverview"],
+      ["SupplyPosture", overview, "DataTrustOverview"],
+      ["FeedThroughput", panes.response, "TrustResponsePane"],
+      ["QuotaHeadroom", panes.response, "TrustResponsePane"],
+    ];
+    for (const [panel, source, owner] of owners) {
+      assert.ok(source.includes(`<${panel} health={health} />`), `${panel} is imported but never rendered in ${owner}`);
     }
   });
 
   it("withholds an unpublished p95 instead of pattern-matching keys inline", () => {
     assert.ok(!code.includes('row.key.startsWith("venue:")'), "the key matcher that dropped plane:* is back");
-    assert.match(code, /"p95 n\/a"/);
+    assert.match(panes.response, /"p95 n\/a"/);
     assert.ok(!/p95 \?\? 0/.test(code), "an unmeasured p95 must never render as instant");
   });
 });
