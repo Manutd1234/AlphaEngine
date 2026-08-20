@@ -87,7 +87,7 @@ export default function ConnectedDocuments({ documentId }: { documentId: string 
       {load.status === "done" && load.payload.state !== "ok" && (
         <p className="sub">
           No graph is available here — either the corpus is unconfigured, or this deployment
-          predates the traversal function. Nothing is claimed about what this document connects to.
+          predates the traversal function.
         </p>
       )}
 
@@ -95,7 +95,7 @@ export default function ConnectedDocuments({ documentId }: { documentId: string 
         && load.payload.connected.length === 0 && (
         <p className="sub">
           Nothing shares this document&apos;s bars, instrument, strategy or regime, and nothing
-          followed it. This is an answer: the run stands alone in the corpus.
+          followed it: the run stands alone in the corpus.
         </p>
       )}
 

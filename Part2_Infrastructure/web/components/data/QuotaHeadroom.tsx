@@ -55,7 +55,7 @@ export default function QuotaHeadroom({ health }: { health: SystemHealth | null 
       <CategoryBars
         rows={bars}
         max={100}
-        ariaLabel="Each metered provider's quota window, as the share already spent, the share still free for background polling, and the share reserved for interactive lookups."
+        ariaLabel="Each metered provider's quota window: the share spent, the share free for background polling, and the share reserved for interactive lookups."
         emptyNote="No provider in this environment keeps a local quota ledger, so there is no headroom to report."
       />
 
@@ -66,11 +66,11 @@ export default function QuotaHeadroom({ health }: { health: SystemHealth | null 
         <p className="research-note">
           Each bar is a share of its own window; the absolute count sits beside it. {fenced
             ? <><strong>{fenced}</strong> provider{fenced === 1 ? " is" : "s are"} at or past the
-              reserve, so background refreshes there are already being refused while interactive
-              lookups still work.</>
-            : "No provider has reached its reserve, so background polling and interactive lookups are both still funded."}
+              reserve, so background refreshes there are refused while interactive lookups still
+              work.</>
+            : "No provider has reached its reserve, so background and interactive traffic are both funded."}
           {" "}Keyless providers are left out — an unspendable budget is not headroom; the window
-          countdown and the per-call ledger live in Providers.
+          countdown and per-call ledger live in Providers.
         </p>
       )}
 
@@ -82,8 +82,8 @@ export default function QuotaHeadroom({ health }: { health: SystemHealth | null 
       {unmetered.length > 0 && (
         <p className="console-footnote">
           Unmetered: {unmetered.map((provider) => provider.label).join(", ")} — keyless or billed by
-          request weight rather than by call count, so no local ledger is kept rather than a wrong
-          one modelled. Their absence from the chart is not headroom.
+          request weight, not by call count, so no local ledger is kept. Their absence from the
+          chart is not headroom.
         </p>
       )}
     </section>

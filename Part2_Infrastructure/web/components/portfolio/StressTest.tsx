@@ -168,7 +168,7 @@ export default function StressTest({
           title={
             manualActive
               ? `Scoring your ${manualSymbols.length} hand shock${manualSymbols.length === 1 ? "" : "s"} — clear them to return to “${scenario.label}”.`
-              : "Move a slider below to set a hand shock; this lights up when one is active."
+              : "Move a slider below to set a hand shock; this lights up while one is set."
           }
         >
           Hand shocks

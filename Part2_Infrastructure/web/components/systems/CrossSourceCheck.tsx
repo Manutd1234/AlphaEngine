@@ -145,9 +145,9 @@ export default function CrossSourceCheck({ symbol }: CrossSourceCheckProps) {
           sources"), so the note keeps only the method, the reason no other
           panel can do this, and the price that is why it is manual. */}
       <p className="console-note">
-        Reports each leg&apos;s distance from the median. This is the only check on this page that can
-        catch a provider serving a stale price with HTTP 200 — every other panel asks one source and
-        believes it. It spends one call per configured provider, so it runs only when you ask.
+        Reports each leg&apos;s distance from the median, the only check here that catches a stale
+        price served with HTTP 200. It spends one call per configured provider, so it runs only when
+        you ask.
       </p>
 
       <div className="console-inspector__controls">

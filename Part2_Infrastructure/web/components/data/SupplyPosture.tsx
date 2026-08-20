@@ -114,10 +114,10 @@ export default function SupplyPosture({ health }: { health: SystemHealth | null 
               // Only when something IS routable: after "9 chains have no
               // routable node", a reassurance about the rest would be
               // vacuously true and read as comfort.
-              ? <>Every chain that can be routed at all has more than one node able to serve it. </>
+              ? <>Every routable chain has more than one node able to serve it. </>
               : null}
-          Each bar groups that chain&rsquo;s nodes by state, <strong>not</strong> by rank; which
-          provider answers first lives in the Providers section.
+          Each bar groups a chain&rsquo;s nodes by state, <strong>not</strong> by rank; which
+          provider answers first lives in Providers.
         </p>
       )}
     </section>

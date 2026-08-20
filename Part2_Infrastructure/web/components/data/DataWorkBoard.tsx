@@ -268,18 +268,18 @@ export default function DataWorkBoard({
         {source?.kind === "gateway" ? (
           <>
             {/* The pill and the Persistence tile above print the gateway, SQLite and the audit log. */}
-            Every create and status change is versioned in the gateway&apos;s work-item table on its
-            data volume, and a stale edit is refused rather than overwritten.
+            Every create and status change is versioned in the gateway&apos;s work-item table, and
+            a stale edit is refused rather than overwritten.
             {source.seeded > 0
               ? ` ${source.seeded} of these ${source.seeded === 1 ? "is a seeded sample row" : "are seeded sample rows"}, marked ‹sample›.`
               : ""}
-            {" "}This is a queue, not a ticket system with a workflow engine behind it.
+            {" "}This is a queue, not a ticket system.
           </>
         ) : source?.kind === "local" ? (
           <>
-            The gateway could not be reached ({source.reason}), so this list is the last one loaded — or the
-            seeded sample when nothing has loaded yet — and edits are held in this browser until the
-            gateway answers again. Nothing here is lost silently, and nothing here is confirmed either.
+            The gateway could not be reached ({source.reason}), so this is the last list loaded — or
+            the seeded sample if none has — and edits are held in this browser until it answers.
+            Nothing here is lost silently, and nothing here is confirmed either.
           </>
         ) : (
           <>The persisted queue arrives with the first read from the gateway.</>

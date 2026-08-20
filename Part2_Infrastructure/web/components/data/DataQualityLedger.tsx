@@ -154,9 +154,9 @@ export default function DataQualityLedger({
   // the knowledge that the row is actionable with it.
   const locked = guard === "locked" || !operatorReady;
   const lockNote = guard === "locked"
-    ? "Take is disabled: operator actions are switched off on this deployment, so an open escalation cannot be taken from the desk. Acknowledging from Telegram with /ack still works."
+    ? "Take is disabled: operator actions are switched off on this deployment. Acknowledging from Telegram with /ack still works."
     : !operatorReady
-      ? "Take is disabled: taking an escalation needs the operator credential. Enter the operator token in Reliability → Remediation, or acknowledge from Telegram with /ack."
+      ? "Take is disabled: it needs the operator credential. Enter the operator token in Reliability → Remediation, or acknowledge from Telegram with /ack."
       : undefined;
   /** Rows a Take would act on, so the note appears only where a button does. */
   const takeable = ledger?.escalations.filter(
@@ -184,7 +184,7 @@ export default function DataQualityLedger({
         // to this instance's own window; that is not the fleet's history.
         <p className="sub">
           {healthLoaded
-            ? "The gateway did not return its quality ledger on the last sync, so the counts on this tab are this instance's own window. That says nothing about what other instances or earlier hours recorded."
+            ? "The gateway did not return its quality ledger on the last sync, so the counts here are this instance's own window; that says nothing about what other instances or earlier hours recorded."
             : "The ledger arrives with the first health snapshot."}
         </p>
       )}
@@ -212,7 +212,7 @@ export default function DataQualityLedger({
 
           <p className="console-subhead">
             Escalations
-            <small className="muted"> — a burst of fatal findings, or a fail rate over the threshold, per provider; one per cooldown, auto-resolved when it clears.</small>
+            <small className="muted"> — a fatal burst or a fail rate over threshold, per provider; one per cooldown, auto-resolved when it clears.</small>
           </p>
           {lockNote && takeable.length > 0 && (
             // On screen, not only in the disabled button's tooltip: a dimmed
@@ -223,7 +223,7 @@ export default function DataQualityLedger({
           {ledger.escalations.length === 0 ? (
             <p className="sub">
               No escalation in the last {ledger.windowMinutes >= 1440 ? `${Math.round(ledger.windowMinutes / 60)} hours` : `${ledger.windowMinutes} minutes`};{" "}
-              {validation!.evaluated} {validation!.evaluated === 1 ? "payload" : "payloads"} evaluated. An empty list here means the rules did not fire, not that every payload was clean — see the findings below.
+              {validation!.evaluated} {validation!.evaluated === 1 ? "payload" : "payloads"} evaluated. An empty list means the rules did not fire, not that every payload was clean — see the findings below.
             </p>
           ) : (
             <ul className="console-skips" aria-label="Escalations">

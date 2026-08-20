@@ -672,11 +672,10 @@ export default function Page() {
       <footer className="workspace-footer">
         <span>AlphaEngine</span>
         <p>
-          Educational case-study demonstration built for a developer assessment. Not a brokerage
-          or investment service: it opens no brokerage accounts, holds no funds and places no real
-          orders. Signing in is optional and stores workspace preferences only — the desk is fully
-          browsable without it. Execution is paper-only and remains gated by the risk gateway.
-          Not investment advice.
+          Educational case-study demonstration for a developer assessment, not a brokerage or
+          investment service and not investment advice. No brokerage accounts, no funds, no real
+          orders; execution is paper-only, gated by the risk gateway. Signing in is optional and
+          stores workspace preferences only; the desk is browsable without it.
         </p>
       </footer>
     </>

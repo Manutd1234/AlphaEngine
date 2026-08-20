@@ -50,8 +50,8 @@ export default function FeedThroughput({ health }: { health: SystemHealth | null
         <div className="data-trust-empty">
           <strong>No gateway feed snapshot.</strong>
           <p>
-            The provider registry can still answer requests, but nothing here can prove streaming
-            freshness or update rate. An absent monitor is not a silent tape.
+            The registry can still answer requests, but nothing here proves streaming freshness or
+            update rate. An absent monitor is not a silent tape.
           </p>
         </div>
       ) : (
@@ -124,9 +124,8 @@ export default function FeedThroughput({ health }: { health: SystemHealth | null
           <details className="disclosure">
             <summary>Why each venue&rsquo;s mean rate is a floor, not a measurement</summary>
             <p className="research-note">
-              The <strong>mean</strong> beside each venue is derived from its lifetime counters and
-              assumes every book was subscribed at connect; a venue with reconnects has gaps that no
-              counter here measures.
+              The <strong>mean</strong> is derived from lifetime counters and assumes every book was
+              subscribed at connect; a venue with reconnects has gaps no counter here measures.
             </p>
           </details>
         </>

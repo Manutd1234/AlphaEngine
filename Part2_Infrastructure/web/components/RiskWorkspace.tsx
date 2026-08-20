@@ -208,8 +208,8 @@ export default function RiskWorkspace({
             <div className="table-wrap" tabIndex={0}>
               <table>
                 <caption className="sr-only">
-                  Each pre-trade constraint with its current usage, its limit, the headroom left, and
-                  whether it is the one that binds first.
+                  Each pre-trade constraint: usage, limit, headroom left, and whether it binds
+                  first.
                 </caption>
                 <thead>
                   <tr>
@@ -258,11 +258,11 @@ export default function RiskWorkspace({
             <details className="disclosure">
               <summary>How effective positions is derived</summary>
               <p className="research-note">
-                Effective positions is 1 ÷ the Herfindahl index of the book&apos;s weights — the
-                number of equally-sized positions that would carry this much concentration.{" "}
+                Effective positions is 1 ÷ the Herfindahl index of the book&apos;s weights: how many
+                equally-sized positions would carry this much concentration.{" "}
                 {positions.length} position{positions.length === 1 ? "" : "s"} behaving like{" "}
-                {fmt(book.concentration.effective_positions, 1)} is a statement about how much of
-                the book is really one bet.
+                {fmt(book.concentration.effective_positions, 1)} says how much of the book is
+                really one bet.
               </p>
             </details>
           </div>
@@ -358,8 +358,8 @@ export default function RiskWorkspace({
               </div>
             </div>
             <p className="sub">
-              A flat book cannot be stressed — there is no exposure for a shock to move. Load the
-              sandbox to see the engine against a populated book.
+              A flat book has no exposure for a shock to move. Load the sandbox to see the engine
+              on a populated book.
             </p>
           </div>
         )}
@@ -375,8 +375,8 @@ export default function RiskWorkspace({
             <span>handoff only</span>
           </div>
           <p className="sub">
-            This workspace holds no gateway credential and cannot move risk. These produce the exact
-            authenticated request to run against your gateway, where it is gated and audited.
+            This workspace holds no gateway credential and cannot move risk; these compose the exact
+            authenticated request your gateway will gate and audit.
           </p>
           <div className="page-actions">
             <button onClick={() => setHandoff({ kind: "flatten_all" })} disabled={!positions.length}>

@@ -65,9 +65,8 @@ export default function RunComparison({ a, b, onClose }: RunComparisonProps) {
           <span aria-hidden>!</span>
           <div>
             <strong>Different data.</strong> These runs saw different bars
-            (<code>{a.dataHash}</code> vs <code>{b.dataHash}</code>). A metric difference here is not
-            evidence about the parameters — re-run them against the same history before concluding
-            anything.
+            (<code>{a.dataHash}</code> vs <code>{b.dataHash}</code>). A metric difference is not
+            evidence about the parameters; re-run them against the same history first.
           </div>
         </div>
       ) : (

@@ -79,8 +79,7 @@ export default function SizingPanel({ best, gate, equity }: SizingPanelProps) {
           <span aria-hidden>!</span>
           <div>
             <strong>This candidate has not cleared the promotion gate</strong> ({gate.passed}/{gate.total}).
-            The sizing below is arithmetic on the sweep&apos;s own numbers, not a recommendation — a
-            fraction of an edge that failed validation is still zero.
+            The sizing below is arithmetic on the sweep&apos;s own numbers, not a recommendation.
           </div>
         </div>
       )}
@@ -143,10 +142,9 @@ export default function SizingPanel({ best, gate, equity }: SizingPanelProps) {
               {pct(sizing.recommendedFraction, 1)} of the book from {best.trades} trade
               {best.trades === 1 ? "" : "s"}.
             </strong>{" "}
-            The formula cannot tell whether the payoff ratio came from {best.trades} samples or six
-            hundred. Below {MIN_TRADES_FOR_SIZING} trades the standard error on R is wide enough
-            that the honest reading of this number is &ldquo;directionally positive&rdquo;, not{" "}
-            {usd(sizing.recommendedNotional, 0)}.
+            The formula cannot tell {best.trades} samples from six hundred. Below{" "}
+            {MIN_TRADES_FOR_SIZING} trades the standard error on R is wide enough that the honest
+            reading is &ldquo;directionally positive&rdquo;, not {usd(sizing.recommendedNotional, 0)}.
           </div>
         </div>
       )}
@@ -159,8 +157,8 @@ export default function SizingPanel({ best, gate, equity }: SizingPanelProps) {
               <>
                 <strong>Payoff ratio is undefined, not infinite.</strong> This run has no losing
                 trades to measure against ({best.trades} trade{best.trades === 1 ? "" : "s"}), and
-                treating that as an infinite payoff would drive Kelly to the win rate and size a
-                small, lucky sample at the ceiling. Sized to zero until there is a loss to divide by.
+                an infinite payoff would size a small, lucky sample at the ceiling. Sized to zero
+                until there is a loss to divide by.
               </>
             ) : sizing.cappedBy === "no_edge" ? (
               <>
@@ -183,10 +181,9 @@ export default function SizingPanel({ best, gate, equity }: SizingPanelProps) {
       )}
 
       <p className="research-note">
-        {FRACTIONS.find((f) => f.value === fraction)?.note}. Kelly maximises long-run growth of a
-        repeated bet whose odds are known; these odds are estimates from an already-optimised
-        search, so they are biased upward. Over-betting hurts super-linearly while under-betting
-        only grows more slowly — that asymmetry is why the default is a quarter.
+        {FRACTIONS.find((f) => f.value === fraction)?.note}. Kelly maximises long-run growth when
+        the odds are known; these are estimates from an already-optimised search, so they are
+        biased upward. Over-betting hurts super-linearly, which is why the default is a quarter.
       </p>
     </div>
   );

@@ -47,8 +47,8 @@ export default function OutageIncidents({
           <span className="section-note">none active</span>
         </div>
         <p className="muted">
-          No provider is under a simulated outage right now. These are operator-caused and
-          operator-cleared — a drill, never an upstream fault — so an empty list here says nothing
+          No provider is under a simulated outage. These are operator-caused drills, never upstream
+          faults, so an empty list here says nothing
           about whether the providers themselves are healthy.
         </p>
         {onOpenProviders && (
@@ -68,7 +68,7 @@ export default function OutageIncidents({
           <h2>Operator-simulated outages</h2>
         </div>
         <span className="section-note">
-          Held out of routing on purpose — requests fall through to the next provider in the chain.
+          Held out of routing on purpose; requests fall through to the next provider.
         </span>
       </div>
       <ul className="console-incident-list">

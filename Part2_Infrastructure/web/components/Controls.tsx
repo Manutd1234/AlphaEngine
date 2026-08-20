@@ -456,9 +456,9 @@ export default function Controls({
           </summary>
 
           <p className="friction-note">
-            Beyond flat fee and slippage. Each defaults to zero; with all four at zero this run is
-            arithmetically identical to the gateway&apos;s reference engine. Any non-zero value makes it a
-            model of your assumptions, and the two will no longer agree.
+            Beyond flat fee and slippage; each defaults to zero. At all zeros this run is
+            arithmetically identical to the gateway&apos;s reference engine; any non-zero value makes
+            it a model of your assumptions, and the two stop agreeing.
           </p>
 
           <div className="row">

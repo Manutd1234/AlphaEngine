@@ -41,8 +41,8 @@ export default function FactorPanel({ report }: { report: FactorReport | null })
           </div>
         </div>
         <p className="sub">
-          The regression could not be estimated — either too few bars, or the factor set was
-          perfectly collinear on this series. No loadings are shown rather than unstable ones.
+          The regression could not be estimated: too few bars, or a perfectly collinear factor
+          set on this series. No loadings are shown rather than unstable ones.
         </p>
       </div>
     );
@@ -178,8 +178,7 @@ export default function FactorPanel({ report }: { report: FactorReport | null })
           <div>
             <strong>Factors are highly correlated.</strong> {worstCollinearity.a} and{" "}
             {worstCollinearity.b} correlate at {fmt(worstCollinearity.corr, 2)} on this series, so
-            their individual loadings are not separable — the split between them is unstable even
-            though their combined explanatory power is not.
+            the split between them is unstable even though their combined explanatory power is not.
           </div>
         </div>
       )}

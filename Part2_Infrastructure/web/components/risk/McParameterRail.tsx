@@ -137,7 +137,7 @@ export default function McParameterRail({
           placeholder={String(derivedSeed)}
           onChange={(event) => onSeedText(event.target.value)}
           style={{ width: "12ch" }}
-          aria-label={`Simulation seed; empty runs the seed derived from the sweep, ${derivedSeed}`}
+          aria-label={`Simulation seed; empty runs the sweep's derived seed, ${derivedSeed}`}
         />
       </label>
     </>

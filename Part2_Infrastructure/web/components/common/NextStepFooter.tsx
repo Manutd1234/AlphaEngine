@@ -71,12 +71,12 @@ const NEXT_FROM: Record<string, { view: WorkspaceView; section: string; why: str
   "research/summary": {
     view: "research",
     section: "parameters",
-    why: "The verdict names one winning pair, without saying how far ahead of its neighbours it really was.",
+    why: "The verdict names one winning pair, not how far ahead of its neighbours it was.",
   },
   "research/parameters": {
     view: "research",
     section: "walkforward",
-    why: "A pair that tops the in-sample grid has proved nothing until it holds on windows it never saw.",
+    why: "Topping the in-sample grid proves nothing until the pair holds on windows it never saw.",
   },
   "research/walkforward": {
     view: "research",
@@ -90,12 +90,12 @@ const NEXT_FROM: Record<string, { view: WorkspaceView; section: string; why: str
     // is the continuation a promotion decision actually has.
     view: "data",
     section: "overview",
-    why: "Verify the inputs first — the trust verdict rules on exactly the bars this gate just judged.",
+    why: "The trust verdict rules on exactly the bars this gate just judged.",
   },
   "research/attribution": {
     view: "risk",
     section: "model",
-    why: "Factor exposure and tail shape are what the loss estimate is built from.",
+    why: "The loss estimate is built from factor exposure and tail shape.",
   },
   "research/lineage": {
     view: "data",

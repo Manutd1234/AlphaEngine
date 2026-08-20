@@ -679,9 +679,9 @@ export default function DataTrustOverview({
               <div className="data-trust-empty">
                 <strong>No aggregate in the health-route instance.</strong>
                 <p>
-                  Serverless routes do not reliably share module memory. The exact active-quote result
-                  above is request-bound evidence; an empty health-route aggregate is not evidence that
-                  every payload passed.
+                  Serverless routes do not reliably share module memory. The active-quote result above
+                  is request-bound; an empty health-route aggregate is not evidence that every payload
+                  passed.
                 </p>
               </div>
             )}
