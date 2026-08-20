@@ -64,13 +64,21 @@ describe("Reliability teaches the two planes apart", () => {
     const console_ = read("components/ReliabilityConsole.tsx");
     assert.match(console_, /decision\.kind === "no-orders" && decision\.core/);
     assert.match(console_, /from the startup self-measure; no orders yet/);
-    const overview = read("components/systems/ReliabilityOverview.tsx");
-    assert.match(overview, /core_self_test_samples/);
-    assert.match(overview, /self-measure \$\{d\.core_self_test_samples/);
+    /**
+     * The strip is the Platform pane of `ReliabilityPlanes`, which is where it
+     * landed when `ReliabilityOverview` was cut into a seam over
+     * `ReliabilityAttention` and `ReliabilityPlanes`. `components/systems/
+     * types.ts` was cut the same way and is now a re-export barrel: the field
+     * is DECLARED in `gateway-types.ts`, and a scan left on the barrel would
+     * match nothing and pass.
+     */
+    const platform = read("components/systems/ReliabilityPlatform.tsx");
+    assert.match(platform, /core_self_test_samples/);
+    assert.match(platform, /self-measure \$\{d\.core_self_test_samples/);
     // Provenance in the title, in words: synthetic book, never the µs plane.
-    assert.match(overview, /synthetic two-venue book; the decision µs figure never includes them/);
+    assert.match(platform, /synthetic two-venue book; the decision µs figure never includes them/);
     // The types carry the field the gateway publishes.
-    const types = read("components/systems/types.ts");
+    const types = read("components/systems/gateway-types.ts");
     assert.match(types, /core_self_test_samples\?: number \| null;/);
   });
 
@@ -81,8 +89,20 @@ describe("Reliability teaches the two planes apart", () => {
   });
 
   it("the overview note no longer calls the route a different plane from a header p99 that has moved", () => {
-    const overview = read("components/systems/ReliabilityOverview.tsx");
-    assert.doesNotMatch(overview, /a different plane from the header p99/);
-    assert.match(overview, /not the decision p99/);
+    /**
+     * The gateway-route tile went to `ReliabilityPlanes` when the overview was
+     * split. The forbidding half reads every file the overview became, so the
+     * stale sentence cannot reappear in a sibling unseen; the asserting half
+     * reads the file that prints the tile.
+     */
+    const planes = read("components/systems/ReliabilityPlanes.tsx");
+    const overviewSurface = [
+      read("components/systems/ReliabilityOverview.tsx"),
+      read("components/systems/ReliabilityAttention.tsx"),
+      planes,
+      read("components/systems/ReliabilityPlatform.tsx"),
+    ].join("\n");
+    assert.doesNotMatch(overviewSurface, /a different plane from the header p99/);
+    assert.match(planes, /not the decision p99/);
   });
 });
