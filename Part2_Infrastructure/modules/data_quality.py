@@ -27,140 +27,29 @@ import json
 import logging
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from config import settings
 from modules.data_ops_store import SqliteStore
 
-log = logging.getLogger("alphaengine.data_quality")
-
-# --------------------------------------------------------------------------- #
-# Wire contract — what an instance pushes, and the view every instance reads
-# --------------------------------------------------------------------------- #
-
-Severity = Literal["fatal", "warn", "drift"]
-
-# Bounds on cardinality, not correctness: the ledger must survive a
-# misbehaving client without growing without bound.
-FINDINGS_BATCH_CAP = 200
-CHECKS_PER_FINDING_CAP = 32
-FUTURE_SLACK_MS = 60_000
-
-
-class WebContractCheck(BaseModel):
-    check: str = Field(min_length=1, max_length=64)
-    severity: Severity
-    message: str = Field(default="", max_length=200)
-
-
-class WebContractFinding(BaseModel):
-    """One contract evaluation, as the web instance recorded it.
-
-    ``seq`` is the instance's own monotonic counter: with ``UNIQUE(instance,
-    seq)`` a batch the instance restores and re-pushes after a failed sync is
-    de-duplicated rather than counted twice.
-    """
-
-    seq: int = Field(ge=0)
-    observed_at: float = Field(ge=0, description="Epoch milliseconds, client clock")
-    capability: str = Field(min_length=1, max_length=32)
-    provider: str = Field(min_length=1, max_length=64)
-    symbol: str | None = Field(default=None, max_length=24)
-    key: str = Field(default="", max_length=160)
-    passed: bool
-    fatal: int = Field(default=0, ge=0, le=100)
-    warn: int = Field(default=0, ge=0, le=100)
-    drift: int = Field(default=0, ge=0, le=100)
-    not_evaluated: int = Field(default=0, ge=0, le=100)
-    checks: list[WebContractCheck] = Field(default_factory=list, max_length=CHECKS_PER_FINDING_CAP)
-
-
-class DataQualityCounts(BaseModel):
-    evaluated: int
-    passed: int
-    fatal: int
-    warn: int
-    drift: int
-    not_evaluated: int
-
-
-class DataQualityProviderRow(DataQualityCounts):
-    provider: str
-    # None when nothing was evaluated — never 0, which would read as "perfect".
-    fail_rate: float | None
-
-
-class DataQualityCapabilityRow(DataQualityCounts):
-    capability: str
-
-
-class DataQualityFindingView(BaseModel):
-    id: int
-    observed_at: datetime
-    instance: str
-    source: Literal["web", "replay", "backfill"]
-    capability: str
-    provider: str
-    symbol: str | None
-    key: str
-    passed: bool
-    severity: Literal["fatal", "warn", "drift", "clean"]
-    checks: list[str]
-
-
-class DataQualityEscalationView(BaseModel):
-    id: int
-    rule: Literal["fatal_burst", "fail_rate"]
-    provider: str
-    opened_at: datetime
-    window_minutes: int
-    count: int
-    evaluated: int | None
-    detail: str
-    notified_at: datetime | None
-    channel: Literal["telegram", "log"] | None
-    resolved_at: datetime | None
-    #: When someone took it, and who. NULL means nobody has — including for
-    #: every row written before these columns existed, which is the same fact.
-    acknowledged_at: datetime | None
-    #: `telegram:<user id>` names a person. `web:token` names a credential and
-    #: nothing more, and is left as-is rather than rendered as a person.
-    acknowledged_by: str | None
-
-
-class DataQualityView(BaseModel):
-    """The merged ledger, as every instance reads it back.
-
-    Every field is required on purpose (the same house rule as
-    ``WebStateView``): a response field with a default publishes itself as
-    optional in the OpenAPI contract, and a generated client would then hedge
-    against an absence that cannot happen.
-    """
-
-    schema_version: Literal[1] = 1
-    backend: Literal["sqlite", "postgres"]
-    retention_days: int
-    window_minutes: int
-    observed_at: datetime
-    first_observed_at: datetime | None
-    last_observed_at: datetime | None
-    instances: int
-    total: DataQualityCounts
-    by_provider: list[DataQualityProviderRow]
-    by_capability: list[DataQualityCapabilityRow]
-    recent: list[DataQualityFindingView]
-    escalations: list[DataQualityEscalationView]
-
-
-class DataQualityFindingsResponse(BaseModel):
-    findings: list[DataQualityFindingView]
-    total: int
-    retention_days: int
-    window_minutes: int
-    observed_at: datetime
-
+# Re-exported so every existing `from modules.data_quality import <model>`
+# keeps working. The `as` form is the explicit re-export idiom — a plain
+# import here reads as unused and `ruff --fix` deletes it.
+from modules.data_quality_models import CHECKS_PER_FINDING_CAP as CHECKS_PER_FINDING_CAP  # noqa: F401
+from modules.data_quality_models import FINDINGS_BATCH_CAP as FINDINGS_BATCH_CAP  # noqa: F401
+from modules.data_quality_models import FUTURE_SLACK_MS as FUTURE_SLACK_MS  # noqa: F401
+from modules.data_quality_models import DataQualityCapabilityRow as DataQualityCapabilityRow  # noqa: F401
+from modules.data_quality_models import DataQualityCounts as DataQualityCounts  # noqa: F401
+from modules.data_quality_models import DataQualityEscalationView as DataQualityEscalationView  # noqa: F401
+from modules.data_quality_models import DataQualityFindingsResponse as DataQualityFindingsResponse  # noqa: F401
+from modules.data_quality_models import DataQualityFindingView as DataQualityFindingView  # noqa: F401
+from modules.data_quality_models import DataQualityProviderRow as DataQualityProviderRow  # noqa: F401
+from modules.data_quality_models import DataQualityView as DataQualityView  # noqa: F401
+from modules.data_quality_models import WebContractCheck as WebContractCheck  # noqa: F401
+from modules.data_quality_models import WebContractFinding as WebContractFinding  # noqa: F401
 
 # --------------------------------------------------------------------------- #
 # Store
@@ -254,10 +143,23 @@ class Escalation(BaseModel):
     detail: str
 
 
-class DataQualityLedger(SqliteStore):
+class DataQualityLedger:
+    """The quality ledger on whichever backend is configured.
+
+    Composed rather than inheriting `SqliteStore`, for the reason the other two
+    stores were converted: inheritance made SQLite the definition of the class
+    instead of a setting.
+
+    This store was the hardest of the three because most of its read path is
+    aggregate — `GROUP BY provider`, `SUM(CASE WHEN passed=0 …)` — and PostgREST
+    expresses neither. Those two live in Postgres as `data_quality_rollup` and
+    `data_quality_provider_stats`; everything else goes through the row
+    interface both backends share.
+    """
+
     def __init__(
         self,
-        path: str,
+        store: Any,
         *,
         retention_days: int | None = None,
         view_window_minutes: int | None = None,
@@ -268,7 +170,7 @@ class DataQualityLedger(SqliteStore):
         escalate_min_samples: int | None = None,
         escalate_cooldown_minutes: int | None = None,
     ) -> None:
-        super().__init__(path)
+        self._store = SqliteStore(store) if isinstance(store, (str, Path)) else store
         self.retention_days = retention_days or settings.data_quality_retention_days
         self.view_window_minutes = view_window_minutes or settings.data_quality_view_window_minutes
         self.recent_limit = recent_limit or settings.data_quality_recent_limit
@@ -281,8 +183,74 @@ class DataQualityLedger(SqliteStore):
         self.escalate_cooldown_minutes = escalate_cooldown_minutes or settings.data_quality_escalate_cooldown_minutes
         self._last_prune_ms = 0.0
         self._gateway_seq = 0
-        self.migrate(_DDL)
+        self._store.migrate(_DDL)
         self._add_missing_escalation_columns()
+
+    @property
+    def backend(self) -> str:
+        return self._store.backend
+
+    def close(self) -> None:
+        self._store.close()
+
+    # -- raw SQL, and the reason it is guarded ----------------------------- #
+    #
+    # These four exist because most of this store's read path is aggregate and
+    # SQLite can express it directly. On Postgres the same questions are asked
+    # through `data_quality_rollup` and `data_quality_provider_stats`, so any
+    # call that reaches these on a Postgres backend is a path that was NOT
+    # ported — and it must say so rather than fail with an AttributeError three
+    # frames down.
+
+    def _require_sqlite(self, what: str) -> None:
+        if self._store.backend != "sqlite":
+            raise NotImplementedError(
+                f"{what} has no PostgREST form; it is answered by an RPC on the "
+                f"postgres backend and this path should not have been reached"
+            )
+
+    def _sql_query(self, sql: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
+        self._require_sqlite("this query")
+        return self._store.query(sql, params)
+
+    def _sql_one(self, sql: str, params: tuple[Any, ...] = ()) -> dict[str, Any] | None:
+        self._require_sqlite("this query")
+        return self._store.one(sql, params)
+
+    def _sql_execute(self, sql: str, params: tuple[Any, ...] = ()) -> Any:
+        self._require_sqlite("this statement")
+        return self._store.execute(sql, params)
+
+    def _sql_many(self, sql: str, rows: list[tuple[Any, ...]]) -> None:
+        self._require_sqlite("this statement")
+        self._store.executemany(sql, rows)
+
+    def _provider_stats(self, provider: str, since: float) -> dict[str, int]:
+        """Evaluated / failed / fatal counts for one provider in one window.
+
+        SUM(CASE WHEN …) on SQLite; `data_quality_provider_stats` on Postgres.
+        The two are pinned to the same three names by
+        tests/test_data_quality_rollup.py.
+        """
+        if self._store.backend == "postgres":
+            got = self._store.rpc("data_quality_provider_stats", {
+                "p_desk_id": self._store.desk_id, "p_provider": provider, "p_since": since,
+            }) or {}
+        else:
+            got = self._store.one(
+                """
+                SELECT COUNT(*) AS evaluated,
+                       SUM(CASE WHEN passed=0 THEN 1 ELSE 0 END) AS failed,
+                       SUM(CASE WHEN fatal>0 THEN 1 ELSE 0 END) AS fatal_findings
+                FROM data_quality_findings WHERE provider=? AND observed_at>=?
+                """,
+                (provider, since),
+            ) or {}
+        return {
+            "evaluated": int(got.get("evaluated") or 0),
+            "failed": int(got.get("failed") or 0),
+            "fatal_findings": int(got.get("fatal_findings") or 0),
+        }
 
     def _add_missing_escalation_columns(self) -> None:
         """Add columns to a table that already exists on disk.
@@ -292,13 +260,17 @@ class DataQualityLedger(SqliteStore):
         as `audit.py`'s subscriber migration: read the columns, add what is
         missing, leave what is there.
         """
+        if self._store.backend != "sqlite":
+            # Postgres declares acknowledged_at/acknowledged_by in the
+            # migration, so there is nothing to add and no PRAGMA to read.
+            return
         existing = {
             str(row["name"]).lower()
-            for row in self.query("PRAGMA table_info(data_quality_escalations)")
+            for row in self._store.query("PRAGMA table_info(data_quality_escalations)")
         }
         for column, sql_type in _ESCALATION_COLUMNS:
             if column not in existing:
-                self.execute(f"ALTER TABLE data_quality_escalations ADD COLUMN {column} {sql_type}")
+                self._store.execute(f"ALTER TABLE data_quality_escalations ADD COLUMN {column} {sql_type}")
 
     def acknowledge(self, escalation_id: int, actor: str) -> bool:
         """Record that a person has taken this escalation.
@@ -312,7 +284,7 @@ class DataQualityLedger(SqliteStore):
         escalation someone else already has should not quietly overwrite whose
         name is against it.
         """
-        row = self.one(
+        row = self._sql_one(
             "SELECT id, acknowledged_at FROM data_quality_escalations "
             "WHERE id=? AND resolved_at IS NULL",
             (escalation_id,),
@@ -321,7 +293,7 @@ class DataQualityLedger(SqliteStore):
             return False
         if row["acknowledged_at"] is not None:
             return True
-        self.execute(
+        self._sql_execute(
             "UPDATE data_quality_escalations SET acknowledged_at=?, acknowledged_by=? WHERE id=?",
             (time.time() * 1000.0, actor[:120], escalation_id),
         )
@@ -360,7 +332,7 @@ class DataQualityLedger(SqliteStore):
                 json.dumps([c.model_dump() for c in finding.checks[:CHECKS_PER_FINDING_CAP]]),
             ))
         if rows:
-            self.executemany(
+            self._sql_many(
                 """
                 INSERT INTO data_quality_findings
                     (instance, seq, source, observed_at, received_at, capability, provider, symbol, key,
@@ -423,7 +395,7 @@ class DataQualityLedger(SqliteStore):
     # -- rules -------------------------------------------------------------- #
     def _open_within_cooldown(self, rule: str, provider: str, now: float) -> bool:
         cooldown_ms = self.escalate_cooldown_minutes * 60_000
-        row = self.one(
+        row = self._sql_one(
             "SELECT id FROM data_quality_escalations WHERE rule=? AND provider=? AND opened_at>? LIMIT 1",
             (rule, provider, now - cooldown_ms),
         )
@@ -434,7 +406,7 @@ class DataQualityLedger(SqliteStore):
         since = now - window_ms
         opened: list[Escalation] = []
         for provider in providers:
-            stats = self.one(
+            stats = self._sql_one(
                 """
                 SELECT COUNT(*) AS evaluated,
                        SUM(CASE WHEN passed=0 THEN 1 ELSE 0 END) AS failed,
@@ -465,7 +437,7 @@ class DataQualityLedger(SqliteStore):
         return opened
 
     def _open(self, rule: str, provider: str, now: float, count: int, evaluated: int, detail: str) -> Escalation:
-        cursor = self.execute(
+        cursor = self._sql_execute(
             """
             INSERT INTO data_quality_escalations
                 (rule, provider, opened_at, window_minutes, count, evaluated, detail)
@@ -483,8 +455,8 @@ class DataQualityLedger(SqliteStore):
         """An open escalation whose condition no longer holds is resolved, not deleted."""
         window_ms = self.escalate_window_minutes * 60_000
         since = now - window_ms
-        for row in self.query("SELECT id, rule, provider FROM data_quality_escalations WHERE resolved_at IS NULL"):
-            stats = self.one(
+        for row in self._sql_query("SELECT id, rule, provider FROM data_quality_escalations WHERE resolved_at IS NULL"):
+            stats = self._sql_one(
                 """
                 SELECT COUNT(*) AS evaluated,
                        SUM(CASE WHEN passed=0 THEN 1 ELSE 0 END) AS failed,
@@ -502,11 +474,11 @@ class DataQualityLedger(SqliteStore):
                 else evaluated >= self.escalate_min_samples and failed / evaluated > self.escalate_fail_rate
             )
             if not still:
-                self.execute("UPDATE data_quality_escalations SET resolved_at=? WHERE id=?", (now, row["id"]))
+                self._sql_execute("UPDATE data_quality_escalations SET resolved_at=? WHERE id=?", (now, row["id"]))
 
     def mark_notified(self, escalation_id: int, channel: str, now_ms: float | None = None) -> None:
         now = now_ms if now_ms is not None else _now_ms()
-        self.execute(
+        self._sql_execute(
             "UPDATE data_quality_escalations SET notified_at=?, channel=? WHERE id=?",
             (now, channel, escalation_id),
         )
@@ -516,8 +488,8 @@ class DataQualityLedger(SqliteStore):
         now = now_ms if now_ms is not None else _now_ms()
         self._last_prune_ms = now
         cutoff = now - self.retention_days * 86_400_000
-        removed = self.execute("DELETE FROM data_quality_findings WHERE observed_at<?", (cutoff,)).rowcount
-        self.execute(
+        removed = self._sql_execute("DELETE FROM data_quality_findings WHERE observed_at<?", (cutoff,)).rowcount
+        self._sql_execute(
             "DELETE FROM data_quality_escalations WHERE resolved_at IS NOT NULL AND resolved_at<?",
             (cutoff,),
         )
@@ -563,8 +535,8 @@ class DataQualityLedger(SqliteStore):
         # The aggregate is a module constant spliced into three queries; every
         # value is bound. The noqa marks the splice as identifiers, not input.
         agg = _AGGREGATE
-        total_row = self.one(f"SELECT {agg} FROM data_quality_findings WHERE observed_at>=?", (since,)) or {}  # noqa: S608
-        bounds = self.one(
+        total_row = self._sql_one(f"SELECT {agg} FROM data_quality_findings WHERE observed_at>=?", (since,)) or {}  # noqa: S608
+        bounds = self._sql_one(
             "SELECT MIN(observed_at) AS first_at, MAX(observed_at) AS last_at, COUNT(DISTINCT instance) AS instances "
             "FROM data_quality_findings WHERE observed_at>=?",
             (since,),
@@ -578,28 +550,28 @@ class DataQualityLedger(SqliteStore):
                 ),
                 **self._counts(row).model_dump(),
             )
-            for row in self.query(
+            for row in self._sql_query(
                 f"SELECT provider, {agg} FROM data_quality_findings WHERE observed_at>=? GROUP BY provider ORDER BY provider",  # noqa: S608
                 (since,),
             )
         ]
         by_capability = [
             DataQualityCapabilityRow(capability=row["capability"], **self._counts(row).model_dump())
-            for row in self.query(
+            for row in self._sql_query(
                 f"SELECT capability, {agg} FROM data_quality_findings WHERE observed_at>=? GROUP BY capability ORDER BY capability",  # noqa: S608
                 (since,),
             )
         ]
         recent = [
             self._finding_view(row)
-            for row in self.query(
+            for row in self._sql_query(
                 "SELECT * FROM data_quality_findings WHERE observed_at>=? ORDER BY observed_at DESC, id DESC LIMIT ?",
                 (since, self.recent_limit),
             )
         ]
         escalations = [
             self._escalation_view(row)
-            for row in self.query(
+            for row in self._sql_query(
                 """
                 SELECT * FROM data_quality_escalations
                 WHERE resolved_at IS NULL
@@ -671,16 +643,16 @@ class DataQualityLedger(SqliteStore):
             params.append(since_ms)
         # Every clause is a fixed fragment chosen above; every value is bound.
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
-        total = int((self.one(f"SELECT COUNT(*) AS n FROM data_quality_findings {where}", tuple(params)) or {}).get("n") or 0)  # noqa: S608
-        rows = self.query(
+        total = int((self._sql_one(f"SELECT COUNT(*) AS n FROM data_quality_findings {where}", tuple(params)) or {}).get("n") or 0)  # noqa: S608
+        rows = self._sql_query(
             f"SELECT * FROM data_quality_findings {where} ORDER BY observed_at DESC, id DESC LIMIT ?",  # noqa: S608
             tuple([*params, max(1, min(500, limit))]),
         )
         return [self._finding_view(row) for row in rows], total
 
     def reset(self) -> None:
-        self.execute("DELETE FROM data_quality_findings")
-        self.execute("DELETE FROM data_quality_escalations")
+        self._sql_execute("DELETE FROM data_quality_findings")
+        self._sql_execute("DELETE FROM data_quality_escalations")
         self._last_prune_ms = 0.0
 
 
@@ -792,3 +764,7 @@ def get_data_quality() -> DataQualityLedger:
     if _ledger is None:
         _ledger = DataQualityLedger(str(settings.data_ops_db_path))
     return _ledger
+
+log = logging.getLogger("alphaengine.data_quality")
+
+

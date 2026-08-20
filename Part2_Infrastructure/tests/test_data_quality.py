@@ -207,7 +207,7 @@ class TestPublish:
         led = ledger()
         esc = Escalation(id=1, rule="fail_rate", provider="fmp", opened_at=NOW, window_minutes=15,
                          count=6, evaluated=8, detail="6 of 8 payloads from fmp failed their contract (75%)")
-        led.execute(
+        led._store.execute(
             "INSERT INTO data_quality_escalations (id, rule, provider, opened_at, window_minutes, count, evaluated, detail) VALUES (1,'fail_rate','fmp',?,15,6,8,'x')",
             (NOW,),
         )
@@ -291,16 +291,21 @@ class TestEscalationRouting:
 
 
 class TestAcknowledgement:
+    # These reach `ledger._store` rather than `ledger` because the ledger
+    # composes its backend instead of inheriting SQLite — the raw SQL belongs
+    # to the store now. Setting a fixture row up through SQL is still the right
+    # move here: it is arranging a precondition, not exercising the ledger.
+
     def test_an_open_escalation_can_be_taken(self):
         ledger = DataQualityLedger.in_memory()
-        ledger.execute(
+        ledger._store.execute(
             "INSERT INTO data_quality_escalations (rule,provider,opened_at,window_minutes,count,detail) "
             "VALUES (?,?,?,?,?,?)", ("fatal_burst", "fmp", 1_000.0, 15, 3, "three fatals"),
         )
-        row_id = ledger.one("SELECT id FROM data_quality_escalations LIMIT 1")["id"]
+        row_id = ledger._store.one("SELECT id FROM data_quality_escalations LIMIT 1")["id"]
 
         assert ledger.acknowledge(row_id, "tg:42") is True
-        row = ledger.one(
+        row = ledger._store.one(
             "SELECT acknowledged_at, acknowledged_by FROM data_quality_escalations WHERE id=?",
             (row_id,),
         )
@@ -309,30 +314,30 @@ class TestAcknowledgement:
 
     def test_the_first_name_stands(self):
         ledger = DataQualityLedger.in_memory()
-        ledger.execute(
+        ledger._store.execute(
             "INSERT INTO data_quality_escalations (rule,provider,opened_at,window_minutes,count,detail) "
             "VALUES (?,?,?,?,?,?)", ("fatal_burst", "fmp", 1_000.0, 15, 3, "three fatals"),
         )
-        row_id = ledger.one("SELECT id FROM data_quality_escalations LIMIT 1")["id"]
+        row_id = ledger._store.one("SELECT id FROM data_quality_escalations LIMIT 1")["id"]
 
         ledger.acknowledge(row_id, "tg:42")
         ledger.acknowledge(row_id, "tg:99")
 
         # A second person taking an escalation someone else already has must not
         # quietly overwrite whose name is against it.
-        by = ledger.one(
+        by = ledger._store.one(
             "SELECT acknowledged_by FROM data_quality_escalations WHERE id=?", (row_id,),
         )["acknowledged_by"]
         assert by == "tg:42"
 
     def test_there_is_nothing_to_acknowledge_on_a_resolved_one(self):
         ledger = DataQualityLedger.in_memory()
-        ledger.execute(
+        ledger._store.execute(
             "INSERT INTO data_quality_escalations "
             "(rule,provider,opened_at,window_minutes,count,detail,resolved_at) "
             "VALUES (?,?,?,?,?,?,?)", ("fatal_burst", "fmp", 1_000.0, 15, 3, "x", 2_000.0),
         )
-        row_id = ledger.one("SELECT id FROM data_quality_escalations LIMIT 1")["id"]
+        row_id = ledger._store.one("SELECT id FROM data_quality_escalations LIMIT 1")["id"]
 
         # Not an error, and not an acknowledgement either. The caller needs to
         # tell "done" from "there was nothing to do".
@@ -354,7 +359,7 @@ class TestAcknowledgement:
         conn.close()
 
         ledger = DataQualityLedger(str(path))
-        columns = {r["name"] for r in ledger.query("PRAGMA table_info(data_quality_escalations)")}
+        columns = {r["name"] for r in ledger._store.query("PRAGMA table_info(data_quality_escalations)")}
         assert {"acknowledged_at", "acknowledged_by"} <= columns
 
         # And twice, because `migrate` runs on every construction and an
