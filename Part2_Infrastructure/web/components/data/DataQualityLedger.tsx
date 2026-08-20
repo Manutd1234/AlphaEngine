@@ -130,7 +130,7 @@ export default function DataQualityLedger({
     if (!outcome.ok) {
       setOlderState("error");
       setOlderError(outcome.failure.timedOut
-        ? "The gateway did not answer within the deadline; the ledger is unreachable from here right now."
+        ? "The gateway did not answer within the deadline; the ledger is unreachable."
         : outcome.failure.message);
       return;
     }
@@ -154,9 +154,9 @@ export default function DataQualityLedger({
   // the knowledge that the row is actionable with it.
   const locked = guard === "locked" || !operatorReady;
   const lockNote = guard === "locked"
-    ? "Take is disabled: operator actions are switched off on this deployment. Acknowledging from Telegram with /ack still works."
+    ? "Take is disabled: operator actions are switched off on this deployment; /ack from Telegram still works."
     : !operatorReady
-      ? "Take is disabled: it needs the operator credential. Enter the operator token in Reliability → Remediation, or acknowledge from Telegram with /ack."
+      ? "Take is disabled: it needs the operator credential. Enter the operator token in Reliability → Remediation, or /ack from Telegram."
       : undefined;
   /** Rows a Take would act on, so the note appears only where a button does. */
   const takeable = ledger?.escalations.filter(
@@ -184,7 +184,7 @@ export default function DataQualityLedger({
         // to this instance's own window; that is not the fleet's history.
         <p className="sub">
           {healthLoaded
-            ? "The gateway did not return its quality ledger on the last sync, so the counts here are this instance's own window; that says nothing about what other instances or earlier hours recorded."
+            ? "The gateway did not return its quality ledger, so the counts here are this instance's own window and say nothing about other instances or earlier hours."
             : "The ledger arrives with the first health snapshot."}
         </p>
       )}
@@ -212,7 +212,7 @@ export default function DataQualityLedger({
 
           <p className="console-subhead">
             Escalations
-            <small className="muted"> — a fatal burst or a fail rate over threshold, per provider; one per cooldown, auto-resolved when it clears.</small>
+            <small className="muted"> — a fatal burst or a fail rate over threshold, per provider; auto-resolved when it clears.</small>
           </p>
           {lockNote && takeable.length > 0 && (
             // On screen, not only in the disabled button's tooltip: a dimmed
@@ -223,7 +223,7 @@ export default function DataQualityLedger({
           {ledger.escalations.length === 0 ? (
             <p className="sub">
               No escalation in the last {ledger.windowMinutes >= 1440 ? `${Math.round(ledger.windowMinutes / 60)} hours` : `${ledger.windowMinutes} minutes`};{" "}
-              {validation!.evaluated} {validation!.evaluated === 1 ? "payload" : "payloads"} evaluated. An empty list means the rules did not fire, not that every payload was clean — see the findings below.
+              {validation!.evaluated} {validation!.evaluated === 1 ? "payload" : "payloads"} evaluated. An empty list means the rules did not fire, not that every payload was clean.
             </p>
           ) : (
             <ul className="console-skips" aria-label="Escalations">
@@ -261,7 +261,7 @@ export default function DataQualityLedger({
                     {e.acknowledged_at && e.acknowledged_by?.startsWith("telegram:")
                       && ` Taken by ${e.acknowledged_by.slice("telegram:".length)} at ${utc(e.acknowledged_at)}.`}
                     {e.acknowledged_at && !e.acknowledged_by?.startsWith("telegram:")
-                      && ` Taken at ${utc(e.acknowledged_at)} by an operator credential, which does not name a person — /ack from Telegram does.`}
+                      && ` Taken at ${utc(e.acknowledged_at)} by an operator credential, which does not name a person.`}
                     {!e.acknowledged_at && taken[e.id]
                       && ` Taken from this desk just now; the ledger catches up on the next poll.`}
                   </small>
