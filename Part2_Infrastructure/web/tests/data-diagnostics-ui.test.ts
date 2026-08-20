@@ -101,8 +101,14 @@ describe("a capability the symbol cannot answer is refused, not traced", () => {
 
   it("the inspector never sends a request the registry would refuse — first load or poll", () => {
     assert.match(pipeline, /const inapplicable = !isApplicable\(capability, asset\);/);
-    const gates = pipeline.match(/if \(inapplicable\) return;/g) ?? [];
-    assert.equal(gates.length, 2, "both the auto-inspect and the poll effect must be gated");
+    // Two paths can dispatch: the auto-inspect effect and the poll. Both must
+    // refuse an inapplicable capability. The poll moved to `usePolling`, so its
+    // gate is an `enabled` term rather than an early return — the guarantee is
+    // the same and the shape is not.
+    assert.match(pipeline, /if \(inapplicable\) return;/,
+      "the auto-inspect effect is no longer gated");
+    assert.match(pipeline, /enabled:[^}]*!inapplicable/s,
+      "the poll is no longer gated on the registry's refusal");
     assert.match(pipeline, /disabled=\{busy \|\| inapplicable\}/);
   });
 

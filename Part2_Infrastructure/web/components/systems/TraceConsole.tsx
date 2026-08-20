@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { eventsSince } from "@/lib/observability";
+import { usePolling } from "@/lib/use-polling";
 import type { EventsResponse, TraceEvent } from "./types";
 
 const LEVELS = ["debug", "info", "warn", "error"] as const;
@@ -122,13 +123,12 @@ export default function TraceConsole({ pollMs, active, filterRequest }: TraceCon
     void pull();
   }, [active, paused, pull]);
 
-  useEffect(() => {
-    if (!active || paused || !pollMs) return;
-    const timer = setInterval(() => {
-      if (!document.hidden) void pull();
-    }, pollMs);
-    return () => clearInterval(timer);
-  }, [active, paused, pollMs, pull]);
+  usePolling({
+    tick: pull,
+    intervalMs: pollMs ?? 0,
+    maxBackoffMs: 300_000,
+    enabled: active && !paused && Boolean(pollMs),
+  });
 
   const visible = useMemo(() => {
     const needle = filter.trim().toLowerCase();

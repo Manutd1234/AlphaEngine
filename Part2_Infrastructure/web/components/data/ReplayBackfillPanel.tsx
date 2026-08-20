@@ -22,6 +22,7 @@ import type { GuardMode } from "@/components/systems/types";
 import { formatDuration } from "@/lib/format";
 import { INTERVALS } from "@/lib/types";
 import { probeGateway } from "@/lib/use-gateway-connection";
+import { usePolling } from "@/lib/use-polling";
 
 const CAPABILITIES = ["quote", "bars", "news", "fundamentals"] as const;
 /** The write's own deadline; longer than the read probe because the gateway forwards to the queue. */
@@ -153,10 +154,14 @@ export default function ReplayBackfillPanel({
   useEffect(() => {
     if (!active) return;
     void load();
-    if (!pollMs) return;
-    const timer = window.setInterval(() => { if (!document.hidden) void load(); }, pollMs);
-    return () => window.clearInterval(timer);
-  }, [active, pollMs, load]);
+  }, [active, load]);
+
+  usePolling({
+    tick: load,
+    intervalMs: pollMs ?? 0,
+    maxBackoffMs: 300_000,
+    enabled: active && Boolean(pollMs),
+  });
 
   const submit = async (kind: "replay" | "backfill", body: Record<string, unknown>) => {
     setBusy(kind);

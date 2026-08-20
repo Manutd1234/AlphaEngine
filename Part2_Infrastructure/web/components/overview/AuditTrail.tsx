@@ -20,6 +20,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { fmt, usd } from "@/lib/format";
 import { type AuditRow, sandboxAuditRows } from "@/lib/fallbacks/audit";
 import { probeGateway } from "@/lib/use-gateway-connection";
+import { usePolling } from "@/lib/use-polling";
 
 /**
  * No `"unreachable"` member.
@@ -65,11 +66,9 @@ export default function AuditTrail({ active, seed }: { active: boolean; seed?: n
   useEffect(() => {
     if (!active) return;
     void refresh();
-    const timer = setInterval(() => {
-      if (!document.hidden) void refresh();
-    }, POLL_MS);
-    return () => clearInterval(timer);
   }, [active, refresh]);
+
+  usePolling({ tick: refresh, intervalMs: POLL_MS, maxBackoffMs: 300_000, enabled: active });
 
   return (
     <div className="card">

@@ -31,6 +31,7 @@ import { useLiveBook } from "@/lib/livebook";
 import { applicableAssets, inapplicableReason, isApplicable } from "@/lib/providers/capabilities";
 import { classify } from "@/lib/providers/symbols";
 import { SYMBOLS } from "@/lib/venues";
+import { usePolling } from "@/lib/use-polling";
 
 const CAPABILITIES = ["quote", "bars", "news", "fundamentals"] as const;
 type Capability = (typeof CAPABILITIES)[number];
@@ -163,14 +164,12 @@ export default function PipelineInspector({
     void inspect(false, false);
   }, [active, tab, inspect, inspectionKey, inapplicable]);
 
-  useEffect(() => {
-    if (!active || tab !== "rest" || !pollMs) return;
-    if (inapplicable) return;
-    const timer = setInterval(() => {
-      if (!document.hidden) void inspect(false, true);
-    }, pollMs);
-    return () => clearInterval(timer);
-  }, [active, tab, pollMs, inspect, inapplicable]);
+  usePolling({
+    tick: () => inspect(false, true),
+    intervalMs: pollMs ?? 0,
+    maxBackoffMs: 300_000,
+    enabled: active && tab === "rest" && Boolean(pollMs) && !inapplicable,
+  });
 
   const submit = () => {
     const next = draft.trim().toUpperCase();

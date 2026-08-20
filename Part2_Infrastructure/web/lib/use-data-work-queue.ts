@@ -24,6 +24,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { DataWorkMutation } from "@/components/data/DataWorkBoard";
+import { usePolling } from "@/lib/use-polling";
 import {
   createDataWorkItem,
   createInitialDataWorkItems,
@@ -115,11 +116,14 @@ export function useDataWorkQueue(options: { token: string | null; active: boolea
   useEffect(() => {
     if (!options.active) return;
     void reload();
-    const timer = window.setInterval(() => {
-      if (!document.hidden) void reload();
-    }, DATA_WORK_REFRESH_MS);
-    return () => window.clearInterval(timer);
   }, [options.active, reload]);
+
+  usePolling({
+    tick: reload,
+    intervalMs: DATA_WORK_REFRESH_MS,
+    maxBackoffMs: 300_000,
+    enabled: options.active,
+  });
 
   const mutate = useCallback((mutation: DataWorkMutation) => {
     void (async () => {

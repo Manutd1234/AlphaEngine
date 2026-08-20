@@ -261,9 +261,12 @@ describe("dense role workspaces expose accessible feature sections", () => {
       traceConsole.includes("if (!active || paused) return;"),
       "hidden or paused trace performs its initial pull",
     );
-    assert.ok(
-      traceConsole.includes("if (!active || paused || !pollMs) return;"),
-      "hidden trace keeps its polling interval",
+    // The poll is a `usePolling` call now; its gate is the `enabled` term.
+    // Same three conditions, asserted where they live.
+    assert.match(
+      traceConsole,
+      /enabled: active && !paused && Boolean\(pollMs\)/,
+      "hidden, paused or uncadenced trace keeps its polling interval",
     );
   });
 });
