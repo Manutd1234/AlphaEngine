@@ -37,24 +37,17 @@ const CEILING = 400;
  */
 const OVER_CEILING: Record<string, number> = {
   "app/dashboard/page.tsx": 685,
-  "components/DeveloperConsole.tsx": 943,
-  "components/LiveMarket.tsx": 902,
-  "lib/types.ts": 794,
-  "lib/data-trust.ts": 787,
-  "components/data/DataTrustOverview.tsx": 783,
-  "components/systems/ReliabilityOverview.tsx": 761,
-  "components/profile/ProfileScreen.tsx": 730,
+  // Four entries left this list on 2026-08-21, and none of them left by
+  // shrinking in place: LiveMarket (902 → 339) shed the routing probe, the
+  // depth book, the route estimate and the watchlist into
+  // `components/execution/`, DataTrustOverview (783 → 278) and
+  // ExecutionCockpit (574 → 341) split the same way, and ProfileScreen
+  // (730 → 224) followed. The debt moved rather than evaporated, so it was
+  // re-measured where it landed: the longest file any of those splits
+  // produced is `components/execution/RoutingProbe.tsx` at 302 lines, which
+  // is why no successor takes their place here.
   "lib/use-book.ts": 659,
-  "lib/livebook.ts": 645,
-  "components/systems/PipelineInspector.tsx": 644,
-  "lib/portfolio.ts": 641,
-  "lib/providers/registry.ts": 636,
-  "components/systems/types.ts": 619,
-  "lib/operator.ts": 616,
   "components/auth/LoginScreen.tsx": 614,
-  "lib/overview-state.ts": 589,
-  "components/systems/OperatorPanel.tsx": 585,
-  "components/execution/ExecutionCockpit.tsx": 574,
   "components/execution/OrderTicket.tsx": 561,
   "scripts/desk-sweep.mjs": 558,
   "lib/strategy-docs.ts": 537,
