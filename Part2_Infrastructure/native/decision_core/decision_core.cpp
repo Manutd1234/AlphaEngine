@@ -489,18 +489,31 @@ struct WalkScratch {
     Slot slots[kInline];
 };
 
-//: The held book, expanded once per decision. Variable length by nature — a
-//: desk holds what it holds — so these stay std::vectors, but they live in one
-//: thread_local block behind one wrapper call rather than five.
-struct BookScratch {
-    std::vector<double> qty;
-    std::vector<double> avg;
-    std::vector<double> realized;
-    std::vector<std::optional<double>> marks;
-    std::vector<bool> is_order;
+//: The held book's DERIVED per-position state, expanded once per decision.
+//:
+//: Only two fields are derived. Quantity, average price and realized PnL are
+//: already laid out in the PositionBook's own entries, so the folds below read
+//: them in place; the five parallel std::vectors this used to be copied them
+//: out for no reason but to make the two paths index alike. That copy was five
+//: heap blocks on five cache lines behind one thread_local wrapper, reached
+//: cold on every single order, holding values that already existed.
+//:
+//: Interleaved and inline for the same reason WalkScratch is: the mark and the
+//: is-order flag of one position are read together, so they sit together, and
+//: a desk holding a handful of symbols touches ONE line of this — on decide()'s
+//: own stack frame, which pybind11 has just walked to marshal the arguments.
+struct PositionScratch {
+    static constexpr std::size_t kInline = 8;
+    struct Row {
+        std::optional<double> mark;
+        bool is_order;
+    };
+    Row rows[kInline];
 };
 
-static thread_local BookScratch g_book;
+//: Above kInline the rows spill here: one thread_local behind one wrapper
+//: call, resized on demand and never touched by a desk that fits inline.
+static thread_local std::vector<PositionScratch::Row> g_rows;
 
 static CoreResult decide(
     bool side_is_buy,
@@ -634,34 +647,74 @@ static CoreResult decide(
     // pos_* vectors empty whenever it passes a mirror, so both paths fold the
     // same zero elements. Skipping it skips the thread_local block entirely.
     const bool use_book = position_book != nullptr && !position_book->entries.empty();
-    BookScratch &bk = g_book;
+    const PositionBook::Entry *entries =
+        use_book ? position_book->entries.data() : nullptr;
+    const std::size_t n = use_book ? position_book->entries.size() : pos_quantities.size();
+
+    PositionScratch scratch;
+    PositionScratch::Row *rows = scratch.rows;
     if (use_book) {
-        const std::size_t count = position_book->entries.size();
-        bk.qty.clear(); bk.qty.reserve(count);
-        bk.avg.clear(); bk.avg.reserve(count);
-        bk.realized.clear(); bk.realized.reserve(count);
-        bk.marks.clear(); bk.marks.reserve(count);
-        bk.is_order.clear(); bk.is_order.reserve(count);
-        for (const auto &entry : position_book->entries) {
-            bk.qty.push_back(entry.quantity);
-            bk.avg.push_back(entry.avg_price);
-            bk.realized.push_back(entry.realized);
-            bk.marks.push_back(position_book->mark_of(entry));
-            bk.is_order.push_back(entry.symbol == order_symbol);
+        if (n > PositionScratch::kInline) {
+            g_rows.resize(n);
+            rows = g_rows.data();
+        }
+        for (std::size_t i = 0; i < n; ++i) {
+            const PositionBook::Entry &entry = entries[i];
+            // The order symbol's OWN holding consolidates its mark from the
+            // very ladders `mark` was folded from a few lines above, in the
+            // same order: `_sync_position_book` and `_native_decide` both take
+            // them from `tca._live_books(symbol)`. consolidated_mid is a pure
+            // function of that sequence, so folding it a second time over the
+            // identical pointers returns the identical double, to the bit.
+            // Reuse it instead — two mids and four five-level depth folds, or
+            // twenty Neumaier steps, that a decision no longer repeats.
+            //
+            // Guarded on POINTER IDENTITY, not on the symbols matching. The
+            // symbols agreeing is WHY it holds today; the pointers agreeing is
+            // what can be CHECKED here, and the moment a venue joins, drops or
+            // reorders, this falls back to the fold rather than to an
+            // assumption. The paper branch is excluded because `mark` is then
+            // the supplied quote, not a consolidation of anything.
+            const bool same_books =
+                !is_paper && entry.books.size() == order_books.size() &&
+                std::equal(entry.books.begin(), entry.books.end(), order_books.begin());
+            if (same_books) {
+                // mark_of()'s `live or paper`: a live mid of exactly zero is
+                // falsy in Python and falls through to the paper mark, so this
+                // is deliberately not `value_or`.
+                rows[i].mark = (mark && *mark != 0.0) ? mark : entry.paper_mark;
+            } else {
+                rows[i].mark = position_book->mark_of(entry);
+            }
+            rows[i].is_order = (entry.symbol == order_symbol);
         }
     }
-    const std::vector<double> &pos_qty_v = use_book ? bk.qty : pos_quantities;
-    const std::vector<double> &pos_avg_v = use_book ? bk.avg : pos_avg_prices;
-    const std::vector<double> &pos_real_v = use_book ? bk.realized : pos_realized;
-    const std::vector<std::optional<double>> &pos_mark_v = use_book ? bk.marks : pos_marks;
+
+    // One expression per field, resolved by `use_book`: either the mirrored
+    // entries read where they already live, or the five vectors the caller
+    // passed. Nothing is copied out to make the folds below index alike.
+    const auto qty_at = [&](std::size_t i) -> double {
+        return use_book ? entries[i].quantity : pos_quantities[i];
+    };
+    const auto avg_at = [&](std::size_t i) -> double {
+        return use_book ? entries[i].avg_price : pos_avg_prices[i];
+    };
+    const auto real_at = [&](std::size_t i) -> double {
+        return use_book ? entries[i].realized : pos_realized[i];
+    };
+    const auto mark_at = [&](std::size_t i) -> const std::optional<double> & {
+        return use_book ? rows[i].mark : pos_marks[i];
+    };
+    const auto is_order_at = [&](std::size_t i) -> bool {
+        return use_book ? rows[i].is_order : static_cast<bool>(pos_is_order_symbol[i]);
+    };
 
     // held quantity of the order symbol (positions are keyed by symbol, so at
     // most one row is flagged).
     double held = 0.0;
-    const std::size_t n = pos_qty_v.size();
     for (std::size_t i = 0; i < n; ++i) {
-        if (use_book ? bk.is_order[i] : pos_is_order_symbol[i]) {
-            held = pos_qty_v[i];
+        if (is_order_at(i)) {
+            held = qty_at(i);
             break;
         }
     }
@@ -676,11 +729,11 @@ static CoreResult decide(
     double gross = 0.0;
     double sym_notional_order = 0.0;
     for (std::size_t i = 0; i < n; ++i) {
-        const auto &pm = pos_mark_v[i];
-        double m = (pm && *pm != 0.0) ? *pm : pos_avg_v[i];
-        double contrib = std::abs(pos_qty_v[i]) * m;
+        const auto &pm = mark_at(i);
+        double m = (pm && *pm != 0.0) ? *pm : avg_at(i);
+        double contrib = std::abs(qty_at(i)) * m;
         gross += contrib;
-        if (use_book ? bk.is_order[i] : pos_is_order_symbol[i]) sym_notional_order = contrib;
+        if (is_order_at(i)) sym_notional_order = contrib;
     }
     r.projected_gross = gross - sym_notional_order + r.projected_sym;
 
@@ -690,14 +743,14 @@ static CoreResult decide(
     // unrealized generator yields 0.0 for a position with no mark or zero qty
     // (adding 0.0 is a no-op under Neumaier), so every position is folded.
     Neumaier realized_acc;
-    for (std::size_t i = 0; i < n; ++i) realized_acc.add(pos_real_v[i]);
+    for (std::size_t i = 0; i < n; ++i) realized_acc.add(real_at(i));
     const double realized = realized_acc.value();
     Neumaier unrealized_acc;
     for (std::size_t i = 0; i < n; ++i) {
-        const auto &pm = pos_mark_v[i];
+        const auto &pm = mark_at(i);
         // PositionState.unrealized(mark): 0.0 unless mark truthy and qty != 0.
-        double term = (pm && *pm != 0.0 && pos_qty_v[i] != 0.0)
-                          ? (*pm - pos_avg_v[i]) * pos_qty_v[i]
+        double term = (pm && *pm != 0.0 && qty_at(i) != 0.0)
+                          ? (*pm - avg_at(i)) * qty_at(i)
                           : 0.0;
         unrealized_acc.add(term);
     }
