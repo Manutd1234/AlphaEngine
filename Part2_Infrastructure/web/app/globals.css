@@ -4656,25 +4656,42 @@ button
 }
 
 /* ---------- operator panel ---------- */
+/* Seven boxes, not seven rows separated by hairlines. Each control owns a
+   destructive verb and a blast radius, and a hairline is the weakest separator
+   available for that — a reader scanning for "which button was the one that
+   spends money" was scanning a list. The token set is the confirmation
+   dialog's own (`.operator-confirmation__facts > div`, 1px var(--border) on
+   var(--surface-1)), so the cards read as continuous with the panel that
+   appears above them when one is pressed.
+
+   The head/cost rhythm is unchanged: the grid gap still owns the space between
+   the head row and the cost line, and `.console-action > small` is still a
+   direct child, so nothing here wraps a row in a new element. */
 .console-action {
-  /* One rhythm for all seven rows: name left, action right, cost line beneath.
-     The grid gap owns the spacing between head and cost line, so no row
-     carries a margin of its own. */
   display: grid;
   gap: var(--space-1);
-  padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--grid);
-}
-
-.console-action:last-of-type {
-  border-bottom: 0;
+  padding: var(--space-3);
+  /* The separation the removed bottom border used to provide. On the card
+     itself rather than as a gap on `.console-actions`, which also holds the two
+     group headings, the confirmation dialog and the scope disclosure — a
+     container gap would have moved all of those too. */
+  margin-bottom: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
 }
 
 .console-action--client {
   /* Browser-side controls are visually separated from the ones that mutate the
      server, because "reconnect" meaning two different blast radii on one panel
-     is exactly the confusion an operator surface must not create. */
-  border-left: 3px solid color-mix(in srgb, var(--series-3) 45%, transparent);
+     is exactly the confusion an operator surface must not create.
+
+     Named sides, never the `border-color` shorthand — the accent and the card
+     border are set at equal specificity now, and a shorthand would wash the
+     accent into the default. Same trap `.data-work-card` documents for its
+     priority accent. */
+  border-left-width: 3px;
+  border-left-color: color-mix(in srgb, var(--series-3) 45%, transparent);
   padding-left: 10px;
 }
 
@@ -4765,6 +4782,13 @@ button
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
+}
+
+/* The rows were separated by their own bottom borders; the gap is the panel's
+   job now. */
+.console-actions {
+  display: grid;
+  gap: var(--space-2);
 }
 
 .console-actions .banner {
