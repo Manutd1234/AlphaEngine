@@ -545,37 +545,6 @@ export function volatilityRegime(
   };
 }
 
-/**
- * Rescale a scenario's shocks by how volatile the market currently is.
- *
- * The scenario magnitudes are drawn from moves these markets have actually
- * made, which makes them plausible *on average*. They are not conditioned on
- * today. When realised volatility is running at twice its baseline, the same
- * catalyst produces a larger move, and a stress test that ignores that is
- * quietly assuming an average day.
- *
- * **The multiplier floors at 1 — this scales up only, never down.** The
- * symmetric version is the obvious one and it is wrong. On live BTC data at a
- * 29th-percentile regime the ratio was 0.78, which would have shrunk a −20%
- * cascade to −15.6% and made the book look *safest* in exactly the conditions
- * the COMPRESSED note warns about: quiet regimes end abruptly, and the sizing
- * set in one is the sizing carried into the next expansion. A stress test that
- * relaxes as volatility falls reports its most reassuring number immediately
- * before it is most wrong.
- *
- * The upper bound is 2×. An unclamped ratio off a thin sample reaches 4× or 5×
- * and turns a scenario into an unfalsifiable catastrophe — a −80% "shock" tells
- * you nothing you did not already know about a long book.
- */
-export const REGIME_SCALE_BOUNDS: [number, number] = [1, 2];
-
-export function scaleShocks(shocks: Shock[], regime: VolatilityRegime | null): Shock[] {
-  if (!regime) return shocks;
-  const [lo, hi] = REGIME_SCALE_BOUNDS;
-  const k = Math.min(hi, Math.max(lo, regime.ratio));
-  return shocks.map((s) => ({ ...s, move: s.move * k }));
-}
-
 // --------------------------------------------------------------------------
 // VaR model validation
 //

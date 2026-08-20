@@ -6274,25 +6274,10 @@ button
   color: var(--text-secondary);
 }
 
-/* Spans both columns so the toggle and the caveat sit under the reading rather
-   than beside it — the caveat is the part that must not be clipped. */
-.regime-toggle,
+/* Spans both columns so the reading's note sits under it rather than beside
+   it. */
 .regime-note {
   grid-column: 1 / -1;
-}
-
-.regime-toggle {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: var(--fs-md);
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-
-.regime-toggle input:disabled + span {
-  opacity: 0.55;
-  cursor: default;
 }
 
 .regime-note {

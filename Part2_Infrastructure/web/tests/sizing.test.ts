@@ -25,8 +25,6 @@ import {
   kellySizing,
 } from "../lib/quant";
 import {
-  REGIME_SCALE_BOUNDS,
-  scaleShocks,
   volatilityRegime,
 } from "../lib/portfolio-risk";
 import { findDislocation, type VenueBook } from "../lib/venues";
@@ -255,39 +253,3 @@ test("too little history returns null rather than a label", () => {
   assert.equal(volatilityRegime([]), null);
 });
 
-test("scaling is clamped, and a missing regime leaves the shocks alone", () => {
-  const shocks = [{ symbol: "BTCUSDT", move: -0.2 }];
-  assert.deepEqual(scaleShocks(shocks, null), shocks, "no regime means no adjustment");
-
-  const [lo, hi] = REGIME_SCALE_BOUNDS;
-  const stub = (ratio: number) => ({
-    regime: "NORMAL" as const,
-    currentVol: 0, baselineVol: 0, ratio, percentile: 0.5, observations: 50, note: "",
-  });
-  assert.ok(Math.abs(scaleShocks(shocks, stub(9))[0].move - -0.2 * hi) < 1e-12, "clamped above");
-  assert.ok(Math.abs(scaleShocks(shocks, stub(1.5))[0].move - -0.3) < 1e-12, "passed through in range");
-  assert.equal(lo, 1, "the floor is 1, not 0.5 — see below");
-});
-
-test("a calm regime never shrinks a stress scenario", () => {
-  // The symmetric version of this is the obvious one and it is backwards. Live
-  // BTC at the 29th percentile gave a ratio of 0.78, which would have relaxed a
-  // −20% cascade to −15.6% — reporting the most reassuring number precisely
-  // when a quiet regime is closest to ending. Scaling is one-directional.
-  const shocks = [{ symbol: "BTCUSDT", move: -0.2 }];
-  const calm = {
-    regime: "COMPRESSED" as const,
-    currentVol: 0.3, baselineVol: 0.39, ratio: 0.78, percentile: 0.05, observations: 900, note: "",
-  };
-  assert.equal(scaleShocks(shocks, calm)[0].move, -0.2, "a quiet market leaves the scenario intact");
-});
-
-test("scaling preserves the wildcard symbol, not just the magnitude", () => {
-  // `*` is what propagates a shock to every unshocked position via beta. Losing
-  // it while rescaling would silently narrow the scenario to one instrument.
-  const scaled = scaleShocks(
-    [{ symbol: "BTCUSDT", move: -0.2 }, { symbol: "*", move: -0.25 }],
-    { regime: "NORMAL", currentVol: 0, baselineVol: 0, ratio: 1.5, percentile: 0.5, observations: 50, note: "" },
-  );
-  assert.deepEqual(scaled.map((s) => s.symbol), ["BTCUSDT", "*"]);
-});

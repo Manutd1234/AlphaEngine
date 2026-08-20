@@ -24,13 +24,11 @@ import { useMemo, useState, type CSSProperties } from "react";
 
 import { fmt, pct, usd } from "@/lib/format";
 import {
-  REGIME_SCALE_BOUNDS,
   SCENARIOS,
   type ReturnsBySymbol,
   type RiskPosition,
   applyScenario,
   manualShocks,
-  scaleShocks,
   volatilityRegime,
 } from "@/lib/portfolio-risk";
 
@@ -43,9 +41,6 @@ interface StressTestProps {
   drawdownLimitPct: number;
   startOfDayEquity: number;
 }
-
-const clampRatio = (r: number) =>
-  Math.min(REGIME_SCALE_BOUNDS[1], Math.max(REGIME_SCALE_BOUNDS[0], r));
 
 /** "85th", not "85%" — a percentile is a rank, and reading it as a share is the
  *  standard misreading this label exists to prevent. */
@@ -79,7 +74,6 @@ export default function StressTest({
    * it. Empty means no override at all, so a named scenario is live.
    */
   const [manual, setManual] = useState<Record<string, number>>({});
-  const [conditionOnRegime, setConditionOnRegime] = useState(true);
 
   const scenario = SCENARIOS.find((s) => s.id === scenarioId) ?? SCENARIOS[0];
 
@@ -105,23 +99,9 @@ export default function StressTest({
   );
 
   const result = useMemo(() => {
-    const base = manualActive ? manualShocks(manual) : scenario.shocks;
-    // Conditioning applies to the named scenarios only, and the reason gets
-    // stronger with N sliders rather than weaker:
-    //
-    //  - If the reference is hand-shocked, the beta propagation is already
-    //    driven by the operator's own number. Rescaling it would put a figure
-    //    on screen that disagrees with the slider they are looking at.
-    //  - If the reference is NOT hand-shocked, the base is entirely
-    //    operator-supplied and there is no historical magnitude left for a
-    //    regime multiplier to act on.
-    //
-    // Either way there is nothing legitimate to condition, so the checkbox is
-    // disabled the moment any slider is set — the same rule the single slider
-    // had, now with a reason that survives N of them.
-    const shocks = conditionOnRegime && !manualActive ? scaleShocks(base, regime) : base;
+    const shocks = manualActive ? manualShocks(manual) : scenario.shocks;
     return applyScenario(positions, equity, shocks, returns, referenceSymbol);
-  }, [scenario, manual, manualActive, conditionOnRegime, regime, positions, equity, returns, referenceSymbol]);
+  }, [scenario, manual, manualActive, positions, equity, returns, referenceSymbol]);
 
   const haltEquity = startOfDayEquity * (1 - drawdownLimitPct);
   const breachesHalt = result.projectedEquity < haltEquity;
@@ -137,8 +117,7 @@ export default function StressTest({
   // should I worry about", and that is a ranking.
   const ranked = useMemo(() => SCENARIOS
     .map((s) => {
-      const shocks = conditionOnRegime ? scaleShocks(s.shocks, regime) : s.shocks;
-      const outcome = applyScenario(positions, equity, shocks, returns, referenceSymbol);
+      const outcome = applyScenario(positions, equity, s.shocks, returns, referenceSymbol);
       return {
         id: s.id,
         label: s.label,
@@ -148,7 +127,7 @@ export default function StressTest({
       };
     })
     .sort((a, b) => a.pnl - b.pnl),
-  [conditionOnRegime, regime, positions, equity, returns, referenceSymbol, haltEquity]);
+  [positions, equity, returns, referenceSymbol, haltEquity]);
 
   return (
     <div className="card">
@@ -211,38 +190,7 @@ export default function StressTest({
             {regime.observations} windows, {fmt(regime.ratio, 2)}× its baseline of{" "}
             {pct(regime.baselineVol, 1)}.
           </span>
-          <label className="regime-toggle">
-            <input
-              type="checkbox"
-              checked={conditionOnRegime}
-              disabled={manualActive}
-              onChange={(event) => setConditionOnRegime(event.target.checked)}
-            />
-            <span>
-              Condition on regime
-              {manualActive && " (hand shocks override)"}
-            </span>
-          </label>
-          <p className="regime-note">
-            {regime.note}
-            {conditionOnRegime && !manualActive && (
-              clampRatio(regime.ratio) > 1 ? (
-                <>
-                  {" "}
-                  Named scenarios are scaled up by {fmt(clampRatio(regime.ratio), 2)}× accordingly,
-                  capped at {REGIME_SCALE_BOUNDS[1]}× so a thin sample cannot turn a scenario into
-                  an unfalsifiable catastrophe.
-                </>
-              ) : (
-                <>
-                  {" "}
-                  Scenarios are left at full size. Conditioning only ever scales a shock{" "}
-                  <em>up</em>: relaxing the stress test because the market is quiet would report the
-                  most reassuring number precisely when a compressed regime is closest to ending.
-                </>
-              )
-            )}
-          </p>
+          <p className="regime-note">{regime.note}</p>
         </div>
       )}
 
