@@ -36,6 +36,8 @@ def open_data_ops_db(path: Path | str) -> sqlite3.Connection:
 
 
 class SqliteStore:
+    backend = "sqlite"
+
     """A small strict wrapper: one connection, one lock, errors propagate."""
 
     def __init__(self, path: Path | str) -> None:
@@ -99,3 +101,43 @@ class _Transaction:
                 self._store._conn.execute("ROLLBACK")
         finally:
             self._store._lock.release()
+
+
+def open_data_ops_store(settings: Any = None) -> Any:
+    """The store the data-operations tables live in, per configuration.
+
+    Returns a `SqliteStore` or a `PostgrestStore`. The import of the latter is
+    deferred into this function on purpose: `data_ops_postgrest` imports httpx,
+    and a deployment running the default backend should not pay for a transport
+    it never uses — the same reason the Postgres branch validates its
+    credentials here rather than at import time.
+
+    What Postgres does NOT buy: a second gateway process. The position book,
+    the resting-order book, the token bucket and the kill switch are still
+    process-local mutable state, and `test_container_contract.py` still fails
+    the build on `--workers`. What it removes is the *storage* half of that
+    boundary — these four tables stop being local to one container's filesystem.
+
+    An unknown value is refused rather than defaulted. Falling back to SQLite
+    on a typo would give a deployment that believes it is on Postgres, is not,
+    and says "sqlite" in a health field nobody reads twice.
+    """
+    from config import settings as configured
+
+    settings = settings or configured
+    backend = getattr(settings, "data_ops_backend", "sqlite")
+    if backend == "sqlite":
+        return SqliteStore(settings.data_ops_db_path)
+    if backend == "postgres":
+        from modules.data_ops_postgrest import PostgrestStore
+
+        url = getattr(settings, "supabase_url", "")
+        key = getattr(settings, "supabase_service_role_key", "")
+        if not url or not key:
+            raise ValueError(
+                "DATA_OPS_BACKEND=postgres needs SUPABASE_URL and "
+                "SUPABASE_SERVICE_ROLE_KEY; refusing to fall back to sqlite, "
+                "which would run a deployment that believes it is on Postgres"
+            )
+        return PostgrestStore(url, key)
+    raise ValueError(f"unknown DATA_OPS_BACKEND: {backend!r} (expected 'sqlite' or 'postgres')")

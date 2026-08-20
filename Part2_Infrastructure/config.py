@@ -93,11 +93,11 @@ class Settings:
     # ---- Data operations: quality ledger, work queue, jobs -----------------
     # The durable data-plane state lives in one stdlib sqlite3 file on the
     # same volume as the audit database (modules/data_ops_store.py).
-    data_ops_db_path: Path = field(
-        default_factory=lambda: Path(
-            _env("DATA_OPS_DB_PATH", str(Path(_env("DATA_DIR", str(BASE_DIR / "data"))) / "data_ops.sqlite"))
-        )
-    )
+    data_ops_db_path: Path = field(default_factory=lambda: Path(
+        _env("DATA_OPS_DB_PATH", str(Path(_env("DATA_DIR", str(BASE_DIR / "data"))) / "data_ops.sqlite"))
+    ))
+    # "sqlite" (default) or "postgres" — see open_data_ops_store for what it does not buy.
+    data_ops_backend: str = field(default_factory=lambda: _env("DATA_OPS_BACKEND", "sqlite").strip().lower())
     # Contract findings pushed by every web instance are kept this long.
     data_quality_retention_days: int = field(default_factory=lambda: max(1, min(90, _env_int("DATA_QUALITY_RETENTION_DAYS", 7))))
     # The window the aggregate view summarises, and the number of recent
