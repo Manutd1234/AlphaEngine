@@ -20,9 +20,23 @@ const read = (relative: string) =>
 
 const component = read("../components/common/TechMark.tsx");
 const mix = read("../components/systems/DependencyMix.tsx");
-const overview = read("../components/systems/ReliabilityOverview.tsx");
 const tree = read("../components/systems/DependencyTree.tsx");
 const css = read("../app/globals.css");
+
+/**
+ * The Reliability overview section, in the files it is made of.
+ *
+ * `ReliabilityOverview` passed the length ceiling and is now a seam that
+ * dispatches on `part`: `attention` is triage, `planes` is the four KPI tiles,
+ * the dependency switcher and the provider digest, and the platform view it
+ * switches to is `ReliabilityPlatform`. An assertion about one view reads that
+ * view's file; an assertion about the section as a whole reads `section`.
+ */
+const overview = read("../components/systems/ReliabilityOverview.tsx");
+const attention = read("../components/systems/ReliabilityAttention.tsx");
+const planes = read("../components/systems/ReliabilityPlanes.tsx");
+const platform = read("../components/systems/ReliabilityPlatform.tsx");
+const section = [overview, attention, planes, platform].join("\n");
 
 /**
  * Comments stripped. Both of these files explain in prose exactly which
@@ -118,9 +132,12 @@ describe("the rings count what they say they count", () => {
 });
 
 describe("the split hides nothing a reader needs at all times", () => {
+  // The tiles, the switcher and the three views are the `planes` half of the
+  // section, so they are read from `ReliabilityPlanes` rather than from the
+  // seam file that dispatches to it.
   it("keeps the four KPI tiles above the switcher", () => {
-    const seg = overview.indexOf('className="seg"');
-    const summary = overview.indexOf('className="reliability-dependency-summary"');
+    const seg = planes.indexOf('className="seg"');
+    const summary = planes.indexOf('className="reliability-dependency-summary"');
     assert.ok(summary > 0 && seg > 0, "expected both the summary row and the switcher");
     assert.ok(summary < seg, "the KPI row moved inside a view and now changes identity");
   });
@@ -128,24 +145,28 @@ describe("the split hides nothing a reader needs at all times", () => {
   it("renders views conditionally so a hidden one stops observing", () => {
     // `hidden` would keep a switched-away RouteLatencyBars' ResizeObserver
     // alive behind the view on screen.
-    assert.match(overview, /pane === "map" &&/);
-    assert.match(overview, /pane === "providers" &&/);
-    assert.match(overview, /pane === "platform" &&/);
+    assert.match(planes, /pane === "map" &&/);
+    assert.match(planes, /pane === "providers" &&/);
+    assert.match(planes, /pane === "platform" &&/);
   });
 
   it("offers three panes, not four", () => {
-    const panes = [...overview.matchAll(/\{ id: "(map|providers|platform)"/g)];
+    const panes = [...planes.matchAll(/\{ id: "(map|providers|platform)"/g)];
     assert.equal(panes.length, 3, "a four-button seg forces abbreviated labels");
   });
 
   it("says something honest when there is no gateway to describe", () => {
     // The deployed workspace's normal state is no gateway snapshot; a view that
-    // renders blank reads as a broken panel.
-    assert.match(overview, /cannot be\s*\n?\s*observed from here|missing measurement, not a set of failures/);
+    // renders blank reads as a broken panel. The sentence belongs to the
+    // platform view, which is the one with a gateway to describe.
+    assert.match(platform, /cannot be\s*\n?\s*observed from here|missing measurement, not a set of failures/);
   });
 
   it("mounts no second workspace rail", () => {
-    assert.doesNotMatch(code(overview), /<WorkspaceSubtabs/);
+    // Read across the section's files: the rail belongs to `ReliabilityConsole`
+    // and the ban applies to every half of the section it mounts, not only to
+    // the seam that dispatches between them.
+    assert.doesNotMatch(code(section), /<WorkspaceSubtabs/);
   });
 });
 
@@ -172,7 +193,12 @@ describe("the provider digest speaks one vocabulary and earns every word", () =>
   // failed call may earn it. Dispatch books a vendor's "no data for this
   // symbol" and a licence refusal as their own reasons, never as errors, so a
   // trace on the wrong asset class cannot degrade four healthy providers.
-  const signal = code(overview.slice(overview.indexOf("function providerSignal"), overview.indexOf("const POSTURE_LABEL")));
+  //
+  // `providerSignal` moved to `ReliabilityPlanes` with the digest it labels.
+  // `POSTURE_LABEL` — the old end marker — went the other way, to
+  // `ReliabilityPlatform`, so the slice now ends at the component that follows
+  // the function in its own file.
+  const signal = code(planes.slice(planes.indexOf("function providerSignal"), planes.indexOf("export default function ReliabilityPlanes")));
 
   it("uses the enterprise vocabulary and nothing else", () => {
     const labels = [...signal.matchAll(/label: "([^"]+)"/g)].map((m) => m[1]);
@@ -180,8 +206,10 @@ describe("the provider digest speaks one vocabulary and earns every word", () =>
       [...new Set(labels)].sort(),
       ["Blocked", "Degraded", "Failing", "Healthy", "Idle", "Not configured", "Probe healthy"].sort(),
     );
+    // Retired vocabulary is banned from the whole section, not just from the
+    // file the digest happens to live in today.
     for (const retired of ["Success observed", "Successes + errors", "Routable", "Live probe"]) {
-      assert.ok(!overview.includes(`"${retired}"`), `${retired} is retired vocabulary`);
+      assert.ok(!section.includes(`"${retired}"`), `${retired} is retired vocabulary`);
     }
   });
 
