@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-20",
-  "commit": "f44ab80",
+  "commit": "ff4fdd7",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -721,6 +721,7 @@
     "README.md",
     "SETUP.md",
     "supabase/.gitignore",
+    "supabase/apply_all.generated.sql",
     "supabase/config.toml",
     "supabase/functions/embed-research/index.ts",
     "supabase/functions/evaluate-order/index.ts",
@@ -748,6 +749,7 @@
     "supabase/migrations/20260820090500_research_graph_traverse.sql",
     "supabase/migrations/20260820090600_research_doc_kind_ml_run.sql",
     "supabase/README.md",
-    "supabase/seed.sql"
+    "supabase/seed.sql",
+    "tools/bundle_migrations.py"
   ]
 }
