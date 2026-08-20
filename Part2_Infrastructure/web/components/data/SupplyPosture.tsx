@@ -83,12 +83,12 @@ export default function SupplyPosture({ health }: { health: SystemHealth | null 
           total={supply.total || undefined}
           centreValue={supply.total ? String(supply.ready) : undefined}
           centreLabel="routable"
-          ariaLabel="Every registered provider, classified once by whether it can answer a request right now."
+          ariaLabel="Every registered provider, by whether it can answer a request now."
           emptyNote="No provider registry in this snapshot, so nothing can be said about supply."
         />
         <CategoryBars
           rows={rows}
-          ariaLabel="Each capability and asset's ranked failover chain, by the routing state of every node in it."
+          ariaLabel="Ranked failover chain per capability and asset, by node routing state."
           emptyNote="No failover chain is exposed in this snapshot."
         />
       </div>
