@@ -18,7 +18,7 @@
 
 import { useCallback, useState } from "react";
 
-import type { DataQualityEscalation, DataQualityFinding, ValidationTelemetry } from "@/components/systems/types";
+import type { DataQualityEscalation, DataQualityFinding, GuardMode, ValidationTelemetry } from "@/components/systems/types";
 import { operatorHeaders } from "@/lib/risk-control";
 import { GATEWAY_DEADLINE_MS, probeGateway } from "@/lib/use-gateway-connection";
 
@@ -26,11 +26,20 @@ interface DataQualityLedgerProps {
   validation: ValidationTelemetry | null | undefined;
   /** False while the console has no health snapshot at all. */
   healthLoaded: boolean;
+  /** How this deployment guards writes, so a refusal can be named before it is earned. */
+  guard: GuardMode;
   /**
-   * The operator credential, when this tab has one. Absent means the Take
-   * button is not offered — the same gate every other write surface uses.
-   * On an open demo deployment the gateway accepts the call regardless, and
-   * the button is still shown because the action is genuinely available.
+   * Whether an action fired right now would carry a usable credential.
+   *
+   * This card gates on this flag and not on `operatorToken`, for the reason
+   * every other gated control does: on an open demo deployment the gateway
+   * accepts the acknowledgement with no header at all, and a Take button
+   * withheld there would be refusing an action that genuinely works.
+   */
+  operatorReady: boolean;
+  /**
+   * The operator credential, when this tab has one. It rides on the ack when
+   * set; `operatorReady` — not this — decides whether Take is offered.
    */
   operatorToken?: string;
 }
@@ -58,7 +67,9 @@ function pct(rate: number | null): string {
   return rate === null ? "—" : `${Math.round(rate * 100)}%`;
 }
 
-export default function DataQualityLedger({ validation, healthLoaded, operatorToken }: DataQualityLedgerProps) {
+export default function DataQualityLedger({
+  validation, healthLoaded, guard, operatorReady, operatorToken,
+}: DataQualityLedgerProps) {
   const ledger = validation?.scope === "gateway-ledger" ? validation.ledger ?? null : null;
   const [older, setOlder] = useState<DataQualityFinding[] | null>(null);
   const [olderTotal, setOlderTotal] = useState<number | null>(null);
@@ -134,6 +145,24 @@ export default function DataQualityLedger({ validation, healthLoaded, operatorTo
     ? Object.entries(validation!.byProvider).sort(([a], [b]) => a.localeCompare(b))
     : [];
 
+  // The gate every other write surface on this desk already uses — one
+  // `locked` flag, one sentence naming the reason, and the control left on
+  // screen wearing it. Until now the row offered a live-looking Take to a
+  // reader with no credential and let the route refuse it after the click,
+  // which spends a click to learn a fact the tab already knew. Disabling it
+  // rather than dropping it is the other half: a control that vanishes takes
+  // the knowledge that the row is actionable with it.
+  const locked = guard === "locked" || !operatorReady;
+  const lockNote = guard === "locked"
+    ? "Take is disabled: operator actions are switched off on this deployment, so an open escalation cannot be taken from the desk. Acknowledging from Telegram with /ack still works."
+    : !operatorReady
+      ? "Take is disabled: taking an escalation needs the operator credential. Enter the operator token in Reliability → Remediation, or acknowledge from Telegram with /ack."
+      : undefined;
+  /** Rows a Take would act on, so the note appears only where a button does. */
+  const takeable = ledger?.escalations.filter(
+    (e) => !e.resolved_at && !e.acknowledged_at && !taken[e.id],
+  ) ?? [];
+
   return (
     <section className="card console-card" aria-labelledby="data-quality-ledger-heading">
       <div className="section-heading compact">
@@ -185,6 +214,12 @@ export default function DataQualityLedger({ validation, healthLoaded, operatorTo
             Escalations
             <small className="muted"> — a burst of fatal findings, or a fail rate over the threshold, per provider; one per cooldown, auto-resolved when it clears.</small>
           </p>
+          {lockNote && takeable.length > 0 && (
+            // On screen, not only in the disabled button's tooltip: a dimmed
+            // control with no visible reason is the same dead end as a missing
+            // one, and a tooltip is not reachable by touch.
+            <p className="console-note">{lockNote}</p>
+          )}
           {ledger.escalations.length === 0 ? (
             <p className="sub">
               No escalation in the last {ledger.windowMinutes >= 1440 ? `${Math.round(ledger.windowMinutes / 60)} hours` : `${ledger.windowMinutes} minutes`};{" "}
@@ -204,7 +239,8 @@ export default function DataQualityLedger({ validation, healthLoaded, operatorTo
                         type="button"
                         className="text-action"
                         onClick={() => void acknowledge(e.id)}
-                        disabled={acking === e.id}
+                        disabled={locked || acking === e.id}
+                        title={lockNote}
                       >
                         {acking === e.id ? "Taking…" : "Take"}
                       </button>

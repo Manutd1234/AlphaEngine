@@ -96,3 +96,59 @@ describe("the health snapshot and the panels say whose numbers these are", () =>
     assert.ok(quarantine.includes("ledger persisted on the gateway"));
   });
 });
+
+/**
+ * E2.7's gate, which landed one layer down from where it was asked for.
+ *
+ * The Take button rendered on `!resolved_at && !acknowledged_at && !taken[id]`
+ * and never asked whether this tab could act, so a reader with no credential
+ * was shown a live control and learned it was refused only after clicking. The
+ * gate belongs beside the button as well as in the route — and it gates on
+ * `operatorReady`, not on the token, because an open demo deployment accepts
+ * the acknowledgement with no header and a button withheld there would be
+ * refusing an action that works.
+ */
+describe("taking an escalation is offered only where it would be accepted", () => {
+  const panel = read("components/data/DataQualityLedger.tsx");
+  const console_ = read("components/DataConsole.tsx");
+
+  it("the panel takes the same two gate props every other gated control takes", () => {
+    assert.match(panel, /guard: GuardMode;/);
+    assert.match(panel, /operatorReady: boolean;/);
+    assert.match(panel, /const locked = guard === "locked" \|\| !operatorReady;/);
+  });
+
+  it("the Data console hands it the guard and the readiness, not just the token", () => {
+    assert.match(
+      console_,
+      /<DataQualityLedger[^>]*guard=\{guard\}[^>]*operatorReady=\{operatorReady\}/,
+      "the gate cannot be decided from the token alone — open-demo accepts an unheaded ack",
+    );
+  });
+
+  it("the button is disabled rather than dropped, and carries the reason", () => {
+    assert.match(panel, /disabled=\{locked \|\| acking === e\.id\}/);
+    assert.match(panel, /title=\{lockNote\}/);
+    assert.doesNotMatch(
+      panel,
+      /\{!e\.resolved_at && !e\.acknowledged_at && !taken\[e\.id\] && operatorReady/,
+      "the row still says a Take exists; only its availability changes",
+    );
+  });
+
+  it("the refusal is on screen, not only in a tooltip, and names both causes", () => {
+    assert.match(panel, /<p className="console-note">\{lockNote\}<\/p>/);
+    assert.ok(panel.includes("operator actions are switched off on this deployment"));
+    assert.ok(panel.includes("Enter the operator token in Reliability"));
+    assert.ok(
+      panel.includes("acknowledge from Telegram with /ack"),
+      "an unavailable action says what still works",
+    );
+  });
+
+  it("shows the note only where a Take button would have been", () => {
+    assert.match(panel, /const takeable = ledger\?\.escalations\.filter\(/);
+    assert.match(panel, /\{lockNote && takeable\.length > 0 && \(/);
+  });
+});
+

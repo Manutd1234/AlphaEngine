@@ -2,7 +2,7 @@
  * Lines the desk was asked to remove, asserted to stay removed.
  *
  * Every entry below was named directly by the person reading the app and taken
- * out in rounds D7, F3, F4 and G3. Nothing stopped one coming back: a copy
+ * out in rounds D5, D7, F3, F4 and G3. Nothing stopped one coming back: a copy
  * sweep that re-adds a sentence, a revert, a component rewritten from an older
  * version — all silent, because a removed line leaves no test behind it.
  *
@@ -83,6 +83,23 @@ const REMOVED: ReadonlyArray<readonly [string, string]> = [
   ["A2.23", "Triage by impact"],
   ["A2.23", "New items enter Intake"],
   ["A2.25", "This page manages an identity"],
+
+  // Round D5's de-duplication sweeps. Each phrase below was copied from the
+  // DELETED line of the commit named beside it, not from the plan item that
+  // asked for it — F4.1 sat in this list for eleven rounds pinning "apply the
+  // same convention" while the screen read "apply the convention these
+  // descriptions assume", so the guard was green and the line was up.
+  ["D5.6", "equal positions"],                          // b366999, AllocationDonut
+  ["D5.6", "Parametric VaR assumes normal returns"],    // b366999, RiskEngine
+  ["D5.6", "Positions inside the drift band are left alone"], // b366999, AllocationPanel
+  ["D5.7", "Cost decomposition per venue."],            // 80cc634, SpreadDecomposition
+  ["D5.7", "Execution venues across the audit window."], // 80cc634, VenueMixDonut
+  ["D5.7", "Mirrored decisions as Postgres commits them"], // 80cc634, DeskTape
+  ["D5.9", "Compare against:"],                         // bf1a03a, StrategyDocCard
+  // The trigger's `{term}` echo, which printed every explained tile's label a
+  // second time beside the glyph. The fragment spans the tag because that is
+  // what made it unique — the glyph alone is the version that stayed.
+  ["D5.10", "ⓘ</span> {term}"],                         // 3dfa9d1, QuantEducationalTooltip
 ];
 
 /**
