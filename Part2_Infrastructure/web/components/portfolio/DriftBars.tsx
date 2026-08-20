@@ -109,8 +109,8 @@ export default function DriftBars({
         role="img"
         aria-label={
           `Drift from target weight for ${targets.length} positions, as a share of current gross. `
-          + `${outside} sit outside the ${pct(driftBand, 0)} band and would be traded; the rest `
-          + `are left alone. The same figures are in the table below.`
+          + `${outside} sit outside the ${pct(driftBand, 0)} band and would be traded. `
+          + `The same figures are in the table below.`
         }
       >
         {/* The band. Filled when it means something — when it does not balance,
@@ -230,36 +230,32 @@ export default function DriftBars({
         )}
       </svg>
 
-      {/* A worked reading rather than a key. A key names the hues and leaves the
-          reader to work out what makes one appear; these are the three rules,
-          quoting the band that is on screen right now, so moving the slider
+      {/* The three rules, quoting the band on screen now, so moving the slider
           rewrites the legend along with the bars. */}
       <ul className="legend drift-legend">
         <li>
           <i aria-hidden style={{ background: "var(--diverging-pos)" }} />
           <span>
-            <strong>Add.</strong> The target sits at least {pct(driftBand, 0)} of gross{" "}
-            <em>above</em> the position, so the book is underweight it and a trade is proposed.
-            On a <strong>short</strong> that trade is a <span className="num">SELL</span>:
-            adding to a short means selling more of it.
+            <strong>Add.</strong> Target at least {pct(driftBand, 0)} of gross{" "}
+            <em>above</em> the position. On a <strong>short</strong> that trade is a{" "}
+            <span className="num">SELL</span>.
           </span>
         </li>
         <li>
           <i aria-hidden style={{ background: "var(--diverging-neg)" }} />
           <span>
-            <strong>Trim.</strong> The target sits at least {pct(driftBand, 0)} of gross{" "}
-            <em>below</em> the position, so the book is overweight it. On a short that trade is a{" "}
-            <span className="num">BUY</span>, for the same reason in reverse.
+            <strong>Trim.</strong> Target at least {pct(driftBand, 0)} of gross{" "}
+            <em>below</em> the position. On a short that trade is a{" "}
+            <span className="num">BUY</span>.
           </span>
         </li>
         <li>
           <i aria-hidden style={{ background: "var(--text-muted)" }} />
           <span>
-            <strong>Left alone.</strong> The gap is smaller than ±{pct(driftBand, 0)}, so the
-            position stays inside the shaded band and emits no trade at all. Right now{" "}
+            <strong>Left alone.</strong> Inside ±{pct(driftBand, 0)}, so no trade:{" "}
             <span className="num">{targets.length - outside}</span> of{" "}
             <span className="num">{targets.length}</span>{" "}
-            {targets.length - outside === 1 ? "position sits" : "positions sit"} here.
+            {targets.length - outside === 1 ? "position" : "positions"}.
           </span>
         </li>
       </ul>
@@ -268,53 +264,33 @@ export default function DriftBars({
         Drift is{" "}
         <span className="num">(target notional − current notional) ÷ gross before</span> — a share
         of the <strong>whole book</strong>, not of the position, so a bar reading{" "}
-        {pct(driftBand, 0)} on a name twice that size means moving half of it. The band does two
-        jobs, the colour here and the filter on the trade list.
-        A coloured bar and a trade row are therefore the same set, and dragging the slider
-        changes both in one motion.
+        {pct(driftBand, 0)} on a name twice that size means moving half of it.
       </p>
-
-      {unbalancedSum != null && (
-        <p className="research-note">
-          One state breaks that equivalence, and it is the state on screen: typed weights sum to{" "}
-          {pct(unbalancedSum, 1)} rather than to one, so the bars still colour but no trade is
-          composed from them.
-        </p>
-      )}
 
       {clipped.length > 0 && (
         <p className="research-note">
           {clipped.join(", ")} {clipped.length === 1 ? "carries" : "carry"} a{" "}
-          <span className="num">capped</span> marker: the target ran into that symbol&apos;s
-          own notional limit and was clipped back to it. The marker changes neither the colour of a
-          bar nor its length, so a clipped position can sit grey inside the band. That is a
-          different condition from the gross cap, which replaces the{" "}
-          <span className="num">current → target</span> pair on the right with{" "}
-          <span className="num">—</span>.
+          <span className="num">capped</span> marker: the target hit that symbol&apos;s own
+          notional limit. A capped position can still sit grey inside the band.
         </p>
       )}
 
       {only && (
         <p className="research-note">
-          <strong>One position, so nothing here can move.</strong> A single-asset book is trivially
-          100% of itself under every method offered, which is why the
-          model selector produces identical output whichever one is picked.
+          <strong>One position, so nothing here can move.</strong> A single-asset book is 100% of
+          itself under every method, so the model selector changes nothing.
           {onTarget ? (
             <>
-              {" "}Its drift is{" "}
+              {" "}Drift is{" "}
               <span className="num">
                 ({usd(only.targetNotional)} − {usd(only.currentNotional)}) ÷{" "}
                 {usd(only.currentNotional)} = 0
               </span>
-              , so the bar is a one-pixel hairline: a measured zero is drawn rather than omitted,
-              and the drift-band slider has nothing to
-              add or remove.
+              , drawn as a hairline: a measured zero, not an omission.
             </>
           ) : (
             <>
-              {" "}Its target was not left at the full book — a risk limit clipped it —
-              so the drift beside it is the distance to that cap, not to another
-              position.
+              {" "}A risk limit clipped its target, so the drift is the distance to that cap.
             </>
           )}
         </p>
