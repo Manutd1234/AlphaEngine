@@ -38,7 +38,7 @@ import {
 } from "@/lib/portfolio";
 import { useSession } from "@/lib/use-session";
 import { probeGateway } from "@/lib/use-gateway-connection";
-import { useDeskStream } from "@/lib/use-desk-stream";
+import { useDeskStream, type DeskStreamState } from "@/lib/use-desk-stream";
 import { usePolling } from "@/lib/use-polling";
 import {
   type AllocationLimits,
@@ -95,6 +95,7 @@ export interface BookView {
   /** A book is on screen but the most recent refresh failed. Writes are disabled. */
   isStale: boolean;
   lastSuccessAt: Date | null;
+  streamState: DeskStreamState;
   refresh: (quiet?: boolean) => Promise<void>;
 
   sandbox: boolean;
@@ -317,9 +318,8 @@ export function useBook(): BookView {
    * picture. `seq` moves only on a real change, so an idle desk still costs
    * nothing and a moving one is fetched within about a second of moving.
    *
-   * The poll stays underneath. It is the fallback for every deployment without
-   * a gateway stream, and the backstop for a stream that dies quietly — this
-   * is a signal that something changed, never the only way to learn it.
+   * The poll stays underneath: the fallback for a deployment with no stream and
+   * the backstop for one that dies quietly. A signal, never the only way.
    */
   const stream = useDeskStream(!sandbox);
   const lastSeq = useRef(0);
@@ -354,15 +354,14 @@ export function useBook(): BookView {
    * failure than showing generated numbers, only a less useful one.
    *
    * What makes it safe is not the refusal, it is the labelling and the lock:
-   * `describeTier` reports an incident sandbox as "△ Sandbox · gateway incident"
-   * rather than the "◇ Sandbox · no gateway here" a configuration-absent desk
-   * gets, and `writesEnabled` is false in every tier but `live`, so the ticket,
-   * the kill switch and the operator actions stay disabled. A reader is told the
-   * numbers are generated and why, and cannot act on them either way.
+   * `describeTier` reports an incident sandbox as "△ Sandbox · gateway
+   * incident" rather than the "◇ Sandbox · no gateway here" a
+   * configuration-absent desk gets, and `writesEnabled` is false in every tier
+   * but `live`. A reader is told the numbers are generated and cannot act.
    *
-   * Only when there is nothing else: a cached payload is preferred over a
-   * generated one, which is why this waits on `portfolio` being null. And never
-   * over a human choice — `chose.current` is checked first, as always.
+   * Only when there is nothing else: a cached payload beats a generated one
+   * (hence the wait on `portfolio` being null), and never a human choice —
+   * `chose.current` is checked first, as always.
    */
   useEffect(() => {
     if (loading || portfolio || chose.current) return;
@@ -622,6 +621,7 @@ export function useBook(): BookView {
       provenance: { tier, cause, lastGoodAt: lastSuccessAt },
       isStale: !sandbox && connectionState === "stale",
       lastSuccessAt,
+      streamState: stream.state,
       refresh,
       sandbox,
       setSandbox,
@@ -648,7 +648,7 @@ export function useBook(): BookView {
     }),
     [
       book, loading, refreshing, error, connectionState, tier, cause,
-      lastSuccessAt, refresh, sandbox, setSandbox, seed, risk, covarianceModel,
+      lastSuccessAt, stream.state, refresh, sandbox, setSandbox, seed, risk, covarianceModel,
       varValidation, varSeries, riskPositions, returns, riskLoading,
       missingHistory, referenceSymbol, sessionBars, barTimes, advBySymbol,
       referenceSessionReturn, riskShare, betaBySymbol, allocationLimits,

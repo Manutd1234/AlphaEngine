@@ -109,10 +109,16 @@ export function BookFallback({ view, onOpenResearch, surface = "portfolio" }: Bo
  * the top of both tabs.
  */
 export function BookChrome({ view }: { view: BookView }) {
-  const { book, error, isStale, sandbox, setSandbox, refresh, refreshing, lastSuccessAt } = view;
+  const { book, error, isStale, sandbox, setSandbox, refresh, refreshing, lastSuccessAt, streamState } = view;
   if (!book) return null;
 
-  const lastRefreshLabel = (lastSuccessAt ?? new Date(book.as_of)).toLocaleTimeString();
+  // How the last change arrived. The stream and the poll beneath it deliver the
+  // same numbers at about a second and up to fifteen, and a desk running on the
+  // fallback looked exactly like one running live — so the stream implied a
+  // freshness it had stopped delivering. Said in words, never by the dot alone.
+  const transport = sandbox ? null : streamState === "live" ? "live-pushed" : "polled";
+  const lastRefreshLabel = (lastSuccessAt ?? new Date(book.as_of)).toLocaleTimeString()
+    + (transport ? `, ${transport}` : "");
   const gatewayEnvironment = book.gateway?.environment?.trim().toLowerCase();
   const gatewayLabel = gatewayEnvironment && gatewayEnvironment !== "production"
     ? `${gatewayEnvironment[0].toUpperCase()}${gatewayEnvironment.slice(1)} risk gateway live`

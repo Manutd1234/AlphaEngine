@@ -18,12 +18,24 @@ export default function FreshnessStamp({
   pollMs,
   paused = false,
   label = "Updated",
+  transport,
 }: {
   updatedAt: Date | null;
   /** Poll interval, so the reader knows when the next refresh is due. */
   pollMs?: number | null;
   paused?: boolean;
   label?: string;
+  /**
+   * How this snapshot actually arrived, when the surface knows.
+   *
+   * The gateway stream and the poll underneath it deliver the same numbers at
+   * very different latencies — about a second against up to fifteen. A reader
+   * looking at a figure has no way to tell which one brought it, so a desk
+   * running on the fallback looks exactly like a desk running live. Saying
+   * which is the whole point of H9: the stream must not imply a freshness it
+   * has stopped delivering.
+   */
+  transport?: "stream" | "poll" | null;
 }) {
   const [, tick] = useState(0);
 
@@ -61,6 +73,10 @@ export default function FreshnessStamp({
       <small className="num">
         {ago}
         {paused ? "; polling paused" : pollMs ? `; every ${Math.round(pollMs / 1000)} s` : ""}
+        {/* Words, never the dot alone: the pulse already means "on time", and
+            a second meaning on one mark is colour-only meaning wearing a
+            shape. */}
+        {transport === "stream" ? "; live-pushed" : transport === "poll" ? "; polled" : ""}
       </small>
     </span>
   );
