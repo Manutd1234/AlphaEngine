@@ -20,7 +20,7 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -298,6 +298,18 @@ describe("cosine distance maps to the similarity the panel renders", () => {
   });
 });
 
+/**
+ * `modules/research_rag.py` became `modules/research_rag/**`. Reading one file of
+ * a package is how a scan like this stops scanning and goes green on nothing,
+ * so every file of the package is concatenated instead.
+ */
+const ragSource = () => {
+  const dir = fileURLToPath(new URL("../../modules/research_rag/", import.meta.url));
+  const files = readdirSync(dir).filter((f) => f.endsWith(".py")).sort();
+  assert.ok(files.length >= 2, `the research_rag package listed ${files.length} files`);
+  return files.map((f) => readFileSync(dir + f, "utf8")).join("\n");
+};
+
 describe("both indexes answer behind the same relevance floor", () => {
   /**
    * `min_similarity` existed on the Supabase function from the start and was
@@ -315,7 +327,7 @@ describe("both indexes answer behind the same relevance floor", () => {
       readFileSync(fileURLToPath(new URL("../lib/oracle/queries.ts", import.meta.url)), "utf8"),
     )?.[1];
     const py = /^RAG_MIN_SIMILARITY = ([0-9.]+)/m.exec(
-      readFileSync(fileURLToPath(new URL("../../modules/research_rag.py", import.meta.url)), "utf8"),
+      ragSource(),
     )?.[1];
     assert.ok(ts && py, "one of the two floors is missing");
     assert.equal(Number(ts), Number(py), "the Oracle and Supabase relevance floors have drifted");
@@ -331,7 +343,7 @@ describe("both indexes answer behind the same relevance floor", () => {
   });
 
   it("Supabase is actually passed its floor rather than defaulting to zero", () => {
-    const rag = readFileSync(fileURLToPath(new URL("../../modules/research_rag.py", import.meta.url)), "utf8");
+    const rag = ragSource();
     const call = /"\/rest\/v1\/rpc\/match_research_documents",[\s\S]*?\}/.exec(rag)?.[0] ?? "";
     assert.match(call, /min_similarity/, "the RPC call still relies on the 0.0 default");
   });
