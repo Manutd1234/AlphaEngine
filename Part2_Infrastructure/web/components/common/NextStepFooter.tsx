@@ -6,7 +6,7 @@
  * This used to walk a fixed ring of the eight workspaces, ignoring which
  * section was on screen and what it had just said — so a reader who had just
  * read the walk-forward folds on Research was offered "Execution" whether or
- * not the candidate had cleared anything. Twenty-three rail sections carry no
+ * not the candidate had cleared anything. Twenty rail sections carry no
  * outbound contextual link of their own, and for those this footer is the only
  * exit; a generic one is barely better than none.
  *

@@ -5,7 +5,7 @@
  *
  * The role's blueprint asks to locate a failure in compute, network, provider,
  * cache or broker connectivity without opening several dashboards, so the
- * workflow answers that question in layers — Telemetry surfaces symptoms, the
+ * workflow answers that question in layers — Attention surfaces symptoms, the
  * Services matrix says which provider or breaker is involved, Logs says when
  * it started, and Remediation is where a guarded response or drill is performed.
  *

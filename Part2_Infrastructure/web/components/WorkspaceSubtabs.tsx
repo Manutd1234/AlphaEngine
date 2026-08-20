@@ -189,8 +189,8 @@ interface WorkspaceSubtabPanelProps<T extends string> {
  * A section mounts the first time it is opened, and stays mounted after.
  *
  * Every panel used to render its children immediately and merely hide the ones
- * that were not active, which meant arriving on Research built all eight of its
- * sections at once — the tear sheet, the walk-forward timeline, the fourteen
+ * that were not active, which meant arriving on Research built all nine of its
+ * sections at once — the tear sheet, the walk-forward timeline, the forty-six
  * strategy cards, the lineage DAG, the run history — to show one. Measured at
  * 4x CPU throttle that was a 69 ms long task, the only switch on the desk that
  * produced one at all.

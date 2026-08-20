@@ -5,7 +5,7 @@
  *
  * The point of this panel is not that it sends orders — it is that it renders
  * the gateway's whole check vector for *both* outcomes. A ticket that says only
- * "rejected" teaches a trader nothing; one that says which of the fourteen gates
+ * "rejected" teaches a trader nothing; one that says which of the pre-trade gates
  * fired, with the number that tripped it, turns a refusal into information.
  *
  * The three presets exist for the same reason. "Fat finger" and "rate limit"
@@ -538,7 +538,7 @@ export default function OrderTicket({
             /* Keyed per decision so every submit replays the assembly of the
                gate vector — and only a submit: re-renders and resizes leave
                the settled rows alone. The stagger delay caps at 480ms so a
-               14-gate vector never makes a reader wait on the tail. */
+               gate vector never makes a reader wait on the tail. */
             <ol className="cockpit-checks" key={decisionSeq.current}>
               {latest.checks.map((check, index) => (
                 <li
