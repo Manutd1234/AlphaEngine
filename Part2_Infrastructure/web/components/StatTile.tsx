@@ -1,11 +1,11 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 
 import QuantEducationalTooltip from "@/components/common/QuantEducationalTooltip";
 
 /** A single number is not a chart. These are stat tiles, not one-bar bar charts. */
-export default function StatTile({
+function StatTile({
   label,
   value,
   note,
@@ -38,3 +38,14 @@ export default function StatTile({
     </div>
   );
 }
+
+/**
+ * Memoised, with a caveat worth stating rather than hiding: `value` is a
+ * ReactNode, and a caller that inlines `<NumberTicker …/>` hands a new element
+ * object on every parent render, which no shallow comparison can see through.
+ * The skip therefore lands for the tiles whose value is a string or a number —
+ * most of a row, most of the time — and for the rest the memo on NumberTicker
+ * itself is what stops the repaint one level down. `explain`, when it is an
+ * object literal at the call site, defeats it the same way.
+ */
+export default memo(StatTile);
