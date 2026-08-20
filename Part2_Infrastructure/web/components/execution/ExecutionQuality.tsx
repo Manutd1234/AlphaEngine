@@ -53,7 +53,7 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
             {source === "unavailable"
               ? "No decision history is reachable in this deployment."
               : source === "sandbox"
-                ? `Measured over ${summary.orders} generated decisions — same maths, seeded rows.`
+                ? `Measured over ${summary.orders} generated decisions; same maths, seeded rows.`
                 : summary.orders
                   ? `Measured over the ${summary.orders} most recent decisions.`
                   : "Waiting for the first decision."}
@@ -120,8 +120,7 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
               negative slippage by design (risk_proxy.py `_maker_fill`). */}
           {source === "sandbox" && improvement.n > 0 && improvement.improved === 0 && (
             <p className="muted cockpit-quality__caveat">
-              Sandbox fills are taker-side by construction, so none can beat the mid. On a live
-              gateway, resting fills price inside it.
+              Sandbox fills are taker-side by construction, so none can beat the mid.
             </p>
           )}
 
@@ -135,7 +134,7 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
             <small className="muted">
               Time inside the pre-trade battery, not order-to-fill.
               {source === "sandbox"
-                ? " Sandbox latencies are generated uniform 140–250 µs — the flat shape is the generator, not a gateway."
+                ? " Sandbox latencies are generated uniform 140–250 µs; the flat shape is the generator."
                 : ""}
             </small>
           </div>
@@ -157,8 +156,8 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
           {summary.topRejectReason ? (
             <p className="notice">
               Most frequent block: <strong>{summary.topRejectReason.gate}</strong> ({summary.topRejectReason.count}
-              {summary.topRejectReason.count === 1 ? " order" : " orders"}). If that is not deliberate, the size is
-              wrong for the limit.
+              {summary.topRejectReason.count === 1 ? " order" : " orders"}). If that is not deliberate, the size
+              is wrong for the limit.
             </p>
           ) : null}
 
