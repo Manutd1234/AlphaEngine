@@ -14,7 +14,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from modules.data_ops_store import SqliteStore, open_data_ops_store
+from modules.data_ops_backend import DataOpsStore, open_data_ops_store
+from modules.data_ops_store import SqliteStore
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 def _settings(**over):
@@ -115,3 +118,75 @@ class TestTheSharedRowInterface:
         with pytest.raises(ValueError, match="not a bare SQL identifier"):
             store.fetch("data_work_items; DROP TABLE data_work_items")
         store.close()
+
+
+class TestTheConfiguredBackendIsActuallyUsED:
+    """The check that was missing, and the reason it was missing mattered.
+
+    Everything else in this file tested the FACTORY: that it builds the right
+    store, refuses a typo, refuses missing credentials. All of it passed while
+    `grep -rn open_data_ops_store modules/ main.py` returned nothing but the
+    definition — every production path constructed SqliteStore directly through
+    the `str` argument the stores accept for test convenience, so
+    DATA_OPS_BACKEND selected a backend nothing ever asked for.
+
+    A factory with no callers passes every test written about the factory.
+    These are written about the CALLERS instead.
+    """
+
+    SINGLETONS = (
+        ("modules/work_items.py", "def get_work_items"),
+        ("modules/data_quality.py", "def get_data_quality"),
+    )
+
+    @staticmethod
+    def _body(relative: str, marker: str) -> str:
+        source = (ROOT / relative).read_text(encoding="utf-8")
+        start = source.index(marker)
+        return source[start:start + 600]
+
+    def test_each_singleton_builds_through_the_configured_backend(self):
+        for relative, marker in self.SINGLETONS:
+            body = self._body(relative, marker)
+            assert "get_data_ops_store()" in body, (
+                f"{relative} {marker} does not use the configured backend, so "
+                f"DATA_OPS_BACKEND cannot reach it"
+            )
+            assert "data_ops_db_path" not in body, (
+                f"{relative} {marker} still names the SQLite path directly"
+            )
+
+    def test_the_scheduler_uses_it_too_at_both_sites(self):
+        source = (ROOT / "modules/data_scheduler.py").read_text(encoding="utf-8")
+        assert source.count("get_data_ops_store()") >= 2, (
+            "data_scheduler builds a ScheduleRunStore in two places and both "
+            "must go through the configured backend"
+        )
+        assert "ScheduleRunStore(str(" not in source
+
+    def test_the_store_is_shared_rather_than_rebuilt(self):
+        """Under Postgres each store is an httpx client with its own pool.
+
+        `_record_outcome` ran on every job completion and built a fresh backend
+        each time — a wasted file open on SQLite, an unclosed connection pool
+        per job on Postgres.
+        """
+        from modules.data_ops_backend import get_data_ops_store, reset_data_ops_store
+
+        reset_data_ops_store()
+        try:
+            assert get_data_ops_store() is get_data_ops_store()
+        finally:
+            reset_data_ops_store()
+
+    def test_both_backends_satisfy_the_declared_protocol(self):
+        """Structural, so a method added to one and forgotten on the other fails."""
+        from modules.data_ops_postgrest import PostgrestStore
+
+        sqlite = SqliteStore(":memory:")
+        assert isinstance(sqlite, DataOpsStore)
+        sqlite.close()
+
+        postgres = PostgrestStore("https://example.supabase.co", "k")
+        assert isinstance(postgres, DataOpsStore)
+        postgres.close()

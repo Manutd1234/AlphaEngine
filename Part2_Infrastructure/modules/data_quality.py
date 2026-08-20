@@ -33,11 +33,11 @@ from typing import Any, Literal
 from pydantic import BaseModel
 
 from config import settings
+from modules.data_ops_backend import get_data_ops_store
 from modules.data_ops_store import SqliteStore
 
-# Re-exported so every existing `from modules.data_quality import <model>`
-# keeps working. The `as` form is the explicit re-export idiom — a plain
-# import here reads as unused and `ruff --fix` deletes it.
+# Re-exported so `from modules.data_quality import <model>` keeps working. The
+# `as` form is deliberate: a plain import here reads as unused to `ruff --fix`.
 from modules.data_quality_models import CHECKS_PER_FINDING_CAP as CHECKS_PER_FINDING_CAP  # noqa: F401
 from modules.data_quality_models import FINDINGS_BATCH_CAP as FINDINGS_BATCH_CAP  # noqa: F401
 from modules.data_quality_models import FUTURE_SLACK_MS as FUTURE_SLACK_MS  # noqa: F401
@@ -762,7 +762,7 @@ _ledger: DataQualityLedger | None = None
 def get_data_quality() -> DataQualityLedger:
     global _ledger
     if _ledger is None:
-        _ledger = DataQualityLedger(str(settings.data_ops_db_path))
+        _ledger = DataQualityLedger(get_data_ops_store())
     return _ledger
 
 log = logging.getLogger("alphaengine.data_quality")

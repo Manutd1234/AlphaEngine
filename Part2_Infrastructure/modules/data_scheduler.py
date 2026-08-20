@@ -132,10 +132,13 @@ def record_schedule_outcome(job_id: str, status: str) -> None:
     if schedule_id is None:
         return
     try:
-        from config import settings
         from modules.data_jobs import ScheduleRunStore
+        from modules.data_ops_backend import get_data_ops_store
 
-        ScheduleRunStore(str(settings.data_ops_db_path)).record_run(
+        # The shared store, not a fresh one. This ran on every job completion
+        # and built a new backend each time — a wasted file open on SQLite, an
+        # unclosed connection pool per job on Postgres.
+        ScheduleRunStore(get_data_ops_store()).record_run(
             schedule_id, time.time() * 1000.0, job_id, status,
         )
     except Exception as exc:
@@ -154,8 +157,9 @@ class DataScheduler:
     def _runs(self):
         if self._store is None:
             from modules.data_jobs import ScheduleRunStore
+            from modules.data_ops_backend import get_data_ops_store
 
-            self._store = ScheduleRunStore(str(settings.data_ops_db_path))
+            self._store = ScheduleRunStore(get_data_ops_store())
         return self._store
 
     def due(self, now_ms: float | None = None) -> list[DataSchedule]:

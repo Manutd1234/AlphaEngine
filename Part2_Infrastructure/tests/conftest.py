@@ -232,3 +232,24 @@ def completed_backtest(bot):
     )
     bot.queue._jobs[record.job_id] = record
     return result
+
+
+@pytest.fixture(autouse=True)
+def _reset_data_ops_backend():
+    """Every test starts with no cached data-ops store.
+
+    The store is a process-wide singleton now, because four call sites share
+    one backend and under Postgres each one is an httpx client with its own
+    pool. That cache defeats the way tests redirect `data_ops_db_path`: the
+    redirect lands after something already built a store against the real path.
+
+    Cleared at SETUP rather than teardown, and cleared rather than CLOSED. Both
+    were wrong first: closing after every test took the handle out from under
+    module-scoped fixtures, and `test_web_state.py` failed in the full run
+    while passing alone.
+    """
+    from modules.data_ops_backend import clear_data_ops_cache
+
+    clear_data_ops_cache()
+    yield
+    clear_data_ops_cache()

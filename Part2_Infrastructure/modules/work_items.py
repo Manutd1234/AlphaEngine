@@ -23,6 +23,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from config import settings
+from modules.data_ops_backend import get_data_ops_store
 from modules.data_ops_store import SqliteStore
 
 log = logging.getLogger("alphaengine.work_items")
@@ -327,5 +328,5 @@ _store: WorkItemStore | None = None
 def get_work_items() -> WorkItemStore:
     global _store
     if _store is None:
-        _store = WorkItemStore(str(settings.data_ops_db_path))
+        _store = WorkItemStore(get_data_ops_store())
     return _store
