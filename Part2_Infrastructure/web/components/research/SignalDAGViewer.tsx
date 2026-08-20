@@ -94,11 +94,18 @@ export default function SignalDAGViewer({
                 </em>
               </span>
             </button>
-            {index < stages.length - 1 && (
-              <span className="signal-workflow__arrow" aria-hidden>
-                →
-              </span>
-            )}
+            {/* Rendered for every stage, hidden on the last. The arrow is a
+                child of the stage, and the stage is a flex row — so a stage
+                without one gave its node the 8px gap and the glyph's width
+                back, and the fifth box came out measurably wider than the
+                other four. Uniform markup, uniform widths. */}
+            <span
+              className="signal-workflow__arrow"
+              aria-hidden
+              style={index === stages.length - 1 ? { visibility: "hidden" } : undefined}
+            >
+              →
+            </span>
           </li>
         ))}
       </ol>
