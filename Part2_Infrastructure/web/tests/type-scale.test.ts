@@ -20,16 +20,15 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { globalsCss, locateInGlobals } from "./globals-css";
+
 const root = fileURLToPath(new URL("..", import.meta.url));
-const css = readFileSync(join(root, "app/globals.css"), "utf8");
+const css = globalsCss;
 
 /** Comment bodies blanked, newlines kept — declarations only, lines intact. */
 const declarations = css.replace(/\/\*[\s\S]*?\*\//g, (block) =>
   block.replace(/[^\n]/g, " "));
 
-function lineOf(index: number): number {
-  return css.slice(0, index).split("\n").length;
-}
 
 /** The `{ … }` body of the block starting at `index`, brace-matched. */
 function blockBody(index: number): string {
@@ -111,7 +110,7 @@ describe("one type scale", () => {
       const value = match[1].trim();
       if (value.startsWith("var(--fs-")) continue;
       if (SANCTIONED.has(value)) continue;
-      offenders.push(`globals.css:${lineOf(match.index)} — font-size: ${value}`);
+      offenders.push(`${locateInGlobals(match.index)} — font-size: ${value}`);
     }
     assert.deepEqual(
       offenders,
@@ -208,7 +207,7 @@ describe("two font stacks", () => {
       if (value.startsWith("Georgia")) continue;
       // The stack definitions themselves live on :root html vars.
       if (value.startsWith("var(--font-")) continue;
-      offenders.push(`globals.css:${lineOf(match.index)} — font-family: ${value}`);
+      offenders.push(`${locateInGlobals(match.index)} — font-family: ${value}`);
     }
     assert.deepEqual(
       offenders,
@@ -222,7 +221,7 @@ describe("two font stacks", () => {
     assert.equal(
       uses.length,
       1,
-      "Georgia callers at: " + uses.map((m) => `globals.css:${lineOf(m.index)}`).join(", "),
+      "Georgia callers at: " + uses.map((m) => `${locateInGlobals(m.index)}`).join(", "),
     );
   });
 });

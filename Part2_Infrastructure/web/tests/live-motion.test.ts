@@ -13,6 +13,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { globalsCss } from "./globals-css";
+
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (path: string) => readFileSync(`${root}${path}`, "utf8");
 
@@ -71,7 +73,7 @@ describe("a NumberTicker keeps its box wherever it counts", () => {
   // surface around it restyles that span too — the readiness rows made it a
   // grid box, so "8/8" rendered as "8" over "/8", and the ring demoted its
   // numerator to the muted denominator size. Direct-child selectors only.
-  const css = read("app/globals.css");
+  const css = globalsCss;
 
   it("the readiness rows style their own cells, not the ticker inside them", () => {
     assert.match(css, /\.developer-cp-readiness__checks > div > span \{/);
@@ -114,7 +116,9 @@ describe("durations wear the unit their magnitude earns", () => {
   const SURFACES = [
     "components/execution/ExecutionQuality.tsx",
     "components/execution/DeskTape.tsx",
-    "components/execution/OrderTicket.tsx",
+    // The decision latency prints in the verdict, which left OrderTicket
+    // when that file passed the length ceiling.
+    "components/execution/OrderVerdict.tsx",
     // The lifetime latency tiles and the by-instrument latency column moved
     // out of PortfolioWorkspace with the Performance section when that file was
     // split; the workspace itself now formats no duration at all.

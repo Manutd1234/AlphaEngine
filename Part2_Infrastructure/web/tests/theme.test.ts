@@ -37,10 +37,9 @@ import {
   resolveThemePreference,
 } from "../lib/theme";
 
-const css = readFileSync(
-  fileURLToPath(new URL("../app/globals.css", import.meta.url)),
-  "utf8",
-);
+import { globalsCss } from "./globals-css";
+
+const css = globalsCss;
 
 /** Custom properties declared inside the block that starts at `startIndex`. */
 function tokensIn(block: string): Map<string, string> {

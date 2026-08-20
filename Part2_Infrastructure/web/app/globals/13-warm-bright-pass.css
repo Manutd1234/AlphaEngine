@@ -1,0 +1,1066 @@
+/* ===========================================================================
+   Warm-bright pass
+   ---------------------------------------------------------------------------
+   The palette above turned the plane beige. This section is the rest of that
+   change: the surfaces that were painted with literal cool-greys rather than
+   tokens, the sticky chrome that was never actually opaque, the hero's stage
+   row, the signal workflow's imported dark theme, and the motion that makes the
+   whole thing feel like a product rather than a document.
+   =========================================================================== */
+
+/* ---------- sticky chrome is opaque ---------- */
+
+/*
+ * The header was `--surface-1` at 96% with an 18px backdrop blur, on the
+ * assumption that the blur would destroy anything showing through. It does not:
+ * `backdrop-filter` is silently unavailable on GPU-less and headless
+ * compositors, and a captured screenshot shows the page heading's chips —
+ * "INSTRUMENT / BTCUSDT", "AUTHORITY / Paper only" — legible straight through
+ * the bar, tangled with the kill switch and the provider chip.
+ *
+ * Legibility of fixed chrome cannot depend on an effect that may not run. The
+ * bar is opaque; the depth now comes from a hairline and a soft drop shadow,
+ * which render everywhere.
+ */
+.workspace-header {
+  background: var(--surface-1);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--border) 60%, transparent),
+    0 10px 24px -22px color-mix(in srgb, var(--text-primary) 45%, transparent);
+}
+
+/* Same reasoning one level down: the section rail's band is a solid plane, and
+   it now carries the shadow that signals "content passes beneath me". */
+.workspace-subtabs::before {
+  background: var(--surface-0);
+  box-shadow: 0 10px 20px -20px color-mix(in srgb, var(--text-primary) 55%, transparent);
+}
+
+/* ---------- the plane ----------
+   One token, painted once at the top of the sheet. The decorative radial
+   washes that used to sit here promised depth the flat graphite ground no
+   longer claims. */
+
+/* ---------- signal execution workflow ---------- */
+
+.signal-workflow__track {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin: 0 0 var(--space-3);
+  padding: 12px;
+  overflow-x: auto;
+  list-style: none;
+  border: 1px solid color-mix(in srgb, var(--series-1) 16%, var(--border));
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--sky-1), var(--surface-2) 72%);
+  scrollbar-width: thin;
+}
+
+.signal-workflow__stage {
+  display: flex;
+  /* stretch, not center. The track is `align-items: stretch` so all five
+     stages are the same height, but centring the node inside its stage let a
+     shorter box float in the middle of it — so boxes whose kicker fits on one
+     line sat lower than their neighbours and their titles did not line up. */
+  align-items: stretch;
+  gap: 8px;
+  flex: 1 1 0;
+  /* Not `min-width: 0`: the node inside has a 152px floor and the stage was
+     shrinking below it, so at 1100px five nodes overflowed their own stages
+     and each metric row ran under the next box. The floor lives on the stage
+     (node + gap + arrow) and the track above scrolls — that is what its
+     `overflow-x: auto` is for. The print block overrides this for its grid. */
+  min-width: 176px;
+}
+
+.signal-workflow__node {
+  flex: 1;
+  min-width: 152px;
+  /* Fills the stretched stage. The print block has carried this for its own
+     grid since it was written; the interactive view never did. */
+  height: 100%;
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  text-align: left;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+
+/* The house lift, in one place with every surface that takes it.
+   `.data-work-card` declares the same three properties a few thousand lines up
+   and cannot join this list, because it sets three named border sides rather
+   than the shorthand — its left border is a priority accent that a shorthand
+   would wash out. The values are identical on purpose and the comment there says
+   so; a fourth copy is what this consolidation exists to prevent. */
+.signal-workflow__node:hover:not(:disabled),
+.cross-link-tile:hover,
+.card-interactive:hover:not(:disabled),
+.card-interactive:focus-within {
+  border-color: color-mix(in srgb, var(--series-1) 45%, var(--border));
+  box-shadow: 0 8px 18px -14px color-mix(in srgb, var(--series-1) 70%, transparent);
+  transform: translateY(-1px);
+}
+
+.signal-workflow__node.is-selected {
+  border-color: var(--series-1);
+  background: color-mix(in srgb, var(--series-1) 7%, var(--surface-1));
+}
+
+.signal-workflow__step {
+  /* Two lines' worth, always. The kickers are generated — "2 direct REST
+     clients" grows with the venue count — so some wrap and some do not, and a
+     one-line kicker pulled its title up a line above its neighbours'. Reserving
+     the taller case puts every title on the same line whatever the data says. */
+  min-height: calc(var(--fs-2xs) * var(--lh-snug) * 2);
+  color: var(--series-1);
+  font-size: var(--fs-2xs);
+  font-weight: 750;
+  letter-spacing: var(--ls-caps-wide);
+  text-transform: uppercase;
+}
+
+.signal-workflow__node > strong {
+  font-size: var(--fs-body);
+  font-weight: 700;
+  line-height: var(--lh-snug);
+}
+
+.signal-workflow__meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+/* Was unconditionally --success-text, which is what a panel that could only
+   ever say "active" needs. It now reports five states, so the colour follows
+   the reading — and never carries it alone: the glyph and the word are printed
+   beside each other in the markup, so this survives greyscale and forced
+   colours with the meaning intact. */
+.signal-workflow__meta em {
+  color: var(--text-secondary);
+  font-style: normal;
+  font-weight: 700;
+}
+
+.signal-workflow__node[data-state="ok"] .signal-workflow__meta em { color: var(--success-text); }
+.signal-workflow__node[data-state="degraded"] .signal-workflow__meta em { color: var(--warning-text); }
+.signal-workflow__node[data-state="down"] .signal-workflow__meta em { color: var(--critical-text); }
+.signal-workflow__node[data-state="absent"] .signal-workflow__meta em,
+.signal-workflow__node[data-state="unknown"] .signal-workflow__meta em { color: var(--text-muted); }
+
+/* Replaces an inline flex style on the heading row. */
+.health-matrix__counts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ---------- liquidity / time-to-liquidate ---------- */
+
+/* The three facts above the table — shared stat tiles since the
+   harmonisation pass; the nested-card dialect and its type overrides that
+   used to live here went with it. */
+.liquidity-facts {
+  margin: 14px 0;
+}
+
+/* A probe that failed says why, in the tone of a warning rather than a value —
+   the old hook swallowed the reason and rendered the same "—" a fresh row has. */
+.liquidity-probe__error {
+  color: var(--warning-text);
+}
+
+/* The line that lets a reader check the state above rather than trust it. */
+.signal-workflow__source {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.signal-workflow__source code {
+  font-family: var(--mono);
+  font-size: var(--fs-2xs);
+}
+
+.signal-workflow__arrow {
+  flex: 0 0 auto;
+  color: color-mix(in srgb, var(--series-1) 55%, var(--axis));
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+}
+
+.signal-workflow__detail {
+  padding: 10px 13px;
+  border-left: 3px solid var(--series-1);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--sky-1);
+  font-size: var(--fs-body);
+}
+
+.signal-workflow__detail p {
+  margin-top: 3px;
+  color: var(--text-secondary);
+}
+
+/* ---------- dead space ---------- */
+
+/* 310px of minimum height plus 40px of padding to say "no completed run". */
+.capability-empty {
+  min-height: 0;
+  padding: 24px;
+}
+
+/* The topology card's grid-paper plane was sized by nothing and ran on for
+   ~300px past its last node. */
+.developer-cp-topology {
+  padding-bottom: var(--space-4);
+}
+
+.next-step-footer {
+  background: linear-gradient(120deg, var(--sky-1), var(--surface-1) 70%);
+}
+
+/* ---------- motion ---------- */
+
+/*
+ * Sections rise as they enter the viewport, driven by the scroll position
+ * rather than a timer, so nothing animates that you never scrolled to and
+ * nothing has to be re-triggered on the way back up.
+ *
+ * Scoped to the top-level blocks of a workspace — not `.card`, which would put
+ * fifty independent animations on the reliability tab. Behind `@supports`
+ * because scroll-driven animations are Chromium-and-newer: elsewhere the rule
+ * never applies and the content is simply there, which is the correct fallback.
+ */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .overview-page > section,
+    .workspace-subtab-panel > *,
+    .next-step-footer {
+      animation: rise-in linear;
+      /* `none`, emphatically not `both`. With a filled animation the element
+         holds the keyframe's `opacity: 0` whenever the timeline is outside its
+         range or inactive — which is how the decision-loop footer rendered as
+         200px of blank plane at the bottom of the overview. Unfilled, the
+         animation only applies while the element is crossing the viewport
+         edge; before and after, and on any engine or viewport where the
+         timeline never becomes active, the element is simply visible. Motion
+         is allowed to fail here. Content is not. */
+      animation-fill-mode: none;
+      animation-timeline: view();
+      animation-range: entry 0% entry 32%;
+    }
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Interactive surfaces respond in line and wash, not in space — a card that
+   levitates promises a drag the cursor cannot make good on. */
+.role-card,
+.market-watchlist__item,
+button.page-insight,
+.pipeline-card--action {
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+
+.role-card:hover,
+.pipeline-card--action:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--series-1) 34%, var(--border));
+  background: color-mix(in srgb, var(--series-1) 4%, var(--surface-1));
+}
+
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.workspace-tabs button,
+.workspace-subtabs button {
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.workspace-tabs button::after,
+.workspace-subtabs button::after {
+  transition: background var(--dur) var(--ease), inset var(--dur) var(--ease);
+}
+
+/* The deployment topology stretched to match the launch-readiness panel beside
+   it and ran ~180px of empty grid-paper past its last node. Same rule as every
+   other side-by-side pair in the app: panels size to their own content. */
+.developer-cp-overview__grid {
+  align-items: start;
+}
+
+/* ---------- staggered rows ---------- */
+
+/*
+ * Fee bps / Slippage bps / WF folds sat on three different baselines.
+ * `.row` is a plain flex row of blocks, so "Slippage bps" — the only label that
+ * wraps to two lines — pushed its own input a line lower than its neighbours.
+ * The cells stretch to a common height and each pins its control to the bottom,
+ * so labels stay top-aligned, inputs stay on one baseline, and a longer label
+ * costs a line of label rather than the alignment of the row.
+ */
+.row > div {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* ---------- market watchlist ---------- */
+
+/*
+ * The 24h line wrapped on the widest prices only, so one tile in the strip
+ * stood two lines tall while the rest stood one. 142px left roughly 50px for
+ * "24h −0.4%" beside a nine-character price; it needs about 62px.
+ */
+.market-watchlist__item {
+  flex: 1 0 158px;
+  min-width: 158px;
+}
+
+.market-watchlist__item > small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * Hovering the SELECTED tile erased it.
+ *
+ * `:hover:not(:disabled)` is specificity (0,3,0) and the selected state is
+ * (0,2,0), so hover replaced the deep blue fill with a near-white tint — while
+ * the descendant colour rule kept the label, price and change at
+ * `#ffffff !important`. White on near-white: the tile you were pointing at was
+ * the one you could not read.
+ *
+ * Selection outranks hover here. Hover still responds, but through fill depth —
+ * one step deeper into the same flat blue, which cannot collide with the fill.
+ */
+.market-watchlist__item[aria-pressed="true"]:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--series-1) 92%, var(--border));
+  color: #ffffff;
+  background: color-mix(in srgb, var(--series-1) 88%, #000);
+}
+
+/* "SLIPPAGE BPS" is 94px of tracked uppercase in a 93px column, so it wrapped
+   and made the row two label-lines tall. One step down on size and tracking
+   fits all three on one line; scoped to `.row` so the wider two-column rows
+   keep the larger label. */
+.row label.field {
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-caps);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- freshness stamp ---------- */
+
+.freshness-stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-snug);
+  white-space: nowrap;
+}
+
+.freshness-stamp > i {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: var(--status-good);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-good) 18%, transparent);
+}
+
+.freshness-stamp strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.freshness-stamp small {
+  color: var(--text-muted);
+}
+
+.freshness-stamp.is-overdue {
+  border-color: color-mix(in srgb, var(--status-warning) 45%, var(--border));
+  background: color-mix(in srgb, var(--status-warning) 8%, var(--surface-1));
+}
+
+.freshness-stamp.is-overdue > i {
+  background: var(--status-warning);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-warning) 20%, transparent);
+}
+
+.freshness-stamp.is-waiting > i {
+  background: var(--axis);
+  box-shadow: none;
+}
+
+/* ---------- developer overview: one column, because the tables need it ---------- */
+
+/*
+ * This block used to place topology at `1 / span 8` and readiness at
+ * `9 / span 4` across two rows, with the CI pipeline card filling the slot
+ * underneath. Every clause of that is now false: topology and readiness are
+ * `hidden` in each other's subtab so they are never both on screen, and the
+ * pipeline card renders under `.developer-cp-stack` in the Quality subtab, so
+ * the row reserved for it was never filled. What the reader saw was a two-column
+ * dead gutter (7 and 8 were unoccupied in both rows) and a short card floating
+ * in a two-row span.
+ *
+ * One column, and the reason is arithmetic rather than taste. `.shell` caps
+ * content at 1200px, so twelve tracks with 16px gaps make a track 85.3px and
+ * `span 6` is 592px — 560px inside the card padding. Against that,
+ * `.developer-cp-table__row` sets `min-width: 590px` and
+ * `.developer-cp-artifacts__row` sets 610px, both under `overflow-x: auto`.
+ * Side by side, both tables scrolled inside their own cards at every viewport —
+ * a scrollbar nobody goes looking for. `span 7` fixes the schema table and
+ * still fails the artifact one, and 7 + 7 > 12, so no two-column arrangement
+ * fits either. Full width gives 1168px of content and neither table scrolls.
+ */
+@media (min-width: 1121px) {
+  .developer-cp-overview__grid > .developer-cp-topology,
+  .developer-cp-overview__grid > .developer-cp-readiness,
+  .developer-cp-overview__grid > .developer-cp-schema-card,
+  .developer-cp-overview__grid > .developer-cp-artifact-card {
+    grid-column: 1 / -1;
+  }
+
+  /* Full width would otherwise be a 146px ring alone on a 1168px line with the
+     five gate rows stacked under it. The same two-column interior the narrow
+     block already uses at <=900px, re-proportioned: the ring column is sized to
+     the ring, the checks take the rest. Deliberately NOT `align-content:
+     space-between` — the free space would be set by the cards above and below,
+     whose rows are live, so the gaps between ring, verdict and checks would
+     move with provider health. */
+  .developer-cp-readiness {
+    grid-template-columns: minmax(190px, 0.3fr) minmax(0, 1fr);
+    column-gap: 28px;
+  }
+
+  .developer-cp-readiness .developer-cp-heading,
+  .developer-cp-readiness > p {
+    grid-column: 1 / -1;
+  }
+
+  .developer-cp-readiness__ring,
+  .developer-cp-readiness__verdict {
+    grid-column: 1;
+  }
+
+  .developer-cp-readiness__checks {
+    grid-column: 2;
+    grid-row: 2 / span 2;
+  }
+}
+
+/* ---------- role launcher: doors, not calls to action ---------- */
+
+.role-card {
+  position: relative;
+}
+
+/* Quiet label, card-sized hit area. The ::after stretches the button over the
+   whole card so the affordance is the card itself, which is what a launcher
+   wants — without nesting one interactive element inside another. */
+.role-card__action {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--series-1);
+  font-size: var(--fs-body);
+  font-weight: 700;
+}
+
+.role-card__action::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+}
+
+.role-card__action:hover:not(:disabled),
+.role-card:hover .role-card__action {
+  background: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.role-card:focus-within {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+
+.role-card__action:focus-visible {
+  outline: none;
+}
+
+/* The overview's single primary action. It sits in the page head's action
+   slot now, on an ordinary surface, so it wears the house control look
+   instead of the white-on-navy wash the fixed dark plane needed. */
+.overview-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+/*
+ * The press transform must not apply to a stretched-link button.
+ *
+ * `button:active { transform: translateY(1px) }` gives the button a transform,
+ * and a transformed element becomes the containing block for its own absolutely
+ * positioned descendants. So on mousedown the `::after` that covers the whole
+ * card silently re-resolved `inset: 0` against the small button box, collapsed
+ * out from under the pointer, and mouseup landed on nothing — the click event
+ * never completed and the card appeared dead everywhere except on its label.
+ *
+ * The card takes the press feedback instead; it is already the visual object.
+ */
+.role-card__action:active:not(:disabled) {
+  transform: none;
+}
+
+.role-card:has(.role-card__action:active) {
+  transform: translateY(1px);
+}
+
+/* ---------- category bars ---------- */
+
+.category-bars {
+  display: grid;
+  gap: 7px;
+}
+
+.category-bars__row {
+  display: grid;
+  grid-template-columns: minmax(84px, 22%) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.category-bars__label {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.category-bars__track {
+  display: flex;
+  overflow: hidden;
+  height: 14px;
+  min-width: 0;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--axis) 22%, transparent);
+}
+
+.category-bars__track i {
+  display: block;
+  height: 100%;
+  transition: width var(--dur) var(--ease);
+}
+
+.category-bars__value {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.category-bars__legend {
+  margin-top: 4px;
+}
+
+@media (max-width: 620px) {
+  .category-bars__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .category-bars__track {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Cards in the developer grid carry their own span; a new one without a rule
+   falls back to a single column of twelve — about 100px, which is what the
+   automated-checks card first rendered as, heading overprinting itself. It
+   sits full-width under the schema and artifact pair. */
+
+/* ---------- fill-quality heatmap ---------- */
+
+/* The third lattice opt-out, same reason as `.corr-matrix` and `.monthly-grid`:
+   the cell fill is the measurement, and a rule between two fills is a line the
+   reader has to decide to ignore. */
+.fill-quality-heatmap__grid {
+  border: 0;
+}
+
+.fill-quality-heatmap__grid td,
+.fill-quality-heatmap__grid th {
+  padding: 4px 7px;
+  font-size: var(--fs-xs);
+  text-align: center;
+  white-space: nowrap;
+  border-right: 0;
+  background: none;
+}
+
+.fill-quality-heatmap__grid th[scope="row"] {
+  text-align: left;
+  font-weight: 650;
+}
+
+.fill-quality-heatmap__grid td.num {
+  /* The ramp midpoint sits near the theme's own plane (near-white light,
+     graphite dark), so the theme ink stays readable across the whole range —
+     |slippage| rarely exceeds a few bps of tint. */
+  color: var(--text-primary);
+  border-radius: 3px;
+}
+
+.fill-quality-heatmap__grid td.is-empty {
+  background:
+    repeating-linear-gradient(45deg, transparent, transparent 3px,
+      color-mix(in srgb, var(--axis) 25%, transparent) 3px,
+      color-mix(in srgb, var(--axis) 25%, transparent) 4px);
+}
+
+/* ---------- the live decision tape ----------
+   Postgres realtime, beside the polled blotter. The state chip is icon + word +
+   colour, never colour alone — the same rule the reliability console follows,
+   and the global reduced-motion rule strips animation with !important so a
+   pulsing dot could not have carried it anyway. */
+
+.desk-tape__state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.desk-tape__state i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.desk-tape__state.is-live { color: var(--success-text); }
+.desk-tape__state.is-connecting { color: var(--warning-text); }
+.desk-tape__state.is-unavailable { color: var(--critical-text); }
+.desk-tape__state.is-unconfigured { color: var(--text-muted); }
+
+/* One paint of the arriving row. `prefers-reduced-motion` collapses this to a
+   1ms fade globally, so the row is still legible without it — the tint is the
+   emphasis, the transition is only the polish. */
+.desk-tape__row.is-fresh,
+.row-fresh {
+  background: color-mix(in srgb, var(--series-1) 10%, transparent);
+  transition: background var(--dur) var(--ease);
+}
+
+/* ── Research corpus (vector search) ─────────────────────────────────────────
+   Token-driven throughout: this panel renders in both themes and a hard-coded
+   colour here is a dark-only slab in light mode. Laid out with a container
+   query rather than a viewport one, because the panel sits in a one- and a
+   two-column context and only its own width decides whether the controls fit
+   on a line.                                                                */
+.research-corpus { container-type: inline-size; }
+
+.corpus-search {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin: var(--space-3) 0;
+}
+.corpus-search input[type="search"] { flex: 1 1 18rem; min-width: 0; }
+.corpus-search select { flex: 0 0 auto; }
+
+@container (max-width: 30rem) {
+  /* Stacked rather than wrapped: a search field sharing a line with a select
+     and a button at this width leaves none of them usable. */
+  .corpus-search { flex-direction: column; align-items: stretch; }
+  .corpus-search input[type="search"] { flex: 1 1 auto; }
+}
+
+.corpus-results {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+.corpus-results > li {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  background: var(--surface-2);
+}
+
+.corpus-result__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.corpus-result__title { font-weight: 600; }
+/* Fixed width so a column of scores stays aligned as values change, and
+   tabular figures so the digits do not shift under it. */
+.corpus-result__score {
+  font-variant-numeric: tabular-nums;
+  min-width: 4ch;
+  text-align: right;
+  color: var(--text-muted);
+}
+.corpus-result__meta { font-size: var(--fs-xs); margin-top: 2px; }
+.corpus-result__body {
+  /* The card text is what was embedded, newlines and all — rendering it as a
+     paragraph would collapse the label/value structure the vector saw. */
+  white-space: pre-wrap;
+  margin: var(--space-3) 0 0;
+  font-size: var(--fs-sm);
+}
+
+/* The graph fold inside a corpus result.
+   Shipped with three class names and no rules at all — `.corpus-connected`,
+   `.corpus-connected__list` and `.corpus-connected__title` were hooks written
+   against a stylesheet that never got them. So its paragraphs fell back to
+   inherited body text (the `.sub` rules are `.card > .sub`, a direct child,
+   and this <details> is not a card) and its list lost its markers to the
+   global `padding: 0` reset. */
+.corpus-connected .sub {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-md);
+}
+
+.corpus-connected__list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: var(--space-3);
+  color: var(--text-secondary);
+  font-size: var(--fs-md);
+}
+
+.corpus-connected__title {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ── Quality score ─────────────────────────────────────────────────────────
+   The composite 0-100 and its breakdown. The bars deliberately reuse
+   `.console-meter--wide` rather than declaring a third meter grammar; only the
+   layout around them is new. */
+
+.quality-card { container-type: inline-size; }
+
+.quality-total {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.quality-total > strong { font-size: var(--fs-display); line-height: var(--lh-none); }
+.quality-total > small { color: var(--text-secondary); }
+.quality-total.is-good > strong { color: var(--success-text); }
+.quality-total.is-warning > strong { color: var(--warning-text); }
+.quality-total.is-critical > strong { color: var(--critical-text); }
+
+.quality-breakdown {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+/* Two columns only when the card itself is wide — this panel appears both full
+   width and inside `.compact-grid-2col`, and the viewport cannot tell them
+   apart. */
+@container (min-width: 620px) {
+  .quality-breakdown { grid-template-columns: 1fr 1fr; column-gap: var(--space-4); }
+}
+
+.quality-row__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: 4px;
+}
+/* Fixed width and tabular figures so the contribution column stays a column as
+   values change. */
+.quality-row__points {
+  font-variant-numeric: tabular-nums;
+  min-width: 7ch;
+  text-align: right;
+}
+.quality-breakdown small { display: block; margin-top: 4px; font-size: var(--fs-xs); }
+
+.quality-gate-note {
+  margin: var(--space-3) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+/* ── Versus benchmark ──────────────────────────────────────────────────────
+   Alpha/beta against an external instrument. Its own grid rather than a reuse
+   of `.quality-breakdown` because these are six independent readings, not six
+   parts of one total — sharing the layout would imply they add up. */
+
+.benchmark-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+}
+.benchmark-grid dt {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+.benchmark-grid dd {
+  margin: 2px 0 0;
+  font-size: var(--fs-h1);
+  font-variant-numeric: tabular-nums;
+}
+/* Only a statistically distinguishable alpha is emphasised. An unconditional
+   highlight on the headline number teaches the eye that every run has one. */
+.benchmark-grid dd.is-emphasis { color: var(--success-text); }
+.benchmark-grid small { display: block; font-size: var(--fs-2xs); margin-top: 2px; }
+
+/* ── Strategy documentation card ───────────────────────────────────────────
+   Sits under the controls and changes with the picker. "When it fails" is
+   styled with the same prominence as "when it works" on purpose — a catalogue
+   that only describes each model's good conditions reads as forty-six good
+   ideas rather than forty-six trade-offs. */
+
+.strategy-doc { container-type: inline-size; }
+
+.strategy-doc__grid {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+}
+@container (min-width: 560px) {
+  .strategy-doc__grid { grid-template-columns: 1fr 1fr; column-gap: var(--space-4); }
+}
+.strategy-doc__grid dt {
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+.strategy-doc__grid dd {
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+}
+/* A left rule rather than coloured body text: tinting a paragraph costs
+   contrast in one theme or the other, and the marker carries the meaning
+   without touching legibility. */
+.strategy-doc__grid .is-works,
+.strategy-doc__grid .is-fails {
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--border);
+}
+.strategy-doc__grid .is-works { border-left-color: var(--status-good); }
+.strategy-doc__grid .is-fails { border-left-color: var(--status-critical); }
+
+/**
+ * Segregation. The card carries four readings — the one-line summary, the
+ * works/fails pair, and the rule with its parameters — and they ran together
+ * as one column of prose with only a gap between them, so nothing said where
+ * one ended and the next began. A hairline before each band says it, and the
+ * rule/parameters pair borrows the left-rule anatomy of the pair above it in
+ * the neutral tone: same shape, no verdict implied.
+ */
+.strategy-doc__mechanics {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.strategy-doc__mechanics .strategy-doc__grid > div {
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--border);
+}
+
+/* ── Detail-level disclosures ──────────────────────────────────────────────
+   Guided collapses these; Standard and Full open them. The summary always
+   names what is inside — a collapsed control with a generic label reads as a
+   feature that does not exist, which is the one thing the tier system must
+   never communicate. */
+
+/* ---------- in-cell meter ----------
+   A share or a utilisation read as a number is exact and slow to scan; the same
+   figure with a rule under it is both. Four rows of "41.9% / 27.9% / 18.4% /
+   12.1%" take a moment to rank, and the same four with bars rank themselves.
+
+   The number stays, and stays first. This is a second encoding of a value that
+   is already on screen, never a replacement for it — a bar alone cannot be read
+   aloud, copied, or trusted to a pixel, and the reading is what the desk is for.
+
+   Not `<progress>`: a meter inside a table cell has to inherit the row's colour
+   for its fill so the tone that marks "at cap" carries through, and progress
+   brings a UA appearance that fights that in every browser differently.
+   `currentColor` on a plain span does it in one line. aria-hidden because the
+   cell's own text is the accessible value; announcing it twice is noise. */
+.cell-meter {
+  display: block;
+  height: 3px;
+  margin-top: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  overflow: hidden;
+}
+
+.cell-meter::after {
+  content: "";
+  display: block;
+  height: 100%;
+  /* Clamped, so a utilisation over 100% — which the risk table can legitimately
+     show — fills the track rather than overflowing the cell. */
+  width: min(100%, var(--fill, 0%));
+  border-radius: inherit;
+  background: currentColor;
+}
+
+/* ---------- progressive disclosure ----------
+   One class for "this is worth reading, and not on first paint".
+
+   Two panels already had their own version of this — the quality score's
+   breakdown and the strategy doc's mechanics — and the pattern generalises
+   exactly: a summary that STATES WHAT IS INSIDE rather than saying "details",
+   so a reader can decide without opening it.
+
+   What goes in one: derivations, methodology, and static documentation of what
+   the system does. What must never go in one: a number, a status, or anything a
+   reader would be wrong not to have seen. The test is whether hiding it changes
+   what someone believes about the desk — a formula does not, a limit does. */
+.disclosure {
+  margin-top: var(--space-2);
+  border-top: 1px solid var(--grid);
+  padding-top: var(--space-1);
+}
+
+.disclosure > summary,
+.quality-disclosure > summary,
+.strategy-doc__mechanics > summary {
+  cursor: pointer;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  padding: var(--space-2) 0;
+  list-style-position: inside;
+}
+.disclosure > summary:hover,
+.quality-disclosure > summary:hover,
+.strategy-doc__mechanics > summary:hover { color: var(--text-primary); }
+.disclosure[open] > summary,
+.quality-disclosure[open] > summary,
+.strategy-doc__mechanics[open] > summary { margin-bottom: 2px; }
+
+/* ── Combine favourites ────────────────────────────────────────────────────
+   Selection list and the method comparison. The in-sample column is
+   deliberately muted: it flatters every method by construction, and giving it
+   the same weight as the holdout column is how a reader ends up choosing on
+   it. */
+
+.favourites-list {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.favourites-list label {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  cursor: pointer;
+  font-size: var(--fs-sm);
+}
+.favourites-list input:disabled + span { opacity: 0.5; }
+
+.favourites-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+}
+
+.favourites-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+  margin-top: var(--space-3);
+}
+.favourites-table th,
+.favourites-table td {
+  padding: 6px var(--space-2);
+  /* --rule-soft, so this table's row rules are the same hairline as every
+     other table's rather than a step heavier by accident. */
+  border-bottom: 1px solid var(--rule-soft);
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.favourites-table th.num,
+.favourites-table td.num { text-align: right; }
+.favourites-table td.is-pos { color: var(--success-text); }
+.favourites-table td.is-neg { color: var(--critical-text); }
+
+.favourites-warnings {
+  margin: var(--space-3) 0 0;
+  padding-left: var(--space-4);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+

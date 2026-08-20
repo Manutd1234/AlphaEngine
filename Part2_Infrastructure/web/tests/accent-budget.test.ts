@@ -24,6 +24,8 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { globalsCss } from "./globals-css";
+
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (relative: string) => readFileSync(join(root, relative), "utf8");
 
@@ -31,7 +33,7 @@ const read = (relative: string) => readFileSync(join(root, relative), "utf8");
 const strip = (source: string) =>
   source.replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, " "));
 
-const css = strip(read("app/globals.css"));
+const css = strip(globalsCss);
 
 /** The body of the last rule for a selector — the one that wins. */
 function ruleBody(selector: string): string {
@@ -74,7 +76,8 @@ describe("a selected segment is not a call to action", () => {
     assert.match(ruleBody('.seg--side button[value="BUY"][aria-pressed="true"]'), /var\(--diverging-pos\)/);
     assert.match(ruleBody('.seg--side button[value="SELL"][aria-pressed="true"]'), /var\(--diverging-neg\)/);
     // And direction is never carried by hue alone — the label is the word.
-    const ticket = read("components/execution/OrderTicket.tsx");
+    // The side seg moved into `OrderTicketForm.tsx` when the ticket was split.
+    const ticket = read("components/execution/OrderTicketForm.tsx");
     assert.match(ticket, /className="seg seg--side"/);
     assert.match(ticket, /\["BUY", "SELL"\] as const/);
     assert.match(ticket, /value=\{option\}/);
@@ -86,7 +89,7 @@ describe("a selected segment is not a call to action", () => {
     const claimants = sourceFiles(join(root, "components"))
       .filter((file) => strip(readFileSync(file, "utf8")).includes("seg--side"))
       .map((file) => file.slice(root.length));
-    assert.deepEqual(claimants, ["components/execution/OrderTicket.tsx"]);
+    assert.deepEqual(claimants, ["components/execution/OrderTicketForm.tsx"]);
   });
 });
 
@@ -137,10 +140,15 @@ describe("the accent fill stays with controls that commit something", () => {
       // commit test, not the importance test.
       "components/ResearchWorkspace.tsx",            // run the sweep
       "components/auth/AuthCallback.tsx",            // sign in
-      "components/auth/LoginScreen.tsx",             // sign in
+      // The login form's own submit button, which moved with the card when
+      // LoginScreen was split. The screen keeps the one on its unconfigured
+      // branch — "Open the workspace" — so both files claim the fill and both
+      // still pass the commit test.
+      "components/auth/LoginCard.tsx",               // sign in / create account
+      "components/auth/LoginScreen.tsx",             // open the workspace as a guest
       "components/data/DataWorkBoard.tsx",           // add to intake — the commit that creates an item
       "components/developer/DeveloperWorkQueue.tsx", // add to triage
-      "components/execution/OrderTicket.tsx",        // send order
+      "components/execution/OrderTicketForm.tsx",    // send order
       "components/execution/PnlStrip.tsx",           // enter sandbox
       "components/portfolio/BookChrome.tsx",         // retry connection, enter sandbox
       "components/profile/ProfileScreen.tsx",        // sign in

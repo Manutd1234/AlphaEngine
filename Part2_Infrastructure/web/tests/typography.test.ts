@@ -31,11 +31,13 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { globalsCss } from "./globals-css";
+
 const read = (rel: string): string =>
   readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
 
 const layout = read("../app/layout.tsx");
-const css = read("../app/globals.css");
+const css = globalsCss;
 const tailwind = read("../app/tailwind.css");
 
 /** The `{ … }` config object of a next/font call, brace-matched. */

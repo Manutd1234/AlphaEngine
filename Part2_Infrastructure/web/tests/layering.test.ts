@@ -34,8 +34,12 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-const cssPath = fileURLToPath(new URL("../app/globals.css", import.meta.url));
-const css = readFileSync(cssPath, "utf8");
+import { globalsCss, locateInGlobals } from "./globals-css";
+
+/* The whole cascade. `app/globals.css` is a 122-line @import manifest since the
+   split, so reading that path directly would assert against comments — see the
+   header of `tests/globals-css.ts`. */
+const css = globalsCss;
 const componentsDir = fileURLToPath(new URL("../components", import.meta.url));
 
 /**
@@ -77,10 +81,6 @@ function rootTokens(): Map<string, string> {
   );
 }
 
-/** Line number for a character offset, for a failure message you can click. */
-function lineOf(index: number): number {
-  return css.slice(0, index).split("\n").length;
-}
 
 // --------------------------------------------------------------------------
 // The ladder itself
@@ -138,7 +138,7 @@ describe("every z-index is named or provably local", () => {
       if (value.includes("var(--z-")) continue;
       const numeric = Number(value);
       if (Number.isFinite(numeric) && Math.abs(numeric) <= LOCAL_MAX) continue;
-      offenders.push(`globals.css:${lineOf(match.index)} — z-index: ${value}`);
+      offenders.push(`${locateInGlobals(match.index)} — z-index: ${value}`);
     }
     assert.deepEqual(
       offenders,
@@ -253,7 +253,7 @@ describe("sticky offsets come from the measured chrome, not a literal", () => {
       if (value.includes("var(--")) continue;
       const px = /^(-?\d+(?:\.\d+)?)px$/.exec(value);
       if (!px || Math.abs(Number(px[1])) <= NUDGE_MAX) continue;
-      offenders.push(`globals.css:${lineOf(match.index)} — top: ${value}`);
+      offenders.push(`${locateInGlobals(match.index)} — top: ${value}`);
     }
     assert.deepEqual(
       offenders,
@@ -372,7 +372,7 @@ describe("panels measure the container they are in", () => {
       assert.match(
         block,
         /contain-intrinsic-size:/,
-        `content-visibility at globals.css:${lineOf(match.index)} has no size hint`,
+        `content-visibility at ${locateInGlobals(match.index)} has no size hint`,
       );
     }
   });

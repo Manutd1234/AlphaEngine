@@ -1,0 +1,652 @@
+/* ==========================================================================
+   Portfolio command centre
+   ========================================================================== */
+
+
+/* The sandbox marker must never be subtle. It is the one thing standing between
+   a generated book and someone quoting it as real. */
+.sandbox-banner {
+  border-left: 3px solid var(--notice-text);
+}
+
+.sandbox-banner strong {
+  color: var(--notice-text);
+}
+
+/* ---------- risk contribution ---------- */
+.risk-bar {
+  position: relative;
+  display: block;
+  width: 96px;
+  height: 6px;
+  margin-left: auto;
+  border-radius: 3px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.risk-bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+
+/* ---------- correlation matrix ----------
+   A matrix, not a bar chart. Three inherited rules were doing the damage:
+   `table { width: 100% }` (l.1181) stretched N columns to fill the card, so a
+   four-symbol book drew 300px-wide swatches; `td { text-align: right }` (l.1206)
+   pushed the number to the far end of each one; and `.corr-cell > span
+   { display: block }` made the tint fill that stretched cell. Fixed square
+   cells, centred numbers, and a ramp that reaches 75% instead of 55%.
+
+   75% is a ceiling, not a preference: --text-primary on the deepest tile is
+   4.64:1 in the dark palette and 4.96:1 in light. At 80% dark falls to 4.24:1
+   and the printed number — the whole point of the encoding — stops clearing AA.
+   tests/correlation.test.ts does the arithmetic.
+
+   No --status-* token appears here in any form; the poles are --diverging-*,
+   which are graphical roles with no text contract. */
+
+.corr-matrix {
+  --corr-cell: 42px;
+  --corr-label: 54px;
+  width: auto;               /* beats `table { width: 100% }` at l.1181 */
+  table-layout: fixed;       /* honour the widths below at N = 2 and at N = 12 */
+  border-collapse: separate; /* overrides the global `collapse` at l.1183 */
+  border-spacing: 3px;
+  border: 0;                 /* and the frame the shared table rule draws */
+}
+
+.corr-matrix th,
+.corr-matrix td {
+  padding: 0;
+  border: 0;                 /* the fill is the grid; ruled lines fight it */
+}
+
+.corr-matrix thead th {
+  width: var(--corr-cell);
+  padding-bottom: 4px;
+  font-size: var(--fs-2xs);
+  text-align: center;
+}
+
+.corr-matrix thead th:first-child,
+.corr-matrix th[scope="row"] {
+  width: var(--corr-label);
+}
+
+.corr-matrix th[scope="row"] {
+  padding-right: 7px;
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-align: right;
+  text-transform: none;
+  color: var(--text-secondary);
+}
+
+.corr-cell > span {
+  display: grid;
+  place-items: center;
+  block-size: var(--corr-cell);
+  border-radius: 4px;
+  font-size: var(--fs-xs);
+  color: var(--text-primary);
+}
+
+/* The diagonal is a real 1.00 and is coloured like one. It was flat
+   --surface-3, which said "not applicable" about the one cell in the matrix
+   whose value is certain. The ring is orientation, not encoding — it lets the
+   eye find the diagonal in a 12x12 without changing what any cell means. */
+.corr-cell.is-self > span {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 30%, transparent);
+}
+
+/* Hover marks the row and column WITHOUT touching any fill. The fill is the
+   measurement; tinting or dimming it on hover would corrupt the reading at
+   exactly the moment somebody is reading it. So the crosshair is a ring. */
+.corr-cell.is-cross > span {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 45%, transparent);
+}
+
+.corr-cell.is-focus > span {
+  box-shadow: inset 0 0 0 2px var(--text-primary);
+}
+
+.corr-matrix th.is-cross {
+  color: var(--text-primary);
+  font-weight: 750;
+}
+
+/* Legend. Endpoints are opaque mixes against --surface-1 rather than
+   `transparent`: an sRGB gradient to transparent interpolates through
+   transparent *black* and greys the midpoint, which would put a colour at the
+   zero anchor. Split at zero, so the neutral point is a tick rather than an
+   implication — same reasoning as the Sharpe legend in Heatmap.tsx. */
+.corr-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 0 0 10px;
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.corr-legend i {
+  display: block;
+  width: 62px;
+  height: 9px;
+  border: 1px solid var(--border);
+}
+
+.corr-legend i.is-neg {
+  border-right: 0;
+  border-radius: 5px 0 0 5px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--diverging-neg) 75%, var(--surface-1)),
+    var(--surface-1)
+  );
+}
+
+.corr-legend i.is-pos {
+  border-left: 0;
+  border-radius: 0 5px 5px 0;
+  background: linear-gradient(
+    90deg,
+    var(--surface-1),
+    color-mix(in srgb, var(--diverging-pos) 75%, var(--surface-1))
+  );
+}
+
+.corr-legend > small {
+  font-family: var(--sans);
+  color: var(--text-muted);
+}
+
+@media (max-width: 620px) {
+  .corr-matrix {
+    --corr-cell: 34px;
+    --corr-label: 44px;
+  }
+}
+
+/* ---------- stress test ---------- */
+.stress-scenarios {
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+/* ---------- stress test: hand shocks ----------
+   One slider shocked the reference and let beta do the rest. That answers "what
+   if BTC gaps" and nothing else — it cannot express a dispersion event, which is
+   the case where correlation does NOT go to one and a hedge stops hedging.
+
+   Two columns rather than a list: twelve positions stacked is 550px of slider
+   before the result is visible, and the result is the point. */
+.stress-manual {
+  margin: 12px 0 14px;
+  padding: 13px 15px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.stress-manual__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.stress-manual__head .stress-subhead {
+  margin: 0;
+}
+
+.stress-manual__clear {
+  min-height: 0;
+  padding: 3px 8px;
+  font-size: var(--fs-xs);
+}
+
+.stress-manual__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 4px 18px;
+  margin-top: 10px;
+}
+
+.shock-row__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+.shock-row__head > span {
+  overflow: hidden;
+  font-family: var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* β, not a number, until the operator sets one — the marker for "this row is
+   still being propagated rather than stated". */
+.shock-row:not(.is-set) .shock-row__head > strong {
+  color: var(--text-muted);
+}
+
+.shock-row__clear {
+  min-height: 0;
+  padding: 0 5px;
+  border: 0;
+  background: none;
+  font-size: var(--fs-xl);
+  line-height: var(--lh-none);
+  color: var(--text-muted);
+}
+
+/* `opacity: 0` rather than `display: none` so the grid columns stay put as rows
+   are set and cleared. Beats the global `button:disabled { opacity: .5 }`. */
+.shock-row__clear:disabled {
+  opacity: 0;
+}
+
+.shock-row input[type="range"] {
+  height: 22px;
+}
+
+@media (max-width: 620px) {
+  .stress-manual__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stress-manual__head {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
+.stress-result {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--border);
+}
+
+.stress-result > div {
+  display: grid;
+  gap: 1px;
+  padding: 11px 13px;
+  background: var(--surface-1);
+}
+
+.stress-result.is-loss > div:first-child {
+  background: color-mix(in srgb, var(--diverging-neg) 7%, var(--surface-1));
+}
+
+.stress-result.is-gain > div:first-child {
+  background: color-mix(in srgb, var(--diverging-pos) 7%, var(--surface-1));
+}
+
+.stress-result span {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-caps);
+  color: var(--text-muted);
+}
+
+.stress-result strong {
+  font-size: var(--fs-h1);
+  font-weight: 680;
+  letter-spacing: var(--ls-tight);
+}
+
+.stress-result.is-loss > div:first-child strong {
+  color: var(--critical-text);
+}
+
+.stress-result.is-gain > div:first-child strong {
+  color: var(--success-text);
+}
+
+.stress-result small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* ---------- execution handoff ---------- */
+.portfolio-controls-card .page-actions button {
+  background: var(--surface-1);
+}
+
+.handoff-panel {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.handoff-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.handoff-head h3 {
+  font-size: var(--fs-title);
+  font-weight: 650;
+}
+
+.handoff-head button {
+  padding: 5px 10px;
+  font-size: var(--fs-body);
+}
+
+/* A terminal block on a light page: tokens are redefined on the element so the
+   nested primitives resolve, and color-scheme keeps the scrollbar from
+   rendering light over it. */
+.handoff-request {
+  color-scheme: dark;
+  margin: 10px 0;
+  padding: 12px;
+  /* Same plane as .console-log — this is the other terminal block in the app,
+     and the two should not read as different surfaces. */
+  border: 1px solid #34343c;
+  border-radius: var(--radius-control);
+  background: #16161c;
+  color: #d4d4d8;
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-loose);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: auto;
+  tab-size: 2;
+}
+
+.handoff-request:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--series-1) 45%, transparent);
+  outline-offset: 2px;
+}
+
+.handoff-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.handoff-actions small {
+  flex: 1 1 300px;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-body);
+}
+
+@media (max-width: 900px) {
+  .stress-result {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------- risk headroom top bar ---------- */
+.headroom-bar {
+  display: grid;
+  /* auto-fit, because the bar carries a fourth gauge whenever the binding
+     constraint is not one of the three structured headrooms. */
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.headroom-card {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+}
+
+/* The constraint that vetoes everything else gets a rail, not just a word. */
+.headroom-card.is-binding {
+  border-left: 3px solid var(--series-1);
+}
+
+.headroom-card.is-critical.is-binding {
+  border-left-color: var(--critical-text);
+}
+
+.headroom-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+
+.headroom-card__head > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-caps);
+  color: var(--text-muted);
+}
+
+.headroom-binding {
+  font-style: normal;
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--series-1) 15%, transparent);
+  color: var(--series-1);
+}
+
+.headroom-card.is-critical .headroom-binding {
+  background: color-mix(in srgb, var(--diverging-neg) 15%, transparent);
+  color: var(--critical-text);
+}
+
+.headroom-card__head > strong {
+  font-size: var(--fs-2xl);
+  font-weight: 680;
+  white-space: nowrap;
+}
+
+.headroom-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.headroom-track > i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--status-good);
+}
+
+.headroom-track.is-warning > i { background: var(--status-warning); }
+.headroom-track.is-critical > i { background: var(--status-critical); }
+
+.headroom-card > small {
+  display: block;
+  margin-top: 6px;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-body);
+  color: var(--text-muted);
+}
+
+/* ---------- allocation donut ---------- */
+.allocation-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+}
+
+.allocation-ring {
+  flex: 0 0 auto;
+}
+
+.allocation-ring path {
+  cursor: default;
+}
+
+.allocation-legend {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.allocation-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 7px;
+  border-radius: 7px;
+  font-size: var(--fs-body);
+}
+
+.allocation-row.is-active {
+  background: var(--surface-2);
+}
+
+.allocation-row > i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.allocation-symbol {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--mono);
+  min-width: 0;
+}
+
+.allocation-symbol small {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.allocation-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--grid);
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+@media (max-width: 900px) {
+  .headroom-bar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .allocation-body {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+  }
+  .allocation-legend {
+    width: 100%;
+  }
+}
+
+/* ---------- risk action execution ---------- */
+.handoff-execute {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--grid);
+}
+
+.handoff-execute > label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.handoff-execute__row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.handoff-execute__row input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--mono);
+  letter-spacing: var(--ls-caps-wide);
+  text-transform: uppercase;
+}
+
+/* Destructive, and styled to say so — but only once it is armed. A permanently
+   red button is a red button people stop seeing.
+
+   A fixed red rather than --status-critical: that token is a FILL step tuned
+   per theme, and its dark value (#f0737c) carries white text at 2.82:1. This
+   one is 6.55:1 in both themes, which the destructive button of the whole app
+   is the last place to compromise on. */
+.handoff-fire {
+  flex: 0 0 auto;
+  font-weight: 650;
+}
+
+.handoff-fire:not(:disabled) {
+  background: #b3242e;
+  border-color: #b3242e;
+  color: #fff;
+}
+
+.handoff-fire:not(:disabled):hover {
+  background: #9d1c27;
+  border-color: #9d1c27;
+}
+
+.handoff-execute > small {
+  display: block;
+  margin-top: 6px;
+  font-size: var(--fs-xs);
+}
+
+.handoff-note {
+  display: block;
+  margin-top: 3px;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+  color: var(--text-secondary);
+}
+
+.handoff-orders {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 3px;
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+}
+

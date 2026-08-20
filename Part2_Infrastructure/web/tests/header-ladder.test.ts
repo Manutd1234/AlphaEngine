@@ -18,9 +18,11 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { globalsCss } from "./globals-css";
+
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (path: string) => readFileSync(`${root}${path}`, "utf8");
-const css = read("app/globals.css");
+const css = globalsCss;
 
 /** The rules inside one `@media (min-width: 901px) and (max-width: Npx)` block. */
 function rung(max: number): string {

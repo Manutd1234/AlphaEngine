@@ -1,0 +1,63 @@
+/* ===========================================================================
+   NextStepFooter — Decision Loop Flow
+   =========================================================================== */
+.next-step-footer {
+  margin-top: 32px;
+  margin-bottom: 24px;
+  padding: 16px 24px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.next-step-footer__content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.next-step-footer__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.next-step-footer__kicker {
+  font-size: var(--fs-body);
+  font-weight: 700;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--series-1);
+}
+
+.next-step-footer__title {
+  margin: 0;
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.next-step-footer__hint {
+  margin: 0;
+  font-size: var(--fs-2xl);
+  color: var(--text-secondary);
+}
+
+/* A navigator, not a commit. By the desk's own tested rule (developer-panes
+   stripped the fill from "doors to other tabs"), this button must not wear
+   the Send-order accent — yet it did, under a class name the accent-budget
+   roll call cannot see. The base button voice (border + surface, hover on the
+   border, press-down active) is exactly right for a door, so this block keeps
+   only the layout the arrow mark needs; geometry (32px, radius-sm, 12px) sits
+   in the standardisation layer below. */
+.next-step-footer__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+

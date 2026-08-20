@@ -1,0 +1,588 @@
+/* ---------- Reliability consolidation ---------- */
+
+/* The status strip is the only posture summary. The overview below it explains
+   evidence scope and triage routes without repeating provider or golden-signal
+   cards. */
+.reliability-platform,
+.reliability-evidence {
+  padding: 18px;
+}
+
+.reliability-source-state {
+  width: fit-content;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: var(--fs-2xs);
+  font-weight: 750;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
+.reliability-source-state.is-fresh {
+  border-color: color-mix(in srgb, var(--status-good) 34%, var(--border));
+  background: color-mix(in srgb, var(--status-good) 7%, var(--surface-1));
+  color: var(--success-text);
+}
+
+.reliability-source-state.is-stale,
+.reliability-source-state.is-not_configured,
+.reliability-source-state.is-invalid {
+  border-color: color-mix(in srgb, var(--status-warning) 34%, var(--border));
+  background: color-mix(in srgb, var(--status-warning) 7%, var(--surface-1));
+  color: var(--warning-text);
+}
+
+.reliability-source-state.is-unreachable {
+  border-color: color-mix(in srgb, var(--status-critical) 34%, var(--border));
+  background: color-mix(in srgb, var(--status-critical) 7%, var(--surface-1));
+  color: var(--critical-text);
+}
+
+.reliability-platform__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* The house card gap. This grid sat at 9px, its evidence sibling at 10px,
+     the portfolio grids at 12px — six gaps for one kind of object, none of
+     them reading the --space ladder declared at the top of the file. */
+  gap: var(--space-3);
+}
+
+.reliability-platform__grid article {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  min-height: 112px;
+  padding: 12px 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  box-shadow: inset 3px 0 0 var(--axis);
+}
+
+.reliability-platform__grid article.is-nominal {
+  box-shadow: inset 3px 0 0 var(--status-good);
+}
+
+.reliability-platform__grid article.is-degraded,
+.reliability-platform__grid article.is-reduce_only,
+.reliability-platform__grid article.is-disabled {
+  box-shadow: inset 3px 0 0 var(--status-warning);
+}
+
+.reliability-platform__grid article.is-critical,
+.reliability-platform__grid article.is-halted {
+  box-shadow: inset 3px 0 0 var(--status-critical);
+}
+
+.reliability-platform__grid article > span,
+.reliability-platform__sli small {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+
+.reliability-platform__grid article > strong {
+  font-family: var(--mono);
+  font-size: var(--fs-2xl);
+  text-transform: capitalize;
+}
+
+.reliability-platform__grid article > small {
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-body);
+}
+
+.reliability-platform__sli {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--border);
+}
+
+.reliability-platform__sli > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 9px 11px;
+  background: var(--surface-1);
+}
+
+.reliability-platform__sli strong {
+  font-size: var(--fs-2xl);
+}
+
+.reliability-platform__sli code {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reliability-platform__caveat {
+  margin: 9px 0 0;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-body);
+}
+
+.reliability-evidence__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.reliability-evidence__grid > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 12px 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.reliability-evidence__grid strong {
+  font-size: var(--fs-lg);
+}
+
+.reliability-evidence__grid small {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-body);
+}
+
+.reliability-evidence__state {
+  width: fit-content;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: var(--fs-2xs);
+  font-weight: 750;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.reliability-evidence__state.is-nominal {
+  border-color: color-mix(in srgb, var(--status-good) 34%, var(--border));
+  background: color-mix(in srgb, var(--status-good) 7%, var(--surface-1));
+  color: var(--success-text);
+}
+
+.reliability-evidence__state.is-degraded,
+.reliability-evidence__state.is-unknown {
+  border-color: color-mix(in srgb, var(--status-warning) 34%, var(--border));
+  background: color-mix(in srgb, var(--status-warning) 7%, var(--surface-1));
+  color: var(--warning-text);
+}
+
+.reliability-evidence__state.is-critical,
+.reliability-evidence__state.is-halted {
+  border-color: color-mix(in srgb, var(--status-critical) 34%, var(--border));
+  background: color-mix(in srgb, var(--status-critical) 7%, var(--surface-1));
+  color: var(--critical-text);
+}
+
+/* A selectable timeline and a structured inspector share one bounded region.
+   The late selectors intentionally supersede the earlier flex-log rules. */
+.console-log-search {
+  flex: 1 1 240px;
+  min-width: 150px;
+}
+
+.console-log-search .console-log-filter {
+  width: 100%;
+}
+
+.console-filter-context {
+  width: fit-content;
+  margin: -2px 0 8px;
+  padding: 4px 8px;
+  border: 1px solid color-mix(in srgb, var(--series-1) 28%, var(--border));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--series-1) 5%, var(--surface-1));
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+
+.console-trace-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, .8fr);
+  gap: 10px;
+  align-items: stretch;
+}
+
+.console-trace-master,
+.console-trace-detail {
+  min-width: 0;
+}
+
+.console-trace-master {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.console-trace-pane-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 35px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 9px 9px 0 0;
+  background: var(--surface-2);
+}
+
+.console-trace-pane-heading strong {
+  font-size: var(--fs-body);
+}
+
+.console-trace-pane-heading span {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+.console-trace-split .console-log {
+  min-height: 320px;
+  max-height: min(50vh, 460px);
+  margin: 0;
+  padding: 7px;
+  border-radius: 0 0 9px 9px;
+  list-style: none;
+}
+
+.console-log__entry {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.console-trace-split .console-log__line {
+  display: grid;
+  grid-template-columns: 80px 42px 28px minmax(72px, auto) minmax(160px, 1fr);
+  gap: 0 7px;
+  align-items: start;
+  width: 100%;
+  min-width: 0;
+  padding: 4px 5px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.console-trace-split .console-log__line:hover {
+  border-color: color-mix(in srgb, var(--series-1) 34%, var(--border));
+  background: color-mix(in srgb, var(--series-1) 6%, var(--surface-2));
+}
+
+.console-trace-split .console-log__line[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--series-1) 55%, var(--border));
+  background: color-mix(in srgb, var(--series-1) 11%, var(--surface-2));
+  box-shadow: inset 2px 0 0 var(--series-1);
+}
+
+.console-trace-split .console-log__line:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: -2px;
+}
+
+.console-trace-split .console-log__line.is-warn {
+  background: color-mix(in srgb, var(--status-warning) 8%, var(--surface-1));
+}
+
+.console-trace-split .console-log__line.is-error {
+  background: color-mix(in srgb, var(--status-critical) 9%, var(--surface-1));
+}
+
+.console-trace-split .console-log__fields {
+  grid-column: 5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.console-trace-detail {
+  min-height: 525px;
+  max-height: calc(min(60vh, 620px) + 35px);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-1);
+}
+
+.console-trace-detail .console-trace-pane-heading {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 9px 9px 0 0;
+}
+
+.console-trace-detail__body {
+  display: grid;
+  gap: 14px;
+  padding: 13px;
+}
+
+.console-trace-detail__title {
+  display: grid;
+  gap: 5px;
+}
+
+.console-trace-detail__title .console-log__level {
+  width: fit-content;
+  font-family: var(--mono);
+  font-size: var(--fs-2xs);
+}
+
+.console-trace-detail__title h3 {
+  margin: 0;
+  font-size: var(--fs-2xl);
+  line-height: var(--lh-snug);
+  overflow-wrap: anywhere;
+}
+
+.console-trace-meta,
+.console-trace-fields {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.console-trace-meta > div,
+.console-trace-fields > div {
+  display: grid;
+  grid-template-columns: minmax(74px, .45fr) minmax(0, 1fr);
+  gap: 9px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--grid);
+}
+
+.console-trace-meta dt,
+.console-trace-fields dt {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.console-trace-meta dd,
+.console-trace-fields dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  overflow-wrap: anywhere;
+}
+
+.console-trace-fields-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border);
+}
+
+.console-trace-fields-heading strong {
+  font-size: var(--fs-body);
+}
+
+.console-trace-fields-heading span {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+.console-trace-empty-detail {
+  margin: 0;
+  padding: 18px 13px;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+}
+
+/* Disruptive controls pause at an inline, keyboard-focusable preview. This is
+   intentionally not a browser confirm: operators need to see target, plane and
+   blast radius together. */
+.console-control-scope {
+  margin-bottom: 14px;
+}
+
+.operator-confirmation {
+  display: grid;
+  gap: 11px;
+  margin: 12px 0 4px;
+  padding: 13px;
+  border: 1px solid color-mix(in srgb, var(--status-critical) 38%, var(--border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--status-critical) 5%, var(--surface-1));
+}
+
+.operator-confirmation__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.operator-confirmation__heading h3 {
+  margin: 2px 0 0;
+  font-size: var(--fs-2xl);
+}
+
+.operator-confirmation__badge {
+  padding: 3px 7px;
+  border: 1px solid color-mix(in srgb, var(--status-critical) 38%, var(--border));
+  border-radius: var(--radius-pill);
+  color: var(--critical-text);
+  font-size: var(--fs-2xs);
+  font-weight: 750;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.operator-confirmation__facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.operator-confirmation__facts > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-1);
+}
+
+.operator-confirmation__facts dt {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.operator-confirmation__facts dd {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-snug);
+  overflow-wrap: anywhere;
+}
+
+.operator-confirmation > p,
+.operator-confirmation > small {
+  margin: 0;
+  line-height: var(--lh-body);
+}
+
+.operator-confirmation > p {
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+
+.operator-confirmation > small {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+.operator-confirmation__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.operator-confirmation__actions .is-disruptive:not(:disabled) {
+  border-color: color-mix(in srgb, var(--status-critical) 48%, var(--border));
+  background: color-mix(in srgb, var(--status-critical) 10%, var(--surface-1));
+  color: var(--critical-text);
+}
+
+@media (max-width: 900px) {
+  .reliability-platform__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .console-trace-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .console-trace-split .console-log {
+    min-height: 380px;
+    max-height: 480px;
+  }
+
+  .console-trace-detail {
+    min-height: 260px;
+    max-height: 480px;
+  }
+}
+
+@media (max-width: 700px) {
+  .reliability-platform__sli {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .reliability-evidence__grid,
+  .operator-confirmation__facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .console-trace-split .console-log__line {
+    grid-template-columns: 76px 40px 27px minmax(0, 1fr);
+  }
+
+  .console-trace-split .console-log__msg,
+  .console-trace-split .console-log__fields {
+    grid-column: 1 / -1;
+    padding-left: 3px;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 520px) {
+  .reliability-platform__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .console-log-search {
+    flex-basis: 100%;
+  }
+
+  .operator-confirmation__heading {
+    flex-direction: column;
+  }
+
+  .operator-confirmation__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+

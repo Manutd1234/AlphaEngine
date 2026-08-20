@@ -1,0 +1,1246 @@
+/* ---------- Data operations: feature panels & work queue ---------- */
+
+.data-control-plane {
+  --data-accent: var(--series-1);
+  display: grid;
+  min-width: 0;
+  gap: 14px;
+}
+
+
+.data-trust-overview {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+}
+
+/* Trust Summary's in-panel switcher. Three `flex: 1` buttons across a
+   desk-width grid column push the labels a long way apart; capping the control
+   keeps it readable and leaves the panes the full width. The grid `gap` above
+   already spaces it from the pane below, so no margin here. */
+.data-trust-overview > .seg {
+  max-width: 420px;
+}
+
+.data-trust-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 22px;
+  margin: 0;
+  padding: 18px 20px;
+  border-left: 4px solid var(--axis);
+  background:
+    linear-gradient(120deg, color-mix(in srgb, var(--data-accent) 6%, var(--surface-1)), var(--surface-1) 58%),
+    var(--surface-1);
+}
+
+.data-trust-hero.is-good { border-left-color: var(--status-good); }
+.data-trust-hero.is-warn { border-left-color: var(--status-warning); }
+.data-trust-hero.is-bad { border-left-color: var(--status-critical); }
+
+.data-trust-hero h2 {
+  margin-top: 3px;
+  font-size: var(--fs-hero-sub);
+  letter-spacing: var(--ls-tight);
+}
+
+.data-trust-hero p {
+  max-width: none;
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+
+.data-trust-verdict {
+  display: flex;
+  align-items: center;
+  min-width: 190px;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.data-trust-verdict > span {
+  font-size: var(--fs-h2);
+}
+
+.data-trust-verdict > div {
+  display: grid;
+  gap: 1px;
+}
+
+.data-trust-verdict strong {
+  font-family: var(--mono);
+  font-size: var(--fs-md);
+}
+
+.data-trust-verdict small {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+.data-trust-verdict.is-good { color: var(--success-text); }
+.data-trust-verdict.is-warn { color: var(--warning-text); }
+.data-trust-verdict.is-bad { color: var(--critical-text); }
+.data-trust-verdict.is-unknown { color: var(--text-secondary); }
+
+.data-trust-section {
+  display: grid;
+  gap: 9px;
+}
+
+.data-trust-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.data-trust-evidence {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  margin: 0;
+  padding: 13px 14px;
+  border-top: 3px solid var(--axis);
+}
+
+.data-trust-evidence.is-good { border-top-color: var(--status-good); }
+.data-trust-evidence.is-warn { border-top-color: var(--status-warning); }
+.data-trust-evidence.is-bad { border-top-color: var(--status-critical); }
+
+.data-trust-evidence > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+}
+
+.data-trust-evidence.is-good > div { color: var(--success-text); }
+.data-trust-evidence.is-warn > div { color: var(--warning-text); }
+.data-trust-evidence.is-bad > div { color: var(--critical-text); }
+
+.data-trust-evidence > div small {
+  font-size: var(--fs-2xs);
+  font-weight: 750;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.data-trust-evidence > strong {
+  overflow: hidden;
+  font-size: var(--fs-h2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.data-trust-evidence > p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-body);
+}
+
+/* Response pane's shared row: the per-source sparklines and the quota bars are
+   both narrow content, so pairing them halves that pane's scroll. Tables are
+   deliberately NOT paired this way — the feeds monitors were un-paired for
+   exactly that squeeze — and the 980px rule below stacks these again where
+   half a panel is too little. `align-items: start`, not stretch: the two
+   cards are genuinely different lengths and a stretched card would only gain
+   a void. */
+.data-trust-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.data-trust-detail-grid > * {
+  min-width: 0;
+}
+
+.data-trust-monitor {
+  min-width: 0;
+  margin: 0;
+  padding: 16px;
+}
+
+.data-trust-monitor .table-wrap {
+  margin-top: 10px;
+}
+
+.data-trust-probe {
+  display: grid;
+  gap: 3px;
+  margin-top: 10px;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--axis);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.data-trust-probe.is-good {
+  border-left-color: var(--status-good);
+}
+
+.data-trust-probe.is-bad {
+  border-left-color: var(--status-critical);
+}
+
+.data-trust-probe > span {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 750;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.data-trust-probe > strong {
+  font-size: var(--fs-sm);
+}
+
+.data-trust-probe > small {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-body);
+}
+
+.data-trust-monitor table {
+  font-size: var(--fs-2xs);
+}
+
+.data-trust-monitor th,
+.data-trust-monitor td {
+  padding: 7px 8px;
+}
+
+.data-trust-inline-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.data-trust-inline-state.is-good { color: var(--success-text); }
+.data-trust-inline-state.is-warn { color: var(--warning-text); }
+.data-trust-inline-state.is-bad { color: var(--critical-text); }
+
+.data-trust-empty {
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+}
+
+.data-trust-empty strong {
+  font-size: var(--fs-body);
+}
+
+.data-trust-empty p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-body);
+}
+
+.data-trust-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+button.data-trust-action {
+  display: grid;
+  min-height: 132px;
+  gap: 5px;
+  margin: 0;
+  padding: 13px 14px;
+  border-left: 3px solid var(--axis);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  text-align: left;
+}
+
+button.data-trust-action.is-now { border-left-color: var(--status-critical); }
+button.data-trust-action.is-review { border-left-color: var(--status-warning); }
+button.data-trust-action.is-inspect { border-left-color: var(--series-1); }
+
+button.data-trust-action > span {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+button.data-trust-action > strong {
+  font-size: var(--fs-lg);
+}
+
+button.data-trust-action > small {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 450;
+  line-height: var(--lh-body);
+}
+
+button.data-trust-action > i {
+  align-self: end;
+  color: var(--series-1);
+  font-size: var(--fs-2xs);
+  font-style: normal;
+  font-weight: 700;
+}
+
+/* `.data-trust-boundaries` and its six rules went with the block they styled.
+   The assessment boundary was asked for twice and removed for the reason a
+   static claim block always earns: it had drifted. It still said escalation
+   reached one channel and that there was no rota, after E2.10 shipped both. */
+
+.data-console-stack {
+  display: grid;
+  gap: var(--space-4);
+}
+
+/* The Routing pane's failover chain now owns the full panel instead of half of
+   a `.compact-grid-2col`, and `.data-console-stack` wraps nothing else. The
+   168px flex basis was sized for that half-width column, where the nodes
+   wrapped onto extra rows; at panel width the same basis stretches a short
+   chain into a row of banners that are mostly empty plane after two lines of
+   11.5px detail. A wider basis gives the detail text its room, and the cap
+   keeps the chain reading as steps in an order — the empty space to the right
+   of a short chain is the honest rendering of a short chain. */
+.data-console-stack .console-node {
+  flex-basis: 220px;
+  max-width: 420px;
+}
+
+.data-console-stack > .console-card,
+.data-console-pair > .console-card,
+.workspace-subtab-panel > .console-card {
+  margin-bottom: 0;
+}
+
+.data-console-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.data-console-handoff {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(280px, 0.7fr) auto;
+  gap: 20px;
+  align-items: center;
+  padding: 16px 18px;
+  border-style: dashed;
+  background: color-mix(in srgb, var(--series-1) 3%, var(--surface-1));
+}
+
+.data-console-handoff h2 {
+  margin-top: 2px;
+  font-size: var(--fs-title);
+}
+
+.data-console-handoff .sub {
+  margin-top: 5px;
+}
+
+.data-console-handoff .cross-link-metrics {
+  margin-top: 0;
+}
+
+.data-console-handoff .text-action {
+  white-space: nowrap;
+}
+
+.data-workboard {
+  margin-bottom: 0;
+  padding: 18px;
+  overflow: hidden;
+}
+
+.data-workboard__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 22px;
+}
+
+.data-workboard__heading h2 {
+  margin-top: 3px;
+  font-size: var(--fs-h1);
+  letter-spacing: var(--ls-tight);
+}
+
+.data-workboard__heading .sub {
+  max-width: none;
+  margin-top: 5px;
+}
+
+.data-workboard__eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.data-workboard__eyebrow .pill {
+  padding: 2px 7px;
+  font-size: var(--fs-2xs);
+}
+
+/* Sized to its single tile since the board's deck was trimmed to SLA risk —
+   the other three figures live in the PageHead directly above the card. */
+.data-workboard__stats {
+  display: grid;
+  grid-template-columns: minmax(96px, auto);
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--border);
+  gap: 1px;
+}
+
+.data-workboard__stats > div {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  background: var(--surface-1);
+}
+
+.data-workboard__stats span {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.data-workboard__stats strong {
+  font-size: var(--fs-h2);
+  font-variant-numeric: tabular-nums;
+}
+
+.data-workboard__stats .is-warn strong {
+  color: var(--warning-text);
+}
+
+.data-workboard__scope {
+  margin: 14px 0 12px;
+  padding: 8px 10px;
+  border-left: 3px solid color-mix(in srgb, var(--series-1) 55%, var(--border));
+  border-radius: 0 8px 8px 0;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-body);
+}
+
+.data-workboard__toolbar {
+  display: grid;
+  grid-template-columns: minmax(210px, 1fr) auto auto auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.data-workboard__search input {
+  width: 100%;
+}
+
+.data-workboard__kinds {
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+
+.data-workboard__kinds button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-xs);
+}
+
+.data-workboard__kinds button span {
+  min-width: 17px;
+  padding: 1px 5px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--text-muted) 11%, transparent);
+  font-family: var(--mono);
+  font-size: var(--fs-2xs);
+  text-align: center;
+}
+
+.data-workboard__sort {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: 650;
+}
+
+.data-workboard__sort select {
+  min-width: 150px;
+}
+
+/* No private 35px: the base button's 32px is the row height everywhere else.
+   Three near-identical toolbar buttons had drifted to 34/35/37px with nothing
+   distinguishing them but the copy-paste they arrived by. */
+.data-workboard__toolbar > button {
+  white-space: nowrap;
+}
+
+.data-workboard__composer {
+  display: grid;
+  grid-template-columns: minmax(210px, 1.8fr) repeat(4, minmax(120px, 0.7fr)) auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--series-1) 30%, var(--border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--series-1) 4%, var(--surface-2));
+}
+
+.data-workboard__composer-heading {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-workboard__composer-heading > div {
+  display: grid;
+  gap: 2px;
+}
+
+.data-workboard__composer-heading strong {
+  font-size: var(--fs-lg);
+}
+
+.data-workboard__composer-heading small {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.data-workboard__composer label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.data-workboard__composer label > span {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.data-workboard__composer input,
+.data-workboard__composer select {
+  width: 100%;
+  min-width: 0;
+}
+
+.data-workboard__composer > button {
+  min-height: 35px;
+  white-space: nowrap;
+}
+
+.data-workboard__board {
+  display: grid;
+  /* The gutter is where the flow lives, so it is wider than a plain column gap
+     and the columns are correspondingly narrower — the transition between
+     stages earns its space from the cards rather than from the canvas.
+     --wq-gap is the single source: the gap AND both connector offsets are
+     derived from it, because they were three hardcoded numbers that had to
+     agree and silently stopped agreeing the moment one of them moved. */
+  --wq-gap: 88px;
+  /* Bounded, not capped at 216px, and not 1fr either — both extremes were wrong
+     and the file has now tried both.
+
+     `1fr` grew the columns without limit, and the note that replaced it was
+     right about why that is bad: a queue card is a fixed amount of text, so the
+     extra width became whitespace inside the card while the arrows stayed short.
+     But 216px overcorrected. Four 216px columns plus three gutters occupy about
+     1068px of a ~1800px canvas, so the board sat in the middle of the panel with
+     wide empty margins at both sides and card titles wrapping to two lines —
+     "Review changePercent schema drift" and "Add perpetual funding-rate lineage"
+     both broke — while the space they needed was sitting unused beside them.
+
+     440px is where the reviewed wide board sat. Below ~1950px the tracks resolve
+     smaller than that and consume the side gutters; above it they stop, so an
+     ultrawide display does not stretch a queue card across half a metre. */
+  grid-template-columns: repeat(4, minmax(220px, 440px));
+  gap: var(--wq-gap);
+  /* `safe` matters: plain `center` on a scrollable grid makes the left edge of
+     the first column unreachable once the tracks bottom out, because overflow
+     past the start edge cannot be scrolled to. Browsers that do not parse it
+     drop this line and keep the `start` above. */
+  justify-content: start;
+  justify-content: safe center;
+  padding-bottom: 4px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+}
+
+.data-work-column {
+  position: relative;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-2) 82%, var(--surface-1));
+}
+
+/* Work moves left to right — intake, ready, in progress, resolved — and the
+   board should say so rather than leaving four parallel lists that happen to
+   sit in that order. A hairline and a 7px chevron said it too quietly to
+   register at a glance; the rule is now a 2px accent track carrying a filled
+   marker. Both are decoration over headings that already name every stage, so
+   they stay out of the accessibility tree. */
+.data-work-column:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  top: 27px;
+  right: calc(-1 * var(--wq-gap));
+  width: var(--wq-gap);
+  border-top: 2px solid color-mix(in srgb, var(--series-1) 38%, var(--border));
+  pointer-events: none;
+}
+
+.data-work-column:not(:last-child)::after {
+  content: "→";
+  position: absolute;
+  top: 15px;
+  /* Half the badge (13px of 26px) back from the gutter's midpoint, so it stays
+     centred in the run whatever --wq-gap is. */
+  right: calc(-13px - var(--wq-gap) / 2);
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid color-mix(in srgb, var(--series-1) 45%, var(--border));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--series-1) 13%, var(--surface-1));
+  color: var(--series-1);
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  line-height: var(--lh-none);
+  pointer-events: none;
+}
+
+.data-work-column.is-over-limit {
+  border-color: color-mix(in srgb, var(--status-warning) 62%, var(--border));
+}
+
+.data-work-column__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 0 2px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-work-column__heading h3 {
+  font-size: var(--fs-lg);
+  line-height: var(--lh-snug);
+}
+
+.data-work-column__heading small {
+  display: block;
+  margin-top: 1px;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+.data-work-column__count {
+  min-width: 26px;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: var(--fs-2xs);
+  font-weight: 750;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-work-column.is-over-limit .data-work-column__count {
+  border-color: color-mix(in srgb, var(--status-warning) 55%, var(--border));
+  color: var(--warning-text);
+}
+
+.data-work-column__warning {
+  margin: -1px 0 8px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--status-warning) 10%, var(--surface-1));
+  color: var(--warning-text);
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-snug);
+}
+
+.data-work-column__list {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-height: 90px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.data-work-card {
+  position: relative;
+  display: grid;
+  gap: 5px;
+  padding: 7px 8px 6px 9px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+
+.data-work-card.is-p0 { border-left-color: var(--status-critical); }
+.data-work-card.is-p1 { border-left-color: var(--status-warning); }
+.data-work-card.is-p2 { border-left-color: var(--series-1); }
+.data-work-card.is-p3 { border-left-color: var(--axis); }
+
+/* Hover and keyboard focus lift the card, following .signal-workflow__node.
+   Three named sides, never the `border-color` shorthand: the left border is the
+   priority accent set immediately above at equal specificity, so a shorthand
+   here would wash P0 red into the same blue as P3. */
+.data-work-card:hover,
+.data-work-card:focus-within {
+  border-top-color: color-mix(in srgb, var(--series-1) 45%, var(--border));
+  border-right-color: color-mix(in srgb, var(--series-1) 45%, var(--border));
+  border-bottom-color: color-mix(in srgb, var(--series-1) 45%, var(--border));
+  box-shadow: 0 8px 18px -14px color-mix(in srgb, var(--series-1) 70%, transparent);
+  transform: translateY(-1px);
+}
+
+/* A moved card unmounts from one column and mounts in the next, so there is no
+   element to transition — this runs once on arrival instead. The component
+   clears the class on animationend, which is required rather than tidy: `both`
+   fill would otherwise pin the transform and swallow the hover lift until the
+   card next remounted. */
+.data-work-card.is-just-moved {
+  animation: rise-in var(--dur) var(--ease-out) both;
+}
+
+/* The live badge on an in-progress card. The word and the column it sits in
+   carry the meaning — the dot and its halo are decoration, which is what makes
+   the loop safe under the global reduced-motion clamp: that forces one 1ms
+   iteration, and this keyframe's final frame is the resting state, so it
+   degrades to the same static dot the desk tape uses. */
+.data-work-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  min-height: 19px;
+  padding: 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--series-1) 35%, var(--border));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--series-1) 9%, var(--surface-2));
+  color: var(--series-1);
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: var(--ls-caps);
+  line-height: var(--lh-none);
+  text-transform: uppercase;
+}
+
+.data-work-live i {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.data-work-live i::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  opacity: 0;
+  animation: live-pulse var(--dur-pulse) var(--ease-out) infinite;
+}
+
+/* Shared by the work board's live dot and the header's data-source badge. Named
+   for what it means rather than where it was first used, since it now has two
+   callers and a third would otherwise invent a third name. */
+@keyframes live-pulse {
+  0% { transform: scale(0.55); opacity: 0.8; }
+  60%, 100% { transform: scale(1.6); opacity: 0; }
+}
+
+.data-work-card__topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.data-work-kind,
+.data-work-priority {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 19px;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: var(--ls-caps);
+  line-height: var(--lh-none);
+  text-transform: uppercase;
+}
+
+.data-work-kind.is-request {
+  background: color-mix(in srgb, var(--series-1) 10%, var(--surface-2));
+  color: var(--series-1);
+}
+
+.data-work-kind.is-ticket {
+  background: color-mix(in srgb, var(--series-3) 12%, var(--surface-2));
+  color: var(--series-3);
+}
+
+.data-work-kind.is-bug {
+  background: color-mix(in srgb, var(--status-critical) 10%, var(--surface-2));
+  color: var(--critical-text);
+}
+
+.data-work-priority {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-family: var(--mono);
+}
+
+.data-work-priority.is-p0 { color: var(--critical-text); }
+.data-work-priority.is-p1 { color: var(--warning-text); }
+
+.data-work-card__id {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.data-work-card h4 {
+  font-size: var(--fs-lg);
+  line-height: var(--lh-snug);
+}
+
+.data-work-card > p {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-body);
+}
+
+.data-work-card__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 1px 0 0;
+}
+
+.data-work-card__meta > div {
+  min-width: 0;
+  padding: 4px 6px;
+  border-radius: 7px;
+  background: var(--surface-2);
+}
+
+.data-work-card__meta dt {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.data-work-card__meta dd {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.data-work-card__timing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.data-work-card__timing strong {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
+.data-work-card__timing .is-good { color: var(--success-text); }
+.data-work-card__timing .is-warn { color: var(--warning-text); }
+.data-work-card__timing .is-bad { color: var(--critical-text); }
+
+.data-work-card__status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--grid);
+}
+
+.data-work-card__status > span {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.data-work-card__status select {
+  min-width: 116px;
+  padding: 5px 7px;
+  font-size: var(--fs-2xs);
+}
+
+.data-work-column__empty {
+  display: grid;
+  min-height: 92px;
+  place-items: center;
+  margin: 0;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-control);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  text-align: center;
+}
+
+.data-workboard__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.data-workboard__footer > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.data-workboard__footer button {
+  padding: 5px 8px;
+  font-size: var(--fs-2xs);
+}
+
+@media (max-width: 1220px) {
+  .data-workboard__heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .data-workboard__toolbar {
+    grid-template-columns: minmax(220px, 1fr) auto auto;
+  }
+
+  .data-workboard__toolbar > button {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .data-workboard__kinds {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: fit-content;
+  }
+
+  .data-workboard__sort {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .data-workboard__composer {
+    grid-template-columns: repeat(3, minmax(150px, 1fr));
+  }
+
+  .data-workboard__composer-title {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 980px) {
+  .data-trust-evidence-grid,
+  .data-trust-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .data-trust-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .data-console-pair,
+  .data-console-handoff {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .data-console-handoff .text-action {
+    width: fit-content;
+  }
+
+  /* Below the desk width the board scrolls sideways rather than squeezing four
+     stages into a phone's worth of canvas. The columns take their comfortable
+     width back and the gutter keeps carrying the flow. */
+  .data-workboard__board {
+    /* Scroll mode. The columns come down less than on the desk — they exist
+       for comfortable touch-scrolling here — and the shorter gutter bounds
+       how far the board runs sideways while still beating the old 44px. */
+    --wq-gap: 56px;
+    grid-template-columns: repeat(4, minmax(226px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+
+
+  .data-trust-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .data-trust-verdict {
+    min-width: 0;
+  }
+
+  .data-trust-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  button.data-trust-action {
+    min-height: 0;
+  }
+
+  .data-workboard {
+    padding: 14px;
+  }
+
+  .data-workboard__board {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    overflow-x: visible;
+  }
+
+  /* Stacked, the stages run down the page — a rightward chevron would point at
+     nothing. The heading order carries the sequence instead. */
+  .data-work-column:not(:last-child)::before,
+  .data-work-column:not(:last-child)::after {
+    content: none;
+  }
+
+  .data-workboard__toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .data-workboard__search {
+    grid-column: 1 / -1;
+  }
+
+  .data-workboard__kinds {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .data-workboard__sort {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .data-workboard__toolbar > button {
+    grid-column: 2;
+    grid-row: auto;
+  }
+
+  .data-workboard__composer {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .data-workboard__composer-title {
+    grid-column: 1 / -1;
+  }
+
+  .data-workboard__composer-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 520px) {
+  .data-trust-evidence-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .data-trust-hero,
+  .data-trust-monitor {
+    padding: 14px;
+  }
+
+  .data-workboard__toolbar {
+    display: flex;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .data-workboard__sort {
+    justify-content: space-between;
+  }
+
+  .data-workboard__sort select {
+    flex: 1 1 auto;
+  }
+
+  .data-workboard__toolbar > button,
+  .data-console-handoff .text-action {
+    width: 100%;
+  }
+
+  .data-workboard__composer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .data-workboard__composer-title,
+  .data-workboard__composer-heading {
+    grid-column: 1;
+  }
+
+  .data-workboard__footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+.research-inspection-banner {
+  margin-bottom: 16px;
+}
+
+.cockpit-grid--ticket {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.execution-methodology {
+  padding: 0;
+  overflow: hidden;
+}
+
+.execution-methodology summary {
+  padding: 14px 16px;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+}
+
+.execution-methodology summary:hover {
+  background: var(--surface-2);
+}
+
+.execution-methodology .sub {
+  margin: 0;
+  padding: 0 16px 16px;
+}
+
+/* The rail scrolls at every width now, so nothing special is needed at 900px.
+   Below 620px six research sections would need dragging to reach, and "a tab
+   you have to discover by dragging is a tab nobody opens" (l.3071) — so the
+   rail wraps to a grid instead of scrolling. */
+@media (max-width: 620px) {
+  .workspace-subtabs__rail {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+    gap: 2px;
+    overflow: visible;
+  }
+
+  .workspace-subtabs button {
+    padding: 8px 6px;
+    text-align: center;
+    /* The desk-width growth cap has no business in a grid cell: a capped
+       button inside a wider auto-fit track would float in its own cell. */
+    max-width: none;
+  }
+
+  .market-watchlist {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 3px;
+    scroll-snap-type: x proximity;
+  }
+
+  .market-watchlist__item {
+    flex: 0 0 148px;
+    scroll-snap-align: start;
+  }
+}
+
+/* Kept at the end because the base console rules above still define the old
+   flex log row; the Reliability event view needs stable scan columns. */
+.console-log__line {
+  display: grid;
+  grid-template-columns: 84px 44px 30px minmax(90px, auto) minmax(220px, 1fr);
+  gap: 0 8px;
+  align-items: start;
+  min-width: 700px;
+  padding: 2px 4px;
+}
+
+@media (max-width: 520px) {
+  .console-log__line {
+    grid-template-columns: 80px 42px 28px minmax(120px, 1fr);
+    min-width: 0;
+  }
+
+  .console-log__msg,
+  .console-log__fields {
+    grid-column: 1 / -1;
+    padding-left: 4px;
+  }
+}
+

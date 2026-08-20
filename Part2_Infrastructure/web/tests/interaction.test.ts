@@ -19,8 +19,12 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-const cssPath = fileURLToPath(new URL("../app/globals.css", import.meta.url));
-const css = readFileSync(cssPath, "utf8");
+import { globalsCss, locateInGlobals } from "./globals-css";
+
+/* The whole cascade. `app/globals.css` is a 122-line @import manifest since the
+   split, so reading that path directly would assert against comments — see the
+   header of `tests/globals-css.ts`. */
+const css = globalsCss;
 const subtabs = readFileSync(
   fileURLToPath(new URL("../components/WorkspaceSubtabs.tsx", import.meta.url)),
   "utf8",
@@ -78,11 +82,11 @@ describe("elevation is reserved for what floats", () => {
     for (const match of declarations.matchAll(/\n\.card \{/g)) {
       const index = match.index ?? 0;
       const block = declarations.slice(index, declarations.indexOf("}", index));
-      const line = declarations.slice(0, index).split("\n").length + 1;
+      const at = locateInGlobals(index + 1);
       assert.doesNotMatch(
         block,
         /box-shadow/,
-        `globals.css:${line} — .card regained a shadow; borders carry separation`,
+        `${at} — .card regained a shadow; borders carry separation`,
       );
     }
   });
@@ -205,8 +209,11 @@ describe("chrome offsets are measured", () => {
       );
     }
 
+    // The eight panels are `components/workspace/WorkspacePanels.tsx` since the
+    // shell split; page.tsx no longer holds a single `active={view === …}`, so
+    // a scan left on it would pass by finding nothing to check.
     const dashboard = readFileSync(
-      fileURLToPath(new URL("../app/dashboard/page.tsx", import.meta.url)),
+      fileURLToPath(new URL("../components/workspace/WorkspacePanels.tsx", import.meta.url)),
       "utf8",
     );
     for (const tab of ["overview", "portfolio", "risk", "data", "reliability", "developer"]) {
@@ -224,11 +231,11 @@ describe("chrome offsets are measured", () => {
     for (const match of declarations.matchAll(/(min-height|max-height|height): calc\(100vh[^;]*;/g)) {
       const index = match.index ?? 0;
       const following = declarations.slice(index, index + 260);
-      const line = declarations.slice(0, index).split("\n").length;
+      const at = locateInGlobals(index);
       assert.match(
         following,
         /100svh/,
-        `globals.css:${line} sizes on 100vh with no svh line after it`,
+        `${at} sizes on 100vh with no svh line after it`,
       );
     }
   });
@@ -259,14 +266,14 @@ describe("the header's anchored triggers stay styled", () => {
       const direct = new RegExp(`\\.workspace-header__utility > \\.${klass}\\b`, "g");
       for (const match of declarations.matchAll(direct)) {
         const index = match.index ?? 0;
-        const line = declarations.slice(0, index).split("\n").length;
+        const at = locateInGlobals(index);
         // ...must be accompanied by the two-level form, or it reaches nothing.
         const selectorList = declarations.slice(index, declarations.indexOf("{", index));
         const rest = declarations.slice(index - 300, index + 400);
         assert.match(
           rest,
           new RegExp(`\\.workspace-header__utility > \\.header-anchor > \\.${klass}\\b`),
-          `globals.css:${line} — \`${selectorList.trim()}\` cannot match: `
+          `${at} — \`${selectorList.trim()}\` cannot match: `
             + `.${klass} renders inside .header-anchor, so it is a grandchild of the row`,
         );
       }

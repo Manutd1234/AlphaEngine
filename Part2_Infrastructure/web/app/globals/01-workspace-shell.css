@@ -1,0 +1,2208 @@
+/* ========================================================================
+   Integrated workspace shell
+   ======================================================================== */
+
+.workspace-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+  background: color-mix(in srgb, var(--surface-1) 96%, transparent);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--border) 50%, transparent);
+}
+
+.workspace-header__utility {
+  width: 100%;
+  max-width: 100vw;
+  margin: 0 auto;
+  padding-left: 16px;
+  padding-right: 16px;
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* `clip`, not `hidden`: hidden forces overflow-y to compute to auto, which
+     turns this bar into a scroll container. The kill-switch panel anchors
+     inside it and focuses its confirm input on open, so the browser scrolled
+     the bar internally and the brand, tabs and chips vanished off-screen. */
+  overflow-x: clip;
+}
+
+/* The header's three dropdowns — account, settings, kill switch. One rule,
+   because it used to be three identical Tailwind strings and they drifted in
+   the way copies always do: all three clamped their *width* to the viewport
+   and none clamped their *inline offset*, so a 280px panel hanging off a
+   trigger near the left gutter opened off the edge of the screen. See
+   AnchoredPanel.tsx for what the component owns and what it does not. */
+.header-anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.anchored-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  /* --z-overlay is what the three `z-[60]` literals meant. Written as a token
+     it is also visible to layering.test.ts, which scans this stylesheet and
+     could never see the inline utilities. */
+  z-index: var(--z-overlay);
+  width: min(var(--panel-w, 300px), calc(100vw - 28px));
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---------- the sign-in page ----------
+   Its own shell, because it is the one surface outside the workspace that has to
+   stand on its own: no header, no rail, and — until this pass — no indication of
+   what was being signed into. The card keeps its 400px measure; what is new is
+   the masthead above it and a guest action below with real weight.
+
+   Not viewport-locked like the desk. This page is short, and `min-height` with
+   centred content is right for a form; the desk's `height` lock exists to give a
+   panel a bounded box to scroll inside, which nothing here needs. */
+.auth-shell {
+  width: min(440px, 100%);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/**
+ * Centred while it fits, scrolled when it does not.
+ *
+ * `justify-content: center` is the obvious way to centre this column and the
+ * wrong one the moment the column is taller than its scroller: centring an
+ * overflowing flex container pushes the first child above the scrollable area,
+ * so the top of the form becomes unreachable. Auto margins on the end children
+ * absorb the spare room the same way when there is any, and collapse to nothing
+ * when there is not — which leaves the whole column scrollable.
+ */
+.auth-shell > :first-child {
+  margin-block-start: auto;
+}
+
+.auth-shell > :last-child {
+  margin-block-end: auto;
+}
+
+/* Two classes, not one. `.card` is declared four times in this file and the
+   last of them sets `padding: var(--card-pad)`, so a single-class `.auth-card`
+   loses the cascade on source order alone — which is why the padding it asked
+   for never applied and the card has been sized by the shared rule all along. */
+.card.auth-card {
+  padding: var(--space-6);
+}
+
+/* The lockup as a masthead rather than one chip in a crowded row. */
+.brand-lockup--lg {
+  align-self: center;
+  gap: 10px;
+}
+
+.brand-lockup--lg .brand-mark {
+  width: 44px;
+  height: 44px;
+  font-size: var(--fs-figure);
+}
+
+.brand-lockup--lg .brand-copy strong {
+  font-size: var(--fs-h1);
+}
+
+/* Inert on the sign-in page: it is the masthead, not a way back to anywhere. */
+.brand-lockup--static {
+  cursor: default;
+}
+
+.brand-lockup--static:hover {
+  background: transparent;
+}
+
+/* Equal in weight to the provider buttons above it, because it is an equally
+   real way into the desk — it was a low-contrast underlined link, which read as
+   a footnote to the form rather than an alternative to it. */
+.auth-guest {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  font-size: var(--fs-xl);
+  font-weight: 650;
+  color: var(--text-primary);
+  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.auth-guest:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--series-1) 40%, var(--border));
+}
+
+.auth-guest__note {
+  margin: 0;
+  text-align: center;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--text-muted);
+}
+
+/**
+ * A link that happens to be a button.
+ *
+ * "Forgot password?", "Create account" and "Back to sign in" switch mode in
+ * place rather than navigating, so they are <button> — and the global control
+ * rule therefore gave each of them a 1px border, a filled background, 9px of
+ * padding and a 32px minimum. Three boxes floating inside the card where the
+ * design called for three links, which is exactly how they shipped.
+ *
+ * Every one of those four properties has to be undone, not just the border:
+ * resetting the border alone leaves a grey pill, and resetting the background
+ * alone leaves an empty outline. Kept as one class rather than repeated inline
+ * on each caller so the next one cannot be added half-reset.
+ */
+.auth-link {
+  border: none;
+  border-radius: 0;
+  background: none;
+  padding: 0;
+  min-height: 0;
+  font-size: var(--fs-lg);
+  font-weight: 650;
+  color: var(--series-1);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* The global button hover recolours a border this has none of, so it would
+   otherwise answer the pointer with nothing at all. */
+.auth-link:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+/**
+ * The way back out of a panel that was opened from another one.
+ *
+ * Same reset as `.auth-link` and for the same reason — this is a <button>
+ * because it reopens a sibling panel rather than navigating, so the global
+ * control rule would otherwise draw a grey pill above the panel heading.
+ * Rendered only when there is a panel behind this one.
+ */
+.panel-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 8px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  padding: 0;
+  min-height: 0;
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  color: var(--text-secondary);
+}
+
+.panel-back:hover:not(:disabled) {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* The sign-in page is a full page, not a chip in a dense row: its type was
+   sized for the latter and read as a dialog shrunk to fit. One block owns the
+   scale so the card, the lockup and the copy stay in proportion to each other
+   rather than drifting apart one arbitrary utility at a time. */
+.auth-card h1 {
+  font-size: var(--fs-display);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-figure);
+}
+
+.auth-card .auth-blurb {
+  margin-top: 6px;
+  font-size: var(--fs-xl);
+  line-height: var(--lh-body);
+  color: var(--text-secondary);
+}
+
+.auth-card label {
+  font-size: var(--fs-md);
+}
+
+.auth-card input:not([type="checkbox"]) {
+  min-height: 42px;
+  padding: 10px 12px;
+  font-size: var(--fs-xl);
+}
+
+.auth-card .primary-action {
+  width: 100%;
+  min-height: 44px;
+  font-size: var(--fs-2xl);
+}
+
+/* Equal in weight to the primary action, because a provider is an equally real
+   way in — not a footnote under the form. */
+.auth-provider {
+  width: 100%;
+  min-height: 42px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  font-size: var(--fs-xl);
+  font-weight: 650;
+  color: var(--text-primary);
+  transition: background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+
+.auth-provider:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--series-1) 40%, var(--border));
+}
+
+/* ---------- data provenance badge ----------
+   The header's statement of what the numbers below it are made of. Built like
+   the other utility chips so it reads as chrome rather than as an alert: the
+   tone is an accent on a glyph and a word, never the only carrier of meaning,
+   which is both the house rule and what survives forced-colors. */
+.data-tier {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: transparent;
+  font-size: var(--fs-chrome-chip);
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.data-tier:hover {
+  background: var(--surface-2);
+}
+
+.data-tier__dot {
+  /* A chrome glyph: the chip's caption size, not a content rung — the one
+     header element that still moved under the Text-size step, by 1.6px, and
+     the ladder's proof of immunity is a byte-identical sweep. */
+  font-size: var(--fs-chrome-caption);
+  line-height: var(--lh-none);
+}
+
+.data-tier--good .data-tier__dot { color: var(--status-good); }
+.data-tier--warn .data-tier__dot { color: var(--status-warning); }
+.data-tier--neutral .data-tier__dot { color: var(--text-muted); }
+
+.data-tier--warn {
+  border-color: color-mix(in srgb, var(--status-warning) 42%, var(--border));
+}
+
+/* A feed that is actually arriving says so, in the SAME visual language as the
+   work board's live dot: an expanding ring, not a second invented effect. This
+   badge shipped with its own `tier-pulse` opacity fade, which meant the desk had
+   two animations for one meaning; the ring came first and reads better, so this
+   adopts it and that keyframe is gone. Decoration over a glyph and a label that
+   already carry the state, and clamped by the single reduce block. */
+.data-tier__dot.is-live {
+  position: relative;
+}
+
+.data-tier__dot.is-live::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  opacity: 0;
+  animation: live-pulse var(--dur-pulse) var(--ease-out) infinite;
+}
+
+/* Measured, not guessed, and the measurement was a surprise: adding this chip
+   put the utility row 30px past its clip at 1440px and 72px at 1200px — the
+   exact defect df63e49 fixed, reappearing because that row has no slack left
+   and `overflow-x: clip` eats the evidence. 1440 failed while 1380 passed
+   because the Settings gear drops its own label at 1380, which is the same
+   trade being made here one breakpoint higher. (Now rung 4 of the header's
+   priority ladder, re-measured with the larger header type.)
+
+   The glyph survives, and it is doing more work than a dot: ● ◇ △ are three
+   distinct shapes for three states. The full sentence is in the aria-label, the
+   panel behind the button, and — on any tab reading a generated book — the
+   in-page banner that already says the positions do not exist. */
+@media (max-width: 1630px) {
+  .data-tier__label {
+    display: none;
+  }
+}
+
+.anchored-panel--scroll {
+  /* svh rather than dvh, per the note on `body`: the small viewport is stable
+     while dvh reflows the tree every time a mobile URL bar slides. */
+  max-height: calc(100svh - var(--header-h, 56px) - 20px);
+  overflow-y: auto;
+}
+
+.brand-lockup {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+}
+
+.brand-lockup:hover:not(:disabled) {
+  border-color: transparent;
+}
+
+.brand-mark {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 12px;
+  color: #fff;
+  background:
+    radial-gradient(circle at 22% 18%, rgba(255, 255, 255, 0.25), transparent 28%),
+    linear-gradient(145deg, #3b82f6 0%, #2563eb 55%, #1e40af 100%);
+  box-shadow: 0 8px 22px rgba(37, 99, 235, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.brand-mark::after {
+  content: "";
+  position: absolute;
+  width: 31px;
+  height: 31px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-left-color: transparent;
+  border-radius: 50%;
+  transform: translate(-8px, 8px) rotate(-24deg);
+}
+
+.brand-lockup:hover .brand-mark {
+  transform: translateY(-1px) rotate(-2deg);
+  box-shadow: 0 11px 25px rgba(37, 99, 235, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.brand-mark__alpha {
+  position: relative;
+  z-index: 1;
+  transform: translate(-3px, -1px);
+  /* The wordmark's identity: the one sanctioned serif in the product, sized
+     to the mark's geometry. Off the type scale and off the two font stacks
+     by design — a logo glyph, not text. */
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 25px;
+  font-weight: 700;
+  line-height: var(--lh-none);
+}
+
+.brand-mark__rails {
+  position: absolute;
+  right: 5px;
+  bottom: 7px;
+  z-index: 2;
+  display: grid;
+  gap: 3px;
+}
+
+.brand-mark__rails i {
+  display: block;
+  width: 10px;
+  height: 2px;
+  border-radius: 3px;
+  background: #9ec9fb;
+  box-shadow: 0 0 7px rgba(158, 201, 251, 0.5);
+}
+
+.brand-mark__rails i:last-child {
+  width: 6px;
+  margin-left: 4px;
+}
+
+.brand-copy {
+  min-width: 0;
+  display: grid;
+  gap: 0;
+}
+
+.brand-copy strong {
+  color: var(--text-primary);
+  font-size: var(--fs-chrome-brand);
+  line-height: var(--lh-tight);
+  letter-spacing: -0.03em;
+}
+
+.brand-copy small {
+  color: var(--text-muted);
+  font-size: var(--fs-chrome-caption);
+  font-weight: 650;
+  letter-spacing: var(--ls-caps);
+  line-height: var(--lh-snug);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.page-kicker {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 750;
+  letter-spacing: var(--ls-kicker);
+  line-height: var(--lh-snug);
+  text-transform: uppercase;
+}
+
+.header-spacer {
+  flex: 1;
+}
+
+/* Inter's figures are proportional by default, and this chip's whole content
+   is a count: measured in Chrome at the chip's own 12px/600, "20/20 providers
+   routable" set 5.68px wider than "12/12 providers routable" purely because of
+   the glyphs. On a chip that re-reads on every health poll that is a row of
+   chrome sliding sideways under the pointer. Tabular figures make every digit
+   the same advance, so only the digit COUNT can still move it — which is what
+   the reservation on `.system-health-action` below is for. */
+.system-health {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-secondary);
+  font-size: var(--fs-chrome-chip);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.system-health i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--status-good);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--status-good) 12%, transparent);
+}
+
+.system-health.is-warn i {
+  background: var(--status-warning);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--status-warning) 12%, transparent);
+}
+
+/* 32px and a 9px radius, like everything else in the row.
+   This chip carries two lines of copy and so had sized itself to fit them —
+   38px tall with a 10px radius, standing a full 6px proud of its seven
+   neighbours and rounding differently at the corners. It reads as the one
+   control that did not get the memo. The copy still fits: an 11px caption over
+   a 12px figure at line-height 1.15 is 26.45px of text, which with 3px of
+   padding either side and the border is 34.45px — the height the row's other
+   two-line control (the Telegram CTA) already stands at — and the icon comes
+   down with it rather than setting the floor on its own. (Measured by
+   scripts/header-ladder-measure.mjs, which prints the chip's height at every
+   width. 1.05 belonged to the lifted chrome, where 1.15 stood 36.7px; with
+   the chrome back at 12/11 it is 1.15 that lands on the row's norm.) */
+.latency-chip {
+  display: inline-grid;
+  grid-template-columns: auto auto auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  /* 24px icon + 6px padding + 2px border = 32. The icon sets the floor here,
+     not the copy (23px), so the padding is what has to give. */
+  padding: 3px 9px 3px 5px;
+  border-color: color-mix(in srgb, var(--series-1) 18%, var(--border));
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--series-1) 4%, var(--surface-1));
+  text-align: left;
+}
+
+.latency-chip:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--series-1) 42%, var(--border));
+  background: color-mix(in srgb, var(--series-1) 8%, var(--surface-1));
+}
+
+.latency-chip__icon {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--series-1) 10%, var(--surface-2));
+  color: var(--series-1);
+}
+
+.latency-chip__copy {
+  display: grid;
+  gap: 0;
+  line-height: 1.15;
+}
+
+.latency-chip__copy small {
+  color: var(--text-muted);
+  font-size: var(--fs-chrome-caption);
+  font-weight: 750;
+  letter-spacing: .075em;
+  text-transform: uppercase;
+}
+
+.latency-chip__copy strong {
+  color: var(--text-primary);
+  font-family: var(--mono);
+  font-size: var(--fs-chrome-chip);
+  /* Tabular figures so the ticking decision p99 (and its inline core figure)
+     never shift the row's width as they count. */
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The compiled core's nanosecond figure rides the second copy row inline, at
+   the caption size — it adds width, never a third row, so the 32px contract
+   above holds. Hidden first as the header narrows (see the collapse ladder). */
+.latency-chip__core {
+  margin-left: 6px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: var(--fs-chrome-caption);
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+/* The state word — and, before the sample floor is met, a count: `formatDecisionChip`
+   puts `${samples}/${DECISION_MIN_SAMPLES}` here, which ticks once per order.
+   Tabular figures for the digits, and a floor so neither the counter nor the
+   word behind it can resize the chip.
+   87px is measured, not chosen: the widest string this span can hold is
+   "not published" (85.77px with the dot, the 5px gap and tabular figures, at
+   the chip's 11px/700 in Chrome), and the header ladder's own sweep
+   (scripts/header-ladder-measure.mjs) injects "within budget" — 86.28px — at
+   every width it measures. Reserving 87px therefore costs the ladder nothing:
+   the row it measured was already this wide. A longer word than either simply
+   grows the chip, because this is a floor and not a width. */
+.latency-chip__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 87px;
+  color: var(--text-muted);
+  font-size: var(--fs-chrome-caption);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.latency-chip__state i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--axis);
+}
+
+.latency-chip.is-good .latency-chip__state { color: var(--success-text); }
+.latency-chip.is-good .latency-chip__state i { background: var(--status-good); }
+.latency-chip.is-warn .latency-chip__state { color: var(--warning-text); }
+.latency-chip.is-warn .latency-chip__state i { background: var(--status-warning); }
+.latency-chip.is-bad .latency-chip__state { color: var(--critical-text); }
+.latency-chip.is-bad .latency-chip__state i { background: var(--status-critical); }
+
+/**
+ * TWO LEVELS, NOT ONE — and the reason is a bug this file already shipped.
+ *
+ * Four utility controls (QuickSettings, AccountChip, DataTierBadge,
+ * KillSwitchControl) render their trigger inside a `.header-anchor` span so the
+ * panel they open has something to position against. That wrapper made every
+ * `.workspace-header__utility > .trigger` rule stop matching, silently: the
+ * Settings trigger lost `inline-flex`, its `gap`, its `min-width` and both of
+ * its responsive collapses, and fell back to the bare `button.icon` rule. The
+ * visible result was a gear jammed against the word "Settings" with no space
+ * between them, and a label that never collapsed at laptop widths.
+ *
+ * Nothing caught it. `dead-css.test.ts` measures classes that are declared and
+ * never rendered; `header-settings` was rendered the whole time — it was the
+ * selector that stopped reaching it. `tests/interaction.test.ts` now pins the
+ * two-level form so a future wrapper cannot repeat this quietly.
+ *
+ * Written out rather than collapsed to a descendant selector on purpose: the
+ * intent is "chrome sitting directly in the utility row", and a bare descendant
+ * would also style any icon a panel renders inside itself.
+ */
+.workspace-header__utility > .icon,
+.workspace-header__utility > .header-anchor > .icon {
+  min-width: 72px;
+  background: transparent;
+  border-color: var(--border);
+}
+
+/* The viewing preferences moved behind one gear, so this sizes the trigger the
+   theme and density buttons used to share. Inside the panel both are segmented
+   `.seg` groups now and carry no header class at all, which is why the old
+   `.theme-toggle` half of the rule below was dropped rather than left dangling. */
+.workspace-header__utility > .header-settings,
+.workspace-header__utility > .header-anchor > .header-settings {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 96px;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* The chip rung, matching the four status chips beside it. It was a half-step
+   below them once — the only half-step in the row, and small enough beside
+   "Kill switch" to read as a different class of control. */
+.header-settings span {
+  font-size: var(--fs-chrome-chip);
+  font-weight: 650;
+}
+
+.workspace-tabs {
+  display: flex;
+  align-self: stretch;
+  align-items: center;
+  gap: 2px;
+  overflow-x: visible;
+  flex: 1;
+}
+
+/* Room between the wordmark and the first tab. At the bar's 8px gap the
+   lockup and "Overview" read as one cluster; the nav is a separate thing and
+   should look it. Desktop only — below 900px the tabs take their own row,
+   where a left margin would merely indent them. */
+@media (min-width: 901px) {
+  .workspace-tabs {
+    margin-left: 20px;
+  }
+}
+
+.workspace-tabs button {
+  position: relative;
+  flex: 1;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+  white-space: nowrap;
+  font-size: var(--fs-chrome-chip);
+}
+
+.workspace-tabs button::after {
+  content: "";
+  position: absolute;
+  right: 14px;
+  bottom: -1px;
+  left: 14px;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: transparent;
+}
+
+.workspace-tabs button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--series-1) 5%, transparent);
+}
+
+.workspace-tabs button[aria-selected="true"] {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--series-1) 9%, transparent);
+}
+
+.workspace-tabs button[aria-selected="true"]::after {
+  background: var(--series-1);
+}
+
+.workspace-tabs button span {
+  /* One rung up from the chips beside them: the eight destinations are the
+     row's primary text, and at the chip size they read as a chip among chips. */
+  font-size: var(--fs-chrome-tab);
+  font-weight: 680;
+}
+
+
+/* The providers chip carries two labels and shows one: the sentence at rest,
+   the short form on the ladder's middle rungs, neither from rung 4 down where
+   the dot alone remains. Both are the same fact; only one is ever painted. */
+.system-health__label--short {
+  display: none;
+}
+
+/* A floor wide enough for the longest count the sentence can reach, so the
+   chip stops resizing when the count does. Tabular figures above fix
+   "12/12" against "20/20"; they cannot fix "9/20" against "10/20", where a
+   whole glyph appears — 7.77px of it, measured — and every chip to the right
+   of this one moves.
+   180px is the composed button (dot, 7px gap, label, 9px padding either side,
+   1px border) around "20/20 providers routable" at 179.33px, measured in
+   Chrome against the header's own Inter at 12px/600 with tabular figures on.
+   A three-digit total, or a sentence nobody planned for, exceeds it and the
+   chip simply grows: this is a min-width, never a width, and `.system-health`
+   keeps `white-space: nowrap` so nothing wraps into the row's height.
+   Rung 1 re-floors it for the short sentence — see the ladder at the foot of
+   this file — and rungs below 1500px, and the phone rules, pin the button to
+   its dot and override this outright. */
+.system-health-action {
+  min-height: 32px;
+  min-width: 180px;
+  padding: 6px 9px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.system-health-action:hover:not(:disabled) {
+  border-color: var(--border);
+  background: var(--surface-2);
+}
+
+/* `.workspace-shell` and `.view-panel` are declared once, in the workspace
+   standardisation layer at the foot of this file. They used to be declared here
+   too — a padding-only shell from before `.workspace-shell` became the app's
+   single scroller, and a `.view-panel` with a hardcoded 180ms. Both lost the
+   cascade to the later block on source order, so the only thing they still did
+   was make this file look like it disagreed with itself. */
+
+@keyframes panel-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- overview ---------- */
+
+
+.page-actions,
+.workflow-handoff > div:last-child,
+.capability-empty > div > div:last-child {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* The primary-action declaration lives in the standardisation layer at the end
+   of the file — deliberately last, so it wins the cascade (its own comment
+   there explains why). A copy used to sit here too, fully shadowed, carrying
+   the sheet's only uncommented raw hexes on hover blues that had stopped
+   applying and would not have flipped with data-theme even when they did. */
+
+.overview-section {
+  margin-top: 28px;
+}
+
+.section-heading {
+  margin-bottom: 15px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+/* :is(h2, h3): a card whose right outline level is h3 — ResearchCorpus, the
+   execution quality cards — used to fall through to UA sizing, the one title
+   off the type scale. The outline level is the component's choice; the scale
+   is not. */
+.section-heading :is(h2, h3) {
+  margin-top: 4px;
+  font-size: var(--fs-h1);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tight);
+}
+
+.section-heading.compact {
+  align-items: center;
+}
+
+.section-heading.compact :is(h2, h3) {
+  font-size: var(--fs-h2);
+}
+
+/* The caption under a section heading, and the shared home of the desk's live
+   counters — "12/200 entries", "8/20 routable", "{n} polls; peak p99 {n} ms".
+   Tabular figures here, in the sans face rather than the mono one: these are
+   sentences with numbers in them, not figures, so the house rule that puts
+   measurements in mono does not reach them — but a digit that changes width
+   still re-lays out the whole line, and on a polled counter it does so twice a
+   second. Fixed-width digits are the whole of the fix; the face is unchanged. */
+.section-note {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+
+.pipeline-card {
+  min-width: 0;
+  min-height: 142px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  display: flex;
+  flex-direction: column;
+}
+
+
+.pipeline-card__step {
+  margin-bottom: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 750;
+  letter-spacing: var(--ls-caps-wide);
+  text-transform: uppercase;
+}
+
+.role-card__header {
+  margin-bottom: 13px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.role-card__header .role-monogram {
+  width: 30px;
+  height: 30px;
+  flex-basis: 30px;
+  border-radius: var(--radius-control);
+  font-size: var(--fs-2xs);
+}
+
+.pipeline-card__step span {
+  margin-right: 8px;
+  color: var(--series-1);
+  font-family: var(--mono);
+}
+
+.pipeline-card h3 {
+  overflow: hidden;
+  font-size: var(--fs-title);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--ls-figure);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pipeline-card__value {
+  overflow: hidden;
+  font-size: var(--fs-xl);
+  line-height: var(--lh-snug);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.pipeline-card__status {
+  overflow: hidden;
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+.role-monogram {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border: 1px solid color-mix(in srgb, var(--series-1) 25%, var(--border));
+  border-radius: var(--radius-md);
+  color: var(--series-1);
+  background: color-mix(in srgb, var(--series-1) 8%, var(--surface-1));
+  display: grid;
+  place-items: center;
+  font-family: var(--mono);
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+}
+
+/* Plane and line only. Padding, margin and radius are set once in the
+   standardisation layer at the foot of this file, from tokens; the literals
+   that used to sit here (14px 16px, 12px) lost the cascade to it and were
+   read by anyone tuning card rhythm from the wrong end of the sheet. */
+.card {
+  background: var(--surface-1);
+  /* --rule rather than --border directly: a card's outline is the largest
+     region division on the page, and it must move with the rules inside it
+     rather than being retuned on its own. Same value today, one name. */
+  border: 1px solid var(--rule);
+}
+/* A card's own title is a title, not an eyebrow. This read as a 12px muted
+   uppercase label — under an 11px uppercase kicker on the profile cards, and
+   smaller than the h3s inside the card it named. The eyebrow voice belongs to
+   .page-kicker; the card title sits one rung under the section h2. */
+.card > h2 {
+  font-size: var(--fs-title);
+  font-weight: 650;
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-figure);
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  text-wrap: balance;
+}
+.card > .sub {
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  /* Same reasoning as .research-note: the card is the measure. */
+  max-width: none;
+}
+
+/* Compact & bounded inner scrolling containers */
+.compact-grid-2col {
+  display: grid;
+  /* min(100%, …) so a track can never demand more than its container — the
+     bare 360px floor overflowed narrow phones instead of collapsing. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: var(--space-3);
+}
+/* ---------- module pages ---------- */
+
+/* The `.page-heading` / `.page-insight` family lives once, in the workspace
+   standardisation layer at the foot of this file. A second, older copy used to
+   sit here and lose the cascade on source order — but not cleanly: it set
+   `grid-auto-flow: column` and `white-space: nowrap`, which the later block did
+   not, so those two leaked downward and the authoritative rules had to spend a
+   declaration each undoing them. That is why a seventh chip once refused to
+   wrap onto a new line, and why the note's two-line clamp rendered as one
+   clipped line. Deleting the copy is what makes those overrides unnecessary. */
+
+.page-actions {
+  flex-shrink: 0;
+}
+
+.page-actions button {
+  min-height: 37px;
+  background: var(--surface-1);
+}
+
+.research-layout {
+  display: grid;
+  grid-template-columns: 310px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.research-layout .sidebar {
+  top: 148px;
+}
+
+.research-content {
+  min-width: 0;
+}
+
+.experiment-panel__heading {
+  min-width: 0;
+}
+
+.experiment-panel__heading h2 {
+  margin-bottom: 0;
+}
+
+.experiment-panel__heading .sub {
+  display: none;
+}
+
+.experiment-panel__help {
+  margin: 4px 0 16px;
+  font-size: var(--fs-sm);
+}
+
+.experiment-panel__body {
+  min-width: 0;
+}
+
+.experiment-panel__toggle {
+  display: none;
+}
+
+.research-tiles {
+  margin-bottom: 16px;
+}
+
+.workflow-handoff {
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--series-1) 28%, var(--border));
+  border-radius: var(--radius-lg);
+  background: linear-gradient(110deg, color-mix(in srgb, var(--series-1) 9%, var(--surface-1)), var(--surface-1));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.workflow-handoff > div:first-child {
+  min-width: 0;
+  display: grid;
+}
+
+.workflow-handoff strong {
+  overflow: hidden;
+  margin-top: 3px;
+  font-size: var(--fs-xl);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-handoff small {
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+
+.workflow-handoff button {
+  white-space: nowrap;
+}
+
+.research-provenance {
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface-2) 62%, var(--surface-1));
+  display: grid;
+  grid-template-columns: minmax(210px, 0.85fr) minmax(0, 1.7fr);
+  /* `center` used to float the field grid against the middle of the lead,
+     which meant the seam between the two halves was shorter than the block it
+     divides and sat at a different height in every capsule. Stretched, the
+     seam is the full height of the capsule's content and the two regions read
+     as two columns rather than as two floating things. */
+  align-items: stretch;
+  gap: var(--space-5);
+}
+
+.research-provenance__lead {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  /* Its rows are auto-sized; without this, stretching the column above would
+     spread three lines of lead down the height of a nine-field grid. */
+  align-content: start;
+}
+
+.research-provenance__lead strong {
+  font-size: var(--fs-body);
+}
+
+.research-provenance__lead small {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+/* Four tracks over two rows, not eight equal ones crushed into one.
+   `repeat(auto-fit, minmax(96px, 1fr))` gave every field the same width
+   whatever it held, so a 96px track had to carry "BTCUSDT at 4h", "0 purged, 0
+   embargoed" and "— built without git", and the dd rule below cut all three
+   mid-word. Halving the count doubles the track.
+
+   THE ROW GAP WAS THE WRONG HALF OF THE FIX. It was 10px, with a column rule
+   drawn as `border-left` on each cell — so every vertical hairline stopped at
+   the bottom of its own cell and restarted 10px lower, and because the cells
+   were only as tall as their contents, no two of those segments were the same
+   length or started at the same height. Nine fields drew nine unrelated
+   fragments of line. That is the "intersection" a reader sees drifting: there
+   was no grid, only cells that happened to be side by side.
+
+   So the gap is zero and the rules ARE the gutter. Grid stretches every cell in
+   a row to the row's height, so a column rule runs the full height of its row
+   and meets the next row's rule exactly where the two rows meet. An incomplete
+   last row (this list is seven fields on the sweep capsule, nine on the fitted
+   one) simply draws no rules where it has no cells, which is honest: a rule
+   separates two things, and there is nothing there to separate. */
+.research-provenance dl {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  /* The seam between the capsule's two regions — the claim on the left, the
+     evidence on the right. --rule, because this divides regions; the hairlines
+     inside the grid are --rule-soft, because they divide fields. Two weights,
+     so the reader can see which is the larger division without reading it. */
+  border-left: 1px solid var(--rule);
+  /* --space-2 here plus --space-3 of cell padding is --space-5, which is the
+     capsule's own column gap: the seam sits the same distance from the lead on
+     its left as it does from the first label on its right. */
+  padding-left: var(--space-2);
+}
+
+.research-provenance dl > div {
+  min-width: 0;
+  /* 1px 10px was written for a layout whose separation came from a row gap.
+     The cell is the separation now, so it needs a cell's padding. */
+  padding: var(--space-2) var(--space-3);
+  border-left: 1px solid var(--rule-soft);
+  border-top: 1px solid var(--rule-soft);
+  display: grid;
+  gap: 2px;
+  /* Labels on one row start at the same y whatever their values wrap to. With
+     the default `stretch` a two-line value pushed its own label down and the
+     row's dt line bent. */
+  align-content: start;
+}
+
+/* The grid's outer edges are not drawn twice: the first cell of each row has
+   the capsule's own seam to its left, and the first row has the capsule's top
+   padding above it. Four-column arithmetic, restated at each breakpoint below
+   that changes the count. */
+.research-provenance dl > div:nth-child(4n + 1) {
+  border-left: 0;
+}
+
+/* And the first row loses its cell padding above the label, so the top line of
+   the field grid sits on the same baseline as the kicker across the seam. */
+.research-provenance dl > div:nth-child(-n + 4) {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.research-provenance dt {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 750;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+/* Wraps, and one rung up from the 12px caps of its own `dt`: at --fs-xs the
+   label and the value it labels were half a pixel apart and read as one block.
+
+   `white-space: nowrap` with `text-overflow: ellipsis` used to live here. That
+   is right for a digest and wrong for everything else in this list: "— built
+   without git" and "— on the run detail" are prose, and prose that stops at an
+   ellipsis mid-word has not been shortened, it has been broken. The clip moved
+   to `code` below. */
+.research-provenance dd {
+  min-width: 0;
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  line-height: var(--lh-snug);
+}
+
+.research-provenance code {
+  font-family: var(--mono);
+  color: var(--json-accent);
+}
+
+/* The only value in this list a reader may lose the tail of: a digest is an
+   opaque token with no word to break, and the whole of it is on `title`, which
+   the print block further down expands into visible text.
+
+   Scoped to `dd`, because the lead's `<small>` carries the run id inline in the
+   middle of a sentence — a block there would drop ", succeeded." onto its own
+   line. */
+.research-provenance dd > code {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.execution-handoff {
+  border-color: color-mix(in srgb, var(--series-3) 34%, var(--border));
+  background: linear-gradient(110deg, color-mix(in srgb, var(--series-3) 9%, var(--surface-1)), var(--surface-1));
+}
+
+.data-handoff {
+  margin-bottom: 18px;
+}
+
+/* The desk's blue hand-off link: the last thing in a card, pointing at the
+   section that carries the detail. Twenty of them, and they sat wherever their
+   container happened to put them — left under a heading on Portfolio, left
+   under a paragraph on Risk, right inside the codex cards — so the same role
+   had three positions and none of them read as a convention.
+   `margin-inline-start: auto` on a fit-content block pins every one to the
+   right edge of its box, which is where the eye goes looking for "and then
+   what". Containers that already right-align (the codex column) are unaffected;
+   this only removes the ones that did not. */
+.text-action {
+  display: block;
+  width: fit-content;
+  margin-top: 5px;
+  margin-inline-start: auto;
+  /* Explicit, because a <button> is text-align: center in every UA and a
+     right-aligned box full of centred text is the thing that looked crooked:
+     "Volume-confirmed breakout" wrapped to two lines and centred them inside a
+     button whose own right edge was already flush. Setting it on the container
+     did not reach here — the button's own default wins. */
+  text-align: right;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--series-1);
+  font-size: var(--fs-sm);
+}
+
+/* The anchor form matches the button form's no-underline resting state. */
+a.text-action {
+  text-decoration: none;
+}
+
+.text-action:hover:not(:disabled) {
+  color: color-mix(in srgb, var(--series-1) 78%, var(--text-primary));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.text-action:active:not(:disabled) {
+  color: color-mix(in srgb, var(--series-1) 60%, var(--text-primary));
+}
+
+.banner.context-change {
+  align-items: center;
+  background: color-mix(in srgb, var(--series-1) 7%, var(--surface-1));
+  border-color: color-mix(in srgb, var(--series-1) 28%, var(--border));
+}
+
+.banner.context-change > div {
+  flex: 1;
+}
+
+.banner.context-change > button {
+  flex-shrink: 0;
+  background: var(--surface-1);
+}
+
+.instrument-panel {
+  padding: 16px;
+}
+
+.execution-market-strip {
+  min-width: 0;
+  min-height: 54px;
+  margin-bottom: var(--space-3);
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--series-1) 22%, var(--border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--series-1) 4%, var(--surface-1));
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.execution-market-strip > label {
+  min-width: 160px;
+  display: grid;
+  grid-template-columns: auto minmax(96px, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 750;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.execution-market-strip select {
+  min-width: 0;
+  padding: 6px 26px 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-family: var(--mono);
+  font-size: var(--fs-body);
+  font-weight: 700;
+}
+
+.execution-market-strip dl {
+  min-width: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.execution-market-strip dl > div {
+  min-width: 88px;
+  display: grid;
+  gap: 2px;
+}
+
+.execution-market-strip dt {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.execution-market-strip dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--fs-md);
+  font-weight: 700;
+}
+
+.execution-market-strip dd small {
+  margin-left: 6px;
+  font-size: var(--fs-2xs);
+  font-weight: 650;
+}
+
+.execution-market-strip__status {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.execution-market-strip__status i {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--status-warning);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--status-warning) 12%, transparent);
+}
+
+.execution-market-strip__status.is-live i {
+  background: var(--status-good);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--status-good) 12%, transparent);
+}
+
+@media (max-width: 760px) {
+  .execution-market-strip {
+    flex-wrap: wrap;
+  }
+
+  .execution-market-strip > label {
+    flex: 1 1 180px;
+  }
+
+  .execution-market-strip dl {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+  }
+}
+
+.market-context-card {
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--series-1) 18%, var(--border));
+  background:
+    linear-gradient(120deg, color-mix(in srgb, var(--series-1) 4%, var(--surface-1)), var(--surface-1) 42%),
+    var(--surface-1);
+}
+
+.market-context-card__heading {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.market-context-card__heading h2 {
+  margin-top: 2px;
+  font-size: var(--fs-h2);
+  letter-spacing: var(--ls-tight);
+}
+
+.market-context-card__mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: 650;
+}
+
+.market-context-card__mode i,
+.venue-status__name i {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: var(--status-warning);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--status-warning) 12%, transparent);
+}
+
+.market-context-card__mode.is-live i,
+.venue-status.is-live .venue-status__name i {
+  background: var(--status-good);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--status-good) 12%, transparent);
+}
+
+/**
+ * One ring for every live feed on the desk.
+ *
+ * The shared keyframe already served the work board's dot and the header's
+ * data-source badge; the two market-feed indicators were static, so "the tape
+ * is arriving" was animated in one place on the desk and still in another for
+ * the same fact. Extending the existing rule rather than writing a third
+ * effect is the whole point — the comment on `live-pulse` says a third caller
+ * would otherwise invent a third name.
+ *
+ * Decoration only: the dot's colour and the word beside it already carry the
+ * state, so the reduce block collapsing this to 1ms loses nothing.
+ */
+.execution-market-strip__status.is-live i::after,
+.market-context-card__mode.is-live i::after,
+.venue-status.is-live .venue-status__name i::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border: 1px solid var(--status-good);
+  border-radius: 50%;
+  opacity: 0;
+  animation: live-pulse var(--dur-pulse) var(--ease-out) infinite;
+}
+
+.market-watchlist-shell {
+  position: relative;
+}
+
+/* 12 tiles at 142px plus gaps is ~1780px of content, so below that width the
+   row always overflows — the fade is an honest hint, not decoration. The shell
+   carries it because a ::after on the scroller would scroll away with it. */
+@media (max-width: 1900px) {
+  .market-watchlist-shell::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 4px;
+    width: 28px;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, var(--surface-1));
+  }
+}
+
+.market-watchlist {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+  scroll-snap-type: x proximity;
+}
+
+.market-watchlist__item {
+  flex: 1 0 142px;
+  min-width: 142px;
+  min-height: 67px;
+  padding: 9px 11px;
+  border-color: var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-2) 68%, var(--surface-1));
+  color: var(--text-primary);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: center;
+  gap: 2px 8px;
+  text-align: left;
+  scroll-snap-align: start;
+}
+
+.market-watchlist__item:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--series-1) 50%, var(--border));
+  background: color-mix(in srgb, var(--series-1) 8%, var(--surface-1));
+  color: var(--text-primary);
+}
+
+.market-watchlist__item[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--series-1) 80%, var(--border));
+  color: #ffffff;
+  background: color-mix(in srgb, var(--series-1) 82%, #000);
+}
+
+.market-watchlist__symbol {
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  color: inherit;
+  text-overflow: ellipsis;
+}
+
+.market-watchlist__item > strong {
+  grid-row: span 2;
+  align-self: center;
+  font-size: var(--fs-body);
+  font-weight: 650;
+  color: inherit;
+}
+
+.market-watchlist__item > small {
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+}
+
+.market-watchlist__item[aria-pressed="true"] .market-watchlist__symbol,
+.market-watchlist__item[aria-pressed="true"] > strong,
+.market-watchlist__item[aria-pressed="true"] > small,
+.market-watchlist__item[aria-pressed="true"] > small.pos,
+.market-watchlist__item[aria-pressed="true"] > small.neg {
+  color: #ffffff !important;
+}
+
+.venue-status-strip {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--grid);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.venue-status {
+  min-width: 210px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--surface-2) 62%, var(--surface-1));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.venue-status__name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.venue-status__name strong {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.025em;
+}
+
+.venue-status__name small,
+.venue-status__metrics {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+.venue-status.is-error .venue-status__name i {
+  background: var(--status-critical);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--status-critical) 12%, transparent);
+}
+
+.venue-status.is-stale .venue-status__name i,
+.venue-status.is-connecting .venue-status__name i {
+  background: var(--status-warning);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--status-warning) 12%, transparent);
+}
+
+.capability-empty {
+  min-height: 310px;
+  padding: 40px;
+  border: 1px dashed var(--axis);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface-1) 75%, transparent);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 16px;
+}
+
+.capability-empty > div {
+  max-width: 650px;
+}
+
+.capability-empty h2 {
+  margin-top: 5px;
+  font-size: var(--fs-figure);
+  letter-spacing: var(--ls-tight);
+}
+
+.capability-empty p {
+  margin: 8px 0 18px;
+  color: var(--text-secondary);
+  font-size: var(--fs-xl);
+}
+
+
+.method-badge {
+  width: fit-content;
+  padding: 3px 6px;
+  border-radius: 5px;
+  color: var(--series-3);
+  background: color-mix(in srgb, var(--series-3) 10%, transparent);
+  font-family: var(--mono);
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+}
+
+.method-post {
+  color: var(--series-1);
+  background: color-mix(in srgb, var(--series-1) 10%, transparent);
+}
+
+
+/* ---------- portfolio manager surface ---------- */
+
+.portfolio-loading {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.portfolio-loading .skeleton {
+  height: 150px;
+}
+
+.portfolio-setup-card {
+  max-width: 760px;
+  margin-right: auto;
+  margin-left: auto;
+  padding: 24px;
+}
+
+.portfolio-setup-card .sub {
+  margin-bottom: 16px;
+}
+
+.portfolio-statusbar {
+  min-height: 43px;
+  margin-bottom: 10px;
+  padding: 6px 7px 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.portfolio-statusbar > div {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+.portfolio-statusbar .system-health {
+  color: var(--text-secondary);
+}
+
+.portfolio-statusbar button {
+  padding: 6px 10px;
+  background: var(--surface-2);
+  font-size: var(--fs-sm);
+}
+
+.portfolio-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.portfolio-metrics > div {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-1);
+  display: grid;
+}
+
+.portfolio-metrics > div:last-child {
+  border-right: 1px solid var(--border);
+}
+
+.portfolio-metrics span {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.portfolio-metrics strong {
+  overflow: hidden;
+  margin-top: 5px;
+  font-size: var(--fs-h2);
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Two lines, not one clipped one. `nowrap` cost "effective positions ·
+   largest 41.9% · to…" its last 86px at 1280px, and a note truncated on a
+   touch device is gone for good — there is no hover to recover it on. */
+.portfolio-metrics small {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+/* Risk's two-column body. Named `.portfolio-main-grid` until now, which was
+   wrong in the only way a class name can be: RiskWorkspace is its sole render
+   site and Portfolio never used it at all.
+
+   60/40 rather than the previous 71/29. The right column stopped being a
+   sidebar the moment it held the risk engine, the correlation matrix and the
+   stress simulator — a 300px rail cannot show a 4x4 matrix without wrapping
+   every header. `minmax(0, ...)` on both tracks is what stops a wide table
+   from forcing the grid past its container. */
+.risk-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(340px, 1fr);
+  gap: var(--space-3);
+  align-items: stretch;
+}
+
+.risk-main-grid > .card {
+  min-width: 0;
+  margin-bottom: 12px;
+}
+
+.portfolio-card-heading {
+  min-height: 43px;
+  margin-bottom: 16px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid var(--grid);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.portfolio-card-heading h2 {
+  margin-top: 3px;
+  font-size: var(--fs-h2);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tight);
+}
+
+.portfolio-card-heading > span {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.portfolio-positions-card table td,
+.portfolio-positions-card table th {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.portfolio-row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.portfolio-row-actions button {
+  padding: 4px 7px;
+  font-size: var(--fs-2xs);
+}
+
+.portfolio-row-actions button:first-child:not(:disabled) {
+  border-color: color-mix(in srgb, var(--series-1) 30%, var(--border));
+  color: var(--series-1);
+  background: color-mix(in srgb, var(--series-1) 7%, var(--surface-1));
+}
+
+.portfolio-empty-book {
+  min-height: 140px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  text-align: center;
+}
+
+.portfolio-empty-book strong {
+  font-size: var(--fs-title);
+}
+
+.portfolio-empty-book p {
+  max-width: 470px;
+  margin: 6px 0 14px;
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+}
+
+.portfolio-empty-book button {
+  color: var(--series-1);
+}
+
+
+.portfolio-budget-track i.is-warning {
+  background: var(--status-warning);
+}
+
+.portfolio-budget-track i.is-critical {
+  background: var(--status-critical);
+}
+
+
+.portfolio-concentration {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--grid);
+}
+
+.portfolio-concentration > div {
+  padding: 10px;
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+  display: grid;
+}
+
+.portfolio-concentration span {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+.portfolio-concentration strong {
+  margin-top: 3px;
+  font-size: var(--fs-2xl);
+}
+
+.portfolio-attribution-card {
+  margin-bottom: 0;
+}
+
+.portfolio-attribution-empty {
+  padding: 22px 0;
+  color: var(--text-muted);
+  font-size: var(--fs-md);
+  text-align: center;
+}
+
+.workspace-footer {
+  margin-top: 42px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  font-size: var(--fs-xs);
+}
+
+.workspace-footer span {
+  color: var(--text-secondary);
+  font-weight: 750;
+}
+
+/* ---------- role launcher ---------- */
+
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: var(--space-3);
+}
+
+.role-card {
+  height: 100%;
+  min-height: 218px;
+}
+
+.role-card .pipeline-card__value {
+  min-height: 2.7em;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.role-card .pipeline-card__status {
+  min-height: 3em;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.role-card__actions {
+  min-height: 0;
+  margin-top: auto;
+  padding-top: var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Only the two survivors of the padded-pill era. The quiet-label voice and
+   its card-sized ::after hit area are declared beside the role-card styles
+   near the end of the file — the block that actually wins; the 34px pill
+   metrics that used to sit here were fully overridden residue of the
+   launcher's solid-button era. */
+.role-card__action {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.role-card .pipeline-card__step {
+  color: var(--series-1);
+  letter-spacing: 0.02em;
+}
+
+/* Four equal cards lead the desktop composition. The remaining three sit on
+   the same column rhythm, centred rather than leaving an orphaned seventh card. */
+@media (min-width: 1121px) {
+  .role-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  .role-card {
+    grid-column: span 2;
+  }
+
+  .role-card:nth-child(5) { grid-column: 2 / span 2; }
+  .role-card:nth-child(6) { grid-column: 4 / span 2; }
+  .role-card:nth-child(7) { grid-column: 6 / span 2; }
+}
+
+/* ---------- cross-role tiles ---------- */
+
+/*
+ * Every role tab is self-sufficient: the panel has one home, and the roles that
+ * only need the headline get this instead of a copy. It is visibly a summary —
+ * dashed edge, muted heading — so nobody mistakes it for the real panel.
+ */
+/* An interactive card — it links into another tab — so it answers the pointer.
+   It had no hover state at all, which made a whole clickable card the only
+   surface on the desk that gave no sign it could be clicked. */
+.cross-link-tile {
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+  border-style: dashed;
+  background: color-mix(in srgb, var(--series-1) 3%, var(--surface-1));
+}
+
+.cross-link-tile .portfolio-card-heading h2 {
+  font-size: var(--fs-title);
+}
+
+.cross-link-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px 14px;
+  margin-top: 10px;
+}
+
+.cross-link-metrics > div {
+  display: grid;
+  gap: 2px;
+  align-content: start;
+}
+
+.cross-link-metrics span {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.cross-link-metrics strong {
+  font-size: var(--fs-h2);
+  font-weight: 700;
+}
+
+.cross-link-metrics strong.warn {
+  color: var(--warning-text);
+}
+
+.cross-link-metrics small {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+/* ---------- responsive workspace ---------- */
+
+@media (max-width: 1120px) {
+  /* The `.page-heading` column-stack for this breakpoint is declared once, in
+     the standardisation layer, alongside the `__context` and `__insights`
+     rules it has to agree with. A second copy here only said half of it. */
+  .portfolio-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .risk-main-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .workspace-header__primary {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    padding-top: 7px;
+  }
+  .workspace-tabs {
+    order: 3;
+    width: 100%;
+    min-height: 38px;
+    display: grid;
+    /* Eight role tabs wrap to two rows here rather than scrolling sideways —
+       a tab you have to discover by dragging is a tab nobody opens. */
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .workspace-tabs button {
+    width: 100%;
+    padding: 7px 6px;
+    text-align: center;
+  }
+  .system-health-action {
+    margin-left: auto;
+  }
+  .research-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .research-layout .sidebar {
+    position: static;
+  }
+  .research-provenance {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* Stacked, the two regions sit one above the other, so the seam between them
+     turns through ninety degrees with them. A left rule here would be a line
+     down the side of a full-width block, dividing it from nothing. */
+  .research-provenance dl {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+    padding-left: 0;
+    padding-top: var(--space-3);
+  }
+}
+
+@media (max-width: 720px) {
+  .workspace-header__utility,
+  .workspace-shell {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .workspace-header__utility {
+    gap: 10px;
+  }
+  .system-health i {
+    flex: 0 0 7px;
+  }
+  .workspace-header__utility > .icon,
+  .workspace-header__utility > .header-anchor > .icon {
+    min-width: 42px;
+  }
+  .workspace-header__utility > .icon span:last-child,
+  .workspace-header__utility > .header-anchor > .icon span:last-child {
+    display: none;
+  }
+  .latency-chip__copy small,
+  .latency-chip__core,
+  .latency-chip__state {
+    display: none;
+  }
+  .workspace-shell {
+    padding-top: 16px;
+  }
+  .overview-section > .section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .role-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workflow-handoff {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .portfolio-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .portfolio-statusbar > div > .num {
+    display: none;
+  }
+  .workspace-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 520px) {
+  .brand-copy {
+    display: none;
+  }
+  .latency-chip {
+    display: none;
+  }
+  .system-health-action {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* The swipeable one-row chip treatment that used to live here is gone. It had
+     stopped working: the standardisation layer's base rule sits later in this
+     file, so its `grid-auto-flow: row` and auto-fit template won on source
+     order and the phone got a wrapped grid regardless. Measured at 500px it was
+     three columns over two rows, `scrollWidth === clientWidth` — nothing to
+     swipe. The wrapped grid is also the better answer: it shows all six chips,
+     where a scroller hid half of them behind a gesture. */
+  .market-context-card__heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .research-provenance dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+  }
+  /* Two columns: column 1 is every odd cell, and every cell from the third on
+     now opens a new row and needs the row rule the four-column arithmetic
+     above took away from it. */
+  .research-provenance dl > div:nth-child(odd) {
+    border-left: 0;
+  }
+  .research-provenance dl > div:nth-child(n + 3) {
+    border-top: 1px solid var(--rule-soft);
+    padding-top: var(--space-2);
+  }
+  .venue-status {
+    width: 100%;
+    min-width: 0;
+  }
+  .page-actions,
+  .page-actions button,
+  .workflow-handoff > div:last-child,
+  .workflow-handoff > div:last-child button {
+    width: 100%;
+  }
+  .capability-empty {
+    padding: 28px 20px;
+  }
+  .portfolio-loading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .portfolio-metrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+

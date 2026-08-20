@@ -1,0 +1,1122 @@
+/* ==========================================================================
+   Systems console — developer surface
+   ==========================================================================
+   Appended as a self-contained block: every selector below is new, so it
+   cannot collide with the workspace responsive tail above it, and its own
+   media queries follow at the end of this section using the same breakpoint
+   ladder (1120 / 900 / 720 / 520) rather than inventing new ones.
+
+   Two rules govern the whole section. Status is icon + word + colour, never
+   colour alone — `prefers-reduced-motion` collapses every duration to 1ms
+   globally, so nothing here may encode state in motion either. And the log
+   pane redefines the dark token set on itself rather than hard-coding colours,
+   because every primitive it contains (buttons, code, .muted) reads var().
+   ========================================================================== */
+
+/* ---------- status strip ---------- */
+
+
+button
+button
+
+
+/* ---------- two-column body ---------- */
+
+
+.console-card {
+  margin-bottom: var(--space-4);
+}
+
+
+/* ---------- shared primitives ---------- */
+/* `td { white-space: nowrap }` is global; a message column needs the opt-out
+   or a long provider error widens the table into a horizontal scroll. */
+.console-wrap {
+  display: block;
+  max-width: 34ch;
+  white-space: normal;
+  line-height: var(--lh-body);
+}
+
+.console-subhead {
+  margin: 18px 0 8px;
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-caps);
+  color: var(--text-secondary);
+}
+
+.console-subhead small {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 450;
+}
+
+.console-note,
+.console-footnote {
+  margin-top: 10px;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--text-muted);
+}
+
+.console-empty {
+  padding: 14px 0;
+  font-size: var(--fs-lg);
+}
+
+.console-warn {
+  color: var(--warning-text);
+}
+
+.console-card code {
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.console-card details {
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+}
+
+.console-card summary {
+  cursor: pointer;
+  padding: 7px 10px;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.console-card summary:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--series-1) 35%, transparent);
+  outline-offset: -1px;
+}
+
+/* `.console-card details` is the boxy chrome for payload evidence (raw
+   bodies, normalised output). A `.disclosure` is the quieter grammar for
+   explainer prose a reader may skip, and must not wear the same box — the
+   two shapes are how evidence and commentary stay tellable apart. */
+.console-card details.disclosure {
+  border: 0;
+  border-top: 1px solid var(--grid);
+  border-radius: 0;
+  background: transparent;
+}
+
+.console-card details.disclosure > p {
+  padding-bottom: var(--space-2);
+}
+
+/* ---------- meters ---------- */
+.console-meter {
+  position: relative;
+  display: block;
+  width: 74px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.console-meter--wide {
+  width: 100%;
+  height: 8px;
+  overflow: visible;
+}
+
+.console-meter > i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--status-good);
+}
+
+.console-meter.is-warning > i {
+  background: var(--status-warning);
+}
+
+.console-meter.is-critical > i {
+  background: var(--status-critical);
+}
+
+/* The reserve boundary: where background polling stops and only interactive
+   lookups may spend. A percentage bar without this hides the mechanism. */
+.console-meter__mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--text-secondary);
+  opacity: 0.75;
+}
+
+/* ---------- health matrix ---------- */
+.console-provider {
+  display: grid;
+  gap: 1px;
+}
+
+.console-provider small {
+  font-size: var(--fs-2xs);
+}
+
+.console-status-cell {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+}
+
+.console-quota-cell {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+}
+
+.console-row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.console-row-actions button {
+  padding: 4px 8px;
+  font-size: var(--fs-2xs);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* The accent on the first action in a health-matrix row is gone, deliberately.
+   It marked `Logs` — the one free read among five controls — as the obvious
+   thing to press. `Logs` has moved into the row's `···` menu, so first place
+   now belongs to `Test`, which spends a real provider call. Accenting the one
+   control that costs something is the inverse of what the rule was for, and a
+   row where nothing is accented is the honest arrangement when every visible
+   action changes state. */
+
+/* ---------- failover graph ---------- */
+.console-route-picker {
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.console-dag {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.console-node {
+  flex: 1 1 168px;
+  min-width: 158px;
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  font-size: var(--fs-body);
+}
+
+.console-node--fixed {
+  background: var(--surface-2);
+  border-style: dashed;
+}
+
+.console-node.is-active {
+  border-color: var(--series-1);
+  background: color-mix(in srgb, var(--series-1) 8%, var(--surface-1));
+  /* A second, non-colour cue so "serving" survives a monochrome print or a
+     reader who cannot separate the border hue from the neighbours'. */
+  box-shadow: inset 3px 0 0 var(--series-1);
+}
+
+.console-node.is-down {
+  background: color-mix(in srgb, var(--text-muted) 6%, var(--surface-1));
+}
+
+.console-node__role {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-caps);
+  color: var(--text-muted);
+}
+
+.console-node__badge {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--series-1);
+  color: #fff;
+  letter-spacing: 0.04em;
+}
+
+.console-node strong {
+  font-size: var(--fs-lg);
+  font-weight: 650;
+}
+
+.console-node__state {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.console-node small {
+  font-size: var(--fs-xs);
+  line-height: var(--lh-body);
+}
+
+.console-node .console-wrap {
+  max-width: none;
+}
+
+.console-node__action {
+  margin-top: 6px;
+  padding: 4px 8px;
+  font-size: var(--fs-2xs);
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.console-node__next {
+  margin-top: 4px;
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.console-edge {
+  display: flex;
+  align-self: center;
+  align-items: center;
+  gap: 4px;
+  list-style: none;
+  font-size: var(--fs-title);
+  color: var(--axis);
+}
+
+.console-edge__label {
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-caps);
+  color: var(--text-muted);
+}
+
+.console-dag-note {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-md);
+  line-height: var(--lh-loose);
+  color: var(--text-secondary);
+}
+
+/* ---------- quota panel ---------- */
+.console-quota-row {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--grid);
+}
+
+.console-quota-row:last-of-type {
+  border-bottom: 0;
+}
+
+.console-quota-row__head,
+.console-quota-row__foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.console-quota-row__head {
+  margin-bottom: 6px;
+  font-size: var(--fs-lg);
+}
+
+.console-quota-row__foot {
+  margin-top: 5px;
+}
+
+.console-quota-row__foot small {
+  font-size: var(--fs-xs);
+}
+
+/* ---------- inspector ---------- */
+.console-inspector__controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+/* The interval picker is wrapped in a `.console-check` label; the date inputs
+   and the button are bare children. That wrapper carries `margin-bottom: 12px`
+   for its usual standalone use, and inside this `align-items: stretch` row the
+   margin comes out of the stretched box — so the label rendered 12px shorter
+   than its siblings and centred its select ~6px high inside the remainder.
+   `flex: 0 0 auto` rather than `1 1 auto`: the two date inputs are the growers,
+   and letting a 2-6 character interval picker grow with them took it from ~70px
+   to ~113px and shrank each date by ~21px.
+
+   `align-items` stays `stretch`. Centring was the obvious fix and it is wrong:
+   a button resolves to 43.25px (15.5px x 1.5 plus 18px padding and 2px border,
+   so its `min-height: 32px` never binds) while an input resolves to 38px, and
+   stretch is what currently makes those two pixel-identical. Centring releases
+   the input to 38px and opens a 2.6px inset — 3.6px at the large type step —
+   breaking the rows that line up today to fix the one that does not. */
+.console-inspector__controls .console-check {
+  flex: 0 0 auto;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+/* The one child in any of these rows that genuinely wants centring: a bare
+   count beside a button, stretched to full height with its text at the top. */
+.console-inspector__controls > .muted {
+  align-self: center;
+}
+
+.console-inspector__controls input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The price tag sits under the button that pays it. Trace is the one control
+   on the inspector that spends a real provider call, and the house rule is
+   that a cost stays visible next to the action, never folded away. */
+.console-trace-cost {
+  margin: -2px 0 10px;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+  color: var(--text-muted);
+}
+
+.console-seg {
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+/* .console-seg keeps its layout roles (wrap, margins) but not a private font
+   size: its 11px met the bare .seg's 12.5px on one screen — Remediation's
+   pane switcher directly above the operator cadence seg — and nothing
+   documented the fork. One pattern, one size. */
+
+.console-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+.console-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--border);
+}
+
+.console-facts > div {
+  padding: 9px 11px;
+  background: var(--surface-1);
+}
+
+.console-facts--tight > div {
+  padding: 7px 10px;
+}
+
+.console-facts dt {
+  font-size: var(--fs-2xs);
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-caps);
+  color: var(--text-muted);
+}
+
+.console-facts dd {
+  font-family: var(--mono);
+  font-size: var(--fs-md);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--lh-snug);
+}
+
+/* A full-width tile for identity facts — the cache key is part of the verdict
+   but is prose-long, so it takes the whole row rather than squeezing a
+   neighbour. */
+.console-facts > .console-facts__span {
+  grid-column: 1 / -1;
+}
+
+.console-facts__span dd {
+  overflow-wrap: anywhere;
+}
+
+.console-key {
+  margin-top: 8px;
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+
+/* The heart of the inspector. Every other result zone is a grey grid of
+   facts; the executed path wears the one treatment nothing else on the card
+   has — numbered nodes on a connected rail — so the eye lands here first.
+   The numbers carry the order; the accent only underlines it. */
+.console-lineage {
+  margin: 0 0 var(--space-1);
+  padding: var(--space-1) 0 0;
+  list-style: none;
+  counter-reset: lineage;
+}
+
+.console-lineage li {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  padding: 0 0 var(--space-3) 38px;
+  counter-increment: lineage;
+}
+
+.console-lineage li:last-child {
+  padding-bottom: var(--space-1);
+}
+
+.console-lineage li::before {
+  content: counter(lineage);
+  position: absolute;
+  left: 0;
+  top: -3px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid color-mix(in srgb, var(--series-1) 55%, var(--border));
+  border-radius: 50%;
+  background: var(--surface-1);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--series-1);
+}
+
+/* The connector is what says "one path", not seven sibling facts. */
+.console-lineage li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 23px;
+  bottom: 1px;
+  width: 1px;
+  background: var(--grid);
+}
+
+.console-lineage strong {
+  font-size: var(--fs-md);
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: var(--lh-snug);
+}
+
+.console-lineage small {
+  display: block;
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-body);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.console-skips {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.console-skips li {
+  display: grid;
+  gap: 1px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--status-warning);
+  border-radius: 0 8px 8px 0;
+  background: var(--surface-2);
+  font-size: var(--fs-body);
+}
+
+.console-skip__reason {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  color: var(--warning-text);
+}
+
+.console-skips small {
+  font-size: var(--fs-xs);
+  max-width: none;
+}
+
+.console-calls {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.console-calls > li {
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.console-call__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  margin-bottom: 5px;
+}
+
+.console-call__url {
+  display: block;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-body);
+  overflow-wrap: anywhere;
+}
+
+.console-socket {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.console-socket__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: var(--fs-md);
+}
+
+/* ---------- trace console ---------- */
+.console-log-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.console-log-controls .console-seg {
+  margin-bottom: 0;
+}
+
+.console-log-filter {
+  flex: 1 1 110px;
+  min-width: 90px;
+}
+
+.console-log-controls button {
+  padding: 6px 11px;
+  font-size: var(--fs-body);
+}
+
+.console-log-gap {
+  margin-bottom: 8px;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+}
+
+/* The dark plane. Tokens are redefined on the container rather than colours
+   being hard-coded, so nested primitives resolve correctly; `color-scheme`
+   is what keeps the OS scrollbar from rendering light over it.
+
+   This plane RAISED itself above the card when dark --surface-0 was #0a0a0b: at
+   that depth a log painted the same value as the page read as a void rather than
+   an inset panel. Now that the page has moved up to zinc #18181b and the card to
+   #1f1f23, raising no longer separates anything — #1f1f25 against a #1f1f23 card
+   is a contrast of 1.002, which is to say invisible.
+
+   So it sinks instead, which is the better answer twice over. A terminal reads
+   naturally as recessed rather than raised, and going darker in a dark theme
+   INCREASES the contrast of the text on it: the tightest role here was 4.80:1
+   against the old raised plane and is 5.42:1 against this one. Separation from
+   the card is 1.128, which is what it was before the palette moved (1.131), and
+   the internal ladder — row washes, origin chips, selected-row tint — keeps the
+   steps it was designed with. */
+.console-log {
+  color-scheme: dark;
+
+  --surface-1: #131317;
+  --surface-2: #191920;
+  --surface-3: #232329;
+  --text-primary: #f4f4f5;
+  --text-secondary: #b1b1b9;
+  --text-muted: #8a8a94;
+  --border: #2c2c34;
+  --grid: #212129;
+
+  max-height: 340px;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid #34343c;
+  border-radius: var(--radius-md);
+  background: #16161c;
+  color: #d4d4d8;
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-loose);
+  tab-size: 2;
+}
+
+.console-log:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--series-1) 45%, transparent);
+  outline-offset: 2px;
+}
+
+.console-log__empty {
+  color: #a4a4ad;
+  font-size: var(--fs-sm);
+}
+
+.console-log__line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 7px;
+  padding: 1px 0;
+  overflow-wrap: anywhere;
+}
+
+.console-log__line.is-warn {
+  background: rgba(232, 171, 61, 0.08);
+}
+
+.console-log__line.is-error {
+  background: rgba(240, 115, 124, 0.1);
+}
+
+.console-log__ts {
+  color: #8a8a94;
+  flex: 0 0 auto;
+}
+
+/* Level is a word, not a colour swatch — the colour is reinforcement. */
+.console-log__level {
+  flex: 0 0 44px;
+  font-weight: 700;
+}
+
+.console-log__level.is-debug { color: #85858f; }
+.console-log__level.is-info { color: #5a9ceb; }
+.console-log__level.is-warn { color: #e8ab3d; }
+.console-log__level.is-error { color: #f0737c; }
+
+.console-log__origin {
+  flex: 0 0 auto;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: #24242b;
+  /* Lifted with the chip beneath it. The old #8a8a94 lands at 4.51:1 on the
+     new background — passing on paper, and too close to the line for 9.5px
+     mono. #9a9aa4 restores 5.5:1. */
+  color: #9a9aa4;
+  font-size: var(--fs-2xs);
+}
+
+.console-log__source {
+  color: #35c48f;
+  flex: 0 0 auto;
+}
+
+.console-log__msg {
+  color: #d4d4d8;
+}
+
+.console-log__fields {
+  color: #8a8a94;
+}
+
+.console-log-jump {
+  margin-top: 8px;
+  width: 100%;
+  padding: 6px;
+  font-size: var(--fs-body);
+}
+
+/* ---------- operator panel ---------- */
+/* Seven boxes, not seven rows separated by hairlines. Each control owns a
+   destructive verb and a blast radius, and a hairline is the weakest separator
+   available for that — a reader scanning for "which button was the one that
+   spends money" was scanning a list. The token set is the confirmation
+   dialog's own (`.operator-confirmation__facts > div`, 1px var(--border) on
+   var(--surface-1)), so the cards read as continuous with the panel that
+   appears above them when one is pressed.
+
+   The head/cost rhythm is unchanged: the grid gap still owns the space between
+   the head row and the cost line, and `.console-action > small` is still a
+   direct child, so nothing here wraps a row in a new element. */
+.console-action {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  /* The separation the removed bottom border used to provide. On the card
+     itself rather than as a gap on `.console-actions`, which also holds the two
+     group headings, the confirmation dialog and the scope disclosure — a
+     container gap would have moved all of those too. */
+  margin-bottom: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.console-action--client {
+  /* Browser-side controls are visually separated from the ones that mutate the
+     server, because "reconnect" meaning two different blast radii on one panel
+     is exactly the confusion an operator surface must not create.
+
+     Named sides, never the `border-color` shorthand — the accent and the card
+     border are set at equal specificity now, and a shorthand would wash the
+     accent into the default. Same trap `.data-work-card` documents for its
+     priority accent. */
+  border-left-width: 3px;
+  border-left-color: color-mix(in srgb, var(--series-3) 45%, transparent);
+  padding-left: 10px;
+}
+
+.console-action__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  /* As tall as the tallest control a head can hold, so a row with a bare
+     button sits at the same height as one with a select beside it. */
+  min-height: 30px;
+}
+
+.console-action__head strong {
+  font-size: var(--fs-lg);
+}
+
+/* What the control would touch, beside its name. `margin-right: auto` keeps it
+   with the title rather than letting space-between fling it at the buttons. */
+.console-action__figure {
+  margin-right: auto;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.console-action__controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.console-action__controls select,
+.console-action__controls button {
+  /* The shared height is what makes the panel read as one column of controls
+     rather than five slightly different toolbars. */
+  min-height: 30px;
+  font-size: var(--fs-body);
+}
+
+.console-action__controls select {
+  padding: 5px 7px;
+}
+
+.console-action__controls button {
+  padding: 5px 10px;
+}
+
+.console-action .console-seg {
+  margin-bottom: 0;
+}
+
+.console-action > small {
+  display: block;
+  /* 11.5px unconditionally. This was a 10.5px base plus an override to 11.5px
+     scoped to the controls panel — but the operator panel mounts nowhere else,
+     so the base size was a size nothing ever rendered. */
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+
+.console-token {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.console-token > span {
+  font-size: var(--fs-2xs);
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-caps);
+  color: var(--text-muted);
+}
+
+.console-token small {
+  font-size: var(--fs-xs);
+}
+
+/* Input + Clear side by side; the input keeps the full remaining width. */
+.console-token__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+/* The rows were separated by their own bottom borders; the gap is the panel's
+   job now. */
+.console-actions {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.console-actions .banner {
+  margin-top: 14px;
+}
+
+.console-actions .banner small {
+  display: block;
+  margin-top: 3px;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+  color: var(--text-secondary);
+}
+
+/* Everything a reader meets on this panel is a card.
+ *
+ * `.console-action` became a box because a hairline is the weakest separator
+ * available for a row that spends money. The blocks that were NOT controls kept
+ * sitting on the panel's own ground, and a surface where the seven control rows
+ * are boxed and everything around them is loose text reads as unfinished rather
+ * than as a hierarchy. So the same treatment carries across the panel: the
+ * operator-token field, the guard's open-deployment note, and the two scope
+ * disclosures.
+ *
+ * Same tokens as `.console-action` and `.operator-confirmation__facts > div` —
+ * 1px var(--border), var(--radius-md), var(--surface-1) — deliberately not a
+ * second grammar. None of these three carries an accent side, which is the one
+ * thing that would make the `border` shorthand here the mistake it would be on
+ * `.console-action--client`.
+ *
+ * Scoped by direct descent rather than by new class names, for two reasons.
+ * `.console-note` is rendered on a dozen surfaces that are not operator
+ * controls and must not all become cards; and `OperatorGuard` returns a
+ * fragment, so its blocks land as children of this grid exactly as if they had
+ * been written in `OperatorPanel` — which is also why nothing in that component
+ * had to be edited to get this. */
+.console-actions > .console-token,
+.console-actions > .console-note {
+  /* `.console-action` sets the same margin on top of the grid gap; matching it
+     is what stops the token field sitting 6px further from its neighbour than
+     every control does. */
+  margin-bottom: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.console-actions > .console-note {
+  margin-top: 0;
+  /* Muted was legible against the panel; against a card's own surface it is the
+     step the banners on this panel already take for their second line. */
+  color: var(--text-secondary);
+}
+
+/* The disclosures hold `.operator-scope-notes`, whose dt/dd pairs are already
+   surface-1 boxes, so the container takes surface-2 — the same figure/ground
+   relation `.remediation-scope` has with its facts and `.operator-group-heading`
+   has with the controls beneath it. The hairline `.disclosure` normally draws is
+   replaced, not added to: a top border plus a full box is two separators doing
+   one job.
+
+   No `<details>` is added or removed by any of this. There are two summaries on
+   this panel and there stay two — seven collapsibles would be exactly as noisy
+   as the seven paragraphs they replaced. */
+.console-actions > .disclosure {
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+/* Closed, the summary's own padding is the whole box. Open, the notes want a
+   floor under them. */
+.console-actions > .disclosure[open] {
+  padding-bottom: var(--space-3);
+}
+
+/* ---------- JSON tree ---------- */
+.json-tree {
+  max-height: 320px;
+  overflow: auto;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-loose);
+  tab-size: 2;
+}
+
+.json-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 4px;
+  overflow-wrap: anywhere;
+}
+
+.json-toggle {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-none);
+  width: 11px;
+}
+
+.json-toggle:hover:not(:disabled) {
+  border-color: transparent;
+  color: var(--text-primary);
+}
+
+.json-key {
+  color: var(--json-accent);
+}
+
+.json-key::after {
+  content: ":";
+  color: var(--text-muted);
+}
+
+.json-punct,
+.json-summary {
+  color: var(--text-muted);
+}
+
+.json-summary {
+  font-style: italic;
+  padding: 0 4px;
+}
+
+/* Types differ in form as well as hue: quoted vs bare vs italic. */
+.json-string { color: var(--success-text); }
+.json-number { color: var(--notice-text); }
+.json-bool { color: var(--json-accent); font-weight: 650; }
+.json-null { color: var(--text-muted); font-style: italic; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 900px) {
+  .console-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .console-node {
+    flex: 1 1 100%;
+  }
+  .console-edge {
+    transform: rotate(90deg);
+    align-self: flex-start;
+  }
+  .console-wrap {
+    max-width: none;
+  }
+  .console-action__head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 520px) {
+  /* Was `button  .console-inspector__controls` — a descendant selector for a
+     controls div inside a <button>, which no call site has. The rule has never
+     rendered, so this is the first time the column stack is seen. `align-items`
+     is left at its `stretch` default: in a column container it governs width,
+     so centring here would give full-width fields beside shrink-wrapped
+     floating buttons in all six rows. */
+  .console-inspector__controls {
+    flex-direction: column;
+  }
+  .console-log {
+    font-size: var(--fs-2xs);
+  }
+}
+
+/* ---------- headline list (news capability output) ---------- */
+.console-headlines {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.console-headlines > li {
+  display: grid;
+  gap: 2px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-1);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+
+.console-headlines small {
+  font-size: var(--fs-xs);
+}
+
+/* ---------- health matrix: keep the actions reachable ---------- */
+/* Six columns of monospace do not fit a 65%-wide column, and `.table-wrap`
+   scrolls horizontally — which put the one interactive column off-screen by
+   default. Pinning it means the scroll reveals the *diagnosis* while the
+   controls that act on it stay put. `border-collapse: collapse` drops cell
+   backgrounds behind sticky cells, so the background is set explicitly. */
+.console-matrix th:last-child,
+.console-matrix td:last-child {
+  position: sticky;
+  right: 0;
+  background: var(--surface-1);
+  box-shadow: inset 1px 0 0 var(--grid);
+}
+
+.console-matrix .console-wrap {
+  max-width: 28ch;
+}
+

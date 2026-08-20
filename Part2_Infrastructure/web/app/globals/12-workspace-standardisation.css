@@ -1,0 +1,2158 @@
+/* ===========================================================================
+   Workspace standardisation layer
+   ---------------------------------------------------------------------------
+   Everything below is the shared contract for the eight desk tabs, and it is
+   last in the file on purpose: it is the layer that resolves the divergence the
+   surfaces accumulated while each was built on its own.
+
+   The three problems it fixes, in order of how much they cost a reader:
+
+     1. SCATTER. Six page headers existed — the navy hero, `.page-heading`,
+        `.data-cp-bar`, `.console-statusbar`, `.developer-cp-bar` and
+        `.portfolio-statusbar` — each with its own metric shape, type ramp and
+        control placement. `PageHead` is the one grammar they are converging on:
+        identity, the numbers that frame it, the controls that refresh them.
+
+        CORRECTION, and the reason this paragraph is worth reading carefully:
+        this used to claim all six were retired and that their rules merely
+        "survive above". Four of them are still rendered — the navy hero,
+        `.page-heading`, `.data-cp-bar` and `.portfolio-statusbar` all have live
+        callers. Only `.console-statusbar` and `.developer-cp-bar` were dead, and
+        both have now been deleted; `.console-statusbar` had a hand-counted
+        `top: 63px` that would have docked behind the header the moment anything
+        rendered it again. `tests/dead-css.test.ts` measures which classes are
+        unreferenced instead of asserting it in prose, because prose drifts and
+        this paragraph is the proof.
+
+     2. SCROLL. The tabs stacked a heading, a status bar, a rail, banners and a
+        footer card before any content. The rail is now sticky, the head is one
+        band, the density scale is shared, and the flow footer is a strip rather
+        than a card.
+
+     3. DRIFT. Spacing, radius, motion and sticky offsets came from whatever
+        number was nearby. They now come from the tokens at the top of the file,
+        so a change to the chrome height moves every offset that depends on it.
+   =========================================================================== */
+
+:root {
+  /* The shell's horizontal padding, named because the sticky rail has to bleed
+     into exactly this much and nothing more. */
+  --shell-pad: 20px;
+}
+
+/* ---------- shell ---------- */
+
+.workspace-header__utility {
+  min-height: var(--chrome-header);
+  padding-left: var(--shell-pad);
+  padding-right: var(--shell-pad);
+}
+
+.workspace-header {
+  z-index: var(--z-header);
+  padding-top: env(safe-area-inset-top);
+}
+
+.workspace-shell {
+  width: min(1680px, 100%);
+  /* The one scroller on the page. `height`, not `min-height`: the shell fills
+     exactly what the header leaves and the panel inside it scrolls, which is
+     what keeps the header and the section rail on screen structurally rather
+     than by two sticky offsets racing the document. --header-h is measured by a
+     ResizeObserver, so the wrapped 148px header is handled without a
+     breakpoint. */
+  height: calc(100vh - var(--header-h));
+  height: calc(100svh - var(--header-h));
+  overflow-y: auto;
+  /* Horizontal stays clipped for the same reason the document's is: every wide
+     surface in here carries its own scroller, so a horizontal scrollbar at this
+     level is always a bug. `clip` pairs with `auto` on the other axis; the
+     rail's bleed band reaches exactly the padding edge and so survives it. */
+  overflow-x: clip;
+  /* A scroll that reaches the end of this panel must not then start scrolling
+     the document behind it — with the body locked there is nothing to scroll,
+     but the chaining still shows as a rubber-band on the whole page. */
+  overscroll-behavior: contain;
+  /* This element is the scroll root for content now, so the anchor offset lives
+     here rather than on `html`. Only the rail needs clearing: the header is
+     outside this box, so y=0 in here is already below it. */
+  scroll-padding-top: calc(var(--rail-h) + var(--space-3));
+  margin: 0 auto;
+  /* The bottom gutter was --space-6 to keep the last card clear of a document
+     edge that scrolled. Inside a bounded scroller the panel already ends where
+     the box ends, so 28px of it was buying nothing. */
+  padding: var(--space-4) var(--shell-pad) var(--space-4);
+  /* After the shorthand, not before it: viewport-fit: cover hands the app the
+     notch, so the gutters have to pay for it in landscape. max() keeps the
+     desk padding wherever there is no inset to clear. */
+  padding-left: max(var(--shell-pad), env(safe-area-inset-left));
+  padding-right: max(var(--shell-pad), env(safe-area-inset-right));
+}
+
+.view-panel {
+  animation: panel-in var(--dur) var(--ease);
+}
+
+/* Two of the consoles laid themselves out as grids. A grid item's containing
+   block is its own grid area, which is exactly as tall as the item — so a
+   sticky rail inside one has zero distance to travel and never sticks. Block
+   flow with sibling margins gives the same rhythm and lets the rail work. */
+.data-control-plane,
+.developer-control-plane {
+  display: block;
+}
+
+/* The Data and Developer consoles stack eight and six blocks respectively, so
+   this one margin is multiplied more than any other rule in the file — 12px
+   became ~90px of pure separation on Data alone. 8px still separates them. */
+.data-control-plane > * + *,
+.developer-control-plane > * + * {
+  margin-top: var(--space-2);
+}
+
+/* ---------- the shared page head ---------- */
+
+/* Every tab pays for this head, so its margins are worth 8px each rather than
+   12. Measured on the three tabs that overflowed a locked 900px viewport, the
+   repeated chrome inside a panel — this head, the rail, the next-step footer and
+   the panel's own sibling margins — came to about 200px before any content;
+   trimming it is what buys a section back. The row gap comes down with it. The
+   column gap does not: it separates the heading from its context block and at
+   8px they read as one column when the row wraps. */
+.page-heading {
+  min-height: 0;
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  /* `flex-end` used to bottom-align chips against the title; the chips have
+     their own row now, so the title and its controls align on their baseline
+     row instead. */
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-5);
+  flex-wrap: wrap;
+}
+
+.page-heading__copy {
+  order: 0;
+  min-width: 0;
+  flex: 1 1 340px;
+}
+
+.page-heading h1 {
+  margin-top: 1px;
+  font-size: var(--fs-hero-line);
+  line-height: 1.14;
+  letter-spacing: var(--ls-figure);
+}
+
+.page-heading p {
+  max-width: none;
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: var(--fs-lg);
+  line-height: 1.42;
+}
+
+/**
+ * One header shape for all eight tabs.
+ *
+ * The metrics used to share the title's row, sized by whatever space the title
+ * left over — so a three-chip tab drew wide boxes, a six-chip tab crushed its
+ * labels to "BOOKS WITHIN FRESHNESS B…", and the header's height changed as
+ * you moved between tabs. The chips now always take their own full-width row
+ * under the title, in equal columns with a floor wide enough for a real label,
+ * and the controls sit on a line beneath them. Every tab, the same frame.
+ */
+/* `contents`, so the two children below become direct flex items of the
+   heading and can be placed on its two rows independently. Without this the
+   metrics were locked inside a box that shared the title's line and shrank to
+   whatever the title left over — 831px of a 1400px header on Data, which is
+   why six chips wrapped and their labels clipped. */
+.page-heading__context {
+  display: contents;
+}
+
+/* Row 1, right: the controls sit beside the title, so a tab that has a refresh
+   control is exactly as tall as one that does not. */
+.page-heading__actions {
+  order: 1;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* Row 2: the full width of the panel, every tab, always. `0 0 100%` and not
+   `1 1 100%` — a shrinkable 100% basis still shares a line, which is the bug
+   this replaced. */
+.page-heading__insights {
+  order: 2;
+  flex: 0 0 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(172px, 1fr));
+  gap: 8px;
+}
+
+.page-heading__actions button {
+  min-height: 32px;
+  padding: 6px 12px;
+  font-size: var(--fs-md);
+  white-space: nowrap;
+}
+
+
+/* The metric chip. One shape for every tab: a label nobody has to decode, the
+   number, and the provenance of the number. */
+.page-insight {
+  position: relative;
+  min-width: 0;
+  /* Sized for the two-line note, on every tab — so a tab whose provenance
+     lines all fit on one line is exactly as tall as Data, whose notes need
+     both. Grid stretches the rest of the row to match.
+
+     This used to read 81px, then 84px — a number that claimed to be the
+     anatomy and drifted from it as soon as the type scale moved (the real
+     chip was 89.8px against an 84px floor). The floor is now the arithmetic
+     itself, in the tokens the rows are drawn with, so it cannot drift again
+     and it follows the reader's zoom and Text-size step:
+
+       2 × 1px    border                                 = 24px, with
+       2 × 9px    padding                                  the gaps
+       2 × 2px    row gap
+       label line   1.5  × --fs-2xs   (--lh-body, inherited)
+       value line   1.24 × --fs-title (.page-insight > strong)
+       note lines   1.34 × --fs-2xs × 2 (.page-insight > small)
+
+     tests/page-head-contract.test.ts reads those three multipliers off the
+     rules and checks them against this calc. */
+  min-height: calc(24px + 1.5 * var(--fs-2xs) + 1.24 * var(--fs-title) + 2.68 * var(--fs-2xs));
+  padding: 9px 12px 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--text-primary) 5%, transparent);
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  text-align: left;
+}
+
+.page-insight::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: -1px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--axis);
+}
+
+.page-insight.is-neutral::before { background: var(--axis); }
+
+.page-insight > span {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-body);
+  font-weight: 750;
+  /* 0.05em, not 0.07em. The label went up a point with the rest of the small
+     type, and at the old tracking "Books within freshness budget" needed 202px
+     of a 201px box — tracking is the cheapest 6px on the row, and the label
+     still reads as a label. */
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.page-insight > strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: var(--fs-title);
+  font-weight: 700;
+  line-height: 1.24;
+  letter-spacing: var(--ls-figure);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Two lines, then clip. The provenance line is the half a reader checks when a
+   number looks wrong, and one nowrap line turned it into "no gateway feed
+   snapshot — the…" on exactly the surfaces where it mattered most.
+
+   The slot is two lines whether or not the note fills them. Reserving it is
+   what makes the chip's height a property of its anatomy rather than of how
+   long someone's sentence happened to be: without this, a tab whose notes all
+   fit on one line renders a shorter chip and only the grid's row-stretch hides
+   it — which works within a row and not at all between tabs. */
+/* The note carries figures too — "{n} hits, {n} misses", "{degraded} routes
+   degraded" — and it was the only half of the chip without tabular figures,
+   so the value above it held still while the line under it shuffled. */
+.page-insight > small {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  min-height: calc(1.34em * 2);
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.34;
+}
+
+/* The clamp sits on the text, not on the row, so a sparkline can share the
+   slot without being clipped by a line count meant for words. */
+.page-insight > small > span:first-child {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Rides inside the note's reserved two lines rather than under them — a chip
+   with a spark is exactly as tall as one without. */
+.page-insight__spark {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-end;
+  line-height: 0;
+}
+
+.page-insight.is-good > strong { color: var(--success-text); }
+.page-insight.is-warn > strong { color: var(--warning-text); }
+.page-insight.is-critical > strong { color: var(--critical-text); }
+
+/* No `min-height: auto` here. A chip that happens to be a button is still a
+   chip, and opting it out of the floor meant a header whose metrics were all
+   actionable opened shorter than one whose metrics were not. */
+button.page-insight {
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+button.page-insight:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--series-1) 42%, var(--border));
+  background: color-mix(in srgb, var(--series-1) 4%, var(--surface-1));
+}
+
+.page-insight > em {
+  margin-top: 2px;
+  color: var(--series-1);
+  font-size: var(--fs-2xs);
+  font-style: normal;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+/* The one-word verdict some surfaces carry beside their controls. */
+.page-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: var(--fs-2xs);
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.page-status.is-good {
+  border-color: color-mix(in srgb, var(--status-good) 38%, var(--border));
+  background: color-mix(in srgb, var(--status-good) 7%, var(--surface-1));
+  color: var(--success-text);
+}
+
+.page-status.is-warn {
+  border-color: color-mix(in srgb, var(--status-warning) 38%, var(--border));
+  background: color-mix(in srgb, var(--status-warning) 7%, var(--surface-1));
+  color: var(--warning-text);
+}
+
+.page-status.is-critical {
+  border-color: color-mix(in srgb, var(--status-critical) 38%, var(--border));
+  background: color-mix(in srgb, var(--status-critical) 7%, var(--surface-1));
+  color: var(--critical-text);
+}
+
+/* `neutral` is a declared tone in PageStatus and had no rule, so a surface that
+   passed it got the bare `.page-status` look — legible, but indistinguishable
+   from an unstyled fallback, which is exactly the state you cannot tell apart
+   from a bug. It reads as deliberate now: the axis grey, no status colour,
+   because "no verdict" is a verdict this desk is allowed to render. */
+.page-status.is-neutral {
+  border-color: var(--border);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+}
+
+/* ---------- the term explainer ----------
+   A top-layer `popover`, positioned from JS. Like the launcher above it carries
+   no z-index: the top layer is what gets it out of the `overflow: auto` table
+   wrappers and cards it appears inside, which is something z-index cannot do. */
+
+.quant-tooltip-trigger {
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--space-1);
+  padding: 1px 5px;
+  border: 1px solid color-mix(in srgb, var(--series-1) 30%, transparent);
+  border-radius: var(--radius-sm);
+  background: var(--sky-1);
+  color: var(--series-1);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  line-height: var(--lh-snug);
+  cursor: pointer;
+}
+
+.quant-tooltip {
+  position: fixed;
+  width: 280px;
+  max-width: calc(100vw - 16px);
+  margin: 0;
+  padding: 10px 12px;
+  /* The top layer changes where this PAINTS, not where it sits in the DOM, so
+     it still inherits from its trigger's parent. That parent is often a stat
+     tile's label, which is uppercase and letter-spaced — and a definition
+     rendered in shouty tracked capitals is unreadable. Reset the inherited text
+     treatment rather than relying on every caller to be a neutral context. */
+  text-transform: none;
+  letter-spacing: normal;
+  text-align: left;
+  font-weight: 400;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm), 0 10px 25px -5px rgba(9, 13, 18, 0.3);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+  /* Hover opens it; letting it take the pointer would make it flicker as the
+     cursor crosses the gap between trigger and panel. */
+  pointer-events: none;
+}
+
+.quant-tooltip__term {
+  display: block;
+  margin-bottom: var(--space-1);
+  color: var(--series-1);
+  font-size: var(--fs-md);
+}
+
+.quant-tooltip__definition {
+  margin-bottom: 6px;
+}
+
+.quant-tooltip__formula {
+  display: block;
+  margin-bottom: 6px;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--series-1);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+}
+
+.quant-tooltip__plain {
+  padding: 4px 8px;
+  border-left: 3px solid var(--status-good);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: color-mix(in srgb, var(--status-good) 12%, transparent);
+  color: var(--text-primary);
+  font-size: var(--fs-xs);
+}
+
+/* ---------- the ⌘K launcher ----------
+   A `<dialog>` opened with showModal(), so it renders in the browser's top
+   layer. No z-index appears below and none is needed: the top layer is above
+   every stacking context on the page, which is the only thing that gets this
+   element out of `.workspace-header`'s backdrop-filter containing block.
+   Colours are tokens — the previous version hard-coded nine dark hexes and was
+   an unreadable slab in the light theme. */
+
+.command-bar {
+  width: min(620px, 92vw);
+  max-height: min(70vh, 560px);
+  margin: 0 auto;
+  /* `<dialog>` centres itself vertically by default; a launcher belongs in the
+     upper third, where the eye already is. */
+  margin-top: 12vh;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  box-shadow: 0 24px 60px -12px rgba(9, 13, 18, 0.45);
+  overflow: hidden;
+}
+
+.command-bar::backdrop {
+  background: color-mix(in srgb, var(--surface-0) 62%, rgba(9, 13, 18, 0.55));
+  backdrop-filter: blur(6px);
+}
+
+.command-bar__panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  max-height: inherit;
+}
+
+.command-bar__search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.command-bar__glyph {
+  color: var(--series-1);
+  font-size: var(--fs-2xl);
+}
+
+.command-bar__search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--sans);
+  font-size: var(--fs-2xl);
+}
+
+.command-bar__search input::placeholder {
+  color: var(--text-muted);
+}
+
+.command-bar kbd {
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-body);
+}
+
+.command-bar__results {
+  margin: 0;
+  padding: var(--space-2);
+  list-style: none;
+  overflow-y: auto;
+}
+
+.command-bar__results button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--fs-xl);
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Hover and keyboard cursor are one state, so arrowing down and mousing over
+   cannot disagree about which row Enter would run. */
+.command-bar__results button.is-active {
+  background: var(--sky-1);
+  color: var(--series-1);
+}
+
+.command-bar__category {
+  flex: 0 0 auto;
+  min-width: 74px;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.command-bar__label {
+  flex: 1;
+  min-width: 0;
+}
+
+.command-bar__empty {
+  padding: var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--fs-md);
+  text-align: center;
+}
+
+.command-bar__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+/* ---------- shortcuts & reviewer-tour overlay ("?") ----------
+   Same native-dialog posture as the command bar: top layer, shared backdrop
+   recipe, tokens only — the overlay inherits both themes for free. */
+
+.shortcuts-overlay {
+  width: min(760px, 94vw);
+  max-height: min(80vh, 640px);
+  margin: 0 auto;
+  margin-top: 8vh;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  box-shadow: 0 24px 60px -12px rgba(9, 13, 18, 0.45);
+  overflow: hidden;
+}
+
+.shortcuts-overlay::backdrop {
+  background: color-mix(in srgb, var(--surface-0) 62%, rgba(9, 13, 18, 0.55));
+  backdrop-filter: blur(6px);
+}
+
+.shortcuts-overlay__panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  max-height: inherit;
+}
+
+.shortcuts-overlay__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.shortcuts-overlay__head h2 {
+  margin: 0;
+  font-size: var(--fs-title);
+}
+
+.shortcuts-overlay__grid {
+  display: grid;
+  grid-template-columns: minmax(min(100%, 240px), 2fr) minmax(min(100%, 300px), 3fr);
+  gap: var(--space-4);
+  padding: var(--space-4);
+  overflow-y: auto;
+}
+
+.shortcuts-overlay__grid h3 {
+  margin: 0 0 var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-caps-wide);
+}
+
+.shortcuts-overlay__keys {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.shortcuts-overlay__keys > div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: baseline;
+}
+
+.shortcuts-overlay__keys dt {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
+.shortcuts-overlay__keys dd {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-md);
+}
+
+.shortcuts-overlay kbd {
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-body);
+}
+
+.shortcuts-overlay__tour {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0 0 0 var(--space-4);
+}
+
+.shortcuts-overlay__tour li::marker {
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+}
+
+.shortcuts-overlay__tour button {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.shortcuts-overlay__tour button:hover {
+  border-color: color-mix(in srgb, var(--series-1) 45%, var(--border));
+}
+
+.shortcuts-overlay__tour button strong {
+  font-size: var(--fs-lg);
+}
+
+.shortcuts-overlay__tour button span {
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+}
+
+.shortcuts-overlay__foot {
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+/* ---------- stat tile ----------
+   Was five inline style objects in StatTile.tsx, including its own radius and
+   its own three-way colour switch — neither of which the theme test or the
+   density scale could see. */
+
+.stat-tile {
+  /* 12px 14px, tokenised and given the extra two pixels of inline room the
+     border needs: a figure set hard against its own outline is what makes a
+     row of tiles feel crowded even when the gutters between them are right. */
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.stat-tile__label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: 2px;
+}
+
+.stat-tile__value {
+  font-size: var(--fs-figure);
+  /* Live figures repoll on a timer; without a fixed advance the whole row
+     shifts every time a digit changes width. `.num` supplies tabular figures,
+     this stops the tile itself resizing around them. */
+  font-variant-numeric: tabular-nums;
+}
+
+/* A tile whose value is a NAME. --fs-figure is 26px of display type, which is
+   the right size for a measurement and sets "numpy" as though the engine were
+   a headline number beside two tiles that really do report one. Sizing the word
+   itself keeps the tile's own anatomy untouched — the value stays whatever
+   StatTile renders. */
+.stat-word {
+  font-size: var(--fs-h2);
+  letter-spacing: normal;
+}
+
+/* SVG outlines are painted inconsistently across engines. A stroke keeps the
+   heatmap's single roving keyboard position visible in either theme. */
+.heatmap-cell:focus-visible {
+  stroke: var(--series-1);
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ---------- experiment setup panel ----------
+   These were eleven inline `style={{…}}` objects in Controls.tsx. Inline styles
+   are invisible to the theme test, to the layering test and to anyone reading
+   the stylesheet to find out what a surface looks like — which is how a
+   hardcoded font size and a hardcoded colour survive a design pass. */
+
+.slider-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.slider-row .num {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.field-divider {
+  margin: var(--space-1) 0;
+  border: 0;
+  border-top: 1px solid var(--grid);
+}
+
+.sweep-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.sweep-heading .field {
+  margin: 0;
+}
+
+.sweep-count {
+  color: var(--series-1);
+  font-size: var(--fs-md);
+}
+
+/* The grid was thinned to the combo cap, which raises the multiple-testing
+   hurdle — worth a colour change, not just a footnote. */
+.sweep-count.is-thinned {
+  color: var(--warning-text);
+}
+
+.sweep-note {
+  margin-bottom: 10px;
+  color: var(--text-muted);
+  font-size: var(--fs-body);
+}
+
+.param-caption {
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+}
+
+.param-caption.is-spaced {
+  padding-top: 6px;
+}
+
+/* ---------- scroll targets clear the sticky chrome ----------
+   Nothing in this file used `--chrome-total` before, so every anchor jump and
+   every programmatic `.focus()` scrolled its target to y=0 — underneath the
+   header and the rail, both of which are sticky and both of which are painted
+   over it. `openReliabilitySection(…, targetId)` in page.tsx is the clearest
+   case: it focuses an element the browser then hides behind two bars.
+
+   `scroll-padding-top` on the scroll root covers the elements not listed here;
+   `scroll-margin-top` covers the ones that are, including anything focused
+   rather than linked, which `scroll-padding` alone does not reach.
+
+   Both offsets now clear the rail alone rather than `--chrome-total`. The shell
+   is the scroll container, so y=0 inside it is already below the header — only
+   the rail, which is sticky *within* the shell, still paints over arriving
+   content. Kept as an offset on the targets as well as the container because a
+   programmatic `.focus()` reaches scroll-margin and not scroll-padding, which
+   is the case `openReliabilitySection` depends on. */
+.workspace-shell :is(h1, h2, h3, [id]),
+.workspace-subtab-panel,
+.card {
+  scroll-margin-top: calc(var(--rail-h) + var(--space-3));
+}
+
+/* ---------- long surfaces skip off-screen layout ----------
+   These three run to thousands of rows between them. `content-visibility` lets
+   the browser skip layout and paint for the parts nobody is looking at.
+
+   `contain-intrinsic-size` is not optional here: without a size hint the
+   skipped content measures 0, the scrollbar jumps as you scroll into it, and an
+   anchor into a hidden row lands in the wrong place. The `auto` keyword makes
+   the browser remember the real size once it has rendered once, so the guess
+   only has to be close on the first pass.
+
+   "Close on the first pass" is what decides the membership of this list, and
+   it is why `.cockpit-blotter .table-wrap` left it. Each of the three is a
+   scroller with a `max-height` — 680px, 660px, ~655px — so a skipped box is at
+   most 80px away from a rendered one and the reader never feels the swap. The
+   blotter's wrapper has no height bound at all: it is as tall as the order
+   table, so the hint was not close, it was wrong by the height of the book.
+   Measured in Chrome on a faithful copy of this shell, an 800-row table under
+   the same declarations took the scroller's range from 6,176px to 20,592px
+   the moment it came into range — a 14,416px discontinuity arriving mid-
+   gesture, on the desk's busiest surface. Skipping bought nothing there in
+   exchange: containment is all-or-nothing per element, so the whole table lays
+   out the instant any row of it is on screen, which on the Execution tab is
+   most of the time. Off the tab the panel is `hidden`, and `display: none`
+   skips more than `content-visibility` ever could. */
+.reliability-service-panel .table-wrap,
+.codebase-filelist,
+.console-trace-detail {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 600px;
+}
+
+/* ---------- the sticky section rail ---------- */
+
+.workspace-subtabs {
+  position: sticky;
+  /* Was `calc(var(--header-h) - 1px)`, when this rail was sticky against the
+     document and had to clear a header painted over it. The shell is the
+     scroller now and its top edge already sits below the header, so the header
+     is no longer in this rail's scroll flow — measuring it here a second time
+     would park the rail a full header's height down inside its own panel. The
+     measurement did not disappear, it moved into the shell's height, which is
+     what `shell-viewport.test.ts` pins. -1px, not 0, so the rail's top edge
+     overlaps the scrollport and no seam shows between them. */
+  top: -1px;
+  z-index: var(--z-rail);
+  min-height: var(--chrome-rail);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+/* The band behind the rail. It bleeds out by exactly the shell's padding so
+   content scrolling underneath never shows in the gutter, and no further, so
+   the page plane outside the shell is untouched. */
+.workspace-subtabs::before {
+  content: "";
+  position: absolute;
+  z-index: var(--z-below);
+  inset: 0 calc(var(--shell-pad) * -1);
+  background: var(--surface-0);
+}
+
+.data-control-plane > .workspace-subtabs,
+.developer-control-plane > .workspace-subtabs {
+  margin-bottom: 0;
+}
+
+.workspace-subtabs__rail {
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: stretch;
+}
+
+.workspace-subtabs button {
+  min-height: calc(var(--chrome-rail) - 2px);
+  padding: 8px 12px;
+}
+
+/* Surface-level controls, sized to the rail. They stay reachable at any scroll
+   position, which is the reason the book source switch and the sweep button
+   left their own full-width strips. */
+.workspace-subtabs__actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 2px;
+}
+
+.workspace-subtabs__actions button {
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+
+.workspace-subtabs__actions .seg button {
+  border-radius: 0;
+}
+
+.rail-meta {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+/* A switch on the rail, sized like the buttons beside it rather than like a
+   form control — it sits in a row of actions, not in a settings panel. */
+.rail-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.rail-toggle:has(input:checked) {
+  border-color: color-mix(in srgb, var(--series-1) 45%, var(--border));
+  background: var(--sky-1);
+  color: var(--series-1);
+}
+
+.rail-toggle:focus-within {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+
+.rail-toggle input {
+  margin: 0;
+  accent-color: var(--series-1);
+}
+
+/* Anything that pins itself inside a workspace clears the rail — and only the
+   rail. This offset still measured the header from the era when the document
+   scrolled; the shell is the scroll container now and its top edge already
+   sits below the header (the sticky rail's own `top: -1px` note above tells
+   the same story), so counting --header-h here as well parked the research
+   sidebar a full header's height below where it pinned. --rail-h rather than
+   the --chrome-rail constant, so the offset stays measured when the rail
+   wraps or grows on coarse pointers. */
+.sidebar,
+.research-layout .sidebar {
+  top: calc(var(--rail-h) + var(--space-3));
+}
+
+/* ---------- density ---------- */
+
+.card {
+  padding: var(--card-pad);
+  margin-bottom: var(--space-3);
+  border-radius: var(--radius-lg);
+}
+
+.card > .sub {
+  margin-bottom: var(--space-3);
+}
+
+.banner {
+  margin-bottom: var(--space-3);
+  padding: 9px 13px;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-lg);
+}
+
+.compact-grid-2col {
+  gap: var(--space-3);
+}
+
+/* Wide desks get a genuine second column rather than one 1400px-wide chart. */
+@media (min-width: 1500px) {
+  .compact-grid-2col {
+    grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+  }
+}
+
+/* ---------- overview ---------- */
+
+.overview-page {
+  display: grid;
+  gap: var(--space-4);
+}
+
+/* The KPI deck's provenance line. Two lines, then clip — the same shape the
+   page head's chip note uses, so a reader learns one rule for "the small grey
+   line under a figure" and it holds wherever they meet it. */
+.kpi-card__note {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  /* And tabular, for the same reason `.page-insight > small` is: the line it
+     mirrors carries "cache {n}%; {n} quarantined" and "{usd} left of {usd}",
+     re-read on every book poll. */
+  font-variant-numeric: tabular-nums;
+  line-height: 1.34;
+}
+
+/* The command centre band: the page head and the decision loop on one dark
+   plane, the way the overview has always opened.
+
+   It carries `data-plane="inverted"`, which scopes the dark palette to this
+   subtree (see the note beside the dark token block). So this rule sets the
+   box and nothing else — every colour inside it, down to the chip borders and
+   the sparkline's series ink, resolves through the ordinary token names. */
+.overview-hero {
+  /* The band's two fixed light-blue inks, local to this element and not on
+     `:root` — the plane cannot flip with the theme, so neither can they, and
+     keeping them here is what stops them growing back into the ten-token
+     parallel palette this band used to own. AA on the plane below: 10.9:1
+     and 8.9:1. */
+  --plane-accent: #9ec9fb;
+  --plane-accent-2: #86adf5;
+  /* Bigger than an ordinary band on purpose — this is the landing tab's one
+     eye-catching surface, and the user asked for it to read that way. The
+     floor means the plane keeps its presence even when the loop's details
+     run short. */
+  min-height: 320px;
+  padding: var(--space-6) var(--space-6) var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  /* #101014, a step BELOW the dark theme's --surface-0, and fixed: the box
+     has to pop off a white page in light mode and off the #18181b ground in
+     dark mode, and using the ground's own value gave it neither. The deeper
+     plane also restores the internal contrast — the chips and loop tiles are
+     #1f1f23, which reads as a surface on #101014 and read as nothing on
+     #18181b. */
+  background: #101014;
+  /* Re-anchor the inherited colour. Rescoping `--text-primary` is not enough
+     on its own: `color` is an inherited property that `body` already resolved
+     against the LIGHT palette, and anything below it that does not declare its
+     own colour — the head's h1, most notably — inherits that resolved value
+     rather than re-reading the token. In light theme that drew a #18181b
+     headline on a #18181b plane. Declaring it here re-resolves the token at
+     the top of the band and lets it inherit down correctly. */
+  color: var(--text-primary);
+  box-shadow: 0 18px 44px -28px color-mix(in srgb, #000 45%, transparent);
+}
+
+/* The head sits directly on the plane, so its underline is the only thing
+   separating it from the loop and it does not need a second margin. */
+.overview-hero .page-heading {
+  margin-bottom: var(--space-4);
+}
+
+/* Headline scale, scoped to the band. The other seven tabs keep the shared
+   23px title and their 171px parity; this h1 is the desk's landing statement
+   and carries the tagline, so it gets the old hero's type. Tracking stays
+   inside the -0.03em floor typography.test.ts enforces. */
+.overview-hero .page-heading h1 {
+  margin-top: 4px;
+  font-size: var(--fs-hero);
+  line-height: 1.08;
+  letter-spacing: var(--ls-tight);
+}
+
+.overview-hero .page-heading p {
+  margin-top: 6px;
+  font-size: var(--fs-xl);
+}
+
+/* The blue structure the old band had, re-scoped: kicker and chip labels in
+   the plane accents, figures at full white and a step larger. This is what
+   "contrast" meant in practice — on the old band the labels were blue and the
+   numbers were big and white, and losing both flattened the box into greys. */
+.overview-hero .page-kicker {
+  color: var(--plane-accent-2);
+}
+
+/* The chips, at the band's own scale. The shared 84px chip is sized for a
+   header that must match seven other headers; nothing in this band has to
+   match anything, so the figures get room. Surfaces one step up and borders
+   on --axis rather than --border, because on the #101014 plane the ordinary
+   card seam colours sat within ~1.16:1 of everything around them and the
+   boxes dissolved. The note reads --text-secondary, not --text-muted, for
+   the same reason. */
+.overview-hero .page-insight {
+  min-height: 96px;
+  padding: 12px 15px 12px 16px;
+  border-color: color-mix(in srgb, var(--axis) 72%, var(--border));
+  background: var(--surface-2);
+}
+
+.overview-hero .page-insight > span {
+  color: var(--plane-accent);
+  font-size: var(--fs-sm);
+}
+
+.overview-hero .page-insight > strong {
+  color: #fff;
+  font-size: var(--fs-h1);
+}
+
+.overview-hero .page-insight > small {
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+
+.overview-loop {
+  display: flex;
+}
+
+.attention-board,
+.overview-section {
+  margin-top: 0;
+}
+
+.section-heading {
+  margin-bottom: var(--space-3);
+}
+
+/* A panel's head is a region of the card, not the first line of its content.
+   Sixty surfaces open with this block — a kicker, a title and the controls that
+   act on the panel — and every one of them ran straight into the tiles or the
+   table beneath with nothing but 12px of air between them, so the controls read
+   as belonging to the first row of data. The rule is the same one `.page-heading`
+   has always drawn at the top of a tab; this is that grammar one level down.
+
+   `:not(:last-child)`, because a card whose head is its only child would
+   otherwise end on a line dividing it from nothing. */
+.card > .section-heading:not(:last-child) {
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--rule);
+}
+
+.section-heading :is(h2, h3) {
+  font-size: var(--fs-h2);
+}
+
+.section-heading.compact :is(h2, h3) {
+  font-size: var(--fs-title);
+}
+
+
+/* The role launcher is a launcher, not a report: a monogram, the role, the one
+   line that says what is behind the tab, and the button. It carried 218px-tall
+   cards with two clamped paragraphs, which put the last three roles below the
+   fold on a laptop for no added meaning. */
+.role-grid {
+  gap: var(--space-3);
+}
+
+.pipeline-card {
+  min-height: 0;
+  padding: 13px 14px;
+  border-radius: var(--radius-lg);
+}
+
+.role-card {
+  min-height: 0;
+}
+
+.role-card .pipeline-card__value {
+  min-height: 0;
+  -webkit-line-clamp: 2;
+}
+
+.role-card .pipeline-card__status {
+  min-height: 0;
+  margin-top: 3px;
+  -webkit-line-clamp: 2;
+}
+
+/* ---------- decision-loop flow footer ---------- */
+
+/* Was a full card with a 32px top margin, a 16/24 pad and three stacked lines —
+   about 170px of chrome repeated on all eight tabs to carry one link. */
+/* The footer is one line of text and a button, and it was charging 90px for it:
+   20px of margin above, 20px of padding around, 48px of content. The content is
+   untouched — this is the surround. */
+.next-step-footer {
+  margin-top: var(--space-3);
+  margin-bottom: 0;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--series-1) 4%, var(--surface-1));
+  border-color: color-mix(in srgb, var(--series-1) 22%, var(--border));
+  box-shadow: none;
+}
+
+.next-step-footer__content {
+  gap: var(--space-4);
+  flex-wrap: nowrap;
+}
+
+.next-step-footer__info {
+  min-width: 0;
+  gap: 1px;
+}
+
+.next-step-footer__kicker {
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-caps-wide);
+}
+
+.next-step-footer__title {
+  font-size: var(--fs-xl);
+  letter-spacing: var(--ls-figure);
+}
+
+/* A sentence, so it wraps like one. It was `nowrap` and lost its tail on any
+   viewport under ~900px — a footer whose whole job is telling you why to go
+   somewhere, cut off before it says why. */
+.next-step-footer__hint {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: var(--fs-sm);
+}
+
+.next-step-footer__action {
+  min-height: 32px;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-md);
+}
+
+.workspace-footer {
+  margin-top: var(--space-5);
+  padding-top: var(--space-3);
+}
+
+/* ---------- interaction ---------- */
+
+:where(button, a, [role="tab"], summary):focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+
+/* NumberTicker (components/common/NumberTicker.tsx). The component sets
+   --ticker-w inline to the widest endpoint string's length in ch; with the
+   tabular figures `.num` provides, min-width then holds the box still while
+   the digits inside it move. */
+.number-ticker {
+  display: inline-block;
+  min-width: var(--ticker-w, auto);
+}
+
+/* The one reduced-motion contract. 1ms durations, never `animation: none`:
+   `none` discards the animation's end-state (`both`-filled properties snap
+   back) and strips `animationend`, so any JS sequenced on completion silently
+   never fires. 1ms runs every animation to its final frame instantly and every
+   event still lands. Delays are zeroed so staggered reveals collapse to one
+   paint rather than trickling in as 1ms pops. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- responsive ---------- */
+
+@media (max-width: 1120px) {
+  .page-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .page-heading__context {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .page-heading__insights {
+    width: 100%;
+    grid-auto-flow: row;
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .workspace-subtabs {
+    flex-wrap: wrap;
+    padding-bottom: 4px;
+  }
+  .workspace-subtabs__actions {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  :root {
+    --shell-pad: 14px;
+  }
+  .workspace-shell {
+    padding-top: var(--space-3);
+  }
+  .next-step-footer__hint {
+    display: none;
+  }
+}
+
+/* ---------- control primitives ---------- */
+
+/*
+ * The primary action has to win wherever it is placed.
+ *
+ * `button.primary-action` was declared at l.1851, above `.page-actions button`
+ * and `.workspace-subtabs button` — both of which are the same specificity and
+ * both of which set a background. The result was a white "Retry connection"
+ * label on a white button in the gateway-unavailable card: an invisible primary
+ * action on the one screen whose entire purpose is offering it. Re-declared
+ * here, last, so placement can no longer silently strip it.
+ */
+/* The same action rendered by an <a> when the destination is a URL (GitHub
+   Actions, a commit, a source file). Anchors never pass through the `button`
+   element rule, so the control chrome is restated for them here. */
+a.primary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 9px 14px;
+  border-radius: var(--radius-control);
+  font-size: var(--fs-xl);
+  font-weight: 550;
+  text-decoration: none;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+a.primary-action:active {
+  transform: translateY(1px);
+}
+
+button.primary-action,
+a.primary-action {
+  border: 1px solid var(--series-1);
+  background: var(--series-1);
+  color: #fff;
+}
+
+button.primary-action:hover:not(:disabled),
+a.primary-action:hover {
+  border-color: color-mix(in srgb, var(--series-1) 82%, #000);
+  background: color-mix(in srgb, var(--series-1) 88%, #000);
+}
+
+button.primary-action:disabled {
+  opacity: 0.55;
+}
+
+/* The rail strips borders from its tab buttons; controls docked beside them are
+   not tabs and keep the house control look. */
+.workspace-subtabs__actions button {
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+.workspace-subtabs__actions button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--series-1) 42%, var(--border));
+  background: var(--surface-2);
+}
+
+.workspace-subtabs__actions .seg {
+  padding: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.workspace-subtabs__actions .seg button {
+  min-height: 24px;
+  padding: 3px 9px;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+
+/* The rail's own override is gone: this treatment is the base rule now, which
+   is where it should have been. It was the only place in the sheet that had it
+   right. */
+
+.workspace-subtabs__actions button.primary-action {
+  border-color: var(--series-1);
+  background: var(--series-1);
+  color: #fff;
+}
+
+/* ---------- type scale ---------- */
+
+/*
+ * The house heading ramp.
+ *
+ * There was none: headings that carried an explicit rule were sized, and every
+ * other one fell through to the user-agent's em-relative defaults. That is why
+ * "Order ticket" (an unstyled h3) and "Performance" (an h2 inside
+ * `.chart-heading`, so not matched by `.card > h2`) rendered a third larger than
+ * "Deployment topology" and "Wants attention" beside them — same object, three
+ * sizes, decided by which wrapper a component happened to use.
+ *
+ * These are element-level rules at specificity 0,0,1, so every existing class
+ * rule — including the 12px uppercase `.card > h2` label — still wins. Only the
+ * headings that were never designed change.
+ */
+h1 {
+  font-size: var(--fs-figure);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-figure);
+}
+
+h2 {
+  font-size: var(--fs-h2);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tight);
+}
+
+h3 {
+  font-size: var(--fs-title);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--ls-figure);
+}
+
+h4 {
+  font-size: var(--fs-xl);
+  line-height: var(--lh-snug);
+}
+
+/* ---------- panel alignment ---------- */
+
+/*
+ * Side-by-side panels stop stretching to the tallest sibling. A short equity
+ * chart matched to a long attribution table left ~400px of empty card, which
+ * reads as a missing panel and pushes everything after it down a screen.
+ */
+.risk-main-grid,
+.reliability-overview__split {
+  align-items: start;
+}
+
+.portfolio-metrics {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+/* ---------- the sandbox marker ---------- */
+
+/* Now the only thing in this strip, so it takes the full width rather than
+   wrapping a legibility warning into a 10px column a third of the way across. */
+.portfolio-statusbar {
+  margin-bottom: var(--space-3);
+  padding: 9px 13px;
+  border-radius: var(--radius-md);
+}
+
+.portfolio-statusbar > div {
+  flex: 1 1 auto;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: var(--fs-md);
+  line-height: var(--lh-body);
+}
+
+.portfolio-statusbar > div > span:last-child {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+/* ---------- header ---------- */
+
+.workspace-header__utility > * {
+  flex-shrink: 0;
+}
+
+.workspace-header__utility button {
+  white-space: nowrap;
+}
+
+.workspace-tabs {
+  flex-shrink: 1;
+}
+
+/* The utility row wraps rather than clipping what it cannot fit.
+   ---------------------------------------------------------------
+   `overflow-x: clip` above keeps this bar from becoming a scroll container,
+   which is right — but it also means anything past the edge is silently eaten,
+   and what sits furthest right is the Settings gear. Once the account chip and
+   the Telegram CTA joined the row it overflowed between roughly 900px and
+   1550px, so the only route to theme and detail level was invisible at 1280px
+   and 1440px, two of the commonest laptop widths, with every test green and
+   nothing to see in a screenshot taken at 1600.
+
+   Most of that is paid for by the chip showing a monogram instead of the full
+   address, which reclaims about 140px, and by the priority ladder above
+   (labels fold rung by rung from 1880px down), which leaves the bar one row
+   from 1111px up — measured as a guest, the wider of the two rows, since
+   "Sign in" is 73px where the monogram is 32. Below that the row genuinely
+   cannot hold everything, so it wraps — the same answer the ≤900px block
+   already relies on, just starting earlier.
+
+   Not `flex-wrap: wrap` unconditionally: the spacer's `flex: 1` makes the line
+   overfull and wraps at widths that would otherwise have fitted, costing 24px
+   of height on a 1440px screen for nothing. And not by shrinking the tab strip,
+   which was tried and collapsed the eight primary labels to a few pixels each —
+   losing the nav to save the header is the wrong trade.
+
+   `--header-h` is measured by a ResizeObserver, so every sticky offset and
+   deep-link scroll margin follows the taller bar on its own. */
+@media (max-width: 1110px) {
+  .workspace-header__utility {
+    flex-wrap: wrap;
+    /* The containing block the panels below switch to. Declared here rather
+       than unconditionally so desk width keeps anchoring panels to their own
+       trigger, which is correct when the trigger is where the eye already is. */
+    position: relative;
+  }
+
+  /* Once the row wraps, a trigger is no longer near the right edge — and a
+     panel anchored to its trigger's right edge extends left from wherever that
+     trigger landed, which below ~700px is off the screen entirely. The width
+     clamp never helped: the panel was the right size in the wrong place, and
+     `overflow-x: clip` on the row then ate whatever crossed the boundary.
+     Dropping the wrapper to `static` hands the panel's containing block to the
+     row, so it spans the row's own gutters and is on screen by construction
+     instead of by arithmetic about where the trigger happened to wrap to.
+     CSS anchor positioning with position-try-fallbacks: flip-inline is the
+     modern answer to this and would suit the progressive posture the
+     scroll-driven reveals already take, but it is Chromium-only, so it could
+     only ever layer on top of a fix that already stands without it. */
+  .header-anchor {
+    position: static;
+  }
+
+  /* The row's gutter, not the row's full width. Stretching the panel to span
+     the gutters also keeps it on screen, but it made a 320px settings panel
+     984px wide at 1024px — the controls sprawl and it stops reading as a
+     dropdown at all. Anchoring the right edge to the gutter keeps the designed
+     width, and the base rule's `min(…, 100vw - 28px)` still takes over on a
+     phone, where it lands as an even 14px on both sides. */
+  .anchored-panel {
+    right: var(--shell-pad);
+  }
+}
+
+/* Cards placed side by side size to their own content. Stretching the shorter
+   one to the taller one is how a 400px void appears under a chart.
+
+   This was re-examined against a requirement to make every row share an exact
+   height, and it survives — because the same requirement also asks for empty gap
+   blocks around cards to be eliminated, and on these rows the two cannot both be
+   had. Measured at 1440px: research/attribution pairs a 908px factor table with a
+   516px market-state table, risk/model runs 472/317/545, and data/quality pairs
+   190px against 384px. Every one of those pairs is TABLES, and none of them
+   scrolls internally, so stretching the shorter card cannot fill it with anything
+   — a table with three rows in a 384px card is three rows and 190px of nothing,
+   and a scroller has nothing to scroll.
+
+   Equal heights are achievable, and are enforced, exactly where the taller height
+   can be absorbed: .liquidity-pair and .portfolio-chart-pair below, where a chart
+   is told the height and draws into it, or a ladder scrolls inside the card
+   rather than setting it. That is the line — stretch what can fill, leave what
+   would only gain a void. The REGIMES/RISK pair below is the third way to be on
+   the right side of it: neither card fills the slack, but each ends in a section
+   that can sit on the shared baseline, so the slack becomes one gap instead of a
+   void. Note that the "research/attribution" measurement above predates the
+   pane split — the factor table and the market-state table are no longer
+   siblings, and the market-state table's actual neighbour is now the tail card. */
+.compact-grid-2col,
+.data-console-pair {
+  align-items: start;
+}
+
+/* Two readings of one book. `align-items: start` above is right for panels of
+   genuinely different length, but here it left a 210px chart beside 570px of
+   levels and a column of empty plane under it. This pair stretches, the chart
+   is told the taller height, and the ladder scrolls inside the card rather
+   than setting it. */
+.liquidity-pair,
+.portfolio-chart-pair,
+/* The equity curve carries a drawdown pane under it and the signal chart does
+   not, so `align-items: start` left the right card ending ~75px above the
+   left one — two cards of one reading with a ragged bottom edge. They share
+   a baseline; the shorter chart keeps its own height inside its card. */
+.research-chart-pair {
+  align-items: stretch;
+}
+
+/* The session path and its decomposition carry different amounts of caveat
+   text — those caveats are load-bearing and stay visible. What they must not
+   do is leave the shorter card floating with a ragged bottom edge, so the
+   cards stretch and the equity card's fact row settles onto the shared
+   baseline instead of stranding plane beneath it. */
+.portfolio-chart-pair > .card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.portfolio-chart-pair > .card > .allocation-facts {
+  margin-top: auto;
+  padding-top: var(--space-3);
+}
+
+/* ---------- REGIMES beside RISK ----------
+   The research/robustness pane puts the same returns through two cuts — by
+   market state on the left, by tail on the right — and the desk reads them
+   across. `align-items: start` left them ending at different lines, and which
+   one ended first flipped with the viewport: measured at 2 year-rows of monthly
+   returns, RISK ran 57px longer at 1720px and 27px longer at 1500px, then
+   REGIMES ran 21px longer at 1280px. A ragged edge that changes sides as the
+   window resizes reads as a rendering fault rather than as two lengths.
+
+   Selected by `:has()` rather than by a class on the row, because the row is
+   `.compact-grid-2col` with nothing to distinguish it and `.regime-windows`
+   renders in exactly one panel. The other three `.compact-grid-2col` rows on
+   this page keep `align-items: start` — they are the table pairs the note
+   above measured, and they have nothing to put on a shared baseline. */
+.compact-grid-2col:has(> .card > .regime-windows) {
+  align-items: stretch;
+}
+
+.compact-grid-2col:has(> .card > .regime-windows) > .card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* The one seam that moves, and it is the last one in each card: the slack
+   collects immediately above the methodology note on the left and immediately
+   above the monthly-returns block on the right, so both cards end on the shared
+   baseline with every rhythm above the seam left at its authored value.
+
+   `margin-bottom: auto` on the element BEFORE the seam, not `margin-top: auto`
+   on the element after it, because an auto margin replaces the margin it lands
+   on: taking the bottom margin here leaves .research-note's 12px top margin and
+   .console-subhead's 18px top margin intact, so at zero slack the gap is the
+   same 12px and 18px the block-flow collapse produced and neither card changes
+   by a pixel when it happens to be the taller one.
+
+   Explicitly NOT `align-content: space-between`. The free space here is set by
+   the OTHER card, whose content is live: spreading it across every gap would
+   make each card's internal rhythm a function of a neighbour it cannot see, and
+   collapse all of them to zero whenever it was the taller card. One named gap
+   absorbs the difference; the rest of the card is fixed. */
+.compact-grid-2col:has(> .card > .regime-windows) > .card > .regime-windows,
+.compact-grid-2col:has(> .card > .regime-windows) > .card > .research-facts {
+  margin-bottom: auto;
+}
+
+/* Flex does not collapse margins, and this is the one pair above the seam where
+   that would have shown: the tile grid's 4px bottom margin used to be swallowed
+   by the fact row's 14px top margin, and unswallowed it would push the row 4px
+   down the moment the card became a flex column. */
+.compact-grid-2col:has(> .card > .regime-windows) > .card > .stability-tiles {
+  margin-bottom: 0;
+}
+
+/* ---------- composition ring ----------
+   The ring is the glance and the legend is the answer: arc length is the one
+   encoding readers systematically misjudge, so every slice prints its share
+   beside its swatch and colour never carries meaning alone. */
+.donut {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.donut__ring {
+  width: 132px;
+  height: 132px;
+}
+
+.donut__value {
+  fill: var(--text-primary);
+  font-family: var(--mono);
+  font-size: var(--fs-title);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.donut__label {
+  fill: var(--text-muted);
+  /* Off the type scale by sanction: a micro caption curled inside a donut
+     ring, sized to the geometry it decorates, not to be read as prose. */
+  font-size: 7px;
+  font-weight: 750;
+  letter-spacing: var(--ls-caps-wide);
+  text-transform: uppercase;
+}
+
+.donut__legend {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.donut__legend li {
+  display: grid;
+  grid-template-columns: 9px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-body);
+}
+
+.donut__legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+/* Legend labels wrap on narrow phones instead of clipping: "configured,
+   blocked" and "no key configured" are state names, and a state name cut to
+   "configured, bl…" stops distinguishing the states it exists to separate. */
+.donut__legend span {
+  overflow: hidden;
+  color: var(--text-secondary);
+}
+
+.donut__legend strong {
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+  font-weight: 650;
+}
+
+.donut-empty {
+  font-size: var(--fs-body);
+}
+
+.data-trust-composition {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-5);
+}
+
+/* What the controls below would act on, drawn from the same provider snapshot
+   they mutate — so the picture cannot describe a system the buttons will not
+   find. There is deliberately no history chart: this instance keeps no durable
+   remediation ledger, and a resolutions-over-time line would invent its past. */
+.remediation-scope {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-5);
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.remediation-scope__facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* The boxes below carry their own padding now, so the gap only has to hold
+     them apart rather than stand in for the edges they did not have. */
+  gap: var(--space-2);
+  margin: 0;
+}
+
+/* One box per fact, on the same tokens as `.operator-confirmation__facts > div`
+   — which is literally the same three-up figure block, one pane apart, and the
+   two were reading as different components because only one of them was boxed.
+   A `div` already wrapped each dt/dd/small trio for exactly this grouping, so
+   nothing here wraps anything new: no descendant selector on this panel changes
+   depth. Plain `border` shorthand is safe here in a way it is not on
+   `.console-action--client`, because none of these three carries an accent side
+   for a shorthand to wash away. */
+.remediation-scope__facts > div {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.remediation-scope__facts dt {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 750;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.remediation-scope__facts dd {
+  /* The box's own `gap` owns this spacing now; the margins were the version of
+     it that existed when there was no box. */
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--fs-h1);
+  font-weight: 650;
+}
+
+.remediation-scope__facts small {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+@media (max-width: 900px) {
+  .remediation-scope,
+  .remediation-scope__facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .data-trust-composition {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.liquidity-pair > .card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.liquidity-pair__book {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  font-family: var(--mono);
+}
+
+.portfolio-statusbar.is-sandbox > div:first-child {
+  max-width: none;
+}
+
+/* ---------- small screens ---------- */
+
+/*
+ * Two layout bugs lived here and neither was visible above 900px.
+ *
+ * 1. The role tabs collapsed to a 20px stack in the top-right corner, with all
+ *    eight labels overprinted on each other. `.workspace-tabs` carries
+ *    `flex: 1` (basis 0) from the desktop rule; the small-screen rule set
+ *    `width: 100%`, which a flex item's basis overrides, so the tabs were
+ *    allotted whatever was left after the brand and the status chips — nothing.
+ *    The basis has to change, not the width.
+ *
+ * 2. The page head opened with ~350px of blank space between the description
+ *    and the metric chips. `.page-heading__copy` has a flex-basis sized for a
+ *    row (`1 1 340px`); once the head turns into a column that basis becomes a
+ *    minimum HEIGHT, and `justify-content: space-between` pushed the chips to
+ *    the bottom of the gap it created.
+ */
+@media (max-width: 1120px) {
+  .page-heading__copy {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 900px) {
+  .workspace-tabs {
+    flex: 1 0 100%;
+  }
+  .workspace-tabs button {
+    min-height: 34px;
+  }
+  .workspace-header__utility {
+    padding-bottom: 6px;
+  }
+}
+
+/* Below 620px the section rail wraps to a grid (see l.8148) and can reach three
+   rows. Sticking that under a two-row header would spend a quarter of a phone
+   screen on chrome, so on phones the rail scrolls with the page and only the
+   role tabs stay pinned. */
+@media (max-width: 620px) {
+  .workspace-subtabs {
+    position: static;
+    padding-bottom: 6px;
+  }
+  /* The full-bleed band is positioned against the rail. Once the rail is static
+     the band resolves against a further ancestor instead and its −14px bleed
+     becomes 14px of document overflow — a page that scrolls sideways on every
+     tab. Nothing scrolls under a static rail, so the band has no job here. */
+  .workspace-subtabs::before {
+    display: none;
+  }
+  .workspace-subtabs__actions {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+    padding-top: 6px;
+  }
+  .page-heading__insights {
+    grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  }
+}
+
+/* A sticky panel taller than the viewport cannot pin its top — it scrolls until
+   its own bottom arrives, which for the 1000px experiment-setup column meant
+   the symbol, model and sweep bounds left the screen exactly when the results
+   they produced came into view. Give it its own scroll instead. */
+@media (min-width: 901px) {
+  .research-layout .sidebar {
+    max-height: calc(100vh - var(--header-h) - var(--rail-h) - var(--space-5));
+    max-height: calc(100svh - var(--header-h) - var(--rail-h) - var(--space-5));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/*
+ * `.sr-only` has to beat the house control rule.
+ *
+ * That rule is `input:not([type="range"]):not([type="checkbox"])…{ width: 100% }`
+ * — five negations, so specificity 0,5,1 against the utility's 0,1,0. The
+ * visually-hidden file input behind "Import runs" was therefore 1440px wide and
+ * pushed the Runs section 364px off the right edge of the page. A utility whose
+ * entire contract is "this element occupies no space" is one of the few places
+ * !important is the correct tool.
+ */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* The head reads as one band across all eight tabs only if the copy leaves room
+   for the metrics beside it. Without a ceiling the description claims the full
+   row and the chips wrap underneath — which is why Data and Reliability opened
+   170px tall while Research and Developer opened at 85px. */
+@media (min-width: 1121px) {
+  .page-heading__copy {
+    flex: 1 1 380px;
+    max-width: 58ch;
+  }
+  /* `.page-heading__context` used to take a `flex: 1 1 420px` here. It is
+     `display: contents` — it has no box, so it never took a flex line and the
+     declaration did nothing. Its two children, `__actions` and `__insights`,
+     are the real flex items and carry their own basis. */
+}
+
+/* ---------- containment ---------- */
+
+/*
+ * Three panels let their contents draw outside their own border. All three are
+ * the same mistake in different clothes: a track or a flex item that cannot be
+ * narrower than its content, inside a box that is narrower than that content.
+ *
+ * 1. The stat tiles in the factor panel are `display: grid` with no declared
+ *    column, so the implicit track is floored at the widest item's min-content.
+ *    A one-word uppercase label with 0.07em tracking — "IDIOSYNCRATIC" — is
+ *    132px of unbreakable text in a 111px tile, and every line in that tile
+ *    hung 21px past the edge. The track has to be allowed to shrink, and the
+ *    label has to be allowed to break.
+ *
+ * 2. The headroom gauges put a label and a `$8,600,000 / $12,000,000` figure in
+ *    one `space-between` row where neither side could give. Below ~1300px the
+ *    figure simply left the card. It now drops to its own right-aligned line
+ *    rather than overflowing — the number stays whole, which for a limit
+ *    readout matters more than keeping it on one line.
+ */
+.stability-tile {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.stability-tile > * {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.headroom-card__head {
+  flex-wrap: wrap;
+}
+
+.headroom-card__head > span {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.headroom-card__head > strong {
+  margin-left: auto;
+  /* `nowrap` (l.5482) held "+$6,300,000 / 73% of gross" — 219px — rigid inside
+     a 207px card. Wrapping is allowed now; the figures themselves contain no
+     spaces, so a break can only land at the ` / ` separator or inside the
+     trailing words, never inside a number. */
+  white-space: normal;
+  text-align: right;
+}
+
+/* Phone widths. Two more rigid rows, same shape as the ones above.
+   The section rail wraps to a grid of ~96px cells below 620px (l.8148) while
+   its labels stayed `nowrap`, so "Providers & Capacity" and "Quality &
+   Incidents" ran out through the cell. And a `.section-heading` holding a title
+   plus a row of status pills had no wrap at all, so the pills left the card. */
+@media (max-width: 620px) {
+  .workspace-subtabs button {
+    white-space: normal;
+    line-height: 1.25;
+  }
+
+  .workspace-subtabs button strong {
+    display: block;
+    overflow-wrap: break-word;
+  }
+
+  .section-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .section-heading > * {
+    min-width: 0;
+  }
+
+  .section-heading > div {
+    flex-wrap: wrap;
+  }
+}
+
+/* The failover chain reads left-to-right until the nodes wrap, and below 620px
+   every node is its own row — at which point the connector was still a "→"
+   pointing at nothing, riding the right edge of the card with ~5px of glyph
+   overhang. Stack the chain and point the connector down. */
+@media (max-width: 620px) {
+  .console-dag {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .console-edge {
+    justify-content: center;
+    width: 100%;
+    /* Silences the bare "→" text node without touching the component. */
+    font-size: 0;
+  }
+
+  .console-edge::after {
+    content: "↓";
+    font-size: var(--fs-title);
+  }
+
+  .console-edge__label {
+    font-size: var(--fs-2xs);
+  }
+}
+

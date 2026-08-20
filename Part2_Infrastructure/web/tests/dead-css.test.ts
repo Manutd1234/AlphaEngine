@@ -32,8 +32,10 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { globalsCss } from "./globals-css";
+
 const root = fileURLToPath(new URL("..", import.meta.url));
-const css = readFileSync(join(root, "app/globals.css"), "utf8");
+const css = globalsCss;
 
 /** Selector text only — comments in this file name classes they are describing. */
 const selectors = css.replace(/\/\*[\s\S]*?\*\//g, "");

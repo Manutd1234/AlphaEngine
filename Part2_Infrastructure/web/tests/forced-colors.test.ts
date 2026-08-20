@@ -9,10 +9,9 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-const css = readFileSync(
-  fileURLToPath(new URL("../app/globals.css", import.meta.url)),
-  "utf8",
-);
+import { globalsCss } from "./globals-css";
+
+const css = globalsCss;
 const declarations = css.replace(/\/\*[\s\S]*?\*\//g, (comment) =>
   comment.replace(/[^\n]/g, " "));
 

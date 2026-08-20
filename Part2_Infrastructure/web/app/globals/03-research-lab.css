@@ -1,0 +1,607 @@
+/* ==========================================================================
+   Research lab — quant validation surface
+   ==========================================================================
+   Appended after the console section; every selector is new. Reuses .card,
+   .tiles, .table-wrap, .banner, .legend, .seg and .section-heading rather than
+   restyling them, so the research panels sit in the same visual system as the
+   rest of the workspace.
+   ========================================================================== */
+
+/* ---------- shared research primitives ---------- */
+.research-seg button {
+  font-size: var(--fs-body);
+}
+
+.stability-verdict {
+  margin: 4px 0 14px;
+  padding: 10px 14px;
+  border-left: 3px solid var(--border);
+  border-radius: 0 9px 9px 0;
+  background: var(--surface-2);
+}
+
+.stability-verdict strong {
+  display: block;
+  font-size: var(--fs-xl);
+  margin-bottom: 3px;
+}
+
+.stability-verdict p {
+  font-size: var(--fs-md);
+  line-height: var(--lh-loose);
+  color: var(--text-secondary);
+  max-width: none;
+}
+
+/* A denser tile than .tiles' StatTile — four of these fit where six stat tiles
+   would crowd, and the note line carries the caveat that makes the number safe
+   to read. */
+.stability-tiles {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 4px;
+}
+
+/* Three short facts, three columns. The row that holds them carried NO rule at
+   all — `.stat-grid` was rendered and never declared — so three stat tiles
+   stacked full width with their borders touching, one short value per row.
+   `.tiles` alone would have left them in the first three of its six tracks;
+   this is the same modifier shape `.stability-tiles` uses for four. */
+.ml-run-tiles {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* The capsule directly below is itself a bordered block. Twelve pixels put
+     two outlines close enough to read as a single badly-drawn box; a full
+     --space-4 is what tells them apart as two regions. */
+  margin-bottom: var(--space-4);
+}
+
+/* Measured against the research panel rather than the window, for the reason
+   `.tiles` gives above: this row is never the width of the viewport. */
+@container (max-width: 620px) {
+  .ml-run-tiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 620px) {
+  .ml-run-tiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.stability-tile {
+  display: grid;
+  gap: 1px;
+  align-content: start;
+  padding: 10px 12px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.stability-tile > span {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-caps);
+  color: var(--text-muted);
+}
+
+.stability-tile > strong {
+  font-size: var(--fs-h1);
+  font-weight: 680;
+  letter-spacing: var(--ls-tight);
+  line-height: var(--lh-tight);
+}
+
+.stability-tile > small {
+  font-size: var(--fs-xs);
+  line-height: var(--lh-body);
+  color: var(--text-muted);
+}
+
+.research-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--grid);
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+}
+
+/* A closing note is a footnote to the block above it, and a table is now a
+   framed block. Twelve pixels left the sentence hanging off the frame's bottom
+   edge as though it were one more row; --space-4 puts it outside the table. */
+.card > .table-wrap + .research-note {
+  margin-top: var(--space-4);
+}
+
+.research-note {
+  margin-top: 12px;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-loose);
+  color: var(--text-muted);
+  /* No measure cap. A fixed ch cap inside a card the reader already sized is
+     two constraints fighting: it stopped every note ~300px short of the card
+     edge and spent the saved width on a third and fourth line instead. The
+     card's own width is the measure. */
+  max-width: none;
+}
+
+.research-window {
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+/* ---------- walk-forward timeline ---------- */
+.research-seg,
+.friction-group .row {
+  margin-bottom: 0;
+}
+
+/* ---------- factor attribution ---------- */
+.factor-name {
+  display: grid;
+  gap: 1px;
+  max-width: 40ch;
+}
+
+.factor-name small {
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-body);
+  white-space: normal;
+}
+
+/* Bipolar magnitude bar: the centre line is zero, so the SIDE carries the sign
+   and the hue only reinforces it. A one-sided bar would need colour alone to
+   distinguish a +0.8 loading from a -0.8 one. */
+.factor-bar {
+  position: relative;
+  display: block;
+  width: 110px;
+  height: 6px;
+  margin-left: auto;
+  border-radius: 3px;
+  background: var(--surface-3);
+}
+
+.factor-bar::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--axis);
+}
+
+.factor-bar > i {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: 3px;
+}
+
+/* ---------- monthly returns grid ---------- */
+/* One of the three tables that opts out of the shared lattice, for the reason
+   `.corr-matrix` states in full: each cell here is a tinted chip and the tint
+   IS the reading, so a ruled grid between chips draws a second, competing
+   structure over the one the eye is meant to follow. */
+.monthly-grid {
+  border: 0;
+}
+
+.monthly-grid td,
+.monthly-grid th {
+  padding-left: 6px;
+  padding-right: 6px;
+  font-size: var(--fs-sm);
+  border-right: 0;
+  background: none;
+}
+
+.monthly-cell > span {
+  display: block;
+  padding: 3px 5px;
+  border-radius: 5px;
+  min-width: 40px;
+}
+
+/* ---------- promotion gate ---------- */
+.promotion-score {
+  font-family: var(--mono);
+  font-size: var(--fs-lg);
+  font-weight: 650;
+}
+
+.promotion-list {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.promotion-list > li {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.promotion-list > li.is-pass {
+  border-left: 3px solid var(--success-text);
+}
+
+.promotion-list > li.is-fail {
+  border-left: 3px solid var(--critical-text);
+  background: color-mix(in srgb, var(--diverging-neg) 5%, var(--surface-1));
+}
+
+.promotion-mark {
+  font-size: var(--fs-xl);
+  line-height: var(--lh-snug);
+  font-weight: 700;
+}
+
+.promotion-list > li.is-pass .promotion-mark {
+  color: var(--success-text);
+}
+
+.promotion-list > li.is-fail .promotion-mark {
+  color: var(--critical-text);
+}
+
+.promotion-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.promotion-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--fs-lg);
+}
+
+.promotion-body small {
+  font-size: var(--fs-xs);
+  line-height: var(--lh-body);
+}
+
+.promotion-handoff {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.promotion-handoff small {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+/* The .page-actions specificity trap does not apply here — this bar declares its
+   own background so a .primary-action inside it cannot end up white-on-white. */
+.promotion-handoff button.primary-action {
+  background: var(--series-1);
+  border-color: var(--series-1);
+  color: #fff;
+}
+
+.promotion-handoff button.primary-action:disabled {
+  background: var(--surface-3);
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+/* ---------- experiment history ---------- */
+.run-id,
+.run-hypothesis {
+  display: grid;
+  gap: 1px;
+}
+
+.run-id small,
+.run-hypothesis small {
+  font-size: var(--fs-2xs);
+  white-space: normal;
+}
+
+.run-hypothesis {
+  max-width: 34ch;
+}
+
+.run-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+/* Direct children only, and not the RowMenu trigger: the menu's popover div
+   nests inside this cell, so a descendant selector would shout its menu items
+   in 9.5px uppercase; the ··· glyph keeps the shared 13px treatment. */
+.run-actions > button:not(.row-menu__trigger) {
+  padding: 4px 8px;
+  font-size: var(--fs-2xs);
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* ---------- friction controls ---------- */
+.friction-group {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  padding: 0;
+}
+
+/* list-item, not flex: the disclosure marker only renders for a list-item, and
+   a summary that has been flexed shows no marker in any browser. This control
+   spent its life looking like a static label with a pill beside it, and the
+   pill — which is a STATE, "flat bps only" — was what people clicked. The row
+   inside carries the flex now, so the layout is unchanged and the marker is
+   back. */
+.friction-group > summary {
+  cursor: pointer;
+  display: list-item;
+  list-style-position: inside;
+  padding: 9px 11px;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* The marker is the affordance, so it gets the ink of a control rather than
+   the muted grey of the label it sits beside. */
+.friction-group > summary::marker {
+  color: var(--text-secondary);
+}
+
+/* inline-flex so it sits on the marker's own line rather than starting a new
+   one under it, which is what a block-level row would do. */
+.friction-group__row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  /* One line. The badge is the state and must stay whole; if a narrower
+     viewport ever arrives, the label is what gives, not the answer. */
+  flex-wrap: nowrap;
+  gap: 8px;
+  width: calc(100% - 1.2em);
+  vertical-align: middle;
+}
+
+.friction-group__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.friction-group > summary:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--series-1) 35%, transparent);
+  outline-offset: -1px;
+}
+
+.friction-group > *:not(summary) {
+  margin: 0 11px 10px;
+}
+
+.friction-badge {
+  font-family: var(--mono);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-caps);
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--text-muted);
+}
+
+.friction-badge.is-on {
+  background: color-mix(in srgb, var(--status-warning) 22%, transparent);
+  color: var(--warning-text);
+}
+
+.friction-note {
+  font-size: var(--fs-xs);
+  line-height: var(--lh-body);
+  color: var(--text-muted);
+}
+
+/* The formula sits on the sentence's own baseline. Inline boxes align by
+   baseline, so a mono run set SMALLER than the prose around it hangs its chip
+   low — which is what made the radical in `k·√(order ÷ ADV)` read as
+   misaligned rather than as part of the sentence. Same size as the parent,
+   like `.quant-tooltip__formula` and the three sibling `code` rules that step
+   up (`.console-card`, `.cockpit-detail`, `.run-comparison`); this was the
+   only inline formula in the app still stepping down. `nowrap` keeps the
+   expression whole: the sidebar column is a hard 310px (`.research-layout`),
+   leaving ~254px of measure, and without it the run breaks inside the
+   parentheses and the radical loses its operand. Measured at 143px, so it
+   fits with room at both type steps. */
+.friction-note code {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+/* ---------- responsive ---------- */
+/* Four metrics across is right in a full-width panel and cramped in the
+   half-width column of a `.compact-grid-2col`, which is where most of these
+   render. The viewport cannot tell those apart — at 1500px both were four
+   across, one of them at 129px per tile. The container can. */
+@container (max-width: 620px) {
+  .stability-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .stability-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .promotion-handoff {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .promotion-handoff button.primary-action {
+    width: 100%;
+  }
+  .factor-name,
+  .run-hypothesis {
+    max-width: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .stability-tiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .research-facts {
+    gap: 10px;
+  }
+}
+
+/* ---------- stale-context gate ---------- */
+/* Blur via `filter` on the content, not backdrop-filter on the veil: it is
+   cheaper, and it changes no layout, so the charts' ResizeObservers never fire
+   from the gate toggling. Interactivity is removed by `inert` in the markup;
+   pointer-events here is only the visual backstop. */
+.stale-gate {
+  position: relative;
+  /* Seals the veil's z-index into this box: it only ever has to beat the
+     content it covers, never anything on the page. */
+  isolation: isolate;
+}
+
+.stale-gate.is-stale .stale-gate__content {
+  filter: blur(3px) saturate(0.55);
+  opacity: 0.55;
+  pointer-events: none;
+  user-select: none;
+  transition: filter var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+
+/* Recomputing is a sub-second state under auto-run, so it veils more lightly
+   than the stale gate: enough that no one reads the old numbers as current,
+   not so much that the panel appears to reload on every slider release. */
+.stale-gate.is-recomputing .stale-gate__content {
+  filter: blur(1.5px) saturate(0.75);
+  opacity: 0.72;
+}
+
+.stale-gate.is-recomputing .stale-gate__cta small {
+  display: block;
+  max-width: 44ch;
+  color: var(--text-secondary);
+  font-size: var(--fs-md);
+  text-align: center;
+}
+
+.stale-gate__veil {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface-0) 30%, transparent);
+}
+
+/* ---------- regime breakdown ---------- */
+.regime-windows-heading {
+  margin: 14px 0 6px;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.regime-windows {
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 5px;
+  font-size: var(--fs-body);
+}
+
+.regime-windows li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--grid);
+}
+
+.regime-windows__label {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ---------- chart heading with inline toggle ---------- */
+.chart-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.chart-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.chart-toggle input {
+  accent-color: var(--series-1);
+}
+
+/* Sticky, not centered: the summary panel is several screens tall and an
+   absolutely centered CTA would sit off-screen at most scroll positions. */
+.stale-gate__cta {
+  position: sticky;
+  top: 30vh;
+  margin-top: 90px;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 16px 22px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+}
+

@@ -11,10 +11,12 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 
+import { globalsCss } from "./globals-css";
+
 const root = join(import.meta.dirname, "..");
 /** Comments stripped: the file's own documentation names the forbidden forms. */
 const tailwind = readFileSync(join(root, "app/tailwind.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-const globals = readFileSync(join(root, "app/globals.css"), "utf8");
+const globals = globalsCss;
 const layout = readFileSync(join(root, "app/layout.tsx"), "utf8");
 
 /** The declarations of the :root light block, same approach as theme.test.ts. */

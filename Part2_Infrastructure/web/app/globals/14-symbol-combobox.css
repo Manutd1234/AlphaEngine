@@ -1,0 +1,933 @@
+/* --------------------------------------------------------------------------
+   Symbol combobox
+   --------------------------------------------------------------------------
+   Replaces an `<input list>` whose native datalist filtered against the field's
+   own value, so a populated box could only ever show one suggestion. The list
+   below is ours, so "open shows everything" is a decision rather than a fight
+   with the platform.
+   -------------------------------------------------------------------------- */
+/* The caret's hit area and the clear space the value keeps from it. Declared
+   on the combobox AND on the row cell that holds one, because three rules read
+   them — the input's padding, the caret button's width, and the cell's
+   flex-basis — and a custom property only reaches down. Two numbers, one
+   place, so they cannot drift apart. That drift is what the bug was. */
+.symbol-combo,
+.row > div:has(> .symbol-combo) {
+  --combo-caret: 22px;
+  --combo-caret-gap: 8px;
+}
+
+.symbol-combo {
+  position: relative;
+}
+
+.symbol-combo__field {
+  position: relative;
+  display: flex;
+}
+
+/* The caret OVERLAYS the input rather than sitting beside it.
+   As a flex sibling it consumed ~24px of a cell that `.row`'s `flex: 1` had
+   already cut to roughly 110px in this sidebar, and `BTCUSDT` — seven
+   characters, the default symbol — no longer fit. A field that cannot show its
+   own value is a worse control than the one this replaced, so the button is
+   positioned and the input simply reserves padding for it. */
+/* The :not() chain is not decoration — it is the specificity this rule needs.
+   The base control rule near the top of this sheet is
+   `select, input:not([type="range"]):not([type="checkbox"]):not([type="radio"])
+   :not([type="submit"]):not([type="button"]) { padding: 8px 10px }`, which
+   scores (0,5,1). A plain `.symbol-combo__field input` scores (0,1,1) and
+   loses, so the padding-right this rule has declared since the caret was
+   overlaid never applied at all: measured in the browser, the input reported
+   padding-right 10px and the value's right edge sat 12.8px PAST the caret's
+   left edge. Matching the chain scores (0,6,1) and the reservation is real. */
+.symbol-combo__field input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]) {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-right: calc(var(--combo-caret) + var(--combo-caret-gap));
+}
+
+/* And the cell has to be wide enough to hold what it reserves. `.row > div`
+   gives all three controls in this row `flex: 1 1 0` — an equal share of the
+   space — but this one carries a seven-character mono ticker at --fs-xl, 65px
+   of glyphs, while its neighbours carry "None" and "4h". Measured before the
+   fix: an 85.3px field with a 43.3px content box holding 65.1px of text.
+   Measured, the row is 276px wide. Three labelled controls sharing it as equal
+   thirds is 85.3px each, and the symbol field needs 118px to hold eight mono
+   characters (the longest tracked ticker: AVAXUSDT, DOGEUSDT, LINKUSDT) plus
+   the caret and its gap. Taking those 118px out of 276 left Benchmark at 69px
+   with its own label clipped to "BENCHM…" — the same bug moved next door.
+
+   So the row wraps and the symbol takes a line of its own. That is not a
+   concession, it is the shape the rest of the panel already uses: MODEL is
+   full width above HISTORY and DIRECTION as a pair, and this is now SYMBOL
+   full width above BENCHMARK and INTERVAL as a pair. `gap` covers the wrapped
+   row, so the two lines sit 10px apart with no extra rule. */
+.row:has(> div > .symbol-combo) {
+  flex-wrap: wrap;
+}
+
+.row > div:has(> .symbol-combo) {
+  flex: 1 1 100%;
+}
+
+.symbol-combo__toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--combo-caret);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-none);
+  cursor: pointer;
+}
+
+.symbol-combo__toggle:hover {
+  color: var(--text-primary);
+}
+
+.symbol-combo__list {
+  position: absolute;
+  /* Above the panel's own content, below the rail and the header. A dropdown
+     that outranked the header would paint over the sticky chrome the moment
+     the sidebar scrolled — which is the failure the named ladder exists to
+     prevent, and the reason a bare number was rejected here. */
+  z-index: var(--z-popover);
+  top: calc(100% + 2px);
+  left: 0;
+  /* WIDER THAN THE FIELD, deliberately.
+     `right: 0` tied the list to a ~110px cell and three columns collapsed into
+     each other — the ticker rendered on top of the sector, unreadable. The list
+     is absolutely positioned, so it is free to be wider than the control that
+     opens it, which is what every native select does. `max-width` keeps it
+     inside the sidebar on the narrowest layout. */
+  min-width: 15rem;
+  max-width: min(22rem, 92vw);
+  /* Roughly eight rows. The roster is 32 and growing, and a list that runs off
+     the panel is worse than the datalist this replaces. */
+  max-height: 17rem;
+  margin: 0;
+  padding: var(--space-1);
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-2, 0 8px 24px rgb(0 0 0 / 12%));
+}
+
+/* Flex, not grid. The grid this replaces used `minmax(0, auto)` on the outer
+   two columns, which at the list's old width let both overflow their tracks and
+   paint over the middle one — the ticker and the sector rendered on top of each
+   other. Flex with an explicit shrink order says which text gives way: the
+   issuer name truncates, the ticker and the sector never do, because those two
+   are what the row is for. */
+.symbol-combo__list button {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--fs-md);
+  text-align: left;
+  cursor: pointer;
+}
+
+/* One highlight, driven by the keyboard cursor, so arrowing and hovering cannot
+   show two different "current" rows at once. */
+.symbol-combo__list button.is-active {
+  background: var(--sky-1);
+  color: var(--series-1);
+}
+
+/* The ticker is the identifier being chosen — it never shrinks and never wraps. */
+.symbol-combo__ticker {
+  flex: 0 0 auto;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* The only element allowed to give way. `min-width: 0` is required for
+   `text-overflow` to work on a flex child — without it the name refuses to
+   shrink below its content and pushes the sector out of the row instead. */
+.symbol-combo__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+/* Right-aligned and fixed: the sector is what makes the roster scannable by
+   category, so it holds its place at the end of every row. */
+.symbol-combo__sector {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-left: var(--space-2);
+  /* --text-tertiary was a phantom: defined nowhere, so the fallback always
+     applied while suggesting a fourth ink step the three-step system
+     (primary/secondary/muted) deliberately does not have. */
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+
+.symbol-combo__empty {
+  padding: 8px;
+  color: var(--text-secondary);
+  font-size: var(--fs-md);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Strategy Codex — the catalogue as a reference library
+   ══════════════════════════════════════════════════════════════════════════
+   Appended as a self-contained block, same posture as the systems console:
+   every selector is new, colours are existing tokens only. Each family group
+   sets --codex-accent inline (mixed from the series tokens in the component),
+   and the accent is decoration — borders and tints, never text — so the AA
+   text contract stays entirely with the -text tokens. Entry motion is free:
+   these are `.workspace-subtab-panel > *` children, already covered by the
+   scroll-driven rise-in. */
+
+.strategy-codex {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.codex-family {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  padding: var(--card-pad);
+  border-top: 2px solid color-mix(in srgb, var(--codex-accent) 55%, var(--border));
+}
+
+.codex-family__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: var(--space-3);
+}
+
+.codex-family__head h2 {
+  margin: 0;
+  font-size: var(--fs-title);
+}
+
+.codex-monogram {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--codex-accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--codex-accent) 12%, var(--surface-1));
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  letter-spacing: var(--ls-caps);
+}
+
+.codex-family__thesis {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-lg);
+}
+
+/* The honest progress line: derived from the run log, and it says so. */
+/* Two rows, and exactly two: the count sentence, then its provenance.
+   This was `display: grid` around bare inline text, which CSS Grid wraps in an
+   anonymous grid item per run — "explored", the ticker and "of 14" each took a
+   row of their own and the header read as a column of fragments. The sentence
+   is now a single element child, so the grid has two children and two rows. */
+.codex-family__progress {
+  margin-left: auto;
+  flex: 0 0 auto;
+  display: grid;
+  gap: 2px;
+  justify-items: end;
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+}
+
+.codex-family__progress-count {
+  white-space: nowrap;
+}
+
+.codex-family__progress small {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.codex-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-3);
+}
+
+.codex-card {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.codex-card.is-active {
+  border-color: color-mix(in srgb, var(--codex-accent) 70%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--codex-accent) 45%, transparent);
+}
+
+/* The whole face of the card is the select action; the meta row below keeps
+   its own smaller targets. Reset the global button chrome. */
+.codex-card__select {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 12px 12px 8px;
+  min-height: 0;
+}
+
+.codex-card__select:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--codex-accent) 7%, transparent);
+  border-color: transparent;
+}
+
+.codex-card__select strong {
+  font-size: var(--fs-xl);
+  color: var(--text-primary);
+}
+
+.codex-card__summary {
+  font-size: var(--fs-md);
+  line-height: var(--lh-body);
+  color: var(--text-secondary);
+}
+
+/* The half that usually goes unwritten gets equal billing on every card. */
+.codex-card__fails {
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--text-muted);
+}
+
+.codex-card__fails em {
+  font-style: normal;
+  font-weight: 650;
+  color: var(--warning-text);
+}
+
+/* Two stacked rows, both starting at the card's text column, and NOT a
+   chip-left / links-right split.
+
+   The split was tried twice and could not hold. Measured: every one of the 46
+   cards carries three or four similar strategies (39 and 7 respectively), the
+   labels run to 25 characters, and the grid track is `minmax(240px, 1fr)`. So
+   the links never fit beside the chip — they wrapped, by a different amount on
+   every card, and `text-align: right` then left each wrapped line ragged down
+   its LEFT edge. That is what reads as "the blue words are not aligned with
+   each other": within a card the lines did not share a left edge, and across
+   the grid the run started at a different x on every card.
+
+   Stacked and left-aligned, the run starts at the same x as the title, the
+   summary and the Fails line above it — on every card, at every width. */
+.codex-card__meta {
+  display: grid;
+  justify-items: start;
+  /* The meta is the card's bottom row, so its content is pinned down; with the
+     links box floored at two lines below, the chip lands on the same line of
+     every card in the row rather than floating with the label lengths. */
+  align-content: end;
+  gap: 4px;
+  padding: 0 12px 10px;
+  font-size: var(--fs-sm);
+}
+
+/* Explored state is glyph + words, never colour alone: ● run / ◌ not yet. */
+.codex-chip {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.codex-chip[data-verdict="pass"] { color: var(--success-text); }
+.codex-chip[data-verdict="marginal"] { color: var(--warning-text); }
+.codex-chip[data-verdict="fail"] { color: var(--critical-text); }
+
+/* A packed comma run across the card's full width, left-aligned with
+   everything above it. Two lines is the floor, not a cap: at the widths this
+   grid renders (four tracks inside the 1200px shell) three labels and four
+   labels both take two lines, so flooring it there makes the 46 cards one
+   shape. A longer run still grows — a clipped link would be worse than an
+   uneven edge. */
+.codex-card__similar {
+  align-self: stretch;
+  min-height: calc(2 * var(--fs-xs) * var(--lh-body));
+  min-width: 0;
+}
+
+.codex-card__similar .text-action {
+  /* `.text-action` is a block with `width: fit-content`, `text-align: right`
+     and `margin-inline-start: auto` — the three declarations that pin it to
+     the right in its usual one-per-line use, and all three are wrong here.
+     Inline, so the links pack into one run and break between words like the
+     prose they sit under. */
+  display: inline;
+  width: auto;
+  text-align: left;
+  margin-inline-start: 0;
+  margin-top: 0;
+  font-size: var(--fs-xs);
+}
+
+@media (max-width: 720px) {
+  .codex-family__head {
+    flex-wrap: wrap;
+  }
+  .codex-family__progress {
+    margin-left: 46px;
+    justify-items: start;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Research journey — staggered evidence assembly (Slice 4)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* One stagger mechanism for every list that assembles: the element sets
+   --stagger-i (its position) and the container may set --stagger-step (the
+   interval; 40ms default, the promotion gate uses 70ms). The animation key is
+   ALWAYS data identity — the React key on the container — never width or
+   render count, so resize and re-render replay nothing. `both` holds rows
+   invisible until their turn; the reduce block collapses duration and delay,
+   so with motion off the whole list lands in one paint. */
+.stagger-reveal {
+  animation: rise-in var(--dur-slow) var(--ease-out) both;
+  animation-delay: calc(var(--stagger-i, 0) * var(--stagger-step, 40ms));
+}
+
+/* The gate-clear pulse: the SINGLE use of --ease-pop in the product. It fires
+   once on the eligibility edge (false→true) and the class is removed on
+   animationend. A second use of this easing anywhere is a review failure, not
+   a style choice — scarcity is what keeps the overshoot meaning something. */
+@keyframes gate-clear-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+.promotion-pulse {
+  animation: gate-clear-pulse var(--dur-slow) var(--ease-pop);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Live-data theatre (Slice 5)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Watchlist tick flash: one 600ms wash behind a price that actually changed.
+   The element is keyed by its value, so the animation runs exactly once per
+   real movement — never on poll, render or resize. Direction is redundant
+   emphasis: the signed 24h% beside it is the accessible signal. */
+@keyframes tick-flash-up {
+  from { background-color: color-mix(in srgb, var(--status-good) 24%, transparent); }
+  to { background-color: transparent; }
+}
+
+@keyframes tick-flash-down {
+  from { background-color: color-mix(in srgb, var(--status-critical) 22%, transparent); }
+  to { background-color: transparent; }
+}
+
+/* Negative margins mirror the padding so the wash has a box to paint without
+   moving the number it paints behind. */
+.market-watchlist__price {
+  border-radius: 5px;
+  padding: 1px 4px;
+  margin: -1px -4px;
+}
+
+.market-watchlist__price[data-tick="up"] {
+  animation: tick-flash-up var(--dur-flash) var(--ease-out);
+}
+
+.market-watchlist__price[data-tick="down"] {
+  animation: tick-flash-down var(--dur-flash) var(--ease-out);
+}
+
+/* The verdict banner is conditionally rendered — @starting-style is exactly
+   the feature for animating an element's insertion without JS choreography.
+   The gate rows inside it use the shared .stagger-reveal at the 40ms default,
+   capped in the component at index 12 (480ms). */
+.cockpit-verdict {
+  transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-out);
+}
+
+@starting-style {
+  .cockpit-verdict {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Charts alive (Slice 6)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* AnimatedPath (chart-kit): every line normalised to pathLength=1, so this
+   one rule draws all of them. The React key is data identity — a resize
+   rewrites `d` on the same node and this finished animation never reruns. */
+@keyframes chart-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+.chart-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: chart-draw var(--dur-draw) var(--ease-out) forwards;
+  animation-delay: var(--draw-delay, 0ms);
+}
+
+/* The Monte Carlo cone FADES — opacity only, never scale: a scaling cone
+   would briefly draw a narrower uncertainty band than was computed, and the
+   animation would lie about the statistics. Ends at each path's own
+   attribute opacity, so the band weights stay exactly as validated. */
+@keyframes chart-fade {
+  from { opacity: 0; }
+}
+
+.chart-fade {
+  animation: chart-fade var(--dur-reveal) var(--ease-out) both;
+}
+
+/* Crosshair and tooltip: opacity on entry only. Position is deliberately NOT
+   transitioned — a lagging crosshair misreports which bar you are on, and
+   correctness beats smoothness. */
+.chart-hover {
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+@starting-style {
+  .chart-hover {
+    opacity: 0;
+  }
+}
+
+/* Heatmap wavefront: cells arrive along the diagonal — (row+col) × 12ms via
+   --wave-delay, capped in the component — restating the panel's message:
+   this grid was searched. Keyed by sweep identity; hover and resize replay
+   nothing. */
+@keyframes heat-cell-in {
+  from { opacity: 0; }
+}
+
+.heatmap-cell {
+  animation: heat-cell-in var(--dur-slow) var(--ease-out) both;
+  animation-delay: var(--wave-delay, 0ms);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Navigation (Slice 7)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* View Transitions: the sticky header is the stable frame — naming it keeps
+   it out of the root cross-fade, so a tab switch reads as content changing
+   under fixed chrome. Progressive: engines without the API keep panel-in. */
+.workspace-header {
+  view-transition-name: workspace-header;
+}
+
+/* While a view transition runs, the cross-fade IS the entry animation;
+   letting panel-in also fire would double-animate the incoming panel. */
+html:active-view-transition .view-panel {
+  animation: none;
+}
+
+/* The palette enters at 0.98→1 — @starting-style, since <dialog> mounts into
+   the top layer on showModal(). */
+.command-bar[open] {
+  transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+}
+
+@starting-style {
+  .command-bar[open] {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+/* Selection movement stays INSTANT — palette latency is felt in single
+   milliseconds, and the global button transition would smear it. */
+.command-bar__results button {
+  transition: none;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Verdict — the last inline-styled surface, converted (Slice 8)
+   ══════════════════════════════════════════════════════════════════════════
+   One data-tone attribute on the card resolves BOTH custom properties every
+   descendant reads: the fill for washes and borders, the -text step for
+   anything rendered as text. Tones therefore ride the validated ladder and
+   the AA contract stays green by construction — a new tone that skipped the
+   -text step would have to be added here, visibly. */
+
+.verdict-card[data-tone="pass"] {
+  --verdict-fill: var(--status-good);
+  --verdict-text: var(--success-text);
+}
+
+.verdict-card[data-tone="marginal"] {
+  --verdict-fill: var(--status-warning);
+  --verdict-text: var(--warning-text);
+}
+
+.verdict-card[data-tone="fail"] {
+  --verdict-fill: var(--status-critical);
+  --verdict-text: var(--critical-text);
+}
+
+.verdict-card {
+  border-color: color-mix(in srgb, var(--verdict-fill) 45%, transparent);
+}
+
+.verdict-lead {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.verdict-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--verdict-fill) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--verdict-fill) 45%, transparent);
+  flex-shrink: 0;
+  color: var(--verdict-text);
+  font-weight: 700;
+  font-size: var(--fs-lg);
+  letter-spacing: var(--ls-caps);
+}
+
+.verdict-headline {
+  flex: 1;
+  min-width: 240px;
+}
+
+.verdict-headline h3 {
+  font-size: var(--fs-h2);
+  letter-spacing: var(--ls-figure);
+  margin-bottom: 4px;
+}
+
+.verdict-headline p {
+  font-size: var(--fs-xl);
+  color: var(--text-secondary);
+  max-width: none;
+}
+
+.verdict-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--grid);
+}
+
+.stat-tile__label,
+.verdict-metric__label {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-caps);
+  color: var(--text-muted);
+}
+
+.stat-tile__value,
+.verdict-metric__value {
+  font-weight: 650;
+  letter-spacing: var(--ls-tight);
+  color: var(--text-primary);
+}
+
+.verdict-metric__value { font-size: var(--fs-figure); }
+
+.stat-tile__value[data-tone="pos"] { color: var(--success-text); }
+.stat-tile__value[data-tone="neg"] { color: var(--critical-text); }
+.stat-tile__value[data-tone="muted"] { color: var(--text-muted); }
+.verdict-metric__value[data-tone="warn"] { color: var(--warning-text); }
+.verdict-metric__value[data-tone="critical"] { color: var(--critical-text); }
+.verdict-metric__value[data-tone="verdict"] { color: var(--verdict-text); }
+
+/* The note under a tile's figure. `.stat-tile__value` has had tabular figures
+   since it was written; its note did not, and the note is where the live
+   counts sit ("{n} venues live", "{n} of {n} accepted"). A tile whose headline
+   holds still while its caption reflows is still a tile that twitches. */
+.stat-tile__note,
+.verdict-metric__note {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--lh-snug);
+}
+
+.workspace-switcher {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .workspace-tabs {
+    display: none;
+  }
+
+  .workspace-switcher {
+    order: 3;
+    flex: 1 0 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-2);
+    padding: 3px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-2);
+  }
+
+  .workspace-switcher > span {
+    padding-left: 7px;
+    color: var(--text-muted);
+    font-size: var(--fs-chrome-caption);
+    font-weight: 750;
+    letter-spacing: var(--ls-caps-wide);
+    text-transform: uppercase;
+  }
+
+  .workspace-switcher select {
+    width: 100%;
+    min-width: 0;
+    min-height: 34px;
+    padding: 5px 9px;
+    border: 1px solid color-mix(in srgb, var(--series-1) 24%, var(--border));
+    border-radius: calc(var(--radius-md) - 3px);
+    background: var(--surface-1);
+    color: var(--text-primary);
+    font: 680 var(--fs-chrome-tab)/1.2 var(--sans);
+  }
+}
+
+/* One navigation surface per viewport.
+
+   Between 900px and 620px the `<select>` above is the only way between
+   workspaces and it stays. Below 620px the thumb bar appears and BOTH were
+   rendering: a full-width select row inside a two-row header, and a fixed bar
+   at the bottom of the screen. `WorkspaceBottomNav` already argues the case in
+   its own header — the select is "correct for completeness, wrong for the hand
+   holding the device" — and its All desks button opens the palette, which lists
+   all eight workspaces with their descriptions and can be searched. Nothing
+   moves out of reach; a header row is given back on the viewport that has the
+   least of it.
+
+   Placed here rather than beside the bottom bar's own block, which sits some
+   fourteen thousand lines earlier: at equal specificity the later rule wins, so
+   an override written up there would have lost to the 900px rule above and
+   changed nothing. */
+@media (max-width: 620px) {
+  .workspace-switcher {
+    display: none;
+  }
+}
+
+/* The header's priority ladder.
+
+   `.workspace-header__utility` is `overflow-x: clip`, so a row wider than the
+   viewport does not wrap or scroll — it loses its rightmost controls, and
+   those are Settings and, for a guest, Sign in. Measured on production as a
+   guest (the widest the row gets: "Sign in" is 73px where the signed-in
+   monogram is 32) with the compiled core's annotation in the decision chip,
+   the fully-labelled row needed ~1805px at the previous chrome type, and
+   until this pass nothing collapsed above 1380px: Settings was clipped from
+   1722px down and by 298px at 1381. The band that replaced it folded too
+   much at once — at 1700px the row sat with 250px of empty spacer and its
+   labels already gone — so the rungs are small and each is measured to land
+   just before the next clip. The rungs moved 60px out on 2026-08-17 for the
+   chrome lift (tabs 14px, chips 13px, captions 12px) and came back on
+   2026-08-20 when the chrome returned to 13/12/11, and both times the numbers
+   were measured rather than reasoned about.
+
+   The 2026-08-20 sweep, scripts/header-ladder-measure.mjs on the local
+   harness — guest row, widest production strings injected, 2000 → 1080 in
+   2px steps: slack is positive at every width, the row stays one row
+   throughout, and the tightest band bottoms out at 35px of spare (just above
+   rung 3, at 1700). The decision chip measures 34.4px while it carries copy,
+   which is the row's two-line norm and within a tenth of the 34.45px its own
+   comment predicts from the type; below rung 8 the copy folds and the icon
+   sets 36px. The chrome tokens are fixed px, so the Text-size preference
+   cannot move any of this — the --text-size=large run is byte-identical to
+   the default, and that is the proof rather than the claim.
+
+   2026-08-21, the numeric-stability pass: the rungs did not move, and this is
+   the arithmetic that says they did not have to. Two chips changed width.
+   `.latency-chip__state` gained tabular figures and an 87px floor — the sweep
+   already injects "within budget" there, which measures 86.28px with tabular
+   figures against 85.92px without, so the row the rungs were measured on was
+   0.72px narrower than the floor and the band is unchanged for practical
+   purposes. `.system-health-action` gained tabular figures, which cost it
+   6.35px with the long sentence and 6.16px with the short one, plus a floor
+   set to the widest sentence in each band (180px / 129px) so the count can no
+   longer resize it. Only the tabular cost is new width: the floors are the
+   sweep's own injected strings. The tightest band — 35px of spare just above
+   rung 3, where the short sentence is the one on screen — therefore stands at
+   about 29px, still clear. Measured per element in headless Chrome against
+   the header's own Inter rather than re-swept, because the sweep needs a dev
+   server; a full re-sweep is owed the next time a rung actually moves.
+
+   CrossFlow's rule stands — drop secondary context before letting the
+   workspace nav clip — lowest priority first: what the aria-label already
+   carries and a glyph already says goes before any word a reader needs; the
+   decision figure folds late; the Kill switch and Sign in labels last.
+   Settings, the account chip, the kill switch and the tabs themselves never
+   go. Guest and signed-in rows are one structure, so every rung holds for
+   both.
+
+   Rung 1 (≤1880, with the Search label rule near the top of this file): the
+   Search label, and the providers sentence becomes its short form. */
+@media (min-width: 901px) and (max-width: 1880px) {
+  .system-health__label {
+    display: none;
+  }
+
+  .system-health__label--short {
+    display: inline;
+  }
+
+  /* The reservation follows the label down. 129px is the same composed button
+     measured around "12/12 providers" (128.05px) — the short sentence at its
+     widest, and the very string the ladder's sweep injects here. Without this
+     the chip would keep the 180px floor the long sentence needs and hand the
+     row 52px it has no use for at these widths. */
+  .system-health-action {
+    min-width: 129px;
+  }
+}
+
+/* Rung 2 (≤1780): the decision chip's state word — the dot keeps the tone,
+   the title keeps the words. */
+@media (min-width: 901px) and (max-width: 1780px) {
+  .latency-chip__state {
+    display: none;
+  }
+
+  .latency-chip {
+    grid-template-columns: auto auto;
+    padding-right: 7px;
+  }
+}
+
+/* Rung 3 (≤1690): the Settings label. */
+@media (min-width: 901px) and (max-width: 1690px) {
+  .workspace-header__utility > .header-settings,
+  .workspace-header__utility > .header-anchor > .header-settings {
+    width: 36px;
+    min-width: 36px;
+    padding-inline: 0;
+  }
+
+  .workspace-header__utility > .header-anchor > .header-settings span,
+  .workspace-header__utility > .header-settings span {
+    display: none;
+  }
+}
+
+/* Rung 4 (≤1630): the data-tier label — the rule sits with the chip's own
+   comment, above. Rung 5 (≤1580): the Connect / Connected label — the
+   max-[1580px] class in TelegramCta.
+
+   Not a rung: the core annotation inside the decision chip. Measured, it adds
+   no width — the DECISION P99 caption above it is the wider line of the two —
+   so hiding it would take the nanosecond figure off the row and buy nothing.
+   It stays until the chip's own copy folds (rung 8). */
+
+/* Rung 6 (≤1500): the providers chip is its dot alone — the count is one tap
+   away in Settings and the panel it opens; the aria-label keeps the sentence. */
+@media (min-width: 901px) and (max-width: 1500px) {
+  .system-health-action {
+    width: 44px;
+    min-width: 44px;
+    max-width: 44px;
+    justify-content: center;
+    gap: 0;
+    padding-inline: 0;
+    overflow: hidden;
+    font-size: 0;
+  }
+
+  .system-health-action i {
+    flex: 0 0 7px;
+  }
+}
+
+/* Rung 7 (≤1430): the brand tagline, the tabs' side padding, and the tab
+   labels back to the chip size. */
+@media (min-width: 901px) and (max-width: 1430px) {
+  .brand-copy small {
+    display: none;
+  }
+
+  .workspace-tabs button {
+    padding-inline: 5px;
+  }
+
+  .workspace-tabs button span {
+    font-size: var(--fs-chrome-chip);
+  }
+}
+
+/* Rung 8 (≤1270): the decision figure folds to its gauge; the title still
+   names both planes and the Reliability tab has the numbers. */
+@media (min-width: 901px) and (max-width: 1270px) {
+  .latency-chip__copy {
+    display: none;
+  }
+
+  .latency-chip {
+    grid-template-columns: auto;
+    padding: 5px;
+  }
+}
+
+/* Rung 9 (≤1190): the Kill switch and Sign in labels fold to their icons —
+   the same fold the ≤520px rule makes, a rung earlier for the widths between
+   the last one-row fit and the wrap. Both controls keep their aria-label and
+   title; HALTED is never folded. */
+@media (min-width: 901px) and (max-width: 1190px) {
+  .header-kill-label,
+  .header-signin-label {
+    display: none;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Narrow screens and paper — explicit affordances for the dense evidence UI
+   ══════════════════════════════════════════════════════════════════════════ */
+

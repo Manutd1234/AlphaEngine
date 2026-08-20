@@ -1,0 +1,83 @@
+/* ==========================================================================
+   Cross-venue dislocation strip
+   ==========================================================================
+   Sits under the routing table on the execution tab. Three states, and the
+   quiet one is styled to stay quiet: the strip renders whether or not anything
+   is crossed, because a component that only appears on a hit teaches the eye to
+   read its absence as "clear" when the usual cause is a venue dropping out.
+
+   Colour carries no information on its own here — every state also says what it
+   is in words, so the strip survives being read in greyscale or by a screen
+   reader that never sees the border.
+   ========================================================================== */
+.dislocation-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--grid);
+  border-left: 3px solid var(--border);
+  border-radius: 0 9px 9px 0;
+  background: var(--surface-2);
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
+}
+
+.dislocation-strip.muted {
+  opacity: 0.75;
+}
+
+.dislocation-strip.marginal {
+  border-left-color: var(--status-warning);
+}
+
+.dislocation-strip.hit {
+  border-left-color: var(--series-2);
+  background: color-mix(in srgb, var(--series-2) 7%, var(--surface-2));
+}
+
+.disloc-tag {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  color: var(--text-secondary);
+}
+
+/* Tinted, not filled: white on --series-2 orange was ~3.2:1. The tint keeps
+   the hue association while the word reads at AA via the notice text step. */
+.dislocation-strip.hit .disloc-tag {
+  background: color-mix(in srgb, var(--series-2) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--series-2) 45%, transparent);
+  color: var(--notice-text);
+}
+
+.dislocation-strip.marginal .disloc-tag {
+  background: transparent;
+  border: 1px solid var(--status-warning);
+  color: var(--warning-text);
+}
+
+.disloc-legs strong {
+  color: var(--text-primary);
+}
+
+.disloc-edge {
+  font-family: var(--mono);
+  color: var(--text-primary);
+}
+
+/* Pushed to its own line so the cost caveat is never truncated out of view —
+   a gross edge quoted without it is the failure mode this panel is guarding. */
+.disloc-note {
+  flex-basis: 100%;
+  font-size: var(--fs-body);
+  color: var(--text-muted);
+}
+

@@ -1,0 +1,1083 @@
+/* ---------- Developer engineering workspace ---------- */
+
+
+.developer-overview > .card,
+.developer-overview__grid > .card,
+.developer-quality > .card,
+.codebase-explorer,
+.developer-work,
+.developer-api-catalog {
+  margin-bottom: 0;
+}
+
+
+.developer-deployable__topline .num {
+  color: var(--series-1);
+  font-size: var(--fs-md);
+}
+
+
+.developer-work-preview__priority.is-p0,
+.developer-work-preview__priority.is-p1 {
+  color: var(--warning-text);
+}
+
+
+/* Repository explorer */
+
+.codebase-explorer {
+  padding: 20px;
+  overflow: hidden;
+}
+
+.codebase-explorer__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.codebase-explorer__heading h2 {
+  margin-top: 3px;
+  font-size: var(--fs-h1);
+  letter-spacing: var(--ls-tight);
+}
+
+.codebase-explorer__heading .sub {
+  max-width: none;
+  margin-top: 6px;
+}
+
+.codebase-explorer__stats,
+.developer-work__stats {
+  display: grid;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--border);
+  gap: 1px;
+}
+
+/* Split from the shared rule above, IN PLACE rather than appended, because the
+   narrow blocks further down this sheet (`flex-basis: auto` at <=900, two
+   columns at <=520) are the same specificity — a copy of this landing after
+   them would win on source order and force 420px inside a ~292px phone card,
+   which `.codebase-explorer` clips with `overflow: hidden`. Two cells would
+   leave the card entirely.
+
+   Five cells, five tracks. The date sizes to its content; the four counts share
+   what is left. */
+.codebase-explorer__stats {
+  grid-template-columns: auto repeat(4, minmax(64px, 1fr));
+  flex: 0 1 480px;
+  min-width: 420px;
+}
+
+/* Four cells, unchanged — the Task Queue strip has exactly four. */
+.developer-work__stats {
+  grid-template-columns: repeat(4, minmax(72px, 1fr));
+  flex: 0 1 390px;
+  min-width: 340px;
+}
+
+.codebase-explorer__stats > div,
+.developer-work__stats > div {
+  display: grid;
+  gap: 2px;
+  padding: 8px 9px;
+  background: var(--surface-1);
+}
+
+/* Direct children of each cell only: the figures' NumberTicker renders as a
+   span inside the strong, and the descendant form re-sized it to the label. */
+.codebase-explorer__stats > div > span,
+.developer-work__stats > div > span {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 750;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.codebase-explorer__stats strong,
+.developer-work__stats strong {
+  font-size: var(--fs-h2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A date is not a figure. At --fs-h2 it was the widest cell of the five and
+   read as a fifth headline number. Three parts on purpose: the rule above is
+   (0,1,1), so a two-part form would tie and lose on source order. */
+.codebase-explorer__stats .codebase-explorer__asof strong {
+  font-size: var(--fs-md);
+}
+
+.developer-work__stats .is-warn strong {
+  color: var(--warning-text);
+}
+
+.codebase-explorer__notice,
+.developer-work__scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 14px 0 12px;
+  padding: 9px 11px;
+  border-left: 3px solid color-mix(in srgb, var(--series-1) 60%, var(--border));
+  border-radius: 0 8px 8px 0;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-body);
+}
+
+.codebase-explorer__notice strong,
+.developer-work__scope strong {
+  color: var(--text-primary);
+}
+
+.codebase-explorer__notice code {
+  color: var(--text-secondary);
+}
+
+.codebase-explorer__toolbar,
+.developer-work__toolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(190px, 260px) auto;
+  gap: 9px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.codebase-explorer__toolbar label,
+.developer-work__toolbar label,
+.developer-work__composer label,
+.developer-api-catalog__toolbar label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.codebase-explorer__toolbar label > span,
+.developer-work__toolbar label > span,
+.developer-work__composer label > span,
+.developer-api-catalog__toolbar label > span {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 750;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.codebase-explorer__toolbar input,
+.codebase-explorer__toolbar select,
+.developer-work__toolbar input,
+.developer-work__toolbar select,
+.developer-work__composer input,
+.developer-work__composer select,
+.developer-work__composer textarea,
+.developer-api-catalog__toolbar input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+}
+
+.codebase-explorer__toolbar input,
+.codebase-explorer__toolbar select,
+.developer-work__toolbar input,
+.developer-work__toolbar select,
+.developer-work__composer input,
+.developer-work__composer select,
+.developer-api-catalog__toolbar input {
+  height: 38px;
+  padding: 0 10px;
+}
+
+.developer-work__composer textarea {
+  min-height: 72px;
+  padding: 9px 10px;
+  resize: vertical;
+}
+
+.codebase-explorer__toolbar > button {
+  min-height: 38px;
+}
+
+.codebase-explorer__layout {
+  display: grid;
+  grid-template-columns: minmax(330px, 0.88fr) minmax(430px, 1.12fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.codebase-filelist,
+.codebase-detail {
+  min-width: 0;
+  min-height: 580px;
+  max-height: 660px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.codebase-filelist {
+  overflow: auto;
+  scrollbar-width: thin;
+  /* Same reason as the reliability matrix: `overflow` is not a stacking
+     context, so without this the two sticky tiers below compete with page
+     chrome instead of only with each other. */
+  isolation: isolate;
+}
+
+.codebase-filelist__summary {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-1) 94%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.codebase-filelist__summary span {
+  color: var(--text-primary);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
+.codebase-filelist__summary small {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+.codebase-filegroup h3 {
+  position: sticky;
+  z-index: 1;
+  /* Docked under the summary bar above. Measured by CodebaseExplorer's
+     ResizeObserver rather than hand-counted — the old literal 39px was wrong
+     the moment the summary wrapped onto two lines. */
+  top: var(--codebase-summary-h, 39px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--grid);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.codebase-filegroup h3 small {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+.codebase-filegroup ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.codebase-filegroup li {
+  border-bottom: 1px solid var(--grid);
+}
+
+.codebase-filegroup button {
+  width: 100%;
+  min-height: 49px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  display: grid;
+  grid-template-columns: 39px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  text-align: left;
+}
+
+.codebase-filegroup button:hover,
+.codebase-filegroup button.is-selected {
+  background: color-mix(in srgb, var(--series-1) 7%, var(--surface-1));
+}
+
+.codebase-filegroup button.is-selected {
+  box-shadow: inset 3px 0 0 var(--series-1);
+}
+
+.codebase-file-icon {
+  width: 35px;
+  height: 30px;
+  border: 1px solid color-mix(in srgb, var(--series-1) 20%, var(--border));
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--series-1) 7%, var(--surface-2));
+  display: grid;
+  place-items: center;
+  color: var(--series-1);
+  font-family: var(--mono);
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+}
+
+.codebase-file-icon.is-test,
+.codebase-file-icon.is-fixture,
+.codebase-file-icon.is-contract {
+  border-color: color-mix(in srgb, var(--success-text) 25%, var(--border));
+  background: color-mix(in srgb, var(--success-text) 7%, var(--surface-2));
+  color: var(--success-text);
+}
+
+.codebase-filegroup button > span:last-child {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.codebase-filegroup button strong,
+.codebase-filegroup button small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codebase-filegroup button strong {
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+}
+
+.codebase-filegroup button small {
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: var(--fs-2xs);
+}
+
+.codebase-filelist__empty,
+.codebase-detail__empty,
+.developer-work__empty,
+.developer-api-catalog__empty {
+  min-height: 180px;
+  padding: 26px;
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.codebase-filelist__empty span,
+.codebase-detail__empty span,
+.developer-work__empty span,
+.developer-api-catalog__empty span {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.codebase-detail {
+  overflow: auto;
+  padding: 20px;
+  scrollbar-width: thin;
+}
+
+.codebase-detail__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.codebase-detail__header > div {
+  min-width: 0;
+}
+
+.codebase-detail__header h3 {
+  margin-top: 4px;
+  font-size: var(--fs-h1);
+  letter-spacing: var(--ls-tight);
+}
+
+.codebase-detail__header code {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-top: 7px;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+/* .text-action, not .primary-action: the header's sole action is the quiet
+   "Open source ↗" link, demoted from the fill in an earlier pass. The old
+   compound selector kept matching nothing — the 36px touch target this rule
+   exists for had silently stopped applying. */
+.codebase-detail__header .text-action {
+  flex: 0 0 auto;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.codebase-detail__purpose {
+  margin: 18px 0;
+  padding: 12px 13px;
+  border-left: 3px solid var(--series-1);
+  border-radius: 0 8px 8px 0;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+
+.codebase-detail__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--border);
+  gap: 1px;
+}
+
+.codebase-detail__meta > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  background: var(--surface-1);
+}
+
+.codebase-detail__meta dt {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 750;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+}
+
+.codebase-detail__meta dd {
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+}
+
+.codebase-detail__meta code {
+  font-size: var(--fs-2xs);
+}
+
+.codebase-detail__context,
+.codebase-detail__safe-edit {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.codebase-detail__context h4 {
+  margin-top: 4px;
+  font-size: var(--fs-2xl);
+}
+
+.codebase-detail__context p,
+.codebase-detail__safe-edit p {
+  margin-top: 5px;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-body);
+}
+
+.codebase-detail__safe-edit {
+  background: color-mix(in srgb, var(--series-3) 5%, var(--surface-2));
+}
+
+.codebase-detail__safe-edit strong {
+  font-size: var(--fs-sm);
+}
+
+/* Engineering work queue */
+
+.developer-work {
+  padding: 20px;
+  overflow: hidden;
+}
+
+.developer-work__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.developer-work__heading h2 {
+  margin-top: 3px;
+  font-size: var(--fs-h1);
+  letter-spacing: var(--ls-tight);
+}
+
+.developer-work__heading .sub {
+  max-width: none;
+  margin-top: 6px;
+}
+
+.developer-work__eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.developer-work__eyebrow .pill {
+  padding: 2px 7px;
+  font-size: var(--fs-2xs);
+}
+
+.developer-work__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+/* No private 37px — the base button's 32px, like every peer toolbar. The
+   mobile 44px touch floor is enforced separately by the pinned block. */
+
+.developer-work__composer {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(130px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--series-1) 32%, var(--border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--series-1) 4%, var(--surface-2));
+}
+
+.developer-work__composer-heading {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.developer-work__composer-heading > div {
+  display: grid;
+  gap: 3px;
+}
+
+.developer-work__composer-heading strong {
+  font-size: var(--fs-xl);
+}
+
+.developer-work__composer-heading > button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: var(--fs-h2);
+}
+
+.developer-work__title-field,
+.developer-work__summary-field {
+  grid-column: span 2;
+}
+
+.developer-work__composer > .primary-action {
+  align-self: end;
+  min-height: 38px;
+}
+
+.developer-work__toolbar {
+  grid-template-columns: minmax(220px, 1fr) auto minmax(155px, 210px);
+}
+
+.developer-work__kinds {
+  align-self: end;
+  min-height: 38px;
+}
+
+.developer-work__kinds button {
+  min-height: 34px;
+  padding-inline: 10px;
+}
+
+.developer-work__table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.developer-work__table {
+  width: 100%;
+  min-width: 790px;
+  border-collapse: collapse;
+  /* Its wrapper above already draws the frame, and rounds it. The shared table
+     frame would be a second square outline one pixel inside a rounded one. */
+  border: 0;
+}
+
+.developer-work__table th {
+  padding: 9px 11px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-caps);
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.developer-work__table th:nth-child(2) {
+  width: 170px;
+}
+
+.developer-work__table th:nth-child(3) {
+  width: 160px;
+}
+
+.developer-work__table th:last-child {
+  width: 128px;
+}
+
+.developer-work__table td {
+  padding: 11px;
+  border-top: 1px solid var(--grid);
+  vertical-align: middle;
+}
+
+.developer-work__table tr.is-p0 td:first-child {
+  box-shadow: inset 3px 0 0 var(--status-critical);
+}
+
+.developer-work__table tr.is-p1 td:first-child {
+  box-shadow: inset 3px 0 0 var(--status-warning);
+}
+
+.developer-work__table tr.is-p2 td:first-child {
+  box-shadow: inset 3px 0 0 var(--series-1);
+}
+
+.developer-work__table tr.is-p3 td:first-child {
+  box-shadow: inset 3px 0 0 var(--axis);
+}
+
+/* Prose in a table the house default keeps on one line. `td { white-space:
+   nowrap }` is right for the numeric tables it was written for; here the
+   first cell carries a title and a summary, and at 1100px the summary ran
+   under the owner and status columns as one 990px line. Both wrap within
+   their own measure; `anywhere` so an identifier like ALPHAENGINE_GATEWAY_URL
+   breaks rather than overflows. */
+.developer-work__table td:first-child > strong {
+  display: block;
+  margin-top: 7px;
+  font-size: var(--fs-md);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.developer-work__table td:first-child > p {
+  max-width: 72ch;
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-snug);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.developer-work__badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.developer-work__badges code {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+.developer-work-kind,
+.developer-work-priority {
+  width: fit-content;
+  padding: 3px 6px;
+  border-radius: 5px;
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.developer-work-kind.is-feature {
+  color: var(--series-1);
+  background: color-mix(in srgb, var(--series-1) 10%, transparent);
+}
+
+.developer-work-kind.is-bug {
+  color: var(--critical-text);
+  background: color-mix(in srgb, var(--status-critical) 10%, transparent);
+}
+
+.developer-work-kind.is-ticket {
+  color: var(--series-3);
+  background: color-mix(in srgb, var(--series-3) 10%, transparent);
+}
+
+.developer-work-priority {
+  color: var(--text-secondary);
+  background: var(--surface-2);
+}
+
+.developer-work__table td:nth-child(2) {
+  display: table-cell;
+}
+
+.developer-work__table td:nth-child(2) strong,
+.developer-work__table td:nth-child(2) span,
+.developer-work__table td:nth-child(2) small,
+.developer-work__table td:nth-child(3) small {
+  display: block;
+}
+
+.developer-work__table td:nth-child(2) strong {
+  font-size: var(--fs-xs);
+}
+
+.developer-work__table td:nth-child(2) span {
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: var(--fs-2xs);
+}
+
+.developer-work__table td:nth-child(2) small,
+.developer-work__table td:nth-child(3) small {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+.developer-work__table select {
+  width: 100%;
+  min-width: 130px;
+  height: 35px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font-size: var(--fs-2xs);
+}
+
+.developer-work__table td:last-child button {
+  width: 100%;
+  min-height: 35px;
+  white-space: nowrap;
+}
+
+.developer-work__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+.developer-work__footer button {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+/* API and quality views */
+
+.developer-api-catalog {
+  padding: 20px;
+}
+
+.developer-api-catalog__toolbar {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.55fr) minmax(520px, 1.45fr);
+  gap: 10px;
+  align-items: end;
+  margin: 14px 0 12px;
+}
+
+.developer-api-catalog__groups {
+  min-height: 38px;
+}
+
+.developer-api-catalog__groups button {
+  min-height: 34px;
+  padding-inline: 9px;
+}
+
+.developer-api-catalog__groups button span {
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: var(--fs-2xs);
+}
+
+.developer-api-catalog__list {
+  overflow-y: auto;
+  max-height: 480px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.developer-api-row {
+  display: grid;
+  grid-template-columns: 48px minmax(250px, 0.9fr) minmax(250px, 1.1fr) 84px;
+  gap: 12px;
+  align-items: center;
+  min-height: 52px;
+  padding: 8px 11px;
+  border-bottom: 1px solid var(--grid);
+}
+
+.developer-api-row:last-child {
+  border-bottom: 0;
+}
+
+.developer-api-row > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.developer-api-row code {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: var(--fs-2xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.developer-api-row > div span {
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+.developer-api-row p {
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+}
+
+.developer-api-row > button {
+  min-height: 32px;
+  padding-inline: 8px;
+  font-size: var(--fs-2xs);
+}
+
+.developer-api-catalog__footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 11px;
+  color: var(--text-muted);
+  font-size: var(--fs-2xs);
+}
+
+.developer-api-catalog__footer p {
+  max-width: none;
+}
+
+.developer-api-catalog__footer span {
+  text-align: right;
+}
+
+
+.developer-test-suites__grid > div.is-total {
+  border-color: color-mix(in srgb, var(--series-1) 36%, var(--border));
+  background: color-mix(in srgb, var(--series-1) 6%, var(--surface-2));
+}
+
+
+.developer-ci-jobs__flow .num {
+  color: var(--series-1);
+  font-size: var(--fs-2xs);
+}
+
+
+@media (max-width: 1120px) {
+  .developer-overview__grid,
+  .codebase-explorer__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .codebase-filelist,
+  .codebase-detail {
+    min-height: 440px;
+    max-height: 560px;
+  }
+
+
+  .developer-api-catalog__toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .developer-api-row {
+    grid-template-columns: 48px minmax(230px, 0.9fr) minmax(220px, 1.1fr) 82px;
+  }
+}
+
+@media (max-width: 900px) {
+
+
+  .codebase-explorer__heading,
+  .developer-work__heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .codebase-explorer__stats,
+  .developer-work__stats {
+    flex-basis: auto;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .developer-work__composer {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .developer-work__composer-heading {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .developer-architecture,
+  .developer-work-preview,
+  .developer-confidence,
+  .developer-context,
+  .developer-test-suites,
+  .developer-ci-jobs,
+  .developer-quality .verification-card,
+  .codebase-explorer,
+  .developer-work,
+  .developer-api-catalog {
+    padding: 15px;
+  }
+
+
+  .codebase-explorer__toolbar,
+  .developer-work__toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .codebase-explorer__toolbar > button {
+    width: 100%;
+  }
+
+  .codebase-filelist,
+  .codebase-detail {
+    min-height: 380px;
+    max-height: 500px;
+  }
+
+  .developer-work__kinds {
+    width: 100%;
+  }
+
+  .developer-api-catalog__groups {
+    display: flex;
+    overflow-x: auto;
+    justify-content: flex-start;
+    scrollbar-width: thin;
+  }
+
+  .developer-api-catalog__groups button {
+    flex: 0 0 auto;
+  }
+
+  .developer-api-row {
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .developer-api-row > p {
+    grid-column: 2 / -1;
+  }
+
+  .developer-api-catalog__footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .developer-api-catalog__footer span {
+    text-align: left;
+  }
+}
+
+@media (max-width: 520px) {
+  .codebase-explorer__stats,
+  .developer-work__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Its own row, so the four counts pair off cleanly instead of leaving one
+     empty cell showing the container's border colour through. */
+  .codebase-explorer__asof {
+    grid-column: 1 / -1;
+  }
+
+  .developer-work__composer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .developer-work__composer-heading,
+  .developer-work__title-field,
+  .developer-work__summary-field {
+    grid-column: 1;
+  }
+
+  .developer-work__actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .developer-work__footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .codebase-detail {
+    padding: 15px;
+  }
+
+  .codebase-detail__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .codebase-detail__header .text-action {
+    justify-content: center;
+  }
+
+  .codebase-detail__meta {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+
+  .developer-api-row {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+
+  .developer-api-row > button,
+  .developer-api-row > p {
+    grid-column: 2;
+  }
+
+  .developer-api-row > button {
+    width: fit-content;
+  }
+}
+

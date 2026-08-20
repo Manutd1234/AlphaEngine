@@ -29,17 +29,17 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-const cssPath = fileURLToPath(new URL("../app/globals.css", import.meta.url));
-const css = readFileSync(cssPath, "utf8");
+import { globalsCss, locateInGlobals } from "./globals-css";
+
+/* The whole cascade. `app/globals.css` is a 122-line @import manifest since the
+   split, so reading that path directly would assert against comments — see the
+   header of `tests/globals-css.ts`. */
+const css = globalsCss;
 
 /** Comment bodies blanked, newlines kept — declarations only, lines intact. */
 const declarations = css.replace(/\/\*[\s\S]*?\*\//g, (block) =>
   block.replace(/[^\n]/g, " "));
 
-/** Line number for a character offset, for a failure message you can click. */
-function lineOf(index: number): number {
-  return css.slice(0, index).split("\n").length;
-}
 
 /** The `{ … }` body of the media block starting at `index`, brace-matched. */
 function blockBody(index: number): string {
@@ -67,7 +67,7 @@ describe("one reduced-motion contract", () => {
       matches.length,
       1,
       "reduce blocks at: "
-        + matches.map((m) => `globals.css:${lineOf(m.index)}`).join(", ")
+        + matches.map((m) => `${locateInGlobals(m.index)}`).join(", ")
         + " — two blocks is how the nuclear one shadowed the correct one for a year",
     );
   });
@@ -115,7 +115,7 @@ describe("the motion ladder", () => {
       // A literal duration is a number wearing a unit; cubic-bezier control
       // points are bare numbers and never match.
       if (/\d(?:\.\d+)?(?:ms|s)\b/.test(match[0])) {
-        offenders.push(`globals.css:${lineOf(match.index)} — ${match[0].trim()}`);
+        offenders.push(`${locateInGlobals(match.index)} — ${match[0].trim()}`);
       }
     }
     assert.deepEqual(
@@ -132,7 +132,7 @@ describe("the motion ladder", () => {
     const offenders: string[] = [];
     for (const match of declarations.matchAll(/animation:[^;]*;/g)) {
       if (/\d(?:\.\d+)?(?:ms|s)\b/.test(match[0])) {
-        offenders.push(`globals.css:${lineOf(match.index)} — ${match[0].trim()}`);
+        offenders.push(`${locateInGlobals(match.index)} — ${match[0].trim()}`);
       }
     }
     assert.deepEqual(
@@ -173,7 +173,7 @@ describe("the motion ladder", () => {
       uses.length,
       1,
       "var(--ease-pop) callers at: "
-        + uses.map((m) => `globals.css:${lineOf(m.index)}`).join(", "),
+        + uses.map((m) => `${locateInGlobals(m.index)}`).join(", "),
     );
   });
 });
