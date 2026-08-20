@@ -21,7 +21,7 @@
  * with the `-text` tokens.
  */
 
-import { type CSSProperties } from "react";
+import { Fragment, type CSSProperties } from "react";
 
 import NumberTicker from "@/components/common/NumberTicker";
 import type { ExperimentRecord } from "@/lib/experiments";
@@ -156,16 +156,24 @@ export default function StrategyCodex({
                       </span>
                       {doc.similar.length > 0 && (
                         <span className="codex-card__similar">
-                          {doc.similar.map((s) => (
-                            <button
-                              key={s}
-                              type="button"
-                              className="text-action"
-                              onClick={() => jumpToCard(s)}
-                              title={`Jump to ${STRATEGY_LABELS[s]}`}
-                            >
-                              {STRATEGY_LABELS[s]}
-                            </button>
+                          {/* One packed run, comma-separated, rather than a
+                              column of one link per row: four similar
+                              strategies spent four rows and left the chip
+                              alone against a ragged blue edge. Commas, not
+                              middle dots — middle-dot.test.ts holds those at
+                              zero outside tabular mono. */}
+                          {doc.similar.map((s, index) => (
+                            <Fragment key={s}>
+                              {index > 0 ? ", " : null}
+                              <button
+                                type="button"
+                                className="text-action"
+                                onClick={() => jumpToCard(s)}
+                                title={`Jump to ${STRATEGY_LABELS[s]}`}
+                              >
+                                {STRATEGY_LABELS[s]}
+                              </button>
+                            </Fragment>
                           ))}
                         </span>
                       )}

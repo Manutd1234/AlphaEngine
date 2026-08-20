@@ -14827,19 +14827,24 @@ button:active:not(:disabled) {
    ("Moving-average crossover", "Percentage price oscillator"), and a wrapped
    line that does not share the block's alignment leaves a ragged right edge
    against the card's padding — the thing the eye actually reads as crooked. */
+/* A right-aligned run of inline links, not a column of one per row. As a
+   column, a card with four similar strategies spent four rows on them and left
+   the run chip alone against a ragged blue edge; packed, a short list collapses
+   onto the chip's own line and a long one wraps flush right. */
 .codex-card__similar {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 3px;
   text-align: right;
 }
 
 .codex-card__similar .text-action {
-  font-size: var(--fs-xs);
-  /* .text-action carries margin-top: 5px for its usual inline use. In a gapped
-     column that is a second, competing spacing rule. */
+  /* `.text-action` is a block with `width: fit-content` and
+     `margin-inline-start: auto`, which is what pins it right in its usual
+     one-per-line use. Inline here, so the container's text-align does the
+     pinning and each link can share a line with the commas and its neighbours. */
+  display: inline;
+  width: auto;
+  margin-inline-start: 0;
   margin-top: 0;
+  font-size: var(--fs-xs);
 }
 
 @media (max-width: 720px) {
