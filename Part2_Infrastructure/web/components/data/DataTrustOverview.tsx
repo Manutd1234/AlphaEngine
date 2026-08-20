@@ -755,21 +755,21 @@ export default function DataTrustOverview({
                     memory; a second worker would fork the book and make a halt local to whichever
                     process served the request. The container contract fails the build on
                     <code> --workers</code>. The quality ledger, the schedule runs and the Work
-                    Queue therefore live in one SQLite file on that process&apos;s data volume —
-                    durable across restarts and deploys, not replicated across regions.
+                    Queue can now be held in Postgres instead of a file on that process&apos;s
+                    volume — the storage half of this boundary, and none of the rest.
                   </li>
                   <li>
-                    Raw vendor schemas are checked for <strong>two providers of eight</strong>.
-                    Binance and Bybit serve their market endpoints without credentials, so a real
-                    response from each is committed and the checks are held to it. The other six
-                    need an API key, and a validator with no captured response is untested code in
-                    the fetch path — so they are not covered rather than covered on trust.
+                    Raw vendor schemas are checked for all eight providers, and two of those
+                    checks have been held to a real response. Binance and Bybit need no credential,
+                    so a captured body from each is committed and their checks can fail a payload
+                    over. The other six need a key this deployment keeps write-only, so they warn
+                    rather than act — a validator that has never seen a healthy body cannot reject one.
                   </li>
                   <li>
                     Escalation reaches one channel. Acknowledgement exists, and only Telegram can
                     name a person: the gateway&apos;s HTTP identity resolves to a token, so a web
-                    acknowledgement records which credential took an escalation and not who. There
-                    is no paging rota — a rota is a roster of people, and this desk has one.
+                    acknowledgement records which credential took it, not who. There is no paging
+                    rota — a rota is a roster of people, and this desk has one.
                   </li>
                 </ul>
               </article>
