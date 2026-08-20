@@ -6,86 +6,43 @@
  * promises, not against the internals that currently happen to produce it. Every
  * field the console reads is optional-tolerant where a rolling deploy could
  * serve an older shape.
+ *
+ * This file passed the length ceiling and was cut into four along the seams the
+ * payloads already had: provider identity and routing, the gateway's own
+ * snapshot, and the inspection/trace payloads. It keeps the health envelope
+ * itself — `SystemHealth` and the shapes only it holds — and re-exports every
+ * name from the other three, EXHAUSTIVELY, so that `@/components/systems/types`
+ * remains the single import path it has always been. A name added to a sibling
+ * and not listed below is a name this module silently stops offering.
  */
 
-export interface LatencyStats {
-  n: number;
-  p50: number | null;
-  p95: number | null;
-  p99: number | null;
-  max: number | null;
-  errorRate: number;
-  lastAt: number | null;
-}
+import type { GatewayOpsSnapshot } from "./gateway-types";
+import type { FailoverRoute, LatencyStats, ProviderRow } from "./provider-types";
 
-export interface BreakerSnapshot {
-  state: "closed" | "open" | "half_open";
-  failures: number;
-  threshold: number;
-  openedAt: number | null;
-  cooldownRemainingMs: number;
-}
-
-export interface QuotaState {
-  used: number;
-  limit: number;
-  remaining: number;
-  reserve: number;
-  window: string;
-}
-
-export interface ProviderRow {
-  id: string;
-  label: string;
-  docs: string;
-  signup: string;
-  capabilities: string[];
-  assets: string[];
-  keyEnv: string;
-  configured: boolean;
-  circuitOpen: boolean;
-  quota: QuotaState | null;
-  rank: Record<string, number>;
-  breaker: BreakerSnapshot;
-  latency: LatencyStats;
-  simulatedOutage: { expiresAt: number; note: string } | null;
-  /**
-   * Capabilities this key was refused (401/402/403), learned by dispatch on
-   * the answering instance. Optional: an older health route omits it.
-   */
-  licence?: Array<{ capability: string; status: number | null; expiresAt: number }>;
-  ready: boolean;
-  statusDetail: string;
-}
-
-export type RouteState =
-  | "ready"
-  | "simulated_outage"
-  | "not_configured"
-  | "circuit_open"
-  | "unlicensed"
-  | "quota_exhausted"
-  | "quota_reserved";
-
-export interface FailoverNode {
-  provider: string;
-  label: string;
-  rank: number;
-  state: RouteState;
-  detail: string;
-  latency: LatencyStats;
-  active: boolean;
-  /** Out-of-band health probe, where the provider has one. Absent on older payloads. */
-  health?: { ok: boolean; detail: string } | null;
-}
-
-export interface FailoverRoute {
-  capability: string;
-  asset: string;
-  nodes: FailoverNode[];
-  activeProvider: string | null;
-  cacheTtlMs: number;
-}
+export type {
+  BreakerSnapshot,
+  FailoverNode,
+  FailoverRoute,
+  LatencyStats,
+  ProviderRow,
+  QuotaState,
+  RouteState,
+} from "./provider-types";
+export { ROUTE_STATE_STYLE } from "./provider-types";
+export type {
+  DecisionLatency,
+  GatewayMarketDataFeed,
+  GatewayMarketDataSymbol,
+  GatewayOpsSnapshot,
+  GatewayPlatformStatus,
+} from "./gateway-types";
+export type {
+  EventsResponse,
+  InspectResponse,
+  TraceEvent,
+  UpstreamCall,
+} from "./inspect-types";
+export { SKIP_LABEL } from "./inspect-types";
 
 export interface CacheCounters {
   hits: number;
@@ -168,157 +125,6 @@ export interface DataQualityEscalation {
 }
 
 export type GuardMode = "token" | "open-dev" | "open-demo" | "locked";
-
-/**
- * Authoritative operations snapshot emitted by the FastAPI gateway.
- *
- * Field names deliberately stay snake_case: this is a versioned wire contract,
- * not a view model. Keeping the gateway's names intact makes contract drift
- * visible and avoids a second, subtly different translation of operational
- * state in the Next.js tier.
- */
-export type GatewayPlatformStatus = "nominal" | "degraded" | "critical" | "halted";
-
-export interface GatewayMarketDataSymbol {
-  symbol: string;
-  age_seconds: number | null;
-  updates_total: number;
-  update_rate_hz: number;
-  stale: boolean;
-}
-
-export interface GatewayMarketDataFeed {
-  venue: string;
-  status: "up" | "degraded" | "stale" | "down";
-  connected: boolean;
-  reconnects: number;
-  uptime_seconds: number;
-  error_present: boolean;
-  synthetic: boolean;
-  symbols: GatewayMarketDataSymbol[];
-}
-
-export interface GatewayOpsSnapshot {
-  schema_version: 1;
-  observed_at: string;
-  stale_after_seconds: number;
-  status: GatewayPlatformStatus;
-  environment: string;
-  version: string;
-  market_data: {
-    enabled: boolean;
-    status: "nominal" | "degraded" | "critical" | "disabled";
-    uptime_seconds: number;
-    stale_after_seconds: number;
-    synthetic_active: boolean;
-    feeds: GatewayMarketDataFeed[];
-  };
-  risk: {
-    status: "nominal" | "reduce_only" | "halted";
-    kill_switch_active: boolean;
-    halted_symbols: string[];
-    reduce_only: boolean;
-    orders_accepted_total: number;
-    orders_rejected_total: number;
-    working_orders: number;
-    orders_last_second: number;
-    daily_drawdown_pct: number;
-    drawdown_budget_used_pct: number;
-    equity: number;
-    gross_exposure: number;
-  };
-  queue: {
-    backend: string;
-    /** Configured slots; a live distributed-worker heartbeat is not available yet. */
-    workers: number;
-    broker_configured: boolean;
-    broker_transport: string | null;
-    total: number;
-    by_status: Record<string, number>;
-  };
-  audit: {
-    backend: string;
-    available: boolean;
-  };
-  telegram: {
-    enabled: boolean;
-    mode: string;
-    status: "running" | "starting" | "degraded" | "disabled";
-    uptime_seconds: number;
-    updates_handled: number;
-    alerts_sent: number;
-    last_error_present: boolean;
-  };
-  route_latency: {
-    window_seconds: number;
-    routes: Array<{
-      route: string;
-      p50_ms: number;
-      p95_ms: number;
-      p99_ms: number;
-      samples: number;
-      errors_total: number;
-    }>;
-  };
-  /**
-   * Supabase mirror counters, from `modules/operations.py`'s
-   * `SupabaseMirrorSnapshot`.
-   *
-   * The gateway has been emitting this on every ops snapshot and nothing here
-   * modelled it, so mirror lag, dropped rows and the classified last error
-   * arrived at Vercel and were discarded — the durability of the Postgres
-   * mirror was unobservable from the console whose job is observing things.
-   *
-   * Optional because the gateway omits it entirely when Supabase is not
-   * configured, which is a different fact from `configured: false` (mirror off
-   * on a gateway that supports it) and both differ from a mirror that is
-   * configured and failing. `dropped` is the one that matters most: the queue
-   * is bounded and drops rather than blocking the order path, so a non-zero
-   * value means the Postgres blotter is silently incomplete.
-   */
-  supabase?: {
-    configured: boolean;
-    running: boolean;
-    queued: number;
-    written: number;
-    failed: number;
-    dropped: number;
-    /** A closed vocabulary — never a URL, a key or raw error text. */
-    last_error_kind: string | null;
-  } | null;
-  /**
-   * The pre-trade decision's own clock, from `modules/operations.py`'s
-   * `DecisionLatencySnapshot`: in-process, every sample since the gateway
-   * process started (a histogram, not a window). Optional because a gateway
-   * build that predates the field omits it; `null` is a state the gateway
-   * itself never sends — the block is present with `samples: 0` before the
-   * first order and its quantiles are null then, because quantiles of
-   * nothing are not zeros (LATENCY_BUDGET §3). `core_*` is the compiled
-   * engine's timing of the gate arithmetic alone — book consolidation,
-   * sizing, exposure, drawdown and the routed slippage walk, but none of the
-   * state reads or response construction around them — in nanoseconds; null
-   * while the Python reference runs. It is never the same span as `*_us`.
-   * The core histogram may include a startup self-measure of the same
-   * compiled battery on a synthetic two-venue book — `core_self_test_samples`
-   * says how many of its samples that contributed (null when there is no core
-   * histogram at all); the `*_us` histogram never does, so `samples` counts
-   * submitted orders only.
-   */
-  decision_latency?: DecisionLatency | null;
-}
-
-export interface DecisionLatency {
-  engine: "native" | "python";
-  samples: number;
-  p50_us: number | null;
-  p99_us: number | null;
-  p999_us: number | null;
-  max_us: number | null;
-  core_p50_ns?: number | null;
-  core_p99_ns?: number | null;
-  core_max_ns?: number | null;
-  core_self_test_samples?: number | null;
-}
 
 export type HealthSourceState = "fresh" | "stale" | "not_configured" | "unreachable" | "invalid";
 
@@ -486,83 +292,6 @@ export interface SystemHealth {
   };
 }
 
-export interface TraceEvent {
-  seq: number;
-  ts: number;
-  level: "debug" | "info" | "warn" | "error";
-  source: string;
-  message: string;
-  fields: Record<string, string | number | boolean | null>;
-  origin: "server" | "browser";
-}
-
-export interface EventsResponse {
-  fetchedAt: string;
-  instance: string;
-  cursor: { latest: number; oldest: number; retained: number; capacity: number };
-  dropped: boolean;
-  events: TraceEvent[];
-}
-
-export interface UpstreamCall {
-  provider: string;
-  method: string;
-  url: string;
-  status: number | null;
-  ms: number;
-  ok: boolean;
-  error?: string;
-  body?: { value: unknown; bytes: number; truncated: boolean };
-}
-
-export interface InspectResponse {
-  fetchedAt: string;
-  ok: boolean;
-  /**
-   * Set when the registry refused before dispatch: the capability does not
-   * apply to the symbol's asset class. No provider was contacted, so
-   * `attempts` and `upstream.calls` are empty and `provenance` is null.
-   */
-  reason?: "not_applicable";
-  /** The asset classes the capability does answer for, when refused. */
-  applicable?: string[];
-  symbol: string;
-  asset: string;
-  capability: string;
-  totalMs: number;
-  cache: {
-    key: string;
-    state: "hit" | "miss";
-    configuredTtlMs: number;
-    ttlRemainingMs: number | null;
-    ageMs: number;
-    refreshed: boolean;
-  };
-  lineage: { stage: string; detail: string; providers?: string[] }[];
-  provenance: {
-    provider: string;
-    label: string;
-    fetchedAt: string;
-    latencyMs: number;
-    cached: boolean;
-    delayed: boolean;
-    quotaRemaining: number | null;
-    /** Optional: an older instance's cached provenance predates it. */
-    quotaLimit?: number | null;
-    quotaWindow: string | null;
-    /** Contract result attached to this exact cached or upstream payload. */
-    contract?: {
-      passed: boolean;
-      violations: Array<{ check: string; severity: string; message: string }>;
-      notEvaluated: string[];
-    };
-  } | null;
-  attempts: { provider: string; reason: string; detail?: string }[];
-  upstream: { captured: boolean; calls: UpstreamCall[]; note: string };
-  data: unknown;
-  error: string | null;
-}
-
 export interface ActionResponse {
   ok?: boolean;
   code?: string;
@@ -579,40 +308,3 @@ export interface ActionResponse {
    */
   health?: SystemHealth;
 }
-
-/** Human-readable labels for the reasons dispatch records against a skip. */
-export const SKIP_LABEL: Record<string, string> = {
-  not_configured: "no key",
-  circuit_open: "circuit open",
-  quota_exhausted: "quota spent",
-  quota_reserved: "reserved for interactive",
-  simulated_outage: "simulated outage",
-  asset_unsupported: "asset unsupported",
-  no_capability: "capability unsupported",
-  no_data: "no data for this symbol",
-  unlicensed: "not licensed on this key",
-  rate_limited: "rate-limited by the vendor",
-  failed: "failed",
-};
-
-/**
- * Route-state presentation. Icon and word carry the meaning; colour reinforces.
- *
- * Typographic marks, not emoji. These were coloured circles, which meant the
- * house rule against emoji in the UI was broken in the one map every routing
- * surface reads from — so the violation appeared wherever a route state did.
- * A mark inherits the surrounding text colour and renders in the app's own
- * font; an emoji brings a vendor's palette with it and fights the theme.
- */
-export const ROUTE_STATE_STYLE: Record<RouteState, { icon: string; label: string; tone: string }> = {
-  ready: { icon: "●", label: "ONLINE (Ready)", tone: "var(--success-text)" },
-  circuit_open: { icon: "✕", label: "OFFLINE (Circuit Open)", tone: "var(--critical-text)" },
-  simulated_outage: { icon: "▲", label: "DEGRADED (Simulated Outage)", tone: "var(--notice-text)" },
-  quota_exhausted: { icon: "▲", label: "DEGRADED (Quota Spent)", tone: "var(--warning-text)" },
-  quota_reserved: { icon: "▲", label: "DEGRADED (Quota Reserved)", tone: "var(--warning-text)" },
-  // An absence rather than a fault: the key is not entitled to this
-  // capability. Same mark and tone as "not configured", and the words say
-  // which capability and that the block is per instance.
-  unlicensed: { icon: "○", label: "NOT LICENSED (This Key)", tone: "var(--text-secondary)" },
-  not_configured: { icon: "○", label: "NOT CONFIGURED", tone: "var(--text-secondary)" },
-};
