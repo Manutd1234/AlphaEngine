@@ -262,8 +262,7 @@ export default function VarBacktestChart({
       {!dated && (
         <p className="research-note">
           Dates are not shown: the instruments&apos; bar times did not agree at every index, so the
-          axis is the observation number. Drawing a date axis over series that are not calendar-aligned
-          would be a claim the data does not support.
+          axis is the observation number.
         </p>
       )}
 
@@ -272,8 +271,7 @@ export default function VarBacktestChart({
           <span aria-hidden>!</span>
           <div>
             <strong>{points.length} scored days is a thin sample for a one-in-twenty event.</strong>{" "}
-            The Kupiec test has little power here — a green zone at this sample size is weak evidence,
-            not a validation.
+            A green zone at this sample size is weak evidence, not a validation.
           </div>
         </div>
       )}
@@ -281,9 +279,8 @@ export default function VarBacktestChart({
       {missing.length > 0 && (
         <p className="research-note">
           {missing.join(", ")} {missing.length === 1 ? "is" : "are"} excluded for want of price
-          history. The P&amp;L series covers only the measured instruments, so realised losses are
-          understated — which means exceptions are <strong>undercounted and this model looks better
-          than it is</strong>.
+          history, so realised losses are understated and exceptions are <strong>undercounted;
+          this model looks better than it is</strong>.
         </p>
       )}
 
@@ -294,8 +291,8 @@ export default function VarBacktestChart({
         <summary>Exception days ({exceptions.length})</summary>
         {exceptions.length === 0 ? (
           <p className="research-note">
-            No day in this window lost more than its own forecast. At 95% that is itself worth
-            checking — a model that is never breached is usually one that is too wide.
+            No day in this window lost more than its own forecast. At 95% a model that is never
+            breached is usually too wide.
           </p>
         ) : (
           <div className="table-wrap" tabIndex={0}>
@@ -330,11 +327,10 @@ export default function VarBacktestChart({
 
       <p className="research-note">
         Today&apos;s signed notionals replayed over {points.length + series.window} daily returns — a
-        counterfactual about this book&apos;s current composition, not a record of what the desk
-        earned.{" "}
-        {sandbox && "Generated notionals, measured returns: the daily moves are real Binance closes applied to an invented book. "}
-        The forecast is a {series.window}-bar rolling sigma, which is a tighter window than the
-        covariance behind the headline VaR above — the two are related estimators, not the same one.
+        counterfactual about this book&apos;s composition, not what the desk earned.{" "}
+        {sandbox && "Generated notionals, measured returns: real Binance closes on an invented book. "}
+        The forecast is a {series.window}-bar rolling sigma, a tighter window than the covariance
+        behind the headline VaR above: related estimators, not the same one.
       </p>
     </div>
   );
