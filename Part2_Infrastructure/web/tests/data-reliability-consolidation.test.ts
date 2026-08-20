@@ -51,6 +51,8 @@ import {
   moveDataWorkItem,
 } from "../lib/data-work-queue";
 
+import { globalsCss } from "./globals-css";
+
 const NOW = Date.UTC(2026, 7, 5, 12);
 
 const read = (relative: string) =>
@@ -294,7 +296,7 @@ describe("the outage card offers one route to Providers, not one per row", () =>
       "the empty and populated states of one control are dressed differently",
     );
     assert.match(
-      readFileSync(fileURLToPath(new URL("../app/globals.css", import.meta.url)), "utf8"),
+      globalsCss,
       /\n\.console-node__action \{/,
       "the class the outage card now wears has lost its rule",
     );

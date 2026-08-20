@@ -27,6 +27,8 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { globalsCss } from "./globals-css";
+
 const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
 
@@ -39,7 +41,7 @@ const code = (source: string) =>
 
 const console_ = read("../components/DataConsole.tsx");
 const failover = read("../components/systems/FailoverGraph.tsx");
-const css = read("../app/globals.css");
+const css = globalsCss;
 
 /** The providers panel only — the section rail's other panels are not ours. */
 function panel(): string {
@@ -177,9 +179,11 @@ describe("the reliability hand-off travels with Routing and keeps its door", () 
     // `openReliabilityOverview` in lib/use-workspace-routing.ts.
     assert.match(console_, /onOpenReliability: \(\) => void;/);
     assert.match(
-      code(read("../app/dashboard/page.tsx")),
+      // The panel that mounts DataConsole, which is where the prop is threaded
+      // since the shell split; page.tsx holds the hooks and the header now.
+      code(read("../components/workspace/WorkspacePanels.tsx")),
       /onOpenReliability=\{openReliabilityOverview\}/,
-      "the page no longer wires DataConsole's hand-off to a named section",
+      "the shell no longer wires DataConsole's hand-off to a named section",
     );
     assert.match(
       code(read("../lib/use-workspace-routing.ts")),

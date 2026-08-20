@@ -18,12 +18,14 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { globalsCss } from "./globals-css";
+
 const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
 
 const code = (source: string) => source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
 
-const css = read("../app/globals.css");
+const css = globalsCss;
 const board = read("../components/data/DataWorkBoard.tsx");
 
 /** The declaration block of a rule, anchored at the start of a line. */

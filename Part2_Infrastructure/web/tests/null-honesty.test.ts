@@ -15,6 +15,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { globalsCss } from "./globals-css";
+
 const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
 
@@ -89,7 +91,7 @@ describe("legends are lists without being bulleted", () => {
      * and Tailwind preflight is deliberately never loaded. Without this the
      * swatch rows render as "• — Add to reach target".
      */
-    const css = read("../app/globals.css");
+    const css = globalsCss;
     const rule = /\.legend \{([^}]*)\}/.exec(css)?.[1] ?? "";
     assert.match(rule, /list-style:\s*none/);
   });

@@ -28,10 +28,12 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { globalsCss, locateInGlobals } from "./globals-css";
+
 const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
 
-const css = read("../app/globals.css");
+const css = globalsCss;
 const page = read("../app/dashboard/page.tsx");
 /**
  * `navigate` — and with it the only scroll the desk performs — moved to
@@ -41,13 +43,19 @@ const page = read("../app/dashboard/page.tsx");
  * absence of `window.scrollTo`: either file reintroducing it is the same bug.
  */
 const routingHook = read("../lib/use-workspace-routing.ts");
-const shellSources = [page, routingHook].join("\n");
+/**
+ * The eight panels moved to `components/workspace/WorkspacePanels.tsx` on
+ * 2026-08-21. Nothing asserted below lives there today, and that is exactly why
+ * it is scanned: a `window.scrollTo` or a `flushSync` reintroduced inside a
+ * panel is the same bug, and a two-file scan would not see it.
+ */
+const panels = read("../components/workspace/WorkspacePanels.tsx");
+const shellSources = [page, panels, routingHook].join("\n");
 
 /** Comment bodies blanked, newlines kept, so prose is not read as a rule. */
 const declarations = css.replace(/\/\*[\s\S]*?\*\//g, (block) =>
   block.replace(/[^\n]/g, " "));
 
-const lineOf = (index: number) => css.slice(0, index).split("\n").length;
 
 /** The last declaration of a property inside a selector's rule — the one that wins. */
 const ruleFor = (selector: string) => {
@@ -161,7 +169,7 @@ describe("viewport units keep their mobile twin", () => {
       );
       const twin = new RegExp(`${property}:[^;]*100(svh|dvh)`);
       if (twin.test(block)) continue;
-      offenders.push(`globals.css:${lineOf(match.index)} — ${match[0].trim()}`);
+      offenders.push(`${locateInGlobals(match.index)} — ${match[0].trim()}`);
     }
     assert.deepEqual(offenders, [], `vh without a small-viewport twin:\n  ${offenders.join("\n  ")}`);
   });

@@ -75,8 +75,14 @@ describe("the ticket's demo presets are a named group", () => {
     // Submit actions, not toggles — aria-pressed would be a lie, but three
     // unrelated-looking buttons with no stated relationship was the shape
     // LiveMarket's notional shortcuts were already corrected from.
-    const ticket = code(read("../components/execution/OrderTicket.tsx"));
-    const presets = ticket.slice(ticket.indexOf("cockpit-ticket__presets"));
+    // The presets moved into `OrderTicketForm.tsx` with the rest of the
+    // controls. `indexOf` is checked rather than trusted: on a miss it returns
+    // -1 and the slice below would measure one character across both
+    // assertions.
+    const ticket = code(read("../components/execution/OrderTicketForm.tsx"));
+    const start = ticket.indexOf("cockpit-ticket__presets");
+    assert.notEqual(start, -1, "the preset group is gone — this check measures nothing");
+    const presets = ticket.slice(start);
     assert.match(presets.slice(0, 200), /role="group"/);
     assert.match(presets.slice(0, 200), /aria-label="Gate demonstration presets"/);
   });

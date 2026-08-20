@@ -27,6 +27,8 @@ import {
 } from "../lib/auth-storage";
 import { initialsFrom } from "../components/header/AccountChip";
 
+import { globalsCss } from "./globals-css";
+
 const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
 
@@ -44,6 +46,16 @@ const tapeClient = read("../lib/supabaseClient.ts");
 const authClientSource = read("../lib/auth-client.ts");
 const storage = read("../lib/auth-storage.ts");
 const screen = read("../components/auth/LoginScreen.tsx");
+/**
+ * `LoginScreen` became three files on 2026-08-21: the card's markup is
+ * `components/auth/LoginCard.tsx`, and what "submit" means in each of the four
+ * modes is `lib/auth-submit.ts`. Each assertion below reads the file its
+ * subject lives in — a scan for `aria-pressed={showPassword}` left on the
+ * screen would find nothing and, being a `match`, would at least fail loudly;
+ * the `doesNotMatch` beside it would have passed in silence.
+ */
+const card = read("../components/auth/LoginCard.tsx");
+const submitSource = read("../lib/auth-submit.ts");
 const session = read("../lib/use-session.ts");
 
 const MIGRATIONS_DIR = fileURLToPath(new URL("../../../supabase/migrations", import.meta.url));
@@ -71,7 +83,7 @@ describe("the tape client never learns to hold a session", () => {
   });
 
   it("exactly two clients exist in the web app", () => {
-    const files = [tapeClient, authClientSource, screen, session, storage];
+    const files = [tapeClient, authClientSource, screen, card, submitSource, session, storage];
     const constructions = files.reduce(
       (total, source) => total + (code(source).match(/createClient\(/g)?.length ?? 0),
       0,
@@ -88,7 +100,7 @@ describe("the tape client never learns to hold a session", () => {
   });
 
   it("never names the service-role key", () => {
-    assert.doesNotMatch(code(authClientSource + screen + session + storage), /SERVICE_ROLE/);
+    assert.doesNotMatch(code(authClientSource + screen + card + submitSource + session + storage), /SERVICE_ROLE/);
   });
 });
 
@@ -211,18 +223,27 @@ describe("the login page survives a deployment with no Supabase", () => {
 
 describe("the form carries the controls the desk asked for", () => {
   it("has a show-password toggle that announces its state", () => {
-    assert.match(code(screen), /aria-pressed=\{showPassword\}/);
-    assert.match(code(screen), /showPassword \? "text" : "password"/);
+    assert.match(code(card), /aria-pressed=\{showPassword\}/);
+    assert.match(code(card), /showPassword \? "text" : "password"/);
   });
 
   it("has remember me, create account and forgot password", () => {
-    assert.match(code(screen), /id="auth-remember"/);
-    assert.match(screen, /Create account/);
-    assert.match(screen, /Forgot password\?/);
+    assert.match(code(card), /id="auth-remember"/);
+    // "Create account" is the mode table's submit label AND the footer's switch
+    // button; both left the screen, so both are read where they landed.
+    assert.match(read("../components/auth/login-copy.ts"), /Create account/);
+    assert.match(card, /Create account/);
+    assert.match(card, /Forgot password\?/);
   });
 
   it("sets persistence before signing in, never after", () => {
-    const submit = code(screen).slice(code(screen).indexOf("const onSubmit"));
+    // Anchored on the exported function rather than on `const onSubmit`, which
+    // no longer exists anywhere: `indexOf` would return -1 and `slice(-1)` would
+    // measure one character across all three assertions below.
+    const stripped = code(submitSource);
+    const start = stripped.indexOf("export async function submitLogin");
+    assert.notEqual(start, -1, "the submit path is gone — this check measures nothing");
+    const submit = stripped.slice(start);
     const persistIndex = submit.indexOf("setAuthPersistence");
     const signInIndex = submit.indexOf("signInWithPassword");
     assert.ok(
@@ -323,8 +344,9 @@ describe("the page offers only providers that can actually complete", () => {
   });
 
   it("renders the filtered list, never the raw one", () => {
-    assert.match(code(screen), /\{offeredProviders\.map\(/);
-    assert.doesNotMatch(code(screen), /\{PROVIDERS\.map\(/);
+    assert.match(code(card), /\{offeredProviders\.map\(/);
+    // Neither half of the split may reach for the unfiltered list.
+    assert.doesNotMatch(code(screen) + code(card), /\{PROVIDERS\.map\(/);
   });
 });
 
@@ -341,11 +363,11 @@ describe("a provider sign-in is finished when the provider says so", () => {
      * pass, and only then enters the desk.
      */
     assert.match(code(screen), /redirectTo: `\$\{window\.location\.origin\}\/auth\/callback`/);
-    assert.doesNotMatch(code(screen), /redirectTo: `\$\{window\.location\.origin\}\/`/);
+    assert.doesNotMatch(code(screen) + code(submitSource), /redirectTo: `\$\{window\.location\.origin\}\/`/);
   });
 
   it("keeps no verification state anywhere", () => {
-    const sources = [screen, session, read("../components/header/AccountChip.tsx"), read("../lib/auth-flow.ts")];
+    const sources = [screen, card, submitSource, session, read("../components/header/AccountChip.tsx"), read("../lib/auth-flow.ts")];
     for (const source of sources) {
       assert.doesNotMatch(code(source), /otp-pending|OTP_PENDING|markOtpPending|clearOtpPending/i);
     }
@@ -635,7 +657,7 @@ describe("the account menu", () => {
   });
 
   it("gives panel links a real touch target without a second coarse block", () => {
-    const css = read("../app/globals.css");
+    const css = globalsCss;
     const coarse = css.slice(css.indexOf("@media (pointer: coarse)"));
     assert.match(coarse.slice(0, 900), /#account-panel a/);
     // Addressed by id, so no class is declared and the dead-CSS ratchet does
@@ -645,7 +667,7 @@ describe("the account menu", () => {
 });
 
 describe("the header cannot clip its own controls", () => {
-  const css = read("../app/globals.css");
+  const css = globalsCss;
   const chip = read("../components/header/AccountChip.tsx");
 
   it("shows a monogram, not the whole address, in the busiest row", () => {

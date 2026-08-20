@@ -27,20 +27,18 @@ import { useEffect, useMemo, useState } from "react";
 import type { Provider } from "@supabase/supabase-js";
 
 import BrandLockup from "@/components/common/BrandLockup";
+import LoginCard from "@/components/auth/LoginCard";
+import {
+  MODE_COPY,
+  PROVIDERS,
+  type Banner,
+  type FormMode,
+} from "@/components/auth/login-copy";
 import { authClient, authConfigured, fetchEnabledProviders } from "@/lib/auth-client";
 import { describeAuthError, looksLikeEmail, resolveLoginStep } from "@/lib/auth-flow";
 import { setAuthPersistence } from "@/lib/auth-storage";
 import { mintDeskPass } from "@/lib/desk-pass";
-import { refreshSession } from "@/lib/use-session";
-
-type FormMode = "signin" | "signup" | "forgot" | "reset";
-
-type BannerTone = "error" | "warn" | "context-change";
-
-interface Banner {
-  tone: BannerTone;
-  message: string;
-}
+import { submitLogin } from "@/lib/auth-submit";
 
 /**
  * Short, because the desk opens whether or not this lands — the middleware
@@ -50,36 +48,6 @@ interface Banner {
  * desk" trades a visible delay for an invisible detail.
  */
 const GUEST_PASS_DEADLINE_MS = 4_000;
-
-const PROVIDERS: { id: Provider; label: string }[] = [
-  { id: "google", label: "Google" },
-  { id: "github", label: "GitHub" },
-  // Supabase's Microsoft/Outlook provider is registered as "azure".
-  { id: "azure", label: "Outlook" },
-];
-
-const MODE_COPY: Record<FormMode, { title: string; blurb: string; submit: string }> = {
-  signin: {
-    title: "Sign in",
-    blurb: "Preferences follow your account between devices.",
-    submit: "Sign in",
-  },
-  signup: {
-    title: "Create an account",
-    blurb: "Paper-only and free. No funds, no brokerage relationship, no card.",
-    submit: "Create account",
-  },
-  forgot: {
-    title: "Reset your password",
-    blurb: "The link brings you back here to choose a new one.",
-    submit: "Email a reset link",
-  },
-  reset: {
-    title: "Choose a new password",
-    blurb: "This link signed you in for the moment it takes to set a password.",
-    submit: "Set password",
-  },
-};
 
 export default function LoginScreen() {
   const configured = authConfigured();
@@ -256,87 +224,9 @@ export default function LoginScreen() {
 
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const supabase = authClient();
-    if (!supabase) return;
-    setBanner(null);
-
-    if (mode === "reset") {
-      if (password.length < 8) {
-        setBanner({ tone: "warn", message: "Use at least 8 characters." });
-        return;
-      }
-      setBusy(true);
-      const { error } = await supabase.auth.updateUser({ password });
-      setBusy(false);
-      if (error) {
-        setBanner({ tone: "error", message: describeAuthError(error) });
-        return;
-      }
-      refreshSession();
-      goToWorkspace();
-      return;
-    }
-
-    if (!looksLikeEmail(email)) {
-      setBanner({ tone: "warn", message: "That does not look like an email address." });
-      return;
-    }
-
-    if (mode === "forgot") {
-      setBusy(true);
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${loginUrl}?step=reset`,
-      });
-      setBusy(false);
-      setBanner(
-        error
-          ? { tone: "error", message: describeAuthError(error) }
-          : { tone: "context-change", message: "If that address has an account, a reset link is on its way." },
-      );
-      return;
-    }
-
-    if (password.length < 8) {
-      setBanner({ tone: "warn", message: "Use at least 8 characters." });
-      return;
-    }
-
-    setAuthPersistence(remember ? "local" : "session");
-
-    if (mode === "signup") {
-      setBusy(true);
-      const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: { emailRedirectTo: `${loginUrl}?step=confirmed` },
-      });
-      setBusy(false);
-      if (error) {
-        setBanner({ tone: "error", message: describeAuthError(error) });
-        return;
-      }
-      // A project with confirmations off returns a live session immediately.
-      if (data.session) {
-        refreshSession();
-        goToWorkspace();
-        return;
-      }
-      setBanner({
-        tone: "context-change",
-        message: `Check ${email.trim()} for a confirmation link, then sign in.`,
-      });
-      return;
-    }
-
-    setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    setBusy(false);
-    if (error) {
-      setBanner({ tone: "error", message: describeAuthError(error) });
-      return;
-    }
-    refreshSession();
-    goToWorkspace();
+    await submitLogin({
+      mode, email, password, remember, loginUrl, setBanner, setBusy, goToWorkspace,
+    });
   };
 
   /**
@@ -439,159 +329,29 @@ export default function LoginScreen() {
           what was being signed into. One component, shared with the header, so the
           two can never drift into looking like different products. */}
       <BrandLockup size="lg" />
-      <div className="card auth-card">
-        <h1>{copy.title}</h1>
-        <p className="auth-blurb">{copy.blurb}</p>
-
-        {banner && (
-          <div className={`banner ${banner.tone} mt-3`} role={banner.tone === "error" ? "alert" : "status"}>
-            <span aria-hidden>{banner.tone === "error" ? "✕" : banner.tone === "warn" ? "◌" : "✓"}</span>
-            <div>{banner.message}</div>
-          </div>
-        )}
-
-        <form className="mt-5 flex flex-col gap-4" onSubmit={(event) => void onSubmit(event)}>
-          {mode !== "reset" && (
-            <div>
-              <label className="block font-semibold text-text-secondary" htmlFor="auth-email">
-                Email
-              </label>
-              <input
-                id="auth-email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.com"
-                autoComplete="username"
-                autoCapitalize="none"
-                spellCheck={false}
-                required
-                className="mt-1 w-full"
-              />
-            </div>
-          )}
-
-          {showPasswordField && (
-            <div>
-              <label className="block font-semibold text-text-secondary" htmlFor="auth-password">
-                {mode === "reset" ? "New password" : "Password"}
-              </label>
-              <div className="relative mt-1 flex">
-                <input
-                  id="auth-password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
-                  spellCheck={false}
-                  required
-                  className="w-full pr-[68px]"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((shown) => !shown)}
-                  aria-pressed={showPassword}
-                  aria-controls="auth-password"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 border-none bg-transparent px-1.5 py-1 text-fs-md font-semibold text-text-secondary underline"
-                >
-                  {showPassword ? "Hide" : "Show"}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {showRemember && (
-            <div className="flex items-center justify-between gap-3">
-              <label className="flex items-center gap-2 text-fs-lg text-text-secondary" htmlFor="auth-remember">
-                <input
-                  id="auth-remember"
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(event) => setRemember(event.target.checked)}
-                  className="h-auto w-auto"
-                />
-                Remember me
-              </label>
-              {mode === "signin" && (
-                <button
-                  type="button"
-                  className="auth-link"
-                  onClick={() => switchMode("forgot")}
-                >
-                  Forgot password?
-                </button>
-              )}
-            </div>
-          )}
-
-          <button type="submit" className="primary-action" disabled={busy}>
-            {busy ? "Working…" : copy.submit}
-          </button>
-        </form>
-
-        {showProviders && (
-          <>
-            <p className="mt-5 mb-3 text-center text-fs-sm uppercase tracking-[0.08em] text-text-muted">
-              {/* Not a bare "or" while the probe is out: a divider above nothing
-                  is the headless-section case, and saying what is being waited
-                  for costs one word. */}
-              {probePending ? "checking sign-in options" : "or"}
-            </p>
-            {probeFailed && (
-              /**
-               * The buttons are drawn, and the warning is the price of drawing
-               * them. The probe failing is not evidence a provider is missing —
-               * that is why this fails open — but it is also not evidence one
-               * works, and this project has two providers that answer
-               * "provider is not enabled". Without this line, a reader clicking
-               * Google would leave the app for a page of raw JSON with no
-               * warning at all, which is the defect this whole branch exists to
-               * bound.
-               */
-              <p className="mb-3 text-center text-fs-body leading-snug text-text-muted">
-                We could not check which of these are enabled here, so one may not complete.
-              </p>
-            )}
-            <div className="flex flex-col gap-2">
-              {offeredProviders.map((provider) => (
-                <button
-                  key={provider.id}
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void onProvider(provider.id)}
-                  className="auth-provider"
-                >
-                  Continue with {provider.label}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-
-        <div className="mt-5 border-t border-grid pt-4 text-fs-lg text-text-secondary">
-          {mode === "signin" ? (
-            <>
-              No account?{" "}
-              <button
-                type="button"
-                className="auth-link"
-                onClick={() => switchMode("signup")}
-              >
-                Create account
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="auth-link"
-              onClick={() => switchMode("signin")}
-            >
-              Back to sign in
-            </button>
-          )}
-        </div>
-      </div>
+      <LoginCard
+        copy={copy}
+        banner={banner}
+        mode={mode}
+        email={email}
+        onEmailChange={setEmail}
+        password={password}
+        onPasswordChange={setPassword}
+        showPassword={showPassword}
+        onShowPasswordChange={setShowPassword}
+        remember={remember}
+        onRememberChange={setRemember}
+        busy={busy}
+        onSubmit={(event) => void onSubmit(event)}
+        onSwitchMode={switchMode}
+        showPasswordField={showPasswordField}
+        showRemember={showRemember}
+        showProviders={showProviders}
+        probePending={probePending}
+        probeFailed={probeFailed}
+        offeredProviders={offeredProviders}
+        onProvider={(provider) => void onProvider(provider)}
+      />
 
       {/* A first-class action, at the weight of the provider buttons above it.
           It was a low-contrast underlined link to "/" — which worked only while

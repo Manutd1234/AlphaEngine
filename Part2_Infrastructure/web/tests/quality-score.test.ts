@@ -20,6 +20,8 @@ import {
 } from "@/lib/quality-score";
 import type { SweepResponse } from "@/lib/types";
 
+import { globalsCss } from "./globals-css";
+
 const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
 
@@ -213,7 +215,7 @@ describe("the panel renders the score rather than a second version of it", () =>
   const panel = read("../components/research/QualityScorePanel.tsx");
   // Mounted by Research ▸ Decision since page.tsx was split.
   const page = read("../components/research/DecisionSection.tsx");
-  const css = read("../app/globals.css");
+  const css = globalsCss;
 
   it("is mounted, and above the promotion gate", () => {
     // A score module nothing renders is the defect this closes. Order matters

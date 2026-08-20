@@ -59,9 +59,11 @@ const strip = (source: string) =>
 const page = read("../app/dashboard/page.tsx");
 const pageCode = strip(page);
 /**
- * The shell is four files now, not one.
+ * The shell is five files now, not one.
  *
- * `page.tsx` mounts the eight panels; `lib/use-workspace-routing.ts` owns
+ * `page.tsx` runs the hooks and draws the header;
+ * `components/workspace/WorkspacePanels.tsx` mounts the eight panels and holds
+ * every cross-link prop threaded into them; `lib/use-workspace-routing.ts` owns
  * where the reader is and every helper that moves them; `lib/workspace-hash.ts`
  * owns the URL vocabulary; and the Research tab's panels moved into
  * `components/ResearchWorkspace.tsx` and its children, which is where the two
@@ -69,13 +71,14 @@ const pageCode = strip(page);
  * after that split would be a scan that finds nothing and reports success —
  * so the cross-link measurements below read the whole shell.
  */
+const panelsCode = strip(read("../components/workspace/WorkspacePanels.tsx"));
 const routingCode = strip(read("../lib/use-workspace-routing.ts"));
 const hashCode = strip(read("../lib/workspace-hash.ts"));
 const tourCode = strip(read("../lib/workspace-tour.ts"));
 const researchCode = strip(read("../components/ResearchWorkspace.tsx"));
 const attributionCode = strip(read("../components/research/AttributionSection.tsx"));
 const decisionCode = strip(read("../components/research/DecisionSection.tsx"));
-const shellCode = [pageCode, routingCode, hashCode, researchCode, decisionCode].join("\n");
+const shellCode = [pageCode, panelsCode, routingCode, hashCode, researchCode, decisionCode].join("\n");
 const overview = strip(read("../components/WorkspaceOverview.tsx"));
 const pipeline = strip(read("../components/overview/DecisionLoopPipeline.tsx"));
 const footer = read("../components/common/NextStepFooter.tsx");
@@ -317,7 +320,10 @@ describe("the next step follows what was just read", () => {
   });
 
   it("is told which section it is standing on, on all eight views", () => {
-    const mounts = [...pageCode.matchAll(
+    // The eight footers travelled with the panels they close; a scan left on
+    // page.tsx would find zero of them and report "0 !== 8" — or, had the
+    // assertion been a `>= 0`, nothing at all.
+    const mounts = [...panelsCode.matchAll(
       /<NextStepFooter currentView="([a-z]+)" currentSection=\{(\w+)\} onNavigate=\{openSection\} \/>/g,
     )];
     assert.equal(

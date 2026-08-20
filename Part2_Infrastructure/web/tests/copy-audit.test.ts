@@ -45,9 +45,12 @@ const read = (relative: string) =>
 /** Comments stripped: a comment explaining a removal must not fail its own test. */
 const code = (source: string) => source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
 
-// Research draws its head inside its own component now; scanning only
-// page.tsx would drop one of the eight tab descriptions from the audit.
+// Research draws its head inside its own component, and the other three role
+// heads moved with the eight panels into `components/workspace/WorkspacePanels`
+// when the shell was split. Scanning only page.tsx would leave this audit with
+// nothing to read — the `all.length >= 4` guard below is what says so out loud.
 const page = code(read("../app/dashboard/page.tsx"))
+  + code(read("../components/workspace/WorkspacePanels.tsx"))
   + code(read("../components/ResearchWorkspace.tsx"));
 const overview = code(read("../components/WorkspaceOverview.tsx"));
 const deck = code(read("../components/overview/KpiDeck.tsx"));

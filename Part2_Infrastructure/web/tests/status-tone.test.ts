@@ -23,8 +23,10 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 
+import { globalsCss } from "./globals-css";
+
 const root = join(import.meta.dirname, "..");
-const globals = readFileSync(join(root, "app/globals.css"), "utf8");
+const globals = globalsCss;
 
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];

@@ -11,6 +11,11 @@ import type { Quote, Sourced } from "../lib/providers/types";
 const ROUTE = readFileSync(new URL("../app/api/gateway/orders/route.ts", import.meta.url), "utf8");
 const LIVE_MARKET = readFileSync(new URL("../components/LiveMarket.tsx", import.meta.url), "utf8");
 const TICKET = readFileSync(new URL("../components/execution/OrderTicket.tsx", import.meta.url), "utf8");
+// The order-type seg and the panel's own subtitle moved into the form when the
+// ticket was split; the equity classification that gates them did not.
+const TICKET_FORM = readFileSync(
+  new URL("../components/execution/OrderTicketForm.tsx", import.meta.url), "utf8",
+);
 
 function quote(overrides: Partial<Quote> = {}): Sourced<Quote> {
   return {
@@ -116,7 +121,7 @@ describe("covered equity execution UI", () => {
 
   it("keeps equity orders MARKET-only in the ticket", () => {
     assert.match(TICKET, /classify\(symbol\) === "equity"/);
-    assert.match(TICKET, /disabled=\{paperEquity && option === "LIMIT"\}/);
+    assert.match(TICKET_FORM, /disabled=\{paperEquity && option === "LIMIT"\}/);
     assert.match(TICKET, /MARKET only; no L2 routing is claimed/);
   });
 });

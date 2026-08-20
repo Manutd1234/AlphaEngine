@@ -19,8 +19,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 
+import { globalsCss } from "./globals-css";
+
 const root = join(import.meta.dirname, "..");
-const globals = readFileSync(join(root, "app/globals.css"), "utf8");
+const globals = globalsCss;
 const pageHead = readFileSync(join(root, "components/workspace/PageHead.tsx"), "utf8");
 
 /** The declaration body of the last rule matching `selector` exactly. */

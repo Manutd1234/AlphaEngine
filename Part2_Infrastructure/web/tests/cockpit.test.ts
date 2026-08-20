@@ -293,6 +293,17 @@ const orderTicket = readFileSync(
   fileURLToPath(new URL("../components/execution/OrderTicket.tsx", import.meta.url)),
   "utf8",
 );
+/**
+ * The ticket's controls became `OrderTicketForm.tsx` on 2026-08-21 and its
+ * answer `OrderVerdict.tsx`; the submit, its undeadlined write and the
+ * credential field stayed. Assertions about a control read the form, assertions
+ * about the write read the ticket — the two are not interchangeable, and a scan
+ * pointed at the wrong one would go quiet rather than red.
+ */
+const ticketForm = readFileSync(
+  fileURLToPath(new URL("../components/execution/OrderTicketForm.tsx", import.meta.url)),
+  "utf8",
+);
 const cockpit = readFileSync(
   fileURLToPath(new URL("../components/execution/ExecutionCockpit.tsx", import.meta.url)),
   "utf8",
@@ -324,6 +335,24 @@ const page = readFileSync(
   "utf8",
 );
 /**
+ * The shell became three files on 2026-08-21. `page.tsx` still declares the
+ * order draft and the execution sleeve — that is the ownership half of every
+ * assertion below — but the eight panels that thread them into the cockpit are
+ * `components/workspace/WorkspacePanels.tsx`, and the four-tile briefs that
+ * quote the sleeve are `lib/workspace-insights.ts`. Each line reads the file
+ * its subject actually lives in; `shell` is for the two that must hold across
+ * the seam.
+ */
+const panels = readFileSync(
+  fileURLToPath(new URL("../components/workspace/WorkspacePanels.tsx", import.meta.url)),
+  "utf8",
+);
+const insights = readFileSync(
+  fileURLToPath(new URL("../lib/workspace-insights.ts", import.meta.url)),
+  "utf8",
+);
+const shell = `${page}\n${panels}`;
+/**
  * Promotion's hand-off moved into the Research tab's own Decision section when
  * `page.tsx` was split. The shell still OWNS the execution sleeve — that is
  * why both book tabs and the ticket can quote it — and hands the setter down;
@@ -345,12 +374,12 @@ describe("token-guarded order entry has an in-context recovery path", () => {
 
   it("wires the same credential state used by Reliability into Execution", () => {
     assert.match(cockpit, /onOperatorTokenChange=\{onOperatorTokenChange\}/);
-    assert.match(page, /onOperatorTokenChange=\{systems\.setToken\}/);
-    assert.match(page, /operatorGuard=\{systems\.guard\}/);
+    assert.match(panels, /onOperatorTokenChange=\{systems\.setToken\}/);
+    assert.match(panels, /operatorGuard=\{systems\.guard\}/);
   });
 
   it("uses the deployment credential by default and keeps pasted tokens strict overrides", () => {
-    assert.match(page, /paperOrderDefaultAvailable=\{systems\.paperOrderDefaultAvailable\}/);
+    assert.match(panels, /paperOrderDefaultAvailable=\{systems\.paperOrderDefaultAvailable\}/);
     assert.match(cockpit, /paperOrderDefaultAvailable=\{paperOrderDefaultAvailable\}/);
     assert.match(orderTicket, /!paperOrderDefaultAvailable[\s\S]*?!operatorToken\?\.trim\(\)/);
     assert.match(orderTicket, /Credential override \(optional\)/);
@@ -362,23 +391,23 @@ describe("token-guarded order entry has an in-context recovery path", () => {
 describe("the execution strategy is an editable order intent", () => {
   it("does not disappear when Research becomes stale", () => {
     assert.match(page, /useState<Strategy>\(DEFAULT_REQUEST\.strategy\)/);
-    assert.match(page, /strategy=\{executionStrategy\}/);
-    assert.doesNotMatch(page, /researchStrategy=\{activeResult/);
+    assert.match(panels, /strategy=\{executionStrategy\}/);
+    assert.doesNotMatch(shell, /researchStrategy=\{activeResult/);
   });
 
   it("lets promotion seed the sleeve and the ticket override it", () => {
-    assert.match(page, /onStageSleeve=\{setExecutionStrategy\}/);
+    assert.match(panels, /onStageSleeve=\{setExecutionStrategy\}/);
     assert.match(decisionSection, /onStageSleeve\(data\.request\.strategy\)/);
-    assert.match(page, /onStrategyChange=\{setExecutionStrategy\}/);
-    assert.match(orderTicket, /value=\{strategy\}/);
-    assert.match(orderTicket, /id="execution-strategy"/);
-    assert.match(orderTicket, /aria-describedby="execution-strategy-help"/);
-    assert.match(orderTicket, /onStrategyChange\(event\.target\.value as Strategy\)/);
+    assert.match(panels, /onStrategyChange=\{setExecutionStrategy\}/);
+    assert.match(ticketForm, /value=\{strategy\}/);
+    assert.match(ticketForm, /id="execution-strategy"/);
+    assert.match(ticketForm, /aria-describedby="execution-strategy-help"/);
+    assert.match(ticketForm, /onStrategyChange\(event\.target\.value as Strategy\)/);
   });
 
   it("always stamps the selected sleeve on the submitted order", () => {
     assert.match(orderTicket, /const order = \{[\s\S]*?strategy,[\s\S]*?\};/);
-    assert.match(orderTicket, /STRATEGY_GROUPS\.map/);
+    assert.match(ticketForm, /STRATEGY_GROUPS\.map/);
   });
 });
 
@@ -409,14 +438,14 @@ describe("a settled live order invalidates the shared Portfolio and Risk book", 
     // And the component still routes every mutation through that one path.
     assert.match(cockpit, /onSubmitted=\{revalidate\}/);
     assert.match(page, /book\.refresh\(true\), systems\.refresh\(true\)/);
-    assert.match(page, /onOrderSettled=\{revalidateDesk\}/);
+    assert.match(panels, /onOrderSettled=\{revalidateDesk\}/);
   });
 
   it("surfaces the selected sleeve's audited activity in both destination tabs", () => {
     assert.match(page, /row\.strategy === executionStrategy/);
-    assert.match(page, /STRATEGY_LABELS\[executionStrategy\]/);
-    assert.equal((page.match(/label: "Execution sleeve"/g) ?? []).length, 2);
-    assert.match(page, /aggregate book risk below/);
+    assert.match(insights, /STRATEGY_LABELS\[executionStrategy\]/);
+    assert.equal((insights.match(/label: "Execution sleeve"/g) ?? []).length, 2);
+    assert.match(insights, /aggregate book risk below/);
   });
 });
 

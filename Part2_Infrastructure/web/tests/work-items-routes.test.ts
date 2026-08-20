@@ -22,6 +22,10 @@ const hook = read("lib/use-data-work-queue.ts");
 const lib = read("lib/data-work-queue.ts");
 const board = read("components/data/DataWorkBoard.tsx");
 const page = read("app/dashboard/page.tsx");
+// The hook is called in the shell; the board that renders its items is mounted
+// by `components/workspace/WorkspacePanels.tsx`, so the two halves of the
+// wiring are asserted against the two files that hold them.
+const panels = read("components/workspace/WorkspacePanels.tsx");
 
 describe("the work-queue proxies", () => {
   it("reads are open, writes are operator-gated", () => {
@@ -69,7 +73,7 @@ describe("the hook owns persistence and names each outcome", () => {
 
   it("the board is fed by the hook and never fetches itself", () => {
     assert.match(page, /const dataWork = useDataWorkQueue\(\{ token: systems\.token \|\| null, active: view === "data" \}\);/);
-    assert.match(page, /onWorkMutation=\{dataWork\.mutate\}/);
+    assert.match(panels, /onWorkMutation=\{dataWork\.mutate\}/);
     assert.doesNotMatch(board, /fetch\(/, "the board renders and reports; the workspace persists");
   });
 

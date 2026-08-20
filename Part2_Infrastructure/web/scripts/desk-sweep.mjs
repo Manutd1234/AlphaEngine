@@ -5,7 +5,7 @@
  * The claim this pass makes is "no surface can dead-end". That claim is not
  * checkable by the unit suite, because the failures it describes are layout and
  * data-flow states that only exist in a browser talking to a backend that is
- * refusing. So this walks all 43 rail sections across all 8 tabs under six
+ * refusing. So this walks all 47 rail sections across all 8 tabs under six
  * fault profiles and asserts, per cell, that the panel is populated and honest.
  *
  * WHY CDP FAULT INJECTION rather than restarting the dev server with different
@@ -21,7 +21,7 @@
  * a passing probe is the one lie this codebase must not tell. On those tabs the
  * rule is inverted: they must render a complete, populated, legible report of the
  * degradation, and the degraded vocabulary is expected there rather than banned.
- * See TRUTH_TABS below.
+ * See `TRUTH_TABS` in `desk-sweep-plan.mjs`.
  *
  * Usage:
  *   PORT=3100 npm run dev                     # in one shell
@@ -29,7 +29,20 @@
  *     --headless=new --remote-debugging-port=9222 --disable-gpu about:blank
  *   node scripts/desk-sweep.mjs               # in another
  *   node scripts/desk-sweep.mjs --profile=gateway-hang --tab=portfolio
+ *
+ * Three files since 2026-08-21, split where the banners already were. WHAT is
+ * swept — the rail, its section count, the fault profiles, the dead-end
+ * vocabulary — is `desk-sweep-plan.mjs`. HOW a browser is driven and one panel
+ * measured is `desk-sweep-cdp.mjs`. What remains here is the walk itself and
+ * the verdict: the four rules that turn a measurement into a pass or a fail,
+ * and the report. `EXPECTED_SECTIONS` travelled with `TABS`, because a count
+ * separated from the list it counts is a guard that stops guarding.
  */
+
+import {
+  DEAD_END_PHRASES, EXPECTED_SECTIONS, MEDIA, PROFILES, TABS, TRUTH_TABS,
+} from "./desk-sweep-plan.mjs";
+import { connect, installProfile, HYDRATED, INSPECT } from "./desk-sweep-cdp.mjs";
 
 const ORIGIN = process.env.SWEEP_ORIGIN ?? "http://localhost:3100";
 
@@ -47,289 +60,10 @@ const ORIGIN = process.env.SWEEP_ORIGIN ?? "http://localhost:3100";
  * it with a desk cookie already in the browser profile.
  */
 const DESK = `${ORIGIN}/dashboard`;
-const CDP = process.env.SWEEP_CDP ?? "http://127.0.0.1:9222";
-
-/** Every rail section, from lib/sections.ts. Kept in sync by hand — a missing
- *  section here is a section nobody swept, so the count is asserted below. */
-const TABS = {
-  overview: ["loop", "desks", "audit"],
-  research: ["summary", "parameters", "walkforward", "attribution", "lineage", "decision", "runs", "fitted", "codex"],
-  live: ["trade", "liquidity", "routing", "quality", "activity"],
-  portfolio: ["overview", "equity", "positions", "allocation", "performance"],
-  risk: ["limits", "model", "drivers", "montecarlo", "oraclevar", "scenarios", "controls"],
-  data: ["overview", "feeds", "quality", "incidents", "lineage", "providers", "queue"],
-  reliability: ["overview", "planes", "services", "events", "controls"],
-  developer: ["overview", "readiness", "quality", "apis", "codebase", "work"],
-};
-
-const EXPECTED_SECTIONS = 47;
-
-/**
- * The two tabs whose job is to report infrastructure truth.
- *
- * Everywhere else, "unreachable" is a dead end to be removed. Here it is the
- * correct answer, and replacing it with generated green would be the failure.
- * What they must still never do is render an empty panel or a bare spinner.
- */
-const TRUTH_TABS = new Set(["reliability", "data"]);
-
-/**
- * Phrases that mean "this panel gave up".
- *
- * Deliberately narrow. "Pending" and "connecting" appear legitimately in
- * transient states and in prose about how the desk works, so they are matched
- * only as a whole-panel verdict — see `deadEnded`, which requires the panel to
- * be BOTH substantially empty AND carrying one of these.
- */
-const DEAD_END_PHRASES = [
-  "unavailable",
-  "unreachable",
-  "could not reach",
-  "could not load",
-  "no audit rows",
-  "needs price history",
-  "book connecting",
-  "temporarily unavailable",
-  // Added after reading the panels rather than guessing at them. Each of these
-  // is a real surface's exact wording, and none matched the list above — the
-  // fill-quality card ("nothing to measure without a source") sailed through a
-  // sweep that was looking for the word "unavailable".
-  "nothing to measure",
-  "nothing to list",
-  "no decision history",
-  "is reachable in this deployment",
-  "refuses to invent",
-  "no completed run",
-];
-
-/** Fault profiles. Each maps a URL predicate to what should happen to it. */
-const PROFILES = {
-  /** No interception. Locally the gateway is already absent, which is the
-   *  deployed workspace's own normal state. */
-  "as-deployed": null,
-
-  /** The public deployment: a same-origin route that reports no gateway. */
-  "gateway-absent": {
-    match: (url) => url.includes("/api/gateway/"),
-    action: { fulfill: { status: 503, body: { code: "gateway_not_configured", error: "No gateway is configured for this deployment." } } },
-  },
-
-  /** The state a redeploying container is in. Never answers; the client's 2.5s
-   *  deadline is the only thing that can end it. */
-  "gateway-hang": {
-    match: (url) => url.includes("/api/gateway/"),
-    action: { hang: true },
-  },
-
-  /** A gateway that is up and unwell. */
-  "gateway-503": {
-    match: (url) => url.includes("/api/gateway/"),
-    action: { fulfill: { status: 503, body: { error: "upstream risk gateway returned 503" } } },
-  },
-
-  /** The Always-Free Autonomous Database auto-stopping, which is routine. */
-  "oracle-down": {
-    match: (url) => url.includes("/api/oracle"),
-    action: { fail: "ConnectionRefused" },
-  },
-
-  /** No provider API keys, and no bars to derive anything from. */
-  "providers-keyless": {
-    match: (url) => url.includes("/api/ohlcv") || url.includes("/api/providers") || url.includes("/api/quote"),
-    action: { fail: "ConnectionRefused" },
-  },
-};
-
-// ---------------------------------------------------------------------------
-// CDP plumbing
-// ---------------------------------------------------------------------------
-
-async function connect() {
-  const targets = await (await fetch(`${CDP}/json/list`)).json();
-  const page = targets.find((t) => t.type === "page");
-  if (!page) throw new Error("no page target — is Chrome running with --remote-debugging-port=9222?");
-  const ws = new WebSocket(page.webSocketDebuggerUrl);
-  await new Promise((resolve, reject) => {
-    ws.addEventListener("open", resolve);
-    ws.addEventListener("error", () => reject(new Error("could not attach to Chrome")));
-  });
-
-  let seq = 0;
-  const pending = new Map();
-  const listeners = new Set();
-  ws.addEventListener("message", (event) => {
-    const msg = JSON.parse(event.data);
-    if (msg.id && pending.has(msg.id)) {
-      pending.get(msg.id)(msg);
-      pending.delete(msg.id);
-      return;
-    }
-    for (const fn of listeners) fn(msg);
-  });
-
-  const send = (method, params = {}) =>
-    new Promise((resolve) => {
-      const id = ++seq;
-      pending.set(id, resolve);
-      ws.send(JSON.stringify({ id, method, params }));
-    });
-
-  const evaluate = async (expression) => {
-    const res = await send("Runtime.evaluate", {
-      expression, returnByValue: true, awaitPromise: true,
-    });
-    if (res.result?.exceptionDetails) {
-      throw new Error(res.result.exceptionDetails.text ?? "evaluate threw");
-    }
-    return res.result?.result?.value;
-  };
-
-  return { ws, send, evaluate, on: (fn) => listeners.add(fn), off: (fn) => listeners.delete(fn) };
-}
-
-/**
- * Install a fault profile.
- *
- * Held requests are tracked so they can be released at teardown: leaving them
- * paused wedges the next profile's navigation, which presents as a run that
- * mysteriously stalls after the hang profile.
- */
-async function installProfile(cdp, profile) {
-  const held = [];
-  if (!profile) {
-    await cdp.send("Fetch.disable");
-    return { held, release: async () => {} };
-  }
-  await cdp.send("Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
-
-  const onEvent = async (msg) => {
-    if (msg.method !== "Fetch.requestPaused") return;
-    const { requestId, request } = msg.params;
-    if (!profile.match(request.url)) {
-      await cdp.send("Fetch.continueRequest", { requestId });
-      return;
-    }
-    const action = profile.action;
-    if (action.hang) {
-      // Held, never answered. This is the point of the profile.
-      held.push(requestId);
-      return;
-    }
-    if (action.fail) {
-      await cdp.send("Fetch.failRequest", { requestId, errorReason: action.fail });
-      return;
-    }
-    const body = JSON.stringify(action.fulfill.body);
-    await cdp.send("Fetch.fulfillRequest", {
-      requestId,
-      responseCode: action.fulfill.status,
-      responseHeaders: [{ name: "content-type", value: "application/json" }],
-      body: Buffer.from(body).toString("base64"),
-    });
-  };
-
-  cdp.on(onEvent);
-  return {
-    held,
-    release: async () => {
-      cdp.off(onEvent);
-      for (const requestId of held) {
-        await cdp.send("Fetch.failRequest", { requestId, errorReason: "Aborted" }).catch(() => {});
-      }
-      await cdp.send("Fetch.disable");
-    },
-  };
-}
-
-const HYDRATED = `new Promise((resolve) => {
-  const ready = () => {
-    const shell = document.querySelector('main.workspace-shell');
-    const probe = document.querySelector('button.header-settings');
-    return shell && probe && Object.keys(probe).some((k) => k.startsWith('__reactProps'));
-  };
-  if (ready()) return resolve(true);
-  const timer = setInterval(() => { if (ready()) { clearInterval(timer); resolve(true); } }, 60);
-  setTimeout(() => { clearInterval(timer); resolve(false); }, 25000);
-})`;
-
-/**
- * What one section looks like right now.
- *
- * MEASURE THE SECTION BODY, NOT THE TAB. `.view-panel` includes the page
- * heading, its KPI chips and the section rail — about 780 characters of chrome
- * that are present whether or not the section rendered anything. Measuring that
- * produced a confident 43/43 pass over an Execution tab whose fill-quality body
- * was empty and stayed empty: the cockpit's own fetch has no deadline, so under
- * a hung gateway it never left loading, and the harness was reading the heading
- * above it. `.workspace-subtab-panel:not([hidden])` is the active section's own
- * box. Tabs without a rail fall back to the view panel.
- */
-const INSPECT = (phrases) => `(() => {
-  const shell = document.querySelector('main.workspace-shell');
-  const view = shell && shell.querySelector('.view-panel');
-  if (!view) return { missing: true };
-  const panel = view.querySelector('.workspace-subtab-panel:not([hidden])') || view;
-  const bodyOnly = panel !== view;
-  const text = (panel.innerText || '').replace(/\\s+/g, ' ').trim();
-  const lower = text.toLowerCase();
-  const cards = panel.querySelectorAll('.card, [class*="card"]').length;
-  const controls = panel.querySelectorAll('button, input, select, a[href]').length;
-  const numbers = (text.match(/[0-9]/g) || []).length;
-
-  /**
-   * Data actually on screen, which is the only thing that distinguishes a
-   * populated panel from a furnished empty one.
-   *
-   * Counting cards and controls was not enough in either direction. The KPI deck
-   * on overview/loop renders through the Tailwind bridge with no .card class and
-   * no controls at all, and was reported empty while showing six live metrics.
-   * The blotter on live/activity has three cards and seven controls — filters, an
-   * export menu — above a table with no rows, and was reported populated while
-   * listing nothing. So: count table rows, tabular figures (.num is the house
-   * class for them) and chart marks.
-   */
-  const tables = panel.querySelectorAll('table').length;
-  const rows = panel.querySelectorAll('tbody tr').length;
-  const figures = panel.querySelectorAll('.num, [class*="metric"] strong, [class*="kpi"] strong').length;
-  const marks = panel.querySelectorAll('svg path, svg rect, svg circle, svg line').length;
-  // Digits in prose are not data: "273.0y of history" inside an explanation of
-  // why there is none should not make a panel look populated. Only counted when
-  // something structural carries them.
-  const dataPoints = rows + figures + (marks > 3 ? 3 : 0)
-    + (rows === 0 && figures === 0 && marks === 0 && numbers > 12 ? 2 : 0);
-  const badge = document.querySelector('.data-tier');
-  return {
-    chars: text.length,
-    cards, controls, numbers, bodyOnly, tables, rows, figures, marks, dataPoints,
-    phrases: ${JSON.stringify(phrases)}.filter((p) => lower.includes(p)),
-    provenance: badge ? (badge.getAttribute('aria-label') || '').replace(/\\s+/g, ' ') : null,
-    // A body that is still announcing a wait is a dead end that has not
-    // finished admitting it. Checked without a character floor, because the
-    // failure mode is an empty body, not a chatty one.
-    stillWaiting: /^(loading|connecting|checking|waiting)\\b/.test(lower) || (text.length < 40 && /loading|connecting|…/.test(lower)),
-    head: text.slice(0, 90),
-  };
-})()`;
 
 // ---------------------------------------------------------------------------
 // The sweep
 // ---------------------------------------------------------------------------
-
-/**
- * Rendering axes, orthogonal to the fault profiles.
- *
- * A dead end is a data-flow state and shows up under any of these; what these
- * catch is the other half of the claim — that the desk stays legible while it is
- * degraded. Forced-colors is the sharpest of them, because it discards every
- * colour the app chose, so anything that carried meaning in colour alone stops
- * carrying it at all.
- */
-const MEDIA = {
-  "dark": [{ name: "prefers-color-scheme", value: "dark" }],
-  "light": [{ name: "prefers-color-scheme", value: "light" }],
-  "reduce": [{ name: "prefers-reduced-motion", value: "reduce" }],
-  "forced": [{ name: "forced-colors", value: "active" }],
-};
 
 function parseArgs() {
   const args = process.argv.slice(2);

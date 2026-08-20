@@ -1,6 +1,6 @@
 import PageHead, { type PageMetric, type PageStatus } from "@/components/workspace/PageHead";
 
-interface WorkspaceInsight {
+export interface WorkspaceInsight {
   label: string;
   value: string;
   detail?: string;

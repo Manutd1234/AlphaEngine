@@ -8,9 +8,11 @@
  * "rejected" teaches a trader nothing; one that says which of the pre-trade gates
  * fired, with the number that tripped it, turns a refusal into information.
  *
- * The three presets exist for the same reason. "Fat finger" and "rate limit"
- * are the two rejections worth seeing before they happen for real, and a demo
- * that requires typing a plausible-looking bad order is a demo nobody runs.
+ * What is left here is the deciding half. The controls a reader touches are
+ * `OrderTicketForm`, the answer they get is `OrderVerdict`, and the three gate
+ * demonstrations are `ticket-model`; this file holds the submit itself, its
+ * deliberately undeadlined write, the operator credential field, and the
+ * reachability notices that close the ticket.
  *
  * Nothing here decides anything. Every order goes to the gateway and is judged
  * by the same gates a Telegram or console order faces; this component only
@@ -19,16 +21,16 @@
  * sent to the same-origin route — never directly to the gateway.
  */
 
-import { useRef, useState, type CSSProperties } from "react";
+import { useRef, useState } from "react";
 
-import NumberTicker from "@/components/common/NumberTicker";
 import { useLiveMid } from "@/components/execution/live-mid-context";
-import { type GateCheck, type SandboxDecision, type SandboxOrder } from "@/lib/blotter";
-import { fmt, formatDuration, priceDp, usd } from "@/lib/format";
+import OrderTicketForm from "@/components/execution/OrderTicketForm";
+import OrderVerdict from "@/components/execution/OrderVerdict";
+import { type Decision } from "@/components/execution/ticket-model";
+import { type SandboxDecision, type SandboxOrder } from "@/lib/blotter";
 import { operatorHeaders } from "@/lib/risk-control";
 import { classify } from "@/lib/providers/symbols";
-import { strategiesByFamily } from "@/lib/strategy-progress";
-import { STRATEGY_LABELS, type Strategy } from "@/lib/types";
+import { type Strategy } from "@/lib/types";
 
 interface OrderTicketProps {
   symbol: string;
@@ -72,29 +74,6 @@ export interface OrderSubmissionResult {
   hasFill: boolean;
 }
 
-interface Decision {
-  accepted: boolean;
-  order_id?: string;
-  reason?: string | null;
-  rejected_by?: string[];
-  latency_ms?: number;
-  checks?: GateCheck[];
-  fill?: { price: number; quantity: number; venue: string; slippage_bps: number; fee_usd: number } | null;
-  /** Stamped client-side so the verdict can label a LIMIT fill honestly even
-   *  after the type seg has moved on. */
-  order_type?: "MARKET" | "LIMIT";
-}
-
-type Preset = {
-  id: string;
-  label: string;
-  hint: string;
-  notional: number;
-  repeat?: number;
-  /** Risk intent, so a gate-tripping demo never looks like a neutral chip. */
-  tone?: "warn" | "notice";
-};
-
 /**
  * Longer than `lib/gateway.ts`'s own 8s server-side deadline, deliberately: the
  * proxy in front of the gateway should be the thing that gives up first, so a
@@ -102,14 +81,6 @@ type Preset = {
  * than being aborted by the browser into an ambiguous one.
  */
 const ORDER_TIMEOUT_MS = 15_000;
-
-const PRESETS: Preset[] = [
-  { id: "valid", label: "Valid $25k", hint: "Passes every gate and fills on the live ladder.", notional: 25_000 },
-  { id: "fat-finger", label: "Fat finger $500k", hint: "Blocked by the per-order notional cap.", notional: 500_000, tone: "warn" },
-  { id: "burst", label: "Rate-limit burst", hint: "Twelve $1k orders — the token bucket stops the tail.", notional: 1_000, repeat: 12, tone: "notice" },
-];
-
-const STRATEGY_GROUPS = [...strategiesByFamily()];
 
 export default function OrderTicket({
   symbol, side, notional, orderType, limitPrice, onSideChange, onNotionalChange,
@@ -323,176 +294,30 @@ export default function OrderTicket({
         </div>
       ) : null}
 
-      <div className="cockpit-ticket__form">
-        {/* `seg--side` is the one segmented control that keeps a saturated
-            fill. Selection everywhere else is a raised surface now, and the
-            control deciding which direction an order goes must not read as
-            quietly as a log-level filter. The hue comes from the side, matching
-            how the desk colours long and short elsewhere; the word is what
-            actually says which is which. */}
-        <div className="seg seg--side" role="group" aria-label="Side">
-          {(["BUY", "SELL"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              value={option}
-              aria-pressed={side === option}
-              onClick={() => onSideChange(option)}
-            >
-              {option}
-            </button>
-          ))}
-        </div>
-
-        <div className="seg seg--type" role="group" aria-label="Order type">
-          {(["MARKET", "LIMIT"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={orderType === option}
-              disabled={paperEquity && option === "LIMIT"}
-              title={paperEquity && option === "LIMIT" ? "Equity paper orders are MARKET-only; no equity L2 book is connected." : undefined}
-              onClick={() => onOrderTypeChange(option)}
-            >
-              {option === "MARKET" ? "Market" : "Limit"}
-            </button>
-          ))}
-        </div>
-
-        <label className="cockpit-ticket__strategy" htmlFor="execution-strategy">
-          <span>Strategy sleeve</span>
-          <select
-            id="execution-strategy"
-            value={strategy}
-            onChange={(event) => onStrategyChange(event.target.value as Strategy)}
-            aria-describedby="execution-strategy-help"
-            title="Tags the order for Portfolio attribution; any resulting position updates aggregate Risk."
-          >
-            {STRATEGY_GROUPS.map(([family, strategies]) => (
-              <optgroup key={family} label={family}>
-                {strategies.map((candidate) => (
-                  <option key={candidate} value={candidate}>
-                    {STRATEGY_LABELS[candidate]}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-          {/* Screen-reader only. Printed under the select, this line was the
-              one control in the row with text below it, so the row's shared
-              bottom edge ran under the hint and the sleeve sat a line higher
-              than BUY/SELL beside it. The select's own title carries the same
-              fact for a sighted reader on hover. */}
-          <small id="execution-strategy-help" className="sr-only">
-            Tags this paper order; it does not run the model automatically.
-          </small>
-        </label>
-
-        {orderType === "LIMIT" && (
-          <div className="seg seg--type" role="group" aria-label="Time in force">
-            {(["GTC", "DAY", "IOC"] as const).map((option) => (
-              <button
-                key={option}
-                type="button"
-                aria-pressed={timeInForce === option}
-                onClick={() => setTimeInForce(option)}
-                title={
-                  option === "GTC" ? "Rests until it fills or is cancelled"
-                    : option === "DAY" ? "Rests until the UTC session boundary, then expires"
-                      : "Fills against what is showing now, or expires immediately"
-                }
-              >
-                {option}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <label>
-          <span>Notional</span>
-          <input
-            type="number"
-            min={1}
-            step={1000}
-            value={notional}
-            onChange={(event) => onNotionalChange(Math.max(0, Number(event.target.value) || 0))}
-          />
-        </label>
-
-        {orderType === "LIMIT" ? (
-          <label>
-            <span>Limit price</span>
-            <input
-              type="number"
-              min={0}
-              step="any"
-              inputMode="decimal"
-              value={limitPrice ?? ""}
-              placeholder={mid != null ? fmt(mid, priceDp(mid)) : "price"}
-              onChange={(event) =>
-                onLimitPriceChange(event.target.value === "" ? null : Math.max(0, Number(event.target.value) || 0))}
-            />
-          </label>
-        ) : null}
-
-        <button
-          type="button"
-          className="primary-action"
-          disabled={busy || disabled || credentialMissing || !(notional > 0) || limitInvalid || equityLimitUnsupported}
-          title={
-            credentialMissing
-              ? "Enter the operator credential above to send live orders."
-              : equityLimitUnsupported
-              ? "Equity paper orders are MARKET-only; no L2 book backs a resting limit."
-              : limitInvalid
-              ? "Limit orders need a price; the grey number is the mark, not a value."
-              : !(notional > 0) ? "Set a notional first." : undefined
-          }
-          onClick={() => void submit()}
-        >
-          {busy
-            ? "Submitting…"
-            : `Send ${side} ${symbol}${orderType === "LIMIT" && limitPrice ? ` @ ${fmt(limitPrice, mid != null ? priceDp(mid) : 2)}` : ""}`}
-        </button>
-
-        {/* This ticket's whole stance is "a rejection is the answer, not an
-            error" — so a disabled Send with no stated reason is a bug in that
-            stance, and it was reported as exactly that ("why does this not
-            work?"). The placeholder shows the mark to type against, which
-            reads as a filled-in value at a glance; when it is the reason the
-            button is dead, say so in text, not only in a hover title. */}
-        {limitInvalid && !busy && !disabled ? (
-          <p className="cockpit-ticket__hint">
-            Type a limit price to enable Send, or switch back to Market. The grey number is the
-            current mark, not a filled-in value.
-          </p>
-        ) : null}
-
-        {bandBps != null && bandBps > 500 ? (
-          <p className="cockpit-ticket__hint">
-            Limit is {bandBps.toFixed(0)} bps from mid — the gateway&apos;s price_band gate rejects
-            beyond 500 bps.
-          </p>
-        ) : null}
-      </div>
-
-      {/* A named group, not a seg: these are submit actions, so aria-pressed
-          would be a lie, but a screen reader still deserves to know the three
-          are one family — the same fix LiveMarket's notional shortcuts got. */}
-      <div className="cockpit-ticket__presets" role="group" aria-label="Gate demonstration presets">
-        {PRESETS.map((preset) => (
-          <button
-            key={preset.id}
-            type="button"
-            className={`icon${preset.tone ? ` preset--${preset.tone}` : ""}`}
-            disabled={busy || disabled || credentialMissing}
-            title={preset.hint}
-            onClick={() => void submit(preset.repeat ?? 1, preset.notional, "preset")}
-          >
-            {preset.label}
-          </button>
-        ))}
-      </div>
+      <OrderTicketForm
+        symbol={symbol}
+        side={side}
+        notional={notional}
+        orderType={orderType}
+        limitPrice={limitPrice}
+        timeInForce={timeInForce}
+        strategy={strategy}
+        mid={mid}
+        bandBps={bandBps}
+        busy={busy}
+        disabled={disabled}
+        credentialMissing={credentialMissing}
+        limitInvalid={limitInvalid}
+        equityLimitUnsupported={equityLimitUnsupported}
+        paperEquity={paperEquity}
+        onSideChange={onSideChange}
+        onNotionalChange={onNotionalChange}
+        onOrderTypeChange={onOrderTypeChange}
+        onLimitPriceChange={onLimitPriceChange}
+        onTimeInForceChange={setTimeInForce}
+        onStrategyChange={onStrategyChange}
+        onSubmit={(count, overrideNotional, kind) => void submit(count, overrideNotional, kind)}
+      />
 
       {error ? (
         <p className="notice notice--stop">
@@ -501,57 +326,8 @@ export default function OrderTicket({
         </p>
       ) : null}
 
-      {latest ? (
-        <div className={`cockpit-verdict ${latest.accepted ? "is-accepted" : "is-rejected"}`}>
-          <div className="cockpit-verdict__headline">
-            <strong>{latest.accepted ? "ACCEPTED" : "REJECTED"}</strong>
-            {decisions.length > 1 ? (
-              <span className="muted">{burstAccepted} of {decisions.length} accepted</span>
-            ) : null}
-            {latest.latency_ms != null ? (
-              // Counting up to a sub-millisecond figure is the honest flex.
-              <span className="muted">
-                decided in <NumberTicker value={latest.latency_ms} format={(v) => formatDuration(v, "ms")} />
-              </span>
-            ) : null}
-          </div>
-
-          {latest.reason ? <p>{latest.reason}</p> : null}
-
-          {latest.fill ? (
-            <p className="muted">
-              Filled {fmt(latest.fill.quantity, 6)} @ {usd(latest.fill.price, 2)} on {latest.fill.venue};
-              slippage {fmt(latest.fill.slippage_bps, 1)} bps, fee {usd(latest.fill.fee_usd, 2)}
-              {latest.order_type === "LIMIT"
-                // A marketable limit crosses the spread and pays for it; one that
-                // rests is filled by someone crossing to reach it and takes its
-                // own price. Naming which happened is the difference between a
-                // cost the desk paid and one it collected.
-                ? <>; marketable limit — crossed the spread at route VWAP</>
-                : null}
-            </p>
-          ) : null}
-
-          {latest.checks?.length ? (
-            /* Keyed per decision so every submit replays the assembly of the
-               gate vector — and only a submit: re-renders and resizes leave
-               the settled rows alone. The stagger delay caps at 480ms so a
-               gate vector never makes a reader wait on the tail. */
-            <ol className="cockpit-checks" key={decisionSeq.current}>
-              {latest.checks.map((check, index) => (
-                <li
-                  key={check.name}
-                  className={`stagger-reveal ${check.passed ? "is-pass" : "is-fail"}`}
-                  style={{ "--stagger-i": Math.min(index, 12) } as CSSProperties}
-                >
-                  <span className="cockpit-checks__mark" aria-hidden>{check.passed ? "✓" : "✗"}</span>
-                  <span className="cockpit-checks__name">{check.name}</span>
-                  {check.detail ? <span className="cockpit-checks__detail">{check.detail}</span> : null}
-                </li>
-              ))}
-            </ol>
-          ) : null}
-        </div>
+      {decisions.length ? (
+        <OrderVerdict decisions={decisions} sequence={decisionSeq.current} />
       ) : null}
     </section>
   );

@@ -16,9 +16,11 @@ import {
   resolveTextSize,
 } from "../lib/text-size";
 
+import { globalsCss } from "./globals-css";
+
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (path: string) => readFileSync(`${root}${path}`, "utf8");
-const css = read("app/globals.css");
+const css = globalsCss;
 const layout = read("app/layout.tsx");
 const store = read("lib/text-size.ts");
 const toggle = read("components/TextSizeToggle.tsx");

@@ -86,10 +86,13 @@ describe("the wording never claims a capability is missing", () => {
 });
 
 describe("tiers change density, never navigation", () => {
-  // The shell is four files now. A tier branch in any of them is the same
-  // navigation fork, so all four are scanned.
+  // The shell is five files now. A tier branch in any of them is the same
+  // navigation fork, so all five are scanned — and the panels file is where a
+  // tier-gated tab would actually be written, since it holds the eight
+  // `<section role="tabpanel">` elements.
   const page = [
     "../app/dashboard/page.tsx",
+    "../components/workspace/WorkspacePanels.tsx",
     "../lib/use-workspace-routing.ts",
     "../lib/workspace-hash.ts",
     "../components/ResearchWorkspace.tsx",

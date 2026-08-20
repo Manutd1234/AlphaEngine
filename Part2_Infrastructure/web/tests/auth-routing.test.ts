@@ -229,6 +229,10 @@ describe("nothing lands on the old desk route any more", () => {
   it("no auth surface redirects to /", () => {
     for (const file of [
       "../components/auth/LoginScreen.tsx",
+      // The card and the submit path the screen was split into: an
+      // `assign("/")` reintroduced in either is the same bug in the same flow.
+      "../components/auth/LoginCard.tsx",
+      "../lib/auth-submit.ts",
       "../components/auth/AuthCallback.tsx",
       "../components/profile/ProfileScreen.tsx",
     ]) {
@@ -250,7 +254,10 @@ describe("nothing lands on the old desk route any more", () => {
      * through the callback would report "this link did not complete" for a link
      * that worked.
      */
-    const source = read("../components/auth/LoginScreen.tsx");
+    // Both live in `lib/auth-submit.ts` now — the reset link is emailed by the
+    // "forgot" branch and the confirmation link by "signup", and both branches
+    // left the screen component when the submit logic did.
+    const source = read("../lib/auth-submit.ts");
     assert.match(source, /\$\{loginUrl\}\?step=reset/);
     assert.match(source, /\$\{loginUrl\}\?step=confirmed/);
   });

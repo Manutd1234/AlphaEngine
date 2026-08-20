@@ -14,6 +14,8 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { globalsCss } from "./globals-css";
+
 const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
 
@@ -25,7 +27,11 @@ const code = (source: string) => source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, 
  * occurrences count them across the whole workspace — a per-file count would
  * report "exactly one" on a file that holds none.
  */
-const page = code(read("../app/dashboard/page.tsx"));
+// The Research panel itself is in `components/workspace/WorkspacePanels.tsx`
+// since the shell split; page.tsx keeps the hooks feeding it. Both are read, so
+// neither half of the sweep's wiring can rot unseen.
+const page = code(read("../app/dashboard/page.tsx"))
+  + code(read("../components/workspace/WorkspacePanels.tsx"));
 const research = code(read("../components/ResearchWorkspace.tsx"));
 const banners = code(read("../components/research/ResearchBanners.tsx"));
 const sweepHook = code(read("../lib/use-sweep-run.ts"));
@@ -40,7 +46,7 @@ const RESEARCH_SOURCES = [
 ];
 const researchAll = RESEARCH_SOURCES.join("\n");
 const history = code(read("../components/research/ExperimentHistory.tsx"));
-const css = read("../app/globals.css");
+const css = globalsCss;
 
 describe("the research view keeps one sweep trigger per condition", () => {
   it("has no unreachable empty-state map with its own Run research action", () => {

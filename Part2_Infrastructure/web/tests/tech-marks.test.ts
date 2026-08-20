@@ -15,13 +15,15 @@ import { fileURLToPath } from "node:url";
 
 import { TECH_MARKS, markFor } from "../lib/tech-marks";
 
+import { globalsCss } from "./globals-css";
+
 const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
 
 const component = read("../components/common/TechMark.tsx");
 const mix = read("../components/systems/DependencyMix.tsx");
 const tree = read("../components/systems/DependencyTree.tsx");
-const css = read("../app/globals.css");
+const css = globalsCss;
 
 /**
  * The Reliability overview section, in the files it is made of.

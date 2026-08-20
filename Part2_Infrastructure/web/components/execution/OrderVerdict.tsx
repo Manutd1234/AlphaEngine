@@ -1,38 +1,38 @@
 "use client";
 
 /**
- * The verdict: what the gates decided, and what it cost.
+ * The gateway's answer, both ways round.
  *
- * The point of this panel is that it renders the whole check vector for BOTH
- * outcomes. A ticket that says only "rejected" teaches a trader nothing; one
- * that names the gate that fired, with the number that tripped it, turns a
- * refusal into information. Split out of `OrderTicket` because that is a form
- * and this is a reading of a result.
+ * The point of the order ticket is not that it sends orders — it is that it
+ * renders the whole check vector for an acceptance AND a refusal. A panel that
+ * says only "rejected" teaches a trader nothing; one that names the gate that
+ * fired, with the number that tripped it, turns a refusal into information.
+ * This is that panel, split out of `OrderTicket` when the file passed the
+ * length ceiling.
  *
- * It decides nothing and requests nothing. Every figure comes from the decision
- * the gateway — or the sandbox judge replaying the gateway's gates — returned.
+ * Nothing is inferred here. A missing latency prints nothing rather than a
+ * zero, an absent fill is simply absent, and a LIMIT fill says which side of
+ * the spread it crossed rather than leaving the reader to assume.
  */
 
 import { type CSSProperties } from "react";
 
 import NumberTicker from "@/components/common/NumberTicker";
 import { fmt, formatDuration, usd } from "@/lib/format";
-
-import type { Decision } from "./order-submit";
+import type { Decision } from "@/components/execution/ticket-model";
 
 interface OrderVerdictProps {
-  /** Every decision from the last submit; the burst preset produces twelve. */
+  /** Every decision from the last submit — a burst preset produces twelve. */
   decisions: Decision[];
-  /**
-   * Monotonic per submit: the cascade's animation key. A decision id would
-   * also work when present, but rejections can arrive without one.
-   */
+  /** The animation key: bumped per submit, so settled rows do not replay. */
   sequence: number;
 }
 
 export default function OrderVerdict({ decisions, sequence }: OrderVerdictProps) {
   const latest = decisions[decisions.length - 1];
-  const burstAccepted = decisions.filter((d) => d.accepted).length;
+  const burstAccepted = decisions.filter((decision) => decision.accepted).length;
+  // Nothing to answer for: the ticket mounts this only once a submit has
+  // returned, and an empty list is not a rejection.
   if (!latest) return null;
 
   return (

@@ -9,6 +9,8 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { globalsCss } from "./globals-css";
+
 const heatmap = readFileSync(
   fileURLToPath(new URL("../components/Heatmap.tsx", import.meta.url)),
   "utf8",
@@ -27,10 +29,7 @@ const page = readFileSync(
   fileURLToPath(new URL("../components/ResearchWorkspace.tsx", import.meta.url)),
   "utf8",
 );
-const css = readFileSync(
-  fileURLToPath(new URL("../app/globals.css", import.meta.url)),
-  "utf8",
-);
+const css = globalsCss;
 
 describe("the heatmap is a roving keyboard grid", () => {
   it("keeps one cell in the tab order and drops the rest to -1", () => {

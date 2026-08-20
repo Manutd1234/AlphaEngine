@@ -13,6 +13,8 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { globalsCss } from "./globals-css";
+
 const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
 
@@ -20,7 +22,7 @@ const panel = read("../components/research/ResearchCorpus.tsx");
 const hook = read("../lib/use-research-search.ts");
 // The Research panels are their own component since page.tsx was split.
 const page = read("../components/ResearchWorkspace.tsx");
-const css = read("../app/globals.css");
+const css = globalsCss;
 
 /** Comment-free view: this file quotes the constructs it forbids. */
 const code = (source: string) =>

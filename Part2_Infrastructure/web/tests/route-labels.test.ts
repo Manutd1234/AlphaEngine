@@ -16,6 +16,8 @@ import { fileURLToPath } from "node:url";
 import { ROUTE_MATRIX } from "../lib/providers/capabilities";
 import { routeLabel, routeNoun } from "../lib/providers/route-labels";
 
+import { globalsCss } from "./globals-css";
+
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (path: string) => readFileSync(`${root}${path}`, "utf8");
 
@@ -66,6 +68,6 @@ describe("the surfaces that print a route read from the helper", () => {
   });
 
   it("the stylesheet no longer carries the separator's rule", () => {
-    assert.doesNotMatch(read("app/globals.css"), /\.console-sep\s*\{/);
+    assert.doesNotMatch(globalsCss, /\.console-sep\s*\{/);
   });
 });

@@ -25,6 +25,8 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { globalsCss } from "./globals-css";
+
 function read(relative: string): string {
   return readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
 }
@@ -40,11 +42,20 @@ const page = read("../app/dashboard/page.tsx");
  * subject now lives in; left pointed at page.tsx they would scan a file that no
  * longer contains what they were written to guard.
  */
+/**
+ * The eight `<section role="tabpanel">` elements left `page.tsx` on 2026-08-21
+ * for `components/workspace/WorkspacePanels.tsx`; the shell kept the hooks, the
+ * header and `#workspace-content`. Every scan below that looks for a panel — an
+ * id, a `view === "x"` branch, a head inside a panel body — reads `panels`, and
+ * the ones that look at the header or the shell frame keep reading `page`. Left
+ * on `page` the panel scans would find nothing and pass.
+ */
+const panels = read("../components/workspace/WorkspacePanels.tsx");
 const routingHook = read("../lib/use-workspace-routing.ts");
 const workspaceHash = read("../lib/workspace-hash.ts");
 const researchWorkspace = read("../components/ResearchWorkspace.tsx");
 const roleCards = read("../components/overview/RoleCards.tsx");
-const styles = read("../app/globals.css");
+const styles = globalsCss;
 const subtabs = read("../components/WorkspaceSubtabs.tsx");
 const riskWorkspace = read("../components/RiskWorkspace.tsx");
 const portfolioWorkspace = read("../components/PortfolioWorkspace.tsx");
@@ -120,18 +131,18 @@ describe("the nav and the render tree describe the same workspace", () => {
   it("every nav id renders a panel with the matching id", () => {
     for (const id of ids) {
       assert.ok(
-        page.includes(`id="panel-${id}"`) || id === "overview",
+        panels.includes(`id="panel-${id}"`) || id === "overview",
         `nav has a "${id}" tab with no panel-${id} behind it`,
       );
       assert.ok(
-        page.includes(`view === "${id}"`),
-        `nav has a "${id}" tab that no branch in page.tsx renders`,
+        panels.includes(`view === "${id}"`),
+        `nav has a "${id}" tab that no branch in WorkspacePanels.tsx renders`,
       );
     }
   });
 
   it("every panel is reachable from the nav rather than only by hash", () => {
-    for (const match of page.matchAll(/id="panel-([a-z]+)"/g)) {
+    for (const match of panels.matchAll(/id="panel-([a-z]+)"/g)) {
       assert.ok(ids.includes(match[1]), `panel-${match[1]} has no tab in the nav`);
     }
   });
@@ -203,7 +214,7 @@ describe("dense role workspaces expose accessible feature sections", () => {
     };
     expectPanels("OVERVIEW", [workspaceOverview], "overview");
     expectPanels("RESEARCH", [researchWorkspace], "research");
-    expectPanels("EXECUTION", [page, liveMarket, executionCockpit], "execution");
+    expectPanels("EXECUTION", [panels, liveMarket, executionCockpit], "execution");
     expectPanels("PORTFOLIO", [portfolioWorkspace], "portfolio");
     expectPanels("RISK", [riskWorkspace], "risk");
     expectPanels("DATA", [dataConsole], "data");
@@ -257,7 +268,7 @@ describe("dense role workspaces expose accessible feature sections", () => {
       "header health controls no longer land on their matching reliability evidence",
     );
     assert.ok(
-      page.includes("workspaceInterval={req.interval}")
+      panels.includes("workspaceInterval={req.interval}")
         && dataConsole.includes("interval={workspaceInterval}"),
       "the lineage trace silently falls back to its own bar interval",
     );
@@ -425,11 +436,17 @@ const COMPONENTS = [
   "../components/execution/ExecutionCockpit.tsx",
   "../components/execution/use-cockpit-feed.ts",
   "../lib/use-book.ts",
+  // The eleven derived risk memos `use-book` used to hold inline. They were
+  // the reason this rule exists for that file — the component they came from
+  // returned early while loading and called `useMemo` further down — so the
+  // list follows them into the hook that owns them now.
+  "../lib/use-book-risk.ts",
   "../lib/use-system-health.ts",
-  // The four surfaces the 2,000-line Page component was split into. Page
+  // The five surfaces the 2,000-line Page component was split into. Page
   // itself has no bail-out and is checked by desk-interconnect; these do the
   // hook work it used to, so they are opted in here where the rule lives.
   "../lib/use-workspace-routing.ts",
+  "../lib/use-workspace-shortcuts.ts",
   "../lib/use-sweep-run.ts",
   "../components/ResearchWorkspace.tsx",
   "../components/research/AttributionSection.tsx",
@@ -557,6 +574,7 @@ describe("every tab opens with the same header", () => {
    */
   const surfaces: Array<[string, string]> = [
     ["page.tsx", page],
+    ["WorkspacePanels.tsx", panels],
     ["ResearchWorkspace.tsx", researchWorkspace],
     ["DataConsole.tsx", dataConsole],
     ["ReliabilityConsole.tsx", reliabilityConsole],
@@ -628,9 +646,9 @@ describe("every tab opens with the same header", () => {
     };
     const HEAD = /<(?:WorkspaceIntro|ConsoleChrome|PageHead)\b/g;
     for (const view of navIds(header)) {
-      const start = page.indexOf(`id="panel-${view}"`);
-      assert.notEqual(start, -1, `no panel-${view} in page.tsx — the panel scan is measuring nothing`);
-      const rest = page.slice(start);
+      const start = panels.indexOf(`id="panel-${view}"`);
+      assert.notEqual(start, -1, `no panel-${view} in WorkspacePanels.tsx — the panel scan is measuring nothing`);
+      const rest = panels.slice(start);
       const end = rest.indexOf("</section>");
       assert.notEqual(end, -1, `panel-${view} never closes`);
       const body = rest.slice(0, end);

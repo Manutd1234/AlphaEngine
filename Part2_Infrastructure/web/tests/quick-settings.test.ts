@@ -15,6 +15,8 @@ import { fileURLToPath } from "node:url";
 
 import { COMPLEXITY_TIERS, DEFAULT_COMPLEXITY } from "../lib/complexity";
 
+import { globalsCss } from "./globals-css";
+
 const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
 
@@ -23,7 +25,7 @@ const code = (source: string) => source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, 
 const panel = read("../components/header/QuickSettings.tsx");
 const density = read("../components/ComplexityToggle.tsx");
 const header = read("../components/WorkspaceHeader.tsx");
-const css = read("../app/globals.css");
+const css = globalsCss;
 /**
  * The shared header dropdown. Position, width and elevation used to be twelve
  * Tailwind utilities repeated in this panel, the account menu and the kill
@@ -198,6 +200,9 @@ describe("density stays a preference, never a capability", () => {
     // exist is a navigation fork.
     for (const shell of [
       "../app/dashboard/page.tsx",
+      // The eight panels since the 2026-08-21 shell split — the file a
+      // tier-gated tab would be written in.
+      "../components/workspace/WorkspacePanels.tsx",
       "../lib/use-workspace-routing.ts",
       "../components/ResearchWorkspace.tsx",
     ]) assert.doesNotMatch(read(shell), /useComplexity|atLeast/, shell);

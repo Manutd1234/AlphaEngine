@@ -24,8 +24,15 @@ import { fileURLToPath } from "node:url";
 
 import { DATA_SOURCES, isMeasuredSource } from "@/lib/types";
 
+/**
+ * The guard travelled to `lib/book-bars.ts` on 2026-08-21, when the per-symbol
+ * OHLCV fetch left `use-book`'s effect body for a plain async function. The
+ * check follows the code: left on `use-book.ts` the regex below would match
+ * nothing and the `doesNotMatch` beside it would pass against a file that no
+ * longer contains a source check at all.
+ */
 const useBook = readFileSync(
-  fileURLToPath(new URL("../lib/use-book.ts", import.meta.url)),
+  fileURLToPath(new URL("../lib/book-bars.ts", import.meta.url)),
   "utf8",
 );
 
@@ -70,7 +77,7 @@ describe("isMeasuredSource", () => {
 });
 
 describe("the covariance guard uses the predicate, not a venue literal", () => {
-  it("use-book.ts calls isMeasuredSource", () => {
+  it("book-bars.ts calls isMeasuredSource", () => {
     assert.match(useBookCode, /!isMeasuredSource\(body\.source\)/);
   });
 

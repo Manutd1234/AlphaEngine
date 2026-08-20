@@ -21,11 +21,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import type { DataTier, TierCause } from "@/lib/data-tier";
 import {
-  type DataTier,
-  type Provenance,
-  type TierCause,
-} from "@/lib/data-tier";
+  NO_HELD_BARS,
+  fetchHeldBars,
+  type AdvBySymbol,
+  type HeldBars,
+  type SessionBars,
+} from "@/lib/book-bars";
+import { fetchEquityHistory, type PeriodReturns } from "@/lib/book-history";
+import type { BookConnectionState, BookError, BookView } from "@/lib/book-view";
+import { useBookRisk } from "@/lib/use-book-risk";
 import { deskSeed } from "@/lib/desk-identity";
 import {
   type EquityPoint,
@@ -35,109 +41,19 @@ import {
 } from "@/lib/portfolio";
 import { useSession } from "@/lib/use-session";
 import { probeGateway } from "@/lib/use-gateway-connection";
-import { useStreamedRefresh, type DeskStreamState } from "@/lib/use-desk-stream";
+import { useStreamedRefresh } from "@/lib/use-desk-stream";
 import { usePolling } from "@/lib/use-polling";
-import {
-  type AllocationLimits,
-  type CovarianceModel,
-  type PortfolioRisk,
-  type ReturnsBySymbol,
-  type RiskPosition,
-  type VarBacktest,
-  type VarSeries,
-  beta,
-  buildCovariance,
-  portfolioRisk,
-  rollingVarBacktest,
-  rollingVarSeries,
-} from "@/lib/portfolio-risk";
-import { sessionReturn } from "@/lib/pnl-attribution";
-import { averageDailyVolume } from "@/lib/quant";
-import { BARS_PER_YEAR, isMeasuredSource, type Bar } from "@/lib/types";
-
-export interface BookError {
-  code?: string;
-  error: string;
-  hint?: string;
-}
-
-export type BookConnectionState = "live" | "stale" | "unconfigured" | "error";
-
-export type PeriodReturns = Record<string, { pnl: number | null; return: number | null }>;
+import type { ReturnsBySymbol } from "@/lib/portfolio-risk";
 
 const REFRESH_MS = 15_000;
 
-/** Newest daily bar per symbol, keyed for the session-alignment check. */
-export type SessionBars = Record<string, { openMs: number; prevClose: number; close: number }>;
-
-/** Quote-currency average daily volume, measured from the same bars as `returns`. */
-export type AdvBySymbol = Record<string, { adv: number; observations: number }>;
-
-export interface BookView {
-  /** Null only while the first request is in flight, or when it failed. */
-  book: PortfolioPayload | null;
-  loading: boolean;
-  refreshing: boolean;
-  error: BookError | null;
-  connectionState: BookConnectionState;
-  /**
-   * What the book on screen is made of, in the desk-wide vocabulary. Prefer this
-   * over `connectionState` in anything new: it has a word for generated data and
-   * it distinguishes a gateway that is absent by design from one that is broken.
-   */
-  tier: DataTier;
-  cause: TierCause | null;
-  /** Ready to hand to `describeTier` for a badge. */
-  provenance: Provenance;
-  /** A book is on screen but the most recent refresh failed. Writes are disabled. */
-  isStale: boolean;
-  lastSuccessAt: Date | null;
-  streamState: DeskStreamState;
-  refresh: (q?: boolean) => Promise<boolean>;  // false is what lets a tick back off
-
-  sandbox: boolean;
-  setSandbox: (on: boolean) => void;
-  /**
-   * This visitor's sandbox seed, so every surface that generates its own
-   * stand-in generates the *same* desk. Undefined on the server pass and until
-   * the first effect runs, which is deliberate — see the note where it is
-   * resolved. A consumer that generates from its own unseeded call would put a
-   * second, different fiction beside this one.
-   */
-  seed: number | undefined;
-
-  /** Measured, not assumed — see `returns` below. */
-  risk: PortfolioRisk | null;
-  covarianceModel: CovarianceModel | null;
-  varValidation: VarBacktest | null;
-  /** Per-observation series behind `varValidation`. Null when it could not be built. */
-  varSeries: VarSeries | null;
-  riskPositions: RiskPosition[];
-  returns: ReturnsBySymbol;
-  riskLoading: boolean;
-  /** Held symbols with too little aligned history to enter the covariance. */
-  missingHistory: string[];
-  referenceSymbol: string;
-  /** The newest daily bar per symbol, so a consumer can verify its own alignment. */
-  sessionBars: SessionBars;
-  /** Bar open-times, index-aligned with `returns[symbol]`. Same measured-source rule. */
-  barTimes: Record<string, number[]>;
-  /** Quote-currency ADV per symbol, measured from the same bars as `returns`. */
-  advBySymbol: AdvBySymbol;
-  /**
-   * The reference instrument's session-to-date return, or null when the newest
-   * daily bar does not cover the gateway's session. Checked rather than assumed:
-   * a restarted or stale gateway can carry a session_date that is not today's.
-   */
-  referenceSessionReturn: number | null;
-  riskShare: Map<string, number>;
-  betaBySymbol: Map<string, number | null>;
-  allocationLimits: AllocationLimits;
-
-  equityTrack: EquityPoint[];
-  periods: PeriodReturns | null;
-  historyBackfilled: boolean;
-}
+/**
+ * Re-exported from the modules that own them, so a dozen consumers importing
+ * the hook's shape and its field types from `@/lib/use-book` keep one import.
+ */
+export type { AdvBySymbol, SessionBars } from "@/lib/book-bars";
+export type { PeriodReturns } from "@/lib/book-history";
+export type { BookConnectionState, BookError, BookView } from "@/lib/book-view";
 
 export function useBook(): BookView {
   const session = useSession();
@@ -162,6 +78,14 @@ export function useBook(): BookView {
   const [barTimes, setBarTimes] = useState<Record<string, number[]>>({});
   const [advBySymbol, setAdvBySymbol] = useState<AdvBySymbol>({});
   const [riskLoading, setRiskLoading] = useState(false);
+  // One writer for the four maps `fetchHeldBars` returns, so a symbol can never
+  // reach one of them and be missing from another.
+  const applyHeldBars = useCallback((held: HeldBars) => {
+    setReturns(held.returns);
+    setBarTimes(held.barTimes);
+    setAdvBySymbol(held.advBySymbol);
+    setSessionBars(held.sessionBars);
+  }, []);
   // The gateway persists equity snapshots from its risk monitor, but only from
   // the moment it started. Whatever this tab observes is appended to whatever
   // the endpoint could restore.
@@ -252,44 +176,14 @@ export function useBook(): BookView {
   // opens the tab — and the period figures are derived from the same rows.
   useEffect(() => {
     let cancelled = false;
-    // Deadlined like every other read. The failure path here is deliberately
-    // silent — "a missing history endpoint is not an error worth showing" — but
-    // silent and unbounded are different things: without this, a hung gateway
-    // left this promise pending for the life of the tab.
-    probeGateway<{ points?: unknown[]; periods?: PeriodReturns }>("/api/gateway/portfolio/history?limit=400")
-      .then((outcome) => (outcome.ok ? outcome.payload : null))
-      .then((body) => {
-        if (cancelled || !body?.points?.length) return;
-        const restored: EquityPoint[] = [];
-        let hwm = -Infinity;
-        // Each history row carries gross exposure and the kill-switch state
-        // alongside the equity mark. Reading only `equity` threw away a leverage
-        // band and a halt shading that cost nothing to draw.
-        type HistoryPoint = {
-          ts: string;
-          equity: number;
-          gross_exposure?: number;
-          kill_switch?: boolean;
-        };
-        for (const point of body.points as HistoryPoint[]) {
-          const t = Date.parse(point.ts.endsWith("Z") ? point.ts : `${point.ts}Z`);
-          if (Number.isNaN(t)) continue;
-          hwm = Math.max(hwm, point.equity);
-          restored.push({
-            t,
-            equity: point.equity,
-            highWaterMark: hwm,
-            grossExposure: typeof point.gross_exposure === "number" ? point.gross_exposure : null,
-            killSwitch: typeof point.kill_switch === "boolean" ? point.kill_switch : null,
-          });
-        }
-        // Prepended, never merged blindly: whatever this tab has already
-        // observed is newer than anything the endpoint returned.
-        setObserved((current) => [...restored, ...current].slice(-400));
-        setPeriods(body.periods ?? null);
-        setHistoryBackfilled(true);
-      })
-      .catch(() => { /* a missing history endpoint is not an error worth showing */ });
+    void fetchEquityHistory().then((history) => {
+      if (cancelled || !history) return;
+      // Prepended, never merged blindly: whatever this tab has already
+      // observed is newer than anything the endpoint returned.
+      setObserved((current) => [...history.restored, ...current].slice(-400));
+      setPeriods(history.periods);
+      setHistoryBackfilled(true);
+    });
     return () => { cancelled = true; };
   }, []);
 
@@ -373,94 +267,15 @@ export function useBook(): BookView {
   useEffect(() => {
     const symbols = heldSymbols ? heldSymbols.split(",") : [];
     if (!symbols.length) {
-      setReturns({});
-      setSessionBars({});
-      setBarTimes({});
-      setAdvBySymbol({});
+      applyHeldBars(NO_HELD_BARS);
       setRiskLoading(false);
       return;
     }
     let cancelled = false;
     setRiskLoading(true);
-    Promise.all(
-      symbols.map(async (symbol) => {
-        const empty = {
-          symbol,
-          series: [] as number[],
-          times: [] as number[],
-          bar: null as SessionBars[string] | null,
-          adv: null as { adv: number; observations: number } | null,
-        };
-        try {
-          const response = await fetch(
-            // 400 rather than 180: a 60-bar rolling VaR backtest scores only
-            // `n - 60` points, so 180 bars is 119 — a sketch rather than a
-            // chart. `fetchBinanceKlines` pages at <= 1000, so this is still one
-            // request. It is NOT free in meaning: buildCovariance aligns to the
-            // shortest common series, so every figure on this tab moves from a
-            // ~6-month to a ~13-month window. The panel prints `observations`,
-            // so the change announces itself.
-            `/api/ohlcv?symbol=${encodeURIComponent(symbol)}&interval=1d&bars=400`,
-            { cache: "no-store" },
-          );
-          if (!response.ok) return empty;
-          const body = await response.json();
-          const bars: Bar[] = body.bars ?? [];
-          // Synthetic bars would silently become a covariance estimate. A book's
-          // risk must not be measured against invented prices, so that source
-          // is dropped rather than used. Dropped by the NAMED predicate, not by
-          // venue: this line used to read `source !== "binance"`, and the day
-          // bars started arriving from Bybit it rejected every crypto symbol —
-          // the Risk tab reported "not enough price history" against 400 real
-          // daily bars, forever, with every test green.
-          if (!isMeasuredSource(body.source) || bars.length < 21) return empty;
-          // Returns and their bar times are built in one pass so `times[k]` is
-          // by construction the open of the bar whose close produced
-          // `series[k]`. Every downstream x-axis rests on that alignment, and it
-          // must not be re-derived anywhere else.
-          const series: number[] = [];
-          const times: number[] = [];
-          for (let i = 1; i < bars.length; i++) {
-            if (bars[i - 1].c > 0) {
-              series.push(bars[i].c / bars[i - 1].c - 1);
-              times.push(Number(bars[i].t));
-            }
-          }
-          // The newest bar's open time is what lets a consumer check that the
-          // return it is about to use covers the gateway's session rather than
-          // yesterday's. The pipeline used to read `c` and drop `t`, which made
-          // that check impossible and the alignment an assumption.
-          const newest = bars[bars.length - 1];
-          const previous = bars[bars.length - 2];
-          const bar = newest && previous && previous.c > 0
-            ? { openMs: Number(newest.t), prevClose: previous.c, close: newest.c }
-            : null;
-          // Quote-currency ADV from the same bars the risk numbers use, so a
-          // position can never have a liquidity figure but no risk figure.
-          return {
-            symbol,
-            series,
-            times,
-            bar,
-            adv: { adv: averageDailyVolume(bars, "1d"), observations: bars.length },
-          };
-        } catch {
-          return empty;
-        }
-      }),
-    ).then((entries) => {
+    void fetchHeldBars(symbols).then((held) => {
       if (cancelled) return;
-      // One predicate for every map, so a symbol can never appear in one and
-      // not another.
-      const measured = entries.filter((e) => e.series.length > 0);
-      setReturns(Object.fromEntries(measured.map((e) => [e.symbol, e.series])));
-      setBarTimes(Object.fromEntries(measured.map((e) => [e.symbol, e.times])));
-      setAdvBySymbol(Object.fromEntries(
-        measured.filter((e) => e.adv !== null).map((e) => [e.symbol, e.adv!]),
-      ));
-      setSessionBars(Object.fromEntries(
-        entries.filter((e) => e.bar !== null).map((e) => [e.symbol, e.bar!]),
-      ));
+      applyHeldBars(held);
       setRiskLoading(false);
     });
     return () => {
@@ -470,97 +285,13 @@ export function useBook(): BookView {
 
   // ---- derived, all unconditional ---------------------------------------- //
 
-  const positions = book?.exposure.positions ?? [];
-
-  // Signed notionals: a short must reduce the book's variance, and it only can
-  // if the sign survives into the covariance maths.
-  const riskPositions = useMemo(
-    () =>
-      positions
-        .filter((position) => position.notional > 0)
-        .map((position) => ({
-          symbol: position.symbol,
-          signedNotional: position.side === "SHORT" ? -position.notional : position.notional,
-        })),
-    // `positions` is a fresh array each render; its content is what matters.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [heldSymbols, book?.as_of],
-  );
-
-  const covarianceModel = useMemo(
-    () => (riskPositions.length ? buildCovariance(riskPositions.map((r) => r.symbol), returns) : null),
-    [riskPositions, returns],
-  );
-
-  const equityNow = book?.equity.current ?? 0;
-  const risk = useMemo(
-    // One annualisation constant, shared with the factor decomposition. Two
-    // literals that must agree is one too many.
-    () => (covarianceModel ? portfolioRisk(riskPositions, equityNow, covarianceModel, BARS_PER_YEAR["1d"], returns) : null),
-    [covarianceModel, riskPositions, equityNow, returns],
-  );
-
-  // Does the VaR above actually hold up? Computed from the same returns, so the
-  // forecast and its scorecard can never describe different data.
-  const varValidation = useMemo(
-    () => (riskPositions.length ? rollingVarBacktest(riskPositions, returns) : null),
-    [riskPositions, returns],
-  );
-
-  // The same points the scorer counts, kept rather than discarded. Recomputing
-  // is deliberate and cheap — `returns` only changes when the OHLCV effect
-  // resolves, not on the 15s poll — and it buys one exported entry point per
-  // question instead of a scorer that also returns a chart payload.
-  const varSeries = useMemo(
-    () => (riskPositions.length ? rollingVarSeries(riskPositions, returns, { times: barTimes }) : null),
-    [riskPositions, returns, barTimes],
-  );
-
-  const missingHistory = useMemo(() => {
-    const measured = new Set(covarianceModel?.symbols ?? []);
-    return riskPositions.map((r) => r.symbol).filter((symbol) => !measured.has(symbol));
-  }, [covarianceModel, riskPositions]);
-
-  const referenceSymbol = riskPositions[0]?.symbol ?? "BTCUSDT";
-
-  // Beta against the largest position, and each position's share of book
-  // volatility. Both belong on the positions row: a PM reading exposure should
-  // not have to open the risk tab to learn that the third-largest line carries
-  // the most risk.
-  const riskShare = useMemo(
-    () => new Map(risk?.contributions.map((c) => [c.symbol, c.contributionShare]) ?? []),
-    [risk],
-  );
-
-  const referenceSessionReturn = useMemo(
-    () => sessionReturn(sessionBars[referenceSymbol], book?.session_date ?? ""),
-    [sessionBars, referenceSymbol, book?.session_date],
-  );
-
-  const betaBySymbol = useMemo(
-    () =>
-      new Map<string, number | null>(
-        riskPositions.map((r) => [
-          r.symbol,
-          r.symbol === referenceSymbol ? 1 : beta(r.symbol, referenceSymbol, returns),
-        ]),
-      ),
-    [riskPositions, referenceSymbol, returns],
-  );
-
-  // The same caps the risk gateway enforces, read off the payload rather than
-  // duplicated as constants — a proposal built against a stale limit would be
-  // rejected order by order at the gate.
-  const allocationLimits = useMemo<AllocationLimits>(
-    () => ({
-      maxSymbolNotional: positions[0]
-        ? positions[0].symbol_limit.used + positions[0].symbol_limit.remaining
-        : undefined,
-      maxGrossNotional: book?.risk_budget.gross_exposure.limit,
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [heldSymbols, book?.risk_budget.gross_exposure.limit, book?.as_of],
-  );
+  // Every risk figure the two book tabs share, derived once. Unconditional by
+  // construction — see the hook's own header for why that matters here.
+  const {
+    riskPositions, covarianceModel, risk, varValidation, varSeries,
+    missingHistory, referenceSymbol, riskShare, referenceSessionReturn,
+    betaBySymbol, allocationLimits,
+  } = useBookRisk({ book, heldSymbols, returns, barTimes, sessionBars });
 
   // Memoised: `sandboxEquityPath(book)` built a fresh array identity on every
   // render, which alone would defeat the stable view identity below.
