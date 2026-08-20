@@ -1074,7 +1074,7 @@ export default function Page() {
       stop("Portfolio → Overview", "The same book Risk reads; the covariance card says “Measured, N aligned bars”, never an assumption.", "portfolio", "overview", () => setPortfolioSection("overview")),
       stop("Risk → Monte Carlo", "10,000 bootstrap paths against the live drawdown budget — the P95 loss verdict, in dollars.", "risk", "montecarlo", () => setRiskSection("montecarlo")),
       stop("Data → Quality & Incidents", "Simulate a provider outage and watch the incident row, failover graph and consensus react — then self-restore.", "data", "quality", () => setDataSection("quality")),
-      stop("Reliability → Telemetry & SLIs", "Fleet-truth p99 and provider circuits — the latency chip in every header resolves here.", "reliability", "overview", () => setReliabilitySection("overview")),
+      stop("Reliability → Attention & SLIs", "Fleet-truth p99 and provider circuits — the latency chip in every header resolves here.", "reliability", "overview", () => setReliabilitySection("overview")),
       stop("Developer → API & Schema", "OpenAPI drift against the committed digest, and the Monte Carlo parity check you can run in this browser.", "developer", "apis", () => setDeveloperSection("apis")),
     ];
   }, [navigate]);
