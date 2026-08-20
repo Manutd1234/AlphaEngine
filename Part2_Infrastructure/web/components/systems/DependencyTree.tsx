@@ -136,14 +136,10 @@ export default function DependencyTree({
       </ul>
 
       <details className="disclosure">
-        <summary>How to read this tree, and why two of the five states are not faults</summary>
+        <summary>Why two of the five states are not faults</summary>
         <p className="sub">
-          Read top-down: everything indented under a node depends on it. Five states, because{" "}
-          <em>not configured</em> and <em>not observed</em> are not faults.
-        </p>
-        <p className="sub">
-          A healthy row&rsquo;s reading goes to a screen reader only; it would repeat the glyph and
-          the state word. Every row that is <em>not</em> healthy keeps its reason inline.
+          Read top-down: everything indented under a node depends on it. <em>Not configured</em> and{" "}
+          <em>not observed</em> are not faults; every row that is not healthy keeps its reason inline.
         </p>
       </details>
     </section>
