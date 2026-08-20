@@ -151,8 +151,13 @@ describe("every call site carries a deadline", () => {
 });
 
 describe("a poll's deadline fits inside its own interval", () => {
-  /** The cadences the console actually offers, read rather than restated. */
-  const cadences = [...read("../components/systems/OperatorPanel.tsx")
+  /** The cadences the console actually offers, read rather than restated.
+   *  `SessionControls`, not `OperatorPanel`: the CADENCES table moved with the
+   *  poll-rate picker when the operator panel was split into its controls, its
+   *  guard and its confirmation. The next assertion is what proves this path
+   *  still finds them — a list read from the wrong file is an empty list, and
+   *  an empty list makes every check below it vacuous. */
+  const cadences = [...read("../components/systems/SessionControls.tsx")
     .matchAll(/\{ label: "[^"]+", ms: ([\d_]+),/g)]
     .map((match) => Number(match[1].replace(/_/g, "")))
     .filter((ms) => ms > 0);
@@ -316,12 +321,71 @@ describe("the streamed desk is wired, not orphaned", () => {
   });
 
   it("the hook stops rather than reconnect-storming an unavailable stream", () => {
-    // EventSource retries roughly every 3s on its own. Against a deployment
-    // that has just said there is nothing to stream, that is a poll wearing a
-    // push's clothes.
+    /**
+     * EventSource retries roughly every 3s on its own, forever, with no
+     * backoff and no idea whether anyone is looking at the tab. Against a
+     * deployment that has just said there is nothing to stream, that is a poll
+     * wearing a push's clothes.
+     *
+     * This used to read `es.close()` out of the 900 characters after the
+     * desk-state handler opened, which was a proximity check standing in for
+     * the invariant. The teardown is now a named function the handler calls,
+     * so the text moved and the check went red against code that had got
+     * MORE careful — the shape of a test agreeing with itself rather than
+     * with the codebase. Asserted against the behaviour instead, and against
+     * more of it than before.
+     */
     const handler = streamHook.slice(streamHook.indexOf('addEventListener("desk-state"'));
-    assert.match(handler.slice(0, 900), /es\.close\(\)/,
-      "an unavailable stream is left open to retry forever");
+    assert.match(handler.slice(0, 900), /fail\(/,
+      "the unavailable branch no longer routes to a teardown");
+    assert.match(streamHook, /const fail = \([\s\S]{0,200}?es\.close\(\)/,
+      "the teardown does not close the EventSource, so it retries forever");
+    assert.match(streamHook, /es\.onerror = \(\) => fail\(/,
+      "a dropped connection is left to EventSource's own unbounded retry");
+  });
+
+  it("reconnection is the shared controller's, so it is hidden-gated and backed off", () => {
+    // The three properties EventSource's built-in retry has none of, and the
+    // three this codebase already paid for once — 1,542 requests in ten
+    // seconds from one idle guest tab. Reused rather than reimplemented: a
+    // second copy of the curve is how a backoff comes to disagree with itself.
+    assert.match(streamHook, /new PollingController\(/,
+      "the stream rolled its own reconnect loop instead of using the adopted one");
+    assert.match(streamHook, /maxBackoffMs/, "the reconnect loop has no ceiling");
+    // `gateway_not_configured` cannot change without a redeploy, so it is not
+    // retried on any curve at all — the cockpit's reasoning for `!unconfigured`.
+    assert.match(streamHook, /gateway_not_configured"\) loop\?\.stop\(\)/,
+      "a deployment with no gateway is still being asked for a stream");
+  });
+
+  it("one connection serves every consumer", () => {
+    // Two consumers now, and the workspace keeps its panels mounted behind
+    // `hidden`, so both are live at once. One EventSource per consumer would
+    // open a second proxy route holding a second upstream gateway stream, and
+    // the per-origin connection cap would starve the polls underneath.
+    assert.match(streamHook, /subscribers \+= 1/, "the stream store is not refcounted");
+    assert.match(streamHook, /if \(subscribers === 1\)/,
+      "the connection is opened per consumer rather than once for the page");
+    assert.match(streamHook, /if \(subscribers > 0\) return;/,
+      "the last consumer leaving does not close the connection");
+  });
+
+  it("every surface on the stream says which transport is live", () => {
+    /**
+     * "Pushed" and "polled" are different freshness guarantees — about a
+     * second against up to fifteen — and a surface that implies the better one
+     * while delivering the worse one is this codebase's central defect. Both
+     * surfaces must say it, and both must say it in the same words, which is
+     * why the wording is a function rather than a literal in each.
+     */
+    assert.match(streamHook, /export function transportLabel/);
+    for (const file of [
+      "../components/portfolio/BookChrome.tsx",
+      "../components/execution/PnlStrip.tsx",
+    ]) {
+      assert.match(read(file), /transportLabel\(/,
+        `${file} shows streamed figures without saying how they arrived`);
+    }
   });
 
   it("the stream is a signal, not the only source", () => {
