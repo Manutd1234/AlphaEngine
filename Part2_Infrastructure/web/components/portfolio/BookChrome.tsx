@@ -10,6 +10,7 @@
  */
 
 import type { BookView } from "@/lib/use-book";
+import { transportLabel } from "@/lib/use-desk-stream";
 
 export interface BookFallbackProps {
   view: BookView;
@@ -59,9 +60,8 @@ export function BookFallback({ view, onOpenResearch, surface = "portfolio" }: Bo
           </div>
         </div>
         <p className="sub">
-          The risk gateway is a long-lived process — WebSocket feeds, a DuckDB audit log, a kill
-          switch — and serverless cannot host one. This site runs the sandbox instead: a generated
-          book, labelled on every panel, judged by the same gate logic.
+          Serverless cannot host a long-lived process, and the gateway is one. This site runs the
+          sandbox instead: a generated book judged by the same gate logic.
         </p>
         <div className="page-actions">
           <button className="primary-action" onClick={() => setSandbox(true)}>
@@ -96,9 +96,8 @@ export function BookFallback({ view, onOpenResearch, surface = "portfolio" }: Bo
         <button onClick={onOpenResearch}>Open Research</button>
       </div>
       <p className="research-note">
-        A configured gateway is not answering, and nothing is generated in its place: a sandbox
-        that appears during a real outage is how generated numbers get mistaken for a desk. It
-        stays one explicit click away.
+        A configured gateway is not answering. Nothing is generated in its place — a sandbox
+        appearing during an outage is how generated numbers get mistaken for a desk.
       </p>
     </div>
   );
@@ -116,7 +115,9 @@ export function BookChrome({ view }: { view: BookView }) {
   // same numbers at about a second and up to fifteen, and a desk running on the
   // fallback looked exactly like one running live — so the stream implied a
   // freshness it had stopped delivering. Said in words, never by the dot alone.
-  const transport = sandbox ? null : streamState === "live" ? "live-pushed" : "polled";
+  // Through the shared helper, not spelled out here: the cockpit's strip says
+  // the same thing, and two literals that must agree is one too many.
+  const transport = sandbox ? null : transportLabel(streamState);
   const lastRefreshLabel = (lastSuccessAt ?? new Date(book.as_of)).toLocaleTimeString()
     + (transport ? `, ${transport}` : "");
   const gatewayEnvironment = book.gateway?.environment?.trim().toLowerCase();
@@ -169,8 +170,7 @@ export function BookChrome({ view }: { view: BookView }) {
             </span>
             <span>
               <strong>These positions do not exist.</strong> Equity, P&amp;L, exposure and every risk
-              figure below are generated from a fixed seed — the same book every time. Execution
-              handoffs are disabled.
+              figure below come from a fixed seed. Execution handoffs are disabled.
             </span>
           </div>
         </div>
