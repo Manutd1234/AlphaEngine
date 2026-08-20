@@ -70,7 +70,6 @@ export default function VenueMixDonut({
       <header className="section-heading compact">
         <div>
           <h3>Share of fills by venue</h3>
-          <p className="muted">Execution venues across the audit window.</p>
         </div>
         <span className="section-note">{mix.totalFills} fills</span>
       </header>

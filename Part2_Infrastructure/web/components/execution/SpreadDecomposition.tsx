@@ -95,9 +95,7 @@ export default function SpreadDecomposition({
       <header className="section-heading compact">
         <div>
           <h3>Effective spread and fee</h3>
-          <p className="muted">Cost decomposition per venue.</p>
         </div>
-        <span className="section-note">{mix.totalFills} fills</span>
       </header>
 
       <div ref={ref}>

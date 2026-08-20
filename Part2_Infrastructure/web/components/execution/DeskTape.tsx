@@ -36,7 +36,7 @@ export default function DeskTape({ symbol }: { symbol: string }) {
       </div>
 
       <p className="sub">
-        Mirrored decisions as Postgres commits them, filtered to {symbol}. The Blotter pane holds
+        Filtered to {symbol}. The Blotter pane holds
         the complete record — polled from the gateway&apos;s own store, which stays authoritative.
         A stream can drop silently, so it is watched, not counted on.
       </p>
