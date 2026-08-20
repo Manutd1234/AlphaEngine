@@ -113,7 +113,12 @@ export default function QuantEducationalTooltip({
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
       >
-        <span aria-hidden>ⓘ</span> {term}
+        {/* The glyph alone. Its only caller is StatTile, which prints {label}
+            immediately before this and passes the same string as `term` — so
+            an explained tile read "Annualised Sharpe (i) Annualised Sharpe",
+            and a third time in the popover heading. The accessible name is
+            carried by aria-label, which is where it was always doing the work. */}
+        <span aria-hidden>ⓘ</span>
       </button>
 
       <div

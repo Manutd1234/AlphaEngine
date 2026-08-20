@@ -11809,7 +11809,6 @@ button.page-insight:hover:not(:disabled) {
 .quant-tooltip-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
   margin-left: var(--space-1);
   padding: 1px 5px;
   border: 1px solid color-mix(in srgb, var(--series-1) 30%, transparent);
