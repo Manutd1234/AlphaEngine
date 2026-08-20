@@ -111,6 +111,8 @@ export interface DataQualityCounts {
 }
 
 export interface DataQualityEscalationView {
+  acknowledged_at: string | null;
+  acknowledged_by: string | null;
   channel: "telegram" | "log" | null;
   count: number;
   detail: string;

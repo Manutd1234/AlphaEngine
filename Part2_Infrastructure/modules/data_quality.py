@@ -122,6 +122,12 @@ class DataQualityEscalationView(BaseModel):
     notified_at: datetime | None
     channel: Literal["telegram", "log"] | None
     resolved_at: datetime | None
+    #: When someone took it, and who. NULL means nobody has — including for
+    #: every row written before these columns existed, which is the same fact.
+    acknowledged_at: datetime | None
+    #: `telegram:<user id>` names a person. `web:token` names a credential and
+    #: nothing more, and is left as-is rather than rendered as a person.
+    acknowledged_by: str | None
 
 
 class DataQualityView(BaseModel):
@@ -631,6 +637,8 @@ class DataQualityLedger(SqliteStore):
             notified_at=_dt(row["notified_at"]),
             channel=row["channel"],
             resolved_at=_dt(row["resolved_at"]),
+            acknowledged_at=_dt(row["acknowledged_at"]),
+            acknowledged_by=row["acknowledged_by"],
         )
 
     def findings(

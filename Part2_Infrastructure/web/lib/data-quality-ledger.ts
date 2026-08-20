@@ -64,6 +64,13 @@ export interface DataQualityEscalationWire {
   notified_at: string | null;
   channel: DataQualityChannel | null;
   resolved_at: string | null;
+  /** When someone took it. Null means nobody has. */
+  acknowledged_at: string | null;
+  /**
+   * Who took it. `telegram:<user id>` names a person; `web:token` names a
+   * credential and nothing more.
+   */
+  acknowledged_by: string | null;
 }
 
 export interface DataQualityViewWire {

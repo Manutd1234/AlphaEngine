@@ -158,6 +158,13 @@ export interface DataQualityEscalation {
   notified_at: string | null;
   channel: "telegram" | "log" | null;
   resolved_at: string | null;
+  /** When someone took it. Null means nobody has. */
+  acknowledged_at: string | null;
+  /**
+   * Who took it. `telegram:<user id>` names a person; `web:token` names a
+   * credential and nothing more, and is rendered as such rather than as a name.
+   */
+  acknowledged_by: string | null;
 }
 
 export type GuardMode = "token" | "open-dev" | "open-demo" | "locked";

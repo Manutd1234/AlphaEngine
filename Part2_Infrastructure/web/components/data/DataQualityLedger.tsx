@@ -145,8 +145,10 @@ export default function DataQualityLedger({ validation, healthLoaded }: DataQual
               {[...open, ...resolved].map((e) => (
                 <li key={e.id}>
                   <strong>
-                    <span aria-hidden>{e.resolved_at ? "✓" : "▲"}</span>{" "}
-                    {e.resolved_at ? "Cleared" : "Open"}: {RULE_LABEL[e.rule]}, {e.provider}
+                    <span aria-hidden>{e.resolved_at ? "✓" : e.acknowledged_at ? "●" : "▲"}</span>{" "}
+                    {e.resolved_at ? "Cleared" : e.acknowledged_at ? "Taken" : "Open"}
+                    : {RULE_LABEL[e.rule]}, {e.provider}
+                    {" "}<span className="muted">#{e.id}</span>
                   </strong>
                   <span className="console-skip__reason">
                     {e.channel === "telegram"
@@ -157,6 +159,13 @@ export default function DataQualityLedger({ validation, healthLoaded }: DataQual
                   </span>
                   <small className="muted console-wrap">
                     {e.detail}; opened {utc(e.opened_at)}{e.resolved_at ? `; cleared ${utc(e.resolved_at)}` : ""}.
+                    {/* A Telegram id names a person; `web:token` names the
+                        credential that made the call and nothing more. Said
+                        differently, because they are different facts. */}
+                    {e.acknowledged_at && e.acknowledged_by?.startsWith("telegram:")
+                      && ` Taken by ${e.acknowledged_by.slice("telegram:".length)} at ${utc(e.acknowledged_at)}.`}
+                    {e.acknowledged_at && !e.acknowledged_by?.startsWith("telegram:")
+                      && ` Taken at ${utc(e.acknowledged_at)} by an operator credential, which does not name a person — /ack from Telegram does.`}
                   </small>
                 </li>
               ))}

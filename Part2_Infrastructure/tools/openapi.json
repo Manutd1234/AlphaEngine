@@ -630,6 +630,29 @@
       },
       "DataQualityEscalationView": {
         "properties": {
+          "acknowledged_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acknowledged At"
+          },
+          "acknowledged_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acknowledged By"
+          },
           "channel": {
             "anyOf": [
               {
@@ -725,7 +748,9 @@
           "detail",
           "notified_at",
           "channel",
-          "resolved_at"
+          "resolved_at",
+          "acknowledged_at",
+          "acknowledged_by"
         ],
         "title": "DataQualityEscalationView",
         "type": "object"
