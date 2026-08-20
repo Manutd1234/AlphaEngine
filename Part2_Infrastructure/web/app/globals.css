@@ -292,11 +292,14 @@ p, li, .sub, .console-footnote, .research-note, .page-heading p, small {
   text-wrap: pretty;
 }
 
-/* The one prose block that runs the full width of a card is the footnote;
-   the rest are sized by their card on purpose (see the max-width: none
-   opt-outs). Seventy-two characters is the top of the comfortable measure. */
+/* No measure cap, for the reason `.research-note` records a few thousand lines
+   below: a fixed ch cap inside a card the reader already sized is two
+   constraints fighting. 72ch resolves to roughly 550px, so on any card wider
+   than that the footnote stopped short of the edge and spent the saved width on
+   an extra line — the Quota headroom note ran to three ragged lines with dead
+   space beside them. The card's own width is the measure. */
 .console-footnote {
-  max-width: 72ch;
+  max-width: none;
 }
 
 @media (prefers-color-scheme: dark) {
