@@ -359,9 +359,9 @@ def volatility_regime(
     if percentile >= 0.85:
         regime, note = "STRESSED", "Volatility is in the top 15% of its own recent range — position sizes calibrated in calmer conditions are carrying more risk than they were sized for."
     elif percentile >= 0.6:
-        regime, note = "ELEVATED", "Above its usual range but not extreme. Stress scenarios sized on the long-run average will understate the move."
+        regime, note = "ELEVATED", "Above its usual range but not extreme. Scenarios here are sized on the long-run average, so they understate what this market is currently delivering."
     elif percentile <= 0.15:
-        regime, note = "COMPRESSED", "Volatility is in the bottom 15%. Quiet regimes end abruptly, and sizing set here is the sizing you carry into the next expansion."
+        regime, note = "COMPRESSED", "Volatility is in the bottom 15%. Quiet regimes end abruptly, and the sizing set here is the sizing you carry into the next expansion."
     else:
         regime, note = "NORMAL", "Volatility is within its usual range for this instrument."
 

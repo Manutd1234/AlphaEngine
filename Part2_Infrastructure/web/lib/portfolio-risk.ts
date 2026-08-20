@@ -469,7 +469,7 @@ const REGIME_NOTES: Record<Regime, string> = {
   STRESSED:
     "Volatility is in the top 15% of its own recent range — position sizes calibrated in calmer conditions are carrying more risk than they were sized for.",
   ELEVATED:
-    "Above its usual range but not extreme. Stress scenarios sized on the long-run average will understate the move.",
+    "Above its usual range but not extreme. Scenarios here are sized on the long-run average, so they understate what this market is currently delivering.",
   COMPRESSED:
     "Volatility is in the bottom 15%. Quiet regimes end abruptly, and the sizing set here is the sizing you carry into the next expansion.",
   NORMAL: "Volatility is within its usual range for this instrument.",
