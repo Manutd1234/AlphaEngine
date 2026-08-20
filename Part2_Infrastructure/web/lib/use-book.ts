@@ -35,7 +35,7 @@ import {
 } from "@/lib/portfolio";
 import { useSession } from "@/lib/use-session";
 import { probeGateway } from "@/lib/use-gateway-connection";
-import { useDeskStream, type DeskStreamState } from "@/lib/use-desk-stream";
+import { useStreamedRefresh, type DeskStreamState } from "@/lib/use-desk-stream";
 import { usePolling } from "@/lib/use-polling";
 import {
   type AllocationLimits,
@@ -321,14 +321,7 @@ export function useBook(): BookView {
    * The poll stays underneath: the fallback for a deployment with no stream and
    * the backstop for one that dies quietly. A signal, never the only way.
    */
-  const stream = useDeskStream(!sandbox);
-  const lastSeq = useRef(0);
-  useEffect(() => {
-    if (sandbox || stream.state !== "live" || stream.seq === 0) return;
-    if (stream.seq === lastSeq.current) return;
-    lastSeq.current = stream.seq;
-    void refresh(true);
-  }, [sandbox, stream.state, stream.seq, refresh]);
+  const stream = useStreamedRefresh(() => refresh(true), !sandbox);
 
   /*
    * While the sandbox is on there is nothing to poll: the book is generated
