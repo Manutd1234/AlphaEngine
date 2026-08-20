@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import pytest
 
-import modules.telegram as telegram
 from config import settings
 from modules.telegram import TelegramBot
+from modules.telegram._mixins import alerts as alerts_module
 
 
 class _Bot(TelegramBot):
@@ -74,7 +74,10 @@ def test_a_configured_escalation_list_is_not_narrowed_by_roles(monkeypatch):
 
         telegram_alert_chat_ids = ["trader"]
 
-    monkeypatch.setattr(telegram, "settings", _WithEscalation())
+    # `_risk_alert_targets` lives in `modules.telegram._mixins.alerts`, and a
+    # `setattr` patch binds to the module object holding the reference. Aimed at
+    # the package instead, this would patch a name the function never reads.
+    monkeypatch.setattr(alerts_module, "settings", _WithEscalation())
     bot = _Bot(SUBS)
     assert bot._risk_alert_targets() == [s["chat_id"] for s in SUBS]
 

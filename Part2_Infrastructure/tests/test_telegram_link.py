@@ -29,7 +29,6 @@ from conftest import TELEGRAM_TEST_CHAT, TELEGRAM_TEST_USER
 from test_telegram import StubBot, update
 
 from config import settings
-from modules import telegram as telegram_module
 from modules.telegram import (
     LINK_KIND_ACCOUNT,
     LINK_KIND_GUEST,
@@ -40,6 +39,7 @@ from modules.telegram import (
     link_token_fingerprint,
     mint_link_token,
 )
+from modules.telegram._mixins import linking as linking_module
 
 SECRET = "a-shared-link-secret-of-more-than-32-chars"
 GUEST_ID = "3f2504e0-4f89-11d3-9a0c-0305e82c3301"
@@ -644,8 +644,8 @@ BAD_KEY = {
 def supabase_returns(monkeypatch, handler) -> list[httpx.Request]:
     """Point the module's Supabase client at `handler` and record what it sent.
 
-    `_record_account_link` builds its own client, so the seam is the module's
-    reference to `httpx.AsyncClient` rather than an injected dependency.
+    `_record_account_link` builds its own client, so the seam is the `httpx`
+    reference held by `_mixins/linking.py`, the one module a patch here reaches.
     """
     seen: list[httpx.Request] = []
     real = httpx.AsyncClient
@@ -658,7 +658,7 @@ def supabase_returns(monkeypatch, handler) -> list[httpx.Request]:
         kwargs["transport"] = httpx.MockTransport(record)
         return real(**kwargs)
 
-    monkeypatch.setattr(telegram_module.httpx, "AsyncClient", factory)
+    monkeypatch.setattr(linking_module.httpx, "AsyncClient", factory)
     _set("supabase_url", "https://project.supabase.co")
     _set("supabase_service_role_key", "service-role-key-for-tests")
     return seen
@@ -847,15 +847,15 @@ async def test_the_card_labels_both_identities_it_binds(bot, monkeypatch):
 
 def test_a_reason_survives_a_body_that_is_not_json():
     """Not every refusal is PostgREST's. A proxy's HTML must not read as silence."""
-    reason = telegram_module._postgrest_reason(httpx.Response(502, text="<html>Bad Gateway</html>"))
+    reason = linking_module._postgrest_reason(httpx.Response(502, text="<html>Bad Gateway</html>"))
     assert "Bad Gateway" in reason
 
 
 def test_a_reason_is_reported_even_when_the_body_is_empty():
-    reason = telegram_module._postgrest_reason(httpx.Response(500, text=""))
+    reason = linking_module._postgrest_reason(httpx.Response(500, text=""))
     assert "500" in reason
 
 
 def test_a_reason_is_clipped_to_fit_a_card():
-    reason = telegram_module._postgrest_reason(httpx.Response(400, json={"message": "x" * 400}))
+    reason = linking_module._postgrest_reason(httpx.Response(400, json={"message": "x" * 400}))
     assert len(reason) <= 220

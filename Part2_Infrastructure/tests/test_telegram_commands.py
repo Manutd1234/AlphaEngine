@@ -96,7 +96,12 @@ async def test_rate_limited_sends_wait_the_time_telegram_asks_for(bot, monkeypat
     burst — so 429 is a normal condition rather than an exotic one. Before
     this, the transport treated it as a plain failure and dropped the reply.
     """
+    # `_post` lives in `modules.telegram.transport`, and `monkeypatch.setattr`
+    # binds to the module object that holds the reference. Patching
+    # `modules.telegram` here would apply to nothing and the retry below would
+    # really sleep three seconds — a passing test that measured the wall clock.
     import modules.telegram as telegram_module
+    from modules.telegram import transport as transport_module
 
     slept: list[float] = []
 
@@ -125,7 +130,7 @@ async def test_rate_limited_sends_wait_the_time_telegram_asks_for(bot, monkeypat
                                  "parameters": {"retry_after": 3}})
             return Response({"ok": True, "result": {}})
 
-    monkeypatch.setattr(telegram_module.asyncio, "sleep", record_sleep)
+    monkeypatch.setattr(transport_module.asyncio, "sleep", record_sleep)
     client = RateLimitedClient()
     bot._client = client
 
@@ -263,7 +268,13 @@ def test_every_command_a_reply_points_at_actually_exists():
     for spec in COMMAND_SPECS:
         known.update(spec.aliases or ())
 
-    source = Path(telegram_module.__file__).read_text()
+    # The whole package, not just its `__init__.py`: `next_commands=` strings
+    # live in the handler files, and scanning only `__file__` after the split
+    # would have found nothing and reported it as "no dangling chains".
+    package = Path(telegram_module.__file__).parent
+    files = sorted(package.rglob("*.py"))
+    assert len(files) > 1, "the package scan found only one file — did the layout change?"
+    source = "\n".join(path.read_text() for path in files)
     dangling: list[str] = []
     # `next_commands="..."` and f-string variants; the value runs to the
     # closing quote of that argument.

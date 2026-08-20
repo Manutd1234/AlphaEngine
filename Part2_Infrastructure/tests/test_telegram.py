@@ -747,9 +747,10 @@ class TestMultiSymbolParsingAndDrawing:
 
         import modules.telegram as telegram_module
 
-        # Strip comments and docstrings — this file's own explanation names the
-        # very literals it is banning, and a raw substring scan would match it.
-        raw = Path(telegram_module.__file__).read_text()
+        # A PACKAGE now, so `__file__` names only `__init__.py` — scan every
+        # file of it or this goes vacuous. Comments are stripped because this
+        # file's own explanation names the very literals it is banning.
+        raw = "\n".join(p.read_text() for p in Path(telegram_module.__file__).parent.rglob("*.py"))
         source = "\n".join(
             line for line in raw.splitlines()
             if not line.lstrip().startswith("#")
@@ -778,22 +779,21 @@ class TestMultiSymbolParsingAndDrawing:
         banned calls) cannot fail its own rule.
         """
         import ast
+        import contextlib
         import importlib
         from pathlib import Path
 
         import modules.telegram as telegram_module
 
-        modules_to_scan = [telegram_module]
-        # The generators may live in their own module; scan it too when it is
-        # there, so extracting them cannot quietly escape this rule.
-        try:
-            modules_to_scan.append(importlib.import_module("modules.telegram_charts"))
-        except ModuleNotFoundError:
-            pass
+        # Every file of the package — `__file__` is only `__init__.py` now — and
+        # the chart module too, so extracting a generator cannot escape the rule.
+        scan = sorted(Path(telegram_module.__file__).parent.rglob("*.py"))
+        with contextlib.suppress(ModuleNotFoundError):
+            scan.append(Path(importlib.import_module("modules.telegram_charts").__file__))
 
         banned = {"random", "sin", "cos", "uniform", "randn", "normal"}
-        for module in modules_to_scan:
-            tree = ast.parse(Path(module.__file__).read_text())
+        for path in scan:
+            tree = ast.parse(path.read_text())
             for node in ast.walk(tree):
                 if not isinstance(node, ast.FunctionDef):
                     continue
@@ -802,7 +802,7 @@ class TestMultiSymbolParsingAndDrawing:
                 for inner in ast.walk(node):
                     if isinstance(inner, ast.Call) and isinstance(inner.func, ast.Attribute):
                         assert inner.func.attr not in banned, (
-                            f"{module.__name__}.{node.name} synthesises data "
+                            f"{path.name}::{node.name} synthesises data "
                             f"with {inner.func.attr}()"
                         )
 
@@ -819,7 +819,7 @@ class TestMultiSymbolParsingAndDrawing:
         assert len(bot._symbols(["A", "B", "C", "D", "E", "F", "G", "H"])) == 6
 
     def test_the_series_chart_is_drawn_from_the_closes_it_is_given(self):
-        from modules.telegram import generate_series_chart_png
+        from modules.telegram_charts import generate_series_chart_png
 
         rising = generate_series_chart_png("BTCUSDT", [100.0, 101.0, 108.0], "1d", "OpenBB")
         falling = generate_series_chart_png("BTCUSDT", [108.0, 101.0, 100.0], "1d", "OpenBB")
