@@ -9,7 +9,7 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -17,29 +17,52 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (path: string) => readFileSync(`${root}${path}`, "utf8");
 
 describe("the Developer console is fed, stamped and pulsing", () => {
-  const source = read("components/DeveloperConsole.tsx");
+  /**
+   * The console is a shell and six sections since it passed the length
+   * ceiling, so its three properties are pinned where each one landed rather
+   * than at one path that now holds only the first. The stamp stayed on the
+   * shell — it is the head's, above the rail. The counters went to the
+   * Overview section with the readiness ring and the queue tile. The pills are
+   * everywhere, so the pulse scan reads the shell AND every section: pointing
+   * it at one file would leave the others free to pulse unconditionally.
+   */
+  const shell = read("components/DeveloperConsole.tsx");
+  const overview = read("components/developer/DeveloperOverview.tsx");
+  const sections = readdirSync(`${root}components/developer`)
+    .filter((entry) => entry.endsWith(".tsx"))
+    .map((entry) => [`components/developer/${entry}`, read(`components/developer/${entry}`)] as const);
 
   it("renders the shared poll's age through FreshnessStamp", () => {
-    assert.match(source, /<FreshnessStamp updatedAt=\{view\.updatedAt\}/);
+    assert.match(shell, /<FreshnessStamp updatedAt=\{view\.updatedAt\}/);
   });
 
   it("counts through NumberTicker where the value can actually move", () => {
-    assert.match(source, /NumberTicker value=\{readyCount\}/);
-    assert.match(source, /NumberTicker value=\{openWork\.length\}/);
+    assert.match(overview, /NumberTicker value=\{readyCount\}/);
+    assert.match(overview, /NumberTicker value=\{openWork\.length\}/);
   });
 
   it("pulses only states fed by the live poll", () => {
     // The pill's live prop must always be conditional on a live-read tone or
     // a running simulation — a bare `live` with no condition would let a
     // committed-evidence pill impersonate a live conclusion.
-    for (const match of source.matchAll(/live=\{([^}]+)\}/g)) {
-      assert.match(
-        match[1],
-        /tone === "good"|status === "running"/,
-        `StatusPill live={${match[1]}} is not gated on a live-read state`,
+    let pills = 0;
+    for (const [path, source] of [["components/DeveloperConsole.tsx", shell] as const, ...sections]) {
+      for (const match of source.matchAll(/[^-]\blive=\{([^}]+)\}/g)) {
+        pills += 1;
+        assert.match(
+          match[1],
+          /tone === "good"|status === "running"/,
+          `${path}: StatusPill live={${match[1]}} is not gated on a live-read state`,
+        );
+      }
+      assert.doesNotMatch(
+        source, /<StatusPill[^>]*\slive\s[^=]/,
+        `${path}: a bare live prop pulses unconditionally`,
       );
     }
-    assert.doesNotMatch(source, /<StatusPill[^>]*\slive\s[^=]/, "a bare live prop pulses unconditionally");
+    // A scan that finds no pill is a scan pointed at the wrong files, which is
+    // exactly how this check would have gone quiet when the console split.
+    assert.ok(pills >= 3, "the console's pulsing pills moved again; this check is reading nothing");
   });
 });
 
@@ -126,9 +149,11 @@ describe("motion never replaces the honest absence", () => {
 
   it("no nullable metric was coerced to zero on the way to a ticker", () => {
     // `?? 0` feeding a NumberTicker turns "we do not know" into "it is
-    // fine" with an animation on top. The two consoles wired so far.
+    // fine" with an animation on top. The two consoles wired so far —
+    // the Developer console's own tickers are in its Overview section since
+    // the split, and the shell it left behind renders none.
     for (const path of [
-      "components/DeveloperConsole.tsx",
+      "components/developer/DeveloperOverview.tsx",
       "components/developer/DeveloperWorkQueue.tsx",
       "components/header/LatencyChip.tsx",
       "components/ReliabilityConsole.tsx",
