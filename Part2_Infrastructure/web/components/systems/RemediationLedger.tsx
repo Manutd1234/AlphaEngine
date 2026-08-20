@@ -29,6 +29,7 @@ import CategoryBars, { type BarRow } from "@/components/charts/CategoryBars";
 import DonutChart, { type DonutSlice } from "@/components/common/DonutChart";
 import type { TraceEvent } from "@/lib/observability";
 import { MIN_TRIPS_FOR_RATE, deriveRemediation } from "@/lib/remediation";
+import { usePolling } from "@/lib/use-polling";
 
 const POLL_MS = 15_000;
 
@@ -70,9 +71,12 @@ export default function RemediationLedger({ active }: { active: boolean }) {
     // Act or Recovery is not reading this either.
     if (!active) return;
     void load();
-    const timer = setInterval(() => void load(), POLL_MS);
-    return () => clearInterval(timer);
   }, [active, load]);
+
+  /* The pane gate above was doing half the job: a reader sitting on this pane
+     who switched to another application still had a 15s poll running, and a
+     refusing gateway was asked four times a minute forever. */
+  usePolling({ tick: load, intervalMs: POLL_MS, maxBackoffMs: 120_000, enabled: active });
 
   const model = deriveRemediation(
     data?.events ?? [],

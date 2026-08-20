@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-20",
-  "commit": "cbd451d",
+  "commit": "07a1d89",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -506,6 +506,7 @@
     "Part2_Infrastructure/web/lib/use-exit-quotes.ts",
     "Part2_Infrastructure/web/lib/use-gateway-connection.ts",
     "Part2_Infrastructure/web/lib/use-mc-distribution.ts",
+    "Part2_Infrastructure/web/lib/use-polling.ts",
     "Part2_Infrastructure/web/lib/use-research-search.ts",
     "Part2_Infrastructure/web/lib/use-session.ts",
     "Part2_Infrastructure/web/lib/use-system-health.ts",

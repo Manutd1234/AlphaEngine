@@ -22,6 +22,7 @@ import { type ExecutionSection } from "@/lib/sections";
 import { SYMBOLS, type Side, type Ticker } from "@/lib/venues";
 import { compact, fmt, priceDp, signedPct, usd } from "@/lib/format";
 import { STRATEGY_LABELS, type SweepResponse } from "@/lib/types";
+import { usePolling } from "@/lib/use-polling";
 
 const PROBE_SIZES = [10_000, 50_000, 100_000, 250_000, 1_000_000];
 
@@ -97,6 +98,10 @@ export default function LiveMarket({
   // the price, which is what the no-colour-only rule requires.
   const [tickDirection, setTickDirection] = useState<Record<string, "up" | "down">>({});
   const prevTickers = useRef<Record<string, Ticker>>({});
+  /* The watchlist fetch closes over an AbortController owned by the effect
+     below, so the loop calls through a ref rather than owning the callback —
+     an aborted controller must not be polled against. */
+  const refreshWatchlistRef = useRef<(() => Promise<void>) | null>(null);
   const activeTicker = tickerBySymbol[symbol];
   const activeChange = paperEquity ? quotePreview?.changePct ?? null : activeTicker?.changePct24h ?? null;
   const activeLast = paperEquity ? quotePreview?.price ?? null : activeTicker?.last ?? snap?.consolidatedMid ?? null;
@@ -143,12 +148,22 @@ export default function LiveMarket({
     };
 
     void refreshWatchlist();
-    const timer = window.setInterval(() => void refreshWatchlist(), 30_000);
+    refreshWatchlistRef.current = refreshWatchlist;
     return () => {
       controller.abort();
-      window.clearInterval(timer);
+      refreshWatchlistRef.current = null;
     };
   }, []);
+
+  /* The old timer fired every 30s and the callback returned immediately when
+     `document.hidden` — so a backgrounded tab woke the main thread twice a
+     minute to decide to do nothing, and the loop had no backoff when the
+     ticker route was refusing. The controller does not wake at all. */
+  usePolling({
+    tick: () => refreshWatchlistRef.current?.(),
+    intervalMs: 30_000,
+    maxBackoffMs: 300_000,
+  });
 
   useEffect(() => {
     if (!paperEquity) {

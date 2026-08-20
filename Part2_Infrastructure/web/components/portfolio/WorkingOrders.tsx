@@ -28,6 +28,7 @@ import { download } from "@/lib/download";
 import { workingOrdersToCsv } from "@/lib/export-csv";
 import { fmt, usd } from "@/lib/format";
 import { probeGateway } from "@/lib/use-gateway-connection";
+import { usePolling } from "@/lib/use-polling";
 
 export interface WorkingOrdersProps {
   /** Where the rows come from. The empty state must not blame a quiet desk for a missing gateway. */
@@ -124,9 +125,18 @@ export default function WorkingOrders({
     }
     if (!active || source === "unavailable") return;
     void load();
-    const timer = window.setInterval(() => { void load(); }, POLL_MS);
-    return () => window.clearInterval(timer);
   }, [active, sandbox, source, load]);
+
+  /* Was `window.setInterval(load, 5000)` with no `document.hidden` check and no
+     backoff: a backgrounded tab kept asking for the working-order book every
+     five seconds, and a refusing gateway was asked twelve times a minute
+     forever. The controller carries both. */
+  usePolling({
+    tick: load,
+    intervalMs: POLL_MS,
+    maxBackoffMs: 60_000,
+    enabled: !sandbox && active && source !== "unavailable",
+  });
 
   const mutate = useCallback(async (path: string, body: unknown, orderId: string) => {
     setBusy(orderId);
