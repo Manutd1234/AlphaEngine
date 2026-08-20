@@ -145,7 +145,7 @@ export default function FittedModels() {
           const result = polled.payload.result ?? {};
           setNotice(result.persisted
             ? null
-            : `The model was fitted and not filed: ${String(result.reason ?? "unknown reason")}. The run is real; the corpus is unchanged.`);
+            : `Fitted but not filed: ${String(result.reason ?? "unknown reason")}. The run is real; the corpus is unchanged.`);
           await refresh();
           return;
         }
@@ -154,7 +154,7 @@ export default function FittedModels() {
           return;
         }
       }
-      setNotice("The fit is still running. It will appear here once it settles.");
+      setNotice("Still running; it will appear here once it settles.");
     } finally {
       setFitting(false);
     }
@@ -229,8 +229,8 @@ export default function FittedModels() {
         <p className="sub">
           {/* The failure messages already end in a full stop; appending another
               gave "…cannot reach.. This says nothing". */}
-          The research corpus could not be reached: {load.message.replace(/\.$/, "")}. The question
-          could not be asked, which is not the same as no runs existing.
+          The research corpus could not be reached: {load.message.replace(/\.$/, "")}. Not the
+          same as no runs existing.
         </p>
       )}
 
@@ -238,22 +238,20 @@ export default function FittedModels() {
 
       {load.status === "done" && load.payload.state === "unreadable" && (
         <p className="sub">
-          A research corpus is configured here and could not be read — a rejected key, a missing
-          table, or a stale schema cache. That is a question left unanswered, not an empty corpus.
+          A configured research corpus could not be read — a rejected key, a missing table, a
+          stale schema cache. Not an empty corpus.
         </p>
       )}
 
       {load.status === "done" && load.payload.state === "unavailable" && (
         <p className="sub">
-          No research corpus is configured here, so a fitted run has nowhere to be recorded.
-          Runs still execute; nothing is filed.
+          No research corpus is configured, so runs still execute but nothing is filed.
         </p>
       )}
 
       {load.status === "done" && load.payload.state === "ok" && runs.length === 0 && (
         <p className="sub">
-          The corpus is reachable and holds no supervised runs yet. That is an answer, not a
-          failure.
+          The corpus is reachable and holds no supervised runs yet.
         </p>
       )}
 
@@ -300,8 +298,8 @@ export default function FittedModels() {
         <div className="table-wrap" tabIndex={0}>
           <table>
             <caption className="sr-only">
-              Supervised research runs, newest first, with out-of-sample and deflated Sharpe and
-              the engine each ran on. Each model name shows that run in the capsule above.
+              Supervised research runs, newest first. Each model name shows that run in the
+              capsule above.
             </caption>
             <thead>
               <tr>
@@ -360,12 +358,11 @@ export default function FittedModels() {
         </div>
       )}
 
-      {/* 48 words, of which the deflated-Sharpe sentence repeated the tile
-          note above it. Two facts survive: the columns are all out of sample,
-          and a failed row can be asked why. */}
+      {/* Two facts the columns cannot say: they are all out of sample, and a
+          failed row can be asked why. */}
       <p className="research-note">
-        Every figure here is out of sample. A run marked <strong>failed</strong> carries its
-        reason on the status cell.
+        Every figure here is out of sample; a <strong>failed</strong> run carries its reason on
+        the status cell.
       </p>
     </div>
   );
