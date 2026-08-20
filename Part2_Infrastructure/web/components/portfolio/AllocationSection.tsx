@@ -37,8 +37,8 @@ type AllocationPane = "mix" | "targets" | "composition";
  */
 const ALLOCATION_PANES: Array<{ id: AllocationPane; label: string; hint: string }> = [
   { id: "mix", label: "Mix", hint: "What the book is concentrated in right now, measured from notional alone" },
-  { id: "targets", label: "Targets", hint: "What the book should be under a risk model, and the trades that would close the gap — needs a covariance" },
-  { id: "composition", label: "Composition", hint: "Asset class, settlement currency and sleeve: three cuts of the same book making three different claims" },
+  { id: "targets", label: "Targets", hint: "What the book should be under a risk model, and the trades that close the gap — needs a covariance" },
+  { id: "composition", label: "Composition", hint: "Asset class, settlement currency and sleeve: three cuts of one book, three different claims" },
 ];
 
 export interface AllocationSectionProps {
