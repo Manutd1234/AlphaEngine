@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "note": "One table, two suites. The terminal-distribution Monte Carlo runs in two implementations that cannot call each other — modules/quant_risk/var.py for the gateway and the Telegram companion, web/lib/mc-distribution.ts for the browser — and both now take the same parameters. This pins the parts a reader has to trust: which resampler a run reports having used, the derived block length both default to, the pairs that are a contradiction rather than a choice, and the loss quantile rule a confidence maps onto. tests/test_mc_resampler.py asserts the Python side, tests/mc-distribution.test.ts the TypeScript, and neither may edit this file to make itself pass.",
+  "resamplerByBlock": [
+    { "meanBlockLength": 1, "resampler": "iid" },
+    { "meanBlockLength": 2, "resampler": "stationary" },
+    { "meanBlockLength": 5, "resampler": "stationary" },
+    { "meanBlockLength": 10, "resampler": "stationary" },
+    { "meanBlockLength": 100, "resampler": "stationary" }
+  ],
+  "derivedBlockLength": [
+    { "observations": 1, "meanBlockLength": 5, "why": "clamped up: a block below 5 bars keeps almost no clustering" },
+    { "observations": 60, "meanBlockLength": 8 },
+    { "observations": 96, "meanBlockLength": 10, "why": "the mc-parity fixture's own driver length" },
+    { "observations": 180, "meanBlockLength": 13 },
+    { "observations": 400, "meanBlockLength": 20 },
+    { "observations": 20000, "meanBlockLength": 100, "why": "clamped down: a block that long is barely a resample" }
+  ],
+  "contradictions": [
+    { "resampler": "iid", "meanBlockLength": 10, "why": "an i.i.d. draw has no blocks to average" },
+    { "resampler": "stationary", "meanBlockLength": 1, "why": "a block of one bar is the i.i.d. draw wearing the other name" }
+  ],
+  "lossQuantiles": {
+    "why": "Nearest rank on the (100 - C)th percentile of terminal P&L, negated, so a confidence reads as a positive loss. A negative entry means even that quantile ended in profit, which is a fact and not a floor to clip at zero.",
+    "sortedTerminalPnl": [-100, -80, -60, -40, -20, 0, 20, 40, 60, 80],
+    "bands": [
+      { "confidence": 99, "loss": 100 },
+      { "confidence": 95, "loss": 100 },
+      { "confidence": 90, "loss": 100 },
+      { "confidence": 70, "loss": 60 },
+      { "confidence": 50, "loss": 20 },
+      { "confidence": 25, "loss": -40 }
+    ]
+  }
+}

@@ -6,13 +6,19 @@
  */
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
+import { parseMcSeed } from "@/components/risk/McParameterRail";
 import {
   createMcSimulation,
+  mcLossConfidences,
+  mcResamplerOf,
   mcWorkerSource,
   type McDistributionRequest,
   type McDistributionResult,
+  type McResampler,
   type McWorkerMessage,
 } from "@/lib/mc-distribution";
 import { mcSeedFor, stationaryBootstrapIndices } from "@/lib/montecarlo";
@@ -173,5 +179,136 @@ describe("the inlined helpers are the library helpers", () => {
     direct.step(direct.total);
     assert.deepEqual(result.result, direct.finish());
     assert.ok(messages.some((m) => m.type === "progress"), "no progress was posted");
+  });
+});
+
+describe("the resampler is a choice, and the result says which one ran", () => {
+  /**
+   * The fixture is the contract between the two implementations. Python's
+   * `MonteCarlo.resampler` derives its answer from the same field by the same
+   * rule and `tests/test_mc_resampler.py` holds it to this same table, so a
+   * run named "stationary" in the chat card cannot be an i.i.d. draw on the
+   * workspace card.
+   */
+  const fixture = JSON.parse(
+    readFileSync(fileURLToPath(new URL("./fixtures/mc-resampler-parity.json", import.meta.url)), "utf8"),
+  ) as {
+    resamplerByBlock: Array<{ meanBlockLength: number; resampler: McResampler }>;
+    derivedBlockLength: Array<{ observations: number; meanBlockLength: number }>;
+    contradictions: Array<{ resampler: McResampler; meanBlockLength: number }>;
+    lossQuantiles: {
+      sortedTerminalPnl: number[];
+      bands: Array<{ confidence: number; loss: number }>;
+    };
+  };
+
+  it("names the resampler from the block length, as the committed table does", () => {
+    for (const row of fixture.resamplerByBlock) {
+      assert.equal(mcResamplerOf({ meanBlockLength: row.meanBlockLength }), row.resampler);
+    }
+  });
+
+  it("defaults to the derived block length, at every sample size in the table", () => {
+    for (const row of fixture.derivedBlockLength) {
+      const result = run({ returns: syntheticReturns(row.observations, 11), paths: 100, horizonBars: 2 });
+      assert.equal(result.meanBlockLength, row.meanBlockLength, `${row.observations} observations`);
+      assert.equal(mcResamplerOf(result), "stationary");
+    }
+  });
+
+  it("asking for the default explicitly changes nothing at all", () => {
+    // The parity reference is a request that names neither field. If saying
+    // "stationary" out loud moved a single number, that reference would be
+    // describing a simulation nobody runs any more.
+    assert.deepEqual(run({ resampler: "stationary" }), run());
+  });
+
+  it("i.i.d. is a block of one bar, by either spelling", () => {
+    const chosen = run({ resampler: "iid" });
+    const spelled = run({ meanBlockLength: 1 });
+    assert.equal(chosen.meanBlockLength, 1);
+    assert.equal(mcResamplerOf(chosen), "iid");
+    // The old spelling still means what it meant, draw for draw.
+    assert.deepEqual(chosen, spelled);
+    // And it is genuinely a different distribution from the blocked draw.
+    assert.notEqual(chosen.pnl.mean, run().pnl.mean);
+  });
+
+  it("refuses a contradictory pair instead of picking a winner", () => {
+    for (const row of fixture.contradictions) {
+      assert.throws(
+        () => createMcSimulation({
+          returns: syntheticReturns(400, 7),
+          horizonBars: 30,
+          paths: 200,
+          seed: 5,
+          equity: 1_000_000,
+          resampler: row.resampler,
+          meanBlockLength: row.meanBlockLength,
+        }),
+        /i\.i\.d\./,
+        `${row.resampler} with a block of ${row.meanBlockLength} must be refused`,
+      );
+    }
+  });
+});
+
+describe("the loss confidences are a choice, and the labels follow them", () => {
+  const fixture = JSON.parse(
+    readFileSync(fileURLToPath(new URL("./fixtures/mc-resampler-parity.json", import.meta.url)), "utf8"),
+  ) as { lossQuantiles: { sortedTerminalPnl: number[]; bands: Array<{ confidence: number; loss: number }> } };
+
+  it("maps a confidence to the quantile the committed table names", () => {
+    // `percentile` is the library function the factory's inlined copy is
+    // pinned against by the full-run parity test above, so checking the rule
+    // here checks the rule the simulation runs. Python's `_loss_band` is held
+    // to the same rows.
+    for (const band of fixture.lossQuantiles.bands) {
+      assert.equal(
+        -percentile(fixture.lossQuantiles.sortedTerminalPnl, 100 - band.confidence),
+        band.loss,
+        `confidence ${band.confidence}`,
+      );
+    }
+  });
+
+  it("a default result carries no bands, and reads back as 50/95/99", () => {
+    const result = run();
+    assert.equal(result.lossBands, undefined, "an extra key would break the parity reference");
+    assert.deepEqual(mcLossConfidences(result), [50, 95, 99]);
+  });
+
+  it("a custom triple is reported at the confidences it was computed at", () => {
+    const result = run({ lossConfidences: [90, 99, 99.9] });
+    assert.deepEqual(mcLossConfidences(result), [90, 99, 99.9]);
+    assert.deepEqual(result.lossBands?.map((band) => band.loss), [
+      result.loss.p50,
+      result.loss.p95,
+      result.loss.p99,
+    ]);
+    // The mildest band is no longer the median, which is the whole point of
+    // asking for it: at 90 it is a real tail figure.
+    assert.notEqual(result.loss.p50, -result.pnl.p50);
+  });
+});
+
+describe("the seed is shown and overridable, and never invented", () => {
+  it("an override draws a different distribution and is reported back", () => {
+    const overridden = run({ seed: 12_345 });
+    assert.equal(overridden.seed, 12_345);
+    assert.notEqual(overridden.pnl.mean, run().pnl.mean);
+  });
+
+  it("a box holding something that is not a seed yields null, not zero", () => {
+    // `Number("")` is 0 and `Number("12x")` is NaN; either would run a real
+    // simulation under a seed nobody chose, which the card refuses to do.
+    assert.equal(parseMcSeed(""), null);
+    assert.equal(parseMcSeed("  "), null);
+    assert.equal(parseMcSeed("12x"), null);
+    assert.equal(parseMcSeed("-4"), null);
+    assert.equal(parseMcSeed("1.5"), null);
+    assert.equal(parseMcSeed("4294967296"), null, "a uint32 is the widest seed mulberry32 keeps");
+    assert.equal(parseMcSeed("0"), 0, "zero is a seed a reader may deliberately choose");
+    assert.equal(parseMcSeed(" 4294967295 "), 4_294_967_295);
   });
 });

@@ -79,9 +79,12 @@ from modules.quant_risk.sizing import (
     kelly_fraction,
 )
 from modules.quant_risk.var import (
+    RESAMPLERS,
     HistoricalVaR,
+    LossBand,
     MonteCarlo,
     bootstrap_terminal_distribution,
+    derived_block_length,
     historical_var,
 )
 
@@ -94,8 +97,10 @@ __all__ = [
     "ES95_MULTIPLIER",
     "HistoricalVaR",
     "KellySizing",
+    "LossBand",
     "MonteCarlo",
     "PortfolioRisk",
+    "RESAMPLERS",
     "RiskContribution",
     "SCENARIOS",
     "ScenarioLeg",
@@ -108,6 +113,7 @@ __all__ = [
     "beta",
     "bootstrap_terminal_distribution",
     "build_covariance",
+    "derived_block_length",
     "find_dislocation",
     "historical_var",
     "kelly_fraction",

@@ -18,6 +18,24 @@
  * this distribution cannot quietly disagree about the driver stream.
  */
 
+/**
+ * Which resampler drew the paths.
+ *
+ * `stationary` is the block bootstrap (Politis & Romano 1994) the equity band
+ * uses; `iid` draws every bar independently. The two are not comparable, so a
+ * result must be able to say which one ran — `mcResamplerOf` reads it back off
+ * the result, and `MonteCarlo.resampler` in `modules/quant_risk/var.py` states
+ * it from the same rule, so the gateway and the browser cannot name a run two
+ * different things.
+ */
+export type McResampler = "stationary" | "iid";
+
+/** How each resampler is named in prose, in one place rather than five. */
+export const MC_RESAMPLER_LABELS: Record<McResampler, string> = {
+  stationary: "stationary bootstrap",
+  iid: "i.i.d. bootstrap",
+};
+
 export interface McDistributionRequest {
   /** The winner's realised per-bar returns — `SweepResponse.bestRunReturns`. */
   returns: number[];
@@ -32,16 +50,33 @@ export interface McDistributionRequest {
   /** Ignored by the math — changes request identity to force a re-run. */
   nonce?: number;
   /**
+   * Which resampler draws the paths. Omitted, it is inferred from
+   * `meanBlockLength` — a block of 1 is the i.i.d. draw, anything else is the
+   * stationary bootstrap — so a request written before this field existed
+   * still means exactly what it meant.
+   *
+   * Worth knowing before choosing `iid`: it destroys the volatility clustering
+   * crypto returns actually have, and reports a cone too narrow in exactly the
+   * tail the cone exists to show.
+   *
+   * The gateway's `bootstrap_terminal_distribution` takes the same argument
+   * with the same two names and the same refusals. Its *unstated* default is
+   * the other one — i.i.d., because that is the draw the Telegram card has
+   * always shown, as the derived block is the draw this card has always shown
+   * — so a caller who cares which resampler ran says which one. Naming it
+   * gives the identical resampler on both sides.
+   */
+  resampler?: McResampler;
+  /**
    * Mean block length for the stationary bootstrap, in bars. Omitted, the
    * driver's own √N heuristic is used — the same one the equity band uses,
    * because the autocorrelation does not change with the question being asked
-   * of it.
+   * of it. That derived value is the default, not a fixed constant.
    *
-   * **1 degenerates to an i.i.d. bootstrap**, which is the resampler choice
-   * rather than a separate flag: with pNew = 1 every draw starts a new block,
-   * so blocks never form. That is worth knowing before choosing it — i.i.d.
-   * destroys the volatility clustering crypto returns actually have, and
-   * reports a cone too narrow in exactly the tail the cone exists to show.
+   * A block of 1 IS the i.i.d. draw: with pNew = 1 every draw starts a new
+   * block, so blocks never form. Asking for `iid` alongside a longer block, or
+   * for `stationary` alongside a block of 1, is a contradiction the simulation
+   * refuses rather than resolving on the caller's behalf.
    */
   meanBlockLength?: number;
   /**
@@ -58,6 +93,13 @@ export interface McDistributionResult {
   horizonBars: number;
   seed: number;
   equity: number;
+  /**
+   * The block length the run actually used, which also states the resampler:
+   * 1 is the i.i.d. draw, anything above it the stationary bootstrap. Read it
+   * through `mcResamplerOf` rather than re-deriving the rule at a call site —
+   * that is what keeps the card's label and the run's maths one statement, and
+   * what the Python side agrees with.
+   */
   meanBlockLength: number;
   /** Dollar P&L landmarks of the terminal distribution. */
   pnl: { mean: number; p50: number; best: number; worst: number };
@@ -159,12 +201,32 @@ export function mcSimulationFactory(): (req: McDistributionRequest) => McSimulat
     const horizonBars = Math.max(1, Math.floor(req.horizonBars));
     const paths = Math.min(MAX_PATHS, Math.max(MIN_PATHS, Math.floor(req.paths)));
     const equity = req.equity;
-    // Same block-length heuristic as the band — the driver's autocorrelation
-    // does not change with the question being asked of it. A caller may
-    // override it; 1 makes the resampler i.i.d. (see the request type).
-    const meanBlockLength = req.meanBlockLength != null
+    // The resampler and its block length are one decision, so they are
+    // resolved together and a contradiction between them is refused rather
+    // than quietly resolved in the caller's favour — a run that silently used
+    // the other resampler is the one failure this card cannot report.
+    //
+    // Defaults are unchanged by the two fields existing: no resampler and no
+    // block length still means the band's own √N heuristic, because the
+    // driver's autocorrelation does not change with the question asked of it.
+    const derivedBlock = Math.min(100, Math.max(5, Math.round(Math.sqrt(n))));
+    const askedBlock = req.meanBlockLength != null
       ? Math.min(100, Math.max(1, Math.round(req.meanBlockLength)))
-      : Math.min(100, Math.max(5, Math.round(Math.sqrt(n))));
+      : null;
+    const resampler = req.resampler ?? (askedBlock === 1 ? "iid" : "stationary");
+    if (resampler === "iid" && askedBlock !== null && askedBlock !== 1) {
+      throw new Error(
+        `An i.i.d. bootstrap draws no blocks, so a mean block of ${askedBlock} bars cannot be honoured. `
+          + "Ask for the stationary bootstrap, or drop the block length.",
+      );
+    }
+    if (resampler === "stationary" && askedBlock === 1) {
+      throw new Error(
+        "A mean block of 1 bar is the i.i.d. draw, not a stationary bootstrap. "
+          + "Ask for the i.i.d. resampler, or for a block above 1 bar.",
+      );
+    }
+    const meanBlockLength = resampler === "iid" ? 1 : (askedBlock ?? derivedBlock);
     // The three confidences, and whether they were asked for. Default 50/95/99
     // maps to the 50th, 5th and 1st percentiles of P&L.
     const customConfidences = req.lossConfidences != null;
@@ -234,6 +296,35 @@ export function mcSimulationFactory(): (req: McDistributionRequest) => McSimulat
 }
 
 export const createMcSimulation = mcSimulationFactory();
+
+/**
+ * Which resampler drew this result, read off the result rather than
+ * remembered from the request.
+ *
+ * A block of 1 bar is the i.i.d. draw and anything longer is the stationary
+ * bootstrap — one rule, stated once, so no label can name a resampler the
+ * simulation did not run. `MonteCarlo.resampler` in
+ * `modules/quant_risk/var.py` derives its answer from the identical rule, and
+ * `tests/fixtures/mc-resampler-parity.json` is the table both sides are held
+ * to.
+ */
+export function mcResamplerOf(result: Pick<McDistributionResult, "meanBlockLength">): McResampler {
+  return result.meanBlockLength <= 1 ? "iid" : "stationary";
+}
+
+/**
+ * The three confidences a result was computed at.
+ *
+ * `lossBands` is present only when the caller asked for something other than
+ * the default three — that absence is what keeps a default result's canonical
+ * JSON byte-identical for lib/mc-parity.ts. So its absence MEANS 50/95/99, and
+ * reading it through here is how every label stays true to its figure.
+ */
+export function mcLossConfidences(result: McDistributionResult): [number, number, number] {
+  const bands = result.lossBands;
+  if (!bands || bands.length !== 3) return [50, 95, 99];
+  return [bands[0].confidence, bands[1].confidence, bands[2].confidence];
+}
 
 export type McWorkerMessage =
   | { type: "progress"; done: number; total: number }
