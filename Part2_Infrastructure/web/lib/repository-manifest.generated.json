@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-20",
-  "commit": "c49c304",
+  "commit": "fcd31e9",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -654,7 +654,6 @@
     "Part2_Infrastructure/web/lib/correlation.ts",
     "Part2_Infrastructure/web/lib/data-quality-ledger.ts",
     "Part2_Infrastructure/web/lib/data-tier.ts",
-    "Part2_Infrastructure/web/lib/data-trust.ts",
     "Part2_Infrastructure/web/lib/data-trust/analytics.ts",
     "Part2_Infrastructure/web/lib/data-trust/feeds.ts",
     "Part2_Infrastructure/web/lib/data-trust/index.ts",
@@ -824,7 +823,6 @@
     "Part2_Infrastructure/web/lib/test-counts.generated.ts",
     "Part2_Infrastructure/web/lib/text-size.ts",
     "Part2_Infrastructure/web/lib/theme.ts",
-    "Part2_Infrastructure/web/lib/types.ts",
     "Part2_Infrastructure/web/lib/types/analytics.ts",
     "Part2_Infrastructure/web/lib/types/index.ts",
     "Part2_Infrastructure/web/lib/types/strategies.ts",
@@ -1049,7 +1047,6 @@
     "Part2_Infrastructure/worker.py",
     "README.md",
     "SETUP.md",
-    "SHARED_TREE_ATTRIBUTION.txt",
     "supabase/.gitignore",
     "supabase/apply_all.generated.sql",
     "supabase/config.toml",
