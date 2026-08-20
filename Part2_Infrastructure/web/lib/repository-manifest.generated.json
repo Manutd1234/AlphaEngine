@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-20",
-  "commit": "9af71de",
+  "commit": "cbd451d",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -445,6 +445,7 @@
     "Part2_Infrastructure/web/lib/paper-equity.ts",
     "Part2_Infrastructure/web/lib/params.ts",
     "Part2_Infrastructure/web/lib/pnl-attribution.ts",
+    "Part2_Infrastructure/web/lib/polling.ts",
     "Part2_Infrastructure/web/lib/portfolio-analytics.ts",
     "Part2_Infrastructure/web/lib/portfolio-payload.ts",
     "Part2_Infrastructure/web/lib/portfolio-risk.ts",
@@ -618,6 +619,7 @@
     "Part2_Infrastructure/web/tests/paper-order-default.test.ts",
     "Part2_Infrastructure/web/tests/parity.test.ts",
     "Part2_Infrastructure/web/tests/pnl-attribution.test.ts",
+    "Part2_Infrastructure/web/tests/polling.test.ts",
     "Part2_Infrastructure/web/tests/portfolio-analytics.test.ts",
     "Part2_Infrastructure/web/tests/portfolio-panes.test.ts",
     "Part2_Infrastructure/web/tests/portfolio-risk.test.ts",
