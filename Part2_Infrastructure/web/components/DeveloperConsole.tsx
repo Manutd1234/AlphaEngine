@@ -55,6 +55,19 @@ interface ControlState {
   label: string;
   detail: string;
   tone: ControlTone;
+  /** Nothing was measured. A check that could not run is not a check that ran
+   *  and failed, and the readiness ladder reports the two separately. */
+  unmeasured?: boolean;
+}
+
+type GateVerdict = "pass" | "failed" | "unverified";
+
+/** A gate's verdict from the state that feeds it. A poll that has not answered
+ *  and an `unmeasured` state produce no evidence either way, so neither may be
+ *  counted as a pass or named as blocking. */
+function gateVerdict(state: ControlState): GateVerdict {
+  if (state.unmeasured || state.tone === "info") return "unverified";
+  return state.tone === "good" ? "pass" : "failed";
 }
 
 /*
@@ -110,42 +123,14 @@ const PIPELINE_STAGES = [
   },
 ] as const;
 
+/* The last two rows carry no committed verdict of their own: their state comes
+   from the live evidence in the health payload, resolved in SchemaGateTable. */
 const SCHEMA_GATES = [
-  {
-    object: "Gateway OpenAPI",
-    baseline: "tools/openapi.json",
-    candidate: "FastAPI runtime",
-    impact: "CI gated",
-    tone: "good" as const,
-  },
-  {
-    object: "Risk parity",
-    baseline: "Python fixture",
-    candidate: "TypeScript consumer",
-    impact: "CI gated",
-    tone: "good" as const,
-  },
-  {
-    object: "Gateway payloads",
-    baseline: "Canonical fixtures",
-    candidate: "Web validators",
-    impact: "CI gated",
-    tone: "good" as const,
-  },
-  {
-    object: "Production schema",
-    baseline: "Authenticated endpoint",
-    candidate: "Current commit",
-    impact: "Not connected",
-    tone: "warn" as const,
-  },
-  {
-    object: "Monte Carlo numerics",
-    baseline: "Committed reference",
-    candidate: "Node, this instance",
-    impact: "Not connected",
-    tone: "warn" as const,
-  },
+  { object: "Gateway OpenAPI", baseline: "tools/openapi.json", candidate: "FastAPI runtime", impact: "CI gated", tone: "good" as const },
+  { object: "Risk parity", baseline: "Python fixture", candidate: "TypeScript consumer", impact: "CI gated", tone: "good" as const },
+  { object: "Gateway payloads", baseline: "Canonical fixtures", candidate: "Web validators", impact: "CI gated", tone: "good" as const },
+  { object: "Production schema", baseline: "Authenticated endpoint", candidate: "Current commit", impact: "Not connected", tone: "warn" as const },
+  { object: "Monte Carlo numerics", baseline: "Committed reference", candidate: "Node, this instance", impact: "Not connected", tone: "warn" as const },
 ] as const;
 
 function StatusPill({
@@ -176,11 +161,7 @@ function StatusPill({
 function workspaceState(view: SystemHealthView): ControlState {
   if (view.healthError) return { label: "Degraded", detail: view.healthError, tone: "bad" };
   if (!view.health) return { label: "Checking", detail: "Waiting for the shared system-health snapshot.", tone: "info" };
-  return {
-    label: "Healthy",
-    detail: `Serving commit ${APP_COMMIT}; instance ${view.health.instance.id}.`,
-    tone: "good",
-  };
+  return { label: "Healthy", detail: `Serving commit ${APP_COMMIT}; instance ${view.health.instance.id}.`, tone: "good" };
 }
 
 function gatewayState(view: SystemHealthView): ControlState {
@@ -190,7 +171,8 @@ function gatewayState(view: SystemHealthView): ControlState {
   if (!platform) {
     const off = source?.state === "not_configured";
     const offline = "FastAPI Gateway is offline. Run 'python -m uvicorn main:app --port 8000' to connect.";
-    return { label: off ? "Gateway Off" : "Unavailable", detail: source?.detail ?? offline, tone: off ? "off" : "warn" };
+    // `off` is nothing to probe; a refused or timed-out probe is a measurement.
+    return { label: off ? "Gateway Off" : "Unavailable", detail: source?.detail ?? offline, tone: off ? "off" : "warn", unmeasured: off };
   }
   if (platform.status === "critical" || platform.status === "halted") {
     return { label: platform.status, detail: `Gateway ${platform.version} reports ${platform.status}.`, tone: "bad" };
@@ -202,33 +184,39 @@ function gatewayState(view: SystemHealthView): ControlState {
   return { label: "Healthy", detail: `Gateway ${platform.version} in ${platform.environment}.`, tone: "good" };
 }
 
+/**
+ * The live-contract comparison, and when this panel refuses to repeat it.
+ *
+ * `lib/delivery-readiness.ts` holds a comparison for five minutes so a 30s poll
+ * is not a 111 KB transfer, and that cache outlives the gateway: after the port
+ * stops answering, the payload still carries the verdict of the last document
+ * anything read. Repeating it claims a reading nobody took — "Drift detected"
+ * would be a finding with no live document behind it, and "Exact match" would
+ * be worse, a promotion-grade pass invented from a gateway refusing
+ * connections. `platform` is present only when the gateway answered this poll.
+ */
 function schemaCompatibilityState(view: SystemHealthView): ControlState {
   if (!view.health) return { label: "Checking", detail: "Waiting for delivery evidence.", tone: "info" };
   const evidence = view.health.delivery?.schema;
-  if (!evidence) {
-    return { label: "Unverified", detail: "This health route does not expose live schema evidence yet.", tone: "warn" };
+  if (!evidence) return { label: "Unverified", detail: "This health route does not expose live schema evidence yet.", tone: "warn", unmeasured: true };
+  if (!view.health.platform && evidence.state !== "unavailable") {
+    const earlier = evidence.state === "match" ? "an exact match" : "drift";
+    const detail = `${gatewayState(view).detail} Nothing read the live contract this poll, so it is uncompared; an earlier reading found ${earlier}.`;
+    return { label: "Unverified", detail, tone: "warn", unmeasured: true };
   }
-  if (evidence.state === "match") {
-    return { label: "Exact match", detail: evidence.detail, tone: "good" };
-  }
-  if (evidence.state === "mismatch") {
-    return { label: "Drift detected", detail: evidence.detail, tone: "bad" };
-  }
-  return { label: "Unverified", detail: evidence.detail, tone: "warn" };
+  if (evidence.state === "match") return { label: "Exact match", detail: evidence.detail, tone: "good" };
+  if (evidence.state === "mismatch") return { label: "Drift detected", detail: evidence.detail, tone: "bad" };
+  return { label: "Unverified", detail: evidence.detail, tone: "warn", unmeasured: true };
 }
 
 function numericsParityState(view: SystemHealthView): ControlState {
   if (!view.health) return { label: "Checking", detail: "Waiting for delivery evidence.", tone: "info" };
   const evidence = view.health.delivery?.numerics;
-  if (!evidence) {
-    return { label: "Unverified", detail: "This health route does not expose numerics parity evidence yet.", tone: "warn" };
-  }
+  if (!evidence) return { label: "Unverified", detail: "This health route does not expose numerics parity evidence yet.", tone: "warn", unmeasured: true };
+  // No gateway in this claim: the reference is committed and the run is this
+  // deployment's own Node instance, so the verdict is measured every poll.
   if (evidence.state === "match") {
-    return {
-      label: "Byte-exact",
-      detail: `${evidence.detail} sha256 ${evidence.expectedDigest.slice(0, 12)}…`,
-      tone: "good",
-    };
+    return { label: "Byte-exact", detail: `${evidence.detail} sha256 ${evidence.expectedDigest.slice(0, 12)}…`, tone: "good" };
   }
   return { label: "Drift detected", detail: evidence.detail, tone: "bad" };
 }
@@ -236,22 +224,21 @@ function numericsParityState(view: SystemHealthView): ControlState {
 function artifactCustodyState(view: SystemHealthView): ControlState {
   if (!view.health) return { label: "Checking", detail: "Waiting for artifact evidence.", tone: "info" };
   const evidence = view.health.delivery?.artifact;
-  if (!evidence) {
-    return { label: "Unverified", detail: "This health route does not expose artifact attestation evidence yet.", tone: "warn" };
-  }
+  if (!evidence) return { label: "Unverified", detail: "This health route does not expose artifact attestation evidence yet.", tone: "warn", unmeasured: true };
   if (evidence.state === "attested") return { label: "Attested", detail: evidence.detail, tone: "good" };
+  // Invalid and unsigned are verdicts — a signature was checked, or looked for
+  // and definitively absent. No trust root and unverified are the opposite: no
+  // pinned key, or no deployed identity, so the check never ran.
   if (evidence.state === "invalid") return { label: "Invalid", detail: evidence.detail, tone: "bad" };
-  if (evidence.state === "untrusted") return { label: "No trust root", detail: evidence.detail, tone: "warn" };
+  if (evidence.state === "untrusted") return { label: "No trust root", detail: evidence.detail, tone: "warn", unmeasured: true };
   if (evidence.state === "unsigned") return { label: "Unsigned", detail: evidence.detail, tone: "warn" };
-  return { label: "Unverified", detail: evidence.detail, tone: "warn" };
+  return { label: "Unverified", detail: evidence.detail, tone: "warn", unmeasured: true };
 }
 
 function openBBState(view: SystemHealthView): ControlState {
   const provider = view.health?.providers.find((item) => item.id === "openbb");
   if (!view.health) return { label: "Checking", detail: "Provider health has not arrived yet.", tone: "info" };
-  if (!provider?.configured) {
-    return { label: "Off", detail: provider?.statusDetail ?? "OpenBB is not configured.", tone: "off" };
-  }
+  if (!provider?.configured) return { label: "Off", detail: provider?.statusDetail ?? "OpenBB is not configured.", tone: "off", unmeasured: true };
   if (!provider.ready) return { label: "Degraded", detail: provider.statusDetail, tone: "warn" };
   return { label: "Healthy", detail: provider.statusDetail, tone: "good" };
 }
@@ -383,25 +370,36 @@ function DeveloperOverview({
     {
       label: "Deployment",
       value: IS_VERCEL_DEPLOYMENT ? currentWorkspace.label : "Not deployed",
-      passed: IS_VERCEL_DEPLOYMENT && currentWorkspace.tone === "good",
-      detail: currentWorkspace.detail,
+      state: IS_VERCEL_DEPLOYMENT ? gateVerdict(currentWorkspace) : "unverified",
+      detail: IS_VERCEL_DEPLOYMENT
+        ? currentWorkspace.detail
+        : "This build is not a Vercel deployment, so there is no promotion candidate to check.",
     },
-    { label: "Gateway", value: currentGateway.label, passed: currentGateway.tone === "good", detail: currentGateway.detail },
+    { label: "Gateway", value: currentGateway.label, state: gateVerdict(currentGateway), detail: currentGateway.detail },
     {
       label: "Providers",
       value: view.health
         ? <><NumberTicker value={view.health.summary.ready} />/{view.health.summary.total}</>
         : "Checking",
-      passed: Boolean(view.health?.summary.total && view.health.summary.ready === view.health.summary.total),
+      // A registry with no providers in it measured nothing; 0 of 0 routable is
+      // not a clean sweep and must not be counted as one.
+      state: !view.health || !view.health.summary.total
+        ? "unverified"
+        : view.health.summary.ready === view.health.summary.total ? "pass" : "failed",
       detail: view.health
         ? `${view.health.summary.configured} configured; ${view.health.summary.ready} currently routable.`
         : "Waiting for provider health.",
     },
-    { label: "Schema compatibility", value: currentSchema.label, passed: currentSchema.tone === "good", detail: currentSchema.detail },
-    { label: "Artifact custody", value: currentArtifact.label, passed: currentArtifact.tone === "good", detail: currentArtifact.detail },
+    { label: "Schema compatibility", value: currentSchema.label, state: gateVerdict(currentSchema), detail: currentSchema.detail },
+    { label: "Artifact custody", value: currentArtifact.label, state: gateVerdict(currentArtifact), detail: currentArtifact.detail },
   ];
-  const readyCount = readinessChecks.filter((check) => check.passed).length;
-  const blockedChecks = readinessChecks.filter((check) => !check.passed);
+  const readyCount = readinessChecks.filter((check) => check.state === "pass").length;
+  const failedChecks = readinessChecks.filter((check) => check.state === "failed");
+  const unverifiedChecks = readinessChecks.filter((check) => check.state === "unverified");
+  // Three verdicts, because a gate that could not run has not passed and has
+  // not failed. Promotion is refused either way; the reason differs, and the
+  // fix for "could not run" is to restore the evidence, not to chase a defect.
+  const verdict = readyCount === readinessChecks.length ? "READY" : failedChecks.length ? "BLOCKED" : "UNVERIFIED";
   const readinessAngle = `${Math.round((readyCount / readinessChecks.length) * 360)}deg`;
   const openWork = workItems.filter((item) => item.status !== "done");
 
@@ -452,30 +450,31 @@ function DeveloperOverview({
           <div
             className="developer-cp-readiness__ring"
             style={{ "--developer-readiness-angle": readinessAngle } as CSSProperties}
-            aria-label={`${readyCount} of ${readinessChecks.length} readiness checks pass`}
+            aria-label={`${readyCount} of ${readinessChecks.length} readiness checks pass, ${failedChecks.length} failed, ${unverifiedChecks.length} could not be checked`}
           >
             <div><strong><NumberTicker value={readyCount} /><span>/{readinessChecks.length}</span></strong><small>PASS</small></div>
           </div>
           {/* Keyed by verdict: the entrance replays only when the word itself
               flips, which is the one moment worth marking. */}
-          <strong
-            className="developer-cp-readiness__verdict mount-fade"
-            key={readyCount === readinessChecks.length ? "ready" : "blocked"}
-          >
-            {readyCount === readinessChecks.length ? "READY" : "BLOCKED"}
-          </strong>
+          <strong className="developer-cp-readiness__verdict mount-fade" key={verdict}>{verdict}</strong>
           <div className="developer-cp-readiness__checks">
             {readinessChecks.map((check, index) => (
               <div key={check.label} className="stagger-reveal" style={{ "--stagger-i": index } as CSSProperties}>
-                <i className={check.passed ? "is-good" : "is-warn"} aria-hidden="true">{check.passed ? "✓" : "!"}</i>
+                {/* Three marks, three states. A failure and a check that could
+                    not run both sit outside the pass count, and the glyph is
+                    what tells them apart — the dot's colour never does. */}
+                <i className={check.state === "pass" ? "is-good" : "is-warn"} aria-hidden="true">{check.state === "pass" ? "✓" : check.state === "failed" ? "✕" : "◌"}</i>
                 <span><b>{check.label}</b><small>{check.detail}</small></span><strong>{check.value}</strong>
               </div>
             ))}
           </div>
           <p>
-            {blockedChecks.length
-              ? `${blockedChecks.map((check) => check.label).join(", ")} ${blockedChecks.length === 1 ? "is" : "are"} blocking launch.`
-              : "All five launch gates have current evidence."}
+            {failedChecks.length
+              ? `${failedChecks.map((check) => check.label).join(", ")} ${failedChecks.length === 1 ? "is" : "are"} blocking launch. `
+              : ""}
+            {unverifiedChecks.length
+              ? `${unverifiedChecks.map((check) => check.label).join(", ")} could not be checked at all, so ${unverifiedChecks.length === 1 ? "it is" : "they are"} neither a pass nor a failure — and promotion still waits on ${unverifiedChecks.length === 1 ? "it" : "them"}.`
+              : failedChecks.length ? "" : "All five launch gates have current evidence."}
           </p>
         </section>
 

@@ -21,8 +21,7 @@ const OPENAPI_MAX_BYTES = 512 * 1024;
 const OPENAPI_CACHE_MS = 5 * 60_000;
 const OPENAPI_FAILURE_CACHE_MS = 15_000;
 
-// Moved to its own isomorphic module so the browser's parity check serialises
-// with the exact same code; re-exported so existing imports keep working.
+// Its own isomorphic module, so the browser's parity check serialises with the exact same code; re-exported so existing imports keep working.
 export { canonicalJson } from "@/lib/canonical-json";
 
 /** SHA-256 of the stable UTF-8 JSON encoding, expressed as lowercase hex. */
@@ -158,7 +157,8 @@ export function mcParityEvidence(): McParityEvidence {
 
 interface GatewayOpenApiCacheEntry {
   key: string;
-  expiresAt: number;
+  /** When the document was read: a replayed verdict must say how old it is. */
+  observedAt: number;
   evidence: GatewayOpenApiEvidence;
 }
 
@@ -176,11 +176,18 @@ function gatewayOpenApiCacheKey(): string {
  * 30-second public health poll into a 111 KB gateway transfer. Concurrent reads
  * share one request; success/drift is held for five minutes and failures only
  * briefly, so recovery is still visible promptly.
+ *
+ * A hit is an earlier poll's reading and says so: its age rides in `detail`, so
+ * a replay cannot pass for a document read now. A gateway that dies inside the
+ * window is the case that costs — its last comparison is history immediately.
  */
 export async function gatewayOpenApiEvidence(now = Date.now()): Promise<GatewayOpenApiEvidence> {
   const key = gatewayOpenApiCacheKey();
-  if (gatewayOpenApiCache?.key === key && gatewayOpenApiCache.expiresAt > now) {
-    return gatewayOpenApiCache.evidence;
+  const hit = gatewayOpenApiCache?.key === key ? gatewayOpenApiCache : null;
+  const ageMs = hit ? now - hit.observedAt : 0;
+  if (hit && ageMs < (hit.evidence.state === "unavailable" ? OPENAPI_FAILURE_CACHE_MS : OPENAPI_CACHE_MS)) {
+    if (ageMs < 1_000) return hit.evidence;
+    return { ...hit.evidence, detail: `${hit.evidence.detail} Last checked ${Math.round(ageMs / 1_000)}s ago.` };
   }
   if (gatewayOpenApiFlight?.key === key) return gatewayOpenApiFlight.promise;
 
@@ -195,17 +202,10 @@ export async function gatewayOpenApiEvidence(now = Date.now()): Promise<GatewayO
       ? compareGatewayOpenApi({ available: true, document: result.data })
       : compareGatewayOpenApi({
           available: false,
-          cause: result.failure.code === "gateway_not_configured"
-            ? "not_configured"
-            : result.failure.code === "gateway_invalid_payload"
-              ? "invalid_response"
-              : "unreachable",
+          cause: result.failure.code === "gateway_not_configured" ? "not_configured"
+            : result.failure.code === "gateway_invalid_payload" ? "invalid_response" : "unreachable",
         });
-    gatewayOpenApiCache = {
-      key,
-      expiresAt: now + (evidence.state === "unavailable" ? OPENAPI_FAILURE_CACHE_MS : OPENAPI_CACHE_MS),
-      evidence,
-    };
+    gatewayOpenApiCache = { key, observedAt: now, evidence };
     return evidence;
   }).finally(() => {
     if (gatewayOpenApiFlight?.key === key) gatewayOpenApiFlight = null;

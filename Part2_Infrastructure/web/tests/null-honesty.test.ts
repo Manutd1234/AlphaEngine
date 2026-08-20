@@ -126,3 +126,26 @@ describe("imports that resolved to nothing are gone", () => {
     }
   });
 });
+
+describe("a check that could not run is not a finding", () => {
+  /**
+   * The same rule one level up from a number. The Developer readiness panel
+   * reported "Schema compatibility — Drift detected" while the gateway beside
+   * it was unreachable, because the server holds a comparison for five minutes
+   * and the verdict outlived the port. A cached "Drift detected" claims a
+   * document nothing read; a cached "Exact match" claims a passing promotion
+   * gate on a dead gateway. Both are `?? 0` wearing a sentence.
+   */
+  it("the schema gate needs a gateway that answered this poll", () => {
+    const source = code(read("../components/DeveloperConsole.tsx"));
+    assert.match(source, /!view\.health\.platform && evidence\.state !== "unavailable"/);
+    assert.match(source, /Nothing read the live contract this poll/);
+    assert.match(source, /unmeasured\?: boolean/);
+  });
+
+  it("the server dates a verdict it replays from cache", () => {
+    const source = code(read("../lib/delivery-readiness.ts"));
+    assert.match(source, /Last checked \$\{Math\.round\(ageMs \/ 1_000\)\}s ago\./);
+    assert.doesNotMatch(source, /expiresAt/, "an expiry instant hides the age the reader needs");
+  });
+});

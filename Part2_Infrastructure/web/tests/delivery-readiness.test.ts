@@ -11,7 +11,9 @@ import {
   artifactAttestationPayload,
   evaluateArtifactCustody,
   evaluateBuildTraceability,
+  gatewayOpenApiEvidence,
   isGatewayOpenApiDocument,
+  resetGatewayOpenApiEvidenceCache,
 } from "../lib/delivery-readiness";
 
 describe("canonical gateway OpenAPI evidence", () => {
@@ -169,5 +171,111 @@ describe("artifact custody evidence", () => {
     assert.equal(wrongBuild.passed, false);
     assert.equal(untrusted.state, "untrusted");
     assert.equal(untrusted.passed, false);
+  });
+});
+
+/**
+ * The five-minute cache, and the moment it stops being a measurement.
+ *
+ * The transfer argument for it is real — the live contract is 111 KB and the
+ * public health route is polled every 30 seconds — but a cache hit is a
+ * reading from an earlier poll, and a gateway can die inside the window. The
+ * Developer readiness panel showed exactly that: "Gateway unavailable
+ * (ECONNREFUSED)" beside "Schema compatibility — Drift detected", a finding
+ * about a document that nothing had been able to read for a minute.
+ *
+ * Two properties hold the line. A failed fetch is classified `unavailable`
+ * and never scored as drift, and a replayed verdict carries its own age.
+ */
+describe("a replayed OpenAPI verdict says how old it is", () => {
+  const drifted = structuredClone(committedGatewayOpenApi);
+  drifted.info.version = "drifted-for-this-test";
+
+  const refused = () => {
+    throw Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNREFUSED" } });
+  };
+
+  /** Runs `body` with the gateway configured and `fetch` under our control. */
+  async function withGateway(
+    body: (serve: (respond: () => unknown) => void) => Promise<void>,
+  ): Promise<void> {
+    const realFetch = globalThis.fetch;
+    const realUrl = process.env.ALPHAENGINE_GATEWAY_URL;
+    process.env.ALPHAENGINE_GATEWAY_URL = "https://gateway.invalid";
+    resetGatewayOpenApiEvidenceCache();
+    try {
+      await body((respond) => {
+        globalThis.fetch = (async () => new Response(JSON.stringify(respond()), {
+          headers: { "content-type": "application/json" },
+        })) as typeof fetch;
+      });
+    } finally {
+      globalThis.fetch = realFetch;
+      if (realUrl === undefined) delete process.env.ALPHAENGINE_GATEWAY_URL;
+      else process.env.ALPHAENGINE_GATEWAY_URL = realUrl;
+      resetGatewayOpenApiEvidenceCache();
+    }
+  }
+
+  it("never scores an unreachable gateway as drift", async () => {
+    await withGateway(async () => {
+      globalThis.fetch = refused as unknown as typeof fetch;
+      const evidence = await gatewayOpenApiEvidence(1_000_000);
+
+      // The distinction the panel depends on: nothing was compared, so there
+      // is no observed digest and no verdict about the live contract.
+      assert.equal(evidence.state, "unavailable");
+      assert.equal(evidence.passed, false);
+      assert.equal(evidence.observedDigest, null);
+      assert.match(evidence.detail, /could not be reached/);
+      assert.doesNotMatch(evidence.detail, /differs from|matches/);
+    });
+  });
+
+  it("dates a comparison it replays after the gateway stops answering", async () => {
+    await withGateway(async (serve) => {
+      serve(() => drifted);
+      const read = await gatewayOpenApiEvidence(1_000_000);
+      assert.equal(read.state, "mismatch");
+      assert.doesNotMatch(read.detail, /Last checked/);
+
+      // The gateway dies. The next poll gets no document at all, and the cache
+      // is what answers — so the answer has to carry its own age.
+      globalThis.fetch = refused as unknown as typeof fetch;
+      const replayed = await gatewayOpenApiEvidence(1_000_000 + 60_000);
+      assert.equal(replayed.state, "mismatch");
+      assert.equal(replayed.observedDigest, read.observedDigest);
+      assert.match(replayed.detail, /Last checked 60s ago\./);
+
+      // A replay is never restamped as fresh, and the window still expires.
+      const later = await gatewayOpenApiEvidence(1_000_000 + 120_000);
+      assert.match(later.detail, /Last checked 120s ago\./);
+      const expired = await gatewayOpenApiEvidence(1_000_000 + 6 * 60_000);
+      assert.equal(expired.state, "unavailable");
+      assert.equal(expired.observedDigest, null);
+    });
+  });
+
+  it("holds a match no longer than it holds a mismatch", async () => {
+    // The dangerous direction: a cached pass outliving the gateway that earned
+    // it would be a promotion gate going green on a dead port.
+    await withGateway(async (serve) => {
+      serve(() => committedGatewayOpenApi);
+      assert.equal((await gatewayOpenApiEvidence(2_000_000)).state, "match");
+      globalThis.fetch = refused as unknown as typeof fetch;
+      assert.match((await gatewayOpenApiEvidence(2_000_000 + 90_000)).detail, /Last checked 90s ago\./);
+      assert.equal((await gatewayOpenApiEvidence(2_000_000 + 6 * 60_000)).state, "unavailable");
+    });
+  });
+
+  it("re-probes a failure quickly, so recovery is visible", async () => {
+    await withGateway(async (serve) => {
+      globalThis.fetch = refused as unknown as typeof fetch;
+      assert.equal((await gatewayOpenApiEvidence(3_000_000)).state, "unavailable");
+      serve(() => committedGatewayOpenApi);
+      // Inside the 15s failure window the failure is still what is known.
+      assert.equal((await gatewayOpenApiEvidence(3_000_000 + 5_000)).state, "unavailable");
+      assert.equal((await gatewayOpenApiEvidence(3_000_000 + 20_000)).state, "match");
+    });
   });
 });
