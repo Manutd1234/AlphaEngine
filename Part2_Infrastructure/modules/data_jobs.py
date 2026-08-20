@@ -312,7 +312,15 @@ def _summary(record: JobRecord) -> dict[str, Any] | None:
 
 async def on_data_job_complete(record: JobRecord) -> None:
     """Persist a finished data job: the finding to the ledger, clean bars to the cache."""
-    if not record.kind.startswith(DATA_KIND_PREFIX) or record.status != "succeeded":
+    if not record.kind.startswith(DATA_KIND_PREFIX):
+        return
+    # Before the success gate: a schedule needs its FAILURES recorded most of
+    # all. `last_outcome` was written at submit time and so was always "queued";
+    # a failed job left its schedule reading as a clean run.
+    from modules.data_scheduler import record_schedule_outcome
+
+    record_schedule_outcome(record.job_id, record.status)
+    if record.status != "succeeded":
         return
     result = record.result if isinstance(record.result, dict) else None
     if result is None:

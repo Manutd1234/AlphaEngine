@@ -272,3 +272,74 @@ class TestScheduler:
         views = again.views(NOW + 3_660_000)
         assert [v.valid for v in views] == [True, False]
         assert views[0].last_job_id == "j2" and views[1].error
+
+
+def _point_at(monkeypatch, path):
+    """`settings` is a frozen dataclass; replace the object, not a field."""
+    from dataclasses import replace
+
+    import config
+
+    monkeypatch.setattr(config, "settings", replace(config.settings, data_ops_db_path=path))
+
+
+class TestScheduleOutcomes:
+    """`last_outcome` records what the job did, not what it was when queued."""
+
+    def test_a_failed_job_marks_its_schedule_failed(self, tmp_path, monkeypatch):
+        from modules.data_jobs import ScheduleRunStore
+        from modules.data_scheduler import _SCHEDULE_BY_JOB, record_schedule_outcome
+
+        store = ScheduleRunStore(str(tmp_path / "runs.sqlite"))
+        _point_at(monkeypatch, tmp_path / "runs.sqlite")
+
+        store.record_run("replay:quote:BTCUSDT@every=15m", 1_000.0, "job-a", "queued")
+        _SCHEDULE_BY_JOB["job-a"] = "replay:quote:BTCUSDT@every=15m"
+        record_schedule_outcome("job-a", "failed")
+
+        row = store.last_run("replay:quote:BTCUSDT@every=15m")
+        assert row is not None
+        assert row["last_outcome"] == "failed", (
+            "a schedule whose job failed still reads as a clean run"
+        )
+        assert row["last_job_id"] == "job-a"
+
+    def test_an_unknown_job_is_ignored_rather_than_guessed(self, tmp_path, monkeypatch):
+        from modules.data_scheduler import record_schedule_outcome
+
+        _point_at(monkeypatch, tmp_path / "runs.sqlite")
+        # A job the scheduler did not submit — an operator replay, say. Writing
+        # a row for it would attribute a manual action to a schedule.
+        record_schedule_outcome("job-not-scheduled", "succeeded")
+
+
+class TestATickIsolatesItsSchedules:
+    def test_one_bad_schedule_does_not_stop_the_others(self, monkeypatch):
+        from modules.data_scheduler import DataScheduler, parse_schedule
+
+        scheduler = DataScheduler([
+            "replay:quote:AAA@every=15m",
+            "replay:quote:BBB@every=15m",
+            "replay:quote:CCC@every=15m",
+        ])
+        due = [parse_schedule(s) for s in (
+            "replay:quote:AAA@every=15m",
+            "replay:quote:BBB@every=15m",
+            "replay:quote:CCC@every=15m",
+        )]
+        monkeypatch.setattr(scheduler, "due", lambda now_ms=None: due)
+
+        calls: list[str] = []
+
+        def _submit(schedule, *, now_ms=None):
+            calls.append(schedule.symbol or "")
+            if schedule.symbol == "BBB":
+                raise RuntimeError("this symbol is not routable")
+            return f"job-{schedule.symbol}"
+
+        monkeypatch.setattr(scheduler, "submit", _submit)
+
+        submitted = scheduler.tick(now_ms=1_000.0)
+
+        assert calls == ["AAA", "BBB", "CCC"], "the tick stopped at the failing schedule"
+        assert submitted == ["job-AAA", "job-CCC"]

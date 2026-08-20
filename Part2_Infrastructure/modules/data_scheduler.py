@@ -113,6 +113,35 @@ def parse_schedule(expression: str) -> DataSchedule:
     return base
 
 
+#: job id -> schedule id, for the few seconds between submit and completion.
+#: In memory because it is only meaningful within one process's lifetime: a
+#: restart loses the mapping, and the row `record_run` already wrote is what
+#: survives, which is the honest half.
+_SCHEDULE_BY_JOB: dict[str, str] = {}
+
+
+def record_schedule_outcome(job_id: str, status: str) -> None:
+    """Write the terminal status against the schedule that submitted the job.
+
+    `last_outcome` used to be whatever `record.status` was at submit time —
+    "queued", always. So a schedule whose job failed still read as having run
+    cleanly, and nothing revisited it. The column existed and could not have
+    held a failure.
+    """
+    schedule_id = _SCHEDULE_BY_JOB.pop(job_id, None)
+    if schedule_id is None:
+        return
+    try:
+        from config import settings
+        from modules.data_jobs import ScheduleRunStore
+
+        ScheduleRunStore(str(settings.data_ops_db_path)).record_run(
+            schedule_id, time.time() * 1000.0, job_id, status,
+        )
+    except Exception as exc:
+        log.error("data scheduler: outcome for %s not recorded (%s)", job_id, type(exc).__name__)
+
+
 class DataScheduler:
     def __init__(self, expressions: list[str] | None = None, *, store: Any | None = None) -> None:
         self.schedules = [parse_schedule(e) for e in (expressions if expressions is not None else settings.data_schedules)]
@@ -154,11 +183,32 @@ class DataScheduler:
                 DataBackfillRequest(symbol=schedule.symbol or "", interval=schedule.interval or "1h", from_at=from_at, to_at=to_at),
                 actor="scheduler",
             )
+        # Status at SUBMIT time, which is "queued" — the terminal outcome is
+        # written by `record_schedule_outcome` from the completion hook. This
+        # row exists now so a restart between submit and completion still shows
+        # the schedule as having fired.
         self._runs().record_run(schedule.id, now, record.job_id, record.status)
+        _SCHEDULE_BY_JOB[record.job_id] = schedule.id
         return record.job_id
 
     def tick(self, now_ms: float | None = None) -> list[str]:
-        return [self.submit(s, now_ms=now_ms) for s in self.due(now_ms)]
+        """Submit every due schedule, isolating each from the others.
+
+        This was a list comprehension, so a schedule that raised took the rest
+        of the tick with it — the ones already submitted kept their `record_run`
+        row and the remainder were silently skipped until the next interval,
+        with nothing recording that they had been. A bad symbol in one schedule
+        stopped every other schedule on the desk.
+        """
+        submitted: list[str] = []
+        for schedule in self.due(now_ms):
+            try:
+                submitted.append(self.submit(schedule, now_ms=now_ms))
+            except Exception as exc:
+                log.error(
+                    "data scheduler: %s did not submit (%s)", schedule.id, type(exc).__name__,
+                )
+        return submitted
 
     async def loop(self, tick_s: float | None = None) -> None:
         interval = tick_s if tick_s is not None else settings.data_scheduler_tick_s
