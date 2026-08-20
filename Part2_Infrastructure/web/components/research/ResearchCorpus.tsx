@@ -3,15 +3,22 @@
 /**
  * "Has this desk seen anything like this before?"
  *
- * The corpus is the desk's own backtests, execution summaries and risk
- * incidents — not the open web. What comes back is evidence this account
- * actually produced, which is the only kind that settles an argument about
- * whether a result has been seen before.
+ * The corpus is the desk's own backtests and risk incidents — not the open
+ * web. What comes back is evidence this account actually produced, which is the
+ * only kind that settles an argument about whether a result has been seen
+ * before.
  *
- * Both backends are offered as a choice rather than a fallback chain. Two
- * indexes over the same documents, embedded by the same model, that rank them
- * differently is a fact worth seeing; a silent failover would hide exactly the
- * comparison the two-backend design exists to make.
+ * `execution_summary` is a third kind in the schema, the enum and the Oracle
+ * CHECK constraint, and NOTHING WRITES ONE. `research_rag.py` emits
+ * "backtest_run" and "risk_incident" and no producer exists for the third, so
+ * naming it here promised a class of document that has never been indexed.
+ *
+ * Both backends are offered as a choice rather than a fallback chain — but
+ * they are NOT two indexes over the same documents, which this comment used to
+ * claim. Supabase is written live by the gateway; the Oracle table has one
+ * writer, `tools/backfill_oracle_rag.py`, run by hand from a workflow_dispatch
+ * job, and it indexes completed backtests only. Ranking the two against each
+ * other is still worth doing; expecting the same corpus behind both is not.
  */
 
 import { useState } from "react";
@@ -78,8 +85,9 @@ export default function ResearchCorpus() {
           value={backend}
           onChange={(event) => setBackend(event.target.value as SearchBackend)}
         >
-          <option value="supabase">Supabase pgvector</option>
-          <option value="oracle">Oracle 23ai</option>
+          {/* Separate corpora, not two views of one — see the header. */}
+          <option value="supabase">Supabase pgvector — live</option>
+          <option value="oracle">Oracle 23ai — backfilled</option>
         </select>
         <button type="submit" disabled={status === "searching" || !query.trim()}>
           {status === "searching" ? "Searching…" : "Search"}
