@@ -725,46 +725,52 @@ export default function DataTrustOverview({
       )}
 
       {/*
-        Static documentation, and the only block on this tab that is not a
-        reading of the running system: it states what the data plane implements
-        and what still bounds it.
+        What still bounds this data plane, and nothing else.
+
+        This block used to carry an "Implemented" list of seven bullets beside
+        the boundaries. Those seven described what the three panes below this
+        one already show, in the same words, so a reader who had scrolled
+        learned nothing from them — and every one of them was a claim that had
+        to be maintained by hand against a system that moves. Removed. What is
+        implemented is visible; what is NOT is the only thing a static block can
+        usefully say.
 
         OUTSIDE the pane switcher on purpose. A boundary that disappears when a
         reader changes view is a boundary they can miss entirely, and this one
-        qualifies every number in all three panes. Collapsed, it costs ~40px and
-        its summary line still says exactly what is inside.
+        qualifies every number in all three panes.
       */}
       {summary && (
         <section className="card data-trust-boundaries" aria-label="Assessment boundary">
           <details className="disclosure">
-            {/* The summary IS the heading. An inner kicker-and-h2 block used to
-                restate it word for word the moment the disclosure opened, so
-                the reader's reward for opening was the title twice; the h2 went
-                with the repeat, and the section carries an aria-label instead
-                of pointing at a heading that no longer exists. */}
             <summary>
-              Assessment boundary — what is implemented, and what still bounds it
+              Assessment boundary — what still bounds this data plane
             </summary>
             <div>
               <article>
-                <h3><span aria-hidden>✓</span> Implemented</h3>
-                <ul>
-                  <li>Ranked provider failover with circuit, quota, reserve and cache state.</li>
-                  <li>Quote, bars, news and fundamentals contracts on the normalised payload; rejected-payload failover and bounded quarantine evidence.</li>
-                  <li>A durable, cross-instance quality ledger on the gateway (SQLite on its data volume, seven-day retention), fed by every web instance&apos;s sync, with rule-based escalation to the Telegram alert chats and the audit log.</li>
-                  <li>Replay and backfill jobs orchestrated by the gateway queue — replay re-runs a capability through this workspace&apos;s own validated fetch path, backfill merges contract-checked bars into the gateway&apos;s bar cache — with a config-driven schedule and results in Lineage &amp; Payloads.</li>
-                  <li>A Work Queue persisted on the gateway — versioned, audit-logged, a stale edit refused with the current row — with edits held locally and disclosed when the gateway is unreachable.</li>
-                  <li>On-demand cross-source reconciliation and real request lineage for the active symbol and interval.</li>
-                  <li>Gateway venue freshness, reconnect and synthetic-feed disclosure when configured.</li>
-                </ul>
-              </article>
-              <article>
                 <h3><span aria-hidden>△</span> Remaining boundaries</h3>
                 <ul>
-                  <li>The quality ledger, the schedule runs and the Work Queue live in one gateway process and one SQLite file on its data volume — durable across restarts and deploys, not replicated across regions or gateways.</li>
-                  <li>Contracts validate the normalised shape, not each vendor&apos;s raw JSON schema; raw payloads are visible in the inspector and the quarantine sample.</li>
-                  <li>The scheduler is in-process and config-driven; the job list is the queue&apos;s memory (the audit log keeps status rows) and there is no retry queue beyond the job backend.</li>
-                  <li>Escalation is one channel with a cooldown and auto-resolve — no acknowledgement workflow or paging rota.</li>
+                  <li>
+                    One gateway process, by design and by test. The risk gateway holds a mutable
+                    position book, a resting-order book, a token bucket and the kill switch in
+                    memory; a second worker would fork the book and make a halt local to whichever
+                    process served the request. The container contract fails the build on
+                    <code> --workers</code>. The quality ledger, the schedule runs and the Work
+                    Queue therefore live in one SQLite file on that process&apos;s data volume —
+                    durable across restarts and deploys, not replicated across regions.
+                  </li>
+                  <li>
+                    Raw vendor schemas are checked for <strong>two providers of eight</strong>.
+                    Binance and Bybit serve their market endpoints without credentials, so a real
+                    response from each is committed and the checks are held to it. The other six
+                    need an API key, and a validator with no captured response is untested code in
+                    the fetch path — so they are not covered rather than covered on trust.
+                  </li>
+                  <li>
+                    Escalation reaches one channel. Acknowledgement exists, and only Telegram can
+                    name a person: the gateway&apos;s HTTP identity resolves to a token, so a web
+                    acknowledgement records which credential took an escalation and not who. There
+                    is no paging rota — a rota is a roster of people, and this desk has one.
+                  </li>
                 </ul>
               </article>
             </div>
