@@ -101,7 +101,7 @@ class DataQualityEscalationView(BaseModel):
     evaluated: int | None
     detail: str
     notified_at: datetime | None
-    channel: Literal["telegram", "log"] | None
+    channel: Literal["telegram", "log", "webhook"] | None
     resolved_at: datetime | None
     #: When someone took it, and who. NULL means nobody has — including for
     #: every row written before these columns existed, which is the same fact.

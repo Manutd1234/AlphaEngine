@@ -50,6 +50,7 @@ from modules.data_quality_models import DataQualityProviderRow as DataQualityPro
 from modules.data_quality_models import DataQualityView as DataQualityView  # noqa: F401
 from modules.data_quality_models import WebContractCheck as WebContractCheck  # noqa: F401
 from modules.data_quality_models import WebContractFinding as WebContractFinding  # noqa: F401
+from modules.oncall import escalation_channel
 
 # --------------------------------------------------------------------------- #
 # Store
@@ -713,14 +714,13 @@ async def publish_escalation(
             targets = int(bot.health().get("alert_targets", 0)) if hasattr(bot, "health") else 0
         except Exception:
             targets = 0
-        channel = "telegram" if getattr(bot, "enabled", False) and targets > 0 else "log"
+        channel = await escalation_channel(escalation, telegram_ok=bool(getattr(bot, "enabled", False) and targets > 0), url=settings.data_ops_webhook_url, rota=settings.data_oncall)
         text = (
             f"<b>Data-quality escalation</b> — {escalation.rule.replace('_', ' ')}\n"
             f"{escalation.detail}.\n"
             f"Rule window {escalation.window_minutes} min; auto-resolves when the condition clears."
         )
-        # Addressed to the roles that own data quality. A chat with no role set
-        # still receives it — see `_role_targets`.
+        # Addressed to the roles that own data quality; an unset role still gets it.
         await bot.broadcast("warning", text, roles=ESCALATION_ROLES)
     except asyncio.CancelledError:
         raise

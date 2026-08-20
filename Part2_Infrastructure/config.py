@@ -129,6 +129,11 @@ class Settings:
         item.strip() for item in _env("DATA_SCHEDULES", "").split(";") if item.strip()
     ])
     data_scheduler_tick_s: float = field(default_factory=lambda: _env_float("DATA_SCHEDULER_TICK_S", 30.0))
+    # The on-call rota and a second escalation channel — E2.10 ships both as
+    # mechanism; an empty roster is a supported state. See modules/oncall.py for
+    # the grammar and why it is not the DATA_SCHEDULES cadence grammar.
+    data_oncall: str = field(default_factory=lambda: _env("DATA_ONCALL", ""))
+    data_ops_webhook_url: str = field(default_factory=lambda: _env("DATA_OPS_WEBHOOK_URL", ""))
 
     # ---- Module A: TCA / market data --------------------------------------
     symbols: list[str] = field(default_factory=lambda: _env_list("SYMBOLS", ["BTCUSDT", "ETHUSDT", "SOLUSDT"]))
@@ -234,21 +239,15 @@ class Settings:
     paper_fee_bps: float = field(default_factory=lambda: _env_float("PAPER_FEE_BPS", 4.0))
     # Equity orders use a trusted quote rather than an exchange ladder. Keep the
     # model explicit and conservative: this is simulated execution, never L2.
-    paper_equity_slippage_bps: float = field(
-        default_factory=lambda: _env_float("PAPER_EQUITY_SLIPPAGE_BPS", 8.0)
-    )
+    paper_equity_slippage_bps: float = field(default_factory=lambda: _env_float("PAPER_EQUITY_SLIPPAGE_BPS", 8.0))
     # A weekend close remains usable for a paper demonstration, but a quote
     # older than a week is not evidence a risk engine should size against.
-    paper_equity_quote_max_age_s: float = field(
-        default_factory=lambda: _env_float("PAPER_EQUITY_QUOTE_MAX_AGE_S", 604_800.0)
-    )
+    paper_equity_quote_max_age_s: float = field(default_factory=lambda: _env_float("PAPER_EQUITY_QUOTE_MAX_AGE_S", 604_800.0))
     # Optional server-side quote bridge for clients that predate the enriched
     # order contract. The production workflow points this at the web portal's
     # validated provider facade; empty keeps unknown symbols fail-closed.
     paper_equity_quote_url: str = field(default_factory=lambda: _env("PAPER_EQUITY_QUOTE_URL", ""))
-    paper_equity_quote_timeout_s: float = field(
-        default_factory=lambda: _env_float("PAPER_EQUITY_QUOTE_TIMEOUT_S", 5.0)
-    )
+    paper_equity_quote_timeout_s: float = field(default_factory=lambda: _env_float("PAPER_EQUITY_QUOTE_TIMEOUT_S", 5.0))
     # Maker fee, for a resting order that was filled *by* someone crossing the
     # spread rather than by crossing it. Charging a resting fill the taker fee
     # would report a cost the desk did not pay.

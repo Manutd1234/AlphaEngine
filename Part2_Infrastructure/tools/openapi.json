@@ -659,7 +659,8 @@
               {
                 "enum": [
                   "telegram",
-                  "log"
+                  "log",
+                  "webhook"
                 ],
                 "type": "string"
               },
