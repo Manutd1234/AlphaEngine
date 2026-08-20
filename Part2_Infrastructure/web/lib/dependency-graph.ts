@@ -292,3 +292,29 @@ export function summariseTree(root: DependencyNode): Record<DependencyHealth, nu
   walk(root);
   return counts;
 }
+
+/**
+ * Which of `platform.status`'s four disjuncts is actually firing.
+ *
+ * `build_operations_snapshot` (operations.py:374-386) collapses four unrelated
+ * conditions into the single word "degraded", and the Developer console then
+ * rendered that word next to the gateway's FRESHNESS string — so an amber card
+ * read "Gateway 1.0.0; Gateway operations snapshot is current.", which names
+ * the one thing that was not wrong. The operator had no way to reach the cause
+ * from the surface reporting it.
+ *
+ * Mirrors the Python disjunction in the same order. Returns null when none of
+ * them fires, which is the `source.state === "stale"` case — there the
+ * freshness string IS the cause and the caller's fallback is correct.
+ */
+export function degradedCause(platform: NonNullable<SystemHealth["platform"]>): string | null {
+  if (platform.market_data.status === "degraded" || platform.market_data.status === "disabled") {
+    return `market data is ${platform.market_data.status}`;
+  }
+  if (platform.risk.status === "reduce_only") return "risk is in reduce-only";
+  if (platform.telegram.status === "degraded") return "the Telegram bot reports an error";
+  if (platform.queue.broker_configured && platform.queue.backend !== "celery") {
+    return `a broker is configured but the queue is running ${platform.queue.backend}`;
+  }
+  return null;
+}

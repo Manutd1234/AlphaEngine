@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-20",
-  "commit": "48f263f",
+  "commit": "c45439f",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -70,7 +70,6 @@
     "Part2_Infrastructure/modules/__init__.py",
     "Part2_Infrastructure/modules/audit.py",
     "Part2_Infrastructure/modules/backoff.py",
-    "Part2_Infrastructure/modules/backtester.py",
     "Part2_Infrastructure/modules/backtester/__init__.py",
     "Part2_Infrastructure/modules/backtester/_common.py",
     "Part2_Infrastructure/modules/backtester/data.py",
@@ -200,6 +199,7 @@
     "Part2_Infrastructure/tests/test_telegram_commands.py",
     "Part2_Infrastructure/tests/test_telegram_controls.py",
     "Part2_Infrastructure/tests/test_telegram_docs.py",
+    "Part2_Infrastructure/tests/test_telegram_error_latch.py",
     "Part2_Infrastructure/tests/test_telegram_interactive.py",
     "Part2_Infrastructure/tests/test_telegram_link.py",
     "Part2_Infrastructure/tests/test_telegram.py",
@@ -597,6 +597,7 @@
     "Part2_Infrastructure/web/tests/dead-css.test.ts",
     "Part2_Infrastructure/web/tests/deadlines.test.ts",
     "Part2_Infrastructure/web/tests/decision-latency.test.ts",
+    "Part2_Infrastructure/web/tests/degraded-cause.test.ts",
     "Part2_Infrastructure/web/tests/delivery-readiness.test.ts",
     "Part2_Infrastructure/web/tests/dependency-graph.test.ts",
     "Part2_Infrastructure/web/tests/deployment-contract.test.ts",

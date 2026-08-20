@@ -24,6 +24,7 @@ import { canonicalJson } from "@/lib/canonical-json";
 import type { DeveloperWorkItem } from "@/lib/developer-work";
 import { mcParityFixture, MC_PARITY_PATHS } from "@/lib/mc-parity";
 import { MC_PARITY_REFERENCE_JSON, MC_PARITY_REFERENCE_SHA256 } from "@/lib/mc-parity-reference.generated";
+import { degradedCause } from "@/lib/dependency-graph";
 import { DEVELOPER_SECTIONS, type DeveloperSection } from "@/lib/sections";
 import { TEST_COUNTS } from "@/lib/test-counts.generated";
 import { useMcDistribution } from "@/lib/use-mc-distribution";
@@ -187,17 +188,16 @@ function gatewayState(view: SystemHealthView): ControlState {
   const platform = view.health?.platform;
   if (!view.health) return { label: "Checking", detail: "Gateway health has not arrived yet.", tone: "info" };
   if (!platform) {
-    return {
-      label: source?.state === "not_configured" ? "Gateway Off" : "Unavailable",
-      detail: source?.detail ?? "FastAPI Gateway is offline. Run 'python -m uvicorn main:app --port 8000' to connect.",
-      tone: source?.state === "not_configured" ? "off" : "warn",
-    };
+    const off = source?.state === "not_configured";
+    const offline = "FastAPI Gateway is offline. Run 'python -m uvicorn main:app --port 8000' to connect.";
+    return { label: off ? "Gateway Off" : "Unavailable", detail: source?.detail ?? offline, tone: off ? "off" : "warn" };
   }
   if (platform.status === "critical" || platform.status === "halted") {
     return { label: platform.status, detail: `Gateway ${platform.version} reports ${platform.status}.`, tone: "bad" };
   }
   if (platform.status === "degraded" || source?.state === "stale") {
-    return { label: "Degraded", detail: `Gateway ${platform.version}; ${source?.detail ?? "degraded"}.`, tone: "warn" };
+    // Name the disjunct: source.detail is FRESHNESS ("...snapshot is current").
+    return { label: "Degraded", detail: `Gateway ${platform.version}; ${degradedCause(platform) ?? source?.detail ?? "degraded"}.`, tone: "warn" };
   }
   return { label: "Healthy", detail: `Gateway ${platform.version} in ${platform.environment}.`, tone: "good" };
 }
