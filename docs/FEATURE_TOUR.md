@@ -46,7 +46,7 @@ its aria-label and title; HALTED is never folded.
 
 **Where the rail lists below come from.** Every rail in this document is transcribed from
 `Part2_Infrastructure/web/lib/sections.ts`, which is the single definition the rails, the
-command palette, the hash whitelist and "Copy link to this view" all read. **44 sections across
+command palette, the hash whitelist and "Copy link to this view" all read. **45 sections across
 the eight tabs.** Three ids deliberately disagree with their labels, because the deep link came
 first and ids never change: view `live` renders "Execution", section `codex` renders
 "Strategies", section `activity` renders "Blotter". If a rail here disagrees with the app,
@@ -196,9 +196,13 @@ rather than substituting an assumption.
 
 **The question it answers:** how much can we lose, and who can stop the desk?
 
-**60 seconds:** rail: **Limits → VaR & model → Monte Carlo → Stress tests → Controls**. Limits
-shows the binding constraint and its utilisation. VaR & model carries the validated loss
-estimate with its traffic-light backtest zone. **Monte Carlo** bootstraps the research winner's
+**60 seconds:** rail: **Limits → VaR & model → Risk drivers → Monte Carlo → Stress tests →
+Controls**. Limits shows the binding constraint and its utilisation. VaR & model carries the
+validated loss estimate with its traffic-light backtest zone and the forecast-against-realised
+chart that scores it. **Risk drivers** answers the next question separately — which positions
+carry the volatility, and how much of the diversification is real — because a contribution
+table and a correlation matrix sharing a row with a time series gave all three too little
+width to be read. **Monte Carlo** bootstraps the research winner's
 realised returns into a terminal-outcome distribution, computed in a dedicated worker so the
 main thread only draws it — and it sits deliberately *beside* the parametric VaR and the
 Oracle's in-database GBM simulation rather than inside either, because three loss estimates

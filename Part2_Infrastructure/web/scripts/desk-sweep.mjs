@@ -62,7 +62,7 @@ const TABS = {
   developer: ["overview", "readiness", "quality", "apis", "codebase", "work"],
 };
 
-const EXPECTED_SECTIONS = 44;
+const EXPECTED_SECTIONS = 45;
 
 /**
  * The two tabs whose job is to report infrastructure truth.

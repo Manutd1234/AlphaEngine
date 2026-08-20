@@ -49,6 +49,15 @@ interface RiskEngineProps {
   varSeries?: VarSeries | null;
   /** True when the notionals came from the generated sandbox book. */
   sandbox?: boolean;
+  /**
+   * Which half of the risk engine to render.
+   *
+   * One component, two subtabs, because both halves read the same `risk` and
+   * `model` props and splitting them into two components would mean two call
+   * sites that could be handed different snapshots. Same shape as
+   * `DeveloperOverview`'s `part`.
+   */
+  part?: "model" | "drivers";
 }
 
 const ZONE_STYLE: Record<string, { glyph: string; label: string; tone: string }> = {
@@ -70,7 +79,11 @@ export default function RiskEngine({
   // could answer "when" sat unreferenced.
   varSeries,
   sandbox = false,
+  part = "model",
 }: RiskEngineProps) {
+  const showModel = part === "model";
+  const showDrivers = part === "drivers";
+
   if (loading) {
     return (
       <div className="card" aria-busy="true" aria-live="polite">
@@ -107,6 +120,8 @@ export default function RiskEngine({
   const tailGap = risk.historicalVar95 !== null ? risk.historicalVar95 - risk.var95 : null;
 
   return (
+    <>
+    {showModel && (
     <>
     <div className="card">
       <div className="portfolio-card-heading">
@@ -194,19 +209,27 @@ export default function RiskEngine({
       </p>
     </div>
 
-    <div className="compact-grid-2col">
-      {varSeries && (
-        <VarBacktestChart
-          series={varSeries}
-          validation={validation ?? null}
-          sandbox={sandbox}
-          missing={missing}
-        />
-      )}
+    {varSeries && (
+      <VarBacktestChart
+        series={varSeries}
+        validation={validation ?? null}
+        sandbox={sandbox}
+        missing={missing}
+      />
+    )}
+    </>
+    )}
 
-      <RiskContributions contributions={risk.contributions} />
-      <CorrelationMatrix model={model} worst={risk.worstCorrelation} observations={risk.observations} />
-    </div>
+    {showDrivers && (
+      /* Two cards, one row, on a panel of their own. Sharing a row with the
+         backtest chart gave the contribution table a third of the width and a
+         horizontal scrollbar inside its own card; here each gets ~570px, which
+         the six columns and the heatmap both fit with room over. */
+      <div className="compact-grid-2col">
+        <RiskContributions contributions={risk.contributions} />
+        <CorrelationMatrix model={model} worst={risk.worstCorrelation} observations={risk.observations} />
+      </div>
+    )}
     </>
   );
 }

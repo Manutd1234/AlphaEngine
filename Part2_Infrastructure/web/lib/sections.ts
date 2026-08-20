@@ -66,7 +66,8 @@ export const PORTFOLIO_SECTION_IDS =
 
 export const RISK_SECTIONS = [
   { id: "limits", label: "Limits", description: "Headroom & concentration" },
-  { id: "model", label: "VaR & model", description: "Loss estimates & drivers" },
+  { id: "model", label: "VaR & model", description: "Loss estimates & validation" },
+  { id: "drivers", label: "Risk drivers", description: "Contribution & correlation" },
   { id: "montecarlo", label: "Monte Carlo", description: "Terminal distribution & tail" },
   { id: "scenarios", label: "Stress tests", description: "Forward shock damage" },
   { id: "controls", label: "Controls", description: "Halt & flatten handoffs" },

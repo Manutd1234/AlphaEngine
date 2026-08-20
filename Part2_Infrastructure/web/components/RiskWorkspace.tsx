@@ -263,6 +263,23 @@ export default function RiskWorkspace({
           validation={varValidation}
           varSeries={varSeries}
           sandbox={Boolean(book.sandbox)}
+          part="model"
+        />
+      </WorkspaceSubtabPanel>
+
+      {/* Same props, same snapshot, second half. The two panels cannot disagree
+          about the book because they are one component reading one set of
+          props. */}
+      <WorkspaceSubtabPanel workspaceId="risk" tabId="drivers" activeId={section}>
+        <RiskEngine
+          risk={risk}
+          model={covarianceModel}
+          loading={riskLoading && !risk}
+          missing={missingHistory}
+          validation={varValidation}
+          varSeries={varSeries}
+          sandbox={Boolean(book.sandbox)}
+          part="drivers"
         />
       </WorkspaceSubtabPanel>
 

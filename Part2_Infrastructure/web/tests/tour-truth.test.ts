@@ -70,7 +70,7 @@ describe("the feature tour names the sections the app actually ships", () => {
 
   it("the section total the tour quotes is the total that exists", () => {
     const total = WORKSPACES.reduce((n, workspace) => n + railOf(workspace).length, 0);
-    assert.equal(total, 44, "the rail count moved; the tour and desk-sweep both quote it");
+    assert.equal(total, 45, "the rail count moved; the tour and desk-sweep both quote it");
     assert.ok(
       plain.includes(`${total} section`),
       `the tour does not state the ${total}-section total`,
