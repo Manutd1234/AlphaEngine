@@ -309,6 +309,17 @@ const page = readFileSync(
   fileURLToPath(new URL("../app/dashboard/page.tsx", import.meta.url)),
   "utf8",
 );
+/**
+ * Promotion's hand-off moved into the Research tab's own Decision section when
+ * `page.tsx` was split. The shell still OWNS the execution sleeve — that is
+ * why both book tabs and the ticket can quote it — and hands the setter down;
+ * the research side calls it with the promoted run's strategy. Both halves are
+ * asserted, because either one alone would let the other rot.
+ */
+const decisionSection = readFileSync(
+  fileURLToPath(new URL("../components/research/DecisionSection.tsx", import.meta.url)),
+  "utf8",
+);
 
 describe("token-guarded order entry has an in-context recovery path", () => {
   it("keeps the operator credential in shared memory and exposes no storage path", () => {
@@ -342,7 +353,8 @@ describe("the execution strategy is an editable order intent", () => {
   });
 
   it("lets promotion seed the sleeve and the ticket override it", () => {
-    assert.match(page, /setExecutionStrategy\(data\.request\.strategy\)/);
+    assert.match(page, /onStageSleeve=\{setExecutionStrategy\}/);
+    assert.match(decisionSection, /onStageSleeve\(data\.request\.strategy\)/);
     assert.match(page, /onStrategyChange=\{setExecutionStrategy\}/);
     assert.match(orderTicket, /value=\{strategy\}/);
     assert.match(orderTicket, /id="execution-strategy"/);

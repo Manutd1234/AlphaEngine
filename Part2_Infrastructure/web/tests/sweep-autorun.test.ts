@@ -43,7 +43,23 @@ function read(relative: string): string {
 }
 
 const controls = read("../components/Controls.tsx");
-const page = read("../app/dashboard/page.tsx");
+/**
+ * The sweep and its auto-run left `page.tsx` for `lib/use-sweep-run.ts`, and
+ * the Research JSX that carries the veil left for `components/ResearchWorkspace`
+ * and its children. Every assertion below follows the code it was written for;
+ * an assertion still pointed at page.tsx would be a scan of a file that no
+ * longer contains its subject, and would pass by finding nothing.
+ */
+const sweepHook = read("../lib/use-sweep-run.ts");
+const research = read("../components/ResearchWorkspace.tsx");
+/** Every Research surface that renders a gate, so the mode count is complete. */
+const RESEARCH_SOURCES: [string, string][] = [
+  ["ResearchWorkspace.tsx", research],
+  ["research/ResearchSummary.tsx", read("../components/research/ResearchSummary.tsx")],
+  ["research/AttributionSection.tsx", read("../components/research/AttributionSection.tsx")],
+  ["research/DecisionSection.tsx", read("../components/research/DecisionSection.tsx")],
+  ["research/ResearchBanners.tsx", read("../components/research/ResearchBanners.tsx")],
+];
 const staleGate = read("../components/research/StaleGate.tsx");
 
 // --------------------------------------------------------------------------
@@ -82,8 +98,8 @@ describe("the sweep commits on the DOM's change event, not React's onChange", ()
     assert.match(controls, /onRun:\s*\(\)\s*=>\s*void/);
   });
 
-  it("page.tsx passes its commit handler in", () => {
-    assert.match(page, /onCommit=\{commitRequest\}/);
+  it("the research workspace passes its commit handler in", () => {
+    assert.match(research, /onCommit=\{commitRequest\}/);
   });
 });
 
@@ -93,12 +109,12 @@ describe("the sweep commits on the DOM's change event, not React's onChange", ()
 
 describe("auto-runs stay out of the experiment trail", () => {
   it("run() takes a record flag", () => {
-    assert.match(page, /record = true,/, "run() lost its `record` parameter");
+    assert.match(sweepHook, /record = true,/, "run() lost its `record` parameter");
   });
 
   it("the trail is only written when record is set", () => {
     assert.match(
-      page,
+      sweepHook,
       /if \(record && !preserveInspect\) \{\s*\n\s*setExperiments\(\(current\) => addExperiment/,
       "addExperiment is no longer guarded by `record` — every settled slider value would "
         + "become a new row in the run archive",
@@ -106,9 +122,9 @@ describe("auto-runs stay out of the experiment trail", () => {
   });
 
   it("commitRequest runs without recording", () => {
-    const start = page.indexOf("const commitRequest = useCallback");
+    const start = sweepHook.indexOf("const commitRequest = useCallback");
     assert.notEqual(start, -1, "commitRequest is gone");
-    const body = page.slice(start, page.indexOf("}, [", start));
+    const body = sweepHook.slice(start, sweepHook.indexOf("}, [", start));
     assert.match(
       body,
       /void run\(undefined, false, false\)/,
@@ -117,8 +133,8 @@ describe("auto-runs stay out of the experiment trail", () => {
   });
 
   it("an explicit pin is the way a run enters the trail", () => {
-    assert.match(page, /const pinRun = useCallback/);
-    assert.match(page, /onClick=\{pinRun\}/);
+    assert.match(sweepHook, /const pinRun = useCallback/);
+    assert.match(research, /onClick=\{pinRun\}/);
   });
 });
 
@@ -127,8 +143,8 @@ describe("auto-runs stay out of the experiment trail", () => {
 // --------------------------------------------------------------------------
 
 describe("auto-run yields to the states it would clobber", () => {
-  const start = page.indexOf("const commitRequest = useCallback");
-  const body = page.slice(start, page.indexOf("}, [", start));
+  const start = sweepHook.indexOf("const commitRequest = useCallback");
+  const body = sweepHook.slice(start, sweepHook.indexOf("}, [", start));
 
   it("does nothing when Auto is off", () => {
     assert.match(body, /if \(!autoRun\) return;/);
@@ -144,7 +160,7 @@ describe("auto-run yields to the states it would clobber", () => {
 
   it("the idle fallback is also suspended by both", () => {
     assert.match(
-      page,
+      sweepHook,
       /if \(!autoRun \|\| inspect\) return;\s*\n\s*const timer = window\.setTimeout\(commitRequest/,
       "the idle fallback no longer respects the Auto switch and the drill-down",
     );
@@ -152,8 +168,8 @@ describe("auto-run yields to the states it would clobber", () => {
 
   it("the abort-and-sequence guard survives", () => {
     // Superseded auto-runs are the common case now, not the rare one.
-    assert.match(page, /activeRun\.current\?\.abort\(\)/);
-    assert.match(page, /if \(sequence !== runSeq\.current\) return;/);
+    assert.match(sweepHook, /activeRun\.current\?\.abort\(\)/);
+    assert.match(sweepHook, /if \(sequence !== runSeq\.current\) return;/);
   });
 });
 
@@ -177,25 +193,39 @@ describe("StaleGate distinguishes recomputing from stale", () => {
     );
   });
 
-  it("page.tsx only claims recomputing when a sweep is genuinely coming", () => {
+  it("the sweep hook only claims recomputing when one is genuinely coming", () => {
     assert.match(
-      page,
+      sweepHook,
       /const sweepIncoming = autoRun && !inspect && !error;/,
       "sweepIncoming no longer accounts for Auto being off, a drill-down, or a failed run — "
         + "any of which means nothing is on its way and the veil must ask instead",
     );
-    assert.match(page, /mode=\{sweepIncoming \? "recomputing" : "stale"\}/);
+    assert.ok(
+      RESEARCH_SOURCES.some(([, source]) => /mode=\{sweepIncoming \? "recomputing" : "stale"\}/.test(source)),
+      "no Research surface passes the mode through to StaleGate any more",
+    );
   });
 
   it("a failed run drops back to the hard-stale path", () => {
     // `error` feeds sweepIncoming, and the failed request must not keep
     // satisfying the sameRequest short-circuit or a retry would be skipped.
-    assert.match(page, /lastRunRequest\.current = null;/);
+    assert.match(sweepHook, /lastRunRequest\.current = null;/);
   });
 
   it("every research gate carries the mode", () => {
-    const gates = page.match(/<StaleGate/g)?.length ?? 0;
-    const moded = page.match(/mode=\{sweepIncoming \? "recomputing" : "stale"\}/g)?.length ?? 0;
+    // Counted across every Research surface, not within one file: the five
+    // gates now sit in four components, and a per-file count would go
+    // 0 === 0 on any file that happens to hold none of them.
+    let gates = 0;
+    let moded = 0;
+    for (const [name, source] of RESEARCH_SOURCES) {
+      const here = source.match(/<StaleGate/g)?.length ?? 0;
+      const withMode = source.match(/mode=\{sweepIncoming \? "recomputing" : "stale"\}/g)?.length ?? 0;
+      assert.equal(withMode, here, `${name} renders ${here} StaleGates but only ${withMode} carry a mode`);
+      gates += here;
+      moded += withMode;
+    }
+    assert.ok(gates >= 5, `only ${gates} StaleGates across the Research workspace — one has been dropped`);
     assert.equal(moded, gates, `${gates} StaleGates but only ${moded} carry a mode`);
   });
 });

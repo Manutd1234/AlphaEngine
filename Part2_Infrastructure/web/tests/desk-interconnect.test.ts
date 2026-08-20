@@ -58,6 +58,24 @@ const strip = (source: string) =>
 
 const page = read("../app/dashboard/page.tsx");
 const pageCode = strip(page);
+/**
+ * The shell is four files now, not one.
+ *
+ * `page.tsx` mounts the eight panels; `lib/use-workspace-routing.ts` owns
+ * where the reader is and every helper that moves them; `lib/workspace-hash.ts`
+ * owns the URL vocabulary; and the Research tab's panels moved into
+ * `components/ResearchWorkspace.tsx` and its children, which is where the two
+ * cross-links that live inside Research JSX now are. Scanning only page.tsx
+ * after that split would be a scan that finds nothing and reports success —
+ * so the cross-link measurements below read the whole shell.
+ */
+const routingCode = strip(read("../lib/use-workspace-routing.ts"));
+const hashCode = strip(read("../lib/workspace-hash.ts"));
+const tourCode = strip(read("../lib/workspace-tour.ts"));
+const researchCode = strip(read("../components/ResearchWorkspace.tsx"));
+const attributionCode = strip(read("../components/research/AttributionSection.tsx"));
+const decisionCode = strip(read("../components/research/DecisionSection.tsx"));
+const shellCode = [pageCode, routingCode, hashCode, researchCode, decisionCode].join("\n");
 const overview = strip(read("../components/WorkspaceOverview.tsx"));
 const pipeline = strip(read("../components/overview/DecisionLoopPipeline.tsx"));
 const footer = read("../components/common/NextStepFooter.tsx");
@@ -92,7 +110,9 @@ describe("cross-links name a section, not just a workspace", () => {
    * link that names none — `openSection("risk", section ?? "limits")`. That
    * fallback is still a destination, and still has to be a real one.
    */
-  const calls = [...pageCode.matchAll(/openSection\(\s*"([a-z]+)"\s*,\s*(?:section \?\? )?"([a-z]+)"\s*\)/g)]
+  // `onOpenSection` is the same helper, threaded into a child as a prop —
+  // ResearchWorkspace and DecisionSection call it under that name.
+  const calls = [...shellCode.matchAll(/\b(?:on)?[Oo]penSection\(\s*"([a-z]+)"\s*,\s*(?:section \?\? )?"([a-z]+)"\s*\)/g)]
     .map(([, view, section]) => ({ view, section }));
 
   it("routes a useful number of them through the section-aware helper", () => {
@@ -122,9 +142,9 @@ describe("cross-links name a section, not just a workspace", () => {
   it("the helper refuses an id that is not on that rail", () => {
     // The other half: a renamed section must degrade to the plain tab switch
     // rather than writing a location nothing accepts.
-    assert.match(pageCode, /function railSection<T extends string>/);
+    assert.match(hashCode, /export function railSection<T extends string>/);
     assert.match(
-      pageCode,
+      routingCode,
       /if \(!apply\) \{\s*\n\s*navigate\(next\);/,
       "openSection no longer falls back to the bare tab switch on an unknown section",
     );
@@ -158,7 +178,7 @@ describe("cross-links name a section, not just a workspace", () => {
   it("no handler prop is handed a bare workspace switch", () => {
     // The shape that shipped: `onOpenRisk={() => navigate("risk")}`. The prop
     // names the destination tab and nothing names the panel.
-    const offenders = [...pageCode.matchAll(/on(?:Open|HandOff)\w*=\{\(\) => navigate\("([a-z]+)"\)\}/g)]
+    const offenders = [...shellCode.matchAll(/on(?:Open|HandOff)\w*=\{\(\) => navigate\("([a-z]+)"\)\}/g)]
       .map((match) => match[0]);
     assert.deepEqual(
       offenders,
@@ -167,8 +187,8 @@ describe("cross-links name a section, not just a workspace", () => {
         + `read at:\n  ${offenders.join("\n  ")}`,
     );
     assert.doesNotMatch(
-      pageCode,
-      /setExecutionStrategy\(data\.request\.strategy\);\s*\n\s*navigate\("live"\);/,
+      shellCode,
+      /on(?:StageSleeve|SetExecutionStrategy)\(data\.request\.strategy\);\s*\n\s*navigate\("live"\);/,
       "the promotion hand-off stages a sleeve and then opens whatever execution section "
         + "was last read — it means live/trade",
     );
@@ -193,7 +213,7 @@ describe("every pipeline stage links into its tab", () => {
   it("the reviewer tour still makes the claim this section pins", () => {
     // If the sentence goes, these assertions are policing nothing in
     // particular; if it stays, it has to be true.
-    assert.match(pageCode, /every pipeline stage links into its tab/);
+    assert.match(tourCode, /every pipeline stage links into its tab/);
   });
 
   it("each stage is a real button, not a click handler on a div", () => {
@@ -217,9 +237,9 @@ describe("every pipeline stage links into its tab", () => {
 
   it("the shell decides where a stage lands, and covers all four", () => {
     assert.match(overview, /<DecisionLoopPipeline stages=\{stages\} onOpenStage=\{onOpenStage\} \/>/);
-    const start = pageCode.indexOf("const openLoopStage = useCallback");
-    assert.notEqual(start, -1, "page.tsx no longer maps a stage to a destination");
-    const body = pageCode.slice(start, pageCode.indexOf("}, [openSection]);", start));
+    const start = routingCode.indexOf("const openLoopStage = useCallback");
+    assert.notEqual(start, -1, "use-workspace-routing no longer maps a stage to a destination");
+    const body = routingCode.slice(start, routingCode.indexOf("}, [openSection]);", start));
     for (const stage of ["data", "research", "risk", "execution"]) {
       assert.match(
         body,
@@ -315,44 +335,45 @@ describe("the next step follows what was just read", () => {
 
 describe("Research ▸ Attribution splits into Explain and Robustness", () => {
   it("keeps the section id a literal, because it is a public deep link", () => {
-    assert.match(pageCode, /tabId="attribution"/);
+    assert.match(researchCode, /tabId="attribution"/);
   });
 
   it("is a two-option seg, never four", () => {
     // `.seg button { flex: 1 }`: a fourth option forces abbreviated labels.
-    const start = pageCode.indexOf("const ATTRIBUTION_PANES");
+    const start = attributionCode.indexOf("const ATTRIBUTION_PANES");
     assert.notEqual(start, -1, "the panes are gone");
-    const block = pageCode.slice(start, pageCode.indexOf("];", start));
+    const block = attributionCode.slice(start, attributionCode.indexOf("];", start));
     const ids = [...block.matchAll(/id:\s*"(\w+)"/g)].map((match) => match[1]);
     assert.deepEqual(ids, ["explain", "robustness"]);
-    assert.match(pageCode, /<div className="seg" role="group" aria-label="Attribution view">/);
-    assert.match(pageCode, /aria-pressed=\{attributionPane === option\.id\}/);
-    assert.match(pageCode, /title=\{option\.hint\}/, "a pane switcher with no hint on either option");
+    assert.match(attributionCode, /<div className="seg" role="group" aria-label="Attribution view">/);
+    assert.match(attributionCode, /aria-pressed=\{attributionPane === option\.id\}/);
+    assert.match(attributionCode, /title=\{option\.hint\}/, "a pane switcher with no hint on either option");
   });
 
   it("renders the hidden pane not at all, rather than hiding it", () => {
-    assert.match(pageCode, /\{attributionPane === "explain" && \(/);
-    assert.match(pageCode, /\{attributionPane === "robustness" && \(/);
-    assert.doesNotMatch(pageCode, /attributionPane[^\n]*hidden=/);
+    assert.match(attributionCode, /\{attributionPane === "explain" && \(/);
+    assert.match(attributionCode, /\{attributionPane === "robustness" && \(/);
+    assert.doesNotMatch(attributionCode, /attributionPane[^\n]*hidden=/);
   });
 
   it("declares the pane state above the render", () => {
-    // page.tsx is not on workspace-routing's hard-coded component list, so its
-    // hook order is nobody else's business but this one's.
-    const component = pageCode.indexOf("export default function Page()");
-    assert.notEqual(component, -1, "the page component is gone");
-    const declared = pageCode.indexOf("useState<AttributionPane>", component);
-    const renders = pageCode.indexOf("\n  return (", component);
+    // AttributionSection IS on workspace-routing's hook-order list now, but
+    // that check only proves no hook follows a bail-out. This one proves the
+    // pane state is inside the component and above its render at all.
+    const component = attributionCode.indexOf("export default function AttributionSection(");
+    assert.notEqual(component, -1, "the attribution component is gone");
+    const declared = attributionCode.indexOf("useState<AttributionPane>", component);
+    const renders = attributionCode.indexOf("\n  return (", component);
     assert.ok(declared > component, "the pane state is declared outside the component");
     assert.ok(declared < renders, "the pane state is declared below a return");
   });
 
   it("puts the two panels that answer the same question together", () => {
-    const start = pageCode.indexOf('{attributionPane === "explain" && (');
-    const explain = pageCode.slice(start, pageCode.indexOf('{attributionPane === "robustness"', start));
+    const start = attributionCode.indexOf('{attributionPane === "explain" && (');
+    const explain = attributionCode.slice(start, attributionCode.indexOf('{attributionPane === "robustness"', start));
     assert.match(explain, /<FactorPanel/);
     assert.match(explain, /<BenchmarkPanel/);
-    const robustness = pageCode.slice(pageCode.indexOf('{attributionPane === "robustness" && ('));
+    const robustness = attributionCode.slice(attributionCode.indexOf('{attributionPane === "robustness" && ('));
     assert.match(robustness.slice(0, 800), /<RegimePanel/);
     assert.match(robustness.slice(0, 800), /<TearSheet/);
   });
@@ -369,8 +390,8 @@ describe("the research sweep has one button, not three", () => {
   });
 
   it("the sticky rail keeps the one that survives scrolling", () => {
-    assert.match(pageCode, /\{running \? "Running…" : "Run now"\}/);
-    assert.match(pageCode, /onClick=\{pinRun\}/, "the rail lost its Pin control with the Run one");
+    assert.match(researchCode, /\{running \? "Running…" : "Run now"\}/);
+    assert.match(researchCode, /onClick=\{pinRun\}/, "the rail lost its Pin control with the Run one");
   });
 
   it("commit and run stay two different signals", () => {

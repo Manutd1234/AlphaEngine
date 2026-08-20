@@ -31,6 +31,18 @@ function read(relative: string): string {
 
 const header = read("../components/WorkspaceHeader.tsx");
 const page = read("../app/dashboard/page.tsx");
+/**
+ * The shell split. `page.tsx` still mounts the eight panels — that is the half
+ * this file's first invariant is about — but where the reader is, and every way
+ * the desk moves them, moved to `lib/use-workspace-routing.ts` over
+ * `lib/workspace-hash.ts`, and the Research tab's panels moved to
+ * `components/ResearchWorkspace.tsx`. Each assertion below reads the file its
+ * subject now lives in; left pointed at page.tsx they would scan a file that no
+ * longer contains what they were written to guard.
+ */
+const routingHook = read("../lib/use-workspace-routing.ts");
+const workspaceHash = read("../lib/workspace-hash.ts");
+const researchWorkspace = read("../components/ResearchWorkspace.tsx");
 const roleCards = read("../components/overview/RoleCards.tsx");
 const styles = read("../app/globals.css");
 const subtabs = read("../components/WorkspaceSubtabs.tsx");
@@ -127,9 +139,9 @@ describe("the nav and the render tree describe the same workspace", () => {
   it("the retired systems hash still lands somewhere real", () => {
     // Scoped to the LEGACY_VIEWS literal — a page-wide `key: "value"` scan
     // also matches unrelated records (e.g. the per-workspace section ref).
-    const start = page.indexOf("const LEGACY_VIEWS");
-    assert.ok(start >= 0, "page.tsx no longer declares LEGACY_VIEWS");
-    const block = page.slice(start, page.indexOf("};", start));
+    const start = workspaceHash.indexOf("export const LEGACY_VIEWS");
+    assert.ok(start >= 0, "lib/workspace-hash.ts no longer declares LEGACY_VIEWS");
+    const block = workspaceHash.slice(start, workspaceHash.indexOf("};", start));
     const legacy = [...block.matchAll(/([a-z]+):\s*"([a-z]+)"/g)]
       .filter(([, , target]) => ids.includes(target));
     assert.ok(legacy.length > 0, "no legacy hash redirects survive");
@@ -153,9 +165,9 @@ describe("dense role workspaces expose accessible feature sections", () => {
   it("workspace switches write the full location, never a bare view", () => {
     // A bare `#research` while the rail shows Strategies was the copy-link /
     // reload desync. navigate() must read the live section at click time.
-    assert.match(page, /url\.hash = detail\?\.hash \?\? `\$\{next\}\/\$\{sectionByViewRef\.current\[next\]\}`/);
+    assert.match(routingHook, /url\.hash = detail\?\.hash \?\? `\$\{next\}\/\$\{sectionByViewRef\.current\[next\]\}`/);
     assert.ok(
-      !/if \(next === "data"\) setDataSection\("overview"\)/.test(page),
+      !/if \(next === "data"\) setDataSection\("overview"\)/.test(routingHook),
       "the forced data reset is back — it hid the desync instead of fixing it",
     );
   });
@@ -169,9 +181,9 @@ describe("dense role workspaces expose accessible feature sections", () => {
   });
 
   it("opens each internally scrolled Research section at its own beginning", () => {
-    assert.match(page, /const researchContentRef = useRef<HTMLDivElement \| null>/);
-    assert.match(page, /researchContentRef\.current\.scrollTop = 0/);
-    assert.match(page, /className="research-content" ref=\{researchContentRef\}/);
+    assert.match(researchWorkspace, /const researchContentRef = useRef<HTMLDivElement \| null>/);
+    assert.match(researchWorkspace, /researchContentRef\.current\.scrollTop = 0/);
+    assert.match(researchWorkspace, /className="research-content" ref=\{researchContentRef\}/);
   });
 
   it("splits every dense role workspace into focused feature groups", () => {
@@ -190,7 +202,7 @@ describe("dense role workspaces expose accessible feature sections", () => {
       }
     };
     expectPanels("OVERVIEW", [workspaceOverview], "overview");
-    expectPanels("RESEARCH", [page], "research");
+    expectPanels("RESEARCH", [researchWorkspace], "research");
     expectPanels("EXECUTION", [page, liveMarket, executionCockpit], "execution");
     expectPanels("PORTFOLIO", [portfolioWorkspace], "portfolio");
     expectPanels("RISK", [riskWorkspace], "risk");
@@ -227,15 +239,16 @@ describe("dense role workspaces expose accessible feature sections", () => {
       "hidden pipeline keeps venue sockets open",
     );
     assert.ok(
-      page.includes('useState<DataSection>("overview")'),
+      routingHook.includes('useState<DataSection>("overview")'),
       "data must open on trust evidence rather than the sample work queue",
     );
     assert.ok(
-      page.includes('url.hash = `data/${next}`'),
+      routingHook.includes('data: bind("data", setDataSection)')
+        && routingHook.includes("url.hash = `${workspace}/${next}`"),
       "data subtabs are not addressable by URL hash",
     );
     assert.ok(
-      page.includes('url.hash = `reliability/${next}`'),
+      routingHook.includes('reliability: bind("reliability", setReliabilitySection)'),
       "reliability subtabs are not addressable by URL hash",
     );
     assert.ok(
@@ -389,6 +402,14 @@ const COMPONENTS = [
   // behind three early returns.
   "../components/profile/ProfileScreen.tsx",
   "../components/PortfolioWorkspace.tsx",
+  // The four Portfolio sections, opted in when PortfolioWorkspace was split.
+  // The book bail-out stayed in the workspace and the pane selectors went with
+  // their sections, so the hazard did not disappear — it moved into four files
+  // that this list would otherwise not look at.
+  "../components/portfolio/OverviewSection.tsx",
+  "../components/portfolio/PositionsSection.tsx",
+  "../components/portfolio/AllocationSection.tsx",
+  "../components/portfolio/PerformanceSection.tsx",
   "../components/RiskWorkspace.tsx",
   "../components/DataConsole.tsx",
   "../components/ReliabilityConsole.tsx",
@@ -400,6 +421,14 @@ const COMPONENTS = [
   "../components/execution/ExecutionCockpit.tsx",
   "../lib/use-book.ts",
   "../lib/use-system-health.ts",
+  // The four surfaces the 2,000-line Page component was split into. Page
+  // itself has no bail-out and is checked by desk-interconnect; these do the
+  // hook work it used to, so they are opted in here where the rule lives.
+  "../lib/use-workspace-routing.ts",
+  "../lib/use-sweep-run.ts",
+  "../components/ResearchWorkspace.tsx",
+  "../components/research/AttributionSection.tsx",
+  "../components/research/ResearchSummary.tsx",
 ];
 
 describe("no component calls a hook after it might have returned", () => {
@@ -461,7 +490,20 @@ describe("tabs that read the same snapshot share one fetch", () => {
 
     // A tab fetching the book itself would be a second source of truth: two
     // tabs quoting different equity is worse than one tab holding both.
-    for (const relative of ["../components/PortfolioWorkspace.tsx", "../components/RiskWorkspace.tsx"]) {
+    // Every file that renders the book, not only the two that used to hold all
+    // of it: the Portfolio sections are where a hand-rolled fetch would now be
+    // written, and a scan that still looked only at the workspace would go
+    // quiet about exactly the code that moved.
+    for (const relative of [
+      "../components/PortfolioWorkspace.tsx",
+      "../components/portfolio/OverviewSection.tsx",
+      "../components/portfolio/OverviewStanding.tsx",
+      "../components/portfolio/OverviewBook.tsx",
+      "../components/portfolio/PositionsSection.tsx",
+      "../components/portfolio/AllocationSection.tsx",
+      "../components/portfolio/PerformanceSection.tsx",
+      "../components/RiskWorkspace.tsx",
+    ]) {
       const code = stripNonCode(read(relative));
       assert.ok(
         !code.includes("/api/gateway/portfolio"),
@@ -510,6 +552,7 @@ describe("every tab opens with the same header", () => {
    */
   const surfaces: Array<[string, string]> = [
     ["page.tsx", page],
+    ["ResearchWorkspace.tsx", researchWorkspace],
     ["DataConsole.tsx", dataConsole],
     ["ReliabilityConsole.tsx", reliabilityConsole],
     ["DeveloperConsole.tsx", developerConsole],
@@ -555,15 +598,41 @@ describe("every tab opens with the same header", () => {
   });
 
   it("each of the eight tabs has exactly one head in its panel", () => {
-    // Two heads on one tab is the scatter this converged out of; zero means a
-    // tab opens with no identity at all.
+    /**
+     * Two heads on one tab is the scatter this converged out of; zero means a
+     * tab opens with no identity at all.
+     *
+     * The panel is found by its `id="panel-…"`, not by the guard in front of
+     * it: six of the eight are mounted as
+     * `{(view === "x" || visitedViews.current.has("x")) && …}`, so the old
+     * `{view === "x" &&` search returned -1 on them and `slice(-1)` measured a
+     * single character. It passed on all six by scanning nothing.
+     *
+     * A tab whose panel delegates to a workspace component is followed into it:
+     * Research renders its head inside `ResearchWorkspace`, exactly as
+     * Portfolio's rail lives inside `PortfolioWorkspace`.
+     */
+    const owners: Record<string, string> = {
+      research: researchWorkspace,
+      portfolio: portfolioWorkspace,
+      risk: riskWorkspace,
+      data: dataConsole,
+      reliability: reliabilityConsole,
+      developer: developerConsole,
+      overview: workspaceOverview,
+    };
+    const HEAD = /<(?:WorkspaceIntro|ConsoleChrome|PageHead)\b/g;
     for (const view of navIds(header)) {
-      const panel = page.slice(page.indexOf(`{view === "${view}" &&`));
-      const body = panel.slice(0, panel.indexOf("\n        {view ===") + 1 || panel.length);
-      const heads = (body.match(/<WorkspaceIntro\b/g) ?? []).length;
-      // Overview draws the navy hero; the three consoles own their head
-      // internally because they compute their own metrics. Both are one head.
-      assert.ok(heads <= 1, `${view} renders ${heads} WorkspaceIntro elements`);
+      const start = page.indexOf(`id="panel-${view}"`);
+      assert.notEqual(start, -1, `no panel-${view} in page.tsx — the panel scan is measuring nothing`);
+      const rest = page.slice(start);
+      const end = rest.indexOf("</section>");
+      assert.notEqual(end, -1, `panel-${view} never closes`);
+      const body = rest.slice(0, end);
+      const heads = (body.match(HEAD) ?? []).length
+        + ((owners[view]?.match(HEAD) ?? []).length > 0 && !HEAD.test(body) ? 1 : 0);
+      assert.ok(heads >= 1, `${view} opens with no head at all`);
+      assert.ok(heads <= 1, `${view} renders ${heads} head elements`);
     }
   });
 });

@@ -38,7 +38,16 @@ const sqlCode = (source: string) => source.replace(/--[^\n]*/g, "");
 
 const engine = read("../lib/user-prefs.ts");
 const bus = read("../lib/pref-sync-bus.ts");
-const page = read("../app/dashboard/page.tsx");
+/**
+ * Two of the shell's preference stores left page.tsx with the code that owns
+ * them: the Auto switch went to `lib/use-sweep-run.ts` with the sweep it
+ * gates, and the remembered location went to `lib/use-workspace-routing.ts`
+ * and `lib/workspace-hash.ts` with the routing it restores. The assertions
+ * follow them; pointed at page.tsx they would scan a file with no store in it.
+ */
+const sweepHook = read("../lib/use-sweep-run.ts");
+const workspaceHash = read("../lib/workspace-hash.ts");
+const routingHook = read("../lib/use-workspace-routing.ts");
 
 const MIGRATIONS_DIR = fileURLToPath(new URL("../../../supabase/migrations", import.meta.url));
 const migration = readdirSync(MIGRATIONS_DIR).find((name) => name.endsWith("_user_preferences.sql"));
@@ -193,7 +202,8 @@ describe("the stores announce, and never import the engine", () => {
     ] as const) {
       assert.match(code(read(file)), new RegExp(`emitPrefChange\\(${key}\\)`), file);
     }
-    assert.match(code(page), /emitPrefChange\(AUTO_RUN_KEY\)/);
+    assert.match(code(sweepHook), /emitPrefChange\(AUTO_RUN_KEY\)/);
+    assert.match(code(routingHook), /emitPrefChange\(WORKSPACE_LOCATION_KEY\)/);
   });
 
   it("no store imports the sync engine", () => {
@@ -215,16 +225,16 @@ describe("the workspace remembers where you were, and yields to a link", () => {
   it("restores only when the URL asks for nothing", () => {
     // A deep link is explicit. A shared URL that resolved differently per
     // visitor would be worse than not remembering at all.
-    assert.match(code(page), /if \(!window\.location\.hash\.slice\(1\)\)/);
+    assert.match(code(workspaceHash), /if \(!window\.location\.hash\.slice\(1\)\)/);
   });
 
   it("replaces rather than pushes, so Back still leaves the app", () => {
-    const restore = code(page).slice(code(page).indexOf("if (!window.location.hash.slice(1))"));
+    const restore = code(workspaceHash).slice(code(workspaceHash).indexOf("if (!window.location.hash.slice(1))"));
     assert.match(restore.slice(0, 700), /replaceState/);
   });
 
   it("validates the remembered view before trusting it", () => {
-    assert.match(code(page), /VIEWS\.includes\(remembered as WorkspaceView\)/);
+    assert.match(code(workspaceHash), /VIEWS\.includes\(remembered as WorkspaceView\)/);
   });
 });
 

@@ -19,7 +19,26 @@ const read = (relative: string) =>
 
 const code = (source: string) => source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
 
+/**
+ * The Research tab is a component now, not 490 lines of JSX inside the shell.
+ * Each assertion follows the file its subject moved to, and the two that count
+ * occurrences count them across the whole workspace — a per-file count would
+ * report "exactly one" on a file that holds none.
+ */
 const page = code(read("../app/dashboard/page.tsx"));
+const research = code(read("../components/ResearchWorkspace.tsx"));
+const banners = code(read("../components/research/ResearchBanners.tsx"));
+const sweepHook = code(read("../lib/use-sweep-run.ts"));
+/** Every file the Research tab renders from, page shell included. */
+const RESEARCH_SOURCES = [
+  page,
+  research,
+  banners,
+  code(read("../components/research/ResearchSummary.tsx")),
+  code(read("../components/research/AttributionSection.tsx")),
+  code(read("../components/research/DecisionSection.tsx")),
+];
+const researchAll = RESEARCH_SOURCES.join("\n");
 const history = code(read("../components/research/ExperimentHistory.tsx"));
 const css = read("../app/globals.css");
 
@@ -29,34 +48,36 @@ describe("the research view keeps one sweep trigger per condition", () => {
     // runs, so a `!data` branch is dead code — and its primary-action was a
     // duplicate of the rail's pinned "Run now". If the seed is ever removed,
     // restore a *reported* empty state; do not resurrect the button.
-    assert.doesNotMatch(page, /research-empty-section/);
+    assert.doesNotMatch(researchAll, /research-empty-section/);
     assert.doesNotMatch(css, /research-empty-section/);
-    assert.match(page, /useState<SweepResponse \| null>\(SEED_RUN\)/);
+    assert.match(sweepHook, /useState<SweepResponse \| null>\(SEED_RUN\)/);
   });
 
   it("announces a stale desk context without offering a third run button", () => {
     // The stale veil's primary-action and the rail's "Run now" both fire under
     // exactly the condition this banner renders in; a button here was a third
     // trigger for the same run() at the same moment.
-    const banner = page.slice(page.indexOf('className="banner context-change"'));
+    const start = banners.indexOf('className="banner context-change"');
+    assert.notEqual(start, -1, "the desk-context banner is gone — has it been renamed?");
+    const banner = banners.slice(start);
     const block = banner.slice(0, banner.indexOf("</div>\n"));
     assert.doesNotMatch(block, /<button/);
-    assert.match(page, /Use Run now to refresh it/);
+    assert.match(banners, /Use Run now to refresh it/);
   });
 
   it("consolidates a run's data warnings into one banner with one exit", () => {
     // N warnings used to stack N banners, each repeating the identical
     // "Inspect data health →" button to the identical destination.
-    assert.match(page, /data\.warnings\.length > 0 &&/);
-    assert.doesNotMatch(page, /warnings\.map\(\(warning\) => \(\s*<div className="banner/);
-    assert.equal((page.match(/Inspect data health →/g) ?? []).length, 1);
+    assert.match(banners, /data\.warnings\.length > 0 &&/);
+    assert.doesNotMatch(banners, /warnings\.map\(\(warning\) => \(\s*<div className="banner/);
+    assert.equal((researchAll.match(/Inspect data health →/g) ?? []).length, 1);
   });
 
   it("hands the decision section's data hand-off to the NextStepFooter", () => {
     // The inline card was a third navigation furnishing on one section,
     // shadowed by the footer's ring fallback offering Execution at the same
     // moment. The footer's measured continuation now carries it.
-    assert.doesNotMatch(page, /research-data-handoff/);
+    assert.doesNotMatch(researchAll, /research-data-handoff/);
     assert.doesNotMatch(css, /\.research-data-handoff/);
     const footer = read("../components/common/NextStepFooter.tsx");
     assert.match(footer, /"research\/decision": \{/);
