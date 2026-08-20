@@ -4,22 +4,19 @@
  * The book, once, for every tab that reads it.
  *
  * Portfolio and Risk are two questions asked of one snapshot: what do we own,
- * and how close to the limits does owning it put us. They were a single
- * component while they shared a tab, and the split would otherwise duplicate
- * the poll, the covariance fetch and the sandbox toggle — three copies of state
- * that must never disagree, since two tabs quoting different equity is worse
- * than one tab holding both.
- *
- * So the data layer lives here and the tabs render it. Only one tab is mounted
- * at a time (the workspace swaps panels rather than hiding them), so this costs
- * exactly what the single component cost.
+ * and how close to the limits does owning it put us. Splitting the component
+ * they shared would have duplicated the poll, the covariance fetch and the
+ * sandbox toggle — three copies of state that must never disagree, and two
+ * tabs quoting different equity is worse than one tab holding both. So the
+ * data layer lives here and the tabs render it; only one is mounted at a time,
+ * so it costs what the single component cost.
  *
  * It also fixes a latent crash. The previous component returned early while
  * loading and then called `useMemo` further down, so the first render with a
- * book called one more hook than the render before it — React's
- * "rendered more hooks than during the previous render". Reachable by clicking
- * into the sandbox from the unconfigured state. Every hook here runs before any
- * caller can branch, which makes that unrepresentable rather than merely fixed.
+ * book called one more hook than the render before it — React's "rendered more
+ * hooks than during the previous render", reachable by clicking into the
+ * sandbox from the unconfigured state. Every hook here runs before any caller
+ * can branch, which makes that unrepresentable rather than merely fixed.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -96,7 +93,7 @@ export interface BookView {
   isStale: boolean;
   lastSuccessAt: Date | null;
   streamState: DeskStreamState;
-  refresh: (quiet?: boolean) => Promise<void>;
+  refresh: (q?: boolean) => Promise<boolean>;  // false is what lets a tick back off
 
   sandbox: boolean;
   setSandbox: (on: boolean) => void;
@@ -214,32 +211,35 @@ export function useBook(): BookView {
        * comes with it: Portfolio and Risk read this hook on the same tick.
        */
       const outcome = await probeGateway<PortfolioPayload>("/api/gateway/portfolio");
-      if (current !== sequence.current) return;
+      // Superseded: neither success nor failure, so it moves no backoff.
+      if (current !== sequence.current) return true;
       if (!outcome.ok) {
         setError({
           code: outcome.failure.code,
           error: outcome.failure.message,
           hint: outcome.failure.hint,
         });
-        return;
+        return false;
       }
       const payload = outcome.payload;
       setPortfolio(payload);
       setObserved((current) => {
         const equity = payload.equity.current;
         const at = Date.parse(payload.as_of) || Date.now();
-        // Same snapshot polled twice is one observation, not two — otherwise an
-        // idle tab draws a flat line that looks like measured stability.
+        // One snapshot twice is one observation: otherwise an idle tab draws
+        // a flat line that looks like measured stability.
         if (current.length && current[current.length - 1].t === at) return current;
         const hwm = Math.max(current[current.length - 1]?.highWaterMark ?? equity, equity);
         return [...current, { t: at, equity, highWaterMark: hwm }].slice(-240);
       });
       setLastSuccessAt(new Date());
       setError(null);
+      return true;
     } catch {
       if (current === sequence.current) {
         setError({ error: "The portfolio view could not reach its same-origin gateway route." });
       }
+      return false;
     } finally {
       if (current === sequence.current) {
         setLoading(false);
@@ -336,7 +336,8 @@ export function useBook(): BookView {
    * running cost four dead 503s a minute and a needless re-render per tick.
    */
   usePolling({
-    tick: () => refresh(true),
+    // `refresh` resolved either way, so maxBackoffMs below never engaged.
+    tick: async () => { if (!await refresh(true)) throw new Error("book refresh failed"); },
     intervalMs: REFRESH_MS,
     maxBackoffMs: 120_000,
     enabled: !sandbox,
@@ -346,14 +347,13 @@ export function useBook(): BookView {
    * Fill the book in when the first probe settles without one — for any reason.
    *
    * This used to admit only `gateway_not_configured`, on the grounds that
-   * "auto-faking a book during an incident is the one thing this codebase exists
-   * to refuse". That instinct was right about the danger and wrong about the
-   * remedy. Refusing produced a Portfolio tab that was a single GATEWAY
-   * UNAVAILABLE card and a Risk tab reading "Connecting / Pending / Pending" —
-   * so during an incident the desk showed nothing at all, which is not a safer
-   * failure than showing generated numbers, only a less useful one.
+   * auto-faking a book during an incident is what this codebase exists to
+   * refuse. Right about the danger, wrong about the remedy: refusing left
+   * Portfolio a single GATEWAY UNAVAILABLE card and Risk reading "Connecting /
+   * Pending / Pending", so the desk showed nothing at all — not a safer
+   * failure than generated numbers, only a less useful one.
    *
-   * What makes it safe is not the refusal, it is the labelling and the lock:
+   * What makes it safe is the labelling and the lock, not the refusal.
    * `describeTier` reports an incident sandbox as "△ Sandbox · gateway
    * incident" rather than the "◇ Sandbox · no gateway here" a
    * configuration-absent desk gets, and `writesEnabled` is false in every tier
