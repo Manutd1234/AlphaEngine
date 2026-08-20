@@ -5,7 +5,9 @@
  * console rendered that word beside the gateway's FRESHNESS string — so a
  * degraded card read "Gateway 1.0.0; Gateway operations snapshot is current.",
  * naming the one thing that was demonstrably fine. These assert the mapping
- * back to a cause, in the same order `operations.py:374-386` evaluates it.
+ * back to a cause, in the same order `_platform_status` in `modules/operations.py`
+ * evaluates it. Named by function rather than by line: line numbers go stale
+ * silently, and the locator below is what actually finds the block.
  */
 
 import assert from "node:assert/strict";
@@ -61,7 +63,15 @@ describe("the degraded gateway names its cause", () => {
     // deployment and reads as confidently as ever.
     const python = readFileSync(new URL("../../modules/operations.py", import.meta.url), "utf8");
     const start = python.indexOf("elif (");
-    const block = python.slice(start, python.indexOf('status = "degraded"', start));
+    // Both bounds are checked before the slice. `indexOf` returns -1 when the
+    // subject has moved, and `slice(-1, …)` yields the last character or an
+    // empty string — on which `!block.includes("telegram")` is true and the
+    // Telegram assertion below agrees with nothing at all.
+    assert.ok(start >= 0, "no `elif (` in modules/operations.py — the platform rollup moved");
+    const end = python.indexOf('status = "degraded"', start);
+    assert.ok(end > start, 'no `status = "degraded"` after the disjuncts — the rollup moved');
+    const block = python.slice(start, end);
+    assert.ok(block.includes("market_data.status"), "the located block is not the platform rollup");
     assert.ok(
       !block.includes("telegram"),
       "Telegram is back in the platform rollup — the category error this suite exists to stop",
