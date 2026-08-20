@@ -68,14 +68,45 @@ const code = (source: string) =>
     .replace(/\{\/\*[\s\S]*?\*\/\}/g, "")
     .replace(/\/\/.*$/gm, "");
 
+/**
+ * `DataTrustOverview` kept the pane state, both segmented controls and the
+ * Verdict pane; the four other panes are sibling files mounted by the same
+ * conditionals. The switcher assertions below still read the switcher's file —
+ * that is where their subject is — and the ones about what a pane DRAWS read
+ * the pane. `trustSurface` is for the assertions that forbid something
+ * anywhere on the surface: scoped to the shell alone they would pass by
+ * scanning a file that no longer contains what they guard.
+ */
 const trustOverview = read("../components/data/DataTrustOverview.tsx");
+const freshnessPane = read("../components/data/FeedsFreshnessPane.tsx");
+const contractsPane = read("../components/data/FeedsContractsPane.tsx");
+const trustSurface = [
+  trustOverview,
+  freshnessPane,
+  contractsPane,
+  read("../components/data/TrustResponsePane.tsx"),
+  read("../components/data/TrustCompositionPane.tsx"),
+].join("\n");
 const outages = read("../components/systems/OutageIncidents.tsx");
 const reliabilityConsole = read("../components/ReliabilityConsole.tsx");
-const reliabilityOverview = read("../components/systems/ReliabilityOverview.tsx");
+/**
+ * `ReliabilityOverview` passed the ceiling a second time and became a seam over
+ * two conditionally mounted halves: `ReliabilityAttention` is triage and the
+ * incident path, `ReliabilityPlanes` is what the system depends on. The
+ * numbered card is triage, so it is read from `attention`; the seam file holds
+ * neither half's markup and would satisfy none of the regexes below — it would
+ * pass by matching nothing.
+ */
+const reliabilityAttention = read("../components/systems/ReliabilityAttention.tsx");
 const healthMatrix = read("../components/systems/HealthMatrix.tsx");
 const workBoard = read("../components/data/DataWorkBoard.tsx");
 const sections = read("../lib/sections.ts");
-const dataTrust = read("../lib/data-trust.ts");
+// `lib/data-trust.ts` became `lib/data-trust/` in the 786-line split.
+// `DataTrustDestination` is declared in `model.ts` and re-exported by the
+// barrel; the barrel would satisfy neither regex below, so the read is
+// anchored at the declaration and `assert.ok(union, ...)` keeps a missing
+// file or a moved union loud instead of matching nothing.
+const dataTrust = read("../lib/data-trust/model.ts");
 const page = read("../app/dashboard/page.tsx");
 
 // --------------------------------------------------------------------------
@@ -113,7 +144,7 @@ describe("Feeds & Contracts splits into the two halves its label already named",
     const groups = [...trustOverview.matchAll(/<div className="seg" role="group" aria-label="([^"]+)"/g)]
       .map((match) => match[1]);
     assert.deepEqual(groups, ["Trust evidence view", "Feeds and contracts view"]);
-    assert.ok(!code(trustOverview).includes("WorkspaceSubtabs"), "a nested rail would contend for --rail-h");
+    assert.ok(!code(trustSurface).includes("WorkspaceSubtabs"), "a nested rail would contend for --rail-h");
     assert.match(trustOverview, /aria-pressed=\{feedsPane === option\.id\}/);
   });
 
@@ -154,12 +185,19 @@ describe("Feeds & Contracts splits into the two halves its label already named",
     const contractsAt = stripped.indexOf('feedsPane === "contracts"');
     const freshnessAt = stripped.indexOf('feedsPane === "freshness"');
     assert.ok(freshnessAt > 0 && contractsAt > freshnessAt, "the feeds panes are gone or out of order");
+    /**
+     * This used to slice the shell between the two conditionals. Once the pane
+     * bodies became files that slice held only the two mount lines, and both
+     * halves of the check would have passed on an empty window — the operator
+     * path could have moved to Freshness with nothing going red. Named files
+     * instead of a window into one.
+     */
     assert.ok(
-      stripped.slice(contractsAt).includes('className="data-trust-actions"'),
+      code(contractsPane).includes('className="data-trust-actions"'),
       "the operator path left the pane that carries its evidence",
     );
     assert.ok(
-      !stripped.slice(freshnessAt, contractsAt).includes('className="data-trust-actions"'),
+      !code(freshnessPane).includes('className="data-trust-actions"'),
       "the operator path is drawn on both panes",
     );
   });
@@ -171,14 +209,16 @@ describe("Feeds & Contracts splits into the two halves its label already named",
 
 describe("a next-action button names the section the rail shows", () => {
   it("looks the label up rather than printing the raw id", () => {
-    const stripped = code(trustOverview);
-    assert.match(stripped, /Open \{destinationLabel\(action\.destination\)\}/);
+    // The buttons, the lookup and the DATA_SECTIONS import all travelled with
+    // the operator path into the contracts pane. The forbidding half reads the
+    // whole surface, so the raw id cannot reappear in a sibling unseen.
+    assert.match(code(contractsPane), /Open \{destinationLabel\(action\.destination\)\}/);
     assert.doesNotMatch(
-      stripped,
+      code(trustSurface),
       /Open \{action\.destination\}/,
       'the button reads "Open quality" again, and no tab on the rail is called that',
     );
-    assert.match(trustOverview, /import \{ DATA_SECTIONS \} from "@\/lib\/sections"/);
+    assert.match(contractsPane, /import \{ DATA_SECTIONS \} from "@\/lib\/sections"/);
   });
 
   it("every destination the model can emit has a label to look up", () => {
@@ -291,16 +331,16 @@ describe("the incident path is a procedure, and records that it is one", () => {
     // Three buttons pointing at three sibling rail tabs one row above. It looks
     // like pure duplication and is not: the rail is an index and does not say
     // which section to open first.
-    assert.match(reliabilityOverview, /className="reliability-response-steps"/, "the incident path was deleted");
-    assert.match(code(reliabilityOverview), /<ol className="reliability-response-steps">/, "the sequence is no longer ordered markup");
+    assert.match(reliabilityAttention, /className="reliability-response-steps"/, "the incident path was deleted");
+    assert.match(code(reliabilityAttention), /<ol className="reliability-response-steps">/, "the sequence is no longer ordered markup");
     for (const step of ["01", "02", "03"]) {
-      assert.ok(reliabilityOverview.includes(`>${step}</span>`), `step ${step} lost its numeral`);
+      assert.ok(reliabilityAttention.includes(`>${step}</span>`), `step ${step} lost its numeral`);
     }
   });
 
   it("says why immediately above the list, where the next reader will be standing", () => {
-    const index = reliabilityOverview.indexOf('<ol className="reliability-response-steps">');
-    const above = reliabilityOverview.slice(Math.max(0, index - 900), index);
+    const index = reliabilityAttention.indexOf('<ol className="reliability-response-steps">');
+    const above = reliabilityAttention.slice(Math.max(0, index - 900), index);
     assert.match(
       above,
       /the ordering is the information/,
