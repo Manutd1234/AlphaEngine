@@ -34,27 +34,27 @@
  *    A fact a chart's own legend or a section-note already prints is not
  *    restated in prose beside it — the house calls the repeat noise, not
  *    honesty.
+ *
+ * 4. THE PANES ARE FILES. Five of them were inline, and the file was 747 lines
+ *    of one function. `view`/`pane` state, both segmented controls and the
+ *    verdict pane stay here — the switcher has to own the state it switches —
+ *    and each of the other four panes is a sibling component mounted by the
+ *    same conditional it was rendered behind. Nothing became `hidden` in the
+ *    move: a pane the reader is not on is still not mounted, so it is still not
+ *    observing.
  */
 
 import { useState } from "react";
 
-import CategoryBars, { type BarRow } from "@/components/charts/CategoryBars";
-import GappedSparkline from "@/components/charts/GappedSparkline";
-import DonutChart, { type DonutSlice } from "@/components/common/DonutChart";
 import type { InspectResponse, SystemHealth } from "@/components/systems/types";
-import {
-  deriveDataTrust,
-  resolveLatencySource,
-  type DataTrustDestination,
-  type DataTrustTone,
-} from "@/lib/data-trust";
-import { metricRow } from "@/lib/format";
-import { DATA_SECTIONS } from "@/lib/sections";
+import { deriveDataTrust, type DataTrustDestination } from "@/lib/data-trust";
 
-import FeedThroughput from "./FeedThroughput";
+import FeedsContractsPane from "./FeedsContractsPane";
+import FeedsFreshnessPane from "./FeedsFreshnessPane";
 import InstanceScope from "./InstanceScope";
-import QuotaHeadroom from "./QuotaHeadroom";
 import SupplyPosture from "./SupplyPosture";
+import TrustCompositionPane from "./TrustCompositionPane";
+import TrustResponsePane from "./TrustResponsePane";
 import { TONE_GLYPH } from "./trust-marks";
 
 interface DataTrustOverviewProps {
@@ -81,17 +81,17 @@ const TRUST_PANES: Array<{ id: TrustPane; label: string; hint: string }> = [
   {
     id: "verdict",
     label: "Verdict",
-    hint: "The posture, the boundary every number below sits inside, and the supply behind the next answer",
+    hint: "Posture, the measurement boundary, and provider supply",
   },
   {
     id: "response",
     label: "Response",
-    hint: "How fast each venue book ticks, how each source responds, and how much budget is left to keep asking",
+    hint: "Feed tick rates, source response times and quota left",
   },
   {
     id: "composition",
     label: "Composition",
-    hint: "What this instance re-checked against a contract, and where its answers came from",
+    hint: "What was contract-checked, and where each answer came from",
   },
 ];
 
@@ -108,36 +108,14 @@ const FEEDS_PANES: Array<{ id: FeedsPane; label: string; hint: string }> = [
   {
     id: "freshness",
     label: "Freshness",
-    hint: "Each venue book's age, its reconnects, and whether the feed is upstream or synthetic",
+    hint: "Book age, reconnects, and upstream or synthetic",
   },
   {
     id: "contracts",
     label: "Contracts",
-    hint: "What the exact active quote was checked against, what this instance aggregated by provider, and what to open next",
+    hint: "The active quote's contract result, and per-provider totals",
   },
 ];
-
-/**
- * The rail's own label for a destination.
- *
- * `DataTrustAction.destination` is a section id — `quality`, `lineage`,
- * `providers` — and the rail above these buttons reads "Quality",
- * "Lineage & Payloads" and "Providers & Capacity". Printing the id named a
- * destination the reader cannot find on screen. Ids are public deep links and
- * never change, so every destination resolves; the id remains the fallback
- * because a button that still routes correctly should not lose its caption.
- */
-function destinationLabel(destination: DataTrustDestination): string {
-  return DATA_SECTIONS.find((section) => section.id === destination)?.label ?? destination;
-}
-
-function absoluteTime(value: string | null | undefined): string {
-  if (!value) return "not observed";
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed)
-    ? value
-    : new Date(parsed).toISOString().replace("T", " ").replace(".000Z", " UTC");
-}
 
 export default function DataTrustOverview({
   health,
@@ -152,68 +130,11 @@ export default function DataTrustOverview({
   const [pane, setPane] = useState<TrustPane>("verdict");
   const [feedsPane, setFeedsPane] = useState<FeedsPane>("freshness");
   const trust = deriveDataTrust(health, { symbol, healthError, probe, probeError, probeLoading });
-  const feeds = health?.platform?.market_data.feeds ?? [];
+  // Sorted once, here, because two panes draw the same rows: Composition as
+  // bars, Contracts as a table. Deriving it twice would let them drift into
+  // disagreeing about the order of the same numbers.
   const providerValidation = Object.entries(trust.validation?.byProvider ?? {})
     .sort((left, right) => right[1].evaluated - left[1].evaluated);
-  const probeContract = probe?.provenance?.contract;
-  const probeTone: DataTrustTone = probeLoading
-    ? "unknown"
-    : probeError || probeContract?.passed === false
-      ? "bad"
-      : !probeContract
-        ? "unknown"
-        : probeContract.violations.length || probeContract.notEvaluated.length
-          ? "warn"
-          : "good";
-
-  // One row per capability that has actually answered something. Cache hits are
-  // counted separately from validated fetches because a cached answer was never
-  // re-checked — folding them together would report contract coverage the
-  // instance never performed.
-  const validationWindow = health?.validation ?? null;
-  const latencyWindow = health?.latencyWindow ?? null;
-  const provenanceRows: BarRow[] = Object.entries(health?.cache.byCapability ?? {})
-    .map(([capability, counters]) => {
-      const checks = validationWindow?.byCapability?.[capability];
-      const flagged = (checks?.fatal ?? 0) + (checks?.warn ?? 0) + (checks?.drift ?? 0);
-      const hits = counters?.hits ?? 0;
-      const rate = counters?.hitRate;
-      return {
-        label: capability,
-        note: rate == null ? `${hits} cached` : `${Math.round(rate * 100)}% cached`,
-        segments: [
-          { label: "served from cache", value: hits, color: "var(--series-3)" },
-          { label: "fetched, contract passed", value: checks?.passed ?? 0, color: "var(--series-1)" },
-          { label: "fetched, flagged", value: flagged, color: "var(--status-warning)" },
-          { label: "fetched, not evaluated", value: checks?.notEvaluated ?? 0, color: "var(--axis)" },
-        ],
-      };
-    })
-    .filter((row) => row.segments.some((segment) => segment.value > 0));
-
-  /**
-   * The composition ring. Same numbers as the per-capability bars, asked as
-   * one question instead of N: of everything this instance answered, how much
-   * was re-checked against a contract and how much was replayed from cache.
-   * Cache hits stay their own slice — folding them into "passed" would report
-   * contract coverage the instance never performed.
-   */
-  const provenanceTotals = provenanceRows.reduce(
-    (acc, row) => {
-      for (const segment of row.segments) {
-        acc[segment.label] = (acc[segment.label] ?? 0) + segment.value;
-      }
-      return acc;
-    },
-    {} as Record<string, number>,
-  );
-  const provenanceSlices: DonutSlice[] = [
-    { label: "served from cache", value: provenanceTotals["served from cache"] ?? 0, colour: "var(--series-3)" },
-    { label: "contract passed", value: provenanceTotals["fetched, contract passed"] ?? 0, colour: "var(--series-1)" },
-    { label: "flagged", value: provenanceTotals["fetched, flagged"] ?? 0, colour: "var(--status-warning)" },
-    { label: "not evaluated", value: provenanceTotals["fetched, not evaluated"] ?? 0, colour: "var(--axis)" },
-  ];
-  const provenanceAnswers = provenanceSlices.reduce((acc, slice) => acc + slice.value, 0);
 
   const summary = view === "summary";
   const feedsView = view === "feeds";
@@ -288,244 +209,11 @@ export default function DataTrustOverview({
       )}
 
       {summary && pane === "response" && (
-        <>
-          <FeedThroughput health={health} />
-
-          {/* Shared row, not a stack: the sparkline rows and the normalised
-              quota bars are both narrow content, so at desk width they halve
-              the pane's scroll instead of each taking a full-width card. The
-              980px media rule stacks them again where half a panel is too
-              little. Unlike the feeds monitors that were un-paired in the last
-              consolidation, neither side is a wide table. */}
-          <div className="data-trust-detail-grid">
-          {/* ------------------------------------------------------------------
-              Response history per source.
-
-              The samples behind these have existed on the server the whole time
-              and only the aggregates ever escaped, so this tab could report a
-              p95 and had no way to say whether it had been climbing.
-
-              The BUCKET statistic is p50 and the HEADLINE is the 15-minute p95,
-              and they are labelled apart: a 60-second bucket holds single-digit
-              calls here, and a "p95" over three of them is the maximum wearing a
-              percentile's name.
-              ------------------------------------------------------------------ */}
-          <section className="card" aria-labelledby="trust-latency-heading">
-            <div className="portfolio-card-heading">
-              <div>
-                <span className="page-kicker">Freshness</span>
-                <h2 id="trust-latency-heading">Per-source response history</h2>
-              </div>
-              <span className="section-note">
-                {latencyWindow ? `${latencyWindow.buckets} × ${Math.round(latencyWindow.bucketMs / 1000)}s` : "no history"}
-              </span>
-            </div>
-
-            {!latencyWindow?.series.length ? (
-              <p className="muted">
-                No source has been called often enough in the last fifteen minutes to plot; a quiet
-                instance, not a broken one. The window fills as the desk asks for data.
-              </p>
-            ) : (
-              <ul className="spark-rows">
-                {latencyWindow.series.map((row) => {
-                  /**
-                   * Resolved rather than pattern-matched. The previous branch
-                   * tested `venue:*` and then provider ids, so `plane:gateway`
-                   * — recorded on EVERY health poll by this very route, and
-                   * therefore the densest line here — matched neither and its
-                   * stat chip read "—" permanently, beside a fully drawn line.
-                   */
-                  const source = resolveLatencySource(health, row.key);
-                  const windowSamples = row.n.reduce((sum, n) => sum + n, 0);
-                  const gaps = row.p50.filter((v) => v == null).length;
-                  return (
-                    <li key={row.key}>
-                      <span className="spark-rows__label" title={row.key}>{source.label}</span>
-                      <GappedSparkline
-                        points={row.p50}
-                        ariaLabel={`${source.label} response time per minute`}
-                        emptyNote="too few calls to plot"
-                        tone={source.stats && source.stats.errorRate > 0.05 ? "warn" : "accent"}
-                      />
-                      <span className="spark-rows__stat num" title={source.note ?? undefined}>
-                        {/* Withheld, not zeroed: no fifteen-minute aggregate is
-                            published for a plane probe, and "p95 0ms" would be
-                            the fastest possible lie. */}
-                        {metricRow([
-                          source.stats?.p95 != null ? `p95 ${Math.round(source.stats.p95)} ms` : "p95 n/a",
-                          `n=${source.stats?.n ?? windowSamples}`,
-                          gaps ? `${gaps} quiet min` : null,
-                        ])}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-
-            {/* Methodology folds; measurements do not. Every figure this
-                paragraph explains is printed in the rows above, so the
-                derivation collapses to a summary that names both statistics —
-                a reader who trusts the labels never pays for the argument. */}
-            <details className="disclosure">
-              <summary>
-                How these rows are read — the spark is a per-minute median, the chip a fifteen-minute p95
-              </summary>
-              <p className="research-note">
-                A minute with fewer than {latencyWindow?.minSamplesPerBucket ?? 3} calls is drawn as
-                a gap, not bridged: too little traffic and a fast minute look identical once the line
-                is joined. A source shown as <strong>p95 n/a</strong> — the gateway probe is one —
-                has no aggregate on the wire, so its sample count comes from the window&rsquo;s own
-                buckets.
-              </p>
-            </details>
-          </section>
-
-          <QuotaHeadroom health={health} />
-          </div>
-        </>
+        <TrustResponsePane health={health} />
       )}
 
       {summary && pane === "composition" && (
-        <>
-
-          {/* ------------------------------------------------------------------
-              Payload verdict and findings composition — TWO MARKS, TWO DENOMINATORS.
-
-              The obvious chart, "passed vs fatal+warn+drift", cannot be drawn:
-              `ValidationCounts` documents that `passed` is a PAYLOAD count while
-              fatal/warn/drift are FINDING counts — one payload can carry three
-              warnings — so a single ring mixing them would not sum to `evaluated`.
-              That is exactly the arithmetic this tab exists to be trusted about.
-
-              So: a ring over payloads, bars over findings, and a sentence saying a
-              green ring means no FATAL finding rather than a clean one.
-              ------------------------------------------------------------------ */}
-          <section className="card data-trust-verdict-ring" aria-labelledby="trust-verdict-ring-heading">
-            <div className="portfolio-card-heading">
-              <div>
-                <span className="page-kicker">Contract validation</span>
-                <h2 id="trust-verdict-ring-heading">Payload verdict &amp; findings</h2>
-              </div>
-              <span className="section-note">
-                {validationWindow ? `${validationWindow.evaluated} evaluated` : "nothing evaluated yet"}
-              </span>
-            </div>
-
-            <div className="data-trust-verdict-ring__grid">
-              <DonutChart
-                slices={[
-                  { label: "no fatal finding", value: validationWindow?.passed ?? 0, colour: "var(--status-good)" },
-                  {
-                    label: "fatal finding",
-                    value: Math.max(0, (validationWindow?.evaluated ?? 0) - (validationWindow?.passed ?? 0)),
-                    colour: "var(--status-critical)",
-                  },
-                ]}
-                total={validationWindow?.evaluated || undefined}
-                centreValue={String(validationWindow?.evaluated ?? 0)}
-                centreLabel="payloads"
-                emptyNote="No payload has been evaluated in this function instance. Zero evidence is not a clean bill of health."
-                ariaLabel="Evaluated payloads by verdict"
-              />
-
-              <CategoryBars
-                rows={[
-                  {
-                    label: "Findings",
-                    note: `${validationWindow?.fatal ?? 0} fatal, ${validationWindow?.warn ?? 0} warn, ${validationWindow?.drift ?? 0} drift`,
-                    segments: [
-                      { label: "fatal", value: validationWindow?.fatal ?? 0, color: "var(--status-critical)" },
-                      { label: "warn", value: validationWindow?.warn ?? 0, color: "var(--status-warning)" },
-                      { label: "drift", value: validationWindow?.drift ?? 0, color: "var(--series-2)" },
-                      { label: "not evaluated", value: validationWindow?.notEvaluated ?? 0, color: "var(--axis)" },
-                    ],
-                  },
-                ]}
-                ariaLabel="Validation findings by severity"
-                emptyNote="No finding has been raised in this window."
-              />
-            </div>
-
-            <p className="research-note">
-              A green ring means <strong>no fatal finding</strong> — warnings and drift may remain.
-              The ring counts payloads, the bar counts findings, and one payload can carry several.
-            </p>
-          </section>
-
-          {/* `byProvider` is `Record<string, ValidationCounts>` — the same shape
-              as `byCapability`, which is drawn as bars above, and already sorted
-              by `evaluated` descending. It was reaching the browser and being
-              rendered only as a table in the other view. Drawn when non-empty;
-              a bar chart of nothing is not an honest empty state. */}
-          {providerValidation.length > 0 && (
-            <section className="card" aria-labelledby="trust-provider-validation-heading">
-              <div className="portfolio-card-heading">
-                <div>
-                  <span className="page-kicker">Contract validation</span>
-                  <h2 id="trust-provider-validation-heading">Checked payloads by provider</h2>
-                </div>
-                <span className="section-note">
-                  {providerValidation.length} provider{providerValidation.length === 1 ? "" : "s"} represented
-                </span>
-              </div>
-              <CategoryBars
-                rows={providerValidation.map(([provider, counts]) => ({
-                  label: provider,
-                  note: `${counts.evaluated} evaluated, ${counts.fatal} fatal, ${counts.warn} warn, ${counts.drift} drift`,
-                  segments: [
-                    { label: "no fatal finding", value: counts.passed, color: "var(--status-good)" },
-                    {
-                      label: "fatal finding",
-                      value: Math.max(0, counts.evaluated - counts.passed),
-                      color: "var(--status-critical)",
-                    },
-                  ],
-                }))}
-                ariaLabel="Per provider, evaluated payloads split by whether any fatal contract finding was raised against them."
-                emptyNote="No provider has had a payload evaluated on this instance."
-              />
-              {/* One clause, because the card above has already argued the
-                  payload/finding split — its neighbour restating the whole
-                  case was the same fact twice on one pane. */}
-              <p className="research-note">
-                Segments are <strong>payloads</strong> and sum to each provider&rsquo;s evaluated
-                count; the note figures are <strong>findings</strong>, as above.
-              </p>
-            </section>
-          )}
-
-          <section className="card data-trust-provenance" aria-labelledby="trust-provenance-heading">
-            <div className="portfolio-card-heading">
-              <div>
-                <span className="page-kicker">Evidence composition</span>
-                <h2 id="trust-provenance-heading">Where each answer came from</h2>
-              </div>
-              <span className="section-note">
-                {validationWindow
-                  ? `${validationWindow.retained}/${validationWindow.capacity} of the instance window retained`
-                  : "no validation window yet"}
-              </span>
-            </div>
-            {/* The ring answers the whole question at a glance; the bars answer it
-                per capability. Same counters, two altitudes. */}
-            <div className="data-trust-composition">
-              <DonutChart
-                slices={provenanceSlices}
-                centreValue={provenanceAnswers ? String(provenanceAnswers) : undefined}
-                centreLabel="answers"
-                ariaLabel="Composition of every answer this instance served, by whether it was re-checked against a contract or replayed from cache."
-                emptyNote="Nothing served yet."
-              />
-              <CategoryBars
-                ariaLabel="Per capability, how many answers were served from cache versus fetched and contract-checked."
-                rows={provenanceRows}
-                emptyNote="No capability has served a request on this instance yet, so there is nothing to attribute."
-              />
-            </div>
-          </section>
-        </>
+        <TrustCompositionPane health={health} providerValidation={providerValidation} />
       )}
 
       {feedsView && (
@@ -549,177 +237,19 @@ export default function DataTrustOverview({
           each. One at a time, full width, and the operator path travels with
           the contract evidence it is a response to. */}
       {feedsView && feedsPane === "freshness" && (
-        <section className="card data-trust-monitor" aria-labelledby="feed-monitor-heading">
-          {/* portfolio-card-heading, like the four sibling cards in this file
-              and every card on this surface: the two monitor cards alone
-              borrowed the non-card section grammar, so equal-rank titles
-              rendered at two sizes as the reader switched panes. */}
-          <div className="portfolio-card-heading">
-            <div>
-              <span className="page-kicker">Freshness</span>
-              <h2 id="feed-monitor-heading">Observed market feeds</h2>
-            </div>
-            <span className="section-note">
-              gateway {trust.gatewaySource?.state?.replace("_", " ") ?? "not observed"}
-            </span>
-          </div>
-
-          {feeds.length ? (
-            <div className="table-wrap" tabIndex={0}>
-              <table>
-                <caption className="sr-only">Gateway market-feed freshness and update evidence.</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Venue</th>
-                    <th scope="col">State</th>
-                    <th scope="col">{symbol} age</th>
-                    <th scope="col">Updates</th>
-                    <th scope="col">Reconnects</th>
-                    <th scope="col">Mode</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {feeds.map((feed) => {
-                    const instrument = feed.symbols.find((row) => row.symbol === symbol);
-                    return (
-                      <tr key={feed.venue}>
-                        <td><strong>{feed.venue}</strong></td>
-                        <td>
-                          <span className={`data-trust-inline-state is-${feed.status === "up" ? "good" : feed.status === "down" ? "bad" : "warn"}`}>
-                            <span aria-hidden>{feed.status === "up" ? "●" : feed.status === "down" ? "✕" : "▲"}</span>
-                            {feed.status}
-                          </span>
-                        </td>
-                        <td className="num">
-                          {!instrument ? "not covered" : instrument.age_seconds == null ? "—" : `${instrument.age_seconds.toFixed(2)}s`}
-                        </td>
-                        <td className="num">{instrument?.updates_total?.toLocaleString() ?? "—"}</td>
-                        <td className="num">{feed.reconnects}</td>
-                        <td>{feed.synthetic ? "synthetic" : "upstream"}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="data-trust-empty">
-              <strong>No gateway feed evidence.</strong>
-              <p>
-                The provider registry may still answer requests, but it cannot prove streaming feed
-                freshness. Gateway source: {trust.gatewaySource?.state?.replace("_", " ") ?? "not exposed"}.
-              </p>
-            </div>
-          )}
-
-          <p className="console-footnote">
-            Gateway observed at {absoluteTime(trust.gatewaySource?.observedAt)}. Feed ages belong to
-            each venue and symbol; the fetch time does not make an old feed fresh.
-          </p>
-        </section>
+        <FeedsFreshnessPane health={health} symbol={symbol} gatewaySource={trust.gatewaySource} />
       )}
 
       {feedsView && feedsPane === "contracts" && (
-        <>
-          <section className="card data-trust-monitor" aria-labelledby="contract-monitor-heading">
-            {/* portfolio-card-heading — same reasoning as the feeds monitor. */}
-            <div className="portfolio-card-heading">
-              <div>
-                <span className="page-kicker">Validation</span>
-                <h2 id="contract-monitor-heading">Exact payload &amp; instance sample</h2>
-              </div>
-              <span className="section-note">quote, bars, news and fundamentals</span>
-            </div>
-
-            <div className={`data-trust-probe is-${probeTone}`}>
-              <span>Active quote</span>
-              <strong>
-                {probeLoading
-                  ? `checking ${symbol}`
-                  : probeError
-                    ? "probe failed"
-                    : probe?.provenance?.contract
-                      ? `${probe.provenance.provider}, cache ${probe.cache.state}, contract attached`
-                      : "no exact-payload contract result"}
-              </strong>
-              <small>
-                {probe?.provenance?.contract
-                  ? `${probe.provenance.contract.violations.length} findings; ${probe.provenance.contract.notEvaluated.length} checks not evaluated; fetched ${absoluteTime(probe.provenance.fetchedAt)}`
-                  : probeError ?? "A green verdict is withheld until this exact response carries validation evidence."}
-              </small>
-            </div>
-
-            {providerValidation.length ? (
-              <div className="table-wrap" tabIndex={0}>
-                <table>
-                  <caption className="sr-only">Bounded contract-validation evidence by provider.</caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">Provider</th>
-                      <th scope="col">Evaluated</th>
-                      <th scope="col">No fatal</th>
-                      <th scope="col">Fatal</th>
-                      <th scope="col">Warn / drift</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {providerValidation.map(([provider, counts]) => (
-                      <tr key={provider}>
-                        <td><strong>{provider}</strong></td>
-                        <td className="num">{counts.evaluated}</td>
-                        <td className="num">{counts.passed}</td>
-                        <td className="num">{counts.fatal}</td>
-                        <td className="num">{counts.warn} / {counts.drift}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="data-trust-empty">
-                <strong>No aggregate in the health-route instance.</strong>
-                <p>
-                  Serverless routes do not reliably share module memory. The active-quote result above
-                  is request-bound; an empty health-route aggregate is not evidence that every payload
-                  passed.
-                </p>
-              </div>
-            )}
-
-            <p className="console-footnote">
-              Window {trust.validation ? `${trust.validation.retained}/${trust.validation.capacity}` : "not exposed"}
-              {trust.validation?.windowStart ? `; since ${absoluteTime(trust.validation.windowStart)}` : ""}
-              {trust.validation?.lastValidationAt ? `; last ${absoluteTime(trust.validation.lastValidationAt)}` : ""}.
-              Aggregate counts reset with the health-route function instance and are not tied to {symbol}.
-            </p>
-          </section>
-
-          <section className="data-trust-section" aria-labelledby="trust-actions-heading">
-            <div className="section-heading compact">
-              <div>
-                <span className="page-kicker">Operator path</span>
-                <h2 id="trust-actions-heading">Next evidence to inspect</h2>
-              </div>
-              <span className="section-note">read-only diagnostics</span>
-            </div>
-            <div className="data-trust-actions">
-              {trust.actions.map((action) => (
-                <button
-                  key={action.destination}
-                  type="button"
-                  className={`card data-trust-action is-${action.priority}`}
-                  onClick={() => onOpenSection?.(action.destination)}
-                  disabled={!onOpenSection}
-                >
-                  <span>{action.priority}</span>
-                  <strong>{action.label}</strong>
-                  <small>{action.detail}</small>
-                  <i aria-hidden>Open {destinationLabel(action.destination)} →</i>
-                </button>
-              ))}
-            </div>
-          </section>
-        </>
+        <FeedsContractsPane
+          symbol={symbol}
+          probe={probe}
+          probeError={probeError}
+          probeLoading={probeLoading}
+          trust={trust}
+          providerValidation={providerValidation}
+          onOpenSection={onOpenSection}
+        />
       )}
 
       {/*
