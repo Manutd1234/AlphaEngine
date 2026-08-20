@@ -60,8 +60,8 @@ export default function ResearchCorpus() {
       </div>
 
       <p className="sub">
-        Similarity search over this desk&rsquo;s own backtests, execution summaries and risk
-        incidents. Not the open web — every result is something this account produced.
+        Similarity search over this desk&rsquo;s own backtests and risk incidents. Not the
+        open web — every result is something this account produced.
       </p>
 
       <form

@@ -1749,6 +1749,16 @@ tbody tr[tabindex]:focus-visible {
   margin-bottom: 0;
 }
 
+/* `flex-wrap: nowrap` above stops the five ITEMS breaking apart; this stops an
+   item breaking INSIDE itself. Without it a swatch and its glyph can sit at the
+   end of one line and the word they label at the start of the next, which reads
+   as six kinds rather than five. Two containers wrap here — `.legend` is itself
+   an item in an outer wrapping row — so the constraint has to be stated at both
+   levels. */
+.heatmap-legend__kinds > span {
+  white-space: nowrap;
+}
+
 /* Pushed to the far end, so the gap between "isolated" and the hint is the
    space left over rather than the row's 10px gap. It was a plain sibling with
    no margin, no flex and no spacer. */

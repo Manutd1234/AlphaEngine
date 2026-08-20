@@ -21,6 +21,8 @@ select = [
     "B",      # bugbear — mutable defaults, shadowed loop vars, silent zip truncation
     "ASYNC",  # blocking calls inside async functions
     "S",      # bandit — the trade path handles credentials
+    "C90",    # mccabe — a function nobody can hold in their head
+    "PLR0915",  # too many statements in one function
 ]
 ignore = [
     "E501",    # long lines are a formatting opinion; the comments here are prose
@@ -30,7 +32,39 @@ ignore = [
     "S311",    # random builds synthetic books, never anything secret
 ]
 
+# Ruff's defaults, kept rather than tuned. A threshold chosen to fit today's
+# worst function is not a threshold, it is a description.
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-statements = 50
+
 [tool.ruff.lint.per-file-ignores]
 # Probes and fixture generators drive a local process on purpose.
-"tools/*.py" = ["S113", "S310"]
-"tests/*.py" = ["S105", "S106"]
+"tools/*.py" = ["S113", "S310", "C901", "PLR0915"]
+"tests/*.py" = ["S105", "S106", "C901", "PLR0915"]
+
+# ---------------------------------------------------------------------------
+# C901 / PLR0915 debt, seeded from the 36 offenders that existed when the rules
+# were switched on. This is the Python half of the size ratchet and it turns
+# the same one way: an entry may be DELETED once the file complies, and adding
+# one is how a new offender gets in. `tests/test_complexity_debt.py` fails when
+# an entry is no longer needed, so the list cannot quietly outlive the debt.
+#
+# Ordered by how the plan's Round J will retire them: risk_proxy and telegram
+# are the two the refactor is aimed at.
+"main.py" = ["PLR0915"]
+"modules/audit.py" = ["C901"]
+"modules/backtester/indicators.py" = ["C901", "PLR0915"]
+"modules/backtester/run.py" = ["PLR0915"]
+"modules/backtester/signals.py" = ["C901", "PLR0915"]
+"modules/backtester/state.py" = ["C901", "PLR0915"]
+"modules/data_jobs.py" = ["C901"]
+"modules/data_scheduler.py" = ["C901"]
+"modules/metrics.py" = ["C901", "PLR0915"]
+"modules/ml/features.py" = ["C901"]
+"modules/quant_risk/allocation.py" = ["C901", "PLR0915"]
+"modules/risk_proxy.py" = ["C901", "PLR0915"]
+"modules/telegram.py" = ["C901", "PLR0915"]
+

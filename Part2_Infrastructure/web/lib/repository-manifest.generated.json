@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-20",
-  "commit": "d6d5042",
+  "commit": "35d7f6b",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -84,6 +84,7 @@
     "Part2_Infrastructure/modules/backtester/state.py",
     "Part2_Infrastructure/modules/backtester/statistics.py",
     "Part2_Infrastructure/modules/data_jobs.py",
+    "Part2_Infrastructure/modules/data_ops_backend.py",
     "Part2_Infrastructure/modules/data_ops_postgrest.py",
     "Part2_Infrastructure/modules/data_ops_store.py",
     "Part2_Infrastructure/modules/data_quality_models.py",
@@ -157,6 +158,7 @@
     "Part2_Infrastructure/tests/test_api.py",
     "Part2_Infrastructure/tests/test_backoff.py",
     "Part2_Infrastructure/tests/test_backtester.py",
+    "Part2_Infrastructure/tests/test_complexity_debt.py",
     "Part2_Infrastructure/tests/test_container_contract.py",
     "Part2_Infrastructure/tests/test_core_self_measure.py",
     "Part2_Infrastructure/tests/test_data_jobs.py",
