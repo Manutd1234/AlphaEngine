@@ -145,22 +145,20 @@ export default function HealthMatrix({
           <h3 id="reliability-latency-guide-title">Tail latency, explained</h3>
           <p>
             <strong>Decision p99 (header chip)</strong> — in-process inside the gateway, pushed with
-            the ops snapshot; every sample since start, excluding kernel and wire. Microseconds are
-            the gateway&apos;s clock, not the browser&apos;s.
+            the ops snapshot; every sample since start, excluding kernel and wire.
           </p>
           <p>
             <strong>Upstream p99 (this table)</strong> — network, polled from this browser;
-            nearest-rank over the rolling 15-minute pool including failures and timeouts; shown after
-            20 samples.
+            nearest-rank over the rolling 15-minute pool, failures included; shown after 20 samples.
           </p>
         </div>
 
       </section>
 
       <p className="console-note console-matrix-action-note" id="health-matrix-action-note">
-        Test spends one real provider call. Simulate drops a ready provider from this instance&apos;s
-        routing for two minutes; Reset closes a circuit. Neither reaches another instance or the
-        trading gateway. {locked
+        Test spends one real provider call. Simulate drops a ready provider from routing for two
+        minutes; Reset closes a circuit. Neither reaches another instance or the trading
+        gateway. {locked
           ? guard === "token"
             ? "Enter the operator token in Remediation to enable these actions."
             : "Actions are locked on this deployment; authorisation details live in Remediation."
@@ -170,8 +168,7 @@ export default function HealthMatrix({
       <div className="table-wrap" tabIndex={0}>
         <table className="console-matrix">
           <caption className="sr-only">
-            Provider health: status, circuit-breaker state, latency percentiles, quota consumption
-            and failover rank, with per-provider operator actions.
+            Provider health, latency, quota and failover rank, with per-provider actions.
           </caption>
           <thead>
             <tr>
@@ -253,7 +250,7 @@ export default function HealthMatrix({
                         title={
                           lockNote
                             ?? (provider.configured
-                              ? "Send one real request to this provider and time it. Spends one call."
+                              ? "Sends one real request and times it. Spends one call."
                               : "Not configured — there is nothing to probe.")
                         }
                       >
@@ -279,7 +276,7 @@ export default function HealthMatrix({
                           title={
                             lockNote
                               ?? (provider.ready
-                                ? "Hold this provider out of routing so you can watch failover. Expires by itself."
+                                ? "Holds this provider out of routing to watch failover. Expires by itself."
                                 : "Only a routable provider can be knocked out.")
                           }
                           className="is-disruptive"
@@ -337,8 +334,8 @@ export default function HealthMatrix({
           <p className="console-subhead">
             Direct venue clients
             <small className="muted">
-              {" "}— reached by <code>/api/depth</code> and <code>/api/tca</code> without the registry,
-              so they have no failover chain and no breaker.
+              {" "}— reached by <code>/api/depth</code> and <code>/api/tca</code> without the
+              registry, so they have no failover chain and no breaker.
             </small>
           </p>
           <div className="table-wrap" tabIndex={0}>
