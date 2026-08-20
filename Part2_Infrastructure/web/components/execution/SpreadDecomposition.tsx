@@ -54,8 +54,7 @@ export default function SpreadDecomposition({
           </div>
         </div>
         <p className="muted">
-          No audit log is reachable in this deployment, so no fill has a price to measure a
-          spread against.
+          No audit log is reachable here, so no fill has a price to measure a spread against.
         </p>
       </section>
     );
@@ -73,8 +72,8 @@ export default function SpreadDecomposition({
           </div>
         </div>
         <p className="muted">
-          No priced fill in this window. Rejections carry no execution price, so this is an
-          absence of trading, not of measurement.
+          No priced fill in this window. Rejections carry no execution price, so this is an absence
+          of trading, not of measurement.
         </p>
       </section>
     );
