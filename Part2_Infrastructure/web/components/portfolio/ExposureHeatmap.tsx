@@ -79,8 +79,7 @@ export default function ExposureHeatmap({
           </div>
         </div>
         <p className="muted">
-          No open positions, so there is no exposure to rank. This is a flat book rather than a
-          missing measurement.
+          No open positions to rank — a flat book, not a missing measurement.
         </p>
       </section>
     );
@@ -116,9 +115,8 @@ export default function ExposureHeatmap({
           role="img"
           aria-label={
             `Symbol-limit utilisation for ${rows.length} positions, ranked. `
-            + `${withheld} have no published limit. `
-            + `${tight.length} at or above ${pct(TIGHT, 0)} of their limit. `
-            + "The same figures are in the table below."
+            + `${withheld} have no published limit; ${tight.length} at or above `
+            + `${pct(TIGHT, 0)} of their limit. The same figures are in the table below.`
           }
         >
           {/* The limit itself, and the pressure threshold. Both solid — dashing
@@ -222,17 +220,15 @@ export default function ExposureHeatmap({
       )}
 
       <details className="disclosure">
-        <summary>Why share of gross and limit utilisation are separate questions</summary>
+        <summary>Why only utilisation is drawn</summary>
         <p className="research-note">
-          Share of gross ranks positions by size; utilisation ranks them by how close each is to the
-          cap the risk gate will actually enforce on it. A small position can be the one nearest a
-          hard stop, so limit pressure binds before concentration does. Only utilisation is drawn:
-          share of gross has no meaningful 100% to draw against.
+          Utilisation is nearness to the cap the risk gate enforces, so a small position can be the
+          one nearest a hard stop. Share of gross has no meaningful 100% to draw against.
         </p>
       </details>
 
       <details className="disclosure">
-        <summary>Every position as a table — notional, side and both ratios per symbol</summary>
+        <summary>Every position as a table</summary>
         <div className="table-wrap" tabIndex={0}>
           <table className="exposure-heatmap">
             <thead>
