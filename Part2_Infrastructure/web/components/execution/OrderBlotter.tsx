@@ -97,11 +97,11 @@ export default function OrderBlotter({
           <h3>Order blotter</h3>
           <p className="muted">
             {source === "sandbox"
-              ? "A generated session, newest first — same shape as the audit log, none of it audited."
+              ? "A generated session, newest first: the audit log's shape, none of it audited."
               // "accepted and rejected alike" went with the single table: the view
               // seg directly above states the two as controls, and on a filtered
               // view the claim was about rows this table is not showing.
-              : "Every decision the gateway made, newest first, straight from the append-only audit log."}
+              : "Every gateway decision, newest first, from the append-only audit log."}
             {visible.length !== rows.length ? ` Showing ${visible.length} of ${rows.length}.` : ""}
           </p>
         </div>
@@ -176,8 +176,8 @@ export default function OrderBlotter({
               // The old copy said "send one and it will appear here", which on a
               // deployment with no audit log was an instruction that could not
               // work. An empty table must say WHY it is empty.
-              ? "No audit log is reachable in this deployment, so there is nothing to list."
-              : "No orders yet. Send one from the ticket above and it will appear here."}
+              ? "No audit log is reachable here, so there is nothing to list."
+              : "No orders yet. Send one from the ticket above."}
         </p>
       ) : (
         <div className="table-wrap" tabIndex={0}>
