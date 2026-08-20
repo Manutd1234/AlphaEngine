@@ -66,7 +66,7 @@ export default function EquityCurve({
         </div>
         <p className="sub">
           {points.length === 1
-            ? "One observation so far. The gateway persists a snapshot on a timer, so this fills in as the risk monitor records the book."
+            ? "One observation so far; this fills in as the gateway's risk monitor records the book."
             : "Waiting for the first equity observation."}
         </p>
       </div>
@@ -267,10 +267,10 @@ export default function EquityCurve({
 
       <p className="research-note">
         {generated
-          ? "Generated path for the sandbox book, deterministic and ending on the stated equity. A real book is drawn from the gateway's persisted snapshots instead."
+          ? "Generated path for the sandbox book, deterministic and ending on the stated equity."
           : backfilled
-            ? "Backfilled from the gateway's persisted equity snapshots — written by the risk monitor on a timer — and extended by this tab's own polls. It survives a reload; the sampling interval is the resolution, so this is a shape, not a tick record."
-            : "Built from the polls this tab has made since it opened. The gateway persists snapshots from its risk monitor, so this fills in as they accumulate."}
+            ? "Backfilled from the gateway's persisted snapshots and extended by this tab's polls. The sampling interval is the resolution: a shape, not a tick record."
+            : "Built from this tab's polls since it opened, filling in as persisted snapshots accumulate."}
       </p>
     </div>
   );
