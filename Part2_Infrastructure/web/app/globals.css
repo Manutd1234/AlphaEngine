@@ -14219,6 +14219,33 @@ button:active:not(:disabled) {
   font-size: var(--fs-sm);
 }
 
+/* The graph fold inside a corpus result.
+   Shipped with three class names and no rules at all — `.corpus-connected`,
+   `.corpus-connected__list` and `.corpus-connected__title` were hooks written
+   against a stylesheet that never got them. So its paragraphs fell back to
+   inherited body text (the `.sub` rules are `.card > .sub`, a direct child,
+   and this <details> is not a card) and its list lost its markers to the
+   global `padding: 0` reset. */
+.corpus-connected .sub {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-md);
+}
+
+.corpus-connected__list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: var(--space-3);
+  color: var(--text-secondary);
+  font-size: var(--fs-md);
+}
+
+.corpus-connected__title {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
 /* ── Quality score ─────────────────────────────────────────────────────────
    The composite 0-100 and its breakdown. The bars deliberately reuse
    `.console-meter--wide` rather than declaring a third meter grammar; only the

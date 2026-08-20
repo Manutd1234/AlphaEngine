@@ -66,7 +66,11 @@ export default function ConnectedDocuments({ documentId }: { documentId: string 
   }, [documentId, load.status]);
 
   return (
-    <details className="corpus-connected" onToggle={(event) => {
+    /* `disclosure` as well: that is the house grammar for a fold, and without
+       it the summary got no cursor, no sizing and no list marker — the whole
+       card lit up with the default focus ring because nothing gave the summary
+       a box to be smaller than. */
+    <details className="corpus-connected disclosure" onToggle={(event) => {
       if ((event.currentTarget as HTMLDetailsElement).open) void open();
     }}>
       <summary>What is connected to this</summary>
