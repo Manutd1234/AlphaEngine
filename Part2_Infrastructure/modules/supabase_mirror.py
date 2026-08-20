@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from config import settings
+from modules.backoff import Backoff
 
 if TYPE_CHECKING:  # imported for types only; no runtime dependency edge
     from modules.schemas import OrderRequest, RiskDecision
@@ -183,7 +184,9 @@ class SupabaseMirror:
 
     async def _drain(self) -> None:
         assert self._client is not None
-        backoff = 1.0
+        # Was a bare float doubled by hand with the ceiling repeated at two call
+        # sites. Same curve, one place, and the ceiling is now checkable.
+        backoff = Backoff(base_s=1.0, ceiling_s=30.0)
         while True:
             payload = await self._queue.get()
             for attempt in range(3):
@@ -194,7 +197,7 @@ class SupabaseMirror:
                     )
                     if response.status_code < 300:
                         self._written += 1
-                        backoff = 1.0
+                        backoff.succeeded()
                         break
                     self._last_error_kind = (
                         "auth" if response.status_code in (401, 403) else "rejected"
@@ -211,10 +214,10 @@ class SupabaseMirror:
                 except Exception as exc:
                     self._last_error_kind = "rejected"
                     log.error("supabase mirror write failed: %s", type(exc).__name__)
-                await asyncio.sleep(min(backoff * (2**attempt), 30.0))
+                await asyncio.sleep(min(backoff.delay_s * (2**attempt), backoff.ceiling_s))
             else:
                 self._failed += 1
-                backoff = min(backoff * 2, 30.0)
+                backoff.failed()
 
     # ------------------------------------------------------------------ #
     # observability — counters and a closed error vocabulary; no identity

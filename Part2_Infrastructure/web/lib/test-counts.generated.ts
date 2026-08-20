@@ -9,7 +9,7 @@
 
 export const TEST_COUNTS = {
   generatedOn: "2026-08-20",
-  gateway: { total: 1027, passed: 1027, skipped: 0 },
+  gateway: { total: 1036, passed: 1036, skipped: 0 },
   web: { total: 2466, suites: 635 },
   service: { total: 14 },
 } as const;
