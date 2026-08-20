@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-20",
-  "commit": "6ad4bee",
+  "commit": "e0f3ff0",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -481,6 +481,7 @@
     "Part2_Infrastructure/web/components/data/DataQualityLedger.tsx",
     "Part2_Infrastructure/web/components/data/DataTrustOverview.tsx",
     "Part2_Infrastructure/web/components/data/DataWorkBoard.tsx",
+    "Part2_Infrastructure/web/components/data/DataWorkCard.tsx",
     "Part2_Infrastructure/web/components/data/FeedsContractsPane.tsx",
     "Part2_Infrastructure/web/components/data/FeedsFreshnessPane.tsx",
     "Part2_Infrastructure/web/components/data/FeedThroughput.tsx",
@@ -492,6 +493,7 @@
     "Part2_Infrastructure/web/components/data/trust-time.ts",
     "Part2_Infrastructure/web/components/data/TrustCompositionPane.tsx",
     "Part2_Infrastructure/web/components/data/TrustResponsePane.tsx",
+    "Part2_Infrastructure/web/components/data/work-board-model.ts",
     "Part2_Infrastructure/web/components/DataConsole.tsx",
     "Part2_Infrastructure/web/components/DepthChart.tsx",
     "Part2_Infrastructure/web/components/developer/CodebaseExplorer.tsx",
