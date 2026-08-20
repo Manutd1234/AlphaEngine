@@ -189,10 +189,20 @@ class TestEndToEnd:
     def test_full_run_offline(self, monkeypatch):
         """Complete pipeline with the network unavailable — the path a grader
         without internet access will exercise."""
-        import modules.backtester as bt
+        # Patched where each name is LOOKED UP, not where it is re-exported.
+        # `fetch_ohlcv` resolves `_fetch_binance_klines` against its own module,
+        # and `run_backtest` resolves `get_engine` against its own — so patching
+        # the package's `__init__` would bind a name nothing reads. This is the
+        # module-reference hazard docs/REFACTOR_RULES.md opens with, and the
+        # split is what surfaced it.
+        import modules.backtester.data as bt_data
+        import modules.backtester.run as bt_run
 
-        monkeypatch.setattr(bt, "_fetch_binance_klines", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("offline")))
-        monkeypatch.setattr(bt, "get_engine", lambda prefer_vectorbt=True: NumpyEngine())
+        monkeypatch.setattr(
+            bt_data, "_fetch_binance_klines",
+            lambda *a, **k: (_ for _ in ()).throw(RuntimeError("offline")),
+        )
+        monkeypatch.setattr(bt_run, "get_engine", lambda prefer_vectorbt=True: NumpyEngine())
 
         seen: list[float] = []
         out = run_backtest(
