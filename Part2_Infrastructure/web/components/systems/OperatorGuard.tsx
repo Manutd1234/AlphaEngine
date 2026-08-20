@@ -51,8 +51,8 @@ export default function OperatorGuard({
           <span aria-hidden>!</span>
           <div>
             <strong>Actions are disabled on this deployment.</strong> Every action spends real
-            upstream quota, so a production build refuses them unless <code>{tokenEnv}</code> is set
-            on the server. Read-only telemetry above is unaffected.
+            upstream quota, so a production build refuses them unless <code>{tokenEnv}</code> is
+            set. Read-only telemetry is unaffected.
           </div>
         </div>
       )}
@@ -87,24 +87,23 @@ export default function OperatorGuard({
           <small className="muted" role="status">
             {tokenStatus === "valid" ? (
               <span style={{ color: "var(--success-text)" }}>
-                <span aria-hidden>✓</span> Authenticated operator — the credential was checked and
-                every action from this tab carries it.
+                <span aria-hidden>✓</span> Authenticated operator; every action from this tab
+                carries the credential.
               </span>
             ) : tokenStatus === "rejected" ? (
               <span style={{ color: "var(--critical-text)" }}>
-                <span aria-hidden>✕</span> The operator credential was rejected — actions will fail
-                until it is fixed or cleared.
+                <span aria-hidden>✕</span> Credential rejected; actions fail until it is fixed or
+                cleared.
               </span>
             ) : tokenStatus === "checking" ? (
               "Checking the credential…"
             ) : (
-              "Kept in this tab's session storage — survives a reload, gone when the tab closes; never logged."
+              "Kept in this tab's session storage; gone when the tab closes, never logged."
             )}
           </small>
           {token !== "" && tokenStatus !== "none" && (
             <small className="muted">
-              Kept in this tab&rsquo;s session storage — survives a reload, gone when the tab
-              closes; never logged.
+              Kept in this tab&rsquo;s session storage; gone when the tab closes, never logged.
             </small>
           )}
         </label>
@@ -120,11 +119,9 @@ export default function OperatorGuard({
       {guard === "open-demo" && (
         <p className="console-note">
           <strong>Demo deployment: operator actions are open to anyone with this URL.</strong> No
-          token is asked — orders, risk actions and remediation all work directly. That is
-          deliberate (<code>ALPHAENGINE_OPERATOR_OPEN=1</code>) for a paper-trading assessment:
-          orders are paper and capped by the gateway&rsquo;s gates, the kill switch reverses, purged
-          caches refill. A typed credential is still checked and authoritative here; unset the flag
-          to require one again.
+          token is asked — orders, risk actions and remediation work directly. Deliberate for a
+          paper-trading assessment (<code>ALPHAENGINE_OPERATOR_OPEN=1</code>); a typed credential is
+          still checked, and unsetting the flag requires one again.
         </p>
       )}
     </>
