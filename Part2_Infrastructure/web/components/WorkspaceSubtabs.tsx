@@ -70,49 +70,95 @@ export default function WorkspaceSubtabs<T extends string>({
    * publishes, the same "hidden tabs stay quiet" gate the persistent-panel
    * change threads into every poller. Deactivation disconnects the observer,
    * which also discards any pending zero-height delivery.
+   *
+   * Two guards make the write safe to do from a resize observation at all,
+   * and WorkspaceHeader carries both for `--header-h`. First, it publishes
+   * only when the rounded height actually CHANGED: a custom property on the
+   * root element is inherited by every node in the document, so an identical
+   * rewrite still invalidates the whole tree's style. Measured over a scripted
+   * session of tab and section switches, the two publishers between them wrote
+   * 176 times, in runs of three to seven consecutive identical values.
+   *
+   * Second, the write is deferred to the next animation frame rather than made
+   * inside the callback. `--rail-h` already feeds a LAYOUT property — the
+   * research sidebar's `max-height` (globals.css) — so a write made during
+   * delivery dirties layout in the frame that is delivering, which is the
+   * definition of a ResizeObserver loop. No rule feeds the rail's own height
+   * back today, but the loop is one stylesheet edit away, and a runaway loop
+   * on the desk's only scroller presents as the whole page freezing. The
+   * `frame` latch also collapses a burst of observations into one write.
    */
   useEffect(() => {
     if (!active) return;
     const node = railRef.current;
     if (!node || typeof ResizeObserver === "undefined") return;
+    const root = document.documentElement;
+    let frame = 0;
     const publish = () => {
-      document.documentElement.style.setProperty(
-        "--rail-h",
-        `${Math.round(node.getBoundingClientRect().height)}px`,
-      );
+      frame = 0;
+      const next = `${Math.round(node.getBoundingClientRect().height)}px`;
+      // Against what is on the element, not a local memo: eight rails share
+      // this one property, so a memo would let each of them rewrite a value
+      // one of the others had already put there.
+      if (root.style.getPropertyValue("--rail-h") === next) return;
+      root.style.setProperty("--rail-h", next);
     };
     publish();
-    const observer = new ResizeObserver(publish);
+    const observer = new ResizeObserver(() => {
+      if (frame) return;
+      frame = requestAnimationFrame(publish);
+    });
     observer.observe(node);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, [active]);
 
   /**
-   * Keeps the selected tab on the visible part of the rail.
+   * Slides the rail sideways until the selected tab is on it. Nothing else.
    *
-   * Below 820px the rail is a scroll container, and until now only the arrow
-   * keys revealed what they had just activated. Every other way a section
-   * changes — a tap on a half-visible tab, a cross-link from another
+   * Below 820px the rail is a horizontal scroll container, and only the arrow
+   * keys used to reveal what they had just activated. Every other way a
+   * section changes — a tap on a half-visible tab, a cross-link from another
    * workspace, a deep link, Back — could leave the selected tab parked out of
-   * view: a tablist apparently with no selection. `nearest` on both axes moves
-   * the rail the minimum distance and does not move at all when the tab is
-   * already in view, and the reveal is instant like every other navigation
-   * move, so there is no duration for reduced motion to shorten. Gated on
-   * `active` for the same reason the publisher above is: a hidden rail has no
-   * boxes to scroll.
+   * view: a tablist apparently with no selection.
+   *
+   * This moves the rail's own `scrollLeft` rather than calling
+   * `scrollIntoView`, which cannot be aimed at one axis or one box: it walks
+   * EVERY scrollable ancestor, so it also moved the workspace shell. That is
+   * not a hypothetical. The shell carries `scroll-padding-top: calc(var(
+   * --rail-h) + var(--space-3))` and this rail is `position: sticky`, so the
+   * selected tab is permanently parked INSIDE the shell's scroll-padding band
+   * — a region `nearest` is defined to scroll out of, and a sticky element can
+   * never leave. Driven from a page scrolled to 400px, one call on a tab that
+   * was already fully visible moved the shell to 316px. Every section change
+   * therefore dragged the reader 84px up the page, before the panel
+   * realignment below had said anything.
+   *
+   * The reveal is instant like every other navigation move, so there is no
+   * duration for reduced motion to shorten, and it no-ops entirely at desk
+   * width, where the rail does not overflow.
    */
-  useEffect(() => {
-    if (!active) return;
-    const index = tabs.findIndex((tab) => tab.id === activeId);
-    refs.current[index]?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [active, activeId, tabs]);
-  const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
-
   const revealTab = (index: number) => {
     const node = refs.current[index];
-    node?.focus();
-    node?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    const track = node?.parentElement;
+    if (!node || !track || track.scrollWidth <= track.clientWidth) return;
+    const tab = node.getBoundingClientRect();
+    const box = track.getBoundingClientRect();
+    if (tab.left < box.left) track.scrollLeft -= box.left - tab.left;
+    else if (tab.right > box.right) track.scrollLeft += tab.right - box.right;
   };
+
+  /** Gated on `active` for the reason the publisher is: a hidden rail has no
+   *  boxes to scroll. */
+  useEffect(() => {
+    if (!active) return;
+    revealTab(tabs.findIndex((tab) => tab.id === activeId));
+    // `revealTab` reads refs only, so it is stable in everything that matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, activeId, tabs]);
+  const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
 
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
@@ -125,6 +171,11 @@ export default function WorkspaceSubtabs<T extends string>({
     if (event.key === "End") nextIndex = tabs.length - 1;
 
     onChange(tabs[nextIndex].id);
+    // `preventScroll`, then the rail's own reveal: a bare `.focus()` asks the
+    // browser to scroll the button clear of the shell's scroll-padding, which
+    // it can never do for a sticky rail — see `revealTab` above. The rail is
+    // pinned under the header, so the tab taking focus is on screen already.
+    refs.current[nextIndex]?.focus({ preventScroll: true });
     revealTab(nextIndex);
   };
 
@@ -263,6 +314,13 @@ export function WorkspaceSubtabPanel<T extends string>({
    * `scrollIntoView`, because the latter aligns EVERY scrollable ancestor to
    * the target — it would drag the shell down past the page heading on a
    * switch made from the top, which is movement in the wrong direction.
+   *
+   * `opened` is in the dependency list, not just `active`. The latch above
+   * flips it in a LATER commit than the one that reveals the panel, so on a
+   * section's first open this ran against a `<section>` whose children had
+   * not rendered yet — an empty box, measured, and realigned to the wrong
+   * place. Re-running once the children exist is what makes the first visit
+   * behave like every later one.
    */
   useEffect(() => {
     if (!active) return;
@@ -277,7 +335,7 @@ export function WorkspaceSubtabPanel<T extends string>({
     const drift = node.getBoundingClientRect().top
       - (scroller.getBoundingClientRect().top + clearance);
     if (drift < 0) scroller.scrollBy({ top: drift, behavior: "auto" });
-  }, [active]);
+  }, [active, opened]);
 
   return (
     <section
