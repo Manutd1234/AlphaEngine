@@ -59,7 +59,7 @@ const ROLE_CARDS: {
     view: "data",
     code: "DE",
     role: "Data Engineer",
-    action: "Open Data Ops →",
+    action: "Open Data →",
     headline: (c) => c.providers,
     status: () => "Feed freshness, source agreement and payload lineage",
   },

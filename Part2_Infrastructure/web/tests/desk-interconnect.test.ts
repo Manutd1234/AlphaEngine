@@ -38,6 +38,7 @@ import {
   RESEARCH_SECTION_IDS,
   RISK_SECTION_IDS,
 } from "../lib/sections";
+import { NAV_ITEMS } from "../components/WorkspaceHeader";
 
 function read(relative: string): string {
   return readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
@@ -414,4 +415,38 @@ describe("the role launcher takes no prop it never reads", () => {
       "the overview no longer launches seven desk roles",
     );
   });
+});
+
+/**
+ * A role card's button names the tab it opens, in the header's own words.
+ *
+ * "Open Data Ops →" pointed at a tab the header labels "Data" — six of the
+ * seven cards matched their nav label exactly and one did not, so a reader
+ * following it went looking for a tab that is not there. `NextStepFooter`
+ * carries a comment warning against precisely this ("Next step in Data
+ * operations would send them looking for a tab that reads Data") and nothing
+ * enforced it on this surface.
+ *
+ * Derived from NAV_ITEMS rather than pinned to seven strings, so a tab rename
+ * fails here instead of quietly leaving a card pointing at the old name.
+ */
+describe("a role card names the tab it opens", () => {
+  const cards = [...roleCards.matchAll(/view:\s*"([a-z]+)",[\s\S]*?action:\s*"([^"]+)"/g)]
+    .map(([, view, action]) => ({ view, action }));
+
+  it("finds all seven cards", () => {
+    assert.equal(cards.length, 7, "the card regex stopped matching RoleCards' shape");
+  });
+
+  for (const { view, action } of cards) {
+    it(`${view} — the action reads as the header labels it`, () => {
+      const nav = NAV_ITEMS.find((item) => item.id === view);
+      assert.ok(nav, `no nav item for view "${view}"`);
+      assert.equal(
+        action,
+        `Open ${nav.label} \u2192`,
+        `the card says "${action}" but the header calls that tab "${nav.label}"`,
+      );
+    });
+  }
 });
