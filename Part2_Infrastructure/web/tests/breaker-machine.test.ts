@@ -20,7 +20,21 @@ const read = (relative: string) =>
 
 const machine = read("../components/systems/BreakerStateMachine.tsx");
 const ledger = read("../components/systems/RemediationLedger.tsx");
+/**
+ * `OperatorPanel` passed the length ceiling and was cut along the blast-radius
+ * seam its two group headings already drew: the five guarded server mutations
+ * moved to `OperatorControls`, the browser-only ones to `SessionControls`. The
+ * panel kept authorisation, the confirmation state and the dispatch.
+ *
+ * So the assertions below read the file their subject is now in, and the ones
+ * that forbid a sentence ANYWHERE on the pane read `operatorSurface`: scoped to
+ * the shell alone they would pass by scanning a file that no longer contains
+ * what they guard, which is the exact failure this suite has been bitten by.
+ */
 const operator = read("../components/systems/OperatorPanel.tsx");
+const operatorControls = read("../components/systems/OperatorControls.tsx");
+const sessionControls = read("../components/systems/SessionControls.tsx");
+const operatorSurface = [operator, operatorControls, sessionControls].join("\n");
 /**
  * Re-anchored when `lib/providers/runtime.ts` was split into one file per
  * mechanism. `runtime.ts` is now a re-export barrel, so a scan left pointing
@@ -149,26 +163,32 @@ describe("the outcome ring respects the floor that withholds the rate", () => {
 describe("operator costs stay beside the buttons", () => {
   it("keeps the quota warning uncollapsed", () => {
     /**
-     * `OperatorPanel`'s own header: costs are rendered next to the buttons and
-     * not buried, because the person clicking is usually the person who will be
-     * surprised by the bill. This one is the strongest warning on the tab — it
-     * is the difference between clearing our count and clearing the vendor's.
+     * `OperatorControls`'s own header: costs are rendered next to the buttons
+     * and not buried, because the person clicking is usually the person who will
+     * be surprised by the bill. This one is the strongest warning on the tab —
+     * it is the difference between clearing our count and clearing the vendor's.
      */
-    const warn = operator.indexOf("console-warn");
-    const disclosure = operator.indexOf('<details className="disclosure"');
+    const warn = operatorControls.indexOf("console-warn");
+    const disclosure = operatorControls.indexOf('<details className="disclosure"');
     assert.ok(warn > 0 && disclosure > 0);
     assert.ok(warn < disclosure, "the billing warning was moved behind a disclosure");
   });
 
   it("still states a spend and a destruction inline", () => {
-    const disclosure = operator.indexOf('<details className="disclosure"');
-    const above = operator.slice(0, disclosure);
+    const disclosure = operatorControls.indexOf('<details className="disclosure"');
+    const above = operatorControls.slice(0, disclosure);
     assert.match(above, /spends a real call/);
     assert.match(above, /Destroys this instance/);
   });
 
   it("collapses scope into two group notes rather than seven separate ones", () => {
-    const summaries = [...operator.matchAll(/<summary>([\s\S]*?)<\/summary>/g)];
+    /**
+     * One group note per group, and the groups are now files: the server
+     * mutations' disclosure lives in `OperatorControls`, the session controls'
+     * in `SessionControls`. Counted across the whole pane, so a third cannot
+     * appear in whichever of the two a narrower scan is not reading.
+     */
+    const summaries = [...operatorSurface.matchAll(/<summary>([\s\S]*?)<\/summary>/g)];
     assert.equal(summaries.length, 2, "seven disclosure triangles is as noisy as seven paragraphs");
     for (const [, text] of summaries) {
       assert.ok(text.trim().length > 12);
@@ -183,19 +203,20 @@ describe("operator costs stay beside the buttons", () => {
      * `dd`. Each of these sentences used to be printed in both places, so a
      * reader met it twice on one pane — and the pane read as twice its length.
      */
-    assert.doesNotMatch(uncollapsed(operator), /Re-evaluates the environment/);
-    assert.doesNotMatch(uncollapsed(operator), /Behaviour survives\./);
+    assert.doesNotMatch(uncollapsed(operatorSurface), /Re-evaluates the environment/);
+    assert.doesNotMatch(uncollapsed(operatorSurface), /Behaviour survives\./);
     // Moved, not deleted: the disclosure still owns the scope sentence.
-    assert.match(code(operator), /Re-evaluates the environment this process already holds/);
+    assert.match(code(operatorControls), /Re-evaluates the environment this process already holds/);
     // And the caveat that stayed behind is readable without opening anything.
-    assert.match(uncollapsed(operator), /Cannot import a changed/);
+    assert.match(uncollapsed(operatorControls), /Cannot import a changed/);
   });
 
   it('frames "browser only" once, on the session heading, not per row', () => {
-    // The heading says "This browser only · No server state is mutated" for the
+    // The heading says "This browser only. No server state is mutated." for the
     // whole group; a "Browser-side." prefix on every row under it was that
-    // heading restated two words at a time.
-    assert.match(code(operator), /No server state is mutated/);
-    assert.doesNotMatch(code(operator), /Browser-side\./);
+    // heading restated two words at a time. The forbidding half reads the whole
+    // pane, so the prefix cannot come back in a sibling file unseen.
+    assert.match(code(sessionControls), /No server state is mutated/);
+    assert.doesNotMatch(code(operatorSurface), /Browser-side\./);
   });
 });
