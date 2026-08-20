@@ -97,8 +97,6 @@ export default function OperatorGuard({
               </span>
             ) : tokenStatus === "checking" ? (
               "Checking the credential…"
-            ) : guard === "open-demo" ? (
-              "Demo operator (open) — actions work without a credential; type one to act as the authenticated operator."
             ) : (
               "Kept in this tab's session storage — survives a reload, gone when the tab closes; never logged."
             )}

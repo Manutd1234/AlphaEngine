@@ -158,9 +158,9 @@ export default function HealthMatrix({
       </section>
 
       <p className="console-note console-matrix-action-note" id="health-matrix-action-note">
-        Test spends one real provider call. Simulate removes a ready provider from this instance&apos;s
-        routing for two minutes; Reset closes an existing circuit on that same instance. These are
-        not fleet-wide or trading-gateway controls. {locked
+        Test spends one real provider call. Simulate drops a ready provider from this instance&apos;s
+        routing for two minutes; Reset closes a circuit on it. Neither reaches another instance or
+        the trading gateway. {locked
           ? guard === "token"
             ? "Enter the operator token in Controls to enable these actions."
             : "Actions are locked on this deployment; authorization details live in Controls."
