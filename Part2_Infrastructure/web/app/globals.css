@@ -4250,6 +4250,33 @@ button
   margin-bottom: 10px;
 }
 
+/* The interval picker is wrapped in a `.console-check` label; the date inputs
+   and the button are bare children. That wrapper carries `margin-bottom: 12px`
+   for its usual standalone use, and inside this `align-items: stretch` row the
+   margin comes out of the stretched box — so the label rendered 12px shorter
+   than its siblings and centred its select ~6px high inside the remainder.
+   `flex: 0 0 auto` rather than `1 1 auto`: the two date inputs are the growers,
+   and letting a 2-6 character interval picker grow with them took it from ~70px
+   to ~113px and shrank each date by ~21px.
+
+   `align-items` stays `stretch`. Centring was the obvious fix and it is wrong:
+   a button resolves to 43.25px (15.5px x 1.5 plus 18px padding and 2px border,
+   so its `min-height: 32px` never binds) while an input resolves to 38px, and
+   stretch is what currently makes those two pixel-identical. Centring releases
+   the input to 38px and opens a 2.6px inset — 3.6px at the large type step —
+   breaking the rows that line up today to fix the one that does not. */
+.console-inspector__controls .console-check {
+  flex: 0 0 auto;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+/* The one child in any of these rows that genuinely wants centring: a bare
+   count beside a button, stretched to full height with its text at the top. */
+.console-inspector__controls > .muted {
+  align-self: center;
+}
+
 .console-inspector__controls input {
   flex: 1 1 auto;
   min-width: 0;
