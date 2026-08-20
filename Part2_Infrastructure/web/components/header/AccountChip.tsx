@@ -25,7 +25,7 @@
  * URL to render and a broken-image glyph would be worse than initials.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { UserRound } from "lucide-react";
 
 import AnchoredPanel from "@/components/header/AnchoredPanel";
@@ -48,7 +48,7 @@ export function initialsFrom(name: string | null, email: string | null): string 
   return letters.toLocaleUpperCase();
 }
 
-export default function AccountChip({
+function AccountChip({
   onOpenPreferences,
   openSignal = 0,
 }: {
@@ -259,3 +259,13 @@ export default function AccountChip({
     </span>
   );
 }
+
+/**
+ * Memoised. Nothing about an identity moves at feed rate, so this control
+ * should sit still while the chips beside it count — and it is the one in the
+ * row that reads a module-level session singleton, so a re-render here is a
+ * subscription read that answers the same thing it answered a moment ago.
+ * Both props are stabilised by the header (`useCallback`, and a counter that
+ * only moves when Quick settings asks for this menu back).
+ */
+export default memo(AccountChip);
