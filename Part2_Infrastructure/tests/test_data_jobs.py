@@ -389,7 +389,7 @@ class TestJobHistorySurvivesARestart:
 
     @pytest.mark.asyncio
     async def test_the_route_tops_the_queue_up_and_says_it_did(self, monkeypatch):
-        import main
+        from modules.api import data as data_routes  # where the handler reads its singletons
 
         class _Audit:
             def list_jobs(self, limit=25, kind_prefix=None):
@@ -406,10 +406,10 @@ class TestJobHistorySurvivesARestart:
             def list(self, limit, kind_prefix=None):
                 return []
 
-        monkeypatch.setattr(main, "get_audit", lambda: _Audit())
-        monkeypatch.setattr(main, "get_queue", lambda: _Queue())
+        monkeypatch.setattr(data_routes, "get_audit", lambda: _Audit())
+        monkeypatch.setattr(data_routes, "get_queue", lambda: _Queue())
 
-        body = await main.data_jobs(limit=25, _actor="test")
+        body = await data_routes.data_jobs(limit=25, _actor="test")
 
         assert [job.job_id for job in body.jobs] == ["restored-1"]
         assert body.restored_from_audit == 1
@@ -425,7 +425,7 @@ class TestJobHistorySurvivesARestart:
 
     @pytest.mark.asyncio
     async def test_a_live_job_wins_over_its_restored_row(self, monkeypatch):
-        import main
+        from modules.api import data as data_routes
 
         class _Audit:
             def list_jobs(self, limit=25, kind_prefix=None):
@@ -445,9 +445,9 @@ class TestJobHistorySurvivesARestart:
             def list(self, limit, kind_prefix=None):
                 return [_Record()]
 
-        monkeypatch.setattr(main, "get_audit", lambda: _Audit())
-        monkeypatch.setattr(main, "get_queue", lambda: _Queue())
-        monkeypatch.setattr(main, "job_view", lambda record: {
+        monkeypatch.setattr(data_routes, "get_audit", lambda: _Audit())
+        monkeypatch.setattr(data_routes, "get_queue", lambda: _Queue())
+        monkeypatch.setattr(data_routes, "job_view", lambda record: {
             "job_id": record.job_id, "kind": "data.replay", "status": "succeeded",
             "submitted_at": datetime(2026, 8, 19, 9, 0), "finished_at": None,
             "backend": "in-process", "error": None,
@@ -455,7 +455,7 @@ class TestJobHistorySurvivesARestart:
             "summary": {"outcome": "clean"},
         })
 
-        body = await main.data_jobs(limit=25, _actor="test")
+        body = await data_routes.data_jobs(limit=25, _actor="test")
 
         assert len(body.jobs) == 1, "the same job was listed twice"
         assert body.restored_from_audit == 0

@@ -196,13 +196,21 @@ class TestTheFitItself:
 
 class TestTheRouteIsRegistered:
     def test_the_gateway_exposes_a_way_to_start_a_fit(self):
+        """Read from the published contract, not from ``app.routes``.
+
+        This used to walk ``main.app.routes`` for a ``POST``. Once the routes
+        became ``APIRouter``s that list holds router wrappers rather than
+        routes, so the scan found an empty set — and a scan that can only ever
+        find nothing is a test that can only ever fail, which is the luckier
+        half of the same defect that makes a scan find everything. The
+        generated schema is also the thing the two clients read, so it is the
+        better anchor: if the fit route is missing from it, the workspace has
+        no way to start a fit whatever ``app.routes`` says.
+        """
         import main
 
-        posts = {
-            route.path for route in main.app.routes
-            if "POST" in getattr(route, "methods", set())
-        }
-        assert "/api/research/ml/fit" in posts, (
+        operations = main.app.openapi()["paths"].get("/api/research/ml/fit", {})
+        assert "post" in operations, (
             "the gateway has read routes over ml_runs and no way to create one — "
             "which is exactly the state this module was written to end"
         )
@@ -238,7 +246,13 @@ class TestTheRouteIsRegistered:
             status: str = "queued"
             backend: str = "in-process"
 
-        monkeypatch.setattr(main, "submit_ml_fit", lambda params, actor: _Accepted())
+        # `submit_ml_fit` is resolved by the handler in `modules/api/ml.py`.
+        # Patched on `main` it would bind nothing the request reaches, and the
+        # real queue would take the job — the assertions below would still
+        # pass, and the fit would run for real.
+        from modules.api import ml as ml_routes
+
+        monkeypatch.setattr(ml_routes, "submit_ml_fit", lambda params, actor: _Accepted())
 
         response = TestClient(main.app).post(
             "/api/research/ml/fit",
@@ -248,3 +262,6 @@ class TestTheRouteIsRegistered:
             f"the fit route answered HTTP {response.status_code}: {response.text[:200]}"
         )
         assert response.json()["kind"] == ML_FIT_KIND
+        # Proves the stub answered rather than the real queue: without it a
+        # patch that stopped applying would look exactly like a pass.
+        assert response.json()["job_id"] == "ml-1"

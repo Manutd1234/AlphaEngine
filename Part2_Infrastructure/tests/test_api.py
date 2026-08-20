@@ -11,7 +11,23 @@ from conftest import deep_book, stub_feed
 from fastapi.testclient import TestClient
 
 import main
+from modules.api import deps as gateway_auth
 from modules.risk_proxy import TokenBucket
+
+
+def deployment(monkeypatch, **overrides) -> None:
+    """Reconfigure the gateway the way a deployment would, for both readers.
+
+    Two modules on the request path hold their own reference to ``settings``
+    now: ``main``, which renders the console, and ``modules.api.deps``, where
+    ``trader_identity`` went when the routes became routers. Patching only
+    ``main.settings`` — which is what these tests used to do — would bind a
+    name no authenticated request consults, and every assertion below would
+    then be measuring the default configuration while staying green.
+    """
+    patched = replace(main.settings, **overrides)
+    monkeypatch.setattr(main, "settings", patched)
+    monkeypatch.setattr(gateway_auth, "settings", patched)
 
 
 @pytest.fixture(scope="module")
@@ -346,7 +362,7 @@ class TestReadAuthentication:
     )
 
     def test_local_mode_keeps_sensitive_reads_available(self, client, monkeypatch):
-        monkeypatch.setattr(main, "settings", replace(main.settings, require_auth=False))
+        deployment(monkeypatch, require_auth=False)
 
         for path in self.SENSITIVE_COLLECTIONS:
             assert client.get(path).status_code == 200, path
@@ -356,11 +372,7 @@ class TestReadAuthentication:
 
     def test_auth_mode_requires_bearer_for_sensitive_reads(self, client, monkeypatch):
         token = "pytest-gateway-bearer"
-        monkeypatch.setattr(
-            main,
-            "settings",
-            replace(main.settings, require_auth=True, web_api_token=token),
-        )
+        deployment(monkeypatch, require_auth=True, web_api_token=token)
 
         for path in (*self.SENSITIVE_COLLECTIONS, "/api/jobs/deadbeef"):
             response = client.get(path)
@@ -369,11 +381,7 @@ class TestReadAuthentication:
 
     def test_auth_mode_accepts_valid_bearer_and_rejects_invalid_one(self, client, monkeypatch):
         token = "pytest-gateway-bearer"
-        monkeypatch.setattr(
-            main,
-            "settings",
-            replace(main.settings, require_auth=True, web_api_token=token),
-        )
+        deployment(monkeypatch, require_auth=True, web_api_token=token)
         headers = {"Authorization": f"Bearer {token}"}
 
         for path in self.SENSITIVE_COLLECTIONS:
@@ -389,11 +397,7 @@ class TestReadAuthentication:
 
     def test_auth_mode_accepts_dedicated_gateway_header(self, client, monkeypatch):
         token = "pytest-gateway-header-token"
-        monkeypatch.setattr(
-            main,
-            "settings",
-            replace(main.settings, require_auth=True, web_api_token=token),
-        )
+        deployment(monkeypatch, require_auth=True, web_api_token=token)
 
         response = client.get(
             "/api/portfolio",
@@ -419,11 +423,7 @@ class TestTelegramAuth:
         self, client, monkeypatch
     ):
         secret = "must-never-appear-in-html"
-        monkeypatch.setattr(
-            main,
-            "settings",
-            replace(main.settings, require_auth=True, web_api_token=secret),
-        )
+        deployment(monkeypatch, require_auth=True, web_api_token=secret)
         html = client.get("/app").text
         assert "telegram-web-app" not in html
         assert "initData" not in html

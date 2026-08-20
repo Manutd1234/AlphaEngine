@@ -30,7 +30,6 @@ CEILING = 400
 #: the ratchet closing.
 OVER_CEILING: dict[str, int] = {
     "modules/risk_proxy.py": 2233,
-    "main.py": 1243,
     "tests/test_quant_risk.py": 863,
     "tests/test_telegram_link.py": 862,
     "tests/test_session_rollover.py": 857,

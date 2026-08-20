@@ -21,10 +21,32 @@ import inspect
 import re
 
 import main
+from modules.api.risk import router as risk_router
+
+STREAM_PATH = "/api/stream/desk"
 
 
 def _stream_source() -> str:
-    return inspect.getsource(main.stream_desk)
+    """The source of the handler the gateway actually serves on ``STREAM_PATH``.
+
+    It used to be ``inspect.getsource(main.stream_desk)``. The handler moved to
+    ``modules/api/risk.py`` when the routes became routers, and a module
+    attribute is the wrong anchor for a property about a *registered* route: a
+    second copy of the function left behind in ``main`` would have kept this
+    file green while the gateway served something else. Resolving it through
+    the router that ``main`` includes, and checking the path is published,
+    means these five assertions can only ever describe the live endpoint.
+    """
+    published = main.app.openapi()["paths"]
+    assert STREAM_PATH in published, f"{STREAM_PATH} is no longer a published route"
+
+    for route in risk_router.routes:
+        if getattr(route, "path", None) == STREAM_PATH:
+            return inspect.getsource(route.endpoint)
+    raise AssertionError(
+        f"{STREAM_PATH} is published but not declared on the risk router — "
+        "resolve it from wherever it moved to, do not delete these tests"
+    )
 
 
 def test_emits_only_when_the_payload_changes() -> None:

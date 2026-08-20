@@ -519,20 +519,20 @@ async def test_no_store_means_unknown_rather_than_not_linked(bot):
 
 @pytest.mark.asyncio
 async def test_the_status_route_answers_the_identity_the_probe_signs(bot, monkeypatch):
-    import main
+    from modules.api import telegram as telegram_routes  # where the handler resolves get_bot
 
-    monkeypatch.setattr(main, "get_bot", lambda: bot)
+    monkeypatch.setattr(telegram_routes, "get_bot", lambda: bot)
     settings.telegram_allowed_user_ids[:] = []
     await bot.handle_update(update(f"/start {token_for(LINK_KIND_GUEST, GUEST_ID)}", update_id=420))
 
-    bound = await main.telegram_link_status(probe=probe_for(LINK_KIND_GUEST, GUEST_ID))
+    bound = await telegram_routes.telegram_link_status(probe=probe_for(LINK_KIND_GUEST, GUEST_ID))
     assert bound["link_status"] == "linked"
     assert bound["kind"] == LINK_KIND_GUEST
     # The contract is stated, for the reason `read_only` in health() is a
     # cautionary tale: a promise nobody can assert drifts silently.
     assert bound["grants_control"] is False
 
-    other = await main.telegram_link_status(probe=probe_for(LINK_KIND_ACCOUNT, ACCOUNT_ID))
+    other = await telegram_routes.telegram_link_status(probe=probe_for(LINK_KIND_ACCOUNT, ACCOUNT_ID))
     assert other["link_status"] == "not-linked"
 
 
@@ -544,13 +544,13 @@ async def test_the_status_route_never_names_a_chat_a_handle_or_a_count(bot, monk
     a caller learns one fact about one identity it already speaks for, and
     cannot walk from that answer to a second one.
     """
-    import main
+    from modules.api import telegram as telegram_routes
 
-    monkeypatch.setattr(main, "get_bot", lambda: bot)
+    monkeypatch.setattr(telegram_routes, "get_bot", lambda: bot)
     settings.telegram_allowed_user_ids[:] = []
     await bot.handle_update(update(f"/start {token_for(LINK_KIND_GUEST, GUEST_ID)}", update_id=430))
 
-    answer = await main.telegram_link_status(probe=probe_for(LINK_KIND_GUEST, GUEST_ID))
+    answer = await telegram_routes.telegram_link_status(probe=probe_for(LINK_KIND_GUEST, GUEST_ID))
     rendered = repr(answer)
     assert TELEGRAM_TEST_CHAT not in rendered
     assert TELEGRAM_TEST_USER not in rendered
@@ -562,15 +562,15 @@ async def test_the_status_route_never_names_a_chat_a_handle_or_a_count(bot, monk
 async def test_the_status_route_refuses_a_probe_it_did_not_issue(bot, monkeypatch):
     from fastapi import HTTPException
 
-    import main
+    from modules.api import telegram as telegram_routes
 
-    monkeypatch.setattr(main, "get_bot", lambda: bot)
+    monkeypatch.setattr(telegram_routes, "get_bot", lambda: bot)
     foreign = mint_link_token(
         LINK_KIND_ACCOUNT, ACCOUNT_ID,
         link_probe_secret("another-deployments-secret-key-0123456789"), 120,
     )
     with pytest.raises(HTTPException) as refusal:
-        await main.telegram_link_status(probe=foreign)
+        await telegram_routes.telegram_link_status(probe=foreign)
     assert refusal.value.status_code == 403
     assert "not issued by this desk" in refusal.value.detail
 
@@ -580,13 +580,13 @@ async def test_the_status_route_refuses_rather_than_guessing_when_unconfigured(b
     """An absent secret is not evidence of an absent binding."""
     from fastapi import HTTPException
 
-    import main
+    from modules.api import telegram as telegram_routes
 
-    monkeypatch.setattr(main, "get_bot", lambda: bot)
+    monkeypatch.setattr(telegram_routes, "get_bot", lambda: bot)
     probe = probe_for(LINK_KIND_GUEST, GUEST_ID)
     _set("telegram_link_secret", "")
     with pytest.raises(HTTPException) as refusal:
-        await main.telegram_link_status(probe=probe)
+        await telegram_routes.telegram_link_status(probe=probe)
     assert refusal.value.status_code == 503
     assert "TELEGRAM_LINK_SECRET" in refusal.value.detail
 
