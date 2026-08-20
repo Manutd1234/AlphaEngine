@@ -121,7 +121,7 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
           {source === "sandbox" && improvement.n > 0 && improvement.improved === 0 && (
             <p className="muted cockpit-quality__caveat">
               Sandbox fills are taker-side by construction, so none can beat the mid. On a live
-              gateway, resting fills price inside it and land here.
+              gateway, resting fills price inside it.
             </p>
           )}
 
@@ -158,7 +158,7 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
             <p className="notice">
               Most frequent block: <strong>{summary.topRejectReason.gate}</strong> ({summary.topRejectReason.count}
               {summary.topRejectReason.count === 1 ? " order" : " orders"}). If that is not deliberate, the size is
-              wrong for the limit — not the other way round.
+              wrong for the limit.
             </p>
           ) : null}
 

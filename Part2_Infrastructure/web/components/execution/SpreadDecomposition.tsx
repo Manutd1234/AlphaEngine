@@ -54,8 +54,8 @@ export default function SpreadDecomposition({
           </div>
         </div>
         <p className="muted">
-          No audit log is reachable in this deployment, so no fill has a price to measure a spread
-          against. Cost decomposition needs the executions, not the book.
+          No audit log is reachable in this deployment, so no fill has a price to measure a
+          spread against.
         </p>
       </section>
     );
@@ -73,8 +73,8 @@ export default function SpreadDecomposition({
           </div>
         </div>
         <p className="muted">
-          No priced fill in this window. Rejections carry no execution price, so a rejected-only
-          window has nothing to decompose — this is an absence of trading, not of measurement.
+          No priced fill in this window. Rejections carry no execution price, so this is an
+          absence of trading, not of measurement.
         </p>
       </section>
     );
@@ -211,8 +211,7 @@ export default function SpreadDecomposition({
 
       <p className="research-note">
         Effective spread is <span className="num">2 × |slippage|</span> against the consolidated mid
-        the gateway priced each decision at, so this is the textbook measure rather than a proxy for
-        it. {REALIZED_SPREAD_WITHHELD}
+        the gateway priced each decision at. {REALIZED_SPREAD_WITHHELD}
         {source === "sandbox" && " Generated desk."}
       </p>
     </section>

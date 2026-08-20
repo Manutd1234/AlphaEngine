@@ -49,7 +49,7 @@ export default function VenueMixDonut({
         </div>
         <p className="muted">
           No audit log is reachable in this deployment, so there are no fills to attribute to a
-          venue. This is a routing question and it needs the order history to answer it.
+          venue.
         </p>
       </section>
     );
@@ -115,7 +115,7 @@ export default function VenueMixDonut({
 
       <p className="research-note">
         Share of <em>fills</em>, not a fill ratio: an order that never filled never reached a venue,
-        so the denominator a per-venue ratio would need does not exist in the audit log.
+        so the audit log holds no denominator for one.
         {mix.unattributed > 0
           && ` ${mix.unattributed} fill${mix.unattributed === 1 ? "" : "s"} carr${mix.unattributed === 1 ? "ies" : "y"} no venue tag and ${mix.unattributed === 1 ? "is" : "are"} excluded from the ring.`}
         {source === "sandbox" && " Generated desk."}

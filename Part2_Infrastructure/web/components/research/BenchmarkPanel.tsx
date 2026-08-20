@@ -119,13 +119,11 @@ export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanel
 
         <p className="sub">
           {failed
-            ? `${requested} was requested but no comparison could be computed. Either its bars did `
-              + "not load, or too few timestamps lined up with this run's — two vendors on "
-              + "different bar conventions produce an empty intersection, which is a data problem "
-              + "rather than a missing result."
-            : "No benchmark selected. Alpha and beta measure this strategy against an instrument "
-              + "other than the one it trades, so both are withheld here rather than filled in "
-              + "from the same symbol."}
+            ? `${requested} was requested but no comparison could be computed: either its bars `
+              + "did not load, or too few timestamps lined up with this run's. That is a data "
+              + "problem rather than a missing result."
+            : "No benchmark selected. Alpha and beta need an instrument other than the one this "
+              + "strategy trades, so both are withheld rather than filled in from the same symbol."}
         </p>
 
         <dl className="benchmark-grid">
@@ -143,10 +141,10 @@ export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanel
         </dl>
 
         <p className="sub">
-          Whether the <em>timing</em> helped is already answered: the Summary stat row pairs
-          &ldquo;buy &amp; hold&rdquo; with the strategy&rsquo;s own return and Sharpe, both on the
-          traded symbol. What stays open is whether the <em>position</em> was worth holding at all,
-          and only a second instrument answers that.
+          Whether the <em>timing</em> helped is already answered by the Summary stat row, which
+          pairs &ldquo;buy &amp; hold&rdquo; with the strategy&rsquo;s own return and Sharpe. What
+          stays open is whether the <em>position</em> was worth holding, and only a second
+          instrument answers that.
         </p>
 
         <button type="button" className="text-action" onClick={focusBenchmarkControl}>

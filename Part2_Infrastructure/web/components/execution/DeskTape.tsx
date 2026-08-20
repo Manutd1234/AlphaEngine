@@ -36,9 +36,9 @@ export default function DeskTape({ symbol }: { symbol: string }) {
       </div>
 
       <p className="sub">
-        Filtered to {symbol}. The Blotter pane holds
-        the complete record — polled from the gateway&apos;s own store, which stays authoritative.
-        A stream can drop silently, so it is watched, not counted on.
+        Filtered to {symbol}. The complete record is the Blotter pane, polled from the
+        gateway&apos;s authoritative store; a stream can drop silently, so this is watched,
+        not counted on.
       </p>
 
       {state !== "live" || rows.length === 0 ? (

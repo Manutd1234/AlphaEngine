@@ -170,7 +170,7 @@ function gatewayState(view: SystemHealthView): ControlState {
   if (!view.health) return { label: "Checking", detail: "Gateway health has not arrived yet.", tone: "info" };
   if (!platform) {
     const off = source?.state === "not_configured";
-    const offline = "FastAPI Gateway is offline. Run 'python -m uvicorn main:app --port 8000' to connect.";
+    const offline = "FastAPI gateway offline; start it with 'python -m uvicorn main:app --port 8000'.";
     // `off` is nothing to probe; a refused or timed-out probe is a measurement.
     return { label: off ? "Gateway Off" : "Unavailable", detail: source?.detail ?? offline, tone: off ? "off" : "warn", unmeasured: off };
   }
@@ -201,7 +201,7 @@ function schemaCompatibilityState(view: SystemHealthView): ControlState {
   if (!evidence) return { label: "Unverified", detail: "This health route does not expose live schema evidence yet.", tone: "warn", unmeasured: true };
   if (!view.health.platform && evidence.state !== "unavailable") {
     const earlier = evidence.state === "match" ? "an exact match" : "drift";
-    const detail = `${gatewayState(view).detail} Nothing read the live contract this poll, so it is uncompared; an earlier reading found ${earlier}.`;
+    const detail = `${gatewayState(view).detail} Nothing read the live contract this poll; an earlier reading found ${earlier}.`;
     return { label: "Unverified", detail, tone: "warn", unmeasured: true };
   }
   if (evidence.state === "match") return { label: "Exact match", detail: evidence.detail, tone: "good" };
@@ -373,7 +373,7 @@ function DeveloperOverview({
       state: IS_VERCEL_DEPLOYMENT ? gateVerdict(currentWorkspace) : "unverified",
       detail: IS_VERCEL_DEPLOYMENT
         ? currentWorkspace.detail
-        : "This build is not a Vercel deployment, so there is no promotion candidate to check.",
+        : "Not a Vercel deployment, so there is no promotion candidate to check.",
     },
     { label: "Gateway", value: currentGateway.label, state: gateVerdict(currentGateway), detail: currentGateway.detail },
     {
@@ -473,7 +473,7 @@ function DeveloperOverview({
               ? `${failedChecks.map((check) => check.label).join(", ")} ${failedChecks.length === 1 ? "is" : "are"} blocking launch. `
               : ""}
             {unverifiedChecks.length
-              ? `${unverifiedChecks.map((check) => check.label).join(", ")} could not be checked at all, so ${unverifiedChecks.length === 1 ? "it is" : "they are"} neither a pass nor a failure — and promotion still waits on ${unverifiedChecks.length === 1 ? "it" : "them"}.`
+              ? `${unverifiedChecks.map((check) => check.label).join(", ")} could not be checked at all, so ${unverifiedChecks.length === 1 ? "it is" : "they are"} neither a pass nor a failure; promotion still waits.`
               : failedChecks.length ? "" : "All five launch gates have current evidence."}
           </p>
         </section>
