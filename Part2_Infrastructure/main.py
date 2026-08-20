@@ -492,6 +492,13 @@ async def ml_runs(
             observed_at=datetime.now(timezone.utc), state="unavailable", runs=[],
         )
     rows = await store.list_runs(limit=limit)
+    if rows is None:
+        # Configured but unreadable — a bad key, a missing table, a schema-cache
+        # miss. Reporting this as an empty list would say "this desk has fitted
+        # nothing", which is a claim about the desk rather than about the query.
+        return MLRunsResponse(
+            observed_at=datetime.now(timezone.utc), state="unreadable", runs=[],
+        )
     return MLRunsResponse(
         observed_at=datetime.now(timezone.utc),
         state="ok",

@@ -144,15 +144,23 @@ class MLRunStore:
     # discovered to have never existed.
     DEFAULT_DESK_ID = "00000000-0000-0000-0000-000000000001"
 
-    async def list_runs(self, limit: int = 25, desk_id: str | None = None) -> list[dict[str, Any]]:
-        """Recent runs, newest first. Empty list when unconfigured is WRONG —
-        callers get None so they can tell 'no runs' from 'no corpus'."""
+    async def list_runs(self, limit: int = 25, desk_id: str | None = None) -> list[dict[str, Any]] | None:
+        """Recent runs, newest first.
+
+        ``None`` means the question could not be asked; ``[]`` means it was
+        asked and the answer is none. Every branch used to return ``[]``,
+        including a bad service-role key and a missing table — so a corpus that
+        could not be READ reported as a desk that had never fitted anything, and
+        the panel said "the corpus is reachable" about a corpus it had failed to
+        reach. The docstring already promised this behaviour; the code did not
+        have it.
+        """
         if not self.enabled:
-            return []
+            return None
         if self._client is None:
             await self.start()
         if self._client is None:
-            return []
+            return None
         params = {
             "desk_id": f"eq.{desk_id or self.DEFAULT_DESK_ID}",
             "select": (
@@ -162,10 +170,14 @@ class MLRunStore:
             "order": "started_at.desc",
             "limit": str(max(1, min(int(limit), 100))),
         }
-        response = await self._client.get("/rest/v1/ml_runs", params=params)
+        try:
+            response = await self._client.get("/rest/v1/ml_runs", params=params)
+        except Exception as exc:
+            log.warning("ml store: list_runs failed (%s)", type(exc).__name__)
+            return None
         if response.status_code >= 400:
             log.warning("ml store: list_runs HTTP %s", response.status_code)
-            return []
+            return None
         return response.json() or []
 
     async def get_run(self, run_id: str, desk_id: str | None = None) -> dict[str, Any] | None:

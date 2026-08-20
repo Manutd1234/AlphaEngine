@@ -47,7 +47,14 @@ interface MlRun {
 
 interface RunsPayload {
   observed_at: string;
-  /** "ok" or "unavailable" — see the empty states below. */
+  /**
+   * "ok" — the corpus was read; `runs` is what it holds, empty or not.
+   * "unavailable" — no corpus is configured, so nothing was asked.
+   * "unreadable" — a corpus is configured and the read failed.
+   *
+   * The third exists because the store used to turn a failed read into an
+   * empty list, so a rejected key rendered as "this desk has fitted nothing".
+   */
   state: string;
   runs: MlRun[];
 }
@@ -102,7 +109,15 @@ export default function FittedModels() {
         </p>
       )}
 
-      {load.status === "done" && load.payload.state !== "ok" && (
+      {load.status === "done" && load.payload.state === "unreadable" && (
+        <p className="sub">
+          A research corpus is configured on this deployment and could not be read — a rejected
+          key, a missing table, or a schema cache that has not caught up. This says nothing about
+          whether runs exist; it says the question could not be answered.
+        </p>
+      )}
+
+      {load.status === "done" && load.payload.state === "unavailable" && (
         <p className="sub">
           No research corpus is configured on this deployment, so there is nowhere for a fitted
           run to be recorded. Runs still execute; nothing is filed.

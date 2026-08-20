@@ -310,7 +310,7 @@ export interface MLRunSummary {
 export interface MLRunsResponse {
   observed_at: string;
   runs: Array<MLRunSummary>;
-  state: "ok" | "unavailable";
+  state: "ok" | "unavailable" | "unreadable";
 }
 
 export interface MarketDataFeedSnapshot {

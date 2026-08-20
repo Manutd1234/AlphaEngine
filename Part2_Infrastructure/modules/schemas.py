@@ -779,7 +779,11 @@ class MLRunsResponse(BaseModel):
     """
 
     observed_at: datetime
-    state: Literal["ok", "unavailable"]
+    #: ``unavailable`` — no Supabase on this deployment, nothing was asked.
+    #: ``unreadable`` — a store is configured and the read failed. Distinct on
+    #: purpose: the first says nothing about the desk, the second says nothing
+    #: about the runs, and both used to render as "no runs yet".
+    state: Literal["ok", "unavailable", "unreadable"]
     runs: list[MLRunSummary]
 
 
