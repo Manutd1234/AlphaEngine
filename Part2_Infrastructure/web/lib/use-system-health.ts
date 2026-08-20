@@ -30,6 +30,7 @@ import {
   type LatencyHistoryPoint,
 } from "@/lib/overview-state";
 import { usePolling } from "@/lib/use-polling";
+import { useThrottledValue } from "@/lib/use-throttled-value";
 
 /** Quota-fenced and slow enough to be free. */
 export const DEFAULT_POLL_MS = 30_000;
@@ -423,12 +424,11 @@ export function useSystemHealth(workspaceSymbol: string): SystemHealthView {
   }, [reconnectAll, logLocal]);
 
   const summary = health?.summary;
-  const degraded = useMemo(
-    () => (summary?.degraded.length ?? 0) + (summary?.exhausted.length ?? 0),
-    [summary],
-  );
-
-  const decisionLatency = useMemo(() => deriveDecisionLatency(health), [health]);
+  const degraded = useMemo(() => (summary?.degraded.length ?? 0) + (summary?.exhausted.length ?? 0), [summary]);
+  // Throttled read figures, arriving in pairs when an action lands a snapshot
+  // and then re-reads. `degraded`, the guard and `health` itself stay immediate.
+  const decisionLatency = useThrottledValue(useMemo(() => deriveDecisionLatency(health), [health]));
+  const cacheHitRate = useThrottledValue(summary?.cache.hitRate ?? null);
 
   const guardMode = health?.guard.mode ?? "locked";
   const operatorReady =
@@ -467,7 +467,7 @@ export function useSystemHealth(workspaceSymbol: string): SystemHealthView {
       onReconnectSockets,
       logLocal,
       degraded,
-      cacheHitRate: summary?.cache.hitRate ?? null,
+      cacheHitRate,
       latencyHistory,
       decisionLatency,
     }),
@@ -475,7 +475,7 @@ export function useSystemHealth(workspaceSymbol: string): SystemHealthView {
       health, healthError, updatedAt, refresh, pollMs, setPollMs, paused,
       setPaused, route, setRoute, guardMode, token, setToken, operatorReady,
       tokenStatus, busyAction, actionResult, runAction, sockets,
-      onReconnectSockets, logLocal, degraded, summary, latencyHistory,
+      onReconnectSockets, logLocal, degraded, cacheHitRate, latencyHistory,
       decisionLatency,
     ],
   );
