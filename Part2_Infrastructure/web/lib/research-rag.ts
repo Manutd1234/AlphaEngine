@@ -26,6 +26,15 @@ export interface ResearchRagMatch {
 export interface ResearchRagSearchResponse {
   state: ResearchRagState;
   matches: ResearchRagMatch[];
+  /**
+   * Embedded documents the query could have matched.
+   *
+   * Optional and nullable on purpose. The Oracle index does not report one,
+   * and the Supabase count can fail — in both cases the denominator is
+   * UNKNOWN, which is a different thing from zero and must read as silence
+   * rather than as "an empty corpus".
+   */
+  corpus_size?: number | null;
 }
 
 export function isResearchRagSearchResponse(value: unknown): value is ResearchRagSearchResponse {
@@ -47,9 +56,16 @@ export function describeSearchOutcome(response: ResearchRagSearchResponse): stri
       return "The research index is not configured in this deployment — nothing was searched.";
     case "embed_failed":
       return "The embedding service did not answer, so this query could not be run.";
-    case "ok":
+    case "ok": {
+      // "1 similar report found" reads the same whether the index holds one
+      // document or four hundred. Say the denominator when it is known, and
+      // say nothing about it when it is not.
+      const of = typeof response.corpus_size === "number"
+        ? ` of ${response.corpus_size} indexed`
+        : "";
       return response.matches.length
-        ? `${response.matches.length} similar report${response.matches.length === 1 ? "" : "s"} found.`
-        : "Searched the desk's research corpus — nothing similar is recorded.";
+        ? `${response.matches.length} similar report${response.matches.length === 1 ? "" : "s"} found${of}.`
+        : `Searched the desk's research corpus${of} — nothing similar is recorded.`;
+    }
   }
 }

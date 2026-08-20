@@ -69,3 +69,29 @@ describe("the state vocabulary", () => {
     assert.match(empty, /nothing similar/i);
   });
 });
+
+describe("the outcome sentence carries a denominator when there is one", () => {
+  const base = { state: "ok" as const, matches: [] as never[] };
+
+  it("says how much was searched", () => {
+    const out = describeSearchOutcome({ ...base, matches: [{}] as never, corpus_size: 400 });
+    assert.match(out, /of 400 indexed/);
+  });
+
+  it("says nothing about the total when the count is unknown", () => {
+    // The Oracle index reports none, and the Supabase count can fail. Unknown
+    // is not zero, and it must not render as "of 0 indexed".
+    for (const size of [undefined, null]) {
+      const out = describeSearchOutcome({ ...base, matches: [{}] as never, corpus_size: size });
+      assert.doesNotMatch(out, /indexed/, `corpus_size ${String(size)} invented a denominator`);
+      assert.doesNotMatch(out, /\bof 0\b/);
+    }
+  });
+
+  it("keeps the empty case distinguishable from the unavailable one", () => {
+    const empty = describeSearchOutcome({ ...base, corpus_size: 12 });
+    assert.match(empty, /nothing similar is recorded/);
+    assert.match(empty, /of 12 indexed/, "an empty result still says how much was searched");
+    assert.notEqual(empty, describeSearchOutcome({ state: "unavailable", matches: [] }));
+  });
+});
