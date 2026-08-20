@@ -515,13 +515,33 @@ outlier is Research, whose 68 ms task is the sweep and its charts, and which is
 the only switch on the desk a reader could notice.
 
 Two things that were assumed to be wrong and are not. Requests per switch,
-measured against the production build, are 0–4 with a single duplicate across
-all eight — the browser is not re-fetching a tab's data on arrival, because
-`lib/use-book.ts` and `lib/use-system-health.ts` own those polls for every tab
-that reads them and `workspace-routing.test.ts` fails if a panel fetches them
-itself. And measuring this in `next dev` inflates it: `reactStrictMode: true`
-double-invokes effects, which is where the "duplicate request per switch"
-impression comes from.
+measured against the production build by `web/scripts/request-count-measure.mjs`
+on 2026-08-20, are **0–4 with no duplicates** — the browser is not re-fetching a
+tab's data on arrival, because `lib/use-book.ts` and `lib/use-system-health.ts`
+own those polls for every tab that reads them and `workspace-routing.test.ts`
+fails if a panel fetches them itself. And measuring this in `next dev` inflates
+it: `reactStrictMode: true` double-invokes effects, which is where the
+"duplicate request per switch" impression comes from.
+
+| tab | requests in 3 s after the click |
+|---|---|
+| Overview | 0 |
+| Research | 0 |
+| Execution | 4 |
+| Portfolio | 1 |
+| Risk | 0 |
+| Data | 2 |
+| Reliability | 0 |
+| Developer | 1 |
+
+Idle, sitting on Overview for 60 s: **2 requests, both `/api/system/health`** —
+2.0/min, which is the 30 s health cadence and nothing else.
+
+An earlier version of that harness stripped query strings and reported the
+Execution switch as carrying "a duplicate": `/api/gateway/audit?feed=orders` and
+`?feed=events` counted as one route asked for twice. They are two different
+questions. The "single duplicate" this paragraph used to claim was that
+artefact, not a finding.
 
 The switch is fast because of a deliberate earlier change, recorded in
 `app/dashboard/page.tsx`: `startTransition` with no `startViewTransition` and no
@@ -537,11 +557,15 @@ numbers are that comment being true.
   the gateway re-marks the book every 1 s (`risk_proxy.py`, `_monitor_loop`,
   `RISK_MONITOR_INTERVAL_S` — it was 5 s, and the tick is arithmetic over an
   in-memory book, so 1 s costs almost nothing and the breaker trips up to four
-  seconds sooner), and the browser polls at 4 s / 5 s / 15 s. Worst case ≈ 16 s,
-  and the polls are now the floor.
-* **The fix was ordered.** Tightening the poll before the recompute would have
-  delivered the same stale number more often — so the recompute was split
-  first (done, the 1 s above), then the transport.
+  seconds sooner). The browser polled at 4 s / 5 s / 15 s, which put the worst
+  case at ≈ 16 s with the polls as the floor.
+* **The fix was ordered, and both halves have now landed.** Tightening the poll
+  before the recompute would have delivered the same stale number more often —
+  so the recompute was split first (the 1 s above), then the transport. With
+  `/api/stream/desk` consumed by `useBook`, a change reaches the browser about
+  a second after the gateway sees it, and the ≈ 16 s figure above is history.
+  The polls remain underneath as the fallback and the backstop; they are no
+  longer how a change is normally learned.
 * **A browser cannot open an `EventSource` to the gateway directly.** The page
   is HTTPS and the gateway is `http://…:8000`; that is blocked as mixed content
   with no override. (The Caddy sidecar on `:8443` does not change this: its
@@ -549,14 +573,30 @@ numbers are that comment being true.
   browser has no reason to trust it.) Streaming would therefore have to be proxied through a
   Vercel route handler, costing ~25 ms — measured, and irrelevant against a 1 s
   recompute.
-* **The transport half is not wired, and the proxy that anticipated it has been
-  removed.** It had no consumer, and the hook written against it could not
-  express the state that matters: `EventSource` exposes neither the status code
-  nor the body, so the proxy's deliberate 503 on a gateway-less deployment was
-  invisible to it and the panel would have read "Connecting…" forever — on
-  precisely the deployment where that is the normal condition. The recompute
-  split above stands on its own; re-proxying is roughly sixty lines once a
-  surface genuinely wants a stream.
+* **The transport half is wired, and the thing that broke the first attempt is
+  fixed rather than inherited.** That attempt was removed because the hook could
+  not express the state that matters: `EventSource` exposes neither the status
+  code nor the body, so the proxy's deliberate 503 on a gateway-less deployment
+  was invisible to it and the panel would have read "Connecting…" forever — on
+  precisely the deployment where that is the normal condition. The proxy now
+  answers **200 in every case** and puts the state in the first frame, which a
+  client that cannot read status codes can still read:
+
+      event: desk-state
+      data: {"state":"unavailable","reason":"gateway_not_configured"}
+
+  On `unavailable` the hook closes the source rather than letting EventSource
+  retry every ~3 s — that would be a poll wearing a push's clothes. Verified
+  end to end on 2026-08-20 against a live gateway (`{"state":"ok"}` then
+  relayed `event: risk` frames), against a refusing one (`gateway_http_401`)
+  and against a loopback URL (`gateway_loopback`).
+* **The stream is a signal, not a second source of the numbers.** It carries
+  `RiskState`; the book polls `/api/gateway/portfolio`, a larger and different
+  shape. Rebuilding the panels on the stream's shape would give the same
+  figures two sources that can disagree, which is what the reconciliation tests
+  exist to prevent. `seq` moves only when the risk state actually changed, so
+  an idle desk still costs nothing and a moving one is refetched because
+  something moved rather than because a timer expired.
 
 Measured from a development machine to the gateway: 21–27 ms total, 9–13 ms TCP
 connect. Vercel serves the web project from `sin1`, the same city as the VM.
