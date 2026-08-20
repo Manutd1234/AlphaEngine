@@ -50,6 +50,7 @@ import { EXECUTION_SECTIONS } from "@/lib/sections";
 import { useBook } from "@/lib/use-book";
 import { useSweepRun } from "@/lib/use-sweep-run";
 import { useSystemHealth } from "@/lib/use-system-health";
+import { useThrottledValue } from "@/lib/use-throttled-value";
 import { useWorkspaceRouting } from "@/lib/use-workspace-routing";
 import { buildCommands } from "@/lib/workspace-commands";
 import { DEFAULT_REQUEST, STRATEGY_LABELS, type Strategy } from "@/lib/types";
@@ -133,6 +134,7 @@ export default function Page() {
   // second source of truth.
   const book = useBook();
   const systems = useSystemHealth(req.symbol);
+  const headerSummary = useThrottledValue(systems.health?.summary ?? null); // counters only; health stays immediate
   // The Data tab's work queue lives on the gateway; the hook owns the load,
   // the versioned writes and the offline hold, and the board renders `items`.
   const dataWork = useDataWorkQueue({ token: systems.token || null, active: view === "data" });
@@ -292,11 +294,11 @@ export default function Page() {
         onOpenTailLatency={() => openReliabilitySection("services", "reliability-latency-guide")}
         decisionLatency={systems.decisionLatency}
         onOpenCommandBar={() => setCommandBarOpen(true)}
-        latency={systems.health?.summary.upstreamLatency ?? systems.health?.summary.latency ?? null}
-        gatewayHopLatency={systems.health?.summary.gatewayHopLatency ?? null}
+        latency={headerSummary?.upstreamLatency ?? headerSummary?.latency ?? null}
+        gatewayHopLatency={headerSummary?.gatewayHopLatency ?? null}
         degraded={systems.degraded}
-        providersReady={systems.health?.summary.ready ?? null}
-        providersTotal={systems.health?.summary.total ?? null}
+        providersReady={headerSummary?.ready ?? null}
+        providersTotal={headerSummary?.total ?? null}
         healthUpdatedAt={systems.updatedAt}
         healthUnreachable={Boolean(systems.healthError)}
         /* One statement of provenance for the whole desk. The book is the right
@@ -424,9 +426,8 @@ export default function Page() {
             <WorkspaceIntro
               kicker="Risk manager"
               title="Risk"
-              /* The worst of the three: this was all five section tabs —
-                 Limits, VaR & model, Monte Carlo, Stress tests, Controls — in
-                 the order they appear, restated a line above them. */
+              /* The worst of the three: this was every section tab named in
+                 rail order, restated a line above the rail itself. */
               description={<>How much this book can lose before a limit stops it, and what does the stopping.</>}
               insights={[
                 {
@@ -672,10 +673,9 @@ export default function Page() {
       <footer className="workspace-footer">
         <span>AlphaEngine</span>
         <p>
-          Educational case-study demonstration for a developer assessment, not a brokerage or
-          investment service and not investment advice. No brokerage accounts, no funds, no real
-          orders; execution is paper-only, gated by the risk gateway. Signing in is optional and
-          stores workspace preferences only; the desk is browsable without it.
+          Educational demonstration, not a brokerage or investment service and not investment
+          advice. No brokerage accounts, no funds, no real orders; execution is paper-only, gated
+          by the risk gateway. Signing in is optional and stores workspace preferences only.
         </p>
       </footer>
     </>
