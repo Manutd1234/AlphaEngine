@@ -31,7 +31,7 @@ import traceback
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 from urllib.parse import urlsplit
 
@@ -129,6 +129,10 @@ class JobRecord:
     meta: dict[str, Any] = field(default_factory=dict)
     #: Attempts made, including the one in flight. 1 for a job that has run once.
     attempt: int = 0
+    #: When the next attempt is due, while one is pending. None at every other
+    #: moment — a job that is running, finished or will not be retried has no
+    #: next attempt, and a stale timestamp here would read as one that does.
+    next_attempt_at: datetime | None = None
     #: Total attempts allowed. 1 means no retry, which is the default and the
     #: only safe assumption for work whose idempotence has not been argued.
     max_attempts: int = 1
@@ -244,6 +248,7 @@ class JobQueue:
                 try:
                     record.result = fn(*args, **injected)
                     record.status = "succeeded"
+                    record.next_attempt_at = None
                     record.progress = 1.0
                     record.error = None
                     break
@@ -251,6 +256,7 @@ class JobQueue:
                     record.error = f"{type(exc).__name__}: {exc}"
                     if record.attempt >= record.max_attempts:
                         record.status = "failed"
+                        record.next_attempt_at = None
                         log.error(
                             "job %s failed after %d attempt(s): %s\n%s",
                             record.job_id, record.attempt, exc, traceback.format_exc(),
@@ -262,7 +268,13 @@ class JobQueue:
                         record.job_id, record.attempt, record.max_attempts,
                         type(exc).__name__, delay,
                     )
-                    record.message = f"retrying after {type(exc).__name__}"
+                    # The time, not just the fact: "retrying" with no due time
+                    # is indistinguishable from "stuck" on the job list.
+                    record.next_attempt_at = _utcnow() + timedelta(seconds=delay)
+                    record.message = (
+                        f"retrying after {type(exc).__name__}"
+                        f" at {record.next_attempt_at.strftime('%H:%M:%S')} UTC"
+                    )
                     time.sleep(delay)
             record.finished_at = _utcnow()
             self._persist(record)

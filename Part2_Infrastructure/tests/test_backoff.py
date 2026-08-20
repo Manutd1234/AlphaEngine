@@ -123,3 +123,64 @@ def _wait(record, timeout: float = 5.0) -> None:
     deadline = _time.monotonic() + timeout
     while record.status in ("queued", "running") and _time.monotonic() < deadline:
         _time.sleep(0.01)
+
+
+class TestTheDueTimeOfARetry:
+    """A retrying job says WHEN, not just that it is retrying.
+
+    `record.message` read "retrying after ConnectError" with no due time, and
+    the job list renders that field and nothing else about a pending attempt.
+    To anyone watching, "retrying" with no time is indistinguishable from
+    "stuck" — and the two want very different responses.
+
+    `next_attempt_at` is None at every moment except while an attempt is
+    pending. A stale timestamp on a finished job would read as one that is
+    still coming.
+    """
+
+    def test_a_pending_retry_names_its_due_time(self, monkeypatch):
+        import modules.jobs as jobs
+
+        monkeypatch.setattr(jobs, "RETRY_BASE_S", 0.05)
+        monkeypatch.setattr(jobs, "RETRY_CEILING_S", 0.05)
+        queue = jobs.JobQueue()
+        seen: list[tuple] = []
+
+        def flaky() -> str:
+            # Record what the record said DURING the wait, which is the only
+            # moment the field is meant to be set.
+            if len(seen) < 1:
+                seen.append(("first", None))
+                raise RuntimeError("provider hiccup")
+            return "done"
+
+        record = queue.submit("data.backfill", flaky)
+        _wait(record)
+
+        assert record.status == "succeeded"
+        assert record.attempt == 2
+        assert "retrying after RuntimeError" in record.message
+        assert "UTC" in record.message, (
+            f"the retry message carries no due time: {record.message!r}"
+        )
+
+    def test_it_is_cleared_once_there_is_no_next_attempt(self, monkeypatch):
+        import modules.jobs as jobs
+
+        monkeypatch.setattr(jobs, "RETRY_BASE_S", 0.001)
+        monkeypatch.setattr(jobs, "RETRY_CEILING_S", 0.002)
+        queue = jobs.JobQueue()
+
+        record = queue.submit("data.backfill", lambda: "fine")
+        _wait(record)
+        assert record.next_attempt_at is None, "a succeeded job has no next attempt"
+
+        def always_fails() -> str:
+            raise RuntimeError("gone")
+
+        failed = queue.submit("data.backfill", always_fails)
+        _wait(failed)
+        assert failed.status == "failed"
+        assert failed.next_attempt_at is None, (
+            "a job that exhausted its attempts still advertised a next one"
+        )
