@@ -70,6 +70,15 @@ class PersistResult:
         return {"persisted": self.persisted, "run_id": self.run_id, "reason": self.reason}
 
 
+class _Unreadable:
+    """Sentinel: the corpus could not be read. ``None`` means "no such run"."""
+
+    __slots__ = ()
+
+
+UNREADABLE = _Unreadable()
+
+
 class MLRunStore:
     """Writes runs, folds, features and artefacts to Supabase over PostgREST."""
 
@@ -178,9 +187,13 @@ class MLRunStore:
         if response.status_code >= 400:
             log.warning("ml store: list_runs HTTP %s", response.status_code)
             return None
-        return response.json() or []
+        try:
+            return response.json() or []
+        except ValueError:  # a 2xx that is not JSON: an interposed proxy or error page
+            log.warning("ml store: list_runs returned a non-JSON body")
+            return None
 
-    async def get_run(self, run_id: str, desk_id: str | None = None) -> dict[str, Any] | None:
+    async def get_run(self, run_id: str, desk_id: str | None = None) -> dict[str, Any] | _Unreadable | None:
         """One run with its folds and feature spec, or None when there is no
         such run on this desk. None is 'not found', never 'not configured' —
         the caller distinguishes those and so must this."""
@@ -191,29 +204,36 @@ class MLRunStore:
         if self._client is None:
             return None
         scope = f"eq.{desk_id or self.DEFAULT_DESK_ID}"
+        try:
 
-        runs = await self._client.get("/rest/v1/ml_runs", params={
-            "id": f"eq.{run_id}", "desk_id": scope, "select": "*",
-        })
-        if runs.status_code >= 400 or not runs.json():
-            return None
-        run = runs.json()[0]
+            runs = await self._client.get("/rest/v1/ml_runs", params={
+                "id": f"eq.{run_id}", "desk_id": scope, "select": "*",
+            })
+            if runs.status_code >= 400 or not runs.json():
+                return None
+            run = runs.json()[0]
 
-        folds = await self._client.get("/rest/v1/ml_folds", params={
-            "run_id": f"eq.{run_id}",
-            "select": ("fold_index,train_start,train_end,test_start,test_end,train_rows,"
-                       "test_rows,purge_bars,embargo_bars,oos_return,oos_sharpe,"
-                       "oos_max_drawdown,trades"),
-            "order": "fold_index.asc",
-        })
-        features = await self._client.get("/rest/v1/ml_features", params={
-            "run_id": f"eq.{run_id}",
-            "select": "spec,spec_hash,feature_count,label,label_horizon_bars",
-        })
-        run["folds"] = folds.json() if folds.status_code < 400 else []
-        feature_rows = features.json() if features.status_code < 400 else []
-        run["features"] = feature_rows[0] if feature_rows else None
-        return run
+            folds = await self._client.get("/rest/v1/ml_folds", params={
+                "run_id": f"eq.{run_id}",
+                "select": ("fold_index,train_start,train_end,test_start,test_end,train_rows,"
+                           "test_rows,purge_bars,embargo_bars,oos_return,oos_sharpe,"
+                           "oos_max_drawdown,trades"),
+                "order": "fold_index.asc",
+            })
+            features = await self._client.get("/rest/v1/ml_features", params={
+                "run_id": f"eq.{run_id}",
+                "select": "spec,spec_hash,feature_count,label,label_horizon_bars",
+            })
+            run["folds"] = folds.json() if folds.status_code < 400 else []
+            feature_rows = features.json() if features.status_code < 400 else []
+            run["features"] = feature_rows[0] if feature_rows else None
+            return run
+        except Exception as exc:
+            # Every .get and every .json here was unguarded, so a transport blip
+            # or a non-JSON body raised out of the route as a 500 — where the
+            # list route beside it degrades to state="unreadable".
+            log.warning("ml store: get_run failed (%s)", type(exc).__name__)
+            return UNREADABLE
 
     async def persist(
         self,

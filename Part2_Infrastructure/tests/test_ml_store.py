@@ -184,3 +184,58 @@ async def test_the_fold_rows_carry_the_purge_and_the_embargo():
         assert row["purge_bars"] == 3, "label horizon 4 purges 3"
         assert row["embargo_bars"] == 0, "expanding contiguous walk-forward embargoes nothing"
         assert row["test_start"] >= row["train_end"], "a fold must not train on the future"
+
+
+class TestTheReadPathsCannotRaise:
+    """Both read paths degrade; neither becomes a 500.
+
+    `list_runs` decoded its response OUTSIDE the try that guarded the request,
+    and `get_run` had no try at all — four unguarded `.get` calls and five
+    unguarded `.json()` calls. A 2xx that is not JSON (an interposed proxy, an
+    error page) or a transport blip raised straight out of the route.
+    """
+
+    @pytest.mark.asyncio
+    async def test_a_non_json_body_reads_as_unreadable_not_as_empty(self):
+        from modules.ml.store import MLRunStore
+
+        class NotJson:
+            status_code = 200
+
+            @staticmethod
+            def json():
+                raise ValueError("Expecting value: line 1 column 1 (char 0)")
+
+        store = MLRunStore()
+        store.enabled = True
+        store._client = _Client(NotJson())  # type: ignore[assignment]
+
+        assert await store.list_runs(limit=5) is None, (
+            "a body that would not decode reported as an empty corpus, which "
+            "says the desk has fitted nothing"
+        )
+
+    @pytest.mark.asyncio
+    async def test_a_transport_failure_in_get_run_is_not_a_missing_run(self):
+        from modules.ml.store import UNREADABLE, MLRunStore
+
+        class Broken:
+            async def get(self, *_args, **_kwargs):
+                raise RuntimeError("connection reset")
+
+        store = MLRunStore()
+        store.enabled = True
+        store._client = Broken()  # type: ignore[assignment]
+
+        assert await store.get_run("run-1") is UNREADABLE, (
+            "returning None here would answer 404 'no such ML run' about a run "
+            "the corpus was never asked about"
+        )
+
+
+class _Client:
+    def __init__(self, response):
+        self._response = response
+
+    async def get(self, *_args, **_kwargs):
+        return self._response

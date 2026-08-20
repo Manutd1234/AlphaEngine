@@ -71,7 +71,7 @@ from modules.equity_quote import EquityQuoteUnavailable, fetch_paper_equity_refe
 from modules.jobs import get_queue
 from modules.metrics import RequestTimingMiddleware, render_metrics
 from modules.ml.fit import ML_FIT_KIND, submit_ml_fit
-from modules.ml.store import get_ml_store
+from modules.ml.store import UNREADABLE, get_ml_store
 from modules.operations import OperationsSnapshot, build_operations_snapshot
 from modules.portfolio import build_equity_history, build_portfolio
 from modules.research_rag import EMBEDDING_DIMENSIONS, EMBEDDING_MODEL, get_rag
@@ -527,17 +527,13 @@ async def ml_runs(
     """
     store = get_ml_store()
     if not store.enabled:
-        return MLRunsResponse(
-            observed_at=datetime.now(timezone.utc), state="unavailable", runs=[],
-        )
+        return MLRunsResponse(observed_at=datetime.now(timezone.utc), state="unavailable", runs=[])
     rows = await store.list_runs(limit=limit)
     if rows is None:
         # Configured but unreadable — a bad key, a missing table, a schema-cache
         # miss. Reporting this as an empty list would say "this desk has fitted
         # nothing", which is a claim about the desk rather than about the query.
-        return MLRunsResponse(
-            observed_at=datetime.now(timezone.utc), state="unreadable", runs=[],
-        )
+        return MLRunsResponse(observed_at=datetime.now(timezone.utc), state="unreadable", runs=[])
     return MLRunsResponse(
         observed_at=datetime.now(timezone.utc),
         state="ok",
@@ -557,6 +553,8 @@ async def ml_run_detail(run_id: str, _actor: str = Depends(trader_identity)) -> 
     if not store.enabled:
         raise HTTPException(status_code=503, detail="no research corpus is configured on this deployment")
     row = await store.get_run(run_id)
+    if row is UNREADABLE:
+        raise HTTPException(status_code=503, detail=f"the research corpus could not be read for {run_id}")
     if row is None:
         raise HTTPException(status_code=404, detail=f"no such ML run: {run_id}")
     return MLRunDetail(**row)
