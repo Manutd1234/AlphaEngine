@@ -142,7 +142,21 @@ describe("the fixtures are what they claim to be", () => {
     for (const name of fixtures) {
       const raw = JSON.parse(read(name)) as Record<string, unknown>;
       assert.match(String(raw._captured), /^\d{4}-\d{2}-\d{2}$/, `${name} has no capture date`);
-      assert.match(String(raw._url), /^https:\/\//, `${name} does not say where it came from`);
+      // Throws if `_url` is absent or not a URL — the property this always
+      // guarded is that a fixture says where it came from.
+      const url = new URL(String(raw._url));
+      assert.ok(["http:", "https:"].includes(url.protocol), `${name}: ${url.protocol} is not an HTTP origin`);
+      // TLS is still required of every VENDOR. It was written as a bare
+      // `^https://` when every fixture was a vendor's; OpenBB is not a vendor
+      // but this project's own service, captured from the loopback while it
+      // ran locally, and demanding https of 127.0.0.1 would be demanding a
+      // certificate for it. So the rule is narrowed to what it meant, not
+      // dropped: anything off this machine must have been read over TLS.
+      const loopback = url.hostname === "127.0.0.1" || url.hostname === "localhost";
+      assert.ok(
+        url.protocol === "https:" || loopback,
+        `${name} was captured over plain HTTP from ${url.hostname}`,
+      );
       assert.ok(raw.body !== undefined, `${name} has no body`);
     }
   });
