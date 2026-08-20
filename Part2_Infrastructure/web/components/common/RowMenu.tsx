@@ -53,9 +53,40 @@ export default function RowMenu({
     menu.style.top = `${Math.round(top)}px`;
   }, []);
 
+  /**
+   * The top layer does not scroll with the table underneath it, so a menu left
+   * open through a scroll would float away from its row. It closes instead —
+   * but only while it is open.
+   *
+   * A capturing `scroll` listener on `window` receives the scroll of EVERY box
+   * on the page, and this component renders once per row: per position, per
+   * provider, per run, per order. Registering unconditionally on mount put one
+   * such listener on the window for the life of every row, and because visited
+   * workspaces stay mounted behind `hidden` they accumulate across the whole
+   * session — counted live in the browser, the desk went from 4 to 16 capture
+   * listeners while merely visiting tabs on an empty fixture book, and never
+   * gave one back. On a populated blotter that is one synchronous handler per
+   * row on every scroll frame.
+   *
+   * Registering inside `toggle` binds the cost to the one menu that is open,
+   * which is at most one: zero listeners while nobody has opened anything.
+   * `passive`, because neither handler calls `preventDefault` and a capturing
+   * window listener is exactly where a browser has to assume it might.
+   */
   useEffect(() => {
     const menu = menuRef.current;
     if (!menu) return;
+    const close = () => {
+      if (menu.matches(":popover-open")) menu.hidePopover();
+    };
+    const listen = () => {
+      window.addEventListener("scroll", close, { capture: true, passive: true });
+      window.addEventListener("resize", close, { passive: true });
+    };
+    const unlisten = () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
     /**
      * `toggle`, not `beforetoggle`. A closed popover is `display: none`, so at
      * `beforetoggle` it has no box and `offsetWidth`/`offsetHeight` are both 0 —
@@ -64,27 +95,19 @@ export default function RowMenu({
      * measurable, and this still runs before the browser paints the frame.
      */
     const onToggle = (event: Event) => {
-      if ((event as ToggleEvent).newState === "open") place();
+      if ((event as ToggleEvent).newState === "open") {
+        place();
+        listen();
+      } else {
+        unlisten();
+      }
     };
     menu.addEventListener("toggle", onToggle);
-    return () => menu.removeEventListener("toggle", onToggle);
-  }, [place]);
-
-  // The top layer does not scroll with the table underneath it, so a menu left
-  // open through a scroll would float away from its row.
-  useEffect(() => {
-    const menu = menuRef.current;
-    if (!menu) return;
-    const close = () => {
-      if (menu.matches(":popover-open")) menu.hidePopover();
-    };
-    window.addEventListener("scroll", close, true);
-    window.addEventListener("resize", close);
     return () => {
-      window.removeEventListener("scroll", close, true);
-      window.removeEventListener("resize", close);
+      menu.removeEventListener("toggle", onToggle);
+      unlisten();
     };
-  }, []);
+  }, [place]);
 
   return (
     <>
