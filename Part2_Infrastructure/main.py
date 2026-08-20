@@ -69,7 +69,8 @@ from modules.decision_core import ENGINE as DECISION_ENGINE
 from modules.equity_quote import EquityQuoteUnavailable, fetch_paper_equity_reference, is_equity_symbol
 from modules.jobs import get_queue
 from modules.metrics import RequestTimingMiddleware, render_metrics
-from modules.ml.store import MLRunStore
+from modules.ml.fit import ML_FIT_KIND, submit_ml_fit
+from modules.ml.store import get_ml_store
 from modules.operations import OperationsSnapshot, build_operations_snapshot
 from modules.portfolio import build_equity_history, build_portfolio
 from modules.research_rag import EMBEDDING_DIMENSIONS, EMBEDDING_MODEL, get_rag
@@ -83,6 +84,7 @@ from modules.schemas import (
     DataReplayRequest,
     DataSchedulesResponse,
     KillSwitchRequest,
+    MLFitRequest,
     MLRunDetail,
     MLRunsResponse,
     MLRunSummary,
@@ -177,6 +179,10 @@ async def lifespan(app: FastAPI):
     await rag.start()
     scheduler = get_scheduler()
     scheduler.start()
+    # Built here rather than on the first write: a fit job that has just spent
+    # seconds of CPU should not then discover its transport is unconfigured, or
+    # pay for a TLS handshake inside the persist it is being timed on.
+    await get_ml_store().start()
 
     # Time the compiled decision battery once, on a synthetic two-venue book,
     # so the desk's nanosecond figure exists before the first order and after
@@ -203,6 +209,7 @@ async def lifespan(app: FastAPI):
         log.info("shutting down…")
         audit.record_risk_event("gateway_stop", severity="info", actor="system", detail="clean shutdown")
         await scheduler.stop()
+        await get_ml_store().stop()
         await bot.stop()
         await rag.stop()
         await mirror.stop()
@@ -451,20 +458,25 @@ async def data_backfill(req: DataBackfillRequest, actor: str = Depends(trader_id
     return DataJobAccepted(job_id=record.job_id, kind="data.backfill", status=record.status, backend=record.backend, poll=f"/api/jobs/{record.job_id}")
 
 
-_ml_store: MLRunStore | None = None
+@app.post("/api/research/ml/fit", response_model=DataJobAccepted, tags=["research"])
+async def ml_fit(req: MLFitRequest, actor: str = Depends(trader_identity)) -> DataJobAccepted:
+    """Queue one supervised walk-forward and file its evidence.
 
+    The piece that was missing. Everything under ``modules/ml`` was built and
+    tested and nothing in production called any of it, so the corpus could only
+    ever be empty and the Fitted models panel could only ever say so. This is
+    the trigger.
 
-def get_ml_store() -> MLRunStore:
-    """The ML run store, built once.
-
-    Lazily, like the other Supabase-backed helpers: constructing an httpx
-    client at import time would make a module import depend on the network
-    being reachable.
+    Queued rather than awaited: a fit is seconds of CPU, and holding a request
+    open for it is what the job queue exists to avoid. Poll ``/api/jobs/{id}``.
+    A run whose numbers are real but whose filing failed reports
+    ``persisted: false`` with the reason, because those are different outcomes.
     """
-    global _ml_store
-    if _ml_store is None:
-        _ml_store = MLRunStore()
-    return _ml_store
+    record = submit_ml_fit(req.model_dump(), actor=actor)
+    return DataJobAccepted(
+        job_id=record.job_id, kind=ML_FIT_KIND, status=record.status,
+        backend=record.backend, poll=f"/api/jobs/{record.job_id}",
+    )
 
 
 @app.get("/api/research/ml/runs", response_model=MLRunsResponse, tags=["research"])

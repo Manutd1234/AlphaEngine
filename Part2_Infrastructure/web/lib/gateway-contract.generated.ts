@@ -252,6 +252,20 @@ export interface MLFeatureView {
   spec_hash: string;
 }
 
+export interface MLFitRequest {
+  bars?: number;
+  cost_bps?: number;
+  embargo?: number;
+  interval?: "15m" | "1h" | "4h" | "1d";
+  label_horizon?: number;
+  label_kind?: "return" | "direction" | null;
+  model?: "ridge" | "logistic";
+  n_splits?: number;
+  params?: Record<string, unknown>;
+  seed?: number;
+  symbol?: string;
+}
+
 export interface MLFoldView {
   embargo_bars: number;
   fold_index: number;
@@ -850,6 +864,7 @@ export interface GatewayOperations {
   "GET /api/portfolio": { response: Record<string, unknown> };
   "GET /api/portfolio/history": { response: Record<string, unknown> };
   "GET /api/research/graph/{document_id}": { response: ResearchGraphResponse };
+  "POST /api/research/ml/fit": { request: MLFitRequest; response: DataJobAccepted };
   "GET /api/research/ml/runs": { response: MLRunsResponse };
   "GET /api/research/ml/runs/{run_id}": { response: MLRunDetail };
   "GET /api/research/openbb/bars": { response: Record<string, unknown> };
@@ -903,6 +918,7 @@ export const GATEWAY_CONTRACT_PATHS = [
   "/api/portfolio",
   "/api/portfolio/history",
   "/api/research/graph/{document_id}",
+  "/api/research/ml/fit",
   "/api/research/ml/runs",
   "/api/research/ml/runs/{run_id}",
   "/api/research/openbb/bars",

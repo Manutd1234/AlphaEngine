@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-20",
-  "commit": "57241fb",
+  "commit": "518f0d1",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -80,6 +80,7 @@
     "Part2_Infrastructure/modules/ml/__init__.py",
     "Part2_Infrastructure/modules/ml/engine.py",
     "Part2_Infrastructure/modules/ml/features.py",
+    "Part2_Infrastructure/modules/ml/fit.py",
     "Part2_Infrastructure/modules/ml/models.py",
     "Part2_Infrastructure/modules/ml/runner.py",
     "Part2_Infrastructure/modules/ml/splits.py",
@@ -142,6 +143,7 @@
     "Part2_Infrastructure/tests/test_jobs_security.py",
     "Part2_Infrastructure/tests/test_ml_engine.py",
     "Part2_Infrastructure/tests/test_ml_features.py",
+    "Part2_Infrastructure/tests/test_ml_fit.py",
     "Part2_Infrastructure/tests/test_ml_models.py",
     "Part2_Infrastructure/tests/test_ml_runner.py",
     "Part2_Infrastructure/tests/test_ml_splits.py",

@@ -770,6 +770,27 @@ class MLRunSummary(BaseModel):
     error: str | None = None
 
 
+class MLFitRequest(BaseModel):
+    """Ask the desk to fit one supervised model and file the evidence.
+
+    Every bound here is a refusal to accept a request that cannot produce a
+    readable result: fewer than 200 bars cannot fill five purged folds, and a
+    label horizon longer than the test window purges the fold out of existence.
+    """
+
+    symbol: str = Field(default="BTCUSDT", min_length=1, max_length=20, pattern=r"^[A-Za-z0-9.\-]+$")
+    interval: DataInterval = "4h"
+    bars: int = Field(default=1500, ge=200, le=5000)
+    model: Literal["ridge", "logistic"] = "ridge"
+    params: dict[str, Any] = Field(default_factory=dict)
+    n_splits: int = Field(default=5, ge=2, le=10)
+    label_horizon: int = Field(default=1, ge=1, le=20)
+    label_kind: Literal["return", "direction"] | None = None
+    embargo: int = Field(default=0, ge=0, le=100)
+    cost_bps: float = Field(default=5.0, ge=0.0, le=100.0)
+    seed: int = Field(default=0, ge=0)
+
+
 class MLRunsResponse(BaseModel):
     """The run list, and whether there was a corpus to list.
 

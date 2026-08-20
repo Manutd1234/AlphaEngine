@@ -359,3 +359,21 @@ def _stamp(bar_index: int, bar_times: list[datetime] | None) -> str:
         stamp = bar_times[index]
         return (stamp if stamp.tzinfo else stamp.replace(tzinfo=UTC)).isoformat()
     return datetime.fromtimestamp(float(bar_index), tz=UTC).isoformat()
+
+
+_store: MLRunStore | None = None
+
+
+def get_ml_store() -> MLRunStore:
+    """The process-wide store.
+
+    Lives here rather than in `main.py`, where it started, because the fit job
+    runs on a worker thread and cannot import the app module without a cycle —
+    and because every other singleton in this codebase (`get_audit`,
+    `get_queue`, `get_engine`, `get_bot`) is accessed from the module that
+    defines the thing.
+    """
+    global _store
+    if _store is None:
+        _store = MLRunStore()
+    return _store

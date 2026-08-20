@@ -1501,6 +1501,102 @@
         "title": "MLFeatureView",
         "type": "object"
       },
+      "MLFitRequest": {
+        "description": "Ask the desk to fit one supervised model and file the evidence.\n\nEvery bound here is a refusal to accept a request that cannot produce a\nreadable result: fewer than 200 bars cannot fill five purged folds, and a\nlabel horizon longer than the test window purges the fold out of existence.",
+        "properties": {
+          "bars": {
+            "default": 1500,
+            "maximum": 5000.0,
+            "minimum": 200.0,
+            "title": "Bars",
+            "type": "integer"
+          },
+          "cost_bps": {
+            "default": 5.0,
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Cost Bps",
+            "type": "number"
+          },
+          "embargo": {
+            "default": 0,
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Embargo",
+            "type": "integer"
+          },
+          "interval": {
+            "default": "4h",
+            "enum": [
+              "15m",
+              "1h",
+              "4h",
+              "1d"
+            ],
+            "title": "Interval",
+            "type": "string"
+          },
+          "label_horizon": {
+            "default": 1,
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Label Horizon",
+            "type": "integer"
+          },
+          "label_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "return",
+                  "direction"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Kind"
+          },
+          "model": {
+            "default": "ridge",
+            "enum": [
+              "ridge",
+              "logistic"
+            ],
+            "title": "Model",
+            "type": "string"
+          },
+          "n_splits": {
+            "default": 5,
+            "maximum": 10.0,
+            "minimum": 2.0,
+            "title": "N Splits",
+            "type": "integer"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          },
+          "seed": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Seed",
+            "type": "integer"
+          },
+          "symbol": {
+            "default": "BTCUSDT",
+            "maxLength": 20,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9.\\-]+$",
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "title": "MLFitRequest",
+        "type": "object"
+      },
       "MLFoldView": {
         "description": "One walk-forward fold, out-of-sample only.\n\n``purge_bars`` and ``embargo_bars`` are not optional and are not decoration.\nA fold that cannot state its purge is a fold whose leakage is unknown, and\nunknown leakage is indistinguishable from none by the only reader who\nmatters \u2014 the one deciding whether to allocate.",
         "properties": {
@@ -7116,6 +7212,82 @@
         "summary": "Research Graph",
         "tags": [
           "C \u00b7 Research"
+        ]
+      }
+    },
+    "/api/research/ml/fit": {
+      "post": {
+        "description": "Queue one supervised walk-forward and file its evidence.\n\nThe piece that was missing. Everything under ``modules/ml`` was built and\ntested and nothing in production called any of it, so the corpus could only\never be empty and the Fitted models panel could only ever say so. This is\nthe trigger.\n\nQueued rather than awaited: a fit is seconds of CPU, and holding a request\nopen for it is what the job queue exists to avoid. Poll ``/api/jobs/{id}``.\nA run whose numbers are real but whose filing failed reports\n``persisted: false`` with the reason, because those are different outcomes.",
+        "operationId": "ml_fit_api_research_ml_fit_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MLFitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataJobAccepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ml Fit",
+        "tags": [
+          "research"
         ]
       }
     },
