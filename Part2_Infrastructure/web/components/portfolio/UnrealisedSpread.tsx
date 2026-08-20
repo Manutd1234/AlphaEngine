@@ -99,9 +99,8 @@ export default function UnrealisedSpread({
       <details className="disclosure">
         <summary>Why a small total can hide two large offsetting bets</summary>
         <p className="research-note">
-          Summing the column answers &quot;what is the open P&amp;L&quot; but not &quot;how much is
-          riding on it&quot; — a flat book and two large positions cancelling each other report the
-          same total, and only one of them is quiet.
+          A flat book and two large positions cancelling report the same total, and only one of
+          them is quiet.
         </p>
       </details>
     </section>
