@@ -215,7 +215,16 @@ const KEYED = [
     env: "OPENBB_API_URL",
     // Not a vendor: this project's own stateless service. The token is sent as
     // a header rather than in the URL, so there is nothing to redact.
-    url: (base) => `${base.replace(/\/$/, "")}/api/quote?symbol=AAPL`,
+    // `/api/research/openbb/quote`, which is what OpenBB_Service/app.py:117
+    // declares and what lib/providers/openbb.ts builds. This read `/api/quote`
+    // and 404ed on every run; it went unnoticed because the KEYED loop marks
+    // its targets optional, so a reached-but-wrong target only logged.
+    url: (base) => `${base.replace(/\/$/, "")}/api/research/openbb/quote?symbol=AAPL`,
+    // HTTP 200 is not evidence of a healthy body here. `_envelope` in
+    // OpenBB_Service/app.py:106-114 catches ProviderUnavailable and answers
+    // 200 with `{ok: false, error}` — so a rate-limited Yahoo call would be
+    // committed as a healthy fixture with every downstream check agreeing.
+    healthy: (body) => body?.ok === true,
     headers: () => (process.env.OPENBB_API_TOKEN
       ? { authorization: `Bearer ${process.env.OPENBB_API_TOKEN}` }
       : {}),
@@ -238,12 +247,40 @@ const REFUSAL_COMMENT =
 /** The key never reaches a committed file, even when it is the public demo one. */
 const redact = (url) =>
   url
-    .replace(/([?&])(symbol|category|tickers)=[^&]*/g, "$1$2=…")
-    .replace(/([?&])(apikey|token)=[^&]*/g, "$1$2=…");
+    .replace(/([?&])(symbol|category|tickers)=[^&]*/gi, "$1$2=…")
+    // The `i` is load-bearing and was missing. Massive's target sends
+    // `apiKey=` with a capital K, so a keyed Massive capture wrote the live
+    // credential verbatim into `_url`. Case is the vendor's choice, never
+    // ours, so the whole family is matched case-insensitively.
+    .replace(/([?&])(api[-_]?key|access[-_]?token|token|key|secret)=[^&]*/gi, "$1$2=…");
+
+/**
+ * Every credential this process is holding, so nothing written can carry one.
+ *
+ * The redactor above is pattern-matching and will always be one vendor spelling
+ * behind. This is the backstop that does not have to guess: it reads the actual
+ * secret VALUES out of the environment and refuses the write if one survived,
+ * wherever it hid — a query string, an echoed header, a body the vendor
+ * reflected back. A credential on disk is not recoverable by deleting it later.
+ */
+const SECRET_ENV = /(_KEY|_TOKEN|_SECRET|_PASSWORD)$/i;
+const secrets = () =>
+  Object.entries(process.env)
+    .filter(([name, value]) =>
+      SECRET_ENV.test(name) && typeof value === "string" && value.trim().length >= 8)
+    .map(([, value]) => value.trim());
 
 function write(file, payload) {
+  const text = `${JSON.stringify(payload, null, 2)}\n`;
+  for (const secret of secrets()) {
+    if (text.includes(secret)) {
+      // Deliberately does not name the file's provider or the variable: an
+      // error message is the other place a credential leaks.
+      throw new Error("refusing to write a fixture: a credential survived redaction");
+    }
+  }
   mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, `${JSON.stringify(payload, null, 2)}\n`);
+  writeFileSync(file, text);
 }
 
 let failures = 0;
@@ -266,11 +303,20 @@ async function capture(target, { refusal, optional = false }) {
       // body worth committing; a refusal target that succeeds would file a
       // healthy body under a refusal's name, which is the one mistake these
       // fixtures exist to prevent.
+      // A failure even when optional. `optional` exists so that a service which
+      // is NOT RUNNING does not fail a run that refreshed four other fixtures —
+      // it was never meant to excuse a target that answered and answered wrong.
+      // That conflation is exactly what hid the OpenBB 404 above.
       console.error(`  ${name}: HTTP ${response.status}, expected ${target.expect}`);
-      if (!optional) failures += 1;
+      failures += 1;
       return;
     }
     const body = await response.json();
+    if (target.healthy && !target.healthy(body)) {
+      console.error(`  ${name}: HTTP ${response.status} but the body is not a healthy one`);
+      failures += 1;
+      return;
+    }
     write(join(out, target.provider, `${refusal ? "unauthenticated" : target.capability}.json`), {
       _comment: refusal ? REFUSAL_COMMENT : COMMENT,
       _url: redact(target.url),
@@ -304,6 +350,7 @@ for (const target of KEYED) {
     capability: target.capability,
     url: target.url(key),
     headers: target.headers?.(),
+    healthy: target.healthy,
     expect: 200,
   }, { refusal: false, optional: true });
 }
