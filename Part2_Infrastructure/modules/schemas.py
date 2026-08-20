@@ -553,7 +553,7 @@ class DataBackfillRequest(BaseModel):
 
 class DataJobAccepted(BaseModel):
     job_id: str
-    kind: Literal["data.replay", "data.backfill"]
+    kind: Literal["data.replay", "data.backfill", "ml.fit"]  # ml.fit: same queue, same model
     status: str
     backend: str
     poll: str

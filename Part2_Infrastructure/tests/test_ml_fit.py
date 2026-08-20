@@ -171,3 +171,42 @@ class TestTheRouteIsRegistered:
 
     def test_the_job_kind_is_the_one_the_route_reports(self):
         assert ML_FIT_KIND == "ml.fit"
+
+    def test_the_route_answers_rather_than_raising(self, monkeypatch):
+        """The request is issued, not merely looked up in the routing table.
+
+        Asserting the route EXISTS is what the test above does, and it is what
+        this suite did on its own for the whole life of the endpoint. It cannot
+        catch a route that raises: `DataJobAccepted.kind` was a Literal of the
+        two data kinds, so returning `ML_FIT_KIND` constructed a model that
+        failed validation inside the route body, and FastAPI answered 500 to
+        every fit anyone ever requested. Registration was perfect throughout.
+
+        `submit_ml_fit` is stubbed because what is under test is the response
+        boundary, not the walk-forward — a real fit here would reach the
+        network and take seconds. `TestClient` is built WITHOUT the context
+        manager on purpose: entering it runs the lifespan, whose shutdown
+        closes the shared audit handle for every test that follows.
+        """
+        from dataclasses import dataclass
+
+        from fastapi.testclient import TestClient
+
+        import main
+
+        @dataclass
+        class _Accepted:
+            job_id: str = "ml-1"
+            status: str = "queued"
+            backend: str = "in-process"
+
+        monkeypatch.setattr(main, "submit_ml_fit", lambda params, actor: _Accepted())
+
+        response = TestClient(main.app).post(
+            "/api/research/ml/fit",
+            json={"symbol": "BTCUSDT", "interval": "4h", "bars": 1500, "model": "ridge"},
+        )
+        assert response.status_code == 200, (
+            f"the fit route answered HTTP {response.status_code}: {response.text[:200]}"
+        )
+        assert response.json()["kind"] == ML_FIT_KIND

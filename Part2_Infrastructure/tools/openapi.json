@@ -373,7 +373,8 @@
           "kind": {
             "enum": [
               "data.replay",
-              "data.backfill"
+              "data.backfill",
+              "ml.fit"
             ],
             "title": "Kind",
             "type": "string"

@@ -61,7 +61,7 @@ export interface DataBackfillRequest {
 export interface DataJobAccepted {
   backend: string;
   job_id: string;
-  kind: "data.replay" | "data.backfill";
+  kind: "data.replay" | "data.backfill" | "ml.fit";
   poll: string;
   status: string;
 }
