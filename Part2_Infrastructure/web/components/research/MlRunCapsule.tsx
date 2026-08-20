@@ -91,22 +91,21 @@ function Withheld({ reason, short }: { reason: string; short: string }) {
 }
 
 const NO_SEED =
-  "The corpus returned this run without a seed, which its own schema forbids. "
-  + "Treat the run as irreproducible.";
+  "The corpus returned no seed, which its own schema forbids. Treat this run as "
+  + "irreproducible.";
 
 const NO_SHA =
-  "This run was fitted by a build with no git tree, so the code that produced it "
-  + "cannot be named. The bars are still pinned by the dataset hash.";
+  "Fitted by a build with no git tree, so the code cannot be named. The dataset hash "
+  + "still pins the bars.";
 
 const NO_FEATURES =
   "The feature spec hash is on the run detail record, GET /api/research/ml/runs/{run_id}, "
-  + "which this panel has not read back yet. Two runs are only comparable once their "
-  + "spec hashes are.";
+  + "not read back yet. Two runs are comparable only once their spec hashes are.";
 
 const NO_PURGE =
-  "Purge and embargo are recorded per fold on the run detail record, "
-  + "GET /api/research/ml/runs/{run_id}, which this panel has not read back yet. An "
-  + "out-of-sample Sharpe from an unpurged fold is not out of sample.";
+  "Purge and embargo sit per fold on the run detail record, "
+  + "GET /api/research/ml/runs/{run_id}, not read back yet. An out-of-sample Sharpe from "
+  + "an unpurged fold is not out of sample.";
 
 /**
  * Why a run can carry a null here — BOTH reasons, because the row cannot say
@@ -130,15 +129,14 @@ const NO_PURGE =
  * string is what stops the two from drifting apart.
  */
 export const PBO_UNSTATED =
-  "No PBO is filed for this run, and the corpus records the null without its cause. "
-  + "Either it does not apply — PBO ranks a selected configuration against the "
-  + "alternatives it was selected from, and this run fitted one — or too few folds "
-  + "ranked their selection to compute it.";
+  "No PBO is filed, and the corpus records the null without its cause. PBO ranks a "
+  + "selected configuration against the alternatives it was selected from, so either this "
+  + "run fitted one, or too few folds ranked to compute it.";
 
 const ENGINE_MEANING: Record<string, string> = {
-  numpy: "The hand-rolled engine, used when the optional scikit-learn extra was absent. "
-    + "A different run from an sklearn one; do not rank them together.",
-  sklearn: "The optional scikit-learn extra was present and fitted this run.",
+  numpy: "The hand-rolled engine, used when the scikit-learn extra was absent: a different "
+    + "run from an sklearn one, so do not rank them together.",
+  sklearn: "The scikit-learn extra fitted this run.",
 };
 
 /** "12" for one agreed value, "12–20" when the folds differ. */
@@ -149,10 +147,9 @@ function describeGaps(values: number[]): string {
 }
 
 const GAPS_MEANING =
-  "Bars dropped from the end of each training window because their labels reach "
-  + "into the test window (purge), and from the start of the next window because "
-  + "serial correlation runs both ways (embargo). A range means the folds did not "
-  + "agree. Zero is a claim, not an absence.";
+  "Bars dropped from the end of each training window because their labels reach into "
+  + "the test window (purge), and from the start of the next (embargo). A range means "
+  + "the folds disagreed. Zero is a claim, not an absence.";
 
 export default function MlRunCapsule({ run, evidence }: {
   run: MlRunProvenance;
@@ -166,8 +163,8 @@ export default function MlRunCapsule({ run, evidence }: {
           <span className="page-kicker">Reproducibility capsule</span>
           <strong>A fitted model is its seed, its code and its bars.</strong>
           <small>
-            Run <code title={run.id}>{run.id.slice(0, 8)}</code>, {run.status}. Choose another
-            row below to read its provenance.
+            Run <code title={run.id}>{run.id.slice(0, 8)}</code>, {run.status}. Choose another row
+            to read its provenance.
           </small>
         </div>
         <dl>
@@ -235,13 +232,11 @@ export default function MlRunCapsule({ run, evidence }: {
         </dl>
       </div>
 
-      {/* 94 words, and most of them re-read the labels above. What is left is
-          the one thing the columns cannot say for themselves: which four of
-          them are the re-run set, and what a dash means. Each dash already
-          carries its own cause on `title`. */}
+      {/* The one thing the columns cannot say for themselves: which four of
+          them are the re-run set. The sentence about dashes went with the
+          second pass — every dash already carries its own cause on `title`. */}
       <p className="research-note">
-        Re-running this model takes four of the fields above: seed, build, engine and dataset
-        hash. A dash is a value withheld with its reason, never a zero.
+        Re-running this model takes the seed, build, engine and dataset hash above.
       </p>
     </>
   );
