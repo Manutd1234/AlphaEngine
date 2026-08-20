@@ -80,8 +80,8 @@ import VenueMixDonut from "./VenueMixDonut";
 type QualityPane = "cost" | "where";
 
 const QUALITY_PANES: Array<{ id: QualityPane; label: string; hint: string }> = [
-  { id: "cost", label: "Cost", hint: "What execution cost against the model — fill rate, realised slippage, fees, and the tail of the decision-latency distribution" },
-  { id: "where", label: "Where", hint: "Which venue and which component of the spread the cost came from, and at which hour of the day" },
+  { id: "cost", label: "Cost", hint: "What execution cost against the model: fill rate, realised slippage, fees, and the decision-latency tail" },
+  { id: "where", label: "Where", hint: "Which venue, which part of the spread, and which hour of the day the cost came from" },
 ];
 
 /**
@@ -101,8 +101,8 @@ const QUALITY_PANES: Array<{ id: QualityPane; label: string; hint: string }> = [
 type ActivityPane = "blotter" | "tape";
 
 const ACTIVITY_PANES: Array<{ id: ActivityPane; label: string; hint: string }> = [
-  { id: "blotter", label: "Blotter", hint: "The record: every order the desk sent, what it cost, which gate stopped it, and the resting book — polled from the gateway's authoritative store" },
-  { id: "tape", label: "Tape & alerts", hint: "The stream: decisions mirrored as Postgres commits them, and the alerts the risk system raised on its own — watched beside the record, never instead of it" },
+  { id: "blotter", label: "Blotter", hint: "The record: every order sent, what it cost, which gate stopped it, and the resting book, polled from the gateway's authoritative store" },
+  { id: "tape", label: "Tape & alerts", hint: "The stream: decisions as Postgres commits them, and the alerts the risk system raised on its own; watched beside the record, never instead of it" },
 ];
 
 const REFRESH_MS = 4_000;
@@ -412,9 +412,7 @@ export default function ExecutionCockpit({
           <div>
             <strong>Sandbox desk — these orders were never sent.</strong> The blotter, alerts and
             P&amp;L below are generated from a fixed seed. The ticket is real: it replays the
-            gateway&apos;s own pre-trade gates against this generated book — order-level limits from
-            the gateway&apos;s config, book-level limits from the book itself, exactly as the live
-            gateway reads them.
+            gateway&apos;s own pre-trade gates against this generated book.
           </div>
           <button type="button" className="text-action" onClick={() => setSandboxOff(true)}>
             Live gateway →

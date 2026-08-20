@@ -445,7 +445,7 @@ export default function OrderTicket({
               : equityLimitUnsupported
               ? "Covered US equity paper orders are MARKET-only; no L2 book is available for a resting limit."
               : limitInvalid
-              ? "Limit orders need a price — the grey number in the field is the current mark, not a value."
+              ? "Limit orders need a price; the field's grey number is the current mark, not a value."
               : !(notional > 0) ? "Set a notional first." : undefined
           }
           onClick={() => void submit()}
