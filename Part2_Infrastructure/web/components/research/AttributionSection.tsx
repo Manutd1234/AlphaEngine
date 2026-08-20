@@ -25,12 +25,12 @@ const ATTRIBUTION_PANES: { id: AttributionPane; label: string; hint: string }[] 
   {
     id: "explain",
     label: "Explain",
-    hint: "What the returns decompose into: this symbol's own factors, and the same question against another instrument",
+    hint: "This symbol's own factors, and the same question against another instrument",
   },
   {
     id: "robustness",
     label: "Robustness",
-    hint: "Whether that decomposition holds across regimes, and what the tail and the turnover cost",
+    hint: "Whether it holds across regimes, and what the tail and turnover cost",
   },
 ];
 
