@@ -16,6 +16,7 @@
  * A button, not a badge: it is the doorway to the Reliability latency evidence.
  */
 
+import { memo } from "react";
 import { Gauge } from "lucide-react";
 
 import NumberTicker from "@/components/common/NumberTicker";
@@ -30,7 +31,7 @@ const DOT_CLASS: Record<string, string> = {
   muted: "bg-axis",
 };
 
-export default function LatencyChip({
+function LatencyChip({
   decision,
   network,
   gatewayHop,
@@ -82,3 +83,17 @@ export default function LatencyChip({
     </button>
   );
 }
+
+/**
+ * Memoised so the workspace's other clocks cannot repaint it. This chip does
+ * real work on every render — `formatDecisionChip` builds the caveat sentence,
+ * the aria-label and both formatted planes — and it has no business doing it
+ * because a price moved or an order settled. Its own two feeds still get
+ * through: `decision` and `network` are new objects whenever the ops snapshot
+ * lands, which is exactly when the figure is allowed to change.
+ *
+ * `onOpenReliability` is the prop that decides whether the skip ever happens,
+ * which is why the dashboard hands it a `useCallback` rather than an inline
+ * arrow; an arrow there makes every render of the page a render of this chip.
+ */
+export default memo(LatencyChip);
