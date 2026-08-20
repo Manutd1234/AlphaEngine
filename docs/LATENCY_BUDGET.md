@@ -543,6 +543,32 @@ Execution switch as carrying "a duplicate": `/api/gateway/audit?feed=orders` and
 questions. The "single duplicate" this paragraph used to claim was that
 artefact, not a finding.
 
+### 4.1 What the sync work actually changed, and what it did not
+
+Phase B set out to reduce tab-switch latency with five changes. Three of them
+never landed, and it matters *why* — two were retired by measurement and one
+was refused on principle:
+
+| planned | outcome |
+|---|---|
+| In-flight dedupe in `lib/gateway.ts` | **landed.** One request per resource in flight, keyed by URL. |
+| A short freshness window beside it | **refused.** It is a dedupe, not a cache: two callers asking at the same moment share one answer, and nobody is served a stale one. A TTL would have made "how old is this" unanswerable, which is the question the whole observability path exists to answer. |
+| Coalescing the independently-polled routes | **retired by measurement.** The switch costs 0–4 requests with no duplicates; there was nothing to coalesce. |
+| A keep-alive agent to the gateway | **retired by measurement.** Node's undici pools connections by default, so there was nothing to add. |
+| Prefetch on intent | **landed**, matching the idle chunk prefetch already there. |
+
+**There is no before/after table for the two that landed, and there will not be
+one.** The tab-switch harness (`tab-switch-measure.mjs`) and the request-count
+harness (`request-count-measure.mjs`) were both written *after* the changes, so
+no baseline was ever captured on this machine. A table here would be two
+columns of which one was invented, and an invented measurement in a latency
+document is worse than an absent one — it is the exact failure this file's
+method section exists to prevent.
+
+What the harnesses ARE good for is the next change. They are committed, they
+run against the production build, and the figures above are the baseline
+anything after this is measured against.
+
 The switch is fast because of a deliberate earlier change, recorded in
 `app/dashboard/page.tsx`: `startTransition` with no `startViewTransition` and no
 smooth scroll. The comment there says the view transition froze painting for
