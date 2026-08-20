@@ -216,6 +216,12 @@ export interface DecisionLatencySnapshot {
   samples: number;
 }
 
+export interface EscalationAck {
+  acknowledged_by: string | null;
+  escalation_id: number;
+  taken: boolean;
+}
+
 export interface ExecutionEstimate {
   fillable: boolean;
   filled_notional: number;
@@ -846,7 +852,7 @@ export interface GatewayOperations {
   "POST /api/backtest": { request: BacktestRequest; response: Record<string, unknown> };
   "GET /api/book/{symbol}": { response: Array<VenueBook> };
   "GET /api/config": { response: Record<string, unknown> };
-  "POST /api/data-quality/escalations/{escalation_id}/ack": { response: Record<string, unknown> };
+  "POST /api/data-quality/escalations/{escalation_id}/ack": { response: EscalationAck };
   "GET /api/data-quality/findings": { response: DataQualityFindingsResponse };
   "GET /api/data-quality/view": { response: DataQualityView };
   "POST /api/data/backfill": { request: DataBackfillRequest; response: DataJobAccepted };

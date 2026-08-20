@@ -165,6 +165,7 @@ _DDL = [
         error        VARCHAR
     )
     """,
+    "CREATE INDEX IF NOT EXISTS ix_jobs_job_id ON jobs(job_id)",
     """
     CREATE TABLE IF NOT EXISTS subscribers (
         chat_id       VARCHAR,
@@ -555,9 +556,7 @@ class AuditLog:
         if reset_at is not None:
             reset_time = _audit_timestamp(reset_at, context="on the book reset boundary")
             if rollover_at == reset_time:
-                raise RuntimeError(
-                    "session rollover and book reset share an ambiguous audit timestamp"
-                )
+                raise RuntimeError("session rollover and book reset share an ambiguous audit timestamp")
             if rollover_at < reset_time:
                 return None
 
@@ -909,6 +908,10 @@ class AuditLog:
         )
 
     def record_job(self, job_id: str, kind: str, status: str, submitted_at, finished_at, backend: str, error) -> None:
+        # One row per job, not per CALL: queued -> running -> succeeded listed
+        # the same job three times. No UPSERT here, so delete first — the shape
+        # upsert_subscriber uses. Events stay append-only; a job row is state.
+        self._exec("DELETE FROM jobs WHERE job_id = ?", (job_id,))
         self._exec(
             "INSERT INTO jobs VALUES (?,?,?,?,?,?,?)",
             (job_id, kind, status, submitted_at, finished_at, backend, error),
@@ -960,9 +963,7 @@ class AuditLog:
         bindings: list[dict[str, Any]] = []
         for row in rows:
             try:
-                row["linked_at"] = _audit_timestamp(
-                    row.get("linked_at"), context="subscribers.linked_at"
-                )
+                row["linked_at"] = _audit_timestamp(row.get("linked_at"), context="subscribers.linked_at")
             except RuntimeError as exc:
                 log.error("dropping unreadable web binding: %s", exc)
                 continue
@@ -991,9 +992,7 @@ class AuditLog:
         expiry = expires_at.isoformat() if self.backend == "sqlite" else expires_at
         try:
             with self._lock:
-                self._conn.execute(
-                    "DELETE FROM telegram_link_tokens WHERE expires_at < ?", (stamp,)
-                )
+                self._conn.execute("DELETE FROM telegram_link_tokens WHERE expires_at < ?", (stamp,))
                 cursor = self._conn.execute(
                     "SELECT count(*) FROM telegram_link_tokens WHERE token_hash = ?",
                     (token_hash,),

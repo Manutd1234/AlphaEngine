@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-20",
-  "commit": "cce7e04",
+  "commit": "a47fe28",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -158,6 +158,7 @@
     "Part2_Infrastructure/templates/miniapp.html",
     "Part2_Infrastructure/tests/conftest.py",
     "Part2_Infrastructure/tests/test_api.py",
+    "Part2_Infrastructure/tests/test_audit_jobs.py",
     "Part2_Infrastructure/tests/test_backoff.py",
     "Part2_Infrastructure/tests/test_backtester.py",
     "Part2_Infrastructure/tests/test_complexity_debt.py",

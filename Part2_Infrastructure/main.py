@@ -65,6 +65,7 @@ from modules.data_quality import (
     publish_escalation,
     resolve_loop,
 )
+from modules.data_quality_models import EscalationAck
 from modules.data_scheduler import get_scheduler
 from modules.decision_core import ENGINE as DECISION_ENGINE
 from modules.equity_quote import EquityQuoteUnavailable, fetch_paper_equity_reference, is_equity_symbol
@@ -384,10 +385,8 @@ async def data_quality_view(_actor: str = Depends(trader_identity)) -> DataQuali
     return get_data_quality().view()
 
 
-@app.post("/api/data-quality/escalations/{escalation_id}/ack", tags=["data"])
-async def acknowledge_escalation(
-    escalation_id: int, actor: str = Depends(trader_identity),
-) -> dict[str, Any]:
+@app.post("/api/data-quality/escalations/{escalation_id}/ack", response_model=EscalationAck, tags=["data"])
+async def acknowledge_escalation(escalation_id: int, actor: str = Depends(trader_identity)) -> EscalationAck:
     """Take an open escalation.
 
     The actor recorded here is whatever `trader_identity` resolved to, which is
@@ -401,7 +400,7 @@ async def acknowledge_escalation(
     nothing to take", and neither is a failure.
     """
     taken = await asyncio.to_thread(get_data_quality().acknowledge, escalation_id, actor)
-    return {"escalation_id": escalation_id, "taken": taken, "acknowledged_by": actor if taken else None}
+    return EscalationAck(escalation_id=escalation_id, taken=taken, acknowledged_by=actor if taken else None)
 
 
 @app.get("/api/data-quality/findings", response_model=DataQualityFindingsResponse, tags=["data"])

@@ -1334,6 +1334,37 @@
         "title": "DecisionLatencySnapshot",
         "type": "object"
       },
+      "EscalationAck": {
+        "description": "What acknowledging an escalation reports back.\n\n`taken` is false for \"already resolved\" and for \"no such escalation\" alike,\nand neither is an error \u2014 both are \"there was nothing to take\". Typing it\non the wire is what stops a generated client having to guess at a bare\ndict, which is what this route returned before.\n\n`acknowledged_by` is a CAPABILITY when the call came from the web \u2014\n`web:token` or `web:anonymous` \u2014 and a real user id only from Telegram.\nNull when nothing was taken, rather than naming a would-be actor.",
+        "properties": {
+          "acknowledged_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acknowledged By"
+          },
+          "escalation_id": {
+            "title": "Escalation Id",
+            "type": "integer"
+          },
+          "taken": {
+            "title": "Taken",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "escalation_id",
+          "taken",
+          "acknowledged_by"
+        ],
+        "title": "EscalationAck",
+        "type": "object"
+      },
       "ExecutionEstimate": {
         "description": "Result of walking a book for a target notional.",
         "properties": {
@@ -5590,9 +5621,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Acknowledge Escalation Api Data Quality Escalations  Escalation Id  Ack Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/EscalationAck"
                 }
               }
             },

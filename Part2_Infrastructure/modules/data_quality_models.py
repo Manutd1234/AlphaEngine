@@ -141,3 +141,21 @@ class DataQualityFindingsResponse(BaseModel):
     retention_days: int
     window_minutes: int
     observed_at: datetime
+
+
+class EscalationAck(BaseModel):
+    """What acknowledging an escalation reports back.
+
+    `taken` is false for "already resolved" and for "no such escalation" alike,
+    and neither is an error — both are "there was nothing to take". Typing it
+    on the wire is what stops a generated client having to guess at a bare
+    dict, which is what this route returned before.
+
+    `acknowledged_by` is a CAPABILITY when the call came from the web —
+    `web:token` or `web:anonymous` — and a real user id only from Telegram.
+    Null when nothing was taken, rather than naming a would-be actor.
+    """
+
+    escalation_id: int
+    taken: bool
+    acknowledged_by: str | None
