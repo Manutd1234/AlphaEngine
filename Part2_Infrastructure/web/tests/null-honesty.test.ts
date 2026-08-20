@@ -39,10 +39,17 @@ describe("an unmeasured number is dashed, not zeroed", () => {
   });
 
   it("depth tiles dash when the spread tile beside them dashes", () => {
-    const source = code(read("../components/LiveMarket.tsx"));
+    /**
+     * `LiquidityBook`, not `LiveMarket`: the tiles moved with the depth curve
+     * and the ladder when the tab was split. Two of the three assertions here
+     * are negative, and a negative assertion against a file that no longer
+     * mentions depth at all passes without reading anything — so the positive
+     * one leads, and it is what proves the others were pointed at the subject.
+     */
+    const source = code(read("../components/execution/LiquidityBook.tsx"));
+    assert.match(source, /depthUsdBid == null \? "—"/);
     assert.doesNotMatch(source, /depthUsdBid \?\? 0/);
     assert.doesNotMatch(source, /depthUsdAsk \?\? 0/);
-    assert.match(source, /depthUsdBid == null \? "—"/);
   });
 });
 
@@ -137,10 +144,24 @@ describe("a check that could not run is not a finding", () => {
    * gate on a dead gateway. Both are `?? 0` wearing a sentence.
    */
   it("the schema gate needs a gateway that answered this poll", () => {
-    const source = code(read("../components/DeveloperConsole.tsx"));
+    /**
+     * `DeveloperStatus`, not `DeveloperConsole`: the console was split along
+     * its section rail, and the vocabulary every section reports in — the
+     * `ControlState` shape, the three-verdict ladder, and
+     * `schemaCompatibilityState` itself — went to the file they all import.
+     * The guarded branch travelled intact, which is the thing checked here
+     * rather than assumed: the `unmeasured` flag still exists, the gate still
+     * refuses to speak without a `platform` reading from THIS poll, and the
+     * withheld verdict still carries the reason it is withheld.
+     */
+    const source = code(read("../components/developer/DeveloperStatus.tsx"));
     assert.match(source, /!view\.health\.platform && evidence\.state !== "unavailable"/);
     assert.match(source, /Nothing read the live contract this poll/);
     assert.match(source, /unmeasured\?: boolean/);
+    // The reason is only worth carrying if it reaches the verdict: the branch
+    // returns that sentence as its detail, unmeasured, rather than falling
+    // through to the cached "Exact match" or "Drift detected" below it.
+    assert.match(source, /return \{ label: "Unverified", detail, tone: "warn", unmeasured: true \}/);
   });
 
   it("the server dates a verdict it replays from cache", () => {
