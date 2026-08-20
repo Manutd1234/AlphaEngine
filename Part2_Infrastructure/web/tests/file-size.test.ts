@@ -40,14 +40,12 @@ const OVER_CEILING: Record<string, number> = {
   "lib/engine.ts": 1653,
   "components/PortfolioWorkspace.tsx": 1106,
   "lib/providers/runtime.ts": 1105,
-  "lib/gateway-contract.generated.ts": 953,
   "components/DeveloperConsole.tsx": 943,
   "components/LiveMarket.tsx": 902,
   "lib/types.ts": 794,
   "lib/data-trust.ts": 788,
   "components/data/DataTrustOverview.tsx": 783,
   "components/systems/ReliabilityOverview.tsx": 761,
-  "lib/providers/contracts.ts": 745,
   "components/profile/ProfileScreen.tsx": 730,
   "lib/use-book.ts": 659,
   "lib/livebook.ts": 645,
@@ -88,7 +86,13 @@ function sources(dir: string): string[] {
     if (entry === "node_modules" || entry === ".next") continue;
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) out.push(...sources(full));
-    else if (/\.(tsx?|mjs)$/.test(entry)) out.push(full);
+    // Generated files are excluded, not exempted. `gateway-contract.generated.ts`
+    // is written by scripts/generate-gateway-client.ts from tools/openapi.json:
+    // its length is a function of the gateway's route count, splitting it would
+    // be undone by the next regeneration, and a ratchet entry for it would
+    // record a debt no one can pay. The ceiling is a rule about code somebody
+    // writes.
+    else if (/\.(tsx?|mjs)$/.test(entry) && !/\.generated\.(tsx?|mjs)$/.test(entry)) out.push(full);
   }
   return out;
 }
