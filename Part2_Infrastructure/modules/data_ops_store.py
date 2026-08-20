@@ -180,9 +180,20 @@ class SqliteStore:
             f"UPDATE {table} SET {assignments}{where}",  # noqa: S608
             tuple(list(patch.values()) + params),
         )
-        # The rows themselves, so a compare-and-swap caller reads the same
-        # "did my version hold?" answer it reads from PostgREST.
-        return self.fetch(table, filters=filters) if cursor.rowcount else []
+        if not cursor.rowcount:
+            return []
+        # Re-read by the filter with the PATCHED columns updated to their new
+        # values. Using the original filter would look for `version=3` in a row
+        # this statement just set to 4, come back empty, and tell a
+        # compare-and-swap caller its version had been lost when it had held.
+        after = {k: patch.get(k, v) for k, v in filters.items()}
+        return self.fetch(table, filters=after)
+
+    def count(self, table: str, *, filters: dict[str, Any] | None = None) -> int:
+        self._ident(table)
+        where, params = self._where(filters)
+        row = self.one(f"SELECT COUNT(*) AS n FROM {table}{where}", tuple(params))  # noqa: S608
+        return int((row or {}).get("n") or 0)
 
     def remove(self, table: str, *, filters: dict[str, Any]) -> int:
         self._ident(table)

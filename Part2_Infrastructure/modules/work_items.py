@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -143,13 +144,37 @@ class VersionConflict(Exception):
         self.current = current
 
 
-class WorkItemStore(SqliteStore):
-    def __init__(self, path: str, *, seed: bool | None = None, now_ms: float | None = None) -> None:
-        super().__init__(path)
-        self.migrate(_DDL)
+#: Declared once so the seed, the create and the row order cannot drift apart.
+_COLUMNS = ("id", "kind", "priority", "status", "title", "summary", "owner", "area",
+            "opened_at", "sla_due_at", "resolved_at", "created_by", "updated_at",
+            "updated_by", "version")
+
+_TABLE = "data_work_items"
+
+
+class WorkItemStore:
+    """Work items on whichever backend is configured.
+
+    Composed with a store rather than subclassing one, for the reason
+    `ScheduleRunStore` was: inheriting `SqliteStore` made SQLite the definition
+    of the class rather than a setting. Composition also resolves a name clash
+    the inheritance had been hiding — this class's own `patch` is a versioned
+    business edit, and the row-level `patch` it now calls is `self._store`'s.
+    """
+
+    def __init__(self, store: Any, *, seed: bool | None = None, now_ms: float | None = None) -> None:
+        self._store = SqliteStore(store) if isinstance(store, (str, Path)) else store
+        self._store.migrate(_DDL)
         should_seed = settings.data_work_seed if seed is None else seed
         if should_seed and self.count() == 0:
             self._seed(now_ms if now_ms is not None else _now_ms())
+
+    @property
+    def backend(self) -> str:
+        return self._store.backend
+
+    def close(self) -> None:
+        self._store.close()
 
     @classmethod
     def in_memory(cls, **kwargs: Any) -> "WorkItemStore":
@@ -162,11 +187,11 @@ class WorkItemStore(SqliteStore):
             opened = now - age_minutes * 60_000
             sla_due = None if sla_hours is None else now + (sla_hours * 60 - age_minutes) * 60_000
             resolved = now - 60_000 if status == "resolved" else None
-            rows.append((item_id, kind, priority, status, title, summary, owner, area,
-                         opened, sla_due, resolved, SEED_ACTOR, now, SEED_ACTOR, 1))
-        self.executemany(
-            "INSERT INTO data_work_items VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", rows,
-        )
+            rows.append(dict(zip(_COLUMNS, (
+                item_id, kind, priority, status, title, summary, owner, area,
+                opened, sla_due, resolved, SEED_ACTOR, now, SEED_ACTOR, 1,
+            ), strict=True)))
+        self._store.add(_TABLE, rows)
         log.info("work-item store seeded with %d sample rows", len(rows))
 
     # -- read --------------------------------------------------------------- #
@@ -175,17 +200,21 @@ class WorkItemStore(SqliteStore):
         return WorkItemView(**row)
 
     def list(self) -> list[WorkItemView]:
-        return [self._view(r) for r in self.query("SELECT * FROM data_work_items ORDER BY opened_at DESC, id")]
+        rows = self._store.fetch(_TABLE, order="opened_at.desc")
+        # Secondary sort in Python: PostgREST takes one `order` per call and a
+        # second key would be a second round trip for a tie-break.
+        rows.sort(key=lambda r: (-float(r["opened_at"]), str(r["id"])))
+        return [self._view(r) for r in rows]
 
     def get(self, item_id: str) -> WorkItemView | None:
-        row = self.one("SELECT * FROM data_work_items WHERE id=?", (item_id,))
+        row = self._store.fetch_one(_TABLE, filters={"id": item_id})
         return self._view(row) if row else None
 
     def count(self) -> int:
-        return int((self.one("SELECT COUNT(*) AS n FROM data_work_items") or {}).get("n") or 0)
+        return self._store.count(_TABLE)
 
     def seeded_count(self) -> int:
-        return int((self.one("SELECT COUNT(*) AS n FROM data_work_items WHERE created_by=?", (SEED_ACTOR,)) or {}).get("n") or 0)
+        return self._store.count(_TABLE, filters={"created_by": SEED_ACTOR})
 
     def response(self) -> WorkItemsResponse:
         items = self.list()
@@ -205,21 +234,12 @@ class WorkItemStore(SqliteStore):
         prefix = KIND_PREFIX[payload.kind]
         sla_hours = SLA_HOURS[payload.priority] if payload.sla_hours is None else payload.sla_hours
         sla_due = None if not sla_hours else now + sla_hours * 3_600_000
-        # Allocated inside the transaction so two concurrent creates cannot
-        # mint the same id — the same rule the browser used (`nextDataWorkId`).
-        with self.transaction() as conn:
-            row = conn.execute(
-                "SELECT MAX(CAST(substr(id, ?) AS INTEGER)) AS n FROM data_work_items WHERE id LIKE ?",
-                (len(prefix) + 2, f"{prefix}-%"),
-            ).fetchone()
-            largest = int(row["n"] or 0) if row else 0
-            item_id = f"{prefix}-{largest + 1:03d}"
-            conn.execute(
-                "INSERT INTO data_work_items VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                (item_id, payload.kind, payload.priority, "intake", payload.title.strip(),
-                 payload.summary.strip(), payload.owner.strip() or "Unassigned", payload.area.strip() or "Pipeline",
-                 now, sla_due, None, actor, now, actor, 1),
-            )
+        item_id = self._next_id(prefix)
+        self._store.add(_TABLE, dict(zip(_COLUMNS, (
+            item_id, payload.kind, payload.priority, "intake", payload.title.strip(),
+            payload.summary.strip(), payload.owner.strip() or "Unassigned",
+            payload.area.strip() or "Pipeline", now, sla_due, None, actor, now, actor, 1,
+        ), strict=True)))
         created = self.get(item_id)
         assert created is not None
         self._audit("work_item_created", actor, created, {"kind": payload.kind, "priority": payload.priority})
@@ -229,29 +249,59 @@ class WorkItemStore(SqliteStore):
         """Apply a versioned edit. Returns None for an unknown id; raises VersionConflict on a stale version."""
         now = now_ms if now_ms is not None else _now_ms()
         changes = {k: v for k, v in patch.model_dump().items() if k != "version" and v is not None}
-        with self.transaction() as conn:
-            current = conn.execute("SELECT * FROM data_work_items WHERE id=?", (item_id,)).fetchone()
-            if current is None:
+        current = self._store.fetch_one(_TABLE, filters={"id": item_id})
+        if current is None:
+            return None
+        if int(current["version"]) != patch.version:
+            raise VersionConflict(self._view(dict(current)))
+        resolved_at = current["resolved_at"]
+        if "status" in changes:
+            if changes["status"] == "resolved" and current["status"] != "resolved":
+                resolved_at = now
+            elif changes["status"] != "resolved":
+                resolved_at = None
+        # The version is in the FILTER, not just the SET. That is what makes
+        # this a compare-and-swap rather than a read-then-write: the read above
+        # catches the common stale edit, and this catches the one that went
+        # stale between the read and the write. The transaction it replaces
+        # only ever held across one process's threads; this holds across
+        # processes, which is the point of moving off the filesystem.
+        changed = self._store.patch(
+            _TABLE,
+            filters={"id": item_id, "version": patch.version},
+            patch={**changes, "resolved_at": resolved_at, "updated_at": now,
+                   "updated_by": actor, "version": patch.version + 1},
+        )
+        if not changed:
+            # The row was there a moment ago and the version no longer matches,
+            # so another writer won the race between the read and the write.
+            fresh = self._store.fetch_one(_TABLE, filters={"id": item_id})
+            if fresh is None:
                 return None
-            if int(current["version"]) != patch.version:
-                raise VersionConflict(self._view(dict(current)))
-            resolved_at = current["resolved_at"]
-            if "status" in changes:
-                if changes["status"] == "resolved" and current["status"] != "resolved":
-                    resolved_at = now
-                elif changes["status"] != "resolved":
-                    resolved_at = None
-            sets = ", ".join(f"{k}=?" for k in changes)
-            params: list[Any] = [*changes.values(), resolved_at, now, actor, patch.version + 1, item_id, patch.version]
-            conn.execute(
-                f"UPDATE data_work_items SET {sets}{', ' if sets else ''}resolved_at=?, updated_at=?, updated_by=?, version=? "  # noqa: S608 - column names are the model's own field names
-                "WHERE id=? AND version=?",
-                params,
-            )
+            raise VersionConflict(self._view(dict(fresh)))
         updated = self.get(item_id)
         assert updated is not None
         self._audit("work_item_updated", actor, updated, {"changes": changes, "version": updated.version})
         return updated
+
+    def _next_id(self, prefix: str) -> str:
+        """One id, allocated so two concurrent creates cannot mint the same one.
+
+        The strategy genuinely differs by backend and is not worth hiding.
+        SQLite has no sequences, so it reads MAX and adds one inside a
+        transaction. Postgres has them, so it calls `next_work_item_id`, which
+        is atomic without a lock and correct across processes — the SQLite form
+        is only correct because there is one.
+        """
+        if self._store.backend == "postgres":
+            return str(self._store.rpc("next_work_item_id", {"prefix": prefix}))
+        with self._store.transaction() as conn:
+            row = conn.execute(
+                "SELECT MAX(CAST(substr(id, ?) AS INTEGER)) AS n FROM data_work_items WHERE id LIKE ?",
+                (len(prefix) + 2, f"{prefix}-%"),
+            ).fetchone()
+            largest = int(row["n"] or 0) if row else 0
+            return f"{prefix}-{largest + 1:03d}"
 
     def _audit(self, event: str, actor: str, item: WorkItemView, payload: dict[str, Any]) -> None:
         try:
@@ -268,7 +318,7 @@ class WorkItemStore(SqliteStore):
             log.warning("work-item audit write failed (%s)", type(exc).__name__)
 
     def reset(self) -> None:
-        self.execute("DELETE FROM data_work_items")
+        self._store.remove(_TABLE, filters={"id": "neq.__none__"})
 
 
 _store: WorkItemStore | None = None

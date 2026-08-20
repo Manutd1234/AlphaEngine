@@ -192,6 +192,25 @@ class PostgrestStore:
         )
         return self._rows(response)
 
+    def count(self, table: str, *, filters: dict[str, Any] | None = None) -> int:
+        """PostgREST counts in a header, not a column.
+
+        `Prefer: count=exact` puts `0-24/1234` in Content-Range; the total is
+        after the slash. Asking for `limit=1` keeps the body to one row rather
+        than streaming the table back to count it.
+        """
+        params = self._scoped(filters)
+        params["select"] = "id"
+        params["limit"] = "1"
+        response = self._send(
+            "GET", f"/{quote(table)}", params=params,
+            headers={"Prefer": "count=exact"},
+        )
+        total = response.headers.get("content-range", "").rpartition("/")[2]
+        if not total.isdigit():
+            raise PostgrestError(f"count for {table}: no exact count in Content-Range")
+        return int(total)
+
     def remove(self, table: str, *, filters: dict[str, Any]) -> int:
         response = self._send(
             "DELETE", f"/{quote(table)}",
