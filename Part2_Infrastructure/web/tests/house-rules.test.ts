@@ -117,6 +117,8 @@ describe("an empty result is reported, not hidden", () => {
     assert.match(source, /No provider is under a simulated outage/);
     // And it says what the absence does NOT prove, which is the honest half.
     // JSX wraps its copy, so match across the line break the formatter inserts.
-    assert.match(source, /says nothing\s+about whether the providers themselves are healthy/);
+    // The sentence was shortened in a copy-reduction pass ("the providers
+    // themselves" → "the providers"); the claim it makes is unchanged.
+    assert.match(source, /says nothing\s+about whether the providers\s+are healthy/);
   });
 });
