@@ -20,7 +20,7 @@
  * out the backoff.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 
 import AnchoredPanel from "@/components/header/AnchoredPanel";
 import { describeTier, writesEnabled, type Provenance } from "@/lib/data-tier";
@@ -34,7 +34,7 @@ interface DataTierBadgeProps {
   onRetry: () => void | Promise<void>;
 }
 
-export default function DataTierBadge({
+function DataTierBadge({
   provenance,
   retryInSeconds = null,
   detail = null,
@@ -197,3 +197,16 @@ export default function DataTierBadge({
     </span>
   );
 }
+
+/**
+ * Memoised. Provenance changes when the desk changes what it is made of, which
+ * is a rare event, and this badge has no reason to re-render between them —
+ * least of all on the decision chip's clock two controls along. The header
+ * hands it the fields rather than the `dataSource` object the dashboard builds
+ * inline, so the comparison sees a stable provenance and a stable `onRetry`
+ * and skips; passing the wrapper object straight through would not.
+ *
+ * The cached tier's own 5s clock lives inside, in state, and is untouched by
+ * this: a component always re-renders for its own state.
+ */
+export default memo(DataTierBadge);
