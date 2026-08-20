@@ -16,7 +16,21 @@ function read(relative: string): string {
 }
 
 const crossSource = read("../components/systems/CrossSourceCheck.tsx");
+/**
+ * `PipelineInspector` passed the length ceiling and its two renderers moved to
+ * `PipelineRestTrace` and `PipelineSocketTrace`. Every request, every piece of
+ * state and both network gates stayed in the inspector; what left draws a
+ * payload and holds nothing.
+ *
+ * So an assertion about what is REQUESTED reads the inspector, one about what
+ * is DRAWN reads the renderer that draws it, and one that forbids something
+ * anywhere on the card reads `pipelineSurface` — scoped to the shell alone it
+ * would pass by scanning a file that no longer contains what it guards.
+ */
 const pipeline = read("../components/systems/PipelineInspector.tsx");
+const restTrace = read("../components/systems/PipelineRestTrace.tsx");
+const socketTrace = read("../components/systems/PipelineSocketTrace.tsx");
+const pipelineSurface = [pipeline, restTrace, socketTrace].join("\n");
 const quarantine = read("../components/systems/QuarantinePanel.tsx");
 
 describe("data diagnostics preserve request identity", () => {
@@ -28,12 +42,15 @@ describe("data diagnostics preserve request identity", () => {
 
   it("makes the workspace interval mandatory for a bar trace", () => {
     assert.match(pipeline, /interval: string;/);
-    assert.doesNotMatch(pipeline, /interval\s*=\s*"4h"/);
+    // The default is forbidden anywhere on the card: a renderer that fell back
+    // to "4h" would print an interval the request never asked for.
+    assert.doesNotMatch(pipelineSurface, /interval\s*=\s*"4h"/);
     assert.ok(
       pipeline.includes('if (capability === "bars") qs.set("interval", interval);'),
       "bar inspection omits the workspace interval",
     );
-    assert.ok(pipeline.includes("Requested interval"), "the trace hides which interval it requested");
+    // The inspector sends it; the REST renderer is what prints it back.
+    assert.ok(restTrace.includes("Requested interval"), "the trace hides which interval it requested");
   });
 });
 
@@ -48,8 +65,8 @@ describe("data diagnostics do not manufacture trust evidence", () => {
   });
 
   it("keeps provenance and cache identity visible without inferring a field map", () => {
-    assert.ok(pipeline.includes("Answer provenance"));
-    assert.ok(pipeline.includes("field-level transformation map"));
+    assert.ok(restTrace.includes("Answer provenance"));
+    assert.ok(restTrace.includes("field-level transformation map"));
     assert.match(quarantine, /<code>\{record\.key\}<\/code>/);
   });
 });
@@ -70,18 +87,21 @@ describe("the pipeline inspector separates zones instead of narrating them", () 
     // The lineage is the heart of the panel and its order is its meaning — an
     // <ol> so the sequence survives styling. The cache key sits in the same
     // labelled grid as the verdict rather than in a stray sentence below it.
-    assert.match(pipeline, /<ol className="console-lineage">/);
-    assert.match(pipeline, /console-facts__span/);
-    assert.ok(!pipeline.includes("console-key"), "the cache key regressed to sentence prose");
+    assert.match(restTrace, /<ol className="console-lineage">/);
+    assert.match(restTrace, /console-facts__span/);
+    // Forbidden anywhere on the card, not just in the renderer that draws it.
+    assert.ok(!pipelineSurface.includes("console-key"), "the cache key regressed to sentence prose");
   });
 
   it("folds explainer prose into disclosures but keeps honest empty states in the open", () => {
     // Methodology can collapse; the absence of evidence cannot. A reader must
     // never open a disclosure to learn that nothing was captured.
-    assert.match(pipeline, /<details className="disclosure">\s*<summary>Why raw and normalised/);
-    assert.match(pipeline, /<details className="disclosure">\s*<summary>Where these frames/);
-    assert.ok(pipeline.includes("None — the cache answered."));
-    assert.ok(pipeline.includes("No frame received yet."));
+    // One zone each: the REST trace's methodology and empty state, the wire
+    // tap's. The zones are files now, so each half is read where it renders.
+    assert.match(restTrace, /<details className="disclosure">\s*<summary>Why raw and normalised/);
+    assert.match(socketTrace, /<details className="disclosure">\s*<summary>Where these frames/);
+    assert.ok(restTrace.includes("None — the cache answered."));
+    assert.ok(socketTrace.includes("No frame received yet."));
   });
 });
 
