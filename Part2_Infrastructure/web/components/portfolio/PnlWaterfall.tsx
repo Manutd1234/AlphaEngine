@@ -76,7 +76,7 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
         </div>
         <p className="sub">
           No book to decompose yet. The split needs a session&apos;s P&amp;L, the positions behind
-          it and a reference return, none of which exist before the first snapshot lands.
+          it and a reference return.
         </p>
       </div>
     );
@@ -295,7 +295,7 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
       <div className="table-wrap" tabIndex={0}>
         <table>
           <caption className="sr-only">
-            Each leg of the day&apos;s P&amp;L, what it was measured from, and why any missing leg is missing.
+            Each leg of the day&apos;s P&amp;L, its basis, and why any missing leg is missing.
           </caption>
           <thead>
             <tr>
@@ -339,9 +339,8 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
 
       {waterfall.unmeasuredSymbols.length > 0 && (
         <p className="research-note">
-          No beta could be measured for {waterfall.unmeasuredSymbols.join(", ")}, so the market leg
-          excludes them and is understated by whatever they moved. Their P&amp;L lands in the
-          residual instead.
+          No beta for {waterfall.unmeasuredSymbols.join(", ")}, so the market leg excludes them and
+          is understated by whatever they moved; their P&amp;L lands in the residual.
         </p>
       )}
 
@@ -354,10 +353,9 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
 
       {waterfall.carriedMarkToMarket != null && Math.abs(waterfall.carriedMarkToMarket) > 1 && (
         <p className="research-note">
-          Day P&amp;L differs from realised plus unrealised by {usd(waterfall.carriedMarkToMarket, 0)}.
-          On a multi-day book that gap is legitimate: mark-to-market carried in on positions opened
-          before this session, a property of the book&apos;s history rather than of today&apos;s
-          trading, so it is reported rather than drawn as a leg.
+          Day P&amp;L differs from realised plus unrealised by {usd(waterfall.carriedMarkToMarket, 0)}:
+          mark-to-market carried in on positions opened before this session. Reported, not drawn as
+          a leg.
         </p>
       )}
 
@@ -371,10 +369,10 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
         && waterfall.referenceReturn != null && waterfall.referenceSymbol && (
         <p className="research-note">
           The market leg uses {waterfall.referenceSymbol} at {pct(waterfall.referenceReturn, 2)} as
-          the reference move, applied through each position&apos;s measured beta.{" "}
+          the reference move, through each position&apos;s measured beta.{" "}
           {generated
-            ? "In the sandbox that move is supplied rather than measured: attributing part of a generated P&L to a real market move would be a fabricated attribution."
-            : `Measured on the daily bar covering the gateway's own session, and withheld outright when the newest bar does not cover it.`}
+            ? "In the sandbox that move is supplied, not measured, so no generated P&L is attributed to a real market move."
+            : `Measured on the daily bar covering the gateway's session, withheld when the newest bar does not.`}
         </p>
       )}
     </div>
