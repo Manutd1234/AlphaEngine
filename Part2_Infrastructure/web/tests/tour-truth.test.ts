@@ -29,6 +29,7 @@ const read = (relative: string) =>
 
 const sections = read("../lib/sections.ts");
 const tour = read("../../../docs/FEATURE_TOUR.md");
+const page = read("../app/dashboard/page.tsx");
 
 /** Every `{ id, label }` pair of one workspace, in rail order. */
 function railOf(workspace: string): { id: string; label: string }[] {
@@ -125,4 +126,63 @@ describe("the tour quotes no figure it cannot support", () => {
       "the tour describes the binding without naming what still gates the controls",
     );
   });
+});
+
+/**
+ * The in-app tour, checked the same way the document is.
+ *
+ * `docs/FEATURE_TOUR.md` had a whole test file holding it to `lib/sections.ts`
+ * while the tour a reviewer actually presses "?" to see had none — and it
+ * drifted, exactly there: stop 7 read "Reliability → Telemetry & SLIs" long
+ * after that section was renamed "Attention & SLIs". The `retired` list below
+ * already named that label as dead. It never fired, because it only ever read
+ * the markdown.
+ *
+ * Derived rather than listed. The retired-label check is the weaker form of
+ * this one: it catches the handful of renames someone remembered to write
+ * down, where this catches every stop against the rail it links into.
+ */
+const WORKSPACE_FOR_VIEW: Record<string, string> = {
+  overview: "OVERVIEW",
+  research: "RESEARCH",
+  // The one id that does not match its label: the deep link came first.
+  live: "EXECUTION",
+  portfolio: "PORTFOLIO",
+  risk: "RISK",
+  data: "DATA",
+  reliability: "RELIABILITY",
+  developer: "DEVELOPER",
+};
+
+describe("the in-app tour names the sections the app actually ships", () => {
+  /** Every `stop("Tab → Label", moment, viewId, sectionId, apply)` in the page. */
+  const stops = [...page.matchAll(/stop\(\s*"([^"]+)",[\s\S]*?,\s*"([a-z]+)",\s*"([a-z]+)",\s*\(\) =>/g)]
+    .map(([, where, view, section]) => ({ where, view, section }));
+
+  it("finds all eight stops", () => {
+    assert.equal(stops.length, 8, "the stop regex stopped matching the tour's shape");
+  });
+
+  for (const { where, view, section } of stops) {
+    it(`${where} links into the section it names`, () => {
+      const workspace = WORKSPACE_FOR_VIEW[view];
+      assert.ok(workspace, `no workspace maps to view "${view}"`);
+
+      const rail = railOf(workspace);
+      const target = rail.find((entry) => entry.id === section);
+      assert.ok(target, `${view}/${section} is not a section ${workspace} has`);
+
+      const [tab, label] = where.split(" → ");
+      assert.equal(
+        label,
+        target.label.replace(/&amp;/g, "&"),
+        `the stop says "${label}" but ${view}/${section} is labelled "${target.label}"`,
+      );
+      assert.equal(
+        tab,
+        workspace[0] + workspace.slice(1).toLowerCase(),
+        `the stop's tab name does not match the workspace it navigates to`,
+      );
+    });
+  }
 });
