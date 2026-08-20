@@ -167,7 +167,7 @@ export default function Heatmap({
       >
         <span>{showKinds ? "Neighbourhood" : "Annualised Sharpe"}</span>
         {showKinds && (
-          <span className="legend" style={{ gap: 12 }}>
+          <span className="legend heatmap-legend__kinds" style={{ gap: 12 }}>
             {(Object.keys(KIND_STYLE) as CellKind[]).map((kind) => (
               <span key={kind} style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 <i
@@ -218,7 +218,7 @@ export default function Heatmap({
             +{fmt(absMax, 1)}
           </span>
         </span>
-        <span className="muted" style={{ fontSize: "var(--fs-body)" }}>
+        <span className="muted heatmap-legend__hint" style={{ fontSize: "var(--fs-body)" }}>
           {showKinds
             ? "click a cell to inspect those parameters"
             : "grey = no edge; click a cell to inspect those parameters"}

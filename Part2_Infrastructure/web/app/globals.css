@@ -1736,6 +1736,26 @@ tbody tr[tabindex]:focus-visible {
   border-radius: 3px;
 }
 
+/* Two wrapping flex containers were nested and competing: `.legend` wraps, and
+   it is itself one item in a row that also wraps, so the five kind items could
+   break among themselves while the legend and the trailing hint broke against
+   the "Neighbourhood" label — with nothing ordering the two. The five belong on
+   one line; there is room for them (~1258px of card at the 1680px shell cap,
+   against five 13px items and two short strings). */
+.heatmap-legend__kinds {
+  flex-wrap: nowrap;
+  /* `.legend` carries a bottom margin for its standalone list use. Here it is
+     inline inside a row that already has one. */
+  margin-bottom: 0;
+}
+
+/* Pushed to the far end, so the gap between "isolated" and the hint is the
+   space left over rather than the row's 10px gap. It was a plain sibling with
+   no margin, no flex and no spacer. */
+.heatmap-legend__hint {
+  margin-inline-start: auto;
+}
+
 /* ---------- drift legend ----------
    The drift chart's key became a worked reading: three rules quoting the band
    currently under the slider, so a colour explains itself rather than being
