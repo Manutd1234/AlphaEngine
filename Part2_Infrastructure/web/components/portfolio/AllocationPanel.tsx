@@ -49,25 +49,25 @@ const METHODS: Array<{ id: AllocationMethod; label: string; group: string; expla
     id: "equal_weight",
     label: "Equal weight",
     group: "Naive",
-    explain: "Every position the same size, knowing nothing about volatility or correlation — the baseline the other three have to beat.",
+    explain: "Every position the same size. The baseline the other three have to beat.",
   },
   {
     id: "inverse_vol",
     label: "Inverse volatility",
     group: "Risk-based",
-    explain: "Each position sized by the reciprocal of its own volatility — a quiet name carries more notional for the same risk. Ignores correlation.",
+    explain: "Sized by the reciprocal of each position's volatility. Ignores correlation.",
   },
   {
     id: "equal_risk",
     label: "Equal risk contribution",
     group: "Risk-based",
-    explain: "Each position contributes the same share of book volatility. Accounts for correlation, so two names that move together are sized as one bet.",
+    explain: "Every position contributes the same share of book volatility, correlation included.",
   },
   {
     id: "min_variance",
     label: "Minimum variance",
     group: "Risk-based",
-    explain: "The long-only book with the smallest variance this covariance allows — the most concentrated of the four by construction, so it meets a symbol cap sooner.",
+    explain: "The smallest-variance long-only book, so it meets a symbol cap soonest.",
   },
 ];
 
@@ -109,8 +109,8 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
           </div>
         </div>
         <p className="sub">
-          A flat book, or too little shared price history for a covariance. The proposal is
-          withheld rather than guessed.
+          A flat book, or too little shared price history for a covariance. The proposal is withheld
+          rather than guessed.
         </p>
       </div>
     );
@@ -199,7 +199,7 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
             {overshoot > 0
               ? `over-allocated by ${fmt(overshoot * 100, 1)}pp.`
               : `under-allocated by ${fmt(-overshoot * 100, 1)}pp.`}{" "}
-            Trades are withheld until it balances. Nothing you typed has been rescaled to hide it.
+            Trades are withheld until it balances; nothing typed has been rescaled.
           </div>
         </div>
       )}
@@ -231,7 +231,7 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
       {/* Forced open while overriding: the toggle's whole effect is the inputs
           in this table, and a control whose result is hidden reads as broken. */}
       <details className="disclosure" open={override}>
-        <summary>Every weight as a table — notional now and notional target per symbol</summary>
+        <summary>Every weight as a table, with notional now and target</summary>
         <div className="table-wrap" tabIndex={0}>
         <table>
           <caption className="sr-only">
@@ -312,14 +312,12 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
              up as a tolerance decision would credit the band for a result the
              arithmetic already fixed. */
           <p className="research-note">
-            No trade is proposed, and none can be: with one position the target weight is 100%
-            under every model, so it already equals the current weight. The band is not
-            suppressing anything — there is nothing for it to suppress.
+            One position is 100% under every model, so target equals current.
+            There is nothing for the band to suppress.
           </p>
         ) : (
           <p className="research-note">
-            Nothing is outside the band — the book is already close enough to target that trading it
-            would cost more than the drift does.
+            Nothing is outside the band: the remaining drift costs less than trading it.
           </p>
         )
       ) : (
@@ -341,10 +339,9 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
                 14 for LIMIT and 15 once reduce-only engages — and a rebalance
                 trade is not guaranteed to be any one of those. A figure that is
                 right for one path reads as a promise on the others. */}
-            Composed, not sent. Each is an ordinary order facing the same pre-trade gates as any
-            other, including the ones that may reject it. Gross would move
-            from {usd(active.grossBefore)} to {usd(active.grossAfter)}.
-            {active.clipped && " Some targets were capped by a risk limit, so the weights below no longer sum to one."}
+            Composed, not sent. Each faces the same pre-trade gates, including the ones that may
+            reject it. Gross moves {usd(active.grossBefore)} to {usd(active.grossAfter)}.
+            {active.clipped && " A risk limit capped some targets, so the weights no longer sum to one."}
           </p>
         </>
       )}
@@ -353,8 +350,7 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
         <summary>
           {manual
             ? `What you typed, against what ${selected.label.toLowerCase()} solved`
-            : `What ${selected.label.toLowerCase()} assumes, what it ignores, `
-              + `and the ${fmt(model.observations, 0)} observations behind it`}
+            : `What ${selected.label.toLowerCase()} assumes, over ${fmt(model.observations, 0)} observations`}
         </summary>
         <p className="research-note">
           {manual
@@ -364,33 +360,27 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
         <p className="research-note">
           {manual ? (
             <>
-              The Model column shows what {selected.label.toLowerCase()} proposed; the difference is
-              a judgement this panel does not evaluate. Unpinned weights spread across the
-              remainder in the model&apos;s own proportions, so pinning one name does not silently
-              resize the rest.
+              Unpinned weights spread across the remainder in the model&apos;s own proportions.
             </>
           ) : (
             <>
-              No expected return is forecast anywhere in this proposal. It answers &quot;how should
-              the risk be spread&quot;, never &quot;what should we own&quot;. Measured over{" "}
-              {fmt(model.observations, 0)} observations.
+              No expected return is forecast: this answers how the risk should be spread, not what
+              to own.
             </>
           )}
         </p>
-        {/* DriftBars renders directly below this and its own legend already
-            says a bar inside the band "emits no trade at all", and that the
-            slider "adds or removes trades in one motion". The fees-versus-risk
-            reason is the only part it does not carry. */}
+        {/* DriftBars renders directly below and its legend already gives the
+            band's effect on each bar. The fees-versus-risk reason is the only
+            part it does not carry. */}
         <p className="research-note">
           Correcting a small deviation costs more in fees and slippage than the deviation costs in
-          risk. That is what the band buys.
+          risk.
         </p>
         {capBinds && (
           <p className="research-note">
-            The gross cap sits below current gross, so target weights are measured over the cap
-            while drift is measured over gross. The chart withholds the{" "}
-            <span className="num">current → target</span> pair rather than printing two numbers
-            whose difference is not the drift beside them.
+            The gross cap sits below current gross, so target weights are measured over the cap and
+            drift over gross — which is why the{" "}
+            <span className="num">current → target</span> pair is withheld.
           </p>
         )}
       </details>
