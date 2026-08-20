@@ -133,7 +133,9 @@ describe("a switched-away pane is unmounted, not hidden", () => {
     // `.compact-grid-2col` stays a live class — the live market and portfolio
     // pairs still render it — it just has no business in this panel.
     assert.ok(!panel().includes("compact-grid-2col"), "the providers panel is back to half-width columns");
-    assert.match(code(read("../components/LiveMarket.tsx")), /compact-grid-2col/);
+    // The live-market half of the pair is `LiquidityBook` now — the depth
+    // curve and the ladder went there together when LiveMarket was split.
+    assert.match(code(read("../components/execution/LiquidityBook.tsx")), /compact-grid-2col/);
     assert.match(css, /\n\.compact-grid-2col \{/);
   });
 
