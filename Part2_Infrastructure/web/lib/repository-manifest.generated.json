@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-20",
-  "commit": "4d24541",
+  "commit": "529909f",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -204,6 +204,7 @@
     "Part2_Infrastructure/tests/test_session_rollover.py",
     "Part2_Infrastructure/tests/test_strategy_catalog.py",
     "Part2_Infrastructure/tests/test_stream_desk.py",
+    "Part2_Infrastructure/tests/test_supabase_grants.py",
     "Part2_Infrastructure/tests/test_supabase_mirror.py",
     "Part2_Infrastructure/tests/test_supabase_schema.py",
     "Part2_Infrastructure/tests/test_tca_engine.py",
@@ -826,6 +827,7 @@
     "supabase/migrations/20260820100300_data_work_items.sql",
     "supabase/migrations/20260820100400_data_quality_rollup.sql",
     "supabase/migrations/20260820100500_data_quality_provider_stats.sql",
+    "supabase/migrations/20260820100600_data_ops_grants.sql",
     "supabase/README.md",
     "supabase/seed.sql",
     "tools/bundle_migrations.py"
