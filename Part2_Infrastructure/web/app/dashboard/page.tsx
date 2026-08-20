@@ -288,6 +288,19 @@ export default function Page() {
   const selectedSleeveDetail = selectedSleeveAttribution
     ? `${selectedSleeveAttribution.filled} accepted of ${selectedSleeveAttribution.orders} orders`
     : "no audited orders yet";
+  /**
+   * The fallback path for post-order freshness, not the primary one.
+   *
+   * `RiskState` carries `orders_accepted` and `orders_rejected`, so ANY order —
+   * filled, rested or refused by a gate — changes the streamed body, moves
+   * `seq`, and `useBook` refetches within about a second. That covers every
+   * mutation on the desk without a per-mutation wire-up, which is why there is
+   * no third invalidation mechanism here.
+   *
+   * This stays for the deployments with no stream, where it is the only way the
+   * book learns an order happened. `probeGateway` coalesces by URL, so on a
+   * streamed desk the two collapse into one request rather than two.
+   */
   const refreshBookAfterOrder = useCallback(() => {
     void book.refresh(true);
   }, [book.refresh]);
