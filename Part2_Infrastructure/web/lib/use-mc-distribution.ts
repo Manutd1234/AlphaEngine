@@ -10,7 +10,7 @@
  * stream, and both paths execute the same factory.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   createMcSimulation,
@@ -19,6 +19,7 @@ import {
   type McDistributionResult,
   type McWorkerMessage,
 } from "@/lib/mc-distribution";
+import { useThrottledValue } from "@/lib/use-throttled-value";
 
 export interface McDistributionState {
   status: "idle" | "running" | "done" | "error";
@@ -119,5 +120,22 @@ export function useMcDistribution(request: McDistributionRequest | null): McDist
     };
   }, [request]);
 
-  return state;
+  /**
+   * The progress readout, buffered; everything else on the tick it happens.
+   *
+   * The worker posts a frame every 500 paths inside a tight `while` loop, so a
+   * ten-thousand-path run is twenty `setState` calls arriving back to back and
+   * a hundred-thousand-path run is two hundred — a counter and a bar repainting
+   * faster than either can be read. Only `progress` goes through the window:
+   * `status`, `result` and `error` are terminal facts, and a finished
+   * simulation must never sit behind a throttle waiting to say so.
+   *
+   * A null progress passes through as null. It means "not running", and no
+   * count of zero stands in for that.
+   */
+  const progress = useThrottledValue(state.progress);
+  return useMemo(
+    () => (state.status === "running" ? { ...state, progress } : state),
+    [state, progress],
+  );
 }
