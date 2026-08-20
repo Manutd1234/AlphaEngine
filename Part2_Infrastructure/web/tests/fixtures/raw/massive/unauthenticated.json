@@ -1,0 +1,11 @@
+{
+  "_comment": "The vendor's REFUSAL envelope, captured on purpose by asking without a credential. This is the half of the contract that breaks silently: the shape here is NOT the shape the adapter expects, and a normaliser meeting it produces undefined fields rather than raising. Never read this as an example of a healthy body.",
+  "_url": "https://api.massive.com/v2/aggs/ticker/X:BTCUSD/prev",
+  "_status": 401,
+  "_captured": "2026-08-20",
+  "body": {
+    "status": "ERROR",
+    "request_id": "d0ec15458705d0d8c2ed956661909cf3",
+    "error": "API Key was not provided"
+  }
+}

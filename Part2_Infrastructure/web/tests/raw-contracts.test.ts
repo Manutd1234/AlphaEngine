@@ -12,7 +12,7 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -112,11 +112,35 @@ describe("bybit puts its failures in the envelope, not the status code", () => {
 });
 
 describe("the fixtures are what they claim to be", () => {
+  /**
+   * Enumerated, never listed.
+   *
+   * This block named its four fixtures as string literals, which meant a
+   * fixture added later was covered by neither the provenance check nor the
+   * credential check — and the credential check is the one that must not have
+   * a gap in it. Walking the directory is the only version that cannot fall
+   * behind the directory.
+   */
+  const fixtures = readdirSync(fileURLToPath(new URL("./fixtures/raw", import.meta.url)))
+    .flatMap((provider) => {
+      const dir = fileURLToPath(new URL(`./fixtures/raw/${provider}`, import.meta.url));
+      return statSync(dir).isDirectory()
+        ? readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => `${provider}/${f.slice(0, -5)}`)
+        : [];
+    })
+    .sort();
+
+  const read = (name: string) => readFileSync(
+    fileURLToPath(new URL(`./fixtures/raw/${name}.json`, import.meta.url)), "utf8",
+  );
+
+  it("there are fixtures at all", () => {
+    assert.ok(fixtures.length >= 4, `only found ${fixtures.length} fixtures`);
+  });
+
   it("each carries its provenance", () => {
-    for (const name of ["binance/bars", "binance/quote", "bybit/bars", "bybit/quote"]) {
-      const raw = JSON.parse(readFileSync(
-        fileURLToPath(new URL(`./fixtures/raw/${name}.json`, import.meta.url)), "utf8",
-      )) as Record<string, unknown>;
+    for (const name of fixtures) {
+      const raw = JSON.parse(read(name)) as Record<string, unknown>;
       assert.match(String(raw._captured), /^\d{4}-\d{2}-\d{2}$/, `${name} has no capture date`);
       assert.match(String(raw._url), /^https:\/\//, `${name} does not say where it came from`);
       assert.ok(raw.body !== undefined, `${name} has no body`);
@@ -124,14 +148,30 @@ describe("the fixtures are what they claim to be", () => {
   });
 
   it("no fixture carries a credential", () => {
-    // These two vendors are keyless, which is why they are the two that are
-    // captured. If that ever stops being true this catches it before commit.
-    for (const name of ["binance/bars", "binance/quote", "bybit/bars", "bybit/quote"]) {
-      const text = readFileSync(
-        fileURLToPath(new URL(`./fixtures/raw/${name}.json`, import.meta.url)), "utf8",
+    // Matches a credential-shaped KEY followed by a VALUE, not the mere word.
+    // The earlier version matched /apikey/i anywhere, which was fine while
+    // every fixture came from a keyless endpoint and would now fail on the
+    // redacted `?apikey=…` in the Alpha Vantage demo URL — flagging the
+    // redaction rather than a leak.
+    const CREDENTIAL = /(api[_-]?key|apikey|token|authorization|bearer|secret)["']?\s*[:=]\s*["']?[A-Za-z0-9_\-.]{8,}/i;
+    for (const name of fixtures) {
+      const text = read(name);
+      assert.doesNotMatch(text, CREDENTIAL, `${name} may contain a credential`);
+    }
+  });
+
+  it("a refusal fixture is never filed as a healthy one", () => {
+    // The whole reason the two are separate files. A refusal committed under a
+    // capability's name would be read by every test below as an example of
+    // what the vendor sends when things are working.
+    for (const name of fixtures) {
+      const raw = JSON.parse(read(name)) as { _status?: number };
+      const isRefusal = name.endsWith("/unauthenticated");
+      if (raw._status === undefined) continue;  // captured before _status existed
+      assert.equal(
+        raw._status >= 400, isRefusal,
+        `${name}: HTTP ${raw._status} does not match its filename`,
       );
-      assert.doesNotMatch(text, /api[_-]?key|apikey|authorization|bearer|secret/i,
-        `${name} may contain a credential`);
     }
   });
 });

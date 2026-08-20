@@ -1,0 +1,28 @@
+{
+  "_comment": "Captured verbatim from the vendor by scripts/capture-provider-fixtures.mjs. This is the SHAPE the vendor sends, not the shape this app normalises to — trimming it would test the normaliser rather than the vendor. Refresh deliberately: a change here is a change in what the vendor promises.",
+  "_url": "https://api.firecrawl.dev/v1/scrape",
+  "_status": 200,
+  "_captured": "2026-08-20",
+  "body": {
+    "success": true,
+    "data": {
+      "markdown": "# Example Domain\n\nThis domain is for use in documentation examples without needing permission. Avoid use in operations.\n\n[Learn more](https://iana.org/domains/example)",
+      "metadata": {
+        "title": "Example Domain",
+        "language": "en",
+        "viewport": "width=device-width, initial-scale=1",
+        "favicon": "data:,",
+        "scrapeId": "01a01f04-50ac-7179-b90c-a375c1cf2a85",
+        "sourceURL": "https://example.com",
+        "url": "https://example.com/",
+        "statusCode": 200,
+        "contentType": "text/html",
+        "proxyUsed": "basic",
+        "cacheState": "hit",
+        "cachedAt": "2026-08-20T11:52:17.930Z",
+        "creditsUsed": 1,
+        "concurrencyLimited": false
+      }
+    }
+  }
+}

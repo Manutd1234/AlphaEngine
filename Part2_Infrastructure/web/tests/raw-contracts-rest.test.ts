@@ -12,7 +12,10 @@
  */
 
 import assert from "node:assert/strict";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { checkRawBody, RAW_CHECKED, rawViolations } from "../lib/providers/raw-contract-check";
 import { RAW_CALIBRATED, rawSeverity } from "../lib/providers/raw-contracts-rest";
@@ -26,10 +29,22 @@ describe("severity is earned, not assumed", () => {
     }
   });
 
-  it("the calibrated set is exactly the providers with committed fixtures", () => {
-    // If a fixture is captured, add the provider here in the same commit —
-    // and if this list grows without one, that is the drift it exists to catch.
-    assert.deepEqual([...RAW_CALIBRATED].sort(), ["binance", "bybit"]);
+  it("a provider is calibrated only if a HEALTHY body is committed for it", () => {
+    // Derived from the filesystem, not asserted as a literal list. A provider
+    // promoted without a capture fails here, and a capture added without the
+    // promotion shows up as the reverse — which is the drift a hard-coded pair
+    // of names could not catch in either direction.
+    //
+    // A `unauthenticated.json` does NOT count. It is the vendor's refusal, and
+    // calibration is the claim that the predicate has been held to a body from
+    // a working call: the requirement is that it does not fire on good data.
+    const root = fileURLToPath(new URL("./fixtures/raw", import.meta.url));
+    const withHealthyBody = readdirSync(root)
+      .filter((provider) => statSync(join(root, provider)).isDirectory())
+      .filter((provider) => readdirSync(join(root, provider))
+        .some((f) => f.endsWith(".json") && f !== "unauthenticated.json"))
+      .sort();
+    assert.deepEqual([...RAW_CALIBRATED].sort(), withHealthyBody);
   });
 });
 
@@ -136,6 +151,77 @@ describe("every checked provider has a predicate", () => {
         checkRawBody(provider, "bars", {}), null,
         `${provider} is listed as checked but the dispatcher returns null`,
       );
+    }
+  });
+});
+
+
+/** A committed vendor body, by `provider/name`. */
+const fixture = (name: string): unknown =>
+  JSON.parse(readFileSync(
+    fileURLToPath(new URL(`./fixtures/raw/${name}.json`, import.meta.url)), "utf8",
+  )).body;
+
+describe("the predicates against real vendor bodies", () => {
+  /**
+   * This is the difference between a predicate and a guess.
+   *
+   * Everything above uses bodies this file made up. These use bodies the
+   * vendor actually sent, captured by scripts/capture-provider-fixtures.mjs and
+   * committed — which is the only evidence that can support the claim a check
+   * does not fire on healthy data.
+   */
+
+  it("Alpha Vantage: a real daily series raises nothing", () => {
+    assert.deepEqual(rawViolations("alphavantage", "bars", fixture("alphavantage/bars")), []);
+  });
+
+  it("Alpha Vantage: a real global quote raises nothing", () => {
+    assert.deepEqual(rawViolations("alphavantage", "quote", fixture("alphavantage/quote")), []);
+  });
+
+  it("Alpha Vantage: the numbered-field check reaches a quote's fields", () => {
+    // The bug the fixture found. `Global Quote` carries "01. symbol" directly,
+    // where `Time Series (Daily)` nests a row under a date — so looking one
+    // level down unconditionally landed on the symbol STRING and skipped.
+    // Renaming the fields on a real quote body must now be caught.
+    const quote = JSON.parse(JSON.stringify(fixture("alphavantage/quote"))) as Record<string, Record<string, string>>;
+    quote["Global Quote"] = { symbol: "IBM", price: "237.16" };
+    assert.ok(
+      rawViolations("alphavantage", "quote", quote)
+        .some((v) => v.check === "raw.alphavantage.numbered-fields"),
+      "a quote with un-numbered fields slipped through",
+    );
+  });
+
+  it("Firecrawl: a real anonymous scrape raises nothing", () => {
+    assert.deepEqual(rawViolations("firecrawl", "news", fixture("firecrawl/news")), []);
+  });
+
+  it("FMP: the real 401 envelope is caught as an error envelope", () => {
+    // The captured body is `{"Error Message": "Invalid API KEY…"}` — an OBJECT
+    // where the adapter indexes rows[0]. Without this check it normalises to
+    // undefined fields rather than raising.
+    const violations = rawViolations("fmp", "quote", fixture("fmp/unauthenticated"));
+    assert.ok(violations.some((v) => v.check === "raw.fmp.error-envelope"), JSON.stringify(violations));
+  });
+
+  it("Tiingo: the real 403 envelope is caught as an error envelope", () => {
+    const violations = rawViolations("tiingo", "quote", fixture("tiingo/unauthenticated"));
+    assert.ok(violations.some((v) => v.check === "raw.tiingo.error-envelope"), JSON.stringify(violations));
+  });
+
+  it("Massive: the real 401 envelope is caught as a refusal", () => {
+    const violations = rawViolations("massive", "quote", fixture("massive/unauthenticated"));
+    assert.ok(violations.some((v) => v.check === "raw.massive.declined"), JSON.stringify(violations));
+  });
+
+  it("the three refusal-only providers stay at warn", () => {
+    // Their REFUSAL shape is verified above; their healthy shape is not, and
+    // that is the direction that matters. A check that has never met a good
+    // body must not be able to fail one over.
+    for (const provider of ["fmp", "tiingo", "massive", "openbb"]) {
+      assert.equal(rawSeverity(provider), "warn", `${provider} was promoted without a healthy capture`);
     }
   });
 });

@@ -1,0 +1,20 @@
+{
+  "_comment": "Captured verbatim from the vendor by scripts/capture-provider-fixtures.mjs. This is the SHAPE the vendor sends, not the shape this app normalises to — trimming it would test the normaliser rather than the vendor. Refresh deliberately: a change here is a change in what the vendor promises.",
+  "_url": "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=…&apikey=…",
+  "_status": 200,
+  "_captured": "2026-08-20",
+  "body": {
+    "Global Quote": {
+      "01. symbol": "IBM",
+      "02. open": "232.2600",
+      "03. high": "238.6150",
+      "04. low": "230.5100",
+      "05. price": "237.1600",
+      "06. volume": "5342567",
+      "07. latest trading day": "2026-08-19",
+      "08. previous close": "232.6700",
+      "09. change": "4.4900",
+      "10. change percent": "1.9298%"
+    }
+  }
+}

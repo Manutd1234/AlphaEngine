@@ -1,6 +1,7 @@
 {
   "_comment": "Captured verbatim from the vendor by scripts/capture-provider-fixtures.mjs. This is the SHAPE the vendor sends, not the shape this app normalises to — trimming it would test the normaliser rather than the vendor. Refresh deliberately: a change here is a change in what the vendor promises.",
   "_url": "https://api.bybit.com/v5/market/tickers?category=…&symbol=…",
+  "_status": 200,
   "_captured": "2026-08-20",
   "body": {
     "retCode": 0,
@@ -10,22 +11,22 @@
       "list": [
         {
           "symbol": "BTCUSDT",
-          "bid1Price": "71877.4",
-          "bid1Size": "0.228182",
-          "ask1Price": "71877.5",
-          "ask1Size": "0.674161",
-          "lastPrice": "71880.1",
-          "prevPrice24h": "64380",
-          "price24hPcnt": "0.1165",
-          "highPrice24h": "72071.6",
-          "lowPrice24h": "64353.1",
-          "turnover24h": "1212679098.1291347",
-          "volume24h": "17711.159204",
-          "usdIndexPrice": "71813.325222"
+          "bid1Price": "72129.1",
+          "bid1Size": "0.051544",
+          "ask1Price": "72129.2",
+          "ask1Size": "0.589548",
+          "lastPrice": "72128.1",
+          "prevPrice24h": "64513.5",
+          "price24hPcnt": "0.1180",
+          "highPrice24h": "72483.4",
+          "lowPrice24h": "64468.5",
+          "turnover24h": "1298493444.30115057",
+          "volume24h": "18866.903368",
+          "usdIndexPrice": "72083.006878"
         }
       ]
     },
     "retExtInfo": {},
-    "time": 1787218795814
+    "time": 1787226770106
   }
 }

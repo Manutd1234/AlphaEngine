@@ -38,7 +38,15 @@ import { fail, isArray, isObject, numericString, type RawContractResult } from "
  * reaches the ledger and the inspector without tripping failover on a shape
  * nobody has actually seen.
  */
-export const RAW_CALIBRATED: ReadonlySet<string> = new Set(["binance", "bybit"]);
+export const RAW_CALIBRATED: ReadonlySet<string> = new Set([
+  // Keyless public market endpoints.
+  "binance", "bybit",
+  // Alpha Vantage publishes `apikey=demo`, which returns a genuine body for a
+  // fixed symbol — the vendor's own credential, not this deployment's.
+  "alphavantage",
+  // Firecrawl serves an anonymous scrape, so a healthy body needs no key.
+  "firecrawl",
+]);
 
 /** `warn` unless the provider's checks have been calibrated against a capture. */
 export const rawSeverity = (provider: string): Violation["severity"] =>
@@ -87,17 +95,24 @@ export function checkAlphaVantageRaw(body: unknown, capability: string): RawCont
     violations.push(note("alphavantage", "series-shape", `${seriesKey} is not an object`));
     return fail("alphavantage", capability, violations);
   }
-  // The numbered field names ("1. open") are the format's most breakable part:
-  // they are positional labels in string keys, and a renamed one normalises to
-  // undefined rather than raising.
-  const first = Object.values(series)[0];
-  if (first !== undefined && isObject(first)) {
-    const numbered = Object.keys(first).filter((k) => /^\d+\.\s/.test(k));
+  // The numbered field names ("1. open", "01. symbol") are the format's most
+  // breakable part: they are positional labels inside string keys, and a
+  // renamed one normalises to undefined rather than raising.
+  //
+  // The two endpoints nest differently, which the committed fixtures are what
+  // revealed. "Time Series (Daily)" maps a DATE to a row of numbered fields;
+  // "Global Quote" carries the numbered fields directly. The first version of
+  // this check looked one level down unconditionally, so on a quote it landed
+  // on the symbol string, failed `isObject`, and skipped silently — a gap that
+  // reads as a pass.
+  const row = seriesKey === "Global Quote" ? series : Object.values(series)[0];
+  if (row !== undefined && isObject(row)) {
+    const numbered = Object.keys(row).filter((k) => /^\d+\.\s/.test(k));
     if (numbered.length === 0) {
       violations.push(note(
         "alphavantage", "numbered-fields",
         "row fields are not the numbered '1. open' form",
-        Object.keys(first).join(","),
+        Object.keys(row).join(","),
       ));
     }
   }

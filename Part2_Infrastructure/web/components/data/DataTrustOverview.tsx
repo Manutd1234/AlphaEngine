@@ -759,11 +759,11 @@ export default function DataTrustOverview({
                     volume — the storage half of this boundary, and none of the rest.
                   </li>
                   <li>
-                    Raw vendor schemas are checked for all eight providers, and two of those
-                    checks have been held to a real response. Binance and Bybit need no credential,
-                    so a captured body from each is committed and their checks can fail a payload
-                    over. The other six need a key this deployment keeps write-only, so they warn
-                    rather than act — a validator that has never seen a healthy body cannot reject one.
+                    Raw vendor schemas are checked for all eight providers, and four of those
+                    checks have been held to a real response: two keyless venues, Alpha Vantage
+                    through the demo key it publishes, and an anonymous Firecrawl scrape. The other
+                    four need a key this deployment keeps write-only — three have their refusal
+                    envelope captured, and all four warn rather than act until a healthy body is seen.
                   </li>
                   <li>
                     Escalation reaches one channel. Acknowledgement exists, and only Telegram can
