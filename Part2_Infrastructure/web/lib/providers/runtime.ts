@@ -54,6 +54,8 @@ import {
   validationTelemetry,
 } from "./contracts";
 import { quarantinePayload } from "./quarantine";
+import { DEFAULT_BASE_URL } from "./base-urls";
+import { recordRawBody, withRawChecks } from "./raw-sink";
 import "./trace";
 import {
   Adapter,
@@ -695,6 +697,7 @@ export async function httpJson(
       // telemetry path must not be caught and re-labelled as a malformed vendor
       // response, which is exactly the misdiagnosis this console exists to end.
       report(true, res.status, { payload: parsed });
+      recordRawBody(provider, parsed);  // the only point the RAW body exists
       return parsed;
     } catch (err) {
       if (err instanceof ProviderError) {
@@ -753,19 +756,7 @@ function ctxFor(adapter: Adapter, env: NodeJS.ProcessEnv): FetchCtx {
   };
 }
 
-/** Falls back to the vendor's documented host when no override is set. */
-export const DEFAULT_BASE_URL: Record<string, string> = {
-  alphavantage: "https://www.alphavantage.co",
-  tiingo: "https://api.tiingo.com",
-  // Polygon.io became Massive in Oct 2025; api.polygon.io still resolves, but
-  // the new host is the one under active development.
-  massive: "https://api.massive.com",
-  fmp: "https://financialmodelingprep.com",
-  firecrawl: "https://api.firecrawl.dev",
-  // OpenBB is a Python provider runtime, not a shared public API. This points
-  // at the independently deployed, stateless OpenBB_Service.
-  openbb: "http://127.0.0.1:8010",
-};
+export { DEFAULT_BASE_URL } from "./base-urls";  // callers import it from here
 
 export interface DispatchOptions<T = unknown> {
   capability: Capability;
@@ -878,7 +869,8 @@ export async function dispatch<T>(
     emitQuotaThreshold(adapter, s);
 
     try {
-      const data = await run(adapter, ctxFor(adapter, env));
+      const raw = await withRawChecks(opts.capability, () => run(adapter, ctxFor(adapter, env)));
+      const data = raw.result;
       const latencyMs = Date.now() - startedAt;
 
       // Expectations run after normalisation and before anything is recorded,
@@ -901,6 +893,11 @@ export async function dispatch<T>(
             ...evaluated,
             capability: opts.capability,
             provider: id,
+            // Merged, not carried separately — see raw-sink.ts. `passed` is
+            // recomputed because a fatal raw violation must fail a contract the
+            // normaliser was happy with, which `evaluated.passed` cannot know.
+            violations: [...evaluated.violations, ...raw.violations],
+            passed: evaluated.passed && !raw.violations.some((v) => v.severity === "fatal"),
           };
         } catch {
           contract = undefined;
@@ -937,7 +934,10 @@ export async function dispatch<T>(
       if (!contractFailed) recordSuccess(id, s);
 
       if (contract && contract.violations.length) {
-        quarantinePayload(contract, opts.cacheKey, data, redact);
+        // The RAW body, not `data` — this passed the normalised object for the
+        // whole life of the feature. `raw.seen` guards a provider with no
+        // predicate, whose body was never recorded.
+        quarantinePayload(contract, opts.cacheKey, raw.seen ? raw.body : data, redact);
         emit({
           level: contract.passed ? "warn" : "error",
           source: "Contract",

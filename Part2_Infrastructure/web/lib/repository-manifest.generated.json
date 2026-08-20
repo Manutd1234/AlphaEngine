@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-20",
-  "commit": "6f94522",
+  "commit": "819cd06",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -510,6 +510,7 @@
     "Part2_Infrastructure/web/lib/pref-sync-bus.ts",
     "Part2_Infrastructure/web/lib/profile.ts",
     "Part2_Infrastructure/web/lib/providers/alphavantage.ts",
+    "Part2_Infrastructure/web/lib/providers/base-urls.ts",
     "Part2_Infrastructure/web/lib/providers/binance.ts",
     "Part2_Infrastructure/web/lib/providers/bybit.ts",
     "Part2_Infrastructure/web/lib/providers/capabilities.ts",
@@ -525,6 +526,7 @@
     "Part2_Infrastructure/web/lib/providers/raw-contract-check.ts",
     "Part2_Infrastructure/web/lib/providers/raw-contracts-rest.ts",
     "Part2_Infrastructure/web/lib/providers/raw-contracts.ts",
+    "Part2_Infrastructure/web/lib/providers/raw-sink.ts",
     "Part2_Infrastructure/web/lib/providers/registry.ts",
     "Part2_Infrastructure/web/lib/providers/route-labels.ts",
     "Part2_Infrastructure/web/lib/providers/runtime.ts",
