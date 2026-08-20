@@ -1,7 +1,7 @@
 -- AlphaEngine desk enums.
 --
 -- `order_verdict` carries every gate name the Python engine can emit
--- (modules/risk_proxy.py, the fifteen `add("...")` calls) plus ACCEPTED and
+-- (modules/risk_proxy/, the `add("...")` calls) plus ACCEPTED and
 -- the two aliases the original blueprint used. Six blueprint labels would
 -- have forced the mirror to RELABEL a rejection — worse than not mirroring
 -- it. tests/test_supabase_schema.py asserts this list against the engine.
@@ -12,7 +12,11 @@ create type public.order_side as enum ('BUY', 'SELL');
 
 create type public.order_verdict as enum (
   'ACCEPTED',
-  -- the fifteen real gates, in engine order
+  -- The real gates, in engine order. NOT the complete set: two more —
+  -- paper_execution_model and reference_freshness — arrive in
+  -- 20260821020000, along with unmapped_gate. They were missed because the
+  -- test that harvests this list matched a single-line add call, and neither
+  -- of those two is written on one line.
   'kill_switch',
   'symbol_halt',
   'symbol_whitelist',

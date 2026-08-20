@@ -62,6 +62,14 @@ GATE_TO_VERDICT: dict[str, str] = {
     "daily_drawdown": "daily_drawdown",
     "reduce_only": "reduce_only",
     "est_slippage": "est_slippage",
+    # Paper-equity only, and missing from this map until 2026-08-21. The
+    # harvest that was supposed to catch that regexed `add("...")` and could not
+    # see a call whose name sits on a different line from the `add(`, which is
+    # how both of these are written. Fifteen names harvested, fifteen keys here,
+    # set comparison green — while an order refused by either fell through the
+    # `else` below and mirrored as **kill_switch**.
+    "paper_execution_model": "paper_execution_model",
+    "reference_freshness": "reference_freshness",
 }
 
 _ERROR_KINDS = ("timeout", "auth", "rejected", "unreachable")
@@ -72,7 +80,18 @@ def verdict_for(decision: RiskDecision) -> tuple[str, list[str]]:
     labels = [GATE_TO_VERDICT[g] for g in decision.rejected_by if g in GATE_TO_VERDICT]
     if decision.accepted:
         return "ACCEPTED", labels
-    return (labels[0] if labels else "kill_switch"), labels
+    if labels:
+        return labels[0], labels
+    # A refusal with no mapped gate is a BUG in this map, not a halt. It used to
+    # return "kill_switch", which reported the calmest possible desk state as
+    # the most alarming one and hid the mapping gap behind a plausible answer.
+    # `unmapped_gate` is in the enum so this is visible in the blotter, and the
+    # log line names the gates so the map can be repaired.
+    log.error(
+        "supabase mirror: no verdict mapped for rejected_by=%s; recording unmapped_gate",
+        list(decision.rejected_by),
+    )
+    return "unmapped_gate", labels
 
 
 def decision_payload(

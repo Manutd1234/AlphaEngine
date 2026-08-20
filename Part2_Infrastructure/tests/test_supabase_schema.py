@@ -9,10 +9,12 @@ here touches a network or a database.
 
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 
 from config import settings
+from modules.risk_proxy import GATE_ORDER
 from modules.supabase_mirror import GATE_TO_VERDICT
 
 MIGRATIONS = Path(__file__).resolve().parent.parent.parent / "supabase" / "migrations"
@@ -38,8 +40,37 @@ RISK_PROXY = "\n".join(path.read_text() for path in RISK_PROXY_FILES)
 
 
 def engine_gate_names() -> set[str]:
-    """Every gate name `submit()` can emit, read from the package's source."""
-    return set(re.findall(r'add\("([a-z_]+)"', RISK_PROXY))
+    """Every gate name `submit()` can emit, read from the package's source.
+
+    Parsed, not grepped. The regex this replaced — `add\("([a-z_]+)"` — could
+    only see a call whose name literal sat on the same line as the `add(`, and
+    two of the seventeen gates do not: `paper_execution_model` and
+    `reference_freshness` are written across several lines because they carry
+    `observed=`/`limit=`. The harvest therefore returned FIFTEEN names, which
+    is exactly the number of keys `GATE_TO_VERDICT` holds, so
+    `test_every_engine_gate_maps_into_the_enum` compared fifteen against
+    fifteen and passed — while the two gates it could not see had no verdict in
+    the map and no label in the SQL enum. Both sides had drifted to the same
+    wrong answer, which is the one arrangement a set comparison cannot detect.
+
+    An AST walk sees the call however it is formatted. `ast.Name` and not
+    `ast.Attribute` on purpose: `submit()`'s local helper is a bare `add(...)`,
+    while `self._seen_set.add(...)` and `halted_symbols.add(...)` are set
+    mutations that are not gates.
+    """
+    harvested: set[str] = set()
+    for path in RISK_PROXY_FILES:
+        for node in ast.walk(ast.parse(path.read_text())):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "add"
+                and node.args
+                and isinstance(node.args[0], ast.Constant)
+                and isinstance(node.args[0].value, str)
+            ):
+                harvested.add(node.args[0].value)
+    return harvested
 
 
 class TestMigrationHygiene:
@@ -63,8 +94,16 @@ class TestGateParity:
         """
         assert len(RISK_PROXY_FILES) > 1, f"only found {len(RISK_PROXY_FILES)} modules"
         assert 'add("' in RISK_PROXY, "the package source carries no gate calls"
-        assert len(engine_gate_names()) >= 10, (
-            f"harvested only {len(engine_gate_names())} gates; the engine raises far more"
+        # Anchored to the DECLARED registry rather than to a floor. A floor of
+        # ten was satisfied by a harvest that had gone blind to two gates, and
+        # a harvest that is merely "big enough" is a harvest nobody can trust
+        # the next comparison against. `GATE_ORDER` is itself pinned to the
+        # seventeen names by `tests/test_decision_core_native.py`, so this ties
+        # the scan to something that cannot quietly shrink with it.
+        assert engine_gate_names() == set(GATE_ORDER), (
+            "the harvest and the declared gate registry disagree — "
+            f"unharvested: {sorted(set(GATE_ORDER) - engine_gate_names())}, "
+            f"unregistered: {sorted(engine_gate_names() - set(GATE_ORDER))}"
         )
 
     def test_every_engine_gate_maps_into_the_enum(self):
@@ -76,11 +115,44 @@ class TestGateParity:
         )
 
     def test_every_mapped_verdict_is_declared_in_the_sql_enum(self):
-        enum_sql = SQL["20260808120000_desk_enums.sql"]
-        body = enum_sql[enum_sql.index("create type public.order_verdict") :]
-        declared = set(re.findall(r"'([A-Za-z_]+)'", body[: body.index(";")]))
-        for label in list(GATE_TO_VERDICT.values()) + ["ACCEPTED"]:
-            assert label in declared, f"enum missing {label}"
+        """The CREATE plus every later ALTER, not one migration file.
+
+        This read `20260808120000_desk_enums.sql` alone. An enum is not defined
+        by the migration that creates it — `alter type … add value` in a later
+        migration is just as much part of it, and pinning the CREATE means a
+        value added afterwards is invisible here. That is how
+        `paper_execution_model` and `reference_freshness` could be added to the
+        map and still be reported missing from an enum that now declares them.
+        """
+        declared = self._declared_verdicts()
+        for label in list(GATE_TO_VERDICT.values()) + ["ACCEPTED", "unmapped_gate"]:
+            assert label in declared, f"order_verdict enum is missing {label}"
+
+    def test_the_enum_scan_reads_more_than_the_create(self):
+        """A scan that matched only the CREATE would pass for the wrong reason.
+
+        Every value added by a later migration would be absent from `declared`,
+        so this asserts the ALTERs were actually seen.
+        """
+        declared = self._declared_verdicts()
+        assert "unmapped_gate" in declared, (
+            "the scan is reading only the create-type migration; values added by "
+            "a later `alter type … add value` are invisible to it"
+        )
+
+    @staticmethod
+    def _declared_verdicts() -> set[str]:
+        declared: set[str] = set()
+        for sql in SQL.values():
+            if "create type public.order_verdict" in sql:
+                body = sql[sql.index("create type public.order_verdict") :]
+                declared |= set(re.findall(r"'([A-Za-z_]+)'", body[: body.index(";")]))
+            for value in re.findall(
+                r"alter type public\.order_verdict\s+add value(?:\s+if not exists)?\s+'([A-Za-z_]+)'",
+                sql, re.I,
+            ):
+                declared.add(value)
+        return declared
 
     def test_limit_defaults_mirror_config(self):
         tables = SQL["20260808120100_desk_tables.sql"]
