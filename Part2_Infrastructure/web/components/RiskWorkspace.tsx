@@ -258,11 +258,10 @@ export default function RiskWorkspace({
             <details className="disclosure">
               <summary>How effective positions is derived</summary>
               <p className="research-note">
-                Effective positions is 1 ÷ the Herfindahl index of the book&apos;s weights: how many
-                equally-sized positions would carry this much concentration.{" "}
-                {positions.length} position{positions.length === 1 ? "" : "s"} behaving like{" "}
-                {fmt(book.concentration.effective_positions, 1)} says how much of the book is
-                really one bet.
+                1 ÷ the Herfindahl index of the book&apos;s weights: how many equally-sized
+                positions would carry this much concentration. {positions.length} position
+                {positions.length === 1 ? "" : "s"} behaving like{" "}
+                {fmt(book.concentration.effective_positions, 1)} says how much is really one bet.
               </p>
             </details>
           </div>
@@ -358,8 +357,7 @@ export default function RiskWorkspace({
               </div>
             </div>
             <p className="sub">
-              A flat book has no exposure for a shock to move. Load the sandbox to see the engine
-              on a populated book.
+              A flat book has no exposure for a shock to move. Load the sandbox to see the engine.
             </p>
           </div>
         )}
@@ -375,8 +373,8 @@ export default function RiskWorkspace({
             <span>handoff only</span>
           </div>
           <p className="sub">
-            This workspace holds no gateway credential and cannot move risk; these compose the exact
-            authenticated request your gateway will gate and audit.
+            This workspace holds no gateway credential and cannot move risk. These compose the
+            authenticated request your gateway would gate and audit.
           </p>
           <div className="page-actions">
             <button onClick={() => setHandoff({ kind: "flatten_all" })} disabled={!positions.length}>
