@@ -13523,7 +13523,11 @@ h4 {
 
 .signal-workflow__stage {
   display: flex;
-  align-items: center;
+  /* stretch, not center. The track is `align-items: stretch` so all five
+     stages are the same height, but centring the node inside its stage let a
+     shorter box float in the middle of it — so boxes whose kicker fits on one
+     line sat lower than their neighbours and their titles did not line up. */
+  align-items: stretch;
   gap: 8px;
   flex: 1 1 0;
   /* Not `min-width: 0`: the node inside has a 152px floor and the stage was
@@ -13537,6 +13541,9 @@ h4 {
 .signal-workflow__node {
   flex: 1;
   min-width: 152px;
+  /* Fills the stretched stage. The print block has carried this for its own
+     grid since it was written; the interactive view never did. */
+  height: 100%;
   display: grid;
   align-content: start;
   gap: 3px;
@@ -13571,6 +13578,11 @@ h4 {
 }
 
 .signal-workflow__step {
+  /* Two lines' worth, always. The kickers are generated — "2 direct REST
+     clients" grows with the venue count — so some wrap and some do not, and a
+     one-line kicker pulled its title up a line above its neighbours'. Reserving
+     the taller case puts every title on the same line whatever the data says. */
+  min-height: calc(var(--fs-2xs) * var(--lh-snug) * 2);
   color: var(--series-1);
   font-size: var(--fs-2xs);
   font-weight: 750;
