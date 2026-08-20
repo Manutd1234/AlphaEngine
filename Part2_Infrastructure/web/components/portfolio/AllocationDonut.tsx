@@ -187,9 +187,6 @@ export default function AllocationDonut({
             <span>
               HHI <strong className="num">{fmt(hhi, 3)}</strong>
             </span>
-            <span>
-              Behaves like <strong className="num">{fmt(effectivePositions, 1)}</strong> equal positions
-            </span>
           </>
         )}
       </div>

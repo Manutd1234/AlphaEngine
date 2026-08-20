@@ -377,10 +377,13 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
             </>
           )}
         </p>
+        {/* DriftBars renders directly below this and its own legend already
+            says a bar inside the band "emits no trade at all", and that the
+            slider "adds or removes trades in one motion". The fees-versus-risk
+            reason is the only part it does not carry. */}
         <p className="research-note">
-          Positions inside the drift band are left alone. Correcting a small deviation costs more in
-          fees and slippage than the deviation costs in risk — which is what the shaded region on the
-          chart is, and why widening it removes trades.
+          Correcting a small deviation costs more in fees and slippage than the deviation costs in
+          risk. That is what the band is buying.
         </p>
         {capBinds && (
           <p className="research-note">

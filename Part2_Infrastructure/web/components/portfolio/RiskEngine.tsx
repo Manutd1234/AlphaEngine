@@ -203,10 +203,6 @@ export default function RiskEngine({
         </p>
       )}
 
-      <p className="research-note">
-        Parametric VaR assumes normal returns, which is why the historical figure is shown beside it
-        rather than instead of it.
-      </p>
     </div>
 
     {varSeries && (
