@@ -69,9 +69,9 @@ export default function SignalDAGViewer({
           told a sighted reader, so the last sentence stays. The two claims that
           are not visible — the provenance and the paper-only scope — stay too. */}
       <p className="sub">
-        Consolidated depth through the pre-trade battery to a paper order, each stage&rsquo;s state
-        read from the health snapshot. Orders are paper only: this desk holds no funds and reaches
-        no real venue. Select a stage for the reading behind it.
+        Consolidated depth through the pre-trade battery to a paper order, each stage read from
+        the health snapshot. Orders are paper only: no funds, no real venue. Select a stage for
+        the reading behind it.
       </p>
 
       <ol className="signal-workflow__track" aria-label="Signal path stages">
