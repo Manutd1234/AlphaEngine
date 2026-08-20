@@ -40,8 +40,8 @@ type PerformancePane = "flow" | "trend";
  * split and becomes a second navigation the reader has to learn.
  */
 const PERFORMANCE_PANES: Array<{ id: PerformancePane; label: string; hint: string }> = [
-  { id: "flow", label: "Flow, lifetime", hint: "Every audited order since the log was opened — attributed by sleeve, by instrument, and totalled desk-wide" },
-  { id: "trend", label: "Trend, this session", hint: "How far under water this session went and whether its return was worth its own variance, measured from the equity track this tab has collected" },
+  { id: "flow", label: "Flow, lifetime", hint: "Every audited order since the log was opened, by sleeve, by instrument and desk-wide" },
+  { id: "trend", label: "Trend, this session", hint: "How far under water this session went, and whether its return was worth its variance" },
 ];
 
 /**
@@ -175,7 +175,7 @@ export default function PerformanceSection({ book, isStale, equityTrack }: Perfo
                               holding risk is only partly scored. Without this the
                               number reads as a final verdict on the sleeve. */}
                           {strategy.has_open_inventory && (
-                            <small className="muted" title="This sleeve still holds inventory, so its realised P&L is only part of the story">
+                            <small className="muted" title="This sleeve still holds inventory, so its realised P&L is only part of it">
                               {", "}open
                             </small>
                           )}
@@ -197,9 +197,8 @@ export default function PerformanceSection({ book, isStale, equityTrack }: Perfo
               <p className="portfolio-attribution-empty">No audited order flow has been recorded for this session.</p>
             )}
             <p className="research-note">
-              These totals are lifetime, not session — they cover every order since the audit log was
-              opened. The session-scoped costs are the ones the P&amp;L waterfall on Overview uses, and
-              mixing the two would subtract a lifetime fee bill from one day&apos;s P&amp;L.
+              Lifetime totals, every order since the audit log opened. The Overview waterfall is
+              session-scoped: mixing the two subtracts a lifetime fee bill from one day&apos;s P&amp;L.
             </p>
           </div>
 
@@ -244,8 +243,7 @@ export default function PerformanceSection({ book, isStale, equityTrack }: Perfo
                 </table>
               </div>
               <p className="research-note">
-                The rejected column is the interesting one: it is where the pre-trade limits actually
-                bound, and an instrument that never rejects is either well-sized or never tested.
+                An instrument that never rejects is either well-sized or never tested.
               </p>
             </div>
           )}
@@ -275,9 +273,8 @@ export default function PerformanceSection({ book, isStale, equityTrack }: Perfo
                 ))}
               </div>
               <p className="research-note">
-                Latency percentiles rather than an average alone: a mean decision time hides the one
-                order in a hundred that took long enough to miss its price, which is the number an
-                execution review argues about.
+                A mean decision time hides the one order in a hundred that took long enough to miss
+                its price.
               </p>
             </div>
           )}
