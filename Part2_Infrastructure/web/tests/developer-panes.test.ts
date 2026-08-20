@@ -25,6 +25,14 @@
  * Source-level assertions, like the workspace and remediation suites this
  * extends: there is no DOM here, and the properties worth pinning are
  * structural.
+ *
+ * The console is no longer one file. `DeveloperConsole.tsx` passed the length
+ * ceiling and each section moved to `components/developer/` along the seams the
+ * section rail already drew — `DeveloperOverview` (topology and readiness),
+ * `DeveloperPipelines` (CI / CD), `DeveloperInterfaces` (API & Schema) and the
+ * shared vocabulary in `DeveloperStatus`. Nothing below changed its claim: an
+ * assertion about ONE component reads that component's file, and an assertion
+ * about what the whole TAB mounts reads `tab`, the group of files that make it.
  */
 
 import assert from "node:assert/strict";
@@ -43,28 +51,50 @@ const code = (source: string) =>
     .replace(/\/\/.*$/gm, "");
 
 const console_ = read("../components/DeveloperConsole.tsx");
+const overview_ = read("../components/developer/DeveloperOverview.tsx");
+const pipelines_ = read("../components/developer/DeveloperPipelines.tsx");
+const interfaces_ = read("../components/developer/DeveloperInterfaces.tsx");
+const status_ = read("../components/developer/DeveloperStatus.tsx");
+const explorer = read("../components/developer/CodebaseExplorer.tsx");
 const queue = read("../components/developer/DeveloperWorkQueue.tsx");
 const catalog = read("../components/developer/DeveloperApiCatalog.tsx");
 const health = read("../lib/use-system-health.ts");
 
+/**
+ * Every file the Developer tab renders from, as one string.
+ *
+ * Only for the claims that are about the TAB rather than about a component:
+ * how many rails it mounts, how many times one card appears on it, whether it
+ * offers a refresh anywhere. Those used to be a scan of the single console
+ * file; reading the group is what keeps them meaning the same thing after the
+ * split, and keeps a second rail from arriving inside a section file unseen.
+ */
+const tab = [console_, overview_, pipelines_, interfaces_, status_, explorer, queue, catalog].join("\n");
+
 /** The body of a top-level function, up to the next one. */
 function functionBody(source: string, name: string): string {
   const start = source.indexOf(`function ${name}(`);
-  assert.ok(start > 0, `DeveloperConsole no longer declares ${name}`);
+  assert.ok(start > 0, `${name} is no longer declared in the file this test reads it from`);
   const next = source.indexOf("\nfunction ", start + 1);
   const exported = source.indexOf("\nexport ", start + 1);
   const ends = [next, exported].filter((index) => index > start);
   return source.slice(start, ends.length ? Math.min(...ends) : source.length);
 }
 
-/** A pane list literal, as {id, label, hint} triples. */
-function panes(name: string): Array<{ id: string; label: string; hint: string }> {
-  const start = console_.indexOf(`const ${name}`);
+/** A pane list literal, as {id, label, hint} triples, from the file that owns it. */
+function panes(source: string, name: string): Array<{ id: string; label: string; hint: string }> {
+  const start = source.indexOf(`const ${name}`);
   assert.ok(start > 0, `${name} is no longer a module-level constant`);
-  const block = console_.slice(start, console_.indexOf("];", start));
+  const block = source.slice(start, source.indexOf("];", start));
   return [...block.matchAll(/\{\s*id:\s*"(\w+)",\s*label:\s*"([^"]*)",\s*hint:\s*"([^"]*)"/g)]
     .map((match) => ({ id: match[1], label: match[2], hint: match[3] }));
 }
+
+/** The pane lists and the components that render them, paired with their file. */
+const PANE_SECTIONS = [
+  { component: "DeveloperPipelines", constant: "QUALITY_PANES", source: pipelines_ },
+  { component: "DeveloperInterfaces", constant: "INTERFACE_PANES", source: interfaces_ },
+] as const;
 
 describe("the two dense Developer sections split into panes, not a second rail", () => {
   it("keeps exactly one WorkspaceSubtabs on the tab", () => {
@@ -73,10 +103,15 @@ describe("the two dense Developer sections split into panes, not a second rail",
      * comment asserts that exactly one rail is mounted at a time. Two rails are
      * two observers writing one variable that every sticky offset in the app
      * reads, so a split section switches with `.seg` as Remediation does.
+     *
+     * Counted across every file the tab renders from, not just the shell: the
+     * sections are their own files now, and a rail added inside one of them
+     * would be the same two observers.
      */
-    assert.equal(code(console_).match(/<WorkspaceSubtabs\b/g)?.length, 1);
-    assert.match(functionBody(console_, "DeveloperPipelines"), /className="seg" role="group"/);
-    assert.match(functionBody(console_, "DeveloperInterfaces"), /className="seg" role="group"/);
+    assert.equal(code(tab).match(/<WorkspaceSubtabs\b/g)?.length, 1);
+    for (const { component, source } of PANE_SECTIONS) {
+      assert.match(functionBody(source, component), /className="seg" role="group"/);
+    }
   });
 
   it("puts the switcher in the panel's block flow, not inside the card stack", () => {
@@ -90,8 +125,8 @@ describe("the two dense Developer sections split into panes, not a second rail",
      * 1400px panel. Outside the stack it is a block in the subtab panel, which
      * is where the Positions and Remediation switchers sit too.
      */
-    for (const component of ["DeveloperPipelines", "DeveloperInterfaces"]) {
-      const body = code(functionBody(console_, component));
+    for (const { component, source } of PANE_SECTIONS) {
+      const body = code(functionBody(source, component));
       const seg = body.indexOf('className="seg"');
       const stack = body.indexOf('className="developer-cp-stack"');
       assert.ok(seg > 0 && stack > 0, `${component} lost its switcher or its stack`);
@@ -103,11 +138,11 @@ describe("the two dense Developer sections split into panes, not a second rail",
     // `.seg button { flex: 1 }`: a fourth option abbreviates every label. The
     // stylesheet records the rule at `.allocation-controls`, where four methods
     // became a grouped select for exactly this reason.
-    assert.deepEqual(panes("QUALITY_PANES").map((pane) => pane.id), ["pipeline", "verification"]);
-    assert.deepEqual(panes("INTERFACE_PANES").map((pane) => pane.id), ["contracts", "routes", "numerics"]);
-    for (const name of ["QUALITY_PANES", "INTERFACE_PANES"]) {
-      const count = panes(name).length;
-      assert.ok(count >= 2 && count <= 3, `${name} holds ${count} options; a .seg holds two or three`);
+    assert.deepEqual(panes(pipelines_, "QUALITY_PANES").map((pane) => pane.id), ["pipeline", "verification"]);
+    assert.deepEqual(panes(interfaces_, "INTERFACE_PANES").map((pane) => pane.id), ["contracts", "routes", "numerics"]);
+    for (const { constant, source } of PANE_SECTIONS) {
+      const count = panes(source, constant).length;
+      assert.ok(count >= 2 && count <= 3, `${constant} holds ${count} options; a .seg holds two or three`);
     }
   });
 
@@ -115,13 +150,11 @@ describe("the two dense Developer sections split into panes, not a second rail",
     // The pane lists are objects rather than strings for this: a one-word label
     // cannot say what a pane answers, and the hint is what the title attribute
     // shows before the reader has clicked anything.
-    for (const name of ["QUALITY_PANES", "INTERFACE_PANES"]) {
-      for (const pane of panes(name)) {
-        assert.ok(pane.hint.length > 24, `${name}.${pane.id} has a hint that says nothing`);
+    for (const { component, constant, source } of PANE_SECTIONS) {
+      for (const pane of panes(source, constant)) {
+        assert.ok(pane.hint.length > 24, `${constant}.${pane.id} has a hint that says nothing`);
       }
-    }
-    for (const component of ["DeveloperPipelines", "DeveloperInterfaces"]) {
-      const body = functionBody(console_, component);
+      const body = functionBody(source, component);
       assert.match(body, /title=\{option\.hint\}/, `${component}'s switcher drops the hints`);
       assert.match(body, /aria-pressed=\{pane === option\.id\}/, `${component} loses the pressed state`);
     }
@@ -131,14 +164,14 @@ describe("the two dense Developer sections split into panes, not a second rail",
     // CI / CD is reached from "Open CI / CD" on the topology card, which is a
     // reader asking what this commit is doing; API & Schema opens on the gates
     // rather than on the route list, because the gates are the verdict.
-    assert.match(console_, /useState<QualityPane>\("pipeline"\)/);
-    assert.match(console_, /useState<InterfacePane>\("contracts"\)/);
+    assert.match(pipelines_, /useState<QualityPane>\("pipeline"\)/);
+    assert.match(interfaces_, /useState<InterfacePane>\("contracts"\)/);
   });
 });
 
 describe("a switched-away pane is unmounted, not hidden", () => {
-  const pipelines = code(functionBody(console_, "DeveloperPipelines"));
-  const interfaces = code(functionBody(console_, "DeveloperInterfaces"));
+  const pipelines = code(functionBody(pipelines_, "DeveloperPipelines"));
+  const interfaces = code(functionBody(interfaces_, "DeveloperInterfaces"));
 
   it("renders every pane conditionally", () => {
     for (const pane of ["pipeline", "verification"]) {
@@ -176,7 +209,9 @@ describe("a switched-away pane is unmounted, not hidden", () => {
 
     assert.equal(interfaces.match(/<SchemaGateTable/g)?.length, 1);
     assert.equal(interfaces.match(/<DeveloperApiCatalog \/>/g)?.length, 1);
-    assert.equal(code(console_).match(/<McBrowserParityCheck \/>/g)?.length, 1);
+    // Counted over the whole tab, as it was when the tab was one file: the
+    // parity card is mounted in exactly one pane, in one section.
+    assert.equal(code(tab).match(/<McBrowserParityCheck \/>/g)?.length, 1);
   });
 
   it("keeps the browser parity run beside the row it corroborates", () => {
@@ -187,11 +222,15 @@ describe("a switched-away pane is unmounted, not hidden", () => {
      * Node runtime — are the "Monte Carlo numerics" row of the schema table.
      * Splitting them would leave a reader who finds a mismatch holding two
      * sections in their head to say which runtime disagreed.
+     *
+     * The row and the table are in `DeveloperStatus` now — the shared
+     * vocabulary every Developer section reports in — and the run is in
+     * `DeveloperInterfaces` beside the pane that shows the table.
      */
     const numerics = interfaces.slice(interfaces.indexOf('pane === "numerics"'));
     assert.match(numerics, /<McBrowserParityCheck \/>/);
-    assert.match(console_, /object: "Monte Carlo numerics"/);
-    assert.match(functionBody(console_, "SchemaGateTable"), /Monte Carlo numerics/);
+    assert.match(status_, /object: "Monte Carlo numerics"/);
+    assert.match(functionBody(status_, "SchemaGateTable"), /Monte Carlo numerics/);
   });
 });
 
@@ -266,7 +305,10 @@ describe("one control per capability in the engineering queue", () => {
 
 describe("the Developer head does not offer a second copy of the shared poll", () => {
   it("deletes the console's own refresh", () => {
-    const source = code(console_);
+    // Read across the tab, not just the shell: the head is still in
+    // `DeveloperConsole`, but the sections take the same `view` and any of
+    // them could grow the button the head lost.
+    const source = code(tab);
     assert.ok(!source.includes("Refresh health"));
     assert.doesNotMatch(source, /view\.refresh\(/, "the console calls the shared refresh again");
   });
@@ -291,8 +333,11 @@ describe("the three cross-tab links keep one treatment between them", () => {
      * navigation read as the most important action on the section. They are not
      * to be deleted: another pass gives them target sections. What must stay
      * true is that they look like each other.
+     *
+     * The shared-context card is the tail of the topology half of
+     * `DeveloperOverview` since the console was split.
      */
-    const source = code(console_);
+    const source = code(overview_);
     const start = source.indexOf('className="developer-cp-context__actions"');
     assert.ok(start > 0, "the cross-tab links are gone from the shared-context card");
     const block = source.slice(start, source.indexOf("</div>", start));
@@ -334,8 +379,12 @@ describe("the catalog the Routes pane now owns is unchanged", () => {
  * evidence to restore.
  */
 describe("a readiness gate that could not run is not a gate that failed", () => {
-  const schema = code(functionBody(console_, "schemaCompatibilityState"));
-  const overview = code(functionBody(console_, "DeveloperOverview"));
+  // The derivations are `DeveloperStatus` — the one place the ladder is
+  // spelled — and the panel that counts them is `DeveloperOverview`. Two files
+  // now, one claim: a state that carries no reading is `unmeasured`, and the
+  // ladder reports it as neither a pass nor a failure.
+  const schema = code(functionBody(status_, "schemaCompatibilityState"));
+  const overview = code(functionBody(overview_, "DeveloperOverview"));
 
   it("refuses a live-contract verdict when the gateway did not answer this poll", () => {
     // `platform` is set only from a gateway snapshot this poll returned, so its
@@ -383,8 +432,8 @@ describe("a readiness gate that could not run is not a gate that failed", () => 
      * (the gate ran, the gateway is not healthy); an unconfigured gateway, an
      * unpinned signing key and a build that is not a deployment are absences.
      */
-    const gateway = code(functionBody(console_, "gatewayState"));
-    const artifact = code(functionBody(console_, "artifactCustodyState"));
+    const gateway = code(functionBody(status_, "gatewayState"));
+    const artifact = code(functionBody(status_, "artifactCustodyState"));
     assert.match(gateway, /tone: off \? "off" : "warn", unmeasured: off/);
     assert.match(artifact, /"untrusted"\) return \{ label: "No trust root", detail: evidence\.detail, tone: "warn", unmeasured: true/);
     assert.match(artifact, /"invalid"\) return \{ label: "Invalid", detail: evidence\.detail, tone: "bad" \}/);
