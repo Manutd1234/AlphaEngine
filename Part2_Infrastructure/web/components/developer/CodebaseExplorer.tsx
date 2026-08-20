@@ -78,12 +78,9 @@ export default function CodebaseExplorer() {
         <div>
           <span className="page-kicker">Repository map</span>
           <h2>Browse the complete codebase snapshot</h2>
-          {/* Read-only-ness is stated once, by the notice block below — it
-              carries the actionable refresh command, so it is the copy that
-              earns the words. */}
-          <p className="sub">
-            Covers every checked-in and newly authored path in this workspace.
-          </p>
+          {/* No subtitle: it restated the heading. Read-only-ness and coverage
+              are stated once, by the notice block below, which also carries the
+              actionable refresh command. */}
         </div>
         <div className="codebase-explorer__stats" aria-label="Repository snapshot summary">
           {/* As of comes first: it qualifies the four counts beside it, and a
