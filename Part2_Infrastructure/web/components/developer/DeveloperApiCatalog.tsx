@@ -53,6 +53,7 @@ export const API_OPERATIONS: readonly ApiOperation[] = [
   { method: "GET", path: "/api/system/actions", purpose: "Operator guard and action capabilities", group: "system" },
   { method: "POST", path: "/api/system/actions", purpose: "Purge, breaker, outage, or probe action", group: "system" },
   { method: "GET", path: "/api/system/events?since=0", purpose: "Structured trace cursored by sequence", group: "system" },
+  { method: "GET", path: "/api/stream/desk", purpose: "Risk state pushed on change; state travels in-band as the first event", group: "system" },
   { method: "GET", path: "/api/system/health", purpose: "Providers, breakers, latency, failover, and cache", group: "system" },
   { method: "GET", path: "/api/system/inspect?symbol=BTCUSDT&raw=1", purpose: "One request with route and raw-payload lineage", group: "system" },
 

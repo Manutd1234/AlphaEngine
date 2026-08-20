@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-20",
-  "commit": "07a1d89",
+  "commit": "57241fb",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -233,6 +233,7 @@
     "Part2_Infrastructure/web/app/api/providers/route.ts",
     "Part2_Infrastructure/web/app/api/quote/route.ts",
     "Part2_Infrastructure/web/app/api/research/route.ts",
+    "Part2_Infrastructure/web/app/api/stream/desk/route.ts",
     "Part2_Infrastructure/web/app/api/system/actions/route.ts",
     "Part2_Infrastructure/web/app/api/system/events/route.ts",
     "Part2_Infrastructure/web/app/api/system/health/route.ts",
@@ -502,6 +503,7 @@
     "Part2_Infrastructure/web/lib/use-book.ts",
     "Part2_Infrastructure/web/lib/use-complexity.ts",
     "Part2_Infrastructure/web/lib/use-data-work-queue.ts",
+    "Part2_Infrastructure/web/lib/use-desk-stream.ts",
     "Part2_Infrastructure/web/lib/use-desk-tape.ts",
     "Part2_Infrastructure/web/lib/use-exit-quotes.ts",
     "Part2_Infrastructure/web/lib/use-gateway-connection.ts",

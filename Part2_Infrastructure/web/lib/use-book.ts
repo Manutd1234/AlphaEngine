@@ -38,6 +38,8 @@ import {
 } from "@/lib/portfolio";
 import { useSession } from "@/lib/use-session";
 import { probeGateway } from "@/lib/use-gateway-connection";
+import { useDeskStream } from "@/lib/use-desk-stream";
+import { usePolling } from "@/lib/use-polling";
 import {
   type AllocationLimits,
   type CovarianceModel,
@@ -303,20 +305,42 @@ export function useBook(): BookView {
 
   useEffect(() => {
     void refresh();
-    // While the sandbox is on there is nothing to poll: the book is generated
-    // locally and the gateway probe already ran once. Leaving the interval
-    // running cost four dead 503s a minute and a needless re-render per tick.
-    if (sandbox) {
-      return () => { sequence.current += 1; };
-    }
-    const timer = setInterval(() => {
-      if (!document.hidden) void refresh(true);
-    }, REFRESH_MS);
-    return () => {
-      clearInterval(timer);
-      sequence.current += 1;
-    };
+    return () => { sequence.current += 1; };
   }, [refresh, sandbox]);
+
+  /**
+   * The gateway pushes when the risk state changes; this refetches when it does.
+   *
+   * The book is re-marked every second server-side and polled every fifteen
+   * here, so a change could sit unseen for most of a poll interval —
+   * ~16s worst case once the cockpit's 4s and WorkingOrders' 5s are in the
+   * picture. `seq` moves only on a real change, so an idle desk still costs
+   * nothing and a moving one is fetched within about a second of moving.
+   *
+   * The poll stays underneath. It is the fallback for every deployment without
+   * a gateway stream, and the backstop for a stream that dies quietly — this
+   * is a signal that something changed, never the only way to learn it.
+   */
+  const stream = useDeskStream(!sandbox);
+  const lastSeq = useRef(0);
+  useEffect(() => {
+    if (sandbox || stream.state !== "live" || stream.seq === 0) return;
+    if (stream.seq === lastSeq.current) return;
+    lastSeq.current = stream.seq;
+    void refresh(true);
+  }, [sandbox, stream.state, stream.seq, refresh]);
+
+  /*
+   * While the sandbox is on there is nothing to poll: the book is generated
+   * locally and the gateway probe already ran once. Leaving the interval
+   * running cost four dead 503s a minute and a needless re-render per tick.
+   */
+  usePolling({
+    tick: () => refresh(true),
+    intervalMs: REFRESH_MS,
+    maxBackoffMs: 120_000,
+    enabled: !sandbox,
+  });
 
   /**
    * Fill the book in when the first probe settles without one — for any reason.

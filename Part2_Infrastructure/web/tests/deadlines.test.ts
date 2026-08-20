@@ -276,34 +276,58 @@ describe("a timeout is not a failure, and does not say it is", () => {
   });
 });
 
-describe("the streamed desk is gone rather than orphaned", () => {
+describe("the streamed desk is wired, not orphaned", () => {
   /**
-   * `lib/use-desk-stream.ts` had no importer, which left `/api/stream/desk` — an
-   * SSE proxy held open for the life of a tab — with no browser consumer at all.
-   * Both were removed rather than wired up: the hook cannot reach its own
-   * `unconfigured` state, because `EventSource` exposes neither the status code
-   * nor the body of the 503 the proxy returns when no gateway is configured, and
-   * that is the public deployment's normal state. Wiring it would have shipped a
-   * permanent "Connecting to the live desk feed…" to the deployment most people
-   * see. The gateway keeps its own `/api/stream/desk`; re-proxying it is a small
-   * job for whoever has a consumer that needs it.
+   * These two were deleted once, and the reason was specific rather than
+   * general: the hook had no importer, and it could not reach its own
+   * `unconfigured` state because `EventSource` exposes neither the status code
+   * nor the body of a response — so the proxy's deliberate 503 on a
+   * gateway-less deployment was invisible, and the panel would have read
+   * "Connecting to the live desk feed…" forever on the deployment most people
+   * see. The note that removed them said re-proxying was "a small job for
+   * whoever has a consumer that needs it".
+   *
+   * There is a consumer now, and the invisible-503 problem is solved rather
+   * than inherited: the route answers 200 and puts the state in-band as its
+   * first event, which a client that cannot read status codes can still read.
+   * So the invariant flips from "these must not exist" to "if they exist, the
+   * two things that made them wrong must not have come back".
    */
-  it("neither the hook nor the route survives", () => {
-    for (const path of ["../lib/use-desk-stream.ts", "../app/api/stream/desk/route.ts"]) {
-      assert.equal(
-        existsSync(fileURLToPath(new URL(path, import.meta.url))), false,
-        `${path} is back without a consumer`,
-      );
-    }
+  const streamRoute = read("../app/api/stream/desk/route.ts");
+  const streamHook = read("../lib/use-desk-stream.ts");
+
+  it("the hook has a consumer", () => {
+    const importers = [...BOUNDED, "../app/dashboard/page.tsx", "../lib/use-book.ts"]
+      .filter((file) => /use-desk-stream|useDeskStream/.test(read(file)));
+    assert.ok(
+      importers.length > 0,
+      "use-desk-stream is orphaned again — it was deleted for exactly this once",
+    );
   });
 
-  it("nothing in the workspace points at the route that is gone", () => {
-    // A dangling reference to a deleted proxy is worse than the orphan was: it
-    // reads as a working feature and answers 404.
-    const offenders: string[] = [];
-    for (const file of [...BOUNDED, "../app/dashboard/page.tsx", "../lib/use-desk-tape.ts"]) {
-      if (/useDeskStream|use-desk-stream|\/api\/stream\/desk/.test(read(file))) offenders.push(file);
-    }
-    assert.deepEqual(offenders, [], `dangling desk-stream references:\n  ${offenders.join("\n  ")}`);
+  it("the route never signals unavailability with a status code", () => {
+    // The whole reason the first attempt failed. A 503 here is invisible to
+    // EventSource, so the state has to travel as data.
+    assert.doesNotMatch(streamRoute, /status:\s*503/,
+      "the proxy is back to answering 503, which EventSource cannot see");
+    assert.match(streamRoute, /event: desk-state/,
+      "the proxy no longer states its availability in-band");
+    assert.match(streamRoute, /"unavailable"/);
+  });
+
+  it("the hook stops rather than reconnect-storming an unavailable stream", () => {
+    // EventSource retries roughly every 3s on its own. Against a deployment
+    // that has just said there is nothing to stream, that is a poll wearing a
+    // push's clothes.
+    const handler = streamHook.slice(streamHook.indexOf('addEventListener("desk-state"'));
+    assert.match(handler.slice(0, 900), /es\.close\(\)/,
+      "an unavailable stream is left open to retry forever");
+  });
+
+  it("the stream is a signal, not the only source", () => {
+    // The book must still poll. A push that dies quietly and takes the numbers
+    // with it is worse than a poll that is occasionally late.
+    const book = read("../lib/use-book.ts");
+    assert.match(book, /usePolling\(/, "useBook stopped polling once the stream landed");
   });
 });
