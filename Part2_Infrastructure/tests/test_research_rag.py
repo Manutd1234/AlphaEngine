@@ -8,7 +8,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
-import modules.research_rag as rag_module
+# `settings` is read in `writer.py` and nowhere else in the package. Patching
+# `modules.research_rag` would bind a name the class never reads.
+import modules.research_rag.writer as rag_module
 from modules.research_rag import (
     EMBEDDING_DIMENSIONS,
     ResearchRag,
@@ -236,7 +238,10 @@ class TestSchemaAgreement:
         assert "embedding is not null" in sql
 
     def test_no_zero_vector_fallback_anywhere(self):
-        source = (Path(__file__).resolve().parent.parent / "modules" / "research_rag.py").read_text()
+        # Every file of the package, not `research_rag.py` — that path no longer
+        # exists, and a scan of one file would miss a fallback added in another.
+        package = Path(__file__).resolve().parent.parent / "modules" / "research_rag"
+        source = "\n".join(p.read_text() for p in sorted(package.rglob("*.py")))
         # The tempting shortcut is `[0.0] * 384` so a failed embed "still works".
         # A zero vector is equidistant from everything; pin the refusal.
         assert "[0.0]" not in source and "[0] *" not in source

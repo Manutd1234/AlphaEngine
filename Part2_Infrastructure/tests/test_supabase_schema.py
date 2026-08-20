@@ -18,11 +18,27 @@ from modules.supabase_mirror import GATE_TO_VERDICT
 MIGRATIONS = Path(__file__).resolve().parent.parent.parent / "supabase" / "migrations"
 SQL = {path.name: path.read_text() for path in sorted(MIGRATIONS.glob("*.sql"))}
 ALL_SQL = "\n".join(SQL.values())
-RISK_PROXY = (Path(__file__).resolve().parent.parent / "modules" / "risk_proxy.py").read_text()
+# The WHOLE risk_proxy package, not one named file.
+#
+# This read `modules/risk_proxy.py` by path and broke the moment that module
+# became a package — loudly, with FileNotFoundError, which is the good failure
+# mode and the reason this was caught. Re-pointing it at
+# `risk_proxy/decision.py` would only move the breakage to the next split, and
+# would be worse: a gate emitted from a sibling module would go unharvested and
+# this test would pass against a SMALLER set than the engine can raise, which
+# is precisely the drift it exists to catch.
+#
+# Reading every module in the package means a gate may move WITHIN the package
+# without this test caring, while the property it guards — that every gate the
+# engine can emit has a verdict in the map and a label in the SQL enum — still
+# fails loudly if either side changes alone.
+RISK_PROXY_PKG = Path(__file__).resolve().parent.parent / "modules" / "risk_proxy"
+RISK_PROXY_FILES = sorted(RISK_PROXY_PKG.glob("*.py"))
+RISK_PROXY = "\n".join(path.read_text() for path in RISK_PROXY_FILES)
 
 
 def engine_gate_names() -> set[str]:
-    """Every gate name risk_proxy.submit() can emit, read from its source."""
+    """Every gate name `submit()` can emit, read from the package's source."""
     return set(re.findall(r'add\("([a-z_]+)"', RISK_PROXY))
 
 
@@ -38,6 +54,19 @@ class TestMigrationHygiene:
 
 
 class TestGateParity:
+    def test_the_harvest_reads_a_package_worth_scanning(self):
+        """A glob that matched nothing would make every assertion below pass.
+
+        This is the shape that has gone wrong nine times in this codebase: a
+        source scan whose path stopped holding its subject does not fail, it
+        passes having read an empty string.
+        """
+        assert len(RISK_PROXY_FILES) > 1, f"only found {len(RISK_PROXY_FILES)} modules"
+        assert 'add("' in RISK_PROXY, "the package source carries no gate calls"
+        assert len(engine_gate_names()) >= 10, (
+            f"harvested only {len(engine_gate_names())} gates; the engine raises far more"
+        )
+
     def test_every_engine_gate_maps_into_the_enum(self):
         engine = engine_gate_names()
         assert engine == set(GATE_TO_VERDICT), (
@@ -186,7 +215,10 @@ class TestHybridRetrieval:
     SEARCH_RPC = "match_research_documents_hybrid"
 
     def _rag_source(self) -> str:
-        return (Path(__file__).resolve().parent.parent / "modules" / "research_rag.py").read_text()
+        # Every file of the package. `research_rag.py` is gone, and reading one
+        # file of a package is how a scan like this quietly stops scanning.
+        package = Path(__file__).resolve().parent.parent / "modules" / "research_rag"
+        return "\n".join(p.read_text() for p in sorted(package.rglob("*.py")))
 
     def test_the_hybrid_function_exists(self):
         assert f"function public.{self.SEARCH_RPC}" in ALL_SQL

@@ -83,8 +83,20 @@ class _Clock:
 
 @pytest.fixture
 def clock(monkeypatch) -> _Clock:
+    """Patch every submodule that binds the clock, not just the package.
+
+    One `setattr(risk_proxy, "_utcnow", ...)` worked while this was a module.
+    As a package each submodule binds the name directly, so that patch set an
+    attribute nothing reads and the fixture silently stopped moving time. The
+    count assertion turns "matched nothing" into a red test.
+    """
     moving = _Clock()
-    monkeypatch.setattr(risk_proxy, "_utcnow", moving)
+    bound = [m for m in vars(risk_proxy).values()
+             if getattr(m, "__name__", "").startswith("modules.risk_proxy")
+             and hasattr(m, "_utcnow")]
+    assert len(bound) >= 3, f"clock fixture reached only {len(bound)} modules"
+    for module in bound:
+        monkeypatch.setattr(module, "_utcnow", moving)
     return moving
 
 
@@ -712,8 +724,7 @@ class TestRestartsAcrossTheBoundary:
 
             assert gw.carried_realized_pnl == pytest.approx(banked, abs=1e-6), f"{tag} carry"
             assert gw.equity() == pytest.approx(
-                settings.starting_equity_usd + banked, abs=1e-6,
-            ), f"{tag} equity"
+settings.starting_equity_usd + banked, abs=1e-6), f"{tag} equity"
             assert gw.daily_pnl() == pytest.approx(0.0, abs=1e-9), f"{tag} rollover"
             assert gw.daily_drawdown_pct() == pytest.approx(0.0, abs=1e-12), f"{tag} budget"
 
@@ -833,7 +844,10 @@ class TestTheBreakerSurvivesAFailedRoll:
             return gateway.kill
 
         monkeypatch.setattr(gateway, "trigger_kill", capture)
-        monkeypatch.setattr(risk_proxy.asyncio, "sleep", _one_tick_then_stop())
+        # `.monitor`, not the package: `_monitor_loop` sleeps on the `asyncio`
+        # IT imported. Aimed at the package this raised AttributeError; aimed
+        # at the wrong submodule it would have slept for real.
+        monkeypatch.setattr(risk_proxy.monitor.asyncio, "sleep", _one_tick_then_stop())
 
         with pytest.raises(_StopTicking):
             await gateway._monitor_loop()

@@ -28,7 +28,9 @@ from fastapi.testclient import TestClient
 
 import main
 import modules.audit as audit_module
-import modules.research_rag as rag_module
+
+# The package's only reader of `settings`; patching the facade would not apply.
+import modules.research_rag.writer as rag_module
 from modules.audit import AuditLog
 from modules.research_rag import EMBEDDING_DIMENSIONS, get_rag, reset_rag
 

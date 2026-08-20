@@ -1,855 +1,132 @@
-"""Pydantic request/response contracts shared by the REST API and gateway console."""
+"""Pydantic request/response contracts shared by the REST API and gateway console.
+
+This module is the FACADE. The models themselves live in the six
+``modules/schemas_*.py`` files re-exported below, one per contract area, so no
+single file carries the whole wire surface.
+
+Two things about this file are load-bearing:
+
+  * ``tools/openapi.json`` is generated from these classes and the web build
+    gates on a digest of it (``web/scripts/check-gateway-openapi-digest.mjs``).
+    Which FILE a model lives in is invisible to that digest; the ORDER of the
+    fields inside a model is not. Move models freely, fields never.
+  * Every import site in this repository says ``from modules.schemas import X``.
+    The re-exports below must therefore stay exhaustive, and each one is
+    written ``import X as X  # noqa: F401`` because ``ruff --fix`` deletes the
+    plain form as unused.
+"""
 
 from __future__ import annotations
 
-import re
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Any, Literal
-
-from pydantic import BaseModel, Field, field_validator, model_validator
-
-Side = Literal["BUY", "SELL"]
-OrderType = Literal["MARKET", "LIMIT"]
-
-#: Three, not the usual six. ``FOK`` is only meaningful alongside partial fills,
-#: and this gateway deliberately does not model those — see the README's
-#: "deliberately missing" table.
-TimeInForce = Literal["GTC", "DAY", "IOC"]
-
-#: Five states, and ``PARTIALLY_FILLED`` is deliberately absent. The L2 feeds
-#: carry ladder snapshots rather than trade prints, so how much of a resting
-#: order a crossing trade consumed is unknowable here. Declaring a state that can
-#: never be reached would claim a model that does not exist.
-OrderStatus = Literal["WORKING", "FILLED", "CANCELLED", "EXPIRED", "REJECTED"]
-
-
-# --------------------------------------------------------------------------- #
-# Module A — TCA
-# --------------------------------------------------------------------------- #
-class BookLevel(BaseModel):
-    price: float
-    size: float
-    notional: float
-    cum_notional: float
-
-
-class VenueBook(BaseModel):
-    venue: str
-    symbol: str
-    connected: bool
-    stale: bool
-    synthetic: bool = False
-    last_update: datetime | None = None
-    latency_ms: float | None = None
-    best_bid: float | None = None
-    best_ask: float | None = None
-    mid: float | None = None
-    spread_bps: float | None = None
-    bids: list[BookLevel] = Field(default_factory=list)
-    asks: list[BookLevel] = Field(default_factory=list)
-    depth_usd_bid: float = 0.0
-    depth_usd_ask: float = 0.0
-    imbalance: float | None = None
-
-
-class ExecutionEstimate(BaseModel):
-    """Result of walking a book for a target notional."""
-
-    venue: str
-    fillable: bool
-    filled_notional: float
-    filled_qty: float
-    vwap: float | None
-    mid: float | None
-    slippage_bps: float | None
-    levels_consumed: int
-    worst_price: float | None
-
-
-class RoutingLeg(BaseModel):
-    venue: str
-    notional: float
-    qty: float
-    vwap: float
-    share_pct: float
-
-
-class TCAReport(BaseModel):
-    symbol: str
-    side: Side
-    target_notional: float
-    generated_at: datetime
-    consolidated_mid: float | None
-    per_venue: list[ExecutionEstimate]
-    best_single_venue: str | None
-    smart_route: list[RoutingLeg]
-    smart_route_vwap: float | None
-    smart_route_slippage_bps: float | None
-    saving_vs_worst_bps: float | None
-    saving_vs_worst_usd: float | None
-    venues_online: list[str]
-    synthetic: bool = False
-
-
-# --------------------------------------------------------------------------- #
-# Module B — Risk
-# --------------------------------------------------------------------------- #
-class PaperExecutionReference(BaseModel):
-    """Trusted quote evidence for a paper equity order.
-
-    The public web route obtains this server-side and the authenticated gateway
-    consumes it. Browsers never choose the price or the provenance fields.
-    """
-
-    asset_class: Literal["equity"] = "equity"
-    price: float = Field(gt=0)
-    as_of: datetime
-    source: str = Field(min_length=1, max_length=80)
-    currency: Literal["USD"] = "USD"
-    delayed: bool = False
-
-    @field_validator("as_of")
-    @classmethod
-    def _timestamp_has_timezone(cls, value: datetime) -> datetime:
-        if value.tzinfo is None or value.utcoffset() is None:
-            raise ValueError("paper execution quote timestamp must include a timezone")
-        return value
-
-    @field_validator("source")
-    @classmethod
-    def _source_is_readable(cls, value: str) -> str:
-        cleaned = " ".join(value.split())
-        if not cleaned:
-            raise ValueError("paper execution quote source is required")
-        return cleaned
-
-
-class OrderRequest(BaseModel):
-    symbol: str
-    side: Side
-    quantity: float | None = Field(default=None, gt=0)
-    notional: float | None = Field(default=None, gt=0)
-    order_type: OrderType = "MARKET"
-    limit_price: float | None = Field(default=None, gt=0)
-    strategy: str = "manual"
-    client_order_id: str | None = None
-    # Internal server-to-server evidence. The Vercel order route ignores any
-    # browser-supplied value and constructs this only after a provider quote
-    # passes its own data contract.
-    paper_execution: PaperExecutionReference | None = None
-    # No default here on purpose: the sensible one differs by order type, and a
-    # single field default cannot say so. `submit` resolves None to GTC for a
-    # LIMIT and IOC for a MARKET, which makes every client that never sends the
-    # field behave exactly as it did before resting orders existed.
-    time_in_force: TimeInForce | None = None
-
-    @field_validator("symbol")
-    @classmethod
-    def _upper(cls, v: str) -> str:
-        return v.strip().upper()
-
-    @field_validator("time_in_force", mode="before")
-    @classmethod
-    def _tif_upper(cls, v: Any) -> Any:
-        return v.strip().upper() if isinstance(v, str) else v
-
-    @model_validator(mode="after")
-    def _resting_market_orders_are_nonsense(self) -> OrderRequest:
-        # Rejected rather than coerced. A market order that rests is not a thing,
-        # and quietly rewriting it to IOC would answer a question nobody asked.
-        if self.order_type == "MARKET" and self.time_in_force in {"GTC", "DAY"}:
-            raise ValueError("a MARKET order cannot rest — use GTC or DAY with a LIMIT price")
-        if self.paper_execution and not re.fullmatch(r"[A-Z]{1,5}(?:[.-][A-Z]{1,2})?", self.symbol):
-            raise ValueError("paper equity symbols must be a US-style ticker, e.g. AAPL or BRK.B")
-        return self
-
-    @field_validator("side", mode="before")
-    @classmethod
-    def _side_upper(cls, v: Any) -> Any:
-        return v.strip().upper() if isinstance(v, str) else v
-
-    @field_validator("order_type", mode="before")
-    @classmethod
-    def _type_upper(cls, v: Any) -> Any:
-        return v.strip().upper() if isinstance(v, str) else v
-
-
-# One pre-trade gate's verdict.
-#
-# A stdlib dataclass rather than a `BaseModel`, and the only schema here that
-# is. Fifteen of these are constructed on every order, inside the timed section
-# of `RiskProxy.submit`, which made their construction the largest single
-# component of the desk's own decision latency:
-#
-#     pydantic BaseModel   8.79 us p50, 21.17 us p99.9   (15 checks)
-#     dataclass(slots)     2.58 us p50,  4.00 us p99.9
-#
-# Nothing is given up for that. Pydantic v2 accepts a stdlib dataclass as a
-# field type, so `RiskDecision.checks` serialises to identical JSON and
-# generates an identical JSON Schema.
-#
-# Written as a comment and NOT a docstring on purpose: a dataclass's docstring
-# becomes the `description` of its JSON Schema, so putting this here would
-# publish an internal note about microseconds into the OpenAPI contract every
-# client reads. `tools/export_openapi.py --check` catches that, which is how
-# this was found.
-#
-# What IS given up is `.model_dump()` — use `dataclasses.asdict`. There is no
-# validation either, which is the right trade only because every field is set
-# by this repository's own gate code and never by a request body.
-@dataclass(slots=True)
-class CheckResult:
-    name: str
-    passed: bool
-    detail: str
-    observed: float | None = None
-    limit: float | None = None
-
-
-class Fill(BaseModel):
-    price: float
-    quantity: float
-    notional: float
-    fee_usd: float
-    slippage_bps: float | None
-    venue: str
-    simulated: bool = True
-
-
-class RiskDecision(BaseModel):
-    order_id: str
-    client_order_id: str | None
-    accepted: bool
-    symbol: str
-    side: Side
-    quantity: float | None
-    notional: float | None
-    checks: list[CheckResult]
-    rejected_by: list[str] = Field(default_factory=list)
-    reason: str | None = None
-    latency_ms: float = 0.0
-    timestamp: datetime
-    fill: Fill | None = None
-    # Defaulted so every existing assertion about `accepted` and `fill` keeps
-    # meaning what it meant: before resting orders, an accepted order was a
-    # filled order, and these defaults say exactly that.
-    status: OrderStatus = "FILLED"
-    time_in_force: TimeInForce | None = None
-
-
-class WorkingOrder(BaseModel):
-    """An order resting on the book right now.
-
-    Terminal decisions live in ``/api/audit/orders``. This is only what is still
-    open, which is the set a desk can actually still act on.
-    """
-
-    order_id: str
-    client_order_id: str | None = None
-    symbol: str
-    side: Side
-    order_type: OrderType
-    time_in_force: TimeInForce
-    quantity: float
-    limit_price: float
-    #: Committed capital: quantity x limit price. A resting order is not free.
-    notional: float
-    strategy: str
-    source: str
-    status: OrderStatus
-    accepted_at: datetime
-    age_seconds: float
-    mark_price: float | None = None
-    #: How far the limit sits from the mark. Null when there is no live mark to
-    #: measure against — never zero, which would read as "at the touch".
-    distance_bps: float | None = None
-    #: DAY orders only.
-    expires_at: datetime | None = None
-
-
-class OrderAck(BaseModel):
-    order_id: str
-    status: OrderStatus
-    actor: str
-    reason: str | None = None
-    at: datetime
-
-
-class CancelRequest(BaseModel):
-    reason: str = "manual cancel"
-
-
-class ReplaceRequest(BaseModel):
-    quantity: float | None = Field(default=None, gt=0)
-    notional: float | None = Field(default=None, gt=0)
-    limit_price: float | None = Field(default=None, gt=0)
-    reason: str = "replace"
-
-
-class OrderEvent(BaseModel):
-    ts: datetime
-    event: str
-    status: OrderStatus
-    detail: str = ""
-    actor: str = "system"
-    fill_price: float | None = None
-    fill_qty: float | None = None
-    fee_usd: float | None = None
-    venue: str | None = None
-    replaces: str | None = None
-
-
-class OrderTimeline(BaseModel):
-    order_id: str
-    status: OrderStatus
-    events: list[OrderEvent]
-
-
-class Position(BaseModel):
-    symbol: str
-    quantity: float
-    avg_price: float
-    mark_price: float | None
-    notional: float
-    unrealized_pnl: float
-    realized_pnl: float
-
-
-class RiskState(BaseModel):
-    kill_switch_active: bool
-    kill_reason: str | None
-    killed_at: datetime | None
-    killed_by: str | None
-    halted_symbols: list[str]
-    equity: float
-    start_of_day_equity: float
-    realized_pnl: float
-    # ``realized_pnl`` is *this session's*, because the gateway zeroes the
-    # per-position counters at every UTC rollover. The money those closed
-    # sessions made is here, and without it the payload stops reconciling:
-    # after the first boundary ``equity != starting + realized + unrealized``
-    # and the missing term has no name. Defaulted so the field is an additive
-    # contract change — every existing client keeps parsing what it parsed.
-    carried_realized_pnl: float = 0.0
-    unrealized_pnl: float
-    daily_pnl: float
-    daily_drawdown_pct: float
-    drawdown_budget_used_pct: float
-    # True when the desk is between the soft threshold and the hard breaker:
-    # position-reducing orders still pass, everything else is refused.
-    reduce_only: bool = False
-    reduce_only_threshold: float = 1.0
-    reduce_only_source: Literal["threshold", "operator", "off"] = "off"
-    gross_exposure: float
-    positions: list[Position]
-    orders_accepted: int
-    orders_rejected: int
-    orders_last_second: float
-    # Resting orders are committed capital that has not landed yet, so a state
-    # snapshot that omitted them would understate what the book is exposed to.
-    working_orders: int = 0
-    working_notional: float = 0.0
-    limits: dict[str, float]
-    session_date: str
-
-
-class KillSwitchRequest(BaseModel):
-    reason: str = "Manual override"
-    symbol: str | None = None
-
-
-class ReduceOnlyRequest(BaseModel):
-    enabled: bool = True
-    reason: str = "Operator soft halt"
-    symbol: str | None = None
-
-
-# --------------------------------------------------------------------------- #
-# Module C — Backtest
-# --------------------------------------------------------------------------- #
-class BacktestRequest(BaseModel):
-    """Every tunable a sweep accepts, with its bounds.
-
-    This model is the parameter registry: the bounds and descriptions here are
-    what ``/docs`` publishes, so a researcher reads one place to learn what can
-    be varied and how far. Widening a bound is therefore a documented change,
-    not a silent one.
-    """
-
-    symbol: str = Field(default="BTCUSDT", description="Instrument to test, e.g. BTCUSDT.")
-    interval: str = Field(default="1h", description="Bar size: 15m, 1h, 4h or 1d.")
-    bars: int = Field(default=1500, ge=200, le=5000,
-                      description="History depth in bars. Fewer than ~500 makes walk-forward folds too short to read.")
-    strategy: Literal[
-        "ma_cross", "ema_cross", "macd_cross",
-        "donchian", "donchian_mid", "breakout_sma",
-        "rsi_reversion", "williams_r", "stochastic",
-        "momentum", "roc_trend",
-        "triple_ma", "ppo_cross", "trix_cross", "rsi_trend",
-        "price_channel", "ema_slope",
-        "bollinger_breakout", "zscore_reversion",
-        "atr_breakout", "keltner_breakout", "supertrend", "atr_trailing_stop",
-        "obv_trend", "volume_breakout", "mfi_reversion",
-        "dema_cross", "tema_cross", "zlema_cross", "hull_trend", "vwap_trend",
-        "cci_reversion", "awesome_cross", "cmo_trend", "stoch_rsi_x", "dpo_reversion",
-        "bollinger_pctb", "stddev_channel", "chaikin_volatility", "ulcer_filter",
-        "cmf_trend", "force_index", "eom_trend", "aroon_cross", "vortex_cross",
-        "linreg_forecast",
-    ] = Field(
-        default="ma_cross", description="Signal family. Each interprets fast/slow as its own two parameters.")
-    fast_min: int = Field(default=5, ge=2, le=400, description="Lower bound of the fast-parameter sweep.")
-    fast_max: int = Field(default=40, ge=2, le=400, description="Upper bound of the fast-parameter sweep.")
-    fast_step: int = Field(default=5, ge=1, le=100, description="Grid spacing for the fast parameter.")
-    slow_min: int = Field(default=20, ge=3, le=800, description="Lower bound of the slow-parameter sweep.")
-    slow_max: int = Field(default=200, ge=3, le=800, description="Upper bound of the slow-parameter sweep.")
-    slow_step: int = Field(default=20, ge=1, le=200, description="Grid spacing for the slow parameter.")
-    fee_bps: float = Field(default=6.0, ge=0, le=100,
-                           description="Per-side taker fee in basis points, charged on turnover.")
-    slippage_bps: float = Field(default=2.0, ge=0, le=100,
-                                description="Per-side slippage assumption in basis points. Setting both cost "
-                                            "fields to 0 produces a frictionless result that will not survive live.")
-    direction: Literal["long_only", "long_short"] = Field(
-        default="long_only", description="Whether short signals are traded or flattened to cash.")
-    walk_forward: bool = Field(default=True,
-                               description="Run out-of-sample folds. Disable only for a quick in-sample look.")
-    folds: int = Field(default=4, ge=2, le=10, description="Number of walk-forward folds.")
-    embargo_bars: int = Field(
-        default=0, ge=0, le=500,
-        description="Bars discarded between each training window and its test window. Guards against "
-                    "leakage from indicator lookback spanning the boundary; 0 keeps folds adjacent.")
-    label: str | None = Field(
-        default=None, max_length=120,
-        description="Optional human label for this run, stored with the audit record.")
-    notify_chat_id: str | None = Field(
-        default=None, description="Telegram chat to notify when the job finishes.")
-
-    @field_validator("symbol")
-    @classmethod
-    def _upper(cls, v: str) -> str:
-        return v.strip().upper()
-
-
-class ParamResult(BaseModel):
-    # float, not int. Most strategies sweep two lookback periods, but a few
-    # take a standard-deviation multiple on the second axis, and 2.5 sigma is
-    # not expressible as an integer without lying about the units. Widening the
-    # field costs nothing: every period value is still an exact float.
-    fast: float
-    slow: float
-    total_return: float
-    cagr: float
-    sharpe: float
-    sortino: float
-    max_drawdown: float
-    calmar: float
-    win_rate: float
-    trades: int
-    exposure: float
-    turnover: float
-    fees_paid: float
-
-
-class WalkForwardFold(BaseModel):
-    fold: int
-    train_start: str
-    train_end: str
-    test_start: str
-    test_end: str
-    chosen_fast: float
-    chosen_slow: float
-    is_sharpe: float
-    oos_sharpe: float
-    oos_return: float
-    # Where the in-sample winner actually placed out-of-sample, among all
-    # combinations scored on this fold. Rank 1 of 40 means the choice held up;
-    # rank 33 of 40 means the fold selected noise. This is the per-fold input to
-    # the probability-of-backtest-overfitting estimate.
-    oos_rank: int | None = None
-    combos_ranked: int | None = None
-    embargo_bars: int = 0
-
-
-class BacktestResult(BaseModel):
-    job_id: str
-    request: BacktestRequest
-    engine: str
-    data_source: str
-    bars: int
-    period_start: str
-    period_end: str
-    # Content hash of the bars this run saw. A date range does not identify a
-    # dataset — a revised bar, a different venue, or the synthetic fallback all
-    # produce the same window with different numbers. Two runs sharing this
-    # value provably compared the same prices.
-    data_hash: str | None = None
-    combos_tested: int
-    best: ParamResult
-    benchmark_buy_hold: dict[str, float]
-    top_results: list[ParamResult]
-    deflated_sharpe_ratio: float
-    probabilistic_sharpe_ratio: float
-    # Minimum Track Record Length at 95% confidence vs a zero benchmark — how
-    # many bars this Sharpe would need to be statistically real. None when the
-    # per-bar Sharpe is not positive (no finite record proves an absent edge).
-    min_track_record_bars: float | None = None
-    dsr_verdict: str
-    walk_forward: list[WalkForwardFold]
-    walk_forward_oos_sharpe: float | None
-    # Fraction of folds whose in-sample winner placed in the worse half
-    # out-of-sample. High values mean the grid search is selecting noise.
-    overfitting_probability: float | None = None
-    equity_curve_png: str | None
-    heatmap_png: str | None
-    equity_curve: dict[str, list[Any]] | None = None
-    duration_s: float = 0.0
-    warnings: list[str] = Field(default_factory=list)
-
-
-class JobStatus(BaseModel):
-    job_id: str
-    kind: str
-    status: Literal["queued", "running", "succeeded", "failed", "cancelled"]
-    progress: float = 0.0
-    message: str = ""
-    submitted_at: datetime
-    started_at: datetime | None = None
-    finished_at: datetime | None = None
-    error: str | None = None
-    backend: str = "in-process"
-
-
-# --------------------------------------------------------------------------- #
-# Data operations — replay and backfill jobs, and their schedule
-# --------------------------------------------------------------------------- #
-DataCapability = Literal["quote", "bars", "news", "fundamentals"]
-DataInterval = Literal["15m", "1h", "4h", "1d"]
-
-
-class DataReplayRequest(BaseModel):
-    """Re-run one capability through the web workspace's validated fetch path,
-    bypassing its cache, and record the contract result in the quality ledger."""
-
-    symbol: str = Field(min_length=1, max_length=20, pattern=r"^[A-Za-z0-9.\-]+$")
-    capability: DataCapability = "quote"
-    interval: DataInterval = "4h"
-    bars: int = Field(default=120, ge=10, le=1000)
-
-
-class DataBackfillRequest(BaseModel):
-    """Fetch bars for a date range, contract-check them, merge into the bar cache."""
-
-    symbol: str = Field(min_length=1, max_length=20, pattern=r"^[A-Za-z0-9.\-]+$")
-    interval: DataInterval = "1h"
-    from_at: datetime
-    to_at: datetime
-
-    @model_validator(mode="after")
-    def _range_is_sane(self) -> "DataBackfillRequest":
-        if self.from_at >= self.to_at:
-            raise ValueError("from_at must be before to_at")
-        return self
-
-
-class DataJobAccepted(BaseModel):
-    job_id: str
-    kind: Literal["data.replay", "data.backfill", "ml.fit"]  # ml.fit: same queue, same model
-    status: str
-    backend: str
-    poll: str
-
-
-class DataJobView(JobStatus):
-    params: dict[str, Any] = Field(default_factory=dict)
-    actor: str = ""
-    # The job's own summary once succeeded (rows are never echoed);
-    # ``persisted_at`` appears inside it once the completion hook has written.
-    summary: dict[str, Any] | None = None
-
-
-class DataJobsResponse(BaseModel):
-    observed_at: datetime
-    backend: str
-    #: True when this process still holds every job it is reporting. It goes
-    #: false once the list has been topped up from the audit log — which happens
-    #: after a restart, and is the difference between "no job has ever run" and
-    #: "this process has not run one".
-    retained_in_process: bool
-    executor_configured: bool
-    #: Jobs whose row came from the durable audit log rather than memory. A
-    #: restored row has no progress, no message and no summary: only what
-    #: `record_job` writes at terminal state.
-    restored_from_audit: int = 0
-    jobs: list[DataJobView]
-
-
-class DataScheduleView(BaseModel):
-    id: str
-    kind: Literal["replay", "backfill"]
-    expression: str
-    valid: bool
-    cadence: str
-    next_due_at: datetime | None
-    last_run_at: datetime | None
-    last_job_id: str | None
-    last_outcome: str | None
-    error: str | None
-
-
-class DataSchedulesResponse(BaseModel):
-    observed_at: datetime
-    tick_seconds: float
-    executor_configured: bool
-    max_backfill_bars: int
-    schedules: list[DataScheduleView]
-
-
-# --------------------------------------------------------------------------- #
-# Research RAG (Supabase pgvector) — typed route contracts
-# --------------------------------------------------------------------------- #
-class ResearchRagSearchRequest(BaseModel):
-    """A similarity query over the desk's own research corpus."""
-
-    query: str = Field(min_length=1, max_length=2000)
-    match_count: int = Field(default=3, ge=1, le=20)
-    kind: Literal["backtest_run", "chart", "execution_summary", "ml_run", "risk_incident"] | None = None
-
-
-class ResearchRagEmbedRequest(BaseModel):
-    """Text to embed with the same model that embedded the corpus.
-
-    Bounds mirror `supabase/functions/embed-research` exactly — 1..32 texts of
-    1..8000 characters. Rejecting here rather than forwarding an oversized batch
-    turns a 400 from an edge function the caller cannot see into a validation
-    error naming the field.
-    """
-
-    texts: list[str] = Field(min_length=1, max_length=32)
-
-    @field_validator("texts")
-    @classmethod
-    def _bounded_texts(cls, v: list[str]) -> list[str]:
-        for text in v:
-            if not text.strip():
-                raise ValueError("texts may not be blank")
-            if len(text) > 8000:
-                raise ValueError("each text is limited to 8000 characters")
-        return v
-
-
-class ResearchRagEmbedResponse(BaseModel):
-    """Vectors in request order, or `state: unavailable` with none.
-
-    There is no partial success: a caller that received some vectors would have
-    to track which positions failed to pair them with the right text, and a
-    misaligned embedding ranks confident nonsense rather than erroring.
-    """
-
-    state: Literal["ok", "unavailable"]
-    embeddings: list[list[float]] = Field(default_factory=list)
-    model: str | None = None
-    dimensions: int | None = None
-
-
-class ResearchRagMatch(BaseModel):
-    id: str
-    kind: str
-    source_ref: str
-    symbol: str | None = None
-    strategy: str | None = None
-    occurred_at: datetime
-    title: str
-    body: str
-    metrics: dict[str, Any] = Field(default_factory=dict)
-    similarity: float
-    #: Where each retriever placed this document, 1-based. Both are None on the
-    #: dense-only path — which is a real state during a rollout, not an error.
-    #:
-    #: Carried through so a reader can be told WHY a document surfaced.
-    #: "matched the ticker exactly" and "semantically similar" are different
-    #: claims about the same result, and a panel that cannot distinguish them
-    #: presents a lexical hit and a paraphrase match as equally confident.
-    #:
-    #: These were the fields whose absence made hybrid retrieval look broken
-    #: after it shipped: pydantic drops unknown keys, so the RPC was returning
-    #: both ranks and the response model was silently discarding them. The live
-    #: symptom was identical to the 404 fallback, which cost a wrong diagnosis.
-    vector_rank: int | None = None
-    lexical_rank: int | None = None
-
-
-class ResearchRagSearchResponse(BaseModel):
-    """`unavailable` is a state, never an empty match list wearing one's face:
-    "searched and found nothing" and "could not search" are different facts."""
-
-    state: Literal["ok", "unavailable", "embed_failed"]
-    matches: list[ResearchRagMatch] = Field(default_factory=list)
-    #: Embedded documents the query could have matched. `None` when the count
-    #: could not be taken — "1 of 1" and "1 of 400" are different answers, and
-    #: an unknown denominator must not render as zero.
-    corpus_size: int | None = None
-
-
-class ResearchRagAnomalyMatch(BaseModel):
-    title: str
-    kind: str
-    similarity: float
-    occurred_at: datetime
-
-
-class ResearchRagStatus(BaseModel):
-    """Counters and the cached anomaly retrieval — no URL, no key, no raw error."""
-
-    configured: bool
-    running: bool
-    queued: int
-    indexed: int
-    pending_embeddings: int
-    failed: int
-    dropped: int
-    last_anomaly_at: datetime | None = None
-    last_anomaly_matches: list[ResearchRagAnomalyMatch] = Field(default_factory=list)
-
-
-# --------------------------------------------------------------------------- #
-# Supervised research runs
-# --------------------------------------------------------------------------- #
-class MLFoldView(BaseModel):
-    """One walk-forward fold, out-of-sample only.
-
-    ``purge_bars`` and ``embargo_bars`` are not optional and are not decoration.
-    A fold that cannot state its purge is a fold whose leakage is unknown, and
-    unknown leakage is indistinguishable from none by the only reader who
-    matters — the one deciding whether to allocate.
-    """
-
-    fold_index: int
-    train_start: datetime
-    train_end: datetime
-    test_start: datetime
-    test_end: datetime
-    train_rows: int
-    test_rows: int
-    purge_bars: int
-    embargo_bars: int
-    oos_return: float | None = None
-    oos_sharpe: float | None = None
-    oos_max_drawdown: float | None = None
-    trades: int | None = None
-
-
-class MLFeatureView(BaseModel):
-    """The feature set a run was fitted on. A model is its features."""
-
-    spec: dict[str, Any]
-    # Digest of the canonical spec, so two runs are compared for feature
-    # identity with an equality test rather than by reading two JSON blobs.
-    spec_hash: str
-    feature_count: int
-    label: str
-    label_horizon_bars: int
-
-
-class MLRunSummary(BaseModel):
-    """One run, as the list shows it."""
-
-    id: str
-    model: str
-    symbol: str
-    interval: str
-    # The exact bars the run saw — same meaning as BacktestResult.data_hash, so
-    # an ML run and a sweep over the same window are comparable.
-    data_hash: str
-    seed: int
-    # The tree that fitted it. A fitted model is a function of its code in a way
-    # a moving average is not. None on a build with no git.
-    git_sha: str | None = None
-    # numpy (hand-rolled) or sklearn (optional extra). A run that fell back is a
-    # different run and must not be ranked as though it were not.
-    engine: str
-    status: str
-    oos_sharpe: float | None = None
-    deflated_sharpe: float | None = None
-    pbo: float | None = None
-    started_at: datetime
-    finished_at: datetime | None = None
-    # Never null on a failed row — the table refuses it.
-    error: str | None = None
-
-
-class MLFitRequest(BaseModel):
-    """Ask the desk to fit one supervised model and file the evidence.
-
-    Every bound here is a refusal to accept a request that cannot produce a
-    readable result: fewer than 200 bars cannot fill five purged folds, and a
-    label horizon longer than the test window purges the fold out of existence.
-    """
-
-    symbol: str = Field(default="BTCUSDT", min_length=1, max_length=20, pattern=r"^[A-Za-z0-9.\-]+$")
-    interval: DataInterval = "4h"
-    bars: int = Field(default=1500, ge=200, le=5000)
-    model: Literal["ridge", "logistic"] = "ridge"
-    params: dict[str, Any] = Field(default_factory=dict)
-    n_splits: int = Field(default=5, ge=2, le=10)
-    label_horizon: int = Field(default=1, ge=1, le=20)
-    label_kind: Literal["return", "direction"] | None = None
-    embargo: int = Field(default=0, ge=0, le=100)
-    cost_bps: float = Field(default=5.0, ge=0.0, le=100.0)
-    seed: int = Field(default=0, ge=0)
-
-
-class MLRunsResponse(BaseModel):
-    """The run list, and whether there was a corpus to list.
-
-    ``state`` distinguishes "no runs" from "no store", which are different
-    facts. An empty list under state='unavailable' would report a missing
-    Supabase as a desk that has never run anything.
-    """
-
-    observed_at: datetime
-    #: ``unavailable`` — no Supabase on this deployment, nothing was asked.
-    #: ``unreadable`` — a store is configured and the read failed. Distinct on
-    #: purpose: the first says nothing about the desk, the second says nothing
-    #: about the runs, and both used to render as "no runs yet".
-    state: Literal["ok", "unavailable", "unreadable"]
-    runs: list[MLRunSummary]
-
-
-class MLRunDetail(MLRunSummary):
-    """One run with the evidence its verdict rests on."""
-
-    params: dict[str, Any] = Field(default_factory=dict)
-    folds: list[MLFoldView] = Field(default_factory=list)
-    features: MLFeatureView | None = None
-
-
-class ResearchGraphNeighbour(BaseModel):
-    """One document reachable from another, and how it was reached."""
-
-    id: str
-    kind: str
-    source_ref: str
-    symbol: str | None = None
-    strategy: str | None = None
-    occurred_at: datetime
-    title: str
-    depth: int
-    # The last relation traversed, so a reader is told "shares a data hash"
-    # rather than "is related".
-    arrived_by: str
-    # What that relation had in common — the hash, the symbol, the regime.
-    evidence: str | None = None
-
-
-class ResearchGraphResponse(BaseModel):
-    """Reachable documents, or the fact that the graph could not be walked.
-
-    `unavailable` is a state and never an empty list: "connected to nothing"
-    and "could not ask" are different answers and the workspace renders them
-    differently. A deployment predating the traversal migration reports
-    unavailable rather than an error — a corpus that cannot traverse yet is
-    not a broken corpus.
-    """
-
-    state: Literal["ok", "unavailable"]
-    connected: list[ResearchGraphNeighbour]
+# Re-exports, one name per line, each written ``X as X`` so ``ruff --fix`` does
+# not delete it as unused. Sorted by module then name, which is what ruff's
+# isort rule enforces; the grouping by contract area lives in the file names.
+from modules.schemas_backtest import BacktestRequest as BacktestRequest  # noqa: F401
+from modules.schemas_backtest import BacktestResult as BacktestResult  # noqa: F401
+from modules.schemas_backtest import JobStatus as JobStatus  # noqa: F401
+from modules.schemas_backtest import ParamResult as ParamResult  # noqa: F401
+from modules.schemas_backtest import WalkForwardFold as WalkForwardFold  # noqa: F401
+from modules.schemas_data import DataBackfillRequest as DataBackfillRequest  # noqa: F401
+from modules.schemas_data import DataCapability as DataCapability  # noqa: F401
+from modules.schemas_data import DataInterval as DataInterval  # noqa: F401
+from modules.schemas_data import DataJobAccepted as DataJobAccepted  # noqa: F401
+from modules.schemas_data import DataJobsResponse as DataJobsResponse  # noqa: F401
+from modules.schemas_data import DataJobView as DataJobView  # noqa: F401
+from modules.schemas_data import DataReplayRequest as DataReplayRequest  # noqa: F401
+from modules.schemas_data import DataSchedulesResponse as DataSchedulesResponse  # noqa: F401
+from modules.schemas_data import DataScheduleView as DataScheduleView  # noqa: F401
+from modules.schemas_market import BookLevel as BookLevel  # noqa: F401
+from modules.schemas_market import ExecutionEstimate as ExecutionEstimate  # noqa: F401
+from modules.schemas_market import OrderStatus as OrderStatus  # noqa: F401
+from modules.schemas_market import OrderType as OrderType  # noqa: F401
+from modules.schemas_market import RoutingLeg as RoutingLeg  # noqa: F401
+from modules.schemas_market import Side as Side  # noqa: F401
+from modules.schemas_market import TCAReport as TCAReport  # noqa: F401
+from modules.schemas_market import TimeInForce as TimeInForce  # noqa: F401
+from modules.schemas_market import VenueBook as VenueBook  # noqa: F401
+from modules.schemas_ml import MLFeatureView as MLFeatureView  # noqa: F401
+from modules.schemas_ml import MLFitRequest as MLFitRequest  # noqa: F401
+from modules.schemas_ml import MLFoldView as MLFoldView  # noqa: F401
+from modules.schemas_ml import MLRunDetail as MLRunDetail  # noqa: F401
+from modules.schemas_ml import MLRunsResponse as MLRunsResponse  # noqa: F401
+from modules.schemas_ml import MLRunSummary as MLRunSummary  # noqa: F401
+from modules.schemas_ml import ResearchGraphNeighbour as ResearchGraphNeighbour  # noqa: F401
+from modules.schemas_ml import ResearchGraphResponse as ResearchGraphResponse  # noqa: F401
+from modules.schemas_research import ResearchRagAnomalyMatch as ResearchRagAnomalyMatch  # noqa: F401
+from modules.schemas_research import ResearchRagEmbedRequest as ResearchRagEmbedRequest  # noqa: F401
+from modules.schemas_research import ResearchRagEmbedResponse as ResearchRagEmbedResponse  # noqa: F401
+from modules.schemas_research import ResearchRagMatch as ResearchRagMatch  # noqa: F401
+from modules.schemas_research import ResearchRagSearchRequest as ResearchRagSearchRequest  # noqa: F401
+from modules.schemas_research import ResearchRagSearchResponse as ResearchRagSearchResponse  # noqa: F401
+from modules.schemas_research import ResearchRagStatus as ResearchRagStatus  # noqa: F401
+from modules.schemas_trading import CancelRequest as CancelRequest  # noqa: F401
+from modules.schemas_trading import CheckResult as CheckResult  # noqa: F401
+from modules.schemas_trading import Fill as Fill  # noqa: F401
+from modules.schemas_trading import KillSwitchRequest as KillSwitchRequest  # noqa: F401
+from modules.schemas_trading import OrderAck as OrderAck  # noqa: F401
+from modules.schemas_trading import OrderEvent as OrderEvent  # noqa: F401
+from modules.schemas_trading import OrderRequest as OrderRequest  # noqa: F401
+from modules.schemas_trading import OrderTimeline as OrderTimeline  # noqa: F401
+from modules.schemas_trading import PaperExecutionReference as PaperExecutionReference  # noqa: F401
+from modules.schemas_trading import Position as Position  # noqa: F401
+from modules.schemas_trading import ReduceOnlyRequest as ReduceOnlyRequest  # noqa: F401
+from modules.schemas_trading import ReplaceRequest as ReplaceRequest  # noqa: F401
+from modules.schemas_trading import RiskDecision as RiskDecision  # noqa: F401
+from modules.schemas_trading import RiskState as RiskState  # noqa: F401
+from modules.schemas_trading import WorkingOrder as WorkingOrder  # noqa: F401
+
+__all__ = [
+    "BacktestRequest",
+    "BacktestResult",
+    "BookLevel",
+    "CancelRequest",
+    "CheckResult",
+    "DataBackfillRequest",
+    "DataCapability",
+    "DataInterval",
+    "DataJobAccepted",
+    "DataJobView",
+    "DataJobsResponse",
+    "DataReplayRequest",
+    "DataScheduleView",
+    "DataSchedulesResponse",
+    "ExecutionEstimate",
+    "Fill",
+    "JobStatus",
+    "KillSwitchRequest",
+    "MLFeatureView",
+    "MLFitRequest",
+    "MLFoldView",
+    "MLRunDetail",
+    "MLRunSummary",
+    "MLRunsResponse",
+    "OrderAck",
+    "OrderEvent",
+    "OrderRequest",
+    "OrderStatus",
+    "OrderTimeline",
+    "OrderType",
+    "PaperExecutionReference",
+    "ParamResult",
+    "Position",
+    "ReduceOnlyRequest",
+    "ReplaceRequest",
+    "ResearchGraphNeighbour",
+    "ResearchGraphResponse",
+    "ResearchRagAnomalyMatch",
+    "ResearchRagEmbedRequest",
+    "ResearchRagEmbedResponse",
+    "ResearchRagMatch",
+    "ResearchRagSearchRequest",
+    "ResearchRagSearchResponse",
+    "ResearchRagStatus",
+    "RiskDecision",
+    "RiskState",
+    "RoutingLeg",
+    "Side",
+    "TCAReport",
+    "TimeInForce",
+    "VenueBook",
+    "WalkForwardFold",
+    "WorkingOrder",
+]

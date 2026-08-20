@@ -772,11 +772,11 @@ class TestMultiSymbolParsingAndDrawing:
         """Every `generate_*_png` must plot what it was handed.
 
         The module shipped a `generate_chart_png` that drew
-        `64200 + sin(i * 0.3) * 450` under the caption "Real-Time Market
-        Quote" — a decorative curve a reader could not tell apart from a
-        measurement. It has been deleted; this keeps the shape of that mistake
-        out. AST rather than substring, so the prose above (which names the
-        banned calls) cannot fail its own rule.
+        `64200 + sin(i * 0.3) * 450` under the caption "Real-Time Market Quote"
+        — a decorative curve a reader could not tell apart from a measurement.
+        It has been deleted; this keeps that mistake out. AST, not substring, so the prose above (which names the
+        banned calls) cannot fail its own rule. `inspected` guards the walk: a
+        package `__file__` is just `__init__.py`, which defines no generator.
         """
         import ast
         import contextlib
@@ -784,14 +784,12 @@ class TestMultiSymbolParsingAndDrawing:
         from pathlib import Path
 
         import modules.telegram as telegram_module
-
-        # Every file of the package — `__file__` is only `__init__.py` now — and
-        # the chart module too, so extracting a generator cannot escape the rule.
         scan = sorted(Path(telegram_module.__file__).parent.rglob("*.py"))
         with contextlib.suppress(ModuleNotFoundError):
-            scan.append(Path(importlib.import_module("modules.telegram_charts").__file__))
-
+            charts = importlib.import_module("modules.telegram_charts")
+            scan += sorted(Path(charts.__file__).parent.rglob("*.py"))
         banned = {"random", "sin", "cos", "uniform", "randn", "normal"}
+        inspected = 0
         for path in scan:
             tree = ast.parse(path.read_text())
             for node in ast.walk(tree):
@@ -799,6 +797,7 @@ class TestMultiSymbolParsingAndDrawing:
                     continue
                 if not (node.name.startswith("generate_") and node.name.endswith("_png")):
                     continue
+                inspected += 1
                 for inner in ast.walk(node):
                     if isinstance(inner, ast.Call) and isinstance(inner.func, ast.Attribute):
                         assert inner.func.attr not in banned, (
@@ -806,6 +805,7 @@ class TestMultiSymbolParsingAndDrawing:
                             f"with {inner.func.attr}()"
                         )
 
+        assert inspected >= 16, f"the scan inspected {inspected} generators — wrong files"
         assert not hasattr(telegram_module, "generate_chart_png"), (
             "generate_chart_png drew fake desk data under factual captions"
         )

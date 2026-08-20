@@ -185,8 +185,30 @@ class _StubAudit:
     def __init__(self):
         self.events: list[dict] = []
 
-    def record_risk_event(self, event, **kwargs):
-        self.events.append({"event": event, **kwargs})
+    def record_risk_event(
+        self,
+        event: str,
+        *,
+        severity: str = "info",
+        actor: str = "system",
+        symbol: str | None = None,
+        detail: str = "",
+        payload: dict | None = None,
+    ) -> None:
+        # Mirrors `modules/audit/writers.py` exactly, for the reason _StubBot
+        # gives above. This used to be `(self, event, **kwargs)`, which is
+        # WIDER than the real recorder: a keyword the real object rejects would
+        # be accepted here, `publish_escalation` swallows the TypeError it
+        # would have raised in production, and the audit row silently stops
+        # being written while this test stays green.
+        self.events.append({
+            "event": event,
+            "severity": severity,
+            "actor": actor,
+            "symbol": symbol,
+            "detail": detail,
+            "payload": payload,
+        })
 
 
 class TestPublish:

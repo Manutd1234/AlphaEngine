@@ -66,10 +66,20 @@ max-statements = 50
 "modules/backtester/state.py" = ["C901", "PLR0915"]
 "modules/data_jobs.py" = ["C901"]
 "modules/data_scheduler.py" = ["C901"]
-"modules/metrics.py" = ["C901", "PLR0915"]
+# ``modules/metrics.py`` became ``modules/metrics/**``. The single entry
+# followed ``render_metrics`` — the one function that earned both codes — to
+# the file it now lives in. Same debt, no new debt.
+"modules/metrics/render.py" = ["C901", "PLR0915"]
 "modules/ml/features.py" = ["C901"]
 "modules/quant_risk/allocation.py" = ["C901", "PLR0915"]
-"modules/risk_proxy.py" = ["C901", "PLR0915"]
+# ``modules/risk_proxy.py`` became ``modules/risk_proxy/**``. The blanket
+# entry it needed shrank to the four functions that earned the codes, each
+# in the file it now lives in. Same debt, no new debt — `submit` keeps both
+# because splitting the battery would put a call boundary between two gates.
+"modules/risk_proxy/decision.py" = ["C901", "PLR0915"]
+"modules/risk_proxy/monitor.py" = ["C901"]
+"modules/risk_proxy/rehydrate.py" = ["C901", "PLR0915"]
+"modules/risk_proxy/working_control.py" = ["C901"]
 # `modules/telegram.py` became `modules/telegram/**`; the blanket entry it
 # needed shrank to the two handlers that are still over the thresholds.
 "modules/telegram/_mixins/analytics.py" = ["C901", "PLR0915"]
