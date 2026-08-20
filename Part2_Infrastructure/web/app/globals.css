@@ -13809,6 +13809,33 @@ button:active:not(:disabled) {
   .developer-cp-overview__grid > .developer-cp-artifact-card {
     grid-column: 1 / -1;
   }
+
+  /* Full width would otherwise be a 146px ring alone on a 1168px line with the
+     five gate rows stacked under it. The same two-column interior the narrow
+     block already uses at <=900px, re-proportioned: the ring column is sized to
+     the ring, the checks take the rest. Deliberately NOT `align-content:
+     space-between` — the free space would be set by the cards above and below,
+     whose rows are live, so the gaps between ring, verdict and checks would
+     move with provider health. */
+  .developer-cp-readiness {
+    grid-template-columns: minmax(190px, 0.3fr) minmax(0, 1fr);
+    column-gap: 28px;
+  }
+
+  .developer-cp-readiness .developer-cp-heading,
+  .developer-cp-readiness > p {
+    grid-column: 1 / -1;
+  }
+
+  .developer-cp-readiness__ring,
+  .developer-cp-readiness__verdict {
+    grid-column: 1;
+  }
+
+  .developer-cp-readiness__checks {
+    grid-column: 2;
+    grid-row: 2 / span 2;
+  }
 }
 
 /* ---------- role launcher: doors, not calls to action ---------- */
