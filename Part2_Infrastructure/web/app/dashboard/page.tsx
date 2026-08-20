@@ -1728,7 +1728,6 @@ export default function Page() {
                         <div className="research-provenance__lead">
                           <span className="page-kicker">Reproducibility capsule</span>
                           <strong>Evidence carries its own data identity.</strong>
-                          <small>Compare the fingerprint before attributing a changed result to the model.</small>
                         </div>
                         <dl>
                           <div>
