@@ -113,10 +113,6 @@ export default function OverviewStanding({
               </li>
             ))}
           </ul>
-          <p className="research-note">
-            Every line here is read off a limit the gateway publishes — nothing on this page
-            invents a threshold the risk desk did not set.
-          </p>
         </div>
       )}
 
@@ -124,7 +120,7 @@ export default function OverviewStanding({
         <div className="banner context-change" role="status">
           <div>
             <strong>Book drift is {pct(bookDrift, 1)}</strong> against an inverse-volatility
-            target — enough that rebalancing is likely to cost less than the drift does.
+            target — past the point where rebalancing costs less than the drift.
           </div>
           <button type="button" onClick={() => onOpenSection("allocation")}>
             Open allocation
@@ -154,13 +150,11 @@ export default function OverviewStanding({
         </div>
         <p className="sub">
           {alerts.length
-            ? `${alerts.length} limit${alerts.length === 1 ? " is" : "s are"} inside a warning band; `
-              + "each line above quotes the published limit it was read from."
+            ? `${alerts.length} limit${alerts.length === 1 ? " is" : "s are"} inside a warning band, `
+              + "each quoting the published limit it was read from."
             : `No position has spent ${fmt(ALERT_BANDS.symbolNear * 100, 0)}% of its symbol cap, `
               + `gross exposure is under ${fmt(ALERT_BANDS.gross * 100, 0)}% of its limit, and less `
-              + `than ${fmt(ALERT_BANDS.drawdown * 100, 0)}% of the daily drawdown budget is spent. `
-              + "Those three points are where this page starts talking; the limits they are "
-              + "fractions of belong to the gateway, which is also what enforces them."}
+              + `than ${fmt(ALERT_BANDS.drawdown * 100, 0)}% of the daily drawdown budget is spent.`}
         </p>
         {/* Nothing when the prompt is up. That branch read "Book drift
             is 20.3% against an inverse-volatility target, which is what
@@ -171,9 +165,9 @@ export default function OverviewStanding({
         {(bookDrift == null || bookDrift < DRIFT_PROMPT) && (
           <p className="research-note">
             {bookDrift == null
-              ? "Drift against a risk-model target is not measured on this book: the instruments in "
-                + "it share too little price history to build a covariance, so there is no target to "
-                + "measure against — which is not the same as being on target."
+              ? "Drift is not measured: these instruments share too little price history for a "
+                + "covariance, so there is no target to measure against"
+                + " — which is not the same as being on target."
               : `Book drift is ${pct(bookDrift, 1)} against an inverse-volatility target — under the `
                 + `${pct(DRIFT_PROMPT, 0)} at which this page raises the rebalancing prompt.`}
           </p>
