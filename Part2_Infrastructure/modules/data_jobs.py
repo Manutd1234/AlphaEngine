@@ -30,8 +30,15 @@ from datetime import datetime, timezone
 from typing import Any, Callable
 
 from config import settings
-from modules.data_ops_store import SqliteStore
 from modules.jobs import JobRecord, get_queue
+
+# Re-exported for the callers and tests that still import it from here. The
+# `as` form is the explicit re-export idiom and the noqa is load-bearing:
+# `ruff --fix` read the plain import as unused and deleted it — along with the
+# SqliteStore import beside it — which broke tests/test_data_jobs.py at
+# collection. An automated fixer removing a deliberate re-export is exactly
+# the hazard docs/REFACTOR_RULES.md is about.
+from modules.schedule_runs import ScheduleRunStore as ScheduleRunStore  # noqa: F401
 from modules.schemas import DataBackfillRequest, DataReplayRequest
 
 log = logging.getLogger("alphaengine.data_jobs")
@@ -385,32 +392,3 @@ def job_view(record: JobRecord) -> dict[str, Any]:
     status["actor"] = str(record.meta.get("actor", "")) if isinstance(record.meta, dict) else ""
     status["summary"] = _summary(record)
     return status
-
-
-class ScheduleRunStore(SqliteStore):
-    """Restart safety for the scheduler: when each schedule last fired."""
-
-    _DDL = [
-        """
-        CREATE TABLE IF NOT EXISTS data_schedule_runs (
-            schedule_id TEXT PRIMARY KEY,
-            last_run_at REAL,
-            last_job_id TEXT,
-            last_outcome TEXT
-        )
-        """,
-    ]
-
-    def __init__(self, path: str) -> None:
-        super().__init__(path)
-        self.migrate(self._DDL)
-
-    def last_run(self, schedule_id: str) -> dict[str, Any] | None:
-        return self.one("SELECT * FROM data_schedule_runs WHERE schedule_id=?", (schedule_id,))
-
-    def record_run(self, schedule_id: str, at_ms: float, job_id: str, outcome: str) -> None:
-        self.execute(
-            "INSERT INTO data_schedule_runs (schedule_id, last_run_at, last_job_id, last_outcome) VALUES (?,?,?,?) "
-            "ON CONFLICT(schedule_id) DO UPDATE SET last_run_at=excluded.last_run_at, last_job_id=excluded.last_job_id, last_outcome=excluded.last_outcome",
-            (schedule_id, at_ms, job_id, outcome),
-        )

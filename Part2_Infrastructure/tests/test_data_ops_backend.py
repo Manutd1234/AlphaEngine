@@ -63,3 +63,55 @@ def test_both_backends_report_a_backend_name():
     sqlite = open_data_ops_store(_settings())
     assert sqlite.backend in {"sqlite", "postgres"}
     sqlite.close()
+
+
+class TestTheSharedRowInterface:
+    """Both backends answer the same five methods, or the setting is a lie.
+
+    `ScheduleRunStore` used to subclass `SqliteStore`, which made SQLite not a
+    choice but the definition of the class. These assert the interface both
+    stores must satisfy, so a method added to one and forgotten on the other
+    fails here rather than at runtime on whichever deployment opted in.
+    """
+
+    SHARED = ("migrate", "fetch", "fetch_one", "add", "patch", "remove", "close", "backend")
+
+    def test_both_stores_answer_the_same_methods(self):
+        from modules.data_ops_postgrest import PostgrestStore
+        from modules.data_ops_store import SqliteStore
+
+        for cls in (SqliteStore, PostgrestStore):
+            missing = [name for name in self.SHARED if not hasattr(cls, name)]
+            assert not missing, f"{cls.__name__} is missing {missing}"
+
+    def test_the_schedule_store_reports_the_backend_it_was_given(self):
+        from modules.data_jobs import ScheduleRunStore
+
+        store = ScheduleRunStore(":memory:")
+        assert store.backend == "sqlite"
+        store.close()
+
+    def test_a_round_trip_through_the_row_interface(self):
+        from modules.data_jobs import ScheduleRunStore
+
+        store = ScheduleRunStore(":memory:")
+        assert store.last_run("nightly") is None
+        store.record_run("nightly", 1_000.0, "job-1", "succeeded")
+        first = store.last_run("nightly")
+        assert first is not None and first["last_job_id"] == "job-1"
+
+        # The upsert path: same key, new values, still one row.
+        store.record_run("nightly", 2_000.0, "job-2", "failed")
+        second = store.last_run("nightly")
+        assert second is not None
+        assert second["last_job_id"] == "job-2" and second["last_outcome"] == "failed"
+        store.close()
+
+    def test_an_identifier_that_is_not_one_is_refused(self):
+        """The row interface interpolates table and column names; values bind."""
+        from modules.data_ops_store import SqliteStore
+
+        store = SqliteStore(":memory:")
+        with pytest.raises(ValueError, match="not a bare SQL identifier"):
+            store.fetch("data_work_items; DROP TABLE data_work_items")
+        store.close()

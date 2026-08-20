@@ -124,7 +124,7 @@ class PostgrestStore:
         """
         log.debug("postgrest store: schema is owned by supabase/migrations, not by this process")
 
-    def select(
+    def fetch(
         self,
         table: str,
         *,
@@ -141,11 +141,11 @@ class PostgrestStore:
             params["limit"] = str(limit)
         return self._rows(self._send("GET", f"/{quote(table)}", params=params))
 
-    def one(self, table: str, **kwargs: Any) -> dict[str, Any] | None:
-        rows = self.select(table, limit=1, **kwargs)
+    def fetch_one(self, table: str, **kwargs: Any) -> dict[str, Any] | None:
+        rows = self.fetch(table, limit=1, **kwargs)
         return rows[0] if rows else None
 
-    def insert(
+    def add(
         self,
         table: str,
         rows: dict[str, Any] | list[dict[str, Any]],
@@ -161,6 +161,11 @@ class PostgrestStore:
         prefer = ["return=representation" if returning else "return=minimal"]
         if resolution:
             prefer.append(f"resolution={resolution}")
+        if on_conflict and "desk_id" not in on_conflict:
+            # Every unique constraint on these tables is (desk_id, <key>), so a
+            # caller naming the business key alone would target a constraint
+            # that does not exist. Expanded here rather than at six call sites.
+            on_conflict = f"desk_id,{on_conflict}"
         params = {"on_conflict": on_conflict} if on_conflict else None
         response = self._send(
             "POST", f"/{quote(table)}", json=payload,
@@ -168,7 +173,7 @@ class PostgrestStore:
         )
         return self._rows(response) if returning else []
 
-    def update(
+    def patch(
         self,
         table: str,
         *,
@@ -187,7 +192,7 @@ class PostgrestStore:
         )
         return self._rows(response)
 
-    def delete(self, table: str, *, filters: dict[str, Any]) -> int:
+    def remove(self, table: str, *, filters: dict[str, Any]) -> int:
         response = self._send(
             "DELETE", f"/{quote(table)}",
             params=self._scoped(filters), headers={"Prefer": "return=representation"},

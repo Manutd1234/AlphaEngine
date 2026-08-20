@@ -52,7 +52,6 @@ OVER_CEILING: dict[str, int] = {
     "tests/test_decision_core_native.py": 435,
     "config.py": 435,
     "tests/test_telegram_interactive.py": 422,
-    "modules/data_jobs.py": 417,
     "modules/operations.py": 405,
 }
 

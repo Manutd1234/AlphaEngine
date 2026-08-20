@@ -49,7 +49,7 @@ def _clear():
 class TestTheRequestItBuilds:
     def test_every_read_is_desk_scoped_without_the_caller_saying_so(self):
         store = _store(_ok([]))
-        store.select("data_work_items", filters={"status": "intake"})
+        store.fetch("data_work_items", filters={"status": "intake"})
         params = SEEN[0].url.params
         assert params["desk_id"] == "eq.desk-1", (
             "a store that can be asked for another desk's rows by forgetting a "
@@ -59,22 +59,22 @@ class TestTheRequestItBuilds:
 
     def test_insert_stamps_the_desk_and_asks_for_nothing_back_by_default(self):
         store = _store(_ok([], status=201))
-        store.insert("data_schedule_runs", {"schedule_id": "s1"})
+        store.add("data_schedule_runs", {"schedule_id": "s1"})
         body = json.loads(SEEN[0].content)
         assert body[0]["desk_id"] == "desk-1"
         assert SEEN[0].headers["Prefer"] == "return=minimal"
 
     def test_returning_asks_for_the_representation(self):
         store = _store(_ok([{"id": 7}], status=201))
-        rows = store.insert("data_quality_findings", {"seq": 1}, returning=True)
+        rows = store.add("data_quality_findings", {"seq": 1}, returning=True)
         assert SEEN[0].headers["Prefer"] == "return=representation"
         assert rows == [{"id": 7}], "this is the lastrowid equivalent and must carry the row"
 
     def test_upsert_sends_the_resolution_postgrest_needs(self):
         store = _store(_ok([], status=201))
-        store.insert(
+        store.add(
             "data_schedule_runs", {"schedule_id": "s1"},
-            on_conflict="desk_id,schedule_id", resolution="merge-duplicates",
+            on_conflict="schedule_id", resolution="merge-duplicates",
         )
         assert "resolution=merge-duplicates" in SEEN[0].headers["Prefer"]
         assert SEEN[0].url.params["on_conflict"] == "desk_id,schedule_id"
@@ -82,7 +82,7 @@ class TestTheRequestItBuilds:
     def test_a_versioned_update_is_a_compare_and_swap(self):
         """The version goes in the filter, so a stale writer changes nothing."""
         store = _store(_ok([]))
-        changed = store.update(
+        changed = store.patch(
             "data_work_items", filters={"id": "BUG-095", "version": 3},
             patch={"status": "resolved", "version": 4},
         )
@@ -95,7 +95,7 @@ class TestTheRequestItBuilds:
 
     def test_a_filter_may_carry_its_own_operator(self):
         store = _store(_ok([]))
-        store.select("data_quality_escalations", filters={"resolved_at": "is.null"})
+        store.fetch("data_quality_escalations", filters={"resolved_at": "is.null"})
         assert SEEN[0].url.params["resolved_at"] == "is.null"
 
 
@@ -103,7 +103,7 @@ class TestItRefusesQuietly:
     def test_a_4xx_raises_rather_than_reading_as_no_rows(self):
         store = _store(_ok({"message": "bad"}, status=400))
         with pytest.raises(PostgrestError):
-            store.select("data_work_items")
+            store.fetch("data_work_items")
 
     def test_the_error_never_carries_the_key_or_the_url(self):
         def boom(_request):
@@ -111,7 +111,7 @@ class TestItRefusesQuietly:
 
         store = _store(boom)
         with pytest.raises(PostgrestError) as caught:
-            store.select("data_work_items")
+            store.fetch("data_work_items")
         assert "service-key" not in str(caught.value)
         assert "supabase.co" not in str(caught.value)
 
@@ -122,7 +122,7 @@ class TestItRefusesQuietly:
 
         store = _store(html)
         with pytest.raises(PostgrestError):
-            store.select("data_work_items")
+            store.fetch("data_work_items")
 
     def test_migrate_does_not_issue_ddl(self):
         store = _store(_ok([]))
@@ -147,5 +147,5 @@ class TestAgainstTheRealProject:
             "data_quality_findings", "data_quality_escalations",
             "data_schedule_runs", "data_work_items",
         ):
-            store.select(table, limit=1)
+            store.fetch(table, limit=1)
         store.close()
