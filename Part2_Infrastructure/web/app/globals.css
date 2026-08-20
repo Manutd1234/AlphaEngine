@@ -13780,30 +13780,34 @@ button:active:not(:disabled) {
   box-shadow: none;
 }
 
-/* ---------- developer overview: fill the column ---------- */
+/* ---------- developer overview: one column, because the tables need it ---------- */
 
 /*
- * Topology sizes to its three nodes; launch readiness is a ring plus five gate
- * rows and runs ~190px taller. Side by side that left ~190px of empty plane
- * under the shorter card. The CI pipeline that used to sit below the whole grid
- * now completes the left column instead, so the two columns end together.
+ * This block used to place topology at `1 / span 8` and readiness at
+ * `9 / span 4` across two rows, with the CI pipeline card filling the slot
+ * underneath. Every clause of that is now false: topology and readiness are
+ * `hidden` in each other's subtab so they are never both on screen, and the
+ * pipeline card renders under `.developer-cp-stack` in the Quality subtab, so
+ * the row reserved for it was never filled. What the reader saw was a two-column
+ * dead gutter (7 and 8 were unoccupied in both rows) and a short card floating
+ * in a two-row span.
+ *
+ * One column, and the reason is arithmetic rather than taste. `.shell` caps
+ * content at 1200px, so twelve tracks with 16px gaps make a track 85.3px and
+ * `span 6` is 592px — 560px inside the card padding. Against that,
+ * `.developer-cp-table__row` sets `min-width: 590px` and
+ * `.developer-cp-artifacts__row` sets 610px, both under `overflow-x: auto`.
+ * Side by side, both tables scrolled inside their own cards at every viewport —
+ * a scrollbar nobody goes looking for. `span 7` fixes the schema table and
+ * still fails the artifact one, and 7 + 7 > 12, so no two-column arrangement
+ * fits either. Full width gives 1168px of content and neither table scrolls.
  */
 @media (min-width: 1121px) {
-  .developer-cp-overview__grid > .developer-cp-topology {
-    grid-column: 1 / span 8;
-    grid-row: 1;
-  }
-
-  /* The tall card spans both rows, so the short one beside it is followed by
-     the pipeline instead of by nothing. */
-  .developer-cp-overview__grid > .developer-cp-readiness {
-    grid-column: 9 / span 4;
-    grid-row: 1 / span 2;
-  }
-
-  .developer-cp-overview__grid > .developer-cp-pipeline-card {
-    grid-column: 1 / span 8;
-    grid-row: 2;
+  .developer-cp-overview__grid > .developer-cp-topology,
+  .developer-cp-overview__grid > .developer-cp-readiness,
+  .developer-cp-overview__grid > .developer-cp-schema-card,
+  .developer-cp-overview__grid > .developer-cp-artifact-card {
+    grid-column: 1 / -1;
   }
 }
 
