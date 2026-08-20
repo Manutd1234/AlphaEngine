@@ -160,14 +160,17 @@ describe("a hint does not narrate the button beside it", () => {
 });
 
 describe("a line does not quote figures the row below it pairs properly", () => {
-  it("the verdict's benchmark line is the standard, not the numbers", () => {
+  it("the verdict card quotes no benchmark figure of its own", () => {
     // The stat row beneath carries "buy & hold −1.11" under the strategy's own
     // Sharpe and "buy & hold −40.7%" under its own return — beside their
     // counterparts, which is where a comparison is actually made.
-    const line = verdict.slice(verdict.indexOf('className="verdict-benchmark"'));
-    assert.doesNotMatch(line.slice(0, 400), /benchmark\.totalReturn|benchmark\.sharpe/,
+    //
+    // This used to anchor on the standard-setting sentence that sat at the foot
+    // of the card and check the 400 characters after it. The sentence has been
+    // removed; the guarantee it was riding on has not, and applies to the whole
+    // file now rather than one window inside it.
+    assert.doesNotMatch(verdict, /benchmark\.totalReturn|benchmark\.sharpe/,
       "the benchmark figures belong in the stat row, paired with the strategy's own");
-    assert.match(line, /has not earned\s*\n?\s*its complexity/);
   });
 
   it("the execution cost probe does not restate its heading", () => {

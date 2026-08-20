@@ -15131,14 +15131,6 @@ html:active-view-transition .view-panel {
   line-height: var(--lh-snug);
 }
 
-.verdict-benchmark {
-  font-size: var(--fs-md);
-  color: var(--text-muted);
-  margin-top: 14px;
-  /* The buy-and-hold comparison is one sentence and belongs on one line. */
-  max-width: none;
-}
-
 .workspace-switcher {
   display: none;
 }

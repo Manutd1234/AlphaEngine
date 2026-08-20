@@ -93,16 +93,11 @@ export default function Verdict({ data }: { data: SweepResponse }) {
         />
       </div>
 
-      {/* The two benchmark figures are not repeated here. The stat row
-          immediately below this card carries them where they belong — beside
-          the strategy's own numbers, as "buy & hold −1.11" under Annualised
-          Sharpe and "buy & hold −40.7%" under Total return — which is where a
-          reader compares them. This line is the standard those comparisons are
-          held to, and that is all it needs to be. */}
-      <p className="verdict-benchmark">
-        A strategy that does not beat buy &amp; hold after costs has not earned
-        its complexity.
-      </p>
+      {/* No benchmark figures here. The stat row immediately below this card
+          carries them where they belong — beside the strategy's own numbers,
+          as "buy & hold −1.11" under Annualised Sharpe and "buy & hold −40.7%"
+          under Total return — which is where a reader compares them.
+          copy-audit.test.ts holds that. */}
     </div>
   );
 }
