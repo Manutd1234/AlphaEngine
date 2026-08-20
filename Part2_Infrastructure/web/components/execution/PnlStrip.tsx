@@ -15,6 +15,7 @@
 
 import NumberTicker from "@/components/common/NumberTicker";
 import { fmt, pct, sign, usd } from "@/lib/format";
+import { transportLabel, useDeskStream } from "@/lib/use-desk-stream";
 
 interface Book {
   trading_halted: boolean;
@@ -45,6 +46,23 @@ export default function PnlStrip({
   onEnterSandbox,
   compact = false,
 }: PnlStripProps) {
+  /**
+   * How the figures below last arrived, read from the shared stream store
+   * rather than passed down.
+   *
+   * Not a prop on purpose: a label describing a connection is only trustworthy
+   * if it comes from the same place the connection does. Threading it through
+   * the cockpit would put a second copy of the transport in the tree, and a
+   * copy is a thing that can be stale, forgotten on one render path, or simply
+   * not updated when the stream drops — which is precisely the moment the
+   * label has to be right.
+   *
+   * Above the `!book` bail-out with every other hook. A hook after a
+   * conditional return is React's "rendered more hooks than during the
+   * previous render", and this component returns early on three paths.
+   */
+  const stream = useDeskStream(mode === "live");
+
   if (!book) {
     // Two different absences. "No gateway in this deployment" is an
     // architectural fact with nothing to retry — a Retry button there is a
@@ -84,6 +102,7 @@ export default function PnlStrip({
   // Amber well before the stop: a breaker that surprises the desk has already
   // failed at the only job that matters here.
   const tone = drawdown.utilisation >= 0.8 ? "neg" : drawdown.utilisation >= 0.5 ? "warn" : "pos";
+  const transport = transportLabel(stream.state);
 
   return (
     <div className={`card cockpit-strip${compact ? " cockpit-strip--compact" : ""}${book.trading_halted ? " cockpit-strip--halted" : ""}`}>
@@ -94,18 +113,35 @@ export default function PnlStrip({
         {book.halted_symbols.length ? (
           <span className="muted">halted: {book.halted_symbols.join(", ")}</span>
         ) : null}
-        <span className="muted cockpit-strip__sync">
+        {/* The transport is said in words, never implied by the freshness of
+            the number beside it. A desk on the fallback poll looked exactly
+            like one running live, so the stream implied a guarantee it had
+            stopped delivering — the same correction `BookChrome` carries, in
+            the same vocabulary, from the same helper. */}
+        <span
+          className="muted cockpit-strip__sync"
+          title={
+            transport === "live-pushed"
+              ? "Pushed by the gateway when the risk state changes — about a second old."
+              : "Polled on a timer — up to one poll interval old, and the stream is not carrying it."
+          }
+        >
           {mode === "sandbox"
             ? "generated book — deterministic, never synced"
-            : lastSyncAt ? `synced ${lastSyncAt.toLocaleTimeString("en-GB")}` : "never synced"}
+            : lastSyncAt
+              ? `synced ${lastSyncAt.toLocaleTimeString("en-GB")}, ${transport}`
+              : "never synced"}
         </span>
       </div>
 
       <dl className="cockpit-strip__metrics">
         <div>
           <dt>Equity</dt>
-          {/* 15s poll: at most one tick per poll, and only when the book
-              actually moved — NumberTicker is inert on identical values. */}
+          {/* One tick per arrival, and only when the book actually moved —
+              NumberTicker is inert on identical values. It said "15s poll",
+              which was never this component's cadence (the cockpit polls at
+              4s) and is no longer the cadence of anything: the stream delivers
+              a change in about a second and the poll is the fallback. */}
           <dd><NumberTicker value={book.equity.current} format={(v) => usd(v)} /></dd>
         </div>
         <div>
