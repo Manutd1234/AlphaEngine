@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyboardEvent, useRef, useEffect, useState } from "react";
+import { KeyboardEvent, useCallback, useMemo, useRef, useEffect, useState } from "react";
 import LatencyChip from "@/components/header/LatencyChip";
 import KillSwitchControl, {
   type KillSwitchHaltState,
@@ -81,8 +81,10 @@ export default function WorkspaceHeader({
   view,
   onViewChange,
   onViewIntent,
-  onOpenProviderHealth,
-  onOpenTailLatency,
+  /* Renamed on arrival, and re-declared below as callbacks that do not change
+     identity between renders. The row's chips read the stable ones. */
+  onOpenProviderHealth: providerHealthFromPage,
+  onOpenTailLatency: tailLatencyFromPage,
   decisionLatency,
   gatewayHopLatency = null,
   onOpenCommandBar,
@@ -118,20 +120,36 @@ export default function WorkspaceHeader({
    * compact workspace selector and the bar changes height. A section rail
    * docked to a hardcoded 56px simply disappeared behind the header in both
    * cases — navigation present in the DOM and invisible on screen.
+   *
+   * Published only on a real change, and never from inside the observation.
+   * The property is set on the ROOT element, so an unchanged rewrite still
+   * invalidates the style of every node that inherits it, and `--header-h`
+   * sizes the one scroller on the page — so a write made during delivery
+   * dirties layout in the frame that is delivering, which is a ResizeObserver
+   * loop and would read here as the whole desk freezing. WorkspaceSubtabs
+   * carries the mirror of this for `--rail-h`, with the measurements.
    */
   useEffect(() => {
     const node = headerRef.current;
     if (!node || typeof ResizeObserver === "undefined") return;
+    const root = document.documentElement;
+    let frame = 0;
     const publish = () => {
-      document.documentElement.style.setProperty(
-        "--header-h",
-        `${Math.round(node.getBoundingClientRect().height)}px`,
-      );
+      frame = 0;
+      const next = `${Math.round(node.getBoundingClientRect().height)}px`;
+      if (root.style.getPropertyValue("--header-h") === next) return;
+      root.style.setProperty("--header-h", next);
     };
     publish();
-    const observer = new ResizeObserver(publish);
+    const observer = new ResizeObserver(() => {
+      if (frame) return;
+      frame = requestAnimationFrame(publish);
+    });
     observer.observe(node);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, []);
 
   // ⌘K lives in `page.tsx` with the dialog it opens — see CommandBar's header
@@ -170,6 +188,59 @@ export default function WorkspaceHeader({
     onViewChange(NAV_ITEMS[nextIndex].id);
     tabRefs.current[nextIndex]?.focus();
   };
+
+  /**
+   * ─── Keeping the row's memoised chips out of each other's re-renders ───────
+   *
+   * Every chip in this bar is `React.memo`'d, and a memo is only ever as good
+   * as the props it is handed. Four of these arrive as a fresh value on every
+   * render of the dashboard — two inline arrows and two object literals — and
+   * each one on its own is enough to re-render the control it feeds, so the
+   * decision chip counting would repaint the Telegram link, the kill switch
+   * and the account menu beside it several times a second.
+   *
+   * The arrows are absorbed through a ref rather than fixed at the call site,
+   * which is the shape this deserves and is not the shape it can have:
+   * `app/dashboard/page.tsx` is at its `tests/file-size.test.ts` ceiling, so
+   * the two `useCallback`s that belong there have nowhere to live until it is
+   * split. Writing the ref during render is the same move `NumberTicker` makes
+   * for its formatter, and for the same reason — the callback the reader
+   * pressed must be the current one, never the one captured at mount.
+   */
+  const callbacks = useRef({ providerHealthFromPage, tailLatencyFromPage });
+  callbacks.current = { providerHealthFromPage, tailLatencyFromPage };
+  /* The names the rest of this file — and `tests/quick-settings.test.ts`, which
+     pins the providers chip and the panel's mirror to ONE handler — already
+     use. Only their identity changed, and that is the whole point. */
+  const onOpenProviderHealth = useCallback(() => callbacks.current.providerHealthFromPage(), []);
+  const onOpenTailLatency = useCallback(() => callbacks.current.tailLatencyFromPage(), []);
+  const openPreferences = useCallback(() => setSettingsSignal((n) => n + 1), []);
+  const backToAccount = useCallback(() => setAccountSignal((n) => n + 1), []);
+
+  /**
+   * The two object props, rebuilt from their fields.
+   *
+   * The halted symbols are keyed by their contents rather than by the array's
+   * identity: the book hands down a new array whenever its payload is re-read,
+   * and re-arming the kill switch's memo on that would undo the whole point.
+   * Null stays null — a book that has not answered yet is not an un-halted one.
+   */
+  const haltedKey = halt ? halt.haltedSymbols.join(" ") : null;
+  const haltState = useMemo<KillSwitchHaltState | null>(
+    () => (halt ? { halted: halt.halted, haltedSymbols: halt.haltedSymbols, sandbox: halt.sandbox } : null),
+    // eslint is not installed here; the deps are the fields, deliberately, and
+    // `haltedKey` stands in for the array so its identity cannot churn them.
+    [halt?.halted, haltedKey, halt?.sandbox],
+  );
+  const killRiskControl = useMemo<KillSwitchRiskControl>(
+    () => ({
+      guardMode: riskControl.guardMode,
+      token: riskControl.token,
+      onTokenChange: riskControl.onTokenChange,
+      onExecuted: riskControl.onExecuted,
+    }),
+    [riskControl.guardMode, riskControl.token, riskControl.onTokenChange, riskControl.onExecuted],
+  );
 
   // "Routable" is intentionally narrower than "live": six paid providers are
   // not probed on every refresh, so this aggregate must not imply network proof.
@@ -284,7 +355,7 @@ export default function WorkspaceHeader({
             onRetry={dataSource.onRetry}
           />
         )}
-        <KillSwitchControl halt={halt} riskControl={riskControl} />
+        <KillSwitchControl halt={haltState} riskControl={killRiskControl} />
         <button
           type="button"
           className={`system-health system-health-action ${healthNeedsAttention ? "is-warn" : ""}`}
@@ -299,7 +370,7 @@ export default function WorkspaceHeader({
           <span className="system-health__label--short" aria-hidden>{healthLabelShort}</span>
         </button>
         <AccountChip
-          onOpenPreferences={() => setSettingsSignal((n) => n + 1)}
+          onOpenPreferences={openPreferences}
           openSignal={accountSignal}
         />
         <QuickSettings
@@ -307,7 +378,7 @@ export default function WorkspaceHeader({
           healthNeedsAttention={healthNeedsAttention}
           onOpenReliability={onOpenProviderHealth}
           openSignal={settingsSignal}
-          onBackToAccount={() => setAccountSignal((n) => n + 1)}
+          onBackToAccount={backToAccount}
         />
       </div>
     </header>
