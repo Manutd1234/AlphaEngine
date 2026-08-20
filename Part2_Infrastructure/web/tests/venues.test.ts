@@ -530,10 +530,30 @@ describe("every venue client has somewhere to fall back to", () => {
  * kept two hand-maintained mirrors in step.
  */
 describe("the portal and the gateway share one fill tolerance", () => {
-  const read = (relative: string) =>
-    readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
   const ts = readVenues();
-  const py = read("../../modules/tca_engine.py");
+  // The WHOLE gateway-side package, concatenated, not one named file.
+  //
+  // This read `../../modules/tca_engine.py` directly and broke the moment that
+  // module became a package — `FILL_TOLERANCE` now lives in `tolerance.py`.
+  // Pointing it at the new path would only move the breakage to the next
+  // split. Reading every module in the package means a symbol may travel
+  // WITHIN the gateway's TCA code without this mirror test caring, while the
+  // property it actually guards — that the two ports declare one tolerance —
+  // still fails loudly if either side changes alone.
+  //
+  // `modules/telegram.py` taught this the expensive way: two source scans there
+  // used `Path(module.__file__).read_text()`, which for a package reads only
+  // `__init__.py`, so both went green scanning nothing at all.
+  const pkg = fileURLToPath(new URL("../../modules/tca_engine/", import.meta.url));
+  const files = readdirSync(pkg).filter((f) => f.endsWith(".py"));
+  const py = files.map((f) => readFileSync(join(pkg, f), "utf8")).join("\n");
+
+  it("reads a gateway-side package worth checking", () => {
+    // A directory that silently held no .py files would make every assertion
+    // below pass by matching nothing.
+    assert.ok(files.length >= 2, `only found ${files.length} python files in tca_engine/`);
+    assert.ok(py.includes("FILL_TOLERANCE"), "the concatenated package does not mention FILL_TOLERANCE");
+  });
 
   it("declares the same FILL_TOLERANCE literal on both sides", () => {
     const tsLiteral = /^export const FILL_TOLERANCE = (.+);$/m.exec(ts)?.[1];
