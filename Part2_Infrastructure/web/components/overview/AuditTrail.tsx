@@ -98,8 +98,7 @@ export default function AuditTrail({ active, seed }: { active: boolean; seed?: n
           <span aria-hidden>◇</span>
           <div>
             <strong>Generated ledger — these orders were not sent.</strong> {state.detail}{" "}
-            These are the same simulated orders the Execution blotter shows, so the two tabs
-            still reconcile.
+            The same simulated orders the Execution blotter shows, so the two tabs reconcile.
           </div>
         </div>
       )}
