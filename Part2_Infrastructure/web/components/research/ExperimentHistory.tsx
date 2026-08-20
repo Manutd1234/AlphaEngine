@@ -187,8 +187,7 @@ export default function ExperimentHistory({
 
       {records.length === 0 ? (
         <p className="sub">
-          No runs recorded yet in this browser. Every completed sweep is saved here, so the same
-          hypothesis is not silently re-tested.
+          No runs recorded yet in this browser. Every completed sweep is saved here.
         </p>
       ) : (
         <>
@@ -198,9 +197,9 @@ export default function ExperimentHistory({
               <div>
                 <strong>{records.length} hypotheses tested across {distinctSymbols}{" "}
                   instrument{distinctSymbols === 1 ? "" : "s"}.</strong>{" "}
-                Each row&apos;s Deflated Sharpe prices only the grid <em>inside</em> that run; it
-                does not know the other {records.length - 1} runs happened. The best row is a
-                maximum over {records.length} searches, so its DSR overstates the evidence.
+                Each row&apos;s Deflated Sharpe prices only the grid <em>inside</em> that run, so
+                the best row&apos;s DSR overstates the evidence: it is a maximum over{" "}
+                {records.length} searches.
               </div>
             </div>
           )}
@@ -208,8 +207,8 @@ export default function ExperimentHistory({
           <div className="table-wrap" tabIndex={0}>
             <table>
               <caption className="sr-only">
-                Saved research runs with in-sample Sharpe, deflated Sharpe, out-of-sample Sharpe,
-                drawdown, verdict and actions.
+                Saved research runs with Sharpe, deflated and out-of-sample Sharpe, drawdown,
+                verdict and actions.
               </caption>
               <thead>
                 <tr>
@@ -292,7 +291,7 @@ export default function ExperimentHistory({
                           <button
                             type="button"
                             onClick={() => onClone(r.request)}
-                            title="Load this run's exact configuration into the controls"
+                            title="Load this run's configuration into the controls"
                           >
                             Clone
                           </button>
@@ -311,7 +310,7 @@ export default function ExperimentHistory({
                               type="button"
                               role="menuitem"
                               onClick={() => exportPython(r)}
-                              title="Download a self-contained Python script that reproduces this run offline"
+                              title="Download a Python script that reproduces this run offline"
                             >
                               Export Python script
                             </button>
