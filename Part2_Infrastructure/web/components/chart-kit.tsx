@@ -31,7 +31,11 @@ export function useMeasuredWidth<T extends HTMLElement>(fallback = 720) {
     if (!el) return;
     const observer = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width;
-      if (w && Math.abs(w - width) > 1) setWidth(w);
+      // Compared against the CURRENT width through the updater, not the closed-over
+      // one: with `[]` deps that variable is the first-render fallback forever, so
+      // the epsilon never applied and every sub-pixel observation re-rendered the
+      // chart. Returning `prev` unchanged lets React bail out of the render.
+      if (w) setWidth((prev) => (Math.abs(w - prev) > 1 ? w : prev));
     });
     observer.observe(el);
     setWidth(el.clientWidth || fallback);
