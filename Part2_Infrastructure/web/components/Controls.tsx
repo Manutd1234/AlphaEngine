@@ -456,9 +456,9 @@ export default function Controls({
           </summary>
 
           <p className="friction-note">
-            Beyond flat fee and slippage; each defaults to zero. At all zeros this run is
-            arithmetically identical to the gateway&apos;s reference engine; any non-zero value makes
-            it a model of your assumptions, and the two stop agreeing.
+            Beyond flat fee and slippage; each defaults to zero. At all zeros this run matches the
+            gateway&apos;s reference engine exactly; any non-zero value makes it a model of your
+            own assumptions.
           </p>
 
           <div className="row">
@@ -503,8 +503,8 @@ export default function Controls({
             />
           </div>
           <p className="friction-note">
-            Funding is charged on absolute exposure every bar; borrow only on short exposure, so it does
-            nothing in a long-only run.
+            Funding is charged on absolute exposure every bar; borrow only on short exposure, so it
+            is inert in a long-only run.
           </p>
         </details>
 
