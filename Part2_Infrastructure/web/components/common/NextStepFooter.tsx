@@ -65,23 +65,23 @@ const NEXT_FROM: Record<string, { view: WorkspaceView; section: string; why: str
   "overview/audit": {
     view: "live",
     section: "activity",
-    why: "These rows arrive there live, before they are accounted for here.",
+    why: "These rows arrive there live.",
   },
 
   "research/summary": {
     view: "research",
     section: "parameters",
-    why: "The verdict names one winning pair, not how far ahead of its neighbours it was.",
+    why: "The winner, not the margin.",
   },
   "research/parameters": {
     view: "research",
     section: "walkforward",
-    why: "Topping the in-sample grid proves nothing until the pair holds on windows it never saw.",
+    why: "In-sample rank needs unseen windows.",
   },
   "research/walkforward": {
     view: "research",
     section: "decision",
-    why: "Out-of-sample evidence is the promotion gate's input.",
+    why: "The promotion gate's input.",
   },
   "research/decision": {
     // Absorbed from an inline hand-off card on the decision section itself:
@@ -90,113 +90,113 @@ const NEXT_FROM: Record<string, { view: WorkspaceView; section: string; why: str
     // is the continuation a promotion decision actually has.
     view: "data",
     section: "overview",
-    why: "The trust verdict rules on exactly the bars this gate just judged.",
+    why: "Trust evidence for the bars just judged.",
   },
   "research/attribution": {
     view: "risk",
     section: "model",
-    why: "The loss estimate is built from factor exposure and tail shape.",
+    why: "Built from exposure and tail shape.",
   },
   "research/lineage": {
     view: "data",
     section: "lineage",
-    why: "The payload the signal was computed from has its own trail.",
+    why: "The source payload's own trail.",
   },
   "research/runs": {
     view: "research",
     section: "summary",
-    why: "Opening an archived hypothesis restores its curve.",
+    why: "An archived hypothesis restores its curve.",
   },
 
   "live/quality": {
     view: "live",
     section: "routing",
-    why: "Realised cost only means something beside the model it beat or missed.",
+    why: "Realised cost needs its benchmark model.",
   },
 
   "portfolio/equity": {
     view: "portfolio",
     section: "performance",
-    why: "The curve says what happened, not which sleeve or cost it came through.",
+    why: "The curve hides sleeve and cost.",
   },
   "portfolio/allocation": {
     view: "live",
     section: "trade",
-    why: "A drift number is a rebalance waiting to be staged.",
+    why: "Drift is a rebalance waiting.",
   },
   "portfolio/performance": {
     view: "live",
     section: "quality",
-    why: "Attribution charges a modelled cost, not the one the desk actually paid.",
+    why: "Attribution charges a modelled cost.",
   },
 
   "risk/model": {
     view: "risk",
     section: "montecarlo",
-    why: "The bootstrap resamples exactly the returns this estimate was fitted to.",
+    why: "The bootstrap resamples these returns.",
   },
   "risk/drivers": {
     view: "risk",
     section: "scenarios",
-    why: "The positions carrying the volatility are the ones a shock moves most.",
+    why: "Volatility-carrying positions move most under shock.",
   },
   "risk/scenarios": {
     view: "risk",
     section: "controls",
-    why: "A scenario that breaches the drawdown budget wants the halt beside it.",
+    why: "A breached budget wants the halt.",
   },
   "risk/controls": {
     view: "portfolio",
     section: "positions",
-    why: "After a halt or a flatten, confirm what actually moved.",
+    why: "Confirm what a halt actually moved.",
   },
 
   "data/overview": {
     view: "data",
     section: "feeds",
-    why: "The verdict summarises the feeds; this is the evidence behind it.",
+    why: "The evidence behind the verdict.",
   },
   "data/lineage": {
     view: "data",
     section: "quality",
-    why: "A traced payload is still worth validating.",
+    why: "A traced payload still needs validating.",
   },
   "data/queue": {
     view: "data",
     section: "quality",
-    why: "Every item in this queue was created by a finding raised there.",
+    why: "Every item came from a finding there.",
   },
 
   "reliability/events": {
     view: "reliability",
     section: "controls",
-    why: "A correlated log is the input to a remediation.",
+    why: "A remediation's input.",
   },
   "reliability/controls": {
     view: "reliability",
     section: "events",
-    why: "An operator action is finished only once the mutation shows in the stream.",
+    why: "An action lands when the mutation shows.",
   },
 
   "developer/quality": {
     view: "developer",
     section: "apis",
-    why: "The pipeline's last gate is the contract, checked against the committed digest.",
+    why: "The last gate is the contract digest.",
   },
   "developer/apis": {
     view: "developer",
     section: "codebase",
-    why: "A route that changed shape has a source file behind it.",
+    why: "A changed route has a source file.",
   },
   "developer/codebase": {
     view: "developer",
     section: "quality",
-    why: "A diff is unproven until the pipeline has run over it.",
+    why: "Unproven until the pipeline runs.",
   },
   "developer/work": {
     view: "developer",
     section: "codebase",
-    why: "Work items reference files; what an item is about is in the source.",
+    why: "Work items reference files.",
   },
 };
 
@@ -216,49 +216,49 @@ const FLOW_MAP: Record<WorkspaceView, { nextId: WorkspaceView; kicker: string; t
     nextId: "research",
     kicker: "Next step for the quant researcher",
     title: "Validate strategy and signal evidence",
-    hint: "Parameter sweeps, stability metrics and walk-forward analysis.",
+    hint: "Parameter sweeps, stability and walk-forward.",
   },
   research: {
     nextId: "live",
     kicker: "Next step for the quant trader",
     title: "Stage paper execution and market depth",
-    hint: "Consolidated L2 depth, venue routing costs and pre-trade gates.",
+    hint: "L2 depth, routing costs, pre-trade gates.",
   },
   live: {
     nextId: "portfolio",
     kicker: "Next step for the portfolio manager",
     title: "Review positions and P&L attribution",
-    hint: "Equity curve, sleeve breakdown, concentration and the intraday P&L waterfall.",
+    hint: "Equity curve, sleeves, concentration, P&L waterfall.",
   },
   portfolio: {
     nextId: "risk",
     kicker: "Next step for the risk manager",
     title: "Audit pre-trade risk and limits",
-    hint: "Gross and net headroom, historical VaR, stress scenarios and kill switch state.",
+    hint: "Headroom, VaR, stress scenarios, kill switch.",
   },
   risk: {
     nextId: "data",
     kicker: "Next step for the data engineer",
     title: "Verify data lineage and feed freshness",
-    hint: "Provider quotas, contract evidence and the pipeline DAG.",
+    hint: "Provider quotas, contract evidence, the pipeline DAG.",
   },
   data: {
     nextId: "reliability",
     kicker: "Next step for DevOps and SRE",
     title: "Check SRE telemetry and circuit health",
-    hint: "Provider API latency percentiles, active incidents and recovery workflows.",
+    hint: "Latency percentiles, incidents, recovery workflows.",
   },
   reliability: {
     nextId: "developer",
     kicker: "Next step for the quant developer",
     title: "Inspect CI/CD and schema contracts",
-    hint: "Deployment topology, the launch readiness ring, OpenAPI diffs and the task queue.",
+    hint: "Deployment topology, OpenAPI diffs, the task queue.",
   },
   developer: {
     nextId: "overview",
     kicker: "Next step around the decision loop",
     title: "Return to the desk overview",
-    hint: "Equity, the decision pipeline and the audit trail on one screen.",
+    hint: "Equity, the decision pipeline, the audit trail.",
   },
 };
 
