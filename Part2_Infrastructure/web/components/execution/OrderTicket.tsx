@@ -266,8 +266,8 @@ export default function OrderTicket({
           <h3>Order ticket</h3>
           <p className="muted">
             {paperEquity
-              ? `${symbol} uses a server-verified provider quote and a disclosed paper model. MARKET only; no L2 routing is claimed.`
-              : "Every order is judged by the gateway's pre-trade gates. A rejection is the answer, not an error."}
+              ? `${symbol} prices off a server-verified provider quote, paper model, MARKET only; no L2 routing is claimed.`
+              : "Judged by the gateway's pre-trade gates. A rejection is the answer, not an error."}
           </p>
         </div>
         {/* No sleeve chip here. It read as a status chip and navigated to
@@ -280,14 +280,14 @@ export default function OrderTicket({
 
       {symbolHalted ? (
         <p className="notice notice--stop">
-          Trading is halted{haltedSymbols.includes(symbol) ? ` for ${symbol}` : " across the book"}. Orders will be
-          rejected by the kill-switch gate.
+          Trading is halted{haltedSymbols.includes(symbol) ? ` for ${symbol}` : " across the book"}. The
+          kill-switch gate will reject orders.
         </p>
       ) : null}
 
       {disabled ? (
         <p className="notice notice--stop">
-          The order path needs a reachable gateway and none is answering, so the ticket is disabled.
+          No gateway is answering, so the ticket is disabled.
         </p>
       ) : null}
       {mode === "sandbox" ? (
@@ -317,7 +317,7 @@ export default function OrderTicket({
             {operatorToken?.trim()
               ? "Override ready; held in memory for this tab only."
               : paperOrderDefaultAvailable
-                ? "Using the deployment credential. Paste a token to override this request."
+                ? "Using the deployment credential; paste a token to override."
                 : "Required for live orders. Held in memory for this tab only."}
           </small>
         </div>
@@ -351,7 +351,7 @@ export default function OrderTicket({
               type="button"
               aria-pressed={orderType === option}
               disabled={paperEquity && option === "LIMIT"}
-              title={paperEquity && option === "LIMIT" ? "Equity paper orders are MARKET-only because no equity L2 book is connected." : undefined}
+              title={paperEquity && option === "LIMIT" ? "Equity paper orders are MARKET-only; no equity L2 book is connected." : undefined}
               onClick={() => onOrderTypeChange(option)}
             >
               {option === "MARKET" ? "Market" : "Limit"}
@@ -366,7 +366,7 @@ export default function OrderTicket({
             value={strategy}
             onChange={(event) => onStrategyChange(event.target.value as Strategy)}
             aria-describedby="execution-strategy-help"
-            title="This tag groups the order in Portfolio attribution; any resulting position updates aggregate Risk."
+            title="Tags the order for Portfolio attribution; any resulting position updates aggregate Risk."
           >
             {STRATEGY_GROUPS.map(([family, strategies]) => (
               <optgroup key={family} label={family}>
@@ -441,11 +441,11 @@ export default function OrderTicket({
           disabled={busy || disabled || credentialMissing || !(notional > 0) || limitInvalid || equityLimitUnsupported}
           title={
             credentialMissing
-              ? "Enter the operator credential above to enable live order submission."
+              ? "Enter the operator credential above to send live orders."
               : equityLimitUnsupported
-              ? "Covered US equity paper orders are MARKET-only; no L2 book is available for a resting limit."
+              ? "Equity paper orders are MARKET-only; no L2 book backs a resting limit."
               : limitInvalid
-              ? "Limit orders need a price; the field's grey number is the current mark, not a value."
+              ? "Limit orders need a price; the grey number is the mark, not a value."
               : !(notional > 0) ? "Set a notional first." : undefined
           }
           onClick={() => void submit()}
@@ -463,8 +463,8 @@ export default function OrderTicket({
             button is dead, say so in text, not only in a hover title. */}
         {limitInvalid && !busy && !disabled ? (
           <p className="cockpit-ticket__hint">
-            Type a limit price to enable Send; the grey number is the current mark, not a
-            filled-in value. Or switch back to Market.
+            Type a limit price to enable Send, or switch back to Market. The grey number is the
+            current mark, not a filled-in value.
           </p>
         ) : null}
 
