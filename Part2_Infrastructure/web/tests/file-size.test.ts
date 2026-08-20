@@ -73,7 +73,13 @@ const OVER_CEILING: Record<string, number> = {
   // is swept — the rail, `EXPECTED_SECTIONS` beside it, the fault profiles and
   // the dead-end vocabulary — and `scripts/desk-sweep-cdp.mjs` (184) holds the
   // browser plumbing. The count moved with the list it counts.
-  "lib/strategy-docs.ts": 537,
+  // `lib/strategy-docs.ts` became `lib/strategy-docs/` on 2026-08-21, at 537
+  // lines. Four family modules — trend (169), momentum-and-the-rest (189),
+  // breakout (100), reversion (99) — over a `model.ts` (26) and an `index.ts`
+  // (44) barrel. The exhaustiveness the single literal gave for free is kept by
+  // the barrel's `Record<Strategy, StrategyDoc>` annotation over four
+  // `satisfies Partial<...>` modules, which was verified by deleting an entry
+  // and watching `tsc` name it.
   "components/data/DataWorkBoard.tsx": 526,
   "components/Controls.tsx": 522,
   "lib/use-system-health.ts": 483,
