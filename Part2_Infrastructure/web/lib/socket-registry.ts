@@ -63,8 +63,8 @@ export class SocketRegistry {
    * `useSyncExternalStore` requires a referentially stable snapshot between
    * notifications — returning a fresh array on every read is an infinite render
    * loop. Frame counters deliberately do not live here: they change ten times a
-   * second per venue and already reach the UI through the hook's throttled 5 Hz
-   * publish.
+   * second per venue and already reach the UI through the hook's throttled
+   * publish tick, which runs on the shared `THROTTLE_INTERVAL_MS` window.
    */
   private snapshot: SocketSummary[] = EMPTY_REGISTRY;
 
