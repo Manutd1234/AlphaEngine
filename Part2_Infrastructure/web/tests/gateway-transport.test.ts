@@ -18,7 +18,8 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -149,17 +150,38 @@ describe("the hints say what to do", () => {
 });
 
 describe("the deployment probes the hop it actually depends on", () => {
+  // `e2e_smoke.py` kept the registry, the rendering and the exit code; the check
+  // bodies became the `tools/e2e_checks/` package. The registry assertion below
+  // still reads the script, because the registry really did stay there. The
+  // check body is read from the WHOLE package rather than from `web.py` by name:
+  // pinned to one module, a body that later moves to a sibling takes its
+  // assertion with it and the test passes having scanned a file that no longer
+  // contains its subject. Pinned to the package, a symbol may move within it
+  // freely and the property still fails loudly if it genuinely goes away.
   const smoke = readFileSync(
     fileURLToPath(new URL("../../tools/e2e_smoke.py", import.meta.url)),
     "utf8",
   );
+  const checksDir = fileURLToPath(new URL("../../tools/e2e_checks/", import.meta.url));
+  const checkFiles = readdirSync(checksDir).filter((name) => name.endsWith(".py"));
+  const checks = checkFiles
+    .map((name) => readFileSync(join(checksDir, name), "utf8"))
+    .join("\n");
+
+  it("reads a package that actually holds the checks", () => {
+    // A glob matching nothing does not fail — it passes having read an empty
+    // string, which is how four assertions in this repository spent a day
+    // matching against "". Guard the corpus before trusting anything below it.
+    assert.ok(checkFiles.length > 1, `tools/e2e_checks/ holds ${checkFiles.length} modules`);
+    assert.ok(checks.length > 0, "tools/e2e_checks/ concatenated to an empty string");
+  });
 
   it("asks the deployment to reach the gateway, not just the gateway to answer", () => {
     // Every other gateway check runs from wherever the script executes and
     // proves only that *that* caller can reach it. This one traverses the hop
     // the workspace depends on.
-    assert.match(smoke, /def check_vercel_to_gateway\(\)/);
-    assert.match(smoke, /\{VERCEL\}\/api\/gateway\/portfolio/);
+    assert.match(checks, /def check_vercel_to_gateway\(\)/);
+    assert.match(checks, /\{VERCEL\}\/api\/gateway\/portfolio/);
   });
 
   it("is registered, or it is decoration", () => {
@@ -167,15 +189,15 @@ describe("the deployment probes the hop it actually depends on", () => {
   });
 
   it("skips a deployment with no gateway rather than failing a fork", () => {
-    assert.match(smoke, /gateway_not_configured/);
-    assert.match(smoke, /"vercel → gateway", SKIP/);
+    assert.match(checks, /gateway_not_configured/);
+    assert.match(checks, /"vercel → gateway", SKIP/);
   });
 
   it("reports the boundary's own hint rather than restating the status", () => {
     // Which is what makes this and the hints above one change: the probe is
     // only as useful as the sentence it can quote.
-    assert.match(smoke, /body\.get\("hint"\)/);
-    assert.match(smoke, /fix=hint or \(/);
+    assert.match(checks, /body\.get\("hint"\)/);
+    assert.match(checks, /fix=hint or \(/);
   });
 });
 
