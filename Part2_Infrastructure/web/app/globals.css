@@ -7884,50 +7884,10 @@ button.data-trust-action > i {
   font-weight: 700;
 }
 
-.data-trust-boundaries {
-  margin: 0;
-  padding: 16px;
-}
-
-/* `details >`, not `.data-trust-boundaries >`: when the card gained its
-   disclosure wrapper the articles stopped being direct children of the
-   section, this selector silently stopped matching, and the two columns
-   stacked — green-while-broken, caught only by reading the opened card. */
-.data-trust-boundaries details > div:last-child {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.data-trust-boundaries article {
-  padding: 12px 13px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  background: var(--surface-2);
-}
-
-.data-trust-boundaries h3 {
-  font-size: var(--fs-body);
-}
-
-.data-trust-boundaries article:first-child h3 {
-  color: var(--success-text);
-}
-
-.data-trust-boundaries article:last-child h3 {
-  color: var(--warning-text);
-}
-
-.data-trust-boundaries ul {
-  display: grid;
-  gap: 5px;
-  margin: 8px 0 0;
-  padding-left: 17px;
-  color: var(--text-muted);
-  font-size: var(--fs-2xs);
-  line-height: var(--lh-body);
-}
+/* `.data-trust-boundaries` and its six rules went with the block they styled.
+   The assessment boundary was asked for twice and removed for the reason a
+   static claim block always earns: it had drifted. It still said escalation
+   reached one channel and that there was no rota, after E2.10 shipped both. */
 
 .data-console-stack {
   display: grid;
@@ -8666,8 +8626,7 @@ button.data-trust-action > i {
 @media (max-width: 720px) {
 
 
-  .data-trust-hero,
-  .data-trust-boundaries details > div:last-child {
+  .data-trust-hero {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -8745,8 +8704,7 @@ button.data-trust-action > i {
   }
 
   .data-trust-hero,
-  .data-trust-monitor,
-  .data-trust-boundaries {
+  .data-trust-monitor {
     padding: 14px;
   }
 

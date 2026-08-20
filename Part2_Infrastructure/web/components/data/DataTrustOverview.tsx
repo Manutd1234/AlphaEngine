@@ -725,58 +725,25 @@ export default function DataTrustOverview({
       )}
 
       {/*
-        What still bounds this data plane, and nothing else.
+        The assessment boundary block was here and is gone, asked for twice.
 
-        This block used to carry an "Implemented" list of seven bullets beside
-        the boundaries. Those seven described what the three panes below this
-        one already show, in the same words, so a reader who had scrolled
-        learned nothing from them — and every one of them was a claim that had
-        to be maintained by hand against a system that moves. Removed. What is
-        implemented is visible; what is NOT is the only thing a static block can
-        usefully say.
+        An earlier pass shrank it instead — dropping seven "Implemented"
+        bullets and keeping three "Remaining boundaries" — which was a
+        substitution for the instruction rather than the instruction.
 
-        OUTSIDE the pane switcher on purpose. A boundary that disappears when a
-        reader changes view is a boundary they can miss entirely, and this one
-        qualifies every number in all three panes.
+        Removing it is also the right answer on its own merits, because by the
+        time it went it had drifted: it still said escalation reached ONE
+        channel and that there was no paging rota, after E2.10 shipped a
+        webhook channel and a rota grammar. That is what a hand-maintained
+        claim block does against a system that moves, and it is why the seven
+        implemented bullets were dropped before it.
+
+        What still bounds the data plane is said where it is measured and stays
+        true by construction: the container contract fails the build on
+        `--workers`, `RAW_CALIBRATED` is derived from which providers have a
+        committed healthy fixture, and the rota reports itself through
+        `rota_health`.
       */}
-      {summary && (
-        <section className="card data-trust-boundaries" aria-label="Assessment boundary">
-          <details className="disclosure">
-            <summary>
-              Assessment boundary — what still bounds this data plane
-            </summary>
-            <div>
-              <article>
-                <h3><span aria-hidden>△</span> Remaining boundaries</h3>
-                <ul>
-                  <li>
-                    One gateway process, by design and by test. The risk gateway holds a mutable
-                    position book, a resting-order book, a token bucket and the kill switch in
-                    memory; a second worker would fork the book and make a halt local to whichever
-                    process served the request. The container contract fails the build on
-                    <code> --workers</code>. The quality ledger, the schedule runs and the Work
-                    Queue can now be held in Postgres instead of a file on that process&apos;s
-                    volume — the storage half of this boundary, and none of the rest.
-                  </li>
-                  <li>
-                    Raw vendor schemas are checked for all eight providers, and four of those
-                    checks have been held to a real response: two keyless venues, Alpha Vantage
-                    through the demo key it publishes, and an anonymous Firecrawl scrape. The other
-                    four need a key this deployment keeps write-only — three have their refusal
-                    envelope captured, and all four warn rather than act until a healthy body is seen.
-                  </li>
-                  <li>
-                    Escalation reaches one channel. Acknowledgement exists, and only Telegram can
-                    name a person: the gateway&apos;s HTTP identity resolves to a token, so a web
-                    acknowledgement records which credential took it, not who. There is no paging
-                    rota — a rota is a roster of people, and this desk has one.
-                  </li>
-                </ul>
-              </article>
-            </div>
-          </details>
-        </section>
-      )}
     </div>
   );
 }

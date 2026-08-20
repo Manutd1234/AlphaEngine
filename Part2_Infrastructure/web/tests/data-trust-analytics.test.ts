@@ -381,10 +381,17 @@ describe("Trust Summary splits without hiding or double-mounting", () => {
     );
   });
 
-  it("keeps the assessment boundary outside the switcher", () => {
-    // It qualifies every number in all three panes. A boundary that disappears
-    // when the reader changes view is one they can miss entirely.
-    assert.match(code, /\{summary && \(\s*<section className="card data-trust-boundaries"/);
+  it("does not render an assessment boundary block at all", () => {
+    // This asserted the block stayed OUTSIDE the pane switcher, on the grounds
+    // that a boundary which disappears when the reader changes view is one they
+    // can miss entirely. That was a good argument for a block that should not
+    // exist: it was asked for twice, and by the time it went it had drifted —
+    // still claiming escalation reached one channel and that there was no rota,
+    // after both shipped.
+    //
+    // A hand-maintained claim block is the failure mode, not its placement.
+    assert.ok(!code.includes("data-trust-boundaries"), "the boundary block is back");
+    assert.ok(!code.includes("Assessment boundary"), "the boundary block is back under another class");
   });
 
   it("lands on the verdict, which is what the tab is for", () => {
