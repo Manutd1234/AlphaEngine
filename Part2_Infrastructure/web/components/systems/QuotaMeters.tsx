@@ -82,7 +82,7 @@ export default function QuotaMeters({ providers }: QuotaMetersProps) {
             <div
               className={`console-meter console-meter--wide is-${tone}`}
               role="img"
-              aria-label={`${provider.label}: ${quota.used} of ${quota.limit} calls used this ${quota.window}, ${quota.remaining} remaining, ${quota.reserve} of which are reserved for interactive lookups.`}
+              aria-label={`${provider.label}: ${quota.used} of ${quota.limit} calls used this ${quota.window}; ${quota.remaining} left, ${quota.reserve} reserved for interactive lookups.`}
             >
               <i style={{ width: `${usedPct * 100}%` }} aria-hidden />
               {quota.reserve > 0 && (
