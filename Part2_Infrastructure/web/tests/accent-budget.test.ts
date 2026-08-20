@@ -126,7 +126,11 @@ describe("the accent fill stays with controls that commit something", () => {
       }
     }
     assert.deepEqual([...claimants].sort(), [
-      "components/DeveloperConsole.tsx",             // run the parity check here
+      // Was `components/DeveloperConsole.tsx`. The button did not change and
+      // neither did its argument — it is still the one that runs the parity
+      // check in this browser, one click for one result — but the console was
+      // split along its section rail and the Interfaces section took it.
+      "components/developer/DeveloperInterfaces.tsx", // run the parity check here
       // New to this roll call only because the Research tab moved out of
       // app/dashboard/page.tsx, which this scan never covered. The button is
       // the sweep's "Run now": one click, one request, a new result — the
