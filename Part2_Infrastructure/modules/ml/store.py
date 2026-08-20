@@ -33,7 +33,6 @@ from typing import Any
 import httpx
 
 from config import settings
-from modules.ml.engine import ENGINE
 from modules.ml.features import FeatureSet
 from modules.ml.runner import MLRunResult
 
@@ -271,7 +270,8 @@ class MLRunStore:
                 "params": params,
                 "seed": int(seed),
                 "git_sha": _git_sha(),
-                "engine": ENGINE,
+                # What RAN, resolved per run in fit.py — not what was ASKED for.
+                "engine": str(params.get("engine") or "numpy"),
                 "status": "running",
             }])
             if not created:

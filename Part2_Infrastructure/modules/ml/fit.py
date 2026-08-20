@@ -33,10 +33,9 @@ from typing import Any
 import numpy as np
 
 from modules.backtester import dataset_fingerprint, fetch_ohlcv
-from modules.ml.engine import ENGINE as ACTIVE_ENGINE
 from modules.ml.features import FeatureBuilder, FeatureSpec, LabelSpec
-from modules.ml.models import LogisticRegression, Ridge
 from modules.ml.runner import MLRunResult, MLWalkForward
+from modules.ml.sklearn_adapter import resolve_engine
 from modules.ml.splits import PurgedWalkForward
 
 log = logging.getLogger("alphaengine.ml")
@@ -64,17 +63,12 @@ class MLFitOutcome:
     result: MLRunResult | None
     data_hash: str
     bars: int
-
-
-def _model(name: str, params: dict[str, Any]) -> Ridge | LogisticRegression:
-    if name == "ridge":
-        return Ridge(alpha=float(params.get("alpha", 1.0)))
-    if name == "logistic":
-        return LogisticRegression(
-            alpha=float(params.get("alpha", 1.0)),
-            max_iter=int(params.get("max_iter", 25)),
-        )
-    raise ValueError(f"unknown model {name!r}; expected 'ridge' or 'logistic'")
+    #: The engine that ACTUALLY fitted this run — never the one requested.
+    #: `engine_requested` is what was asked for and `engine_reason` says why
+    #: they differ, which they do exactly when the optional extra was absent.
+    engine: str = "numpy"
+    engine_requested: str = "auto"
+    engine_reason: str | None = None
 
 
 def run_ml_fit(
@@ -90,14 +84,27 @@ def run_ml_fit(
     embargo: int = 0,
     cost_bps: float = 5.0,
     seed: int = 0,
+    engine: str | None = None,
 ) -> tuple[MLFitOutcome, dict[str, Any]]:
     """Fit and score. Returns the outcome and the payload the store needs.
 
     Synchronous on purpose: it is CPU work, and the job queue runs it on a
     worker thread. Splitting the persist out means the caller decides whether a
     result is filed, which is what makes this testable without a Supabase.
+
+    ``engine`` is ``auto``, ``numpy`` or ``sklearn``, defaulting to the
+    ``ML_ENGINE`` deployment setting. Asking for ``sklearn`` on a box without
+    the optional extra does NOT skip the run and does NOT quietly substitute:
+    the hand-rolled models fit it, `engine` on the result reads ``numpy``, and
+    `engine_reason` says why. A run that fell back is a different run.
     """
     params = dict(params or {})
+    # Resolved BEFORE any bars are fetched: an unknown model or an unknown
+    # engine is a request that cannot produce a result, and it should not first
+    # spend a network round trip finding that out.
+    choice = resolve_engine(model, params, requested=engine)
+    if choice.fell_back:
+        log.warning("ml fit: %s", choice.reason)
     label = LabelSpec(
         horizon=int(label_horizon),
         kind=label_kind or ("direction" if model == "logistic" else "return"),
@@ -118,7 +125,7 @@ def run_ml_fit(
         n_splits=int(n_splits), label_horizon=label.horizon, embargo=int(embargo),
     )
     result = MLWalkForward(
-        _model(model, params), interval=interval, cost_bps=float(cost_bps),
+        choice.estimator, interval=interval, cost_bps=float(cost_bps),
     ).run(features, cv)
 
     # The bar timestamp for every row the matrix kept. Without it `ml_folds`
@@ -141,7 +148,12 @@ def run_ml_fit(
             "embargo": int(embargo),
             "cost_bps": float(cost_bps),
             "source": source,
-            "engine": ACTIVE_ENGINE,
+            # What RAN, never what was asked for. `ml_runs.engine` is written
+            # from this, and its check constraint exists because a run that
+            # fell back must not be ranked beside one that did not.
+            "engine": choice.engine,
+            "engine_requested": choice.requested,
+            "engine_reason": choice.reason,
         },
         "seed": int(seed),
         "features": features,
@@ -153,6 +165,8 @@ def run_ml_fit(
     outcome = MLFitOutcome(
         ran=True, persisted=False, run_id=None, reason=None,
         result=result, data_hash=data_hash, bars=int(frame.shape[0]),
+        engine=choice.engine, engine_requested=choice.requested,
+        engine_reason=choice.reason,
     )
     return outcome, payload
 
@@ -246,6 +260,12 @@ def _job_result(
         "run_id": run_id,
         "data_hash": outcome.data_hash,
         "bars": outcome.bars,
+        # Three fields, not one. "sklearn was asked for and numpy ran" is a
+        # fact about the result, and a single `engine` field would leave the
+        # reader unable to tell it from "numpy was asked for and numpy ran".
+        "engine": outcome.engine,
+        "engine_requested": outcome.engine_requested,
+        "engine_reason": outcome.engine_reason,
         "folds": len(result.folds) if result else 0,
         "oos_sharpe": result.oos_sharpe if result else None,
         "deflated_sharpe": result.deflated_sharpe if result else None,
