@@ -59,7 +59,11 @@ ws.onmessage = (event) => {
   if (message.method === "Network.requestWillBeSent") {
     const url = message.params?.request?.url ?? "";
     if (url.startsWith(ORIGIN) && url.includes("/api/")) {
-      seen.push(url.slice(ORIGIN.length).split("?")[0]);
+      // Path AND query. Stripping the query counted the cockpit's
+      // `/api/gateway/audit?feed=orders` and `?feed=events` as one route asked
+      // for twice — two different questions reported as a duplicate. A
+      // duplicate figure that cannot tell those apart is worse than none.
+      seen.push(url.slice(ORIGIN.length));
     }
   }
 };
@@ -83,6 +87,9 @@ const duplicates = (routes) => {
   for (const route of routes) counts.set(route, (counts.get(route) ?? 0) + 1);
   return [...counts].filter(([, n]) => n > 1).map(([route, n]) => `${route} x${n}`);
 };
+
+/** Path only, for the readable per-route idle summary. */
+const pathOf = (route) => route.split("?")[0];
 
 console.log(`per switch (requests in ${SETTLE_MS / 1000}s after the click)\n`);
 const perSwitch = [];
@@ -108,7 +115,10 @@ seen = [];
 await wait(IDLE_MS);
 const idle = [...seen];
 const byRoute = new Map();
-for (const route of idle) byRoute.set(route, (byRoute.get(route) ?? 0) + 1);
+for (const route of idle) {
+  const key = pathOf(route);
+  byRoute.set(key, (byRoute.get(key) ?? 0) + 1);
+}
 for (const [route, n] of [...byRoute].sort((a, b) => b[1] - a[1])) {
   console.log(`  ${String(n).padStart(4)}  ${route}   (${(n / (IDLE_MS / 60_000)).toFixed(1)}/min)`);
 }
