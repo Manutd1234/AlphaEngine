@@ -42,7 +42,7 @@ export default function FactorPanel({ report }: { report: FactorReport | null })
         </div>
         <p className="sub">
           The regression could not be estimated: too few bars, or a perfectly collinear factor
-          set on this series. No loadings are shown rather than unstable ones.
+          set on this series.
         </p>
       </div>
     );
