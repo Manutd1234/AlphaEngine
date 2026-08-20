@@ -123,8 +123,8 @@ export default function RemediationLedger({ active }: { active: boolean }) {
         </p>
       ) : !model.trips ? (
         <p className="muted">
-          No circuit has tripped on this instance since it started. That is an absence of evidence
-          over a short window and a bounded ring — not a reliability record.
+          No circuit has tripped on this instance since it started — an absence of evidence over a
+          short window and a bounded ring, not a reliability record.
         </p>
       ) : (
         <>
@@ -260,15 +260,14 @@ export default function RemediationLedger({ active }: { active: boolean }) {
         <summary>Why a bounded event ring biases the surviving sample short</summary>
         <p className="research-note">
           Pairing needs both the trip and its closure still in this instance&rsquo;s{" "}
-          {data?.cursor.capacity ?? 600}-event ring, which it shares with dispatch, cache and quota
-          traffic — and a long outage is the likeliest to lose its opening line first, so the
-          survivors are disproportionately the incidents that ended quickly. No caption fixes a
-          chart whose bias points the same way as the flattering conclusion.
+          {data?.cursor.capacity ?? 600}-event ring, shared with dispatch, cache and quota traffic —
+          and a long outage is likeliest to lose its opening line first, so the survivors are
+          disproportionately the incidents that ended quickly.
         </p>
         <p className="research-note">
-          This is a diagnostic for one function instance, reset by redeploy and by Clear telemetry,
-          and never an SLA. A closure is also not a fix: one successful probe closes a circuit that
-          may re-open three failures later.
+          A diagnostic for one function instance, reset by redeploy and by Clear telemetry, never an
+          SLA. A closure is not a fix: one successful probe closes a circuit that may re-open three
+          failures later.
         </p>
       </details>
     </section>

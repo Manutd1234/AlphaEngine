@@ -161,22 +161,20 @@ export default function DependencyMix({
         <summary>What these rings count, and why they are not an uptime figure</summary>
         <p className="research-note">
           A snapshot of one poll, not a ratio over time. Nothing here publishes availability as a
-          percentage — only durations — so a green ring means every component answered when it was
-          last asked, and says nothing about the hour before.
+          percentage, only durations, so a green ring means every component answered when last asked
+          and says nothing about the hour before.
         </p>
         <p className="research-note">
           <strong>Grey is not red.</strong> When the gateway cannot be reached, everything behind it
-          reports <em>not observed</em> rather than <em>down</em>: one dead transport is not six
-          broken components, and painting them red would send someone hunting outages that never
-          happened. <em>Not configured</em> is likewise not a fault — it is a component this
+          reports <em>not observed</em> rather than <em>down</em> — one dead transport is not six
+          broken components. <em>Not configured</em> is likewise not a fault; it is a component this
           deployment was never given.
         </p>
         <p className="research-note">
           <strong>The marks are identifiers, not vendor assets.</strong> Where a technology&rsquo;s
-          own mark is not carried here, the tile shows a house initialism — an approximation of a
-          logo is recognisably wrong to anyone who knows the brand, and tinting a vendor mark by
-          health status is the recolouring their guidelines prohibit. A hollow, dashed tile is a
-          component that is not configured at all.
+          own mark is not carried, the tile shows a house initialism — a traced approximation is
+          recognisably wrong to anyone who knows the brand. A hollow, dashed tile is a component
+          that is not configured.
         </p>
       </details>
     </section>

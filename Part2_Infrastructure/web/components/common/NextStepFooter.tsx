@@ -100,12 +100,12 @@ const NEXT_FROM: Record<string, { view: WorkspaceView; section: string; why: str
   "research/lineage": {
     view: "data",
     section: "lineage",
-    why: "Provenance does not stop at the signal path — the payload it was computed from has its own trail.",
+    why: "The payload the signal was computed from has its own trail.",
   },
   "research/runs": {
     view: "research",
     section: "summary",
-    why: "The archive is a list of hypotheses; opening one restores its curve.",
+    why: "Opening an archived hypothesis restores its curve.",
   },
 
   "live/quality": {
@@ -117,12 +117,12 @@ const NEXT_FROM: Record<string, { view: WorkspaceView; section: string; why: str
   "portfolio/equity": {
     view: "portfolio",
     section: "performance",
-    why: "The curve says what happened, not which sleeve or which cost it happened through.",
+    why: "The curve says what happened, not which sleeve or cost it came through.",
   },
   "portfolio/allocation": {
     view: "live",
     section: "trade",
-    why: "A drift number is a rebalance waiting to be staged as an order.",
+    why: "A drift number is a rebalance waiting to be staged.",
   },
   "portfolio/performance": {
     view: "live",
@@ -154,7 +154,7 @@ const NEXT_FROM: Record<string, { view: WorkspaceView; section: string; why: str
   "data/overview": {
     view: "data",
     section: "feeds",
-    why: "The trust verdict is a summary of the feeds; this is the evidence behind it.",
+    why: "The verdict summarises the feeds; this is the evidence behind it.",
   },
   "data/lineage": {
     view: "data",
@@ -175,7 +175,7 @@ const NEXT_FROM: Record<string, { view: WorkspaceView; section: string; why: str
   "reliability/controls": {
     view: "reliability",
     section: "events",
-    why: "An operator action is only finished once the mutation is visible in the stream.",
+    why: "An operator action is finished only once the mutation shows in the stream.",
   },
 
   "developer/quality": {
@@ -196,7 +196,7 @@ const NEXT_FROM: Record<string, { view: WorkspaceView; section: string; why: str
   "developer/work": {
     view: "developer",
     section: "codebase",
-    why: "Work items reference files; what an item is actually about is in the source.",
+    why: "Work items reference files; what an item is about is in the source.",
   },
 };
 
@@ -216,49 +216,49 @@ const FLOW_MAP: Record<WorkspaceView, { nextId: WorkspaceView; kicker: string; t
     nextId: "research",
     kicker: "Next step for the quant researcher",
     title: "Validate strategy and signal evidence",
-    hint: "Inspect parameter sweeps, stability metrics, and walk-forward analysis.",
+    hint: "Parameter sweeps, stability metrics and walk-forward analysis.",
   },
   research: {
     nextId: "live",
     kicker: "Next step for the quant trader",
     title: "Stage paper execution and market depth",
-    hint: "Inspect the consolidated L2 order book, venue routing costs, and pre-trade gate validation.",
+    hint: "Consolidated L2 depth, venue routing costs and pre-trade gates.",
   },
   live: {
     nextId: "portfolio",
     kicker: "Next step for the portfolio manager",
     title: "Review positions and P&L attribution",
-    hint: "Reconcile the equity curve, sleeve breakdown, concentration, and intraday P&L waterfall.",
+    hint: "Equity curve, sleeve breakdown, concentration and the intraday P&L waterfall.",
   },
   portfolio: {
     nextId: "risk",
     kicker: "Next step for the risk manager",
     title: "Audit pre-trade risk and limits",
-    hint: "Check gross/net headroom, historical VaR, stress scenarios, and kill switch state.",
+    hint: "Gross and net headroom, historical VaR, stress scenarios and kill switch state.",
   },
   risk: {
     nextId: "data",
     kicker: "Next step for the data engineer",
     title: "Verify data lineage and feed freshness",
-    hint: "Audit provider quotas, contract evidence, and the pipeline DAG.",
+    hint: "Provider quotas, contract evidence and the pipeline DAG.",
   },
   data: {
     nextId: "reliability",
     kicker: "Next step for DevOps and SRE",
     title: "Check SRE telemetry and circuit health",
-    hint: "Monitor provider API latency percentiles, active incident alerts, and recovery workflows.",
+    hint: "Provider API latency percentiles, active incidents and recovery workflows.",
   },
   reliability: {
     nextId: "developer",
     kicker: "Next step for the quant developer",
     title: "Inspect CI/CD and schema contracts",
-    hint: "Verify deployment topology, the launch readiness ring, OpenAPI diffs, and the task queue.",
+    hint: "Deployment topology, the launch readiness ring, OpenAPI diffs and the task queue.",
   },
   developer: {
     nextId: "overview",
     kicker: "Next step around the decision loop",
     title: "Return to the desk overview",
-    hint: "Close the operating loop: equity, the decision pipeline and the audit trail on one screen.",
+    hint: "Equity, the decision pipeline and the audit trail on one screen.",
   },
 };
 

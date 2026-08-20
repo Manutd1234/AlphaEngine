@@ -74,8 +74,7 @@ export default function RunComparison({ a, b, onClose }: RunComparisonProps) {
           <span aria-hidden>?</span>
           <div>
             <strong>Comparability unknown.</strong> At least one run predates dataset fingerprinting,
-            so there is no way to confirm they saw the same prices. Matching date ranges are not
-            sufficient evidence.
+            so there is no way to confirm they saw the same prices. Matching dates are not enough.
           </div>
         </div>
       )}

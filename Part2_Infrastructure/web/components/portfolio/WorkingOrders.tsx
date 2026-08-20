@@ -254,7 +254,7 @@ export default function WorkingOrders({
         <div className="banner warn sandbox-banner" role="status">
           <span aria-hidden>◆</span>
           <div>
-            <strong>Generated resting orders.</strong> These were never sent anywhere and cannot be
+            <strong>Generated resting orders.</strong> These were never sent and cannot be
             cancelled; the actions below are disabled rather than hidden.
           </div>
         </div>
@@ -273,7 +273,7 @@ export default function WorkingOrders({
             ? "Reading the resting book…"
             : source === "unavailable"
               ? "No gateway is configured in this deployment, so there is no resting book to read."
-              : "Nothing is resting. Every accepted order so far crossed the spread and filled immediately."}
+              : "Nothing is resting. Every accepted order so far crossed the spread and filled at once."}
         </p>
       ) : (
         <div className="table-wrap" tabIndex={0}>
@@ -395,10 +395,10 @@ export default function WorkingOrders({
         <summary>How a resting order is projected against the pre-trade caps</summary>
         {/* Opened by calling a resting order committed capital — the kicker and the Committed column. */}
         <p className="research-note">
-          The pre-trade gates already treat a resting order as committed capital: a new order is
-          projected against the worst side of this book filling, so two orders that each pass a
-          symbol cap alone cannot pass it together. Filling one is not modelled as a queue — it fills
-          in full the moment the consolidated touch crosses it, which is optimistic.
+          The pre-trade gates treat a resting order as committed capital: a new order is projected
+          against the worst side of this book filling, so two orders that each pass a symbol cap
+          alone cannot pass it together. Fills are not queued — an order fills in full the moment
+          the consolidated touch crosses it, which is optimistic.
         </p>
       </details>
     </div>

@@ -75,8 +75,8 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
           </div>
         </div>
         <p className="sub">
-          No book to decompose yet. The split needs a session&apos;s P&amp;L, the positions that
-          produced it, and a reference return — none of which exist before the first snapshot lands.
+          No book to decompose yet. The split needs a session&apos;s P&amp;L, the positions behind
+          it and a reference return, none of which exist before the first snapshot lands.
         </p>
       </div>
     );
@@ -341,15 +341,14 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
         <p className="research-note">
           No beta could be measured for {waterfall.unmeasuredSymbols.join(", ")}, so the market leg
           excludes them and is understated by whatever they moved. Their P&amp;L lands in the
-          residual rather than being attributed to a beta nobody measured.
+          residual instead.
         </p>
       )}
 
       {waterfall.slippageIsLowerBound && (
         <p className="research-note">
           Some fills this session carry no measured slippage, so the slippage leg is a{" "}
-          <strong>lower bound</strong> on what execution cost. Treating the gap as zero would have
-          made the cost look smaller than it was.
+          <strong>lower bound</strong> on what execution cost.
         </p>
       )}
 

@@ -496,8 +496,8 @@ function RestTrace({ result, interval }: { result: InspectResponse; interval?: s
         <details className="disclosure">
           <summary>Why raw and normalised are shown separately</summary>
           <p className="console-footnote">
-            Raw vendor bodies and normalised output are separate pieces of evidence. This response
-            does not expose a field-level transformation map, so the console does not infer one.
+            Raw vendor bodies and normalised output are separate evidence. This response exposes no
+            field-level transformation map, so the console does not infer one.
           </p>
         </details>
       )}
@@ -563,7 +563,7 @@ function SocketTrace({
     return (
       <p className="muted console-empty">
         {symbol} has no streaming venue coverage. The wire tap follows the browser&apos;s direct
-        Binance and Bybit sockets, which carry the pairs listed on the Execution tab.
+        Binance and Bybit sockets, which carry the Execution tab&apos;s pairs.
       </p>
     );
   }
@@ -634,8 +634,8 @@ function SocketTrace({
       <details className="disclosure">
         <summary>Where these frames are captured</summary>
         <p className="console-footnote">
-          These frames arrive in the browser, not on the server — a serverless function cannot hold
-          a subscription open. They are captured client-side and never appear in the server trace.
+          These frames arrive in the browser: a serverless function cannot hold a subscription open.
+          They are captured client-side and never appear in the server trace.
         </p>
       </details>
     </>

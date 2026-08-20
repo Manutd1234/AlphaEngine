@@ -25,7 +25,7 @@ const ATTRIBUTION_PANES: { id: AttributionPane; label: string; hint: string }[] 
   {
     id: "explain",
     label: "Explain",
-    hint: "What the returns decompose into — this symbol's own factors, and the same question asked against another instrument",
+    hint: "What the returns decompose into: this symbol's own factors, and the same question against another instrument",
   },
   {
     id: "robustness",

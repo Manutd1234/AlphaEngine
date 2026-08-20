@@ -68,8 +68,7 @@ export default function ResearchSummary({
             formula: "√periods·mean(r) ÷ stdev(r)",
             plainEnglish:
               "How much return the strategy earned for the amount it bounced around. "
-              + "Compare it to buy-and-hold below — beating the market matters less than "
-              + "beating it per unit of risk taken.",
+              + "Beating the market matters less than beating it per unit of risk.",
           }}
         />
         <StatTile
@@ -87,9 +86,9 @@ export default function ResearchSummary({
             definition: "The deepest peak-to-trough fall in equity over the run.",
             formula: "min(equity ÷ running-max(equity) − 1)",
             plainEnglish:
-              "The worst losing streak you would have had to sit through. This is the number "
-              + "that decides whether a strategy is actually tradable — a great Sharpe with a "
-              + "60% drawdown gets turned off by a human long before it recovers.",
+              "The worst losing streak you would have had to sit through, and the number that "
+              + "decides whether a strategy is tradable: a great Sharpe with a 60% drawdown "
+              + "gets turned off long before it recovers.",
           }}
         />
         <StatTile label="Trades" value={String(shown.trades)} note={`win rate ${pct(shown.winRate, 0)}`} />

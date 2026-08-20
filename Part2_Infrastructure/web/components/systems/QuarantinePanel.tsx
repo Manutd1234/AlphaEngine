@@ -123,15 +123,15 @@ export default function QuarantinePanel({
               ? `The gateway ledger holds ${validation.evaluated} evaluated`
               : `This health-route instance evaluated ${validation.evaluated}`}{" "}
             normalised quote, bar, news or fundamentals payload{validation.evaluated === 1 ? "" : "s"} in the
-            window above; {validation.passed} had no fatal finding. Warnings, drift, and checks that
-            could not run remain separate evidence and are not silently counted as clean checks.
+            window above; {validation.passed} had no fatal finding. Warnings, drift and checks that
+            could not run stay separate evidence, never counted as clean.
           </p>
         ) : (
           <p className="sub">
-            No flagged payload excerpt is retained, but there is no evaluated denominator in this
-            health-route instance&apos;s evidence window. That means no aggregate evidence here—not that
+            No flagged payload excerpt is retained, but this health-route instance has no evaluated
+            denominator. That means no aggregate evidence here—not that
             every payload passed. Request routes can run in separate serverless instances, so use the
-            overview&apos;s exact-payload probe and lineage trace for request-bound evidence.
+            overview&apos;s exact-payload probe and lineage trace instead.
           </p>
         )
       ) : (
@@ -204,18 +204,18 @@ export default function QuarantinePanel({
       <p className="research-note">
         {validation?.scope === "gateway-ledger" ? (
           <>
-            Scope: the aggregate counts are the gateway&apos;s durable ledger — every web instance&apos;s
-            normalised quote, bar, news and fundamentals findings, merged and kept across restarts. The
-            quarantine excerpts below are still this health-route instance&apos;s bounded buffer and reset
-            with it. Rejected payloads were never cached, so failover could try a cleaner source; stored
-            excerpts use the trace console&apos;s redaction rules.
+            Scope: the aggregate counts are the gateway&apos;s durable ledger — every instance&apos;s
+            quote, bar, news and fundamentals findings, merged and kept across restarts. The excerpts
+            below are still this instance&apos;s bounded buffer and reset with it. Rejected payloads
+            were never cached, so failover could try a cleaner source; excerpts follow the trace
+            console&apos;s redaction rules.
           </>
         ) : (
           <>
-            Scope: normalised quote, bar, news and fundamentals payloads handled by the health-route function
-            instance—not every request route, provider, symbol, raw vendor schema, or deployed instance. The
-            evidence window and quarantine are bounded in memory and reset on restart. Rejected payloads were
-            never cached, so failover could try a cleaner source; stored excerpts use the trace console&apos;s
+            Scope: quote, bar, news and fundamentals payloads handled by this health-route instance—not
+            every request route, provider, symbol, raw vendor schema or deployed instance. The window
+            and quarantine are bounded in memory and reset on restart. Rejected payloads were never
+            cached, so failover could try a cleaner source; excerpts follow the trace console&apos;s
             redaction rules.
           </>
         )}

@@ -209,8 +209,8 @@ export default function StressTest({
           </button>
         </div>
         <p className="research-note">
-          Set a move for any instrument. Anything left untouched moves by its measured beta against{" "}
-          {referenceSymbol}; “everything else” names a move for the rest directly. A row set to 0% is
+          Set a move for any instrument. Untouched rows move by their measured beta against{" "}
+          {referenceSymbol}; “everything else” sets the rest directly. A row at 0% is
           pinned flat, which is a different claim from leaving it alone.
         </p>
         <div className="stress-manual__grid">
@@ -258,7 +258,7 @@ export default function StressTest({
           <div>
             <strong>This scenario trips the daily drawdown limit.</strong> Equity would fall to{" "}
             {usd(result.projectedEquity, 0)}, below the {pct(drawdownLimitPct, 0)} halt level of{" "}
-            {usd(haltEquity, 0)} — the gateway would stop trading before the book recovered.
+            {usd(haltEquity, 0)}, so the gateway would stop trading.
           </div>
         </div>
       )}
@@ -266,8 +266,8 @@ export default function StressTest({
       <div className="table-wrap" tabIndex={0}>
         <table>
           <caption className="sr-only">
-            Per-position impact under the selected scenario, showing which moves were shocked
-            directly and which were propagated by a measured beta.
+            Per-position impact, and whether each move was shocked directly or propagated by a
+            measured beta.
           </caption>
           <thead>
             <tr>
@@ -303,7 +303,7 @@ export default function StressTest({
                        measurable" blames the data for a gap in the hypothesis. */
                     <span
                       className="muted"
-                      title={`No move is set for ${referenceSymbol}, so there is nothing for a beta to propagate from. Set the reference, or use “everything else”.`}
+                      title={`No move is set for ${referenceSymbol}, so a beta has nothing to propagate from. Set the reference, or use “everything else”.`}
                     >
                       not propagated
                     </span>
@@ -360,8 +360,8 @@ export default function StressTest({
         <p className="research-note">
           Held flat: {unmeasured.map((p) => p.symbol).join(", ")}.{" "}
           {referenceShocked
-            ? "No beta could be measured for these from available history. The total above is understated by whatever they would have moved — assuming a beta of 1 for them would have produced a larger, more confident and less true number."
-            : `Nothing is set for ${referenceSymbol}, so there is no reference move for a beta to propagate. Set it, or use “everything else”, to move the rest of the book.`}
+            ? "No beta could be measured for these from available history, so the total above is understated by whatever they would have moved. A beta of 1 would have produced a larger, more confident and less true number."
+            : `Nothing is set for ${referenceSymbol}, so a beta has no reference move to propagate. Set it, or use “everything else”, to move the rest of the book.`}
         </p>
       )}
     </div>

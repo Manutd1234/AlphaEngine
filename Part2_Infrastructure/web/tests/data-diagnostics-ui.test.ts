@@ -40,7 +40,9 @@ describe("data diagnostics preserve request identity", () => {
 describe("data diagnostics do not manufacture trust evidence", () => {
   it("uses the validation denominator and labels zero evaluations as no evidence", () => {
     assert.match(quarantine, /validation\?\.evaluated/);
-    assert.ok(quarantine.includes("no evaluated denominator"));
+    // `\s+`, like the sibling assertion below: the phrase wraps in the JSX and
+    // an exact-space match tests the source formatting, not the rendered text.
+    assert.match(quarantine, /no evaluated\s+denominator/);
     assert.match(quarantine, /not that\s+every payload/);
     assert.ok(!quarantine.includes("Every payload since this instance started"));
   });

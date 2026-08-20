@@ -232,10 +232,10 @@ export default function OperatorPanel({
       <div className="banner warn console-control-scope" role="note">
         <span aria-hidden>!</span>
         <div>
-          <strong>These are not authoritative fleet or trading controls.</strong> Server mutations
-          affect only the Next.js provider-routing instance that receives the request. Another
-          instance may retain different caches, ledgers and circuits, and these actions do not halt
-          or resume the Python trading gateway.
+          <strong>These are not authoritative fleet or trading controls.</strong> A server mutation
+          affects only the Next.js provider-routing instance that receives it; another may hold
+          different caches, ledgers and circuits, and nothing here halts or resumes the Python
+          trading gateway.
         </div>
       </div>
 

@@ -245,8 +245,8 @@ export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanel
       {atLeast(tier, "full") ? (
         <p className="research-note">
         The t-statistics are plain OLS. Strategy returns are heteroskedastic and mildly
-        autocorrelated, so a Newey&ndash;West correction would widen these standard errors — the
-        significance shown here is, if anything, generous.
+        autocorrelated, so a Newey&ndash;West correction would widen these standard errors; the
+        significance shown here is generous.
         </p>
       ) : null}
     </div>

@@ -213,7 +213,8 @@ describe("every pipeline stage links into its tab", () => {
   it("the reviewer tour still makes the claim this section pins", () => {
     // If the sentence goes, these assertions are policing nothing in
     // particular; if it stays, it has to be true.
-    assert.match(tourCode, /every pipeline stage links into its tab/);
+    // Case-insensitive: the claim now opens its sentence, so it is capitalised.
+    assert.match(tourCode, /every pipeline stage links into its tab/i);
   });
 
   it("each stage is a real button, not a click handler on a div", () => {

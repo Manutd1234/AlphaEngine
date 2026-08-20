@@ -80,7 +80,7 @@ function requestFor(intent: HandoffIntent): Composed {
         method: "POST",
         path: "/api/risk/kill",
         body: JSON.stringify({ reason: "manual halt from portfolio review" }, null, 2),
-        why: "Trips the gateway's kill switch. Every subsequent pre-trade check rejects until it is cleared, and the event is appended to the audit log.",
+        why: "Trips the gateway's kill switch: every pre-trade check rejects until it is cleared, and the event is appended to the audit log.",
         action: "halt",
         confirmWord: "HALT",
       };
@@ -93,7 +93,7 @@ function requestFor(intent: HandoffIntent): Composed {
         // not exist and would have 404ed for anyone who ran it.
         path: "/api/orders (one per open position)",
         body: JSON.stringify({ symbol: "<each position>", side: "<opposite>", order_type: "MARKET" }, null, 2),
-        why: "Submits a closing order for every open position through the same pre-trade gates as any other order. Orders go one at a time so they cannot race the gateway's exposure accounting.",
+        why: "Submits a closing order for every open position through the same pre-trade gates as any other order, one at a time so they cannot race the gateway's exposure accounting.",
         action: "flatten",
         confirmWord: "FLATTEN",
       };
@@ -113,7 +113,7 @@ function requestFor(intent: HandoffIntent): Composed {
           null,
           2,
         ),
-        why: "A closing order in the opposite direction, sized to the current notional. It passes the same risk gates as an opening order.",
+        why: "A closing order in the opposite direction, sized to the current notional, through the same risk gates as an opening order.",
         action: "flatten",
         confirmWord: "FLATTEN",
         symbol: intent.symbol,
@@ -221,8 +221,8 @@ export default function ExecutionHandoff({ intent, onClose, sandbox, onExecuted,
         <div className="banner warn" role="status">
           <span aria-hidden>!</span>
           <div>
-            <strong>This is the sandbox book.</strong> The position below does not exist, so execution
-            is disabled — the request is shown to illustrate the shape only.
+            <strong>This is the sandbox book.</strong> The position below does not exist, so
+            execution is disabled; the request is shown for its shape only.
           </div>
         </div>
       )}

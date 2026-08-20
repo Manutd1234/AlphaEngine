@@ -49,7 +49,7 @@ const METHODS: Array<{ id: AllocationMethod; label: string; group: string; expla
     id: "equal_weight",
     label: "Equal weight",
     group: "Naive",
-    explain: "Every position the same size. It knows nothing about volatility or correlation, which is what makes it the baseline the other three have to beat.",
+    explain: "Every position the same size, knowing nothing about volatility or correlation — the baseline the other three have to beat.",
   },
   {
     id: "inverse_vol",
@@ -67,7 +67,7 @@ const METHODS: Array<{ id: AllocationMethod; label: string; group: string; expla
     id: "min_variance",
     label: "Minimum variance",
     group: "Risk-based",
-    explain: "The long-only book with the smallest variance this covariance allows. The most concentrated of the four by construction, so it runs into a symbol cap sooner than the others.",
+    explain: "The long-only book with the smallest variance this covariance allows — the most concentrated of the four by construction, so it meets a symbol cap sooner.",
   },
 ];
 
@@ -109,8 +109,8 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
           </div>
         </div>
         <p className="sub">
-          A flat book, or too little shared price history to measure volatility. Allocation needs a
-          covariance, and a covariance needs history — the proposal is withheld rather than guessed.
+          A flat book, or too little shared price history for a covariance. The proposal is
+          withheld rather than guessed.
         </p>
       </div>
     );
@@ -313,8 +313,8 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
              arithmetic already fixed. */
           <p className="research-note">
             No trade is proposed, and none can be: with one position the target weight is 100%
-            whichever model is selected, so it already equals the current weight. The band is not
-            what is suppressing this — there is nothing for it to suppress.
+            under every model, so it already equals the current weight. The band is not
+            suppressing anything — there is nothing for it to suppress.
           </p>
         ) : (
           <p className="research-note">
@@ -341,8 +341,8 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
                 14 for LIMIT and 15 once reduce-only engages — and a rebalance
                 trade is not guaranteed to be any one of those. A figure that is
                 right for one path reads as a promise on the others. */}
-            Composed, not sent. Each of these is an ordinary order and would face the same
-            pre-trade gates as any other — including the ones that may reject it. Gross would move
+            Composed, not sent. Each is an ordinary order facing the same pre-trade gates as any
+            other, including the ones that may reject it. Gross would move
             from {usd(active.grossBefore)} to {usd(active.grossAfter)}.
             {active.clipped && " Some targets were capped by a risk limit, so the weights below no longer sum to one."}
           </p>
@@ -365,7 +365,7 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
           {manual ? (
             <>
               The Model column shows what {selected.label.toLowerCase()} proposed; the difference is
-              a judgement this panel does not evaluate. Weights you do not pin are spread across the
+              a judgement this panel does not evaluate. Unpinned weights spread across the
               remainder in the model&apos;s own proportions, so pinning one name does not silently
               resize the rest.
             </>
@@ -387,10 +387,10 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
         </p>
         {capBinds && (
           <p className="research-note">
-            The gross cap currently sits below current gross, so target weights are measured over the
-            cap while drift is measured over gross. The chart therefore withholds the{" "}
-            <span className="num">current → target</span> pair rather than printing two numbers whose
-            difference is not the drift beside them.
+            The gross cap sits below current gross, so target weights are measured over the cap
+            while drift is measured over gross. The chart withholds the{" "}
+            <span className="num">current → target</span> pair rather than printing two numbers
+            whose difference is not the drift beside them.
           </p>
         )}
       </details>

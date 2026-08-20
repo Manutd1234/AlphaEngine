@@ -48,7 +48,7 @@ export default function RouteLatencyBars({
         </div>
         <p className="muted">
           No gateway ops snapshot in this deployment. Route latency is measured inside the FastAPI
-          process, so there is nothing here to read — this is a missing observer, not a slow desk.
+          process, so there is nothing to read here — a missing observer, not a slow desk.
         </p>
       </section>
     );
@@ -173,9 +173,9 @@ export default function RouteLatencyBars({
 
       <p className="research-note">
         Measured <strong>inside the gateway process</strong> over a rolling {windowMinutes}-minute
-        window: this is handler time, not the round trip a browser pays and not exchange
-        order-to-ack. Sorted slowest first by p95. A route with fewer than {MIN_SAMPLES} samples
-        prints its numbers and draws no bar, because three calls do not have a shape.
+        window: handler time, not the round trip a browser pays and not exchange order-to-ack.
+        Sorted slowest first by p95; a route with fewer than {MIN_SAMPLES} samples prints its
+        numbers and draws no bar.
       </p>
     </section>
   );

@@ -221,18 +221,17 @@ export default function BreakerStateMachine({
         <summary>Why a closure is not a fix, and why half-open almost always reads zero</summary>
         <p className="research-note">
           <strong>Half-open is a moment, not a resting state.</strong> The dispatch gate retires an
-          elapsed cooldown the instant any call touches that provider, so the state is only visible
-          between the cooldown ending and the next request arriving. A permanent zero there is
-          correct.
+          elapsed cooldown the instant any call touches that provider, so it is visible only between
+          the cooldown ending and the next request. A permanent zero there is correct.
         </p>
         <p className="research-note">
           <strong>A closure is not a fix.</strong> One successful probe closes a circuit that may
           re-open three failures later.
         </p>
         <p className="research-note">
-          Counts are per function instance and reset on redeploy. The failure threshold is read from
-          each provider&rsquo;s own snapshot rather than from a constant compiled into this page, so
-          it cannot drift from the value the gateway is actually enforcing.
+          Counts are per function instance and reset on redeploy. The threshold is read from each
+          provider&rsquo;s own snapshot rather than a constant compiled into this page, so it cannot
+          drift from what the gateway enforces.
         </p>
       </details>
     </section>

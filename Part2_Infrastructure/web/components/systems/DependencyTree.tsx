@@ -142,9 +142,8 @@ export default function DependencyTree({
           <em>not configured</em> and <em>not observed</em> are not faults.
         </p>
         <p className="sub">
-          A healthy row&rsquo;s reading goes to a screen reader but not on screen; it would only
-          repeat the glyph and the state word. Every row that is <em>not</em> healthy keeps its
-          reason inline.
+          A healthy row&rsquo;s reading goes to a screen reader only; it would repeat the glyph and
+          the state word. Every row that is <em>not</em> healthy keeps its reason inline.
         </p>
       </details>
     </section>

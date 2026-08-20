@@ -540,10 +540,10 @@ export default function ReliabilityOverview({
         <details className="disclosure">
           <summary>What Idle means, and why only OpenBB is probed automatically</summary>
           <p className="reliability-window-note">
-            Idle means configured, within quota and not held behind an open circuit, with no call observed in the
-            fifteen-minute window. Healthy and Degraded need observed calls, and only calls that failed count against
-            a provider — a vendor answering that it has no data for a symbol is not an error. Only OpenBB is probed
-            automatically, because probing every paid API on each health refresh would consume quota.
+            Idle means configured, within quota, no open circuit and no call in the fifteen-minute
+            window. Healthy and Degraded need observed calls, and only failures count against a
+            provider — a vendor reporting no data for a symbol is not one. Only OpenBB is probed
+            automatically; probing every paid API on each refresh would spend quota.
           </p>
         </details>
       </section>
@@ -702,8 +702,8 @@ export default function ReliabilityOverview({
             </div>
           </div>
           <p className="muted">
-            No gateway ops snapshot is being received, so the components inside that process — market
-            data, pre-trade risk, the audit store, the research queue and the durable mirror — cannot
+            No gateway ops snapshot is arriving, so that process — market data, pre-trade risk, the
+            audit store, the research queue, the mirror — cannot
             be observed from here. That is a missing measurement, not a set of failures.
           </p>
         </section>

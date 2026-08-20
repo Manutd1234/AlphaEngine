@@ -180,14 +180,14 @@ export default function OracleVarPanel({
           terminal-value/one-day distinction below is not decoration — a VaR
           without the horizon it answers over is the wrong number. */}
       <p className="sub">
-        Simulated by Oracle 23ai. It is a <strong>terminal-value</strong> GBM VaR over the
-        horizon — a different question from the one-day book VaR on the VaR &amp; model section.
+        Simulated by Oracle 23ai: a <strong>terminal-value</strong> GBM VaR over the horizon, a
+        different question from the one-day book VaR on the VaR &amp; model section.
       </p>
 
       {annualVol === null ? (
         <p className="muted">
-          Waiting for the covariance model. Both figures use the same measured volatility, so
-          neither runs until it exists.
+          Waiting for the covariance model — both figures need its measured volatility, so neither
+          runs until it exists.
         </p>
       ) : (
         /* One space-reserving box around every post-model state. The card used
@@ -204,8 +204,8 @@ export default function OracleVarPanel({
               <span aria-hidden>!</span>
               <div>
                 <strong>Not computed.</strong> {result.error}
-                {" "}The workspace&apos;s own VaR on the VaR &amp; model section is unaffected —
-                it never depended on this.
+                {" "}The workspace&apos;s own VaR on the VaR &amp; model section never depended on
+                this and is unaffected.
               </div>
             </div>
           ) : (
@@ -241,12 +241,12 @@ export default function OracleVarPanel({
               </div>
               <p className="sub">
                 {divergence !== null && Math.abs(divergence) > 0.15
-                  ? "The two methods disagree by more than 15%. They price the same lognormal "
-                    + "terminal distribution — one by simulation, one in closed form — so a gap "
-                    + "this size is not sampling error at this path count: one of the two is not "
-                    + "running the inputs shown beside it, and the gap is the finding."
-                  : "The two agree within sampling error, which is what a correct implementation "
-                    + "of both looks like."}
+                  ? "The two methods disagree by more than 15%. Both price the same lognormal "
+                    + "terminal distribution, one by simulation and one in closed form, so a gap "
+                    + "this size is not sampling error: one of them is not running the inputs "
+                    + "shown beside it, and that is the finding."
+                  : "The two agree within sampling error, as two correct implementations "
+                    + "should."}
                 {sandbox && " Book is the generated sandbox, so the equity input is not a real position."}
               </p>
             </>

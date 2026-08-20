@@ -97,9 +97,9 @@ export default function HealthMatrix({
 }: HealthMatrixProps) {
   const locked = guard === "locked" || !operatorReady;
   const lockNote = guard === "locked"
-    ? "Operator actions are disabled on this deployment — see Controls."
+    ? "Operator actions are disabled on this deployment — see Remediation."
     : !operatorReady
-      ? "Enter the operator token in Controls before running provider actions."
+      ? "Enter the operator token in Remediation before running provider actions."
       : undefined;
 
   return (
@@ -144,13 +144,13 @@ export default function HealthMatrix({
         <div>
           <h3 id="reliability-latency-guide-title">Tail latency, explained</h3>
           <p>
-            <strong>Decision p99 (header chip)</strong> — in-process, inside the gateway; pushed with
-            the ops snapshot; every sample since the process started; excludes the kernel and the wire.
-            Microseconds are the gateway&apos;s clock, not the browser&apos;s.
+            <strong>Decision p99 (header chip)</strong> — in-process inside the gateway, pushed with
+            the ops snapshot; every sample since start, excluding kernel and wire. Microseconds are
+            the gateway&apos;s clock, not the browser&apos;s.
           </p>
           <p>
-            <strong>Upstream p99 (this table)</strong> — network, polled from this browser; nearest-rank
-            over the rolling 15-minute pool including failures and timeouts; shown only after at least
+            <strong>Upstream p99 (this table)</strong> — network, polled from this browser;
+            nearest-rank over the rolling 15-minute pool including failures and timeouts; shown after
             20 samples.
           </p>
         </div>
@@ -159,11 +159,11 @@ export default function HealthMatrix({
 
       <p className="console-note console-matrix-action-note" id="health-matrix-action-note">
         Test spends one real provider call. Simulate drops a ready provider from this instance&apos;s
-        routing for two minutes; Reset closes a circuit on it. Neither reaches another instance or
-        the trading gateway. {locked
+        routing for two minutes; Reset closes a circuit. Neither reaches another instance or the
+        trading gateway. {locked
           ? guard === "token"
-            ? "Enter the operator token in Controls to enable these actions."
-            : "Actions are locked on this deployment; authorisation details live in Controls."
+            ? "Enter the operator token in Remediation to enable these actions."
+            : "Actions are locked on this deployment; authorisation details live in Remediation."
           : "Every mutation is recorded in the event stream."}
       </p>
 
@@ -337,8 +337,8 @@ export default function HealthMatrix({
           <p className="console-subhead">
             Direct venue clients
             <small className="muted">
-              {" "}— reached by <code>/api/depth</code> and <code>/api/tca</code> without the registry, so they
-              have no failover chain and no breaker. Measured separately.
+              {" "}— reached by <code>/api/depth</code> and <code>/api/tca</code> without the registry,
+              so they have no failover chain and no breaker.
             </small>
           </p>
           <div className="table-wrap" tabIndex={0}>

@@ -109,8 +109,8 @@ export default function DriftBars({
         role="img"
         aria-label={
           `Drift from target weight for ${targets.length} positions, as a share of current gross. `
-          + `${outside} of them sit outside the ${pct(driftBand, 0)} band and would be traded; `
-          + `the rest are left alone. The same figures are in the table below.`
+          + `${outside} sit outside the ${pct(driftBand, 0)} band and would be traded; the rest `
+          + `are left alone. The same figures are in the table below.`
         }
       >
         {/* The band. Filled when it means something — when it does not balance,
@@ -239,8 +239,8 @@ export default function DriftBars({
           <i aria-hidden style={{ background: "var(--diverging-pos)" }} />
           <span>
             <strong>Add.</strong> The target sits at least {pct(driftBand, 0)} of gross{" "}
-            <em>above</em> where the position is now, so the book is underweight it and a trade is
-            proposed. On a <strong>short</strong> that trade is a <span className="num">SELL</span>:
+            <em>above</em> the position, so the book is underweight it and a trade is proposed.
+            On a <strong>short</strong> that trade is a <span className="num">SELL</span>:
             adding to a short means selling more of it.
           </span>
         </li>
@@ -268,28 +268,27 @@ export default function DriftBars({
         Drift is{" "}
         <span className="num">(target notional − current notional) ÷ gross before</span> — a share
         of the <strong>whole book</strong>, not of the position, so a bar reading{" "}
-        {pct(driftBand, 0)} on a name that is twice that size means moving half of it. The band is
-        one number doing two jobs: the colour here, and the filter on the trade list.
-        A coloured bar and a trade row are therefore the same set, exactly — dragging the slider
-        recolours bars and adds or removes trades in one motion.
+        {pct(driftBand, 0)} on a name twice that size means moving half of it. The band does two
+        jobs, the colour here and the filter on the trade list.
+        A coloured bar and a trade row are therefore the same set, and dragging the slider
+        changes both in one motion.
       </p>
 
       {unbalancedSum != null && (
         <p className="research-note">
           One state breaks that equivalence, and it is the state on screen: typed weights sum to{" "}
           {pct(unbalancedSum, 1)} rather than to one, so the bars still colour but no trade is
-          composed from them. Everywhere else, colour and trade agree.
+          composed from them.
         </p>
       )}
 
       {clipped.length > 0 && (
         <p className="research-note">
           {clipped.join(", ")} {clipped.length === 1 ? "carries" : "carry"} a{" "}
-          <span className="num">capped</span> marker: the proposed target ran into that symbol&apos;s
+          <span className="num">capped</span> marker: the target ran into that symbol&apos;s
           own notional limit and was clipped back to it. The marker changes neither the colour of a
-          bar nor its length — it says how the target was arrived at, not how far away it is — so a
-          clipped position can and does sit grey inside the band. That is a different condition from
-          the gross cap, which is what replaces the{" "}
+          bar nor its length, so a clipped position can sit grey inside the band. That is a
+          different condition from the gross cap, which replaces the{" "}
           <span className="num">current → target</span> pair on the right with{" "}
           <span className="num">—</span>.
         </p>
@@ -307,15 +306,15 @@ export default function DriftBars({
                 ({usd(only.targetNotional)} − {usd(only.currentNotional)}) ÷{" "}
                 {usd(only.currentNotional)} = 0
               </span>
-              , so the bar is a one-pixel hairline: a measured zero is drawn rather than omitted. No
-              position sits outside the band at any width, and the drift-band slider has nothing to
+              , so the bar is a one-pixel hairline: a measured zero is drawn rather than omitted,
+              and the drift-band slider has nothing to
               add or remove.
             </>
           ) : (
             <>
-              {" "}Its target was nonetheless not left at the full book — a risk limit clipped it —
-              so the drift beside it is the distance to that cap rather than a distance to some
-              other position.
+              {" "}Its target was not left at the full book — a risk limit clipped it —
+              so the drift beside it is the distance to that cap, not to another
+              position.
             </>
           )}
         </p>
