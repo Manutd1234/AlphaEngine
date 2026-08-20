@@ -336,7 +336,12 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
             ))}
           </ul>
           <p className="research-note">
-            Composed, not sent. Each of these is an ordinary order and would face the same fourteen
+            {/* No count. `judge()` pushes 15 gate names and several are
+                conditional, so the number rendered is 12 for a MARKET order,
+                14 for LIMIT and 15 once reduce-only engages — and a rebalance
+                trade is not guaranteed to be any one of those. A figure that is
+                right for one path reads as a promise on the others. */}
+            Composed, not sent. Each of these is an ordinary order and would face the same
             pre-trade gates as any other — including the ones that may reject it. Gross would move
             from {usd(active.grossBefore)} to {usd(active.grossAfter)}.
             {active.clipped && " Some targets were capped by a risk limit, so the weights below no longer sum to one."}
