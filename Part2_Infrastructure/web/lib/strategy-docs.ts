@@ -14,7 +14,7 @@
  * market condition, because "may underperform in some conditions" is the same
  * sentence for all forty-six and therefore tells a reader nothing.
  *
- * `formula` is the rule as implemented — matching `longState` in `engine.ts` and
+ * `formula` is the rule as implemented — matching `longState` in `lib/strategies/` and
  * `build_signals` in `backtester.py`, including the detail both engines share
  * and neither advertises: EXIT DOMINATES ENTRY on a bar where both fire.
  *
@@ -128,7 +128,7 @@ export const STRATEGY_DOCS: Record<Strategy, StrategyDoc> = {
   stochastic: {
     summary: "The close's position in the recent range, smoothed against itself.",
     formula:
-      "%K = 100 × (close − lowest low) / (highest high − lowest low) over `fast` bars; %D = SMA(%K, slow). Long when %K < 20; flat when %K > 80 or %K < %D. Oversold arms the entry and %D confirms the exit — requiring `%K < 20 AND %K > %D` at once is the crossing instant, which almost never coincides, and the strategy took zero trades until that was separated.",
+      "%K = 100 × (close − lowest low) / (highest high − lowest low) over `fast` bars; %D = SMA(%K, slow). Long when %K < 20; flat when %K > 80 or %K < %D. Oversold arms the entry and %D confirms the exit — requiring `%K < 20 AND %K > %D` at once is the crossing instant, which almost never coincides, and the strategy took zero trades until they were separated.",
     whenItWorks: "Sideways markets with regular swings between support and resistance.",
     whenItFails:
       "Strong trends. %K pins above 80 for the whole advance, so the model spends the trend flat and re-enters at the top.",
@@ -286,7 +286,7 @@ export const STRATEGY_DOCS: Record<Strategy, StrategyDoc> = {
     summary:
       "On-balance volume: a running total that adds the day's volume on an up close and subtracts it on a down one.",
     formula:
-      "Long while OBV is above SMA(OBV, fast). The `slow` axis is unused and kept only so the grid keeps its shape — the card says so rather than letting a slider imply an effect it does not have.",
+      "Long while OBV is above SMA(OBV, fast). The `slow` axis is unused and kept only so the grid keeps its shape.",
     whenItWorks:
       "Where volume leads price. Accumulation shows in OBV before it shows in the close, which is the entire premise.",
     whenItFails:
