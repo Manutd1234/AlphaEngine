@@ -500,17 +500,22 @@ export default function PortfolioWorkspace({
                     + "Those three points are where this page starts talking; the limits they are "
                     + "fractions of belong to the gateway, which is also what enforces them."}
               </p>
-              <p className="research-note">
-                {bookDrift == null
-                  ? "Drift against a risk-model target is not measured on this book: the instruments in "
-                    + "it share too little price history to build a covariance, so there is no target to "
-                    + "measure against — which is not the same as being on target."
-                  : bookDrift >= DRIFT_PROMPT
-                    ? `Book drift is ${pct(bookDrift, 1)} against an inverse-volatility target, which is `
-                      + "what the prompt above is about."
+              {/* Nothing when the prompt is up. That branch read "Book drift
+                  is 20.3% against an inverse-volatility target, which is what
+                  the prompt above is about" — a sentence whose whole content is
+                  a pointer at a banner four lines higher that already carries
+                  the same figure and says what to do with it. The other two
+                  branches say something the banner does not. */}
+              {(bookDrift == null || bookDrift < DRIFT_PROMPT) && (
+                <p className="research-note">
+                  {bookDrift == null
+                    ? "Drift against a risk-model target is not measured on this book: the instruments in "
+                      + "it share too little price history to build a covariance, so there is no target to "
+                      + "measure against — which is not the same as being on target."
                     : `Book drift is ${pct(bookDrift, 1)} against an inverse-volatility target — under the `
                       + `${pct(DRIFT_PROMPT, 0)} at which this page raises the rebalancing prompt.`}
-              </p>
+                </p>
+              )}
             </div>
           </>
         )}
