@@ -10590,7 +10590,12 @@ button.data-trust-action > i {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  width: min(280px, 72%);
+  /* The card is full width now, and a 280px pill centred on 1168px left ~444px
+     of bare grid paper on each side — the same emptiness the one-column change
+     removed, rotated 90 degrees. Sized to the three nodes it captions instead:
+     they are `repeat(3, minmax(0, 1fr))`, so a third of the plane is the width
+     that reads as belonging to them. */
+  width: min(420px, 72%);
   margin: 0 auto;
   padding: 10px 12px;
   border: 1px solid color-mix(in srgb, var(--series-1) 32%, var(--border));
