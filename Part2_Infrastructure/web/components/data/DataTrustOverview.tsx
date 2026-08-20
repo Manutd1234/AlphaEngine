@@ -390,12 +390,6 @@ export default function DataTrustOverview({
 
       {summary && pane === "composition" && (
         <>
-          <p className="research-note">
-            Everything on this pane is counted by the function instance that answered this request,
-            and the counters are incremented in the quote, bar, news and fundamentals routes rather than here. Read a
-            zero as <strong>&ldquo;not measured in this process&rdquo;</strong>, never as
-            &ldquo;nothing went wrong&rdquo;. The Verdict pane names the instance and its scope.
-          </p>
 
           {/* ------------------------------------------------------------------
               Payload verdict and findings composition — TWO MARKS, TWO DENOMINATORS.
