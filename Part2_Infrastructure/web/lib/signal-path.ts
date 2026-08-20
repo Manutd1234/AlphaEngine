@@ -95,7 +95,7 @@ export function deriveSignalPath(
       { id: "registry", name: "Provider registry & cache", role: "Next.js route handlers", state: "unknown", measured: null, source: "health.summary", detail },
       { id: "engine", name: "Research engine", role: "this browser", state: "ok", measured: null, source: "lib/engine.ts", detail: "Backtests and parameter sweeps run client-side, so they do not depend on the probe above." },
       { id: "gateway", name: "Pre-trade risk gateway", role: "FastAPI", state: "unknown", measured: null, source: "health.sources.gateway", detail },
-      { id: "audit", name: "Paper execution & audit", role: "gateway, append-only", state: "unknown", measured: null, source: "health.platform.audit", detail },
+      { id: "audit", name: "Paper execution & audit", role: "append-only gateway", state: "unknown", measured: null, source: "health.platform.audit", detail },
     ];
   }
 
@@ -213,7 +213,7 @@ export function deriveSignalPath(
   const audit: SignalStage = {
     id: "audit",
     name: "Paper execution & audit",
-    role: "gateway, append-only",
+    role: "append-only gateway",
     state: !platform ? (gatewayState === "absent" ? "absent" : "unknown")
       : platform.audit.available ? "ok" : "down",
     measured: null,
