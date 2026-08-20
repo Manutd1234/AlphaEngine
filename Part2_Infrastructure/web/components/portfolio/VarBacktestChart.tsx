@@ -214,7 +214,11 @@ export default function VarBacktestChart({
 
           <XAxis
             points={points.map((p, i) => (dated ? (p.t as number) : i))}
-            y={HEIGHT - 8}
+            /* The plot floor, as every sibling chart does. `HEIGHT - 8` put the
+               axis line at 222 and XAxis draws its ticks at y + 15, so the
+               labels landed at 237 inside a 230-tall viewBox and the UA clipped
+               them: the date axis has never rendered. */
+            y={y0}
             x0={x0}
             x1={x1}
             format={(v) => (dated ? shortDate(v) : `#${Math.round(v)}`)}
