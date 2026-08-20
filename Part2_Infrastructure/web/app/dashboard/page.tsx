@@ -2022,10 +2022,7 @@ export default function Page() {
                   <FittedModels />
                 </WorkspaceSubtabPanel>
                 <WorkspaceSubtabPanel workspaceId="research" tabId="codex" activeId={researchSection}>
-                  <StrategyDocCard
-                    strategy={req.strategy}
-                    onSelect={updateStrategy}
-                  />
+                  <StrategyDocCard strategy={req.strategy} />
                   <StrategyCodex
                     records={experiments}
                     activeStrategy={req.strategy}

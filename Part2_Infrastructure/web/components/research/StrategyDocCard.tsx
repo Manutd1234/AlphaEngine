@@ -28,10 +28,9 @@ import { PARAM_MEANING, STRATEGY_FAMILY, STRATEGY_LABELS, type Strategy } from "
 interface StrategyDocCardProps {
   strategy: Strategy;
   /** Switches the picker without leaving the card. */
-  onSelect?: (strategy: Strategy) => void;
 }
 
-export default function StrategyDocCard({ strategy, onSelect }: StrategyDocCardProps) {
+export default function StrategyDocCard({ strategy }: StrategyDocCardProps) {
   const doc = STRATEGY_DOCS[strategy];
   const params = PARAM_MEANING[strategy];
   const tier = useComplexity();
@@ -81,22 +80,6 @@ export default function StrategyDocCard({ strategy, onSelect }: StrategyDocCardP
           </div>
         </dl>
       </details>
-
-      <p className="strategy-doc__similar">
-        <span className="muted">Compare against:</span>{" "}
-        {doc.similar.map((other, index) => (
-          <span key={other}>
-            {index > 0 ? ", " : ""}
-            {onSelect ? (
-              <button type="button" className="linklike" onClick={() => onSelect(other)}>
-                {STRATEGY_LABELS[other]}
-              </button>
-            ) : (
-              STRATEGY_LABELS[other]
-            )}
-          </span>
-        ))}
-      </p>
 
       {atLeast(tier, "full") ? (
         <p className="research-note">

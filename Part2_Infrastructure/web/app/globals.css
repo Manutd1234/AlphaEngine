@@ -14299,22 +14299,15 @@ button:active:not(:disabled) {
 .strategy-doc__grid .is-works { border-left-color: var(--status-good); }
 .strategy-doc__grid .is-fails { border-left-color: var(--status-critical); }
 
-.strategy-doc__similar {
-  margin: var(--space-3) 0 0;
-  font-size: var(--fs-xs);
-}
-
 /**
  * Segregation. The card carries four readings — the one-line summary, the
- * works/fails pair, the rule with its parameters, and the neighbours worth
- * comparing against — and they ran together as one column of prose with only
- * a gap between them, so nothing said where one ended and the next began. A
- * hairline before each band says it, and the rule/parameters pair borrows the
- * left-rule anatomy of the pair above it in the neutral tone: same shape, no
- * verdict implied.
+ * works/fails pair, and the rule with its parameters — and they ran together
+ * as one column of prose with only a gap between them, so nothing said where
+ * one ended and the next began. A hairline before each band says it, and the
+ * rule/parameters pair borrows the left-rule anatomy of the pair above it in
+ * the neutral tone: same shape, no verdict implied.
  */
-.strategy-doc__mechanics,
-.strategy-doc__similar {
+.strategy-doc__mechanics {
   margin-top: var(--space-3);
   padding-top: var(--space-3);
   border-top: 1px solid var(--border);
@@ -16101,7 +16094,6 @@ html:active-view-transition .view-panel {
   #panel-research .run-annotate,
   #panel-research .favourites-actions,
   #panel-research .research-facts .text-action,
-  #panel-research .strategy-doc__similar,
   #panel-research .research-corpus > p.muted:has(.linklike),
   #panel-research .promotion-handoff button {
     display: none !important;
