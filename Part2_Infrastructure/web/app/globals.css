@@ -5352,9 +5352,21 @@ button
   color: var(--text-muted);
 }
 
+/* The formula sits on the sentence's own baseline. Inline boxes align by
+   baseline, so a mono run set SMALLER than the prose around it hangs its chip
+   low — which is what made the radical in `k·√(order ÷ ADV)` read as
+   misaligned rather than as part of the sentence. Same size as the parent,
+   like `.quant-tooltip__formula` and the three sibling `code` rules that step
+   up (`.console-card`, `.cockpit-detail`, `.run-comparison`); this was the
+   only inline formula in the app still stepping down. `nowrap` keeps the
+   expression whole: the sidebar column is a hard 310px (`.research-layout`),
+   leaving ~254px of measure, and without it the run breaks inside the
+   parentheses and the radical loses its operand. Measured at 143px, so it
+   fits with room at both type steps. */
 .friction-note code {
   font-family: var(--mono);
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
   padding: 1px 4px;
   border-radius: 4px;
   background: var(--surface-1);
