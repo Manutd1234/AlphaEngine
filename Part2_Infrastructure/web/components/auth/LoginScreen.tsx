@@ -61,7 +61,7 @@ const PROVIDERS: { id: Provider; label: string }[] = [
 const MODE_COPY: Record<FormMode, { title: string; blurb: string; submit: string }> = {
   signin: {
     title: "Sign in",
-    blurb: "Sign in so preferences follow your account between devices — or open the desk as a guest below.",
+    blurb: "Preferences follow your account between devices.",
     submit: "Sign in",
   },
   signup: {
@@ -71,7 +71,7 @@ const MODE_COPY: Record<FormMode, { title: string; blurb: string; submit: string
   },
   forgot: {
     title: "Reset your password",
-    blurb: "We will email a link that brings you back here to choose a new one.",
+    blurb: "The link brings you back here to choose a new one.",
     submit: "Email a reset link",
   },
   reset: {

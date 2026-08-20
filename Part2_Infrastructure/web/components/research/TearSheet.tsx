@@ -83,7 +83,7 @@ export default function TearSheet({
         <div className="stability-tile">
           <span>Annualised turnover</span>
           <strong className="num">{fmt(turnoverPerYear, 1)}×</strong>
-          <small>book turned over per year</small>
+          <small>of the book</small>
         </div>
       </div>
 
@@ -96,8 +96,13 @@ export default function TearSheet({
         </span>
         <span>
           Positive bars{" "}
-          <strong className="num">
-            {pct(tail.totalBars ? tail.positiveBars / tail.totalBars : 0, 1)}
+          {/* A dash, not 0.0%. With no bars this share is not measurable, and
+              the `: 0` it used to fall back to said the opposite — that every
+              bar was negative. That is the one substitution this codebase is
+              most alert to: it turns "we cannot know" into a finding, and it
+              type-checks all the way through. */}
+          <strong className="num" title={tail.totalBars ? undefined : "No bars in this window"}>
+            {tail.totalBars ? pct(tail.positiveBars / tail.totalBars, 1) : "—"}
           </strong>
         </span>
         <span>

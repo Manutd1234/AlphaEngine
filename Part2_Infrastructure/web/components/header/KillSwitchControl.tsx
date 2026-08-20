@@ -183,7 +183,7 @@ export default function KillSwitchControl({
           <p className="mt-1 text-fs-body leading-snug text-text-secondary">
             {halted
               ? `The kill switch is active${halt?.haltedSymbols.length ? ` for ${halt.haltedSymbols.join(", ")}` : " across the book"}. Resuming re-opens the pre-trade gates.`
-              : "Trips the gateway's kill switch: every subsequent pre-trade check rejects until it is cleared, and the event lands in the audit log."}
+              : "Every subsequent pre-trade check rejects until trading is resumed, and the event lands in the audit log."}
           </p>
 
           {/* ONLINE now means the gateway answered a health probe, not that a

@@ -82,11 +82,9 @@ export default function PromotionPanel({
         </span>
       </div>
 
-      <p className="sub">
-        Every row is a veto. {gate.eligible
-          ? "All of them cleared — this candidate may be priced against a live book."
-          : `${failed} ${failed === 1 ? "gate blocks" : "gates block"} promotion. Each one names what it measured and why it exists.`}
-      </p>
+      {/* The score above counts what cleared and each row states its own
+          measurement, so what is left to say is that the count is conjunctive. */}
+      <p className="sub">Every row is a veto.</p>
 
       {/* Keyed by data identity: a new result remounts the list and replays
           the assembly; anything else — hover, resize, parent re-render —

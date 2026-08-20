@@ -122,11 +122,10 @@ export default function StabilityPanel({
         </div>
       )}
 
-      <p className="sub" style={{ marginTop: 14 }}>
-        {mode === "stability"
-          ? "Each cell is coloured by what its own neighbours do, not by its return. Adjacency is in grid-index space — with a step of 5, the neighbour of 25 is 20, because 24 was never tested."
-          : "A broad plateau suggests an edge that survives small parameter changes; a lone bright cell surrounded by grey is a warning sign."}
-      </p>
+      {/* The seg names the colouring and the heatmap legend keys it; what is left is adjacency. */}
+      {mode === "stability" && (
+        <p className="sub" style={{ marginTop: 14 }}>Adjacency is in grid-index space — with a step of 5, the neighbour of 25 is 20, because 24 was never tested.</p>
+      )}
 
       <Heatmap
         results={results}

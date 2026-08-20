@@ -338,8 +338,7 @@ export default function ProfileScreen() {
         <div className="card p-5">
           <h2 className="text-fs-title">Sign in to manage your account</h2>
           <p className="mt-1 text-fs-md leading-snug text-text-secondary">
-            This page manages an identity. The desk itself needs no account and stays fully
-            browsable without one.
+            The desk itself needs no account and stays fully browsable without one.
           </p>
           <a href="/login" className="primary-action mt-4 text-center">Sign in</a>
         </div>
@@ -358,7 +357,6 @@ export default function ProfileScreen() {
       <PageHead
         kicker="Account"
         title="Security centre"
-        description="Who this account is, what it is connected to, and where it is signed in."
         metrics={[
           {
             label: "Connected",
@@ -535,7 +533,7 @@ export default function ProfileScreen() {
             {!canUnlink(identityCount) && (
               <p id="profile-unlink-note" className="mt-2 text-fs-xs leading-snug text-text-muted">
                 Unlink needs a second method to fall back on. With one, removing it would leave no
-                way into this account, so the library refuses and this stays disabled.
+                way into this account, so the library refuses.
               </p>
             )}
 

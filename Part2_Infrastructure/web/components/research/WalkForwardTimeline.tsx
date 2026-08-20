@@ -77,9 +77,7 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
           <span className="page-kicker">Generalisation</span>
           <h2>Walk-forward timeline</h2>
         </div>
-        <span className="section-note">
-          {report.positiveFolds}/{report.totalFolds} folds profitable out-of-sample
-        </span>
+        {/* The fold count is the verdict's first clause below and its own tile. */}
       </div>
 
       <div
@@ -285,10 +283,10 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
           </tbody>
         </table>
       </div>
+      {/* The verdict above already reads this run's gap in words. */}
       <p className="research-note">
-        Each fold optimises on the train window and trades the <strong>next</strong>, unseen one. A
-        large in-sample → out-of-sample gap is overfitting made visible: the parameters that won on
-        past data stop winning on the data that followed it.
+        Each fold optimises on the train window and trades the <strong>next</strong>, unseen one; the
+        in-sample → out-of-sample gap is the overfitting.
       </p>
     </div>
   );
