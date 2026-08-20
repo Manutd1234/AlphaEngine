@@ -93,8 +93,11 @@ describe("the health snapshot and the panels say whose numbers these are", () =>
 
   it("the ledger panel renders its own absence and says what it does not prove", () => {
     const panel = read("components/data/DataQualityLedger.tsx");
-    assert.ok(panel.includes("The gateway did not return its quality ledger on the last sync"));
-    assert.ok(panel.includes("says nothing about what other instances or earlier hours recorded"));
+    // Both halves of the claim, after a copy-reduction pass folded them into one
+    // sentence: the ledger is missing, and the fallback counts are this
+    // instance's window rather than the fleet's history.
+    assert.ok(panel.includes("The gateway did not return its quality ledger"));
+    assert.ok(panel.includes("say nothing about other instances or earlier hours"));
     assert.ok(panel.includes("not that every payload was clean"));
     assert.match(panel, /probeGateway</, "older findings are read with the gateway deadline");
     assert.doesNotMatch(panel, /return null;/, "the panel never disappears");
@@ -150,8 +153,10 @@ describe("taking an escalation is offered only where it would be accepted", () =
     assert.match(panel, /<p className="console-note">\{lockNote\}<\/p>/);
     assert.ok(panel.includes("operator actions are switched off on this deployment"));
     assert.ok(panel.includes("Enter the operator token in Reliability"));
+    // Shortened from "acknowledge from Telegram with /ack" in a copy-reduction
+    // pass; the escape hatch it names is what this assertion is about.
     assert.ok(
-      panel.includes("acknowledge from Telegram with /ack"),
+      panel.includes("/ack from Telegram"),
       "an unavailable action says what still works",
     );
   });
