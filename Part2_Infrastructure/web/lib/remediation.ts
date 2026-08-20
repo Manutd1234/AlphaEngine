@@ -147,9 +147,15 @@ export function deriveRemediation(
       ? durations[Math.floor((durations.length - 1) / 2)]
       : null,
     longestCloseMs: durations.length ? durations[durations.length - 1] : null,
-    // `oldest > 1` means lines existed that this reader will never receive, so
-    // some openings are gone and the counts are a floor.
-    truncated: cursor.oldest > 1,
+    // Two ways a reader can be missing openings, and only the first was
+    // checked. `oldest > 1` means the ring has evicted lines. The second is
+    // quieter: the panel asks for `limit=500` against a 600-entry ring, and
+    // `EventRing.since()` returns the NEWEST `limit`, so between 501 and 600
+    // retained — before any eviction, with `oldest` still 1 — up to a hundred
+    // of the oldest lines are dropped from the response while this said the
+    // counts were complete. Comparing what arrived against what is retained
+    // catches that window.
+    truncated: cursor.oldest > 1 || events.length < cursor.retained,
     drills: { simulated, cleared },
   };
 }

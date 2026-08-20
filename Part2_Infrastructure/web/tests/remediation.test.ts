@@ -25,7 +25,10 @@ const event = (
 const breaker = (provider: string, state: string, ts: number, extra: Record<string, unknown> = {}) =>
   event("Breaker", { provider, state, ...extra }, ts);
 
-const cursor = (over = {}) => ({ oldest: 1, latest: 99, retained: 99, capacity: 600, ...over });
+/* `retained: 0` by default so a fixture never claims the ring holds lines the
+   test did not hand over — `truncated` compares the two, and a stub asserting
+   99 retained while passing zero events describes a state that cannot occur. */
+const cursor = (over = {}) => ({ oldest: 1, latest: 99, retained: 0, capacity: 600, ...over });
 
 describe("a trip is paired with its own closure", () => {
   it("measures how long the circuit stayed open", () => {
@@ -142,6 +145,19 @@ describe("the ledger refuses the claims it cannot support", () => {
     const model = deriveRemediation([], cursor({ oldest: 42 }));
     assert.equal(model.truncated, true);
     assert.equal(deriveRemediation([], cursor({ oldest: 1 })).truncated, false);
+  });
+
+  it("says so too when the response was capped below what the ring holds", () => {
+    // The panel asks for limit=500 against a 600-entry ring and gets the
+    // NEWEST 500. Between 501 and 600 retained the ring has evicted nothing —
+    // `oldest` is still 1 — yet up to a hundred of the oldest lines never
+    // reach the reader. Openings can be missing while nothing says so.
+    const capped = deriveRemediation([], cursor({ oldest: 1, retained: 600 }));
+    assert.equal(capped.truncated, true,
+      "a response capped below the ring's contents reported complete counts");
+
+    const whole = deriveRemediation([], cursor({ oldest: 1, retained: 0 }));
+    assert.equal(whole.truncated, false, "an empty ring is not truncated");
   });
 
   it("reports a clean instance as clean rather than as unmeasured", () => {
