@@ -200,8 +200,7 @@ export default function LiquidityPanel({
           A horizon assumes the stated share of average daily volume is available every session,
           which a stressed tape does not offer. Positions with fewer than{" "}
           {MIN_ADV_OBSERVATIONS} volume observations are banded{" "}
-          <strong>unmeasurable</strong> rather than estimated. Exit probes walk the live consolidated
-          book at the moment you press them.
+          <strong>unmeasurable</strong> rather than estimated.
         </p>
       </details>
     </div>
