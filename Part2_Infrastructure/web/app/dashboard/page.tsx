@@ -63,6 +63,7 @@ import {
 import { useBook } from "@/lib/use-book";
 import { useSystemHealth } from "@/lib/use-system-health";
 import { RESEARCH_SYMBOLS } from "@/lib/research-symbols";
+import { buildCommands } from "@/lib/workspace-commands";
 import seedRunJson from "@/lib/seed-run.json";
 import {
   DEFAULT_REQUEST,
@@ -1099,182 +1100,17 @@ export default function Page() {
    * this one memo. Labels for the five workspaces whose section objects are
    * private mirror their rails verbatim.
    */
-  const commands = useMemo<Command[]>(() => {
-    const list: Command[] = NAV_ITEMS.map((item, index) => ({
-      id: `tab-${item.id}`,
-      label: `${item.accessibleLabel ?? item.label} — ${item.role}`,
-      category: "Workspace",
-      hotkey: `Alt+${index + 1}`,
-      action: () => navigate(item.id),
-    }));
-
-    const section = (
-      view: WorkspaceView,
-      tab: string,
-      id: string,
-      label: string,
-      apply: () => void,
-    ) => {
-      list.push({
-        id: `sec-${view}-${id}`,
-        label: `${tab} → ${label}`,
-        category: "Section",
-        action: () => navigate(view, false, { apply, hash: `${view}/${id}` }),
-      });
-    };
-    // One pattern for all workspaces, read from lib/sections — the palette can
-    // no longer drift from the rails in label or order.
-    for (const s of OVERVIEW_SECTIONS) {
-      section("overview", "Overview", s.id, `${s.label} — ${s.description}`, () => setOverviewSection(s.id));
-    }
-    for (const s of RESEARCH_SECTIONS) {
-      section("research", "Research", s.id, `${s.label} — ${s.description}`, () => setResearchSection(s.id));
-    }
-    for (const s of EXECUTION_SECTIONS) {
-      section("live", "Execution", s.id, `${s.label} — ${s.description}`, () => setExecutionSection(s.id));
-    }
-    for (const s of PORTFOLIO_SECTIONS) {
-      section("portfolio", "Portfolio", s.id, `${s.label} — ${s.description}`, () => setPortfolioSection(s.id));
-    }
-    for (const s of RISK_SECTIONS) {
-      section("risk", "Risk", s.id, `${s.label} — ${s.description}`, () => setRiskSection(s.id));
-    }
-    for (const s of DATA_SECTIONS) {
-      section("data", "Data", s.id, `${s.label} — ${s.description}`, () => setDataSection(s.id));
-    }
-    for (const s of RELIABILITY_SECTIONS) {
-      section("reliability", "Reliability", s.id, `${s.label} — ${s.description}`, () => setReliabilitySection(s.id));
-    }
-    for (const s of DEVELOPER_SECTIONS) {
-      section("developer", "Developer", s.id, `${s.label} — ${s.description}`, () => setDeveloperSection(s.id));
-    }
-
-    for (const strategy of Object.keys(STRATEGY_LABELS) as Strategy[]) {
-      list.push({
-        id: `model-${strategy}`,
-        label: `Model: ${STRATEGY_LABELS[strategy]} — ${STRATEGY_FAMILY[strategy]}`,
-        category: "Model",
-        action: () => {
-          updateStrategy(strategy);
-          navigate("research", false, { apply: () => setResearchSection("summary"), hash: "research/summary" });
-        },
-      });
-    }
-    for (const s of RESEARCH_SYMBOLS) {
-      list.push({
-        id: `sym-${s.symbol}`,
-        label: `${s.symbol} — ${s.name}, ${s.sector}`,
-        category: "Symbol",
-        action: () => { updateSymbol(s.symbol); navigate("live"); },
-      });
-    }
-    list.push({
-      id: "act-kill",
-      label: "Kill switch — halt and flatten",
-      category: "Risk control",
-      action: () => navigate("risk", false, { apply: () => setRiskSection("controls"), hash: "risk/controls" }),
-    });
-    // Navigation stays the empty-query index. Unused verbs sit after it; once
-    // used, CommandBar's existing recents projection promotes them above it.
-    list.push(
-      {
-        id: "action-run-sweep",
-        label: "Run sweep",
-        category: "Action",
-        hotkey: "⌘↵",
-        action: () => {
-          if (view !== "research" || researchSection !== "summary") {
-            navigate("research", false, {
-              apply: () => setResearchSection("summary"),
-              hash: "research/summary",
-            });
-          }
-          void run();
-        },
-      },
-      {
-        id: "action-pin-run",
-        label: running
-          ? "Pin run — sweep in progress"
-          : currentPinned
-            ? "Pin run — already pinned"
-            : data
-              ? "Pin run"
-              : "Pin run — no completed result",
-        category: "Action",
-        action: () => {
-          if (data && !currentPinned && !running) pinRun();
-        },
-      },
-      {
-        id: "action-toggle-mc-band",
-        label: `${showMcBands ? "Hide" : "Show"} Monte Carlo band`,
-        category: "Action",
-        action: () => setShowMcBands((visible) => !visible),
-      },
-      {
-        id: "action-run-mc-dist",
-        label: "Run Monte Carlo distribution",
-        category: "Action",
-        action: () => {
-          setMcRunNonce((nonce) => nonce + 1);
-          navigate("risk", false, {
-            apply: () => setRiskSection("montecarlo"),
-            hash: "risk/montecarlo",
-          });
-        },
-      },
-      /* Execution verbs. The palette could already reach every section of
-         this tab and change nothing once it arrived — navigation without
-         verbs. These four set the two inputs the whole Routing & TCA surface
-         is a function of, and land the reader where the answer redraws.
-         Nothing here submits, cancels or routes: the ticket keeps those, and
-         the kill switch stays a navigation entry precisely so a fuzzy match
-         cannot fire it. */
-      {
-        id: "action-flip-side",
-        label: `Execution: flip the intent to ${side === "BUY" ? "SELL" : "BUY"}`,
-        category: "Action",
-        action: () => {
-          setSide(side === "BUY" ? "SELL" : "BUY");
-          navigate("live", false, { apply: () => setExecutionSection("routing"), hash: "live/routing" });
-        },
-      },
-      ...([10_000, 100_000, 1_000_000] as const).map((preset) => ({
-        id: `action-probe-${preset}`,
-        label: `Execution: probe ${usd(preset, 0)}`,
-        category: "Action" as const,
-        action: () => {
-          setNotional(preset);
-          navigate("live", false, { apply: () => setExecutionSection("routing"), hash: "live/routing" });
-        },
-      })),
-      {
-        id: "action-toggle-theme",
-        // Names what it does now that Theme has three states. This verb flips
-        // the palette and sets it explicitly, so from System it lands on light
-        // or dark and stops following the machine — "Toggle theme" would not
-        // have said that, and the setting it silently replaced is in the gear.
-        label: "Switch to the light or dark palette",
-        category: "Action",
-        action: toggleDocumentThemeMode,
-      },
-      {
-        id: "action-copy-link",
-        label: "Copy link to this view",
-        category: "Action",
-        action: copyLinkToView,
-      },
-      {
-        id: "action-shortcuts",
-        label: "Shortcuts & reviewer tour — the five-minute walkthrough",
-        category: "Action",
-        hotkey: "?",
-        action: () => setShortcutsOpen(true),
-      },
-    );
-    return list;
-  }, [
+  // Built in lib/workspace-commands.ts. The list is a function of the rails,
+  // the strategies and the symbols, and none of that is rendering — it was
+  // the largest block in this file and the one least about the component.
+  const commands = useMemo<Command[]>(() => buildCommands({
+    navigate, setOverviewSection, setResearchSection, setExecutionSection,
+    setPortfolioSection, setRiskSection, setDataSection, setReliabilitySection,
+    setDeveloperSection, updateStrategy, updateSymbol, run, pinRun, running,
+    currentPinned, data, showMcBands, setShowMcBands, setMcRunNonce, side,
+    setSide, setNotional, copyLinkToView, setShortcutsOpen, view,
+    researchSection,
+  }), [
     copyLinkToView,
     currentPinned,
     data,

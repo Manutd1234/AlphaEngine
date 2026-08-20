@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-20",
-  "commit": "35d7f6b",
+  "commit": "3aa1718",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -604,6 +604,7 @@
     "Part2_Infrastructure/web/lib/venues/report.ts",
     "Part2_Infrastructure/web/lib/venues/types.ts",
     "Part2_Infrastructure/web/lib/version.ts",
+    "Part2_Infrastructure/web/lib/workspace-commands.ts",
     "Part2_Infrastructure/web/next.config.mjs",
     "Part2_Infrastructure/web/package-lock.json",
     "Part2_Infrastructure/web/package.json",
