@@ -4833,6 +4833,70 @@ button
   color: var(--text-secondary);
 }
 
+/* Everything a reader meets on this panel is a card.
+ *
+ * `.console-action` became a box because a hairline is the weakest separator
+ * available for a row that spends money. The blocks that were NOT controls kept
+ * sitting on the panel's own ground, and a surface where the seven control rows
+ * are boxed and everything around them is loose text reads as unfinished rather
+ * than as a hierarchy. So the same treatment carries across the panel: the
+ * operator-token field, the guard's open-deployment note, and the two scope
+ * disclosures.
+ *
+ * Same tokens as `.console-action` and `.operator-confirmation__facts > div` —
+ * 1px var(--border), var(--radius-md), var(--surface-1) — deliberately not a
+ * second grammar. None of these three carries an accent side, which is the one
+ * thing that would make the `border` shorthand here the mistake it would be on
+ * `.console-action--client`.
+ *
+ * Scoped by direct descent rather than by new class names, for two reasons.
+ * `.console-note` is rendered on a dozen surfaces that are not operator
+ * controls and must not all become cards; and `OperatorGuard` returns a
+ * fragment, so its blocks land as children of this grid exactly as if they had
+ * been written in `OperatorPanel` — which is also why nothing in that component
+ * had to be edited to get this. */
+.console-actions > .console-token,
+.console-actions > .console-note {
+  /* `.console-action` sets the same margin on top of the grid gap; matching it
+     is what stops the token field sitting 6px further from its neighbour than
+     every control does. */
+  margin-bottom: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.console-actions > .console-note {
+  margin-top: 0;
+  /* Muted was legible against the panel; against a card's own surface it is the
+     step the banners on this panel already take for their second line. */
+  color: var(--text-secondary);
+}
+
+/* The disclosures hold `.operator-scope-notes`, whose dt/dd pairs are already
+   surface-1 boxes, so the container takes surface-2 — the same figure/ground
+   relation `.remediation-scope` has with its facts and `.operator-group-heading`
+   has with the controls beneath it. The hairline `.disclosure` normally draws is
+   replaced, not added to: a top border plus a full box is two separators doing
+   one job.
+
+   No `<details>` is added or removed by any of this. There are two summaries on
+   this panel and there stay two — seven collapsibles would be exactly as noisy
+   as the seven paragraphs they replaced. */
+.console-actions > .disclosure {
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+/* Closed, the summary's own padding is the whole box. Open, the notes want a
+   floor under them. */
+.console-actions > .disclosure[open] {
+  padding-bottom: var(--space-3);
+}
+
 /* ---------- JSON tree ---------- */
 .json-tree {
   max-height: 320px;
@@ -13185,8 +13249,29 @@ h4 {
 .remediation-scope__facts {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-4);
+  /* The boxes below carry their own padding now, so the gap only has to hold
+     them apart rather than stand in for the edges they did not have. */
+  gap: var(--space-2);
   margin: 0;
+}
+
+/* One box per fact, on the same tokens as `.operator-confirmation__facts > div`
+   — which is literally the same three-up figure block, one pane apart, and the
+   two were reading as different components because only one of them was boxed.
+   A `div` already wrapped each dt/dd/small trio for exactly this grouping, so
+   nothing here wraps anything new: no descendant selector on this panel changes
+   depth. Plain `border` shorthand is safe here in a way it is not on
+   `.console-action--client`, because none of these three carries an accent side
+   for a shorthand to wash away. */
+.remediation-scope__facts > div {
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
 }
 
 .remediation-scope__facts dt {
@@ -13198,7 +13283,9 @@ h4 {
 }
 
 .remediation-scope__facts dd {
-  margin: 3px 0 2px;
+  /* The box's own `gap` owns this spacing now; the margins were the version of
+     it that existed when there was no box. */
+  margin: 0;
   color: var(--text-primary);
   font-size: var(--fs-h1);
   font-weight: 650;
