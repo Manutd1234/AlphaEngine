@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-20",
-  "commit": "bce98a5",
+  "commit": "37dbba0",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -62,6 +62,7 @@
     "Part2_Infrastructure/developer-console/worker/index.ts",
     "Part2_Infrastructure/docker/gateway.Dockerfile",
     "Part2_Infrastructure/docker/README.md",
+    "Part2_Infrastructure/docs/REFACTOR_RULES.md",
     "Part2_Infrastructure/docs/RUNBOOK.md",
     "Part2_Infrastructure/docs/telegram-live-checklist.md",
     "Part2_Infrastructure/LICENSE",
@@ -141,6 +142,7 @@
     "Part2_Infrastructure/tests/test_decision_latency.py",
     "Part2_Infrastructure/tests/test_drawdown_alerts.py",
     "Part2_Infrastructure/tests/test_equity_quote.py",
+    "Part2_Infrastructure/tests/test_file_size.py",
     "Part2_Infrastructure/tests/test_gate_parity.py",
     "Part2_Infrastructure/tests/test_jobs_security.py",
     "Part2_Infrastructure/tests/test_ml_engine.py",
@@ -590,6 +592,7 @@
     "Part2_Infrastructure/web/tests/export-python.test.ts",
     "Part2_Infrastructure/web/tests/exposure-chart.test.ts",
     "Part2_Infrastructure/web/tests/favourites.test.ts",
+    "Part2_Infrastructure/web/tests/file-size.test.ts",
     "Part2_Infrastructure/web/tests/fill-quality.test.ts",
     "Part2_Infrastructure/web/tests/fixtures/bars-contract-parity.json",
     "Part2_Infrastructure/web/tests/fixtures/gate-parity.json",
