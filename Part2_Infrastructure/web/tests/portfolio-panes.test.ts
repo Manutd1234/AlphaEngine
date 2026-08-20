@@ -217,34 +217,44 @@ describe("the drift legend is a worked reading, not a key", () => {
   });
 
   it("names the counter-intuitive short case, where a blue add bar sells", () => {
-    assert.match(legend, /adding to a short means selling more of it/);
+    // The worked sentence was cut to its point in the copy-reduction pass; the
+    // point is the inversion, and it is still the legend that states it.
+    assert.match(legend, /On a <strong>short<\/strong> that trade is a/);
     assert.match(legend, /SELL/);
     assert.match(legend, /BUY/);
   });
 
   it("states that the band colouring and the trade filter are the same number", () => {
-    assert.match(chart, /A coloured bar and a trade row are therefore the same set/);
+    // Was a separate sentence under the chart ("a coloured bar and a trade row
+    // are the same set"). The third legend rule now carries it in place: it is
+    // the band that decides both the grey and the absence of a trade.
+    assert.match(legend, /Inside ±\{pct\(driftBand, 0\)\}, so no trade/);
   });
 
   it("names the one state where colour and trade disagree", () => {
+    // The paragraph restating this under the chart went; the label drawn ON the
+    // chart in that state is what survives, and it says the same thing.
     assert.match(chart, /unbalancedSum != null && \(/);
-    assert.match(chart, /the bars still colour but no trade is\s+composed/);
+    assert.match(chart, /trades withheld — weights sum to/);
   });
 
-  it("says a clipped marker changes neither colour nor length", () => {
-    assert.match(chart, /changes neither the colour of a\s+bar nor its length/);
-    // And keeps it distinct from the gross-cap condition, which is the other
-    // thing on this chart with the word "cap" in it and does change what prints.
-    assert.match(chart, /different condition from\s+the gross cap/);
+  it("says a clipped marker does not move a bar out of the band", () => {
+    assert.match(chart, /A capped position can still sit grey inside the band/);
+    // And the gross-cap condition — the other thing here with "cap" in it, and
+    // the one that replaces the current-to-target pair with a dash — keeps its
+    // own explanation in the panel that owns the cap.
+    assert.match(panel, /The gross cap sits below current gross/);
   });
 });
 
 describe("a book of one says why it cannot move", () => {
   it("prints the arithmetic instead of asserting the conclusion", () => {
     assert.match(code(chart), /targets\.length === 1 \? targets\[0\] : null/);
-    assert.match(chart, /trivially\s+100% of itself under every method offered/);
-    assert.match(chart, /the drift-band slider has nothing to\s+add or remove/);
-    assert.match(chart, /the\s+model selector produces identical output whichever one is picked/);
+    assert.match(chart, /100% of\s+itself under every method/);
+    // The printed arithmetic still ends in the hairline, and the hairline still
+    // says which of "zero" and "absent" it is.
+    assert.match(chart, /a measured zero, not an omission/);
+    assert.match(chart, /the model selector changes nothing/);
   });
 
   it("does not claim a zero drift it has not measured", () => {
@@ -255,13 +265,13 @@ describe("a book of one says why it cannot move", () => {
      * where a limit is binding.
      */
     assert.match(code(chart), /Math\.abs\(only\.drift\) < 1e-9/);
-    assert.match(chart, /a risk limit clipped it/);
+    assert.match(chart, /A risk limit clipped its target/);
   });
 
   it("stops the panel calling a tautology a tolerance decision", () => {
     // "Close enough to target that trading it would cost more than the drift
     // does" credits the band for a result the arithmetic already fixed.
     assert.match(panel, /active\.targets\.length === 1 \? \(/);
-    assert.match(panel, /there is nothing for it to suppress/);
+    assert.match(panel, /nothing for the band to suppress/);
   });
 });
