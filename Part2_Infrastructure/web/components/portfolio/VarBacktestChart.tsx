@@ -97,7 +97,11 @@ export default function VarBacktestChart({
     p.t === null ? `#${p.index}` : shortDate(p.t);
 
   return (
-    <div className="var-backtest">
+    /* `.card`, because this is a panel now rather than one of three siblings
+       in a grid. `.var-backtest` and `.var-backtest__exceptions` have no rules
+       in the stylesheet at all — they are hooks that were never given bodies,
+       so every piece of chrome here comes from `.card`. */
+    <div className="card var-backtest">
       <p className="console-subhead">
         Forecast against realised
         <small className="muted"> — where the model was breached, and whether the breaches clustered.</small>
