@@ -1,7 +1,7 @@
 /**
  * The amber gateway card has to name what is wrong with it.
  *
- * `platform.status` collapses four unrelated conditions into one word, and the
+ * `platform.status` collapses three unrelated conditions into one word, and the
  * console rendered that word beside the gateway's FRESHNESS string — so a
  * degraded card read "Gateway 1.0.0; Gateway operations snapshot is current.",
  * naming the one thing that was demonstrably fine. These assert the mapping
@@ -40,11 +40,14 @@ describe("the degraded gateway names its cause", () => {
     assert.match(String(degradedCause(withPatch({ risk: { status: "reduce_only" } }))), /reduce-only/);
   });
 
-  it("names the Telegram bot, the disjunct with no node of its own", () => {
-    // The other three each have a topology node that would go amber beside the
-    // gateway. This one does not, so a lone amber GW tile means this — which is
-    // how the latched `last_error` was found.
-    assert.match(String(degradedCause(withPatch({ telegram: { status: "degraded" } }))), /Telegram/);
+  it("no longer treats the Telegram bot as a platform cause at all", () => {
+    // It used to be the fourth disjunct, which is how a chat-transport blip
+    // reached the TRADING verdict and told a desk its order path was degraded.
+    // Telegram is a notification companion: the risk gateway still gates,
+    // market data still flows and orders still route without it. It reports on
+    // its own plane now (`notificationsPosture` in lib/reliability.ts), so it
+    // must never reappear as a cause of the platform rollup here.
+    assert.equal(degradedCause(withPatch({ telegram: { status: "degraded" } })), null);
   });
 
   it("names a configured broker that is not running celery", () => {
@@ -59,7 +62,11 @@ describe("the degraded gateway names its cause", () => {
     const python = readFileSync(new URL("../../modules/operations.py", import.meta.url), "utf8");
     const start = python.indexOf("elif (");
     const block = python.slice(start, python.indexOf('status = "degraded"', start));
-    const order = ["market_data.status", "risk.status", "telegram.status", "queue_state.broker_configured"];
+    assert.ok(
+      !block.includes("telegram"),
+      "Telegram is back in the platform rollup — the category error this suite exists to stop",
+    );
+    const order = ["market_data.status", "risk.status", "queue_state.broker_configured"];
     let cursor = -1;
     for (const term of order) {
       const at = block.indexOf(term);

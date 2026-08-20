@@ -1,9 +1,11 @@
 """`last_error` is a latch, and a latched error painted the gateway amber.
 
-The Developer console's "FastAPI gateway" card reads `platform.status` from
-`build_operations_snapshot`, and one of the four disjuncts that make it
-"degraded" is `telegram.status == "degraded"` (`operations.py:381`). That in
-turn is `has_error or uptime <= 0` over `TelegramBot.health()`.
+`telegram.status` is `has_error` over `TelegramBot.health()`. It used to be one
+of the four disjuncts behind `platform.status`, which is how a latched error
+reached the Developer console's gateway card and, through it, the web's TRADING
+verdict — a category error now fixed in `tests/test_notification_plane.py`. The
+companion reports on its own notification plane instead, but this latch is still
+what decides whether that plane reads degraded, so clearing it still matters.
 
 `last_error` was assigned in exactly two places and cleared in none. The bot
 runs a 25-second `getUpdates` long poll against api.telegram.org for the life
@@ -57,7 +59,7 @@ async def test_a_success_clears_a_previous_transport_error(bot):
 
 
 def test_operations_reads_the_latch_as_a_live_fault():
-    """The latch matters because `operations.py` turns it into a platform status.
+    """The latch matters because `operations.py` turns it into a reported status.
 
     Called on plain dicts rather than through the `bot` fixture on purpose:
     `StubBot.health()` is a double and is narrower than the real one, so a test
@@ -71,5 +73,5 @@ def test_operations_reads_the_latch_as_a_live_fault():
     assert _telegram_snapshot(blipped).status == "degraded"
     assert _telegram_snapshot(healthy).status != "degraded", (
         "with the latch cleared on success, a recovered bot reports healthy and "
-        "the gateway card goes green again without a restart"
+        "the notification plane goes green again without a restart"
     )
