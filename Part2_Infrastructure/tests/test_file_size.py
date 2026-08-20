@@ -32,7 +32,6 @@ OVER_CEILING: dict[str, int] = {
     "modules/telegram.py": 6961,
     "modules/risk_proxy.py": 2233,
     "modules/backtester.py": 1719,
-    "modules/quant_risk.py": 1350,
     "modules/audit.py": 1249,
     "main.py": 1246,
     "modules/tca_engine.py": 1014,
