@@ -154,19 +154,32 @@ public:
     // sum(p * q for p, q in levels[:k]) — Neumaier-compensated over the first k
     // sorted levels, matching CPython's sum() bit-for-bit (see the Neumaier
     // note above; a plain += fold lands a ULP off on a deep ladder).
-    double depth_usd(const std::string &side, int k) const {
-        const std::vector<std::pair<double, double>> &levels =
-            (side == "bid") ? bids : asks;
+    //
+    // Two entry points, ONE fold. The bool form is what consolidated_mid calls,
+    // four times per decision: the string form built a std::string temporary
+    // and compared it against "bid" on each of those calls, to choose between
+    // two members it already knew at the call site. The comparison is not
+    // arithmetic and cannot change a result — it decided WHICH ladder to fold,
+    // never HOW — so hoisting it to the call site leaves the fold, its order
+    // and its compensation untouched. The string form stays because
+    // BookLadder.depth_usd("bid", k) is bound to Python and the parity suite
+    // calls it that way.
+    double depth_usd_side(bool is_bid, int k) const {
+        const std::vector<std::pair<double, double>> &levels = is_bid ? bids : asks;
         int limit = k;
         if (limit < 0) limit = 0;
+        if (static_cast<std::size_t>(limit) > levels.size())
+            limit = static_cast<int>(levels.size());
         Neumaier acc;
-        int i = 0;
-        for (const auto &lvl : levels) {
-            if (i >= limit) break;
-            acc.add(lvl.first * lvl.second);
-            ++i;
+        for (int i = 0; i < limit; ++i) {
+            acc.add(levels[static_cast<std::size_t>(i)].first *
+                    levels[static_cast<std::size_t>(i)].second);
         }
         return acc.value();
+    }
+
+    double depth_usd(const std::string &side, int k) const {
+        return depth_usd_side(side == "bid", k);
     }
 
 private:
@@ -263,7 +276,31 @@ struct CoreResult {
     //: Indices into order_books, in leg order (notional descending, ties
     //: keeping first-touch order). Python joins the venue NAMES from this
     //: after the clock has stopped; no string work happens inside the timer.
-    std::vector<int> route_venue_order;
+    //:
+    //: Held INLINE, not in a std::vector. A vector here was one malloc inside
+    //: the timed region on every routed decision — and the allocator's own
+    //: metadata is exactly as cold as everything else after the ~12 µs of
+    //: Python that separates two orders, so that one allocation was a handful
+    //: of cache misses, not a pointer bump. A desk routes across a handful of
+    //: venues; `overflow` is the escape hatch above that and costs what the
+    //: vector always cost. Nothing about the ORDER of the legs changes.
+    static constexpr std::size_t kInlineVenues = 8;
+    int inline_venue_order[kInlineVenues] = {};
+    std::size_t venue_order_count = 0;
+    std::vector<int> venue_order_overflow;
+
+    /** Writable slots for `count` legs, inline where they fit. */
+    int *venue_order_slots(std::size_t count) {
+        venue_order_count = count;
+        if (count <= kInlineVenues) return inline_venue_order;
+        venue_order_overflow.resize(count);
+        return venue_order_overflow.data();
+    }
+
+    const int *venue_order_data() const {
+        return venue_order_count <= kInlineVenues ? inline_venue_order
+                                                  : venue_order_overflow.data();
+    }
 };
 
 // --------------------------------------------------------------------------- //
@@ -285,7 +322,7 @@ static std::optional<double> consolidated_mid(const std::vector<BookLadder *> &b
         if (book == nullptr) continue;
         auto m = book->mid();
         if (!m) continue;
-        double w = book->depth_usd("bid", 5) + book->depth_usd("ask", 5);
+        double w = book->depth_usd_side(true, 5) + book->depth_usd_side(false, 5);
         w = std::max(w, 1.0);
         num += (*m) * w;
         den += w;
@@ -406,6 +443,65 @@ private:
     }
 };
 
+// --------------------------------------------------------------------------- //
+// Scratch — the memory the timed region reuses between decisions.
+//
+// Both blocks below exist because of WHERE this core runs, not what it
+// computes. Two orders are ~12 µs of Python apart, and in that gap everything
+// this function touched is evicted; the arithmetic is a few dozen nanoseconds
+// and the cache misses around it were more. So the scratch is laid out to be
+// touched in as few lines as possible, and to cost nothing to reach:
+//
+//   * ON THE STACK, not in five thread_locals. On Darwin every thread_local
+//     access goes through a runtime wrapper, and a function-local one with a
+//     non-trivial destructor adds a lazy-initialisation guard on top; five
+//     std::vectors meant five wrappers, five guards and five heap blocks on
+//     five different lines. WalkScratch is a fixed-size POD, so it needs no
+//     allocation to reuse and lives in decide()'s own frame — which pybind11
+//     has just walked to marshal the arguments, so it is the warmest memory
+//     the function can reach.
+//   * Interleaved, not parallel. The walk reads a venue's cursor and its slot
+//     together, and a slot's venue, notional and qty together, so they sit
+//     together: a two-venue desk touches ONE line of venue state and one of
+//     slot state, where five parallel arrays touched five.
+//
+// Nothing here changes a fold, an order or a value. The overflow path above
+// kInline keeps the old std::vector behaviour for a desk with more venues
+// than the inline block holds, through the same pointers, so the walk itself
+// has exactly one implementation.
+// --------------------------------------------------------------------------- //
+struct WalkScratch {
+    static constexpr std::size_t kInline = 8;
+    //: Per venue, in order_books order: how deep the walk has eaten, and which
+    //: per_venue slot this venue owns (-1 until first touch).
+    struct Venue {
+        std::size_t cursor;
+        int slot;
+    };
+    //: Per slot, in FIRST-TOUCH order — the insertion order of Python's
+    //: per_venue dict, which is the order the two sum()s below fold in.
+    struct Slot {
+        int venue;
+        double notional;
+        double qty;
+    };
+    Venue venues[kInline];
+    Slot slots[kInline];
+};
+
+//: The held book, expanded once per decision. Variable length by nature — a
+//: desk holds what it holds — so these stay std::vectors, but they live in one
+//: thread_local block behind one wrapper call rather than five.
+struct BookScratch {
+    std::vector<double> qty;
+    std::vector<double> avg;
+    std::vector<double> realized;
+    std::vector<std::optional<double>> marks;
+    std::vector<bool> is_order;
+};
+
+static thread_local BookScratch g_book;
+
 static CoreResult decide(
     bool side_is_buy,
     bool order_type_is_limit,
@@ -462,6 +558,29 @@ static CoreResult decide(
     CoreResult r;
     const auto t0 = std::chrono::steady_clock::now();
 
+    // The ladders arrive COLD, and that — not the arithmetic — is what the
+    // tail is made of. Roughly 12 µs of Python separates two orders, which is
+    // long enough to evict every level this decision is about to fold:
+    // measured on an M5 Pro, the same decide() that costs ~42 ns called back
+    // to back costs ~80 ns when it is reached through submit(). Asking for
+    // those lines up front lets the misses overlap instead of queueing behind
+    // the header-then-data pointer chase, venue after venue.
+    //
+    // Reads nothing, computes nothing, changes no value: a prefetch that
+    // arrives too late costs one instruction and a prefetch of a null data
+    // pointer (an empty ladder) is architecturally a no-op. The two lines a
+    // side are the 80 bytes consolidated_mid folds — five levels of 16 —
+    // which is also where the routed walk starts.
+    for (const BookLadder *book : order_books) __builtin_prefetch(book, 0, 3);
+    for (const BookLadder *book : order_books) {
+        const char *bid_levels = reinterpret_cast<const char *>(book->bids.data());
+        const char *ask_levels = reinterpret_cast<const char *>(book->asks.data());
+        __builtin_prefetch(bid_levels, 0, 3);
+        __builtin_prefetch(bid_levels + 64, 0, 3);
+        __builtin_prefetch(ask_levels, 0, 3);
+        __builtin_prefetch(ask_levels + 64, 0, 3);
+    }
+
     const double sign = side_is_buy ? 1.0 : -1.0;
 
     // --- mark: paper quote, or the consolidated depth-weighted mid --------- //
@@ -508,37 +627,40 @@ static CoreResult decide(
     // that used to be five Python list-builds and one mark() call per held
     // position, and moving it means measuring it here rather than not at all.
     // Scratch is thread_local and reused, so a steady desk allocates nothing.
-    static thread_local std::vector<double> bk_qty;
-    static thread_local std::vector<double> bk_avg;
-    static thread_local std::vector<double> bk_realized;
-    static thread_local std::vector<std::optional<double>> bk_marks;
-    static thread_local std::vector<bool> bk_is_order;
-    if (position_book != nullptr) {
+    // An EMPTY mirror is expanded into five empty vectors, which every fold
+    // below then folds nothing over. A flat book — start of day, or a desk
+    // that has closed out — is a real state and a common one, and the
+    // expansion of it provably cannot change a number: the caller leaves the
+    // pos_* vectors empty whenever it passes a mirror, so both paths fold the
+    // same zero elements. Skipping it skips the thread_local block entirely.
+    const bool use_book = position_book != nullptr && !position_book->entries.empty();
+    BookScratch &bk = g_book;
+    if (use_book) {
         const std::size_t count = position_book->entries.size();
-        bk_qty.clear(); bk_qty.reserve(count);
-        bk_avg.clear(); bk_avg.reserve(count);
-        bk_realized.clear(); bk_realized.reserve(count);
-        bk_marks.clear(); bk_marks.reserve(count);
-        bk_is_order.clear(); bk_is_order.reserve(count);
+        bk.qty.clear(); bk.qty.reserve(count);
+        bk.avg.clear(); bk.avg.reserve(count);
+        bk.realized.clear(); bk.realized.reserve(count);
+        bk.marks.clear(); bk.marks.reserve(count);
+        bk.is_order.clear(); bk.is_order.reserve(count);
         for (const auto &entry : position_book->entries) {
-            bk_qty.push_back(entry.quantity);
-            bk_avg.push_back(entry.avg_price);
-            bk_realized.push_back(entry.realized);
-            bk_marks.push_back(position_book->mark_of(entry));
-            bk_is_order.push_back(entry.symbol == order_symbol);
+            bk.qty.push_back(entry.quantity);
+            bk.avg.push_back(entry.avg_price);
+            bk.realized.push_back(entry.realized);
+            bk.marks.push_back(position_book->mark_of(entry));
+            bk.is_order.push_back(entry.symbol == order_symbol);
         }
     }
-    const std::vector<double> &pos_qty_v = position_book ? bk_qty : pos_quantities;
-    const std::vector<double> &pos_avg_v = position_book ? bk_avg : pos_avg_prices;
-    const std::vector<double> &pos_real_v = position_book ? bk_realized : pos_realized;
-    const std::vector<std::optional<double>> &pos_mark_v = position_book ? bk_marks : pos_marks;
+    const std::vector<double> &pos_qty_v = use_book ? bk.qty : pos_quantities;
+    const std::vector<double> &pos_avg_v = use_book ? bk.avg : pos_avg_prices;
+    const std::vector<double> &pos_real_v = use_book ? bk.realized : pos_realized;
+    const std::vector<std::optional<double>> &pos_mark_v = use_book ? bk.marks : pos_marks;
 
     // held quantity of the order symbol (positions are keyed by symbol, so at
     // most one row is flagged).
     double held = 0.0;
     const std::size_t n = pos_qty_v.size();
     for (std::size_t i = 0; i < n; ++i) {
-        if (position_book ? bk_is_order[i] : pos_is_order_symbol[i]) {
+        if (use_book ? bk.is_order[i] : pos_is_order_symbol[i]) {
             held = pos_qty_v[i];
             break;
         }
@@ -558,7 +680,7 @@ static CoreResult decide(
         double m = (pm && *pm != 0.0) ? *pm : pos_avg_v[i];
         double contrib = std::abs(pos_qty_v[i]) * m;
         gross += contrib;
-        if (position_book ? bk_is_order[i] : pos_is_order_symbol[i]) sym_notional_order = contrib;
+        if (use_book ? bk.is_order[i] : pos_is_order_symbol[i]) sym_notional_order = contrib;
     }
     r.projected_gross = gross - sym_notional_order + r.projected_sym;
 
@@ -626,16 +748,24 @@ static CoreResult decide(
         // Scratch reused across calls, so the walk does no heap traffic after
         // the first decision. decide() runs under the gateway's asyncio lock
         // on one thread; thread_local keeps that safe if it ever does not.
-        static thread_local std::vector<std::size_t> cursor;
-        static thread_local std::vector<int> slot_of;
-        static thread_local std::vector<int> slot_venue;
-        static thread_local std::vector<double> slot_n;
-        static thread_local std::vector<double> slot_q;
-        cursor.assign(static_cast<std::size_t>(nv), 0);
-        slot_of.assign(static_cast<std::size_t>(nv), -1);
-        slot_venue.clear();
-        slot_n.clear();
-        slot_q.clear();
+        // See WalkScratch above for why it is one interleaved block and not
+        // five parallel vectors.
+        WalkScratch walk;  // uninitialised by design; the loop below fills [0, nv)
+        WalkScratch::Venue *venue_state = walk.venues;
+        WalkScratch::Slot *slot = walk.slots;
+        static thread_local std::vector<WalkScratch::Venue> venue_overflow;
+        static thread_local std::vector<WalkScratch::Slot> slot_overflow;
+        if (static_cast<std::size_t>(nv) > WalkScratch::kInline) {
+            venue_overflow.resize(static_cast<std::size_t>(nv));
+            slot_overflow.resize(static_cast<std::size_t>(nv));
+            venue_state = venue_overflow.data();
+            slot = slot_overflow.data();
+        }
+        for (int vi = 0; vi < nv; ++vi) {
+            venue_state[static_cast<std::size_t>(vi)].cursor = 0;
+            venue_state[static_cast<std::size_t>(vi)].slot = -1;
+        }
+        std::size_t slot_count = 0;
 
         double remaining = target;
         // Python builds the whole merged ladder and sorts it:
@@ -655,8 +785,9 @@ static CoreResult decide(
             for (int vi = 0; vi < nv; ++vi) {
                 const auto &levels =
                     side_is_buy ? order_books[vi]->asks : order_books[vi]->bids;
-                if (cursor[static_cast<std::size_t>(vi)] >= levels.size()) continue;
-                const double p = levels[cursor[static_cast<std::size_t>(vi)]].first;
+                const std::size_t at = venue_state[static_cast<std::size_t>(vi)].cursor;
+                if (at >= levels.size()) continue;
+                const double p = levels[at].first;
                 // Strictly better only: an equal price leaves `best` on the
                 // earlier venue, which is the tie-break Python's stable sort
                 // gives and the one the VWAP's last ULP depends on.
@@ -668,36 +799,35 @@ static CoreResult decide(
             if (best < 0) break;  // every ladder exhausted
             const auto &levels =
                 side_is_buy ? order_books[best]->asks : order_books[best]->bids;
-            const auto &level = levels[cursor[static_cast<std::size_t>(best)]];
-            ++cursor[static_cast<std::size_t>(best)];
+            WalkScratch::Venue &taken = venue_state[static_cast<std::size_t>(best)];
+            const auto &level = levels[taken.cursor];
+            ++taken.cursor;
             const double price = level.first;
             const double level_notional = price * level.second;
             // Python's min(a, b) returns b only when b < a.
             const double take = (remaining < level_notional) ? remaining : level_notional;
             if (take <= 0.0) continue;
-            int s = slot_of[static_cast<std::size_t>(best)];
-            if (s < 0) {
+            int si = taken.slot;
+            if (si < 0) {
                 // per_venue is a dict: a venue's slot is created on first touch
                 // and the insertion order is what the two sum()s below fold in.
-                s = static_cast<int>(slot_venue.size());
-                slot_of[static_cast<std::size_t>(best)] = s;
-                slot_venue.push_back(best);
-                slot_n.push_back(0.0);
-                slot_q.push_back(0.0);
+                si = static_cast<int>(slot_count);
+                taken.slot = si;
+                slot[slot_count++] = WalkScratch::Slot{best, 0.0, 0.0};
             }
             // `slot[0] += take` / `slot[1] += take / price` — explicit Python
             // `+=`, so a plain fold, NOT compensated.
-            slot_n[static_cast<std::size_t>(s)] += take;
-            slot_q[static_cast<std::size_t>(s)] += take / price;
+            slot[static_cast<std::size_t>(si)].notional += take;
+            slot[static_cast<std::size_t>(si)].qty += take / price;
             remaining -= take;
         }
 
         // total_notional / total_qty are `sum(...)` over per_venue.values(), so
         // both are Neumaier-compensated over first-touch order.
         Neumaier notional_acc;
-        for (double v : slot_n) notional_acc.add(v);
+        for (std::size_t i = 0; i < slot_count; ++i) notional_acc.add(slot[i].notional);
         Neumaier qty_acc;
-        for (double v : slot_q) qty_acc.add(v);
+        for (std::size_t i = 0; i < slot_count; ++i) qty_acc.add(slot[i].qty);
         const double total_notional = notional_acc.value();
         const double total_qty = qty_acc.value();
 
@@ -713,17 +843,14 @@ static CoreResult decide(
                 // legs: sorted(per_venue.items(), key=lambda kv: -kv[1][0]) —
                 // stable, so venues that took an identical notional keep
                 // first-touch order.
-                const std::size_t slots = slot_venue.size();
-                r.route_venue_order.reserve(slots);
-                for (std::size_t i = 0; i < slots; ++i)
-                    r.route_venue_order.push_back(static_cast<int>(i));
-                std::stable_sort(r.route_venue_order.begin(), r.route_venue_order.end(),
-                                 [&](int a, int b) {
-                                     return slot_n[static_cast<std::size_t>(a)] >
-                                            slot_n[static_cast<std::size_t>(b)];
-                                 });
-                for (int &idx : r.route_venue_order)
-                    idx = slot_venue[static_cast<std::size_t>(idx)];
+                int *order = r.venue_order_slots(slot_count);
+                for (std::size_t i = 0; i < slot_count; ++i) order[i] = static_cast<int>(i);
+                std::stable_sort(order, order + slot_count, [&](int a, int b) {
+                    return slot[static_cast<std::size_t>(a)].notional >
+                           slot[static_cast<std::size_t>(b)].notional;
+                });
+                for (std::size_t i = 0; i < slot_count; ++i)
+                    order[i] = slot[static_cast<std::size_t>(order[i])].venue;
 
                 r.route_filled_notional = total_notional;
                 // absorbs(filled, requested): filled >= requested -
@@ -757,6 +884,74 @@ static CoreResult decide(
     r.elapsed_ns =
         std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
     return r;
+}
+
+// --------------------------------------------------------------------------- //
+// Measurement instruments. NOT part of any decision — nothing below is called
+// from decide(), and decide() is unchanged by their presence.
+//
+// `elapsed_ns` is a whole number of clock TICKS, not a free-running nanosecond
+// count. On Apple Silicon steady_clock advances on a 24 MHz timebase and the
+// conversion to nanoseconds is an integer 125/3, so a k-tick interval is
+// reported as floor((t0+k)*125/3) - floor(t0*125/3): 41 or 42 for one tick,
+// 83 or 84 for two, exactly 125 for three. Reading a percentile off that
+// hides the only thing it can actually resolve — WHICH TICK each call landed
+// on — so `tools/bench_core_ticks.py` reads the tick histogram instead, and
+// these two functions give it the constants it needs to do so honestly.
+// --------------------------------------------------------------------------- //
+
+/** Width of one steady_clock tick in ns.
+ *
+ *  Spins on the clock and counts its TRANSITIONS across a span, rather than
+ *  taking one delta: the per-read integer truncation above makes any single
+ *  one-tick delta 41 OR 42, and only a long run recovers the 125/3 = 41.666…
+ *  the hardware actually runs at. The loop must sample faster than the clock
+ *  ticks or it misses transitions and over-states the width, so it carries no
+ *  arithmetic at all, and the minimum across `rounds` runs is returned —
+ *  a scheduler preemption can only ever inflate one round, never deflate it.
+ *
+ *  Returns 0.0 if no transition was observed, which the caller must report as
+ *  "unmeasured" rather than substituting a constant. */
+static double clock_tick_ns(int transitions_per_round, int rounds) {
+    if (transitions_per_round < 2) transitions_per_round = 2;
+    if (rounds < 1) rounds = 1;
+    double best = 0.0;
+    for (int round = 0; round < rounds; ++round) {
+        auto prev = std::chrono::steady_clock::now();
+        // Align on a tick edge so the first interval is a whole tick.
+        for (;;) {
+            const auto cur = std::chrono::steady_clock::now();
+            if (cur != prev) { prev = cur; break; }
+        }
+        const auto start = prev;
+        int seen = 0;
+        while (seen < transitions_per_round) {
+            const auto cur = std::chrono::steady_clock::now();
+            if (cur != prev) { ++seen; prev = cur; }
+        }
+        const double span = std::chrono::duration<double, std::nano>(prev - start).count();
+        const double width = span / static_cast<double>(transitions_per_round);
+        if (width > 0.0 && (best == 0.0 || width < best)) best = width;
+    }
+    return best;
+}
+
+/** decide()'s instrumentation with NOTHING between the two clock reads.
+ *
+ *  The same two `steady_clock::now()` calls and the same truncating
+ *  `duration_cast`, so every figure decide() reports carries this as its floor.
+ *  Reported beside the decision histogram so a tick attributed to the timer is
+ *  never attributed to the arithmetic. */
+static std::vector<long long> clock_floor_ns(int samples) {
+    std::vector<long long> out;
+    if (samples < 0) samples = 0;
+    out.reserve(static_cast<std::size_t>(samples));
+    for (int i = 0; i < samples; ++i) {
+        const auto t0 = std::chrono::steady_clock::now();
+        const auto t1 = std::chrono::steady_clock::now();
+        out.push_back(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+    }
+    return out;
 }
 
 PYBIND11_MODULE(_decision_core, m) {
@@ -815,7 +1010,23 @@ PYBIND11_MODULE(_decision_core, m) {
         .def_readonly("route_filled_notional", &CoreResult::route_filled_notional)
         .def_readonly("route_has_slip", &CoreResult::route_has_slip)
         .def_readonly("route_slippage_bps", &CoreResult::route_slippage_bps)
-        .def_readonly("route_venue_order", &CoreResult::route_venue_order);
+        // Materialised as a Python list on attribute access, which is after
+        // decide()'s clock has stopped — the same side of the timer the
+        // vector's conversion always happened on.
+        .def_property_readonly("route_venue_order", [](const CoreResult &r) {
+            return std::vector<int>(r.venue_order_data(),
+                                    r.venue_order_data() + r.venue_order_count);
+        });
+
+    m.def("clock_tick_ns", &clock_tick_ns, py::arg("transitions_per_round") = 4096,
+          py::arg("rounds") = 16,
+          "Width of one steady_clock tick in ns, from counted clock transitions; "
+          "0.0 when none were observed. Measurement instrument, no decision "
+          "uses it.");
+
+    m.def("clock_floor_ns", &clock_floor_ns, py::arg("samples"),
+          "decide()'s two clock reads with nothing between them: the floor "
+          "every elapsed_ns carries. Measurement instrument.");
 
     m.def("decide", &decide,
           py::arg("side_is_buy"),

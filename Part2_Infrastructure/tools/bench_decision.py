@@ -19,7 +19,14 @@ Two figures, deliberately kept apart:
   which exists so a tail is visible without keeping every sample).
 * ``core`` — the native engine's own ``steady_clock`` around the arithmetic,
   read from ``gateway.last_decision_core_ns``; absent (``None``) while the
-  Python engine is running.
+  Python engine is running. Reported BOTH as percentiles and as a TICK
+  HISTOGRAM, because on this hardware the percentiles are the weaker of the
+  two: ``steady_clock`` advances in 125/3 = 41.666… ns steps and
+  ``duration_cast`` truncates, so every core figure is a whole tick count and
+  a percentile of it is a percentile of a four-valued variable. The fraction
+  of calls finishing within 2 ticks (83.3 ns) is the figure that carries the
+  information — see ``tools/bench_core_ticks.py``, which shares the
+  classifier and this tool's sampling shape.
 
 What this cannot do on a laptop: pin a CPU or silence the OS. On Linux it
 sets ``sched_setaffinity``; on macOS it records that pinning was unavailable
@@ -43,6 +50,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+
+from tools.bench_core_ticks import _ns_list  # noqa: E402
+from tools.bench_core_ticks import classify as _classify_ticks  # noqa: E402
 
 DOC = ROOT.parent / "docs" / "LATENCY_BUDGET.md"
 MARK_START = "<!-- bench:start -->"
@@ -91,7 +101,8 @@ def _percentiles(samples_us: list[float]) -> dict[str, float]:
     return {"p50": q(0.50), "p99": q(0.99), "p999": q(0.999), "max": s[-1], "n": n}
 
 
-async def _run_once(engine: str, orders: int, warmup: int, venues: int, gc_on: bool):
+async def _run_once(engine: str, orders: int, warmup: int, venues: int, gc_on: bool,
+                    tick_ns: float | None = None):
     from modules import decision_core as dc_mod  # noqa: F401  (import guards the flag)
     from modules.schemas import OrderRequest
 
@@ -119,6 +130,10 @@ async def _run_once(engine: str, orders: int, warmup: int, venues: int, gc_on: b
     out = {"decision_us": _percentiles(samples_us)}
     if core_ns:
         out["core_ns"] = _percentiles([float(v) for v in core_ns])
+        # The same samples, classified by clock tick. `tick_ns` is measured by
+        # the extension itself (`clock_tick_ns`); when it is unavailable the
+        # histogram says so and carries no invented width.
+        out["core_ticks"] = _classify_ticks(core_ns, tick_ns or 0.0)
     return out
 
 
@@ -134,11 +149,23 @@ def _pin() -> str:
 
 def _median_run(runs: list[dict]) -> dict:
     """Median of each percentile across repeats — the shape, not one lucky run."""
-    keys = runs[0].keys()
     out: dict = {}
-    for key in keys:
+    for key in runs[0]:
+        if key == "core_ticks":
+            continue
         fields = runs[0][key].keys()
         out[key] = {f: statistics.median(r[key][f] for r in runs) for f in fields}
+    if "core_ticks" in runs[0]:
+        # A histogram cannot be medianed field by field without inventing a
+        # distribution no run produced. The run whose fraction-at-2-ticks IS
+        # the median is published whole, with every run's fraction beside it.
+        fractions = [r["core_ticks"]["fraction_at_most_2_ticks"] for r in runs]
+        chosen = statistics.median_low(fractions)
+        for run in runs:
+            if run["core_ticks"]["fraction_at_most_2_ticks"] == chosen:
+                out["core_ticks"] = dict(run["core_ticks"])
+                break
+        out["core_ticks"]["fraction_at_most_2_ticks_per_run"] = fractions
     return out
 
 
@@ -163,6 +190,7 @@ def _doc_table(results: dict, venues: int, machine: str) -> str:
         "| engine | p50 | p99 | p99.9 | max | n |",
         "|---|---|---|---|---|---|",
     ]
+    tick_block: list[str] = []
     for engine, res in results["engines"].items():
         d = res["decision_us"]
         lines.append(
@@ -175,8 +203,58 @@ def _doc_table(results: dict, venues: int, machine: str) -> str:
                 f"| {engine} — core (inside the engine) | {_fmt_ns(c['p50'])} | {_fmt_ns(c['p99'])} | "
                 f"{_fmt_ns(c['p999'])} | {_fmt_ns(c['max'])} | {int(c['n'])} |"
             )
+        if "core_ticks" in res:
+            tick_block = _tick_table(engine, res["core_ticks"])
+    lines.extend(tick_block)
     lines.append(MARK_END)
     return "\n".join(lines)
+
+
+def _tick_table(engine: str, hist: dict) -> list[str]:
+    """The core row's tick histogram — what its clock can actually resolve.
+
+    The percentile row above is four values wearing three significant figures.
+    This is the distribution behind it, and the last line is the claim the
+    desk's "p99 under 100 ns" reduces to: 100 ns falls between tick 2 (83.3)
+    and tick 3 (125.0), so it is exactly "at least 99 % of calls inside 2
+    ticks", which is countable to the sample.
+    """
+    if hist.get("tick_ns") is None:
+        return ["", f"Tick histogram unavailable for the {engine} core — {hist['unavailable']}."]
+    out = [
+        "",
+        f"The core row is a tick count, not a nanosecond count: `steady_clock` here "
+        f"advances in {hist['tick_ns']:.3f} ns steps (measured by the extension itself) "
+        f"and `duration_cast` truncates, so 83 ns IS two ticks and 125 ns IS three. "
+        f"The distribution behind that row — not the medianed percentiles above, "
+        f"which no single run produced, but the 5 000 samples of the ONE run whose "
+        f"fraction is the median of the repeats:",
+        "",
+        "| ticks | ns observed | count | fraction | cumulative |",
+        "|---|---|---|---|---|",
+    ]
+    for row in hist["rows"]:
+        out.append(
+            f"| {row['ticks']} | {_ns_list(row['ns_observed'])} | {row['count']} | "
+            f"{row['fraction']:.4f} | {row['cumulative_fraction']:.4f} |"
+        )
+    fractions = hist.get("fraction_at_most_2_ticks_per_run")
+    per_run = (
+        " (per run: " + ", ".join(f"{f:.4f}" for f in fractions) + ")" if fractions else ""
+    )
+    out += [
+        "",
+        f"**Fraction inside 2 ticks (83.3 ns): {hist['fraction_at_most_2_ticks']:.4f}** — "
+        f"{hist['at_most_2_ticks']}/{hist['n']} calls{per_run}. That fraction, not the "
+        f"p99 column, is what \"p99 under 100 ns\" means on this clock.",
+    ]
+    if hist["unclassified"]:
+        out.append(
+            f"Unclassified (not within a quarter tick of a whole tick): "
+            f"{len(hist['unclassified'])} sample(s) — reported, not dropped: "
+            f"{sorted(set(hist['unclassified']))[:8]}."
+        )
+    return out
 
 
 def _update_doc(table: str) -> None:
@@ -240,15 +318,25 @@ def main() -> int:
         active = decision_core.ENGINE
         if active != engine:
             print(f"[{engine}] requested but the loader resolved {active}; recording as {active}")
+        # The tick width is a property of the clock inside the extension, so it
+        # is measured there. Absent on the Python engine, which has no core.
+        tick_ns = None
+        native = getattr(decision_core, "native", lambda: None)()
+        if native is not None and hasattr(native, "clock_tick_ns"):
+            tick_ns = native.clock_tick_ns()
         runs = []
         for i in range(args.repeat):
-            res = asyncio.run(_run_once(active, args.orders, args.warmup, args.venues, args.gc_on))
+            res = asyncio.run(
+                _run_once(active, args.orders, args.warmup, args.venues, args.gc_on, tick_ns)
+            )
             runs.append(res)
             d = res["decision_us"]
             line = f"[{active}] run {i + 1}: decision p50 {d['p50']:.1f} µs · p99 {d['p99']:.1f} µs · max {d['max']:.1f} µs"
             if "core_ns" in res:
                 c = res["core_ns"]
                 line += f" · core p50 {c['p50']:.0f} ns · p99 {c['p99']:.0f} ns"
+            if "core_ticks" in res and res["core_ticks"].get("tick_ns"):
+                line += f" · core inside 2 ticks {res['core_ticks']['fraction_at_most_2_ticks']:.4f}"
             print(line)
         results["engines"][active] = _median_run(runs)
 
