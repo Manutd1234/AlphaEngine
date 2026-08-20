@@ -68,10 +68,24 @@ class _RecordingStore:
         self.stopped = True
 
 
+def _install(monkeypatch, store):
+    """Stand `store` in for BOTH the singleton and the job's private one.
+
+    `run_ml_fit_job` reads `enabled` off the process-wide store — that is
+    configuration, not I/O — and then builds its OWN `MLRunStore` to persist
+    with. Those are two different objects on purpose: the singleton's httpx
+    client is bound to the gateway's event loop, and the job runs on a worker
+    thread under its own `asyncio.run`. Patching only the singleton, as these
+    tests used to, leaves the persist going to a real disabled store.
+    """
+    monkeypatch.setattr("modules.ml.store.get_ml_store", lambda: store)
+    monkeypatch.setattr("modules.ml.store.MLRunStore", lambda: store)
+
+
 class TestAProductionPathReachesTheStore:
     def test_the_job_body_persists_what_it_fitted(self, monkeypatch):
         store = _RecordingStore()
-        monkeypatch.setattr("modules.ml.store.get_ml_store", lambda: store)
+        _install(monkeypatch, store)
 
         out = run_ml_fit_job({"symbol": "BTCUSDT", "interval": "4h", "bars": 400, "n_splits": 3})
 
@@ -83,7 +97,7 @@ class TestAProductionPathReachesTheStore:
         # Without these `ml_folds` stores 1970 epoch stamps, which is a fold
         # table that cannot be read back against the series it describes.
         store = _RecordingStore()
-        monkeypatch.setattr("modules.ml.store.get_ml_store", lambda: store)
+        _install(monkeypatch, store)
         run_ml_fit_job({"symbol": "BTCUSDT", "interval": "4h", "bars": 400, "n_splits": 3})
 
         payload = store.calls[0]
@@ -94,9 +108,33 @@ class TestAProductionPathReachesTheStore:
 
     def test_the_client_is_closed_even_on_a_filed_run(self, monkeypatch):
         store = _RecordingStore()
-        monkeypatch.setattr("modules.ml.store.get_ml_store", lambda: store)
+        _install(monkeypatch, store)
         run_ml_fit_job({"symbol": "BTCUSDT", "interval": "4h", "bars": 400, "n_splits": 3})
         assert store.stopped, "the worker thread's client was left open"
+
+    def test_the_job_never_touches_the_gateways_own_store(self, monkeypatch):
+        """The bug the panel reported, and the worse one behind it.
+
+        `run_ml_fit_job` used the process-wide store and awaited it from the
+        loop `asyncio.run` had just created, which raises
+
+            RuntimeError: <asyncio.locks.Event ...> is bound to a
+            different event loop
+
+        surfaced on the panel as "the model was fitted and not filed". And its
+        `finally` closed that SHARED client, so the first fit that did work
+        would have taken /api/research/ml/runs down behind it.
+        """
+        shared, private = _RecordingStore(), _RecordingStore()
+        monkeypatch.setattr("modules.ml.store.get_ml_store", lambda: shared)
+        monkeypatch.setattr("modules.ml.store.MLRunStore", lambda: private)
+
+        run_ml_fit_job({"symbol": "BTCUSDT", "interval": "4h", "bars": 400, "n_splits": 3})
+
+        assert private.calls, "the fit did not persist through its own store"
+        assert not shared.calls, "the job awaited the gateway's loop-bound client"
+        assert not shared.stopped, "the job closed the store the read routes use"
+        assert private.stopped, "the job's own client was left open"
 
 
 class TestAnUnfiledRunSaysSoRatherThanFailing:

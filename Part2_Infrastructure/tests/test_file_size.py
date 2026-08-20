@@ -42,7 +42,7 @@ OVER_CEILING: dict[str, int] = {
     "modules/data_quality.py": 771,
     "modules/telegram_charts.py": 766,
     "modules/metrics.py": 689,
-    "modules/research_rag.py": 640,
+    "modules/research_rag.py": 553,
     "tools/e2e_smoke.py": 603,
     "tests/test_working_orders.py": 529,
     "modules/portfolio.py": 485,

@@ -174,23 +174,35 @@ def run_ml_fit_job(params: dict[str, Any]) -> dict[str, Any]:
     Runs on a worker thread, so the persist — the only async part — is driven
     through a dedicated loop rather than the gateway's. A fit is CPU-bound for
     seconds; holding a request open for it is what the queue exists to avoid.
+
+    That dedicated loop is why the store below is a PRIVATE one. The
+    process-wide singleton's httpx client is bound to the gateway's loop, and
+    awaiting it from the loop `asyncio.run` creates raises
+
+        RuntimeError: <asyncio.locks.Event object ...> is bound to a
+        different event loop
+
+    which is what the panel was reporting as "the model was fitted and not
+    filed". Worse, the `finally` closed that SHARED client, so the first fit
+    that did work would have taken the read routes down behind it.
     """
     import asyncio
 
-    from modules.ml.store import get_ml_store
+    from modules.ml.store import MLRunStore, get_ml_store
 
     outcome, payload = run_ml_fit(**params)
-    store = get_ml_store()
-    if not store.enabled:
+    if not get_ml_store().enabled:
+        # Read off the singleton because `enabled` is configuration, not I/O.
         # The run happened and its numbers are real; only the filing did not.
         # Saying so is the difference between "no corpus" and "no result".
         return _job_result(outcome, persisted=False, reason="supabase is not configured on this deployment")
 
     async def _file() -> Any:
+        private = MLRunStore()  # built and closed on THIS loop, and only this one
         try:
-            return await store.persist(**payload)
+            return await private.persist(**payload)
         finally:
-            await store.stop()
+            await private.stop()
 
     filed = asyncio.run(_file())
     persisted = bool(getattr(filed, "persisted", False))
