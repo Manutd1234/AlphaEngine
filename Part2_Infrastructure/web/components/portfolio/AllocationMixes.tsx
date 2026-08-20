@@ -98,19 +98,16 @@ export default function AllocationMixes({
           What each cut measures: classified by the router, inferred from the ticker, and traded flow
         </summary>
         <p className="research-note">
-          <strong>Asset class</strong> is gross exposure classified by the same module that routes
-          each symbol&rsquo;s quotes, so it cannot drift from the judgement that decides where quotes
-          are actually fetched.
+          <strong>Asset class</strong> is gross exposure classified by the module that routes each
+          symbol&rsquo;s quotes.
         </p>
         <p className="research-note">
-          <strong>Settlement currency is derived from the ticker.</strong> No currency is recorded on
-          a position, so this reads the quote suffix; a symbol without one is counted as unknown
-          rather than assumed into dollars.
+          <strong>Settlement currency is derived from the ticker.</strong> No currency is recorded
+          on a position, so a symbol with no quote suffix counts as unknown, not as dollars.
         </p>
         <p className="research-note">
-          <strong>Sleeve is traded notional, not holdings.</strong> The attribution table is a
-          lifetime tally per sleeve and positions carry no sleeve tag, so current exposure by sleeve
-          is not derivable here.
+          <strong>Sleeve is traded notional, not holdings.</strong> Positions carry no sleeve tag,
+          so current exposure by sleeve cannot be derived.
         </p>
       </details>
     </section>
