@@ -72,10 +72,12 @@ export default function RiskContributions({ contributions }: RiskContributionsPr
                     {/* A hedge takes risk OUT. Worth naming, since a negative
                         percentage is easy to read as an error. */}
                     {c.contributionShare < 0 && <span className="muted">, hedge</span>}
+                    {/* "its size" named the Share of book column, which is two
+                        cells to the left and on screen. One word instead, and a
+                        comma to match the ", hedge" sibling above. */}
                     {diverges && c.contributionShare >= 0 && (
                       <span className="muted">
-                        {" "}
-                        ; {c.contributionShare > notionalShare ? "over" : "under"}-risks its size
+                        , {c.contributionShare > notionalShare ? "over" : "under"}-risked
                       </span>
                     )}
                   </td>
