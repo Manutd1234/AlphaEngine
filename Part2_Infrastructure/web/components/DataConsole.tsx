@@ -68,7 +68,7 @@ const PROVIDERS_PANES: Array<{ id: ProvidersPane; label: string; hint: string }>
   {
     id: "routing",
     label: "Routing",
-    hint: "The failover chain a request walks now, and the drill proving the next rank picks up",
+    hint: "The failover chain a request walks now, and the failover drill",
   },
   {
     id: "budget",
