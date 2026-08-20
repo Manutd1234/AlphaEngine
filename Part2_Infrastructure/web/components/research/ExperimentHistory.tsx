@@ -380,12 +380,6 @@ export default function ExperimentHistory({
         </>
       )}
 
-      <p className="research-note">
-        Saved in this browser as a summary rather than a full result — a research notebook, not an
-        audit trail. Export the log as JSON to move or share it, or any run as a Python script to
-        verify it offline. The authoritative record of anything that reaches execution is the
-        gateway&apos;s append-only log.
-      </p>
     </div>
   );
 }
