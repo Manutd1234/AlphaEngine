@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-20",
-  "commit": "4d2baa7",
+  "commit": "4d24541",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -670,6 +670,7 @@
     "Part2_Infrastructure/web/tests/desk-tape.test.ts",
     "Part2_Infrastructure/web/tests/developer-panes.test.ts",
     "Part2_Infrastructure/web/tests/developer-work-persistence.test.ts",
+    "Part2_Infrastructure/web/tests/directed-removals.test.ts",
     "Part2_Infrastructure/web/tests/drift-bars.test.ts",
     "Part2_Infrastructure/web/tests/engine-linreg.test.ts",
     "Part2_Infrastructure/web/tests/execution-controls.test.ts",
