@@ -23,7 +23,7 @@
  * decides what happened, not the button that asked.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { OctagonX } from "lucide-react";
 
 import AnchoredPanel from "@/components/header/AnchoredPanel";
@@ -49,7 +49,7 @@ export interface KillSwitchRiskControl {
   onExecuted: () => void;
 }
 
-export default function KillSwitchControl({
+function KillSwitchControl({
   halt,
   riskControl,
 }: {
@@ -283,3 +283,16 @@ export default function KillSwitchControl({
     </span>
   );
 }
+
+/**
+ * Memoised, and the two props it takes are objects, so the header rebuilds
+ * them with `useMemo` over the fields rather than passing the literals the
+ * dashboard writes inline — otherwise the comparison is two fresh objects
+ * every render and the memo is decoration.
+ *
+ * The reason it is worth doing here rather than anywhere: this control is
+ * always mounted, holds the confirmation state an operator is part-way through
+ * typing, and re-renders on nothing a feed can say. Halted or not is the whole
+ * of its input, and it is a boolean that changes when somebody decides it does.
+ */
+export default memo(KillSwitchControl);
