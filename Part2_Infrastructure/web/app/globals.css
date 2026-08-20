@@ -13112,7 +13112,12 @@ h4 {
    can be absorbed: .liquidity-pair and .portfolio-chart-pair below, where a chart
    is told the height and draws into it, or a ladder scrolls inside the card
    rather than setting it. That is the line — stretch what can fill, leave what
-   would only gain a void. */
+   would only gain a void. The REGIMES/RISK pair below is the third way to be on
+   the right side of it: neither card fills the slack, but each ends in a section
+   that can sit on the shared baseline, so the slack becomes one gap instead of a
+   void. Note that the "research/attribution" measurement above predates the
+   pane split — the factor table and the market-state table are no longer
+   siblings, and the market-state table's actual neighbour is now the tail card. */
 .compact-grid-2col,
 .data-console-pair {
   align-items: start;
@@ -13147,6 +13152,60 @@ h4 {
 .portfolio-chart-pair > .card > .allocation-facts {
   margin-top: auto;
   padding-top: var(--space-3);
+}
+
+/* ---------- REGIMES beside RISK ----------
+   The research/robustness pane puts the same returns through two cuts — by
+   market state on the left, by tail on the right — and the desk reads them
+   across. `align-items: start` left them ending at different lines, and which
+   one ended first flipped with the viewport: measured at 2 year-rows of monthly
+   returns, RISK ran 57px longer at 1720px and 27px longer at 1500px, then
+   REGIMES ran 21px longer at 1280px. A ragged edge that changes sides as the
+   window resizes reads as a rendering fault rather than as two lengths.
+
+   Selected by `:has()` rather than by a class on the row, because the row is
+   `.compact-grid-2col` with nothing to distinguish it and `.regime-windows`
+   renders in exactly one panel. The other three `.compact-grid-2col` rows on
+   this page keep `align-items: start` — they are the table pairs the note
+   above measured, and they have nothing to put on a shared baseline. */
+.compact-grid-2col:has(> .card > .regime-windows) {
+  align-items: stretch;
+}
+
+.compact-grid-2col:has(> .card > .regime-windows) > .card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* The one seam that moves, and it is the last one in each card: the slack
+   collects immediately above the methodology note on the left and immediately
+   above the monthly-returns block on the right, so both cards end on the shared
+   baseline with every rhythm above the seam left at its authored value.
+
+   `margin-bottom: auto` on the element BEFORE the seam, not `margin-top: auto`
+   on the element after it, because an auto margin replaces the margin it lands
+   on: taking the bottom margin here leaves .research-note's 12px top margin and
+   .console-subhead's 18px top margin intact, so at zero slack the gap is the
+   same 12px and 18px the block-flow collapse produced and neither card changes
+   by a pixel when it happens to be the taller one.
+
+   Explicitly NOT `align-content: space-between`. The free space here is set by
+   the OTHER card, whose content is live: spreading it across every gap would
+   make each card's internal rhythm a function of a neighbour it cannot see, and
+   collapse all of them to zero whenever it was the taller card. One named gap
+   absorbs the difference; the rest of the card is fixed. */
+.compact-grid-2col:has(> .card > .regime-windows) > .card > .regime-windows,
+.compact-grid-2col:has(> .card > .regime-windows) > .card > .research-facts {
+  margin-bottom: auto;
+}
+
+/* Flex does not collapse margins, and this is the one pair above the seam where
+   that would have shown: the tile grid's 4px bottom margin used to be swallowed
+   by the fact row's 14px top margin, and unswallowed it would push the row 4px
+   down the moment the card became a flex column. */
+.compact-grid-2col:has(> .card > .regime-windows) > .card > .stability-tiles {
+  margin-bottom: 0;
 }
 
 /* ---------- composition ring ----------
