@@ -45,8 +45,8 @@ type OverviewPane = "standing" | "book";
  * split and becomes a second navigation the reader has to learn.
  */
 const OVERVIEW_PANES: Array<{ id: OverviewPane; label: string; hint: string }> = [
-  { id: "standing", label: "Standing", hint: "Whether anything is asking for attention right now: soft limits inside their warning bands, and how far the book has drifted from a risk-model target" },
-  { id: "book", label: "Book", hint: "What the book is holding — the session's shape, the largest positions in it, and how much room the risk desk's limits leave" },
+  { id: "standing", label: "Standing", hint: "Soft limits inside their warning bands, and drift from a risk-model target" },
+  { id: "book", label: "Book", hint: "The session's shape, the largest positions, and the room the limits leave" },
 ];
 
 export interface OverviewSectionProps {
@@ -112,7 +112,7 @@ export default function OverviewSection({
         <div>
           <span>Binding constraint</span>
           <strong>{constraintLabel(binding[0])}</strong>
-          <small className="num">{fmt(binding[1] * 100, 1)}% utilized</small>
+          <small className="num">{fmt(binding[1] * 100, 1)}% utilised</small>
         </div>
         <div>
           <span>Concentration</span>
