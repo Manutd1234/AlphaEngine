@@ -4862,7 +4862,13 @@ button
 }
 
 @media (max-width: 520px) {
-  button  .console-inspector__controls {
+  /* Was `button  .console-inspector__controls` — a descendant selector for a
+     controls div inside a <button>, which no call site has. The rule has never
+     rendered, so this is the first time the column stack is seen. `align-items`
+     is left at its `stretch` default: in a column container it governs width,
+     so centring here would give full-width fields beside shrink-wrapped
+     floating buttons in all six rows. */
+  .console-inspector__controls {
     flex-direction: column;
   }
   .console-log {
