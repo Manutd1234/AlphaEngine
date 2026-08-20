@@ -297,6 +297,20 @@ const cockpit = readFileSync(
   fileURLToPath(new URL("../components/execution/ExecutionCockpit.tsx", import.meta.url)),
   "utf8",
 );
+/**
+ * The cockpit's data layer, split out of the component it feeds.
+ *
+ * The component still owns the composition — which panel is in which subtab,
+ * and which pane of it is open — so the wiring assertions below stay pointed
+ * at `ExecutionCockpit`. The poll, the mode and the single invalidation path
+ * moved here, and so did the assertions about them. Anything left reading the
+ * component for a probe URL would be reading a file that no longer contains
+ * one, and would agree with itself rather than with the codebase.
+ */
+const cockpitFeed = readFileSync(
+  fileURLToPath(new URL("../components/execution/use-cockpit-feed.ts", import.meta.url)),
+  "utf8",
+);
 const liveMarket = readFileSync(
   fileURLToPath(new URL("../components/LiveMarket.tsx", import.meta.url)),
   "utf8",
@@ -390,8 +404,9 @@ describe("a settled live order invalidates the shared Portfolio and Risk book", 
      * at each call site. A per-handler copy is how a stale Portfolio tab after
      * a kill switch happens, and nothing on screen says it happened.
      */
-    assert.match(cockpit, /if \(result && result\.source !== "live"\) return/);
-    assert.match(cockpit, /void refresh\(\);\s*\n\s*if \(result\) onOrderSettled\?\.\(result\)/);
+    assert.match(cockpitFeed, /if \(result && result\.source !== "live"\) return/);
+    assert.match(cockpitFeed, /void refresh\(\);\s*\n\s*if \(result\) onOrderSettled\?\.\(result\)/);
+    // And the component still routes every mutation through that one path.
     assert.match(cockpit, /onSubmitted=\{revalidate\}/);
     assert.match(page, /book\.refresh\(true\), systems\.refresh\(true\)/);
     assert.match(page, /onOrderSettled=\{revalidateDesk\}/);
@@ -467,10 +482,7 @@ describe("the cockpit does not refetch history that cannot have changed", () => 
    * URLs are behind a condition — which is a property of the code, not of a
    * render.
    */
-  const source = readFileSync(
-    fileURLToPath(new URL("../components/execution/ExecutionCockpit.tsx", import.meta.url)),
-    "utf8",
-  );
+  const source = cockpitFeed;
 
   it("fetches the book unconditionally", () => {
     assert.match(source, /probeGateway<PortfolioSnapshot>\("\/api\/gateway\/portfolio"\)/);
