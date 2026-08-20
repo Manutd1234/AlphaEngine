@@ -55,6 +55,12 @@ describe("every gateway read has a deadline", () => {
      */
     const WRITE_EXEMPT = [
       "components/execution/OrderTicket.tsx",
+      // The submit itself, extracted from OrderTicket. The exemption follows
+      // the code rather than the filename: this is the same POST, and it
+      // carries a deliberately LONGER deadline than a read would, because
+      // aborting a write mid-flight leaves the desk not knowing whether the
+      // order landed — the one state an order form must never reach.
+      "components/execution/order-submit.ts",
       // Queues a supervised fit. `probeGateway` is GET-only — it coalesces by
       // URL, and collapsing two writes would drop one — so a write cannot use
       // it and must carry the deadline itself, which the assertion below now
