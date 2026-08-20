@@ -5,12 +5,22 @@ plane. What makes it acceptable is not that its choices are good — it is that
 its choices cannot escape a bound, cannot go unrecorded, and cannot leave a
 query unanswered. These tests are about those three, and they hold for ANY
 planner, including one that misbehaves on purpose.
+
+THE AUDIT TESTS USE A REAL ``AuditLog``, and that is the whole point of this
+file's second half. They used to use a recorder whose ``record_risk_event``
+took ``**kwargs``, so it accepted the ``kind=`` keyword the router was passing
+— a keyword ``AuditLog.record_risk_event`` has never had. Against the real
+store every write raised ``TypeError``, was caught by the router's
+never-fail-a-read handler, and logged a warning nobody was reading. "Every plan
+reaches the audit log" was a property of the fake. A stand-in that accepts an
+argument the production object rejects is not a test of the production object.
 """
 
 from __future__ import annotations
 
 import pytest
 
+from modules.audit import AuditLog
 from modules.research_router import (
     TOOL_GRAPH,
     TOOL_HYBRID,
@@ -23,12 +33,24 @@ from modules.research_router import (
 )
 
 
-class _Recorder:
-    def __init__(self):
-        self.rows = []
+@pytest.fixture
+def audit(tmp_path):
+    """The real ledger, on a throwaway file."""
+    log = AuditLog(tmp_path / "router.duckdb")
+    yield log
+    log.close()
 
-    def record_risk_event(self, **kw):
-        self.rows.append(kw)
+
+def rows(audit, event):
+    import json
+
+    return [
+        {**row, "payload": json.loads(row["payload"])}
+        for row in audit.query(
+            "SELECT event, actor, detail, payload FROM risk_events WHERE event = ? ORDER BY ts",
+            (event,),
+        )
+    ]
 
 
 class _Greedy:
@@ -86,19 +108,25 @@ def test_a_planner_that_fails_still_answers_the_query(planner, reason):
     )
 
 
-def test_every_plan_reaches_the_audit_log():
-    audit = _Recorder()
-    ResearchRouter(RuleBasedPlanner(), audit=audit).plan("why did BTCUSDT drop after promotion")
-    assert len(audit.rows) == 1
-    row = audit.rows[0]
-    assert row["kind"] == "research_plan"
-    assert [c["tool"] for c in row["payload"]["calls"]]
+def test_every_plan_reaches_the_audit_log(audit):
+    query = "why did BTCUSDT drop after promotion"
+    ResearchRouter(RuleBasedPlanner(), audit=audit).plan(query)
+    written = rows(audit, "research_plan")
+    assert len(written) == 1, "the plan did not reach the ledger the desk actually keeps"
+    assert written[0]["detail"] == query, "a plan nobody can tie to a query is not replayable"
+    assert [c["tool"] for c in written[0]["payload"]["calls"]]
 
 
-def test_a_fallback_is_recorded_with_its_reason():
-    audit = _Recorder()
+def test_the_event_name_is_passed_the_way_the_audit_log_takes_it(audit):
+    # The regression. ``record_risk_event`` takes the event POSITIONALLY; the
+    # router passed ``kind=`` and every write raised TypeError into a warning.
+    ResearchRouter(RuleBasedPlanner(), audit=audit).plan("anything")
+    assert [r["event"] for r in audit.recent_events(10)] == ["research_plan"]
+
+
+def test_a_fallback_is_recorded_with_its_reason(audit):
     ResearchRouter(_Broken(), audit=audit).plan("anything")
-    payload = audit.rows[0]["payload"]
+    payload = rows(audit, "research_plan")[0]["payload"]
     assert payload["fallback"] is True
     assert "raised" in payload["fallback_reason"]
 

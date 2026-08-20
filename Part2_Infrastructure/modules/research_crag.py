@@ -31,7 +31,18 @@ effort removing.
 The rewrite is bounded to ONE retry. An unbounded corrective loop is a latency
 hole and a cost hole, and the second attempt is where nearly all of the value
 is: it either finds the exact token the first query missed, or the corpus does
-not have it.
+not have it. The bound is STRUCTURAL: `answer_from_corpus` is straight-line
+code with one ``if``, not a loop with a counter, so there is no place a third
+attempt could be added by accident.
+
+Where this runs
+---------------
+
+`answer_from_corpus` is what ``POST /api/research/rag/ask`` calls, and it is
+the only corrective path in the gateway. ``/api/research/rag/search`` remains
+the raw retrieval primitive — it returns what the index ranked closest, ungraded
+— and this function is the policy over it: route, retrieve, grade, rewrite once,
+then answer or refuse.
 """
 
 from __future__ import annotations
@@ -39,7 +50,12 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field
+
+from modules.research_router import Execution, ResearchRouter, ToolResult
+from modules.schemas import ResearchGraphNeighbour, ResearchRagMatch
 
 #: The two band edges. Named rather than inlined because /thresholds-style
 #: surfaces print them, and a number a reader cannot find in the code is a
@@ -188,3 +204,167 @@ class ContextGrader:
             if best.get(field) and str(best[field]).lower() not in have
         ]
         return f"{query} {' '.join(additions)}".strip() if additions else query
+
+
+# --------------------------------------------------------------------------- #
+# The corrective path: what a production query actually runs
+# --------------------------------------------------------------------------- #
+class ToolCallView(BaseModel):
+    """One planned tool call and what it returned — the ledger row, echoed.
+
+    Returned to the caller as well as written to the audit log so a reader can
+    see WHICH tools produced the rows they are looking at without holding a
+    DuckDB handle. Same fields, same names, one source.
+    """
+
+    tool: str
+    reason: str
+    state: str
+    rows: int
+    detail: str | None = None
+
+
+class ResearchAnswer(BaseModel):
+    """A graded answer, a refusal with its reason, or a state that is neither.
+
+    FOUR states, and the point of the model is that they never collapse into
+    each other:
+
+    ``ok``           the corpus was searched and what came back was good enough
+                     to read. ``matches`` may still be EMPTY — that is
+                     "searched and found nothing", which is an answer.
+    ``refused``      documents came back and they are not relevant. ``matches``
+                     is empty and ``refusal`` says why, including how many
+                     documents were searched — so a reader can tell a refusal
+                     on relevance from an empty corpus.
+    ``unavailable``  the index is not configured on this deployment.
+    ``embed_failed`` the embedding service did not answer.
+
+    ``score``/``band``/``reasons`` are the grade behind the verdict, present
+    whenever anything was graded. A caller that renders a weak ``ok`` without
+    showing the score is choosing to; the number is there.
+    """
+
+    state: Literal["ok", "refused", "unavailable", "embed_failed"]
+    #: The query the answer was retrieved for — the rewrite when one was used.
+    query: str
+    #: Set only when the mid-band rewrite happened AND changed the query.
+    rewritten_query: str | None = None
+    #: Retrieval rounds. 1 or 2. Never 3: there is no loop here.
+    retrievals: int = 1
+    matches: list[ResearchRagMatch] = Field(default_factory=list)
+    connected: list[ResearchGraphNeighbour] = Field(default_factory=list)
+    corpus_size: int | None = None
+    score: float | None = None
+    band: Literal["answer", "rewrite", "refuse"] | None = None
+    reasons: list[str] = Field(default_factory=list)
+    #: The sentence a refusal says to the caller. None unless refused.
+    refusal: str | None = None
+    planner: str = "rules"
+    fallback: bool = False
+    calls: list[ToolCallView] = Field(default_factory=list)
+
+
+def _views(calls: list[ToolResult]) -> list[ToolCallView]:
+    return [ToolCallView(**call.as_audit()) for call in calls]
+
+
+def _refusal(grade: Grade, run: Execution, floor: float) -> str:
+    """Why this refused, in one sentence a reader can act on.
+
+    It has to carry the denominator. "Nothing relevant" over a corpus of four
+    hundred documents is a statement about the query; the same words over a
+    corpus of one are a statement about the corpus, and a refusal that cannot
+    tell the reader which one it is has said nothing.
+    """
+    searched = (
+        f"{run.corpus_size} indexed documents were searched"
+        if run.corpus_size is not None
+        else "the corpus was searched"
+    )
+    return (
+        f"Nothing in this desk's own research is relevant to that: {searched}, and the "
+        f"closest {len(run.matches)} scored {grade.score:.2f} — below the {floor:.2f} "
+        f"relevance floor. " + "; ".join(grade.reasons) + ". This is a refusal on "
+        "relevance: documents came back and none of them answer the question. It is "
+        "not an empty corpus and not a search that failed."
+    )
+
+
+async def answer_from_corpus(
+    rag: Any,
+    query: str,
+    *,
+    match_count: int = 3,
+    kind: str | None = None,
+    router: ResearchRouter | None = None,
+    grader: ContextGrader | None = None,
+    audit: Any = None,
+    now: datetime | None = None,
+) -> ResearchAnswer:
+    """Route, retrieve, grade, rewrite ONCE, then answer or refuse.
+
+    The three bands are enforced here and nowhere else:
+
+    * ``> 0.8``   answer.
+    * ``0.4-0.8`` rewrite from the corpus's own vocabulary, re-query, and
+      answer or refuse on what the second round returns. Once.
+    * ``< 0.4``   refuse, with the reason, without spending a second query on a
+      result that is not close.
+    """
+    grader = grader or ContextGrader()
+    router = router or ResearchRouter(audit=audit)
+
+    plan = router.plan(query)
+    run = await router.execute(plan, rag, match_count=match_count, kind=kind)
+    calls = list(run.calls)
+
+    if run.state != "ok" or not run.matches:
+        # Two different facts, both passed through as themselves: a state that
+        # is not "ok" means the search could not run, and "ok" with no rows
+        # means it ran and the corpus holds nothing like this. Neither is a
+        # refusal, and grading either one would turn it into one.
+        return ResearchAnswer(
+            state=run.state, query=query, retrievals=1, corpus_size=run.corpus_size,
+            connected=run.connected, planner=plan.planner, fallback=plan.fallback,
+            calls=_views(calls),
+        )
+
+    grade = grader.grade(query, run.matches, now=now)
+    answered, rewritten, retrievals = query, None, 1
+
+    if grade.band == "rewrite":
+        candidate = grader.rewrite(query, run.matches)
+        if candidate != query:
+            # The ONE retry. Re-planned rather than re-run, because the added
+            # tokens are exactly the kind the router routes on — a rewrite that
+            # gained a data hash should reach the lexical tool this time.
+            rewritten, retrievals = candidate, 2
+            retry_plan = router.plan(candidate)
+            retry = await router.execute(retry_plan, rag, match_count=match_count, kind=kind)
+            calls += retry.calls
+            if retry.state == "ok" and retry.matches:
+                retry_grade = grader.grade(candidate, retry.matches, now=now)
+                # Keep the better round. A rewrite that made things worse is a
+                # rewrite that should not cost the caller its first answer.
+                if retry_grade.score >= grade.score:
+                    answered, run, grade, plan = candidate, retry, retry_grade, retry_plan
+        # There is no third attempt, and no loop for one to be added to.
+
+    refused = grade.score < grader.refuse_band
+    return ResearchAnswer(
+        state="refused" if refused else "ok",
+        query=answered,
+        rewritten_query=rewritten,
+        retrievals=retrievals,
+        matches=[] if refused else run.matches,
+        connected=[] if refused else run.connected,
+        corpus_size=run.corpus_size,
+        score=round(grade.score, 4),
+        band=grade.band,
+        reasons=list(grade.reasons),
+        refusal=_refusal(grade, run, grader.refuse_band) if refused else None,
+        planner=plan.planner,
+        fallback=plan.fallback,
+        calls=_views(calls),
+    )

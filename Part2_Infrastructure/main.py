@@ -75,6 +75,7 @@ from modules.ml.fit import ML_FIT_KIND, submit_ml_fit
 from modules.ml.store import UNREADABLE, get_ml_store
 from modules.operations import OperationsSnapshot, build_operations_snapshot
 from modules.portfolio import build_equity_history, build_portfolio
+from modules.research_crag import ResearchAnswer, answer_from_corpus
 from modules.research_rag import EMBEDDING_DIMENSIONS, EMBEDDING_MODEL, get_rag
 from modules.risk_proxy import get_gateway
 from modules.schemas import (
@@ -942,9 +943,7 @@ async def reset_book(actor: str = Depends(trader_identity)) -> dict[str, Any]:
 # Module C — Backtesting
 # --------------------------------------------------------------------------- #
 @app.post("/api/research/rag/search", tags=["C · Research"])
-async def research_rag_search(
-    req: ResearchRagSearchRequest, _actor: str = Depends(trader_identity)
-) -> ResearchRagSearchResponse:
+async def research_rag_search(req: ResearchRagSearchRequest, _actor: str = Depends(trader_identity)) -> ResearchRagSearchResponse:
     """Similarity search over the desk's own backtests, summaries and incidents.
 
     Returns `state: unavailable` when Supabase is not configured — deliberately
@@ -954,10 +953,23 @@ async def research_rag_search(
     return ResearchRagSearchResponse(**result)
 
 
+@app.post("/api/research/rag/ask", response_model=ResearchAnswer, tags=["C · Research"])
+async def research_rag_ask(req: ResearchRagSearchRequest, _actor: str = Depends(trader_identity)) -> ResearchAnswer:
+    """Corrective retrieval: the same corpus, graded before it is offered as an answer.
+
+    `/api/research/rag/search` returns what the index ranked closest, ungraded.
+    This routes the query through a bounded plan (both the plan and every tool
+    call land in the audit log), grades what came back, rewrites a mid-band
+    query ONCE from the corpus's own vocabulary and re-queries, and refuses
+    below the relevance floor with the reason and the number of documents
+    searched. `refused` is a state of its own: it is not `ok` with no matches
+    ("searched, found nothing") and not `unavailable` ("could not search").
+    """
+    return await answer_from_corpus(get_rag(), req.query, match_count=req.match_count, kind=req.kind, audit=get_audit())
+
+
 @app.post("/api/research/rag/embed", tags=["C · Research"])
-async def research_rag_embed(
-    req: ResearchRagEmbedRequest, _actor: str = Depends(trader_identity)
-) -> ResearchRagEmbedResponse:
+async def research_rag_embed(req: ResearchRagEmbedRequest, _actor: str = Depends(trader_identity)) -> ResearchRagEmbedResponse:
     """Embed text with the same model that embedded the corpus.
 
     Exists so the Oracle vector-search route can embed a query without becoming
@@ -1097,26 +1109,17 @@ async def openbb_fundamentals(
 # Audit
 # --------------------------------------------------------------------------- #
 @app.get("/api/audit/orders", tags=["audit"])
-async def audit_orders(
-    limit: int = Query(default=50, ge=1, le=500),
-    _actor: str = Depends(trader_identity),
-) -> list[dict[str, Any]]:
+async def audit_orders(limit: int = Query(default=50, ge=1, le=500), _actor: str = Depends(trader_identity)) -> list[dict[str, Any]]:
     return get_audit().recent_orders(limit)
 
 
 @app.get("/api/audit/events", tags=["audit"])
-async def audit_events(
-    limit: int = Query(default=50, ge=1, le=500),
-    _actor: str = Depends(trader_identity),
-) -> list[dict[str, Any]]:
+async def audit_events(limit: int = Query(default=50, ge=1, le=500), _actor: str = Depends(trader_identity)) -> list[dict[str, Any]]:
     return get_audit().recent_events(limit)
 
 
 @app.get("/api/audit/backtests", tags=["audit"])
-async def audit_backtests(
-    limit: int = Query(default=20, ge=1, le=200),
-    _actor: str = Depends(trader_identity),
-) -> list[dict[str, Any]]:
+async def audit_backtests(limit: int = Query(default=20, ge=1, le=200), _actor: str = Depends(trader_identity)) -> list[dict[str, Any]]:
     return get_audit().recent_backtests(limit)
 
 
@@ -1206,12 +1209,8 @@ async def telegram_link_status(
 # Web UI
 # --------------------------------------------------------------------------- #
 @app.get("/", include_in_schema=False)
-async def root(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse(request, "miniapp.html", {"config": _ui_config()})
-
-
-@app.get("/app", include_in_schema=False)
-@app.get("/ui", include_in_schema=False)  # alias
+@app.get("/app", include_in_schema=False)   # aliases: one console, three paths
+@app.get("/ui", include_in_schema=False)
 async def gateway_console(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "miniapp.html", {"config": _ui_config()})
 

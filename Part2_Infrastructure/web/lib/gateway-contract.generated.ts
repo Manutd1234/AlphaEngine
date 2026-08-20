@@ -364,12 +364,22 @@ export interface MarketDataSymbolSnapshot {
   updates_total?: number;
 }
 
+export interface OnCallSnapshot {
+  configured: boolean;
+  covered: boolean;
+  entries: number;
+  invalid: number;
+  valid: number;
+  webhook_configured: boolean;
+}
+
 export interface OperationsSnapshot {
   audit: AuditOperationsSnapshot;
   decision_latency?: DecisionLatencySnapshot | null;
   environment: string;
   market_data: MarketDataSnapshot;
   observed_at: string;
+  oncall?: OnCallSnapshot | null;
   queue: QueueOperationsSnapshot;
   risk: RiskOperationsSnapshot;
   route_latency: RouteLatencyOperationsSnapshot;
@@ -460,6 +470,23 @@ export interface ReplaceRequest {
   notional?: number | null;
   quantity?: number | null;
   reason?: string;
+}
+
+export interface ResearchAnswer {
+  band?: "answer" | "rewrite" | "refuse" | null;
+  calls?: Array<ToolCallView>;
+  connected?: Array<ResearchGraphNeighbour>;
+  corpus_size?: number | null;
+  fallback?: boolean;
+  matches?: Array<ResearchRagMatch>;
+  planner?: string;
+  query: string;
+  reasons?: Array<string>;
+  refusal?: string | null;
+  retrievals?: number;
+  rewritten_query?: string | null;
+  score?: number | null;
+  state: "ok" | "refused" | "unavailable" | "embed_failed";
 }
 
 export interface ResearchGraphNeighbour {
@@ -652,9 +679,17 @@ export interface TelegramOperationsSnapshot {
   enabled: boolean;
   last_error_present: boolean;
   mode: string;
-  status: "running" | "degraded" | "disabled";
+  status: "running" | "starting" | "degraded" | "disabled";
   updates_handled: number;
   uptime_seconds: number;
+}
+
+export interface ToolCallView {
+  detail?: string | null;
+  reason: string;
+  rows: number;
+  state: string;
+  tool: string;
 }
 
 export interface ValidationError {
@@ -882,6 +917,7 @@ export interface GatewayOperations {
   "GET /api/research/openbb/health": { response: Record<string, unknown> };
   "GET /api/research/openbb/news": { response: Record<string, unknown> };
   "GET /api/research/openbb/quote": { response: Record<string, unknown> };
+  "POST /api/research/rag/ask": { request: ResearchRagSearchRequest; response: ResearchAnswer };
   "POST /api/research/rag/embed": { request: ResearchRagEmbedRequest; response: ResearchRagEmbedResponse };
   "POST /api/research/rag/search": { request: ResearchRagSearchRequest; response: ResearchRagSearchResponse };
   "GET /api/research/rag/status": { response: ResearchRagStatus };
@@ -937,6 +973,7 @@ export const GATEWAY_CONTRACT_PATHS = [
   "/api/research/openbb/health",
   "/api/research/openbb/news",
   "/api/research/openbb/quote",
+  "/api/research/rag/ask",
   "/api/research/rag/embed",
   "/api/research/rag/search",
   "/api/research/rag/status",

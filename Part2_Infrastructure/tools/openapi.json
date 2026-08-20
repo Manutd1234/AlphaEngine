@@ -2205,6 +2205,45 @@
         "title": "MarketDataSymbolSnapshot",
         "type": "object"
       },
+      "OnCallSnapshot": {
+        "description": "The rota as `/api/ops/snapshot` publishes it \u2014 counted, never named.\n\n`rota_health` above names people and echoes the raw line of a broken entry,\nbecause whoever reads it is already inside Telegram or a log the desk owns.\nThis endpoint is a different audience with a written rule: it \"deliberately\nexcludes raw URLs, storage paths, usernames and error strings\", and\n`trader_identity` resolves to `web:anonymous` on a deployment that has not\nturned auth on. `mei@mon-fri=09:00-18:00` is a person's handle and a\nschedule of when they are awake, so it does not go on this wire.\n\nWhat survives redaction is still the whole operational question. \"A rota is\nconfigured, three entries, one of them will never fire, and nobody is on\ncall right now\" is what an operator needs to know; the name is what they\nlook up next, in the surface that is allowed to hold it.\n\n`invalid` is therefore a COUNT here and a list of raw lines in\n`rota_health`. That asymmetry is the redaction, and it is the only\ndifference between the two \u2014 both are computed from one call to\n`rota_health`, so they cannot drift into disagreeing about the same rota.",
+        "properties": {
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "covered": {
+            "title": "Covered",
+            "type": "boolean"
+          },
+          "entries": {
+            "title": "Entries",
+            "type": "integer"
+          },
+          "invalid": {
+            "title": "Invalid",
+            "type": "integer"
+          },
+          "valid": {
+            "title": "Valid",
+            "type": "integer"
+          },
+          "webhook_configured": {
+            "title": "Webhook Configured",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "configured",
+          "entries",
+          "valid",
+          "invalid",
+          "covered",
+          "webhook_configured"
+        ],
+        "title": "OnCallSnapshot",
+        "type": "object"
+      },
       "OperationsSnapshot": {
         "properties": {
           "audit": {
@@ -2231,6 +2270,16 @@
             "format": "date-time",
             "title": "Observed At",
             "type": "string"
+          },
+          "oncall": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OnCallSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "queue": {
             "$ref": "#/components/schemas/QueueOperationsSnapshot"
@@ -2793,6 +2842,134 @@
           }
         },
         "title": "ReplaceRequest",
+        "type": "object"
+      },
+      "ResearchAnswer": {
+        "description": "A graded answer, a refusal with its reason, or a state that is neither.\n\nFOUR states, and the point of the model is that they never collapse into\neach other:\n\n``ok``           the corpus was searched and what came back was good enough\n                 to read. ``matches`` may still be EMPTY \u2014 that is\n                 \"searched and found nothing\", which is an answer.\n``refused``      documents came back and they are not relevant. ``matches``\n                 is empty and ``refusal`` says why, including how many\n                 documents were searched \u2014 so a reader can tell a refusal\n                 on relevance from an empty corpus.\n``unavailable``  the index is not configured on this deployment.\n``embed_failed`` the embedding service did not answer.\n\n``score``/``band``/``reasons`` are the grade behind the verdict, present\nwhenever anything was graded. A caller that renders a weak ``ok`` without\nshowing the score is choosing to; the number is there.",
+        "properties": {
+          "band": {
+            "anyOf": [
+              {
+                "enum": [
+                  "answer",
+                  "rewrite",
+                  "refuse"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band"
+          },
+          "calls": {
+            "items": {
+              "$ref": "#/components/schemas/ToolCallView"
+            },
+            "title": "Calls",
+            "type": "array"
+          },
+          "connected": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchGraphNeighbour"
+            },
+            "title": "Connected",
+            "type": "array"
+          },
+          "corpus_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corpus Size"
+          },
+          "fallback": {
+            "default": false,
+            "title": "Fallback",
+            "type": "boolean"
+          },
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchRagMatch"
+            },
+            "title": "Matches",
+            "type": "array"
+          },
+          "planner": {
+            "default": "rules",
+            "title": "Planner",
+            "type": "string"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "refusal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refusal"
+          },
+          "retrievals": {
+            "default": 1,
+            "title": "Retrievals",
+            "type": "integer"
+          },
+          "rewritten_query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rewritten Query"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "state": {
+            "enum": [
+              "ok",
+              "refused",
+              "unavailable",
+              "embed_failed"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "query"
+        ],
+        "title": "ResearchAnswer",
         "type": "object"
       },
       "ResearchGraphNeighbour": {
@@ -3914,6 +4091,7 @@
           "status": {
             "enum": [
               "running",
+              "starting",
               "degraded",
               "disabled"
             ],
@@ -3939,6 +4117,46 @@
           "last_error_present"
         ],
         "title": "TelegramOperationsSnapshot",
+        "type": "object"
+      },
+      "ToolCallView": {
+        "description": "One planned tool call and what it returned \u2014 the ledger row, echoed.\n\nReturned to the caller as well as written to the audit log so a reader can\nsee WHICH tools produced the rows they are looking at without holding a\nDuckDB handle. Same fields, same names, one source.",
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "rows": {
+            "title": "Rows",
+            "type": "integer"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "tool": {
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool",
+          "reason",
+          "state",
+          "rows"
+        ],
+        "title": "ToolCallView",
         "type": "object"
       },
       "ValidationError": {
@@ -8024,6 +8242,82 @@
           }
         },
         "summary": "Openbb Quote",
+        "tags": [
+          "C \u00b7 Research"
+        ]
+      }
+    },
+    "/api/research/rag/ask": {
+      "post": {
+        "description": "Corrective retrieval: the same corpus, graded before it is offered as an answer.\n\n`/api/research/rag/search` returns what the index ranked closest, ungraded.\nThis routes the query through a bounded plan (both the plan and every tool\ncall land in the audit log), grades what came back, rewrites a mid-band\nquery ONCE from the corpus's own vocabulary and re-queries, and refuses\nbelow the relevance floor with the reason and the number of documents\nsearched. `refused` is a state of its own: it is not `ok` with no matches\n(\"searched, found nothing\") and not `unavailable` (\"could not search\").",
+        "operationId": "research_rag_ask_api_research_rag_ask_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResearchRagSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchAnswer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Research Rag Ask",
         "tags": [
           "C \u00b7 Research"
         ]
