@@ -243,3 +243,46 @@ describe("the sanitiser accepts every strategy the engines implement", () => {
     assert.match(route, /candidate === symbol/);
   });
 });
+
+/**
+ * The empty state points at a control. The control has to be there.
+ *
+ * "No benchmark selected. Choose one in the controls…" is a cross-reference,
+ * and nothing in the suite checked that it resolves — delete the select from
+ * Controls.tsx and every test stays green while the sentence becomes a
+ * direction to a place that does not exist. The same failure mode produced the
+ * stale tour label and the "Open Data Ops" mismatch, both fixed in this phase
+ * by deriving the reference instead of trusting it.
+ */
+describe("the benchmark empty state points at a control that exists", () => {
+  const controls = read("../components/Controls.tsx");
+  const panel = read("../components/research/BenchmarkPanel.tsx");
+
+  it("the panel sends the reader to the controls", () => {
+    assert.match(panel, /Choose one in the controls/,
+      "the empty state stopped naming where the benchmark is chosen");
+  });
+
+  it("the controls carry a labelled benchmark selector", () => {
+    assert.match(controls, /<label className="field" htmlFor="benchmark">/,
+      "the benchmark control lost its label, or its id changed");
+    assert.match(controls, /<select\s+id="benchmark"/,
+      "the benchmark control is no longer a select with id=\"benchmark\"");
+  });
+
+  it("it is reachable — no tier gate, no disabled state", () => {
+    const select = controls.slice(controls.indexOf('id="benchmark"'));
+    const end = select.indexOf("</select>");
+    assert.ok(end > 0, "the benchmark select is unterminated");
+    assert.doesNotMatch(select.slice(0, end), /disabled/,
+      "the benchmark control can be disabled, so the empty state can be a dead end");
+    assert.doesNotMatch(controls, /useComplexity|atLeast/,
+      "the setup panel started gating on the detail tier; the benchmark may become unreachable");
+  });
+
+  it("offers None as a real choice, not an absent default", () => {
+    // types.ts: "its absence is not a default … rather than quietly
+    // substituting one". The option has to exist for that to be a choice.
+    assert.match(controls, /<option value="">None/);
+  });
+});
