@@ -38,7 +38,6 @@ const CEILING = 400;
 const OVER_CEILING: Record<string, number> = {
   "app/dashboard/page.tsx": 2206,
   "lib/engine.ts": 1653,
-  "lib/portfolio-risk.ts": 1166,
   "components/PortfolioWorkspace.tsx": 1106,
   "lib/providers/runtime.ts": 1105,
   "lib/blotter.ts": 1007,
