@@ -212,17 +212,17 @@ export default function BreakerStateMachine({
 
       {!rows.length && (
         <p className="muted">
-          The provider registry has not been observed, so no circuit state can be counted. That is a
-          missing reading rather than a healthy desk.
+          The provider registry has not been observed, so no circuit state can be counted — a
+          missing reading, not a healthy desk.
         </p>
       )}
 
       <details className="disclosure">
-        <summary>Why a closure is not a fix, and why half-open almost always reads zero</summary>
+        <summary>Why a closure is not a fix, and why half-open reads zero</summary>
         <p className="research-note">
           <strong>Half-open is a moment, not a resting state.</strong> The dispatch gate retires an
-          elapsed cooldown the instant any call touches that provider, so it is visible only between
-          the cooldown ending and the next request. A permanent zero there is correct.
+          elapsed cooldown on the next call that touches the provider, so a permanent zero there is
+          correct.
         </p>
         <p className="research-note">
           <strong>A closure is not a fix.</strong> One successful probe closes a circuit that may
@@ -230,8 +230,7 @@ export default function BreakerStateMachine({
         </p>
         <p className="research-note">
           Counts are per function instance and reset on redeploy. The threshold is read from each
-          provider&rsquo;s own snapshot rather than a constant compiled into this page, so it cannot
-          drift from what the gateway enforces.
+          provider&rsquo;s own snapshot, never a compiled-in constant.
         </p>
       </details>
     </section>
