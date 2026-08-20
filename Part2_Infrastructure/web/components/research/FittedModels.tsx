@@ -24,7 +24,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import StatTile from "@/components/StatTile";
 import { fmt } from "@/lib/format";
-import { probeGateway } from "@/lib/use-gateway-connection";
+import { GATEWAY_DEADLINE_MS, probeGateway } from "@/lib/use-gateway-connection";
 
 /** One run, as /api/gateway/research/ml/runs returns it. */
 interface MlRun {
@@ -85,6 +85,65 @@ export default function FittedModels() {
 
   useEffect(() => { void refresh(); }, [refresh]);
 
+  /**
+   * Queue a fit, then poll the job until it settles.
+   *
+   * The panel could only ever report an empty corpus because nothing could put
+   * anything in it. `notice` says what happened in the desk's own terms: a run
+   * whose numbers are real but whose filing failed is a different outcome from
+   * a run that did not happen, and both are different from a corpus that is
+   * not configured.
+   */
+  const [fitting, setFitting] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const fit = useCallback(async () => {
+    setFitting(true);
+    setNotice(null);
+    try {
+      const queued = await fetch("/api/gateway/research/ml/fit", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ symbol: "BTCUSDT", interval: "4h", bars: 1500, model: "ridge" }),
+        // `probeGateway` is GET-only — it coalesces by URL, and collapsing two
+        // writes would drop one. So the deadline it would have carried is
+        // stated here instead: a gateway that accepts and never answers must
+        // not leave this button reading "Fitting…" for the life of the tab.
+        signal: AbortSignal.timeout(GATEWAY_DEADLINE_MS),
+      });
+      if (!queued.ok) {
+        const body = await queued.json().catch(() => ({}));
+        setNotice(typeof body.error === "string" ? body.error : `The fit could not be queued (${queued.status}).`);
+        return;
+      }
+      const { job_id: jobId } = await queued.json() as { job_id: string };
+      // A purged walk-forward over 1500 bars is seconds, not milliseconds.
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1_500));
+        const polled = await probeGateway<{ status?: string; result?: Record<string, unknown> }>(
+          `/api/gateway/data/jobs?job_id=${jobId}`,
+        );
+        if (!polled.ok) continue;
+        const status = polled.payload.status;
+        if (status === "succeeded") {
+          const result = polled.payload.result ?? {};
+          setNotice(result.persisted
+            ? null
+            : `The model was fitted and not filed: ${String(result.reason ?? "unknown reason")}. The run is real; the corpus is unchanged.`);
+          await refresh();
+          return;
+        }
+        if (status === "failed") {
+          setNotice("The fit failed. Nothing was filed.");
+          return;
+        }
+      }
+      setNotice("The fit is still running. It will appear here once it settles.");
+    } finally {
+      setFitting(false);
+    }
+  }, [refresh]);
+
   const runs = load.status === "done" ? load.payload.runs : [];
   const succeeded = runs.filter((run) => run.status === "succeeded");
 
@@ -95,9 +154,14 @@ export default function FittedModels() {
           <span className="page-kicker">Supervised research</span>
           <h2>Fitted models</h2>
         </div>
-        <button type="button" className="text-action" onClick={() => void refresh()}>
-          {load.status === "loading" ? "Reading…" : "Refresh"}
-        </button>
+        <div className="console-inspector__controls" style={{ marginBottom: 0 }}>
+          <button type="button" onClick={() => void fit()} disabled={fitting}>
+            {fitting ? "Fitting…" : "Fit a model"}
+          </button>
+          <button type="button" className="text-action" onClick={() => void refresh()}>
+            {load.status === "loading" ? "Reading…" : "Refresh"}
+          </button>
+        </div>
       </div>
 
       {load.status === "error" && (
@@ -108,6 +172,8 @@ export default function FittedModels() {
           nothing about whether runs exist — it says the question could not be asked.
         </p>
       )}
+
+      {notice && <p className="sub">{notice}</p>}
 
       {load.status === "done" && load.payload.state === "unreadable" && (
         <p className="sub">

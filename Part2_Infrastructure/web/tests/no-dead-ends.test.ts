@@ -53,7 +53,14 @@ describe("every gateway read has a deadline", () => {
      * The one exception is a write, and it is exempted by name rather than by
      * pattern so adding a second one has to be a decision.
      */
-    const WRITE_EXEMPT = ["components/execution/OrderTicket.tsx"];
+    const WRITE_EXEMPT = [
+      "components/execution/OrderTicket.tsx",
+      // Queues a supervised fit. `probeGateway` is GET-only — it coalesces by
+      // URL, and collapsing two writes would drop one — so a write cannot use
+      // it and must carry the deadline itself, which the assertion below now
+      // requires of every name on this list.
+      "components/research/FittedModels.tsx",
+    ];
 
     const offenders: string[] = [];
     for (const file of [
@@ -68,6 +75,13 @@ describe("every gateway read has a deadline", () => {
         // Assert the exemption is still a write, so this cannot silently become
         // a licence for reads in the same file.
         assert.match(source, /method:\s*"POST"/, `${rel(file)} is exempt as a write but posts nothing`);
+        // The exemption is from `probeGateway`, not from its deadline. Without
+        // this an exempt file can hang forever on a gateway that accepts and
+        // never answers — the exact failure the rule above exists to prevent.
+        assert.match(
+          source, /AbortSignal\.timeout\(/,
+          `${rel(file)} is exempt from probeGateway but carries no deadline of its own`,
+        );
         continue;
       }
       /**

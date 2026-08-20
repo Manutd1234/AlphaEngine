@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-20",
-  "commit": "518f0d1",
+  "commit": "42f5ddb",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -224,6 +224,7 @@
     "Part2_Infrastructure/web/app/api/gateway/portfolio/history/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/portfolio/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/research/graph/[id]/route.ts",
+    "Part2_Infrastructure/web/app/api/gateway/research/ml/fit/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/research/ml/runs/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/research/rag/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/risk/route.ts",
