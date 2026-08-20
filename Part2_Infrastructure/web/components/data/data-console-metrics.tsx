@@ -10,7 +10,7 @@
 import type { ReactNode } from "react";
 
 import NumberTicker from "@/components/common/NumberTicker";
-import { PROGRESS_WIP_LIMIT } from "@/components/data/DataWorkBoard";
+import { PROGRESS_WIP_LIMIT } from "@/components/data/work-board-model";
 import type { InspectResponse } from "@/components/systems/types";
 import type { DataWorkItem, DataWorkSource } from "@/lib/data-work-queue";
 import { deriveTrustSlis } from "@/lib/data-trust";

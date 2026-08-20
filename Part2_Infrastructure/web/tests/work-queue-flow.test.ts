@@ -26,7 +26,15 @@ const read = (relative: string) =>
 const code = (source: string) => source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
 
 const css = globalsCss;
-const board = read("../components/data/DataWorkBoard.tsx");
+// The board AND the components it was split into. Reading the board alone
+// stopped seeing the composer and the card once they moved out — the same
+// silent-pass this suite has been bitten by all session.
+const board = [
+  "../components/data/DataWorkBoard.tsx",
+  "../components/data/DataWorkCard.tsx",
+  "../components/data/WorkComposer.tsx",
+  "../components/data/work-board-model.ts",
+].map((p) => { try { return read(p); } catch { return ""; } }).join("\n");
 
 /** The declaration block of a rule, anchored at the start of a line. */
 function rule(selector: string): string {

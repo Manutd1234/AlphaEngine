@@ -74,7 +74,8 @@ function sectionIdsFor(workspace: string): string[] {
 const dataConsole = read("../components/DataConsole.tsx");
 const reliabilityConsole = read("../components/ReliabilityConsole.tsx");
 const developerConsole = read("../components/DeveloperConsole.tsx");
-const dataWorkBoard = read("../components/data/DataWorkBoard.tsx");
+const dataWorkBoard = ["../components/data/DataWorkBoard.tsx", "../components/data/DataWorkCard.tsx", "../components/data/WorkComposer.tsx", "../components/data/work-board-model.ts"]
+  .map((p) => { try { return read(p); } catch { return ""; } }).join("\n");
 const developerWorkQueue = read("../components/developer/DeveloperWorkQueue.tsx");
 const pipelineInspector = read("../components/systems/PipelineInspector.tsx");
 const traceConsole = read("../components/systems/TraceConsole.tsx");

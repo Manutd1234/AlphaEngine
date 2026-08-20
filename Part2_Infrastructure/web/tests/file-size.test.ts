@@ -80,7 +80,6 @@ const OVER_CEILING: Record<string, number> = {
   // the barrel's `Record<Strategy, StrategyDoc>` annotation over four
   // `satisfies Partial<...>` modules, which was verified by deleting an entry
   // and watching `tsc` name it.
-  "components/data/DataWorkBoard.tsx": 526,
   "components/Controls.tsx": 522,
   "lib/use-system-health.ts": 483,
   "components/portfolio/StressTest.tsx": 430,

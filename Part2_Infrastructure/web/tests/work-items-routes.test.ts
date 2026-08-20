@@ -20,7 +20,8 @@ const list = read("app/api/gateway/data/work-items/route.ts");
 const patch = read("app/api/gateway/data/work-items/[id]/route.ts");
 const hook = read("lib/use-data-work-queue.ts");
 const lib = read("lib/data-work-queue.ts");
-const board = read("components/data/DataWorkBoard.tsx");
+const board = ["components/data/DataWorkBoard.tsx", "components/data/DataWorkCard.tsx", "components/data/WorkComposer.tsx", "components/data/work-board-model.ts"]
+  .map((p) => { try { return read(p); } catch { return ""; } }).join("\n");
 const page = read("app/dashboard/page.tsx");
 // The hook is called in the shell; the board that renders its items is mounted
 // by `components/workspace/WorkspacePanels.tsx`, so the two halves of the

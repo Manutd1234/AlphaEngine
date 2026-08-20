@@ -101,7 +101,8 @@ const reliabilityConsole = read("../components/ReliabilityConsole.tsx");
  */
 const reliabilityAttention = read("../components/systems/ReliabilityAttention.tsx");
 const healthMatrix = read("../components/systems/HealthMatrix.tsx");
-const workBoard = read("../components/data/DataWorkBoard.tsx");
+const workBoard = ["../components/data/DataWorkBoard.tsx", "../components/data/DataWorkCard.tsx", "../components/data/WorkComposer.tsx", "../components/data/work-board-model.ts"]
+  .map((p) => { try { return read(p); } catch { return ""; } }).join("\n");
 const sections = read("../lib/sections.ts");
 // `lib/data-trust.ts` became `lib/data-trust/` in the 786-line split.
 // `DataTrustDestination` is declared in `model.ts` and re-exported by the

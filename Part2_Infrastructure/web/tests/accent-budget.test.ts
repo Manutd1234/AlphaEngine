@@ -146,7 +146,7 @@ describe("the accent fill stays with controls that commit something", () => {
       // still pass the commit test.
       "components/auth/LoginCard.tsx",               // sign in / create account
       "components/auth/LoginScreen.tsx",             // open the workspace as a guest
-      "components/data/DataWorkBoard.tsx",           // add to intake — the commit that creates an item
+      "components/data/WorkComposer.tsx",            // add to intake — the commit that creates an item
       "components/developer/DeveloperWorkQueue.tsx", // add to triage
       "components/execution/OrderTicketForm.tsx",    // send order
       "components/execution/PnlStrip.tsx",           // enter sandbox
