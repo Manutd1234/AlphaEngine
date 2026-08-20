@@ -417,8 +417,13 @@ const COMPONENTS = [
   "../components/portfolio/BookChrome.tsx",
   "../components/portfolio/WorkingOrders.tsx",
   // Two pane states above a loading bail-out — the exact shape the check was
-  // written for, opted in when the Activity split added the second one.
+  // written for, opted in when the Activity split added the second one. The
+  // feed hook beside it has no bail-out today, so the check passes it without
+  // finding anything; it is listed so that the day someone adds an early
+  // return to it — the natural way to make a hook "not run when unconfigured"
+  // — the rule is already watching the file rather than being remembered.
   "../components/execution/ExecutionCockpit.tsx",
+  "../components/execution/use-cockpit-feed.ts",
   "../lib/use-book.ts",
   "../lib/use-system-health.ts",
   // The four surfaces the 2,000-line Page component was split into. Page
