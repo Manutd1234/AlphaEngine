@@ -20,6 +20,14 @@ import { TEST_COUNTS } from "../lib/test-counts.generated";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (path: string) => readFileSync(`${root}${path}`, "utf8");
 
+/**
+ * Comments stripped. Both surfaces below explain in prose which stamp they
+ * carry and why, and a scan that cannot tell the explanation from the render
+ * would count the paragraph as one of the two renderings it is asking for.
+ */
+const code = (source: string) =>
+  source.replace(/\{\/\*[\s\S]*?\*\/\}/g, "").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+
 describe("the manifest states when it was generated", () => {
   it("carries version 2 provenance fields", () => {
     assert.equal(manifest.version, 2);
@@ -34,8 +42,11 @@ describe("the manifest states when it was generated", () => {
   });
 
   it("the shared-context facts strip titles its file count with the stamp", () => {
-    const console_ = read("components/DeveloperConsole.tsx");
-    assert.match(console_, /Manifest generated \$\{REPOSITORY_MANIFEST_PROVENANCE\.generatedAt\}/);
+    // The facts strip left `DeveloperConsole` with the rest of the topology
+    // section when the console passed the length ceiling; it renders from
+    // `components/developer/DeveloperOverview.tsx` now.
+    const overview = read("components/developer/DeveloperOverview.tsx");
+    assert.match(overview, /Manifest generated \$\{REPOSITORY_MANIFEST_PROVENANCE\.generatedAt\}/);
   });
 });
 
@@ -46,9 +57,12 @@ describe("the test counts state when they were measured", () => {
 
   it("the CI/CD surface renders the date, twice", () => {
     // Once on the hero pill, once on the verification matrix heading — the
-    // two places a reader takes the totals from.
-    const console_ = read("components/DeveloperConsole.tsx");
-    const stamps = console_.match(/TEST_COUNTS\.generatedOn/g) ?? [];
+    // two places a reader takes the totals from. Both moved out of
+    // `DeveloperConsole` into `components/developer/DeveloperPipelines.tsx`,
+    // which is the CI / CD section now; comments are stripped so the file's
+    // own paragraph about the stamp cannot stand in for a rendering of it.
+    const pipelines = code(read("components/developer/DeveloperPipelines.tsx"));
+    const stamps = pipelines.match(/TEST_COUNTS\.generatedOn/g) ?? [];
     assert.ok(
       stamps.length >= 2,
       `the generatedOn stamp appears ${stamps.length} time(s); the pill and the matrix heading both need it`,
