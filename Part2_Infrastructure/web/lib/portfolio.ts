@@ -26,6 +26,7 @@
  */
 
 import { sandboxBlotter } from "@/lib/blotter";
+import { constraintLabel } from "@/lib/format";
 
 export interface Headroom {
   used: number;
@@ -431,9 +432,10 @@ export function limitRows(book: PortfolioPayload): LimitRow[] {
       headroom: largest.symbol_limit.remaining,
       headroomUnit: "usd",
       utilisation: largest.symbol_limit.utilisation,
-      // The gateway names the binder either by kind or by the symbol itself,
-      // depending on which limit tripped. Match both rather than guessing.
-      binding: constraint === "symbol_limit" || constraint === largest.symbol,
+      // The live gateway names the binder `symbol:SYM` (modules/portfolio.py);
+      // older payloads used the kind or the bare symbol. Match all three.
+      binding: constraint === "symbol_limit" || constraint === largest.symbol
+        || constraint === `symbol:${largest.symbol}`,
     });
   }
 
@@ -442,12 +444,9 @@ export function limitRows(book: PortfolioPayload): LimitRow[] {
 
 export function bookStatus(book: PortfolioPayload): BookStatus {
   const [constraint, bindingUtilisation] = book.risk_budget.binding_constraint;
-  const utilisation = Math.max(
-    bindingUtilisation,
-    book.risk_budget.gross_exposure.utilisation,
-    book.risk_budget.daily_drawdown.utilisation,
-  );
-  const readable = constraint.replace(/_/g, " ");
+  const utilisation = Math.max(bindingUtilisation,
+    book.risk_budget.gross_exposure.utilisation, book.risk_budget.daily_drawdown.utilisation);
+  const readable = constraintLabel(constraint);
 
   if (book.trading_halted) {
     return {

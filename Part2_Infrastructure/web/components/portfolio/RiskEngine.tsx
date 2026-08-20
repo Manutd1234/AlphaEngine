@@ -168,8 +168,7 @@ export default function RiskEngine({
           <div>
             <strong>Realised losses are fatter than the normal model.</strong> Historical VaR is{" "}
             {usd(tailGap, 0)} worse than parametric ({pct(tailGap / Math.max(1, risk.var95), 0)} more).
-            The normal assumption is understating this book&apos;s tail — size against the historical
-            figure, not the parametric one.
+            Size against the historical figure, not the parametric one.
           </div>
         </div>
       )}

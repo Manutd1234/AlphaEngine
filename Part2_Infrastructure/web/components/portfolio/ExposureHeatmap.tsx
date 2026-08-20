@@ -226,8 +226,8 @@ export default function ExposureHeatmap({
         <p className="research-note">
           Share of gross ranks positions by size; utilisation ranks them by how close each is to the
           cap the risk gate will actually enforce on it. A small position can be the one nearest a
-          hard stop, so limit pressure binds before concentration does. Only utilisation is drawn —
-          it is the measure with a defined full, and share of gross has no meaningful 100%.
+          hard stop, so limit pressure binds before concentration does. Only utilisation is drawn:
+          share of gross has no meaningful 100% to draw against.
         </p>
       </details>
 

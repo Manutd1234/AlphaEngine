@@ -398,7 +398,7 @@ export default function WorkingOrders({
           The pre-trade gates already treat a resting order as committed capital: a new order is
           projected against the worst side of this book filling, so two orders that each pass a
           symbol cap alone cannot pass it together. Filling one is not modelled as a queue — it fills
-          in full the moment the consolidated touch crosses it, which is optimistic and says so.
+          in full the moment the consolidated touch crosses it, which is optimistic.
         </p>
       </details>
     </div>

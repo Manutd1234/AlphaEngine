@@ -179,11 +179,10 @@ export default function RiskAdjustedTrend({
 
       <p className="research-note">
         Drawdown is measured against the same running high-water mark the gateway&rsquo;s halt rule
-        uses, so this is the desk&rsquo;s own governing number rather than a second opinion about it.
-        The Sharpe line is <strong>per observation and not annualised</strong>: the equity track is a
-        poll series with no stable period, and scaling it to a year would mean inventing one. It is
-        blank for the first {MIN_SHARPE_OBSERVATIONS} observations and breaks wherever the trailing
-        window is too thin to score.
+        uses. The Sharpe line is <strong>per observation and not annualised</strong>: the equity
+        track is a poll series with no stable period, and scaling it to a year would mean inventing
+        one. It is blank for the first {MIN_SHARPE_OBSERVATIONS} observations and breaks wherever
+        the trailing window is too thin to score.
         {generated && " Generated path for the sandbox book."}
       </p>
     </section>

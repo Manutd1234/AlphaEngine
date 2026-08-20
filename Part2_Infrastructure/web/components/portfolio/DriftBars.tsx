@@ -269,9 +269,9 @@ export default function DriftBars({
         <span className="num">(target notional − current notional) ÷ gross before</span> — a share
         of the <strong>whole book</strong>, not of the position, so a bar reading{" "}
         {pct(driftBand, 0)} on a name that is twice that size means moving half of it. The band is
-        one number doing two jobs: it decides the colour here, and it is the same filter the trade
-        list uses. A coloured bar and a trade row are therefore the same set, exactly — dragging the
-        slider recolours bars and adds or removes trades in one motion.
+        one number doing two jobs: the colour here, and the filter on the trade list.
+        A coloured bar and a trade row are therefore the same set, exactly — dragging the slider
+        recolours bars and adds or removes trades in one motion.
       </p>
 
       {unbalancedSum != null && (
@@ -298,8 +298,7 @@ export default function DriftBars({
       {only && (
         <p className="research-note">
           <strong>One position, so nothing here can move.</strong> A single-asset book is trivially
-          100% of itself under every method offered — equal weight, inverse volatility, equal risk
-          contribution and minimum variance all return the same single weight — which is why the
+          100% of itself under every method offered, which is why the
           model selector produces identical output whichever one is picked.
           {onTarget ? (
             <>
@@ -308,9 +307,9 @@ export default function DriftBars({
                 ({usd(only.targetNotional)} − {usd(only.currentNotional)}) ÷{" "}
                 {usd(only.currentNotional)} = 0
               </span>
-              , so the bar is a one-pixel hairline, no position sits outside the band at any width,
-              and the drift-band slider has nothing to add or remove. The panel is measuring
-              correctly; there is simply no allocation decision inside a book of one.
+              , so the bar is a one-pixel hairline: a measured zero is drawn rather than omitted. No
+              position sits outside the band at any width, and the drift-band slider has nothing to
+              add or remove.
             </>
           ) : (
             <>

@@ -142,8 +142,8 @@ export default function CorrelationMatrix({ model, worst, observations }: Correl
 
       <p className="research-note">
         Measured from {observations} daily closes of the instruments actually held, not from assumed
-        factor loadings. The diagonal is 1.00 by construction and is coloured as such — it is the one
-        cell in the matrix whose value is certain.
+        factor loadings. The diagonal is 1.00 by construction and is coloured as such — the one cell
+        here whose value is certain rather than measured.
       </p>
     </div>
   );

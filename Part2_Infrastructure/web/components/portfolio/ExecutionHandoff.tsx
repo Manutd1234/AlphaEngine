@@ -93,7 +93,7 @@ function requestFor(intent: HandoffIntent): Composed {
         // not exist and would have 404ed for anyone who ran it.
         path: "/api/orders (one per open position)",
         body: JSON.stringify({ symbol: "<each position>", side: "<opposite>", order_type: "MARKET" }, null, 2),
-        why: "Submits a closing order for every open position through the same pre-trade gates as any other order — it is not a bypass. Orders go one at a time so they cannot race the gateway's exposure accounting.",
+        why: "Submits a closing order for every open position through the same pre-trade gates as any other order. Orders go one at a time so they cannot race the gateway's exposure accounting.",
         action: "flatten",
         confirmWord: "FLATTEN",
       };

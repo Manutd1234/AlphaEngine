@@ -19,7 +19,7 @@
  * is appended for it rather than letting the tightest limit go unshown.
  */
 
-import { fmt, pct, usd } from "@/lib/format";
+import { constraintLabel, fmt, pct, usd } from "@/lib/format";
 import { limitTone } from "@/lib/portfolio";
 
 interface Gauge {
@@ -133,7 +133,7 @@ export default function HeadroomBar({
     // Never silently drop the constraint that decides everything.
     gauges.push({
       id: bindingConstraint,
-      label: bindingConstraint.replace(/_/g, " "),
+      label: constraintLabel(bindingConstraint),
       value: pct(bindingUtilisation, 1),
       limit: "of limit",
       utilisation: bindingUtilisation,

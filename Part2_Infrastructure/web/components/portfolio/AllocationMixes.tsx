@@ -99,8 +99,8 @@ export default function AllocationMixes({
         </summary>
         <p className="research-note">
           <strong>Asset class</strong> is gross exposure classified by the same module that routes
-          each symbol&rsquo;s quotes, reused rather than copied so it cannot drift from the judgement
-          that decides where quotes are actually fetched.
+          each symbol&rsquo;s quotes, so it cannot drift from the judgement that decides where quotes
+          are actually fetched.
         </p>
         <p className="research-note">
           <strong>Settlement currency is derived from the ticker.</strong> No currency is recorded on

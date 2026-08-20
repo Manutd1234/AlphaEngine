@@ -356,9 +356,9 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
       {waterfall.carriedMarkToMarket != null && Math.abs(waterfall.carriedMarkToMarket) > 1 && (
         <p className="research-note">
           Day P&amp;L differs from realised plus unrealised by {usd(waterfall.carriedMarkToMarket, 0)}.
-          On a multi-day book that gap is legitimate — it is mark-to-market carried in on positions
-          opened before this session — and it is reported here rather than drawn as a leg, because it
-          is a property of the book&apos;s history and not of today&apos;s trading.
+          On a multi-day book that gap is legitimate: mark-to-market carried in on positions opened
+          before this session, a property of the book&apos;s history rather than of today&apos;s
+          trading, so it is reported rather than drawn as a leg.
         </p>
       )}
 

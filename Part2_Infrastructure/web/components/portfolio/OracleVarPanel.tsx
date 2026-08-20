@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import StatTile from "@/components/StatTile";
 import { fmt, usd } from "@/lib/format";
+import { gbmTerminalVar99 } from "@/lib/portfolio-risk";
 
 interface OracleVarOk {
   state: "ok";
@@ -26,6 +27,18 @@ type OracleVarResponse = OracleVarOk | OracleVarUnavailable;
  * report a failure for work that was about to succeed.
  */
 const ORACLE_DEADLINE_MS = 9000;
+
+/**
+ * The drift the simulation runs on: a modelled 8% expected annual return.
+ *
+ * One named constant, sent to the procedure and then read BACK off the
+ * response's echoed assumptions by the closed-form comparison below — so the
+ * two figures cannot quietly run on different drifts. That is the defect this
+ * panel used to have: the request carried this 8% inline while the comparison
+ * was the zero-drift z99·σ·√t shortcut, and at 30 days the drift term alone
+ * (≈ equity·μ·T) showed up as a −22% "divergence" blamed on the inputs.
+ */
+const GBM_EXPECTED_ANNUAL_RETURN = 0.08;
 
 /**
  * A second, independent VaR — computed inside Oracle 23ai rather than in this
@@ -57,12 +70,20 @@ export default function OracleVarPanel({
   /** From the measured covariance model, so both figures share one input. */
   annualVol: number | null;
   sandbox: boolean;
-  /** Owned by the montecarlo section's seg, shared with the bootstrap card
-   *  above, so the two loss estimates always answer over one horizon. */
+  /** Owned by RiskWorkspace's shared horizon state, rendered as a seg above
+   *  this card and above the bootstrap card on the Monte Carlo subtab, so the
+   *  two loss estimates always answer over one horizon. */
   horizonDays: number;
 }) {
   const [result, setResult] = useState<OracleVarResponse | null>(null);
   const [running, setRunning] = useState(false);
+
+  // Quantised so a live book repolling every 15s does not re-simulate on every
+  // equity tick — the restraint MonteCarloDistribution already credits this
+  // panel with sharing. A sub-thousand-dollar equity move does not change a
+  // 99th percentile read at this scale; a card that swapped its figures for a
+  // skeleton on each poll did change, visibly, every fifteen seconds.
+  const equityForRun = Math.round(equity / 1_000) * 1_000 || equity;
 
   const run = useCallback(async () => {
     if (annualVol === null) return;
@@ -87,7 +108,13 @@ export default function OracleVarPanel({
       const response = await fetch("/api/oracle/var", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ equity, sigma: annualVol, mu: 0.08, days: horizonDays, simulations: 20000 }),
+        body: JSON.stringify({
+          equity: equityForRun,
+          sigma: annualVol,
+          mu: GBM_EXPECTED_ANNUAL_RETURN,
+          days: horizonDays,
+          simulations: 20000,
+        }),
         signal: controller.signal,
       });
       setResult((await response.json()) as OracleVarResponse);
@@ -95,15 +122,18 @@ export default function OracleVarPanel({
       setResult({
         state: "unavailable",
         code: "network",
+        // No parametric figure either: the comparison prices the assumptions
+        // the database echoes back, so with no answer there is nothing
+        // honest to price. The banner below names the VaR that is unaffected.
         error: controller.signal.aborted
-          ? `The database did not answer within ${ORACLE_DEADLINE_MS / 1000}s. On Always-Free it may have auto-stopped; the parametric comparison beside this is unaffected.`
+          ? `The database did not answer within ${ORACLE_DEADLINE_MS / 1000}s. On Always-Free it may have auto-stopped.`
           : "The request did not complete. The workspace may be offline.",
       });
     } finally {
       clearTimeout(timer);
       setRunning(false);
     }
-  }, [annualVol, equity, horizonDays]);
+  }, [annualVol, equityForRun, horizonDays]);
 
   // Runs once the volatility input exists, and again when the horizon changes.
   // Not on every equity tick: this spends database CPU, and a VaR that
@@ -112,25 +142,37 @@ export default function OracleVarPanel({
     void run();
   }, [run]);
 
-  const clientVar = annualVol === null
+  /**
+   * The parametric comparison prices the SAME model the database simulates —
+   * the lognormal terminal quantile with the same drift, the same volatility
+   * and the same 365-day horizon — so the only thing left between the two
+   * figures is sampling error, which is what the divergence tile is for. It
+   * reads the response's ECHOED assumptions rather than this component's own
+   * request, because the route clamps its inputs and a clamped input read
+   * against the unclamped original would surface as method disagreement.
+   */
+  const assumptions = result?.state === "ok" ? result.assumptions : null;
+  const clientVar = assumptions === null
     ? null
-    // The parametric comparison, on the same horizon and the same volatility:
-    // 2.326σ is the 99th percentile of the standard normal.
-    : 2.326 * annualVol * Math.sqrt(horizonDays / 365) * equity;
+    : gbmTerminalVar99(assumptions.equity, assumptions.mu, assumptions.sigma, assumptions.days);
 
-  const divergence = result?.state === "ok" && clientVar
+  // `clientVar > 0` is the division guard, not zero-coercion: both formulae
+  // floor at zero under an extreme drift, and a ratio against that floor
+  // would be noise. The tile renders the dash instead.
+  const divergence = result?.state === "ok" && clientVar !== null && clientVar > 0
     ? (result.var99 - clientVar) / clientVar
     : null;
 
   return (
-    <div className="card">
+    <div className="card" aria-busy={running}>
       <div className="portfolio-card-heading">
         <div>
           <span className="page-kicker">Independent computation</span>
           <h2>In-database Monte Carlo VaR</h2>
         </div>
-        {/* No control here: the horizon is the section seg above both cards.
-            The figure states its own horizon in the tile note below. */}
+        {/* No control here: the workspace renders the shared horizon seg above
+            this card, and again above the bootstrap card on the Monte Carlo
+            subtab. The figure states its own horizon in the tile note below. */}
         <span>{horizonDays}-day horizon</span>
       </div>
       {/* Which database is this card's own fact; that it is not this browser
@@ -139,8 +181,7 @@ export default function OracleVarPanel({
           without the horizon it answers over is the wrong number. */}
       <p className="sub">
         Simulated by Oracle 23ai. It is a <strong>terminal-value</strong> GBM VaR over the
-        horizon — a different question from the one-day book VaR above, so the two are shown side
-        by side rather than merged.
+        horizon — a different question from the one-day book VaR on the VaR &amp; model section.
       </p>
 
       {annualVol === null ? (
@@ -148,56 +189,69 @@ export default function OracleVarPanel({
           Waiting for the covariance model. Both figures use the same measured volatility, so
           neither runs until it exists.
         </p>
-      ) : result === null || running ? (
-        <div className="skeleton" style={{ height: 96 }} />
-      ) : result.state === "unavailable" ? (
-        <div className="banner warn" role="status">
-          <span aria-hidden>!</span>
-          <div>
-            <strong>Not computed.</strong> {result.error}
-            {" "}The client-side figure above is unaffected — it never depended on this.
-          </div>
-        </div>
       ) : (
-        <>
-          {/* `<StatTile>`, not four hand-typed copies of what it renders. Note
-              the null handling survives the move intact: a missing parametric
-              VaR or divergence renders "—", never a zero. */}
-          <div className="tiles stability-tiles">
-            <StatTile
-              label="Oracle VaR 99"
-              value={usd(result.var99, 0)}
-              tone="neg"
-              note={`${result.pathsUsed.toLocaleString()} paths over ${horizonDays} d`}
-            />
-            <StatTile
-              label="Parametric VaR 99"
-              value={clientVar ? usd(clientVar, 0) : "—"}
-              note="2.326σ·√t, same volatility"
-            />
-            <StatTile
-              label="Divergence"
-              value={divergence === null ? "—" : `${divergence > 0 ? "+" : ""}${fmt(divergence * 100, 1)}%`}
-              tone={divergence !== null && Math.abs(divergence) > 0.15 ? "neg" : undefined}
-              note="simulated vs closed form"
-            />
-            <StatTile
-              label="Expected equity"
-              value={usd(result.expectedEquity, 0)}
-              note={`mean terminal value; computed in ${result.computedInMs} ms`}
-            />
-          </div>
-          <p className="sub">
-            {divergence !== null && Math.abs(divergence) > 0.15
-              ? "The two methods disagree by more than 15%. That is the interesting number: lognormal "
-                + "terminal values are skewed, so the simulation should sit below the symmetric "
-                + "closed form at long horizons — a large gap in the other direction means one of "
-                + "the inputs is wrong."
-              : "The two agree within sampling error, which is what a correct implementation of both "
-                + "looks like."}
-            {sandbox && " Book is the generated sandbox, so the equity input is not a real position."}
-          </p>
-        </>
+        /* One space-reserving box around every post-model state. The card used
+           to swap a 96px skeleton for a ~190px result on each run, so a horizon
+           change (and, before the equity quantisation above, every book poll)
+           bounced whatever sat below it. The skeleton now fills the same box
+           the tiles and their caption occupy, so a re-run changes the pixels,
+           not the layout. */
+        <div style={{ minHeight: 192 }}>
+          {result === null || running ? (
+            <div className="skeleton" style={{ height: 192 }} />
+          ) : result.state === "unavailable" ? (
+            <div className="banner warn" role="status">
+              <span aria-hidden>!</span>
+              <div>
+                <strong>Not computed.</strong> {result.error}
+                {" "}The workspace&apos;s own VaR on the VaR &amp; model section is unaffected —
+                it never depended on this.
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* `<StatTile>`, not four hand-typed copies of what it renders.
+                  Note the null handling survives the move intact: a missing
+                  parametric VaR or divergence renders "—", never a zero — and
+                  a genuine floored-at-zero VaR renders as $0, which is why the
+                  dash tests for null rather than falsiness. */}
+              <div className="tiles stability-tiles">
+                <StatTile
+                  label="Oracle VaR 99"
+                  value={usd(result.var99, 0)}
+                  tone="neg"
+                  note={`${result.pathsUsed.toLocaleString()} paths over ${horizonDays} d`}
+                />
+                <StatTile
+                  label="Parametric VaR 99"
+                  value={clientVar === null ? "—" : usd(clientVar, 0)}
+                  note="closed form, same GBM drift and volatility"
+                />
+                <StatTile
+                  label="Divergence"
+                  value={divergence === null ? "—" : `${divergence > 0 ? "+" : ""}${fmt(divergence * 100, 1)}%`}
+                  tone={divergence !== null && Math.abs(divergence) > 0.15 ? "neg" : undefined}
+                  note="simulated vs closed form"
+                />
+                <StatTile
+                  label="Expected equity"
+                  value={usd(result.expectedEquity, 0)}
+                  note={`mean terminal value; computed in ${result.computedInMs} ms`}
+                />
+              </div>
+              <p className="sub">
+                {divergence !== null && Math.abs(divergence) > 0.15
+                  ? "The two methods disagree by more than 15%. They price the same lognormal "
+                    + "terminal distribution — one by simulation, one in closed form — so a gap "
+                    + "this size is not sampling error at this path count: one of the two is not "
+                    + "running the inputs shown beside it, and the gap is the finding."
+                  : "The two agree within sampling error, which is what a correct implementation "
+                    + "of both looks like."}
+                {sandbox && " Book is the generated sandbox, so the equity input is not a real position."}
+              </p>
+            </>
+          )}
+        </div>
       )}
     </div>
   );

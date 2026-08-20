@@ -64,8 +64,9 @@ function limitValue(value: number, unit: "usd" | "pct"): string {
   return unit === "usd" ? usd(value, 0) : pct(value, 2);
 }
 
-/** The montecarlo section's shared forward horizon, in days. 1 day is here for
- *  the GBM panel's original range; the bootstrap converts it to ≥1 bar. */
+/** The montecarlo and oraclevar sections' shared forward horizon, in days.
+ *  1 day is here for the GBM panel's original range; the bootstrap converts
+ *  it to ≥1 bar. */
 const MC_HORIZON_CHOICES = [1, 10, 30, 90] as const;
 
 export default function RiskWorkspace({
@@ -82,10 +83,13 @@ export default function RiskWorkspace({
   const [handoff, setHandoff] = useState<HandoffIntent | null>(null);
   /**
    * One horizon for both Monte Carlos. Each card used to carry its own
-   * "Horizon" select, so the section's stated purpose — read the two loss
-   * estimates against each other — only held after the reader had manually
-   * set two controls to the same value. A comparison with two clocks is not
-   * a comparison.
+   * "Horizon" select, so their stated purpose — read the two loss estimates
+   * against each other — only held after the reader had manually set two
+   * controls to the same value. A comparison with two clocks is not a
+   * comparison. The cards now live on separate subtabs (montecarlo and
+   * oraclevar), which is exactly why the state stays HERE rather than
+   * moving into either: the seg on one subtab sets the horizon the other
+   * answers over too.
    */
   const [mcHorizonDays, setMcHorizonDays] = useState<number>(30);
 
@@ -108,6 +112,49 @@ export default function RiskWorkspace({
 
   const binding = book.risk_budget.binding_constraint;
   const positions = book.exposure.positions;
+
+  /**
+   * Same props, same snapshot, one half each. The model and drivers subtabs
+   * cannot disagree about the book because they are one component reading one
+   * set of props — written once here so that stays true by construction rather
+   * than by two panels being kept in step by hand.
+   */
+  const riskEngine = (part: "model" | "drivers") => (
+    <RiskEngine
+      risk={risk}
+      model={covarianceModel}
+      loading={riskLoading && !risk}
+      missing={missingHistory}
+      validation={varValidation}
+      varSeries={varSeries}
+      sandbox={Boolean(book.sandbox)}
+      part={part}
+    />
+  );
+
+  /**
+   * One horizon, two controls. The montecarlo and oraclevar subtabs each
+   * render this seg above their card; both read and set the same state, so
+   * whichever one the reader touches, the two loss estimates stay on one
+   * clock. Distinct aria-labels per call site, because two controls
+   * announcing identically would read to a screen reader as one control
+   * rendered twice.
+   */
+  const horizonSeg = (ariaLabel: string) => (
+    <div className="seg research-seg" role="group" aria-label={ariaLabel}>
+      {MC_HORIZON_CHOICES.map((days) => (
+        <button
+          key={days}
+          type="button"
+          aria-pressed={mcHorizonDays === days}
+          title={`Run both estimates over a ${days}-day forward horizon`}
+          onClick={() => setMcHorizonDays(days)}
+        >
+          {days}d
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <>
@@ -255,48 +302,15 @@ export default function RiskWorkspace({
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="risk" tabId="model" activeId={section}>
-        <RiskEngine
-          risk={risk}
-          model={covarianceModel}
-          loading={riskLoading && !risk}
-          missing={missingHistory}
-          validation={varValidation}
-          varSeries={varSeries}
-          sandbox={Boolean(book.sandbox)}
-          part="model"
-        />
+        {riskEngine("model")}
       </WorkspaceSubtabPanel>
 
-      {/* Same props, same snapshot, second half. The two panels cannot disagree
-          about the book because they are one component reading one set of
-          props. */}
       <WorkspaceSubtabPanel workspaceId="risk" tabId="drivers" activeId={section}>
-        <RiskEngine
-          risk={risk}
-          model={covarianceModel}
-          loading={riskLoading && !risk}
-          missing={missingHistory}
-          validation={varValidation}
-          varSeries={varSeries}
-          sandbox={Boolean(book.sandbox)}
-          part="drivers"
-        />
+        {riskEngine("drivers")}
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="risk" tabId="montecarlo" activeId={section}>
-        <div className="seg research-seg" role="group" aria-label="Forward horizon for both loss estimates">
-          {MC_HORIZON_CHOICES.map((days) => (
-            <button
-              key={days}
-              type="button"
-              aria-pressed={mcHorizonDays === days}
-              title={`Run both estimates over a ${days}-day forward horizon`}
-              onClick={() => setMcHorizonDays(days)}
-            >
-              {days}d
-            </button>
-          ))}
-        </div>
+        {horizonSeg("Forward horizon for the bootstrap loss estimate")}
         <MonteCarloDistribution
           driver={mcDriver}
           equity={book.equity.current}
@@ -306,11 +320,17 @@ export default function RiskWorkspace({
           horizonDays={mcHorizonDays}
           onOpenResearch={onOpenResearch}
         />
-        {/* The two Monte Carlos live together on purpose: a bootstrap of the
-            strategy's realised returns above, a GBM simulated in the database
-            below. They answer the same question two ways, and disagreement
-            between them is signal about the method, not an error — which is
-            why the horizon seg above sets both at once. */}
+      </WorkspaceSubtabPanel>
+
+      {/* The two Monte Carlos are one subtab apart on purpose: a bootstrap of
+          the strategy's realised returns behind the montecarlo tab above, a
+          GBM simulated in the database here. They answer the same question
+          two ways, and disagreement between them is signal about the method,
+          not an error — which is why the two subtabs share one horizon state:
+          the seg on either sets both, so the estimates can never be read
+          against each other on two different clocks. */}
+      <WorkspaceSubtabPanel workspaceId="risk" tabId="oraclevar" activeId={section}>
+        {horizonSeg("Forward horizon for the Oracle GBM loss estimate")}
         <OracleVarPanel
           equity={book.equity.current}
           annualVol={risk?.annualisedVolatility ?? null}

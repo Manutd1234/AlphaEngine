@@ -49,7 +49,7 @@ const METHODS: Array<{ id: AllocationMethod; label: string; group: string; expla
     id: "equal_weight",
     label: "Equal weight",
     group: "Naive",
-    explain: "Every position the same size. It knows nothing about volatility or correlation and does not pretend to — which is what makes it the baseline the other three have to beat.",
+    explain: "Every position the same size. It knows nothing about volatility or correlation, which is what makes it the baseline the other three have to beat.",
   },
   {
     id: "inverse_vol",
@@ -358,16 +358,16 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
         </summary>
         <p className="research-note">
           {manual
-            ? `Targets you typed, seeded from ${selected.label.toLowerCase()}. The Model column keeps the solved answer beside yours.`
+            ? `Targets you typed, seeded from ${selected.label.toLowerCase()}.`
             : selected.explain}
         </p>
         <p className="research-note">
           {manual ? (
             <>
-              These target weights were entered, not solved. The Model column shows what{" "}
-              {selected.label.toLowerCase()} proposed; the difference is a judgement this panel does
-              not evaluate. Weights you do not pin are spread across the remainder in the
-              model&apos;s own proportions, so pinning one name does not silently resize the rest.
+              The Model column shows what {selected.label.toLowerCase()} proposed; the difference is
+              a judgement this panel does not evaluate. Weights you do not pin are spread across the
+              remainder in the model&apos;s own proportions, so pinning one name does not silently
+              resize the rest.
             </>
           ) : (
             <>
@@ -383,7 +383,7 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
             reason is the only part it does not carry. */}
         <p className="research-note">
           Correcting a small deviation costs more in fees and slippage than the deviation costs in
-          risk. That is what the band is buying.
+          risk. That is what the band buys.
         </p>
         {capBinds && (
           <p className="research-note">
