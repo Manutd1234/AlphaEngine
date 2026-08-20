@@ -22,24 +22,22 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import MlRunCapsule, { PBO_NOT_APPLICABLE, type MlRunProvenance } from "@/components/research/MlRunCapsule";
 import StatTile from "@/components/StatTile";
 import { fmt } from "@/lib/format";
 import { GATEWAY_DEADLINE_MS, probeGateway } from "@/lib/use-gateway-connection";
 
-/** One run, as /api/gateway/research/ml/runs returns it. */
-interface MlRun {
-  id: string;
-  model: string;
-  symbol: string;
-  interval: string;
-  data_hash: string;
-  seed: number;
-  git_sha: string | null;
-  engine: string;
-  status: string;
+/**
+ * One run, as /api/gateway/research/ml/runs returns it.
+ *
+ * The provenance half is `MlRunProvenance`, declared by the capsule that
+ * renders it — the run's identity and the table's measurements are two
+ * different readings of the same row, and only one of them is what a re-run
+ * needs.
+ */
+interface MlRun extends MlRunProvenance {
   oos_sharpe: number | null;
   deflated_sharpe: number | null;
-  pbo: number | null;
   started_at: string;
   finished_at: string | null;
   error: string | null;
@@ -150,6 +148,20 @@ export default function FittedModels() {
 
   const runs = load.status === "done" ? load.payload.runs : [];
   const succeeded = runs.filter((run) => run.status === "succeeded");
+  /** The deflated Sharpes that exist. A run without one did not score zero. */
+  const deflated = succeeded
+    .map((run) => run.deflated_sharpe)
+    .filter((value): value is number => value != null);
+
+  /**
+   * Which run the capsule describes.
+   *
+   * Derived rather than kept in sync by an effect: a refresh that drops the
+   * chosen run falls back to the newest one on the next render, so the capsule
+   * can never point at a row the table no longer shows.
+   */
+  const [chosenId, setChosenId] = useState<string | null>(null);
+  const chosen = runs.find((run) => run.id === chosenId) ?? runs[0] ?? null;
 
   return (
     <div className="card">
@@ -208,10 +220,17 @@ export default function FittedModels() {
             value={String(runs.length)}
             note={`${succeeded.length} succeeded`}
           />
+          {/* `?? 0` inside the max reported "0.00" as the best hurdle cleared
+              on a corpus where no run scored one — the most reassuring reading
+              of no information at all. Runs without the figure are dropped
+              from the max, and a max over nothing is dashed. */}
           <StatTile
             label="Best deflated Sharpe"
-            value={fmt(Math.max(...succeeded.map((r) => r.deflated_sharpe ?? 0)), 2)}
-            note="after paying for the search"
+            value={deflated.length > 0 ? fmt(Math.max(...deflated), 2) : "—"}
+            note={deflated.length > 0
+              ? "after paying for the search"
+              : "no succeeded run scored one"}
+            tone={deflated.length > 0 ? undefined : "muted"}
           />
           <StatTile
             label="Engines"
@@ -221,12 +240,15 @@ export default function FittedModels() {
         </div>
       )}
 
+      {chosen && <MlRunCapsule run={chosen} />}
+
       {runs.length > 0 && (
         <div className="table-wrap" tabIndex={0}>
           <table>
             <caption className="sr-only">
               Supervised research runs, newest first, with their out-of-sample and deflated
-              Sharpe ratios and the engine each ran on.
+              Sharpe ratios and the engine each ran on. Each model name is a button that shows
+              that run in the reproducibility capsule above.
             </caption>
             <thead>
               <tr>
@@ -243,16 +265,35 @@ export default function FittedModels() {
             <tbody>
               {runs.map((run) => (
                 <tr key={run.id}>
-                  <td>{run.model}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="text-action"
+                      aria-pressed={chosen?.id === run.id}
+                      onClick={() => setChosenId(run.id)}
+                    >
+                      {run.model}
+                    </button>
+                  </td>
                   <td className="num">{run.symbol} {run.interval}</td>
                   <td>{run.engine}</td>
                   <td><Figure value={run.oos_sharpe} /></td>
                   <td><Figure value={run.deflated_sharpe} /></td>
-                  <td><Figure value={run.pbo} /></td>
+                  {/* Not "not computed": PBO is null on every supervised run
+                      because it does not apply to a run that fitted one
+                      configuration, and those are opposite readings of the
+                      same empty cell. */}
+                  <td>
+                    {run.pbo == null
+                      ? <span className="muted" title={PBO_NOT_APPLICABLE}>not applicable</span>
+                      : <Figure value={run.pbo} />}
+                  </td>
                   {/* The hash, not a date: two runs over the same bars are
                       comparable and two over different bars are not, which is
-                      the only thing this column is for. */}
-                  <td className="num" title={`seed ${run.seed}`}>{run.data_hash.slice(0, 8)}</td>
+                      the only thing this column is for. The tooltip is the
+                      whole digest — it used to be the seed, which had nowhere
+                      else to appear and now has the capsule. */}
+                  <td className="num" title={run.data_hash}>{run.data_hash.slice(0, 8)}</td>
                   <td>
                     {run.status === "failed" && run.error
                       ? <span title={run.error}>failed</span>
