@@ -74,7 +74,7 @@ export default function RunComparison({ a, b, onClose }: RunComparisonProps) {
           <span aria-hidden>?</span>
           <div>
             <strong>Comparability unknown.</strong> At least one run predates dataset fingerprinting,
-            so there is no way to confirm they saw the same prices. Matching dates are not enough.
+            so there is no way to confirm they saw the same prices.
           </div>
         </div>
       )}
@@ -82,8 +82,8 @@ export default function RunComparison({ a, b, onClose }: RunComparisonProps) {
       <h3 className="run-comparison__subhead">What changed in the request</h3>
       {comparison.requestDiffs.length === 0 ? (
         <p className="sub">
-          Identical requests. Any difference below is the engine&apos;s own non-determinism or a
-          change in the underlying data.
+          Identical requests: any difference below is engine non-determinism or a change in the
+          underlying data.
         </p>
       ) : (
         <div className="table-wrap" tabIndex={0}>
