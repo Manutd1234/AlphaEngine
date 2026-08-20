@@ -119,12 +119,12 @@ export default function RemediationLedger({ active }: { active: boolean }) {
       {error ? (
         <p className="muted">
           {error}. The ledger reads this instance&rsquo;s own event ring, so an unreachable route
-          means the reader is broken rather than the desk.
+          breaks the reader, not the desk.
         </p>
       ) : !model.trips ? (
         <p className="muted">
-          No circuit has tripped on this instance since it started — an absence of evidence over a
-          short window and a bounded ring, not a reliability record.
+          No circuit has tripped on this instance since it started — a short window and a bounded
+          ring, not a reliability record.
         </p>
       ) : (
         <>
@@ -241,8 +241,7 @@ export default function RemediationLedger({ active }: { active: boolean }) {
         <p className="muted">
           {model.drills.simulated} simulated outage{model.drills.simulated === 1 ? "" : "s"} and{" "}
           {model.drills.cleared} clearance{model.drills.cleared === 1 ? "" : "s"} in this window,
-          counted separately: a drill is self-inflicted, so clearing one is not a recovery from
-          anything.
+          counted separately: a drill is self-inflicted, so clearing one is not a recovery.
         </p>
       )}
 
@@ -260,14 +259,12 @@ export default function RemediationLedger({ active }: { active: boolean }) {
         <summary>Why a bounded event ring biases the surviving sample short</summary>
         <p className="research-note">
           Pairing needs both the trip and its closure still in this instance&rsquo;s{" "}
-          {data?.cursor.capacity ?? 600}-event ring, shared with dispatch, cache and quota traffic —
-          and a long outage is likeliest to lose its opening line first, so the survivors are
-          disproportionately the incidents that ended quickly.
+          {data?.cursor.capacity ?? 600}-event ring, shared with dispatch, cache and quota traffic,
+          and a long outage loses its opening line first.
         </p>
         <p className="research-note">
-          A diagnostic for one function instance, reset by redeploy and by Clear telemetry, never an
-          SLA. A closure is not a fix: one successful probe closes a circuit that may re-open three
-          failures later.
+          A diagnostic for one function instance, reset by redeploy and by Clear telemetry, never
+          an SLA. A closure is not a fix: a circuit may re-open three failures later.
         </p>
       </details>
     </section>
