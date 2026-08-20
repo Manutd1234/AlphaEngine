@@ -1,0 +1,49 @@
+{
+  "_comment": "Captured verbatim from the vendor by scripts/capture-provider-fixtures.mjs. This is the SHAPE the vendor sends, not the shape this app normalises to — trimming it would test the normaliser rather than the vendor. Refresh deliberately: a change here is a change in what the vendor promises.",
+  "_url": "https://api.binance.com/api/v3/klines?symbol=…&interval=1h&limit=3",
+  "_captured": "2026-08-20",
+  "body": [
+    [
+      1787209200000,
+      "69851.99000000",
+      "70022.00000000",
+      "69506.91000000",
+      "69816.45000000",
+      "2107.14536000",
+      1787212799999,
+      "146891333.73183240",
+      202651,
+      "966.79775000",
+      "67444176.58639600",
+      "0"
+    ],
+    [
+      1787212800000,
+      "69816.45000000",
+      "71826.26000000",
+      "69772.36000000",
+      "71592.10000000",
+      "4173.84476000",
+      1787216399999,
+      "296911673.06659260",
+      552363,
+      "2403.67496000",
+      "170897704.06336880",
+      "0"
+    ],
+    [
+      1787216400000,
+      "71592.11000000",
+      "72067.46000000",
+      "71500.00000000",
+      "71881.99000000",
+      "2237.45275000",
+      1787219999999,
+      "160837275.62075450",
+      257542,
+      "1288.95518000",
+      "92653797.17270420",
+      "0"
+    ]
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "_comment": "Captured verbatim from the vendor by scripts/capture-provider-fixtures.mjs. This is the SHAPE the vendor sends, not the shape this app normalises to — trimming it would test the normaliser rather than the vendor. Refresh deliberately: a change here is a change in what the vendor promises.",
+  "_url": "https://api.bybit.com/v5/market/kline?category=…&symbol=…&interval=60&limit=3",
+  "_captured": "2026-08-20",
+  "body": {
+    "retCode": 0,
+    "retMsg": "OK",
+    "result": {
+      "category": "spot",
+      "symbol": "BTCUSDT",
+      "list": [
+        [
+          "1787216400000",
+          "71585.5",
+          "72071.6",
+          "71479.3",
+          "71880.1",
+          "875.531378",
+          "62884485.72494027"
+        ],
+        [
+          "1787212800000",
+          "69833.5",
+          "71814.9",
+          "69793.6",
+          "71585.5",
+          "1469.410278",
+          "104547845.57137091"
+        ],
+        [
+          "1787209200000",
+          "69863.2",
+          "70039.5",
+          "69516",
+          "69833.5",
+          "639.511318",
+          "44606938.50097219"
+        ]
+      ]
+    },
+    "retExtInfo": {},
+    "time": 1787218795793
+  }
+}

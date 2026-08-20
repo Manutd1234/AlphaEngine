@@ -1,0 +1,28 @@
+{
+  "_comment": "Captured verbatim from the vendor by scripts/capture-provider-fixtures.mjs. This is the SHAPE the vendor sends, not the shape this app normalises to — trimming it would test the normaliser rather than the vendor. Refresh deliberately: a change here is a change in what the vendor promises.",
+  "_url": "https://api.binance.com/api/v3/ticker/24hr?symbol=…",
+  "_captured": "2026-08-20",
+  "body": {
+    "symbol": "BTCUSDT",
+    "priceChange": "7498.94000000",
+    "priceChangePercent": "11.647",
+    "weightedAvgPrice": "68701.11432306",
+    "prevClosePrice": "64383.05000000",
+    "lastPrice": "71881.99000000",
+    "lastQty": "0.00024000",
+    "bidPrice": "71881.99000000",
+    "bidQty": "5.63899000",
+    "askPrice": "71882.00000000",
+    "askQty": "0.34206000",
+    "openPrice": "64383.05000000",
+    "highPrice": "72067.46000000",
+    "lowPrice": "64360.70000000",
+    "volume": "41274.93200000",
+    "quoteVolume": "2835633822.00845860",
+    "openTime": 1787132395008,
+    "closeTime": 1787218795008,
+    "firstId": 6580671396,
+    "lastId": 6586565081,
+    "count": 5893686
+  }
+}
