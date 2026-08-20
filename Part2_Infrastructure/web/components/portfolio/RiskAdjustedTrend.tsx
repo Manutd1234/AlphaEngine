@@ -62,8 +62,7 @@ function Plot({
     return (
       <div ref={ref}>
         <p className="muted">
-          Not enough observations yet — this needs {MIN_SHARPE_OBSERVATIONS} to say anything, and
-          the track is still filling.
+          Not enough observations yet: this needs {MIN_SHARPE_OBSERVATIONS}.
         </p>
       </div>
     );
@@ -140,7 +139,6 @@ export default function RiskAdjustedTrend({
         </div>
         <p className="muted">
           The equity track holds fewer than two observations, so there is no path to measure yet.
-          It fills as the book is polled.
         </p>
       </section>
     );
@@ -178,11 +176,10 @@ export default function RiskAdjustedTrend({
       />
 
       <p className="research-note">
-        Drawdown is measured against the same running high-water mark the gateway&rsquo;s halt rule
-        uses. The Sharpe line is <strong>per observation and not annualised</strong>: the equity
-        track is a poll series with no stable period, and scaling it to a year would mean inventing
-        one. It is blank for the first {MIN_SHARPE_OBSERVATIONS} observations and breaks wherever
-        the trailing window is too thin to score.
+        Drawdown uses the same running high-water mark as the gateway&rsquo;s halt rule.
+        The Sharpe line is <strong>per observation and not annualised</strong>: a poll series has
+        no stable period to scale by. It is blank for the first{" "}
+        {MIN_SHARPE_OBSERVATIONS} observations and breaks wherever the window is too thin to score.
         {generated && " Generated path for the sandbox book."}
       </p>
     </section>
