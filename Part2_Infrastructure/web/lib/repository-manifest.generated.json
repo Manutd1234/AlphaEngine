@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-20",
-  "commit": "ff4fdd7",
+  "commit": "446ca5f",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -474,6 +474,13 @@
     "Part2_Infrastructure/web/lib/paper-equity.ts",
     "Part2_Infrastructure/web/lib/params.ts",
     "Part2_Infrastructure/web/lib/pnl-attribution.ts",
+    "Part2_Infrastructure/web/lib/pnl-attribution/costs.ts",
+    "Part2_Infrastructure/web/lib/pnl-attribution/index.ts",
+    "Part2_Infrastructure/web/lib/pnl-attribution/market.ts",
+    "Part2_Infrastructure/web/lib/pnl-attribution/numbers.ts",
+    "Part2_Infrastructure/web/lib/pnl-attribution/session.ts",
+    "Part2_Infrastructure/web/lib/pnl-attribution/types.ts",
+    "Part2_Infrastructure/web/lib/pnl-attribution/waterfall.ts",
     "Part2_Infrastructure/web/lib/polling.ts",
     "Part2_Infrastructure/web/lib/portfolio-analytics.ts",
     "Part2_Infrastructure/web/lib/portfolio-payload.ts",

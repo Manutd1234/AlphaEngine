@@ -54,7 +54,6 @@ const OVER_CEILING: Record<string, number> = {
   "components/systems/ReliabilityOverview.tsx": 761,
   "lib/providers/contracts.ts": 745,
   "components/profile/ProfileScreen.tsx": 730,
-  "lib/pnl-attribution.ts": 715,
   "lib/use-book.ts": 659,
   "lib/livebook.ts": 645,
   "components/systems/PipelineInspector.tsx": 644,
