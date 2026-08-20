@@ -109,9 +109,8 @@ export default function RiskEngine({
           </div>
         </div>
         <p className="sub">
-          Not enough price history for a covariance. Volatility, VaR and risk contributions need at
-          least 20 aligned observations per instrument, so nothing is shown rather than a figure
-          built on an assumed correlation.
+          Not enough price history for a covariance: this needs at least 20 aligned observations per
+          instrument. Nothing is shown rather than a figure built on an assumed correlation.
         </p>
       </div>
     );
@@ -168,7 +167,7 @@ export default function RiskEngine({
           <div>
             <strong>Realised losses are fatter than the normal model.</strong> Historical VaR is{" "}
             {usd(tailGap, 0)} worse than parametric ({pct(tailGap / Math.max(1, risk.var95), 0)} more).
-            Size against the historical figure, not the parametric one.
+            Size against the historical figure.
           </div>
         </div>
       )}
@@ -189,16 +188,15 @@ export default function RiskEngine({
             {validation.kupiecPValue.toFixed(3)}.
           </p>
           <p className="research-note">
-            {validation.verdict} The forecast is re-fitted on a rolling window and scored on the next
-            bar, never on data it was fitted to.
+            {validation.verdict} Scored on the next bar, never on data it was fitted to.
           </p>
         </div>
       )}
 
       {missing.length > 0 && (
         <p className="research-note">
-          Excluded for want of price history: {missing.join(", ")}. The figures above cover only the
-          instruments that could be measured, so total risk is understated by whatever those carry.
+          Excluded for want of price history: {missing.join(", ")}. Total risk is understated by
+          whatever those carry.
         </p>
       )}
 
