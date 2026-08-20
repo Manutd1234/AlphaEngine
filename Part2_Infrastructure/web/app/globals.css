@@ -261,6 +261,25 @@
   --card-pad: 16px;
   --card-pad-tight: 13px;
 
+  /* One hairline vocabulary, for the same reason there is one card scale.
+     Every divider in the workspace reached for whichever of --grid and
+     --border happened to be nearest, so a table's row rule, the field grid
+     beside it and the panel's own outline were three different weights inside
+     twenty pixels — which is what makes a dense panel read as drifting rather
+     than as ruled. Two names now, and the difference between them is a stated
+     job rather than an accident of which token was in scope:
+
+       --rule       separates REGIONS. A panel head from its tiles, a capsule
+                    from the table under it, a bordered box from its neighbour.
+       --rule-soft  separates ROWS AND COLUMNS INSIDE one region. Table cells,
+                    the reproducibility capsule's field grid, segment seams.
+
+     Both alias the theme's own neutrals, so they flip with the palette, add no
+     colour to the accent budget, and survive forced-colors as borders rather
+     than as washes. */
+  --rule: var(--border);
+  --rule-soft: var(--grid);
+
 }
 
 /* The Text size preference (Quick Settings; lib/text-size.ts). One number,
@@ -724,7 +743,11 @@ a:not([class]):active {
   display: grid;
   /* 6 tiles must land as 6/3/2 across breakpoints, never 5 + an orphan. */
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 12px;
+  /* A row of bordered boxes needs the gutter to be wider than the border it
+     separates, or six outlines read as one grid drawn badly. --space-3 is the
+     12px this already used, taken from the ladder so the tile row moves with
+     the rest of the density scale. */
+  gap: var(--space-3);
 }
 
 /* Measured against the container above, so the same row of tiles is 6-across in
@@ -1536,7 +1559,7 @@ button.icon {
   display: flex;
   gap: 3px;
   background: var(--surface-2);
-  border: 1px solid var(--border);
+  border: 1px solid var(--rule);
   border-radius: var(--radius-control);
   padding: 3px;
 }
@@ -1548,6 +1571,23 @@ button.icon {
   font-size: var(--fs-lg);
   color: var(--text-secondary);
   border-radius: 6px;
+}
+/* Where one segment ends and the next begins. Three pixels of gap and no line
+   left four unselected labels reading as one run of words, on a control that
+   twenty-two components render — so the seam is drawn, at the same hairline
+   the tables and the field grids use. */
+.seg button + button {
+  border-left: 1px solid var(--rule-soft);
+}
+/* A raised chip needs no seam on either side of itself: the surface and the
+   shadow already say where it starts and stops, and a hairline hard against a
+   selected segment reads as a crack in it rather than as a divider between two
+   others. Written selector-first-in-list on purpose — `accent-budget.test.ts`
+   reads the LAST rule whose selector is exactly the pressed segment, and that
+   must stay the one declaring the raised surface. */
+.seg button[aria-pressed="true"],
+.seg button[aria-pressed="true"] + button {
+  border-left-color: transparent;
 }
 /*
  * A selected segment is not a call to action.
@@ -1620,12 +1660,29 @@ button.icon {
   max-height: min(480px, 60vh);
   overflow-y: auto;
 }
+/* A table is a REGION of a panel, so it is drawn as one.
+   Rows were divided and columns were not: eight columns of mono figures ran
+   into each other with nothing between them, and the block as a whole ended
+   wherever its last row happened to stop. Three rules fix it, and they are the
+   same three every table in the workspace now gets:
+
+     - an outer frame at --rule, so the table has an edge and cannot collide
+       with the prose above or below it;
+     - a column rule at --rule-soft on every cell but the last in its row, so
+       the lattice closes and the row rules have something to meet;
+     - a header band, separated from the body by --rule rather than by the
+       same hairline that divides two ordinary rows.
+
+   No radius: `border-collapse: collapse` and `border-radius` do not compose,
+   and a rounded wrapper clipping a square table is two rules fighting. The
+   frame is square on purpose. */
 table {
   width: 100%;
   border-collapse: collapse;
   font-family: var(--mono);
   font-size: var(--fs-lg);
   font-variant-numeric: tabular-nums;
+  border: 1px solid var(--rule);
 }
 th {
   text-align: right;
@@ -1634,9 +1691,22 @@ th {
   letter-spacing: var(--ls-caps);
   color: var(--text-muted);
   font-weight: 600;
-  padding: 0 10px 8px;
-  border-bottom: 1px solid var(--grid);
+  /* Was `0 10px 8px` — no top padding, because with no band behind it the
+     header was floating text rather than a row. It is a row now. */
+  padding: var(--space-2) var(--space-3);
+  /* --rule, not --rule-soft: the seam between the header and the body is a
+     different kind of edge from the seam between two rows, and drawing both
+     at the same weight is why a long table loses its header. */
+  border-bottom: 1px solid var(--rule);
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
   white-space: nowrap;
+}
+/* The column rule. Never on the last cell of a row — the frame draws that
+   edge, and a second line 1px inside it is the collision this pass exists to
+   remove. */
+th:not(:last-child),
+td:not(:last-child) {
+  border-right: 1px solid var(--rule-soft);
 }
 th:first-child,
 td:first-child {
@@ -1647,21 +1717,31 @@ td:first-child {
    declarations as inline style objects (RegimePanel, the old fold table). */
 tbody th[scope="row"] {
   text-align: left;
-  padding: 7px 10px;
-  border-bottom: 1px solid var(--grid);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--rule-soft);
   font-weight: 600;
   text-transform: none;
   font-size: var(--fs-lg);
   letter-spacing: 0;
   color: var(--text-primary);
+  /* A row header is a body cell, not a column header — it must not wear the
+     band the `th` rule above paints. */
+  background: none;
 }
 td {
-  padding: 7px 10px;
-  border-bottom: 1px solid var(--grid);
+  /* 7px 10px, tokenised and opened up by a pixel each way. Cells that carry a
+     column rule now need the horizontal room, or the figure sits on the line. */
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--rule-soft);
   text-align: right;
   white-space: nowrap;
 }
-tbody tr:last-child td {
+/* The last row's rule is the frame's job. The row-header half of this was
+   missing, so a table with `th[scope="row"]` ended on a hairline that ran
+   under its first column and stopped — visible as a stub once the frame
+   below it existed to compare it against. */
+tbody tr:last-child td,
+tbody tr:last-child th[scope="row"] {
   border-bottom: 0;
 }
 tbody tr.is-best td {
@@ -2326,6 +2406,13 @@ tbody tr[tabindex]:focus-visible {
   flex: 1;
 }
 
+/* Inter's figures are proportional by default, and this chip's whole content
+   is a count: measured in Chrome at the chip's own 12px/600, "20/20 providers
+   routable" set 5.68px wider than "12/12 providers routable" purely because of
+   the glyphs. On a chip that re-reads on every health poll that is a row of
+   chrome sliding sideways under the pointer. Tabular figures make every digit
+   the same advance, so only the digit COUNT can still move it — which is what
+   the reservation on `.system-health-action` below is for. */
 .system-health {
   display: inline-flex;
   align-items: center;
@@ -2333,6 +2420,7 @@ tbody tr[tabindex]:focus-visible {
   color: var(--text-secondary);
   font-size: var(--fs-chrome-chip);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -2428,13 +2516,26 @@ tbody tr[tabindex]:focus-visible {
   letter-spacing: 0;
 }
 
+/* The state word — and, before the sample floor is met, a count: `formatDecisionChip`
+   puts `${samples}/${DECISION_MIN_SAMPLES}` here, which ticks once per order.
+   Tabular figures for the digits, and a floor so neither the counter nor the
+   word behind it can resize the chip.
+   87px is measured, not chosen: the widest string this span can hold is
+   "not published" (85.77px with the dot, the 5px gap and tabular figures, at
+   the chip's 11px/700 in Chrome), and the header ladder's own sweep
+   (scripts/header-ladder-measure.mjs) injects "within budget" — 86.28px — at
+   every width it measures. Reserving 87px therefore costs the ladder nothing:
+   the row it measured was already this wide. A longer word than either simply
+   grows the chip, because this is a floor and not a width. */
 .latency-chip__state {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  min-width: 87px;
   color: var(--text-muted);
   font-size: var(--fs-chrome-caption);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -2577,8 +2678,23 @@ tbody tr[tabindex]:focus-visible {
   display: none;
 }
 
+/* A floor wide enough for the longest count the sentence can reach, so the
+   chip stops resizing when the count does. Tabular figures above fix
+   "12/12" against "20/20"; they cannot fix "9/20" against "10/20", where a
+   whole glyph appears — 7.77px of it, measured — and every chip to the right
+   of this one moves.
+   180px is the composed button (dot, 7px gap, label, 9px padding either side,
+   1px border) around "20/20 providers routable" at 179.33px, measured in
+   Chrome against the header's own Inter at 12px/600 with tabular figures on.
+   A three-digit total, or a sentence nobody planned for, exceeds it and the
+   chip simply grows: this is a min-width, never a width, and `.system-health`
+   keeps `white-space: nowrap` so nothing wraps into the row's height.
+   Rung 1 re-floors it for the short sentence — see the ladder at the foot of
+   this file — and rungs below 1500px, and the phone rules, pin the button to
+   its dot and override this outright. */
 .system-health-action {
   min-height: 32px;
+  min-width: 180px;
   padding: 6px 9px;
   border-color: transparent;
   background: transparent;
@@ -2649,9 +2765,17 @@ tbody tr[tabindex]:focus-visible {
   font-size: var(--fs-h2);
 }
 
+/* The caption under a section heading, and the shared home of the desk's live
+   counters — "12/200 entries", "8/20 routable", "{n} polls; peak p99 {n} ms".
+   Tabular figures here, in the sans face rather than the mono one: these are
+   sentences with numbers in them, not figures, so the house rule that puts
+   measurements in mono does not reach them — but a digit that changes width
+   still re-lays out the whole line, and on a polled counter it does so twice a
+   second. Fixed-width digits are the whole of the fix; the face is unchanged. */
 .section-note {
   color: var(--text-muted);
   font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
 }
 
 
@@ -2746,7 +2870,10 @@ tbody tr[tabindex]:focus-visible {
    read by anyone tuning card rhythm from the wrong end of the sheet. */
 .card {
   background: var(--surface-1);
-  border: 1px solid var(--border);
+  /* --rule rather than --border directly: a card's outline is the largest
+     region division on the page, and it must move with the rules inside it
+     rather than being retuned on its own. Same value today, one name. */
+  border: 1px solid var(--rule);
 }
 /* A card's own title is a title, not an eyebrow. This read as a 12px muted
    uppercase label — under an 11px uppercase kicker on the profile cards, and
@@ -2877,21 +3004,29 @@ tbody tr[tabindex]:focus-visible {
 }
 
 .research-provenance {
-  margin-bottom: 16px;
-  padding: 13px 15px;
-  border: 1px solid var(--border);
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--rule);
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--surface-2) 62%, var(--surface-1));
   display: grid;
   grid-template-columns: minmax(210px, 0.85fr) minmax(0, 1.7fr);
-  align-items: center;
-  gap: 16px;
+  /* `center` used to float the field grid against the middle of the lead,
+     which meant the seam between the two halves was shorter than the block it
+     divides and sat at a different height in every capsule. Stretched, the
+     seam is the full height of the capsule's content and the two regions read
+     as two columns rather than as two floating things. */
+  align-items: stretch;
+  gap: var(--space-5);
 }
 
 .research-provenance__lead {
   min-width: 0;
   display: grid;
   gap: 2px;
+  /* Its rows are auto-sized; without this, stretching the column above would
+     spread three lines of lead down the height of a nine-field grid. */
+  align-content: start;
 }
 
 .research-provenance__lead strong {
@@ -2909,22 +3044,64 @@ tbody tr[tabindex]:focus-visible {
    embargoed" and "— built without git", and the dd rule below cut all three
    mid-word. Halving the count doubles the track.
 
-   The row gap is the other half of the fix: there was none, and `dl > div` has
-   1px of vertical padding, so any wrapped row landed 2px under the one above
-   it — which is what a reader sees as words running together. */
+   THE ROW GAP WAS THE WRONG HALF OF THE FIX. It was 10px, with a column rule
+   drawn as `border-left` on each cell — so every vertical hairline stopped at
+   the bottom of its own cell and restarted 10px lower, and because the cells
+   were only as tall as their contents, no two of those segments were the same
+   length or started at the same height. Nine fields drew nine unrelated
+   fragments of line. That is the "intersection" a reader sees drifting: there
+   was no grid, only cells that happened to be side by side.
+
+   So the gap is zero and the rules ARE the gutter. Grid stretches every cell in
+   a row to the row's height, so a column rule runs the full height of its row
+   and meets the next row's rule exactly where the two rows meet. An incomplete
+   last row (this list is seven fields on the sweep capsule, nine on the fitted
+   one) simply draws no rules where it has no cells, which is honest: a rule
+   separates two things, and there is nothing there to separate. */
 .research-provenance dl {
   min-width: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px 0;
+  gap: 0;
+  /* The seam between the capsule's two regions — the claim on the left, the
+     evidence on the right. --rule, because this divides regions; the hairlines
+     inside the grid are --rule-soft, because they divide fields. Two weights,
+     so the reader can see which is the larger division without reading it. */
+  border-left: 1px solid var(--rule);
+  /* --space-2 here plus --space-3 of cell padding is --space-5, which is the
+     capsule's own column gap: the seam sits the same distance from the lead on
+     its left as it does from the first label on its right. */
+  padding-left: var(--space-2);
 }
 
 .research-provenance dl > div {
   min-width: 0;
-  padding: 1px 10px;
-  border-left: 1px solid var(--border);
+  /* 1px 10px was written for a layout whose separation came from a row gap.
+     The cell is the separation now, so it needs a cell's padding. */
+  padding: var(--space-2) var(--space-3);
+  border-left: 1px solid var(--rule-soft);
+  border-top: 1px solid var(--rule-soft);
   display: grid;
   gap: 2px;
+  /* Labels on one row start at the same y whatever their values wrap to. With
+     the default `stretch` a two-line value pushed its own label down and the
+     row's dt line bent. */
+  align-content: start;
+}
+
+/* The grid's outer edges are not drawn twice: the first cell of each row has
+   the capsule's own seam to its left, and the first row has the capsule's top
+   padding above it. Four-column arithmetic, restated at each breakpoint below
+   that changes the count. */
+.research-provenance dl > div:nth-child(4n + 1) {
+  border-left: 0;
+}
+
+/* And the first row loses its cell padding above the label, so the top line of
+   the field grid sits on the same baseline as the kicker across the seam. */
+.research-provenance dl > div:nth-child(-n + 4) {
+  border-top: 0;
+  padding-top: 0;
 }
 
 .research-provenance dt {
@@ -3838,8 +4015,14 @@ a.text-action {
   .research-provenance {
     grid-template-columns: minmax(0, 1fr);
   }
-  .research-provenance dl > div:nth-child(4n + 1) {
+  /* Stacked, the two regions sit one above the other, so the seam between them
+     turns through ninety degrees with them. A left rule here would be a line
+     down the side of a full-width block, dividing it from nothing. */
+  .research-provenance dl {
     border-left: 0;
+    border-top: 1px solid var(--rule);
+    padding-left: 0;
+    padding-top: var(--space-3);
   }
 }
 
@@ -3922,10 +4105,17 @@ a.text-action {
   }
   .research-provenance dl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px 0;
+    gap: 0;
   }
+  /* Two columns: column 1 is every odd cell, and every cell from the third on
+     now opens a new row and needs the row rule the four-column arithmetic
+     above took away from it. */
   .research-provenance dl > div:nth-child(odd) {
     border-left: 0;
+  }
+  .research-provenance dl > div:nth-child(n + 3) {
+    border-top: 1px solid var(--rule-soft);
+    padding-top: var(--space-2);
   }
   .venue-status {
     width: 100%;
@@ -5120,7 +5310,10 @@ button
    this is the same modifier shape `.stability-tiles` uses for four. */
 .ml-run-tiles {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin-bottom: 12px;
+  /* The capsule directly below is itself a bordered block. Twelve pixels put
+     two outlines close enough to read as a single badly-drawn box; a full
+     --space-4 is what tells them apart as two regions. */
+  margin-bottom: var(--space-4);
 }
 
 /* Measured against the research panel rather than the window, for the reason
@@ -5142,7 +5335,7 @@ button
   gap: 1px;
   align-content: start;
   padding: 10px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--rule);
   border-radius: var(--radius-md);
   background: var(--surface-1);
 }
@@ -5178,6 +5371,13 @@ button
   border-top: 1px solid var(--grid);
   font-size: var(--fs-body);
   color: var(--text-secondary);
+}
+
+/* A closing note is a footnote to the block above it, and a table is now a
+   framed block. Twelve pixels left the sentence hanging off the frame's bottom
+   edge as though it were one more row; --space-4 puts it outside the table. */
+.card > .table-wrap + .research-note {
+  margin-top: var(--space-4);
 }
 
 .research-note {
@@ -5247,11 +5447,21 @@ button
 }
 
 /* ---------- monthly returns grid ---------- */
+/* One of the three tables that opts out of the shared lattice, for the reason
+   `.corr-matrix` states in full: each cell here is a tinted chip and the tint
+   IS the reading, so a ruled grid between chips draws a second, competing
+   structure over the one the eye is meant to follow. */
+.monthly-grid {
+  border: 0;
+}
+
 .monthly-grid td,
 .monthly-grid th {
   padding-left: 6px;
   padding-right: 6px;
   font-size: var(--fs-sm);
+  border-right: 0;
+  background: none;
 }
 
 .monthly-cell > span {
@@ -5713,6 +5923,7 @@ button
   table-layout: fixed;       /* honour the widths below at N = 2 and at N = 12 */
   border-collapse: separate; /* overrides the global `collapse` at l.1183 */
   border-spacing: 3px;
+  border: 0;                 /* and the frame the shared table rule draws */
 }
 
 .corr-matrix th,
@@ -7073,8 +7284,12 @@ button
   font-variant-numeric: tabular-nums;
 }
 
+/* The caption beside the `dd` above, which already had tabular figures. It
+   carries "{accepted} filled, {rejected} rejected" and the p90/p99 pair, all
+   of them re-counted as fills arrive. */
 .cockpit-quality__metrics span {
   font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
 }
 
 .cockpit-quality__symbol {
@@ -9567,6 +9782,9 @@ button.data-trust-action > i {
   width: 100%;
   min-width: 790px;
   border-collapse: collapse;
+  /* Its wrapper above already draws the frame, and rounds it. The shared table
+     frame would be a second square outline one pixel inside a rounded one. */
+  border: 0;
 }
 
 .developer-work__table th {
@@ -11851,6 +12069,9 @@ button.data-trust-action > i {
    long someone's sentence happened to be: without this, a tab whose notes all
    fit on one line renders a shorter chip and only the grid's row-stretch hides
    it — which works within a row and not at all between tabs. */
+/* The note carries figures too — "{n} hits, {n} misses", "{degraded} routes
+   degraded" — and it was the only half of the chip without tabular figures,
+   so the value above it held still while the line under it shuffled. */
 .page-insight > small {
   display: flex;
   align-items: flex-end;
@@ -11858,6 +12079,7 @@ button.data-trust-action > i {
   min-height: calc(1.34em * 2);
   color: var(--text-muted);
   font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
   line-height: 1.34;
 }
 
@@ -12316,8 +12538,11 @@ button.page-insight:hover:not(:disabled) {
    density scale could see. */
 
 .stat-tile {
-  padding: 12px 14px;
-  border: 1px solid var(--border);
+  /* 12px 14px, tokenised and given the extra two pixels of inline room the
+     border needs: a figure set hard against its own outline is what makes a
+     row of tiles feel crowded even when the gutters between them are right. */
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--rule);
   border-radius: var(--radius-md);
   background: var(--surface-1);
 }
@@ -12441,18 +12666,32 @@ button.page-insight:hover:not(:disabled) {
 }
 
 /* ---------- long surfaces skip off-screen layout ----------
-   These four run to thousands of rows between them. `content-visibility` lets
+   These three run to thousands of rows between them. `content-visibility` lets
    the browser skip layout and paint for the parts nobody is looking at.
 
    `contain-intrinsic-size` is not optional here: without a size hint the
    skipped content measures 0, the scrollbar jumps as you scroll into it, and an
    anchor into a hidden row lands in the wrong place. The `auto` keyword makes
    the browser remember the real size once it has rendered once, so the guess
-   only has to be close on the first pass. */
+   only has to be close on the first pass.
+
+   "Close on the first pass" is what decides the membership of this list, and
+   it is why `.cockpit-blotter .table-wrap` left it. Each of the three is a
+   scroller with a `max-height` — 680px, 660px, ~655px — so a skipped box is at
+   most 80px away from a rendered one and the reader never feels the swap. The
+   blotter's wrapper has no height bound at all: it is as tall as the order
+   table, so the hint was not close, it was wrong by the height of the book.
+   Measured in Chrome on a faithful copy of this shell, an 800-row table under
+   the same declarations took the scroller's range from 6,176px to 20,592px
+   the moment it came into range — a 14,416px discontinuity arriving mid-
+   gesture, on the desk's busiest surface. Skipping bought nothing there in
+   exchange: containment is all-or-nothing per element, so the whole table lays
+   out the instant any row of it is on screen, which on the Execution tab is
+   most of the time. Off the tab the panel is `hidden`, and `display: none`
+   skips more than `content-visibility` ever could. */
 .reliability-service-panel .table-wrap,
 .codebase-filelist,
-.console-trace-detail,
-.cockpit-blotter .table-wrap {
+.console-trace-detail {
   content-visibility: auto;
   contain-intrinsic-size: auto 600px;
 }
@@ -12632,6 +12871,10 @@ button.page-insight:hover:not(:disabled) {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
+  /* And tabular, for the same reason `.page-insight > small` is: the line it
+     mirrors carries "cache {n}%; {n} quarantined" and "{usd} left of {usd}",
+     re-read on every book poll. */
+  font-variant-numeric: tabular-nums;
   line-height: 1.34;
 }
 
@@ -12746,6 +12989,20 @@ button.page-insight:hover:not(:disabled) {
 
 .section-heading {
   margin-bottom: var(--space-3);
+}
+
+/* A panel's head is a region of the card, not the first line of its content.
+   Sixty surfaces open with this block — a kicker, a title and the controls that
+   act on the panel — and every one of them ran straight into the tiles or the
+   table beneath with nothing but 12px of air between them, so the controls read
+   as belonging to the first row of data. The rule is the same one `.page-heading`
+   has always drawn at the top of a tab; this is that grammar one level down.
+
+   `:not(:last-child)`, because a card whose head is its only child would
+   otherwise end on a line dividing it from nothing. */
+.card > .section-heading:not(:last-child) {
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--rule);
 }
 
 .section-heading :is(h2, h3) {
@@ -14305,12 +14562,21 @@ button:active:not(:disabled) {
 
 /* ---------- fill-quality heatmap ---------- */
 
+/* The third lattice opt-out, same reason as `.corr-matrix` and `.monthly-grid`:
+   the cell fill is the measurement, and a rule between two fills is a line the
+   reader has to decide to ignore. */
+.fill-quality-heatmap__grid {
+  border: 0;
+}
+
 .fill-quality-heatmap__grid td,
 .fill-quality-heatmap__grid th {
   padding: 4px 7px;
   font-size: var(--fs-xs);
   text-align: center;
   white-space: nowrap;
+  border-right: 0;
+  background: none;
 }
 
 .fill-quality-heatmap__grid th[scope="row"] {
@@ -14717,7 +14983,9 @@ button:active:not(:disabled) {
 .favourites-table th,
 .favourites-table td {
   padding: 6px var(--space-2);
-  border-bottom: 1px solid var(--border);
+  /* --rule-soft, so this table's row rules are the same hairline as every
+     other table's rather than a step heavier by accident. */
+  border-bottom: 1px solid var(--rule-soft);
   text-align: left;
   font-variant-numeric: tabular-nums;
 }
@@ -15414,10 +15682,15 @@ html:active-view-transition .view-panel {
 .verdict-metric__value[data-tone="critical"] { color: var(--critical-text); }
 .verdict-metric__value[data-tone="verdict"] { color: var(--verdict-text); }
 
+/* The note under a tile's figure. `.stat-tile__value` has had tabular figures
+   since it was written; its note did not, and the note is where the live
+   counts sit ("{n} venues live", "{n} of {n} accepted"). A tile whose headline
+   holds still while its caption reflows is still a tile that twitches. */
 .stat-tile__note,
 .verdict-metric__note {
   font-size: var(--fs-sm);
   color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
   line-height: var(--lh-snug);
 }
 
@@ -15516,6 +15789,22 @@ html:active-view-transition .view-panel {
    cannot move any of this — the --text-size=large run is byte-identical to
    the default, and that is the proof rather than the claim.
 
+   2026-08-21, the numeric-stability pass: the rungs did not move, and this is
+   the arithmetic that says they did not have to. Two chips changed width.
+   `.latency-chip__state` gained tabular figures and an 87px floor — the sweep
+   already injects "within budget" there, which measures 86.28px with tabular
+   figures against 85.92px without, so the row the rungs were measured on was
+   0.72px narrower than the floor and the band is unchanged for practical
+   purposes. `.system-health-action` gained tabular figures, which cost it
+   6.35px with the long sentence and 6.16px with the short one, plus a floor
+   set to the widest sentence in each band (180px / 129px) so the count can no
+   longer resize it. Only the tabular cost is new width: the floors are the
+   sweep's own injected strings. The tightest band — 35px of spare just above
+   rung 3, where the short sentence is the one on screen — therefore stands at
+   about 29px, still clear. Measured per element in headless Chrome against
+   the header's own Inter rather than re-swept, because the sweep needs a dev
+   server; a full re-sweep is owed the next time a rung actually moves.
+
    CrossFlow's rule stands — drop secondary context before letting the
    workspace nav clip — lowest priority first: what the aria-label already
    carries and a glyph already says goes before any word a reader needs; the
@@ -15533,6 +15822,15 @@ html:active-view-transition .view-panel {
 
   .system-health__label--short {
     display: inline;
+  }
+
+  /* The reservation follows the label down. 129px is the same composed button
+     measured around "12/12 providers" (128.05px) — the short sentence at its
+     widest, and the very string the ladder's sweep injects here. Without this
+     the chip would keep the 180px floor the long sentence needs and hand the
+     row 52px it has no use for at these widths. */
+  .system-health-action {
+    min-width: 129px;
   }
 }
 
