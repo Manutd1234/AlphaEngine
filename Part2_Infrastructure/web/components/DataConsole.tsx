@@ -495,7 +495,7 @@ export default function DataConsole({
             validation={validation}
           />
         </div>
-        <DataQualityLedger validation={validation} healthLoaded={health !== null} />
+        <DataQualityLedger validation={validation} healthLoaded={health !== null} operatorToken={view.token} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="data" tabId="lineage" activeId={section}>

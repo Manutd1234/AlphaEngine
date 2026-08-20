@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-20",
-  "commit": "529909f",
+  "commit": "cce7e04",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -250,6 +250,7 @@
     "Part2_Infrastructure/web/app/api/favourites/route.ts",
     "Part2_Infrastructure/web/app/api/fundamentals/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/audit/route.ts",
+    "Part2_Infrastructure/web/app/api/gateway/data-quality/escalations/[id]/ack/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/data/jobs/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/data/quality/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/data/schedules/route.ts",

@@ -19,12 +19,20 @@
 import { useCallback, useState } from "react";
 
 import type { DataQualityEscalation, DataQualityFinding, ValidationTelemetry } from "@/components/systems/types";
-import { probeGateway } from "@/lib/use-gateway-connection";
+import { operatorHeaders } from "@/lib/risk-control";
+import { GATEWAY_DEADLINE_MS, probeGateway } from "@/lib/use-gateway-connection";
 
 interface DataQualityLedgerProps {
   validation: ValidationTelemetry | null | undefined;
   /** False while the console has no health snapshot at all. */
   healthLoaded: boolean;
+  /**
+   * The operator credential, when this tab has one. Absent means the Take
+   * button is not offered — the same gate every other write surface uses.
+   * On an open demo deployment the gateway accepts the call regardless, and
+   * the button is still shown because the action is genuinely available.
+   */
+  operatorToken?: string;
 }
 
 const RULE_LABEL: Record<DataQualityEscalation["rule"], string> = {
@@ -50,12 +58,54 @@ function pct(rate: number | null): string {
   return rate === null ? "—" : `${Math.round(rate * 100)}%`;
 }
 
-export default function DataQualityLedger({ validation, healthLoaded }: DataQualityLedgerProps) {
+export default function DataQualityLedger({ validation, healthLoaded, operatorToken }: DataQualityLedgerProps) {
   const ledger = validation?.scope === "gateway-ledger" ? validation.ledger ?? null : null;
   const [older, setOlder] = useState<DataQualityFinding[] | null>(null);
   const [olderTotal, setOlderTotal] = useState<number | null>(null);
   const [olderState, setOlderState] = useState<"idle" | "loading" | "error">("idle");
   const [olderError, setOlderError] = useState<string | null>(null);
+  /** Escalation ids taken in this tab, so the row updates before the next poll. */
+  const [taken, setTaken] = useState<Record<number, string>>({});
+  const [acking, setAcking] = useState<number | null>(null);
+  const [ackError, setAckError] = useState<string | null>(null);
+
+  const acknowledge = useCallback(async (id: number) => {
+    setAcking(id);
+    setAckError(null);
+    // `probeGateway` is GET-only — it coalesces by URL, and collapsing two
+    // writes would drop one — so the deadline it would have carried is built
+    // here. An AbortController rather than AbortSignal.timeout, because
+    // "timed out" and "the component unmounted" raise the same DOMException
+    // and only one of them is worth putting in front of a reader.
+    const controller = new AbortController();
+    const deadline = setTimeout(() => controller.abort(), GATEWAY_DEADLINE_MS);
+    try {
+      const response = await fetch(`/api/gateway/data-quality/escalations/${id}/ack`, {
+        method: "POST",
+        headers: operatorHeaders(operatorToken),
+        body: "{}",
+        signal: controller.signal,
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setAckError(typeof body.error === "string" ? body.error : `The acknowledgement was refused (${response.status}).`);
+        return;
+      }
+      // `taken: false` is not a failure. "Already resolved" and "no such
+      // escalation" are both "there is nothing to take", and the gateway says
+      // so rather than erroring — so the panel does too.
+      setTaken((prev) => ({
+        ...prev,
+        [id]: body.taken ? new Date().toISOString() : "",
+      }));
+      if (!body.taken) setAckError("There was nothing open to take — it has already resolved.");
+    } catch {
+      setAckError("The acknowledgement could not be sent.");
+    } finally {
+      clearTimeout(deadline);
+      setAcking(null);
+    }
+  }, [operatorToken]);
 
   const loadOlder = useCallback(async () => {
     setOlderState("loading");
@@ -145,10 +195,20 @@ export default function DataQualityLedger({ validation, healthLoaded }: DataQual
               {[...open, ...resolved].map((e) => (
                 <li key={e.id}>
                   <strong>
-                    <span aria-hidden>{e.resolved_at ? "✓" : e.acknowledged_at ? "●" : "▲"}</span>{" "}
-                    {e.resolved_at ? "Cleared" : e.acknowledged_at ? "Taken" : "Open"}
+                    <span aria-hidden>{e.resolved_at ? "✓" : (e.acknowledged_at ?? taken[e.id]) ? "●" : "▲"}</span>{" "}
+                    {e.resolved_at ? "Cleared" : (e.acknowledged_at ?? taken[e.id]) ? "Taken" : "Open"}
                     : {RULE_LABEL[e.rule]}, {e.provider}
                     {" "}<span className="muted">#{e.id}</span>
+                    {!e.resolved_at && !e.acknowledged_at && !taken[e.id] && (
+                      <button
+                        type="button"
+                        className="text-action"
+                        onClick={() => void acknowledge(e.id)}
+                        disabled={acking === e.id}
+                      >
+                        {acking === e.id ? "Taking…" : "Take"}
+                      </button>
+                    )}
                   </strong>
                   <span className="console-skip__reason">
                     {e.channel === "telegram"
@@ -166,11 +226,14 @@ export default function DataQualityLedger({ validation, healthLoaded }: DataQual
                       && ` Taken by ${e.acknowledged_by.slice("telegram:".length)} at ${utc(e.acknowledged_at)}.`}
                     {e.acknowledged_at && !e.acknowledged_by?.startsWith("telegram:")
                       && ` Taken at ${utc(e.acknowledged_at)} by an operator credential, which does not name a person — /ack from Telegram does.`}
+                    {!e.acknowledged_at && taken[e.id]
+                      && ` Taken from this desk just now; the ledger catches up on the next poll.`}
                   </small>
                 </li>
               ))}
             </ul>
           )}
+          {ackError && <p className="console-skip__reason">{ackError}</p>}
 
           <p className="console-subhead">
             By provider
