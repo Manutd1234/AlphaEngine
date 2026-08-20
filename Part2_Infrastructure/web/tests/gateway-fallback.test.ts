@@ -161,7 +161,12 @@ describe("the safety statement describes what the desk actually does", () => {
     assert.match(badge, /performance\.now\(\)/);
     // And page.tsx returns the work so the badge can await it.
     const page = source("../app/dashboard/page.tsx");
-    assert.match(page, /onRetry: \(\) => Promise\.all\(\[book\.refresh\(true\), systems\.refresh\(true\)\]\)/);
+    assert.match(page, /onRetry: revalidateDesk/);
+    assert.match(
+      page,
+      /const revalidateDesk = useCallback\(\s*\n\s*\(\) => Promise\.all\(\[book\.refresh\(true\), systems\.refresh\(true\)\]\)/,
+      "the desk's one invalidation path stopped returning its work, so Retry cannot time it",
+    );
   });
 });
 

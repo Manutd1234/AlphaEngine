@@ -290,21 +290,24 @@ export default function Page() {
     ? `${selectedSleeveAttribution.filled} accepted of ${selectedSleeveAttribution.orders} orders`
     : "no audited orders yet";
   /**
-   * The fallback path for post-order freshness, not the primary one.
+   * One invalidation path for every mutation the desk makes.
    *
-   * `RiskState` carries `orders_accepted` and `orders_rejected`, so ANY order —
-   * filled, rested or refused by a gate — changes the streamed body, moves
-   * `seq`, and `useBook` refetches within about a second. That covers every
-   * mutation on the desk without a per-mutation wire-up, which is why there is
-   * no third invalidation mechanism here.
+   * Three handlers did this by hand — a settled order re-read the book, an
+   * operator action re-read the book and health, Retry re-read both and timed
+   * it — so what a mutation invalidated depended on which one had been copied,
+   * and the next mutation added would have had to remember. A stale Portfolio
+   * tab after a kill switch is what forgetting looks like.
    *
-   * This stays for the deployments with no stream, where it is the only way the
-   * book learns an order happened. `probeGateway` coalesces by URL, so on a
-   * streamed desk the two collapse into one request rather than two.
+   * Still the fallback rather than the primary path: any order moves
+   * `RiskState`'s accepted and rejected counts, so the streamed `seq` moves and
+   * `useBook` refetches within about a second on its own. This is what a
+   * deployment with no stream has instead; `probeGateway` coalesces by URL, so
+   * it costs one there, not two. Returns the work, so Retry can time itself.
    */
-  const refreshBookAfterOrder = useCallback(() => {
-    void book.refresh(true);
-  }, [book.refresh]);
+  const revalidateDesk = useCallback(
+    () => Promise.all([book.refresh(true), systems.refresh(true)]).then(() => undefined),
+    [book.refresh, systems.refresh],
+  );
   /**
    * Live section per workspace, readable from handlers created once. A ref,
    * not state, because `navigate` must see the CURRENT section at click time
@@ -1110,7 +1113,9 @@ export default function Page() {
     currentPinned, data, showMcBands, setShowMcBands, setMcRunNonce, side,
     setSide, setNotional, copyLinkToView, setShortcutsOpen, view,
     researchSection, focusPortfolioSymbol, symbol: req.symbol,
-    refreshHealth: systems.refresh, reconnectSockets: systems.onReconnectSockets,
+    reconnectSockets: systems.onReconnectSockets,
+    // The palette wants the re-read, not the read's outcome. See the poll.
+    refreshHealth: (quiet: boolean) => void systems.refresh(quiet),
   }), [
     copyLinkToView, currentPinned, data, focusPortfolioSymbol, navigate, pinRun,
     req.symbol, researchSection, run, running, showMcBands, side,
@@ -1211,9 +1216,7 @@ export default function Page() {
         dataSource={{
           provenance: book.provenance,
           detail: book.error?.error ?? null,
-          // Returns the work so the badge can time it and report the outcome:
-          // the two quiet re-reads that decide the tier and the health snapshot.
-          onRetry: () => Promise.all([book.refresh(true), systems.refresh(true)]).then(() => undefined),
+          onRetry: revalidateDesk,
         }}
         halt={book.book
           ? {
@@ -1226,10 +1229,7 @@ export default function Page() {
           guardMode: systems.guard,
           token: systems.token,
           onTokenChange: systems.setToken,
-          onExecuted: () => {
-            void book.refresh(true);
-            void systems.refresh(true);
-          },
+          onExecuted: revalidateDesk,
         }}
       />
 
@@ -1940,7 +1940,7 @@ export default function Page() {
                 strategy={executionStrategy}
                 onStrategyChange={setExecutionStrategy}
                 researchExperimentId={null}
-                onOrderSettled={refreshBookAfterOrder}
+                onOrderSettled={revalidateDesk}
                 /* The ticket and the blotter both ask the same thing of
                    Research — what evidence stands behind this sleeve — which
                    is the Summary verdict. */

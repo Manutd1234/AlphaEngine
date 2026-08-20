@@ -32,6 +32,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { type DataTier, type Provenance, type TierCause } from "@/lib/data-tier";
+import { usePolling } from "@/lib/use-polling";
 
 /**
  * 2500ms, from the brief.
@@ -43,7 +44,14 @@ import { type DataTier, type Provenance, type TierCause } from "@/lib/data-tier"
  */
 export const GATEWAY_DEADLINE_MS = 2500;
 
-/** Backoff floor and ceiling. Doubling between, reset on any success. */
+/**
+ * Backoff floor and ceiling. Doubling between, reset on any success.
+ *
+ * The floor is deliberately independent of the caller's poll interval: a
+ * gateway that has just come back has to be noticed in seconds whatever the
+ * refresh rate is. `PollingController` takes it as `firstRetryMs`, which is the
+ * option it gained so this loop could move onto it without changing its curve.
+ */
 const RETRY_MIN_MS = 2500;
 const RETRY_MAX_MS = 30_000;
 
@@ -159,9 +167,16 @@ export interface GatewayConnection<T> extends Provenance {
   payload: T | null;
   failure: GatewayFailure | null;
   loading: boolean;
-  /** Seconds until the next automatic attempt, or null when not backing off. */
+  /**
+   * Seconds until the next automatic attempt, or null when not backing off.
+   *
+   * Rendered by `DataTierBadge` ("Retrying automatically in about 8s."), which
+   * is why the loop below reports the delay it committed to rather than letting
+   * the badge compute a second copy of the curve.
+   */
   retryInSeconds: number | null;
-  refresh: (quiet?: boolean) => Promise<void>;
+  /** Resolves true when the probe landed. The poll's backoff rides on it. */
+  refresh: (quiet?: boolean) => Promise<boolean>;
 }
 
 export interface GatewayConnectionOptions<T> {
@@ -191,16 +206,12 @@ export function useGatewayConnection<T>(options: GatewayConnectionOptions<T>): G
   const [loading, setLoading] = useState(true);
   const [retryInSeconds, setRetryInSeconds] = useState<number | null>(null);
 
-  /** Consecutive failures, for the backoff. Reset by any success. */
-  const failures = useRef(0);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const alive = useRef(true);
 
   const apply = useCallback((outcome: FetchOutcome<T>) => {
     if (!alive.current) return;
     const cached = cache.get(resource) ?? null;
     if (outcome.ok) {
-      failures.current = 0;
       setPayload(outcome.payload);
       setFailure(null);
       setTier("live");
@@ -209,7 +220,6 @@ export function useGatewayConnection<T>(options: GatewayConnectionOptions<T>): G
       setRetryInSeconds(null);
       return;
     }
-    failures.current += 1;
     const resolved = resolveTier(false, Boolean(cached), outcome.failure);
     setFailure(outcome.failure);
     setTier(resolved.tier);
@@ -225,57 +235,71 @@ export function useGatewayConnection<T>(options: GatewayConnectionOptions<T>): G
     }
   }, [resource, fallback, seed]);
 
-  const refresh = useCallback(async (quiet = false) => {
+  const refresh = useCallback(async (quiet = false): Promise<boolean> => {
     if (!quiet) setLoading(true);
     const outcome = await probeGateway<T>(resource, deadlineMs);
     apply(outcome);
     if (alive.current) setLoading(false);
+    return outcome.ok;
   }, [resource, deadlineMs, apply]);
 
   useEffect(() => {
     alive.current = true;
-    if (paused) {
-      setLoading(false);
-      return () => { alive.current = false; };
-    }
+    // A paused caller has chosen the sandbox: nothing will ever land here, so
+    // the spinner must not be left running behind a loop that is not polling.
+    if (paused) setLoading(false);
+    return () => { alive.current = false; };
+  }, [paused]);
 
-    /**
-     * One self-rescheduling timer rather than a fixed interval.
-     *
-     * A `setInterval` at the healthy cadence keeps hammering a gateway that is
-     * down — the old behaviour cost four dead requests a minute during an
-     * outage — and cannot back off. This schedules the next attempt from the
-     * outcome of the last one: the poll interval while healthy, doubling from
-     * 2.5s to a 30s ceiling while not.
-     */
-    const tick = async () => {
-      if (!alive.current) return;
-      if (typeof document !== "undefined" && document.hidden) {
-        timer.current = setTimeout(tick, intervalMs);
-        return;
-      }
-      await refresh(true);
-      if (!alive.current) return;
-      const backoff = failures.current === 0
-        ? intervalMs
-        : Math.min(RETRY_MAX_MS, RETRY_MIN_MS * 2 ** (failures.current - 1));
-      setRetryInSeconds(failures.current === 0 ? null : Math.round(backoff / 1000));
-      timer.current = setTimeout(tick, backoff);
-    };
+  /**
+   * A changed resource is a different question, and it must not wait for the
+   * next tick to be asked.
+   *
+   * Keyed on the question, not on `refresh` as the old effect was: `refresh`
+   * follows `apply`, which follows the `fallback` prop, so a caller defining
+   * that inline changed its identity on every render — and the old effect tore
+   * its own timer down and re-probed on each one. That is the defect
+   * `usePolling` exists to prevent, and it was in the loop being replaced. The
+   * first question is asked by the loop's own immediate tick below, so this
+   * fires only on a change to it.
+   */
+  const asked = useRef(`${resource}|${deadlineMs}`);
+  useEffect(() => {
+    const question = `${resource}|${deadlineMs}`;
+    if (asked.current === question) return;
+    asked.current = question;
+    void refresh();
+  }, [resource, deadlineMs, refresh]);
 
-    void refresh().then(() => {
-      if (!alive.current) return;
-      const backoff = failures.current === 0
-        ? intervalMs
-        : Math.min(RETRY_MAX_MS, RETRY_MIN_MS * 2 ** (failures.current - 1));
-      timer.current = setTimeout(tick, backoff);
-    });
-
-    return () => {
-      alive.current = false;
-      if (timer.current) clearTimeout(timer.current);
-    };
-  }, [refresh, intervalMs, paused]);
+  /**
+   * The self-rescheduling loop, now the shared controller's.
+   *
+   * Same four decisions as before, none of them re-made here: skip while the
+   * tab is hidden, do not stack a slow probe, schedule the next attempt from
+   * the outcome of the last (the interval while healthy, 2.5s doubling to 30s
+   * while not), and stop on unmount. `immediate` is what keeps the first
+   * attempt inside that curve — a mount fetch outside the loop is a failure the
+   * controller never hears about, so the retry after it would wait the healthy
+   * interval instead of the floor.
+   *
+   * Three things differ from the hand-rolled version, all deliberate: the
+   * hidden gate now covers the first attempt too, so a tab that mounts in the
+   * background spends nothing until it is looked at; the loop revalidates when
+   * the reader comes back to it; and the countdown below is the delay the loop
+   * actually committed to rather than a second evaluation, beside it, of the
+   * same arithmetic.
+   */
+  usePolling({
+    tick: async () => { if (!(await refresh(true))) throw new Error(`${resource} probe failed`); },
+    intervalMs,
+    firstRetryMs: RETRY_MIN_MS,
+    maxBackoffMs: RETRY_MAX_MS,
+    immediate: true,
+    enabled: !paused,
+    onSchedule: (delayMs, failures) => {
+      setRetryInSeconds(failures === 0 ? null : Math.round(delayMs / 1000));
+    },
+  });
 
   return { tier, cause, lastGoodAt, payload, failure, loading, retryInSeconds, refresh };
 }

@@ -51,6 +51,39 @@ export interface PollingOptions {
   revalidateOnVisible?: boolean;
   /** Geometric backoff ceiling. Null disables backoff entirely. */
   maxBackoffMs?: number | null;
+  /**
+   * Delay before the FIRST retry, when that should not be the cadence doubled.
+   *
+   * The default curve starts from `intervalMs`, which is right for a loop whose
+   * retry cadence is its poll cadence. The gateway probe is the other case: its
+   * interval is a refresh rate, but a gateway that has just come back has to be
+   * noticed in seconds whatever that rate is, so it retries from 2.5s and
+   * doubles from there. Anchoring that curve to the interval would make a slow
+   * cadence wait a full minute to discover the gateway was alive again.
+   */
+  firstRetryMs?: number;
+  /**
+   * Run the first tick at `start()` instead of one interval later.
+   *
+   * Off by default, because most adopters do their first read in an effect of
+   * their own where it can be non-quiet. On for a loop whose first attempt has
+   * to count towards the backoff: a separate mount fetch is a failure the
+   * controller never hears about, so the attempt after it waits the healthy
+   * interval rather than the retry floor.
+   */
+  immediate?: boolean;
+  /**
+   * The delay just committed to, and the failure count behind it.
+   *
+   * A surface that discloses "retrying in about 8s" has to be TOLD what was
+   * scheduled. The alternative is a second copy of the curve above, computed
+   * beside the loop rather than by it, and two implementations of the same
+   * arithmetic is how a countdown comes to disagree with the timer it
+   * describes. Called after a tick that ran — never on the hidden-tab
+   * reschedule, which is not a decision about failure and must not clear or
+   * shorten a countdown the reader cannot see.
+   */
+  onSchedule?: (delayMs: number, consecutiveFailures: number) => void;
   environment?: Partial<PollingEnvironment>;
 }
 
@@ -87,15 +120,19 @@ export class PollingController {
   /**
    * The delay before the next attempt.
    *
-   * `2 ** failures` from the base interval, capped. The cap matters more than
-   * the curve: an uncapped geometric backoff on a long-lived tab reaches hours
-   * and the loop is effectively dead without ever saying so.
+   * Doubling from the first retry, capped. The cap matters more than the curve:
+   * an uncapped geometric backoff on a long-lived tab reaches hours and the loop
+   * is effectively dead without ever saying so.
+   *
+   * `firstRetryMs` defaults to twice the interval, which is the curve this had
+   * before it was configurable — `intervalMs * 2 ** failures`, unchanged.
    */
   nextDelayMs(): number {
     const base = Math.max(0, this.options.intervalMs);
     const ceiling = this.options.maxBackoffMs;
     if (!this.failures || ceiling == null) return base;
-    return Math.min(ceiling, base * 2 ** Math.min(this.failures, 8));
+    const first = this.options.firstRetryMs ?? base * 2;
+    return Math.min(ceiling, first * 2 ** Math.min(this.failures - 1, 7));
   }
 
   start(): void {
@@ -108,6 +145,11 @@ export class PollingController {
         // prevent.
         if (!this.environment.isHidden()) void this.runNow();
       });
+    }
+    // `fire` reschedules from its own outcome, so this is the whole schedule.
+    if (this.options.immediate) {
+      void this.fire();
+      return;
     }
     this.schedule(this.options.intervalMs);
   }
@@ -156,7 +198,14 @@ export class PollingController {
       this.failures += 1;
     } finally {
       this.inFlight = false;
-      this.schedule(this.nextDelayMs());
+      const delay = this.nextDelayMs();
+      try {
+        this.options.onSchedule?.(delay, this.failures);
+      } catch {
+        // Same reason the tick's own throw is swallowed: disclosing the wait is
+        // not worth the loop, and a listener that throws would take it down.
+      }
+      this.schedule(delay);
     }
   }
 }

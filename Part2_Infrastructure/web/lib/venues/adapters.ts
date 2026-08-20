@@ -1,5 +1,5 @@
 import { bandImbalance, depthWithinBps, spreadBps } from "./book-maths";
-import { BINANCE_HOSTS, BYBIT_HOSTS, Level, VenueBook, VenueName, getJson, orderedHosts, rememberHost } from "./types";
+import { Level, VenueBook, VenueName, getJson, orderedHosts, rememberHost } from "./types";
 
 // --------------------------------------------------------------------------- //
 // Venue adapters
@@ -57,12 +57,12 @@ export function failed(venue: VenueName, symbol: string, error: string, latencyM
 export async function fetchBinanceBook(symbol: string, limit = 100): Promise<VenueBook> {
   const t0 = Date.now();
   let lastError = "unreachable";
-  for (const host of orderedHosts("binance", BINANCE_HOSTS)) {
+  for (const host of orderedHosts("BINANCE")) {
     try {
       const d = (await getJson(
         `${host}/api/v3/depth?symbol=${symbol.toUpperCase()}&limit=${limit}`,
       )) as { bids: [string, string][]; asks: [string, string][] };
-      rememberHost("binance", BINANCE_HOSTS, host);
+      rememberHost("BINANCE", host);
       return finalise(
         "BINANCE",
         symbol,
@@ -80,7 +80,7 @@ export async function fetchBinanceBook(symbol: string, limit = 100): Promise<Ven
 export async function fetchBybitBook(symbol: string, limit = 50): Promise<VenueBook> {
   const t0 = Date.now();
   let lastError = "unreachable";
-  for (const host of orderedHosts("bybit", BYBIT_HOSTS)) {
+  for (const host of orderedHosts("BYBIT")) {
     try {
       const d = (await getJson(
         `${host}/v5/market/orderbook?category=spot&symbol=${symbol.toUpperCase()}&limit=${Math.min(limit, 200)}`,
@@ -92,7 +92,7 @@ export async function fetchBybitBook(symbol: string, limit = 50): Promise<VenueB
       // otherwise the mirror is never reached for the one class of error it
       // exists to route around.
       if (d.retCode !== 0 || !d.result) throw new Error(d.retMsg || `retCode ${d.retCode}`);
-      rememberHost("bybit", BYBIT_HOSTS, host);
+      rememberHost("BYBIT", host);
       return finalise(
         "BYBIT",
         symbol,
@@ -127,12 +127,12 @@ export interface Ticker {
 export async function fetchBinanceTickers(symbols: readonly string[]): Promise<Ticker[]> {
   const query = encodeURIComponent(JSON.stringify(symbols.map((s) => s.toUpperCase())));
   let lastError = "unreachable";
-  for (const host of orderedHosts("binance", BINANCE_HOSTS)) {
+  for (const host of orderedHosts("BINANCE")) {
     try {
       const rows = (await getJson(`${host}/api/v3/ticker/24hr?symbols=${query}`, 5)) as Array<
         Record<string, string>
       >;
-      rememberHost("binance", BINANCE_HOSTS, host);
+      rememberHost("BINANCE", host);
       return rows.map((r) => ({
         symbol: r.symbol,
         venue: "BINANCE" as const,

@@ -29,6 +29,7 @@ import {
   type DecisionLatencySource,
   type LatencyHistoryPoint,
 } from "@/lib/overview-state";
+import { usePolling } from "@/lib/use-polling";
 
 /** Quota-fenced and slow enough to be free. */
 export const DEFAULT_POLL_MS = 30_000;
@@ -124,7 +125,8 @@ export interface SystemHealthView {
   health: SystemHealth | null;
   healthError: string | null;
   updatedAt: Date | null;
-  refresh: (quiet: boolean) => Promise<void>;
+  /** Resolves true when a snapshot landed: the poll's backoff rides on it. */
+  refresh: (quiet: boolean) => Promise<boolean>;
 
   pollMs: number;
   setPollMs: (ms: number) => void;
@@ -208,11 +210,8 @@ export function useSystemHealth(workspaceSymbol: string): SystemHealthView {
   const tokenCheckSequence = useRef(0);
   /** The live cadence, so the poll's deadline can fit inside its own interval. */
   const pollMsRef = useRef(pollMs);
+  pollMsRef.current = pollMs;
   const { sockets, reconnectAll } = useWireTap();
-
-  useEffect(() => {
-    pollMsRef.current = pollMs;
-  }, [pollMs]);
 
   // Hydrate after mount, not in the initializer: the page is server-rendered
   // and the stored value must not create a hydration mismatch.
@@ -311,56 +310,57 @@ export function useSystemHealth(workspaceSymbol: string): SystemHealthView {
     }
   }, []);
 
-  const refresh = useCallback(
-    async (quiet: boolean) => {
-      const current = ++sequence.current;
-      // Read through a ref so changing the cadence does not re-create `refresh`
-      // and fire an extra request through the effects that depend on it.
-      const deadlineMs = healthDeadlineMs(pollMsRef.current);
-      try {
-        const priority = quiet ? "background" : "interactive";
-        const response = await fetch(`/api/system/health?priority=${priority}`, {
-          cache: "no-store",
-          signal: AbortSignal.timeout(deadlineMs),
-        });
-        const body = await response.json().catch(() => ({}));
-        // A stale response racing a newer request must not win the state.
-        if (current !== sequence.current) return;
-        if (!response.ok) {
-          setHealthError((body as { error?: string }).error ?? `HTTP ${response.status}`);
-          return;
-        }
-        applySnapshot(body as SystemHealth);
-      } catch (err) {
-        // Retain the last good snapshot, but never leave stale values painted as
-        // current. A timeout is a transient fact and is worded as one: this is
-        // set, never latched, and `applySnapshot` clears it on the next tick
-        // that succeeds, so one stalled poll cannot leave the console reading
-        // degraded for the life of the tab.
-        if (current === sequence.current) {
-          setHealthError(describeHealthFailure(err, deadlineMs));
-        }
+  const refresh = useCallback(async (quiet: boolean): Promise<boolean> => {
+    const current = ++sequence.current;
+    // Read through a ref so changing the cadence does not re-create `refresh`
+    // and fire an extra request through the effects that depend on it.
+    const deadlineMs = healthDeadlineMs(pollMsRef.current);
+    try {
+      const priority = quiet ? "background" : "interactive";
+      const response = await fetch(`/api/system/health?priority=${priority}`, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(deadlineMs),
+      });
+      const body = await response.json().catch(() => ({}));
+      // A stale response racing a newer request must not win the state — and
+      // must not move a backoff either, so it is not counted as a failure.
+      if (current !== sequence.current) return true;
+      if (!response.ok) {
+        setHealthError((body as { error?: string }).error ?? `HTTP ${response.status}`);
+        return false;
       }
-    },
-    [applySnapshot],
-  );
+      applySnapshot(body as SystemHealth);
+      return true;
+    } catch (err) {
+      // Retain the last good snapshot, but never leave stale values painted as
+      // current. A timeout is a transient fact and is worded as one: this is
+      // set, never latched, and `applySnapshot` clears it on the next tick
+      // that succeeds, so one stalled poll cannot leave the console reading
+      // degraded for the life of the tab.
+      if (current === sequence.current) setHealthError(describeHealthFailure(err, deadlineMs));
+      return false;
+    }
+  }, [applySnapshot]);
 
-  useEffect(() => {
-    void refresh(false);
-  }, [refresh]);
+  useEffect(() => { void refresh(false); }, [refresh]);
 
-  useEffect(() => {
-    if (paused || !pollMs) return;
-    const tick = () => {
-      if (!document.hidden) void refresh(true);
-    };
-    const timer = setInterval(tick, pollMs);
-    document.addEventListener("visibilitychange", tick);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", tick);
-    };
-  }, [paused, pollMs, refresh]);
+  /**
+   * The measured health surface's own loop, on the shared controller.
+   *
+   * It was a `setInterval` with an inline `document.hidden` check and a
+   * `visibilitychange` listener beside it: the gate and the revalidate were
+   * right, and there was no backoff at all, so a refusing health endpoint was
+   * asked again every 30s — every second on the debugging cadence — for the
+   * life of the tab. A minute's ceiling, not the five this codebase gives
+   * append-only ledgers: this loop's job is to say whether the platform is up,
+   * and one backed off further is reporting an outage it stopped checking.
+   */
+  usePolling({
+    tick: async () => { if (!(await refresh(true))) throw new Error("health read failed"); },
+    intervalMs: pollMs,
+    maxBackoffMs: 60_000,
+    enabled: !paused,
+  });
 
   // Default the failover picker to the active symbol's asset class, so the chain
   // on screen is the one that serves the instrument the desk is looking at.

@@ -276,7 +276,10 @@ describe("the Developer head does not offer a second copy of the shared poll", (
     // ever stops, a manual refresh stops being a duplicate and this test should
     // be the thing that says so.
     assert.match(health, /DEFAULT_POLL_MS = 30_000/);
-    assert.match(health, /setInterval\(tick, pollMs\)/);
+    // The hand-rolled `setInterval` moved onto the shared controller. What
+    // this test needs is unchanged: the hook still owns a poll of its own, so
+    // a Refresh button on the console head would be a second copy of it.
+    assert.match(health, /usePolling\(\{[\s\S]*?intervalMs: pollMs/);
   });
 });
 

@@ -13,6 +13,7 @@
  * behind, because they are the policy and this is the transport.
  */
 
+import { HostPreference } from "./host-preference";
 import { recordUpstream } from "./observability";
 import { Bar } from "./types";
 
@@ -22,22 +23,22 @@ const BINANCE_HOSTS = [
 ];
 
 /**
- * Index of the host that last answered.
+ * Which host last answered.
  *
- * Same reasoning as `lib/venues.ts`: a region-blocked primary fails on *every*
- * request, not occasionally, so a fixed order makes each klines page pay a full
- * failed round trip before the mirror answers. In production `api.binance.com`
- * returns HTTP 451 from the serverless region while the mirror serves normally.
- * Kept local rather than shared because these two modules must not import each
- * other — `venues.ts` is in the client bundle and this one is server-only.
+ * Same reasoning as `lib/venues/types.ts`: a region-blocked primary fails on
+ * *every* request, not occasionally, so a fixed order makes each klines page
+ * pay a full failed round trip before the mirror answers. In production
+ * `api.binance.com` returns HTTP 451 from the serverless region while the
+ * mirror serves normally.
+ *
+ * The memo used to be a bare `let` here and a second bare `let` in the Bybit
+ * transport, each with its own hand-written reordering expression, because the
+ * venue module that already had one is in the client bundle and this one is
+ * server-only, so neither could import the other. `HostPreference` has no
+ * imports at all, which is what lets all three share the implementation without
+ * dragging a server module into the browser.
  */
-let preferredBinanceHost = 0;
-
-function binanceHosts(): string[] {
-  return preferredBinanceHost === 0
-    ? [...BINANCE_HOSTS]
-    : [BINANCE_HOSTS[preferredBinanceHost], ...BINANCE_HOSTS.filter((_, i) => i !== preferredBinanceHost)];
-}
+const hostPreference = new HostPreference(BINANCE_HOSTS);
 
 /**
  * Timeouts, because a *stalled* upstream is worse than a dead one.
@@ -76,7 +77,7 @@ export async function fetchBinanceKlines(
   let lastError: unknown = null;
   const startedAt = Date.now();
 
-  for (const host of binanceHosts()) {
+  for (const host of hostPreference.ordered()) {
     try {
       const out: Bar[] = [];
       let endTime: number | undefined;
@@ -184,7 +185,7 @@ export async function fetchBinanceKlines(
       }
 
       if (out.length >= Math.min(bars, 200)) {
-        preferredBinanceHost = Math.max(0, BINANCE_HOSTS.indexOf(host));
+        hostPreference.remember(host);
         return out.slice(-bars);
       }
       lastError = new Error(`only ${out.length} bars available`);

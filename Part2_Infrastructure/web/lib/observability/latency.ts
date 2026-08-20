@@ -1,5 +1,6 @@
 import { startedAt } from "./identity";
-import { queuePendingSample, shared, sharedFresh } from "./ledger";
+import { queuePendingSample } from "./ledger";
+import { opsLedger } from "./ops-ledger";
 
 // --------------------------------------------------------------------------
 // Latency
@@ -29,7 +30,54 @@ const LATENCY_CAPACITY = 120;
 /** Samples older than this are dropped on read, so stats describe *now*. */
 const LATENCY_WINDOW_MS = 15 * 60_000;
 
-export const latencySamples = new Map<string, LatencySample[]>();
+/**
+ * This instance's own samples, one bounded ring per key.
+ *
+ * It was an exported bare `Map`, and the export was not decoration: `capture.ts`
+ * imported it purely to call `.clear()` on it, so the operator's "reset
+ * observation" action reached in and emptied another module's store with no
+ * method in between. Anything else that imported the module could have done the
+ * same — resized a bucket, inserted a sample out of order, or held a reference
+ * to one bucket array and gone on writing to it after a reset.
+ *
+ * Owning it makes the capacity bound and the reset the only two ways the
+ * contents change. `EventRing` next door is the same shape for the same reason;
+ * these are the two bounded rings the kernel keeps.
+ */
+export class LatencyRing {
+  private readonly buckets = new Map<string, LatencySample[]>();
+
+  constructor(private readonly capacity = LATENCY_CAPACITY) {}
+
+  record(key: string, sample: LatencySample): void {
+    const bucket = this.buckets.get(key) ?? [];
+    bucket.push(sample);
+    if (bucket.length > this.capacity) bucket.splice(0, bucket.length - this.capacity);
+    this.buckets.set(key, bucket);
+  }
+
+  /** Copied, not the live array: a reader must not be able to append to a ring. */
+  samples(key: string): LatencySample[] {
+    return [...(this.buckets.get(key) ?? [])];
+  }
+
+  keys(): string[] {
+    return [...this.buckets.keys()];
+  }
+
+  /** Keys with at least one sample at or after `cutoff`. */
+  keysSince(cutoff: number): string[] {
+    return [...this.buckets.entries()]
+      .filter(([, bucket]) => bucket.some((s) => s.ts >= cutoff))
+      .map(([key]) => key);
+  }
+
+  clear(): void {
+    this.buckets.clear();
+  }
+}
+
+export const latencyRing = new LatencyRing();
 
 /**
  * `at` is the observation time and defaults to now.
@@ -41,10 +89,7 @@ export const latencySamples = new Map<string, LatencySample[]>();
  */
 export function recordLatency(key: string, ms: number, ok: boolean, at = Date.now()): void {
   const sample = { ts: at, ms, ok };
-  const bucket = latencySamples.get(key) ?? [];
-  bucket.push(sample);
-  if (bucket.length > LATENCY_CAPACITY) bucket.splice(0, bucket.length - LATENCY_CAPACITY);
-  latencySamples.set(key, bucket);
+  latencyRing.record(key, sample);
   queuePendingSample(key, sample);
 }
 
@@ -69,12 +114,13 @@ export function percentile(sorted: number[], p: number): number | null {
  */
 function windowedSamples(key: string, now: number): LatencySample[] {
   const cutoff = now - LATENCY_WINDOW_MS;
-  const local = latencySamples.get(key) ?? [];
-  if (!sharedFresh(now)) return local.filter((s) => s.ts >= cutoff);
-  const merged = (shared!.latency.get(key) ?? []).filter((s) => s.ts >= cutoff);
+  const local = latencyRing.samples(key);
+  if (!opsLedger.fresh(now)) return local.filter((s) => s.ts >= cutoff);
+  const merged = opsLedger.sharedSamples(key).filter((s) => s.ts >= cutoff);
   // Our own pushed samples came back inside the overlay; only what was
   // recorded after the last drain is missing from it.
-  for (const s of local) if (s.ts > shared!.drainedAtMs && s.ts >= cutoff) merged.push(s);
+  const drainedAt = opsLedger.drainedAtMs();
+  for (const s of local) if (s.ts > drainedAt && s.ts >= cutoff) merged.push(s);
   return merged;
 }
 
@@ -106,16 +152,13 @@ export function latencyStats(key: string, now = Date.now()): LatencyStats {
 
 /** Every key that has at least one sample in the window. */
 export function latencyKeys(now = Date.now()): string[] {
-  const cutoff = now - LATENCY_WINDOW_MS;
-  return [...latencySamples.entries()]
-    .filter(([, bucket]) => bucket.some((s) => s.ts >= cutoff))
-    .map(([key]) => key);
+  return latencyRing.keysSince(now - LATENCY_WINDOW_MS);
 }
 
 /**
  * The history behind the scalars, bucketed for the wire.
  *
- * `latencySamples` has held timestamped samples the whole time and only
+ * `latencyRing` has held timestamped samples the whole time and only
  * `statsOf` aggregates ever escaped, so the client could show a p95 and had no
  * way to show whether it had been climbing. This exposes the shape without
  * shipping the raw samples: ~1,300 `{ts,ms,ok}` would be about 50KB per poll,
@@ -162,8 +205,8 @@ export function latencyWindow(
   const buckets = Math.max(1, Math.round(LATENCY_WINDOW_MS / bucketMs));
   const startedAt = now - buckets * bucketMs;
 
-  const keys = new Set<string>(latencySamples.keys());
-  if (sharedFresh(now)) for (const key of shared!.latency.keys()) keys.add(key);
+  const keys = new Set<string>(latencyRing.keys());
+  if (opsLedger.fresh(now)) for (const key of opsLedger.sharedLatencyKeys()) keys.add(key);
 
   const series: LatencyWindowSeries[] = [];
   for (const key of keys) {
@@ -197,8 +240,8 @@ export function latencyWindow(
 
 /** p50 across every provider's window — the "is the data plane slow" number. */
 export function globalLatency(now = Date.now()): LatencyStats {
-  const keys = new Set<string>(latencySamples.keys());
-  if (sharedFresh(now)) for (const key of shared!.latency.keys()) keys.add(key);
+  const keys = new Set<string>(latencyRing.keys());
+  if (opsLedger.fresh(now)) for (const key of opsLedger.sharedLatencyKeys()) keys.add(key);
   const all: LatencySample[] = [];
   for (const key of keys) all.push(...windowedSamples(key, now));
   return statsOf(all);
@@ -217,8 +260,8 @@ export function globalLatency(now = Date.now()): LatencyStats {
  * which is the conservative default (it never inflates the hop figure).
  */
 export function latencyByClass(now = Date.now()): { gatewayHop: LatencyStats; upstream: LatencyStats } {
-  const keys = new Set<string>(latencySamples.keys());
-  if (sharedFresh(now)) for (const key of shared!.latency.keys()) keys.add(key);
+  const keys = new Set<string>(latencyRing.keys());
+  if (opsLedger.fresh(now)) for (const key of opsLedger.sharedLatencyKeys()) keys.add(key);
   const hop: LatencySample[] = [];
   const upstream: LatencySample[] = [];
   for (const key of keys) {

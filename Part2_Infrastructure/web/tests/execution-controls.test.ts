@@ -525,11 +525,13 @@ describe("Activity is the record and the stream, one seg apart", () => {
 
   it("keeps the blotter's wiring exactly as it was", () => {
     // The split moves the record into a pane; it does not re-plumb it. The
-    // cancel path still re-reads this panel's own poll, and `active` still
-    // gates the resting book's polling on the subtab, not the pane — the
-    // conditional render already handles the pane.
+    // cancel path still re-reads this panel's own poll — through the cockpit's
+    // one invalidation path now, which stays local because a cancel carries no
+    // submission result — and `active` still gates the resting book's polling
+    // on the subtab, not the pane; the conditional render handles the pane.
     assert.match(stripped, /active=\{section === "activity"\}/);
-    assert.match(stripped, /onChanged=\{\(\) => void refresh\(\)\}/);
+    assert.match(stripped, /onChanged=\{revalidate\}/);
+    assert.match(stripped, /if \(result\) onOrderSettled\?\.\(result\)/);
     assert.match(stripped, /<AlertFeed events=\{effectiveEvents\} source=\{feedSource\}/);
   });
 

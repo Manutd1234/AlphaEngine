@@ -34,6 +34,7 @@
  * *research bars* come from, which is a latency question, not an execution one.
  */
 
+import { HostPreference } from "./host-preference";
 import { recordUpstream } from "./observability";
 import { Bar } from "./types";
 
@@ -81,14 +82,8 @@ const MAX_PAGE = 1000;
 const FETCH_TIMEOUT_MS = 8_000;
 const OVERALL_BUDGET_MS = 20_000;
 
-/** Which host last answered, per process. Same memo strategy as the Binance path. */
-let preferredBybitHost = 0;
-
-function bybitHosts(): string[] {
-  return preferredBybitHost === 0
-    ? [...BYBIT_HOSTS]
-    : [BYBIT_HOSTS[preferredBybitHost], ...BYBIT_HOSTS.filter((_, i) => i !== preferredBybitHost)];
-}
+/** Which host last answered, per process. The same owner the Binance path uses. */
+const hostPreference = new HostPreference(BYBIT_HOSTS);
 
 async function withTimeout(
   run: (signal: AbortSignal) => Promise<Response>,
@@ -185,7 +180,7 @@ export async function fetchBybitKlines(
   let lastError: unknown = null;
   const startedAt = Date.now();
 
-  for (const host of bybitHosts()) {
+  for (const host of hostPreference.ordered()) {
     try {
       const out: Bar[] = [];
       let end: number | undefined;
@@ -300,7 +295,7 @@ export async function fetchBybitKlines(
       // backtest, and returning them would defeat the fallback.
       if (out.length >= Math.min(bars, 200)) {
         assertAscending(out, symbol);
-        preferredBybitHost = Math.max(0, BYBIT_HOSTS.indexOf(host));
+        hostPreference.remember(host);
         return out.slice(-bars);
       }
       lastError = new Error(`only ${out.length} bars available`);

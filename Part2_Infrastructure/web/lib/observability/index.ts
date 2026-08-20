@@ -55,13 +55,13 @@ import { isDataQualityView, type DataQualityViewWire } from "@/lib/data-quality-
 export { instanceId, startedAt } from "./identity";
 export { EventRing, emit, eventCursor, eventsSince } from "./ring";
 export type { EventField, EventInput, EventLevel, EventOrigin, TraceEvent } from "./ring";
-export { LATENCY_BUCKET_MIN_SAMPLES, LATENCY_BUCKET_MS, globalLatency, latencyByClass, latencyKeys, latencyStats, latencyWindow, percentile, recordLatency } from "./latency";
+export { LATENCY_BUCKET_MIN_SAMPLES, LATENCY_BUCKET_MS, LatencyRing, globalLatency, latencyByClass, latencyKeys, latencyRing, latencyStats, latencyWindow, percentile, recordLatency } from "./latency";
 export type { LatencySample, LatencyStats, LatencyWindow, LatencyWindowSeries } from "./latency";
-export { cacheStats, recordCacheLookup } from "./cache";
+export { CacheLedger, cacheLedger, cacheStats, recordCacheLookup } from "./cache";
 export type { CacheCounters } from "./cache";
-export { OUTAGE_MAX_MS, activeOutages, clearAllOutages, clearOutage, outageFor, simulateOutage } from "./outages";
+export { OUTAGE_MAX_MS, OutageRegistry, activeOutages, clearAllOutages, clearOutage, outageFor, outageRegistry, simulateOutage } from "./outages";
 export type { SimulatedOutage } from "./outages";
-export { SHARED_STALE_MS, applySharedOpsState, queueContractFinding, recordQuotaReset, recordQuotaSpend, restorePendingOps, sharedDataQuality, sharedOpsStatus, takePendingOps } from "./ledger";
+export { OpsLedger, SHARED_STALE_MS, applySharedOpsState, opsLedger, queueContractFinding, recordQuotaReset, recordQuotaSpend, restorePendingOps, sharedDataQuality, sharedOpsStatus, takePendingOps } from "./ledger";
 export type { SharedContractFindingWire, SharedLatencySampleWire, SharedOpsStatus, SharedOpsSyncBody, SharedOpsViewWire } from "./ledger";
 export { clearSecrets, redact, redactHeaders, redactUrl, registerSecret } from "./redaction";
 export { MAX_BODY_CHARS, captureBody, currentCapture, recordUpstream, resetTelemetry, setCaptureResolver } from "./capture";

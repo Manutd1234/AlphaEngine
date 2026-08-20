@@ -1,3 +1,4 @@
+import { HostPreference } from "../host-preference";
 import { recordUpstream } from "../observability";
 import { failed } from "./adapters";
 import { spreadBps } from "./book-maths";
@@ -138,30 +139,30 @@ export const BYBIT_HOSTS = ["https://api.bybit.com", "https://api.bytick.com"];
 const FETCH_TIMEOUT_MS = 8_000;
 
 /**
- * Which host in a list last answered, remembered per process.
+ * Which host last answered, per venue, remembered per process.
  *
- * When a region is blocked the primary does not fail *sometimes* — it fails
- * every single time, so every request pays a full failed round trip before the
- * mirror answers. Measured in production that was a 50% error rate on Binance
- * and roughly double the latency on every depth, ticker and klines call.
- *
- * Starting from the last host that worked removes that. It is a *preference*,
- * not a pin: the loop still walks the whole list, so if the remembered host
- * starts failing the next one is tried and the memo is rewritten. Per-instance
- * and non-durable, exactly like the quota ledger — a cold start simply pays the
- * discovery cost once more.
+ * This was the one piece of hidden mutable state in an otherwise pure module: a
+ * bare `Map<string, number>` at file scope, keyed by a string the two call
+ * sites in `adapters.ts` had to agree on by convention, with the host list
+ * passed in separately on every call — so nothing stopped a lookup keyed
+ * `"binance"` being resolved against `BYBIT_HOSTS`. `HostPreference` binds the
+ * memo to the list it indexes at construction, which makes that unrepresentable
+ * rather than merely unlikely, and the same class now backs the two klines
+ * transports that had each grown their own copy of the reordering expression.
  */
-const preferredHost = new Map<string, number>();
+const HOST_PREFERENCE: Record<VenueName, HostPreference> = {
+  BINANCE: new HostPreference(BINANCE_HOSTS),
+  BYBIT: new HostPreference(BYBIT_HOSTS),
+};
 
-export function orderedHosts(key: string, hosts: readonly string[]): readonly string[] {
-  const first = preferredHost.get(key) ?? 0;
-  if (first === 0 || first >= hosts.length) return hosts;
-  return [hosts[first], ...hosts.filter((_, i) => i !== first)];
+/** The venue's host list, starting from whichever host last answered. */
+export function orderedHosts(venue: VenueName): readonly string[] {
+  return HOST_PREFERENCE[venue].ordered();
 }
 
-export function rememberHost(key: string, hosts: readonly string[], host: string): void {
-  const index = hosts.indexOf(host);
-  if (index >= 0) preferredHost.set(key, index);
+/** Record that `host` answered for `venue`. Ignored if it is not one of them. */
+export function rememberHost(venue: VenueName, host: string): void {
+  HOST_PREFERENCE[venue].remember(host);
 }
 
 /**

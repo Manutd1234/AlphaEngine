@@ -1,4 +1,4 @@
-import { pending, shared, sharedFresh } from "./ledger";
+import { opsLedger } from "./ops-ledger";
 
 // --------------------------------------------------------------------------
 // Simulated outages
@@ -20,58 +20,85 @@ export interface SimulatedOutage {
  */
 export const OUTAGE_MAX_MS = 15 * 60_000;
 
-export const outages = new Map<string, SimulatedOutage>();
+/**
+ * The operator-set blocks this instance knows about.
+ *
+ * The bare `Map` this replaces was exported, and two other modules used the
+ * export: `capture.ts` called `.clear()` on it to service the operator's reset,
+ * and `ledger.ts` imported it and then never read it — a dangling value import
+ * that closed an import cycle for no reason at all. Both are the same defect: a
+ * store with no owner is a store anyone may reach into, and nothing records
+ * who did.
+ *
+ * The class deliberately owns ONLY this instance's map. The gateway-merged
+ * overlay is the ledger's, and the free functions below are what reconcile the
+ * two — an outage has to be written to both and read from either, and putting
+ * that policy inside the container would give the container an opinion about a
+ * structure it does not own.
+ */
+export class OutageRegistry {
+  private readonly byProvider = new Map<string, SimulatedOutage>();
+
+  set(record: SimulatedOutage): void {
+    this.byProvider.set(record.provider, record);
+  }
+
+  get(provider: string): SimulatedOutage | undefined {
+    return this.byProvider.get(provider);
+  }
+
+  /** True when a record was actually removed. */
+  delete(provider: string): boolean {
+    return this.byProvider.delete(provider);
+  }
+
+  providers(): string[] {
+    return [...this.byProvider.keys()];
+  }
+
+  clear(): void {
+    this.byProvider.clear();
+  }
+}
+
+export const outageRegistry = new OutageRegistry();
 
 export function simulateOutage(provider: string, ttlMs = OUTAGE_MAX_MS, note = "operator-simulated outage"): SimulatedOutage {
   const bounded = Math.min(OUTAGE_MAX_MS, Math.max(10_000, ttlMs));
   const record: SimulatedOutage = { provider, expiresAt: Date.now() + bounded, note };
-  outages.set(provider, record);
-  // Mirror into the shared overlay and queue the command, so every other
-  // instance honours the outage after its next sync — and so a clear queued
-  // earlier in this same batch cannot cancel a newer set.
-  shared?.outages.set(provider, record);
-  pending.outageCleared = pending.outageCleared.filter((p) => p !== provider);
-  pending.outageSet = pending.outageSet.filter((o) => o.provider !== provider);
-  pending.outageSet.push(record);
+  outageRegistry.set(record);
+  // Mirrored into the shared overlay and queued as a command, so every other
+  // instance honours the outage after its next sync. Both halves are the
+  // ledger's own structures, so the ledger does them.
+  opsLedger.queueOutage(record);
   return record;
 }
 
 export function clearOutage(provider: string): boolean {
-  const known = outages.delete(provider);
-  const knownShared = shared?.outages.delete(provider) ?? false;
-  pending.outageSet = pending.outageSet.filter((o) => o.provider !== provider);
-  if (!pending.outageCleared.includes(provider)) pending.outageCleared.push(provider);
+  const known = outageRegistry.delete(provider);
+  const knownShared = opsLedger.queueOutageCleared(provider);
   return known || knownShared;
 }
 
 export function clearAllOutages(): number {
   const n = activeOutages().length;
-  outages.clear();
-  shared?.outages.clear();
-  pending.outageSet = [];
-  pending.outageCleared = ["*"];
+  outageRegistry.clear();
+  opsLedger.queueAllOutagesCleared();
   return n;
 }
 
 export function outageFor(provider: string, now = Date.now()): SimulatedOutage | null {
-  const record = outages.get(provider);
+  const record = outageRegistry.get(provider);
   if (record) {
     if (record.expiresAt > now) return record;
-    outages.delete(provider);
+    outageRegistry.delete(provider);
   }
-  if (sharedFresh(now)) {
-    const remote = shared!.outages.get(provider);
-    if (remote) {
-      if (remote.expiresAt > now) return remote;
-      shared!.outages.delete(provider);
-    }
-  }
-  return null;
+  return opsLedger.sharedOutage(provider, now);
 }
 
 export function activeOutages(now = Date.now()): SimulatedOutage[] {
-  const providers = new Set<string>(outages.keys());
-  if (sharedFresh(now)) for (const provider of shared!.outages.keys()) providers.add(provider);
+  const providers = new Set<string>(outageRegistry.providers());
+  for (const provider of opsLedger.sharedOutageProviders(now)) providers.add(provider);
   return [...providers]
     .map((provider) => outageFor(provider, now))
     .filter((o): o is SimulatedOutage => o !== null);

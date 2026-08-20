@@ -1,8 +1,8 @@
 import { isDataQualityView, type DataQualityViewWire } from "@/lib/data-quality-ledger";
-import { cacheByCapability } from "./cache";
-import { latencySamples, recordLatency } from "./latency";
-import { pending, resetShared, shared } from "./ledger";
-import { outages } from "./outages";
+import { cacheLedger } from "./cache";
+import { latencyRing, recordLatency } from "./latency";
+import { opsLedger } from "./ops-ledger";
+import { outageRegistry } from "./outages";
 import { redact, redactUrl } from "./redaction";
 import { EventOrigin, emit, events } from "./ring";
 
@@ -213,12 +213,11 @@ export function resetTelemetry(
     // its unpushed queue, and its copy of the merged view. The gateway ledger
     // keeps other instances' history and the next sync re-reads it; erasing
     // the shared record from here would let one instance rewrite the fleet's.
-    latencySamples.clear();
-    pending.samples = [];
-    shared?.latency.clear();
+    latencyRing.clear();
+    opsLedger.clearLatency();
   }
-  if (options.cache) cacheByCapability.clear();
-  if (options.outages) outages.clear();
+  if (options.cache) cacheLedger.clear();
+  if (options.outages) outageRegistry.clear();
   // Test isolation: forget the overlay and every pending delta.
-  if (options.shared) resetShared();
+  if (options.shared) opsLedger.reset();
 }

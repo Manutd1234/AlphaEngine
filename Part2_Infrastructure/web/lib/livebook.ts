@@ -22,8 +22,9 @@
  *    resubscribe rather than trusting a book with holes.
  */
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { type SocketHandle, sockets } from "./socket-registry";
 import {
   type Level,
   type Side,
@@ -150,85 +151,16 @@ type Handlers = {
 // --------------------------------------------------------------------------
 // Socket registry
 // --------------------------------------------------------------------------
+//
+// The inventory of open sockets, its listener set, its id counter and its
+// snapshot cache were four module-level bindings here; they are now
+// `SocketRegistry` in `lib/socket-registry.ts`, which is the only thing that
+// can update them and cannot update them separately. Re-exported so the
+// systems console and `use-system-health.ts` keep importing them from the
+// module that opens the sockets.
 
-/**
- * Every supervised socket this tab currently owns.
- *
- * It exists so the systems console can answer "how many sockets are actually
- * open, to what, and for how long" and can force a clean re-handshake — neither
- * of which was possible when a `connect()` closure was the only owner.
- *
- * Keyed by a unique incrementing id rather than by `venue:symbol`. React
- * StrictMode runs every effect mount → cleanup → mount in development, so two
- * sockets for the same venue and symbol exist briefly on every mount; a
- * composite key would have the second registration overwrite the first, and the
- * first's cleanup would then delete the *second's* entry.
- */
-export interface SocketHandle {
-  id: number;
-  venue: VenueName;
-  symbol: string;
-  openedAt: number;
-  restart(): void;
-  stop(): void;
-}
-
-export interface SocketSummary {
-  id: number;
-  venue: VenueName;
-  symbol: string;
-  openedAt: number;
-}
-
-const registry = new Map<number, SocketHandle>();
-const registryListeners = new Set<() => void>();
-let socketSeq = 0;
-
-/**
- * Recomputed only on lifecycle changes, never per frame.
- *
- * `useSyncExternalStore` requires a referentially stable snapshot between
- * notifications — returning a fresh array on every read is an infinite render
- * loop. Frame counters deliberately do not live here: they change ten times a
- * second per venue and already reach the UI through the hook's throttled 5 Hz
- * publish.
- */
-let registrySnapshot: SocketSummary[] = [];
-
-function publishRegistry(): void {
-  registrySnapshot = [...registry.values()].map(({ id, venue, symbol, openedAt }) => ({
-    id, venue, symbol, openedAt,
-  }));
-  for (const listener of registryListeners) listener();
-}
-
-const EMPTY_REGISTRY: SocketSummary[] = [];
-
-/** Live socket inventory for this tab. Safe during SSR — it reports none. */
-export function useSocketRegistry(): SocketSummary[] {
-  return useSyncExternalStore(
-    (listener) => {
-      registryListeners.add(listener);
-      return () => registryListeners.delete(listener);
-    },
-    () => registrySnapshot,
-    () => EMPTY_REGISTRY,
-  );
-}
-
-/**
- * Force every live socket to drop and re-handshake. Returns how many were cycled.
- *
- * Not implemented as `ws.close()` from outside: that path runs through `retry()`,
- * which makes the operator wait out the current backoff (up to 20s + jitter) and
- * increments the failure counter — so a deliberate action would read on screen
- * as an outage.
- */
-export function restartAllSockets(): number {
-  const handles = [...registry.values()];
-  for (const handle of handles) handle.restart();
-  return handles.length;
-}
+export { restartAllSockets, sockets, useSocketRegistry, useWireTap } from "./socket-registry";
+export type { SocketHandle, SocketSummary } from "./socket-registry";
 
 /** One supervised socket with exponential backoff + jitter. */
 function connect(
@@ -387,7 +319,7 @@ function connect(
   };
 
   const handle: SocketHandle = {
-    id: ++socketSeq,
+    id: sockets.nextId(),
     venue,
     symbol,
     openedAt: Date.now(),
@@ -412,15 +344,13 @@ function connect(
         dying.onopen = null;
         dying.close();
       }
-      registry.delete(handle.id);
-      publishRegistry();
+      sockets.remove(handle.id);
     },
   };
 
   // Registered once, here — not inside `open()`, which runs again on every
   // reconnect and would leak one entry per retry.
-  registry.set(handle.id, handle);
-  publishRegistry();
+  sockets.add(handle);
 
   open();
 
@@ -555,19 +485,6 @@ export function useLiveBook(symbol: string, enabled = true, publishHz = 5): Live
   }, [symbol, enabled, publishHz]);
 
   return snapshot;
-}
-
-/**
- * Socket inventory plus the force-reconnect control, for the systems console.
- *
- * Read-only over the registry: it does not open anything of its own, so a panel
- * that renders this cannot change the socket count by being on screen. The
- * reconnect it exposes cycles whatever `useLiveBook` has already opened.
- */
-export function useWireTap(): { sockets: SocketSummary[]; reconnectAll: () => number } {
-  const sockets = useSocketRegistry();
-  const reconnectAll = useCallback(() => restartAllSockets(), []);
-  return { sockets, reconnectAll };
 }
 
 /**

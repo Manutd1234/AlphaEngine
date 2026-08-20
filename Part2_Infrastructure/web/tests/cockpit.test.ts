@@ -369,11 +369,20 @@ describe("a settled live order invalidates the shared Portfolio and Risk book", 
   });
 
   it("keeps sandbox local and refreshes both live snapshot owners", () => {
-    assert.match(cockpit, /if \(result\.source !== "live"\) return/);
-    assert.match(cockpit, /void refresh\(\)/);
-    assert.match(cockpit, /onOrderSettled\?\.\(result\)/);
-    assert.match(page, /void book\.refresh\(true\)/);
-    assert.match(page, /onOrderSettled=\{refreshBookAfterOrder\}/);
+    /**
+     * One invalidation path per surface, which is the part that has to hold as
+     * mutations are added. Every mutation in the cockpit calls `revalidate`,
+     * every mutation on the page calls `revalidateDesk`, and the escalation
+     * between them — local for a cancel, local-only for a sandbox submission,
+     * both snapshots for a live one — is decided once rather than remembered
+     * at each call site. A per-handler copy is how a stale Portfolio tab after
+     * a kill switch happens, and nothing on screen says it happened.
+     */
+    assert.match(cockpit, /if \(result && result\.source !== "live"\) return/);
+    assert.match(cockpit, /void refresh\(\);\s*\n\s*if \(result\) onOrderSettled\?\.\(result\)/);
+    assert.match(cockpit, /onSubmitted=\{revalidate\}/);
+    assert.match(page, /book\.refresh\(true\), systems\.refresh\(true\)/);
+    assert.match(page, /onOrderSettled=\{revalidateDesk\}/);
   });
 
   it("surfaces the selected sleeve's audited activity in both destination tabs", () => {

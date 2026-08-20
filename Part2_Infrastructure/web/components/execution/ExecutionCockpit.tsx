@@ -282,12 +282,16 @@ export default function ExecutionCockpit({
     ? "live"
     : problem && !sandboxOff ? "sandbox" : "outage";
 
-  const handleSubmitted = useCallback((result: OrderSubmissionResult) => {
-    if (result.source !== "live") return;
-    // Cockpit owns its tape and verdict panels; Page owns the single book used
-    // by Portfolio and Risk. Both snapshots are invalidated from one decision.
+  /**
+   * One invalidation path for every mutation this surface makes: the ticket and
+   * the blotter each re-read by hand, and disagreed about how much. A cancel
+   * carries no result and stays local (this panel's blotter moves, not the book
+   * Page owns); a sandbox submission touches no server; a live one does both.
+   */
+  const revalidate = useCallback((result?: OrderSubmissionResult) => {
+    if (result && result.source !== "live") return;
     void refresh();
-    onOrderSettled?.(result);
+    if (result) onOrderSettled?.(result);
   }, [onOrderSettled, refresh]);
 
   /**
@@ -465,7 +469,7 @@ export default function ExecutionCockpit({
             haltedSymbols={effectiveBook?.halted_symbols ?? []}
             mode={mode}
             judge={mode === "sandbox" ? sandboxState.desk.judge : undefined}
-            onSubmitted={handleSubmitted}
+            onSubmitted={revalidate}
           />
         </div>
       </WorkspaceSubtabPanel>
@@ -552,11 +556,7 @@ export default function ExecutionCockpit({
             source={feedSource}
             active={section === "activity"}
             operatorToken={operatorToken}
-            /* The cockpit's own refresh, not `onOrderSettled`: that one carries a
-               submission result and invalidates the shared book after a NEW order.
-               A cancel from this table changes the resting book, so what has to
-               re-read is this panel's poll. */
-            onChanged={() => void refresh()}
+            onChanged={revalidate}
             onOpenResearch={onOpenResearch}
           />
         )}

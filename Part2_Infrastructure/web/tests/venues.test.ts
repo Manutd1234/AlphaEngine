@@ -463,6 +463,10 @@ describe("every venue client has somewhere to fall back to", () => {
   // while both work from a laptop. Binance had a mirror and recovered; Bybit
   // had one host and silently dropped out of every "cross-venue" number.
   const source = readVenues();
+  const hostPreferenceSource = readFileSync(
+    fileURLToPath(new URL("../lib/host-preference.ts", import.meta.url)),
+    "utf8",
+  );
 
   it("declares more than one host per venue", () => {
     const binance = /const BINANCE_HOSTS = \[([^\]]*)\]/s.exec(source)?.[1] ?? "";
@@ -478,11 +482,25 @@ describe("every venue client has somewhere to fall back to", () => {
   });
 
   it("walks the whole host list rather than pinning the remembered one", () => {
-    // `orderedHosts` returns a PREFERENCE. If it ever returned a single host the
-    // memo would become a pin, and one bad answer would strand the venue.
-    const fn = /function orderedHosts[^}]*}/s.exec(source)?.[0] ?? "";
-    assert.match(fn, /\.\.\.hosts\.filter/, "the non-preferred hosts must still be returned");
-    assert.ok(!/return \[hosts\[first\]\];/.test(fn), "orderedHosts must not return a single host");
+    // The memo is a PREFERENCE. If `ordered()` ever returned a single host it
+    // would become a pin, and one bad answer would strand the venue.
+    //
+    // The memo used to be a bare Map in the venues module and is now
+    // `HostPreference`, shared with the two klines transports that had each
+    // grown their own copy — so the property is asserted where it now lives.
+    const fn = /ordered\(\): readonly string\[\] \{[\s\S]*?\n  \}/.exec(hostPreferenceSource)?.[0] ?? "";
+    assert.ok(fn, "HostPreference.ordered() must exist");
+    assert.match(fn, /\.\.\.this\.hosts\.filter/, "the non-preferred hosts must still be returned");
+    assert.ok(!/return \[this\.hosts\[this\.index\]\];/.test(fn), "ordered() must not return a single host");
+  });
+
+  it("binds each memo to the host list it indexes", () => {
+    // The previous Map was keyed by a string with the host array passed in
+    // separately, so nothing stopped a "binance" lookup being resolved against
+    // BYBIT_HOSTS. The constructor argument is what makes that unrepresentable.
+    assert.match(hostPreferenceSource, /constructor\(private readonly hosts: readonly string\[\]\)/);
+    assert.match(source, /new HostPreference\(BINANCE_HOSTS\)/);
+    assert.match(source, /new HostPreference\(BYBIT_HOSTS\)/);
   });
 
   it("treats a non-zero Bybit retCode as a host failure, not a book", () => {
@@ -491,7 +509,7 @@ describe("every venue client has somewhere to fall back to", () => {
     // around.
     const fn = /export async function fetchBybitBook[\s\S]*?\n}/.exec(source)?.[0] ?? "";
     assert.match(fn, /retCode !== 0/, "retCode must still be checked");
-    assert.match(fn, /for \(const host of orderedHosts\("bybit"/, "Bybit must loop over hosts");
+    assert.match(fn, /for \(const host of orderedHosts\("BYBIT"\)/, "Bybit must loop over hosts");
     assert.match(fn, /lastError = \(err as Error\)\.message/, "a failed host must be recorded and the loop continue");
   });
 });
