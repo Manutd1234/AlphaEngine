@@ -172,3 +172,86 @@ def derive_edges(documents: list[dict[str, Any]]) -> list[Edge]:
                 ))
 
     return edges
+
+
+async def persist_edges(
+    client: Any,
+    response: Any,
+    *,
+    desk_id: str,
+    limit: int = 40,
+) -> int:
+    """Store every edge the just-written document implies. Returns the count.
+
+    `derive_edges` had exactly one caller in the repository and it was a test.
+    The migration created `research_edges`, the traversal function reads it, the
+    corpus panel surfaces graph answers from it — and nothing ever wrote a row,
+    so every traversal returned empty and could not say why.
+
+    ── Bounded on purpose ─────────────────────────────────────────────────────
+    Candidates are the most recent `limit` documents sharing this one's symbol
+    or data hash, not the corpus. `derive_edges` is O(n²) over what it is given,
+    and materialising the full cross product of a growing corpus is how a link
+    table becomes larger than the thing it links.
+
+    ── Only edges touching the new document ───────────────────────────────────
+    The candidates already have edges between themselves from when each of them
+    was written. Re-deriving those would be correct and wasted; the unique
+    constraint would reject them all.
+
+    ── Never raises ───────────────────────────────────────────────────────────
+    A document that indexed successfully must not be reported as failed because
+    its graph edges could not be written. The corpus is the primary artefact and
+    the graph is derived from it, so a missing edge is recoverable by re-deriving
+    and a missing document is not.
+    """
+    try:
+        rows = response.json() or []
+    except ValueError:
+        return 0
+    inserted = rows[0] if isinstance(rows, list) and rows else None
+    # `resolution=ignore-duplicates` returns an empty representation when the
+    # document was already there — and if it was, its edges were written then.
+    if not isinstance(inserted, dict) or not inserted.get("id"):
+        return 0
+
+    symbol, data_hash = inserted.get("symbol"), inserted.get("data_hash")
+    filters = [f"symbol.eq.{symbol}" if symbol else "", f"data_hash.eq.{data_hash}" if data_hash else ""]
+    predicate = ",".join(f for f in filters if f)
+    if not predicate:
+        return 0
+
+    try:
+        found = await client.get(
+            "/rest/v1/research_documents",
+            params={
+                "select": "id,kind,symbol,strategy,occurred_at,data_hash,metrics",
+                "desk_id": f"eq.{desk_id}",
+                "or": f"({predicate})",
+                "order": "occurred_at.desc",
+                "limit": str(limit),
+            },
+        )
+        if found.status_code >= 300:
+            return 0
+        candidates = found.json() or []
+    except Exception:
+        return 0
+
+    new_id = str(inserted["id"])
+    edges = [
+        edge for edge in derive_edges([*candidates, inserted])
+        if edge.src_id == new_id or edge.dst_id == new_id
+    ]
+    if not edges:
+        return 0
+
+    try:
+        written = await client.post(
+            "/rest/v1/research_edges",
+            json=[{**edge.as_row(), "desk_id": desk_id} for edge in edges],
+            headers={"Prefer": "resolution=ignore-duplicates,return=minimal"},
+        )
+        return len(edges) if written.status_code < 300 else 0
+    except Exception:
+        return 0

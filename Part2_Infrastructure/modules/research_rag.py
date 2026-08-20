@@ -43,6 +43,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from config import settings
+from modules.research_graph import persist_edges
 
 if TYPE_CHECKING:
     from modules.schemas import OrderRequest, RiskDecision
@@ -424,11 +425,10 @@ class ResearchRag:
                 response = await self._client.post(
                     "/rest/v1/research_documents",
                     json=row,
-                    headers={
-                        "Prefer": "resolution=ignore-duplicates,return=minimal"
-                    },
+                    headers={"Prefer": "resolution=ignore-duplicates,return=representation"},
                 )
                 if response.status_code < 300:
+                    await persist_edges(self._client, response, desk_id=settings.supabase_desk_id)
                     if vector:
                         self._indexed += 1
                     else:

@@ -8,6 +8,8 @@ the connection a reader wants.
 
 from __future__ import annotations
 
+import pytest
+
 from modules.research_graph import (
     FOLLOWED_BY,
     PROMOTED_TO,
@@ -123,3 +125,152 @@ def test_derivation_is_deterministic():
 def test_documents_without_an_id_are_skipped_rather_than_producing_a_null_edge():
     edges = derive_edges([_doc("a"), _doc(None), _doc("c")])
     assert all(e.src_id and e.dst_id for e in edges)
+
+
+# ---------------------------------------------------------------------------
+# persist_edges — the half that was missing
+# ---------------------------------------------------------------------------
+#
+# `derive_edges` had one caller in the whole repository and it was the test
+# above. The migration created `research_edges`, `traverse_research_graph` reads
+# it and the corpus panel surfaces graph answers from it — and nothing wrote a
+# row, so every traversal returned empty and had no way to say why.
+
+
+class _Response:
+    def __init__(self, payload, status=201):
+        self._payload = payload
+        self.status_code = status
+
+    def json(self):
+        if isinstance(self._payload, Exception):
+            raise self._payload
+        return self._payload
+
+
+class _Client:
+    """Records what was asked of it, so the REQUEST can be asserted."""
+
+    def __init__(self, candidates, *, get_status=200, post_status=201):
+        self.candidates = candidates
+        self.get_status = get_status
+        self.post_status = post_status
+        self.posted: list[dict] = []
+        self.params: dict = {}
+        self.headers: dict = {}
+
+    async def get(self, _path, params=None):
+        self.params = params or {}
+        return _Response(self.candidates, self.get_status)
+
+    async def post(self, _path, json=None, headers=None):
+        self.posted = json or []
+        self.headers = headers or {}
+        return _Response([], self.post_status)
+
+
+def _document(doc_id, **over):
+    base = {
+        "id": doc_id,
+        "kind": "backtest_run",
+        "symbol": "BTCUSDT",
+        "strategy": "ma_cross",
+        "data_hash": "abc123",
+        "occurred_at": "2026-08-20T10:00:00Z",
+        "metrics": {},
+    }
+    base.update(over)
+    return base
+
+
+@pytest.mark.asyncio
+async def test_a_new_document_writes_the_edges_it_implies():
+    from modules.research_graph import persist_edges
+
+    existing = _document("older", occurred_at="2026-08-19T10:00:00Z")
+    client = _Client([existing])
+    written = await persist_edges(
+        client, _Response([_document("newer")]), desk_id="desk-1",
+    )
+    assert written > 0, "a document sharing a data hash and a symbol implies edges"
+    relations = {row["relation"] for row in client.posted}
+    assert "same_data" in relations
+    assert all(row["desk_id"] == "desk-1" for row in client.posted)
+
+
+@pytest.mark.asyncio
+async def test_only_edges_touching_the_new_document_are_written():
+    """The candidates already have edges between themselves."""
+    from modules.research_graph import persist_edges
+
+    a = _document("a", occurred_at="2026-08-18T10:00:00Z")
+    b = _document("b", occurred_at="2026-08-19T10:00:00Z")
+    client = _Client([a, b])
+    await persist_edges(client, _Response([_document("c")]), desk_id="desk-1")
+    for row in client.posted:
+        assert "c" in (row["src_id"], row["dst_id"]), (
+            f"re-derived an a-b edge that was written when b arrived: {row}"
+        )
+
+
+@pytest.mark.asyncio
+async def test_a_duplicate_document_writes_no_edges():
+    """`resolution=ignore-duplicates` returns an empty representation.
+
+    If the document was already there, its edges were written then.
+    """
+    from modules.research_graph import persist_edges
+
+    client = _Client([_document("older")])
+    assert await persist_edges(client, _Response([]), desk_id="desk-1") == 0
+    assert client.posted == []
+
+
+@pytest.mark.asyncio
+async def test_the_candidate_query_is_bounded_and_desk_scoped():
+    from modules.research_graph import persist_edges
+
+    client = _Client([_document("older")])
+    await persist_edges(client, _Response([_document("newer")]), desk_id="desk-9", limit=7)
+    assert client.params["desk_id"] == "eq.desk-9"
+    assert client.params["limit"] == "7", (
+        "derive_edges is O(n^2) over what it is given; an unbounded candidate "
+        "set is how a link table outgrows the thing it links"
+    )
+    assert "symbol.eq.BTCUSDT" in client.params["or"]
+
+
+@pytest.mark.asyncio
+async def test_the_write_ignores_duplicates():
+    from modules.research_graph import persist_edges
+
+    client = _Client([_document("older")])
+    await persist_edges(client, _Response([_document("newer")]), desk_id="desk-1")
+    assert "ignore-duplicates" in client.headers.get("Prefer", ""), (
+        "the unique constraint on (src_id, dst_id, relation) would otherwise "
+        "turn a re-index into a failed write"
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_failure_never_reaches_the_caller():
+    """A document that indexed must not report as failed over its edges.
+
+    The corpus is the primary artefact and the graph is derived from it: a
+    missing edge can be re-derived, a missing document cannot.
+    """
+    from modules.research_graph import persist_edges
+
+    broken = _Client([_document("older")], get_status=500)
+    assert await persist_edges(broken, _Response([_document("newer")]), desk_id="d") == 0
+
+    unparseable = _Client([_document("older")])
+    assert await persist_edges(unparseable, _Response(ValueError("not json")), desk_id="d") == 0
+
+    class Exploding(_Client):
+        async def get(self, *_a, **_k):
+            raise RuntimeError("connection reset")
+
+    assert await persist_edges(
+        Exploding([]), _Response([_document("newer")]), desk_id="d",
+    ) == 0
