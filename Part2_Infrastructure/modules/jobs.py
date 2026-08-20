@@ -26,6 +26,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import logging
+import time
 import traceback
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -35,6 +36,7 @@ from typing import Any, Callable
 from urllib.parse import urlsplit
 
 from config import settings
+from modules.backoff import Backoff
 from modules.schemas import JobStatus
 
 log = logging.getLogger("alphaengine.jobs")
@@ -83,6 +85,34 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+#: Which job kinds may be retried, and how many attempts each gets.
+#:
+#: Opt-in by name, never a default, and each entry is a claim that running the
+#: work twice is indistinguishable from running it once:
+#:
+#:   data.backfill — merges bars into the cache keyed by (symbol, interval, ts).
+#:                   A repeated merge overwrites identical rows.
+#:   data.replay   — re-runs one capability through the validated fetch path and
+#:                   records a finding. A second finding is a second observation,
+#:                   which is what the ledger is for. It costs a provider call,
+#:                   which is why the count is 2 rather than 3.
+#:   ml.fit        — reads bars and writes one run row. A retry writes a second
+#:                   run, which is honest: two fits of the same spec on the same
+#:                   data ARE two runs, and the seed and data_hash say so.
+#:
+#: Anything absent gets one attempt. `backtest` is deliberately absent: it
+#: pushes a corpus card and a Telegram message on completion, and repeating
+#: those is visible to a reader.
+RETRYABLE: dict[str, int] = {
+    "data.backfill": 3,
+    "data.replay": 2,
+    "ml.fit": 2,
+}
+
+RETRY_BASE_S = 2.0
+RETRY_CEILING_S = 30.0
+
+
 @dataclass
 class JobRecord:
     job_id: str
@@ -97,6 +127,11 @@ class JobRecord:
     error: str | None = None
     backend: str = "in-process"
     meta: dict[str, Any] = field(default_factory=dict)
+    #: Attempts made, including the one in flight. 1 for a job that has run once.
+    attempt: int = 0
+    #: Total attempts allowed. 1 means no retry, which is the default and the
+    #: only safe assumption for work whose idempotence has not been argued.
+    max_attempts: int = 1
 
     def to_status(self) -> JobStatus:
         return JobStatus(
@@ -153,7 +188,10 @@ class JobQueue:
         keyed the same way the caller polls it.
         """
         job_id = uuid.uuid4().hex[:12]
-        record = JobRecord(job_id=job_id, kind=kind, backend=self.backend, meta=meta or {})
+        record = JobRecord(
+            job_id=job_id, kind=kind, backend=self.backend, meta=meta or {},
+            max_attempts=RETRYABLE.get(kind, 1),
+        )
         self._jobs[job_id] = record
 
         # Completion hooks are coroutines that must run on the gateway's loop.
@@ -187,20 +225,48 @@ class JobQueue:
             injected["job_id"] = record.job_id
 
         def runner() -> None:
-            record.status = "running"
+            """Run, and retry only where repeating the work is safe.
+
+            Retry is opt-in per kind via RETRYABLE, never a default. A job whose
+            idempotence has not been argued gets one attempt: silently repeating
+            work with side effects is a worse failure than not repeating it, and
+            it is the kind that shows up as duplicated rows weeks later.
+
+            The sleep is on the worker thread, which is where the delay belongs
+            — a retry that returned to the pool would let a later job overtake
+            an earlier one that is merely waiting.
+            """
+            backoff = Backoff(base_s=RETRY_BASE_S, ceiling_s=RETRY_CEILING_S)
             record.started_at = _utcnow()
-            try:
-                record.result = fn(*args, **injected)
-                record.status = "succeeded"
-                record.progress = 1.0
-            except Exception as exc:
-                record.status = "failed"
-                record.error = f"{type(exc).__name__}: {exc}"
-                log.error("job %s failed: %s\n%s", record.job_id, exc, traceback.format_exc())
-            finally:
-                record.finished_at = _utcnow()
-                self._persist(record)
-                self._schedule_complete(record, loop)
+            while True:
+                record.attempt += 1
+                record.status = "running"
+                try:
+                    record.result = fn(*args, **injected)
+                    record.status = "succeeded"
+                    record.progress = 1.0
+                    record.error = None
+                    break
+                except Exception as exc:
+                    record.error = f"{type(exc).__name__}: {exc}"
+                    if record.attempt >= record.max_attempts:
+                        record.status = "failed"
+                        log.error(
+                            "job %s failed after %d attempt(s): %s\n%s",
+                            record.job_id, record.attempt, exc, traceback.format_exc(),
+                        )
+                        break
+                    delay = backoff.failed()
+                    log.warning(
+                        "job %s attempt %d/%d failed (%s); retrying in %.1fs",
+                        record.job_id, record.attempt, record.max_attempts,
+                        type(exc).__name__, delay,
+                    )
+                    record.message = f"retrying after {type(exc).__name__}"
+                    time.sleep(delay)
+            record.finished_at = _utcnow()
+            self._persist(record)
+            self._schedule_complete(record, loop)
 
         self._pool.submit(runner)
 
