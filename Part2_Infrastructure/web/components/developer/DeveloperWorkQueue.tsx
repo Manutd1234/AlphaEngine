@@ -120,7 +120,7 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
       priority: draft.priority,
       status: "triage",
       title,
-      summary: draft.summary.trim() || "Added from the Developer engineering queue for triage.",
+      summary: draft.summary.trim() || "Added from the engineering queue for triage.",
       owner: draft.owner.trim() || "Unassigned",
       area: draft.area,
       openedAt: Date.now(),
@@ -157,9 +157,9 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
       </div>
 
       <div className="developer-work__scope">
-        <strong>What “fix” means here:</strong> moving a bug records workflow state in this
-        browser; it survives a reload and syncs nowhere. Changing the repository or closing a real
-        ticket still needs an authenticated issue integration and a reviewed source-control change.
+        <strong>What “fix” means here:</strong> a move records workflow state in this browser and
+        syncs nowhere. Changing the repository or closing a real ticket needs an authenticated
+        issue integration and a reviewed source-control change.
       </div>
 
       {/* One action with a three-way parameter, not three actions. Add feature,
