@@ -39,7 +39,27 @@ const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
 
 const code = (source: string) => source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
+/**
+ * The security centre is five files.
+ *
+ * `ProfileScreen` kept the client boundary, the session, the two lists the page
+ * head counts and the one banner every panel reports through; the four cards
+ * each took the state only they read. Every assertion below reads the file its
+ * subject actually lives in — pointed at the screen alone, half of them would
+ * have gone green scanning a file that no longer contains what they guard.
+ *
+ * The assertions that FORBID something read `centre`, the whole surface. A
+ * "never `getPublicUrl`" or "never `next/image`" scoped to the screen would be
+ * satisfied by a card doing exactly that.
+ */
 const screen = read("../components/profile/ProfileScreen.tsx");
+const cards = {
+  identity: read("../components/profile/ProfileIdentityCard.tsx"),
+  connections: read("../components/profile/ProfileConnectionsCard.tsx"),
+  sessions: read("../components/profile/ProfileSessionsCard.tsx"),
+  password: read("../components/profile/ProfilePasswordCard.tsx"),
+};
+const centre = [screen, ...Object.values(cards)].join("\n");
 const route = read("../app/profile/page.tsx");
 
 describe("the display name survives the next OAuth sign-in", () => {
@@ -52,10 +72,10 @@ describe("the display name survives the next OAuth sign-in", () => {
   });
 
   it("writes it through updateUser's data bag, not a preference key", () => {
-    assert.match(code(screen), /updateUser\(\{\s*data: \{ \[DISPLAY_NAME_KEY\]/);
+    assert.match(code(cards.identity), /updateUser\(\{\s*data: \{ \[DISPLAY_NAME_KEY\]/);
     // SYNCED_PREF_KEYS is pinned at five in tests/user-prefs.test.ts, and a
     // display name is account state rather than a viewing preference anyway.
-    assert.doesNotMatch(code(screen), /SYNCED_PREF_KEYS/);
+    assert.doesNotMatch(code(centre), /SYNCED_PREF_KEYS/);
   });
 });
 
@@ -84,17 +104,17 @@ describe("a session list only claims what it can show", () => {
   it("revokes others directly, never through the shared sign-out", () => {
     // signOutUser() defaults to scope 'global' and would end this session too,
     // after which the password form on the same page 401s.
-    assert.match(code(screen), /signOut\(\{ scope: "others" \}\)/);
-    assert.doesNotMatch(code(screen), /signOutUser/);
+    assert.match(code(cards.sessions), /signOut\(\{ scope: "others" \}\)/);
+    assert.doesNotMatch(code(centre), /signOutUser/);
   });
 
   it("does not claim other devices stop immediately", () => {
     // Access JWTs cannot be revoked; other devices keep working until theirs
     // expires. "Signed out everywhere" would be the overstatement.
-    assert.match(code(screen), /within the hour/);
+    assert.match(code(cards.sessions), /within the hour/);
     // Comments stripped: the component states the rule by quoting the phrase it
     // forbids, so a raw scan reports the doctrine as the violation.
-    assert.doesNotMatch(code(screen), /signed out everywhere/i);
+    assert.doesNotMatch(code(centre), /signed out everywhere/i);
   });
 });
 
@@ -142,13 +162,13 @@ describe("the password meter cannot flatter a weak password", () => {
     // guess that blocks is a guess pretending to be a policy. The project's own
     // password rules are the gate; MIN_PASSWORD_LENGTH is the only local one.
     assert.equal(assessPassword("a".repeat(16)).score, 0);
-    assert.match(code(screen), /disabled=\{changingPassword \|\| password\.length < MIN_PASSWORD_LENGTH\}/);
+    assert.match(code(cards.password), /disabled=\{changingPassword \|\| password\.length < MIN_PASSWORD_LENGTH\}/);
 
     // Scoped to the submit path. The bar's *colour* reads the score, which is
     // presentation; what must never happen is the score gating the action.
-    const source = code(screen);
+    const source = code(cards.password);
     const handler = source.slice(source.indexOf("const onChangePassword"));
-    const body = handler.slice(0, handler.indexOf("}, [password]);"));
+    const body = handler.slice(0, handler.indexOf("}, [password, onBanner]);"));
     assert.ok(body.length > 0, "the password handler moved — this assertion is now vacuous");
     assert.doesNotMatch(body, /strength/);
   });
@@ -158,11 +178,11 @@ describe("the password meter cannot flatter a weak password", () => {
   });
 
   it("carries a word beside the bar, never colour alone", () => {
-    assert.match(code(screen), /\{strength\.label\}/);
+    assert.match(code(cards.password), /\{strength\.label\}/);
     // The fill is a --status-* step, which is legal as a fill and 3.0-3.8:1 —
     // below AA for text, which is why the word is the carrier.
-    assert.match(code(screen), /background:[\s\S]{0,160}var\(--status-good\)/);
-    assert.doesNotMatch(code(screen), /color:\s*"?var\(--status-/);
+    assert.match(code(cards.password), /background:[\s\S]{0,160}var\(--status-good\)/);
+    assert.doesNotMatch(code(centre), /color:\s*"?var\(--status-/);
   });
 });
 
@@ -174,8 +194,8 @@ describe("unlink is offered only when it can succeed", () => {
   });
 
   it("says why it is disabled rather than just dimming", () => {
-    assert.match(code(screen), /aria-describedby=\{canUnlink\(identityCount\)/);
-    assert.match(screen, /needs a second method/i);
+    assert.match(code(cards.connections), /aria-describedby=\{canUnlink\(identityCount\)/);
+    assert.match(cards.connections, /needs a second method/i);
   });
 
   it("calls Microsoft by the id GoTrue knows", () => {
@@ -187,8 +207,8 @@ describe("unlink is offered only when it can succeed", () => {
   it("passes an explicit redirect rather than letting GoTrue choose", () => {
     // An origin that is not allow-listed is silently rewritten to the Site URL,
     // so a link started from an alias would land somewhere else entirely.
-    assert.match(code(screen), /linkIdentity\(\{[\s\S]{0,120}options: \{ redirectTo \}/);
-    assert.match(code(screen), /\$\{window\.location\.origin\}\/profile/);
+    assert.match(code(cards.connections), /linkIdentity\(\{[\s\S]{0,120}options: \{ redirectTo \}/);
+    assert.match(code(cards.connections), /\$\{window\.location\.origin\}\/profile/);
   });
 });
 
@@ -200,21 +220,21 @@ describe("the avatar is private, and addressed by owner", () => {
 
   it("hardcodes the bucket rather than adding a public env var", () => {
     // A NEXT_PUBLIC_* addition fails deployment-contract.test.ts.
-    assert.doesNotMatch(code(screen), /NEXT_PUBLIC_/);
+    assert.doesNotMatch(code(centre), /NEXT_PUBLIC_/);
     assert.doesNotMatch(code(read("../lib/profile.ts")), /NEXT_PUBLIC_/);
   });
 
   it("reads through a signed URL, never a public one", () => {
-    assert.match(code(screen), /createSignedUrl\(/);
-    assert.doesNotMatch(code(screen), /getPublicUrl/);
+    assert.match(code(cards.identity), /createSignedUrl\(/);
+    assert.doesNotMatch(code(centre), /getPublicUrl/);
   });
 
   it("uses a plain img with an initials fallback", () => {
     // next.config.mjs declares no images.remotePatterns, so next/image would
     // refuse this host at runtime — green build, broken page.
-    assert.match(code(screen), /<img/);
-    assert.doesNotMatch(code(screen), /from "next\/image"/);
-    assert.match(code(screen), /onError=\{\(\) => setAvatarUrl\(null\)\}/);
+    assert.match(code(cards.identity), /<img/);
+    assert.doesNotMatch(code(centre), /from "next\/image"/);
+    assert.match(code(cards.identity), /onError=\{\(\) => setAvatarUrl\(null\)\}/);
   });
 });
 
@@ -230,8 +250,17 @@ describe("every panel is allowed to be absent", () => {
   });
 
   it("renders that state instead of throwing", () => {
-    for (const marker of [/not set up on this project/, /not installed on this project/, /not available on this project/]) {
-      assert.match(screen, marker);
+    // One per panel, asserted on the panel that owns it: the avatar bucket, the
+    // sessions RPC and the identity-linking API fail independently, and a scan
+    // that only proved the three sentences exist somewhere would not notice one
+    // panel having lost its own.
+    const absences: Array<[string, RegExp, string]> = [
+      ["ProfileIdentityCard", /not set up on this project/, cards.identity],
+      ["ProfileSessionsCard", /not installed on this project/, cards.sessions],
+      ["ProfileConnectionsCard", /not available on this project/, cards.connections],
+    ];
+    for (const [name, marker, source] of absences) {
+      assert.match(source, marker, `${name} lost its not-configured state`);
     }
   });
 
@@ -239,11 +268,11 @@ describe("every panel is allowed to be absent", () => {
     assert.ok(needsReauthentication({ message: "Reauthentication is needed" }));
     assert.ok(needsReauthentication({ message: "invalid nonce" }));
     assert.ok(!needsReauthentication({ message: "invalid login credentials" }));
-    assert.match(screen, /too old to change a password with/);
+    assert.match(cards.password, /too old to change a password with/);
   });
 
   it("orders the password change before the revoke, and says so", () => {
-    assert.match(screen, /Change the password first/);
+    assert.match(cards.password, /Change the password first/);
   });
 });
 
@@ -302,7 +331,7 @@ describe("a device line reports rather than identifies", () => {
   });
 
   it("keeps the raw agent available rather than replacing it", () => {
-    assert.match(code(screen), /title=\{row\.user_agent \?\? undefined\}/);
+    assert.match(code(cards.sessions), /title=\{row\.user_agent \?\? undefined\}/);
   });
 });
 
