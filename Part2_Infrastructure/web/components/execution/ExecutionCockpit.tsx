@@ -53,6 +53,7 @@ import type { Strategy } from "@/lib/types";
 import AlertFeed from "./AlertFeed";
 import BlotterViews from "./BlotterViews";
 import { probeGateway } from "@/lib/use-gateway-connection";
+import { usePolling } from "@/lib/use-polling";
 import DeskTape from "./DeskTape";
 import ExecutionQuality from "./ExecutionQuality";
 import FillQualityHeatmap from "./FillQualityHeatmap";
@@ -192,7 +193,6 @@ export default function ExecutionCockpit({
   const [unconfigured, setUnconfigured] = useState(false);
   /** Explicit opt-out: "Live gateway" pressed on a deployment that has none. */
   const [sandboxOff, setSandboxOff] = useState(false);
-  const [failures, setFailures] = useState(0);
   /**
    * Above the loading bail-out below, with the rest of them, and a fixed
    * default rather than one derived from the reader's complexity tier: a pane
@@ -230,7 +230,10 @@ export default function ExecutionCockpit({
     // Every outcome is resolved before this check, for the reason the previous
     // version documented: returning between awaits lets a superseded response
     // write over a newer one.
-    if (current !== sequence.current) return;
+    // A superseded response reports neither success nor failure: it is not this
+    // loop's tick any more, and counting it either way would move a backoff
+    // that belongs to a newer attempt.
+    if (current !== sequence.current) return true;
 
     if (!bookOutcome.ok) {
       setProblem({
@@ -240,12 +243,10 @@ export default function ExecutionCockpit({
       });
       setBook(null);
       setUnconfigured(bookOutcome.failure.code === "gateway_not_configured");
-      setFailures((n) => n + 1);
     } else {
       setBook(bookOutcome.payload);
       setProblem(null);
       setUnconfigured(false);
-      setFailures(0);
     }
 
     // The audit panels are allowed to be empty without taking the whole
@@ -262,6 +263,7 @@ export default function ExecutionCockpit({
     // Unconditional, and that is the fix: the old `finally` only ran because the
     // fetches always settled, which under a hang they did not.
     setLoading(false);
+    return bookOutcome.ok;
   }, []);
 
   /**
@@ -307,22 +309,34 @@ export default function ExecutionCockpit({
     return () => { sequence.current += 1; };
   }, [refresh]);
 
-  useEffect(() => {
-    // "No gateway in this deployment" cannot change without a redeploy, so
-    // polling it is 45 doomed requests a minute in a reviewer's network tab.
-    // One probe is enough; the Retry button owns any second attempt.
-    if (unconfigured) return;
-    // Real outages back off geometrically instead of hammering a struggling
-    // service at a fixed 4s forever.
-    const interval = Math.min(REFRESH_MS * 2 ** Math.min(failures, 8), MAX_BACKOFF_MS);
-    const timer = setInterval(() => {
-      if (!document.hidden) void refresh();
-    }, interval);
-    return () => {
-      clearInterval(timer);
-      sequence.current += 1;
-    };
-  }, [refresh, unconfigured, failures]);
+  /**
+   * The backoff the comment above describes, now actually reachable.
+   *
+   * The old form recomputed its interval from `failures` and listed `failures`
+   * as a dependency — so every failed probe tore the timer down and built a new
+   * one, and the loop was permanently at its first tick. The controller holds
+   * the failure count itself and reads the callback through a ref, so nothing a
+   * render does can restart it.
+   *
+   * "No gateway in this deployment" cannot change without a redeploy, so an
+   * unconfigured desk polls not at all — 45 doomed requests a minute in a
+   * reviewer's network tab. One probe is enough; Retry owns any second attempt.
+   */
+  usePolling({
+    /* `refresh` resolves either way — it turns a failed probe into panel state
+       rather than a rejection, which is right for the panel and wrong for the
+       loop: a tick that never fails never backs off. It reports the outcome
+       now, and the loop raises on a bad one. Silently keeping the old
+       swallowing form would have removed the backoff entirely while looking
+       like an adoption of it. */
+    tick: async () => {
+      const ok = await refresh();
+      if (!ok) throw new Error("gateway probe failed");
+    },
+    intervalMs: REFRESH_MS,
+    maxBackoffMs: MAX_BACKOFF_MS,
+    enabled: !unconfigured,
+  });
 
   // The sandbox desk: one deterministic book, blotter and event stream, plus a
   // local judge replaying the gateway's gates. Rebuilt only when the seed
