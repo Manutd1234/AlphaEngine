@@ -1673,3 +1673,187 @@ comment on function public.traverse_research_graph is
 -- in a later statement, from the application.
 
 alter type public.research_doc_kind add value if not exists 'ml_run';
+
+
+-- ========================================================================
+-- 20260820100000_data_quality_findings.sql
+-- ========================================================================
+
+-- E3.1 — data_quality_findings in Postgres.
+--
+-- The mirror of the SQLite table in `modules/data_quality.py`. Types are the
+-- Postgres equivalents of the SQLite ones, not a redesign: the store writes
+-- epoch milliseconds as REAL and booleans as 0/1 INTEGER, and changing either
+-- here would make the two backends disagree about the same row. `double
+-- precision` and `smallint` keep the wire shape identical.
+--
+-- `desk_id` is the tenancy column every other table in this project carries.
+-- The gateway holds the service-role key and filters in the query rather than
+-- relying on RLS, for the reason recorded on `ml_runs`: `trader_identity`
+-- resolves to an access decision, not a user, so there is no `auth.uid()` for
+-- a policy to compare against.
+
+create table if not exists public.data_quality_findings (
+  id             bigint generated always as identity primary key,
+  desk_id        text        not null default 'default',
+  instance       text        not null,
+  seq            bigint      not null,
+  source         text        not null,
+  observed_at    double precision not null,
+  received_at    double precision not null,
+  capability     text        not null,
+  provider       text        not null,
+  symbol         text,
+  key            text        not null,
+  passed         smallint    not null,
+  fatal          smallint    not null,
+  warn           smallint    not null,
+  drift          smallint    not null,
+  not_evaluated  smallint    not null,
+  checks_json    text        not null,
+  unique (desk_id, instance, seq)
+);
+
+create index if not exists ix_dq_findings_observed
+  on public.data_quality_findings (desk_id, observed_at);
+create index if not exists ix_dq_findings_provider
+  on public.data_quality_findings (desk_id, provider, observed_at);
+
+alter table public.data_quality_findings enable row level security;
+
+-- Service role only. No anon or authenticated policy is granted: these rows are
+-- operational evidence written by the gateway, and the browser reaches them
+-- through the gateway's own routes rather than directly.
+
+
+-- ========================================================================
+-- 20260820100100_data_quality_escalations.sql
+-- ========================================================================
+
+-- E3.2 — data_quality_escalations in Postgres.
+--
+-- `acknowledged_at`/`acknowledged_by` are declared here rather than added by a
+-- later ALTER. The SQLite store has no migration table, so it grows columns
+-- conditionally at construction (`_ESCALATION_COLUMNS`); Postgres has proper
+-- migrations, so the column exists from the start. NULL carries the same
+-- meaning on both sides: nobody has acknowledged this.
+
+create table if not exists public.data_quality_escalations (
+  id              bigint generated always as identity primary key,
+  desk_id         text     not null default 'default',
+  rule            text     not null,
+  provider        text     not null,
+  opened_at       double precision not null,
+  window_minutes  integer  not null,
+  count           integer  not null,
+  evaluated       integer,
+  detail          text     not null,
+  notified_at     double precision,
+  channel         text,
+  resolved_at     double precision,
+  acknowledged_at double precision,
+  acknowledged_by text
+);
+
+create index if not exists ix_dq_esc_rule
+  on public.data_quality_escalations (desk_id, rule, provider, opened_at);
+
+-- Open escalations are the ones every read path asks for, and they are a small
+-- minority of the table once a desk has been running. Partial index rather than
+-- a scan.
+create index if not exists ix_dq_esc_open
+  on public.data_quality_escalations (desk_id, provider)
+  where resolved_at is null;
+
+alter table public.data_quality_escalations enable row level security;
+
+
+-- ========================================================================
+-- 20260820100200_data_schedule_runs.sql
+-- ========================================================================
+
+-- E3.3 — data_schedule_runs in Postgres.
+--
+-- One row per schedule, upserted. The SQLite version is
+-- `INSERT … ON CONFLICT(schedule_id) DO UPDATE`; over PostgREST the same
+-- operation is a POST with `Prefer: resolution=merge-duplicates`, which needs
+-- the unique constraint below to have something to conflict on.
+
+create table if not exists public.data_schedule_runs (
+  desk_id       text not null default 'default',
+  schedule_id   text not null,
+  last_run_at   double precision,
+  last_job_id   text,
+  last_outcome  text,
+  primary key (desk_id, schedule_id)
+);
+
+alter table public.data_schedule_runs enable row level security;
+
+
+-- ========================================================================
+-- 20260820100300_data_work_items.sql
+-- ========================================================================
+
+-- E3.4 — data_work_items in Postgres, and the id sequence SQLite did by hand.
+--
+-- `WorkItemStore.create` mints ids as
+-- `MAX(CAST(substr(id, ?) AS INTEGER)) + 1` inside a transaction, per prefix.
+-- That is a read-modify-write standing in for a sequence because SQLite has
+-- none. Postgres does, so the prefixes get real sequences and the RPC below
+-- allocates from them atomically — which is stronger than the lock it replaces,
+-- not weaker.
+--
+-- The sequences are seeded to match the committed fixture: `test_work_items.py`
+-- pins the literal next ids `BUG-095` and `REQ-188`, so they start at 95 and
+-- 188. A sequence that started at 1 would pass every behavioural test and fail
+-- that one, which is the test doing its job.
+
+create table if not exists public.data_work_items (
+  id          text primary key,
+  desk_id     text not null default 'default',
+  kind        text not null check (kind in ('request', 'ticket', 'bug')),
+  priority    text not null check (priority in ('P0', 'P1', 'P2', 'P3')),
+  status      text not null check (status in ('intake', 'ready', 'progress', 'resolved')),
+  title       text not null,
+  summary     text not null default '',
+  owner       text not null default 'Unassigned',
+  area        text not null default 'Pipeline',
+  opened_at   double precision not null,
+  sla_due_at  double precision,
+  resolved_at double precision,
+  created_by  text not null,
+  updated_at  double precision not null,
+  updated_by  text not null,
+  version     integer not null default 1
+);
+
+create index if not exists ix_work_items_status
+  on public.data_work_items (desk_id, status, priority, opened_at);
+
+create sequence if not exists public.work_item_bug_seq start with 95;
+create sequence if not exists public.work_item_req_seq start with 188;
+create sequence if not exists public.work_item_tkt_seq start with 323;
+
+-- One id, allocated atomically. Returns the formatted id rather than the raw
+-- number so the caller cannot format it two different ways.
+create or replace function public.next_work_item_id(prefix text)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  n bigint;
+begin
+  case upper(prefix)
+    when 'BUG' then n := nextval('public.work_item_bug_seq');
+    when 'REQ' then n := nextval('public.work_item_req_seq');
+    when 'TKT' then n := nextval('public.work_item_tkt_seq');
+    else raise exception 'unknown work item prefix: %', prefix;
+  end case;
+  return upper(prefix) || '-' || lpad(n::text, 3, '0');
+end;
+$$;
+
+alter table public.data_work_items enable row level security;
