@@ -26,7 +26,7 @@
  * same bar at the same moment.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Settings2 } from "lucide-react";
 
 import ComplexityToggle from "@/components/ComplexityToggle";
@@ -56,7 +56,7 @@ interface QuickSettingsProps {
   onBackToAccount?: () => void;
 }
 
-export default function QuickSettings({
+function QuickSettings({
   healthLabel,
   healthNeedsAttention,
   onOpenReliability,
@@ -243,3 +243,11 @@ export default function QuickSettings({
     </span>
   );
 }
+
+/**
+ * Memoised. The panel mounts four preference controls, and none of them has an
+ * opinion that changes at feed rate; `healthLabel` is the one prop that moves,
+ * and it moves when the health snapshot lands rather than when the workspace
+ * around it re-renders.
+ */
+export default memo(QuickSettings);
