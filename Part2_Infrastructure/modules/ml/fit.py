@@ -193,11 +193,34 @@ def run_ml_fit_job(params: dict[str, Any]) -> dict[str, Any]:
             await store.stop()
 
     filed = asyncio.run(_file())
+    persisted = bool(getattr(filed, "persisted", False))
+    run_id = getattr(filed, "run_id", None)
+
+    if persisted and run_id:
+        # Index it, so a fitted run is retrievable by the same query that finds
+        # a sweep. Failing to index is not failing to fit: the run is filed
+        # either way and the corpus catches up on the next backfill.
+        try:
+            from modules.research_rag import get_rag
+
+            get_rag().on_ml_run_complete({
+                "id": run_id,
+                "symbol": payload["symbol"],
+                "interval": payload["interval"],
+                "model": payload["model"],
+                "seed": payload["seed"],
+                "data_hash": payload["data_hash"],
+                "engine": payload["params"].get("engine"),
+                "oos_sharpe": outcome.result.oos_sharpe if outcome.result else None,
+                "deflated_sharpe": outcome.result.deflated_sharpe if outcome.result else None,
+                "pbo": None,
+                "folds": [],
+            })
+        except Exception as exc:
+            log.warning("ml fit: corpus card not indexed (%s)", type(exc).__name__)
+
     return _job_result(
-        outcome,
-        persisted=bool(getattr(filed, "persisted", False)),
-        reason=getattr(filed, "reason", None),
-        run_id=getattr(filed, "run_id", None),
+        outcome, persisted=persisted, reason=getattr(filed, "reason", None), run_id=run_id,
     )
 
 

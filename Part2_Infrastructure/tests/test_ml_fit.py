@@ -14,9 +14,36 @@ reaches the store, not that the store works when a test calls it.
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from modules.ml.fit import ML_FIT_KIND, run_ml_fit, run_ml_fit_job
+
+
+@pytest.fixture(autouse=True)
+def offline_bars(monkeypatch):
+    """Deterministic bars, no network.
+
+    `fetch_ohlcv` reaches Binance first. Letting these tests do that would make
+    them depend on an exchange being up, take a timeout to fail in the
+    network-free CI this project runs, and produce different numbers on every
+    run — none of which is what is being tested here. What IS being tested is
+    the wiring, so the bars are a fixture and the seed is fixed.
+    """
+    def _bars(symbol: str, interval: str, count: int):
+        rng = np.random.default_rng(20260820)
+        steps = rng.normal(0.0, 0.01, size=count)
+        close = 30_000.0 * np.exp(np.cumsum(steps))
+        frame = pd.DataFrame({
+            "open": close * (1 + rng.normal(0, 0.001, count)),
+            "high": close * (1 + np.abs(rng.normal(0, 0.003, count))),
+            "low": close * (1 - np.abs(rng.normal(0, 0.003, count))),
+            "close": close,
+            "volume": np.abs(rng.normal(1_000, 120, count)),
+        }, index=pd.date_range("2024-01-01", periods=count, freq="4h", tz="UTC"))
+        return frame, "fixture"
+
+    monkeypatch.setattr("modules.ml.fit.fetch_ohlcv", _bars)
 
 
 class _RecordingStore:

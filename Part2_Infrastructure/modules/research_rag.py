@@ -347,6 +347,38 @@ class ResearchRag:
             "data_hash": row["data_hash"],
         })
 
+    def on_ml_run_complete(self, run: dict[str, Any]) -> None:
+        """Index one supervised run, the same way a sweep is indexed.
+
+        `render_ml_card` existed with no production caller, so the `ml_run`
+        document kind that migration 20260820090600 added to the corpus could
+        never be emitted by anything — a kind in the enum, in the Oracle CHECK
+        constraint and in the generated contract, that no code path could
+        produce. This is the caller.
+
+        Takes the run dict the store filed rather than the job's result, so the
+        card describes what is IN the corpus. A card that disagreed with the row
+        it points at would be worse than no card.
+        """
+        if not self.enabled or not run:
+            return
+        title, body = render_ml_card(run)
+        self._submit({
+            "kind": "ml_run",
+            "source_ref": str(run.get("id") or ""),
+            "symbol": run.get("symbol"),
+            "interval": run.get("interval"),
+            "strategy": run.get("model"),
+            "occurred_at": (run.get("finished_at") or datetime.now(timezone.utc).isoformat()),
+            "title": title,
+            "body": body,
+            "metrics": {
+                k: run.get(k)
+                for k in ("oos_sharpe", "deflated_sharpe", "pbo", "engine")
+            },
+            "data_hash": run.get("data_hash"),
+        })
+
     def on_decision(self, decision: RiskDecision, request: OrderRequest, source: str) -> None:
         """`add_decision_hook` observer: index + retrieve on anomaly."""
         if not self.enabled:
