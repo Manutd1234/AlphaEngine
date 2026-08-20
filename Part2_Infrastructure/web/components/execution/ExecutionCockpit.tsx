@@ -110,6 +110,9 @@ const MAX_BACKOFF_MS = 60_000;
 /** 200, not 60: a nearest-rank p99 over 60 rows is just the maximum, and the
  *  latency distribution needs a window worth binning. The audit route clamps
  *  at 500, so this passes through untouched. */
+// Append-only history: re-reading a 200-row and a 40-row page every 4 s spent
+// three requests where one was needed. Every fifth tick, and on any mutation.
+const AUDIT_EVERY = 5;
 const BLOTTER_LIMIT = 200;
 const EVENT_LIMIT = 40;
 
@@ -204,6 +207,7 @@ export default function ExecutionCockpit({
    *  record is what opens first. */
   const [activityPane, setActivityPane] = useState<ActivityPane>("blotter");
   const sequence = useRef(0);
+  const ticks = useRef(0);  // audit feeds ride every AUDIT_EVERY-th one
 
   /**
    * Three probes, each with a deadline.
@@ -220,19 +224,15 @@ export default function ExecutionCockpit({
    * the route `useBook` polls for Portfolio and Risk — so the cockpit's copy of
    * that request now joins the existing one instead of doubling it.
    */
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (auditToo = true) => {
     const current = ++sequence.current;
     const [bookOutcome, orderOutcome, eventOutcome] = await Promise.all([
       probeGateway<PortfolioSnapshot>("/api/gateway/portfolio"),
-      probeGateway<{ rows?: unknown[] }>(`/api/gateway/audit?feed=orders&limit=${BLOTTER_LIMIT}`),
-      probeGateway<{ rows?: unknown[] }>(`/api/gateway/audit?feed=events&limit=${EVENT_LIMIT}`),
+      auditToo ? probeGateway<{ rows?: unknown[] }>(`/api/gateway/audit?feed=orders&limit=${BLOTTER_LIMIT}`) : null,
+      auditToo ? probeGateway<{ rows?: unknown[] }>(`/api/gateway/audit?feed=events&limit=${EVENT_LIMIT}`) : null,
     ]);
-    // Every outcome is resolved before this check, for the reason the previous
-    // version documented: returning between awaits lets a superseded response
-    // write over a newer one.
-    // A superseded response reports neither success nor failure: it is not this
-    // loop's tick any more, and counting it either way would move a backoff
-    // that belongs to a newer attempt.
+    // Resolved before this check: returning between awaits lets a superseded
+    // response overwrite a newer one, and counting it would move a backoff.
     if (current !== sequence.current) return true;
 
     if (!bookOutcome.ok) {
@@ -251,11 +251,11 @@ export default function ExecutionCockpit({
 
     // The audit panels are allowed to be empty without taking the whole
     // cockpit down: a gateway with no history yet is a working gateway.
-    if (orderOutcome.ok) {
+    if (orderOutcome?.ok) {
       setOrders(((orderOutcome.payload.rows ?? []) as unknown[])
         .map(toBlotterRow).filter((r): r is BlotterRow => r !== null));
     }
-    if (eventOutcome.ok) {
+    if (eventOutcome?.ok) {
       setEvents(((eventOutcome.payload.rows ?? []) as unknown[])
         .map(toRiskEvent).filter((r): r is RiskEventRow => r !== null));
     }
@@ -330,7 +330,7 @@ export default function ExecutionCockpit({
        swallowing form would have removed the backoff entirely while looking
        like an adoption of it. */
     tick: async () => {
-      const ok = await refresh();
+      const ok = await refresh(ticks.current++ % AUDIT_EVERY === 0);
       if (!ok) throw new Error("gateway probe failed");
     },
     intervalMs: REFRESH_MS,

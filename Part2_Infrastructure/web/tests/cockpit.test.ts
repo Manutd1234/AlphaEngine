@@ -433,3 +433,48 @@ describe("the audit window is read-only", () => {
     assert.match(auditRoute, /Math\.min\(Math\.max\(/);
   });
 });
+
+describe("the cockpit does not refetch history that cannot have changed", () => {
+  /**
+   * Three requests every four seconds, two of them re-reading append-only
+   * pages. The book re-marks at 4 Hz and has to be fetched every tick; the
+   * order blotter and the risk-event feed only change when an order is placed
+   * or a breaker fires, and both of those already force a refresh.
+   *
+   * Asserted against the source because the alternative is a fake timer around
+   * a React component, and what actually matters here is that the two audit
+   * URLs are behind a condition — which is a property of the code, not of a
+   * render.
+   */
+  const source = readFileSync(
+    fileURLToPath(new URL("../components/execution/ExecutionCockpit.tsx", import.meta.url)),
+    "utf8",
+  );
+
+  it("fetches the book unconditionally", () => {
+    assert.match(source, /probeGateway<PortfolioSnapshot>\("\/api\/gateway\/portfolio"\)/);
+  });
+
+  it("puts both audit feeds behind the same condition", () => {
+    for (const feed of ["orders", "events"]) {
+      const line = source
+        .split("\n")
+        .find((l) => l.includes(`feed=${feed}`) && l.includes("probeGateway"));
+      assert.ok(line, `no probeGateway call for feed=${feed}`);
+      assert.match(
+        line, /auditToo \?/,
+        `feed=${feed} is fetched on every tick; it is append-only history`,
+      );
+    }
+  });
+
+  it("a caller that does not say otherwise gets the audit feeds", () => {
+    // `refresh()` from a mutation, a Retry button or a submitted order must
+    // read the history back. Only the poll opts out, and only on most ticks.
+    assert.match(source, /const refresh = useCallback\(async \(auditToo = true\)/);
+  });
+
+  it("the poll passes the counter rather than a constant", () => {
+    assert.match(source, /refresh\(ticks\.current\+\+ % AUDIT_EVERY === 0\)/);
+  });
+});
