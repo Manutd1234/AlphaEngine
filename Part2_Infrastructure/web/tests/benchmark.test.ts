@@ -197,7 +197,10 @@ describe("the panel keeps the four absent cases apart", () => {
   it("says which benchmark was requested when the comparison is missing", () => {
     // "No comparison available" for both "you did not pick one" and "the one
     // you picked would not load" is one sentence for two different actions.
-    assert.match(panel, /requested\s*\?/s);
+    // The branch is named rather than inlined now, so this follows the name.
+    assert.match(panel, /const failed = Boolean\(requested\)/);
+    assert.match(panel, /\{failed\s*$/m, "the empty copy stopped branching on which case it is in");
+    assert.match(panel, /\$\{requested\} was requested/);
     assert.match(panel, /No benchmark selected/);
   });
 
@@ -212,6 +215,31 @@ describe("the panel keeps the four absent cases apart", () => {
 
   it("keeps the OLS caveat with the number it qualifies", () => {
     assert.match(panel, /Newey/);
+  });
+
+  it("dashes the two measurements it cannot make instead of zeroing them", () => {
+    // The card is headed by alpha and beta, so an empty state that shows
+    // neither leaves the reader to guess whether they were measured. They are
+    // rendered as the same dash every withheld figure in this codebase uses —
+    // via `fmt(null)`, so the dash cannot drift from the rest of the app — with
+    // the cause beside them. A 0.00 here would be an invented exposure.
+    const empty = panel.slice(panel.indexOf("if (!comparison)"), panel.indexOf("const alphaSignificant"));
+    assert.equal((empty.match(/fmt\(null\)/g) ?? []).length, 2,
+      "the empty state stopped dashing alpha and beta");
+    assert.doesNotMatch(empty, /\?\?\s*0/, "a withheld benchmark figure is being coerced to zero");
+    // The dash's reason claims only what it knows: which of the two failures
+    // occurred is the paragraph's job, and it names both.
+    assert.match(empty, /No comparable series for \$\{requested\}\./);
+    assert.match(empty, /No benchmark is selected\./);
+  });
+
+  it("states which absent case it is in the heading as well as the prose", () => {
+    // The two cases carry different next actions, so they are distinguishable
+    // at a glance rather than only in the middle of a paragraph.
+    const empty = panel.slice(panel.indexOf("if (!comparison)"), panel.indexOf("const alphaSignificant"));
+    assert.match(empty, /section-note/);
+    assert.match(empty, /did not compare/);
+    assert.match(empty, /none selected/);
   });
 });
 
@@ -245,22 +273,61 @@ describe("the sanitiser accepts every strategy the engines implement", () => {
 });
 
 /**
- * The empty state points at a control. The control has to be there.
+ * The empty state reaches a control. The control has to be there.
  *
- * "No benchmark selected. Choose one in the controls…" is a cross-reference,
- * and nothing in the suite checked that it resolves — delete the select from
- * Controls.tsx and every test stays green while the sentence becomes a
- * direction to a place that does not exist. The same failure mode produced the
- * stale tour label and the "Open Data Ops" mismatch, both fixed in this phase
- * by deriving the reference instead of trusting it.
+ * It used to say "No benchmark selected. Choose one in the controls…" and stop,
+ * which is a cross-reference nothing in the suite checked resolves — delete the
+ * select from Controls.tsx and every test stayed green while the sentence
+ * became a direction to a place that does not exist. Same failure mode as the
+ * stale tour label and the "Open Data Ops" mismatch.
+ *
+ * The sentence is now a button that focuses the real select, so the reference
+ * is an id rather than a description, and these tests hold that id from both
+ * ends. A duplicate select rendered inside the card would resolve the same
+ * prose complaint and is the thing being guarded against: it would own no part
+ * of the request and would drift from the control that does.
  */
-describe("the benchmark empty state points at a control that exists", () => {
+describe("the benchmark empty state reaches a control that exists", () => {
   const controls = read("../components/Controls.tsx");
   const panel = read("../components/research/BenchmarkPanel.tsx");
 
-  it("the panel sends the reader to the controls", () => {
-    assert.match(panel, /Choose one in the controls/,
-      "the empty state stopped naming where the benchmark is chosen");
+  it("the panel jumps at the control by id rather than describing where it is", () => {
+    assert.match(panel, /const BENCHMARK_CONTROL_ID = "benchmark"/,
+      "the panel no longer names the control it jumps at");
+    assert.match(panel, /getElementById\(BENCHMARK_CONTROL_ID\)/,
+      "the empty state stopped reaching the benchmark control");
+    assert.match(panel, /Choose a benchmark →/);
+  });
+
+  it("the id it jumps at is the id the control carries", () => {
+    const id = /const BENCHMARK_CONTROL_ID = "([^"]+)"/.exec(panel)?.[1];
+    assert.ok(id, "the panel's control id is unreadable");
+    assert.match(controls, new RegExp(`<select\\s+id="${id}"`),
+      `Controls.tsx has no select with id="${id}" for the panel to focus`);
+  });
+
+  it("renders no benchmark control of its own", () => {
+    // A second select would drift from `req.benchmarkSymbol`, which this
+    // component does not own and cannot write. Comments stripped: the doc
+    // comment on the id names the `<select>` it points at.
+    const rendered = panel.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
+    assert.doesNotMatch(rendered, /<select/,
+      "the panel grew its own benchmark control beside the one that owns the request");
+  });
+
+  it("says so when the jump cannot land instead of appearing to do nothing", () => {
+    // The setup panel collapses under a width breakpoint and the select is
+    // display:none there — in the DOM, unfocusable, and focus() a silent no-op.
+    assert.match(panel, /document\.activeElement === control/,
+      "the panel assumes focus landed rather than checking");
+    assert.match(controls, /Hide setup" : "Edit setup"/,
+      "the collapsed-rail hint names a toggle Controls.tsx no longer renders");
+    assert.match(panel, /Open Edit setup in the research rail/);
+  });
+
+  it("does not animate the jump for a reader who asked it not to", () => {
+    assert.match(panel, /prefers-reduced-motion: reduce/);
+    assert.match(panel, /behavior: reduced \? "auto" : "smooth"/);
   });
 
   it("the controls carry a labelled benchmark selector", () => {
@@ -284,5 +351,42 @@ describe("the benchmark empty state points at a control that exists", () => {
     // types.ts: "its absence is not a default … rather than quietly
     // substituting one". The option has to exist for that to be a choice.
     assert.match(controls, /<option value="">None/);
+  });
+});
+
+/**
+ * The empty state names the other question. It must not answer it twice.
+ *
+ * The same-symbol buy-and-hold figures ARE available on this screen, and the
+ * tempting fix for an empty card is to reprint them in it. Two reasons not to,
+ * both already law here: `interaction.test.ts` keeps those figures in the stat
+ * row paired with the strategy's own return and Sharpe, which is where a reader
+ * compares them; and a same-symbol number printed inside a card headed "versus
+ * benchmark" is the substitution `lib/types.ts` refuses in the sentence that
+ * makes "None" a real choice. So the card states the distinction and points at
+ * where the timing answer already is — and that pointer is checked, like the
+ * control pointer above, rather than trusted.
+ */
+describe("the empty state distinguishes the two questions without answering both", () => {
+  const panel = read("../components/research/BenchmarkPanel.tsx");
+  const page = read("../app/dashboard/page.tsx");
+
+  it("prints no same-symbol figure of its own", () => {
+    assert.doesNotMatch(panel, /benchmark\.totalReturn|benchmark\.sharpe|buyHold/,
+      "the benchmark card is printing the same-symbol comparison the stat row pairs properly");
+  });
+
+  it("names the timing question and the position question as different questions", () => {
+    assert.match(panel, /<em>timing<\/em>/);
+    assert.match(panel, /<em>position<\/em>/);
+  });
+
+  it("the stat row it points at still carries buy & hold beside the strategy's own", () => {
+    // The pointer resolves or it is prose. Both notes live on the Summary
+    // section's metric row; either one being renamed makes the sentence a lie.
+    assert.match(page, /note=\{`buy & hold \$\{fmt\(displayedResult\.benchmark\.sharpe, 2\)\}`\}/,
+      "the Summary Sharpe tile no longer carries the buy & hold note the panel names");
+    assert.match(page, /note=\{`buy & hold \$\{signedPct\(displayedResult\.benchmark\.totalReturn\)\}`\}/,
+      "the Summary return tile no longer carries the buy & hold note the panel names");
   });
 });
