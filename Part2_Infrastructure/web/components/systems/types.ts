@@ -243,7 +243,7 @@ export interface GatewayOpsSnapshot {
   telegram: {
     enabled: boolean;
     mode: string;
-    status: "running" | "degraded" | "disabled";
+    status: "running" | "starting" | "degraded" | "disabled";
     uptime_seconds: number;
     updates_handled: number;
     alerts_sent: number;

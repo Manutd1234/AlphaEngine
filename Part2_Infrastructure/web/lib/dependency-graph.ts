@@ -294,9 +294,9 @@ export function summariseTree(root: DependencyNode): Record<DependencyHealth, nu
 }
 
 /**
- * Which of `platform.status`'s four disjuncts is actually firing.
+ * Which of `platform.status`'s three disjuncts is actually firing.
  *
- * `build_operations_snapshot` (operations.py:374-386) collapses four unrelated
+ * `build_operations_snapshot` (operations.py:374-386) collapses three unrelated
  * conditions into the single word "degraded", and the Developer console then
  * rendered that word next to the gateway's FRESHNESS string — so an amber card
  * read "Gateway 1.0.0; Gateway operations snapshot is current.", which names
@@ -312,7 +312,6 @@ export function degradedCause(platform: NonNullable<SystemHealth["platform"]>): 
     return `market data is ${platform.market_data.status}`;
   }
   if (platform.risk.status === "reduce_only") return "risk is in reduce-only";
-  if (platform.telegram.status === "degraded") return "the Telegram bot reports an error";
   if (platform.queue.broker_configured && platform.queue.backend !== "celery") {
     return `a broker is configured but the queue is running ${platform.queue.backend}`;
   }

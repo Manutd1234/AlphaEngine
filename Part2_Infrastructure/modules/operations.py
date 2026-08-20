@@ -22,6 +22,7 @@ from modules.metrics import (
     decision_latency_summary,
     request_latency_summary,
 )
+from modules.oncall import OnCallSnapshot, oncall_snapshot
 
 # The web tier polls every 30 seconds. Freshness describes how long a last-good
 # observation remains trustworthy, not the timeout of one gateway request, so
@@ -33,7 +34,7 @@ PlatformStatus = Literal["nominal", "degraded", "critical", "halted"]
 MarketDataStatus = Literal["nominal", "degraded", "critical", "disabled"]
 FeedStatus = Literal["up", "degraded", "stale", "down"]
 RiskStatus = Literal["nominal", "reduce_only", "halted"]
-TelegramStatus = Literal["running", "degraded", "disabled"]
+TelegramStatus = Literal["running", "starting", "degraded", "disabled"]
 
 
 class MarketDataSymbolSnapshot(BaseModel):
@@ -174,6 +175,7 @@ class OperationsSnapshot(BaseModel):
     route_latency: RouteLatencyOperationsSnapshot
     supabase: SupabaseMirrorSnapshot | None = None
     decision_latency: DecisionLatencySnapshot | None = None
+    oncall: OnCallSnapshot | None = None
 
 
 def _finite_float(value: Any, default: float = 0.0) -> float:
@@ -299,10 +301,10 @@ def _telegram_snapshot(raw: dict[str, Any]) -> TelegramOperationsSnapshot:
     has_error = bool(raw.get("last_error"))
     if not enabled:
         status: TelegramStatus = "disabled"
-    elif has_error or uptime <= 0:
+    elif has_error:
         status = "degraded"
-    else:
-        status = "running"
+    else:  # Enabled, no error, no uptime yet: that is starting, not degraded.
+        status = "running" if uptime > 0 else "starting"
     return TelegramOperationsSnapshot(
         enabled=enabled,
         mode=str(raw.get("mode") or "disabled"),
@@ -315,7 +317,6 @@ def _telegram_snapshot(raw: dict[str, Any]) -> TelegramOperationsSnapshot:
 
 
 def _route_latency_snapshot() -> RouteLatencyOperationsSnapshot:
-    summaries = request_latency_summary()
     routes = [
         RouteLatencySnapshot(
             route=route,
@@ -325,7 +326,7 @@ def _route_latency_snapshot() -> RouteLatencyOperationsSnapshot:
             samples=int(summary["samples"]),
             errors_total=int(summary["errors"]),
         )
-        for route, summary in sorted(summaries.items())
+        for route, summary in sorted(request_latency_summary().items())
     ]
     return RouteLatencyOperationsSnapshot(
         window_seconds=REQUEST_LATENCY_WINDOW_SECONDS,
@@ -375,20 +376,17 @@ def build_operations_snapshot(
         status: PlatformStatus = "halted"
     elif market_data.status == "critical" or not audit_state.available:
         status = "critical"
+    # Telegram is deliberately absent: a notification companion is not on the order path.
     elif (
         market_data.status in {"degraded", "disabled"}
         or risk.status == "reduce_only"
-        or telegram.status == "degraded"
         or (queue_state.broker_configured and queue_state.backend != "celery")
     ):
         status = "degraded"
     else:
         status = "nominal"
 
-    supabase = SupabaseMirrorSnapshot(**mirror.health()) if mirror is not None else None
-
     return OperationsSnapshot(
-        supabase=supabase,
         observed_at=observed_at or datetime.now(timezone.utc),
         stale_after_seconds=SNAPSHOT_STALE_AFTER_SECONDS,
         status=status,
@@ -400,5 +398,7 @@ def build_operations_snapshot(
         audit=audit_state,
         telegram=telegram,
         route_latency=_route_latency_snapshot(),
+        supabase=SupabaseMirrorSnapshot(**mirror.health()) if mirror is not None else None,
         decision_latency=_decision_latency_snapshot(),
+        oncall=oncall_snapshot(settings.data_oncall, webhook_url=settings.data_ops_webhook_url),
     )

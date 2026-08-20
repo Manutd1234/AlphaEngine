@@ -17,7 +17,7 @@ import DependencyTree from "@/components/systems/DependencyTree";
 import LatencyTrend from "@/components/systems/LatencyTrend";
 import RouteLatencyBars from "@/components/systems/RouteLatencyBars";
 import { fmt, formatDuration, metricRow } from "@/lib/format";
-import { deriveReliabilityPosture, type ReliabilityStatus } from "@/lib/reliability";
+import { deriveReliabilityPosture, type ReliabilityPosture, type ReliabilityStatus } from "@/lib/reliability";
 import type { SystemHealthView } from "@/lib/use-system-health";
 import type { GatewayOpsSnapshot, ProviderRow } from "./types";
 
@@ -178,8 +178,16 @@ export default function ReliabilityOverview({
   const routableProviders = providers.filter((provider) => provider.ready).length;
   const quarantined = health?.quarantine?.size ?? 0;
   const posture = health ? deriveReliabilityPosture(health) : null;
+  const planeTile = (plane: keyof ReliabilityPosture["paths"], title: string, waiting: string) => (
+    <div>
+      <span className={`reliability-evidence__state is-${posture?.paths[plane].status ?? "unknown"}`}>
+        {posture ? POSTURE_LABEL[posture.paths[plane].status] : "Connecting"}
+      </span>
+      <strong>{title}</strong>
+      <small>{posture?.paths[plane].reason ?? waiting}</small>
+    </div>
+  );
   const platform = health?.platform;
-  const hasPlatform = Boolean(platform);
   const gatewaySource = health?.sources?.gateway;
   const realFeeds = platform?.market_data.feeds.filter((feed) => !feed.synthetic) ?? [];
   const connectedFeeds = realFeeds.filter((feed) => feed.connected).length;
@@ -254,6 +262,10 @@ export default function ReliabilityOverview({
       destination: "events",
       action: "Inspect telemetry",
     });
+  }
+  if (!healthError && posture?.paths.notifications.status === "degraded") {
+    // Warn, never critical: desk alerting is degraded, the order path is not.
+    attention.push({ id: "alerting-degraded", title: "Desk alerting is degraded", detail: posture.paths.notifications.reason, tone: "warn", destination: "events", action: "Inspect telemetry" });
   }
   if (hasTraffic && (latency?.errorRate ?? 0) > 0.01) {
     attention.push({
@@ -704,25 +716,13 @@ export default function ReliabilityOverview({
             <h2 id="reliability-evidence-title">What this snapshot can prove</h2>
           </div>
         </div>
+        {/* Three planes, and the third is why this grid is not two. Telegram
+            used to reach the reader only by degrading the TRADING verdict; it
+            reports itself here instead, next to — never as — the money path. */}
         <div className="reliability-evidence__grid">
-          <div>
-            <span className={`reliability-evidence__state is-${posture?.paths.research.status ?? "unknown"}`}>
-              {posture ? POSTURE_LABEL[posture.paths.research.status] : "Connecting"}
-            </span>
-            <strong>Provider-routing plane</strong>
-            <small>{posture?.paths.research.reason ?? "Waiting for the provider-routing snapshot."}</small>
-          </div>
-          <div>
-            <span className={`reliability-evidence__state is-${posture?.paths.trading.status ?? "unknown"}`}>
-              {posture ? POSTURE_LABEL[posture.paths.trading.status] : "Connecting"}
-            </span>
-            <strong>Trading gateway plane</strong>
-            <small>
-              {hasPlatform
-                ? posture?.paths.trading.reason
-                : posture?.paths.trading.reason ?? "A provider-only snapshot cannot prove market-data freshness, worker health or kill-switch state."}
-            </small>
-          </div>
+          {planeTile("research", "Provider-routing plane", "Waiting for the provider-routing snapshot.")}
+          {planeTile("trading", "Trading gateway plane", "A provider-only snapshot cannot prove market-data freshness, worker health or kill-switch state.")}
+          {planeTile("notifications", "Notification plane", "Waiting for the notification-companion snapshot.")}
         </div>
 
         {/* The shared CrossLinkTile, not a hand-rolled copy: the anti-copy

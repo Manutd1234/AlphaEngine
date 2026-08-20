@@ -3,6 +3,7 @@ import type {
   HealthSourceFreshness,
   SystemHealth,
 } from "@/components/systems/types";
+import { degradedCause } from "@/lib/dependency-graph";
 
 /** Two missed default polls make a provider observation stale. */
 export const PROVIDER_HEALTH_STALE_AFTER_MS = 60_000;
@@ -23,6 +24,8 @@ export interface ReliabilityPosture {
   paths: {
     trading: PathPosture;
     research: PathPosture;
+    /** The alerting companion, on its own axis: never the money path. */
+    notifications: PathPosture;
   };
 }
 
@@ -134,7 +137,7 @@ function hasValidTelegram(value: unknown): boolean {
   return isRecord(value)
     && isBoolean(value.enabled)
     && isString(value.mode)
-    && isEnum(value.status, ["running", "degraded", "disabled"] as const)
+    && isEnum(value.status, ["running", "starting", "degraded", "disabled"] as const)
     && isNonNegativeNumber(value.uptime_seconds)
     && isNonNegativeInteger(value.updates_handled)
     && isNonNegativeInteger(value.alerts_sent)
@@ -280,7 +283,17 @@ function tradingPosture(health: SystemHealth, nowMs: number): PathPosture {
     return { status: "degraded", reason: "Market data is available through a degraded venue-feed set." };
   }
   if (health.platform.status === "degraded") {
-    return { status: "degraded", reason: "A supporting gateway component is degraded; inspect the component evidence." };
+    // Name the disjunct rather than gesturing at "a supporting component", the
+    // way the gateway card already does. Market data and risk are both answered
+    // above, so in practice this is the queue — but ask `degradedCause` instead
+    // of assuming, so a disjunct added later names itself here too.
+    const cause = degradedCause(health.platform);
+    return {
+      status: "degraded",
+      reason: cause
+        ? `The trading path is degraded because ${cause}.`
+        : "A supporting gateway component is degraded; inspect the component evidence.",
+    };
   }
   return { status: "nominal", reason: "The authoritative trading path is current and nominal." };
 }
@@ -308,12 +321,48 @@ function researchPosture(health: SystemHealth, nowMs: number): PathPosture {
 }
 
 /**
+ * The notification plane: the Telegram companion, reported on its own axis.
+ *
+ * This used to reach the reader through `platform.status`, which the trading
+ * posture reads — so one chat-transport blip announced a degraded TRADING path
+ * to a desk whose orders were routing normally. Telegram is a companion that
+ * pushes alerts; the risk gateway still gates and market data still flows
+ * without it. Simply taking it off the money path would have made an outage
+ * invisible instead of wrong, so it reports here as what it actually is.
+ */
+function notificationsPosture(health: SystemHealth, nowMs: number): PathPosture {
+  const source = health.sources?.gateway;
+  if (sourceExpired(source, nowMs) || source?.state === "stale" || source?.state === "invalid") {
+    return { status: "unknown", reason: "Gateway telemetry is stale, so the notification plane cannot be classified." };
+  }
+  if (!health.platform) {
+    return { status: "unknown", reason: "No authoritative snapshot reports the notification companion." };
+  }
+  const { telegram } = health.platform;
+  if (telegram.status === "disabled") {
+    return { status: "unknown", reason: "No Telegram notification companion is enabled in this deployment." };
+  }
+  if (telegram.status === "starting") {
+    return { status: "unknown", reason: "The Telegram companion is enabled but has not finished starting." };
+  }
+  if (telegram.status === "degraded") {
+    return {
+      status: "degraded",
+      reason: "The Telegram companion reports a transport error, so desk alerts may not be delivered. "
+        + "Order routing, pre-trade risk and market data are unaffected.",
+    };
+  }
+  return { status: "nominal", reason: `The Telegram companion is running in ${telegram.mode} mode.` };
+}
+
+/**
  * The one posture policy shared by every Reliability view.
  *
- * A research outage never paints the money path critical, and a provider-only
- * demo never calls itself nominal: it is explicitly degraded because trading
- * has no authoritative source. Stale monitoring is UNKNOWN, while a configured
- * gateway that cannot be reached is CRITICAL.
+ * Three planes, ranked. A research outage never paints the money path critical,
+ * a notification outage never paints either, and a provider-only demo never
+ * calls itself nominal: it is explicitly degraded because trading has no
+ * authoritative source. Stale monitoring is UNKNOWN, while a configured gateway
+ * that cannot be reached is CRITICAL.
  */
 export function deriveReliabilityPosture(
   health: SystemHealth,
@@ -321,41 +370,29 @@ export function deriveReliabilityPosture(
 ): ReliabilityPosture {
   const trading = tradingPosture(health, nowMs);
   const research = researchPosture(health, nowMs);
+  const notifications = notificationsPosture(health, nowMs);
+  const paths = { trading, research, notifications };
   const gatewayState = health.sources?.gateway.state;
   const providerOnly = !health.platform && (gatewayState === "not_configured" || !health.sources?.gateway);
 
-  if (trading.status === "halted") {
-    return { overall: "halted", reason: trading.reason, paths: { trading, research } };
-  }
-  if (trading.status === "critical") {
-    return { overall: "critical", reason: trading.reason, paths: { trading, research } };
-  }
-  if (trading.status === "unknown" && !providerOnly) {
-    return { overall: "unknown", reason: trading.reason, paths: { trading, research } };
-  }
-  if (research.status === "unknown" && !providerOnly) {
-    return { overall: "unknown", reason: research.reason, paths: { trading, research } };
-  }
+  if (trading.status === "halted") return { overall: "halted", reason: trading.reason, paths };
+  if (trading.status === "critical") return { overall: "critical", reason: trading.reason, paths };
+  if (trading.status === "unknown" && !providerOnly) return { overall: "unknown", reason: trading.reason, paths };
+  if (research.status === "unknown" && !providerOnly) return { overall: "unknown", reason: research.reason, paths };
   if (providerOnly) {
     const overall = research.status === "critical" ? "critical" : research.status === "unknown" ? "unknown" : "degraded";
-    return {
-      overall,
-      reason: overall === "degraded"
-        ? "Research providers are available, but no authoritative trading gateway is connected."
-        : research.reason,
-      paths: { trading, research },
-    };
+    const reason = overall === "degraded"
+      ? "Research providers are available, but no authoritative trading gateway is connected."
+      : research.reason;
+    return { overall, reason, paths };
   }
   if (trading.status === "degraded" || research.status !== "nominal") {
-    return {
-      overall: "degraded",
-      reason: trading.status === "degraded" ? trading.reason : research.reason,
-      paths: { trading, research },
-    };
+    const reason = trading.status === "degraded" ? trading.reason : research.reason;
+    return { overall: "degraded", reason, paths };
   }
-  return {
-    overall: "nominal",
-    reason: "Trading and research paths are current and nominal.",
-    paths: { trading, research },
-  };
+  // Ranked last, and only ever "degraded": an alerting outage is real and must
+  // be said out loud, but it may not outrank — or impersonate — either plane
+  // that carries orders. A disabled companion is a configuration, not a fault.
+  if (notifications.status === "degraded") return { overall: "degraded", reason: notifications.reason, paths };
+  return { overall: "nominal", reason: "Trading and research paths are current and nominal.", paths };
 }
