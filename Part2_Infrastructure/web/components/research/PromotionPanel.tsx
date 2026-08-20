@@ -54,7 +54,26 @@ export default function PromotionPanel({
   blockedReason,
   onHandOff,
 }: PromotionPanelProps) {
-  const failed = gate.total - gate.passed;
+  const failing = gate.checks.filter((c) => !c.passed);
+  const failed = failing.length;
+
+  /**
+   * Why the button is disabled, in the place a reader is already looking.
+   *
+   * This said "Hand-off stays disabled until every gate clears", which restates
+   * the disabled state without naming a cause, and the COUNT lived only in the
+   * button's `title`. A title needs a hover, so it does not exist on a touch
+   * device and is not the first thing a mouse user tries either — the question
+   * this answers was asked out loud, of a screen that was already showing it.
+   *
+   * Naming the gates beats counting them while the list is short enough to
+   * read; past two it becomes a wall and the count is the more useful summary.
+   */
+  const blockedBy = failed === 0
+    ? null
+    : failed <= 2
+    ? `Blocked by ${failing.map((c) => c.label).join(" and ")}.`
+    : `${failed} of ${gate.total} gates still failing.`;
 
   // The one-shot pulse: fires on the false→true edge only, and the class is
   // removed on animationend so a re-render can never replay it.
@@ -124,7 +143,7 @@ export default function PromotionPanel({
               ? blockedReason ?? "Promotion is temporarily unavailable."
               : gate.eligible
               ? `Carries a modelled ${fmt(slippageBps, 0)} bps slippage budget into the execution probe.`
-              : "Hand-off stays disabled until every gate clears."}
+              : blockedBy}
           </small>
         </div>
         <button
@@ -137,7 +156,7 @@ export default function PromotionPanel({
               ? blockedReason ?? "Promotion is temporarily unavailable"
               : gate.eligible
               ? "Open the Execution tab with this instrument in context"
-              : `${failed} gate${failed === 1 ? "" : "s"} still failing`
+              : `${failed} of ${gate.total} gates still failing`
           }
         >
           Promote to execution desk
