@@ -45,8 +45,8 @@ export default function CorrelationMatrix({ model, worst, observations }: Correl
           </div>
         </div>
         <p className="sub">
-          One measurable instrument. Correlation is a statement about a pair, so there is nothing to
-          show until the book holds a second position with enough history to measure.
+          One measurable instrument. Correlation needs a pair, so nothing shows until a second
+          position has enough history.
         </p>
       </div>
     );
@@ -75,8 +75,8 @@ export default function CorrelationMatrix({ model, worst, observations }: Correl
             <strong>
               {worst.a} and {worst.b} correlate at {fmt(worst.corr, 2)}.
             </strong>{" "}
-            Two positions this correlated are close to one position of their combined size — the book
-            is less diversified than the position count suggests.
+            That is close to one position of their combined size: the book is less diversified than
+            the position count suggests.
           </div>
         </div>
       )}
@@ -142,8 +142,7 @@ export default function CorrelationMatrix({ model, worst, observations }: Correl
 
       <p className="research-note">
         Measured from {observations} daily closes of the instruments actually held, not from assumed
-        factor loadings. The diagonal is 1.00 by construction and is coloured as such — the one cell
-        here whose value is certain rather than measured.
+        factor loadings. The diagonal is 1.00 by construction, not by measurement.
       </p>
     </div>
   );
