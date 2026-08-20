@@ -47,8 +47,8 @@ type PositionsPane = "holdings" | "shape" | "exit";
  */
 const POSITIONS_PANES: Array<{ id: PositionsPane; label: string; hint: string }> = [
   { id: "holdings", label: "Holdings", hint: "Every open position, what it is worth, and the actions on it" },
-  { id: "shape", label: "Shape", hint: "Where the weight sits against each symbol's own cap, and how the unrealised P&L is spread across the book" },
-  { id: "exit", label: "Exit", hint: "What getting out would cost at a chosen participation rate, and the orders already working" },
+  { id: "shape", label: "Shape", hint: "Weight against each symbol's own cap, and how unrealised P&L is spread" },
+  { id: "exit", label: "Exit", hint: "What getting out costs at a chosen participation rate, and the orders already working" },
 ];
 
 export interface PositionsSectionProps {
@@ -226,7 +226,7 @@ export default function PositionsSection({
               <p>
                 {isStale
                   ? "The last successful snapshot was flat. Reconnect before relying on current exposure."
-                  : "The risk gateway is connected and the book is flat. Research candidates remain available for review."}
+                  : "The gateway is connected and the book is flat."}
               </p>
               <button onClick={() => onFocusSymbol(selectedSymbol, "research")}>Open research workspace</button>
             </div>
