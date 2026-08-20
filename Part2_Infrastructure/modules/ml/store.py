@@ -204,7 +204,6 @@ class MLRunStore:
             return None
         scope = f"eq.{desk_id or self.DEFAULT_DESK_ID}"
         try:
-
             runs = await self._client.get("/rest/v1/ml_runs", params={
                 "id": f"eq.{run_id}", "desk_id": scope, "select": "*",
             })
@@ -335,6 +334,7 @@ class MLRunStore:
                 "finished_at": datetime.now(UTC).isoformat(),
                 "oos_sharpe": result.oos_sharpe,
                 "deflated_sharpe": result.deflated_sharpe,
+                "pbo": result.pbo,  # NULL unless a selection was ranked — see ml/selection.py
             })
             return PersistResult(True, run_id=run_id)
 

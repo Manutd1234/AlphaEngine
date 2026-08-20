@@ -14,13 +14,21 @@ runner, and hands the result to the store — so every number it produces is
 produced by code that already had tests, and the only new thing being asserted
 is the wiring.
 
-**PBO is not computed, and the column stays NULL.** Probability of backtest
-overfitting ranks a selected configuration against the alternatives it was
-selected from; a run that fits one configuration has no alternatives and
-therefore no rank. `overfitting_probability` in the backtester needs
-`combos_ranked > 1` per fold and returns None without it. Writing a number
-there because the column exists would be inventing the one figure whose whole
-job is to catch invented figures.
+**PBO is computed when, and only when, the run selected something.**
+Probability of backtest overfitting ranks a selected configuration against the
+alternatives it was selected from, so a fit of one configuration has no
+alternatives, no rank, and no PBO — the column stays NULL and the card says it
+was not computed. Hand this a swept parameter (``params={"alpha": [0.1, 1, 10]}``)
+and there is a selection to judge: every fold picks its winner in sample, the
+whole candidate set is scored out of sample, and
+``modules.backtester.overfitting_probability`` — the same function the sweep
+card reports — turns those ranks into the figure. What is never done is writing
+a number because the column exists, which would be inventing the one figure
+whose whole job is to catch invented figures.
+
+Every sentence a reader sees about a null PBO is in :data:`PBO_REASONS` below.
+The runner decides the fact and records a code; this file is where that code
+becomes English, so the portal quotes one source instead of composing a second.
 """
 
 from __future__ import annotations
@@ -35,6 +43,13 @@ import numpy as np
 from modules.backtester import dataset_fingerprint, fetch_ohlcv
 from modules.ml.features import FeatureBuilder, FeatureSpec, LabelSpec
 from modules.ml.runner import MLRunResult, MLWalkForward
+from modules.ml.selection import (
+    MIN_RANKED_FOLDS,
+    PBO_NO_FOLDS,
+    PBO_ONE_CONFIGURATION,
+    PBO_TOO_FEW_FOLDS,
+    expand_grid,
+)
 from modules.ml.sklearn_adapter import resolve_engine
 from modules.ml.splits import PurgedWalkForward
 
@@ -99,10 +114,17 @@ def run_ml_fit(
     `engine_reason` says why. A run that fell back is a different run.
     """
     params = dict(params or {})
+    # What this run is choosing between. One configuration unless a parameter
+    # was given as a list — and one configuration is a run that selects nothing,
+    # which is why its PBO is null rather than low.
+    grid = expand_grid(params)
     # Resolved BEFORE any bars are fetched: an unknown model or an unknown
     # engine is a request that cannot produce a result, and it should not first
-    # spend a network round trip finding that out.
-    choice = resolve_engine(model, params, requested=engine)
+    # spend a network round trip finding that out. One resolution per candidate
+    # because each needs its own estimator; the ENGINE decision is identical
+    # across them, so the first speaks for the run.
+    choices = [resolve_engine(model, config, requested=engine) for _, config in grid]
+    choice = choices[0]
     if choice.fell_back:
         log.warning("ml fit: %s", choice.reason)
     label = LabelSpec(
@@ -125,7 +147,15 @@ def run_ml_fit(
         n_splits=int(n_splits), label_horizon=label.horizon, embargo=int(embargo),
     )
     result = MLWalkForward(
-        choice.estimator, interval=interval, cost_bps=float(cost_bps),
+        choice.estimator,
+        # `name` rather than `label`: the comprehension has its own scope, but
+        # reusing the LabelSpec's name three lines from where it is read would
+        # be a trap for the next person to edit this.
+        candidates=[
+            (name, resolved.estimator)
+            for (name, _), resolved in zip(grid, choices, strict=True)
+        ],
+        interval=interval, cost_bps=float(cost_bps),
     ).run(features, cv)
 
     # The bar timestamp for every row the matrix kept. Without it `ml_folds`
@@ -154,6 +184,11 @@ def run_ml_fit(
             "engine": choice.engine,
             "engine_requested": choice.requested,
             "engine_reason": choice.reason,
+            # How wide the search was. Recorded because it is what the DSR
+            # hurdle and the PBO denominator are both a function of, and a run
+            # whose candidate count is unknown cannot be compared with one
+            # whose is.
+            "candidates": len(grid),
         },
         "seed": int(seed),
         "features": features,
@@ -180,6 +215,24 @@ def _as_utc(value: Any) -> datetime:
 
 
 ML_FIT_KIND = "ml.fit"
+
+#: The sentence a reader is given for each PBO outcome. The runner decides the
+#: FACT and records a code on `MLRunResult.pbo_basis`; the wording lives here,
+#: in one place, because the portal's capsule quotes this file rather than
+#: composing its own explanation for the same null. A computed PBO needs no
+#: excuse, so its entry is absent and `.get` returns None.
+PBO_REASONS: dict[str, str] = {
+    PBO_ONE_CONFIGURATION:
+        "not applicable: PBO ranks a selected configuration against the "
+        "alternatives it was selected from, and this run fitted one",
+    PBO_TOO_FEW_FOLDS:
+        f"not computed: fewer than {MIN_RANKED_FOLDS} folds ranked their selection, and a "
+        f"fraction of one or two folds is not a probability — it is 0, a half or 1, and 0 "
+        f"would read as evidence of no overfitting rather than as no evidence",
+    PBO_NO_FOLDS:
+        "not computed: no fold produced a usable result, so nothing was selected and "
+        "nothing was ranked",
+}
 
 
 def run_ml_fit_job(params: dict[str, Any]) -> dict[str, Any]:
@@ -239,7 +292,10 @@ def run_ml_fit_job(params: dict[str, Any]) -> dict[str, Any]:
                 "engine": payload["params"].get("engine"),
                 "oos_sharpe": outcome.result.oos_sharpe if outcome.result else None,
                 "deflated_sharpe": outcome.result.deflated_sharpe if outcome.result else None,
-                "pbo": None,
+                # The value the store filed, not a hard-coded null. This read
+                # None for every run including the ones that had a PBO, so a
+                # card could contradict the row it points at.
+                "pbo": outcome.result.pbo if outcome.result else None,
                 "folds": [],
             })
         except Exception as exc:
@@ -270,11 +326,15 @@ def _job_result(
         "oos_sharpe": result.oos_sharpe if result else None,
         "deflated_sharpe": result.deflated_sharpe if result else None,
         "verdict": result.verdict if result else None,
+        # How many bars this record would need for its Sharpe to be real, or
+        # None when the Sharpe is not positive — no finite record proves an
+        # edge that is not there, and infinity is not a length.
+        "min_track_record_bars": result.min_track_record_bars if result else None,
+        "candidates": result.candidates_tested if result else 0,
+        "pbo": result.pbo if result else None,
         # Stated, not omitted: a null column with no explanation reads as a
         # figure that failed to compute rather than one that does not apply.
-        "pbo": None,
-        "pbo_reason": "not applicable: PBO ranks a selected configuration against the "
-                      "alternatives it was selected from, and this run fitted one",
+        "pbo_reason": PBO_REASONS.get(result.pbo_basis if result else PBO_NO_FOLDS),
     }
 
 
