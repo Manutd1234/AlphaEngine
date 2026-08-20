@@ -1193,11 +1193,10 @@ class TelegramBot:
             if pace:
                 await self._pace(chat_id)
             try:
-                response = await self._client.post(
-                    f"{self.base}/{method}", json=json_body, data=data, files=files,
-                )
+                response = await self._client.post(f"{self.base}/{method}", json=json_body, data=data, files=files)
                 payload = response.json()
                 if payload.get("ok"):
+                    self.last_error = None  # a success clears the latch; see operations._telegram_snapshot
                     return payload
                 retry_after = payload.get("parameters", {}).get("retry_after")
                 if retry_after is not None and attempt < attempts:
