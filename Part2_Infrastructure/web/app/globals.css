@@ -8873,6 +8873,13 @@ button.data-trust-action > i {
   font-variant-numeric: tabular-nums;
 }
 
+/* A date is not a figure. At --fs-h2 it was the widest cell of the five and
+   read as a fifth headline number. Three parts on purpose: the rule above is
+   (0,1,1), so a two-part form would tie and lose on source order. */
+.codebase-explorer__stats .codebase-explorer__asof strong {
+  font-size: var(--fs-md);
+}
+
 .developer-work__stats .is-warn strong {
   color: var(--warning-text);
 }
@@ -9779,6 +9786,12 @@ button.data-trust-action > i {
   .codebase-explorer__stats,
   .developer-work__stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Its own row, so the four counts pair off cleanly instead of leaving one
+     empty cell showing the container's border colour through. */
+  .codebase-explorer__asof {
+    grid-column: 1 / -1;
   }
 
   .developer-work__composer {
