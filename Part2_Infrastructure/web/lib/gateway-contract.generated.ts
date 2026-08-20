@@ -160,7 +160,7 @@ export interface DataQualityProviderRow {
 }
 
 export interface DataQualityView {
-  backend: "sqlite";
+  backend: "sqlite" | "postgres";
   by_capability: Array<DataQualityCapabilityRow>;
   by_provider: Array<DataQualityProviderRow>;
   escalations: Array<DataQualityEscalationView>;
@@ -810,7 +810,7 @@ export interface WorkItemView {
 }
 
 export interface WorkItemsResponse {
-  backend: "sqlite";
+  backend: "sqlite" | "postgres";
   count: number;
   items: Array<WorkItemView>;
   observed_at: string;

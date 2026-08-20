@@ -937,7 +937,10 @@
         "description": "The merged ledger, as every instance reads it back.\n\nEvery field is required on purpose (the same house rule as\n``WebStateView``): a response field with a default publishes itself as\noptional in the OpenAPI contract, and a generated client would then hedge\nagainst an absence that cannot happen.",
         "properties": {
           "backend": {
-            "const": "sqlite",
+            "enum": [
+              "sqlite",
+              "postgres"
+            ],
             "title": "Backend",
             "type": "string"
           },
@@ -4832,7 +4835,10 @@
       "WorkItemsResponse": {
         "properties": {
           "backend": {
-            "const": "sqlite",
+            "enum": [
+              "sqlite",
+              "postgres"
+            ],
             "title": "Backend",
             "type": "string"
           },

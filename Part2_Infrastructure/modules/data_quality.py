@@ -140,7 +140,7 @@ class DataQualityView(BaseModel):
     """
 
     schema_version: Literal[1] = 1
-    backend: Literal["sqlite"]
+    backend: Literal["sqlite", "postgres"]
     retention_days: int
     window_minutes: int
     observed_at: datetime
@@ -609,7 +609,7 @@ class DataQualityLedger(SqliteStore):
             )
         ]
         return DataQualityView(
-            backend="sqlite",
+            backend=self.backend,  # what is serving, not what was true when written
             retention_days=self.retention_days,
             window_minutes=self.view_window_minutes,
             observed_at=_dt(now),  # type: ignore[arg-type]

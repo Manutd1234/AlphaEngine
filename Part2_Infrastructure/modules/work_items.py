@@ -79,7 +79,7 @@ class WorkItemPatch(BaseModel):
 
 
 class WorkItemsResponse(BaseModel):
-    backend: Literal["sqlite"]
+    backend: Literal["sqlite", "postgres"]
     observed_at: datetime
     count: int
     seeded: int
@@ -190,7 +190,9 @@ class WorkItemStore(SqliteStore):
     def response(self) -> WorkItemsResponse:
         items = self.list()
         return WorkItemsResponse(
-            backend="sqlite",
+            # Read off the store, not written as a literal: a hardcoded "sqlite"
+            # keeps reporting sqlite from a Postgres-backed deployment.
+            backend=self.backend,
             observed_at=datetime.now(timezone.utc),
             count=len(items),
             seeded=self.seeded_count(),
