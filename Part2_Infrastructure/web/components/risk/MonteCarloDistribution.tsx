@@ -312,7 +312,7 @@ export default function MonteCarloDistribution({
               tone={result.pnl.mean < 0 ? "neg" : "pos"}
               note={`${fmt(result.probLoss * 100, 1)}% of paths end in loss`}
             />
-            <StatTile label={`P${lossBands[0]} outcome`} value={usd(result.pnl.p50, 0)} note="median terminal P&L" />
+            <StatTile label={`P${lossBands[0]} outcome`} value={usd(result.pnl.p50, 0)} note="half of paths end above this" />
             <StatTile
               label={`P${lossBands[1]} loss`}
               value={usd(result.loss.p95, 0)}
