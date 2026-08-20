@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-20",
-  "commit": "fea5c0d",
+  "commit": "d837d54",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -171,6 +171,7 @@
     "Part2_Infrastructure/tests/test_file_size.py",
     "Part2_Infrastructure/tests/test_gate_parity.py",
     "Part2_Infrastructure/tests/test_jobs_security.py",
+    "Part2_Infrastructure/tests/test_migration_bundle.py",
     "Part2_Infrastructure/tests/test_ml_engine.py",
     "Part2_Infrastructure/tests/test_ml_features.py",
     "Part2_Infrastructure/tests/test_ml_fit.py",

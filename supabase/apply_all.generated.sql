@@ -1,27 +1,37 @@
--- AlphaEngine — every migration, concatenated in order, for a one-shot apply.
+-- AlphaEngine — every migration, concatenated and made re-runnable.
 --
--- WHY THIS FILE EXISTS. Queried directly, project umwnjwhwemvvygtdkcxr holds
--- exactly one of the tables this codebase reads: research_documents. Every
--- other one — ml_runs, ml_folds, ml_features, ml_artefacts, research_edges,
--- the four data-ops tables, subscribers — returns PGRST205 "table absent".
--- The migrations were written and committed and never applied.
+-- GENERATED. Regenerate with `python3 tools/bundle_migrations.py`; do not edit
+-- this file, or it drifts from the migrations it claims to be.
 --
--- That is the single cause behind the Fitted models panel reporting a corpus
--- it cannot read, and behind the ML fit having nowhere to file its evidence.
+-- WHAT THIS IS FOR. The migrations in supabase/migrations/ were written and
+-- committed; several were never applied to the live project. This bundle is
+-- for applying them by hand, against a project whose current state nobody is
+-- certain of.
 --
--- HOW TO APPLY. Supabase dashboard -> SQL Editor -> paste -> Run. Or, with the
--- database password to hand:
+--     Supabase dashboard -> SQL Editor -> paste -> Run
 --
---     supabase link --project-ref umwnjwhwemvvygtdkcxr
---     supabase db push
+-- or, with the database password to hand:
 --
--- Every statement below is taken verbatim from supabase/migrations/. This file
--- is GENERATED — regenerate it with tools/bundle_migrations.py rather than
--- editing it, or it drifts from the migrations it claims to be.
+--     supabase link --project-ref <ref> && supabase db push
 --
--- SAFETY. The migrations use CREATE TABLE IF NOT EXISTS / CREATE OR REPLACE
--- throughout, so re-running is intended to be safe; research_documents already
--- exists and its migration should no-op. Read it before you run it.
+-- SAFE TO RE-RUN, and unlike the first version of this file that is a property
+-- of the generator rather than a hope. Postgres has no CREATE TYPE IF NOT
+-- EXISTS, and the 2026-08-08 migrations use bare CREATE TABLE, CREATE INDEX,
+-- CREATE POLICY and CREATE TRIGGER as well — so a plain concatenation stops on
+-- the first statement:
+--
+--     ERROR: 42710: type "order_side" already exists
+--
+-- Every such statement below has been rewritten: enums are wrapped in a DO
+-- block that swallows duplicate_object, tables and indexes gained IF NOT
+-- EXISTS, and each policy and trigger is preceded by a DROP ... IF EXISTS.
+--
+-- ONE THING IT CANNOT DO. If a type already exists with DIFFERENT values —
+-- say `order_verdict` predates a gate added to modules/risk_proxy.py — the
+-- wrapped CREATE is skipped and the stale type is left as it is. Recreating a
+-- type that five tables depend on is more dangerous than leaving it, so that
+-- case is reported here rather than handled silently.
+-- tests/test_supabase_schema.py is what catches a drifted order_verdict.
 
 
 -- ========================================================================
@@ -38,36 +48,52 @@
 
 create extension if not exists "uuid-ossp";
 
-create type public.order_side as enum ('BUY', 'SELL');
+do $$ begin
+  create type public.order_side as enum ('BUY', 'SELL');
+exception
+  when duplicate_object then null;  -- already applied
+end $$;
 
-create type public.order_verdict as enum (
-  'ACCEPTED',
-  -- the fifteen real gates, in engine order
-  'kill_switch',
-  'symbol_halt',
-  'symbol_whitelist',
-  'duplicate_order',
-  'rate_limit',
-  'price_available',
-  'order_sized',
-  'max_order_notional',
-  'symbol_concentration',
-  'gross_exposure',
-  'price_band',
-  'working_book',
-  'daily_drawdown',
-  'reduce_only',
-  'est_slippage',
-  -- blueprint aliases, kept so blueprint-derived clients keep parsing
-  'FAT_FINGER',
-  'DRAWDOWN_HALT'
-);
+do $$ begin
+  create type public.order_verdict as enum (
+    'ACCEPTED',
+    -- the fifteen real gates, in engine order
+    'kill_switch',
+    'symbol_halt',
+    'symbol_whitelist',
+    'duplicate_order',
+    'rate_limit',
+    'price_available',
+    'order_sized',
+    'max_order_notional',
+    'symbol_concentration',
+    'gross_exposure',
+    'price_band',
+    'working_book',
+    'daily_drawdown',
+    'reduce_only',
+    'est_slippage',
+    -- blueprint aliases, kept so blueprint-derived clients keep parsing
+    'FAT_FINGER',
+    'DRAWDOWN_HALT'
+  );
+exception
+  when duplicate_object then null;  -- already applied
+end $$;
 
-create type public.desk_authority as enum ('PAPER_ONLY', 'LIVE_GATED', 'FULL_LIVE');
+do $$ begin
+  create type public.desk_authority as enum ('PAPER_ONLY', 'LIVE_GATED', 'FULL_LIVE');
+exception
+  when duplicate_object then null;  -- already applied
+end $$;
 
 -- Provenance: which implementation decided. This single column is what keeps
 -- the SQL sandbox decider from ever being read as the desk's decision.
-create type public.desk_decider as enum ('gateway', 'supabase_rpc');
+do $$ begin
+  create type public.desk_decider as enum ('gateway', 'supabase_rpc');
+exception
+  when duplicate_object then null;  -- already applied
+end $$;
 
 
 -- ========================================================================
@@ -89,7 +115,7 @@ create type public.desk_decider as enum ('gateway', 'supabase_rpc');
 --  * decided_at vs occurred_at: a resting order fills hours after it was
 --    decided; one timestamp cannot carry both facts.
 
-create table public.desk_risk_limits (
+create table if not exists public.desk_risk_limits (
   id uuid primary key default uuid_generate_v4(),
   desk_id uuid not null default '00000000-0000-0000-0000-000000000001',
   user_id uuid references auth.users(id) on delete cascade,
@@ -106,7 +132,7 @@ create table public.desk_risk_limits (
   constraint unique_desk_user_symbol unique nulls not distinct (desk_id, user_id, desk_symbol)
 );
 
-create table public.order_blotter (
+create table if not exists public.order_blotter (
   id uuid primary key default uuid_generate_v4(),
   desk_id uuid not null default '00000000-0000-0000-0000-000000000001',
   user_id uuid references auth.users(id) on delete cascade,
@@ -137,9 +163,9 @@ create table public.order_blotter (
   constraint unique_decider_order unique nulls not distinct (decided_by, gateway_order_id)
 );
 
-create index idx_blotter_desk_time on public.order_blotter (desk_id, occurred_at desc);
-create index idx_blotter_symbol_time on public.order_blotter (symbol, occurred_at desc);
-create index idx_blotter_verdict on public.order_blotter (verdict);
+create index if not exists idx_blotter_desk_time on public.order_blotter (desk_id, occurred_at desc);
+create index if not exists idx_blotter_symbol_time on public.order_blotter (symbol, occurred_at desc);
+create index if not exists idx_blotter_verdict on public.order_blotter (verdict);
 
 -- The DuckDB log is append-only by convention; here it can be by constraint.
 create or replace function public.reject_blotter_mutation()
@@ -152,6 +178,7 @@ begin
 end;
 $$;
 
+drop trigger if exists order_blotter_append_only on public.order_blotter;
 create trigger order_blotter_append_only
   before update or delete on public.order_blotter
   for each row execute function public.reject_blotter_mutation();
@@ -175,22 +202,26 @@ revoke all on public.desk_risk_limits from anon;
 revoke all on public.order_blotter from anon;
 
 -- Authenticated users (future login story): own rows only.
+drop policy if exists "Traders read own risk limits" on public.desk_risk_limits;
 create policy "Traders read own risk limits"
   on public.desk_risk_limits for select
   to authenticated
   using ((select auth.uid()) = user_id);
 
+drop policy if exists "Traders update own risk limits" on public.desk_risk_limits;
 create policy "Traders update own risk limits"
   on public.desk_risk_limits for update
   to authenticated
   using ((select auth.uid()) = user_id)
   with check ((select auth.uid()) = user_id);
 
+drop policy if exists "Traders read own blotter" on public.order_blotter;
 create policy "Traders read own blotter"
   on public.order_blotter for select
   to authenticated
   using ((select auth.uid()) = user_id);
 
+drop policy if exists "Traders insert own blotter rows" on public.order_blotter;
 create policy "Traders insert own blotter rows"
   on public.order_blotter for insert
   to authenticated
@@ -346,13 +377,17 @@ grant execute on function public.submit_alphaengine_order(text, public.order_sid
 
 create extension if not exists vector with schema extensions;
 
-create type public.research_doc_kind as enum (
-  'backtest_run',
-  'execution_summary',
-  'risk_incident'
-);
+do $$ begin
+  create type public.research_doc_kind as enum (
+    'backtest_run',
+    'execution_summary',
+    'risk_incident'
+  );
+exception
+  when duplicate_object then null;  -- already applied
+end $$;
 
-create table public.research_documents (
+create table if not exists public.research_documents (
   id uuid primary key default gen_random_uuid(),
   desk_id uuid not null default '00000000-0000-0000-0000-000000000001',
   user_id uuid references auth.users(id) on delete cascade,
@@ -374,15 +409,16 @@ create table public.research_documents (
   constraint unique_desk_kind_ref unique (desk_id, kind, source_ref)
 );
 
-create index idx_research_docs_embedding
+create index if not exists idx_research_docs_embedding
   on public.research_documents
   using hnsw (embedding extensions.vector_cosine_ops);
-create index idx_research_docs_kind_time
+create index if not exists idx_research_docs_kind_time
   on public.research_documents (kind, occurred_at desc);
 
 alter table public.research_documents enable row level security;
 revoke all on public.research_documents from anon;
 
+drop policy if exists "Traders read own research documents" on public.research_documents;
 create policy "Traders read own research documents"
   on public.research_documents for select
   to authenticated
@@ -530,6 +566,7 @@ grant select on public.sandbox_blotter to authenticated;
 -- SELECT only. anon gets no INSERT, UPDATE or DELETE, and `order_blotter` is
 -- append-only by trigger regardless.
 
+drop policy if exists "Public demo desk blotter is readable anonymously" on public.order_blotter;
 create policy "Public demo desk blotter is readable anonymously"
   on public.order_blotter for select
   to anon
@@ -759,6 +796,7 @@ notify pgrst, 'reload schema';
 -- nothing new: only gateway-decided, unowned rows on the fixed demo desk. A
 -- signed-in trader's own rows carry their user_id and remain private under the
 -- existing own-row policy.
+drop policy if exists "Public demo desk blotter is readable when signed in" on public.order_blotter;
 create policy "Public demo desk blotter is readable when signed in"
   on public.order_blotter for select
   to authenticated
@@ -850,7 +888,7 @@ notify pgrst, 'reload schema';
 --     shape, not a preference, and would breach the size check below;
 --   * the blotter's sandbox/live source — per-tab by intent, so two tabs can
 --     watch different books.
-create table public.user_preferences (
+create table if not exists public.user_preferences (
   user_id    uuid primary key references auth.users (id) on delete cascade,
   prefs      jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now(),
@@ -865,16 +903,19 @@ alter table public.user_preferences enable row level security;
 -- reach this table. There is no demo row to read here, unlike the blotter.
 revoke all on public.user_preferences from anon;
 
+drop policy if exists "Users read own preferences" on public.user_preferences;
 create policy "Users read own preferences"
   on public.user_preferences for select
   to authenticated
   using ((select auth.uid()) = user_id);
 
+drop policy if exists "Users insert own preferences" on public.user_preferences;
 create policy "Users insert own preferences"
   on public.user_preferences for insert
   to authenticated
   with check ((select auth.uid()) = user_id);
 
+drop policy if exists "Users update own preferences" on public.user_preferences;
 create policy "Users update own preferences"
   on public.user_preferences for update
   to authenticated
@@ -1071,6 +1112,7 @@ begin
 
   -- SELECT is needed even though reads go through signed URLs: creating a
   -- signed URL is itself authorised against these policies.
+  drop policy if exists "Avatars are readable by their owner" on storage.objects;
   create policy "Avatars are readable by their owner"
     on storage.objects for select
     to authenticated
@@ -1079,6 +1121,7 @@ begin
       and (storage.foldername(name))[1] = (select auth.uid())::text
     );
 
+  drop policy if exists "Avatars are writable by their owner" on storage.objects;
   create policy "Avatars are writable by their owner"
     on storage.objects for insert
     to authenticated
@@ -1089,6 +1132,7 @@ begin
 
   -- `using` AND `with check`: without the second clause an account could move a
   -- row it owns into somebody else's folder.
+  drop policy if exists "Avatars are replaceable by their owner" on storage.objects;
   create policy "Avatars are replaceable by their owner"
     on storage.objects for update
     to authenticated
@@ -1101,6 +1145,7 @@ begin
       and (storage.foldername(name))[1] = (select auth.uid())::text
     );
 
+  drop policy if exists "Avatars are removable by their owner" on storage.objects;
   create policy "Avatars are removable by their owner"
     on storage.objects for delete
     to authenticated
@@ -1149,7 +1194,7 @@ $$;
 -- The gateway writes these rows with the service role, because the gateway is
 -- the only party that holds the Telegram user id. The policies below are what
 -- the *account* may do with its own row from the browser.
-create table public.telegram_link (
+create table if not exists public.telegram_link (
   user_id           uuid primary key references auth.users (id) on delete cascade,
   -- Telegram ids are 64-bit and getting longer; text avoids the day one stops
   -- fitting, and nothing here does arithmetic on them.
@@ -1171,16 +1216,19 @@ alter table public.telegram_link enable row level security;
 -- from this table.
 revoke all on public.telegram_link from anon;
 
+drop policy if exists "Users read own telegram link" on public.telegram_link;
 create policy "Users read own telegram link"
   on public.telegram_link for select
   to authenticated
   using ((select auth.uid()) = user_id);
 
+drop policy if exists "Users insert own telegram link" on public.telegram_link;
 create policy "Users insert own telegram link"
   on public.telegram_link for insert
   to authenticated
   with check ((select auth.uid()) = user_id);
 
+drop policy if exists "Users update own telegram link" on public.telegram_link;
 create policy "Users update own telegram link"
   on public.telegram_link for update
   to authenticated
@@ -1216,7 +1264,7 @@ notify pgrst, 'reload schema';
 -- `seed` is not optional and has no default. A run that cannot say which seed
 -- produced it cannot be re-run, and an irreproducible ML result is an anecdote.
 
-create table public.ml_runs (
+create table if not exists public.ml_runs (
   id uuid primary key default gen_random_uuid(),
   desk_id uuid not null default '00000000-0000-0000-0000-000000000001',
   user_id uuid references auth.users(id) on delete cascade,
@@ -1254,12 +1302,13 @@ create table public.ml_runs (
     check (status <> 'failed' or error is not null)
 );
 
-create index idx_ml_runs_desk_time on public.ml_runs (desk_id, started_at desc);
-create index idx_ml_runs_data_hash on public.ml_runs (data_hash);
+create index if not exists idx_ml_runs_desk_time on public.ml_runs (desk_id, started_at desc);
+create index if not exists idx_ml_runs_data_hash on public.ml_runs (data_hash);
 
 alter table public.ml_runs enable row level security;
 revoke all on public.ml_runs from anon;
 
+drop policy if exists "Traders read own ML runs" on public.ml_runs;
 create policy "Traders read own ML runs"
   on public.ml_runs for select
   to authenticated
@@ -1288,7 +1337,7 @@ create policy "Traders read own ML runs"
 -- Zero is a legal value and an explicit claim — "this fold purged nothing" —
 -- which is very different from a NULL that means "nobody recorded it".
 
-create table public.ml_folds (
+create table if not exists public.ml_folds (
   id uuid primary key default gen_random_uuid(),
   run_id uuid not null references public.ml_runs(id) on delete cascade,
   --: 0-based, in time order. The ordering is the point of a walk-forward.
@@ -1324,7 +1373,7 @@ create table public.ml_folds (
   constraint ml_folds_are_ordered unique (run_id, fold_index)
 );
 
-create index idx_ml_folds_run on public.ml_folds (run_id, fold_index);
+create index if not exists idx_ml_folds_run on public.ml_folds (run_id, fold_index);
 
 alter table public.ml_folds enable row level security;
 revoke all on public.ml_folds from anon;
@@ -1332,6 +1381,7 @@ revoke all on public.ml_folds from anon;
 -- Reachable exactly when its run is. The fold rows carry no user_id of their
 -- own: duplicating the owner is how two rows end up disagreeing about who owns
 -- one experiment.
+drop policy if exists "Traders read folds of their own runs" on public.ml_folds;
 create policy "Traders read folds of their own runs"
   on public.ml_folds for select
   to authenticated
@@ -1363,7 +1413,7 @@ create policy "Traders read folds of their own runs"
 -- Storing a few hundred thousand floats per run to save a recomputation would
 -- trade a cheap rebuild for a table nobody can afford to keep.
 
-create table public.ml_features (
+create table if not exists public.ml_features (
   id uuid primary key default gen_random_uuid(),
   run_id uuid not null references public.ml_runs(id) on delete cascade,
 
@@ -1387,11 +1437,12 @@ create table public.ml_features (
   constraint ml_features_one_set_per_run unique (run_id)
 );
 
-create index idx_ml_features_spec on public.ml_features (spec_hash);
+create index if not exists idx_ml_features_spec on public.ml_features (spec_hash);
 
 alter table public.ml_features enable row level security;
 revoke all on public.ml_features from anon;
 
+drop policy if exists "Traders read features of their own runs" on public.ml_features;
 create policy "Traders read features of their own runs"
   on public.ml_features for select
   to authenticated
@@ -1419,7 +1470,7 @@ create policy "Traders read features of their own runs"
 -- describe what it used to be — the same failure the OpenAPI digest exists to
 -- prevent between the gateway and the workspace.
 
-create table public.ml_artefacts (
+create table if not exists public.ml_artefacts (
   id uuid primary key default gen_random_uuid(),
   run_id uuid not null references public.ml_runs(id) on delete cascade,
 
@@ -1442,11 +1493,12 @@ create table public.ml_artefacts (
   constraint ml_artefacts_one_kind_per_run unique (run_id, kind)
 );
 
-create index idx_ml_artefacts_run on public.ml_artefacts (run_id);
+create index if not exists idx_ml_artefacts_run on public.ml_artefacts (run_id);
 
 alter table public.ml_artefacts enable row level security;
 revoke all on public.ml_artefacts from anon;
 
+drop policy if exists "Traders read artefacts of their own runs" on public.ml_artefacts;
 create policy "Traders read artefacts of their own runs"
   on public.ml_artefacts for select
   to authenticated
@@ -1477,21 +1529,25 @@ create policy "Traders read artefacts of their own runs"
 -- table plus a recursive CTE traverses it, and a second database would buy
 -- nothing except a second thing to keep in sync.
 
-create type public.research_relation as enum (
-  --: Both documents saw the same bars. The strongest claim in the corpus:
-  --: results that disagree over one data_hash disagree about method, not data.
-  'same_data',
-  'same_symbol',
-  'same_strategy',
-  'same_regime',
-  --: Directional, and the reason this is a graph rather than a tag cloud:
-  --: dst happened after src and is plausibly downstream of it.
-  'followed_by',
-  --: A promotion and the execution or incident it led to.
-  'promoted_to'
-);
+do $$ begin
+  create type public.research_relation as enum (
+    --: Both documents saw the same bars. The strongest claim in the corpus:
+    --: results that disagree over one data_hash disagree about method, not data.
+    'same_data',
+    'same_symbol',
+    'same_strategy',
+    'same_regime',
+    --: Directional, and the reason this is a graph rather than a tag cloud:
+    --: dst happened after src and is plausibly downstream of it.
+    'followed_by',
+    --: A promotion and the execution or incident it led to.
+    'promoted_to'
+  );
+exception
+  when duplicate_object then null;  -- already applied
+end $$;
 
-create table public.research_edges (
+create table if not exists public.research_edges (
   id uuid primary key default gen_random_uuid(),
   desk_id uuid not null default '00000000-0000-0000-0000-000000000001',
 
@@ -1511,8 +1567,8 @@ create table public.research_edges (
   constraint research_edges_are_unique unique (src_id, dst_id, relation)
 );
 
-create index idx_research_edges_src on public.research_edges (src_id, relation);
-create index idx_research_edges_dst on public.research_edges (dst_id, relation);
+create index if not exists idx_research_edges_src on public.research_edges (src_id, relation);
+create index if not exists idx_research_edges_dst on public.research_edges (dst_id, relation);
 
 alter table public.research_edges enable row level security;
 revoke all on public.research_edges from anon;
@@ -1520,6 +1576,7 @@ revoke all on public.research_edges from anon;
 -- Both ends must be readable. An edge is a fact about two documents, and
 -- reaching one you do not own THROUGH one you do is exactly the leak a graph
 -- makes easy and a similarity search never could.
+drop policy if exists "Traders read edges between their own documents" on public.research_edges;
 create policy "Traders read edges between their own documents"
   on public.research_edges for select
   to authenticated
