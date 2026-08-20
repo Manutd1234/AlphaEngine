@@ -108,7 +108,7 @@ export default function FavouritesPanel({ records }: { records: ExperimentRecord
       const timedOut = cause instanceof DOMException && cause.name === "TimeoutError";
       setStatus(timedOut
         ? `No result within ${COMBINE_DEADLINE_MS / 1000}s. The engine may still have been re-running `
-          + "these bars — try fewer runs, or a shorter window, rather than assuming they cannot combine."
+          + "these bars — try fewer runs, or a shorter window."
         : "The combination did not complete — the request never reached the engine.");
       setResult(null);
     } finally {
@@ -128,7 +128,7 @@ export default function FavouritesPanel({ records }: { records: ExperimentRecord
       <p className="sub">
         Each saved run is <strong>re-executed</strong>, not replayed: the history stores the recipe,
         not the return series. Weights are fitted on the earlier {Math.round(0.7 * 100)}% of the
-        shared window and measured on the rest, which the fit never saw.
+        shared window and measured on the rest.
       </p>
 
       {records.length < 2 ? (
@@ -166,8 +166,8 @@ export default function FavouritesPanel({ records }: { records: ExperimentRecord
         </button>
         {selected.length >= MAX_SELECTED ? (
           <small className="muted">
-            Five is the cap: past it, saved variations are one bet, and an optimiser reports a
-            diversification benefit that is not there.
+            Five is the cap: past it, saved variations are one bet and the reported
+            diversification benefit is not there.
           </small>
         ) : null}
       </div>
@@ -218,9 +218,7 @@ export default function FavouritesPanel({ records }: { records: ExperimentRecord
           </div>
 
           <p className="research-note">
-            The in-sample column is the window the weights were chosen on, so it flatters every
-            method by construction; a holdout Sharpe far below it means the training period was
-            fitted. The last column decides whether combining was worth doing: a negative number
+            The in-sample column flatters every method by construction. A negative last column
             means the portfolio lost to one of its own members out of sample.
           </p>
         </>
