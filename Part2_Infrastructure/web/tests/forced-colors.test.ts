@@ -69,3 +69,41 @@ describe("the forced-colors contract", () => {
     assert.deepEqual(selectors, [".heatmap-cell", ".ladder-row > span[aria-hidden]"]);
   });
 });
+
+/**
+ * The heatmap's five neighbourhood kinds are the exact case the no-colour-only
+ * rule exists for: plateau, slope, cliff, dead and isolated are distinguished
+ * in the cells by fill, and in the legend by a glyph beside each fill. The
+ * component says so itself — "these five are exactly the sort of set colour
+ * alone cannot carry" — and nothing enforced it. Delete the glyphs and the
+ * suite stayed green with colour-only meaning shipping, on the one surface
+ * whose own comment predicted it.
+ */
+describe("the heatmap's kind legend never relies on colour alone", () => {
+  const heatmap = readFileSync(
+    fileURLToPath(new URL("../components/Heatmap.tsx", import.meta.url)),
+    "utf8",
+  );
+
+  const kinds = [...heatmap.matchAll(
+    /^\s{2}(plateau|slope|cliff|dead|isolated):\s*\{[^}]*?glyph:\s*"([^"]*)"/gm,
+  )].map(([, kind, glyph]) => ({ kind, glyph }));
+
+  it("defines all five kinds with a glyph each", () => {
+    assert.equal(kinds.length, 5, "KIND_STYLE stopped matching, or lost a kind");
+    for (const { kind, glyph } of kinds) {
+      assert.notEqual(glyph, "", `${kind} carries a fill but no mark`);
+    }
+  });
+
+  it("gives each kind a distinct mark, not just a distinct colour", () => {
+    const marks = new Set(kinds.map((k) => k.glyph));
+    assert.equal(marks.size, 5,
+      "two kinds share a glyph, so telling them apart is back to being colour's job");
+  });
+
+  it("renders the glyph beside the label", () => {
+    assert.match(heatmap, /<span aria-hidden>\{KIND_STYLE\[kind\]\.glyph\}/,
+      "the legend stopped drawing the mark it defines");
+  });
+});
