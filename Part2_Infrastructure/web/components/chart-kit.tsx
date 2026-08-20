@@ -11,6 +11,8 @@
 
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
+import { TICK_FONT_SIZE, axisTicks } from "./chart-axis";
+
 export interface Margin {
   top: number;
   right: number;
@@ -194,12 +196,12 @@ export function Grid({
 }
 
 /**
- * X axis with collision-free ticks.
+ * X axis whose labels cannot collide.
  *
- * Evenly-spaced indices plus a forced final tick will place the last two labels
- * on top of each other whenever the series length isn't a clean multiple of the
- * tick count. Labels are therefore laid out from the right and any candidate
- * that falls within `minGap` pixels of one already placed is dropped.
+ * Tick selection is `axisTicks` in ./chart-axis: the label extents, not the
+ * tick centres, decide what fits, so a wide date format thins the axis out
+ * instead of printing through itself. The geometry lives there rather than
+ * here so the overlap it prevents can be asserted.
  */
 export function XAxis({
   points,
@@ -207,45 +209,33 @@ export function XAxis({
   x0,
   x1,
   format,
-  minGap = 78,
+  minGap,
 }: {
   points: number[];
   y: number;
   x0: number;
   x1: number;
   format: (v: number) => string;
+  /** Density floor for short labels. Wide ones are always given more room. */
   minGap?: number;
 }) {
-  if (!points.length) return null;
-
-  const xScale = linearScale(0, Math.max(1, points.length - 1), x0, x1);
-  const span = x1 - x0;
-  const target = Math.max(2, Math.min(7, Math.floor(span / minGap) + 1));
-
-  const candidates: number[] = [points.length - 1];
-  const stride = (points.length - 1) / (target - 1);
-  for (let k = target - 2; k >= 0; k--) candidates.push(Math.round(k * stride));
-
-  const kept: number[] = [];
-  for (const i of candidates) {
-    if (kept.every((j) => Math.abs(xScale(i) - xScale(j)) >= minGap)) kept.push(i);
-  }
-  kept.sort((a, b) => a - b);
+  const ticks = axisTicks({ points, x0, x1, format, minGap });
+  if (!ticks.length) return null;
 
   return (
     <g aria-hidden="true">
       <line x1={x0} x2={x1} y1={y} y2={y} stroke="var(--axis)" strokeWidth={1} shapeRendering="crispEdges" />
-      {kept.map((i, k) => (
+      {ticks.map((t) => (
         <text
-          key={i}
-          x={xScale(i)}
+          key={t.index}
+          x={t.x}
           y={y + 15}
-          textAnchor={k === 0 ? "start" : i === points.length - 1 ? "end" : "middle"}
+          textAnchor={t.anchor}
           fill="var(--text-muted)"
-          fontSize={12.5}
+          fontSize={TICK_FONT_SIZE}
           fontFamily="var(--mono)"
         >
-          {format(points[i])}
+          {t.label}
         </text>
       ))}
     </g>
