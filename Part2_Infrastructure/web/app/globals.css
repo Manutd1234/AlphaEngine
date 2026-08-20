@@ -14851,18 +14851,28 @@ button:active:not(:disabled) {
   color: var(--warning-text);
 }
 
+/* Two stacked rows, both starting at the card's text column, and NOT a
+   chip-left / links-right split.
+
+   The split was tried twice and could not hold. Measured: every one of the 46
+   cards carries three or four similar strategies (39 and 7 respectively), the
+   labels run to 25 characters, and the grid track is `minmax(240px, 1fr)`. So
+   the links never fit beside the chip — they wrapped, by a different amount on
+   every card, and `text-align: right` then left each wrapped line ragged down
+   its LEFT edge. That is what reads as "the blue words are not aligned with
+   each other": within a card the lines did not share a left edge, and across
+   the grid the run started at a different x on every card.
+
+   Stacked and left-aligned, the run starts at the same x as the title, the
+   summary and the Fails line above it — on every card, at every width. */
 .codex-card__meta {
-  display: flex;
-  /* baseline, not flex-start. This read `flex-start, not baseline: the links
-     are a column now, and baseline would align the chip to the FIRST link's
-     text` — correct while they were a column, and the condition it names has
-     just stopped holding. They are a run, so aligning the chip to the first
-     link's text is precisely what is wanted: the chip is --fs-sm and the links
-     --fs-xs, so their line boxes differ and flex-start aligns the boxes rather
-     than the words in them. */
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
+  display: grid;
+  justify-items: start;
+  /* The meta is the card's bottom row, so its content is pinned down; with the
+     links box floored at two lines below, the chip lands on the same line of
+     every card in the row rather than floating with the label lengths. */
+  align-content: end;
+  gap: 4px;
   padding: 0 12px 10px;
   font-size: var(--fs-sm);
 }
@@ -14879,47 +14889,27 @@ button:active:not(:disabled) {
 .codex-chip[data-verdict="marginal"] { color: var(--warning-text); }
 .codex-chip[data-verdict="fail"] { color: var(--critical-text); }
 
-/* A right-aligned column, one link per line, on every card.
-   It was a wrapping row: the first link sat on the chip's line and the rest
-   wrapped underneath, so how many links shared that line depended on how long
-   their labels happened to be. Fourteen cards produced fourteen different
-   shapes — "EMA crossover" beside the chip on one card, a label of the same
-   width starting a fresh line on the next. A column is the same shape every
-   time, and the count of related strategies is legible at a glance because
-   one link is one line.
-
-   text-align: right matters as much as the column does. These labels wrap
-   ("Moving-average crossover", "Percentage price oscillator"), and a wrapped
-   line that does not share the block's alignment leaves a ragged right edge
-   against the card's padding — the thing the eye actually reads as crooked. */
-/* A right-aligned run of inline links, not a column of one per row. As a
-   column, a card with four similar strategies spent four rows on them and left
-   the run chip alone against a ragged blue edge; packed, a short list collapses
-   onto the chip's own line and a long one wraps flush right. */
+/* A packed comma run across the card's full width, left-aligned with
+   everything above it. Two lines is the floor, not a cap: at the widths this
+   grid renders (four tracks inside the 1200px shell) three labels and four
+   labels both take two lines, so flooring it there makes the 46 cards one
+   shape. A longer run still grows — a clipped link would be worse than an
+   uneven edge. */
 .codex-card__similar {
-  text-align: right;
-  /* Take the width the chip does not. Both children defaulted to `flex: 0 1
-     auto` under `space-between`, so the links shrank to whatever was left over
-     and every one of them wrapped — four similar strategies spent four rows
-     against a chip sitting alone on the left, which is the layout D6 was
-     supposed to end. */
-  flex: 1 1 auto;
+  align-self: stretch;
+  min-height: calc(2 * var(--fs-xs) * var(--lh-body));
   min-width: 0;
 }
 
-.codex-card__meta > .codex-chip {
-  /* The chip is the fixed half of the row; it must not be squeezed to give the
-     links room they will use for wrapping anyway. */
-  flex: 0 0 auto;
-}
-
 .codex-card__similar .text-action {
-  /* `.text-action` is a block with `width: fit-content` and
-     `margin-inline-start: auto`, which is what pins it right in its usual
-     one-per-line use. Inline here, so the container's text-align does the
-     pinning and each link can share a line with the commas and its neighbours. */
+  /* `.text-action` is a block with `width: fit-content`, `text-align: right`
+     and `margin-inline-start: auto` — the three declarations that pin it to
+     the right in its usual one-per-line use, and all three are wrong here.
+     Inline, so the links pack into one run and break between words like the
+     prose they sit under. */
   display: inline;
   width: auto;
+  text-align: left;
   margin-inline-start: 0;
   margin-top: 0;
   font-size: var(--fs-xs);
