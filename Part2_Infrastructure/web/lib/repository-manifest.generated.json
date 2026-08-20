@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-20",
-  "commit": "e0f3ff0",
+  "commit": "29547c3",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -494,6 +494,7 @@
     "Part2_Infrastructure/web/components/data/TrustCompositionPane.tsx",
     "Part2_Infrastructure/web/components/data/TrustResponsePane.tsx",
     "Part2_Infrastructure/web/components/data/work-board-model.ts",
+    "Part2_Infrastructure/web/components/data/WorkComposer.tsx",
     "Part2_Infrastructure/web/components/DataConsole.tsx",
     "Part2_Infrastructure/web/components/DepthChart.tsx",
     "Part2_Infrastructure/web/components/developer/CodebaseExplorer.tsx",
