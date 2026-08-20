@@ -214,10 +214,19 @@ class SupabaseMirror:
                 except Exception as exc:
                     self._last_error_kind = "rejected"
                     log.error("supabase mirror write failed: %s", type(exc).__name__)
-                await asyncio.sleep(min(backoff.delay_s * (2**attempt), backoff.ceiling_s))
+                # `failed()` per ATTEMPT, and the delay comes from the helper.
+                #
+                # This read `sleep(min(backoff.delay_s * 2**attempt, ceiling))`
+                # with `failed()` called once per PAYLOAD in the else below —
+                # so the helper's counter advanced once per message while the
+                # actual curve was hand-rolled beside it. Two backoffs
+                # disagreeing about the same outage: `health()` reported a
+                # failure count that had nothing to do with how long the loop
+                # was really sleeping, and a change to the helper's curve would
+                # not have reached this sleep at all.
+                await asyncio.sleep(backoff.failed())
             else:
                 self._failed += 1
-                backoff.failed()
 
     # ------------------------------------------------------------------ #
     # observability — counters and a closed error vocabulary; no identity
