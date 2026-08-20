@@ -36,7 +36,7 @@ const CEILING = 400;
  * when the file drops under the ceiling; that is the ratchet closing.
  */
 const OVER_CEILING: Record<string, number> = {
-  "app/dashboard/page.tsx": 2042,
+  "app/dashboard/page.tsx": 2033,
   "lib/engine.ts": 1653,
   "components/PortfolioWorkspace.tsx": 1106,
   "lib/providers/runtime.ts": 1105,

@@ -1100,30 +1100,21 @@ export default function Page() {
    * this one memo. Labels for the five workspaces whose section objects are
    * private mirror their rails verbatim.
    */
-  // Built in lib/workspace-commands.ts. The list is a function of the rails,
-  // the strategies and the symbols, and none of that is rendering — it was
-  // the largest block in this file and the one least about the component.
+  // Built in lib/workspace-commands.ts. The dependency list is packed rather
+  // than one-per-line because this file sits at its size ceiling and the
+  // ratchet only turns one way.
   const commands = useMemo<Command[]>(() => buildCommands({
     navigate, setOverviewSection, setResearchSection, setExecutionSection,
     setPortfolioSection, setRiskSection, setDataSection, setReliabilitySection,
     setDeveloperSection, updateStrategy, updateSymbol, run, pinRun, running,
     currentPinned, data, showMcBands, setShowMcBands, setMcRunNonce, side,
     setSide, setNotional, copyLinkToView, setShortcutsOpen, view,
-    researchSection,
+    researchSection, focusPortfolioSymbol, symbol: req.symbol,
+    refreshHealth: systems.refresh, reconnectSockets: systems.onReconnectSockets,
   }), [
-    copyLinkToView,
-    currentPinned,
-    data,
-    navigate,
-    pinRun,
-    researchSection,
-    run,
-    side,
-    running,
-    showMcBands,
-    updateStrategy,
-    updateSymbol,
-    view,
+    copyLinkToView, currentPinned, data, focusPortfolioSymbol, navigate, pinRun,
+    req.symbol, researchSection, run, running, showMcBands, side,
+    systems.onReconnectSockets, systems.refresh, updateStrategy, updateSymbol, view,
   ]);
   const shown = displayedResult?.best;
   const tiles = useMemo(() => {

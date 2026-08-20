@@ -49,6 +49,7 @@ import {
 import { STRATEGY_FAMILY, STRATEGY_LABELS, type Strategy } from "@/lib/types";
 import type { Side } from "@/lib/venues";
 import { toggleDocumentThemeMode } from "@/lib/theme";
+import { APP_COMMIT } from "@/lib/version";
 
 type Setter<T> = (value: T | ((previous: T) => T)) => void;
 
@@ -89,6 +90,14 @@ export interface CommandDeps {
   setShortcutsOpen: Setter<boolean>;
   view: WorkspaceView;
   researchSection: ResearchSection;
+  /** The symbol the whole workspace is currently about. */
+  symbol: string;
+  /** `useSystemHealth().refresh` — re-reads every provider, venue and gateway. */
+  refreshHealth: (quiet: boolean) => void | Promise<void>;
+  /** `useSystemHealth().onReconnectSockets` — drops and redials the live feeds. */
+  reconnectSockets: () => void;
+  /** Carries the held symbol out of the book to wherever it can be examined. */
+  focusPortfolioSymbol: (symbol: string, destination: "research" | "live" | "data") => void;
 }
 
 export function buildCommands(d: CommandDeps): Command[] {
@@ -98,7 +107,8 @@ export function buildCommands(d: CommandDeps): Command[] {
     setDeveloperSection, updateStrategy, updateSymbol, run, pinRun, running,
     currentPinned, data, showMcBands, setShowMcBands, setMcRunNonce, side,
     setSide, setNotional, copyLinkToView, setShortcutsOpen, view,
-    researchSection,
+    researchSection, symbol, refreshHealth, reconnectSockets,
+    focusPortfolioSymbol,
   } = d;
 
   const list: Command[] = NAV_ITEMS.map((item, index) => ({
@@ -250,6 +260,61 @@ export function buildCommands(d: CommandDeps): Command[] {
         navigate("live", false, { apply: () => setExecutionSection("routing"), hash: "live/routing" });
       },
     })),
+    /* One ACTION verb per tab, which is what items 49-51 were about. Every
+       tab could already be REACHED from the palette and, on arriving, do
+       nothing — navigation without verbs.
+
+       What is absent is a decision, not a gap. Data's real actions — queue a
+       backfill, purge a cache, release a quarantine — are operator-gated and
+       destructive, and they stay out for the same reason the kill switch is a
+       navigation entry: a fuzzy match must not be able to fire them. Research,
+       Risk and Execution already have theirs above. */
+    {
+      id: "action-refresh-health",
+      label: "Overview: re-read every provider, venue and gateway",
+      category: "Action",
+      action: () => { void refreshHealth(false); },
+    },
+    {
+      id: "action-reconnect-sockets",
+      // The only way to reach this today is to find the button on the
+      // Reliability console, which is the tab you go to when the sockets are
+      // the thing that is wrong.
+      label: "Reliability: drop and redial the live sockets",
+      category: "Action",
+      action: () => {
+        reconnectSockets();
+        navigate("reliability", false, {
+          apply: () => setReliabilitySection("overview"),
+          hash: "reliability/overview",
+        });
+      },
+    },
+    {
+      id: "action-focus-portfolio-symbol",
+      // `focusPortfolioSymbol` carries a HELD symbol out of the book to where
+      // it can be examined — its destination type is research | live | data,
+      // never "portfolio". A first draft of this verb read "show it in the
+      // book", which is the opposite of what the handler does.
+      label: `Portfolio: take ${symbol} to the execution desk`,
+      category: "Action",
+      action: () => focusPortfolioSymbol(symbol, "live"),
+    },
+    {
+      id: "action-copy-commit",
+      // The build a reader is actually looking at. Every bug report that says
+      // "on the deployed site" needs it and nothing else puts it on a
+      // clipboard.
+      label: `Developer: copy the build commit (${APP_COMMIT.slice(0, 7)})`,
+      category: "Action",
+      action: () => {
+        void navigator.clipboard?.writeText(APP_COMMIT);
+        navigate("developer", false, {
+          apply: () => setDeveloperSection("overview"),
+          hash: "developer/overview",
+        });
+      },
+    },
     {
       id: "action-toggle-theme",
       // Names what it does now that Theme has three states. This verb flips
