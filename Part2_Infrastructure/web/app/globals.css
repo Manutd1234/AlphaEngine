@@ -14940,6 +14940,19 @@ button:active:not(:disabled) {
    onto the chip's own line and a long one wraps flush right. */
 .codex-card__similar {
   text-align: right;
+  /* Take the width the chip does not. Both children defaulted to `flex: 0 1
+     auto` under `space-between`, so the links shrank to whatever was left over
+     and every one of them wrapped — four similar strategies spent four rows
+     against a chip sitting alone on the left, which is the layout D6 was
+     supposed to end. */
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.codex-card__meta > .codex-chip {
+  /* The chip is the fixed half of the row; it must not be squeezed to give the
+     links room they will use for wrapping anyway. */
+  flex: 0 0 auto;
 }
 
 .codex-card__similar .text-action {
@@ -16713,6 +16726,16 @@ html:active-view-transition .view-panel {
 
 /* Scope notes: what a control does NOT touch. The cost of each action stays
    inline beside its button; only the boundary collapses in here. */
+/* One box per control, matching the cards the controls themselves sit in.
+   These five were a plain definition list under a run of bordered rows, so the
+   tab changed texture halfway down and the notes read as an afterthought
+   rather than as the same five things said again.
+
+   Done without wrapping each pair in a div, which is the obvious way and would
+   have cost ten lines in a component already at its size ceiling: the `dt`
+   draws the top, sides and corners, the `dd` draws the bottom and sides, and
+   neither draws the edge between them. Same background on both, so the seam is
+   invisible and the pair reads as one box. */
 .operator-scope-notes {
   margin: 0;
   font-size: var(--fs-body);
@@ -16720,12 +16743,22 @@ html:active-view-transition .view-panel {
 
 .operator-scope-notes dt {
   margin-top: var(--space-2);
+  padding: 8px 10px 4px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: var(--surface-1);
   color: var(--text-primary);
   font-weight: 700;
 }
 
 .operator-scope-notes dd {
-  margin: 2px 0 0;
+  margin: 0;
+  padding: 0 10px 9px;
+  border: 1px solid var(--border);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  background: var(--surface-1);
   color: var(--text-secondary);
 }
 

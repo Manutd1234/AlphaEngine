@@ -42,23 +42,57 @@
  * ── What is still not captured, and why ────────────────────────────────────
  *
  * Tiingo, FMP and Massive have no public demo credential, so only their
- * refusals are here — their healthy path is unverified and their predicates
- * therefore stay at `warn` (see RAW_CALIBRATED in lib/providers/raw-contracts-rest.ts).
- * OpenBB is this project's own stateless service rather than a vendor API;
- * capturing it means running OpenBB_Service, which has no checked-in
- * environment.
+ * refusals are committed — their healthy path is unverified and their
+ * predicates therefore stay at `warn` (see RAW_CALIBRATED in
+ * lib/providers/raw-contracts-rest.ts). OpenBB is this project's own stateless
+ * service rather than a vendor API, so capturing it means running
+ * OpenBB_Service.
  *
- * A fixture captured with THIS deployment's key would have to be reviewed by
- * hand for account identifiers before being committed — a deliberate act, not
- * something a script should do unattended. That is why no key is read from the
- * environment here.
+ * KEYED       A healthy body needing THIS deployment's credential, read from
+ *             `.env.local`. Skipped with a stated reason when the key is
+ *             absent, which is the normal case and not a failure — the keys are
+ *             marked *Sensitive* in Vercel, which makes them write-only.
+ *
+ *             These are the ones to REVIEW BY HAND before committing: a keyed
+ *             response can carry an account id, a plan name or a header
+ *             echoing the key's identity, and none of that belongs in a
+ *             fixture. `tests/raw-contracts.test.ts` enumerates the directory
+ *             and refuses a credential, but it cannot recognise an account
+ *             number.
  */
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const out = join(root, "tests", "fixtures", "raw");
+
+/**
+ * Keys are read from `.env.local`, never from a committed file, and never
+ * written into a fixture — `redact()` below strips them from the recorded URL.
+ *
+ * This exists because the keys are marked *Sensitive* in Vercel, which makes
+ * them write-only: `vercel env pull` returns the literal string `[SENSITIVE]`.
+ * So a fixture for a keyed provider cannot be captured by CI or by anyone
+ * without the key in front of them, and the tool has to be usable the moment
+ * somebody does have one rather than needing to be written first.
+ */
+function loadEnvLocal() {
+  const file = join(root, ".env.local");
+  if (!existsSync(file)) return;
+  for (const line of readFileSync(file, "utf8").split("\n")) {
+    const match = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim());
+    if (!match) continue;
+    const value = match[2].replace(/^"|"$/g, "");
+    // `[SENSITIVE]` is what Vercel writes for a write-only variable. Treating
+    // it as a key would send the literal string to the vendor and file the
+    // 401 as though it were this deployment's.
+    if (value && value !== "[SENSITIVE]" && !process.env[match[1]]) {
+      process.env[match[1]] = value;
+    }
+  }
+}
+loadEnvLocal();
 
 /** Healthy bodies. `expect` is the status that means the capture is valid. */
 const TARGETS = [
@@ -141,6 +175,53 @@ const REFUSALS = [
   },
 ];
 
+/**
+ * Healthy bodies that need THIS deployment's key. Skipped with a stated reason
+ * when the key is absent, which is the normal case — never failed, because a
+ * missing key is a fact about the environment rather than a broken capture.
+ *
+ * Review each one by hand before committing: a keyed response can carry an
+ * account id, a plan name or a rate-limit header echoing the key's identity,
+ * and none of that belongs in a fixture.
+ */
+const KEYED = [
+  {
+    provider: "tiingo",
+    capability: "quote",
+    env: "TIINGO_API_KEY",
+    url: (key) => `https://api.tiingo.com/iex/?tickers=AAPL&token=${key}`,
+  },
+  {
+    provider: "fmp",
+    capability: "quote",
+    env: "FMP_API_KEY",
+    url: (key) => `https://financialmodelingprep.com/api/v3/quote/AAPL?apikey=${key}`,
+  },
+  {
+    provider: "fmp",
+    capability: "bars",
+    env: "FMP_API_KEY",
+    url: (key) => `https://financialmodelingprep.com/api/v3/historical-chart/4hour/AAPL?apikey=${key}`,
+  },
+  {
+    provider: "massive",
+    capability: "bars",
+    env: "MASSIVE_API_KEY",
+    url: (key) => `https://api.massive.com/v2/aggs/ticker/X:BTCUSD/prev?apiKey=${key}`,
+  },
+  {
+    provider: "openbb",
+    capability: "quote",
+    env: "OPENBB_API_URL",
+    // Not a vendor: this project's own stateless service. The token is sent as
+    // a header rather than in the URL, so there is nothing to redact.
+    url: (base) => `${base.replace(/\/$/, "")}/api/quote?symbol=AAPL`,
+    headers: () => (process.env.OPENBB_API_TOKEN
+      ? { authorization: `Bearer ${process.env.OPENBB_API_TOKEN}` }
+      : {}),
+  },
+];
+
 const COMMENT =
   "Captured verbatim from the vendor by scripts/capture-provider-fixtures.mjs. "
   + "This is the SHAPE the vendor sends, not the shape this app normalises to — "
@@ -167,7 +248,7 @@ function write(file, payload) {
 
 let failures = 0;
 
-async function capture(target, { refusal }) {
+async function capture(target, { refusal, optional = false }) {
   const name = `${target.provider}/${refusal ? "unauthenticated" : target.capability}`;
   try {
     const response = await fetch(target.url, {
@@ -175,6 +256,7 @@ async function capture(target, { refusal }) {
       headers: {
         accept: "application/json",
         ...(target.body ? { "content-type": "application/json" } : {}),
+        ...(target.headers ?? {}),
       },
       ...(target.body ? { body: JSON.stringify(target.body) } : {}),
       signal: AbortSignal.timeout(20_000),
@@ -185,7 +267,7 @@ async function capture(target, { refusal }) {
       // healthy body under a refusal's name, which is the one mistake these
       // fixtures exist to prevent.
       console.error(`  ${name}: HTTP ${response.status}, expected ${target.expect}`);
-      failures += 1;
+      if (!optional) failures += 1;
       return;
     }
     const body = await response.json();
@@ -198,12 +280,32 @@ async function capture(target, { refusal }) {
     });
     console.log(`  ${name}: written (HTTP ${response.status})`);
   } catch (cause) {
+    // An optional capture that could not be reached is reported and does not
+    // fail the run: OpenBB_Service not being up locally says nothing about the
+    // four fixtures that were just refreshed.
     console.error(`  ${name}: ${cause instanceof Error ? cause.message : String(cause)}`);
-    failures += 1;
+    if (!optional) failures += 1;
   }
 }
 
 for (const target of TARGETS) await capture(target, { refusal: false });
 for (const target of REFUSALS) await capture(target, { refusal: true });
+
+for (const target of KEYED) {
+  const key = process.env[target.env];
+  if (!key) {
+    // Stated, not silent. A capture run that quietly skipped half the
+    // providers would read as "all eight captured" in the scrollback.
+    console.log(`  ${target.provider}/${target.capability}: skipped — ${target.env} is not set`);
+    continue;
+  }
+  await capture({
+    provider: target.provider,
+    capability: target.capability,
+    url: target.url(key),
+    headers: target.headers?.(),
+    expect: 200,
+  }, { refusal: false, optional: true });
+}
 
 process.exit(failures ? 1 : 0);

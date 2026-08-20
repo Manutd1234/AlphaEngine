@@ -174,14 +174,22 @@ export default function StrategyCodex({
                               zero outside tabular mono. */}
                           {doc.similar.map((s, index) => (
                             <Fragment key={s}>
-                              {index > 0 ? ", " : null}
+                              {index > 0 ? " " : null}
                               <button
                                 type="button"
                                 className="text-action"
                                 onClick={() => jumpToCard(s)}
                                 title={`Jump to ${STRATEGY_LABELS[s]}`}
                               >
-                                {STRATEGY_LABELS[s]}
+                                {/* The comma rides INSIDE the label it follows.
+                                    As a separate text node it was a break
+                                    opportunity of its own, and in a column this
+                                    narrow every right-aligned link ends flush
+                                    against the edge — so the comma had nowhere
+                                    to sit and started the next line by itself.
+                                    Glued here it cannot orphan; the space
+                                    between buttons is the break opportunity. */}
+                                {STRATEGY_LABELS[s]}{index < doc.similar.length - 1 ? "," : ""}
                               </button>
                             </Fragment>
                           ))}

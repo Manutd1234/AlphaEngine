@@ -672,8 +672,8 @@ export default function LiveMarket({
                 ))}
               </div>
             </div>
-          </div>
-          <div className="whatif-constraints__row">
+            {/* Same row as the strategy that these two qualify; flex-wrap still
+                drops them under it when the panel cannot hold all three. */}
             <div>
               <span className="field">Route through</span>
               {/* Deliberately NOT a `.seg`, and that is a correction rather
