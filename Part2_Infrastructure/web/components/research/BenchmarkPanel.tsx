@@ -64,12 +64,11 @@ const BENCHMARK_CONTROL_ID = "benchmark";
 
 /** Said when the control is in the DOM but the collapsed rail keeps it unfocusable. */
 const COLLAPSED_HINT =
-  "The setup panel is collapsed at this width. Open Edit setup in the research rail, "
-  + "then choose Benchmark.";
+  "Collapsed at this width. Open Edit setup in the research rail, then choose Benchmark.";
 
 /** Said when there is no control on the screen at all, which is not this card's to fix. */
 const ABSENT_HINT =
-  "The benchmark control is not on this screen. It lives in the research rail's setup panel.";
+  "The benchmark control is not on this screen; it lives in the research rail's setup panel.";
 
 export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanelProps) {
   const tier = useComplexity();
@@ -119,11 +118,10 @@ export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanel
 
         <p className="sub">
           {failed
-            ? `${requested} was requested but no comparison could be computed: either its bars `
-              + "did not load, or too few timestamps lined up with this run's. That is a data "
-              + "problem rather than a missing result."
+            ? `${requested} was requested but did not compare: either its bars did not load, or `
+              + "too few timestamps lined up with this run's."
             : "No benchmark selected. Alpha and beta need an instrument other than the one this "
-              + "strategy trades, so both are withheld rather than filled in from the same symbol."}
+              + "strategy trades, so both are withheld."}
         </p>
 
         <dl className="benchmark-grid">
@@ -141,10 +139,8 @@ export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanel
         </dl>
 
         <p className="sub">
-          Whether the <em>timing</em> helped is already answered by the Summary stat row, which
-          pairs &ldquo;buy &amp; hold&rdquo; with the strategy&rsquo;s own return and Sharpe. What
-          stays open is whether the <em>position</em> was worth holding, and only a second
-          instrument answers that.
+          The Summary stat row already answers whether the <em>timing</em> helped. Only a second
+          instrument answers whether the <em>position</em> was worth holding.
         </p>
 
         <button type="button" className="text-action" onClick={focusBenchmarkControl}>
@@ -171,9 +167,8 @@ export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanel
       </div>
 
       <p className="sub">
-        Ordinary least squares of this strategy&rsquo;s bar returns on {comparison.symbol}&rsquo;s.
-        The intercept is what {comparison.symbol} does not explain — not, on its own, evidence of
-        an edge.
+        Ordinary least squares on {comparison.symbol}&rsquo;s bar returns. The intercept is what
+        {" "}{comparison.symbol} does not explain — not, on its own, evidence of an edge.
       </p>
 
       <dl className="benchmark-grid">
@@ -237,16 +232,12 @@ export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanel
         </p>
       ) : null}
 
-      {/* The closing clause — that this is why a significant alpha is described
-          as "not explained by X" rather than as real — was the sentence above
-          the dl saying itself a second time. It still reads "The intercept is
-          what {symbol} does not explain — not, on its own, evidence of an
-          edge", which is the same claim where the number is. */}
+      {/* The caveat stays with the number it qualifies; the closing clause that
+          repeated the paragraph above the dl is gone. */}
       {atLeast(tier, "full") ? (
         <p className="research-note">
-        The t-statistics are plain OLS. Strategy returns are heteroskedastic and mildly
-        autocorrelated, so a Newey&ndash;West correction would widen these standard errors; the
-        significance shown here is generous.
+        Plain OLS t-statistics. A Newey&ndash;West correction for heteroskedastic, autocorrelated
+        returns would widen these standard errors, so the significance shown is generous.
         </p>
       ) : null}
     </div>
