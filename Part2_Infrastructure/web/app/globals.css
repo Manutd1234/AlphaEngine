@@ -14792,10 +14792,14 @@ button:active:not(:disabled) {
 
 .codex-card__meta {
   display: flex;
-  /* flex-start, not baseline: the links are a column now, and baseline would
-     align the chip to the FIRST link's text, leaving the chip floating a few
-     pixels down from the row it belongs to. */
-  align-items: flex-start;
+  /* baseline, not flex-start. This read `flex-start, not baseline: the links
+     are a column now, and baseline would align the chip to the FIRST link's
+     text` — correct while they were a column, and the condition it names has
+     just stopped holding. They are a run, so aligning the chip to the first
+     link's text is precisely what is wanted: the chip is --fs-sm and the links
+     --fs-xs, so their line boxes differ and flex-start aligns the boxes rather
+     than the words in them. */
+  align-items: baseline;
   justify-content: space-between;
   gap: 8px;
   padding: 0 12px 10px;
