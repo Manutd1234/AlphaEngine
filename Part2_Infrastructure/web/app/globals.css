@@ -8819,14 +8819,33 @@ button.data-trust-action > i {
 .codebase-explorer__stats,
 .developer-work__stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(72px, 1fr));
-  flex: 0 1 390px;
-  min-width: 340px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--border);
   gap: 1px;
+}
+
+/* Split from the shared rule above, IN PLACE rather than appended, because the
+   narrow blocks further down this sheet (`flex-basis: auto` at <=900, two
+   columns at <=520) are the same specificity — a copy of this landing after
+   them would win on source order and force 420px inside a ~292px phone card,
+   which `.codebase-explorer` clips with `overflow: hidden`. Two cells would
+   leave the card entirely.
+
+   Five cells, five tracks. The date sizes to its content; the four counts share
+   what is left. */
+.codebase-explorer__stats {
+  grid-template-columns: auto repeat(4, minmax(64px, 1fr));
+  flex: 0 1 480px;
+  min-width: 420px;
+}
+
+/* Four cells, unchanged — the Task Queue strip has exactly four. */
+.developer-work__stats {
+  grid-template-columns: repeat(4, minmax(72px, 1fr));
+  flex: 0 1 390px;
+  min-width: 340px;
 }
 
 .codebase-explorer__stats > div,

@@ -87,11 +87,13 @@ export default function CodebaseExplorer() {
           </p>
         </div>
         <div className="codebase-explorer__stats" aria-label="Repository snapshot summary">
+          {/* As of comes first: it qualifies the four counts beside it, and a
+              count whose date is read afterwards has already been believed. */}
+          <div className="codebase-explorer__asof"><span>As of</span><strong className="num">{REPOSITORY_MANIFEST_PROVENANCE.generatedAt}</strong></div>
           <div><span>Files</span><strong className="num">{REPOSITORY_STATS.files}</strong></div>
           <div><span>Areas</span><strong className="num">{REPOSITORY_STATS.areas}</strong></div>
           <div><span>Tests</span><strong className="num">{REPOSITORY_STATS.tests}</strong></div>
           <div><span>API routes</span><strong className="num">{REPOSITORY_STATS.webRoutes}</strong></div>
-          <div><span>As of</span><strong className="num">{REPOSITORY_MANIFEST_PROVENANCE.generatedAt}</strong></div>
         </div>
       </div>
 
