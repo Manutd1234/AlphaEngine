@@ -55,7 +55,11 @@ max-statements = 50
 # Ordered by how the plan's Round J will retire them: risk_proxy and telegram
 # are the two the refactor is aimed at.
 "main.py" = ["PLR0915"]
-"modules/audit.py" = ["C901"]
+# ``modules/audit.py`` became ``modules/audit/**``. Its single C901 entry
+# followed the two functions that earned it — the column migration and the
+# rollover read — to the files they now live in. Same debt, no new debt.
+"modules/audit/boundaries.py" = ["C901"]
+"modules/audit/store.py" = ["C901"]
 "modules/backtester/indicators.py" = ["C901", "PLR0915"]
 "modules/backtester/run.py" = ["PLR0915"]
 "modules/backtester/signals.py" = ["C901", "PLR0915"]
@@ -66,5 +70,8 @@ max-statements = 50
 "modules/ml/features.py" = ["C901"]
 "modules/quant_risk/allocation.py" = ["C901", "PLR0915"]
 "modules/risk_proxy.py" = ["C901", "PLR0915"]
-"modules/telegram.py" = ["C901", "PLR0915"]
+# `modules/telegram.py` became `modules/telegram/**`; the blanket entry it
+# needed shrank to the two handlers that are still over the thresholds.
+"modules/telegram/_mixins/analytics.py" = ["C901", "PLR0915"]
+"modules/telegram/_mixins/linking.py" = ["C901"]
 

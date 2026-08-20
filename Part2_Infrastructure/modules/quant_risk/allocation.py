@@ -1,4 +1,17 @@
-"""Target weights and the trades that reach them."""
+"""Target weights and the trades that reach them.
+
+The trades belong to the proposal, so they are a method on it:
+``proposal.rebalance_trades(positions)`` rather than
+``rebalance_trades(proposal, positions)``. Nothing about that filter makes
+sense without the proposal it filters, and the free function took it first
+precisely because it was one.
+
+``propose_allocation`` itself stays a free function. It is a *factory* for
+``AllocationProposal`` that may decline to build one, and its natural
+receiver would be ``Covariance`` — which lives in ``covariance.py``, which
+this module already imports. Hanging it there would close the import into a
+cycle to buy a shorter call site.
+"""
 
 from __future__ import annotations
 
@@ -31,19 +44,14 @@ _SOLVER_ITERATIONS = 60
 
 
 def portfolio_variance(cov: Covariance, weights: Mapping[str, float]) -> float:
-    """wᵀΣw for a weight map keyed by symbol.
+    """wᵀΣw for a weight map keyed by symbol — see
+    :meth:`~modules.quant_risk.covariance.Covariance.portfolio_variance`.
 
-    Mirrors ``portfolioVariance`` in web/lib/portfolio-risk.ts. The summation is
-    sequential in both, never ``math.fsum`` or ``numpy.dot``: pairwise summation
-    rounds differently from JavaScript's left-to-right accumulation, and the
-    parity fixture exists to catch exactly that class of drift.
+    Kept under this name because it is a question about the matrix that callers
+    ask by name, and because ``__all__`` has exported it since the module was
+    one file.
     """
-    size = len(cov.symbols)
-    vector = [float(weights.get(s, 0.0)) for s in cov.symbols]
-    return sum(
-        vector[i] * sum(cov.matrix[i][j] * vector[j] for j in range(size))
-        for i in range(size)
-    )
+    return cov.portfolio_variance(weights)
 
 
 @dataclass
@@ -67,6 +75,43 @@ class AllocationProposal:
     #: Weights before clipping summed to one; after clipping they may not.
     clipped: bool
     note: str
+
+    def rebalance_trades(
+        self,
+        positions: Sequence[Mapping[str, Any]],
+        drift_band: float = 0.05,
+    ) -> list[dict[str, Any]]:
+        """Trades needed to reach this proposal, filtered by a drift band.
+
+        The band is what stops a rebalance from being a fee-generating machine:
+        a position 1% away from target costs more to correct than the
+        correction is worth. Only positions outside it are traded, and the
+        reason for each trade travels with it.
+
+        ``positions`` is still an argument because the proposal does not carry
+        which *side* each position is on, and that decides the direction of the
+        trade — adding to a short means selling more of it.
+        """
+        sides = {str(p.get("symbol")): str(p.get("side", "LONG")).upper() for p in positions}
+        trades: list[dict[str, Any]] = []
+        for target in self.targets:
+            if abs(target.drift) < drift_band:
+                continue
+            delta = target.target_notional - target.current_notional
+            long_position = sides.get(target.symbol, "LONG") != "SHORT"
+            # Adding to a short means selling more of it; the direction depends on
+            # which side the position is already on.
+            side = ("BUY" if delta > 0 else "SELL") if long_position else ("SELL" if delta > 0 else "BUY")
+            trades.append({
+                "symbol": target.symbol,
+                "side": side,
+                "notional": round(abs(delta), 2),
+                "reason": (
+                    f"{'over' if delta < 0 else 'under'}weight by {abs(target.drift):.1%} of gross"
+                    + (f" (target clipped by {target.clipped_by})" if target.clipped_by else "")
+                ),
+            })
+        return trades
 
 
 def propose_allocation(
@@ -142,13 +187,10 @@ def propose_allocation(
         # more volatile than inverse-vol would be indefensible, so the best
         # iterate is kept rather than whichever one the loop happened to end on.
         best = weights
-        best_variance = portfolio_variance(cov, weights)
+        best_variance = cov.portfolio_variance(weights)
         for _ in range(_SOLVER_ITERATIONS):
             vector = [weights.get(s, 0.0) for s in cov.symbols]
-            marginal = [
-                sum(cov.matrix[i][j] * vector[j] for j in range(len(cov.symbols)))
-                for i in range(len(cov.symbols))
-            ]
+            marginal = cov.marginal_variance(vector)
             variance = sum(vector[i] * marginal[i] for i in range(len(cov.symbols)))
             if variance <= 0:
                 break
@@ -165,7 +207,7 @@ def propose_allocation(
                 updated[symbol] = weights[symbol] * math.sqrt(variance / marginal[i])
             total = sum(updated.values()) or 1.0
             weights = {s: w / total for s, w in updated.items()}
-            candidate = portfolio_variance(cov, weights)
+            candidate = cov.portfolio_variance(weights)
             if candidate < best_variance:
                 best_variance = candidate
                 best = weights
@@ -180,10 +222,7 @@ def propose_allocation(
         weights = {s: w / total for s, w in weights.items()}
         for _ in range(_SOLVER_ITERATIONS):
             vector = [weights.get(s, 0.0) for s in cov.symbols]
-            marginal = [
-                sum(cov.matrix[i][j] * vector[j] for j in range(len(cov.symbols)))
-                for i in range(len(cov.symbols))
-            ]
+            marginal = cov.marginal_variance(vector)
             variance = sum(vector[i] * marginal[i] for i in range(len(cov.symbols)))
             if variance <= 0:
                 break
@@ -248,30 +287,11 @@ def rebalance_trades(
     positions: Sequence[Mapping[str, Any]],
     drift_band: float = 0.05,
 ) -> list[dict[str, Any]]:
-    """Trades needed to reach the proposal, filtered by a drift band.
+    """Trades needed to reach ``proposal`` — see
+    :meth:`AllocationProposal.rebalance_trades`, which is where it now lives.
 
-    The band is what stops a rebalance from being a fee-generating machine: a
-    position 1% away from target costs more to correct than the correction is
-    worth. Only positions outside it are traded, and the reason for each trade
-    travels with it.
+    Kept because the callers call it: ``/rebalance`` and ``/allocate`` in
+    ``modules/telegram/_mixins``, and ``tools/make_risk_fixture.py``, which
+    records the trades the TypeScript suite is held to.
     """
-    sides = {str(p.get("symbol")): str(p.get("side", "LONG")).upper() for p in positions}
-    trades: list[dict[str, Any]] = []
-    for target in proposal.targets:
-        if abs(target.drift) < drift_band:
-            continue
-        delta = target.target_notional - target.current_notional
-        long_position = sides.get(target.symbol, "LONG") != "SHORT"
-        # Adding to a short means selling more of it; the direction depends on
-        # which side the position is already on.
-        side = ("BUY" if delta > 0 else "SELL") if long_position else ("SELL" if delta > 0 else "BUY")
-        trades.append({
-            "symbol": target.symbol,
-            "side": side,
-            "notional": round(abs(delta), 2),
-            "reason": (
-                f"{'over' if delta < 0 else 'under'}weight by {abs(target.drift):.1%} of gross"
-                + (f" (target clipped by {target.clipped_by})" if target.clipped_by else "")
-            ),
-        })
-    return trades
+    return proposal.rebalance_trades(positions, drift_band)

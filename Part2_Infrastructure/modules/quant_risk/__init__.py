@@ -28,7 +28,16 @@ re-exported so the 43 import sites across the gateway keep working, and
 `from modules.quant_risk import propose_allocation` means what it always did.
 
 Split by concern, and the concerns were already marked — the banner comments
-in the single file are exactly these boundaries.
+in the single file are exactly these boundaries. ``var.py`` later split again
+along its own second banner, into the historical figure and ``montecarlo.py``.
+
+The result types carry their own behaviour. ``Covariance`` answers the
+questions that are about the matrix, ``AllocationProposal`` yields the trades
+that reach it, and the two distributions can be asked for a quantile off the
+series they hold. The free functions those methods came from are kept as thin
+delegates, because 43 import sites and ``tools/make_risk_fixture.py`` call
+them by name — and the factories stayed free functions, which is written up
+at the top of the module each one lives in.
 """
 
 from __future__ import annotations
@@ -60,6 +69,13 @@ from modules.quant_risk.covariance import (
     build_covariance,
     portfolio_risk,
 )
+from modules.quant_risk.montecarlo import (
+    RESAMPLERS,
+    LossBand,
+    MonteCarlo,
+    bootstrap_terminal_distribution,
+    derived_block_length,
+)
 from modules.quant_risk.regimes import (
     Dislocation,
     VolatilityRegime,
@@ -79,12 +95,7 @@ from modules.quant_risk.sizing import (
     kelly_fraction,
 )
 from modules.quant_risk.var import (
-    RESAMPLERS,
     HistoricalVaR,
-    LossBand,
-    MonteCarlo,
-    bootstrap_terminal_distribution,
-    derived_block_length,
     historical_var,
 )
 
