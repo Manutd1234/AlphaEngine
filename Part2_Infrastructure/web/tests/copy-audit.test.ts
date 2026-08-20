@@ -53,7 +53,9 @@ const overview = code(read("../components/WorkspaceOverview.tsx"));
 const deck = code(read("../components/overview/KpiDeck.tsx"));
 const footer = code(read("../components/common/NextStepFooter.tsx"));
 const verdict = code(read("../components/Verdict.tsx"));
-const liveMarket = code(read("../components/LiveMarket.tsx"));
+// The cost probe moved into its own file when LiveMarket was split; the copy
+// rule follows the copy.
+const routingProbe = code(read("../components/execution/RoutingProbe.tsx"));
 
 /** Every `description={<>…</>}` rendered by a workspace header, by source. */
 function descriptions(source: string): string[] {
@@ -200,7 +202,16 @@ describe("a line does not quote figures the row below it pairs properly", () => 
   });
 
   it("the execution cost probe does not restate its heading", () => {
-    const probe = liveMarket.slice(liveMarket.indexOf("<h2>Execution cost probe</h2>"));
+    /**
+     * Measured, not sliced blind. This read `slice(indexOf(...))` with no check,
+     * and when the probe moved out of LiveMarket the index was -1 — so
+     * `slice(-1)` handed `doesNotMatch` the file's last character and it passed
+     * having scanned one byte. The guard is what makes the negative assertion
+     * mean anything.
+     */
+    const at = routingProbe.indexOf("<h2>Execution cost probe</h2>");
+    assert.notEqual(at, -1, "the cost probe card lost its heading");
+    const probe = routingProbe.slice(at);
     assert.doesNotMatch(probe.slice(0, 400), /what it would actually cost/,
       'the card is titled "Execution cost probe"');
     assert.match(probe.slice(0, 400), /live ladder/, "that the walk is live is not in the heading");
