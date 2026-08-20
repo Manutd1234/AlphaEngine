@@ -8,13 +8,21 @@ a row in, a (title, body) pair out — and share nothing with the transport.
 what a stored vector MEANS, and there is no way to detect that from the vector
 itself; the corpus keeps `body` precisely so the two can be compared. Editing
 one of these is a re-index, not a cosmetic change.
+
+`render_backtest_documents` is the one function here that assembles whole
+documents rather than text: one sweep yields the run card AND one document per
+chart it drew, described from the figures the run already computed. Adding
+documents is not a re-index; adding lines to an existing card would be, which
+is exactly why the chart text is not appended to the run card.
 """
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from config import settings
+from modules.research_chartdoc import ChartDoc, describe_run
 
 if TYPE_CHECKING:
     from modules.schemas import OrderRequest, RiskDecision
@@ -143,5 +151,132 @@ def classify_anomaly(decision: RiskDecision) -> str | None:
 
 
 # --------------------------------------------------------------------------- #
-# the index
+# documents — one sweep, one run card, and the charts it already computed
 # --------------------------------------------------------------------------- #
+def _chart_metrics(result: Any) -> dict[str, Any]:
+    """The tear sheet's own figures, named the way the describer reads them.
+
+    Every number here was computed in order to DRAW something: the equity
+    curve's terminal value, the drawdown it survived, the trade count and the
+    exposure printed under it, the buy-and-hold line beside it. Nothing is
+    recomputed and nothing is estimated — a figure the run does not carry is
+    passed as ``None`` and the describer omits that clause rather than guessing.
+
+    The drawdown keeps the sign the engine produced it with. Making it read
+    positive would be a nicer sentence about a number this desk never computed.
+    """
+    best = result.best
+    benchmark = result.benchmark_buy_hold or {}
+    buy_hold = benchmark.get("total_return")
+    return {
+        "total_return_x": 1.0 + best.total_return,
+        "max_drawdown": best.max_drawdown,
+        "sharpe": best.sharpe,
+        "trades": best.trades,
+        "time_in_market": best.exposure,
+        "benchmark_return_x": None if buy_hold is None else 1.0 + buy_hold,
+    }
+
+
+def render_backtest_documents(result: Any) -> list[dict[str, Any]]:
+    """Every document one completed sweep produces, ready for the write queue.
+
+    The run card first, then ONE DOCUMENT PER CHART. A chart on this desk is a
+    PNG and the corpus indexes text, so the equity curve, the drawdown envelope
+    and the fold table were unreachable — not because their meaning was
+    unavailable, but because it was only ever rendered into pixels. Every figure
+    a vision model would have to learn to read back off those pixels is a number
+    this desk computed in order to draw them, and ``research_chartdoc`` turns
+    those numbers into the sentence the chart is making.
+
+    Separate documents rather than more lines on the run card, for two reasons.
+    A query about a drawdown should retrieve THE DRAWDOWN, titled as such, not a
+    sweep card that mentions one. And appending to the run card would change the
+    text that every stored ``backtest_run`` vector was built from — a re-index,
+    silently, for a feature that does not need one. This adds documents; it
+    changes none.
+
+    The chart documents share the run's ``kind``, symbol, interval, strategy and
+    ``data_hash`` — so they carry the same provenance, filter with the run and
+    link to it through the graph — and are told apart by a ``source_ref`` of
+    ``<job id>:<chart>``, which the corpus's unique key already keys on.
+
+    Never raises. A sweep that finished is indexed as a sweep that finished even
+    if its charts cannot be described; returning nothing at all is reserved for
+    a result whose own fields are unreadable, which is the pre-existing rule.
+    """
+    try:
+        row = {
+            "symbol": result.request.symbol,
+            "interval": result.request.interval,
+            "strategy": result.request.strategy,
+            "engine": result.engine,
+            "combos_tested": result.combos_tested,
+            "best_fast": result.best.fast,
+            "best_slow": result.best.slow,
+            "sharpe": result.best.sharpe,
+            "total_return": result.best.total_return,
+            "max_drawdown": result.best.max_drawdown,
+            "dsr": result.deflated_sharpe_ratio,
+            "oos_sharpe": result.walk_forward_oos_sharpe,
+            "pbo": getattr(result, "pbo", None),
+            "data_hash": result.data_hash,
+            "job_id": result.job_id,
+        }
+    except AttributeError:
+        return []
+
+    title, body = render_backtest_card(row)
+    run = {
+        "kind": "backtest_run",
+        "source_ref": str(row["job_id"]),
+        "symbol": row["symbol"],
+        "interval": row["interval"],
+        "strategy": row["strategy"],
+        "occurred_at": datetime.now(timezone.utc).isoformat(),
+        "title": title,
+        "body": body,
+        "metrics": {
+            k: row[k] for k in ("sharpe", "dsr", "oos_sharpe", "pbo", "combos_tested")
+        },
+        "data_hash": row["data_hash"],
+    }
+
+    documents = [run]
+    for chart in _describe_charts(result):
+        # The chart's own title carries the identifiers, because "Equity curve"
+        # is not an answer in a corpus that holds hundreds of them — and because
+        # the lexical half of the hybrid index needs the symbol token present.
+        chart_title = (
+            f"{chart.title}: {row['symbol']} {row['interval']} {row['strategy']}"
+        )
+        documents.append({
+            **run,
+            # Its own kind, not `backtest_run`. Filed as a run, four documents
+            # per sweep made `corpus_size` report four runs and made
+            # `filter_kind='backtest_run'` return three chart descriptions for
+            # every run it was asked for. The text was honest either way; it
+            # was the FILTER that stopped meaning what it says.
+            "kind": "chart",
+            "source_ref": f"{row['job_id']}:{chart.chart}",
+            "title": chart_title,
+            "body": f"{chart_title}\n{chart.body}",
+            "metrics": {"chart": chart.chart},
+        })
+    return documents
+
+
+def _describe_charts(result: Any) -> list[ChartDoc]:
+    """The charts this run can honestly describe, or none of them.
+
+    Indexing must never be able to fail the thing it indexes: a sweep that
+    finished is filed as a sweep that finished even when its own figures are
+    unreadable, and a chart the desk cannot describe is simply not indexed.
+    """
+    try:
+        return describe_run({
+            "metrics": _chart_metrics(result),
+            "folds": [{"oos_sharpe": f.oos_sharpe} for f in result.walk_forward],
+        })
+    except (AttributeError, TypeError, ValueError):
+        return []

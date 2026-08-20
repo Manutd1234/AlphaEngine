@@ -514,7 +514,7 @@ export interface ResearchRagMatch {
 }
 
 export interface ResearchRagSearchRequest {
-  kind?: "backtest_run" | "execution_summary" | "risk_incident" | null;
+  kind?: "backtest_run" | "chart" | "execution_summary" | "ml_run" | "risk_incident" | null;
   match_count?: number;
   query: string;
 }

@@ -1,0 +1,32 @@
+-- 'chart' joins the corpus's kind vocabulary.
+--
+-- A sweep now writes its run card AND one document per chart — equity curve,
+-- drawdown, walk-forward — each carrying the figures the desk already computed
+-- to draw it, so a chart is retrievable by what it says rather than only by
+-- the run it belongs to.
+--
+-- They were filed as `backtest_run` because the enum had no better value, and
+-- that is exactly the kind of "close enough" that makes a corpus stop meaning
+-- anything. Two things break under it:
+--
+--   * `corpus_size` counts four documents per sweep and reports them as four
+--     backtest runs, so the panel's denominator is roughly 4x the number of
+--     runs the desk has actually done;
+--   * `match_research_documents_hybrid(filter_kind => 'backtest_run')` returns
+--     charts, so a reader filtering for "what has this desk backtested" gets
+--     three chart descriptions for every run.
+--
+-- Neither is a retrieval bug — the text is honest and the vectors are right.
+-- Both are the FILTER answering a question nobody asked, which is the same
+-- defect `20260820090600` records for collapsing `ml_run` into `backtest_run`.
+--
+-- ADD VALUE rather than a new type, for that migration's reasons: rewriting
+-- the enum means rewriting every row and every function that names it, where
+-- appending is a catalogue change that touches no data.
+--
+-- Postgres will not let a value added in a transaction be USED in that same
+-- transaction, and Supabase runs each migration file in one — so this file
+-- adds the value and nothing else. The first insert that uses it necessarily
+-- happens later, from the application.
+
+alter type public.research_doc_kind add value if not exists 'chart';

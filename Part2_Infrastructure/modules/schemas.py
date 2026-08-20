@@ -612,7 +612,7 @@ class ResearchRagSearchRequest(BaseModel):
 
     query: str = Field(min_length=1, max_length=2000)
     match_count: int = Field(default=3, ge=1, le=20)
-    kind: Literal["backtest_run", "execution_summary", "risk_incident"] | None = None
+    kind: Literal["backtest_run", "chart", "execution_summary", "ml_run", "risk_incident"] | None = None
 
 
 class ResearchRagEmbedRequest(BaseModel):

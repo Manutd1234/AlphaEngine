@@ -3098,7 +3098,9 @@
               {
                 "enum": [
                   "backtest_run",
+                  "chart",
                   "execution_summary",
+                  "ml_run",
                   "risk_incident"
                 ],
                 "type": "string"

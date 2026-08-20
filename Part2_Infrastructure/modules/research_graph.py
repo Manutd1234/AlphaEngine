@@ -19,6 +19,20 @@ That is a real limitation and it is the right trade. A model could find
 entities in the prose that these rules miss. It would also find different ones
 next month, and a graph whose edges change when nobody changed anything is a
 graph nobody can reason from.
+
+Where extraction actually runs
+-----------------------------
+
+On the row the insert echoes back, one statement after the document is written
+— `persist_edges`, from the write queue's drain loop. Migration 20260820090400
+describes this as happening "at card-render time"; it does not, and the
+distinction is worth stating rather than papering over. The renderer produces
+text, the corpus stores the columns, and the entities are read back off the
+STORED row. Extracting at render time instead would buy nothing and cost
+something real: `research_documents` has no entities column, so there is
+nowhere to carry them, and a copy read off the submitted dict could disagree
+with the row the database actually holds — which is the one every traversal
+reads. Same columns, same values, one source of truth.
 """
 
 from __future__ import annotations
@@ -39,6 +53,13 @@ PROMOTED_TO = "promoted_to"
 
 #: Fields read straight off a research_documents row. Order is the order they
 #: are emitted in, which keeps a document's entity list stable across runs.
+#:
+#: An order id and a model are in here already, under the names the corpus
+#: stores them by: an incident's ``source_ref`` IS its order id, and a fitted
+#: run's ``strategy`` IS its model. They are not emitted a second time under
+#: their own entity types because nothing could use them — ``research_relation``
+#: has no ``same_model`` and no ``same_order``, and an entity no relation reads
+#: is a row nobody traverses.
 _ENTITY_FIELDS: tuple[tuple[str, str], ...] = (
     ("symbol", "symbol"),
     ("interval", "interval"),
@@ -46,6 +67,18 @@ _ENTITY_FIELDS: tuple[tuple[str, str], ...] = (
     ("data_hash", "data_hash"),
     ("kind", "kind"),
 )
+
+#: Entity types a candidate lookup may filter on. ``interval`` and ``kind`` are
+#: deliberately out: every 4h document matching every other 4h document is a
+#: candidate set with no discriminating power, and the bounded query would fill
+#: with documents that share nothing anyone would traverse for.
+_LINKABLE: tuple[str, ...] = ("symbol", "strategy", "data_hash")
+
+#: Kinds that describe a RUN. Both a parameter sweep and a fitted model can be
+#: followed by an incident and both can be promoted, and ``ml_run`` joined the
+#: corpus in migration 20260820090600 — after these relations were written, so
+#: until now a fitted model was a document the graph could reach only sideways.
+_RUN_KINDS: tuple[str, ...] = ("backtest_run", "ml_run")
 
 
 @dataclass(frozen=True, slots=True)
@@ -153,7 +186,7 @@ def derive_edges(documents: list[dict[str, Any]]) -> list[Edge]:
             # is the one similarity ranking never surfaces because the two
             # documents read nothing alike.
             if (
-                src.get("kind") == "backtest_run"
+                src.get("kind") in _RUN_KINDS
                 and dst.get("kind") == "risk_incident"
                 and src_entities.get("symbol")
                 and src_entities.get("symbol") == dst_entities.get("symbol")
@@ -162,7 +195,7 @@ def derive_edges(documents: list[dict[str, Any]]) -> list[Edge]:
                     str(src_id), str(dst_id), FOLLOWED_BY, str(src_entities["symbol"]),
                 ))
             if (
-                src.get("kind") == "backtest_run"
+                src.get("kind") in _RUN_KINDS
                 and dst.get("kind") == "execution_summary"
                 and src_entities.get("strategy")
                 and src_entities.get("strategy") == dst_entities.get("strategy")
@@ -215,9 +248,13 @@ async def persist_edges(
     if not isinstance(inserted, dict) or not inserted.get("id"):
         return 0
 
-    symbol, data_hash = inserted.get("symbol"), inserted.get("data_hash")
-    filters = [f"symbol.eq.{symbol}" if symbol else "", f"data_hash.eq.{data_hash}" if data_hash else ""]
-    predicate = ",".join(f for f in filters if f)
+    # Extraction, on the document that was just written, from the columns it
+    # already has. This is the ONLY definition of what a document can be linked
+    # by: the candidate lookup below is built from the entities rather than from
+    # a hand-written pair of column names, so a document that carries only a
+    # strategy stops being an orphan the graph can never reach.
+    entities = [e for e in extract_entities(inserted) if e.type in _LINKABLE]
+    predicate = ",".join(f"{e.type}.eq.{e.value}" for e in entities)
     if not predicate:
         return 0
 

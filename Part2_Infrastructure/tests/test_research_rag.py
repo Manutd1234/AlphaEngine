@@ -6,6 +6,7 @@ import asyncio
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 import modules.research_rag as rag_module
 from modules.research_rag import (
@@ -14,6 +15,7 @@ from modules.research_rag import (
     classify_anomaly,
     get_rag,
     render_backtest_card,
+    render_backtest_documents,
     render_incident_card,
     reset_rag,
 )
@@ -238,3 +240,125 @@ class TestSchemaAgreement:
         # The tempting shortcut is `[0.0] * 384` so a failed embed "still works".
         # A zero vector is equidistant from everything; pin the refusal.
         assert "[0.0]" not in source and "[0] *" not in source
+
+
+# --------------------------------------------------------------------------- #
+# one sweep, several documents
+# --------------------------------------------------------------------------- #
+#
+# The charts a run draws were unreachable from the corpus: the corpus indexes
+# text and a chart is a PNG. Every figure a vision model would have to read back
+# off those pixels is a number the desk computed in order to draw them, so the
+# charts are indexed by what they SAY.
+
+BEST = SimpleNamespace(
+    fast=20, slow=80, sharpe=0.24, total_return=0.026, max_drawdown=-0.147,
+    trades=30, exposure=0.45,
+)
+RESULT = SimpleNamespace(
+    request=SimpleNamespace(symbol="BTCUSDT", interval="4h", strategy="ma_cross"),
+    engine="numpy", combos_tested=74, best=BEST,
+    deflated_sharpe_ratio=0.228, walk_forward_oos_sharpe=-0.02, pbo=0.61,
+    data_hash="8e43f5f7", job_id="job-1",
+    benchmark_buy_hold={"total_return": -0.407},
+    walk_forward=[
+        SimpleNamespace(oos_sharpe=0.4),
+        SimpleNamespace(oos_sharpe=-0.2),
+        SimpleNamespace(oos_sharpe=0.9),
+    ],
+)
+
+
+class TestBacktestDocuments:
+    def test_the_run_card_comes_first_and_its_embedded_text_is_unchanged(self):
+        """`body` IS the stored vector's meaning.
+
+        Indexing the charts had to add documents, not lines to this one: an
+        extra sentence here would change what every stored `backtest_run` vector
+        was built from, silently, and no vector can be asked what it meant.
+        """
+        documents = render_backtest_documents(RESULT)
+        _, expected = render_backtest_card({
+            "symbol": "BTCUSDT", "interval": "4h", "strategy": "ma_cross",
+            "engine": "numpy", "combos_tested": 74, "best_fast": 20, "best_slow": 80,
+            "sharpe": 0.24, "total_return": 0.026, "max_drawdown": -0.147,
+            "dsr": 0.228, "oos_sharpe": -0.02, "pbo": 0.61,
+            "data_hash": "8e43f5f7", "job_id": "job-1",
+        })
+        assert documents[0]["body"] == expected
+        assert documents[0]["source_ref"] == "job-1"
+
+    def test_every_chart_the_run_drew_becomes_its_own_document(self):
+        documents = render_backtest_documents(RESULT)
+        refs = [d["source_ref"] for d in documents]
+        assert refs == [
+            "job-1", "job-1:equity_curve", "job-1:drawdown", "job-1:walk_forward",
+        ], "a drawdown query should retrieve the drawdown, not a card mentioning one"
+
+    def test_a_chart_document_carries_the_provenance_of_the_run_that_drew_it(self):
+        chart = render_backtest_documents(RESULT)[1]
+        run = render_backtest_documents(RESULT)[0]
+        # Everything that says WHICH RUN drew it, which is what makes the chart
+        # graph-reachable from the run and comparable against another run over
+        # the same bars.
+        for field in ("symbol", "interval", "strategy", "data_hash"):
+            assert chart[field] == run[field], field
+
+    def test_a_chart_is_not_filed_as_a_backtest_run(self):
+        """`kind` was shared with the run and that made the FILTER dishonest.
+
+        A sweep writes four documents. Filed as four `backtest_run`s,
+        `corpus_size` reported four runs where the desk had done one, and
+        `filter_kind='backtest_run'` returned three chart descriptions for
+        every run it was asked for. The text was right either way; the kind was
+        answering a question nobody asked.
+        """
+        documents = render_backtest_documents(RESULT)
+        assert documents[0]["kind"] == "backtest_run"
+        assert {d["kind"] for d in documents[1:]} == {"chart"}, (
+            f"chart kinds: {[d['kind'] for d in documents[1:]]}"
+        )
+
+    def test_the_chart_body_is_the_text_that_will_be_embedded(self):
+        chart = render_backtest_documents(RESULT)[1]
+        assert chart["title"] == "Equity curve: BTCUSDT 4h ma_cross"
+        assert chart["body"].startswith(chart["title"] + "\n"), (
+            "the card leads with its own title, like every other kind"
+        )
+        # The figures the tear sheet was drawn from, not a recomputation.
+        for figure in ("1.03x", "-14.7%", "0.24", "30 trades", "45.0%", "0.59x"):
+            assert figure in chart["body"], figure
+
+    def test_the_fold_table_is_indexed_by_the_count_a_reader_wants(self):
+        folds = render_backtest_documents(RESULT)[3]
+        assert "2 of 3 out-of-sample Sharpes are positive" in folds["body"]
+
+    def test_a_chart_the_run_did_not_draw_is_not_described(self):
+        # No pre-trade ladder on a sweep, so no gate-ladder document — the same
+        # rule the rest of the corpus follows.
+        bodies = " ".join(d["body"] for d in render_backtest_documents(RESULT))
+        assert "gate ladder" not in bodies.lower()
+
+    def test_a_result_that_cannot_be_read_yields_no_documents_rather_than_raising(self):
+        assert render_backtest_documents(object()) == []
+
+    def test_a_run_whose_charts_cannot_be_described_is_still_indexed_as_a_run(self):
+        """Indexing must never be able to fail the thing it indexes."""
+        unplottable = SimpleNamespace(**{**RESULT.__dict__, "walk_forward": None,
+                                         "benchmark_buy_hold": None})
+        documents = render_backtest_documents(unplottable)
+        assert [d["source_ref"] for d in documents] == ["job-1"]
+
+    def test_the_hook_queues_the_run_and_every_chart(self, monkeypatch):
+        class Stub:
+            supabase_url = "https://example.supabase.co"
+            supabase_service_role_key = "sb_secret_x"
+            research_rag_enabled = True
+            supabase_desk_id = "00000000-0000-0000-0000-000000000001"
+            supabase_timeout_s = 5.0
+            supabase_mirror_queue_max = 10
+
+        monkeypatch.setattr(rag_module, "settings", Stub())
+        rag = ResearchRag()
+        rag.on_backtest_complete(SimpleNamespace(kind="backtest", result=RESULT))
+        assert rag.status()["queued"] == 4

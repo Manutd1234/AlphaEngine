@@ -27,6 +27,12 @@ Honesty rules, non-negotiable:
   empty list. "Searched and found nothing" is a different fact from "could
   not search", and the workspace renders them differently.
 
+A completed sweep yields one document per CHART as well as the run card — the
+equity curve, the drawdown envelope, the fold table — described from the figures
+the desk already computed in order to draw them. No image is embedded and there
+is no vision model in this path: the Edge runtime's ``Supabase.ai.Session``
+exposes gte-small and takes no image, so a chart is retrievable by what it says.
+
 Card rendering deliberately does not import ``modules.telegram`` (matplotlib
 is heavy); ``telegram.text_card`` is the design lineage — title, state, metric
 lines, provenance footer — because a card an LLM retrieves and a card a human
@@ -49,6 +55,7 @@ from config import settings
 from modules.research_cards import ANOMALY_GATES as ANOMALY_GATES
 from modules.research_cards import classify_anomaly as classify_anomaly
 from modules.research_cards import render_backtest_card as render_backtest_card
+from modules.research_cards import render_backtest_documents
 from modules.research_cards import render_incident_card as render_incident_card
 from modules.research_cards import render_ml_card as render_ml_card
 from modules.research_graph import persist_edges
@@ -218,48 +225,22 @@ class ResearchRag:
             self._dropped += 1
 
     def on_backtest_complete(self, record: Any) -> None:
-        """`queue.on_complete` hook — same seam the Telegram push uses."""
+        """`queue.on_complete` hook — same seam the Telegram push uses.
+
+        One sweep is MORE THAN ONE DOCUMENT: the run card, and one per chart the
+        run drew, described from the figures it already computed to draw them.
+        The charts were previously unreachable from the corpus — not because
+        their meaning was unavailable, but because it was only ever rendered
+        into a PNG. Which documents a result yields is
+        `render_backtest_documents`'s decision; this hook only queues them.
+        """
         if not self.enabled or getattr(record, "kind", None) != "backtest":
             return
         result = getattr(record, "result", None)
         if result is None:
             return
-        try:
-            row = {
-                "symbol": result.request.symbol,
-                "interval": result.request.interval,
-                "strategy": result.request.strategy,
-                "engine": result.engine,
-                "combos_tested": result.combos_tested,
-                "best_fast": result.best.fast,
-                "best_slow": result.best.slow,
-                "sharpe": result.best.sharpe,
-                "total_return": result.best.total_return,
-                "max_drawdown": result.best.max_drawdown,
-                "dsr": result.deflated_sharpe_ratio,
-                "oos_sharpe": result.walk_forward_oos_sharpe,
-                "pbo": getattr(result, "pbo", None),
-                "data_hash": result.data_hash,
-                "job_id": result.job_id,
-            }
-        except AttributeError:
-            return
-        title, body = render_backtest_card(row)
-        self._submit({
-            "kind": "backtest_run",
-            "source_ref": str(row["job_id"]),
-            "symbol": row["symbol"],
-            "interval": row["interval"],
-            "strategy": row["strategy"],
-            "occurred_at": datetime.now(timezone.utc).isoformat(),
-            "title": title,
-            "body": body,
-            "metrics": {
-                k: row[k]
-                for k in ("sharpe", "dsr", "oos_sharpe", "pbo", "combos_tested")
-            },
-            "data_hash": row["data_hash"],
-        })
+        for document in render_backtest_documents(result):
+            self._submit(document)
 
     def on_ml_run_complete(self, run: dict[str, Any]) -> None:
         """Index one supervised run, the same way a sweep is indexed.
