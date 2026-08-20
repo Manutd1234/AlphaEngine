@@ -42,6 +42,7 @@ export const API_OPERATIONS: readonly ApiOperation[] = [
   { method: "GET", path: "/api/gateway/research/ml/runs", purpose: "Supervised research runs, newest first", group: "gateway" },
   { method: "POST", path: "/api/gateway/research/ml/fit", purpose: "Queue one supervised walk-forward and file its evidence", group: "research" },
   { method: "GET", path: "/api/gateway/jobs/{jobId}", purpose: "One queued job's status and result, any kind", group: "gateway" },
+  { method: "GET", path: "/api/gateway/research/ml/runs/{runId}", purpose: "One supervised run with its folds and feature spec", group: "research" },
   { method: "POST", path: "/api/gateway/data-quality/escalations/{id}/ack", purpose: "Take an open data-quality escalation", group: "gateway" },
   { method: "GET", path: "/api/gateway/research/graph/{id}", purpose: "Documents connected to one research document", group: "gateway" },
   { method: "GET", path: "/api/gateway/orders", purpose: "Order blotter from the authoritative gateway", group: "gateway" },

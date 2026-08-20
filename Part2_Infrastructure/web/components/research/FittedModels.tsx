@@ -22,7 +22,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import MlRunCapsule, { PBO_NOT_APPLICABLE, type MlRunProvenance } from "@/components/research/MlRunCapsule";
+import MlRunCapsule, {
+  PBO_NOT_APPLICABLE, type MlRunEvidence, type MlRunProvenance,
+} from "@/components/research/MlRunCapsule";
 import StatTile from "@/components/StatTile";
 import { fmt } from "@/lib/format";
 import { GATEWAY_DEADLINE_MS, probeGateway } from "@/lib/use-gateway-connection";
@@ -35,6 +37,18 @@ import { GATEWAY_DEADLINE_MS, probeGateway } from "@/lib/use-gateway-connection"
  * different readings of the same row, and only one of them is what a re-run
  * needs.
  */
+/**
+ * The two evidence-bearing halves of `MLRunDetail`, and nothing else.
+ *
+ * A narrow local type rather than the generated one: this component reads two
+ * fields, and binding to the whole shape would make it fail to compile over
+ * changes it does not care about.
+ */
+interface MlRunDetail {
+  features?: { spec_hash?: string | null } | null;
+  folds?: Array<{ purge_bars: number; embargo_bars: number }>;
+}
+
 interface MlRun extends MlRunProvenance {
   oos_sharpe: number | null;
   deflated_sharpe: number | null;
@@ -163,6 +177,37 @@ export default function FittedModels() {
   const [chosenId, setChosenId] = useState<string | null>(null);
   const chosen = runs.find((run) => run.id === chosenId) ?? runs[0] ?? null;
 
+  /*
+   * The feature spec and the fold gaps come from a SECOND request, because
+   * they are a second fact: the list route does not carry them, and filling
+   * them in from anywhere else would be asserting a purge nobody had read.
+   *
+   * Keyed by run id and cleared on every change, so the capsule never shows
+   * one run's purge beside another run's seed while the request is in flight.
+   * A failure leaves it null, which the capsule renders as withheld with the
+   * reason — the same answer as "not fetched yet", because from the reader's
+   * side they are the same: this desk cannot currently say.
+   */
+  const [evidence, setEvidence] = useState<MlRunEvidence | null>(null);
+  useEffect(() => {
+    setEvidence(null);
+    if (!chosen) return;
+    let live = true;
+    void (async () => {
+      const outcome = await probeGateway<MlRunDetail>(
+        `/api/gateway/research/ml/runs/${encodeURIComponent(chosen.id)}`,
+      );
+      if (!live || !outcome.ok) return;
+      const folds = outcome.payload.folds ?? [];
+      setEvidence({
+        spec_hash: outcome.payload.features?.spec_hash ?? null,
+        purge_bars: [...new Set(folds.map((f) => f.purge_bars))].sort((a, b) => a - b),
+        embargo_bars: [...new Set(folds.map((f) => f.embargo_bars))].sort((a, b) => a - b),
+      });
+    })();
+    return () => { live = false; };
+  }, [chosen?.id]);
+
   return (
     <div className="card">
       <div className="section-heading compact">
@@ -240,7 +285,7 @@ export default function FittedModels() {
         </div>
       )}
 
-      {chosen && <MlRunCapsule run={chosen} />}
+      {chosen && <MlRunCapsule run={chosen} evidence={evidence} />}
 
       {runs.length > 0 && (
         <div className="table-wrap" tabIndex={0}>

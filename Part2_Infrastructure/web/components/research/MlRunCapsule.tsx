@@ -54,6 +54,24 @@ export interface MlRunProvenance {
   status: string;
 }
 
+/**
+ * The two fields that decide whether the headline figures mean anything, read
+ * from `GET /api/gateway/research/ml/runs/{runId}`.
+ *
+ * They are a separate type and a separate request because they are a separate
+ * FACT: the list route does not carry them, and a capsule that filled them in
+ * from anywhere else would be asserting a purge it had not read. Null here
+ * still means withheld — the request has not landed, or the detail could not
+ * be read — and never zero, because a fold that purged nothing and a fold
+ * whose purge nobody recorded are opposite claims.
+ */
+export interface MlRunEvidence {
+  spec_hash: string | null;
+  /** Distinct purge values across the folds. One entry means every fold agreed. */
+  purge_bars: number[];
+  embargo_bars: number[];
+}
+
 /** How many characters of a digest a reader can compare at a glance. */
 const DIGEST = 12;
 
@@ -108,7 +126,24 @@ const ENGINE_MEANING: Record<string, string> = {
   sklearn: "The optional scikit-learn extra was present and fitted this run.",
 };
 
-export default function MlRunCapsule({ run }: { run: MlRunProvenance }) {
+/** "12" for one agreed value, "12–20" when the folds differ. */
+function describeGaps(values: number[]): string {
+  const low = Math.min(...values);
+  const high = Math.max(...values);
+  return low === high ? `${low}` : `${low}–${high}`;
+}
+
+const GAPS_MEANING =
+  "Bars dropped from the end of each training window because their labels reach "
+  + "into the test window (purge), and from the start of the window that follows "
+  + "a test window because serial correlation runs both ways (embargo). A range "
+  + "means the folds did not agree. Zero is a claim, not an absence.";
+
+export default function MlRunCapsule({ run, evidence }: {
+  run: MlRunProvenance;
+  /** Null until the detail request lands, or when it could not be read. */
+  evidence?: MlRunEvidence | null;
+}) {
   return (
     <>
       <div className="research-provenance" aria-label="Fitted model reproducibility capsule">
@@ -155,11 +190,24 @@ export default function MlRunCapsule({ run }: { run: MlRunProvenance }) {
           </div>
           <div>
             <dt>Features</dt>
-            <dd><Withheld short="on the run detail" reason={NO_FEATURES} /></dd>
+            <dd>
+              {evidence?.spec_hash == null
+                ? <Withheld short="on the run detail" reason={NO_FEATURES} />
+                : <code title={evidence.spec_hash}>{evidence.spec_hash.slice(0, DIGEST)}</code>}
+            </dd>
           </div>
           <div>
             <dt>Purge</dt>
-            <dd><Withheld short="on the run detail" reason={NO_PURGE} /></dd>
+            <dd>
+              {evidence == null || evidence.purge_bars.length === 0
+                ? <Withheld short="on the run detail" reason={NO_PURGE} />
+                : (
+                  <span className="num" title={GAPS_MEANING}>
+                    {describeGaps(evidence.purge_bars)} purged,{" "}
+                    {describeGaps(evidence.embargo_bars)} embargoed
+                  </span>
+                )}
+            </dd>
           </div>
           <div>
             <dt>PBO</dt>

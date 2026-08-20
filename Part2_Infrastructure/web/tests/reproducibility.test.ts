@@ -357,17 +357,24 @@ describe("a fitted run states what it would take to re-run it", () => {
     assert.ok(detail.length >= 2, "both withheld fields must name the record that holds them");
   });
 
-  it("still tells the truth about there being no route to that record", () => {
-    // A ratchet on the excuse: the day someone proxies the detail endpoint,
-    // this fails and the two dashes above become real values.
+  it("reads the withheld cells from the run detail, now that it is proxied", () => {
+    // This was a ratchet on the excuse: it asserted the detail route did NOT
+    // exist, so that adding it would fail here and force the two dashes to
+    // become values. The route exists now, so the assertion inverts — the
+    // capsule must read them rather than explain their absence.
     const proxied = existsSync(
       fileURLToPath(new URL("../app/api/gateway/research/ml/runs/[runId]/route.ts", import.meta.url)),
     );
-    assert.equal(
-      proxied,
-      false,
-      "the run detail route is proxied now — read it, and replace the capsule's two withheld cells",
-    );
+    assert.equal(proxied, true, "the run detail proxy went away; restore it or re-withhold the cells");
+    assert.match(capsuleCode, /evidence\?\.spec_hash/, "the capsule still ignores the feature spec");
+    assert.match(capsuleCode, /purge_bars/, "the capsule still ignores the fold gaps");
+  });
+
+  it("still withholds them when the detail has not arrived", () => {
+    // Null evidence is "this desk cannot currently say", which covers both the
+    // request being in flight and the detail being unreadable. From the
+    // reader's side those are the same fact, and neither is a zero.
+    assert.match(capsuleCode, /evidence == null \|\| evidence\.purge_bars\.length === 0/);
   });
 });
 
