@@ -68,17 +68,51 @@ const REMOVED: ReadonlyArray<readonly [string, string]> = [
   ["ask.8", "Worth a closer look"],
   ["ask.9", "Saved in this browser as a summary"],
   ["ask.10", "A crossover that also requires the slow average"],
+
+  // Round M's copy sweeps — the panels Phase A never reached. Only sentences
+  // removed OUTRIGHT are listed; the many that were tightened rather than cut
+  // would over-constrain a future rewording, and this file is for lines that
+  // should not come back at all.
+  ["A2.12", "Each cell is coloured by what its own neighbours"],
+  ["A2.12", "A broad plateau suggests"],
+  ["A2.13", "overfitting made visible"],
+  ["A2.17", "accepted and rejected alike"],
+  ["A2.20", "not by this browser"],
+  ["A2.21", "not what is largest"],
+  ["A2.21", "hue is the sign"],
+  ["A2.23", "Triage by impact"],
+  ["A2.23", "New items enter Intake"],
+  ["A2.25", "This page manages an identity"],
 ];
 
-/** Lines that can reach a reader — a comment cannot. */
-function renderedLinesContaining(text: string, phrase: string): boolean {
+/**
+ * The source with every comment removed, so only text that can reach a reader
+ * is searched.
+ *
+ * Line-prefix matching was the first attempt and it missed the JSX form:
+ * `{/* … *\/}` starts with a brace, and a block comment's continuation lines
+ * start with ordinary prose. Stripping the blocks is the only version that
+ * cannot be fooled by where a comment happens to wrap.
+ */
+function rendered(text: string): string {
   return text
-    .split("\n")
-    .some((line) => line.includes(phrase) && !/^\s*(\/\/|\*|\/\*)/.test(line));
+    .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, " ")   // {/* JSX comment */}
+    .replace(/\/\*[\s\S]*?\*\//g, " ")                // /* block */
+    .replace(/^\s*\/\/.*$/gm, " ");                    // // line
 }
 
 describe("copy the desk asked to have removed stays removed", () => {
   const blobs = new Map(FILES.map((f) => [f, readFileSync(f, "utf8")]));
+
+  it("comment stripping does not swallow the whole file", () => {
+    // If the block regexes over-matched, every phrase would pass for the wrong
+    // reason. A rendered file keeps most of its bytes.
+    const [file, text] = [...blobs].find(([f]) => f.endsWith("DataWorkBoard.tsx"))!;
+    assert.ok(
+      rendered(text).length > text.length * 0.5,
+      `comment stripping removed more than half of ${file}`,
+    );
+  });
 
   it("reads a source set worth checking", () => {
     // A glob that silently matched nothing would make every assertion below
@@ -89,7 +123,7 @@ describe("copy the desk asked to have removed stays removed", () => {
   for (const [round, phrase] of REMOVED) {
     it(`${round}: ${JSON.stringify(phrase)} is not rendered anywhere`, () => {
       const offenders = [...blobs]
-        .filter(([, text]) => renderedLinesContaining(text, phrase))
+        .filter(([, text]) => rendered(text).includes(phrase))
         .map(([file]) => file.slice(web.length));
       assert.deepEqual(
         offenders, [],
