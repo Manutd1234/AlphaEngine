@@ -38,7 +38,7 @@
  * is what makes that affordable.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 
 import { authClient, authConfigured } from "@/lib/auth-client";
 
@@ -69,7 +69,7 @@ const UNREACHABLE =
   "No Telegram companion is reachable from this deployment — the gateway reports no bot, "
   + "and no bot username is configured here either.";
 
-export default function TelegramCta() {
+function TelegramCta() {
   const [answer, setAnswer] = useState<LinkState | null>(null);
   const inFlight = useRef(false);
 
@@ -274,3 +274,12 @@ export default function TelegramCta() {
     </a>
   );
 }
+
+/**
+ * Memoised, and it takes no props, so after mount it renders exactly when its
+ * own state says to — the link resolving, the token being re-minted — and
+ * never because a chip further along the row counted. It draws an inline SVG
+ * and rebuilds two long class strings per render, both of which the header's
+ * feeds were paying for several times a second.
+ */
+export default memo(TelegramCta);
