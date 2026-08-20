@@ -594,7 +594,13 @@ describe("the account menu", () => {
     // aria-expanded binding are untouched; a counter lets the same request be
     // made twice in a row, which a boolean could not.
     assert.match(code(chip), /onOpenPreferences\(\)/);
-    assert.match(code(header), /onOpenPreferences=\{\(\) => setSettingsSignal\(\(n\) => n \+ 1\)\}/);
+    // The handler is a `useCallback` now rather than an arrow written at the
+    // call site — the header memoises its props so a keystroke in one control
+    // cannot re-render the whole chrome. Both halves are pinned, because a
+    // named handler can drift from the prop it is passed to in a way an inline
+    // arrow could not: the counter bump, and the wiring that delivers it.
+    assert.match(code(header), /const openPreferences = useCallback\(\(\) => setSettingsSignal\(\(n\) => n \+ 1\), \[\]\)/);
+    assert.match(code(header), /onOpenPreferences=\{openPreferences\}/);
     assert.match(code(header), /openSignal=\{settingsSignal\}/);
     assert.match(code(panel), /if \(openSignal > 0\)/);
     assert.match(code(panel), /setOpen\(true\)/);
@@ -621,7 +627,9 @@ describe("the account menu", () => {
 
     // Counters both ways, for the same reason the first one is a counter:
     // Preferences -> back -> Preferences -> back must work on every lap.
-    assert.match(code(header), /onBackToAccount=\{\(\) => setAccountSignal\(\(n\) => n \+ 1\)\}/);
+    // Memoised like its opposite number, and pinned the same way.
+    assert.match(code(header), /const backToAccount = useCallback\(\(\) => setAccountSignal\(\(n\) => n \+ 1\), \[\]\)/);
+    assert.match(code(header), /onBackToAccount=\{backToAccount\}/);
     assert.match(code(header), /openSignal=\{accountSignal\}/);
     assert.match(code(chip), /if \(openSignal > 0\) setOpen\(true\)/);
   });
