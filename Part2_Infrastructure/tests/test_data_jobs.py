@@ -343,3 +343,123 @@ class TestATickIsolatesItsSchedules:
 
         assert calls == ["AAA", "BBB", "CCC"], "the tick stopped at the failing schedule"
         assert submitted == ["job-AAA", "job-CCC"]
+
+
+class TestJobHistorySurvivesARestart:
+    """The audit `jobs` table was write-only until this.
+
+    Tested without `TestClient`, deliberately. Using it as a context manager
+    runs the lifespan, and shutdown CLOSES the shared audit handle — so once any
+    test file in the session has done that, every later write is swallowed by
+    `_exec` and every later read returns nothing. That is correct behaviour for
+    an audit log that must never break the trade path, and it makes the app
+    fixture unusable for asserting on audit contents. The two halves are
+    asserted where they live instead.
+    """
+
+    def test_the_jobs_table_can_be_read_back(self, tmp_path):
+        from datetime import datetime
+
+        from modules.audit import AuditLog
+
+        audit = AuditLog(str(tmp_path / "jobs.duckdb"))
+        try:
+            audit.record_job(
+                "old", "data.backfill", "succeeded",
+                datetime(2026, 8, 19, 9, 0), datetime(2026, 8, 19, 9, 1), "in-process", None,
+            )
+            audit.record_job(
+                "new", "data.replay", "failed",
+                datetime(2026, 8, 20, 9, 0), datetime(2026, 8, 20, 9, 1), "in-process", "provider refused",
+            )
+            audit.record_job(
+                "other", "backtest", "succeeded",
+                datetime(2026, 8, 20, 10, 0), datetime(2026, 8, 20, 10, 1), "in-process", None,
+            )
+
+            rows = audit.list_jobs(limit=10, kind_prefix="data.")
+            assert [r["job_id"] for r in rows] == ["new", "old"], "not newest-first, or the prefix leaked"
+            assert rows[0]["error"] == "provider refused"
+            assert all(r["kind"].startswith("data.") for r in rows)
+
+            assert len(audit.list_jobs(limit=10)) == 3, "the unfiltered read lost a row"
+            assert len(audit.list_jobs(limit=1, kind_prefix="data.")) == 1, "limit ignored"
+        finally:
+            audit.close()
+
+    @pytest.mark.asyncio
+    async def test_the_route_tops_the_queue_up_and_says_it_did(self, monkeypatch):
+        import main
+
+        class _Audit:
+            def list_jobs(self, limit=25, kind_prefix=None):
+                return [{
+                    "job_id": "restored-1", "kind": "data.backfill", "status": "succeeded",
+                    "submitted_at": datetime(2026, 8, 19, 9, 0),
+                    "finished_at": datetime(2026, 8, 19, 9, 1),
+                    "backend": "in-process", "error": None,
+                }]
+
+        class _Queue:
+            backend = "in-process"
+
+            def list(self, limit, kind_prefix=None):
+                return []
+
+        monkeypatch.setattr(main, "get_audit", lambda: _Audit())
+        monkeypatch.setattr(main, "get_queue", lambda: _Queue())
+
+        body = await main.data_jobs(limit=25, _actor="test")
+
+        assert [job.job_id for job in body.jobs] == ["restored-1"]
+        assert body.restored_from_audit == 1
+        assert body.retained_in_process is False, (
+            "the response claims it holds every job it is reporting, and it does not"
+        )
+        row = body.jobs[0]
+        # `record_job` writes seven columns at terminal state and nothing else.
+        # Inventing a progress figure or an empty summary would make a thin row
+        # look like a complete one.
+        assert row.summary is None
+        assert row.params == {}
+
+    @pytest.mark.asyncio
+    async def test_a_live_job_wins_over_its_restored_row(self, monkeypatch):
+        import main
+
+        class _Audit:
+            def list_jobs(self, limit=25, kind_prefix=None):
+                return [{
+                    "job_id": "dupe", "kind": "data.replay", "status": "succeeded",
+                    "submitted_at": datetime(2026, 8, 19, 9, 0),
+                    "finished_at": datetime(2026, 8, 19, 9, 1),
+                    "backend": "in-process", "error": None,
+                }]
+
+        class _Record:
+            job_id = "dupe"
+
+        class _Queue:
+            backend = "in-process"
+
+            def list(self, limit, kind_prefix=None):
+                return [_Record()]
+
+        monkeypatch.setattr(main, "get_audit", lambda: _Audit())
+        monkeypatch.setattr(main, "get_queue", lambda: _Queue())
+        monkeypatch.setattr(main, "job_view", lambda record: {
+            "job_id": record.job_id, "kind": "data.replay", "status": "succeeded",
+            "submitted_at": datetime(2026, 8, 19, 9, 0), "finished_at": None,
+            "backend": "in-process", "error": None,
+            "params": {"symbol": "BTCUSDT"}, "actor": "operator",
+            "summary": {"outcome": "clean"},
+        })
+
+        body = await main.data_jobs(limit=25, _actor="test")
+
+        assert len(body.jobs) == 1, "the same job was listed twice"
+        assert body.restored_from_audit == 0
+        # The in-process record carries progress, params and the job's summary;
+        # the restored row carries none of those. The richer one has to win.
+        assert body.jobs[0].summary == {"outcome": "clean"}
+        assert body.retained_in_process is True

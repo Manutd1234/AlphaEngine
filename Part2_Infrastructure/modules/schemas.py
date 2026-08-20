@@ -570,9 +570,16 @@ class DataJobView(JobStatus):
 class DataJobsResponse(BaseModel):
     observed_at: datetime
     backend: str
-    # The list is the queue's in-process memory; the audit log keeps status rows.
+    #: True when this process still holds every job it is reporting. It goes
+    #: false once the list has been topped up from the audit log — which happens
+    #: after a restart, and is the difference between "no job has ever run" and
+    #: "this process has not run one".
     retained_in_process: bool
     executor_configured: bool
+    #: Jobs whose row came from the durable audit log rather than memory. A
+    #: restored row has no progress, no message and no summary: only what
+    #: `record_job` writes at terminal state.
+    restored_from_audit: int = 0
     jobs: list[DataJobView]
 
 

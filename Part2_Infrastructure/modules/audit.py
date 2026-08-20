@@ -878,6 +878,36 @@ class AuditLog:
             )
         return rows
 
+    def list_jobs(self, limit: int = 25, kind_prefix: str | None = None) -> list[dict[str, Any]]:
+        """Recent job rows, newest first.
+
+        The `jobs` table was write-only. `record_job` had written to it since it
+        was added and nothing anywhere ever ran a SELECT against it — a repo-wide
+        search for `FROM jobs` returned nothing. So `GET /api/data/jobs` served
+        the queue's in-process dict, which dies with the process: after a deploy
+        the desk reported that no job had ever run.
+
+        Terminal rows only, because that is all `record_job` writes — it is
+        called once, from the runner's `finally`. A job that is still running is
+        in the queue's memory and nowhere else, which is correct: it has no
+        outcome to record yet.
+        """
+        # Two literal statements rather than one interpolated. `where` would
+        # have been a fixed string either way, but a SELECT assembled with an
+        # f-string is a shape a reader has to verify by hand every time, and
+        # ruff's bandit rule is right to make that cost visible.
+        if kind_prefix:
+            return self.query(
+                "SELECT job_id, kind, status, submitted_at, finished_at, backend, error "
+                "FROM jobs WHERE kind LIKE ? ORDER BY submitted_at DESC LIMIT ?",
+                (f"{kind_prefix}%", limit),
+            )
+        return self.query(
+            "SELECT job_id, kind, status, submitted_at, finished_at, backend, error "
+            "FROM jobs ORDER BY submitted_at DESC LIMIT ?",
+            (limit,),
+        )
+
     def record_job(self, job_id: str, kind: str, status: str, submitted_at, finished_at, backend: str, error) -> None:
         self._exec(
             "INSERT INTO jobs VALUES (?,?,?,?,?,?,?)",

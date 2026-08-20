@@ -527,6 +527,11 @@
             "title": "Observed At",
             "type": "string"
           },
+          "restored_from_audit": {
+            "default": 0,
+            "title": "Restored From Audit",
+            "type": "integer"
+          },
           "retained_in_process": {
             "title": "Retained In Process",
             "type": "boolean"
@@ -5792,7 +5797,7 @@
     },
     "/api/data/jobs": {
       "get": {
-        "description": "Recent replay and backfill jobs \u2014 the queue's in-process memory; the audit log keeps status rows.",
+        "description": "Recent replay and backfill jobs: this process's queue, topped up from the audit log.\n\nThe audit log's `jobs` table had been written since it was added and never\nonce read \u2014 a repo-wide search for a SELECT against it returned nothing. So\nthis route served the queue's in-process dict alone, which dies with the\nprocess, and after a deploy the desk reported that no job had ever run.\n\nIn-process records win where both exist: they carry progress, message and\nthe job's own summary, where a restored row carries only what `record_job`\nwrites at terminal state. `restored_from_audit` says how many of the rows\nbelow are the thinner kind, so a reader is not left wondering why some have\nno summary.",
         "operationId": "data_jobs_api_data_jobs_get",
         "parameters": [
           {

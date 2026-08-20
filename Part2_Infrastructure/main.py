@@ -537,14 +537,51 @@ async def ml_run_detail(run_id: str, _actor: str = Depends(trader_identity)) -> 
 
 @app.get("/api/data/jobs", response_model=DataJobsResponse, tags=["data"])
 async def data_jobs(limit: int = Query(default=25, ge=1, le=100), _actor: str = Depends(trader_identity)) -> DataJobsResponse:
-    """Recent replay and backfill jobs — the queue's in-process memory; the audit log keeps status rows."""
+    """Recent replay and backfill jobs: this process's queue, topped up from the audit log.
+
+    The audit log's `jobs` table had been written since it was added and never
+    once read — a repo-wide search for a SELECT against it returned nothing. So
+    this route served the queue's in-process dict alone, which dies with the
+    process, and after a deploy the desk reported that no job had ever run.
+
+    In-process records win where both exist: they carry progress, message and
+    the job's own summary, where a restored row carries only what `record_job`
+    writes at terminal state. `restored_from_audit` says how many of the rows
+    below are the thinner kind, so a reader is not left wondering why some have
+    no summary.
+    """
     queue = get_queue()
+    live = queue.list(limit, kind_prefix=DATA_KIND_PREFIX)
+    views = [job_view(record) for record in live]  # type: ignore[arg-type]
+    seen = {view["job_id"] for view in views}
+
+    restored = 0
+    for row in get_audit().list_jobs(limit=limit, kind_prefix=DATA_KIND_PREFIX):
+        if len(views) >= limit:
+            break
+        if row["job_id"] in seen:
+            continue
+        views.append({
+            "job_id": row["job_id"],
+            "kind": row["kind"],
+            "status": row["status"],
+            "submitted_at": row["submitted_at"],
+            "finished_at": row["finished_at"],
+            "backend": row["backend"] or "in-process",
+            "error": row["error"],
+            "params": {},
+            "actor": "",
+            "summary": None,
+        })
+        restored += 1
+
     return DataJobsResponse(
         observed_at=datetime.now(timezone.utc),
         backend=queue.backend,
-        retained_in_process=True,
+        retained_in_process=restored == 0,
         executor_configured=executor_configured(),
-        jobs=[job_view(record) for record in queue.list(limit, kind_prefix=DATA_KIND_PREFIX)],  # type: ignore[arg-type]
+        restored_from_audit=restored,
+        jobs=views,
     )
 
 

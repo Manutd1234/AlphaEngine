@@ -87,6 +87,7 @@ export interface DataJobsResponse {
   executor_configured: boolean;
   jobs: Array<DataJobView>;
   observed_at: string;
+  restored_from_audit?: number;
   retained_in_process: boolean;
 }
 
