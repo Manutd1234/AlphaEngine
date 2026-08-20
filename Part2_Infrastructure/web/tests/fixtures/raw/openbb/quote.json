@@ -1,0 +1,23 @@
+{
+  "_comment": "Captured verbatim from OpenBB_Service — this project's OWN stateless read-only service, not a vendor API. So a change in this shape is a change we made to ourselves, and this fixture is what stops one reaching the adapter unannounced.",
+  "_url": "http://127.0.0.1:8010/api/research/openbb/quote?symbol=…",
+  "_status": 200,
+  "_captured": "2026-08-20",
+  "body": {
+    "ok": true,
+    "data": {
+      "symbol": "AAPL",
+      "price": 316.55,
+      "change": -0.2799999999999727,
+      "change_percent": -0.08837546949467309,
+      "open": 317.455,
+      "high": 320.28,
+      "low": 316.01,
+      "prev_close": 316.83,
+      "volume": 11175748,
+      "currency": "USD",
+      "as_of": "2026-08-20T15:45:55.269407+00:00",
+      "delayed": true
+    }
+  }
+}

@@ -94,6 +94,21 @@ function loadEnvLocal() {
 }
 loadEnvLocal();
 
+/**
+ * `node scripts/capture-provider-fixtures.mjs [provider …]`
+ *
+ * No argument runs every target, which is the refresh-everything case. Naming
+ * providers narrows the run, and the reason that is worth a flag: a fixture's
+ * value is that it is the shape the vendor sent ON ITS CAPTURE DATE. Refreshing
+ * one provider while silently restamping the other six would throw away six
+ * pieces of evidence to gain one, and the diff would not show it.
+ *
+ * A filter that matches nothing exits non-zero rather than reporting a clean
+ * run over zero captures.
+ */
+const only = new Set(process.argv.slice(2).map((name) => name.toLowerCase()));
+const selected = (target) => only.size === 0 || only.has(target.provider);
+
 /** Healthy bodies. `expect` is the status that means the capture is valid. */
 const TARGETS = [
   // ---- KEYLESS: public market data, no credential of any kind -------------
@@ -184,6 +199,12 @@ const REFUSALS = [
  * account id, a plan name or a rate-limit header echoing the key's identity,
  * and none of that belongs in a fixture.
  */
+const SERVICE_COMMENT =
+  "Captured verbatim from OpenBB_Service — this project's OWN stateless "
+  + "read-only service, not a vendor API. So a change in this shape is a "
+  + "change we made to ourselves, and this fixture is what stops one reaching "
+  + "the adapter unannounced.";
+
 const KEYED = [
   {
     provider: "tiingo",
@@ -225,6 +246,7 @@ const KEYED = [
     // 200 with `{ok: false, error}` — so a rate-limited Yahoo call would be
     // committed as a healthy fixture with every downstream check agreeing.
     healthy: (body) => body?.ok === true,
+    comment: SERVICE_COMMENT,
     headers: () => (process.env.OPENBB_API_TOKEN
       ? { authorization: `Bearer ${process.env.OPENBB_API_TOKEN}` }
       : {}),
@@ -318,7 +340,7 @@ async function capture(target, { refusal, optional = false }) {
       return;
     }
     write(join(out, target.provider, `${refusal ? "unauthenticated" : target.capability}.json`), {
-      _comment: refusal ? REFUSAL_COMMENT : COMMENT,
+      _comment: target.comment ?? (refusal ? REFUSAL_COMMENT : COMMENT),
       _url: redact(target.url),
       _status: response.status,
       _captured: new Date().toISOString().slice(0, 10),
@@ -334,10 +356,16 @@ async function capture(target, { refusal, optional = false }) {
   }
 }
 
-for (const target of TARGETS) await capture(target, { refusal: false });
-for (const target of REFUSALS) await capture(target, { refusal: true });
+if (only.size && ![...TARGETS, ...REFUSALS, ...KEYED].some(selected)) {
+  console.error(`no capture target is named ${[...only].join(", ")}`);
+  process.exit(1);
+}
+
+for (const target of TARGETS) if (selected(target)) await capture(target, { refusal: false });
+for (const target of REFUSALS) if (selected(target)) await capture(target, { refusal: true });
 
 for (const target of KEYED) {
+  if (!selected(target)) continue;
   const key = process.env[target.env];
   if (!key) {
     // Stated, not silent. A capture run that quietly skipped half the
@@ -351,6 +379,7 @@ for (const target of KEYED) {
     url: target.url(key),
     headers: target.headers?.(),
     healthy: target.healthy,
+    comment: target.comment,
     expect: 200,
   }, { refusal: false, optional: true });
 }
