@@ -34,15 +34,15 @@ export interface RawContractResult {
   violations: Violation[];
 }
 
-const isArray = (value: unknown): value is unknown[] => Array.isArray(value);
-const isObject = (value: unknown): value is Record<string, unknown> =>
+export const isArray = (value: unknown): value is unknown[] => Array.isArray(value);
+export const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 /** A number the vendor sent as a string — the most common quiet vendor change. */
-const numericString = (value: unknown): boolean =>
+export const numericString = (value: unknown): boolean =>
   typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value));
 
-const fail = (
+export const fail = (
   provider: string, capability: string, violations: Violation[],
 ): RawContractResult => ({
   provider, capability, passed: violations.length === 0, violations,
