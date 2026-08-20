@@ -11,7 +11,7 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -110,9 +110,18 @@ describe("imports that resolved to nothing are gone", () => {
       ["../components/execution/ExecutionCockpit.tsx", "OrderBlotter"],
       ["../components/portfolio/PnlWaterfall.tsx", "fmt"],
       ["../components/research/ExperimentHistory.tsx", "signedPct"],
-      ["../lib/quant.ts", "FactorLoading"],
+      // A directory since quant became a package: the check is that the name
+      // appears in NO file of the module, which one path could assert while it
+      // was one file and cannot now.
+      ["../lib/quant", "FactorLoading"],
     ] as const) {
-      const hits = read(file).match(new RegExp(`\\b${name}\\b`, "g"))?.length ?? 0;
+      const targets = file.endsWith(".ts") || file.endsWith(".tsx")
+        ? [file]
+        : readdirSync(new URL(file, import.meta.url)).map((entry) => `${file}/${entry}`);
+      const hits = targets.reduce(
+        (total, target) => total + (read(target).match(new RegExp(`\\b${name}\\b`, "g"))?.length ?? 0),
+        0,
+      );
       assert.equal(hits, 0, `${file} still imports ${name} without using it`);
     }
   });
