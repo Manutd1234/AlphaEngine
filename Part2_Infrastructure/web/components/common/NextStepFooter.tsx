@@ -135,6 +135,11 @@ const NEXT_FROM: Record<string, { view: WorkspaceView; section: string; why: str
     section: "montecarlo",
     why: "Same driver, distribution form: the bootstrap resamples exactly the returns this estimate was fitted to.",
   },
+  "risk/drivers": {
+    view: "risk",
+    section: "scenarios",
+    why: "The positions carrying the volatility are the ones a shock moves most — the table above names them.",
+  },
   "risk/scenarios": {
     view: "risk",
     section: "controls",
