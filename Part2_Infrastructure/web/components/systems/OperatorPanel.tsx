@@ -20,16 +20,28 @@
  * surface, as against a cost, which is a fact about a single control and
  * therefore stays welded to it.
  *
- * The client-side controls are `SessionControls` below — Remediation's Session
- * pane. Same file, different card: they keep the cost-sentence rule but not
- * the guard, because a control that mutates no server state needs no token.
+ * The client-side controls are `SessionControls` — Remediation's Session pane.
+ * Different card, and now a different file: they keep the cost-sentence rule
+ * but not the guard, because a control that mutates no server state needs no
+ * token. This module re-exports it, so no caller's import path changed.
+ *
+ * Three pieces left when this file passed the length ceiling, along seams the
+ * panel already had: `OperatorControls` (the five rows and their prices),
+ * `OperatorConfirmation` (the disruptive-action preview) and `SessionControls`.
+ * What stayed is what the seam could not cut — authorisation, the pending
+ * confirmation and its focus restore, the one derivation every figure on the
+ * card reads, and the dispatch itself.
  */
 
 import { useEffect, useRef, useState } from "react";
 
 import DonutChart, { type DonutSlice } from "@/components/common/DonutChart";
+import OperatorConfirmation from "@/components/systems/OperatorConfirmation";
+import OperatorControls from "@/components/systems/OperatorControls";
 import OperatorGuard from "@/components/systems/OperatorGuard";
 import type { ActionResponse, GuardMode, ProviderRow } from "./types";
+
+export { default as SessionControls } from "@/components/systems/SessionControls";
 
 export interface ActionOptions {
   provider?: string;
@@ -76,17 +88,12 @@ interface OperatorPanelProps {
   onAction: (action: string, options?: ActionOptions) => void;
 }
 
-/** Cadences the console offers. 0 is a genuine pause, not a very long interval. */
-const CADENCES: { label: string; ms: number; note: string }[] = [
-  { label: "1s", ms: 1_000, note: "debugging" },
-  { label: "5s", ms: 5_000, note: "watching" },
-  { label: "30s", ms: 30_000, note: "default" },
-  { label: "Paused", ms: 0, note: "no polling" },
-];
-
-const PURGE_SCOPES = ["all", "quote", "bars", "news", "fundamentals"] as const;
-
-interface PendingConfirmation {
+/**
+ * A disruptive action, held after its trigger was pressed and before it is
+ * dispatched. Exported because `OperatorConfirmation` renders one; the state
+ * itself never leaves this file.
+ */
+export interface PendingConfirmation {
   action: string;
   options?: ActionOptions;
   title: string;
@@ -179,9 +186,6 @@ export default function OperatorPanel({
   const simulated = rows.filter((row) => row.simulatedOutage).length;
   const unconfigured = rows.filter((row) => !row.configured).length;
   const quotaLedgers = rows.filter((row) => row.quota !== null).length;
-  /** A dash, never a zero: an absent counter and an empty one are different. */
-  const figure = (value: number | null | undefined, suffix: string) =>
-    value == null ? null : `${value.toLocaleString()} ${suffix}`;
   const healthy = rows.filter((row) => row.configured && !row.circuitOpen && !row.simulatedOutage).length;
   const scopeSlices: DonutSlice[] = [
     { label: "routing normally", value: healthy, colour: "var(--status-good)" },
@@ -205,8 +209,8 @@ export default function OperatorPanel({
           slices={scopeSlices}
           centreValue={rows.length ? String(rows.length) : undefined}
           centreLabel="providers"
-          ariaLabel="Provider routing states in this instance, which is the scope these controls act on."
-          emptyNote="No provider snapshot yet — the controls have nothing to describe."
+          ariaLabel="Provider routing states in this instance, the scope these controls act on."
+          emptyNote="No provider snapshot yet."
         />
         <dl className="remediation-scope__facts">
           <div>
@@ -232,10 +236,9 @@ export default function OperatorPanel({
       <div className="banner warn console-control-scope" role="note">
         <span aria-hidden>!</span>
         <div>
-          <strong>These are not authoritative fleet or trading controls.</strong> A server mutation
-          affects only the Next.js provider-routing instance that receives it; another may hold
-          different caches, ledgers and circuits, and nothing here halts or resumes the Python
-          trading gateway.
+          <strong>These are not fleet or trading controls.</strong> A mutation affects only the
+          Next.js provider-routing instance that receives it, and nothing here halts or resumes the
+          Python trading gateway.
         </div>
       </div>
 
@@ -262,322 +265,38 @@ export default function OperatorPanel({
       </div>
 
       {pending ? (
-        <section
-          className="operator-confirmation"
-          role="alertdialog"
-          aria-modal="false"
-          aria-labelledby="operator-confirmation-title"
-          aria-describedby="operator-confirmation-effect"
-          onKeyDown={(event) => {
-            if (event.key === "Escape") closeConfirmation();
-          }}
-        >
-          <div className="operator-confirmation__heading">
-            <div>
-              <span className="page-kicker">Confirmation preview</span>
-              <h3 id="operator-confirmation-title">{pending.title}</h3>
-            </div>
-            <span className="operator-confirmation__badge">Disruptive</span>
-          </div>
-          <dl className="operator-confirmation__facts">
-            <div><dt>Target</dt><dd><code>{pending.target}</code></dd></div>
-            <div><dt>Control plane</dt><dd>Next.js provider routing</dd></div>
-            <div><dt>Blast radius</dt><dd>One function instance; other instances may retain different state</dd></div>
-          </dl>
-          <p id="operator-confirmation-effect">{pending.effect}</p>
-          <div className="operator-confirmation__actions">
-            <button type="button" onClick={closeConfirmation}>Cancel</button>
-            <button
-              ref={confirmButton}
-              type="button"
-              className="is-disruptive"
-              onClick={confirmPending}
-              disabled={locked || missingToken || busyAction !== null}
-            >
-              {pending.confirmLabel}
-            </button>
-          </div>
-          <small>Press Escape to leave state unchanged.</small>
-        </section>
+        <OperatorConfirmation
+          pending={pending}
+          confirmButton={confirmButton}
+          confirmDisabled={locked || missingToken || busyAction !== null}
+          onCancel={closeConfirmation}
+          onConfirm={confirmPending}
+        />
       ) : null}
 
-      {/* No server band here: `Provider routing controls` above this panel
-          already names the group and its scope, and a second header saying
-          the same thing in different words is the clutter this pass is
-          removing. The session band below stays — it marks a change of blast
+      {/* No server band inside the rows: `Provider routing controls` above
+          already names the group and its scope, and a second header saying the
+          same thing in different words is the clutter this pass removed. The
+          session band on the Session card stays — it marks a change of blast
           radius, not a repeat. */}
 
-      {/* ---- cache ------------------------------------------------------- */}
-      <div className="console-action">
-        <div className="console-action__head">
-          <strong>Purge cached responses</strong>
-          <span className="console-action__figure num">{figure(counters?.cacheEntries, "cached") ?? "—"}{counters?.stateEntries != null ? `, ${counters.stateEntries} state` : ""}</span>
-          <div className="console-action__controls">
-            <label className="sr-only" htmlFor="console-purge-scope">Purge scope</label>
-            <select
-              id="console-purge-scope"
-              value={purgeScope}
-              onChange={(event) => setPurgeScope(event.target.value)}
-            >
-              {PURGE_SCOPES.map((scope) => (
-                <option key={scope} value={scope}>{scope}</option>
-              ))}
-              <option value="symbol">Symbol: {symbol}</option>
-            </select>
-            <button
-              type="button"
-              onClick={(event) => {
-                const scope = purgeScope === "symbol" ? `symbol:${symbol}` : purgeScope;
-                requestConfirmation(event.currentTarget, {
-                  action: "purge_cache",
-                  options: { scope },
-                  title: "Purge cached responses?",
-                  confirmLabel: "Confirm purge",
-                  target: purgeScope === "symbol" ? `Symbol: ${symbol}` : scope,
-                  effect: "Matching cached responses will be dropped. The next request for every removed key goes upstream and spends real provider quota.",
-                });
-              }}
-              disabled={disabled}
-              className="is-disruptive"
-            >
-              {busyAction === "purge_cache" ? "Purging…" : "Purge"}
-            </button>
-          </div>
-        </div>
-        {/* The COST stays inline. This file's own rule: costs are rendered next
-            to the buttons, not buried, because the person clicking is usually
-            the person who will be surprised by the bill. Only the scope — what
-            a control does not touch — collapses into the disclosure below. */}
-        <small className="muted">
-          The next request for each purged key goes upstream and spends a real call.
-        </small>
-      </div>
-
-      {/* ---- routing ----------------------------------------------------- */}
-      <div className="console-action">
-        <div className="console-action__head">
-          <strong>Restore routing</strong>
-          <span className="console-action__figure num">{`${openCircuits} open, ${simulated} simulated`}</span>
-          <div className="console-action__controls">
-            <button
-              type="button"
-              onClick={() => onAction("reset_breaker", { provider: "all" })}
-              disabled={disabled}
-              className="is-recovery"
-            >
-              Close all circuits
-            </button>
-            <button
-              type="button"
-              onClick={() => onAction("clear_outage", { provider: "all" })}
-              disabled={disabled}
-              className="is-recovery"
-            >
-              Clear simulated outages
-            </button>
-          </div>
-        </div>
-        <small className="muted">
-          Closing a circuit asks the provider again; it does not declare it healthy.
-        </small>
-      </div>
-
-      {/* ---- configuration ----------------------------------------------- */}
-      <div className="console-action">
-        <div className="console-action__head">
-          <strong>Re-read provider configuration</strong>
-          <span className="console-action__figure num">{`${rows.length} providers`}</span>
-          <div className="console-action__controls">
-            <button type="button" onClick={() => onAction("reload_providers")} disabled={disabled}>
-              {busyAction === "reload_providers" ? "Reloading…" : "Reload"}
-            </button>
-          </div>
-        </div>
-        {/* Only the caveat stays inline: acting on the belief that Reload
-            applied a new key is how a dead provider gets declared configured.
-            What the reload actually re-reads is scope, and scope lives in the
-            disclosure below. */}
-        <small className="muted">
-          Cannot import a changed <code>.env</code> from disk — new keys still need a restart or a
-          redeploy.
-        </small>
-      </div>
-
-      {/* ---- ledger ------------------------------------------------------ */}
-      <div className="console-action">
-        <div className="console-action__head">
-          <strong>Reset a quota ledger</strong>
-          <span className="console-action__figure num">{`${quotaLedgers} ledgers`}</span>
-          <div className="console-action__controls">
-            <label className="sr-only" htmlFor="console-quota-target">Provider</label>
-            <select
-              id="console-quota-target"
-              value={validQuotaTarget}
-              onChange={(event) => setQuotaTarget(event.target.value)}
-            >
-              <option value="">choose a provider…</option>
-              {metered.map((provider) => (
-                <option key={provider.id} value={provider.id}>
-                  {provider.label} ({provider.quota!.used}/{provider.quota!.limit})
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={(event) => {
-                const provider = metered.find((candidate) => candidate.id === validQuotaTarget);
-                requestConfirmation(event.currentTarget, {
-                  action: "reset_quota",
-                  options: { provider: validQuotaTarget },
-                  title: "Reset the local quota ledger?",
-                  confirmLabel: "Confirm reset",
-                  target: provider ? `${provider.label} (${provider.id})` : validQuotaTarget,
-                  effect: "Only this instance's accounting is reset. The vendor's meter and billing remain unchanged, so subsequent calls can still be rejected or billed upstream.",
-                });
-              }}
-              disabled={disabled || !validQuotaTarget}
-              className="is-disruptive"
-            >
-              Reset counter
-            </button>
-          </div>
-        </div>
-        {/* Cost inline, use-case in the disclosure — the panel's own rule.
-            The "useful after an instance swap" sentence lives in the "What
-            each server control touches" dd below; it was printed here too,
-            verbatim, twice on one pane. */}
-        <small className="console-warn">
-          This clears <em>our</em> count, not the vendor&apos;s meter. The provider still believes it
-          served those calls; further requests may be rejected upstream or billed.
-        </small>
-      </div>
-
-      {/* ---- telemetry --------------------------------------------------- */}
-      <div className="console-action">
-        <div className="console-action__head">
-          <strong>Clear telemetry buffers</strong>
-          <span className="console-action__figure num">{counters?.eventsRetained != null ? `${counters.eventsRetained}/${counters.eventsCapacity ?? "—"} events` : "—"}</span>
-          <div className="console-action__controls">
-            <button
-              type="button"
-              onClick={(event) => requestConfirmation(event.currentTarget, {
-                action: "clear_telemetry",
-                title: "Clear diagnostic telemetry?",
-                confirmLabel: "Confirm clear",
-                target: "event ring, latency samples and cache counters",
-                effect: "The current instance's retained investigation history will be destroyed. Circuit and simulated-outage behaviour survives, but the evidence that led here does not.",
-              })}
-              disabled={disabled}
-              className="is-disruptive"
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-        {/* The cost alone. What survives — circuit state, simulated outages —
-            is scope, and the disclosure below already says it in its own words;
-            printed here too it was this panel's one duplicated sentence. */}
-        <small className="muted">
-          Destroys this instance&rsquo;s investigation history.
-        </small>
-      </div>
-
-      <details className="disclosure">
-        <summary>What each server control touches, and what it deliberately leaves alone</summary>
-        <dl className="operator-scope-notes">
-          <dt>Purge cached responses</dt>
-          <dd>Drops matching entries only. Quota counters and breaker state are a different namespace and are left alone.</dd>
-          <dt>Restore routing</dt>
-          <dd>A circuit that is still failing reopens after three more consecutive failures.</dd>
-          <dt>Re-read provider configuration</dt>
-          <dd>Re-evaluates the environment this process already holds and drops the cached OpenBB readiness verdict. Next.js reads <code>.env</code> once at boot.</dd>
-          <dt>Reset a quota ledger</dt>
-          <dd>Useful after an instance swap left the ledger pessimistic — not as a way to get more calls.</dd>
-          <dt>Clear telemetry buffers</dt>
-          <dd>Empties the server event ring, latency samples and cache counters. Circuit state and simulated outages survive — those are behaviour, not observation.</dd>
-        </dl>
-      </details>
-
-    </div>
-  );
-}
-
-interface SessionControlsProps {
-  pollMs: number;
-  onPollMsChange: (ms: number) => void;
-  socketCount: number;
-  onReconnectSockets: () => void;
-}
-
-/**
- * Remediation's Session pane — split from the card above along the blast-radius
- * seam its two group headings drew: everything above mutates server state
- * behind the guard; nothing here touches the server, so no guard renders.
- */
-export function SessionControls({
-  pollMs,
-  onPollMsChange,
-  socketCount,
-  onReconnectSockets,
-}: SessionControlsProps) {
-  return (
-    <div className="card console-card console-actions">
-      {/* "This browser only" is said once, on the card heading — each row
-          under it used to open with "Browser-side." as well. */}
-      <div className="section-heading compact">
-        <div>
-          <span className="page-kicker">Control</span>
-          <h2>Session controls</h2>
-        </div>
-        <span className="section-note">This browser only. No server state is mutated.</span>
-      </div>
-
-      <div className="console-action console-action--client">
-        <div className="console-action__head">
-          <strong>Reconnect WebSockets</strong>
-          <div className="console-action__controls">
-            <button type="button" onClick={onReconnectSockets} disabled={socketCount === 0}>
-              Cycle {socketCount} {socketCount === 1 ? "socket" : "sockets"}
-            </button>
-          </div>
-        </div>
-        <small className="muted">
-          Drops and re-handshakes every exchange socket this tab owns.
-          {socketCount === 0 && " No socket is open — the wire tap opens them when it is on screen."}
-        </small>
-      </div>
-
-      <div className="console-action console-action--client">
-        <div className="console-action__head">
-          <strong>Health snapshot cadence</strong>
-          <div className="seg console-seg" role="group" aria-label="System health poll cadence">
-            {CADENCES.map((cadence) => (
-              <button
-                key={cadence.label}
-                type="button"
-                aria-pressed={pollMs === cadence.ms}
-                onClick={() => onPollMsChange(cadence.ms)}
-              >
-                {cadence.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <small className="muted">
-          Unattended ticks are sent at <code>background</code> priority, so a 1s debugging loop
-          cannot spend the budget a person needs later.
-        </small>
-      </div>
-
-      <details className="disclosure">
-        <summary>Why a browser-side control cannot change server state</summary>
-        <dl className="operator-scope-notes">
-          <dt>Reconnect WebSockets</dt>
-          <dd>Resets the backoff and the sequence guard rather than waiting one out. The sockets belong to this tab, so nothing on the server is touched.</dd>
-          <dt>Health snapshot cadence</dt>
-          <dd>Background priority is fenced out of each provider&rsquo;s interactive reserve. Only an explicit <em>Refresh now</em> requests interactive priority.</dd>
-        </dl>
-      </details>
+      <OperatorControls
+        symbol={symbol}
+        counters={counters}
+        busyAction={busyAction}
+        disabled={disabled}
+        providerCount={rows.length}
+        openCircuits={openCircuits}
+        simulated={simulated}
+        quotaLedgers={quotaLedgers}
+        metered={metered}
+        purgeScope={purgeScope}
+        onPurgeScopeChange={setPurgeScope}
+        quotaTarget={validQuotaTarget}
+        onQuotaTargetChange={setQuotaTarget}
+        onAction={onAction}
+        onRequestConfirmation={requestConfirmation}
+      />
 
     </div>
   );
