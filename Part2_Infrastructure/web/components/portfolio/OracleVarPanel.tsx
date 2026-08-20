@@ -133,10 +133,14 @@ export default function OracleVarPanel({
             The figure states its own horizon in the tile note below. */}
         <span>{horizonDays}-day horizon</span>
       </div>
+      {/* Which database is this card's own fact; that it is not this browser
+          is the heading's "In-database" and the kicker, twice already. The
+          terminal-value/one-day distinction below is not decoration — a VaR
+          without the horizon it answers over is the wrong number. */}
       <p className="sub">
-        Simulated by Oracle 23ai, not by this browser. It is a <strong>terminal-value</strong> GBM
-        VaR over the horizon — a different question from the one-day book VaR above, so the two are
-        shown side by side rather than merged.
+        Simulated by Oracle 23ai. It is a <strong>terminal-value</strong> GBM VaR over the
+        horizon — a different question from the one-day book VaR above, so the two are shown side
+        by side rather than merged.
       </p>
 
       {annualVol === null ? (

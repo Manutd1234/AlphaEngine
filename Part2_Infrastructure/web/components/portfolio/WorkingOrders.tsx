@@ -255,8 +255,7 @@ export default function WorkingOrders({
           <span aria-hidden>◆</span>
           <div>
             <strong>Generated resting orders.</strong> These were never sent anywhere and cannot be
-            cancelled — the actions below are disabled rather than hidden, so the shape of the real
-            panel stays visible.
+            cancelled; the actions below are disabled rather than hidden.
           </div>
         </div>
       )}
@@ -394,12 +393,12 @@ export default function WorkingOrders({
 
       <details className="disclosure">
         <summary>How a resting order is projected against the pre-trade caps</summary>
+        {/* Opened by calling a resting order committed capital — the kicker and the Committed column. */}
         <p className="research-note">
-          A resting order is committed capital, and the pre-trade gates already treat it as such: a
-          new order is projected against the worst side of this book filling, so two orders that each
-          pass a symbol cap alone cannot pass it together. Filling one is not modelled as a queue —
-          it fills in full the moment the consolidated touch crosses it, which is optimistic and says
-          so.
+          The pre-trade gates already treat a resting order as committed capital: a new order is
+          projected against the worst side of this book filling, so two orders that each pass a
+          symbol cap alone cannot pass it together. Filling one is not modelled as a queue — it fills
+          in full the moment the consolidated touch crosses it, which is optimistic and says so.
         </p>
       </details>
     </div>

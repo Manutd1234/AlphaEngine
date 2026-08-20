@@ -81,13 +81,15 @@ export default function CorrelationMatrix({ model, worst, observations }: Correl
         </div>
       )}
 
+      {/* The ramp is the caption: it shows hue as the sign and depth as the
+          strength, and the number in every cell is a cell away. A sentence
+          under it narrated all three. */}
       <div className="corr-legend">
         <span>−1</span>
         <i className="is-neg" aria-hidden />
         <span className="muted">0</span>
         <i className="is-pos" aria-hidden />
         <span>+1</span>
-        <small>hue is the sign, depth is the strength, and every cell prints its own number</small>
       </div>
 
       <div className="table-wrap" tabIndex={0}>

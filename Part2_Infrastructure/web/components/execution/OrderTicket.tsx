@@ -465,8 +465,8 @@ export default function OrderTicket({
             button is dead, say so in text, not only in a hover title. */}
         {limitInvalid && !busy && !disabled ? (
           <p className="cockpit-ticket__hint">
-            Type a limit price to enable Send — the grey {mid != null ? fmt(mid, priceDp(mid)) : ""}{" "}
-            is the current mark shown as a hint, not a filled-in value. Or switch back to Market.
+            Type a limit price to enable Send — the grey number in the field is the current mark
+            shown as a hint, not a filled-in value. Or switch back to Market.
           </p>
         ) : null}
 

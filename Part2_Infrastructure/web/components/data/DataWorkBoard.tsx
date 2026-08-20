@@ -248,10 +248,8 @@ export default function DataWorkBoard({
             </span>
           </div>
           <h2>Requests, tickets &amp; bugs</h2>
-          <p className="sub">
-            Triage by impact, protect active work with a visible limit, and move every item with a
-            keyboard-accessible status control.
-          </p>
+          {/* No sub here: it narrated the sort select, each column's own n/limit
+              and the Status select on every card, all of which state themselves. */}
         </div>
         {/* One tile, not four: Open, P0/P1 and Active WIP already stand in
             the PageHead directly above this card, computed from the same
@@ -346,7 +344,8 @@ export default function DataWorkBoard({
               <span className="page-kicker">New work item</span>
               <strong>Capture the smallest useful intake record</strong>
             </div>
-            <small>New items enter Intake for triage.</small>
+            {/* No "New items enter Intake for triage": the submit button reads
+                "Add to Intake" and the Intake column reads "Needs triage". */}
           </div>
           <label className="data-workboard__composer-title">
             <span>Title</span>

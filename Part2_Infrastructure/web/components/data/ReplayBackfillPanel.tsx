@@ -234,7 +234,9 @@ export default function ReplayBackfillPanel({
 
       <div className="data-console-pair">
         <form onSubmit={onReplay} aria-label="Replay one capability">
-          <p className="console-subhead">Replay {symbol}<small className="muted"> — one capability, cache bypassed; the result lands in the quality ledger.</small></p>
+          {/* "one capability" was the seg below and the submit button, which
+              spells the chosen one out ("Replay quote"). */}
+          <p className="console-subhead">Replay {symbol}<small className="muted"> — cache bypassed; the result lands in the quality ledger.</small></p>
           <div className="seg console-seg" role="group" aria-label="Capability to replay">
             {CAPABILITIES.map((item) => (
               <button key={item} type="button" aria-pressed={item === capability} onClick={() => setCapability(item)}>{item}</button>
@@ -251,7 +253,9 @@ export default function ReplayBackfillPanel({
         </form>
 
         <form onSubmit={onBackfill} aria-label="Backfill bars">
-          <p className="console-subhead">Backfill {symbol}<small className="muted"> — bars for a date range, contract-checked, merged into the gateway&apos;s bar cache.</small></p>
+          {/* "bars for a date range" was the interval select and the two date
+              inputs directly below, plus the bar cap in the cost line. */}
+          <p className="console-subhead">Backfill {symbol}<small className="muted"> — contract-checked, merged into the gateway&apos;s bar cache.</small></p>
           <div className="console-inspector__controls">
             <label className="console-check">
               <span className="sr-only">Interval</span>

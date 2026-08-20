@@ -98,7 +98,10 @@ export default function OrderBlotter({
           <p className="muted">
             {source === "sandbox"
               ? "A generated session, newest first — same shape as the audit log, none of it audited."
-              : "Every decision the gateway made, newest first — accepted and rejected alike, straight from the append-only audit log."}
+              // "accepted and rejected alike" went with the single table: the view
+              // seg directly above states the two as controls, and on a filtered
+              // view the claim was about rows this table is not showing.
+              : "Every decision the gateway made, newest first, straight from the append-only audit log."}
             {visible.length !== rows.length ? ` Showing ${visible.length} of ${rows.length}.` : ""}
           </p>
         </div>
@@ -291,7 +294,11 @@ export default function OrderBlotter({
                             <code>{row.orderId}</code>
                             {row.clientOrderId ? <>; client <code>{row.clientOrderId}</code></> : null}
                             {row.source ? <>; via {row.source}</> : null}
-                            {row.feeUsd != null ? <>; fee {usd(row.feeUsd, 2)}</> : null}
+                            {/* Unfilled only. The fills view prints the fee in its own
+                                column in the row directly above; the unfilled view has no
+                                fee column, and a cancelled order that partly filled still
+                                paid one. */}
+                            {view === "unfilled" && row.feeUsd != null ? <>; fee {usd(row.feeUsd, 2)}</> : null}
                           </p>
                           {row.reason ? <p>{row.reason}</p> : null}
 
