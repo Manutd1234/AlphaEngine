@@ -314,6 +314,30 @@ class TestReduceOnlyMode:
         assert not flipping.accepted
         assert "reduce_only" in failed(flipping)
 
+    async def test_the_operator_override_lands_and_is_audited(self, gateway, tmp_path):
+        """`set_reduce_only` called two methods that do not exist.
+
+        It awaited `self._audit(...)` and returned `self.get_state()`; the
+        gateway has `audit` and `state`. So every call raised `AttributeError`
+        *after* setting the override — the desk went reduce-only, the audit row
+        was never written, and `POST /api/risk/reduce-only` answered 500 for a
+        change it had already made.
+
+        Nothing caught it because every test in this class asserted through
+        `gateway.reduce_only_active()` and the fixture carries `audit=None`.
+        Both halves are exercised here for that reason.
+        """
+        from modules.audit import AuditLog
+
+        gateway.audit = AuditLog(tmp_path / "reduce_only.duckdb")
+        state = await gateway.set_reduce_only(True, actor="ian", reason="vol spike")
+        assert state.reduce_only is True
+        assert state.reduce_only_source == "operator"
+
+        event = next(e for e in gateway.audit.recent_events(10) if e["event"] == "reduce_only_toggled")
+        assert "ian" in event["detail"] and "vol spike" in event["detail"]
+        assert (await gateway.set_reduce_only(False)).reduce_only is False
+
     async def test_the_state_says_which_regime_the_desk_is_in(self, gateway):
         assert gateway.state().reduce_only is False
         self._stress(gateway, fraction=0.9)

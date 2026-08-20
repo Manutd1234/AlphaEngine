@@ -24,9 +24,18 @@ have meant `@every=15m` describing a person.
 ── Why an unparseable entry is kept, not dropped ─────────────────────────────
 
 A rota that silently ignores the line with the typo in it pages nobody and says
-nothing. Every entry carries its own `error`, `health()` publishes them, and
+nothing. Every entry carries its own `error`, `rota_health` publishes them, and
 `oncall_at` skips only the invalid ones — so a desk with one broken entry still
 pages through the others AND can see which one is broken.
+
+── Where the rota reports itself ─────────────────────────────────────────────
+
+A mechanism nobody can see is not a mechanism, so the rota is published in two
+shapes rather than none. `rota_health` is the full one, names included, for
+surfaces that already hold identities. `oncall_snapshot` is the redacted one
+carried on `/api/ops/snapshot`, which has a standing rule against usernames and
+is readable anonymously on a deployment that has not turned auth on. The second
+is computed from the first, so the two cannot disagree about the same rota.
 """
 
 from __future__ import annotations
@@ -36,6 +45,8 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, time
 from typing import Any
+
+from pydantic import BaseModel
 
 log = logging.getLogger("alphaengine.oncall")
 
@@ -169,6 +180,72 @@ def rota_health(rota: list[OnCallEntry], when: datetime | None = None) -> dict[s
         # whole variable; the raw line sends them to the typo.
         "invalid": [{"raw": e.raw, "error": e.error} for e in invalid],
     }
+
+
+class OnCallSnapshot(BaseModel):
+    """The rota as `/api/ops/snapshot` publishes it — counted, never named.
+
+    `rota_health` above names people and echoes the raw line of a broken entry,
+    because whoever reads it is already inside Telegram or a log the desk owns.
+    This endpoint is a different audience with a written rule: it "deliberately
+    excludes raw URLs, storage paths, usernames and error strings", and
+    `trader_identity` resolves to `web:anonymous` on a deployment that has not
+    turned auth on. `mei@mon-fri=09:00-18:00` is a person's handle and a
+    schedule of when they are awake, so it does not go on this wire.
+
+    What survives redaction is still the whole operational question. "A rota is
+    configured, three entries, one of them will never fire, and nobody is on
+    call right now" is what an operator needs to know; the name is what they
+    look up next, in the surface that is allowed to hold it.
+
+    `invalid` is therefore a COUNT here and a list of raw lines in
+    `rota_health`. That asymmetry is the redaction, and it is the only
+    difference between the two — both are computed from one call to
+    `rota_health`, so they cannot drift into disagreeing about the same rota.
+    """
+
+    #: False with `entries: 0` is the shipped-empty state, not a fault: E2.10
+    #: ships the mechanism and the roster is the desk's to fill.
+    configured: bool
+    entries: int
+    valid: int
+    invalid: int
+    #: Somebody owns this moment. False on an empty rota and false in an
+    #: uncovered hour of a configured one — different causes, and `entries`
+    #: is what separates them.
+    covered: bool
+    #: Whether the second escalation channel exists at all. Telegram's own
+    #: state is published beside this in the same snapshot, so the two together
+    #: answer "could a page reach anyone" without either one guessing.
+    webhook_configured: bool
+
+
+def oncall_snapshot(
+    rota: str = "",
+    *,
+    webhook_url: str = "",
+    when: datetime | None = None,
+) -> OnCallSnapshot:
+    """Build the redacted rota block for the operations snapshot.
+
+    Takes the rota expression and the webhook URL as arguments rather than
+    reading `config.settings`, for the same reason `escalation_channel` does:
+    this module is the grammar and the delivery, and a module that reaches into
+    global configuration cannot be tested against a rota the test wrote.
+
+    The URL is reduced to a boolean here and never stored — a webhook URL
+    routinely carries a token in its path, which is exactly the class of string
+    this endpoint refuses to publish.
+    """
+    health = rota_health(parse_rota(rota), when)
+    return OnCallSnapshot(
+        configured=health["configured"],
+        entries=health["entries"],
+        valid=health["valid"],
+        invalid=len(health["invalid"]),
+        covered=health["on_call"] is not None,
+        webhook_configured=bool(webhook_url),
+    )
 
 
 async def post_webhook(url: str, payload: dict[str, Any], *, timeout_s: float = 10.0) -> bool:

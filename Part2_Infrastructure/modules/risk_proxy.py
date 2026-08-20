@@ -58,6 +58,7 @@ from modules.schemas import (
     RiskState,
     WorkingOrder,
 )
+from modules.single_writer import claim as claim_single_writer
 
 log = logging.getLogger("alphaengine.risk")
 
@@ -925,6 +926,7 @@ class RiskGateway:
                 log.error("alert hook failed: %s", exc)
 
     async def start(self) -> None:
+        claim_single_writer()  # raises if a second process already owns this DATA_DIR
         self._monitor = asyncio.create_task(self._monitor_loop(), name="risk-monitor")
         self._working_task = asyncio.create_task(self._working_loop(), name="risk-working-orders")
 
@@ -952,9 +954,11 @@ class RiskGateway:
     async def set_reduce_only(self, enabled: bool, actor: str = "operator", reason: str = "") -> RiskState:
         """Operator override for reduce-only mode (the soft halt)."""
         self._reduce_only_override = enabled
-        await self._audit("REDUCE_ONLY_TOGGLED", {"enabled": enabled, "actor": actor, "reason": reason})
-        await self._alert("REDUCE_ONLY_TOGGLED", f"Reduce-only mode set to {enabled} by {actor}: {reason}")
-        return self.get_state()
+        detail = f"Reduce-only mode set to {enabled} by {actor}: {reason}"
+        if self.audit:
+            self.audit.record_risk_event("reduce_only_toggled", severity="warning", actor=actor, detail=detail, payload={"enabled": enabled, "reason": reason})
+        await self._alert("REDUCE_ONLY_TOGGLED", detail)
+        return self.state()
 
     def snapshot_equity(self) -> None:
         """Write one equity observation to the audit log.
@@ -1243,9 +1247,7 @@ class RiskGateway:
             slot[0 if wo.side == "BUY" else 1] += wo.notional
         return sum(max(buy, sell) for buy, sell in by_symbol.values())
 
-    def projected_symbol_notional(
-        self, symbol: str, incoming_signed_qty: float, price: float,
-    ) -> float:
+    def projected_symbol_notional(self, symbol: str, incoming_signed_qty: float, price: float) -> float:
         """Worst-case symbol exposure once the resting book is included.
 
         Netting a resting buy against a resting sell would assume they fill
@@ -1625,9 +1627,7 @@ class RiskGateway:
         await self._drain_deferred_audit()
         return cancelled
 
-    async def replace_working(
-        self, order_id: str, req: ReplaceRequest, actor: str = "api",
-    ) -> RiskDecision | None:
+    async def replace_working(self, order_id: str, req: ReplaceRequest, actor: str = "api") -> RiskDecision | None:
         """Cancel-and-new. ``None`` when the id is not resting.
 
         The replacement runs the full gate battery and the caller gets *its*
@@ -1722,8 +1722,7 @@ class RiskGateway:
         )
         return self.kill
 
-    async def release_kill(self, actor: str, symbol: str | None = None,
-                           reason: str | None = None) -> KillSwitch:
+    async def release_kill(self, actor: str, symbol: str | None = None, reason: str | None = None) -> KillSwitch:
         """Resume trading, recording *why*.
 
         A halt records what tripped it; a resume recorded only who pressed the

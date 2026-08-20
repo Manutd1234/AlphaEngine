@@ -6,6 +6,14 @@ multi-worker uvicorn forks an in-memory risk book, a USER before its chown
 produces an unwritable /app/data (which config.py's import-time ensure_dirs
 turns into a dead process), and a token pasted into a compose file is how the
 last leaked credential got leaked.
+
+The limit of this file is worth stating: it reads the committed image
+definition and nothing else. It cannot see `docker compose up --scale
+gateway=2`, a second container on the same named volume, or a uvicorn started
+by hand with `--workers`. `modules/single_writer.py` is what refuses those at
+runtime, and `tests/test_single_writer.py` pins it. Neither makes the gateway
+multi-process — the `--workers` ban below is exactly as load-bearing as it was;
+what the pair adds is that breaking it now fails loudly instead of silently.
 """
 
 from __future__ import annotations
