@@ -176,8 +176,8 @@ export default function AllocationDonut({
             <strong className="num">{pct(largestShare, 1)}</strong> of gross, HHI{" "}
             <strong className="num">{fmt(hhi, 3)}</strong> at its maximum,{" "}
             <strong className="num">{fmt(effectivePositions, 1)}</strong> effective position. A
-            single-asset book is trivially 100% of itself under any measure — concentration only
-            becomes a measurement once a second name is on.
+            single-asset book is trivially 100% of itself; concentration is a measurement only once
+            a second name is on.
           </span>
         ) : (
           <>
@@ -197,10 +197,9 @@ export default function AllocationDonut({
       <details className="disclosure">
         <summary>How this is sized, and what it does not tell you</summary>
         <p className="research-note">
-          Sized by gross notional, so a long and a short of equal size read as two concentrations
-          rather than cancelling to nothing. Effective positions is the inverse Herfindahl index — it
-          falls below the position count whenever the book is unevenly weighted, and it says nothing
-          about whether those positions move together. The correlation matrix does.
+          Sized by gross notional, so a long and a short of the same size read as two concentrations
+          rather than cancelling. Whether those positions move together is the correlation
+          matrix&rsquo;s question, not this ring&rsquo;s.
         </p>
       </details>
     </div>
