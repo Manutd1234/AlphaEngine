@@ -867,7 +867,7 @@ The companion is optional: the gateway, API and web workspace remain fully
 functional with no Telegram token. When enabled, it is an independent text and
 visual-chart interface for phone-friendly portfolio, OpenBB, execution and
 health cards. It does not render a web page or send web links, and it cannot
-open a position. The companion registers **122 commands**; **6** of them change
+open a position. The companion registers **123 commands**; **6** of them change
 what the desk is allowed to do — `/halt`, `/resume`, `/flatten`, `/reduceonly`,
 `/resetbook` — and each requires membership of `TELEGRAM_CONTROL_USER_IDS`
 (**Gated controls**, below), which is separate from the read allow-list and
@@ -1120,6 +1120,7 @@ can scale independently from portfolio state.
 |---|---|
 | `/trust` | Feed trust verdict and book-age freshness |
 | `/dataquality [N]` | Feed degrade/recover events and reconnect counts |
+| `/ack <ID>` | Take a data-quality escalation, by id |
 | `/payload SYMBOL` | Per-venue provenance for one symbol |
 | `/providers` | OpenBB, venue feeds and web-ops quota/outages |
 | `/tasks` | The persisted Data work queue by status, and the research jobs engine |

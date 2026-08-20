@@ -1,6 +1,6 @@
 # Telegram live checklist
 
-The automated suite dispatches all 122 commands on every push and asserts their
+The automated suite dispatches all 123 commands on every push and asserts their
 replies. What it cannot do is prove the bot is reachable from *your* Telegram
 account, that BotFather is showing the right menu, or that a photo actually
 renders on a phone. That is what this is for: fifteen minutes of tapping,

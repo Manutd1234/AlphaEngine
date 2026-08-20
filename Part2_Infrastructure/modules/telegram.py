@@ -745,6 +745,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     # Data engineer — feed trust, provenance and the web telemetry ledger.
     CommandSpec("trust", "Data · Feed trust verdict and book-age freshness", "Data", "/trust", "/trust", "_cmd_trust", ("datatrust",)),
     CommandSpec("dataquality", "Data · Feed degrade/recover events and reconnect counts", "Data", "/dataquality [N]", "/dataquality", "_cmd_dataquality", ("dq", "quarantine"), in_menu=False),
+    CommandSpec("ack", "Data · Take a data-quality escalation, by id", "Data", "/ack <ID>", "/ack 7", "_cmd_ack", ("acknowledge",), in_menu=False),
     CommandSpec("payload", "Data · Per-venue provenance for one symbol", "Data", "/payload SYMBOL", "/payload BTCUSDT", "_cmd_payload", ("lineagepayload", "provenance"), in_menu=False),
     CommandSpec("providers", "Data · OpenBB, venue feeds and web-ops quota/outages", "Data", "/providers", "/providers", "_cmd_providers"),
     CommandSpec("tasks", "Data · The persisted Data work queue by status, and the research jobs engine", "Data", "/tasks", "/tasks", "_cmd_tasks", ("queue", "work"), in_menu=False),
@@ -5510,6 +5511,53 @@ class TelegramBot:
         await self.send_media_group(chat_id, [("trust", chart)] if chart else [], caption=text_card(
             "🔎 Data trust", verdict, lines,
             source="TCA feeds + OpenBB + audit", next_commands="/dataquality · /payload BTCUSDT · /feedstatus"))
+
+    async def _cmd_ack(self, args, chat_id, actor) -> None:
+        """Take an escalation, from the one surface where a real person exists.
+
+        The gateway's HTTP identity resolves to `web:token` or `web:anonymous`
+        — a capability, not a person — so a web acknowledgement can only ever
+        record the token that made it. Telegram carries a user id, which is why
+        the acknowledgement lands here first and why this handler refuses an
+        actor it cannot name.
+        """
+        from modules.data_quality import get_data_quality
+
+        raw = (args[0] if args else "").strip()
+        if not raw.isdigit():
+            await self.send_message(chat_id, text_card(
+                "Acknowledge an escalation", "USAGE",
+                ["<code>/ack &lt;ID&gt;</code> — the id shown beside an open escalation in /trust."],
+                source="Data quality ledger", next_commands="/trust · /dataquality",
+            ))
+            return
+
+        try:
+            user_id = self._user_id_from_actor(actor)
+        except PermissionError:
+            await self.send_message(chat_id, text_card(
+                "Acknowledge an escalation", "REFUSED",
+                ["This chat is not bound to a desk identity, so an acknowledgement here "
+                 "would have no name against it."],
+                source="Data quality ledger", next_commands="/start · /whoami",
+            ))
+            return
+
+        taken = await asyncio.to_thread(
+            get_data_quality().acknowledge, int(raw), f"telegram:{user_id}",
+        )
+        if taken:
+            body = [f"Escalation <b>{esc(raw)}</b> is acknowledged by <code>telegram:{esc(str(user_id))}</code>."]
+            state = "ACKNOWLEDGED"
+        else:
+            # Not an error. "Already resolved" and "no such escalation" are both
+            # "there is nothing to take", and neither is a failure to report.
+            body = [f"Nothing open with id <b>{esc(raw)}</b> — it has resolved, or there is no such escalation."]
+            state = "NOTHING TO TAKE"
+        await self.send_message(chat_id, text_card(
+            "Acknowledge an escalation", state, body,
+            source="Data quality ledger", next_commands="/trust · /dataquality",
+        ))
 
     async def _cmd_dataquality(self, args, chat_id, actor) -> None:
         """Feed degrade/recover transitions from the audit log, and reconnects."""

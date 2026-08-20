@@ -5505,6 +5505,83 @@
         ]
       }
     },
+    "/api/data-quality/escalations/{escalation_id}/ack": {
+      "post": {
+        "description": "Take an open escalation.\n\nThe actor recorded here is whatever `trader_identity` resolved to, which is\n`web:token` or `web:anonymous` \u2014 a capability, not a person. That is written\ndown rather than dressed up: an acknowledgement from the web says which\ncredential took it, and only Telegram, which carries a real user id, can say\nwho. A desk that wants a name against an escalation uses `/ack`.\n\nReturns `taken: false` when there is nothing open with that id. Not an\nerror \u2014 \"already resolved\" and \"no such escalation\" are both \"there is\nnothing to take\", and neither is a failure.",
+        "operationId": "acknowledge_escalation_api_data_quality_escalations__escalation_id__ack_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "escalation_id",
+            "required": true,
+            "schema": {
+              "title": "Escalation Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Acknowledge Escalation Api Data Quality Escalations  Escalation Id  Ack Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Acknowledge Escalation",
+        "tags": [
+          "data"
+        ]
+      }
+    },
     "/api/data-quality/findings": {
       "get": {
         "description": "Older findings than the view carries, filtered; newest first.",

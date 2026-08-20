@@ -384,6 +384,26 @@ async def data_quality_view(_actor: str = Depends(trader_identity)) -> DataQuali
     return get_data_quality().view()
 
 
+@app.post("/api/data-quality/escalations/{escalation_id}/ack", tags=["data"])
+async def acknowledge_escalation(
+    escalation_id: int, actor: str = Depends(trader_identity),
+) -> dict[str, Any]:
+    """Take an open escalation.
+
+    The actor recorded here is whatever `trader_identity` resolved to, which is
+    `web:token` or `web:anonymous` — a capability, not a person. That is written
+    down rather than dressed up: an acknowledgement from the web says which
+    credential took it, and only Telegram, which carries a real user id, can say
+    who. A desk that wants a name against an escalation uses `/ack`.
+
+    Returns `taken: false` when there is nothing open with that id. Not an
+    error — "already resolved" and "no such escalation" are both "there is
+    nothing to take", and neither is a failure.
+    """
+    taken = await asyncio.to_thread(get_data_quality().acknowledge, escalation_id, actor)
+    return {"escalation_id": escalation_id, "taken": taken, "acknowledged_by": actor if taken else None}
+
+
 @app.get("/api/data-quality/findings", response_model=DataQualityFindingsResponse, tags=["data"])
 async def data_quality_findings(
     limit: int = Query(default=100, ge=1, le=500),

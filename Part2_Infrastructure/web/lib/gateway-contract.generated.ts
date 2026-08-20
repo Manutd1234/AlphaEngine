@@ -844,6 +844,7 @@ export interface GatewayOperations {
   "POST /api/backtest": { request: BacktestRequest; response: Record<string, unknown> };
   "GET /api/book/{symbol}": { response: Array<VenueBook> };
   "GET /api/config": { response: Record<string, unknown> };
+  "POST /api/data-quality/escalations/{escalation_id}/ack": { response: Record<string, unknown> };
   "GET /api/data-quality/findings": { response: DataQualityFindingsResponse };
   "GET /api/data-quality/view": { response: DataQualityView };
   "POST /api/data/backfill": { request: DataBackfillRequest; response: DataJobAccepted };
@@ -900,6 +901,7 @@ export const GATEWAY_CONTRACT_PATHS = [
   "/api/backtest",
   "/api/book/{symbol}",
   "/api/config",
+  "/api/data-quality/escalations/{escalation_id}/ack",
   "/api/data-quality/findings",
   "/api/data-quality/view",
   "/api/data/backfill",
