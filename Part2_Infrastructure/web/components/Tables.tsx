@@ -55,7 +55,14 @@ export function ResultsTable({
                 aria-label={onSelect ? `Inspect parameters ${r.fast}/${r.slow}` : undefined}
                 style={{ cursor: onSelect ? "pointer" : undefined }}
               >
-                <th scope="row" style={{ textAlign: "left", padding: "7px 10px", borderBottom: "1px solid var(--grid)", fontWeight: 600 }}>
+                {/* No inline style: `tbody th[scope="row"]` in globals.css sets
+                    exactly these four declarations, and the copy here was
+                    pinning a padding and a hairline colour the shared table
+                    rules have since moved off. An inline style is invisible to
+                    the theme and density tests, which is how a row header
+                    ended up half a pixel out of line with every td beside
+                    it. */}
+                <th scope="row">
                   {r.fast}/{r.slow}
                 </th>
                 <td className={sign(r.sharpe)}>{fmt(r.sharpe, 2)}</td>
