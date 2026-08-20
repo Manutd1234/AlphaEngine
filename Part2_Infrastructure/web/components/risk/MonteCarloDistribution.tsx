@@ -10,12 +10,19 @@
  * error. The computation runs in a dedicated worker; the main thread only
  * draws the result.
  *
- * Every parameter the simulation runs on is a control (McParameterRail) and is
- * reported back from the RESULT rather than from the request — the resampler
- * through `mcResamplerOf`, the confidences through `mcLossConfidences`, the
- * seed and block length as the run itself recorded them. A card that named a
- * parameter from what it asked for could not tell a reader when the two
- * disagreed, which is the only case worth reporting.
+ * Every parameter the simulation runs on is a control (McParameterRail), and
+ * where one is displayed it is read from the RESULT rather than from the
+ * request — the resampler through `mcResamplerOf`, the confidences through
+ * `mcLossConfidences`. A card that named a parameter from what it asked for
+ * could not tell a reader when the two disagreed, which is the only case worth
+ * reporting.
+ *
+ * The line that reported the seed, the block length and the path count was
+ * removed on request. Note what that does and does not change: the run is
+ * still reproducible, and the seed is still derived from the sweep rather than
+ * drawn fresh — the property survives, only the sentence about it went. It is
+ * `directed-removals.test.ts` (entry O.7) that keeps the sentence from coming
+ * back, not this comment.
  */
 
 import { useMemo, useState } from "react";
@@ -28,7 +35,7 @@ import McParameterRail, {
   type McBandChoice,
 } from "@/components/risk/McParameterRail";
 import StatTile from "@/components/StatTile";
-import { compact, fmt, usd } from "@/lib/format";
+import { fmt, usd } from "@/lib/format";
 import {
   MC_RESAMPLER_LABELS,
   mcLossConfidences,
@@ -291,14 +298,11 @@ export default function MonteCarloDistribution({
             </div>
           )}
 
-          <p className="research-note">
-            Reproducible: seed {result.seed}
-            {seedOverride !== null ? " (overridden here)" : " (derived from the sweep)"},{" "}
-            {MC_RESAMPLER_LABELS[ran]}
-            {ran === "stationary" ? ` over blocks averaging ${result.meanBlockLength} bars` : ""},{" "}
-            {result.paths.toLocaleString()} paths on {compact(equityForRun)} equity. Anyone who sets
-            these controls the same way redraws this exact distribution.
-          </p>
+          {/* The reproducibility note was removed on request. The property it
+              described is unchanged — the seed still runs the simulation and
+              is still on screen in the Seed control above (the derived seed as
+              the placeholder, an override as the typed value). Do not re-add
+              the sentence. */}
           <span className="sr-only" role="status">
             Monte Carlo complete: P{lossBands[1]} loss {usd(result.loss.p95, 0)},{" "}
             {withinHeadroom ? "within" : "breaching"} drawdown headroom.

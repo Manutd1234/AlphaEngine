@@ -100,6 +100,15 @@ const REMOVED: ReadonlyArray<readonly [string, string]> = [
   // second time beside the glyph. The fragment spans the tag because that is
   // what made it unique — the glyph alone is the version that stayed.
   ["D5.10", "ⓘ</span> {term}"],                         // 3dfa9d1, QuantEducationalTooltip
+
+  // Round O. Five paragraphs named directly by the desk. Each phrase was taken
+  // from the removed line and then checked to match nothing on screen — the
+  // discipline F4.1 failed by pinning a wording that was never rendered.
+  ["O.2", "Weighted from statistics"],          // QualityScorePanel, the scoring note
+  ["O.3", "Promotion moves a candidate"],       // PromotionPanel, the scope note
+  ["O.5", "Choose one in the controls"],        // BenchmarkPanel, the old empty state
+  ["O.7", "redraws this exact distribution"],   // MonteCarloDistribution, the seed line
+  ["O.8", "The shock is an assumption"],        // StressTest, the propagation note
 ];
 
 /**

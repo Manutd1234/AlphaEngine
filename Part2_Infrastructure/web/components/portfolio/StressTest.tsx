@@ -364,12 +364,6 @@ export default function StressTest({
             : `Nothing is set for ${referenceSymbol}, so there is no reference move for a beta to propagate. Set it, or use “everything else”, to move the rest of the book.`}
         </p>
       )}
-
-      <p className="research-note">
-        The shock is an assumption; the propagation is not. Betas are measured from the same daily
-        returns the risk engine uses. Scenario magnitudes are drawn from moves these markets have
-        actually made — which makes them plausible, not predictions.
-      </p>
     </div>
   );
 }

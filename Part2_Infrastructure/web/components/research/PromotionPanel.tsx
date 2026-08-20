@@ -144,11 +144,17 @@ export default function PromotionPanel({
         </button>
       </div>
 
-      <p className="research-note">
-        Promotion moves a candidate to the paper-pricing surface only. Order submission, position
-        sizing and the kill switch stay behind the authenticated risk gateway — this tab cannot reach
-        them, by design.
-      </p>
+      {/* A paragraph stood here and said the boundary out loud: promotion
+          reaches the paper-pricing surface only, while order submission,
+          position sizing and the kill switch stay behind the authenticated
+          risk gateway. The desk asked for the sentence to go, not the
+          boundary — so the boundary now lives somewhere a copy edit cannot
+          reach it. tests/promotion-boundary.test.ts walks this component's
+          whole import closure and fails if any module in it gains a fetch, an
+          /api/gateway path or a risk-control import, and it pins the hand-off
+          at the call site to staging plus navigation. Read that file before
+          widening onHandOff: the prop is a bare callback, so the panel is only
+          as inert as what the page hands it. */}
     </div>
   );
 }

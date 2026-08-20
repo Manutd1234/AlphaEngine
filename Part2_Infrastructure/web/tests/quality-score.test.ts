@@ -268,9 +268,22 @@ describe("the panel renders the score rather than a second version of it", () =>
 
   it("says which benchmark the benchmark category used", () => {
     // "Versus benchmark" reads as "versus the market" to anyone who has met the
-    // phrase elsewhere, and today it is buy-and-hold on the same symbol.
-    assert.match(code(panel), /buy-and-hold/);
-    assert.match(code(panel), /data\.request\.symbol/);
+    // phrase elsewhere, and unless a benchmark was selected it means
+    // buy-and-hold on the same symbol.
+    //
+    // This used to read the panel's methodology note, which named the
+    // instrument in prose beneath the breakdown. The desk had that paragraph
+    // removed, so the naming now travels one route only: `benchmarkLabel` into
+    // the benchmark category's `detail` — pinned one describe up — and that
+    // detail onto the row. Both halves are asserted here because either one
+    // failing alone puts the bare label back on screen implying the stronger
+    // reading, which is what this test has always been for.
+    assert.match(code(panel), /\{category\.detail\}/,
+      "the breakdown renders labels and scores without the line that names the benchmark");
+    const detail = qualityScore(qualityInputFromSweep(sweep()))
+      .categories.find((c) => c.id === "benchmark")!.detail;
+    assert.match(detail, /buy-and-hold on BTCUSDT/,
+      "the only line left naming the benchmark no longer names it");
   });
 
   it("reuses the existing meter grammar instead of declaring a third", () => {
