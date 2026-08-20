@@ -497,7 +497,32 @@ class ResearchRag:
             "matches": await self._match(
                 vector, match_count=match_count, kind=kind, query_text=query,
             ),
+            "corpus_size": await self._corpus_size(),
         }
+
+    async def _corpus_size(self) -> int | None:
+        """How many embedded documents the search could have matched.
+
+        `None`, never 0, when the count cannot be taken — the denominator's
+        whole job is to tell "one of one" apart from "one of four hundred", and
+        a failed count reported as zero would say something worse than nothing.
+        """
+        if not self._client:
+            return None
+        try:
+            response = await self._client.head(
+                "/rest/v1/research_documents",
+                params={"select": "id", "embedding_status": "eq.ready"},
+                headers={"Prefer": "count=exact", "Range-Unit": "items", "Range": "0-0"},
+            )
+            if response.status_code >= 400:
+                log.warning("research rag: corpus count HTTP %s", response.status_code)
+                return None
+            total = response.headers.get("content-range", "").split("/")[-1]
+            return int(total) if total.isdigit() else None
+        except Exception as exc:
+            log.warning("research rag: corpus count failed (%s)", type(exc).__name__)
+            return None
 
     async def connected(
         self, document_id: str, max_depth: int = 2, match_count: int = 10

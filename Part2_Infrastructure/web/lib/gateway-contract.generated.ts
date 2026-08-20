@@ -497,6 +497,7 @@ export interface ResearchRagSearchRequest {
 }
 
 export interface ResearchRagSearchResponse {
+  corpus_size?: number | null;
   matches?: Array<ResearchRagMatch>;
   state: "ok" | "unavailable" | "embed_failed";
 }

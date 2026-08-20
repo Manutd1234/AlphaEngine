@@ -2969,6 +2969,17 @@
       "ResearchRagSearchResponse": {
         "description": "`unavailable` is a state, never an empty match list wearing one's face:\n\"searched and found nothing\" and \"could not search\" are different facts.",
         "properties": {
+          "corpus_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corpus Size"
+          },
           "matches": {
             "items": {
               "$ref": "#/components/schemas/ResearchRagMatch"

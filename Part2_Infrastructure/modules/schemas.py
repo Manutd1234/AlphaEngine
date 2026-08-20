@@ -677,6 +677,10 @@ class ResearchRagSearchResponse(BaseModel):
 
     state: Literal["ok", "unavailable", "embed_failed"]
     matches: list[ResearchRagMatch] = Field(default_factory=list)
+    #: Embedded documents the query could have matched. `None` when the count
+    #: could not be taken — "1 of 1" and "1 of 400" are different answers, and
+    #: an unknown denominator must not render as zero.
+    corpus_size: int | None = None
 
 
 class ResearchRagAnomalyMatch(BaseModel):
