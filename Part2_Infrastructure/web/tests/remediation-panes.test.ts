@@ -34,9 +34,23 @@ const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
 
 const console_ = read("../components/ReliabilityConsole.tsx");
+/**
+ * `OperatorPanel` passed the length ceiling after the pane split and was cut
+ * again along the same seam: the five guarded server mutations to
+ * `OperatorControls`, the browser-only session controls to `SessionControls`.
+ * Authorisation, the confirmation state and the dispatch stayed in the panel,
+ * which is why the gate is still read from it below and the controls are not.
+ */
 const operator = read("../components/systems/OperatorPanel.tsx");
+const operatorControls = read("../components/systems/OperatorControls.tsx");
 const guard = read("../components/systems/OperatorGuard.tsx");
-const overview = read("../components/systems/ReliabilityOverview.tsx");
+/**
+ * The Dependencies switcher this one is held against. `ReliabilityOverview` is
+ * now a seam over `ReliabilityAttention` and `ReliabilityPlanes`; the switcher
+ * went with `planes`, and the seam file would satisfy no regex here — it would
+ * pass by matching nothing.
+ */
+const planes = read("../components/systems/ReliabilityPlanes.tsx");
 
 /** Comments name the constructs they are explaining the absence of. */
 const code = (source: string) =>
@@ -90,7 +104,7 @@ describe("Remediation splits into four panes, not a second rail", () => {
     assert.match(controlsPanel(console_), /title=\{option\.hint\}/);
     assert.match(controlsPanel(console_), /aria-pressed=\{remediationPane === option\.id\}/);
     // Same shape as the shipped one, so the two cannot drift into two patterns.
-    assert.match(overview, /title=\{option\.hint\}/);
+    assert.match(planes, /title=\{option\.hint\}/);
   });
 
   it("opens on Act, the only pane with controls on it", () => {
@@ -169,12 +183,20 @@ describe("the extraction moved authorisation and left every cost behind", () => 
     assert.doesNotMatch(code(guard), /spends a real call|Destroys this instance|vendor/);
   });
 
-  it("leaves the disruptive controls and their gate in the panel", () => {
+  it("leaves the gate in the panel, and the three confirmed actions behind it", () => {
+    /**
+     * The second extraction moved rendering, not authorisation. `disabled` is
+     * still derived in the panel from the guard and threaded down, so a control
+     * file cannot decide for itself that it is enabled; the three actions that
+     * require a preview are still the same three, and they are read from the
+     * file that now renders them rather than from the shell that dispatches.
+     */
     const panel = code(operator);
     assert.match(panel, /const locked = guard === "locked"/);
     assert.match(panel, /const disabled = locked \|\| missingToken/);
-    assert.match(panel, /action: "purge_cache"/);
-    assert.match(panel, /action: "reset_quota"/);
-    assert.match(panel, /action: "clear_telemetry"/);
+    const controls = code(operatorControls);
+    assert.match(controls, /action: "purge_cache"/);
+    assert.match(controls, /action: "reset_quota"/);
+    assert.match(controls, /action: "clear_telemetry"/);
   });
 });
