@@ -201,7 +201,7 @@ export default function OverviewBook({
           {
             label: "Binding constraint",
             value: constraintLabel(binding[0]),
-            note: `${fmt(binding[1] * 100, 1)}% utilized`,
+            note: `${fmt(binding[1] * 100, 1)}% utilised`,
           },
         ]}
       />
