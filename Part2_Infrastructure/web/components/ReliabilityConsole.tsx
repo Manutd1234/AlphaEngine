@@ -88,10 +88,10 @@ type RemediationPane = "act" | "session" | "recovery" | "history";
  * rather than a page of scrolling above the controls.
  */
 const REMEDIATION_PANES: Array<{ id: RemediationPane; label: string; hint: string }> = [
-  { id: "act", label: "Act", hint: "Every guarded control, what it acts on, and what each one costs" },
-  { id: "session", label: "Session", hint: "This tab's own sockets and poll cadence, touching no server state" },
-  { id: "recovery", label: "Recovery", hint: "How a tripped circuit comes back on its own, and how much cooldown is left" },
-  { id: "history", label: "History", hint: "Which circuits have actually tripped here, and how each one was closed" },
+  { id: "act", label: "Act", hint: "Every guarded control, what it acts on and costs" },
+  { id: "session", label: "Session", hint: "This tab's own sockets and poll cadence" },
+  { id: "recovery", label: "Recovery", hint: "How a tripped circuit comes back, and cooldown left" },
+  { id: "history", label: "History", hint: "Which circuits tripped here, and how each closed" },
 ];
 
 export default function ReliabilityConsole({
