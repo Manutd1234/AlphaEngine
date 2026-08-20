@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "generatedAt": "2026-08-19",
-  "commit": "ddcfcf7",
+  "generatedAt": "2026-08-20",
+  "commit": "9af71de",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -530,6 +530,7 @@
     "Part2_Infrastructure/web/scripts/header-ladder-measure.mjs",
     "Part2_Infrastructure/web/scripts/rag-eval.mjs",
     "Part2_Infrastructure/web/scripts/refresh-test-counts.mjs",
+    "Part2_Infrastructure/web/scripts/request-count-measure.mjs",
     "Part2_Infrastructure/web/scripts/start-dev-all.mjs",
     "Part2_Infrastructure/web/scripts/tab-switch-measure.mjs",
     "Part2_Infrastructure/web/scripts/verify-oracle.mjs",
