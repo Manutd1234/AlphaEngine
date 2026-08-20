@@ -137,8 +137,9 @@ describe("the safety statement describes what the desk actually does", () => {
 
   it("attributes the closed ticket to the gateway rather than to the tier", () => {
     // The ticket disables on reachability, which it reaches before any tier
-    // test — so that is what the badge must name.
-    assert.match(ticket, /The order path needs a reachable gateway/);
+    // test — so that is what the badge must name. The ticket's sentence was
+    // shortened in the copy-reduction pass; the reason it names did not change.
+    assert.match(ticket, /No gateway is answering, so the ticket is disabled/);
     assert.match(badge, /while no gateway is answering/);
   });
 
