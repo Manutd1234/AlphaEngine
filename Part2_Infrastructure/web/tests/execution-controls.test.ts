@@ -62,8 +62,20 @@ const code = (source: string) =>
 
 const blotter = read("components/execution/OrderBlotter.tsx");
 const blotterViews = read("components/execution/BlotterViews.tsx");
-const liveMarket = read("components/LiveMarket.tsx");
+/**
+ * The routing probe, not `LiveMarket`.
+ *
+ * Both controls corrected below moved when LiveMarket was split along its
+ * panel seams; the file they used to live in is now the tab spine and holds
+ * neither. Left pointed at the old path, the two `indexOf` guards below would
+ * have reported "the presets are gone" — which is why they are guards and not
+ * bare slices. Re-anchored, not relaxed.
+ */
+const routingProbe = read("components/execution/RoutingProbe.tsx");
 const cockpit = read("components/execution/ExecutionCockpit.tsx");
+// The poll and the single invalidation path the panes are wired to moved out
+// of the component with the rest of the data layer; the panes did not.
+const cockpitFeed = read("components/execution/use-cockpit-feed.ts");
 
 // --------------------------------------------------------------------------
 // 1. The control set nothing could reach
@@ -248,7 +260,7 @@ describe("the two exports are one disclosure", () => {
 // --------------------------------------------------------------------------
 
 describe("the notional shortcuts say which one is selected", () => {
-  const stripped = code(liveMarket);
+  const stripped = code(routingProbe);
   const group = (() => {
     const at = stripped.indexOf("PROBE_SIZES.map");
     assert.ok(at >= 0, "the presets are gone");
@@ -290,7 +302,7 @@ describe("the notional shortcuts say which one is selected", () => {
 });
 
 describe("the venue picker does not look like a one-of-three", () => {
-  const stripped = code(liveMarket);
+  const stripped = code(routingProbe);
   const group = (() => {
     const at = stripped.indexOf('aria-label="Venues included in the what-if route"');
     assert.ok(at >= 0, "the venue group lost its name");
@@ -531,7 +543,7 @@ describe("Activity is the record and the stream, one seg apart", () => {
     // on the subtab, not the pane; the conditional render handles the pane.
     assert.match(stripped, /active=\{section === "activity"\}/);
     assert.match(stripped, /onChanged=\{revalidate\}/);
-    assert.match(stripped, /if \(result\) onOrderSettled\?\.\(result\)/);
+    assert.match(code(cockpitFeed), /if \(result\) onOrderSettled\?\.\(result\)/);
     assert.match(stripped, /<AlertFeed events=\{effectiveEvents\} source=\{feedSource\}/);
   });
 
