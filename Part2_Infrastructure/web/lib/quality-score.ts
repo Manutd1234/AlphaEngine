@@ -209,7 +209,7 @@ function verdictFor(total: number, incomplete: boolean): string {
     ? " Walk-forward did not run, so robustness is unmeasured and scored zero — the total is a floor, not a verdict."
     : "";
   if (total >= 75) return `Strong on this history.${caveat}`;
-  if (total >= 55) return `Worth a closer look.${caveat}`;
+  if (total >= 55) return `Mixed on this history.${caveat}`;
   if (total >= 35) return `Weak — several categories are dragging.${caveat}`;
   return `Poor on its own history.${caveat}`;
 }
