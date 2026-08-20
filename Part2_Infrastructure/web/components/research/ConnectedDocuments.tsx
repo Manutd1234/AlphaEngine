@@ -94,8 +94,8 @@ export default function ConnectedDocuments({ documentId }: { documentId: string 
       {load.status === "done" && load.payload.state === "ok"
         && load.payload.connected.length === 0 && (
         <p className="sub">
-          Nothing shares this document&apos;s bars, instrument, strategy or regime, and nothing
-          followed it: the run stands alone in the corpus.
+          Nothing shares this document&apos;s bars, instrument, strategy or regime: the run
+          stands alone in the corpus.
         </p>
       )}
 
