@@ -47,9 +47,8 @@ export default function OutageIncidents({
           <span className="section-note">none active</span>
         </div>
         <p className="muted">
-          No provider is under a simulated outage. These are operator-caused drills, never upstream
-          faults, so an empty list here says nothing
-          about whether the providers themselves are healthy.
+          No provider is under a simulated outage. These are operator-caused drills, so an empty
+          list says nothing about whether the providers are healthy.
         </p>
         {onOpenProviders && (
           <button type="button" className="console-node__action" onClick={onOpenProviders}>
