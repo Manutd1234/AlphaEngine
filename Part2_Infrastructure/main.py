@@ -63,6 +63,7 @@ from modules.data_quality import (
     DataQualityView,
     get_data_quality,
     publish_escalation,
+    resolve_loop,
 )
 from modules.data_scheduler import get_scheduler
 from modules.decision_core import ENGINE as DECISION_ENGINE
@@ -183,6 +184,9 @@ async def lifespan(app: FastAPI):
     # seconds of CPU should not then discover its transport is unconfigured, or
     # pay for a TLS handshake inside the persist it is being timed on.
     await get_ml_store().start()
+    # An escalation whose provider went silent used to stay open forever:
+    # `_resolve_cleared` only runs inside `ingest`, so nothing swept.
+    resolve_task = asyncio.create_task(resolve_loop(), name="data-quality-resolve")
 
     # Time the compiled decision battery once, on a synthetic two-venue book,
     # so the desk's nanosecond figure exists before the first order and after
@@ -209,6 +213,9 @@ async def lifespan(app: FastAPI):
         log.info("shutting down…")
         audit.record_risk_event("gateway_stop", severity="info", actor="system", detail="clean shutdown")
         await scheduler.stop()
+        resolve_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await resolve_task
         await get_ml_store().stop()
         await bot.stop()
         await rag.stop()

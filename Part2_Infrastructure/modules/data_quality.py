@@ -202,6 +202,21 @@ _DDL = [
     "CREATE INDEX IF NOT EXISTS ix_dq_esc_rule ON data_quality_escalations(rule, provider, opened_at)",
 ]
 
+#: Columns added after the table shipped.
+#:
+#: This store has no migration table — `SqliteStore.migrate` runs
+#: `CREATE TABLE IF NOT EXISTS` on every construction and there is no ALTER
+#: path — so a column added later has to be added conditionally, the way
+#: `audit.py` already does for `subscribers`. An unconditional ALTER fails on
+#: the second start; a new CREATE would silently not run on an existing file.
+_ESCALATION_COLUMNS: tuple[tuple[str, str], ...] = (
+    # NULL means unacknowledged, and stays NULL for every row that predates
+    # this. An escalation nobody has seen and an escalation from before the
+    # column existed are the same fact: nobody has taken it.
+    ("acknowledged_at", "REAL"),
+    ("acknowledged_by", "TEXT"),
+)
+
 _PRUNE_EVERY_MS = 10 * 60_000
 
 _AGGREGATE = (
@@ -261,6 +276,50 @@ class DataQualityLedger(SqliteStore):
         self._last_prune_ms = 0.0
         self._gateway_seq = 0
         self.migrate(_DDL)
+        self._add_missing_escalation_columns()
+
+    def _add_missing_escalation_columns(self) -> None:
+        """Add columns to a table that already exists on disk.
+
+        `migrate` only runs CREATE TABLE IF NOT EXISTS, so a column added after
+        the table shipped never appears on an existing data volume. Same shape
+        as `audit.py`'s subscriber migration: read the columns, add what is
+        missing, leave what is there.
+        """
+        existing = {
+            str(row["name"]).lower()
+            for row in self.query("PRAGMA table_info(data_quality_escalations)")
+        }
+        for column, sql_type in _ESCALATION_COLUMNS:
+            if column not in existing:
+                self.execute(f"ALTER TABLE data_quality_escalations ADD COLUMN {column} {sql_type}")
+
+    def acknowledge(self, escalation_id: int, actor: str) -> bool:
+        """Record that a person has taken this escalation.
+
+        Returns False when there is no such open escalation — acknowledging one
+        that has already resolved is not an error, but it is not an
+        acknowledgement either, and saying so lets the caller tell "done" from
+        "there was nothing to do".
+
+        Idempotent: the first acknowledgement stands. A second person taking an
+        escalation someone else already has should not quietly overwrite whose
+        name is against it.
+        """
+        row = self.one(
+            "SELECT id, acknowledged_at FROM data_quality_escalations "
+            "WHERE id=? AND resolved_at IS NULL",
+            (escalation_id,),
+        )
+        if row is None:
+            return False
+        if row["acknowledged_at"] is not None:
+            return True
+        self.execute(
+            "UPDATE data_quality_escalations SET acknowledged_at=?, acknowledged_by=? WHERE id=?",
+            (time.time() * 1000.0, actor[:120], escalation_id),
+        )
+        return True
 
     @classmethod
     def in_memory(cls, **kwargs: Any) -> "DataQualityLedger":
@@ -621,6 +680,36 @@ class DataQualityLedger(SqliteStore):
 # Escalation delivery
 # --------------------------------------------------------------------------- #
 
+#: Desk roles a data-quality escalation is addressed to. A provider that has
+#: started failing contract checks is a data engineer's problem first and a
+#: developer's second; a portfolio manager receiving it learns nothing they can
+#: act on. A chat with no role receives it regardless.
+ESCALATION_ROLES = frozenset({"data", "dev"})
+
+
+async def resolve_loop(interval_s: float = 60.0, ledger: "DataQualityLedger | None" = None) -> None:
+    """Sweep for escalations whose condition has cleared.
+
+    `_resolve_cleared` runs inside `ingest`, and only there — so an escalation
+    resolves when the SAME provider sends more findings. A provider that stops
+    reporting entirely, which is exactly what a badly broken one does, left its
+    escalation open forever: the desk showed a permanent red against a condition
+    that had ended, and the rule's cooldown meant no new one could open either.
+
+    Cheap by construction. The sweep is a few reads over a table that holds at
+    most a handful of open rows, and it does nothing at all when there are none.
+    """
+    ledger = ledger or get_data_quality()
+    while True:
+        try:
+            await asyncio.sleep(max(5.0, interval_s))
+            await asyncio.to_thread(ledger._resolve_cleared, time.time() * 1000.0)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            log.error("data quality: resolve sweep failed (%s)", type(exc).__name__)
+
+
 async def publish_escalation(
     escalation: Escalation,
     *,
@@ -650,7 +739,9 @@ async def publish_escalation(
             f"{escalation.detail}.\n"
             f"Rule window {escalation.window_minutes} min; auto-resolves when the condition clears."
         )
-        await bot.broadcast("warning", text)
+        # Addressed to the roles that own data quality. A chat with no role set
+        # still receives it — see `_role_targets`.
+        await bot.broadcast("warning", text, roles=ESCALATION_ROLES)
     except asyncio.CancelledError:
         raise
     except Exception as exc:  # pragma: no cover - defensive

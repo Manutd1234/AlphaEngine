@@ -165,12 +165,20 @@ class _StubBot:
         self.enabled = enabled
         self._targets = targets
         self.sent: list[tuple[str, str]] = []
+        self.roles: list[frozenset[str] | None] = []
 
     def health(self):
         return {"alert_targets": self._targets}
 
-    async def broadcast(self, severity: str, message: str) -> None:
+    async def broadcast(
+        self, severity: str, message: str, roles: frozenset[str] | None = None,
+    ) -> None:
+        # Mirrors the production signature. A stub that is narrower than the
+        # thing it stands in for turns a signature change into a swallowed
+        # TypeError and a channel that silently reads "log" — which is how this
+        # test failed when `roles` was added.
         self.sent.append((severity, message))
+        self.roles.append(roles)
 
 
 class _StubAudit:
@@ -249,3 +257,106 @@ class TestRoute:
         assert payload["total"] >= 3 and len(payload["findings"]) == 2
         assert payload["findings"][0]["severity"] == "fatal"
         assert set(payload) == {"findings", "total", "retention_days", "window_minutes", "observed_at"}
+
+
+class TestEscalationRouting:
+    """An escalation reaches the roles that own it, and everyone with no role."""
+
+    @pytest.mark.asyncio
+    async def test_it_is_addressed_to_the_data_roles(self):
+        from modules.data_quality import ESCALATION_ROLES, Escalation, publish_escalation
+
+        ledger = DataQualityLedger.in_memory()
+        bot = _StubBot(enabled=True, targets=1)
+        audit = _StubAudit()
+        escalation = Escalation(
+            id=1, rule="fatal_burst", provider="fmp", opened_at=1_000.0,
+            window_minutes=15, count=3, evaluated=None, detail="three fatals",
+        )
+
+        channel = await publish_escalation(escalation, ledger=ledger, bot=bot, audit=audit)
+
+        assert channel == "telegram"
+        assert bot.roles == [ESCALATION_ROLES], (
+            "the escalation went to every chat; role routing existed and this path skipped it"
+        )
+
+    def test_the_roles_are_the_ones_who_can_act_on_it(self):
+        from modules.data_quality import ESCALATION_ROLES
+
+        # A provider failing contract checks is a data engineer's problem first
+        # and a developer's second. A portfolio manager receiving it learns
+        # nothing they can act on.
+        assert ESCALATION_ROLES == frozenset({"data", "dev"})
+
+
+class TestAcknowledgement:
+    def test_an_open_escalation_can_be_taken(self):
+        ledger = DataQualityLedger.in_memory()
+        ledger.execute(
+            "INSERT INTO data_quality_escalations (rule,provider,opened_at,window_minutes,count,detail) "
+            "VALUES (?,?,?,?,?,?)", ("fatal_burst", "fmp", 1_000.0, 15, 3, "three fatals"),
+        )
+        row_id = ledger.one("SELECT id FROM data_quality_escalations LIMIT 1")["id"]
+
+        assert ledger.acknowledge(row_id, "tg:42") is True
+        row = ledger.one(
+            "SELECT acknowledged_at, acknowledged_by FROM data_quality_escalations WHERE id=?",
+            (row_id,),
+        )
+        assert row["acknowledged_at"] is not None
+        assert row["acknowledged_by"] == "tg:42"
+
+    def test_the_first_name_stands(self):
+        ledger = DataQualityLedger.in_memory()
+        ledger.execute(
+            "INSERT INTO data_quality_escalations (rule,provider,opened_at,window_minutes,count,detail) "
+            "VALUES (?,?,?,?,?,?)", ("fatal_burst", "fmp", 1_000.0, 15, 3, "three fatals"),
+        )
+        row_id = ledger.one("SELECT id FROM data_quality_escalations LIMIT 1")["id"]
+
+        ledger.acknowledge(row_id, "tg:42")
+        ledger.acknowledge(row_id, "tg:99")
+
+        # A second person taking an escalation someone else already has must not
+        # quietly overwrite whose name is against it.
+        by = ledger.one(
+            "SELECT acknowledged_by FROM data_quality_escalations WHERE id=?", (row_id,),
+        )["acknowledged_by"]
+        assert by == "tg:42"
+
+    def test_there_is_nothing_to_acknowledge_on_a_resolved_one(self):
+        ledger = DataQualityLedger.in_memory()
+        ledger.execute(
+            "INSERT INTO data_quality_escalations "
+            "(rule,provider,opened_at,window_minutes,count,detail,resolved_at) "
+            "VALUES (?,?,?,?,?,?,?)", ("fatal_burst", "fmp", 1_000.0, 15, 3, "x", 2_000.0),
+        )
+        row_id = ledger.one("SELECT id FROM data_quality_escalations LIMIT 1")["id"]
+
+        # Not an error, and not an acknowledgement either. The caller needs to
+        # tell "done" from "there was nothing to do".
+        assert ledger.acknowledge(row_id, "tg:42") is False
+
+    def test_the_columns_are_added_to_a_table_that_already_exists(self, tmp_path):
+        import sqlite3
+
+        path = tmp_path / "ops.sqlite"
+        # A data volume written before the columns existed.
+        conn = sqlite3.connect(path)
+        conn.execute(
+            "CREATE TABLE data_quality_escalations (id INTEGER PRIMARY KEY, rule TEXT NOT NULL, "
+            "provider TEXT NOT NULL, opened_at REAL NOT NULL, window_minutes INTEGER NOT NULL, "
+            "count INTEGER NOT NULL, evaluated INTEGER, detail TEXT NOT NULL, notified_at REAL, "
+            "channel TEXT, resolved_at REAL)"
+        )
+        conn.commit()
+        conn.close()
+
+        ledger = DataQualityLedger(str(path))
+        columns = {r["name"] for r in ledger.query("PRAGMA table_info(data_quality_escalations)")}
+        assert {"acknowledged_at", "acknowledged_by"} <= columns
+
+        # And twice, because `migrate` runs on every construction and an
+        # unconditional ALTER fails on the second start.
+        DataQualityLedger(str(path))

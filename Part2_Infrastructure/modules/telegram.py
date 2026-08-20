@@ -6724,6 +6724,22 @@ class TelegramBot:
             except Exception as exc:
                 log.error("Telegram watch loop error (%s)", type(exc).__name__)
 
+    def _role_targets(self, roles: frozenset[str]) -> list[str]:
+        """Chats that speak for one of ``roles``, plus every chat with no role.
+
+        Same rule as `_risk_alert_targets`: an unset role is the absence of a
+        preference, not a preference to be excluded. A desk that has never run
+        `/role` keeps receiving everything, which is the only safe default for
+        a channel carrying operational alerts.
+        """
+        if settings.telegram_alert_chat_ids:
+            return self._alert_targets()
+        return [
+            subscriber["chat_id"]
+            for subscriber in self._subscribers()
+            if not (subscriber.get("role") or "") or subscriber.get("role") in roles
+        ]
+
     def _alert_targets(self) -> list[str]:
         if settings.telegram_alert_chat_ids:
             eligible = {
@@ -6736,12 +6752,26 @@ class TelegramBot:
             ]
         return [subscriber["chat_id"] for subscriber in self._subscribers()]
 
-    async def broadcast(self, severity: str, message: str) -> None:
-        """Risk hook: normalize every pushed update into the textual card UI."""
+    async def broadcast(
+        self, severity: str, message: str, roles: frozenset[str] | None = None,
+    ) -> None:
+        """Risk hook: normalize every pushed update into the textual card UI.
+
+        ``roles`` addresses the message to the desk roles it is for. ``None``
+        keeps the historical behaviour — every alert subscriber — and is what
+        every existing caller gets.
+
+        Role routing already existed and this path skipped it:
+        `_risk_alert_targets` honours `subscribers.role`, and `broadcast` called
+        `_alert_targets`, which never reads it. So a data-quality escalation
+        went to every chat while a risk breach went to the two roles that own
+        it. A chat with no role still receives everything, exactly as
+        `_risk_alert_targets` decided.
+        """
         if not self.enabled:
             log.info("[alert:%s] %s", severity, _HTML_TAG_RE.sub("", message).replace("\n", " ")[:200])
             return
-        targets = self._alert_targets()
+        targets = self._alert_targets() if roles is None else self._role_targets(roles)
         if not targets:
             log.warning("Telegram alert dropped; no configured subscribers")
             return
