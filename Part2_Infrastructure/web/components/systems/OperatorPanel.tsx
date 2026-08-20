@@ -344,7 +344,7 @@ export default function OperatorPanel({
               {PURGE_SCOPES.map((scope) => (
                 <option key={scope} value={scope}>{scope}</option>
               ))}
-              <option value="symbol">symbol: {symbol}</option>
+              <option value="symbol">Symbol: {symbol}</option>
             </select>
             <button
               type="button"
@@ -355,7 +355,7 @@ export default function OperatorPanel({
                   options: { scope },
                   title: "Purge cached responses?",
                   confirmLabel: "Confirm purge",
-                  target: scope,
+                  target: purgeScope === "symbol" ? `Symbol: ${symbol}` : scope,
                   effect: "Matching cached responses will be dropped. The next request for every removed key goes upstream and spends real provider quota.",
                 });
               }}
