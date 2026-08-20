@@ -187,11 +187,13 @@ describe("the statistics say what they claim to", () => {
 
 describe("the panel keeps the four absent cases apart", () => {
   const panel = read("../components/research/BenchmarkPanel.tsx");
-  const page = read("../app/dashboard/page.tsx");
+  // Attribution is its own component since page.tsx was split; the mount
+  // assertion follows it rather than scanning a shell that never had it.
+  const attribution = read("../components/research/AttributionSection.tsx");
 
   it("is mounted in the attribution section", () => {
-    assert.match(page, /import BenchmarkPanel/);
-    assert.match(page, /<BenchmarkPanel/);
+    assert.match(attribution, /import BenchmarkPanel/);
+    assert.match(attribution, /<BenchmarkPanel/);
   });
 
   it("says which benchmark was requested when the comparison is missing", () => {
@@ -369,7 +371,8 @@ describe("the benchmark empty state reaches a control that exists", () => {
  */
 describe("the empty state distinguishes the two questions without answering both", () => {
   const panel = read("../components/research/BenchmarkPanel.tsx");
-  const page = read("../app/dashboard/page.tsx");
+  // The stat row the card points at is Research ▸ Summary's own component.
+  const page = read("../components/research/ResearchSummary.tsx");
 
   it("prints no same-symbol figure of its own", () => {
     assert.doesNotMatch(panel, /benchmark\.totalReturn|benchmark\.sharpe|buyHold/,

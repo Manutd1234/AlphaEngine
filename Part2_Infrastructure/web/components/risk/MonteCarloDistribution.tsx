@@ -4,11 +4,11 @@
  * Terminal-outcome Monte Carlo, resampling the research winner's realised
  * returns — the exact drivers behind the band on the Research equity chart.
  *
- * Sits beside (not inside) the Oracle GBM VaR: three loss estimates now share
- * one workspace — parametric closed form, in-database GBM simulation, and this
- * bootstrap of realised returns — and disagreement between them is signal, not
- * error. The computation runs in a dedicated worker; the main thread only
- * draws the result.
+ * Sits one subtab away from (never inside) the Oracle GBM VaR: three loss
+ * estimates share one workspace — parametric closed form, in-database GBM
+ * simulation, and this bootstrap of realised returns — and disagreement
+ * between them is signal, not error. The computation runs in a dedicated
+ * worker; the main thread only draws the result.
  *
  * Every parameter the simulation runs on is a control (McParameterRail), and
  * where one is displayed it is read from the RESULT rather than from the
@@ -65,9 +65,9 @@ interface MonteCarloDistributionProps {
   /** Bumped by the palette action to re-run with the current inputs. */
   runNonce: number;
   /**
-   * Owned by the montecarlo section, not this card: the GBM panel beside it
-   * reads the same value, so the two loss estimates are always over one
-   * horizon and their disagreement stays a statement about method.
+   * Owned by RiskWorkspace, not this card: the GBM panel on the oraclevar
+   * subtab reads the same value, so the two loss estimates are always over
+   * one horizon and their disagreement stays a statement about method.
    */
   horizonDays: number;
   onOpenResearch: () => void;
@@ -172,9 +172,10 @@ export default function MonteCarloDistribution({
           <span className="page-kicker">Independent computation</span>
           <h2>Monte Carlo terminal distribution</h2>
         </div>
-        {/* Every parameter but the horizon. That one moved to the section-level
-            seg above the card, shared with the GBM panel, so the two estimates
-            cannot be read against each other on two different clocks. */}
+        {/* Every parameter but the horizon. That one is the workspace-owned
+            seg above the card, shared with the GBM panel's subtab, so the two
+            estimates cannot be read against each other on two different
+            clocks. */}
         <McParameterRail
           paths={paths}
           onPaths={setPaths}
@@ -221,7 +222,14 @@ export default function MonteCarloDistribution({
 
       {state.status === "running" && (
         <>
-          <div className="skeleton" style={{ height: 180 }} />
+          {/* Reserved at the shape of the result it precedes — the histogram
+              with its range row (198px of svg plus the min/max line), then
+              the tile row — rather than one short shimmer. A single 180px
+              skeleton collapsed the card by roughly 200px on every re-run,
+              so each horizon or parameter change bounced whatever sat below
+              it: the twitch, not the simulation, was what the reader saw. */}
+          <div className="skeleton" style={{ height: 212 }} />
+          <div className="skeleton" style={{ height: 92, marginTop: 12 }} />
           <p className="muted num" style={{ fontSize: "var(--fs-body)" }}>
             simulating: {(state.progress?.done ?? 0).toLocaleString()} /{" "}
             {(state.progress?.total ?? paths).toLocaleString()} paths

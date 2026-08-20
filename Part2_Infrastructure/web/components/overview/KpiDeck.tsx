@@ -24,7 +24,7 @@ import { type ReactNode } from "react";
 
 import NumberTicker from "@/components/common/NumberTicker";
 import Sparkline from "@/components/overview/Sparkline";
-import { fmt, signedPct, usd } from "@/lib/format";
+import { constraintLabel, fmt, signedPct, usd } from "@/lib/format";
 import { downsample, latencyTone } from "@/lib/overview-state";
 import { STRATEGY_LABELS, type SweepRequest, type SweepResponse } from "@/lib/types";
 import type { BookView } from "@/lib/use-book";
@@ -160,7 +160,7 @@ export default function KpiDeck({
   const headroom = book.book?.risk_budget.gross_exposure;
   // Gross and headroom are not repeated here: Gross exposure is a card in
   // this same grid with that figure as its headline, and Binding constraint's
-  // note is "<limit>: <headroom> left of <limit>". What only this card knows
+  // note is "<limit>; <headroom> left of <limit>". What only this card knows
   // is what the intent would cost and whose book it would touch.
   const intentNote = book.book
     ? `${usd(modeledCost, 0)} modeled cost${book.book.sandbox ? "; sandbox" : ""}`
@@ -190,7 +190,6 @@ export default function KpiDeck({
   const concentration = book.book?.concentration ?? null;
   const budget = book.book?.risk_budget ?? null;
   const [constraintName, constraintUse] = budget?.binding_constraint ?? [null, null];
-  const quarantined = systems.health?.quarantine?.size ?? 0;
 
   return (
     <section
@@ -261,9 +260,9 @@ export default function KpiDeck({
         }
         note={
           constraintName && headroom
-            ? `${constraintName.replace(/_/g, " ")}: ${usd(headroom.remaining, 0)} left of ${usd(headroom.limit, 0)}`
+            ? `${constraintLabel(constraintName)}; ${usd(headroom.remaining, 0)} left of ${usd(headroom.limit, 0)}`
             : constraintName
-              ? constraintName.replace(/_/g, " ")
+              ? constraintLabel(constraintName)
               : "no limit engaged yet"
         }
       />
@@ -283,10 +282,11 @@ export default function KpiDeck({
             ? `${fmt(concentration.effective_positions, 1)} effective`
             : "—"
         }
+        /* No quarantine count: the Data plane card in this same grid carries
+           it, and the deck's rule is that a figure is printed once. */
         note={
           concentration
             ? `${concentration.positions} held, largest ${Math.round(concentration.largest_share * 100)}%`
-              + `${quarantined ? `; ${quarantined} feed quarantined` : ""}`
             : "book connecting"
         }
       />

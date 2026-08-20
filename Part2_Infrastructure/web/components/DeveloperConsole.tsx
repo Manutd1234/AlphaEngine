@@ -769,7 +769,7 @@ function DeveloperInterfaces({ view }: { view: SystemHealthView }) {
         {pane === "contracts" && (
           <>
             <section className="card developer-cp-section-hero stagger-reveal" style={{ "--stagger-i": 0 } as CSSProperties}>
-              <div><span>Contract intelligence</span><h2>API &amp; Schema</h2><p>Browse the current route inventory and see exactly which compatibility gates are automated versus still missing.</p></div>
+              <div><span>Contract intelligence</span><h2>API &amp; Schema</h2></div>
               <StatusPill state={{ label: `${API_OPERATIONS.length} operations`, detail: "Route handlers indexed from this runtime.", tone: "info" }} />
             </section>
             <section className="card developer-cp-schema-card stagger-reveal" style={{ "--stagger-i": 1 } as CSSProperties}>

@@ -281,20 +281,18 @@ export default function OrderTicket({
       {symbolHalted ? (
         <p className="notice notice--stop">
           Trading is halted{haltedSymbols.includes(symbol) ? ` for ${symbol}` : " across the book"}. Orders will be
-          rejected by the kill-switch gate — which is exactly what you should see below if you send one.
+          rejected by the kill-switch gate.
         </p>
       ) : null}
 
       {disabled ? (
         <p className="notice notice--stop">
-          The order path needs a reachable gateway and none is answering, so the ticket is
-          disabled rather than letting a demo click end in an error it cannot explain.
+          The order path needs a reachable gateway and none is answering, so the ticket is disabled.
         </p>
       ) : null}
       {mode === "sandbox" ? (
         <p className="muted">
-          Sandbox: verdicts are computed in this browser by the gateway&apos;s own gate logic against
-          the generated book. No order leaves this page.
+          Sandbox: verdicts are computed in this browser. No order leaves this page.
         </p>
       ) : null}
 
@@ -465,8 +463,8 @@ export default function OrderTicket({
             button is dead, say so in text, not only in a hover title. */}
         {limitInvalid && !busy && !disabled ? (
           <p className="cockpit-ticket__hint">
-            Type a limit price to enable Send — the grey number in the field is the current mark
-            shown as a hint, not a filled-in value. Or switch back to Market.
+            Type a limit price to enable Send — the grey number in the field is the current mark,
+            not a filled-in value. Or switch back to Market.
           </p>
         ) : null}
 

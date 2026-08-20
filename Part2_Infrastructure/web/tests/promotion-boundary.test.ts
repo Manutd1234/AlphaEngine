@@ -23,8 +23,9 @@
  *   2. **The prop.** `onHandOff` takes no arguments. A panel that cannot
  *      describe an order cannot submit one, whatever it is handed.
  *   3. **The call site.** The prop is a bare callback, so the panel is only as
- *      inert as what `app/dashboard/page.tsx` passes it. What it passes is
- *      state staging plus navigation, and that is pinned here.
+ *      inert as what `components/research/DecisionSection.tsx` passes it — the
+ *      Research tab's own Decision section since `page.tsx` was split. What it
+ *      passes is state staging plus navigation, and that is pinned here.
  *
  * `desk-interconnect.test.ts` also touches this hand-off, but it is asking a
  * different question — that the link lands on live/trade rather than wherever
@@ -214,13 +215,17 @@ describe("the panel cannot describe an order", () => {
 });
 
 describe("the call site hands promotion nothing that can execute", () => {
-  const page = code(readFileSync(join(root, "app/dashboard/page.tsx"), "utf8"));
+  // The call site moved from page.tsx into Research ▸ Decision when the shell
+  // was split. It is still the research/execution boundary; the shell hands
+  // the sleeve setter down as `onStageSleeve` and its cross-link helper as
+  // `onOpenSection`, so the two statements below are the same two acts.
+  const page = code(readFileSync(join(root, "components/research/DecisionSection.tsx"), "utf8"));
   const body = page.match(/onHandOff=\{\(\) => \{([\s\S]*?)\n\s*\}\}/)?.[1];
 
   it("the hand-off callback is found", () => {
     // Held separately so a rename of the prop fails loudly here rather than
     // making the assertions below vacuously pass on an empty string.
-    assert.ok(body, "no `onHandOff={() => { … }}` in app/dashboard/page.tsx — has the prop been renamed?");
+    assert.ok(body, "no `onHandOff={() => { … }}` in components/research/DecisionSection.tsx — has the prop been renamed?");
   });
 
   it("it stages a sleeve and navigates, and does nothing else", () => {
@@ -231,8 +236,8 @@ describe("the call site hands promotion nothing that can execute", () => {
     assert.deepEqual(
       statements,
       [
-        "setExecutionStrategy(data.request.strategy);",
-        'openSection("live", "trade");',
+        "onStageSleeve(data.request.strategy);",
+        'onOpenSection("live", "trade");',
       ],
       "the promotion hand-off does something beyond staging the strategy and opening the "
         + "execution ticket — anything else here crosses the research/execution boundary",

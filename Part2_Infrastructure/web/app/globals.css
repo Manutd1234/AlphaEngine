@@ -1227,7 +1227,7 @@ a:not([class]):active {
   margin: 12px 0 2px;
 }
 
-/* Incident rows for operator-simulated outages on Quality & Incidents. */
+/* Incident rows for operator-simulated outages on the Data Incidents subtab. */
 .console-incident-list {
   list-style: none;
   margin: 0;
@@ -2903,10 +2903,20 @@ tbody tr[tabindex]:focus-visible {
   font-size: var(--fs-2xs);
 }
 
+/* Four tracks over two rows, not eight equal ones crushed into one.
+   `repeat(auto-fit, minmax(96px, 1fr))` gave every field the same width
+   whatever it held, so a 96px track had to carry "BTCUSDT at 4h", "0 purged, 0
+   embargoed" and "— built without git", and the dd rule below cut all three
+   mid-word. Halving the count doubles the track.
+
+   The row gap is the other half of the fix: there was none, and `dl > div` has
+   1px of vertical padding, so any wrapped row landed 2px under the one above
+   it — which is what a reader sees as words running together. */
 .research-provenance dl {
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 0;
 }
 
 .research-provenance dl > div {
@@ -2925,17 +2935,38 @@ tbody tr[tabindex]:focus-visible {
   text-transform: uppercase;
 }
 
+/* Wraps, and one rung up from the 12px caps of its own `dt`: at --fs-xs the
+   label and the value it labels were half a pixel apart and read as one block.
+
+   `white-space: nowrap` with `text-overflow: ellipsis` used to live here. That
+   is right for a digest and wrong for everything else in this list: "— built
+   without git" and "— on the run detail" are prose, and prose that stops at an
+   ellipsis mid-word has not been shortened, it has been broken. The clip moved
+   to `code` below. */
 .research-provenance dd {
-  overflow: hidden;
-  font-size: var(--fs-xs);
+  min-width: 0;
+  font-size: var(--fs-sm);
   font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: var(--lh-snug);
 }
 
 .research-provenance code {
   font-family: var(--mono);
   color: var(--json-accent);
+}
+
+/* The only value in this list a reader may lose the tail of: a digest is an
+   opaque token with no word to break, and the whole of it is on `title`, which
+   the print block further down expands into visible text.
+
+   Scoped to `dd`, because the lead's `<small>` carries the run id inline in the
+   middle of a sentence — a block there would drop ", succeeded." onto its own
+   line. */
+.research-provenance dd > code {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .execution-handoff {
@@ -3807,7 +3838,7 @@ a.text-action {
   .research-provenance {
     grid-template-columns: minmax(0, 1fr);
   }
-  .research-provenance dl > div:first-child {
+  .research-provenance dl > div:nth-child(4n + 1) {
     border-left: 0;
   }
 }
@@ -5080,6 +5111,30 @@ button
 .stability-tiles {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-bottom: 4px;
+}
+
+/* Three short facts, three columns. The row that holds them carried NO rule at
+   all — `.stat-grid` was rendered and never declared — so three stat tiles
+   stacked full width with their borders touching, one short value per row.
+   `.tiles` alone would have left them in the first three of its six tracks;
+   this is the same modifier shape `.stability-tiles` uses for four. */
+.ml-run-tiles {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+/* Measured against the research panel rather than the window, for the reason
+   `.tiles` gives above: this row is never the width of the viewport. */
+@container (max-width: 620px) {
+  .ml-run-tiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 620px) {
+  .ml-run-tiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .stability-tile {
@@ -12282,6 +12337,16 @@ button.page-insight:hover:not(:disabled) {
   font-variant-numeric: tabular-nums;
 }
 
+/* A tile whose value is a NAME. --fs-figure is 26px of display type, which is
+   the right size for a measurement and sets "numpy" as though the engine were
+   a headline number beside two tiles that really do report one. Sizing the word
+   itself keeps the tile's own anatomy untouched — the value stays whatever
+   StatTile renders. */
+.stat-word {
+  font-size: var(--fs-h2);
+  letter-spacing: normal;
+}
+
 /* SVG outlines are painted inconsistently across engines. A stroke keeps the
    heatmap's single roving keyboard position visible in either theme. */
 .heatmap-cell:focus-visible {
@@ -12509,10 +12574,17 @@ button.page-insight:hover:not(:disabled) {
   accent-color: var(--series-1);
 }
 
-/* Anything that pins itself inside a workspace clears both bars. */
+/* Anything that pins itself inside a workspace clears the rail — and only the
+   rail. This offset still measured the header from the era when the document
+   scrolled; the shell is the scroll container now and its top edge already
+   sits below the header (the sticky rail's own `top: -1px` note above tells
+   the same story), so counting --header-h here as well parked the research
+   sidebar a full header's height below where it pinned. --rail-h rather than
+   the --chrome-rail constant, so the offset stays measured when the rail
+   wraps or grows on coarse pointers. */
 .sidebar,
 .research-layout .sidebar {
-  top: calc(var(--header-h) + var(--chrome-rail) + var(--space-3));
+  top: calc(var(--rail-h) + var(--space-3));
 }
 
 /* ---------- density ---------- */

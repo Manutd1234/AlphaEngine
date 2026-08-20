@@ -33,6 +33,15 @@ const read = (relative: string) =>
 
 const css = read("../app/globals.css");
 const page = read("../app/dashboard/page.tsx");
+/**
+ * `navigate` — and with it the only scroll the desk performs — moved to
+ * `lib/use-workspace-routing.ts`. The shell still owns the element being
+ * scrolled, so `#workspace-content`'s ref stays asserted on page.tsx and the
+ * scrolling itself is asserted where it happens. Both are checked for the
+ * absence of `window.scrollTo`: either file reintroducing it is the same bug.
+ */
+const routingHook = read("../lib/use-workspace-routing.ts");
+const shellSources = [page, routingHook].join("\n");
 
 /** Comment bodies blanked, newlines kept, so prose is not read as a rule. */
 const declarations = css.replace(/\/\*[\s\S]*?\*\//g, (block) =>
@@ -187,10 +196,10 @@ describe("the rail docks inside the shell, not against the document", () => {
 
 describe("navigation moves the scroller that exists", () => {
   it("tab switches scroll the shell, not the window", () => {
-    assert.doesNotMatch(page.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, ""), /window\.scrollTo/,
+    assert.doesNotMatch(shellSources.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, ""), /window\.scrollTo/,
       "the body is locked, so window.scrollTo silently does nothing — a tab switch would "
         + "leave the new tab parked where the last one was read to");
-    assert.match(page, /shellRef\.current\?\.scrollTo/);
+    assert.match(routingHook, /shellRef\.current\?\.scrollTo/);
   });
 
   it("the switch is transition-free, concurrent, and the reset is instant", () => {
@@ -204,7 +213,7 @@ describe("navigation moves the scroller that exists", () => {
      * Comments stripped first, so prose about the old behaviour cannot
      * satisfy (or trip) any of these.
      */
-    const stripped = page.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
+    const stripped = shellSources.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
     assert.doesNotMatch(stripped, /startViewTransition\(/, "the paint-freezing snapshot transition is back");
     assert.doesNotMatch(stripped, /flushSync\(/, "a synchronous whole-page render on switch is back");
     assert.match(stripped, /startTransition\(\(\) => \{\s*setView\(next\);/);

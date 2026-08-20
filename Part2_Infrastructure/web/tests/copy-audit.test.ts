@@ -45,7 +45,10 @@ const read = (relative: string) =>
 /** Comments stripped: a comment explaining a removal must not fail its own test. */
 const code = (source: string) => source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
 
-const page = code(read("../app/dashboard/page.tsx"));
+// Research draws its head inside its own component now; scanning only
+// page.tsx would drop one of the eight tab descriptions from the audit.
+const page = code(read("../app/dashboard/page.tsx"))
+  + code(read("../components/ResearchWorkspace.tsx"));
 const overview = code(read("../components/WorkspaceOverview.tsx"));
 const deck = code(read("../components/overview/KpiDeck.tsx"));
 const footer = code(read("../components/common/NextStepFooter.tsx"));
@@ -117,6 +120,29 @@ describe("a note does not repeat a figure that is a headline beside it", () => {
     const note = deck.slice(deck.indexOf("const dataNote"), deck.indexOf("const dataNote") + 500);
     assert.doesNotMatch(note, /p99/, "the band's Data plane p99 tile is the headline for this figure");
     assert.match(note, /cache/, "the cache hit rate is this card's own fact and must stay");
+  });
+
+  it("Book concentration does not carry the quarantine count", () => {
+    // The Data plane card in the same eight-card grid appends the quarantine
+    // to its own note, and the deck's rule is that a figure is printed once.
+    // Two cards carrying it made the same number look like two measurements.
+    const start = deck.indexOf('label="Book concentration"');
+    assert.notEqual(start, -1);
+    const card = deck.slice(start, start + 400);
+    assert.doesNotMatch(card, /quarantine/i, "the quarantine belongs to the Data plane card");
+    assert.match(card, /largest_share/, "the largest holding's share is this card's own fact and must stay");
+  });
+
+  it("the band's p99 tile does not carry the ready count the deck heads with", () => {
+    // The deck's Data plane card headline IS "{ready}/{total} ready". The band
+    // stated it again as the p99 tile's note, where it was never provenance
+    // for the p99 figure it sat under.
+    const start = overview.indexOf('label: "Data plane p99"');
+    assert.notEqual(start, -1);
+    const tile = overview.slice(start, start + 500);
+    assert.doesNotMatch(tile, /routes ready/, "the deck's Data plane card is the headline for that count");
+    assert.match(tile, /measured from this browser's polls/,
+      "the provenance is this tile's own and must stay");
   });
 
   it("Loss beyond VaR does not carry the validation zone", () => {

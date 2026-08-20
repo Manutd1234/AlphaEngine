@@ -198,10 +198,10 @@ export default function ExperimentHistory({
               <div>
                 <strong>{records.length} hypotheses tested across {distinctSymbols}{" "}
                   instrument{distinctSymbols === 1 ? "" : "s"}.</strong>{" "}
-                Each row&apos;s Deflated Sharpe prices only the parameter grid <em>inside</em> that run.
-                It does not know the other {records.length - 1} runs happened — so the best row here is
-                a maximum over {records.length} searches, and its DSR overstates the evidence by
-                exactly that much.
+                Each row&apos;s Deflated Sharpe prices only the parameter grid <em>inside</em> that
+                run; it does not know the other {records.length - 1} runs happened. The best row
+                here is a maximum over {records.length} searches, and its DSR overstates the evidence
+                by that much.
               </div>
             </div>
           )}

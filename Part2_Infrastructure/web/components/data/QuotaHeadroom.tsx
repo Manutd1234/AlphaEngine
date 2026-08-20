@@ -74,11 +74,16 @@ export default function QuotaHeadroom({ health }: { health: SystemHealth | null 
         </p>
       )}
 
+      {/* The chart's excluded half, named. These providers ARE configured, so
+          the paragraph above does not cover them: `deriveQuotaHeadroom` drops
+          them for keeping no local ledger, which is not the same fact as a
+          ledger with room in it. Unnamed, they are indistinguishable from
+          providers this deployment does not have. */}
       {unmetered.length > 0 && (
         <p className="console-footnote">
           Unmetered: {unmetered.map((provider) => provider.label).join(", ")} — keyless or billed by
           request weight rather than by call count, so no local ledger is kept rather than a wrong
-          one being modelled. Their absence from the chart is not headroom.
+          one modelled. Their absence from the chart is not headroom.
         </p>
       )}
     </section>

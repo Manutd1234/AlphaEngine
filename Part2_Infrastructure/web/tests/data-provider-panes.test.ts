@@ -92,7 +92,7 @@ describe("Providers & Capacity splits into panes, not a second rail", () => {
   });
 
   it("opens on Routing, which is where the outage card's cross-link is aimed", () => {
-    // "Open providers" on the quality tab's outage card exists to show the
+    // "Open providers" on the incidents tab's outage card exists to show the
     // reader the failover graph an outage is bending. It calls
     // `onSectionChange("providers")` with no pane argument, so the default
     // pane IS that link's destination.
@@ -170,13 +170,19 @@ describe("the reliability hand-off travels with Routing and keeps its door", () 
 
   it("still reaches reliability/overview, which the interconnect scan measures", () => {
     // `desk-interconnect.test.ts` asserts something opens reliability/overview;
-    // this is that something's wiring. The prop is threaded from page.tsx,
-    // where the measured `openSection("reliability", "overview")` lives.
+    // this is that something's wiring. page.tsx threads the prop, and the
+    // measured `openSection("reliability", "overview")` behind it is
+    // `openReliabilityOverview` in lib/use-workspace-routing.ts.
     assert.match(console_, /onOpenReliability: \(\) => void;/);
     assert.match(
       code(read("../app/dashboard/page.tsx")),
-      /openSection\("reliability", "overview"\)/,
+      /onOpenReliability=\{openReliabilityOverview\}/,
       "the page no longer wires DataConsole's hand-off to a named section",
+    );
+    assert.match(
+      code(read("../lib/use-workspace-routing.ts")),
+      /openSection\("reliability", "overview"\)/,
+      "openReliabilityOverview no longer names the section it opens",
     );
   });
 

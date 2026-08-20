@@ -210,7 +210,7 @@ export default function WorkspaceOverview({
            next element enumerates is a caption for a diagram nobody has read
            yet. What survives is the claim the loop cannot make on its own —
            one context, one audit trail. */
-        description={<>One {request.symbol} context across the loop below, and one record they all reconcile to.</>}
+        description={<>One {request.symbol} context across the loop, and one record they all reconcile to.</>}
         metrics={[
           {
             label: "Equity",
@@ -254,8 +254,12 @@ export default function WorkspaceOverview({
             value: latencyMeasured
               ? <NumberTicker value={latency!.p99!} format={(v) => `${Math.round(v)}ms`} />
               : "—",
+            /* No ready count: the deck's Data plane card below carries
+               "{ready}/{total} ready" as its headline, and the band and the
+               deck do not print one figure twice. What is left is the
+               exception and the provenance. */
             note: latencyMeasured
-              ? `${summary?.ready ?? 0} of ${summary?.total ?? 0} routes ready${systems.degraded ? `, ${systems.degraded} degraded` : ""}; measured from this browser's polls`
+              ? `${systems.degraded ? `${systems.degraded} routes degraded; ` : ""}measured from this browser's polls`
               : "fewer than 20 polls measured",
           },
         ]}

@@ -13,8 +13,18 @@ const heatmap = readFileSync(
   fileURLToPath(new URL("../components/Heatmap.tsx", import.meta.url)),
   "utf8",
 );
+/**
+ * The sweep announcement is composed in `lib/use-sweep-run.ts` and rendered by
+ * `components/ResearchWorkspace.tsx`; both moved out of page.tsx together.
+ * Pointed at page.tsx these assertions would scan a file with no announcement
+ * in it, which is a green that means nothing.
+ */
+const sweepHook = readFileSync(
+  fileURLToPath(new URL("../lib/use-sweep-run.ts", import.meta.url)),
+  "utf8",
+);
 const page = readFileSync(
-  fileURLToPath(new URL("../app/dashboard/page.tsx", import.meta.url)),
+  fileURLToPath(new URL("../components/ResearchWorkspace.tsx", import.meta.url)),
   "utf8",
 );
 const css = readFileSync(
@@ -53,13 +63,13 @@ describe("the heatmap is a roving keyboard grid", () => {
 
 describe("completed sweeps announce one atomic verdict", () => {
   it("keys the announcement to data identity and the accepted run", () => {
-    assert.match(page, /key: `\$\{completed\.dataHash\}:\$\{sequence\}`/);
+    assert.match(sweepHook, /key: `\$\{completed\.dataHash\}:\$\{sequence\}`/);
     assert.match(page, /<span key=\{resultAnnouncement\.key\}>/);
   });
 
   it("uses one polite, atomic live region outside the staggered Verdict", () => {
     assert.match(page, /role="status" aria-live="polite" aria-atomic="true"/);
-    assert.match(page, /Sweep complete:.*DSR.*combinations/s);
+    assert.match(sweepHook, /Sweep complete:.*DSR.*combinations/s);
     assert.doesNotMatch(
       readFileSync(fileURLToPath(new URL("../components/Verdict.tsx", import.meta.url)), "utf8"),
       /aria-live/,

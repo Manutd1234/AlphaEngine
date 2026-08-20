@@ -143,11 +143,9 @@ export default function SizingPanel({ best, gate, equity }: SizingPanelProps) {
               {pct(sizing.recommendedFraction, 1)} of the book from {best.trades} trade
               {best.trades === 1 ? "" : "s"}.
             </strong>{" "}
-            The formula cannot tell whether the payoff ratio came from{" "}
-            {best.trades} samples or six hundred — but the cost of being wrong can, because
-            over-betting Kelly compounds against you super-linearly. Below{" "}
-            {MIN_TRADES_FOR_SIZING} trades the standard error on R is wide enough that the honest
-            reading of this number is &ldquo;directionally positive&rdquo;, not{" "}
+            The formula cannot tell whether the payoff ratio came from {best.trades} samples or six
+            hundred. Below {MIN_TRADES_FOR_SIZING} trades the standard error on R is wide enough
+            that the honest reading of this number is &ldquo;directionally positive&rdquo;, not{" "}
             {usd(sizing.recommendedNotional, 0)}.
           </div>
         </div>
@@ -166,10 +164,12 @@ export default function SizingPanel({ best, gate, equity }: SizingPanelProps) {
               </>
             ) : sizing.cappedBy === "no_edge" ? (
               <>
-                <strong>Negative Kelly — no edge at these odds.</strong> Winners average{" "}
-                {pct(best.avgWin, 2)} against {pct(best.avgLoss, 2)} losers at a{" "}
-                {pct(best.winRate, 0)} hit rate. Sized to zero rather than inverted: a signal that
-                only works when flipped is a fitting artefact, not a discovery.
+                {/* The odds themselves are not restated here: the section note
+                    carries the trade count and win rate, and the Payoff ratio
+                    tile carries the average win against the average loss. */}
+                <strong>Negative Kelly — no edge at these odds.</strong> Sized to zero rather
+                than inverted: a signal that only works when flipped is a fitting artefact, not a
+                discovery.
               </>
             ) : (
               <>
@@ -184,10 +184,9 @@ export default function SizingPanel({ best, gate, equity }: SizingPanelProps) {
 
       <p className="research-note">
         {FRACTIONS.find((f) => f.value === fraction)?.note}. Kelly maximises long-run growth of a
-        repeated bet whose odds are known; these odds are estimates from a parameter search that has
-        already been optimised once, so they are biased upward. Over-betting a Kelly fraction hurts
-        super-linearly and under-betting only grows more slowly — the asymmetry is the reason the
-        default is a quarter rather than the full number.
+        repeated bet whose odds are known; these odds are estimates from an already-optimised
+        search, so they are biased upward. Over-betting hurts super-linearly while under-betting
+        only grows more slowly — that asymmetry is why the default is a quarter.
       </p>
     </div>
   );

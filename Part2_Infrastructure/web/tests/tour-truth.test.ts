@@ -29,7 +29,8 @@ const read = (relative: string) =>
 
 const sections = read("../lib/sections.ts");
 const tour = read("../../../docs/FEATURE_TOUR.md");
-const page = read("../app/dashboard/page.tsx");
+// The eight stops are built in lib/workspace-tour.ts since page.tsx was split.
+const page = read("../lib/workspace-tour.ts");
 
 /** Every `{ id, label }` pair of one workspace, in rail order. */
 function railOf(workspace: string): { id: string; label: string }[] {
@@ -71,7 +72,7 @@ describe("the feature tour names the sections the app actually ships", () => {
 
   it("the section total the tour quotes is the total that exists", () => {
     const total = WORKSPACES.reduce((n, workspace) => n + railOf(workspace).length, 0);
-    assert.equal(total, 45, "the rail count moved; the tour and desk-sweep both quote it");
+    assert.equal(total, 47, "the rail count moved; the tour and desk-sweep both quote it");
     assert.ok(
       plain.includes(`${total} section`),
       `the tour does not state the ${total}-section total`,
@@ -155,7 +156,7 @@ const WORKSPACE_FOR_VIEW: Record<string, string> = {
 };
 
 describe("the in-app tour names the sections the app actually ships", () => {
-  /** Every `stop("Tab → Label", moment, viewId, sectionId, apply)` in the page. */
+  /** Every `stop("Tab → Label", moment, viewId, sectionId, apply)` the builder returns. */
   const stops = [...page.matchAll(/stop\(\s*"([^"]+)",[\s\S]*?,\s*"([a-z]+)",\s*"([a-z]+)",\s*\(\) =>/g)]
     .map(([, where, view, section]) => ({ where, view, section }));
 

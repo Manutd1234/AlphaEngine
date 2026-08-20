@@ -23,12 +23,12 @@
  * each — the exact bars the run saw — which is what makes a sweep and a fit
  * over one window comparable rather than merely adjacent.
  *
- * Two further fields belong here and are not on the wire this panel reads. The
- * feature spec hash lives in `ml_features`, the per-fold purge and embargo in
- * `ml_folds`, and both are served only by `GET /api/research/ml/runs/{run_id}`,
- * for which this app has no proxy route. They are rendered as dashes that name
- * where they live rather than left out: a purge that is absent and a purge of
- * zero look identical to a reader, and only one of them is safe.
+ * Two further fields are not on the run list this panel opens with. The feature
+ * spec hash lives in `ml_features` and the per-fold purge and embargo in
+ * `ml_folds`, both served by `GET /api/research/ml/runs/{run_id}`, which a
+ * second request reads. Until it lands they are dashes that name where they
+ * live rather than blanks: a purge that is absent and a purge of zero look
+ * identical to a reader, and only one of them is safe.
  */
 
 import { fmt } from "@/lib/format";
@@ -100,25 +100,41 @@ const NO_SHA =
 
 const NO_FEATURES =
   "The feature spec hash is on the run detail record, GET /api/research/ml/runs/{run_id}, "
-  + "which this app does not proxy. A model is its features, so two runs are only "
-  + "comparable once their spec hashes are.";
+  + "which this panel has not read back yet. A model is its features, so two runs are "
+  + "only comparable once their spec hashes are.";
 
 const NO_PURGE =
   "Purge and embargo are recorded per fold on the run detail record, "
-  + "GET /api/research/ml/runs/{run_id}, which this app does not proxy. An "
+  + "GET /api/research/ml/runs/{run_id}, which this panel has not read back yet. An "
   + "out-of-sample Sharpe from an unpurged fold is not out of sample.";
 
 /**
- * Why every ML run in this corpus carries a null here, from modules/ml/fit.py.
+ * Why a run can carry a null here — BOTH reasons, because the row cannot say
+ * which one it is.
  *
- * Exported because the table beside this capsule reports the same null, and
- * fit.py's own comment is the argument for keeping the two in one place: "a
- * null column with no explanation reads as a figure that failed to compute
- * rather than one that does not apply".
+ * This read "not applicable" for every null, which was true only while every
+ * supervised run fitted a single configuration. A run with a candidate grid now
+ * computes a PBO, so a null has become ambiguous: `modules/ml/selection.py`
+ * returns one for a single configuration (it does not apply) and one for fewer
+ * than `MIN_RANKED_FOLDS` ranked folds (it could not be computed), and
+ * `modules/ml/fit.py` writes the sentence for each onto the FIT JOB's result.
+ * Neither `MLRunSummary` nor `MLRunDetail` carries `pbo_basis` or `pbo_reason`,
+ * so a run read back out of the corpus has the null and not the cause.
+ *
+ * Naming one cause would be inventing a distinction this app cannot read, and
+ * "not applicable" is the flattering half of it — it tells a reader there was
+ * nothing to compute when the figure may simply have failed to compute. So the
+ * cell states both and claims neither.
+ *
+ * Exported because the table beside this capsule reports the same null, and one
+ * string is what stops the two from drifting apart.
  */
-export const PBO_NOT_APPLICABLE =
-  "Not applicable: PBO ranks a selected configuration against the "
-  + "alternatives it was selected from, and this run fitted one.";
+export const PBO_UNSTATED =
+  "No PBO is filed for this run, and the corpus records the null without its cause. "
+  + "Either it does not apply — PBO ranks a selected configuration against the "
+  + "alternatives it was selected from, and this run fitted one — or it could not be "
+  + "computed, because too few folds ranked their selection for the fraction to be a "
+  + "probability.";
 
 const ENGINE_MEANING: Record<string, string> = {
   numpy: "The hand-rolled engine, used when the optional scikit-learn extra was absent. "
@@ -152,7 +168,7 @@ export default function MlRunCapsule({ run, evidence }: {
           <strong>A fitted model is its seed, its code and its bars.</strong>
           <small>
             Run <code title={run.id}>{run.id.slice(0, 8)}</code>, {run.status}. Choose another
-            model in the table below to read its provenance here.
+            row below to read its provenance.
           </small>
         </div>
         <dl>
@@ -213,20 +229,20 @@ export default function MlRunCapsule({ run, evidence }: {
             <dt>PBO</dt>
             <dd>
               {run.pbo == null
-                ? <Withheld short="not applicable" reason={PBO_NOT_APPLICABLE} />
+                ? <Withheld short="none filed" reason={PBO_UNSTATED} />
                 : <span className="num">{fmt(run.pbo, 2)}</span>}
             </dd>
           </div>
         </dl>
       </div>
 
+      {/* 94 words, and most of them re-read the labels above. What is left is
+          the one thing the columns cannot say for themselves: which four of
+          them are the re-run set, and what a dash means. Each dash already
+          carries its own cause on `title`. */}
       <p className="research-note">
-        Re-running this model exactly takes four of the fields above — the seed, the build that
-        fitted it, the engine it ran on, and the bars the dataset hash names. Two more belong here
-        and are dashed rather than dropped: the feature spec hash and the per-fold purge and
-        embargo are both recorded, and only the run detail record serves them, which nothing on
-        this deployment reads. PBO is null on every supervised run by design, and the dash says so
-        rather than leaving a gap that reads as a figure which failed to compute.
+        Re-running this model takes four of the fields above: seed, build, engine and dataset
+        hash. A dash is a value withheld with its reason, never a zero.
       </p>
     </>
   );

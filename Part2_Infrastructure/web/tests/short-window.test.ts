@@ -26,7 +26,13 @@ const read = (rel: string) =>
 
 const route = read("../app/api/backtest/route.ts");
 const engine = read("../lib/engine.ts");
-const page = read("../app/dashboard/page.tsx");
+/**
+ * The banner that turns a 422 into a click is `components/research/ResearchBanners`
+ * now, and the state it reads from is `lib/use-sweep-run`. Both left page.tsx
+ * in the same split.
+ */
+const page = read("../components/research/ResearchBanners.tsx");
+const sweepHook = read("../lib/use-sweep-run.ts");
 
 describe("the route's floor and the engine's floor are one number", () => {
   it("both say 200", () => {
@@ -126,6 +132,6 @@ describe("the banner turns the fix into a click", () => {
 
   it("clears the stale suggestion on every new run", () => {
     // A fix belonging to a previous failure must not decorate the next one.
-    assert.match(page, /setError\(null\);\s*setErrorFix\(null\);/);
+    assert.match(sweepHook, /setError\(null\);\s*setErrorFix\(null\);/);
   });
 });

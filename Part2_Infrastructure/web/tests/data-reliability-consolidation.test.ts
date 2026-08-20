@@ -14,7 +14,7 @@
  *     whichever pane happens to be open.
  *
  *  2. A next-action button printed `action.destination`, which is a section id.
- *     The rail shows "Quality & Incidents", not "quality", so the button named
+ *     The rail shows "Lineage & Payloads", not "lineage", so the button named
  *     a destination the reader could not find. The union and the section table
  *     are separate declarations, so the lookup is only honest for as long as
  *     every destination has a section.

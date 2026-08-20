@@ -106,8 +106,8 @@ export default function QualityScorePanel({ data }: QualityScorePanelProps) {
         </strong>{" "}
         promotion criteria met.{" "}
         {gate.eligible
-          ? "The gate below lists them; every one cleared."
-          : "The score ranks candidates, the gate vetoes them — a high score does not override a failed veto. The gate below names which."}
+          ? "The gate below lists them."
+          : "The score ranks candidates; the gate vetoes them, and a high score does not override a veto. The gate below names which."}
       </p>
     </div>
   );

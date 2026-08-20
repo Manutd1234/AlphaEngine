@@ -77,8 +77,18 @@ describe("the health snapshot and the panels say whose numbers these are", () =>
   });
 
   it("dispatch queues the same finding it records locally", () => {
-    const runtime = read("lib/providers/runtime.ts");
-    assert.match(runtime, /validationTelemetry\.record\(contract\);\s*\/\/[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*queueContractFinding\(/);
+    /**
+     * Re-anchored when `lib/providers/runtime.ts` was split: the pair moved to
+     * `contract-gate.ts` and this scan would otherwise have gone on reading a
+     * re-export barrel, matching nothing and proving nothing. The second
+     * assertion is the anti-vacuity guard — the pair is worthless if the
+     * dispatch loop stopped calling it.
+     */
+    const gate = read("lib/providers/contract-gate.ts");
+    assert.match(gate, /export function recordContractFinding\(/, "the scan is reading the wrong file");
+    assert.match(gate, /validationTelemetry\.record\(contract\);\s*\/\/[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*queueContractFinding\(/);
+    assert.match(read("lib/providers/dispatch.ts"), /recordContractFinding\(contract, \{/,
+      "the local record and the queued finding are only paired if dispatch calls them");
   });
 
   it("the ledger panel renders its own absence and says what it does not prove", () => {

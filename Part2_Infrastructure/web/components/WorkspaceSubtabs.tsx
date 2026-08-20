@@ -86,6 +86,26 @@ export default function WorkspaceSubtabs<T extends string>({
     observer.observe(node);
     return () => observer.disconnect();
   }, [active]);
+
+  /**
+   * Keeps the selected tab on the visible part of the rail.
+   *
+   * Below 820px the rail is a scroll container, and until now only the arrow
+   * keys revealed what they had just activated. Every other way a section
+   * changes — a tap on a half-visible tab, a cross-link from another
+   * workspace, a deep link, Back — could leave the selected tab parked out of
+   * view: a tablist apparently with no selection. `nearest` on both axes moves
+   * the rail the minimum distance and does not move at all when the tab is
+   * already in view, and the reveal is instant like every other navigation
+   * move, so there is no duration for reduced motion to shorten. Gated on
+   * `active` for the same reason the publisher above is: a hidden rail has no
+   * boxes to scroll.
+   */
+  useEffect(() => {
+    if (!active) return;
+    const index = tabs.findIndex((tab) => tab.id === activeId);
+    refs.current[index]?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [active, activeId, tabs]);
   const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
 
   const revealTab = (index: number) => {
@@ -215,12 +235,53 @@ export function WorkspaceSubtabPanel<T extends string>({
 }: WorkspaceSubtabPanelProps<T>) {
   const active = activeId === tabId;
   const [opened, setOpened] = useState(active);
+  const panelRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     if (active) setOpened(true);
   }, [active]);
 
+  /**
+   * A section opens at its own beginning.
+   *
+   * Panels persist behind `hidden` and share one scroller, so the depth a
+   * reader had reached in one section carried straight into the next: switch
+   * subtabs 2,000px into a blotter and the incoming panel appeared already
+   * scrolled to wherever the clamp left it, its heading somewhere above the
+   * sticky rail. When this panel becomes the visible one and its start sits
+   * above the chrome, one instant realignment brings it back — the panel's
+   * own `scroll-margin-top` (globals.css) supplies the offset, so the CSS
+   * stays the single authority on what the chrome measures and the landing
+   * spot is just below the header and rail. Already on screen — a deep link
+   * arriving at the shell's top, a switch made before scrolling anywhere —
+   * and nothing moves at all: the reader is never scrolled to somewhere they
+   * already are. Instant rather than smooth on purpose: a section change is a
+   * cut, and a cut leaves `prefers-reduced-motion` nothing to reduce.
+   *
+   * The scroller is found by walking, not named: research sections scroll
+   * inside `.research-content` at desk width while every other panel scrolls
+   * in the workspace shell. `scrollBy` on that one box, rather than
+   * `scrollIntoView`, because the latter aligns EVERY scrollable ancestor to
+   * the target — it would drag the shell down past the page heading on a
+   * switch made from the top, which is movement in the wrong direction.
+   */
+  useEffect(() => {
+    if (!active) return;
+    const node = panelRef.current;
+    if (!node) return;
+    let scroller = node.parentElement;
+    while (scroller && !/(auto|scroll)/.test(getComputedStyle(scroller).overflowY)) {
+      scroller = scroller.parentElement;
+    }
+    if (!scroller) return;
+    const clearance = parseFloat(getComputedStyle(node).scrollMarginTop) || 0;
+    const drift = node.getBoundingClientRect().top
+      - (scroller.getBoundingClientRect().top + clearance);
+    if (drift < 0) scroller.scrollBy({ top: drift, behavior: "auto" });
+  }, [active]);
+
   return (
     <section
+      ref={panelRef}
       id={`${workspaceId}-subpanel-${tabId}`}
       className={["workspace-subtab-panel", className].filter(Boolean).join(" ")}
       data-workspace-id={workspaceId}

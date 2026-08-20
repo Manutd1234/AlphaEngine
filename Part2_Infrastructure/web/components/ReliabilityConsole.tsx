@@ -19,7 +19,7 @@ import { useRef, useState } from "react";
 import NumberTicker from "@/components/common/NumberTicker";
 import HealthMatrix from "@/components/systems/HealthMatrix";
 import BreakerStateMachine from "@/components/systems/BreakerStateMachine";
-import OperatorPanel, { OperatorActionResult } from "@/components/systems/OperatorPanel";
+import OperatorPanel, { OperatorActionResult, SessionControls } from "@/components/systems/OperatorPanel";
 import ReliabilityOverview, { type ReliabilityDrilldown } from "@/components/systems/ReliabilityOverview";
 import RemediationLedger from "@/components/systems/RemediationLedger";
 import TraceConsole from "@/components/systems/TraceConsole";
@@ -65,15 +65,14 @@ function postureTone(status: ReliabilityStatus | undefined): ConsoleTile["tone"]
 }
 
 /**
- * Remediation was three stacked cards in one scroll — the controls, the state
- * machine that explains recovery, and the ledger of what has been done. Over a
- * thousand lines of section, and a reader arriving mid-incident had to scroll
- * past two reference surfaces to reach the only one with buttons on it.
- *
- * These are three questions with three separate sources, so each degrades on
- * its own: the controls read `guard` and the provider registry, the state
- * machine reads `health.providers[].breaker`, and the ledger runs its own fetch
- * against this instance's event ring.
+ * Remediation was three stacked cards in one scroll — a reader arriving
+ * mid-incident had to scroll past two reference surfaces to reach the only one
+ * with buttons on it. Now four panes with separate sources, so each degrades on
+ * its own: the guarded controls read `guard` and the provider registry, the
+ * session controls read only this tab, the state machine reads
+ * `health.providers[].breaker`, and the ledger fetches this instance's event
+ * ring. Act and Session split the old controls card along its own blast-radius
+ * seam: server mutations behind the guard on one, browser-only on the other.
  *
  * Deliberately NOT a nested `<WorkspaceSubtabs>`: that publishes `--rail-h`
  * from a ResizeObserver and its own comment asserts exactly one rail is mounted
@@ -81,16 +80,16 @@ function postureTone(status: ReliabilityStatus | undefined): ConsoleTile["tone"]
  * offset in the app. The house in-panel pattern is `.seg role="group"`, as
  * Dependencies and the blotter use.
  */
-type RemediationPane = "act" | "recovery" | "history";
+type RemediationPane = "act" | "session" | "recovery" | "history";
 
 /**
- * Act leads and is the default. It is the pane a reader lands on in an
- * incident, and the only one that can change anything; the other two are
- * evidence and explanation, which are worth one click rather than a page of
- * scrolling above the controls.
+ * Act leads and is the default: the pane a reader lands on in an incident, and
+ * the only one that can change server state; the rest are worth one click
+ * rather than a page of scrolling above the controls.
  */
 const REMEDIATION_PANES: Array<{ id: RemediationPane; label: string; hint: string }> = [
   { id: "act", label: "Act", hint: "Every guarded control, what it acts on, and what each one costs" },
+  { id: "session", label: "Session", hint: "This tab's own sockets and poll cadence, touching no server state" },
   { id: "recovery", label: "Recovery", hint: "How a tripped circuit comes back on its own, and how much cooldown is left" },
   { id: "history", label: "History", hint: "Which circuits have actually tripped here, and how each one was closed" },
 ];
@@ -143,12 +142,9 @@ export default function ReliabilityConsole({
 
   /**
    * Focus follows the switch, or a keyboard reader is left on a control that no
-   * longer describes what is on screen.
-   *
-   * The optional anchor argument went with the two tile actions below: nothing
-   * in this component targets an element inside a section any more, and the two
-   * deep links that do — the header's latency chip and system-health button —
-   * are wired in `app/dashboard/page.tsx` because the header is global.
+   * longer describes what is on screen. The two deep links that target an
+   * element inside a section — the header's latency chip and system-health
+   * button — are wired in `app/dashboard/page.tsx`; the header is global.
    */
   const openDrilldown = (next: ReliabilityDrilldown) => {
     onSectionChange(next);
@@ -265,11 +261,10 @@ export default function ReliabilityConsole({
       />
 
       {/* Exactly one copy of the outcome, wherever the reader is. `OperatorPanel`
-          renders `lastResult` inline beside the button that caused it, so the
-          console-level banner exists for every other position — another section,
-          and now also the Recovery and History panes, where that panel is not
-          mounted. Without the pane clause a confirmed purge would report to a
-          component nobody can see. */}
+          renders `lastResult` inline beside the button that caused it, so this
+          console-level banner covers every other position — another section, or
+          the Session, Recovery and History panes, where that panel is not
+          mounted. */}
       {(section !== "controls" || remediationPane !== "act") && actionResult && (
         <OperatorActionResult result={actionResult} />
       )}
@@ -343,30 +338,22 @@ export default function ReliabilityConsole({
         </div>
 
         {/* Conditional renders, never `hidden`. The section panel above stays
-            mounted so a typed operator token and a chosen purge scope survive a
-            rail switch; there is nothing comparable to preserve between these
-            three, and leaving them mounted would keep the ledger's 15s poll and
-            the machine's cooldown arithmetic running behind a pane nobody is
-            reading. */}
+            mounted so a typed token and a chosen purge scope survive a rail
+            switch; there is nothing comparable to preserve between these four,
+            and leaving them mounted would keep the ledger's 15s poll and the
+            cooldown arithmetic running behind a pane nobody is reading. */}
         {remediationPane === "act" && (
         <OperatorPanel
           guard={guard}
           tokenEnv={tokenEnv}
           providers={health?.providers ?? null}
           symbol={workspaceSymbol}
-          pollMs={effectivePollMs}
-          onPollMsChange={(ms) => {
-            setPaused(ms === 0);
-            if (ms > 0) setPollMs(ms);
-          }}
-          socketCount={sockets.length}
           counters={{
             cacheEntries: health?.cache.entries ?? null,
             stateEntries: health?.cache.stateEntries ?? null,
             eventsRetained: health?.events.retained ?? null,
             eventsCapacity: health?.events.capacity ?? null,
           }}
-          onReconnectSockets={onReconnectSockets}
           busyAction={busyAction}
           lastResult={actionResult}
           token={token}
@@ -375,6 +362,19 @@ export default function ReliabilityConsole({
           tokenStatus={view.tokenStatus}
           onAction={runAction}
         />
+        )}
+
+        {/* The browser-only half of the old Act card — no guard, no server writes. */}
+        {remediationPane === "session" && (
+          <SessionControls
+            pollMs={effectivePollMs}
+            onPollMsChange={(ms) => {
+              setPaused(ms === 0);
+              if (ms > 0) setPollMs(ms);
+            }}
+            socketCount={sockets.length}
+            onReconnectSockets={onReconnectSockets}
+          />
         )}
 
         {/* `fetchedAt` is the correct clock for the cooldown arithmetic

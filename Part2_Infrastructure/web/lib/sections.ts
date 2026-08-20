@@ -69,6 +69,7 @@ export const RISK_SECTIONS = [
   { id: "model", label: "VaR & model", description: "Loss estimates & validation" },
   { id: "drivers", label: "Risk drivers", description: "Contribution & correlation" },
   { id: "montecarlo", label: "Monte Carlo", description: "Terminal distribution & tail" },
+  { id: "oraclevar", label: "Oracle VaR", description: "In-database GBM check" },
   { id: "scenarios", label: "Stress tests", description: "Forward shock damage" },
   { id: "controls", label: "Controls", description: "Halt & flatten handoffs" },
 ] as const;
@@ -78,7 +79,8 @@ export const RISK_SECTION_IDS = RISK_SECTIONS.map((s) => s.id) as readonly RiskS
 export const DATA_SECTIONS = [
   { id: "overview", label: "Trust Summary", description: "Verdict, composition & boundary" },
   { id: "feeds", label: "Feeds & Contracts", description: "Freshness, validation & next action" },
-  { id: "quality", label: "Quality & Incidents", description: "Reconcile, contracts & quarantine" },
+  { id: "quality", label: "Quality", description: "Reconcile, contracts & ledger" },
+  { id: "incidents", label: "Incidents", description: "Outages, quarantine & recovery" },
   { id: "lineage", label: "Lineage & Payloads", description: "Trace source, cache & coercion" },
   { id: "providers", label: "Providers & Capacity", description: "Failover, quota & reserve" },
   { id: "queue", label: "Work Queue", description: "Persisted requests, tickets & bugs" },

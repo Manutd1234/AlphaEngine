@@ -261,10 +261,9 @@ export default function RemediationLedger({ active }: { active: boolean }) {
         <p className="research-note">
           Pairing needs both the trip and its closure still in this instance&rsquo;s{" "}
           {data?.cursor.capacity ?? 600}-event ring, which it shares with dispatch, cache and quota
-          traffic — and a long outage is the likeliest to lose its opening line first. So the
-          incidents that survive to be measured are disproportionately the ones that ended quickly.
-          That is a wrong answer rather than an imprecise one, and no caption fixes a chart whose
-          bias points the same way as the flattering conclusion.
+          traffic — and a long outage is the likeliest to lose its opening line first, so the
+          survivors are disproportionately the incidents that ended quickly. No caption fixes a
+          chart whose bias points the same way as the flattering conclusion.
         </p>
         <p className="research-note">
           This is a diagnostic for one function instance, reset by redeploy and by Clear telemetry,

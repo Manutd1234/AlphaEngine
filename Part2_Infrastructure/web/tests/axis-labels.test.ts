@@ -31,6 +31,7 @@ import {
   MONO_ADVANCE_EM,
   TICK_FONT_SIZE,
   axisTicks,
+  fitLabel,
   labelExtent,
   type AxisTick,
 } from "../components/chart-axis";
@@ -270,6 +271,68 @@ describe("a tick is dropped rather than overprinted", () => {
 
   it("returns nothing for an empty series rather than inventing a domain", () => {
     assert.deepEqual(axisTicks({ points: [], x0: 52, x1: 664, format: shortDate }), []);
+  });
+});
+
+describe("a name is cut to its column, never printed through its neighbour", () => {
+  /**
+   * `axisTicks` may drop a redundant date; a category axis may not drop a
+   * venue, so `fitLabel` shortens instead. The property is the same one the
+   * date axis holds: no two labels the chart draws may overlap, at any width.
+   * Geometry as `SpreadDecomposition` lays it out — DEFAULT_MARGIN.left, an
+   * 18px right margin, a 160px plot floor, one group per venue, each label
+   * centred on its group.
+   */
+  const CHART_MARGIN = { left: 52, right: 18 };
+  /** Venue strings are data, and the paper venues arrive as long as they like. */
+  const VENUES = [
+    "PAPER_EQUITY/Financial Modeling Prep",
+    "PAPER_EQUITY/Twelve Data",
+    "BINANCE_PAPER",
+    "BINANCE",
+    "BYBIT",
+  ];
+
+  it("returns a short name untouched and cuts a long one with a single ellipsis", () => {
+    assert.equal(fitLabel("BINANCE", 200), "BINANCE");
+    const full = VENUES[0];
+    const cut = fitLabel(full, 120);
+    assert.notEqual(cut, full);
+    assert.match(cut, /…$/, "a cut name must say it was cut");
+    assert.equal((cut.match(/…/g) ?? []).length, 1, "one mark, not a trail of dots");
+    assert.ok(full.startsWith(cut.slice(0, -1)), "the head of the name survives; the tail goes");
+  });
+
+  it("never exceeds the room it was given, at any width or venue count", () => {
+    for (const width of WIDTHS) {
+      const plotW = Math.max(160, width - CHART_MARGIN.left - CHART_MARGIN.right);
+      for (let n = 2; n <= VENUES.length; n++) {
+        const groupW = plotW / n;
+        const room = Math.max(0, groupW - LABEL_CLEARANCE);
+        const labels = VENUES.slice(0, n).map((v) => fitLabel(v, room));
+        for (let i = 0; i < n; i++) {
+          const centre = CHART_MARGIN.left + i * groupW + groupW / 2;
+          const [lo, hi] = labelExtent(centre, labels[i], "middle");
+          assert.ok(
+            hi - lo <= room + 1e-9,
+            `"${labels[i]}" overflows its ${room.toFixed(1)}px column at ${width}px`,
+          );
+          if (i > 0) {
+            const [, prevHi] = labelExtent(centre - groupW, labels[i - 1], "middle");
+            assert.ok(
+              lo - prevHi >= LABEL_CLEARANCE - 1e-9,
+              `"${labels[i - 1]}" and "${labels[i]}" are ${(lo - prevHi).toFixed(1)}px apart at ${width}px`,
+            );
+          }
+        }
+      }
+    }
+  });
+
+  it("keeps the mark alone when the column cannot hold a character beside it", () => {
+    // "Something is here, hover for it" beats one glyph printed through the
+    // next column. The full name is owed on the label's <title> regardless.
+    assert.equal(fitLabel(VENUES[0], 8), "…");
   });
 });
 

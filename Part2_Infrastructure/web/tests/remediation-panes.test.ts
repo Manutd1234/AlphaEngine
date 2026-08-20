@@ -1,8 +1,10 @@
 /**
- * Remediation as three panes, and the four ways splitting a section goes wrong.
+ * Remediation as four panes, and the four ways splitting a section goes wrong.
  *
  * The section was three stacked cards in one scroll — controls, the state
- * machine that explains recovery, and the ledger of what has been done. Cutting
+ * machine that explains recovery, and the ledger of what has been done; the
+ * controls card later split again along its blast-radius seam, into guarded
+ * server mutations (Act) and browser-only session controls (Session). Cutting
  * it into panes is cheap; the failure modes are not, and none of them is visible
  * to a type checker:
  *
@@ -52,7 +54,7 @@ function controlsPanel(source: string): string {
   return source.slice(start, end);
 }
 
-describe("Remediation splits into three panes, not a fourth rail", () => {
+describe("Remediation splits into four panes, not a second rail", () => {
   it("switches with `.seg role=\"group\"`, never a nested WorkspaceSubtabs", () => {
     /**
      * `WorkspaceSubtabs` sets `--rail-h` on the document element from a
@@ -69,12 +71,12 @@ describe("Remediation splits into three panes, not a fourth rail", () => {
     assert.match(controlsPanel(console_), /className="seg [^"]*" role="group"/);
   });
 
-  it("offers exactly three panes and no more", () => {
+  it("offers exactly four panes and no more", () => {
     const start = console_.indexOf("const REMEDIATION_PANES");
     assert.ok(start > 0, "the pane list is no longer a module-level constant");
     const block = console_.slice(start, console_.indexOf("];", start));
     const ids = [...block.matchAll(/\{\s*id:\s*"(\w+)"/g)].map((match) => match[1]);
-    assert.deepEqual(ids, ["act", "recovery", "history"]);
+    assert.deepEqual(ids, ["act", "session", "recovery", "history"]);
   });
 
   it("carries a hint on every pane, as the Dependencies switcher does", () => {
@@ -83,7 +85,7 @@ describe("Remediation splits into three panes, not a fourth rail", () => {
     const start = console_.indexOf("const REMEDIATION_PANES");
     const block = console_.slice(start, console_.indexOf("];", start));
     const hints = [...block.matchAll(/hint:\s*"([^"]*)"/g)].map((match) => match[1]);
-    assert.equal(hints.length, 3);
+    assert.equal(hints.length, 4);
     for (const hint of hints) assert.ok(hint.length > 24, `a hint that says nothing: "${hint}"`);
     assert.match(controlsPanel(console_), /title=\{option\.hint\}/);
     assert.match(controlsPanel(console_), /aria-pressed=\{remediationPane === option\.id\}/);
@@ -104,7 +106,7 @@ describe("Remediation splits into three panes, not a fourth rail", () => {
 describe("a switched-away pane stops doing work", () => {
   it("renders conditionally, never behind `hidden`", () => {
     const panel = code(controlsPanel(console_));
-    for (const pane of ["act", "recovery", "history"]) {
+    for (const pane of ["act", "session", "recovery", "history"]) {
       assert.match(
         panel,
         new RegExp(`remediationPane === "${pane}" && \\(`),

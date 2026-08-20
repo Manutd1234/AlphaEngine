@@ -65,10 +65,13 @@ export default function SignalDAGViewer({
         <span className={`pill is-${summary.tone}`}>{summary.label}</span>
       </div>
 
+      {/* aria-pressed tells a screen reader the stages are pressable; nothing
+          told a sighted reader, so the last sentence stays. The two claims that
+          are not visible — the provenance and the paper-only scope — stay too. */}
       <p className="sub">
         Consolidated depth through the pre-trade battery to a paper order, with each stage&rsquo;s
-        state read from the health snapshot rather than described. Select a stage for the reading
-        behind it. Orders are paper only: this desk holds no funds and reaches no real venue.
+        state read from the health snapshot rather than described. Orders are paper only: this desk
+        holds no funds and reaches no real venue. Select a stage for the reading behind it.
       </p>
 
       <ol className="signal-workflow__track" aria-label="Signal path stages">

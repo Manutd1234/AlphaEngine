@@ -65,23 +65,23 @@ const NEXT_FROM: Record<string, { view: WorkspaceView; section: string; why: str
   "overview/audit": {
     view: "live",
     section: "activity",
-    why: "The same orders, live. The blotter is where these rows arrive before they are accounted for here.",
+    why: "These rows arrive there live, before they are accounted for here.",
   },
 
   "research/summary": {
     view: "research",
     section: "parameters",
-    why: "The verdict names one winning pair. The ranking behind it says how far ahead of its neighbours it really was.",
+    why: "The verdict names one winning pair, without saying how far ahead of its neighbours it really was.",
   },
   "research/parameters": {
     view: "research",
     section: "walkforward",
-    why: "A pair that tops the in-sample grid has still proved nothing. Walk-forward asks whether it holds on windows it never saw.",
+    why: "A pair that tops the in-sample grid has proved nothing until it holds on windows it never saw.",
   },
   "research/walkforward": {
     view: "research",
     section: "decision",
-    why: "Out-of-sample evidence is the promotion gate's input — take it straight to the gate and the sizing that follows.",
+    why: "Out-of-sample evidence is the promotion gate's input.",
   },
   "research/decision": {
     // Absorbed from an inline hand-off card on the decision section itself:
@@ -90,113 +90,113 @@ const NEXT_FROM: Record<string, { view: WorkspaceView; section: string; why: str
     // is the continuation a promotion decision actually has.
     view: "data",
     section: "overview",
-    why: "Verify the inputs before approving the candidate — the trust verdict rules on exactly the bars this gate just judged.",
+    why: "Verify the inputs first — the trust verdict rules on exactly the bars this gate just judged.",
   },
   "research/attribution": {
     view: "risk",
     section: "model",
-    why: "Factor exposure and tail shape are what the loss estimate is built from, so the same decomposition continues on the risk side.",
+    why: "Factor exposure and tail shape are what the loss estimate is built from.",
   },
   "research/lineage": {
     view: "data",
     section: "lineage",
-    why: "The provenance question does not stop at the signal path — the data workspace traces the payload it was computed from.",
+    why: "Provenance does not stop at the signal path — the payload it was computed from has its own trail.",
   },
   "research/runs": {
     view: "research",
     section: "summary",
-    why: "The archive is a list of hypotheses. Opening one puts its verdict and its curve back on screen.",
+    why: "The archive is a list of hypotheses; opening one restores its curve.",
   },
 
   "live/quality": {
     view: "live",
     section: "routing",
-    why: "Realised cost only means something beside the model it beat or missed, which is where the venue allocation was decided.",
+    why: "Realised cost only means something beside the model it beat or missed.",
   },
 
   "portfolio/equity": {
     view: "portfolio",
     section: "performance",
-    why: "The curve says what happened. Attribution says which sleeve and which cost it happened through.",
+    why: "The curve says what happened, not which sleeve or which cost it happened through.",
   },
   "portfolio/allocation": {
     view: "live",
     section: "trade",
-    why: "A drift number is a rebalance waiting to be staged, and the ticket is where it becomes an order.",
+    why: "A drift number is a rebalance waiting to be staged as an order.",
   },
   "portfolio/performance": {
     view: "live",
     section: "quality",
-    why: "Attribution charges a modelled cost. Fill quality is what the desk actually paid for it.",
+    why: "Attribution charges a modelled cost, not the one the desk actually paid.",
   },
 
   "risk/model": {
     view: "risk",
     section: "montecarlo",
-    why: "Same driver, distribution form: the bootstrap resamples exactly the returns this estimate was fitted to.",
+    why: "The bootstrap resamples exactly the returns this estimate was fitted to.",
   },
   "risk/drivers": {
     view: "risk",
     section: "scenarios",
-    why: "The positions carrying the volatility are the ones a shock moves most — the table above names them.",
+    why: "The positions carrying the volatility are the ones a shock moves most.",
   },
   "risk/scenarios": {
     view: "risk",
     section: "controls",
-    why: "A scenario that breaches the drawdown budget wants the halt beside it, not a note to find it later.",
+    why: "A scenario that breaches the drawdown budget wants the halt beside it.",
   },
   "risk/controls": {
     view: "portfolio",
     section: "positions",
-    why: "After a halt or a flatten, the holdings table is where you confirm what actually moved.",
+    why: "After a halt or a flatten, confirm what actually moved.",
   },
 
   "data/overview": {
     view: "data",
     section: "feeds",
-    why: "The trust verdict is a summary of the feeds. Their freshness, contracts and validation are the evidence for it.",
+    why: "The trust verdict is a summary of the feeds; this is the evidence behind it.",
   },
   "data/lineage": {
     view: "data",
     section: "quality",
-    why: "A traced payload is worth validating: reconciliation, contract checks and the quarantine sit one section along.",
+    why: "A traced payload is still worth validating.",
   },
   "data/queue": {
     view: "data",
     section: "quality",
-    why: "Every item in this queue was created by a finding — this is where those findings are raised and cleared.",
+    why: "Every item in this queue was created by a finding raised there.",
   },
 
   "reliability/events": {
     view: "reliability",
     section: "controls",
-    why: "A correlated log is the input to a remediation, and the guarded actions that answer it are here.",
+    why: "A correlated log is the input to a remediation.",
   },
   "reliability/controls": {
     view: "reliability",
     section: "events",
-    why: "An operator action is only finished once the mutation is visible in the stream. Verify it landed.",
+    why: "An operator action is only finished once the mutation is visible in the stream.",
   },
 
   "developer/quality": {
     view: "developer",
     section: "apis",
-    why: "The pipeline's last gate is the contract: OpenAPI drift against the committed digest is checked here.",
+    why: "The pipeline's last gate is the contract, checked against the committed digest.",
   },
   "developer/apis": {
     view: "developer",
     section: "codebase",
-    why: "A route that changed shape has a source file behind it, with the change custody to match.",
+    why: "A route that changed shape has a source file behind it.",
   },
   "developer/codebase": {
     view: "developer",
     section: "quality",
-    why: "A diff is unproven until the pipeline has run over it — the test gates and artefacts are the proof.",
+    why: "A diff is unproven until the pipeline has run over it.",
   },
   "developer/work": {
     view: "developer",
     section: "codebase",
-    why: "Work items reference files. Open the repository view to read what an item is actually about.",
+    why: "Work items reference files; what an item is actually about is in the source.",
   },
 };
 
@@ -234,13 +234,13 @@ const FLOW_MAP: Record<WorkspaceView, { nextId: WorkspaceView; kicker: string; t
     nextId: "risk",
     kicker: "Next step for the risk manager",
     title: "Audit pre-trade risk and limits",
-    hint: "Check gross/net headroom, historical VaR, stress scenario testing, and kill switch state.",
+    hint: "Check gross/net headroom, historical VaR, stress scenarios, and kill switch state.",
   },
   risk: {
     nextId: "data",
     kicker: "Next step for the data engineer",
     title: "Verify data lineage and feed freshness",
-    hint: "Audit market feed freshness, provider quotas, contract evidence, and the pipeline DAG.",
+    hint: "Audit provider quotas, contract evidence, and the pipeline DAG.",
   },
   data: {
     nextId: "reliability",

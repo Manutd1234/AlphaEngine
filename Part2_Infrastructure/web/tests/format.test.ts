@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { formatDuration, trackRecordNote } from "../lib/format";
+import { constraintLabel, formatDuration, trackRecordNote } from "../lib/format";
 import { BARS_PER_YEAR } from "../lib/types";
 
 describe("trackRecordNote", () => {
@@ -88,5 +88,36 @@ describe("formatDuration", () => {
       const out = formatDuration(ns);
       assert.doesNotMatch(out, /\b1000\b/, `${ns} rendered as ${out}`);
     }
+  });
+});
+
+describe("constraintLabel", () => {
+  it("speaks the gateway's qualified symbol constraint as a label", () => {
+    // The screenshotted defect: the KPI card read "symbol:AVGO" verbatim.
+    assert.equal(constraintLabel("symbol:AVGO"), "Symbol: AVGO");
+    assert.equal(constraintLabel("symbol:BTCUSDT"), "Symbol: BTCUSDT");
+  });
+
+  it("capitalises bare kinds and speaks their underscores as spaces", () => {
+    // Every kind the gateway or the sandbox book actually emits.
+    assert.equal(constraintLabel("gross_exposure"), "Gross exposure");
+    assert.equal(constraintLabel("daily_drawdown"), "Daily drawdown");
+    assert.equal(constraintLabel("symbol_exposure"), "Symbol exposure");
+  });
+
+  it("renders a kind it has never seen rather than dashing the fact", () => {
+    assert.equal(constraintLabel("leverage"), "Leverage");
+    assert.equal(constraintLabel("per_order:ORD-1"), "Per order: ORD-1");
+  });
+
+  it("keeps the identifier after the colon verbatim — it is the fact", () => {
+    assert.equal(constraintLabel("symbol:brk.b"), "Symbol: brk.b");
+  });
+
+  it("an absence is a dash, never an empty label", () => {
+    assert.equal(constraintLabel(null), "—");
+    assert.equal(constraintLabel(undefined), "—");
+    assert.equal(constraintLabel(""), "—");
+    assert.equal(constraintLabel("   "), "—");
   });
 });

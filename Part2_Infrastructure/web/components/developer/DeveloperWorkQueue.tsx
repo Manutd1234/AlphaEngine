@@ -142,10 +142,11 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
           </div>
           <h2>Features, bugs &amp; current tickets</h2>
           {/* The stored-in-this-browser caveat lives in the pill above and the
-              scope block below — twice is labelling, four times was noise. */}
-          <p className="sub">
-            Capture a change, assign it, and advance it through review with explicit controls.
-          </p>
+              scope block below — twice is labelling, four times was noise. The
+              lead paragraph that stood here ("capture a change, assign it, and
+              advance it through review") named the composer, the Owner field
+              and the status select one row below it; the controls say that
+              themselves. */}
         </div>
         <div className="developer-work__stats" aria-label="Engineering work summary">
           <div><span>Open</span><strong className="num"><NumberTicker value={openItems.length} /></strong></div>

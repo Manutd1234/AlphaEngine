@@ -127,9 +127,9 @@ export default function FavouritesPanel({ records }: { records: ExperimentRecord
 
       <p className="sub">
         Each saved run is <strong>re-executed</strong>, not replayed — the history stores the recipe
-        rather than the return series, deliberately, to stay inside the browser&rsquo;s storage
-        quota. Weights are fitted on the earlier {Math.round(0.7 * 100)}% of the shared window and
-        measured on the rest, which the fit never saw.
+        rather than the return series, to stay inside the browser&rsquo;s storage quota. Weights are
+        fitted on the earlier {Math.round(0.7 * 100)}% of the shared window and measured on the
+        rest, which the fit never saw.
       </p>
 
       {records.length < 2 ? (
@@ -219,12 +219,11 @@ export default function FavouritesPanel({ records }: { records: ExperimentRecord
           </div>
 
           <p className="research-note">
-            The in-sample column is the window the weights were chosen on, and it flatters every
-            method by construction. A method whose holdout Sharpe is far below its in-sample one has
-            fitted the training period, which is the same failure walk-forward efficiency reports for
-            a single strategy. The last column is the one that decides whether combining was worth
-            doing at all: a negative number means the portfolio lost to one of its own members out of
-            sample, and added complexity for nothing.
+            The in-sample column, the window the weights were chosen on, flatters every method by
+            construction. A method whose holdout Sharpe falls far below it has fitted the training
+            period — the same failure walk-forward efficiency reports for a single strategy. The last
+            column decides whether combining was worth doing: a negative number means the portfolio
+            lost to one of its own members out of sample, and added complexity for nothing.
           </p>
         </>
       ) : null}

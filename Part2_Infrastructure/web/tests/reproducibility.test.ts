@@ -385,7 +385,8 @@ describe("the fitted-model capsule is the sweep capsule, not a lookalike", () =>
     for (const token of ["research-provenance", "research-provenance__lead", "Reproducibility capsule"]) {
       assert.ok(capsuleCode.includes(token), `the ML capsule stopped sharing "${token}"`);
       assert.ok(
-        code(read("../app/dashboard/page.tsx")).includes(token),
+        // The sweep capsule moved to the Summary section when page.tsx was split.
+        code(read("../components/research/ResearchSummary.tsx")).includes(token),
         `the sweep capsule stopped using "${token}"`,
       );
     }
@@ -407,13 +408,23 @@ describe("the fitted-model capsule is the sweep capsule, not a lookalike", () =>
 
   it("says the same thing about PBO in the table as in the capsule", () => {
     /**
-     * The run table rendered every null through the generic "not computed"
-     * cell, which is the reading `modules/ml/fit.py` wrote its `pbo_reason`
-     * to prevent: PBO does not apply to a run that fitted one configuration,
-     * and "failed to compute" invites someone to go and fix it.
+     * One string for one null, shared by both surfaces so they cannot drift.
+     *
+     * It was `PBO_NOT_APPLICABLE`, and both surfaces rendered the words "not
+     * applicable" for every null PBO. That was true only while every supervised
+     * run fitted a single configuration. `modules/ml/selection.py` returns a
+     * null on three bases — one configuration, fewer than `MIN_RANKED_FOLDS`
+     * ranked folds, no folds — and only the first means "does not apply".
+     * Neither `MLRunSummary` nor `MLRunDetail` carries `pbo_basis` or
+     * `pbo_reason`, so the portal reads the null WITHOUT its cause and may not
+     * name one: "not applicable" for a figure that failed to compute is the
+     * flattering half of an ambiguity, which is the reading fit.py's own
+     * `pbo_reason` comment exists to prevent.
      */
-    assert.match(fittedCode, /PBO_NOT_APPLICABLE/);
+    assert.match(fittedCode, /PBO_UNSTATED/);
     assert.match(fittedCode, /run\.pbo == null/);
+    assert.doesNotMatch(fittedCode, /not applicable/i);
+    assert.doesNotMatch(capsuleCode, /"not applicable"/i);
   });
 
   it("never maxes a hurdle nobody cleared", () => {

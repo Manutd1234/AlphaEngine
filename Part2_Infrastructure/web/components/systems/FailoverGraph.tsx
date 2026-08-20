@@ -35,7 +35,6 @@ interface FailoverGraphProps {
   onSelect: (key: string) => void;
   /** Per-capability, keyed by capability name — not the global figure. */
   cacheByCapability: Record<string, { hitRate: number | null }>;
-  priority: string;
   guard: GuardMode;
   /** From SystemHealthView — false in token mode until a token is entered. */
   operatorReady: boolean;
@@ -70,7 +69,6 @@ export default function FailoverGraph({
   selected,
   onSelect,
   cacheByCapability,
-  priority,
   guard,
   operatorReady,
   busyAction,
@@ -98,10 +96,6 @@ export default function FailoverGraph({
         <div>
           <h2>Failover path</h2>
         </div>
-        <span className="section-note">
-          Evaluated at <strong>{priority}</strong>{" "}priority — a background poll is fenced out of
-          each provider&apos;s reserve, so its chain can differ.
-        </span>
       </div>
 
       <div className="seg console-route-picker" role="group" aria-label="Capability and asset class">

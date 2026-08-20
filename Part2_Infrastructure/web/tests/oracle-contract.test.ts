@@ -207,6 +207,21 @@ describe("the VaR call matches the procedure", () => {
     assert.match(strip(monteCarloSql), /FROM \(\s*SELECT/i);
     assert.match(strip(monteCarloSql), /CONNECT BY LEVEL <= p_paths_used/i);
   });
+
+  it("the procedure and the closed-form check share one day count", () => {
+    // The procedure annualises over calendar days (v_dt := 1/365) and
+    // `gbmTerminalVar99` — the panel's parametric comparison — divides by the
+    // same 365. A 252 on either side would be a permanent ~20% divergence at
+    // 30 days that no input explains: the exact class of quiet mismatch the
+    // divergence tile exists to catch, planted inside the tile itself.
+    assert.match(strip(monteCarloSql), /v_dt\s+NUMBER\s*:=\s*1\s*\/\s*365/i);
+    const risk = readFileSync(
+      fileURLToPath(new URL("../lib/portfolio-risk/risk.ts", import.meta.url)),
+      "utf8",
+    );
+    const closedForm = risk.slice(risk.indexOf("export function gbmTerminalVar99"));
+    assert.match(closedForm, /const t = days \/ 365/);
+  });
 });
 
 // --------------------------------------------------------------------------

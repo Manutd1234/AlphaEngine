@@ -143,7 +143,7 @@ export default function CrossSourceCheck({ symbol }: CrossSourceCheckProps) {
 
       {/* The fan-out is the button's own label ("Reconcile … across all
           sources"), so the note keeps only the method, the reason no other
-          panel can do this, and the price. */}
+          panel can do this, and the price that is why it is manual. */}
       <p className="console-note">
         Reports each leg&apos;s distance from the median. This is the only check on this page that can
         catch a provider serving a stale price with HTTP 200 — every other panel asks one source and

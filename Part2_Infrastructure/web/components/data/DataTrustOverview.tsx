@@ -121,7 +121,7 @@ const FEEDS_PANES: Array<{ id: FeedsPane; label: string; hint: string }> = [
  * The rail's own label for a destination.
  *
  * `DataTrustAction.destination` is a section id — `quality`, `lineage`,
- * `providers` — and the rail above these buttons reads "Quality & Incidents",
+ * `providers` — and the rail above these buttons reads "Quality",
  * "Lineage & Payloads" and "Providers & Capacity". Printing the id named a
  * destination the reader cannot find on screen. Ids are public deep links and
  * never change, so every destination resolves; the id remains the fallback
@@ -373,9 +373,9 @@ export default function DataTrustOverview({
                 How these rows are read — the spark is a per-minute median, the chip a fifteen-minute p95
               </summary>
               <p className="research-note">
-                They answer different questions and are not the same number. A minute with fewer than{" "}
-                {latencyWindow?.minSamplesPerBucket ?? 3} calls is drawn as a gap rather than joined
-                across, because too little traffic to measure and a fast minute look identical once
+                They answer different questions and are not the same number. A minute with fewer
+                than {latencyWindow?.minSamplesPerBucket ?? 3} calls is drawn as a gap rather than
+                joined across: too little traffic to measure and a fast minute look identical once
                 the line is bridged. A source shown as <strong>p95 n/a</strong> is one the wire
                 publishes no aggregate for — the gateway probe is one — and its sample count is read
                 from the window&rsquo;s own buckets instead.
@@ -451,8 +451,7 @@ export default function DataTrustOverview({
 
             <p className="research-note">
               A green ring means <strong>no fatal finding</strong> — warnings and drift may remain.
-              The ring counts payloads, the bar counts findings, and one payload can carry several,
-              which is why the two marks are deliberately not combined.
+              The ring counts payloads, the bar counts findings, and one payload can carry several.
             </p>
           </section>
 

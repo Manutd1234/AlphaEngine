@@ -21,7 +21,14 @@ const read = (relative: string) =>
 const machine = read("../components/systems/BreakerStateMachine.tsx");
 const ledger = read("../components/systems/RemediationLedger.tsx");
 const operator = read("../components/systems/OperatorPanel.tsx");
-const runtime = read("../lib/providers/runtime.ts");
+/**
+ * Re-anchored when `lib/providers/runtime.ts` was split into one file per
+ * mechanism. `runtime.ts` is now a re-export barrel, so a scan left pointing
+ * at it would match nothing and pass — the exact failure this suite has been
+ * bitten by. Every assertion below re-checks that it is reading the real
+ * implementation before it checks anything else.
+ */
+const breaker = read("../lib/providers/breaker.ts");
 
 const code = (source: string) =>
   source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "").replace(/\/\/.*$/gm, "");
@@ -44,9 +51,31 @@ describe("the diagram matches the implementation, not the textbook", () => {
      * fails and the diagram must gain an edge — rather than the diagram
      * quietly describing a machine the code stopped being.
      */
-    assert.match(runtime, /failures: 0, openedAt: null, probing: true/);
+    assert.match(breaker, /export function breakerOpen\(/, "the scan is reading the wrong file");
+    assert.match(breaker, /failures: 0, openedAt: null, probing: true/);
     // Whitespace-tolerant: the sentence wraps across a comment line break.
-    assert.match(runtime, /re-counts[\s\S]{0,24}from one/);
+    assert.match(breaker, /re-counts[\s\S]{0,24}from one/);
+  });
+
+  it("emits the exact state words the remediation ledger filters on", () => {
+    /**
+     * `lib/remediation.ts` pairs breaker events into incidents by matching
+     * `fields.state` against the literals "open" and "closed". Emitter and
+     * filter are in different files with no shared type between them, so a
+     * rename on either side is silent: the breaker keeps working, every event
+     * keeps being written, and the ring renders empty. Both halves are pinned
+     * here, together, because neither is a check on its own.
+     */
+    const writers = breaker.match(/fields: \{ provider: id, state: "/g) ?? [];
+    assert.equal(writers.length, 4, "a breaker writer site stopped emitting fields.state");
+    assert.match(breaker, /fields: \{ provider: id, state: "open", failures: st\.failures \}/);
+    assert.match(breaker, /fields: \{ provider: id, state: "closed" \}/);
+    assert.match(breaker, /fields: \{ provider: id, state: "closed", by: "operator" \}/);
+    assert.match(breaker, /fields: \{ provider: id, state: "half_open" \}/);
+
+    const remediation = read("../lib/remediation.ts");
+    assert.match(remediation, /state === "open"/);
+    assert.match(remediation, /state === "closed"/);
   });
 
   it("states the missing edge instead of leaving it as a gap", () => {

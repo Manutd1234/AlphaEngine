@@ -163,7 +163,7 @@ export default function HealthMatrix({
         the trading gateway. {locked
           ? guard === "token"
             ? "Enter the operator token in Controls to enable these actions."
-            : "Actions are locked on this deployment; authorization details live in Controls."
+            : "Actions are locked on this deployment; authorisation details live in Controls."
           : "Every mutation is recorded in the event stream."}
       </p>
 

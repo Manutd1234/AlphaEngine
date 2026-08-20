@@ -64,10 +64,11 @@ export default function FactorPanel({ report }: { report: FactorReport | null })
         <span className="section-note">{r.n.toLocaleString()} bars</span>
       </div>
 
+      {/* The residual half of this sentence is two tiles below, labelled and
+          measured: "Idiosyncratic — variance the factors do not explain". */}
       <p className="sub">
         Strategy return regressed on three factors built from this instrument&apos;s own bars.
-        A large loading means the edge <em>is</em> that exposure; a large residual means it is not
-        explained by any of them.
+        A large loading means the edge <em>is</em> that exposure.
       </p>
 
       <div className="tiles stability-tiles">
@@ -106,9 +107,8 @@ export default function FactorPanel({ report }: { report: FactorReport | null })
           <span aria-hidden>!</span>
           <div>
             <strong>Alpha is not statistically distinguishable from zero</strong> (|t| ={" "}
-            {fmt(Math.abs(r.alphaTStat), 2)}, below {T_SIGNIFICANT}). Whatever this strategy returned,
-            the part not explained by market, trend and volatility exposure is within the noise of the
-            sample.
+            {fmt(Math.abs(r.alphaTStat), 2)}, below {T_SIGNIFICANT}). The part not explained by
+            market, trend and volatility exposure is within the noise of this sample.
           </div>
         </div>
       )}

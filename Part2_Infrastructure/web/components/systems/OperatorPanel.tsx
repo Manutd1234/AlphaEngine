@@ -20,9 +20,9 @@
  * surface, as against a cost, which is a fact about a single control and
  * therefore stays welded to it.
  *
- * The last two controls are client-side only, and the session group heading
- * says so once for both: WebSocket connections belong to this browser tab, and
- * the poll cadence is this console's own.
+ * The client-side controls are `SessionControls` below — Remediation's Session
+ * pane. Same file, different card: they keep the cost-sentence rule but not
+ * the guard, because a control that mutates no server state needs no token.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -53,9 +53,6 @@ interface OperatorPanelProps {
   tokenEnv: string;
   providers: ProviderRow[] | null;
   symbol: string;
-  pollMs: number;
-  onPollMsChange: (ms: number) => void;
-  socketCount: number;
   /**
    * What each server control would actually touch, so a row can say it. A
    * control list with no figures on it is five sentences and five buttons —
@@ -68,7 +65,6 @@ interface OperatorPanelProps {
     eventsRetained: number | null;
     eventsCapacity: number | null;
   };
-  onReconnectSockets: () => void;
   busyAction: string | null;
   lastResult: ActionResponse | null;
   token: string;
@@ -121,11 +117,7 @@ export default function OperatorPanel({
   tokenEnv,
   providers,
   symbol,
-  pollMs,
-  onPollMsChange,
-  socketCount,
   counters,
-  onReconnectSockets,
   busyAction,
   lastResult,
   token,
@@ -173,28 +165,14 @@ export default function OperatorPanel({
   };
 
   /**
-   * What is actually remediable right now.
+   * What is actually remediable right now. Every figure below is read from the
+   * same provider snapshot the actions operate on, so the summary cannot
+   * describe a system the buttons will not find.
    *
-   * Every figure below is read from the same provider snapshot the actions
-   * operate on, so the summary cannot describe a system the buttons will not
-   * find.
-   *
-   * This comment used to end "there is deliberately no history chart here: this
-   * instance keeps no durable remediation ledger, and a 'resolutions over time'
-   * line would have to invent its own past." The reasoning still holds; the
-   * inputs changed. `resetBreaker` now emits the closing transition it used to
-   * swallow, so open→closed pairs are observable and `RemediationLedger` — now
-   * the History pane rather than the card underneath this one — pairs them: a
-   * real ledger, but a bounded, per-instance, non-durable one:
-   * 600 events shared with dispatch and cache traffic, reset by redeploy and by
-   * Clear telemetry.
-   *
-   * That supports a count, a split between automatic and operator closures, and
-   * a distribution of how long circuits stayed open. It still does NOT support
-   * a trend, and the ledger renders that refusal rather than caveating a line:
-   * the longest outages lose their opening line to eviction first, so the
-   * surviving sample is biased short and a trend through it would slope toward
-   * a recovery time nobody achieved.
+   * There is deliberately no history chart here. `RemediationLedger` — the
+   * History pane — pairs open→closed transitions into a real but bounded,
+   * per-instance, non-durable ledger, and its own header explains why even
+   * that supports counts and a distribution but never a trend.
    */
   const rows = providers ?? [];
   const openCircuits = rows.filter((row) => row.circuitOpen).length;
@@ -219,7 +197,7 @@ export default function OperatorPanel({
           <span className="page-kicker">Control</span>
           <h2>Operator actions</h2>
         </div>
-        <span className="section-note">Routing instance only; preview required for disruptive actions.</span>
+        <span className="section-note">Preview required for disruptive actions.</span>
       </div>
 
       <section className="remediation-scope" aria-label="What these controls would act on">
@@ -319,7 +297,7 @@ export default function OperatorPanel({
               {pending.confirmLabel}
             </button>
           </div>
-          <small>Press Escape or choose Cancel to leave state unchanged.</small>
+          <small>Press Escape to leave state unchanged.</small>
         </section>
       ) : null}
 
@@ -520,18 +498,40 @@ export default function OperatorPanel({
         </dl>
       </details>
 
-      {/* "This browser only" is said once, here, for the whole group. Each row
-          under it used to open with "Browser-side." as well — the heading
-          restated two words at a time, on every line. */}
-      <div className="operator-group-heading is-session">
+    </div>
+  );
+}
+
+interface SessionControlsProps {
+  pollMs: number;
+  onPollMsChange: (ms: number) => void;
+  socketCount: number;
+  onReconnectSockets: () => void;
+}
+
+/**
+ * Remediation's Session pane — split from the card above along the blast-radius
+ * seam its two group headings drew: everything above mutates server state
+ * behind the guard; nothing here touches the server, so no guard renders.
+ */
+export function SessionControls({
+  pollMs,
+  onPollMsChange,
+  socketCount,
+  onReconnectSockets,
+}: SessionControlsProps) {
+  return (
+    <div className="card console-card console-actions">
+      {/* "This browser only" is said once, on the card heading — each row
+          under it used to open with "Browser-side." as well. */}
+      <div className="section-heading compact">
         <div>
-          <span className="page-kicker">Session controls</span>
-          <strong>This browser only</strong>
+          <span className="page-kicker">Control</span>
+          <h2>Session controls</h2>
         </div>
-        <small>No server state is mutated</small>
+        <span className="section-note">This browser only. No server state is mutated.</span>
       </div>
 
-      {/* ---- browser-side ------------------------------------------------ */}
       <div className="console-action console-action--client">
         <div className="console-action__head">
           <strong>Reconnect WebSockets</strong>

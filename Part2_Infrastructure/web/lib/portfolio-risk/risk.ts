@@ -51,6 +51,40 @@ export const Z99 = 2.3263478740408408;
 const ES95_MULTIPLIER = 2.0627128054846826;
 
 /**
+ * Closed-form 99% terminal-value VaR of the same GBM the Oracle procedure
+ * simulates (`oracle/02_monte_carlo.sql`):
+ *
+ *     S_T = S0 · exp((μ − σ²/2)·T + σ·√T·Z),   T = days / 365
+ *
+ * The 1st percentile of S_T is S0·exp((μ − σ²/2)·T − z99·σ·√T); the loss
+ * against the starting equity is returned floored at zero, exactly as the
+ * procedure floors `p_var_99` — a rich enough drift can lift the whole 1st
+ * percentile above the start, and a negative loss is honest but useless.
+ *
+ * Exists because the Oracle panel's first comparison was `z99·σ·√T·equity`,
+ * the zero-drift NORMAL approximation, read against a simulation carrying an
+ * 8% annual drift: at 30 days the drift term alone (≈ equity·μ·T) accounted
+ * for the whole −22% "divergence" the panel then flagged as an input error.
+ * Same drift, same volatility, same lognormal quantile, same 365-day year —
+ * what remains between this figure and the simulated one is sampling error,
+ * which is the only thing a divergence tile is meant to measure.
+ */
+export function gbmTerminalVar99(
+  equity: number,
+  /** Expected annual return the simulation ran on — its `p_mu`. */
+  mu: number,
+  /** Annualised volatility — the simulation's `p_sigma`. */
+  sigma: number,
+  /** Forward horizon in days — the simulation's `p_days`, over a 365-day year. */
+  days: number,
+): number {
+  const t = days / 365;
+  const firstPercentile =
+    equity * Math.exp((mu - 0.5 * sigma * sigma) * t - Z99 * sigma * Math.sqrt(t));
+  return Math.max(equity - firstPercentile, 0);
+}
+
+/**
  * Volatility, VaR and the per-position risk decomposition.
  *
  * The decomposition is the standard Euler one: marginal contribution is

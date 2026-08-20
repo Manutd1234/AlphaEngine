@@ -127,6 +127,11 @@ describe("the accent fill stays with controls that commit something", () => {
     }
     assert.deepEqual([...claimants].sort(), [
       "components/DeveloperConsole.tsx",             // run the parity check here
+      // New to this roll call only because the Research tab moved out of
+      // app/dashboard/page.tsx, which this scan never covered. The button is
+      // the sweep's "Run now": one click, one request, a new result — the
+      // commit test, not the importance test.
+      "components/ResearchWorkspace.tsx",            // run the sweep
       "components/auth/AuthCallback.tsx",            // sign in
       "components/auth/LoginScreen.tsx",             // sign in
       "components/data/DataWorkBoard.tsx",           // add to intake — the commit that creates an item

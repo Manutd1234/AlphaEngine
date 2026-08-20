@@ -46,7 +46,7 @@ its aria-label and title; HALTED is never folded.
 
 **Where the rail lists below come from.** Every rail in this document is transcribed from
 `Part2_Infrastructure/web/lib/sections.ts`, which is the single definition the rails, the
-command palette, the hash whitelist and "Copy link to this view" all read. **45 sections across
+command palette, the hash whitelist and "Copy link to this view" all read. **47 sections across
 the eight tabs.** Three ids deliberately disagree with their labels, because the deep link came
 first and ids never change: view `live` renders "Execution", section `codex` renders
 "Strategies", section `activity` renders "Blotter". If a rail here disagrees with the app,
@@ -196,19 +196,20 @@ rather than substituting an assumption.
 
 **The question it answers:** how much can we lose, and who can stop the desk?
 
-**60 seconds:** rail: **Limits → VaR & model → Risk drivers → Monte Carlo → Stress tests →
-Controls**. Limits shows the binding constraint and its utilisation. VaR & model carries the
-validated loss estimate with its traffic-light backtest zone and the forecast-against-realised
-chart that scores it. **Risk drivers** answers the next question separately — which positions
-carry the volatility, and how much of the diversification is real — because a contribution
-table and a correlation matrix sharing a row with a time series gave all three too little
-width to be read. **Monte Carlo** bootstraps the research winner's
+**60 seconds:** rail: **Limits → VaR & model → Risk drivers → Monte Carlo → Oracle VaR →
+Stress tests → Controls**. Limits shows the binding constraint and its utilisation. VaR & model
+carries the validated loss estimate with its traffic-light backtest zone and the
+forecast-against-realised chart that scores it. **Risk drivers** answers the next question
+separately — which positions carry the volatility, and how much of the diversification is real
+— because a contribution table and a correlation matrix sharing a row with a time series gave
+all three too little width to be read. **Monte Carlo** bootstraps the research winner's
 realised returns into a terminal-outcome distribution, computed in a dedicated worker so the
-main thread only draws it — and it sits deliberately *beside* the parametric VaR and the
-Oracle's in-database GBM simulation rather than inside either, because three loss estimates
-that disagree are signal, not error. Stress tests apply forward shocks by hand — drag the shock
-sliders and watch damage propagate through the book. Controls holds the kill switch and
-reduce-only mode.
+main thread only draws it. **Oracle VaR** asks the same question a second way — a terminal-value
+GBM simulated inside Oracle 23ai, read against its own closed-form quantile — and the two
+sections deliberately share one forward horizon (the seg on either subtab sets both), because
+loss estimates that disagree are signal about method, not error. Stress tests apply forward
+shocks by hand — drag the shock sliders and watch damage propagate through the book. Controls
+holds the kill switch and reduce-only mode.
 
 **The moment worth showing:** the kill switch (operator-gated; in `open-demo` it works, and it
 is reversible). Second: hand-shocking a stress scenario — forward-looking damage, not
@@ -218,19 +219,19 @@ historical replay.
 
 **The question it answers:** can the numbers upstream of every other tab be trusted?
 
-**60 seconds:** rail: **Trust Summary → Feeds & Contracts → Quality & Incidents → Lineage &
+**60 seconds:** rail: **Trust Summary → Feeds & Contracts → Quality → Incidents → Lineage &
 Payloads → Providers & Capacity → Work Queue**. The Trust Summary is itself three switchable
 panes (**Verdict · Response · Composition**), so the posture, the response clocks and the
 contract re-checks are one derivation seen three ways rather than one very long scroll.
 **Feeds & Contracts** is the same derivation turned outward, per source: how fresh each feed
 is, whether its last payload validated, and — the part that makes it a section rather than a
-table — what to do next about the ones that did not. Quality & Incidents holds reconciliation,
-contract failures and quarantine; Lineage & Payloads is per-request provenance — which provider
+table — what to do next about the ones that did not. Quality holds reconciliation and the
+gateway's durable quality ledger with its escalations; Incidents holds the operator-simulated
+outages and the quarantine buffer; Lineage & Payloads is per-request provenance — which provider
 answered, what was cached, what got coerced — plus replay and backfill: one capability re-run
 through the workspace's own validated path, or bars for a date range contract-checked and
 merged into the gateway's bar cache, on demand or on the gateway's configured schedule;
-Providers & Capacity is failover, quota and reserve. Quality & Incidents also carries the gateway's durable quality ledger and its
-escalations. The Work Queue is persisted on the gateway — versioned rows, audit-logged
+Providers & Capacity is failover, quota and reserve. The Work Queue is persisted on the gateway — versioned rows, audit-logged
 edits — and its pill says so, or says "edits held locally" when the gateway cannot be
 reached: the honest-labels rule applied to a whole section.
 

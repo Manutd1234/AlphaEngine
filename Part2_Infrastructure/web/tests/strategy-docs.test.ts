@@ -118,7 +118,10 @@ describe("cross-references go somewhere", () => {
 describe("the card does not restate what other maps own", () => {
   const card = read("../components/research/StrategyDocCard.tsx");
   const codex = read("../components/research/StrategyCodex.tsx");
-  const page = read("../app/dashboard/page.tsx");
+  // The codex section is in ResearchWorkspace and the handler in the sweep
+  // hook since page.tsx was split.
+  const page = read("../components/ResearchWorkspace.tsx");
+  const sweepHook = read("../lib/use-sweep-run.ts");
 
   it("renders parameter meanings from PARAM_MEANING", () => {
     // Two descriptions of the same axis, four pixels apart, drifting.
@@ -141,7 +144,7 @@ describe("the card does not restate what other maps own", () => {
   it("switching strategy from the card invalidates the displayed run", () => {
     // A path that set the strategy without `setResearchDirty` would leave the
     // previous sweep on screen under the new strategy's name.
-    const handler = /const updateStrategy = useCallback\([\s\S]*?\}, \[\]\);/.exec(page)?.[0] ?? "";
+    const handler = /const updateStrategy = useCallback\([\s\S]*?\}, \[\]\);/.exec(sweepHook)?.[0] ?? "";
     assert.match(handler, /setResearchDirty\(true\)/, "updateStrategy does not mark the run stale");
     assert.match(handler, /setInspect\(null\)/);
   });

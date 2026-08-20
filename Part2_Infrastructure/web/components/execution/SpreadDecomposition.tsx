@@ -19,9 +19,15 @@
  * for "measured at zero" versus "not measured", used on both surfaces that need
  * it. Axis labels are hand-placed rather than delegated to `XAxis`, for the
  * reason that component's own caller notes — it drops labels inside `minGap`,
- * and a dropped label on a two-to-six column chart is a missing venue.
+ * and a dropped label on a two-to-six column chart is a missing venue. Because
+ * a name cannot be dropped, a long one is cut to its column by `fitLabel`
+ * instead — venue strings are data ("PAPER_EQUITY/Financial Modeling Prep"
+ * arrives as long as it likes), so each label is drawn in the measured tick
+ * face and ellipsised to the group width, with the full name on the label's
+ * own `<title>` and in the table below.
  */
 
+import { LABEL_CLEARANCE, MONO_ADVANCE_EM, TICK_FONT_SIZE, fitLabel } from "@/components/chart-axis";
 import { DEFAULT_MARGIN, Grid, extent, linearScale, ticks, useMeasuredWidth } from "@/components/chart-kit";
 import { REALIZED_SPREAD_WITHHELD, venueQuality, type BlotterRow } from "@/lib/blotter";
 
@@ -109,6 +115,13 @@ export default function SpreadDecomposition({
             const base = MARGIN.top + plotH;
             const effective = venue.effectiveSpreadBps ?? 0;
             const fee = venue.meanFeeBps;
+            // Each label is centred on its group, so confining it to the group
+            // width minus one clearance keeps every neighbouring pair at least
+            // LABEL_CLEARANCE apart at any pane width.
+            const labelRoom = Math.max(0, groupW - LABEL_CLEARANCE);
+            const name = fitLabel(venue.venue, labelRoom);
+            const subLabel = `${venue.fills} fills`;
+            const subFits = subLabel.length * 10 * MONO_ADVANCE_EM <= labelRoom;
 
             return (
               <g key={venue.venue}>
@@ -143,14 +156,22 @@ export default function SpreadDecomposition({
                   n/a
                 </text>
 
+                {/* The tick face, because the truncation is arithmetic on
+                    MONO_ADVANCE_EM: drawn in any other face the measurement
+                    would be fiction. The full name and count stay on the
+                    <title>, so a cut label is recoverable on hover. */}
                 <text x={x0 + (barW * 3 + 12) / 2} y={base + 16} textAnchor="middle"
-                  fontSize={12.5} fill="var(--text-secondary)" fontWeight={650}>
-                  {venue.venue}
+                  fontSize={TICK_FONT_SIZE} fill="var(--text-secondary)" fontWeight={650}
+                  fontFamily="var(--mono)">
+                  <title>{`${venue.venue} — ${venue.fills} fills`}</title>
+                  {name}
                 </text>
-                <text x={x0 + (barW * 3 + 12) / 2} y={base + 29} textAnchor="middle"
-                  fontSize={10} fill="var(--text-muted)" fontFamily="var(--mono)">
-                  {venue.fills} fills
-                </text>
+                {subFits && (
+                  <text x={x0 + (barW * 3 + 12) / 2} y={base + 29} textAnchor="middle"
+                    fontSize={10} fill="var(--text-muted)" fontFamily="var(--mono)">
+                    {subLabel}
+                  </text>
+                )}
               </g>
             );
           })}

@@ -13,7 +13,7 @@
  */
 
 import type { DecisionLatency, HealthSourceState, SystemHealth } from "@/components/systems/types";
-import { formatDuration, metricRow } from "@/lib/format";
+import { constraintLabel, formatDuration, metricRow } from "@/lib/format";
 
 export type StageId = "data" | "research" | "risk" | "execution";
 export type StageState = "ok" | "active" | "attention" | "halted" | "idle";
@@ -132,14 +132,14 @@ export function deriveDecisionLoop(i: DecisionLoopInputs): DecisionStage[] {
       return {
         ...base,
         state: "attention" as const,
-        detail: i.varZone === "red" ? "VaR model in the red zone" : `${i.bindingConstraint ?? "limit"} at ${Math.round(util * 100)}%`,
+        detail: i.varZone === "red" ? "VaR model in the red zone" : `${i.bindingConstraint ? constraintLabel(i.bindingConstraint) : "limit"} at ${Math.round(util * 100)}%`,
       };
     }
     if (i.varZone === "yellow" || util >= RISK_ATTENTION_UTILISATION) {
       return {
         ...base,
         state: "attention" as const,
-        detail: i.varZone === "yellow" ? "VaR model in the yellow zone" : `${i.bindingConstraint ?? "limit"} at ${Math.round(util * 100)}%`,
+        detail: i.varZone === "yellow" ? "VaR model in the yellow zone" : `${i.bindingConstraint ? constraintLabel(i.bindingConstraint) : "limit"} at ${Math.round(util * 100)}%`,
       };
     }
     return { ...base, state: "ok" as const, detail: `headroom available${sandboxSuffix}` };

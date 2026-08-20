@@ -34,6 +34,30 @@ export const metricRow = (parts: ReadonlyArray<string | number | null | undefine
     .map(String)
     .join(" · ");
 
+/**
+ * A binding constraint, as a reader should meet it.
+ *
+ * The gateway names the limit that binds first by a machine identifier —
+ * either a bare kind ("gross_exposure", "daily_drawdown") or a kind qualified
+ * by the thing it caps ("symbol:AVGO"). Rendered verbatim that is a payload
+ * field on a KPI card, so the kind becomes a capitalised label with its
+ * underscores spoken as spaces — "Gross exposure", "Symbol: AVGO" — and
+ * whatever follows the colon (a ticker today, whatever the gateway invents
+ * tomorrow) is kept exactly as sent: the identifier is the fact, only the
+ * casing is ours. A kind this desk has never seen gets the same treatment
+ * rather than a dash, and an absent constraint renders as a dash, never as an
+ * empty label.
+ */
+export function constraintLabel(constraint: string | null | undefined): string {
+  if (constraint == null || constraint.trim() === "") return "—";
+  const split = constraint.indexOf(":");
+  const kind = (split === -1 ? constraint : constraint.slice(0, split)).replace(/_/g, " ").trim();
+  const identifier = split === -1 ? "" : constraint.slice(split + 1).trim();
+  if (!kind) return identifier || "—";
+  const readable = kind.charAt(0).toUpperCase() + kind.slice(1);
+  return identifier ? `${readable}: ${identifier}` : readable;
+}
+
 export const compact = (v: number): string =>
   Math.abs(v) >= 1e9
     ? `${(v / 1e9).toFixed(2)}B`

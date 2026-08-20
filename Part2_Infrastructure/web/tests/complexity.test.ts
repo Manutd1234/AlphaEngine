@@ -86,7 +86,14 @@ describe("the wording never claims a capability is missing", () => {
 });
 
 describe("tiers change density, never navigation", () => {
-  const page = read("../app/dashboard/page.tsx");
+  // The shell is four files now. A tier branch in any of them is the same
+  // navigation fork, so all four are scanned.
+  const page = [
+    "../app/dashboard/page.tsx",
+    "../lib/use-workspace-routing.ts",
+    "../lib/workspace-hash.ts",
+    "../components/ResearchWorkspace.tsx",
+  ].map(read).join("\n");
   const routing = read("./workspace-routing.test.ts");
 
   it("no tab or rail section is conditional on the tier", () => {

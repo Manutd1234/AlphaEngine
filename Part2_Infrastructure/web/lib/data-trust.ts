@@ -73,10 +73,7 @@ function sourceDetail(source: HealthSourceFreshness | undefined): string {
  * currently implemented and observed scope has evidence; it is not a claim
  * about every symbol, raw vendor schema, function instance or historical bar.
  */
-export function deriveDataTrust(
-  health: SystemHealth | null,
-  options: DataTrustOptions = {},
-): DataTrustModel {
+export function deriveDataTrust(health: SystemHealth | null, options: DataTrustOptions = {}): DataTrustModel {
   const validation = health?.validation ?? null;
   const quarantine = health?.quarantine?.size ?? 0;
   const rejected = health?.quarantine?.byProvider.reduce((sum, row) => sum + row.rejected, 0) ?? 0;
@@ -290,12 +287,14 @@ export function deriveDataTrust(
 
   const actions: DataTrustAction[] = [
     {
+      // After the section split the ledger and reconciliation stayed on
+      // Quality; only the quarantine buffer moved to Incidents.
       destination: "quality",
       label: fatalRisk || flaggedRisk ? "Inspect quality findings" : "Reconcile independent sources",
       detail: fatalRisk || flaggedRisk
         ? hasExactProbe
-          ? "The exact active-payload result is flagged; use reconciliation and the instance buffer to diagnose it."
-          : `${quarantine} payload excerpt${quarantine === 1 ? " is" : "s are"} retained for contract diagnosis.`
+          ? "The exact active-payload result is flagged; use reconciliation and the quality ledger to diagnose it."
+          : `${quarantine} payload excerpt${quarantine === 1 ? " is" : "s are"} quarantined; the ledger records what failed.`
         : "Run the quota-aware, on-demand median comparison before relying on a suspicious print.",
       priority: fatalRisk ? "now" : flaggedRisk ? "review" : "inspect",
     },

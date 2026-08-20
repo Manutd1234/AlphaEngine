@@ -227,8 +227,7 @@ export default function BreakerStateMachine({
         </p>
         <p className="research-note">
           <strong>A closure is not a fix.</strong> One successful probe closes a circuit that may
-          re-open three failures later. Closing a circuit asks the provider again; it does not
-          declare it healthy.
+          re-open three failures later.
         </p>
         <p className="research-note">
           Counts are per function instance and reset on redeploy. The failure threshold is read from

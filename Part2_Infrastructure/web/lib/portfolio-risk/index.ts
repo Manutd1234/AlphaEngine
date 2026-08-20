@@ -31,7 +31,7 @@ import { BARS_PER_YEAR } from "../types";
 export type { ReturnsBySymbol, RiskPosition } from "./inputs";
 export { buildCovariance } from "./covariance";
 export type { CovarianceModel } from "./covariance";
-export { portfolioRisk } from "./risk";
+export { gbmTerminalVar99, portfolioRisk } from "./risk";
 export type { PortfolioRisk, RiskContribution } from "./risk";
 export { SCENARIOS, applyScenario, beta, manualShocks } from "./stress";
 export type { Scenario, ScenarioResult, Shock } from "./stress";

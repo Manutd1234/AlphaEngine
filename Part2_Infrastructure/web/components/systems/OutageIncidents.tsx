@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 
 /**
  * Active operator-simulated outages, rendered as incident rows where a data
- * engineer triages: Quality & Incidents. QuarantinePanel next to this reports
+ * engineer triages: Incidents. QuarantinePanel next to this reports
  * *content* failures; an outage is a *transport* incident — a provider held
  * out of routing on purpose — and before this strip existed it was visible
  * only on the Providers & Capacity failover graph, so the one subtab named
@@ -28,7 +28,7 @@ export default function OutageIncidents({
   /**
    * Says so, rather than vanishing.
    *
-   * `return null` here left Reliability > Quality & Incidents as a button, a
+   * `return null` here left Data > Incidents as a button, a
    * definition list and two paragraphs on any healthy deployment — the thinnest
    * panel on the desk, on the subtab named Incidents. An absent card and a card
    * reporting an absence look identical to the reader and mean different

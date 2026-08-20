@@ -143,10 +143,10 @@ export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanel
         </dl>
 
         <p className="sub">
-          Whether the <em>timing</em> helped is already answered on this run: the Summary stat row
-          pairs &ldquo;buy &amp; hold&rdquo; with the strategy&rsquo;s own return and Sharpe, both
-          sides holding the traded symbol. What stays open here is whether the <em>position</em>
-          was worth holding at all, and only a second instrument can answer it.
+          Whether the <em>timing</em> helped is already answered: the Summary stat row pairs
+          &ldquo;buy &amp; hold&rdquo; with the strategy&rsquo;s own return and Sharpe, both on the
+          traded symbol. What stays open is whether the <em>position</em> was worth holding at all,
+          and only a second instrument answers that.
         </p>
 
         <button type="button" className="text-action" onClick={focusBenchmarkControl}>
@@ -239,13 +239,16 @@ export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanel
         </p>
       ) : null}
 
+      {/* The closing clause — that this is why a significant alpha is described
+          as "not explained by X" rather than as real — was the sentence above
+          the dl saying itself a second time. It still reads "The intercept is
+          what {symbol} does not explain — not, on its own, evidence of an
+          edge", which is the same claim where the number is. */}
       {atLeast(tier, "full") ? (
         <p className="research-note">
         The t-statistics are plain OLS. Strategy returns are heteroskedastic and mildly
         autocorrelated, so a Newey&ndash;West correction would widen these standard errors — the
-        significance shown here is, if anything, generous. Stated rather than assumed away, and the
-        reason a significant alpha is described as &ldquo;not explained by {comparison.symbol}&rdquo;
-        rather than as real.
+        significance shown here is, if anything, generous.
         </p>
       ) : null}
     </div>

@@ -267,8 +267,9 @@ export default function DataWorkBoard({
       <p className="data-workboard__scope">
         {source?.kind === "gateway" ? (
           <>
-            Stored in the gateway&apos;s SQLite work-item table on its data volume; every create and status
-            change is versioned and audit-logged, and a stale edit is refused rather than overwritten.
+            {/* The pill and the Persistence tile above print the gateway, SQLite and the audit log. */}
+            Every create and status change is versioned in the gateway&apos;s work-item table on its
+            data volume, and a stale edit is refused rather than overwritten.
             {source.seeded > 0
               ? ` ${source.seeded} of these ${source.seeded === 1 ? "is a seeded sample row" : "are seeded sample rows"}, marked ‹sample›.`
               : ""}

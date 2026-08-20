@@ -23,7 +23,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import MlRunCapsule, {
-  PBO_NOT_APPLICABLE, type MlRunEvidence, type MlRunProvenance,
+  PBO_UNSTATED, type MlRunEvidence, type MlRunProvenance,
 } from "@/components/research/MlRunCapsule";
 import StatTile from "@/components/StatTile";
 import { fmt } from "@/lib/format";
@@ -259,7 +259,13 @@ export default function FittedModels() {
       )}
 
       {succeeded.length > 0 && (
-        <div className="stat-grid">
+        /* The wrapper this row used to carry had no rule anywhere in
+           globals.css — the name is deliberately not repeated here, so the
+           dead-CSS scan cannot score a re-added rule as live off a comment —
+           and three tiles for three short facts stacked full width with their
+           borders touching. `.tiles` is the desk's tile row; the modifier
+           gives it three tracks, the way `.stability-tiles` gives it four. */
+        <div className="tiles ml-run-tiles">
           <StatTile
             label="Runs recorded"
             value={String(runs.length)}
@@ -277,9 +283,13 @@ export default function FittedModels() {
               : "no succeeded run scored one"}
             tone={deflated.length > 0 ? undefined : "muted"}
           />
+          {/* A NAME, not a figure. The tile's value rung is `--fs-figure`,
+              which set "numpy" in 26px of display type beside two tiles whose
+              values are measurements. `.stat-word` steps the word down without
+              hand-rolling a tile around it. */}
           <StatTile
             label="Engines"
-            value={[...new Set(succeeded.map((r) => r.engine))].join(", ")}
+            value={<span className="stat-word">{[...new Set(succeeded.map((r) => r.engine))].join(", ")}</span>}
             note="a fallback run is a different run"
           />
         </div>
@@ -324,13 +334,14 @@ export default function FittedModels() {
                   <td>{run.engine}</td>
                   <td><Figure value={run.oos_sharpe} /></td>
                   <td><Figure value={run.deflated_sharpe} /></td>
-                  {/* Not "not computed": PBO is null on every supervised run
-                      because it does not apply to a run that fitted one
-                      configuration, and those are opposite readings of the
-                      same empty cell. */}
+                  {/* Not "not applicable", which this cell used to say for
+                      every null. A run with a candidate grid computes a PBO
+                      now, so a null means either that or too few ranked folds
+                      — and nothing on the wire says which. "None filed" is
+                      true of both; the reason names the pair. */}
                   <td>
                     {run.pbo == null
-                      ? <span className="muted" title={PBO_NOT_APPLICABLE}>not applicable</span>
+                      ? <span className="muted" title={PBO_UNSTATED}>none filed</span>
                       : <Figure value={run.pbo} />}
                   </td>
                   {/* The hash, not a date: two runs over the same bars are
@@ -351,11 +362,12 @@ export default function FittedModels() {
         </div>
       )}
 
+      {/* 48 words, of which the deflated-Sharpe sentence repeated the tile
+          note above it. Two facts survive: the columns are all out of sample,
+          and a failed row can be asked why. */}
       <p className="research-note">
-        Every figure here is out of sample. The deflated Sharpe is measured against the folds
-        actually scored, so it is a hurdle this run cleared rather than a number it reported.
-        A run marked <strong>failed</strong> carries its reason — the corpus refuses a failed
-        row that cannot say why.
+        Every figure here is out of sample. A run marked <strong>failed</strong> carries its
+        reason on the status cell.
       </p>
     </div>
   );

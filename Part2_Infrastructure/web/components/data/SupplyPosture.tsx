@@ -116,8 +116,8 @@ export default function SupplyPosture({ health }: { health: SystemHealth | null 
               // vacuously true and read as comfort.
               ? <>Every chain that can be routed at all has more than one node able to serve it. </>
               : null}
-          Each bar groups that chain&rsquo;s nodes by state and is <strong>not</strong> rank order;
-          which provider answers first is a ranking, and it lives in the Providers section.
+          Each bar groups that chain&rsquo;s nodes by state, <strong>not</strong> by rank; which
+          provider answers first lives in the Providers section.
         </p>
       )}
     </section>

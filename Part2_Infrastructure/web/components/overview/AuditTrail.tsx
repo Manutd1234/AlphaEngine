@@ -78,7 +78,11 @@ export default function AuditTrail({ active, seed }: { active: boolean; seed?: n
           <h2>Order audit trail</h2>
         </div>
         <span className="section-note">
-          Every paper order the gateway saw — accepted or refused — with the gate that refused it.
+          {/* "the gateway saw" was the kicker's word and the provenance line's
+              claim, said a third time; and in the generated state it was not
+              even true. What is left is the scope: everything, both outcomes,
+              and who refused. */}
+          Every paper order, accepted or refused, with the gate that refused it.
         </span>
       </div>
 

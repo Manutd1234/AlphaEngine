@@ -18,7 +18,8 @@ const read = (relative: string) =>
 
 const panel = read("../components/research/ResearchCorpus.tsx");
 const hook = read("../lib/use-research-search.ts");
-const page = read("../app/dashboard/page.tsx");
+// The Research panels are their own component since page.tsx was split.
+const page = read("../components/ResearchWorkspace.tsx");
 const css = read("../app/globals.css");
 
 /** Comment-free view: this file quotes the constructs it forbids. */
@@ -42,10 +43,15 @@ describe("the corpus panel is actually reachable", () => {
   it("sits outside the StaleGate", () => {
     // The corpus answers a question about history. Veiling it when the current
     // sweep's parameters change would imply past results had gone stale too.
-    const attribution = page.slice(page.indexOf('tabId="attribution"'), page.indexOf('tabId="decision"'));
-    const gateClose = attribution.lastIndexOf("</StaleGate>");
-    const mount = attribution.indexOf("<ResearchCorpus />");
-    assert.ok(mount > gateClose, "ResearchCorpus is inside the StaleGate");
+    // Measured on the lineage panel itself, not on a window between two other
+    // sections: attribution now renders from its own component, so the old
+    // "after the last </StaleGate>" test would have compared against -1 and
+    // passed without a gate anywhere in the slice.
+    const start = page.indexOf('tabId="lineage"');
+    assert.notEqual(start, -1, "the lineage panel is gone — has the section been renamed?");
+    const lineage = page.slice(start, page.indexOf("</WorkspaceSubtabPanel>", start));
+    assert.match(lineage, /<ResearchCorpus \/>/, "ResearchCorpus is not in the lineage panel");
+    assert.doesNotMatch(lineage, /<StaleGate/, "ResearchCorpus is inside a StaleGate");
   });
 });
 

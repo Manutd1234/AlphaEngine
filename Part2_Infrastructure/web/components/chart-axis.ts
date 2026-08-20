@@ -138,3 +138,33 @@ export function axisTicks({
   }
   return kept.sort((a, b) => a.index - b.index);
 }
+
+/**
+ * A categorical label cut to the room its column has.
+ *
+ * `axisTicks` drops a label rather than shortening it, and must: half a date
+ * is a wrong date. A category axis has the opposite constraint — one NAME per
+ * column, and a dropped name is a missing venue — so a name that will not fit
+ * keeps its head and loses its tail to a single ellipsis instead. The cut is
+ * presentation, not data: the caller owes the reader the full name somewhere
+ * ungeometric — a `<title>` on the label, the table under the chart — and two
+ * long names may share a truncated prefix, which is exactly why that fallback
+ * is owed.
+ *
+ * Same arithmetic as `labelExtent`, same face: the label must be drawn in the
+ * `--mono` stack at `fontSize`, or the measurement is fiction. When the room
+ * cannot hold even one character plus the mark, the mark alone is returned —
+ * "something is here, hover for it" — rather than a glyph printed through a
+ * neighbour.
+ */
+export function fitLabel(
+  label: string,
+  maxWidth: number,
+  fontSize: number = TICK_FONT_SIZE,
+): string {
+  const advance = fontSize * MONO_ADVANCE_EM;
+  if (label.length * advance <= maxWidth) return label;
+  // One advance is reserved for the ellipsis itself.
+  const keep = Math.floor(maxWidth / advance) - 1;
+  return keep < 1 ? "…" : `${label.slice(0, keep)}…`;
+}

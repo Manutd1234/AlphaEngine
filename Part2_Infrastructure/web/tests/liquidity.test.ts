@@ -146,12 +146,18 @@ describe("the exit probe reads the response this route actually returns", () => 
 describe("the panel is mounted and adjustable", () => {
   const panel = read("../components/portfolio/LiquidityPanel.tsx");
   const workspace = read("../components/PortfolioWorkspace.tsx");
+  // The Positions section became its own component when PortfolioWorkspace was
+  // split; the mount moved with it, and the ADV now arrives as a prop.
+  const positions = read("../components/portfolio/PositionsSection.tsx");
 
   it("is rendered by the positions section", () => {
     // It shipped unreferenced: a finished panel, in the bundle, reachable from
-    // no route in the app.
-    assert.match(workspace, /<LiquidityPanel/);
-    assert.match(workspace, /advMap=\{view\.advBySymbol\}/);
+    // no route in the app. Both links of the chain are pinned, because the
+    // panel is only mounted if the section renders it AND the workspace hands
+    // the section the measured ADV — a break in either end is the same defect.
+    assert.match(positions, /<LiquidityPanel/);
+    assert.match(positions, /advMap=\{advBySymbol\}/);
+    assert.match(workspace, /advBySymbol=\{view\.advBySymbol\}/);
   });
 
   it("consumes the ADV the book hook was already computing", () => {

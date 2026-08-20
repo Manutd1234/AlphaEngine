@@ -33,19 +33,29 @@ describe("walk-forward shows one per-fold table", () => {
 
   it("the second fold table stays deleted", () => {
     assert.doesNotMatch(code(read("../components/Tables.tsx")), /WalkForwardTable/);
-    assert.doesNotMatch(code(read("../app/dashboard/page.tsx")), /WalkForwardTable/);
+    // The walk-forward panel is mounted by ResearchWorkspace since page.tsx
+    // was split; scanning the shell alone would find nothing either way.
+    assert.doesNotMatch(code(read("../components/ResearchWorkspace.tsx")), /WalkForwardTable/);
   });
 });
 
 describe("the two Monte Carlos answer over one horizon", () => {
   const workspace = code(read("../components/RiskWorkspace.tsx"));
 
-  it("the section owns a single horizon seg shared by both cards", () => {
-    // Each card used to carry its own Horizon select, so the section's
-    // stated purpose — read the two loss estimates against each other —
-    // only held after the reader synchronised two controls by hand.
-    assert.match(workspace, /aria-label="Forward horizon for both loss estimates"/);
+  it("the workspace owns one horizon state, rendered as a seg on each subtab", () => {
+    // Each card used to carry its own Horizon select, so their stated
+    // purpose — read the two loss estimates against each other — only held
+    // after the reader synchronised two controls by hand. The split into
+    // montecarlo/oraclevar subtabs kept the consolidation: ONE state in the
+    // workspace, one seg helper called twice, each call setting the same
+    // value. The aria-labels are distinct because two controls announcing
+    // identically would read to a screen reader as one control twice.
+    assert.equal((workspace.match(/const \[mcHorizonDays, setMcHorizonDays\]/g) ?? []).length, 1);
     assert.equal((workspace.match(/horizonDays=\{mcHorizonDays\}/g) ?? []).length, 2);
+    assert.match(workspace, /horizonSeg\("Forward horizon for the bootstrap loss estimate"\)/);
+    assert.match(workspace, /horizonSeg\("Forward horizon for the Oracle GBM loss estimate"\)/);
+    assert.equal((workspace.match(/setMcHorizonDays\(/g) ?? []).length, 1,
+      "the seg helper is the one writer of the shared horizon");
   });
 
   it("neither card keeps a horizon control of its own", () => {

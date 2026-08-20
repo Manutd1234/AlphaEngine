@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { monteCarloBands, stationaryBootstrapIndices } from "../lib/montecarlo";
+import { gbmTerminalVar99, Z99 } from "../lib/portfolio-risk/risk";
 import { mulberry32 } from "../lib/random";
 import { runSweep } from "../lib/engine";
 import { syntheticBars } from "../lib/marketdata";
@@ -101,5 +104,93 @@ describe("monte carlo bands", () => {
     // Same sweep, same cone.
     const again = runSweep(bars, { ...DEFAULT_REQUEST, walkForward: false }, "synthetic");
     assert.deepEqual(again.monteCarlo.p50, out.monteCarlo.p50);
+  });
+});
+
+describe("closed-form GBM terminal VaR — the Oracle panel's parametric check", () => {
+  /**
+   * The defect these pin shut: the Risk tab's Oracle panel sent an 8% annual
+   * drift into the in-database simulation and then compared the result with
+   * z99·σ·√t — the ZERO-drift normal shortcut. At 30 days the drift term
+   * alone (≈ equity·μ·T) is a −22% "divergence", which the panel's caption
+   * blamed on the inputs. The comparison must price the SAME model the
+   * procedure simulates: the lognormal quantile with the same μ, σ and
+   * 365-day T, floored at zero as `oracle/02_monte_carlo.sql` floors it.
+   */
+
+  it("agrees with a large independent simulation of the same model, drift included", () => {
+    // The test's own GBM — Box–Muller normals over the procedure's
+    // S_T = S0·exp((μ − σ²/2)T + σ√T·Z), T = days/365 — not the code under
+    // test run twice. Simulated and closed-form VaR are the same quantity,
+    // so at 200,000 paths they differ by sampling error alone.
+    const equity = 1_000_000;
+    const mu = 0.08;
+    const sigma = 0.45;
+    const days = 30;
+    const t = days / 365;
+    const rand = mulberry32(2026);
+    const paths = 200_000;
+    const terminal = new Float64Array(paths);
+    for (let i = 0; i < paths; i += 1) {
+      const u1 = 1 - rand(); // (0, 1]: log(0) is the corner Box–Muller has
+      const u2 = rand();
+      const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+      terminal[i] = equity * Math.exp((mu - 0.5 * sigma * sigma) * t + sigma * Math.sqrt(t) * z);
+    }
+    const sorted = [...terminal].sort((a, b) => a - b);
+    const simulated = equity - sorted[Math.floor(paths * 0.01)];
+    const closed = gbmTerminalVar99(equity, mu, sigma, days);
+    assert.ok(
+      Math.abs(simulated - closed) / closed < 0.02,
+      `simulated ${simulated} vs closed form ${closed} — the two no longer price one model`,
+    );
+  });
+
+  it("differs from the zero-drift shortcut by more than the panel's own 15% alarm", () => {
+    // The observed book (2026-08-20): σ ≈ 0.044 annualised, 30 days, a $1M
+    // book — Oracle $22,868 against a $29,497 shortcut, −22.5%. Right
+    // volatility, wrong model: the gap is the drift, so the fix had to
+    // change the formula, not widen a tolerance.
+    const equity = 1_000_000;
+    const sigma = 0.0442;
+    const days = 30;
+    const closed = gbmTerminalVar99(equity, 0.08, sigma, days);
+    const shortcut = Z99 * sigma * Math.sqrt(days / 365) * equity;
+    assert.ok(closed < shortcut, "a positive drift must lower the terminal loss quantile");
+    assert.ok(
+      (shortcut - closed) / shortcut > 0.15,
+      "the two formulae genuinely disagree at the observed inputs — if this fails, the "
+        + "shortcut would have been inside the alarm and the defect invisible",
+    );
+  });
+
+  it("reduces to the shortcut exactly where the shortcut was valid: zero drift, short horizon", () => {
+    const equity = 1_000_000;
+    const sigma = 0.0442;
+    const closed = gbmTerminalVar99(equity, 0, sigma, 1);
+    const shortcut = Z99 * sigma * Math.sqrt(1 / 365) * equity;
+    assert.ok(
+      Math.abs(closed - shortcut) / shortcut < 0.005,
+      `zero-drift one-day closed form ${closed} should approach ${shortcut}`,
+    );
+  });
+
+  it("floors at zero as the procedure does, never a negative loss", () => {
+    // A rich drift with negligible volatility lifts the whole 1st percentile
+    // above the starting equity; `p_var_99` GREATESTs at zero and so must
+    // this, or the divergence tile would divide by a negative number.
+    assert.equal(gbmTerminalVar99(1_000_000, 1, 0.001, 365), 0);
+  });
+
+  it("the Oracle panel prices its comparison from the echoed assumptions with this function", () => {
+    // Echoed, not re-asserted: the route clamps its inputs, so a comparison
+    // built from the request would report the clamp as method disagreement.
+    // And no hand-spelled z — that is how the zero-drift shortcut crept in.
+    const panel = readFileSync(
+      fileURLToPath(new URL("../components/portfolio/OracleVarPanel.tsx", import.meta.url)),
+      "utf8",
+    ).replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
+    assert.match(panel, /gbmTerminalVar99\(assumptions\./);
+    assert.doesNotMatch(panel, /2\.32/, "a hand-spelled z99 bypasses the shared closed form");
   });
 });

@@ -92,7 +92,10 @@ describe("durations wear the unit their magnitude earns", () => {
     "components/execution/ExecutionQuality.tsx",
     "components/execution/DeskTape.tsx",
     "components/execution/OrderTicket.tsx",
-    "components/PortfolioWorkspace.tsx",
+    // The lifetime latency tiles and the by-instrument latency column moved
+    // out of PortfolioWorkspace with the Performance section when that file was
+    // split; the workspace itself now formats no duration at all.
+    "components/portfolio/PerformanceSection.tsx",
   ];
 
   it("every decision-latency surface imports formatDuration and stops hand-appending ms", () => {

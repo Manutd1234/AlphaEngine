@@ -411,8 +411,8 @@ export default function LiveMarket({
                 <span className="page-kicker">Capability boundary</span>
                 <h2>Live venue routing is not available for {symbol}.</h2>
                 <p>
-                  Quote and news coverage can still be inspected in Data &amp; systems. Select a supported
-                  crypto pair above to open direct Binance and Bybit order books.
+                  Quote and news coverage stay available in Data &amp; systems. Select a supported
+                  crypto pair above for direct Binance and Bybit books.
                 </p>
                 <div>
                   {/* Both are navigation, so both look like navigation. The
@@ -475,8 +475,8 @@ export default function LiveMarket({
         <div className="card">
           <h2>Cumulative depth</h2>
           <p className="sub">
-            How much size sits between the mid and any price. A near-vertical step is a wall; a
-            shallow ramp is a thin book that will cost you to cross.
+            Size resting between the mid and any price. A near-vertical step is a wall; a shallow
+            ramp is a thin book that costs to cross.
           </p>
           <DepthChart
             bids={snap?.merged.bids ?? []}
@@ -489,8 +489,8 @@ export default function LiveMarket({
         <div className="card">
           <h2>Consolidated ladder</h2>
           <p className="sub">
-            Every venue&apos;s levels merged and sorted by price — the book a smart router actually
-            walks. Click a level to stage it as a limit order in the ticket.
+            Every venue&apos;s levels by price, the book a smart router walks. Click a level to
+            stage it as a limit in the ticket.
           </p>
           <div className="liquidity-pair__book">
             <div
@@ -889,10 +889,9 @@ export default function LiveMarket({
         <details className="card execution-methodology">
           <summary>How the live routing feed works</summary>
           <p className="sub">
-            The ladders stream over WebSockets opened directly from your browser to Binance and
-            Bybit. The same numbers are available as REST snapshots at <code>/api/depth</code> and
-            <code>/api/tca</code> for non-browser callers, computed with identical maths. Pre-trade
-            risk checks and the execution kill-switch remain on the always-on gateway.
+            The ladders stream over WebSockets opened from your browser to Binance and Bybit. The
+            same maths serves REST snapshots at <code>/api/depth</code> and <code>/api/tca</code>{" "}
+            for non-browser callers. Pre-trade risk checks and the kill-switch stay on the gateway.
           </p>
         </details>
       </WorkspaceSubtabPanel>

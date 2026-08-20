@@ -170,3 +170,34 @@ describe("the floor is shared, not re-invented", () => {
     );
   });
 });
+
+describe("the venue axis cannot print through itself", () => {
+  /**
+   * The bug this pins closed: `SpreadDecomposition` drew `venue.venue` raw on
+   * the category axis, and venue strings are data — "PAPER_EQUITY/Financial
+   * Modeling Prep" printed through both of its neighbours while BINANCE and
+   * BYBIT looked fine in every screenshot. The geometry (a long name is cut to
+   * its column, neighbours never come closer than the clearance) is asserted
+   * in axis-labels.test.ts; what belongs here is that the chart actually
+   * routes its labels through that arithmetic and keeps the full name
+   * recoverable.
+   */
+  const source = read("../components/execution/SpreadDecomposition.tsx");
+
+  it("fits every venue label instead of drawing the raw string", () => {
+    assert.match(source, /fitLabel\(venue\.venue/, "the venue label must be fitted, not drawn raw");
+    assert.match(
+      source,
+      /fontFamily="var\(--mono\)"[\s\S]{0,200}\{name\}/,
+      "the fitted label must be drawn in the measured tick face, or the arithmetic is fiction",
+    );
+  });
+
+  it("owes the full name on hover once the axis may shorten it", () => {
+    assert.match(
+      source,
+      /<title>\{`\$\{venue\.venue\} — \$\{venue\.fills\} fills`\}<\/title>/,
+      "a cut label without the full name on its <title> hides the venue",
+    );
+  });
+});

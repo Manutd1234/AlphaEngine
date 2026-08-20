@@ -173,10 +173,10 @@ export default function DependencyMix({
         </p>
         <p className="research-note">
           <strong>The marks are identifiers, not vendor assets.</strong> Where a technology&rsquo;s
-          own mark is not carried here, the tile shows a house initialism instead — an approximation
-          of a logo is recognisably wrong to anyone who knows the brand, and tinting a vendor mark by
-          health status is the recolouring their guidelines prohibit. A tile that is hollow and
-          dashed is a component that is not configured at all.
+          own mark is not carried here, the tile shows a house initialism — an approximation of a
+          logo is recognisably wrong to anyone who knows the brand, and tinting a vendor mark by
+          health status is the recolouring their guidelines prohibit. A hollow, dashed tile is a
+          component that is not configured at all.
         </p>
       </details>
     </section>
