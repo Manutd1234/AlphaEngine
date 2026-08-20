@@ -40,8 +40,6 @@ const OVER_CEILING: Record<string, number> = {
   "lib/engine.ts": 1653,
   "components/PortfolioWorkspace.tsx": 1106,
   "lib/providers/runtime.ts": 1105,
-  "lib/blotter.ts": 1007,
-  "lib/venues.ts": 954,
   "lib/gateway-contract.generated.ts": 953,
   "components/DeveloperConsole.tsx": 943,
   "components/LiveMarket.tsx": 902,

@@ -8,7 +8,8 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 
@@ -29,6 +30,22 @@ import {
   type VenueBook,
   type VenueName,
 } from "../lib/venues";
+
+/**
+ * The venues module, as one string.
+ *
+ * It was `lib/venues.ts` and is now a package. These assertions were always
+ * about "somewhere in the venues module", so concatenating its files keeps the
+ * question identical rather than guessing which part now holds each constant —
+ * and it does not go stale when a declaration moves between them.
+ */
+const readVenues = () => {
+  const dir = fileURLToPath(new URL("../lib/venues", import.meta.url));
+  return readdirSync(dir)
+    .filter((entry) => entry.endsWith(".ts"))
+    .map((entry) => readFileSync(join(dir, entry), "utf8"))
+    .join("\n");
+};
 
 const close = (a: number, b: number, tol = 1e-9, what = "") =>
   assert.ok(Math.abs(a - b) <= tol, `${what}: ${a} !== ${b}`);
@@ -445,10 +462,7 @@ describe("every venue client has somewhere to fall back to", () => {
   // HTTP 451 from the serverless region and `api.bybit.com` answers HTTP 403,
   // while both work from a laptop. Binance had a mirror and recovered; Bybit
   // had one host and silently dropped out of every "cross-venue" number.
-  const source = readFileSync(
-    fileURLToPath(new URL("../lib/venues.ts", import.meta.url)),
-    "utf8",
-  );
+  const source = readVenues();
 
   it("declares more than one host per venue", () => {
     const binance = /const BINANCE_HOSTS = \[([^\]]*)\]/s.exec(source)?.[1] ?? "";
@@ -500,7 +514,7 @@ describe("every venue client has somewhere to fall back to", () => {
 describe("the portal and the gateway share one fill tolerance", () => {
   const read = (relative: string) =>
     readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
-  const ts = read("../lib/venues.ts");
+  const ts = readVenues();
   const py = read("../../modules/tca_engine.py");
 
   it("declares the same FILL_TOLERANCE literal on both sides", () => {

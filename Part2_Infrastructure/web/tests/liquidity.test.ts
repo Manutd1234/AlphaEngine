@@ -13,8 +13,9 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { describe, it } from "node:test";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -25,6 +26,22 @@ import {
   type LiquidityInput,
 } from "../lib/liquidity";
 import { absorbs } from "../lib/venues";
+
+/**
+ * The venues module, as one string.
+ *
+ * It was `lib/venues.ts` and is now a package. These assertions were always
+ * about "somewhere in the venues module", so concatenating its files keeps the
+ * question identical rather than guessing which part now holds each constant —
+ * and it does not go stale when a declaration moves between them.
+ */
+const readVenues = () => {
+  const dir = fileURLToPath(new URL("../lib/venues", import.meta.url));
+  return readdirSync(dir)
+    .filter((entry) => entry.endsWith(".ts"))
+    .map((entry) => readFileSync(join(dir, entry), "utf8"))
+    .join("\n");
+};
 
 const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
@@ -84,7 +101,7 @@ describe("time to liquidate refuses to guess", () => {
 describe("the exit probe reads the response this route actually returns", () => {
   const hook = read("../lib/use-exit-quotes.ts");
   const route = read("../app/api/tca/route.ts");
-  const report = read("../lib/venues.ts");
+  const report = readVenues();
 
   it("reads no `summary` object, because TcaReport has none", () => {
     const code = hook.replace(/\/\*[\s\S]*?\*\//g, "");
