@@ -419,9 +419,11 @@ describe("Performance is split along its time base, and says so", () => {
     // It explains the boundary rather than substituting for it, so splitting
     // the panel — into panes, and then into a file of its own — is not licence
     // to delete it.
+    // Shortened in the copy-reduction pass; the claim is unchanged, so the
+    // assertion follows the sentence rather than the other way round.
     assert.match(
       performanceSource,
-      /mixing the two would subtract a lifetime fee bill from one day&apos;s P&amp;L/,
+      /mixing the two subtracts a lifetime fee bill from one day&apos;s P&amp;L/,
     );
   });
 });
