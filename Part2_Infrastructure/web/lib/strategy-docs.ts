@@ -156,8 +156,7 @@ export const STRATEGY_DOCS: Record<Strategy, StrategyDoc> = {
     similar: ["momentum", "breakout_sma", "ema_slope"],
   },
   triple_ma: {
-    summary:
-      "A crossover that also requires the slow average itself to be rising.",
+    summary: "Two averages crossing, gated on the slow one already turning.",
     formula:
       "Long while SMA(fast) > SMA(slow) AND SMA(slow) is above its own value one bar earlier. The second condition removes crossovers that happen while the trend is still falling.",
     whenItWorks:

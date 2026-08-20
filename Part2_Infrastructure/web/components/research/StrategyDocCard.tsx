@@ -49,7 +49,6 @@ export default function StrategyDocCard({ strategy }: StrategyDocCardProps) {
         </div>
       </div>
 
-      <p className="sub">{doc.summary}</p>
 
       <dl className="strategy-doc__grid">
         <div className="is-works">
