@@ -34,6 +34,7 @@ from pathlib import Path
 
 import pytest
 
+from modules.risk_proxy import GATE_ORDER as ENGINE_GATE_ORDER
 from modules.risk_proxy import RiskGateway
 from modules.schemas import OrderRequest
 from modules.tca_engine import BookState, TCAEngine
@@ -43,9 +44,8 @@ FIXTURE = Path(__file__).resolve().parent.parent / "web" / "tests" / "fixtures" 
 DATA = json.loads(FIXTURE.read_text())
 SCENARIOS = DATA["scenarios"]
 
-#: submit()'s gate battery, in order — the canonical list the fixture is a
-#: subsequence of. Duplicated here on purpose: if submit() reorders or renames a
-#: gate, this and the fixture must both be updated deliberately.
+#: submit()'s gate battery. Compared below against BOTH other copies — the one
+#: in `tools/gate_fixture.py` and the registry in `modules/risk_proxy/gates.py`.
 EXPECTED_GATE_ORDER = (
     "kill_switch",
     "symbol_halt",
@@ -95,7 +95,7 @@ def test_native_core_imports() -> None:
 
 
 def test_gate_order_matches_the_fixture() -> None:
-    assert GATE_ORDER == EXPECTED_GATE_ORDER
+    assert ENGINE_GATE_ORDER == GATE_ORDER == EXPECTED_GATE_ORDER, "the three copies disagree"
     for name, scenario in SCENARIOS.items():
         names = [c["name"] for c in scenario["expected"]["checks"]]
         assert set(names) <= set(EXPECTED_GATE_ORDER), f"{name} names an unknown gate"

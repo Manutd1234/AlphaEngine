@@ -750,11 +750,11 @@ class TestMultiSymbolParsingAndDrawing:
         # A PACKAGE now, so `__file__` names only `__init__.py` — scan every
         # file of it or this goes vacuous. Comments are stripped because this
         # file's own explanation names the very literals it is banning.
-        raw = "\n".join(p.read_text() for p in Path(telegram_module.__file__).parent.rglob("*.py"))
-        source = "\n".join(
-            line for line in raw.splitlines()
-            if not line.lstrip().startswith("#")
-        )
+        files = sorted(Path(telegram_module.__file__).parent.rglob("*.py"))
+        raw = "\n".join(p.read_text() for p in files)
+        # Every assertion below is `not in`, which an empty scan satisfies.
+        assert len(files) > 5 and "class TelegramBot" in raw, f"scan read {len(files)} files"
+        source = "\n".join(ln for ln in raw.splitlines() if not ln.lstrip().startswith("#"))
         # Each of these was printed as live desk telemetry and computed by
         # nothing. They are pinned as literals so a future edit cannot quietly
         # reintroduce the pattern.

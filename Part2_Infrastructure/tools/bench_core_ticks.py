@@ -20,6 +20,7 @@ between tick 2 (83.3) and tick 3 (125.0). This tool counts that fraction.
     venv/bin/python tools/bench_core_ticks.py
     venv/bin/python tools/bench_core_ticks.py --source direct --repeat 3
     venv/bin/python tools/bench_core_ticks.py --repeat 3 --json /tmp/ticks.json
+    venv/bin/python tools/bench_core_ticks.py --attribute   # classify the tail
 
 Two sources, both real and neither a substitute for the other:
 
@@ -312,10 +313,27 @@ def main() -> int:
     ap.add_argument("--venues", type=int, default=2)
     ap.add_argument("--repeat", type=int, default=1)
     ap.add_argument("--json", type=Path, default=None)
+    ap.add_argument(
+        "--attribute",
+        action="store_true",
+        help="classify the slow samples instead of counting them: per-sample "
+             "position, gates, legs and venue count, plus the warm/cold "
+             "contrast that says whether the tail is compute or cadence",
+    )
     args = ap.parse_args()
 
     core = _load_core()
     tick_ns = core.clock_tick_ns()
+    if args.attribute:
+        from tools import bench_core_attrib
+
+        report = bench_core_attrib.run(args.orders, args.warmup, args.venues, tick_ns)
+        print(bench_core_attrib.render(report))
+        if args.json:
+            args.json.parent.mkdir(parents=True, exist_ok=True)
+            args.json.write_text(json.dumps(report, indent=2) + "\n")
+            print(f"wrote {args.json}")
+        return 0
     floor_raw = Counter(core.clock_floor_ns(5000))
     floor_n = sum(floor_raw.values())
     floor_mean_ticks = (

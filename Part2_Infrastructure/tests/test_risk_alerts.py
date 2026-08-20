@@ -9,6 +9,8 @@ until somebody mutes the bot, which is the same as having no alerts at all.
 
 from __future__ import annotations
 
+import inspect
+
 import pytest
 
 from config import settings
@@ -35,7 +37,11 @@ class _Bot(TelegramBot):
     def _alert_targets(self):
         return [s["chat_id"] for s in self._subs]
 
-    async def send_message(self, chat_id, message, **kwargs):
+    # The REAL signature, not `(chat_id, message, **kwargs)`. A double that
+    # takes `**kwargs` accepts arguments the production object rejects, so the
+    # day `_risk_tick` grows a `parse_mode=` this file would stay green and
+    # every alert would raise into the delivery path instead. Pinned below.
+    async def send_message(self, chat_id, text, *, reply_markup=None):
         self.sent.append(str(chat_id))
 
 
@@ -47,6 +53,30 @@ SUBS = [
     {"chat_id": "legacy", "role": None},
     {"chat_id": "blank", "role": ""},
 ]
+
+
+def test_the_double_is_no_looser_than_the_object_it_stands_in_for():
+    """`_Bot.send_message` must accept exactly what the real one accepts.
+
+    Read off both at call time. This is the check whose absence let a recorder
+    taking `**kwargs` swallow a `kind=` keyword `AuditLog.record_risk_event`
+    has never had — every write raised `TypeError` into a caught warning while
+    the suite reported that every plan reached the ledger.
+    """
+    def shape(fn):
+        # Names, kinds and defaults — the part that decides which calls are
+        # legal. Annotations are deliberately excluded: a double is not
+        # obliged to restate the types, only to be no more permissive.
+        return [
+            (name, parameter.kind, parameter.default)
+            for name, parameter in inspect.signature(fn).parameters.items()
+        ]
+
+    assert shape(_Bot.send_message) == shape(TelegramBot.send_message), (
+        "the alert double and the real sender have drifted apart, so these "
+        f"tests no longer describe what the deployment does: "
+        f"{shape(_Bot.send_message)} vs {shape(TelegramBot.send_message)}"
+    )
 
 
 def test_a_breach_reaches_the_roles_whose_job_it_is():

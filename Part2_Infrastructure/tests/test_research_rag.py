@@ -241,7 +241,14 @@ class TestSchemaAgreement:
         # Every file of the package, not `research_rag.py` — that path no longer
         # exists, and a scan of one file would miss a fallback added in another.
         package = Path(__file__).resolve().parent.parent / "modules" / "research_rag"
-        source = "\n".join(p.read_text() for p in sorted(package.rglob("*.py")))
+        files = sorted(package.rglob("*.py"))
+        source = "\n".join(p.read_text() for p in files)
+        # Both assertions below are NEGATIVE, so an empty scan satisfies them
+        # without reading anything. Say what the scan must have found first.
+        assert len(files) > 1, f"only {len(files)} files under {package} — the scan moved"
+        assert "EMBEDDING_DIMENSIONS" in source, (
+            "the scan is not reading the embedding code it exists to police"
+        )
         # The tempting shortcut is `[0.0] * 384` so a failed embed "still works".
         # A zero vector is equidistant from everything; pin the refusal.
         assert "[0.0]" not in source and "[0] *" not in source

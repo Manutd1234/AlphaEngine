@@ -388,6 +388,7 @@ class TestTheGatewayNeverDependsOnThis:
 
     def test_nothing_in_the_request_path_shells_out_to_claude(self):
         scanned = [*(REPO / "modules").rglob("*.py"), REPO / "main.py"]
+        assert len(scanned) > 30, f"only {len(scanned)} files scanned — the scan is looking in the wrong place"
         found = [str(f.relative_to(REPO)) for f in scanned if '"claude"' in f.read_text(encoding="utf-8")]
         assert found == [], f"a non-deterministic call in the request path: {found}"
 

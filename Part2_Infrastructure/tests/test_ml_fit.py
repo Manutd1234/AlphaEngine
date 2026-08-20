@@ -13,11 +13,14 @@ reaches the store, not that the store works when a test calls it.
 
 from __future__ import annotations
 
+import inspect
+
 import numpy as np
 import pandas as pd
 import pytest
 
 from modules.ml.fit import ML_FIT_KIND, run_ml_fit, run_ml_fit_job
+from modules.ml.store import MLRunStore
 
 
 @pytest.fixture(autouse=True)
@@ -46,6 +49,18 @@ def offline_bars(monkeypatch):
     monkeypatch.setattr("modules.ml.fit.fetch_ohlcv", _bars)
 
 
+#: The production signature, read off the real class at import — before any
+#: test has had a chance to stand something else in its place. Re-derived from
+#: the class rather than restated, so it cannot fall out of step with it.
+_PERSIST_SIGNATURE = inspect.signature(MLRunStore.persist)
+
+
+def _bind_like_the_real_store(**payload) -> None:
+    """Raise unless ``payload`` is a call ``MLRunStore.persist`` would accept."""
+    # `None` stands in for `self`; the signature is the unbound function's.
+    _PERSIST_SIGNATURE.bind(None, **payload)
+
+
 class _RecordingStore:
     """Records what a production caller asks of the store."""
 
@@ -55,6 +70,19 @@ class _RecordingStore:
         self.stopped = False
 
     async def persist(self, **payload):
+        """Bound against the REAL signature before anything is recorded.
+
+        A stand-in that takes ``**payload`` accepts arguments the production
+        object rejects, and that is not a test of the production object: the
+        router's audit write spent this round raising ``TypeError`` on every
+        call into a caught warning because its recorder took ``**kwargs``.
+        ``MLRunStore.persist`` is keyword-only with eleven required names, so
+        a caller that drops one or invents one has to fail HERE, where it is a
+        red test, rather than in the deployment where it is a missing corpus.
+
+        Read off the class at call time so it can never fall out of step.
+        """
+        _bind_like_the_real_store(**payload)
         self.calls.append(payload)
 
         class _Filed:
