@@ -150,10 +150,7 @@ export default function MonteCarloDistribution({
         <div>
           <span className="page-kicker">No completed run</span>
           <h2>The distribution needs the research winner&apos;s returns.</h2>
-          <p>
-            It resamples the drivers behind the Monte Carlo band on the Research equity chart.
-            Run research first.
-          </p>
+          <p>It resamples the drivers behind the Research equity band. Run research first.</p>
           <button type="button" className="text-action" onClick={onOpenResearch}>
             Open Research
           </button>
@@ -191,10 +188,9 @@ export default function MonteCarloDistribution({
         />
       </div>
       <p className="sub">
-        Resamples <strong>{driver.label}</strong>&apos;s realised {driver.interval} returns — the
-        drivers behind the Research band — with the {MC_RESAMPLER_LABELS[ran]} over a{" "}
-        {horizonDays}-day forward horizon, keeping where each path ends. Computed off the main
-        thread{state.engine === "main-thread" ? " (worker unavailable — chunked fallback, same numbers)" : ""}.
+        Resamples <strong>{driver.label}</strong>&apos;s realised {driver.interval} returns with the{" "}
+        {MC_RESAMPLER_LABELS[ran]} over a {horizonDays}-day forward horizon, keeping where each
+        path ends.{state.engine === "main-thread" ? " Worker unavailable; chunked fallback, same numbers." : ""}
       </p>
 
       {ran === "iid" && (
@@ -202,8 +198,8 @@ export default function MonteCarloDistribution({
           <span aria-hidden>▲</span>
           <div>
             <strong>No volatility clustering.</strong> An i.i.d. draw treats every bar as
-            independent, so the losing runs these returns actually had never form and the tail
-            comes back too narrow. Read it against the blocked draw, not on its own.
+            independent, so losing runs never form and the tail comes back too narrow. Read it
+            against the blocked draw.
           </div>
         </div>
       )}
@@ -213,8 +209,8 @@ export default function MonteCarloDistribution({
           <span aria-hidden>▲</span>
           <div>
             <strong>Nothing simulated.</strong> A seed is a whole number from 0 to{" "}
-            {MC_SEED_MAX.toLocaleString()}; this card will not quietly run another.
-            Clear the box to use the sweep&apos;s own seed, {driver.seed}.
+            {MC_SEED_MAX.toLocaleString()}. Clear the box to use the sweep&apos;s own seed,{" "}
+            {driver.seed}.
           </div>
         </div>
       )}
@@ -296,11 +292,9 @@ export default function MonteCarloDistribution({
                 </strong>{" "}
                 P{lossBands[1]} loss {usd(result.loss.p95, 0)} over {horizonDays} days against the{" "}
                 {usd(cushionUsd, 0)} left in the drawdown-to-halt budget on the Limits tab
-                {withinHeadroom
-                  ? "."
-                  : " — a tail outcome at this size would trip the halt."}{" "}
+                {withinHeadroom ? "." : " — a tail outcome this size would trip the halt."}{" "}
                 A multi-day loss against today&apos;s budget is a conservative screen.
-                {sandbox ? " Sandbox book — same limits, generated positions." : ""}
+                {sandbox ? " Sandbox book, same limits." : ""}
               </div>
             </div>
           )}
