@@ -76,11 +76,12 @@ describe("a status is never collapsed", () => {
     const firstDisclosure = source.indexOf("<details");
     assert.ok(firstDisclosure > 0, "the panel grew no disclosure at all");
     const beforeDisclosure = source.slice(0, firstDisclosure);
-    // Both branches of the status — the named tight positions and the "none"
-    // case — must render above the first disclosure.
+    // The status that matters — which positions are pressed against a stop, by
+    // name — must render above the first disclosure. The all-clear branch has
+    // been removed: a limit that is NOT being approached is what the heatmap
+    // cells already show, and it is not a status a reader can act on.
     assert.match(beforeDisclosure, /symbol limit:/);
     assert.match(beforeDisclosure, /tight\.map\(\(cell\) => cell\.symbol\)\.join/);
-    assert.match(beforeDisclosure, /No position is above/);
   });
 
   it("names what is inside each disclosure", () => {

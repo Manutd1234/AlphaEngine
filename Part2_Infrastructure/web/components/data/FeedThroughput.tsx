@@ -110,13 +110,17 @@ export default function FeedThroughput({ health }: { health: SystemHealth | null
           conclusion. */}
       {feeds.length > 0 && (
         <>
-          <p className="research-note">
-            Bars share one scale across venues.{" "}
-            {staleBooks
-              ? <><strong>{staleBooks}</strong> book{staleBooks === 1 ? " is" : "s are"} past the
-                gateway&rsquo;s freshness budget.</>
-              : "No book is past the gateway's freshness budget."}
-          </p>
+          {/* Nothing when nothing is stale. "Bars share one scale across
+              venues" describes the chart's own axis, and the all-clear said a
+              budget was not being exceeded — neither is a state worth a line.
+              The count of stale books is, and it is shown nowhere else on this
+              pane. */}
+          {staleBooks > 0 && (
+            <p className="research-note">
+              <strong>{staleBooks}</strong> book{staleBooks === 1 ? " is" : "s are"} past the
+              gateway&rsquo;s freshness budget.
+            </p>
+          )}
           <details className="disclosure">
             <summary>Why each venue&rsquo;s mean rate is a floor, not a measurement</summary>
             <p className="research-note">

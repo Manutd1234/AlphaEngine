@@ -203,16 +203,23 @@ export default function ExposureHeatmap({
 
       {/* A limit status, never collapsed: hiding which positions are pressed
           against a stop changes what a reader believes about the book. */}
-      <p className="research-note">
-        {tight.length
-          ? <>
+      {/* Nothing when nothing is tight. The all-clear branch — "No position is
+          above 75% of its symbol limit" — spent a line saying a limit was not
+          being approached; the heatmap cells carry that reading themselves.
+          What must never be collapsed or dropped is the other branch, which
+          names the symbols. */}
+      {(tight.length > 0 || generated) && (
+        <p className="research-note">
+          {tight.length > 0 && (
+            <>
               {tight.length} position{tight.length === 1 ? " is" : "s are"} at or above{" "}
               {pct(TIGHT, 0)} of {tight.length === 1 ? "its" : "their"} symbol limit:{" "}
               <strong>{tight.map((cell) => cell.symbol).join(", ")}</strong>.
             </>
-          : <>No position is above {pct(TIGHT, 0)} of its symbol limit.</>}
-        {generated && " Generated book."}
-      </p>
+          )}
+          {generated && (tight.length > 0 ? " Generated book." : "Generated book.")}
+        </p>
+      )}
 
       <details className="disclosure">
         <summary>Why share of gross and limit utilisation are separate questions</summary>
