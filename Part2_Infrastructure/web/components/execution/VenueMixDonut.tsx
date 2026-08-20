@@ -48,8 +48,7 @@ export default function VenueMixDonut({
           </div>
         </div>
         <p className="muted">
-          No audit log is reachable in this deployment, so there are no fills to attribute to a
-          venue.
+          No audit log is reachable here, so there are no fills to attribute to a venue.
         </p>
       </section>
     );
