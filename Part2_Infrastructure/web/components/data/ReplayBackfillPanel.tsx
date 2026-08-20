@@ -226,8 +226,8 @@ export default function ReplayBackfillPanel({
         <div className="banner warn" role="status">
           <span aria-hidden>!</span>
           <div>
-            <strong>Executor not configured.</strong> Replay and equity backfill run through this workspace&apos;s own fetch path, and the gateway
-            has no <code>WEB_WORKSPACE_URL</code> to reach it. Crypto backfill (Binance) still works.
+            <strong>Executor not configured.</strong> Replay and equity backfill run through this workspace&apos;s fetch path, which the gateway
+            cannot reach without <code>WEB_WORKSPACE_URL</code>. Crypto backfill (Binance) still works.
           </div>
         </div>
       )}
