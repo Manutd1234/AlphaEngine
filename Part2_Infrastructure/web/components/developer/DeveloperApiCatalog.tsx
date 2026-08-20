@@ -32,17 +32,17 @@ export const API_OPERATIONS: readonly ApiOperation[] = [
   { method: "POST", path: "/api/backtest", purpose: "Synchronous parameter sweep", group: "research" },
   { method: "GET", path: "/api/research?symbol=BTCUSDT", purpose: "Research-service proxy and evidence lookup", group: "research" },
   { method: "GET", path: "/api/gateway/audit?feed=orders", purpose: "Audited orders and risk events", group: "gateway" },
-  { method: "GET", path: "/api/gateway/data/quality?limit=100", purpose: "Older findings from the durable data-quality ledger", group: "gateway" },
-  { method: "GET", path: "/api/gateway/data/work-items", purpose: "The persisted Data work queue, versioned and audit-logged", group: "gateway" },
+  { method: "GET", path: "/api/gateway/data/quality?limit=100", purpose: "Durable data-quality ledger findings", group: "gateway" },
+  { method: "GET", path: "/api/gateway/data/work-items", purpose: "Persisted Data work queue, versioned and audit-logged", group: "gateway" },
   { method: "POST", path: "/api/gateway/data/work-items", purpose: "Create a work item (operator-gated)", group: "gateway" },
   { method: "PATCH", path: "/api/gateway/data/work-items/{id}", purpose: "Versioned edit; a stale version returns the current row", group: "gateway" },
-  { method: "GET", path: "/api/gateway/data/jobs?limit=25", purpose: "Recent replay and backfill jobs on the gateway queue", group: "gateway" },
+  { method: "GET", path: "/api/gateway/data/jobs?limit=25", purpose: "Recent replay and backfill jobs", group: "gateway" },
   { method: "POST", path: "/api/gateway/data/jobs", purpose: "Submit a replay or backfill job (operator-gated)", group: "gateway" },
-  { method: "GET", path: "/api/gateway/data/schedules", purpose: "The gateway's configured replay/backfill schedule", group: "gateway" },
+  { method: "GET", path: "/api/gateway/data/schedules", purpose: "Configured replay and backfill schedule", group: "gateway" },
   { method: "GET", path: "/api/gateway/research/ml/runs", purpose: "Supervised research runs, newest first", group: "gateway" },
   { method: "POST", path: "/api/gateway/research/ml/fit", purpose: "Queue one supervised walk-forward and file its evidence", group: "research" },
-  { method: "GET", path: "/api/gateway/jobs/{jobId}", purpose: "One queued job's status and result, any kind", group: "gateway" },
-  { method: "GET", path: "/api/gateway/research/ml/runs/{runId}", purpose: "One supervised run with its folds and feature spec", group: "research" },
+  { method: "GET", path: "/api/gateway/jobs/{jobId}", purpose: "Any queued job's status and result", group: "gateway" },
+  { method: "GET", path: "/api/gateway/research/ml/runs/{runId}", purpose: "One run with its folds and feature spec", group: "research" },
   { method: "POST", path: "/api/gateway/data-quality/escalations/{id}/ack", purpose: "Take an open data-quality escalation", group: "gateway" },
   { method: "GET", path: "/api/gateway/research/graph/{id}", purpose: "Documents connected to one research document", group: "gateway" },
   { method: "GET", path: "/api/gateway/orders", purpose: "Order blotter from the authoritative gateway", group: "gateway" },
@@ -57,7 +57,7 @@ export const API_OPERATIONS: readonly ApiOperation[] = [
   { method: "GET", path: "/api/system/actions", purpose: "Operator guard and action capabilities", group: "system" },
   { method: "POST", path: "/api/system/actions", purpose: "Purge, breaker, outage, or probe action", group: "system" },
   { method: "GET", path: "/api/system/events?since=0", purpose: "Structured trace cursored by sequence", group: "system" },
-  { method: "GET", path: "/api/stream/desk", purpose: "Risk state pushed on change; state travels in-band as the first event", group: "system" },
+  { method: "GET", path: "/api/stream/desk", purpose: "Risk state pushed on change; the first event carries state", group: "system" },
   { method: "GET", path: "/api/system/health", purpose: "Providers, breakers, latency, failover, and cache", group: "system" },
   { method: "GET", path: "/api/system/inspect?symbol=BTCUSDT&raw=1", purpose: "One request with route and raw-payload lineage", group: "system" },
 
@@ -171,8 +171,8 @@ export default function DeveloperApiCatalog() {
 
       <div className="developer-api-catalog__footer">
         <p>
-          Market-data routes are signals, not execution authority; portfolio, order and risk writes
-          stay behind the authenticated gateway.
+          Market-data routes are signals, not execution authority; order and risk writes stay
+          behind the authenticated gateway.
         </p>
         <span aria-live="polite">{announcement || `${visibleOperations.length} operations shown.`}</span>
       </div>
