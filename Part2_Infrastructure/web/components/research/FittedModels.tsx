@@ -113,7 +113,11 @@ export default function FittedModels() {
       });
       if (!queued.ok) {
         const body = await queued.json().catch(() => ({}));
-        setNotice(typeof body.error === "string" ? body.error : `The fit could not be queued (${queued.status}).`);
+        // Scoped to the fit on purpose. Rendered bare, this sat beside the
+        // corpus-read message and read as a statement about the corpus — which
+        // had answered 200. Two different requests, two different facts.
+        const why = typeof body.error === "string" ? body.error : `HTTP ${queued.status}.`;
+        setNotice(`The fit could not be queued: ${why}`);
         return;
       }
       const { job_id: jobId } = await queued.json() as { job_id: string };
@@ -121,7 +125,7 @@ export default function FittedModels() {
       for (let attempt = 0; attempt < 40; attempt += 1) {
         await new Promise((resolve) => setTimeout(resolve, 1_500));
         const polled = await probeGateway<{ status?: string; result?: Record<string, unknown> }>(
-          `/api/gateway/data/jobs?job_id=${jobId}`,
+          `/api/gateway/jobs/${encodeURIComponent(jobId)}`,
         );
         if (!polled.ok) continue;
         const status = polled.payload.status;

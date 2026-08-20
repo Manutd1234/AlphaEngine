@@ -41,6 +41,7 @@ export const API_OPERATIONS: readonly ApiOperation[] = [
   { method: "GET", path: "/api/gateway/data/schedules", purpose: "The gateway's configured replay/backfill schedule", group: "gateway" },
   { method: "GET", path: "/api/gateway/research/ml/runs", purpose: "Supervised research runs, newest first", group: "gateway" },
   { method: "POST", path: "/api/gateway/research/ml/fit", purpose: "Queue one supervised walk-forward and file its evidence", group: "research" },
+  { method: "GET", path: "/api/gateway/jobs/{jobId}", purpose: "One queued job's status and result, any kind", group: "gateway" },
   { method: "GET", path: "/api/gateway/research/graph/{id}", purpose: "Documents connected to one research document", group: "gateway" },
   { method: "GET", path: "/api/gateway/orders", purpose: "Order blotter from the authoritative gateway", group: "gateway" },
   { method: "POST", path: "/api/gateway/orders", purpose: "Risk-gated paper-order submission", group: "gateway" },

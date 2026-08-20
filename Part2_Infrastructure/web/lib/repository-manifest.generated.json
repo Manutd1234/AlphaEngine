@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-20",
-  "commit": "c45439f",
+  "commit": "f44ab80",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -241,6 +241,7 @@
     "Part2_Infrastructure/web/app/api/gateway/data/schedules/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/data/work-items/[id]/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/data/work-items/route.ts",
+    "Part2_Infrastructure/web/app/api/gateway/jobs/[jobId]/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/orders/[id]/cancel/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/orders/[id]/replace/route.ts",
     "Part2_Infrastructure/web/app/api/gateway/orders/route.ts",
