@@ -6715,8 +6715,27 @@ button
 .whatif-constraints__row {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  /* flex-start, not flex-end. The two columns hold controls of different
+     heights — a wrapping row of venue toggles beside a 38px number input — so
+     bottom-pinning them pushed every height difference upward and landed the
+     two labels on different lines. Aligned at the top, the labels are the row. */
+  align-items: flex-start;
   gap: 12px;
+}
+
+/* "Route through" is a <span class="field"> and "Max slippage (bps)" is a
+   <label class="field">, and the only rule granting `.field` any appearance is
+   `label.field` — there is no bare `.field {}` anywhere in this sheet. So one
+   label was uppercase, --fs-sm, muted and 5px clear of its control while the
+   other was inherited body text sitting flush on it. Both, here. */
+.whatif-constraints__row .field {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
 }
 
 .whatif-constraints__note {

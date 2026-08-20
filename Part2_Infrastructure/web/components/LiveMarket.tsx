@@ -632,7 +632,7 @@ export default function LiveMarket({
               the slippage cap, so that is all a preset writes — into the same
               visible inputs, never hidden state. Passive accepts only cheap
               liquidity; aggressive takes the book as it comes. */}
-          <div className="whatif-constraints__row whatif-constraints__presets-row">
+          <div className="whatif-constraints__row">
             <div>
               <span className="field">Routing strategy</span>
               <div className="seg" role="group" aria-label="What-if routing urgency preset">
