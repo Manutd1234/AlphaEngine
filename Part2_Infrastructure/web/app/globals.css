@@ -6705,8 +6705,11 @@ button
   background: color-mix(in srgb, var(--surface-2) 45%, var(--surface-1));
 }
 
-.whatif-constraints > legend {
-  padding: 0 6px;
+/* Was `> legend { padding: 0 6px }` — the horizontal gap punched through the
+   dashed border on either side of a straddling legend. There is no legend now;
+   the title is an ordinary block inside the box and wants space beneath it. */
+.whatif-constraints > .page-kicker {
+  margin-bottom: 8px;
 }
 
 .whatif-constraints__row {

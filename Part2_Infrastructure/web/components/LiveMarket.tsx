@@ -614,10 +614,20 @@ export default function LiveMarket({
           ))}
         </div>
 
-        <fieldset className="whatif-constraints">
-          <legend>
-            <span className="page-kicker">What-if constraints — client-side only</span>
-          </legend>
+        {/* A div with role="group", not a <fieldset>/<legend>. The legend's UA
+            rendering places it IN the border, straddling it — and nothing in
+            this sheet overrides that, because app/tailwind.css deliberately
+            ships no preflight and a preflight is what normally neutralises it.
+            A heading inside the box is what was wanted, and this also drops
+            fieldset's `min-width: min-content`, which fights flex children. */}
+        <div
+          className="whatif-constraints"
+          role="group"
+          aria-labelledby="whatif-constraints-title"
+        >
+          <p className="page-kicker" id="whatif-constraints-title">
+            What-if constraints — client-side only
+          </p>
           {/* Urgency presets. The probe's honest levers are the venue set and
               the slippage cap, so that is all a preset writes — into the same
               visible inputs, never hidden state. Passive accepts only cheap
@@ -725,7 +735,7 @@ export default function LiveMarket({
             Reruns the same TCA maths under your constraints. Nothing is routed and the
             gateway&apos;s pre-trade gates are unaffected.
           </p>
-        </fieldset>
+        </div>
 
         {tca ? (
           <>
