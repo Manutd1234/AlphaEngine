@@ -731,10 +731,6 @@ export default function LiveMarket({
               />
             </div>
           </div>
-          <p className="muted whatif-constraints__note">
-            Reruns the same TCA maths under your constraints. Nothing is routed and the
-            gateway&apos;s pre-trade gates are unaffected.
-          </p>
         </div>
 
         {tca ? (

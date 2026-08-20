@@ -6747,10 +6747,6 @@ button
   text-transform: uppercase;
 }
 
-.whatif-constraints__note {
-  margin: 8px 0 0;
-  font-size: var(--fs-sm);
-}
 
 /* -- consolidated ladder rows (click-to-trade) --
    Buttons wearing the old row layout: the global button chrome is reset here,
