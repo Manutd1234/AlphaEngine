@@ -152,10 +152,6 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
               noun="fills"
               ariaLabel="Distribution of effective spread across fills"
             />
-            <small className="muted">
-              Two times the absolute slippage of each fill, against the consolidated mid the gateway
-              priced its decision at.
-            </small>
           </div>
 
           {summary.topRejectReason ? (
