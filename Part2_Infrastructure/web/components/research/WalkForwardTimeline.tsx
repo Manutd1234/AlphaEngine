@@ -228,8 +228,7 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
       <div className="table-wrap" tabIndex={0}>
         <table>
           <caption className="sr-only">
-            Per-fold walk-forward results: training and testing windows, chosen parameters,
-            in-sample and out-of-sample Sharpe, out-of-sample return, efficiency, and parameter drift.
+            Per-fold walk-forward results, one row per fold.
           </caption>
           <thead>
             <tr>
