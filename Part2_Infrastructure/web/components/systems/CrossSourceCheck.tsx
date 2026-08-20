@@ -213,8 +213,8 @@ export default function CrossSourceCheck({ symbol }: CrossSourceCheckProps) {
             <div className="table-wrap" tabIndex={0}>
               <table>
                 <caption className="sr-only">
-                  Per-source price, absolute market-data timestamp, deviation from the median in basis
-                  points, staleness relative to the freshest print, and latency.
+                  Per-source price, market-data timestamp, deviation from the median in basis points,
+                  staleness against the freshest print, and latency.
                 </caption>
                 <thead>
                   <tr>
