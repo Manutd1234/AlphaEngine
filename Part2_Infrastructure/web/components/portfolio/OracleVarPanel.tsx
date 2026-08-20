@@ -180,14 +180,13 @@ export default function OracleVarPanel({
           terminal-value/one-day distinction below is not decoration — a VaR
           without the horizon it answers over is the wrong number. */}
       <p className="sub">
-        Simulated by Oracle 23ai: a <strong>terminal-value</strong> GBM VaR over the horizon, a
-        different question from the one-day book VaR on the VaR &amp; model section.
+        Simulated by Oracle 23ai: a <strong>terminal-value</strong> GBM VaR over the horizon, not
+        the one-day book VaR on the VaR &amp; model section.
       </p>
 
       {annualVol === null ? (
         <p className="muted">
-          Waiting for the covariance model — both figures need its measured volatility, so neither
-          runs until it exists.
+          Waiting for the covariance model: both figures need its measured volatility.
         </p>
       ) : (
         /* One space-reserving box around every post-model state. The card used
@@ -204,8 +203,7 @@ export default function OracleVarPanel({
               <span aria-hidden>!</span>
               <div>
                 <strong>Not computed.</strong> {result.error}
-                {" "}The workspace&apos;s own VaR on the VaR &amp; model section never depended on
-                this and is unaffected.
+                {" "}The VaR &amp; model section&apos;s own figure is unaffected.
               </div>
             </div>
           ) : (
@@ -241,13 +239,11 @@ export default function OracleVarPanel({
               </div>
               <p className="sub">
                 {divergence !== null && Math.abs(divergence) > 0.15
-                  ? "The two methods disagree by more than 15%. Both price the same lognormal "
-                    + "terminal distribution, one by simulation and one in closed form, so a gap "
-                    + "this size is not sampling error: one of them is not running the inputs "
-                    + "shown beside it, and that is the finding."
-                  : "The two agree within sampling error, as two correct implementations "
-                    + "should."}
-                {sandbox && " Book is the generated sandbox, so the equity input is not a real position."}
+                  ? "The two disagree by more than 15%. Both price the same lognormal terminal "
+                    + "distribution, so this is not sampling error: one is not running the inputs "
+                    + "beside it."
+                  : "The two agree within sampling error."}
+                {sandbox && " Generated sandbox book, so the equity input is not a real position."}
               </p>
             </>
           )}
