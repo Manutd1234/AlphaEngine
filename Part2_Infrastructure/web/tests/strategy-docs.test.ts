@@ -117,6 +117,7 @@ describe("cross-references go somewhere", () => {
 
 describe("the card does not restate what other maps own", () => {
   const card = read("../components/research/StrategyDocCard.tsx");
+  const codex = read("../components/research/StrategyCodex.tsx");
   const page = read("../app/dashboard/page.tsx");
 
   it("renders parameter meanings from PARAM_MEANING", () => {
@@ -145,9 +146,16 @@ describe("the card does not restate what other maps own", () => {
     assert.match(handler, /setInspect\(null\)/);
   });
 
-  it("states the convention the descriptions assume", () => {
+  it("states the convention the descriptions assume, once", () => {
     // "Buy the crossover" and "buy the crossover, but flatten if the exit also
     // fires on that bar" are different strategies with the same name.
-    assert.match(card, /exit wins|exit dominates/i);
+    //
+    // It lives on the codex shelf now rather than the doc card: it was the
+    // same paragraph whichever of the 46 models was selected, and it qualifies
+    // every description on the screen, not only the selected one. Asserted in
+    // both directions so it cannot quietly come back to being said twice.
+    assert.match(codex, /exit wins|exit dominates/i);
+    assert.doesNotMatch(card, /exit wins|exit dominates/i,
+      "the convention is stated for the shelf; the per-model card repeats it");
   });
 });

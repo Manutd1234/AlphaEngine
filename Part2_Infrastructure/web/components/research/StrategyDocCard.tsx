@@ -80,14 +80,6 @@ export default function StrategyDocCard({ strategy }: StrategyDocCardProps) {
         </dl>
       </details>
 
-      {atLeast(tier, "full") ? (
-        <p className="research-note">
-        Both engines apply the same convention this description assumes: signals form on one bar and
-        execute on the next, and on a bar where entry and exit both fire, the exit wins. Written down
-        because a rule read as &ldquo;buy the crossover&rdquo; and a rule that also flattens on the
-        same bar are different strategies with the same name.
-        </p>
-      ) : null}
     </div>
   );
 }

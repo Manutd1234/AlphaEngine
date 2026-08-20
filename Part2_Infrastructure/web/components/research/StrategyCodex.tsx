@@ -94,6 +94,16 @@ export default function StrategyCodex({
 
   return (
     <div className="strategy-codex">
+      {/* Stated once for the shelf, not once per model. It was on the doc
+          card, where it was the same paragraph whichever of the 46 was
+          selected — and it qualifies every description below it too, not just
+          the selected one. `strategy-docs.test.ts` follows it here. */}
+      <p className="research-note">
+        Both engines apply the convention these descriptions assume: signals form on one bar and
+        execute on the next, and on a bar where entry and exit both fire, the exit wins. Written
+        down because a rule read as &ldquo;buy the crossover&rdquo; and a rule that also flattens on
+        the same bar are different strategies with the same name.
+      </p>
       {[...strategiesByFamily()].map(([family, strategies]) => {
         const explored = strategies.filter((s) => progress.has(s)).length;
         return (
