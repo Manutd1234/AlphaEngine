@@ -57,7 +57,7 @@ const REMOVED: ReadonlyArray<readonly [string, string]> = [
   ["D7.4", "has not earned"],
   ["D7.6", "not an audit trail"],
   ["F3.2", "Stress scenarios sized on the long-run average"],
-  ["F4.1", "Both engines apply the same convention"],
+  ["F4.1", "Both engines apply the convention"],
   ["F4.2", "Reruns the same TCA maths"],
   ["F4.3", "Two times the absolute slippage"],
   ["F4.4", "which is what the prompt above is about"],

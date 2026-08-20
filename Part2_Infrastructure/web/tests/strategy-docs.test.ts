@@ -146,16 +146,18 @@ describe("the card does not restate what other maps own", () => {
     assert.match(handler, /setInspect\(null\)/);
   });
 
-  it("states the convention the descriptions assume, once", () => {
-    // "Buy the crossover" and "buy the crossover, but flatten if the exit also
-    // fires on that bar" are different strategies with the same name.
+  it("does not restate the bar convention on either surface", () => {
+    // It was on the doc card, moved to the codex shelf, and was then removed
+    // from the shelf on request. Both halves are asserted because the earlier
+    // version of this test pinned it TO the shelf — a removal that leaves its
+    // old test in place is a removal the suite will undo on the next edit.
     //
-    // It lives on the codex shelf now rather than the doc card: it was the
-    // same paragraph whichever of the 46 models was selected, and it qualifies
-    // every description on the screen, not only the selected one. Asserted in
-    // both directions so it cannot quietly come back to being said twice.
-    assert.match(codex, /exit wins|exit dominates/i);
-    assert.doesNotMatch(card, /exit wins|exit dominates/i,
-      "the convention is stated for the shelf; the per-model card repeats it");
+    // Nothing is lost by its absence here: `lib/export-python.ts` states the
+    // same convention in the generated code, which is the surface where the
+    // reader is about to run it and where it changes what they write.
+    for (const [name, text] of [["codex", codex], ["doc card", card]] as const) {
+      assert.doesNotMatch(text, /exit wins|exit dominates/i,
+        `the bar convention was removed on request and is back on the ${name}`);
+    }
   });
 });
