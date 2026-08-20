@@ -229,8 +229,8 @@ export default function FittedModels() {
         <p className="sub">
           {/* The failure messages already end in a full stop; appending another
               gave "…cannot reach.. This says nothing". */}
-          The research corpus could not be reached: {load.message.replace(/\.$/, "")}. This says
-          nothing about whether runs exist — it says the question could not be asked.
+          The research corpus could not be reached: {load.message.replace(/\.$/, "")}. The question
+          could not be asked, which is not the same as no runs existing.
         </p>
       )}
 
@@ -238,23 +238,22 @@ export default function FittedModels() {
 
       {load.status === "done" && load.payload.state === "unreadable" && (
         <p className="sub">
-          A research corpus is configured on this deployment and could not be read — a rejected
-          key, a missing table, or a schema cache that has not caught up. This says nothing about
-          whether runs exist; it says the question could not be answered.
+          A research corpus is configured here and could not be read — a rejected key, a missing
+          table, or a stale schema cache. That is a question left unanswered, not an empty corpus.
         </p>
       )}
 
       {load.status === "done" && load.payload.state === "unavailable" && (
         <p className="sub">
-          No research corpus is configured on this deployment, so there is nowhere for a fitted
-          run to be recorded. Runs still execute; nothing is filed.
+          No research corpus is configured here, so a fitted run has nowhere to be recorded.
+          Runs still execute; nothing is filed.
         </p>
       )}
 
       {load.status === "done" && load.payload.state === "ok" && runs.length === 0 && (
         <p className="sub">
           The corpus is reachable and holds no supervised runs yet. That is an answer, not a
-          failure — this desk has fitted nothing so far.
+          failure.
         </p>
       )}
 
@@ -301,9 +300,8 @@ export default function FittedModels() {
         <div className="table-wrap" tabIndex={0}>
           <table>
             <caption className="sr-only">
-              Supervised research runs, newest first, with their out-of-sample and deflated
-              Sharpe ratios and the engine each ran on. Each model name is a button that shows
-              that run in the reproducibility capsule above.
+              Supervised research runs, newest first, with out-of-sample and deflated Sharpe and
+              the engine each ran on. Each model name shows that run in the capsule above.
             </caption>
             <thead>
               <tr>

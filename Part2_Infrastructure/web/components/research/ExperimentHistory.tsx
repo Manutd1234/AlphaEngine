@@ -187,8 +187,8 @@ export default function ExperimentHistory({
 
       {records.length === 0 ? (
         <p className="sub">
-          No runs recorded yet in this browser. Every completed sweep is saved here automatically so
-          the same hypothesis is not silently re-tested.
+          No runs recorded yet in this browser. Every completed sweep is saved here, so the same
+          hypothesis is not silently re-tested.
         </p>
       ) : (
         <>
@@ -198,10 +198,9 @@ export default function ExperimentHistory({
               <div>
                 <strong>{records.length} hypotheses tested across {distinctSymbols}{" "}
                   instrument{distinctSymbols === 1 ? "" : "s"}.</strong>{" "}
-                Each row&apos;s Deflated Sharpe prices only the parameter grid <em>inside</em> that
-                run; it does not know the other {records.length - 1} runs happened. The best row
-                here is a maximum over {records.length} searches, and its DSR overstates the evidence
-                by that much.
+                Each row&apos;s Deflated Sharpe prices only the grid <em>inside</em> that run; it
+                does not know the other {records.length - 1} runs happened. The best row is a
+                maximum over {records.length} searches, so its DSR overstates the evidence.
               </div>
             </div>
           )}

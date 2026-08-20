@@ -100,8 +100,7 @@ export default function CodebaseExplorer() {
         <strong>Read-only repository snapshot.</strong>
         <span>
           Refresh with <code>npm run catalog:refresh</code> when files are added or removed; manifest{" "}
-          <code>{REPOSITORY_MANIFEST_PROVENANCE.commit}</code>. Editing a path here would require an
-          authenticated source-control workflow.
+          <code>{REPOSITORY_MANIFEST_PROVENANCE.commit}</code>.
         </span>
       </div>
 
@@ -214,8 +213,7 @@ export default function CodebaseExplorer() {
               <div className="codebase-detail__safe-edit">
                 <strong>Ready to change it?</strong>
                 <p>
-                  File or link a work item, then let the contract, parity, type and build gates
-                  verify the change.
+                  File or link a work item; the contract, parity, type and build gates verify it.
                 </p>
               </div>
             </>

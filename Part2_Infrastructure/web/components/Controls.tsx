@@ -235,7 +235,7 @@ export default function Controls({
         <p className="sub experiment-panel__help">
           {/* Compressed to fit the 310px rail without losing a fact: the
               trigger for each input type, and how to stop it. */}
-          Controls re-run the sweep on release (slider) or blur (typed field).
+          Sliders re-run the sweep on release, typed fields on blur.
           Turn <strong>Auto</strong> off on the rail to hold it.
         </p>
         <div className="stack">
@@ -359,8 +359,8 @@ export default function Controls({
           </div>
           {combos < raw && (
             <p className="sweep-note">
-              Grid of {raw} thinned to {MAX_COMBOS} — a wider search also raises the
-              multiple-testing hurdle, so it is not free.
+              Grid of {raw} thinned to {MAX_COMBOS}; a wider search also raises the
+              multiple-testing hurdle.
             </p>
           )}
 

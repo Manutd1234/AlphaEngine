@@ -158,9 +158,8 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
 
       <div className="developer-work__scope">
         <strong>What “fix” means here:</strong> moving a bug records workflow state in this
-        browser — it survives a reload and syncs nowhere. An authenticated issue integration and
-        a reviewed source-control change are still required to modify the repository or close a
-        real ticket.
+        browser; it survives a reload and syncs nowhere. Changing the repository or closing a real
+        ticket still needs an authenticated issue integration and a reviewed source-control change.
       </div>
 
       {/* One action with a three-way parameter, not three actions. Add feature,

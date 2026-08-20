@@ -157,7 +157,7 @@ export function deriveDataTrust(health: SystemHealth | null, options: DataTrustO
   } else if (hasExactProbe && !exactContract) {
     verdict = {
       label: "Active quote unproven",
-      detail: "A payload may have been served, but this response carries no contract result for that exact payload.",
+      detail: "This response carries no contract result for that exact payload.",
       tone: "unknown",
     };
   } else if (fatalRisk) {
@@ -165,13 +165,13 @@ export function deriveDataTrust(health: SystemHealth | null, options: DataTrustO
       label: "Block unchecked data",
       detail: hasExactProbe
         ? `The active ${options.symbol ?? "instrument"} quote carries a fatal contract finding.`
-        : `${validation?.fatal ?? 0} fatal contract finding${validation?.fatal === 1 ? "" : "s"} and ${rejected} rejected payload${rejected === 1 ? "" : "s"} are retained in this health-route instance.`,
+        : `${validation?.fatal ?? 0} fatal contract finding${validation?.fatal === 1 ? "" : "s"} and ${rejected} rejected payload${rejected === 1 ? "" : "s"} in this health-route instance.`,
       tone: "bad",
     };
   } else if (transportRisk || providerRisk || flaggedRisk || coverageRisk || feedCounts.stale > 0) {
     verdict = {
       label: "Review before use",
-      detail: "The observed scope contains stale, incomplete, degraded or flagged evidence that needs an operator decision.",
+      detail: "Stale, incomplete, degraded or flagged evidence in the observed scope needs an operator decision.",
       tone: "warn",
     };
   } else if (!validation || validation.evaluated === 0) {
@@ -183,7 +183,7 @@ export function deriveDataTrust(health: SystemHealth | null, options: DataTrustO
         }
       : {
           label: "Not yet proven",
-          detail: "No contract-checked payload has been evaluated in this function instance. Zero evidence is not a clean bill of health.",
+          detail: "Nothing has been contract-checked in this function instance. Zero evidence is not a clean bill of health.",
           tone: "unknown",
         };
   } else {
@@ -293,17 +293,17 @@ export function deriveDataTrust(health: SystemHealth | null, options: DataTrustO
       label: fatalRisk || flaggedRisk ? "Inspect quality findings" : "Reconcile independent sources",
       detail: fatalRisk || flaggedRisk
         ? hasExactProbe
-          ? "The exact active-payload result is flagged; use reconciliation and the quality ledger to diagnose it."
+          ? "The exact active-payload result is flagged; reconciliation and the quality ledger diagnose it."
           : `${quarantine} payload excerpt${quarantine === 1 ? " is" : "s are"} quarantined; the ledger records what failed.`
-        : "Run the quota-aware, on-demand median comparison before relying on a suspicious print.",
+        : "Run the quota-aware median comparison before trusting a suspicious print.",
       priority: fatalRisk ? "now" : flaggedRisk ? "review" : "inspect",
     },
     {
       destination: "lineage",
       label: exactContract || validation?.evaluated ? `Trace ${options.symbol ?? "active instrument"}` : "Create validation evidence",
       detail: exactContract || validation?.evaluated
-        ? "Follow provider selection, cache identity, raw evidence and normalised output for the current interval."
-        : "Trace a quote, bar, news or fundamentals request to exercise the real registry and contract path.",
+        ? "Follow provider selection, cache identity, raw evidence and normalised output for this interval."
+        : "Trace a quote, bar, news or fundamentals request through the real registry and contract path.",
       priority: validation?.evaluated ? "inspect" : "now",
     },
     {
@@ -311,7 +311,7 @@ export function deriveDataTrust(health: SystemHealth | null, options: DataTrustO
       label: providerRisk || transportRisk ? "Review route capacity" : "Inspect supply chain",
       detail: providerRisk || transportRisk
         ? "A source, route or quota state can affect which provider answers next."
-        : "Verify fallback rank, reserve and cache behavior before a failure drill.",
+        : "Verify fallback rank, reserve and cache behaviour before a failure drill.",
       priority: providerRisk || transportRisk ? "review" : "inspect",
     },
   ];
@@ -403,7 +403,7 @@ export function deriveTrustSlis(health: SystemHealth | null): TrustSli[] {
       value: noSnapshot ? "—" : String(reconnects),
       note: noSnapshot
         ? "no gateway feed snapshot — reconnects are counted by the feed, not by this instance"
-        : "each reconnect is an unmeasured gap in that venue's tape; nothing counts the messages lost inside one",
+        : "each reconnect is an unmeasured gap in that venue's tape; nothing counts what was lost inside one",
       tone: noSnapshot ? "unknown" : reconnects === 0 ? "good" : "warn",
     },
     {
@@ -413,7 +413,7 @@ export function deriveTrustSlis(health: SystemHealth | null): TrustSli[] {
         : `${((successRate ?? 0) * 100).toFixed(1)}%`,
       note: attempts < TRUST_MIN_SAMPLES
         ? `${attempts}/${TRUST_MIN_SAMPLES} samples — a thin window, not a failure`
-        : `provider and venue calls in the rolling 15-minute window; per-provider uptime is not measurable, they are observed only when called`,
+        : `provider and venue calls in the rolling 15-minute window; per-provider uptime is unmeasurable, they are observed only when called`,
       tone: attempts < TRUST_MIN_SAMPLES
         ? "unknown"
         : (successRate ?? 0) >= 0.99 ? "good" : (successRate ?? 0) >= 0.9 ? "warn" : "bad",
@@ -504,7 +504,7 @@ export function deriveInstanceScope(health: SystemHealth | null): InstanceScopeF
         ? `${shared!.instances.slice(0, 4).join(", ")}${reporting > 4 ? ` +${reporting - 4} more` : ""}`
           + `${shared!.windowSeconds ? `; ${shared!.windowSeconds} s merge window` : ""}`
         : instance
-          ? "The gateway ledger sync is unavailable, so every counter on this tab was measured by this lambda alone."
+          ? "The gateway ledger sync is unavailable, so every counter here was measured by this lambda alone."
           : "Waiting for the first health snapshot.",
       tone: backed && reporting > 0 ? "good" : "unknown",
     },
@@ -513,7 +513,7 @@ export function deriveInstanceScope(health: SystemHealth | null): InstanceScopeF
       label: "This instance uptime",
       value: humanDuration(uptimeMs),
       detail: instance
-        ? `Instance ${instance.id}. Validation, cache, event and quarantine counters are incremented in the quote lambdas, not in this one, so they start empty here and stay empty.`
+        ? `Instance ${instance.id}. Validation, cache, event and quarantine counters increment in the quote lambdas, not here, so they stay empty.`
         : "No instance identity has been reported.",
       // A young instance is the honest explanation for a thin window, so it is
       // flagged rather than presented as a healthy reading.

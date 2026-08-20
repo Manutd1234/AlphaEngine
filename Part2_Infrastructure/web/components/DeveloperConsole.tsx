@@ -533,8 +533,8 @@ function DeveloperOverview({
 type QualityPane = "pipeline" | "verification";
 
 const QUALITY_PANES: Array<{ id: QualityPane; label: string; hint: string }> = [
-  { id: "pipeline", label: "Pipeline", hint: "The stages this commit travels, and how far the build in front of you actually got" },
-  { id: "verification", label: "Verification", hint: "What the configured gates prove, at what cost, and which artifact each conclusion belongs to" },
+  { id: "pipeline", label: "Pipeline", hint: "The stages this commit travels, and how far this build actually got" },
+  { id: "verification", label: "Verification", hint: "What the configured gates prove, and which artifact each conclusion belongs to" },
 ];
 
 function DeveloperPipelines({ view }: { view: SystemHealthView }) {
@@ -575,7 +575,7 @@ function DeveloperPipelines({ view }: { view: SystemHealthView }) {
               <div>
                 <span>Delivery workflow</span>
                 <h2>Pipeline execution and release custody</h2>
-                <p>Configured checks are visible here; the linked Actions run remains the source of truth for pending, passing, or failed state.</p>
+                <p>Configured checks only; the linked Actions run says whether they passed, failed or are pending.</p>
               </div>
               <div className="developer-cp-section-hero__actions">
                 <StatusPill
@@ -637,7 +637,7 @@ function DeveloperPipelines({ view }: { view: SystemHealthView }) {
             <section className="card developer-cp-artifact-card stagger-reveal" style={{ "--stagger-i": 1 } as CSSProperties}>
               <div className="developer-cp-heading"><div><span>Artifact registry</span><h2>Deployable lineage</h2></div><span>Runtime-observed state</span></div>
               <ArtifactLineage view={view} />
-              <p className="developer-cp-disclosure">Artifact custody passes only when the pinned Ed25519 signer attests the deployment&apos;s full commit, environment, and content-addressed build provenance. Downloadable release bundles and promotion records remain separate evidence.</p>
+              <p className="developer-cp-disclosure">Custody passes only when the pinned Ed25519 signer attests this deployment&apos;s commit, environment and content-addressed build provenance; release bundles and promotion records are separate evidence.</p>
             </section>
           </>
         )}
@@ -682,7 +682,7 @@ function McBrowserParityCheck() {
   } else {
     state = {
       label: "Differs",
-      detail: "This browser's result does not match the committed reference — a real cross-engine numerics finding worth reporting.",
+      detail: "This browser's result does not match the committed reference; a real cross-engine numerics finding.",
       tone: "bad",
     };
   }
@@ -695,8 +695,8 @@ function McBrowserParityCheck() {
       </div>
       <p className="developer-cp-disclosure">
         The committed reference, this deployment&apos;s Node runtime and your browser&apos;s worker all
-        recompute the same {MC_PARITY_PATHS.toLocaleString()}-path bootstrap simulation; agreement is
-        byte-for-byte on the canonical JSON, not &quot;close enough&quot;. {state.detail}
+        recompute the same {MC_PARITY_PATHS.toLocaleString()}-path bootstrap; agreement is
+        byte-for-byte on the canonical JSON. {state.detail}
       </p>
       <div className="developer-cp-section-hero__actions">
         <button
@@ -735,9 +735,9 @@ function McBrowserParityCheck() {
 type InterfacePane = "contracts" | "routes" | "numerics";
 
 const INTERFACE_PANES: Array<{ id: InterfacePane; label: string; hint: string }> = [
-  { id: "contracts", label: "Contracts", hint: "Which compatibility gates are automated against this commit, and which are still unverified" },
-  { id: "routes", label: "Routes", hint: "Every operation this runtime serves, searchable by path or purpose, with a curl for each" },
-  { id: "numerics", label: "Numerics", hint: "Recompute the committed Monte Carlo reference in this browser and compare it byte for byte" },
+  { id: "contracts", label: "Contracts", hint: "Which compatibility gates are automated against this commit, and which are unverified" },
+  { id: "routes", label: "Routes", hint: "Every operation this runtime serves, searchable, with a curl for each" },
+  { id: "numerics", label: "Numerics", hint: "Recompute the committed Monte Carlo reference here and compare it byte for byte" },
 ];
 
 function DeveloperInterfaces({ view }: { view: SystemHealthView }) {
@@ -791,7 +791,7 @@ function DeveloperChanges() {
   return (
     <div className="developer-cp-stack">
       <section className="card developer-cp-section-hero">
-        <div><span>Repository evidence</span><h2>Code &amp; Diffs</h2><p>This runtime exposes the committed path manifest, not arbitrary source contents. GitHub remains the authenticated surface for blame, history, and executable diffs.</p></div>
+        <div><span>Repository evidence</span><h2>Code &amp; Diffs</h2><p>This runtime exposes the committed path manifest, not source contents; GitHub is the authenticated surface for blame, history and diffs.</p></div>
         <div className="developer-cp-section-hero__actions">
           <StatusPill state={{ label: APP_COMMIT, detail: "Build-time Git identity.", tone: APP_COMMIT === "dev" ? "warn" : "good" }} />
           <a className="text-action" href={APP_COMMIT === "dev" ? `${GITHUB_REPOSITORY_ROOT}/commits/main` : `${GITHUB_REPOSITORY_ROOT}/commit/${APP_COMMIT}`} target="_blank" rel="noreferrer">Open commit ↗</a>

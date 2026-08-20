@@ -98,8 +98,8 @@ export default function AuditTrail({ active, seed }: { active: boolean; seed?: n
           <span aria-hidden>◇</span>
           <div>
             <strong>Generated ledger — these orders were not sent.</strong> {state.detail}{" "}
-            The rows below are the same simulated orders the Execution blotter shows, so the two
-            tabs still reconcile. Nothing here was recorded by a gateway.
+            These are the same simulated orders the Execution blotter shows, so the two tabs
+            still reconcile.
           </div>
         </div>
       )}
@@ -113,8 +113,7 @@ export default function AuditTrail({ active, seed }: { active: boolean; seed?: n
           <div className="table-wrap table-wrap--clamped">
             <table>
               <caption className="sr-only">
-                Gateway order audit rows, most recent first: time, symbol, side, quantity, fill
-                price, notional, outcome and gateway latency.
+                Gateway order audit rows, most recent first.
               </caption>
               <thead>
                 <tr>

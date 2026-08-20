@@ -81,17 +81,17 @@ const TRUST_PANES: Array<{ id: TrustPane; label: string; hint: string }> = [
   {
     id: "verdict",
     label: "Verdict",
-    hint: "The posture, the measurement boundary every number below sits inside, and the supply behind the next answer",
+    hint: "The posture, the boundary every number below sits inside, and the supply behind the next answer",
   },
   {
     id: "response",
     label: "Response",
-    hint: "How fast each venue book is ticking, how each source has been responding, and how much budget is left to keep asking",
+    hint: "How fast each venue book ticks, how each source responds, and how much budget is left to keep asking",
   },
   {
     id: "composition",
     label: "Composition",
-    hint: "What this one function instance re-checked against a contract, and where its answers came from",
+    hint: "What this instance re-checked against a contract, and where its answers came from",
   },
 ];
 
@@ -108,12 +108,12 @@ const FEEDS_PANES: Array<{ id: FeedsPane; label: string; hint: string }> = [
   {
     id: "freshness",
     label: "Freshness",
-    hint: "How old each venue book is, how often it has reconnected, and whether the feed is upstream or synthetic",
+    hint: "Each venue book's age, its reconnects, and whether the feed is upstream or synthetic",
   },
   {
     id: "contracts",
     label: "Contracts",
-    hint: "What the exact active quote was checked against, what this instance has aggregated by provider, and which evidence to open next",
+    hint: "What the exact active quote was checked against, what this instance aggregated by provider, and what to open next",
   },
 ];
 
@@ -323,8 +323,8 @@ export default function DataTrustOverview({
 
             {!latencyWindow?.series.length ? (
               <p className="muted">
-                No source has been called often enough in the last fifteen minutes to plot. This is a
-                quiet instance, not a broken one — the window fills as the desk asks for data.
+                No source has been called often enough in the last fifteen minutes to plot; a quiet
+                instance, not a broken one. The window fills as the desk asks for data.
               </p>
             ) : (
               <ul className="spark-rows">
@@ -373,12 +373,11 @@ export default function DataTrustOverview({
                 How these rows are read — the spark is a per-minute median, the chip a fifteen-minute p95
               </summary>
               <p className="research-note">
-                They answer different questions and are not the same number. A minute with fewer
-                than {latencyWindow?.minSamplesPerBucket ?? 3} calls is drawn as a gap rather than
-                joined across: too little traffic to measure and a fast minute look identical once
-                the line is bridged. A source shown as <strong>p95 n/a</strong> is one the wire
-                publishes no aggregate for — the gateway probe is one — and its sample count is read
-                from the window&rsquo;s own buckets instead.
+                A minute with fewer than {latencyWindow?.minSamplesPerBucket ?? 3} calls is drawn as
+                a gap, not bridged: too little traffic and a fast minute look identical once the line
+                is joined. A source shown as <strong>p95 n/a</strong> — the gateway probe is one —
+                has no aggregate on the wire, so its sample count comes from the window&rsquo;s own
+                buckets.
               </p>
             </details>
           </section>
@@ -492,7 +491,7 @@ export default function DataTrustOverview({
                   case was the same fact twice on one pane. */}
               <p className="research-note">
                 Segments are <strong>payloads</strong> and sum to each provider&rsquo;s evaluated
-                count; the figures in each note are <strong>findings</strong>, as above.
+                count; the note figures are <strong>findings</strong>, as above.
               </p>
             </section>
           )}
@@ -615,7 +614,7 @@ export default function DataTrustOverview({
 
           <p className="console-footnote">
             Gateway observed at {absoluteTime(trust.gatewaySource?.observedAt)}. Feed ages belong to
-            each venue and symbol; the health response fetch time does not make an old feed fresh.
+            each venue and symbol; the fetch time does not make an old feed fresh.
           </p>
         </section>
       )}

@@ -92,16 +92,16 @@ function Withheld({ reason, short }: { reason: string; short: string }) {
 
 const NO_SEED =
   "The corpus returned this run without a seed, which its own schema forbids. "
-  + "Treat the run as irreproducible rather than assuming a default.";
+  + "Treat the run as irreproducible.";
 
 const NO_SHA =
-  "This run was fitted by a build with no git tree to record, so the code that "
-  + "produced it cannot be named. The bars are still pinned by the dataset hash.";
+  "This run was fitted by a build with no git tree, so the code that produced it "
+  + "cannot be named. The bars are still pinned by the dataset hash.";
 
 const NO_FEATURES =
   "The feature spec hash is on the run detail record, GET /api/research/ml/runs/{run_id}, "
-  + "which this panel has not read back yet. A model is its features, so two runs are "
-  + "only comparable once their spec hashes are.";
+  + "which this panel has not read back yet. Two runs are only comparable once their "
+  + "spec hashes are.";
 
 const NO_PURGE =
   "Purge and embargo are recorded per fold on the run detail record, "
@@ -132,13 +132,12 @@ const NO_PURGE =
 export const PBO_UNSTATED =
   "No PBO is filed for this run, and the corpus records the null without its cause. "
   + "Either it does not apply — PBO ranks a selected configuration against the "
-  + "alternatives it was selected from, and this run fitted one — or it could not be "
-  + "computed, because too few folds ranked their selection for the fraction to be a "
-  + "probability.";
+  + "alternatives it was selected from, and this run fitted one — or too few folds "
+  + "ranked their selection to compute it.";
 
 const ENGINE_MEANING: Record<string, string> = {
   numpy: "The hand-rolled engine, used when the optional scikit-learn extra was absent. "
-    + "This is a different run from an sklearn one and must not be ranked against it.",
+    + "A different run from an sklearn one; do not rank them together.",
   sklearn: "The optional scikit-learn extra was present and fitted this run.",
 };
 
@@ -151,9 +150,9 @@ function describeGaps(values: number[]): string {
 
 const GAPS_MEANING =
   "Bars dropped from the end of each training window because their labels reach "
-  + "into the test window (purge), and from the start of the window that follows "
-  + "a test window because serial correlation runs both ways (embargo). A range "
-  + "means the folds did not agree. Zero is a claim, not an absence.";
+  + "into the test window (purge), and from the start of the next window because "
+  + "serial correlation runs both ways (embargo). A range means the folds did not "
+  + "agree. Zero is a claim, not an absence.";
 
 export default function MlRunCapsule({ run, evidence }: {
   run: MlRunProvenance;

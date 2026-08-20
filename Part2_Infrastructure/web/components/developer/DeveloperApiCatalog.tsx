@@ -171,8 +171,8 @@ export default function DeveloperApiCatalog() {
 
       <div className="developer-api-catalog__footer">
         <p>
-          Browser market-data routes are signals, not execution authority. Portfolio, order, and
-          risk writes remain behind the authenticated gateway.
+          Market-data routes are signals, not execution authority; portfolio, order and risk writes
+          stay behind the authenticated gateway.
         </p>
         <span aria-live="polite">{announcement || `${visibleOperations.length} operations shown.`}</span>
       </div>

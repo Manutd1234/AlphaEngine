@@ -68,12 +68,12 @@ const PROVIDERS_PANES: Array<{ id: ProvidersPane; label: string; hint: string }>
   {
     id: "routing",
     label: "Routing",
-    hint: "The failover chain a request would walk right now, and the outage drill that proves the next rank picks up",
+    hint: "The failover chain a request walks now, and the drill proving the next rank picks up",
   },
   {
     id: "budget",
     label: "Budget",
-    hint: "What each metered provider has left before background polling is fenced out, and what the cache saved",
+    hint: "What each metered provider has left before background polling is fenced out",
   },
 ];
 
