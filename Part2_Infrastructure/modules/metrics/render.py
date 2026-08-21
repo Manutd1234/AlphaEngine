@@ -21,32 +21,80 @@ from modules.metrics.exposition import _JOB_STATES, _Writer
 from modules.metrics.request_latency import request_latency_summary
 
 _AUDIT_COUNT_INTERVAL_S = 300.0
-_audit_counts: dict[str, int] = {}
-_audit_counted_at = 0.0
+
+#: The audit tables this samples. A fixed identifier list, never interpolated
+#: from a caller — that is what makes the f-string below safe.
+_AUDIT_TABLES = ("orders", "risk_events", "backtest_runs", "equity_snapshots")
+
+
+class AuditRowCounts:
+    """Audit table sizes, sampled rather than counted on every scrape.
+
+    These are the only numbers in this module not already in memory. A count is
+    a full scan, a scrape arrives every 15 seconds, the value changes slowly and
+    nobody alerts on its exact figure — so it is sampled on an interval.
+
+    Was a module dict, a module float and a ``global`` statement. That is a TTL
+    cache written as three loose names, and it had the usual consequence: the
+    only way to exercise the expiry was to wait five minutes or monkeypatch
+    ``time.monotonic``, so the branch that decides whether a scrape hits the
+    database went untested. With the clock injected it is three lines of
+    arrange-act-assert, and two instances cannot tread on each other.
+
+    **Mutates ``counts`` in place and never rebinds it.** ``modules/metrics/
+    __init__`` re-exports that dict BY OBJECT so a reader through the facade
+    sees live values; rebinding would detach every one of them silently. The
+    same rule ``RequestLatencyWindow`` follows, for the same reason — and note
+    that ``__init__``'s own docstring already explains why the *scalar*
+    ``_audit_counted_at`` could never be re-exported: a name bound at
+    package-import time freezes at its initial value and lies. Holding it as an
+    attribute rather than a module global removes that trap entirely.
+    """
+
+    def __init__(self, *, interval_s: float = _AUDIT_COUNT_INTERVAL_S, now=time.monotonic) -> None:
+        self.interval_s = interval_s
+        self._now = now
+        self.counts: dict[str, int] = {}
+        self.counted_at = 0.0
+
+    def fresh(self, at: float) -> bool:
+        """True while the sample is still inside its interval.
+
+        An empty cache is never fresh — a desk that has answered nothing yet
+        must go and look, or the first scrape after a restart reports silence
+        as though it were a measurement of zero.
+        """
+        return bool(self.counts) and at - self.counted_at < self.interval_s
+
+    def sample(self, audit) -> dict[str, int]:
+        now = self._now()
+        if self.fresh(now):
+            return self.counts
+
+        counts: dict[str, int] = {}
+        for table in _AUDIT_TABLES:
+            rows = audit.query(f"SELECT count(*) AS n FROM {table}")  # noqa: S608 - fixed identifier list
+            if rows and rows[0].get("n") is not None:
+                counts[table] = int(rows[0]["n"])
+        # Only a successful scan advances the clock. A query that returned
+        # nothing is not evidence the tables are empty, and treating it as a
+        # fresh sample would hold that silence for a full interval.
+        if counts:
+            self.counts.clear()
+            self.counts.update(counts)
+            self.counted_at = now
+        return self.counts
+
+
+#: The process-wide sampler the scrape reads.
+_audit_sampler = AuditRowCounts()
+
+#: Bound to the sampler's own dict, for the by-object facade re-export.
+_audit_counts = _audit_sampler.counts
 
 
 def _audit_row_counts(audit) -> dict[str, int]:
-    """Audit table sizes, refreshed at most every few minutes.
-
-    These are the only numbers in this module that are not already in memory.
-    A count is a full scan; a scrape is every 15 seconds; the value changes
-    slowly and nobody alerts on its exact figure. So it is sampled.
-    """
-    global _audit_counted_at
-    now = time.monotonic()
-    if _audit_counts and now - _audit_counted_at < _AUDIT_COUNT_INTERVAL_S:
-        return _audit_counts
-
-    counts: dict[str, int] = {}
-    for table in ("orders", "risk_events", "backtest_runs", "equity_snapshots"):
-        rows = audit.query(f"SELECT count(*) AS n FROM {table}")  # noqa: S608 - fixed identifier list
-        if rows and rows[0].get("n") is not None:
-            counts[table] = int(rows[0]["n"])
-    if counts:
-        _audit_counts.clear()
-        _audit_counts.update(counts)
-        _audit_counted_at = now
-    return _audit_counts
+    return _audit_sampler.sample(audit)
 
 
 def render_metrics() -> str:

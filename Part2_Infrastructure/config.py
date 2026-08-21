@@ -14,58 +14,21 @@ code review.
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-# --------------------------------------------------------------------------- #
-# .env loading (optional dependency — the system runs fine without it)
-# --------------------------------------------------------------------------- #
-BASE_DIR = Path(__file__).resolve().parent
+# Coercion helpers and the optional ``.env`` load live in `env_coerce`. Re-exported
+# under their original private names, so every field below is untouched.
+from env_coerce import BASE_DIR, load_dotenv_if_present
+from env_coerce import env as _env
+from env_coerce import env_bool as _env_bool
+from env_coerce import env_float as _env_float
+from env_coerce import env_int as _env_int
+from env_coerce import env_list as _env_list
 
-try:  # pragma: no cover - trivial
-    from dotenv import load_dotenv
+__all__ = ["BASE_DIR", "Settings", "settings"]
 
-    load_dotenv(BASE_DIR / ".env")
-except Exception:  # pragma: no cover  # noqa: S110 - see below
-    # Nothing is logged here on purpose: logging is not configured yet at import
-    # time, and a missing .env is the normal case in CI and in a container where
-    # configuration arrives as real environment variables.
-    pass
-
-
-def _env(key: str, default: str = "") -> str:
-    return os.getenv(key, default).strip()
-
-
-def _env_float(key: str, default: float) -> float:
-    raw = _env(key)
-    try:
-        return float(raw) if raw else default
-    except ValueError:
-        return default
-
-
-def _env_int(key: str, default: int) -> int:
-    raw = _env(key)
-    try:
-        return int(float(raw)) if raw else default
-    except ValueError:
-        return default
-
-
-def _env_bool(key: str, default: bool) -> bool:
-    raw = _env(key).lower()
-    if not raw:
-        return default
-    return raw in {"1", "true", "yes", "y", "on"}
-
-
-def _env_list(key: str, default: list[str]) -> list[str]:
-    raw = _env(key)
-    if not raw:
-        return list(default)
-    return [item.strip().upper() for item in raw.split(",") if item.strip()]
+load_dotenv_if_present()
 
 
 # --------------------------------------------------------------------------- #

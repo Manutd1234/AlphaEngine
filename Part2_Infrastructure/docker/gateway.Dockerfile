@@ -66,7 +66,7 @@ COPY --from=builder /install /usr/local
 # templates/ is load-bearing: main.py constructs Jinja2Templates at import and
 # the /app console renders from it. tools/ ships so the money-path smoke test
 # (`python tools/synthetic_probe.py`) runs in-container.
-COPY main.py config.py celery_tasks.py worker.py ./
+COPY main.py config.py env_coerce.py celery_tasks.py worker.py ./
 COPY modules/ modules/
 # The compiled core, built in the builder above. Its own source (.cpp) and the
 # compiler are deliberately left behind — the runtime carries only the artefact.

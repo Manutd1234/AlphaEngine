@@ -5,10 +5,12 @@ Split out of ``modules/metrics.py``. Kept as one file because ``_decision`` and
 the decision histogram must clear the core's samples in the same call, or the
 self-measure count leaks across assertions.
 
-``_core_self_test_samples`` is a module-level ``int`` rebound under ``global``.
-It is deliberately NOT re-exported from ``modules.metrics`` — a name bound in
-the package ``__init__`` would freeze at import time and report a stale count.
-Read it through ``core_latency_summary()['self_test_samples']``.
+The self-measure count is an attribute of :class:`DecisionLatency`, not a
+module-level ``int`` rebound under ``global`` as it was. It is still not
+re-exported from ``modules.metrics`` and could not be: a scalar bound in the
+package ``__init__`` would freeze at import time and report a stale count.
+Holding it on an instance removes the trap rather than documenting it. Read it
+through ``core_latency_summary()['self_test_samples']``.
 """
 
 from __future__ import annotations
@@ -128,19 +130,99 @@ class _LogLinearHistogram:
         return out
 
 
-#: The whole ``RiskGateway.submit`` under its lock, in microseconds:
-#: 2^0 = 1us .. 2^20 ≈ 1.05s.
-_decision = _LogLinearHistogram("us", 21)
-#: The native core's own clock around the arithmetic, in nanoseconds:
-#: 2^0 = 1ns .. 2^24 ≈ 16.8ms. Empty while the Python engine runs.
-_core = _LogLinearHistogram("ns", 25)
-#: How many of ``_core``'s samples came from the startup self-measure — the
-#: same compiled battery, timed by the same clock, on a synthetic two-venue
-#: book rather than a submitted order (``RiskGateway.run_core_self_measure``).
-#: Published beside the count so a reader can tell "the core has been timed"
-#: from "the core has been timed on real orders". The decision histogram
-#: (``_decision``) never receives a synthetic sample.
-_core_self_test_samples = 0
+class DecisionLatency:
+    """The two pre-trade histograms and the count of synthetic samples among them.
+
+    ``_LogLinearHistogram`` was already a class; the *third* piece of the
+    instrument was not. ``_core_self_test_samples`` was a loose module-level
+    ``int``, incremented under ``global`` by one module function and zeroed
+    under ``global`` by another — an accidental singleton wrapped around two
+    proper objects, which is the harder version to notice.
+
+    **The defect this class prevents.** The tell was ``reset_decision_latency``,
+    whose docstring said it was "used by tests to isolate assertions": a reset
+    verb that exists only because the state is global is a class that has not
+    been written yet. Every one of the eight tests in
+    ``tests/test_decision_latency.py`` opens by clearing the whole process's
+    measurements, because there was no other way for two of them to run in one
+    interpreter — and any test that forgets inherits whatever the startup
+    self-measure and the rest of the suite left behind. A test can now build its
+    own instrument and leave the process's alone.
+
+    The three parts belong together and are reset together for a reason that
+    predates this class: the self-measure count is meaningless against a core
+    histogram it was not counted into, so clearing one without the other would
+    report synthetic samples the histogram no longer holds.
+
+    **Mutates its histograms in place and never rebinds them.**
+    ``modules/metrics/__init__`` re-exports ``_decision``, ``_core``,
+    ``_decision_counts`` and ``_DECISION_EDGES`` BY OBJECT — deliberately,
+    because the facade cannot import more eagerly without recreating the
+    ``telegram -> metrics -> telegram`` cycle that stops the gateway booting.
+    ``_LogLinearHistogram.reset`` therefore zeroes its counts element by element
+    rather than allocating a fresh list, and ``reset`` here calls it rather than
+    building new histograms. A rebinding reset would detach every reader through
+    the facade silently, with ``/metrics`` still returning 200 and reporting a
+    histogram nothing writes to any more.
+    """
+
+    __slots__ = ("decision", "core", "self_test_samples")
+
+    def __init__(
+        self,
+        *,
+        decision: _LogLinearHistogram | None = None,
+        core: _LogLinearHistogram | None = None,
+    ) -> None:
+        #: The whole ``RiskGateway.submit`` under its lock, in microseconds:
+        #: 2^0 = 1us .. 2^20 ≈ 1.05s.
+        self.decision = decision if decision is not None else _LogLinearHistogram("us", 21)
+        #: The native core's own clock around the arithmetic, in nanoseconds:
+        #: 2^0 = 1ns .. 2^24 ≈ 16.8ms. Empty while the Python engine runs.
+        self.core = core if core is not None else _LogLinearHistogram("ns", 25)
+        #: How many of ``core``'s samples came from the startup self-measure —
+        #: the same compiled battery, timed by the same clock, on a synthetic
+        #: two-venue book rather than a submitted order
+        #: (``RiskGateway.run_core_self_measure``). Published beside the count so
+        #: a reader can tell "the core has been timed" from "the core has been
+        #: timed on real orders". ``decision`` never receives a synthetic sample.
+        self.self_test_samples = 0
+
+    def observe_decision(self, microseconds: float) -> None:
+        self.decision.observe(microseconds)
+
+    def observe_core(self, nanoseconds: float) -> None:
+        self.core.observe(nanoseconds)
+
+    def observe_core_self_test(self, nanoseconds: float) -> None:
+        """One self-measure sample: into ``core``, and counted as synthetic."""
+        before = self.core.total
+        self.core.observe(nanoseconds)
+        if self.core.total != before:  # the histogram accepted it (not NaN, not negative)
+            self.self_test_samples += 1
+
+    def reset(self) -> None:
+        """Drop every recorded decision. Resets in place — see the class note."""
+        self.decision.reset()
+        self.core.reset()
+        self.self_test_samples = 0
+
+    def decision_summary(self) -> dict[str, float]:
+        return self.decision.summary()
+
+    def core_summary(self) -> dict[str, float]:
+        summary = self.core.summary()
+        summary["self_test_samples"] = self.self_test_samples
+        return summary
+
+
+#: The process-wide instrument the order path feeds and ``/metrics`` reads.
+_default = DecisionLatency()
+
+#: Bound to the instance's own histograms, for the by-object facade re-export.
+#: These names are the same objects ``_default`` records into, never copies.
+_decision = _default.decision
+_core = _default.core
 
 # The pre-class names, kept for the callers (and one memory-stability test)
 # that read them: the list objects are the histogram's own, not copies.
@@ -150,12 +232,12 @@ _decision_counts = _decision.counts
 
 def observe_decision_latency(microseconds: float) -> None:
     """Record one pre-trade decision. Called on the order path; must stay cheap."""
-    _decision.observe(microseconds)
+    _default.observe_decision(microseconds)
 
 
 def observe_core_latency(nanoseconds: float) -> None:
     """Record the native core's timing of one decision (its own clock)."""
-    _core.observe(nanoseconds)
+    _default.observe_core(nanoseconds)
 
 
 def observe_core_self_test_latency(nanoseconds: float) -> None:
@@ -166,24 +248,17 @@ def observe_core_self_test_latency(nanoseconds: float) -> None:
     say how many of the core's samples were synthetic. Never called on the
     order path.
     """
-    global _core_self_test_samples
-    before = _core.total
-    observe_core_latency(nanoseconds)
-    if _core.total != before:  # the histogram accepted it (not NaN, not negative)
-        _core_self_test_samples += 1
+    _default.observe_core_self_test(nanoseconds)
 
 
 def reset_decision_latency() -> None:
-    """Drop every recorded decision (used by tests to isolate assertions)."""
-    global _core_self_test_samples
-    _decision.reset()
-    _core.reset()
-    _core_self_test_samples = 0
+    """Drop every recorded decision from the process-wide instrument."""
+    _default.reset()
 
 
 def decision_latency_summary() -> dict[str, float]:
     """p50/p99/p99.9/p99.99/max in microseconds, plus the sample count."""
-    return _decision.summary()
+    return _default.decision_summary()
 
 
 def core_latency_summary() -> dict[str, float]:
@@ -192,9 +267,7 @@ def core_latency_summary() -> dict[str, float]:
     ``samples`` is every sample; ``self_test_samples`` is how many of those the
     startup self-measure contributed (see ``observe_core_self_test_latency``).
     """
-    summary = _core.summary()
-    summary["self_test_samples"] = _core_self_test_samples
-    return summary
+    return _default.core_summary()
 
 
 def decision_latency_buckets() -> list[tuple[float, int]]:

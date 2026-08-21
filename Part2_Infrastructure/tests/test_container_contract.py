@@ -95,6 +95,77 @@ class TestDockerfile:
         assert "build/" in DOCKERIGNORE
 
 
+class TestEveryRootModuleShips:
+    """The runtime `COPY` names its modules one by one, so a new one is missed by
+    default and a split one disappears.
+
+    `COPY main.py config.py celery_tasks.py worker.py ./` is an allow-list
+    written by hand. Nothing else checks it: the suite imports from the source
+    tree, so a module absent from the image passes every test here and fails
+    only when the container starts — and `config.py` in particular is imported
+    at module scope by `main.py`, so its absence is not a degraded gateway but
+    a process that never listens.
+
+    That is also what makes `config.py` awkward to split at 433 lines. Turning
+    it into a `config/` package is a correct refactor that would silently ship
+    a broken image, because the `COPY` names a file. This test is the guard
+    that has to exist first: with it, the split fails in CI instead of in
+    production.
+    """
+
+    #: Root modules deliberately not in the runtime image, with the reason.
+    EXCUSED: dict[str, str] = {}
+
+    def _copied_names(self) -> set[str]:
+        """Every path named by a runtime-stage COPY, excluding --from builders."""
+        runtime = DOCKERFILE_CODE[DOCKERFILE_CODE.rindex("FROM python:3.12-slim") :]
+        names: set[str] = set()
+        for line in runtime.splitlines():
+            stripped = line.strip()
+            if not stripped.startswith("COPY") or "--from=" in stripped:
+                continue
+            # COPY <src>... <dest> — the last token is the destination.
+            names.update(stripped.split()[1:-1])
+        return names
+
+    def test_every_root_python_module_is_copied_into_the_image(self):
+        copied = self._copied_names()
+        on_disk = {path.name for path in BASE.glob("*.py")}
+        missing = sorted(name for name in on_disk - copied if name not in self.EXCUSED)
+        assert not missing, (
+            f"these gateway modules exist but no runtime COPY ships them: {missing}. "
+            "Add them to the COPY line in docker/gateway.Dockerfile, or to EXCUSED "
+            "with the reason they are not needed at runtime."
+        )
+
+    def test_the_copy_line_names_nothing_that_has_been_deleted(self):
+        # The other direction: a COPY naming a file that no longer exists fails
+        # the build, but only once someone builds. This says so at test time.
+        copied = self._copied_names()
+        on_disk = {path.name for path in BASE.glob("*.py")}
+        stale = sorted(
+            name for name in copied
+            if name.endswith(".py") and name not in on_disk
+        )
+        assert not stale, (
+            f"docker/gateway.Dockerfile copies files that are not in the tree: {stale}"
+        )
+
+    def test_config_is_reachable_as_a_module_or_a_package(self):
+        """Whichever shape `config` takes, the image must carry it.
+
+        Written this way on purpose: it passes today for the single file and
+        keeps passing after a `config/` package split, provided the Dockerfile
+        is updated to match. It fails only for the case that actually breaks —
+        a split with the COPY left behind.
+        """
+        copied = self._copied_names()
+        assert "config.py" in copied or "config/" in copied, (
+            "main.py imports config at module scope; an image without it is a "
+            "gateway that never listens"
+        )
+
+
 class TestCompose:
     def test_maps_host_port_8000(self):
         assert re.search(r"-\s*\"8000:8000\"", COMPOSE)

@@ -43,11 +43,18 @@ them to read state. Hoisting one to module scope recreates
 ``venv/bin/python -c "import main"``.
 
 The mutable module state below is re-exported by OBJECT, not by value. Lists and
-dicts (``_decision_counts``, ``_latency``, ``_errors``) are the submodule's own
-objects, so a reader through the facade sees live mutations. The two rebound
-scalars — ``_core_self_test_samples`` in ``decision_latency`` and
-``_audit_counted_at`` in ``render`` — are deliberately absent here: a name bound
-at package-import time would freeze at its initial value and lie. Read them
+dicts (``_decision_counts``, ``_latency``, ``_errors``, ``_audit_counts``) are
+the submodule's own objects — each one bound to an attribute of that
+submodule's process-wide instance — so a reader through the facade sees live
+mutations. Every class behind them therefore CLEARS on reset rather than
+reassigning: a rebinding reset would detach every reader here silently, with a
+scrape still returning 200 and reporting stale numbers for ever.
+
+The two scalars that used to be rebound module globals — the self-measure count
+in ``decision_latency`` and the sample time in ``render`` — are now instance
+attributes (``DecisionLatency.self_test_samples``, ``AuditRowCounts.counted_at``)
+and are still deliberately absent here: a scalar bound at package-import time
+would freeze at its initial value and lie, however it is spelled. Read them
 through ``core_latency_summary()`` or the submodule.
 """
 

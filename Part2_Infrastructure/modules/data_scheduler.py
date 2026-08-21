@@ -113,22 +113,107 @@ def parse_schedule(expression: str) -> DataSchedule:
     return base
 
 
-#: job id -> schedule id, for the few seconds between submit and completion.
-#: In memory because it is only meaningful within one process's lifetime: a
-#: restart loses the mapping, and the row `record_run` already wrote is what
-#: survives, which is the honest half.
-_SCHEDULE_BY_JOB: dict[str, str] = {}
+#: How many in-flight submissions the index will hold before it starts dropping
+#: the oldest. A tick every `DATA_SCHEDULER_TICK_S` seconds across a handful of
+#: schedules puts the real in-flight count in single figures, so this is not a
+#: budget anything should reach — it is the ceiling on a leak, and reaching it
+#: is itself the signal that completions are not coming back.
+_JOB_INDEX_CAPACITY = 512
 
 
-def record_schedule_outcome(job_id: str, status: str) -> None:
+class ScheduleJobIndex:
+    """job id -> schedule id, for the seconds between submit and completion.
+
+    In memory because it is only meaningful within one process's lifetime: a
+    restart loses the mapping, and the row `record_run` already wrote is what
+    survives, which is the honest half.
+
+    Was a bare module dict, written by `DataScheduler.submit` and read by the
+    module-level `record_schedule_outcome` — an accidental singleton, and one
+    whose cost is a leak rather than merely an inconvenience in a test.
+
+    **The defect this class prevents.** The only eviction was the `pop` on
+    completion, and completion is not guaranteed. `JobQueue._schedule_complete`
+    closes the hook coroutine outright when the event loop has gone — shutdown,
+    a synchronous script, a test whose loop has closed — and `_submit_celery`
+    returns without polling when there is no loop to poll on. Every job that
+    took one of those routes left its entry behind for the life of the process,
+    in a map that nothing could measure, bound or clear. `capacity` puts a
+    ceiling on it, and the OLDEST entry goes first because the oldest is
+    precisely the one whose completion hook is never going to fire. An eviction
+    is logged: a schedule losing its `last_outcome` is a real loss of fidelity
+    and must not happen quietly.
+
+    **The second half is isolation.** `tests/test_data_jobs.py` reaches into the
+    module dict by name to arrange a case and nothing ever cleared it, so the
+    arrangement outlived the test that made it. Two tests in one process shared
+    one map with no reset between them. A test can now build its own index and
+    hand it to both `DataScheduler` and `record_schedule_outcome`.
+
+    **Mutates `by_job` in place and never rebinds it.** `_SCHEDULE_BY_JOB` below
+    is bound to this dict BY OBJECT — the rule `RequestLatencyWindow` and
+    `AuditRowCounts` follow, for the same reason: a `reset` that reassigned
+    would leave every existing reader pointed at a dict this index no longer
+    writes to, and nothing anywhere would report the divergence.
+    """
+
+    def __init__(self, *, capacity: int = _JOB_INDEX_CAPACITY) -> None:
+        self.capacity = capacity
+        #: job id -> schedule id. Insertion-ordered, which is what makes
+        #: "drop the oldest" expressible without a second structure.
+        self.by_job: dict[str, str] = {}
+
+    def remember(self, job_id: str, schedule_id: str) -> None:
+        """Record which schedule submitted `job_id`, evicting the oldest if full."""
+        self.by_job[job_id] = schedule_id
+        while len(self.by_job) > self.capacity:
+            stale = next(iter(self.by_job))
+            self.by_job.pop(stale, None)
+            log.warning(
+                "data scheduler: job %s dropped from the outcome index at %d entries; "
+                "its schedule will keep the status it had at submit time",
+                stale, self.capacity,
+            )
+
+    def take(self, job_id: str) -> str | None:
+        """The schedule that submitted `job_id`, removed — or None if unknown.
+
+        None is the answer for an operator's manual replay, and it stays None
+        rather than becoming a guess: attributing a hand-run job to a schedule
+        would put a `last_outcome` against a schedule that never fired.
+        """
+        return self.by_job.pop(job_id, None)
+
+    def reset(self) -> None:
+        """Forget every in-flight submission. Clears in place — see the class note."""
+        self.by_job.clear()
+
+    def __len__(self) -> int:
+        return len(self.by_job)
+
+
+#: The process-wide index the scheduler writes and the completion hook reads.
+_job_index = ScheduleJobIndex()
+
+#: Bound to the index's own dict, so anything holding this name by object sees
+#: live entries. The same object `_job_index` mutates, never a copy of it.
+_SCHEDULE_BY_JOB: dict[str, str] = _job_index.by_job
+
+
+def record_schedule_outcome(job_id: str, status: str, *, index: ScheduleJobIndex | None = None) -> None:
     """Write the terminal status against the schedule that submitted the job.
 
     `last_outcome` used to be whatever `record.status` was at submit time —
     "queued", always. So a schedule whose job failed still read as having run
     cleanly, and nothing revisited it. The column existed and could not have
     held a failure.
+
+    `index` defaults to the process-wide one, so the completion hook in
+    `modules/data_jobs` calls this unchanged. A test passes the index it gave
+    its own `DataScheduler` and neither side touches the process's.
     """
-    schedule_id = _SCHEDULE_BY_JOB.pop(job_id, None)
+    # `is not None`, not `or`: an empty index is falsy. See `DataScheduler.__init__`.
+    schedule_id = (index if index is not None else _job_index).take(job_id)
     if schedule_id is None:
         return
     try:
@@ -146,9 +231,24 @@ def record_schedule_outcome(job_id: str, status: str) -> None:
 
 
 class DataScheduler:
-    def __init__(self, expressions: list[str] | None = None, *, store: Any | None = None) -> None:
+    def __init__(
+        self,
+        expressions: list[str] | None = None,
+        *,
+        store: Any | None = None,
+        job_index: ScheduleJobIndex | None = None,
+    ) -> None:
         self.schedules = [parse_schedule(e) for e in (expressions if expressions is not None else settings.data_schedules)]
         self._store = store
+        #: Where `submit` records which schedule owns a job id. Defaults to the
+        #: process-wide index because the completion hook has no scheduler to
+        #: ask; injectable so a test's scheduler does not write into it.
+        #:
+        #: `is not None`, never `or`: `ScheduleJobIndex` defines `__len__`, so an
+        #: EMPTY injected index is falsy and `or` would silently discard it and
+        #: write into the process-wide one instead — the exact cross-instance
+        #: leak this class exists to close, reintroduced by a truthiness test.
+        self._job_index = job_index if job_index is not None else _job_index
         self._task: asyncio.Task[None] | None = None
         for s in self.schedules:
             if not s.valid:
@@ -192,7 +292,7 @@ class DataScheduler:
         # row exists now so a restart between submit and completion still shows
         # the schedule as having fired.
         self._runs().record_run(schedule.id, now, record.job_id, record.status)
-        _SCHEDULE_BY_JOB[record.job_id] = schedule.id
+        self._job_index.remember(record.job_id, schedule.id)
         return record.job_id
 
     def tick(self, now_ms: float | None = None) -> list[str]:
