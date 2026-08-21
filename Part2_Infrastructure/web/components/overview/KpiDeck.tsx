@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The command center's KPI deck — eight cards, every number real.
+ * The command centre's KPI deck — eight cards, every number real.
  *
  * The first four answer "what is the desk deciding"; the second four answer
  * "what is the desk carrying". They deliberately do not restate the hero band
@@ -76,7 +76,7 @@ function KpiCard({
       </strong>
       {/* The note wraps to two lines rather than truncating on one.
           `whitespace-nowrap` cost the order-intent card 165px of its own text
-          at 1024px — "$5 modeled cost · gross $8,600,000 · $3,…" losing the
+          at 1024px — "$5 modelled cost · gross $8,600,000 · $3,…" losing the
           headroom figure, which is the number the sentence exists to deliver.
           A tooltip is not the fix here: this deck is read on tablets and
           phones, where there is no hover to recover a clipped line with. */}
@@ -155,7 +155,7 @@ export default function KpiDeck({
     : "awaiting result";
 
   // ---- order intent ------------------------------------------------------
-  const modeledCost = (notional * request.slippageBps) / 1e4;
+  const modelledCost = (notional * request.slippageBps) / 1e4;
   const exposure = book.book?.exposure;
   const headroom = book.book?.risk_budget.gross_exposure;
   // Gross and headroom are not repeated here: Gross exposure is a card in
@@ -163,7 +163,7 @@ export default function KpiDeck({
   // note is "<limit>; <headroom> left of <limit>". What only this card knows
   // is what the intent would cost and whose book it would touch.
   const intentNote = book.book
-    ? `${usd(modeledCost, 0)} modeled cost${book.book.sandbox ? "; sandbox" : ""}`
+    ? `${usd(modelledCost, 0)} modelled cost${book.book.sandbox ? "; sandbox" : ""}`
     : "book connecting";
 
   // ---- data plane --------------------------------------------------------

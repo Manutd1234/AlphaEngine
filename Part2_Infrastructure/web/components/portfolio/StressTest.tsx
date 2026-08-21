@@ -208,10 +208,17 @@ export default function StressTest({
               : "No hand shocks set"}
           </button>
         </div>
-        <p className="research-note">
-          Untouched rows move by their measured beta against {referenceSymbol}. A row at 0% is
-          pinned flat, not left alone.
-        </p>
+        {/* The summary asks about the SLIDER, not beta: the foot-gun is at the
+            control, where dragging a row to 0% meaning "leave this one alone"
+            pins it flat. Double-encoded on screen either way — ShockRow draws β
+            for an unset row, and Source reads "pinned" for a hand-set one. */}
+        <details className="disclosure">
+          <summary>What happens to a slider you never touch?</summary>
+          <p className="research-note">
+            Untouched rows move by their measured beta against {referenceSymbol}. A row at 0% is
+            pinned flat, not left alone.
+          </p>
+        </details>
         <div className="stress-manual__grid">
           {[...positions.map((p) => p.symbol), "*"].map((symbol) => (
             <ShockRow

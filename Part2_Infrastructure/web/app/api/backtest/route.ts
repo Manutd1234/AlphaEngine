@@ -153,7 +153,7 @@ function sanitise(body: Partial<SweepRequest>): { req: SweepRequest; coercions: 
  *
  * That is the same failure the equity routing bug had — a message that named
  * the wrong thing, so a fixable problem looked like an outage. Kept in step
- * with `engine.ts` by `backtest-route.test.ts`, which reads both literals.
+ * with `engine.ts` by `short-window.test.ts`, which reads both literals.
  */
 const MIN_BARS = 200;
 

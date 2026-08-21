@@ -64,7 +64,7 @@ export default function QualityScorePanel({ data }: QualityScorePanelProps) {
 
       <details className="quality-disclosure" open={breakdownOpen}>
         <summary>
-          How the {score.total} was reached — six weighted categories
+          How the {score.total} was reached
         </summary>
       <ul className="quality-breakdown">
         {score.categories.map((category) => (

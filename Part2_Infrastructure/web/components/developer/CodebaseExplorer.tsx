@@ -207,12 +207,19 @@ export default function CodebaseExplorer() {
                 <p>{activeArea.description}</p>
               </div>
 
-              <div className="codebase-detail__safe-edit">
-                <strong>Ready to change it?</strong>
+              {/* This was already a disclosure written as a div: a question in
+                  a <strong> above a <p> answering it. Making it one moves the
+                  question verbatim into the <summary>, so no new prose is
+                  invented and the answer is one click rather than always on.
+                  It is guidance about a workflow that happens elsewhere, not a
+                  fact about the selected path — the purpose line, the meta list,
+                  the area responsibility block and the source link all stay. */}
+              <details className="codebase-detail__safe-edit disclosure">
+                <summary>Ready to change it?</summary>
                 <p>
                   File or link a work item; the contract, parity, type and build gates verify it.
                 </p>
-              </div>
+              </details>
             </>
           ) : (
             <div className="codebase-detail__empty">

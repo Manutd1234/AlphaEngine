@@ -3,7 +3,7 @@
  * =========================================================
  *
  * globals.css remains the design system: every token, both theme blocks, and
- * the contrast contract enforced by tests/theme.test.ts live there, untouched.
+ * the contrast contract enforced by tests/theme-contrast.test.ts live there, untouched.
  * This file only teaches Tailwind utilities to read those tokens, for the
  * components that opt in (header chips, kill switch, overview deck/pipeline/
  * role cards). Everything else in the app keeps its global classes.

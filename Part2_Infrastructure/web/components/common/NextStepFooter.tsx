@@ -57,7 +57,7 @@ const SECTIONS_BY_VIEW: Record<WorkspaceView, readonly WorkspaceSectionDef[]> = 
  * Where a reader wants to go next from each section that has a measured answer.
  *
  * Every key and every destination is a `workspace/section` pair that must exist
- * in `lib/sections`; `tests/desk-interconnect.test.ts` checks both directions,
+ * in `lib/sections`; `tests/desk-interconnect-next-step.test.ts` checks both directions,
  * because a footer naming a section the desk no longer has is a dead end
  * wearing the clothes of a next step.
  */

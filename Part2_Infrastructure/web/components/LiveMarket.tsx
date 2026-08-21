@@ -293,8 +293,8 @@ export default function LiveMarket({
                 <span className="page-kicker">Capability boundary</span>
                 <h2>Live venue routing is not available for {symbol}.</h2>
                 <p>
-                  Quote and news coverage stay available in Data &amp; systems. Select a supported
-                  crypto pair above for direct Binance and Bybit books.
+                  Quote and news coverage stay in Data &amp; systems. Select a supported crypto
+                  pair above for direct Binance and Bybit books.
                 </p>
                 <div>
                   {/* Both are navigation, so both look like navigation. The

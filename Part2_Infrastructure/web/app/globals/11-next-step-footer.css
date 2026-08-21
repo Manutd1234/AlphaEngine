@@ -2,8 +2,9 @@
    NextStepFooter — Decision Loop Flow
    =========================================================================== */
 .next-step-footer {
-  margin-top: 32px;
-  margin-bottom: 24px;
+  /* 32/24 -> 20/12; it stacked on the card's own bottom margin. */
+  margin-top: var(--space-5);
+  margin-bottom: var(--space-3);
   padding: 16px 24px;
   background: var(--surface-1);
   border: 1px solid var(--border);

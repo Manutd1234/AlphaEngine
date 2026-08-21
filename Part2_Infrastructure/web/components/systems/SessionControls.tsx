@@ -88,8 +88,12 @@ export default function SessionControls({
         </small>
       </div>
 
+      {/* The summary asks what the body answers. It used to state the card's
+          own heading back at the reader — "This browser only. No server state
+          is mutated." is the section-note six lines above — and the scope notes
+          underneath answer a different question than the one it posed. */}
       <details className="disclosure">
-        <summary>Why a browser-side control cannot change server state</summary>
+        <summary>What each session control touches</summary>
         <dl className="operator-scope-notes">
           <dt>Reconnect WebSockets</dt>
           <dd>Resets the backoff and the sequence guard rather than waiting one out.</dd>

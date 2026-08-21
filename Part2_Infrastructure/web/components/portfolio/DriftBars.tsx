@@ -260,12 +260,19 @@ export default function DriftBars({
         </li>
       </ul>
 
-      <p className="research-note">
-        Drift is{" "}
-        <span className="num">(target notional − current notional) ÷ gross before</span> — a share
-        of the <strong>whole book</strong>, not of the position, so a bar reading{" "}
-        {pct(driftBand, 0)} on a name twice that size means moving half of it.
-      </p>
+      {/* The unit survives the fold: the legend directly above already says
+          "of gross". What folds is the formula and the worked reading — a
+          definition, consulted once. The two paragraphs below are statuses
+          about named positions and stay out of it. */}
+      <details className="disclosure">
+        <summary>What is a drift bar measured against?</summary>
+        <p className="research-note">
+          Drift is{" "}
+          <span className="num">(target notional − current notional) ÷ gross before</span> — a share
+          of the <strong>whole book</strong>, not of the position, so a bar reading{" "}
+          {pct(driftBand, 0)} on a name twice that size means moving half of it.
+        </p>
+      </details>
 
       {clipped.length > 0 && (
         <p className="research-note">

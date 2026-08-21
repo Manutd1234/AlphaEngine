@@ -10,7 +10,7 @@
  * page rather than inside the card that produced it.
  *
  * Every hook is above the return and there is no early return at all, which is
- * what `tests/workspace-routing.test.ts` enforces for this file's parent.
+ * what `tests/workspace-routing-hook-order.test.ts` enforces for this file's parent.
  *
  * The two absences it can report are different and stay different: an account
  * with no avatar yet is "absent" and says nothing, a project with no bucket is
@@ -161,9 +161,8 @@ export default function ProfileIdentityCard({ user, onBanner }: { user: AuthUser
             className="mt-1 w-full"
           />
           <p className="mt-1.5 text-fs-xs leading-snug text-text-muted">
-            Stored against this account under a key no sign-in provider writes to. Using the
-            provider&rsquo;s own name field would mean Google or GitHub silently restoring the old
-            value the next time you signed in with it.
+            Stored against this account under a key no sign-in provider writes to, so Google or
+            GitHub cannot restore an old name the next time you sign in.
           </p>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -217,8 +216,7 @@ export default function ProfileIdentityCard({ user, onBanner }: { user: AuthUser
             )}
           </div>
           <p className="mt-2 text-fs-xs leading-snug text-text-muted">
-            Avatars live in a private bucket and are fetched through a signed link that expires.
-            Nobody can read yours by guessing its address.
+            Avatars live in a private bucket, reachable only through a signed link that expires.
           </p>
         </div>
       </div>

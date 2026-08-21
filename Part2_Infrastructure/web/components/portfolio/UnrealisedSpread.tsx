@@ -97,7 +97,7 @@ export default function UnrealisedSpread({
       </p>
 
       <details className="disclosure">
-        <summary>Why a small total can hide two large offsetting bets</summary>
+        <summary>What a small total can hide</summary>
         <p className="research-note">
           A flat book and two large positions cancelling report the same total, and only one of
           them is quiet.

@@ -312,8 +312,7 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
              up as a tolerance decision would credit the band for a result the
              arithmetic already fixed. */
           <p className="research-note">
-            One position is 100% under every model, so target equals current.
-            There is nothing for the band to suppress.
+            Target equals current, so there is nothing for the band to suppress.
           </p>
         ) : (
           <p className="research-note">

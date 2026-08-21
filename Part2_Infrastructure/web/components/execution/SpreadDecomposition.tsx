@@ -208,11 +208,23 @@ export default function SpreadDecomposition({
         </table>
       </div>
 
-      <p className="research-note">
-        Effective spread is <span className="num">2 × |slippage|</span> against the consolidated mid
-        the gateway priced each decision at. {REALIZED_SPREAD_WITHHELD}
-        {source === "sandbox" && " Generated desk."}
-      </p>
+      {/* Lifted out of the fold below, deliberately. A generated-data statement
+          is the one sentence a reader would be wrong not to have seen, and a
+          disclosure is a one-time notice with extra steps. */}
+      {source === "sandbox" && <p className="research-note">Generated desk.</p>}
+
+      {/* Methodology, and the only thing here that folds. Nothing measured
+          leaves the screen with it: the withheld leg keeps its dashed column
+          and its "n/a", the legend still reads "Realized spread — not
+          measured", and the table's Basis cell still reads "measured,
+          measured, not measurable". What folds is the WHY. */}
+      <details className="disclosure">
+        <summary>What is the spread measured against, and why is one column left blank?</summary>
+        <p className="research-note">
+          Effective spread is <span className="num">2 × |slippage|</span> against the consolidated mid
+          the gateway priced each decision at. {REALIZED_SPREAD_WITHHELD}
+        </p>
+      </details>
     </section>
   );
 }

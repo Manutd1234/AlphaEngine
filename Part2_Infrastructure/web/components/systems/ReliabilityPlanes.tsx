@@ -268,7 +268,7 @@ export default function ReliabilityPlanes({
           {!health && <li className="is-loading">Loading all provider states…</li>}
         </ul>
         <details className="disclosure">
-          <summary>What Idle means, and why only OpenBB is probed automatically</summary>
+          <summary>What Idle means, and what gets probed</summary>
           <p className="reliability-window-note">
             Idle means configured, within quota, no open circuit and no call in the fifteen-minute
             window. Only OpenBB is probed automatically; probing every paid API on each refresh

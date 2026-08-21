@@ -1050,13 +1050,13 @@ button.page-insight:hover:not(:disabled) {
 /* ---------- density ---------- */
 
 .card {
-  padding: var(--card-pad);
-  margin-bottom: var(--space-3);
+  padding: var(--card-pad-y) var(--card-pad); /* vertical tightens; gutter does not */
+  margin-bottom: var(--space-2);
   border-radius: var(--radius-lg);
 }
 
 .card > .sub {
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-2);
 }
 
 .banner {

@@ -200,20 +200,15 @@ export default function QuarantinePanel({
         </>
       )}
 
+      {/* The payload types are named by the count above; repeating them here was
+          the same list twice on one screen. The redaction sentence held for both
+          branches, so it is stated once after them rather than inside each. */}
       <p className="research-note">
-        {validation?.scope === "gateway-ledger" ? (
-          <>
-            Scope: the aggregate counts are the gateway&apos;s durable ledger, merged across
-            instances and kept across restarts; the excerpts are this instance&apos;s bounded
-            buffer. Rejected payloads were never cached; excerpts follow the redaction rules.
-          </>
-        ) : (
-          <>
-            Scope: quote, bar, news and fundamentals payloads from this health-route instance—not
-            every route, provider, symbol or instance, and bounded in memory. Rejected payloads were
-            never cached; excerpts follow the redaction rules.
-          </>
-        )}
+        Scope:{" "}
+        {validation?.scope === "gateway-ledger"
+          ? "the counts are the gateway's durable ledger, merged across instances and kept across restarts; the excerpts are this instance's bounded buffer."
+          : "this health-route instance only, bounded in memory — not every route, provider, symbol or instance."}{" "}
+        Rejected payloads were never cached; excerpts follow the redaction rules.
       </p>
     </div>
   );

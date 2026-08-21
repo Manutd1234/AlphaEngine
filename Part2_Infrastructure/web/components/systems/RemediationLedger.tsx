@@ -255,8 +255,12 @@ export default function RemediationLedger({ active }: { active: boolean }) {
         {truncated && " Lines have already been evicted here, so the counts above are a floor."}
       </p>
 
+      {/* The refusal above already states the conclusion — the surviving
+          sample is biased short — so a summary saying it again charged the
+          reader twice for one sentence. This one names what is inside instead:
+          the pairing mechanism, and the scope these counts never leave. */}
       <details className="disclosure">
-        <summary>Why a bounded event ring biases the surviving sample short</summary>
+        <summary>How the pairing works, and what these numbers are not</summary>
         <p className="research-note">
           Pairing needs both the trip and its closure still in this instance&rsquo;s{" "}
           {data?.cursor.capacity ?? 600}-event ring, shared with dispatch, cache and quota traffic,

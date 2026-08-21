@@ -217,10 +217,19 @@ export default function FavouritesPanel({ records }: { records: ExperimentRecord
             </table>
           </div>
 
-          <p className="research-note">
-            The in-sample column flatters every method by construction. A negative last column
-            means the portfolio lost to one of its own members out of sample.
-          </p>
+          {/* A reading key for two columns whose headers already name them, and
+              which the table's own order argues for without help: the in-sample
+              column is muted and the holdout edge is last. It carries no figure,
+              so folding it moves an explanation and not a measurement. It renders
+              only once a result exists, so this is never the panel's only content
+              and never its empty state. */}
+          <details className="disclosure">
+            <summary>Which column flatters, and which one warns?</summary>
+            <p className="research-note">
+              The in-sample column flatters every method by construction. A negative last column
+              means the portfolio lost to one of its own members out of sample.
+            </p>
+          </details>
         </>
       ) : null}
 

@@ -208,8 +208,7 @@ export default function RiskWorkspace({
             <div className="table-wrap" tabIndex={0}>
               <table>
                 <caption className="sr-only">
-                  Each pre-trade constraint: usage, limit, headroom left, and whether it binds
-                  first.
+                  Each pre-trade constraint, and whether it binds first.
                 </caption>
                 <thead>
                   <tr>

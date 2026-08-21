@@ -196,10 +196,19 @@ export default function PerformanceSection({ book, isStale, equityTrack }: Perfo
             ) : (
               <p className="portfolio-attribution-empty">No audited order flow has been recorded for this session.</p>
             )}
-            <p className="research-note">
-              Lifetime totals, every order since the audit log opened. The Overview waterfall is
-              session-scoped: mixing the two subtracts a lifetime fee bill from one day&apos;s P&amp;L.
-            </p>
+            {/* The boundary itself is on screen without this: the pane switcher
+                above reads "Flow, lifetime" beside "Trend, this session", and
+                the quality card's kicker says lifetime again. What folds is the
+                mixing warning, which is a methodology claim read once. */}
+            <details className="disclosure">
+              <summary>
+                Which window these rows cover, and why they cannot be added to the waterfall
+              </summary>
+              <p className="research-note">
+                Lifetime totals, every order since the audit log opened. The Overview waterfall is
+                session-scoped: mixing the two subtracts a lifetime fee bill from one day&apos;s P&amp;L.
+              </p>
+            </details>
           </div>
 
           {symbolFlow.length > 0 && (

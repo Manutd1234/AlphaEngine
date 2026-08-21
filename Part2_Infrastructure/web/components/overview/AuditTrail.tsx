@@ -82,7 +82,7 @@ export default function AuditTrail({ active, seed }: { active: boolean; seed?: n
               claim, said a third time; and in the generated state it was not
               even true. What is left is the scope: everything, both outcomes,
               and who refused. */}
-          Every paper order, accepted or refused, with the gate that refused it.
+          Every paper order, accepted or refused, with the refusing gate.
         </span>
       </div>
 
@@ -98,7 +98,7 @@ export default function AuditTrail({ active, seed }: { active: boolean; seed?: n
           <span aria-hidden>◇</span>
           <div>
             <strong>Generated ledger — these orders were not sent.</strong> {state.detail}{" "}
-            The same simulated orders the Execution blotter shows, so the two tabs reconcile.
+            The same orders the Execution blotter shows, so the two tabs reconcile.
           </div>
         </div>
       )}
@@ -112,7 +112,7 @@ export default function AuditTrail({ active, seed }: { active: boolean; seed?: n
           <div className="table-wrap table-wrap--clamped">
             <table>
               <caption className="sr-only">
-                Gateway order audit rows, most recent first.
+                Order audit rows, most recent first.
               </caption>
               <thead>
                 <tr>

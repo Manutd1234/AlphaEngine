@@ -175,13 +175,23 @@ export default function RiskAdjustedTrend({
         tone="var(--series-1)"
       />
 
-      <p className="research-note">
-        Drawdown uses the same running high-water mark as the gateway&rsquo;s halt rule.
-        The Sharpe line is <strong>per observation and not annualised</strong>: a poll series has
-        no stable period to scale by. It is blank for the first{" "}
-        {MIN_SHARPE_OBSERVATIONS} observations and breaks wherever the window is too thin to score.
-        {generated && " Generated path for the sandbox book."}
-      </p>
+      {/* The generated marker LEFT the paragraph rather than folding with it.
+          It was a trailing clause on a methodology note; a reader who never
+          opens the note must still be told these two plots are drawn from a
+          seed, so it is its own line and it is never behind the fold. */}
+      {generated && <p className="research-note">Generated path for the sandbox book.</p>}
+
+      {/* Method, not measurement. The claim a reader needs at rest — that the
+          Sharpe line is per observation — is the field label above the plot. */}
+      <details className="disclosure">
+        <summary>How these two lines are scaled, and where they stop</summary>
+        <p className="research-note">
+          Drawdown uses the same running high-water mark as the gateway&rsquo;s halt rule.
+          The Sharpe line is <strong>per observation and not annualised</strong>: a poll series has
+          no stable period to scale by. It is blank for the first{" "}
+          {MIN_SHARPE_OBSERVATIONS} observations and breaks wherever the window is too thin to score.
+        </p>
+      </details>
     </section>
   );
 }

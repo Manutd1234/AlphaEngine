@@ -66,8 +66,12 @@ export default function OutageIncidents({
           <span className="page-kicker">Active incidents</span>
           <h2>Operator-simulated outages</h2>
         </div>
+        {/* "Held out of routing on purpose" is the page-head tile's own note
+            for this count, and every row below repeats "held out of routing"
+            with its own countdown. What only this note can say is where the
+            traffic goes instead. */}
         <span className="section-note">
-          Held out of routing on purpose; requests fall through to the next provider.
+          Requests fall through to the next provider.
         </span>
       </div>
       <ul className="console-incident-list">

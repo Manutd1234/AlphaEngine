@@ -195,7 +195,7 @@ export default function ReliabilityPlatform({
             })()}
           </div>
           <details className="disclosure">
-            <summary>Why worker slots are not worker heartbeats</summary>
+            <summary>What the worker count measures</summary>
             <p className="reliability-platform__caveat">
               Queue workers are configured slots, not heartbeats. This is one gateway-process
               snapshot; fleet aggregation and order-to-ack timing belong in external telemetry.
@@ -238,7 +238,7 @@ export default function ReliabilityPlatform({
         </div>
 
         {/* The shared CrossLinkTile, not a hand-rolled copy: the anti-copy
-            ratchet in portfolio-section-panes.test.ts named this aside as the
+            ratchet in portfolio-section-panes-cross-link.test.ts named this aside as the
             one cross-link its scan could not measure because it did not reuse
             .cross-link-metrics. Same words, same figures, shared chrome. */}
         <CrossLinkTile

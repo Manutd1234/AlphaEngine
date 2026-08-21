@@ -53,7 +53,7 @@
    =========================================================================== */
 
 /* Design tokens, the house reset, and the primitives every surface reuses.
-   First on purpose: the `:root` block here is the one theme.test.ts and
+   First on purpose: the `:root` block here is the one theme-palette-parity.test.ts and
    tailwind-bridge.test.ts locate as the light palette. */
 @import "./globals/00-tokens-and-base.css";
 
@@ -116,7 +116,7 @@
 /* The compact segmented workspace navigator, the surfaces after it, and the
    TRAILING LAYER. This partial must stay LAST: it ends with the
    `@media (prefers-contrast: more)` block, which is at the end of the sheet on
-   purpose — theme.test.ts locates the dark palette by the FIRST
+   purpose — theme-palette-parity.test.ts locates the dark palette by the FIRST
    `:root[data-theme="dark"]` in the sheet, and that selector list must not be
    it. Nothing may be imported after this line. */
 @import "./globals/15-navigator-and-trailing-layer.css";

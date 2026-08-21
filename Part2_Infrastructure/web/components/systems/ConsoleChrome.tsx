@@ -95,4 +95,4 @@ export function ConsoleChrome({
 
 /* latencyTile() and providerTile() used to live here, claiming to be shared
    by the console strips. Nothing imported either — leftovers of the tile
-   consolidation data-reliability-consolidation.test.ts pins. */
+   consolidation data-reliability-consolidation-reliability.test.ts pins. */

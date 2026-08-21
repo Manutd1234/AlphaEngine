@@ -112,23 +112,33 @@ export default function LiquidityBook({ symbol, snap, dp, onPriceSelect }: Liqui
       <div className="compact-grid-2col liquidity-pair">
         <div className="card">
           <h2>Cumulative depth</h2>
-          <p className="sub">
-            Size resting between the mid and any price. A near-vertical step is a wall; a shallow
-            ramp is a thin book that costs to cross.
-          </p>
           <DepthChart
             bids={snap?.merged.bids ?? []}
             asks={snap?.merged.asks ?? []}
             mid={snap?.consolidatedMid ?? null}
             height={430}
           />
+          {/* How to read the shape, which is methodology rather than
+              measurement — and the chart is never left bare by folding it:
+              DepthChart draws its own legend, its own axis labels and its own
+              "waiting for book…" empty state. */}
+          <details className="disclosure">
+            <summary>How should this curve be read?</summary>
+            <p className="research-note">
+              Size resting between the mid and any price. A near-vertical step is a wall; a shallow
+              ramp is a thin book that costs to cross.
+            </p>
+          </details>
         </div>
 
         <div className="card">
           <h2>Consolidated ladder</h2>
+          {/* The sentence split: the click-to-trade affordance is the only
+              at-rest discovery of what a row does, so it stays here while the
+              descriptive half folds under the ladder — matching the depth card
+              beside it, which is the only reason this one earns a fold at all. */}
           <p className="sub">
-            Every venue&apos;s levels by price, the book a smart router walks. Click a level to
-            stage it as a limit in the ticket.
+            Click a level to stage it as a limit in the ticket.
           </p>
           <div className="liquidity-pair__book">
             <div
@@ -166,6 +176,12 @@ export default function LiquidityBook({ symbol, snap, dp, onPriceSelect }: Liqui
             </div>
             {snap ? ladder(snap.merged.bids, "bid") : <div className="muted" style={{ padding: 16, textAlign: "center" }}>waiting for book…</div>}
           </div>
+          <details className="disclosure">
+            <summary>Whose levels are these, and in what order?</summary>
+            <p className="research-note">
+              Every venue&apos;s levels by price, the book a smart router walks.
+            </p>
+          </details>
         </div>
       </div>
     </>

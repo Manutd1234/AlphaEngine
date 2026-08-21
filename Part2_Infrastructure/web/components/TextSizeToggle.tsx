@@ -68,7 +68,7 @@ export default function TextSizeToggle() {
         ))}
       </div>
       <p className="mt-1.5 text-fs-xs leading-snug text-text-muted">
-        {LABELS[size ?? "comfortable"].description} Applies to the workspace; the header and the bottom bar keep one size so their controls always fit.
+        {LABELS[size ?? "comfortable"].description} Only the header and the bottom bar keep one size so their controls always fit.
       </p>
     </div>
   );

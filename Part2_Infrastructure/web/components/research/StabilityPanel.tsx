@@ -122,9 +122,18 @@ export default function StabilityPanel({
         </div>
       )}
 
-      {/* The seg names the colouring and the heatmap legend keys it; what is left is adjacency. */}
+      {/* The seg names the colouring and the heatmap legend keys it; what is left is adjacency.
+          Which is a definition, and the residue after the visible affordances
+          have said their part — so it folds. The numbers inside it (5, 25, 20,
+          24) illustrate the rule; none of them is measured from this run, so no
+          figure a reader acts on moves. Still gated on the stability mode: a
+          fold nested inside the condition it always had. `.disclosure` brings
+          its own top margin, which is what the inline one was doing. */}
       {mode === "stability" && (
-        <p className="sub" style={{ marginTop: 14 }}>Adjacency is in grid-index space — with a step of 5, the neighbour of 25 is 20, because 24 was never tested.</p>
+        <details className="disclosure">
+          <summary>What counts as a neighbour on this grid?</summary>
+          <p className="research-note">Adjacency is in grid-index space — with a step of 5, the neighbour of 25 is 20, because 24 was never tested.</p>
+        </details>
       )}
 
       <Heatmap

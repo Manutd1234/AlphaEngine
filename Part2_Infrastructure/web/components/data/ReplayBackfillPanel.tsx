@@ -282,10 +282,15 @@ export default function ReplayBackfillPanel({
         </div>
       )}
 
-      <p className="console-subhead">
-        Recent jobs
-        <small className="muted"> — the queue&apos;s in-process memory since the gateway started; the audit log keeps status rows.</small>
-      </p>
+      <p className="console-subhead">Recent jobs</p>
+      {/* A scope caveat, and the only thing on this panel that folds. The two
+          absences underneath it do not: the empty state and the read failure
+          both restate this boundary in the case where it decides what a reader
+          believes, so a closed fold costs nobody a fact they needed. */}
+      <details className="disclosure">
+        <summary>How far back does this table reach?</summary>
+        <p className="sub"> — the queue&apos;s in-process memory since the gateway started; the audit log keeps status rows.</p>
+      </details>
       {jobsError && <p className="sub">The job list could not be read: {jobsError}. Nothing here says the queue is empty.</p>}
       {jobs && jobs.jobs.length === 0 && !jobsError && (
         <p className="sub">No replay or backfill job has been submitted since the gateway started.</p>

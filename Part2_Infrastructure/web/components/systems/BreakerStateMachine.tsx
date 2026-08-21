@@ -218,7 +218,7 @@ export default function BreakerStateMachine({
       )}
 
       <details className="disclosure">
-        <summary>Why a closure is not a fix, and why half-open reads zero</summary>
+        <summary>What a closure proves, and why half-open reads zero</summary>
         <p className="research-note">
           <strong>Half-open is a moment, not a resting state.</strong> The dispatch gate retires an
           elapsed cooldown on the next call that touches the provider, so a permanent zero there is

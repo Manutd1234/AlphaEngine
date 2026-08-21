@@ -392,7 +392,7 @@ export default function WorkingOrders({
       )}
 
       <details className="disclosure">
-        <summary>How a resting order is projected against the pre-trade caps</summary>
+        <summary>How resting orders meet the pre-trade caps</summary>
         {/* Opened by calling a resting order committed capital — the kicker and the Committed column. */}
         <p className="research-note">
           A new order is projected against the worst side of this book filling, so two orders that

@@ -171,12 +171,25 @@ export default function RouteLatencyBars({
         <li><i aria-hidden style={{ background: "var(--critical-text)" }} /> p99</li>
       </ul>
 
-      <p className="research-note">
-        Measured <strong>inside the gateway process</strong> over a rolling {windowMinutes}-minute
-        window: handler time, not the round trip a browser pays and not exchange order-to-ack.
-        Sorted slowest first by p95; a route with fewer than {MIN_SAMPLES} samples prints its
-        numbers and draws no bar.
-      </p>
+      {/* No window figure here: the section-note above this card already prints
+          "{routes} routes, {windowMinutes}-minute window", and a note that
+          repeats its own heading is read twice and learned once.
+
+          What is left is a scope caveat and a reading key, and both are already
+          carried on screen without it. The card's kicker reads "In-process
+          timing" directly above the chart, so the measurement boundary is not
+          lost while this is closed; and a row too thin to plot draws its own
+          "n=…/20 — too thin to plot" inside the SVG, which is where the reading
+          key is actually needed. Folded, not cut: the exact wording is one
+          click away for a reader who wants the boundary stated in full. */}
+      <details className="disclosure">
+        <summary>Which span of the request does this time cover?</summary>
+        <p className="research-note">
+          Measured <strong>inside the gateway process</strong>: handler time, not the round trip a
+          browser pays and not exchange order-to-ack. Sorted slowest first by p95; a route with fewer
+          than {MIN_SAMPLES} samples prints its numbers and draws no bar.
+        </p>
+      </details>
     </section>
   );
 }

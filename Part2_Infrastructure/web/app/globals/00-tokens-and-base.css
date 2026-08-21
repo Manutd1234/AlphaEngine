@@ -15,7 +15,7 @@
      and the one accent stays a restrained blue — quiet neutrals under cool
      data, with every colour job carried by the semantic steps below rather
      than by the ground. Every text role was re-computed against the new
-     --surface-2; the contrast contract lives in tests/theme.test.ts. */
+     --surface-2; the contrast contract lives in tests/theme-contrast.test.ts. */
   --surface-1: #ffffff; /* card / chart surface */
   --surface-0: #fafafa; /* page plane — zinc */
   --surface-2: #f4f4f5; /* inset controls */
@@ -256,9 +256,9 @@
   --ls-tight: -0.02em;
   --ls-figure: -0.01em;
 
-  /* One card scale. --card-pad is the house default; dense panels step down to
-     --card-pad-tight rather than inventing a third value. */
+  /* One card scale; dense panels use --card-pad-tight. --card-pad-y is the vertical half: a desk reads down a column, so one number could not tighten it without cramping the gutter. */
   --card-pad: 16px;
+  --card-pad-y: 11px;
   --card-pad-tight: 13px;
 
   /* One hairline vocabulary, for the same reason there is one card scale.
@@ -287,7 +287,7 @@
    so the header does not move. Comfortable is the :root value and stamps no
    attribute — the same rule as the theme's System — so an unset preference
    and the default are one state. Outside the first :root block on purpose:
-   theme.test.ts and tailwind-bridge.test.ts read that block up to its first
+   theme-preference.test.ts and tailwind-bridge.test.ts read that block up to its first
    closing brace. */
 :root[data-text-size="compact"] {
   --type-step: 0.9375;
@@ -418,7 +418,7 @@ p, li, .sub, .console-footnote, .research-note, .page-heading p, small {
   /* See the note in the prefers-color-scheme block above — same fix, same
      reason. These two dark blocks MUST stay identical: this one wins on
      specificity, so a token declared only above silently reverts to its light
-     value for anyone who has pressed the theme toggle. `tests/theme.test.ts`
+     value for anyone who has pressed the theme toggle. `tests/theme-preference.test.ts`
      asserts they match. */
   --status-good: #35c48f;
   --status-warning: #e8ab3d;

@@ -36,9 +36,7 @@
 
 import { useState } from "react";
 
-import { atLeast } from "@/lib/complexity";
 import { fmt, pct } from "@/lib/format";
-import { useComplexity } from "@/lib/use-complexity";
 import type { BenchmarkComparison } from "@/lib/types";
 
 interface BenchmarkPanelProps {
@@ -71,8 +69,6 @@ const ABSENT_HINT =
   "The benchmark control is not on this screen; it lives in the research rail's setup panel.";
 
 export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanelProps) {
-  const tier = useComplexity();
-
   /**
    * Whether the jump landed, reported rather than assumed.
    *
@@ -233,13 +229,24 @@ export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanel
       ) : null}
 
       {/* The caveat stays with the number it qualifies; the closing clause that
-          repeated the paragraph above the dl is gone. */}
-      {atLeast(tier, "full") ? (
+          repeated the paragraph above the dl is gone.
+
+          The tier gate that used to wrap this is gone too, and its removal is
+          the point rather than a side effect. `atLeast(tier, "full")` meant a
+          Guided or Standard reader was shown a p-value beside Alpha and never
+          told the standard error behind it is optimistic — the sentence was
+          not in their DOM at all. A fold is strictly more honest than that:
+          the words now exist for every reader at every tier, and what changes
+          between tiers is nothing. `complexity.test.ts` states the same rule
+          for the two panels that do tier — they open a disclosure rather than
+          drop content — and this panel now has no reason to tier at all. */}
+      <details className="disclosure">
+        <summary>How much should these t-statistics be trusted?</summary>
         <p className="research-note">
         Plain OLS t-statistics. A Newey&ndash;West correction for heteroskedastic, autocorrelated
         returns would widen these standard errors, so the significance shown is generous.
         </p>
-      ) : null}
+      </details>
     </div>
   );
 }

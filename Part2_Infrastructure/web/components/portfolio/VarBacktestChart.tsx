@@ -259,11 +259,17 @@ export default function VarBacktestChart({
         </svg>
       </div>
 
+      {/* The reason, not the axis. "#0, #12, #24" stays drawn above; what folds
+          is why it reads that way, which a reader needs once. The summary sits
+          directly under the axis and asks the question the ordinals prompt. */}
       {!dated && (
-        <p className="research-note">
-          Dates are not shown: the instruments&apos; bar times did not agree at every index, so the
-          axis is the observation number.
-        </p>
+        <details className="disclosure">
+          <summary>Why does the axis count observations?</summary>
+          <p className="research-note">
+            Dates are not shown: the instruments&apos; bar times did not agree at every index, so the
+            axis is the observation number.
+          </p>
+        </details>
       )}
 
       {points.length < 60 && (
@@ -325,13 +331,30 @@ export default function VarBacktestChart({
         )}
       </details>
 
-      <p className="research-note">
-        Today&apos;s signed notionals replayed over {points.length + series.window} daily returns — a
-        counterfactual about this book&apos;s composition, not what the desk earned.{" "}
-        {sandbox && "Generated notionals, measured returns: real Binance closes on an invented book. "}
-        The forecast is a {series.window}-bar rolling sigma, a tighter window than the covariance
-        behind the headline VaR above: related estimators, not the same one.
-      </p>
+      {/* THE SANDBOX CLAUSE IS NOT PART OF THE FOLD, and it used to be
+          interpolated into the middle of the paragraph below — so folding that
+          paragraph would have carried it along as a passenger. It says the
+          notionals are invented, which is a safety statement and stays on
+          screen at rest. It gets its own line rather than a fold. */}
+      {sandbox && (
+        <p className="research-note">
+          Generated notionals, measured returns: real Binance closes on an invented book.
+        </p>
+      )}
+
+      {/* Method, not measurement. Every figure this panel is read for — the
+          band, the rug, the exception table, the Kupiec zone beside it — stays
+          on screen; what folds is how the series was built and which estimator
+          drew the band. Nobody sizes a position off this paragraph. */}
+      <details className="disclosure">
+        <summary>What window and which returns produced this forecast?</summary>
+        <p className="research-note">
+          Today&apos;s signed notionals replayed over {points.length + series.window} daily returns — a
+          counterfactual about this book&apos;s composition, not what the desk earned.{" "}
+          The forecast is a {series.window}-bar rolling sigma, a tighter window than the covariance
+          behind the headline VaR above: related estimators, not the same one.
+        </p>
+      </details>
     </div>
   );
 }

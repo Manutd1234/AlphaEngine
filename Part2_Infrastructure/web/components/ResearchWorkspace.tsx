@@ -259,7 +259,7 @@ export default function ResearchWorkspace({
                   ) : null}
                   <div className="card">
                     <h2>Candidate ranking</h2>
-                    <p className="sub">The top 15 combinations behind the winner. Select a row to inspect that pair without losing the full sweep.</p>
+                    <p className="sub">The top 15 combinations behind the winner. Select a row to inspect that pair without losing the sweep.</p>
                     <ResultsTable data={data} onSelect={inspectCombo} selected={inspect} />
                   </div>
                 </StaleGate>

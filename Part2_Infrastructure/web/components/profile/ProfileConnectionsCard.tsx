@@ -126,8 +126,8 @@ export default function ProfileConnectionsCard({
 
           {!canUnlink(identityCount) && (
             <p id="profile-unlink-note" className="mt-2 text-fs-xs leading-snug text-text-muted">
-              Unlink needs a second method to fall back on. With one, removing it would leave no
-              way into this account, so the library refuses.
+              Unlink needs a second method to fall back on. Removing the only one would leave no
+              way in, so the library refuses.
             </p>
           )}
 

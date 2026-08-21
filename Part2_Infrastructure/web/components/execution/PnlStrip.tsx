@@ -74,9 +74,8 @@ export default function PnlStrip({
           <div>
             <strong>No execution gateway in this deployment</strong>
             <p>
-              The risk gateway is a long-lived process — WebSocket feeds, an audit log, a kill
-              switch — that a serverless deployment cannot host. The sandbox desk runs the same
-              workflow on a generated book.
+              The risk gateway is a long-lived process, which a serverless deployment cannot
+              host. The sandbox desk runs the same workflow on a generated book.
             </p>
           </div>
           <button type="button" className="primary-action" onClick={onEnterSandbox}>

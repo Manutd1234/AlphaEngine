@@ -101,24 +101,36 @@ export default function SupplyPosture({ health }: { health: SystemHealth | null 
           misread. When no chain is reported, the bars' own emptyNote already
           states it, so the note stands down rather than restating an absence. */}
       {depth.length > 0 && (
-        <p className="research-note">
-          Thinnest chains first.{" "}
-          {noRoute > 0 && (
-            <><strong>{noRoute}</strong> {noRoute === 1 ? "chain has" : "chains have"} no routable
-              node at all. </>
-          )}
-          {noFallback > 0
-            ? <><strong>{noFallback}</strong> of {depth.length} {noFallback === 1 ? "has" : "have"}{" "}
-              exactly one routable node — green, and a single point of failure. </>
-            : depth.length > noRoute
-              // Only when something IS routable: after "9 chains have no
-              // routable node", a reassurance about the rest would be
-              // vacuously true and read as comfort.
-              ? <>Every routable chain has more than one node able to serve it. </>
-              : null}
-          Each bar groups a chain&rsquo;s nodes by state, <strong>not</strong> by rank; which
-          provider answers first lives in Providers.
-        </p>
+        <>
+          <p className="research-note">
+            Thinnest chains first.{" "}
+            {noRoute > 0 && (
+              <><strong>{noRoute}</strong> {noRoute === 1 ? "chain has" : "chains have"} no routable
+                node at all. </>
+            )}
+            {noFallback > 0
+              ? <><strong>{noFallback}</strong> of {depth.length} {noFallback === 1 ? "has" : "have"}{" "}
+                exactly one routable node — green, and a single point of failure. </>
+              : depth.length > noRoute
+                // Only when something IS routable: after "9 chains have no
+                // routable node", a reassurance about the rest would be
+                // vacuously true and read as comfort.
+                ? <>Every routable chain has more than one node able to serve it. </>
+                : null}
+          </p>
+          {/* The counted half stays above; only the rank caveat folds. It is a
+              chart-reading rule, not a measurement: each row already prints
+              its own states as words ("2 ready, 1 no key"), so the bars stay
+              readable closed. The summary asks the exact misreading it
+              prevents, which is the part that cannot be allowed to go quiet. */}
+          <details className="disclosure">
+            <summary>Does a bar&rsquo;s left-to-right order tell you which node is tried first?</summary>
+            <p className="research-note">
+              Each bar groups a chain&rsquo;s nodes by state, <strong>not</strong> by rank; which
+              provider answers first lives in Providers.
+            </p>
+          </details>
+        </>
       )}
     </section>
   );

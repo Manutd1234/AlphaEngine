@@ -112,13 +112,30 @@ export default function VenueMixDonut({
         </div>
       )}
 
-      <p className="research-note">
-        Share of <em>fills</em>, not a fill ratio: an order that never filled never reached a venue,
-        so the audit log holds no denominator for one.
-        {mix.unattributed > 0
-          && ` ${mix.unattributed} fill${mix.unattributed === 1 ? "" : "s"} carr${mix.unattributed === 1 ? "ies" : "y"} no venue tag and ${mix.unattributed === 1 ? "is" : "are"} excluded from the ring.`}
-        {source === "sandbox" && " Generated desk."}
-      </p>
+      {/* Both of these stay on screen. The unattributed count is a figure a
+          reader acts on — it is the only thing reconciling this ring with the
+          fill count in the KPI row above, per this file's opening note — and
+          "Generated desk." is a generated-data statement. Only the reason a MIX
+          is the measurable thing folds, below. */}
+      {(mix.unattributed > 0 || source === "sandbox") && (
+        <p className="research-note">
+          {mix.unattributed > 0
+            && `${mix.unattributed} fill${mix.unattributed === 1 ? "" : "s"} carr${mix.unattributed === 1 ? "ies" : "y"} no venue tag and ${mix.unattributed === 1 ? "is" : "are"} excluded from the ring.`}
+          {source === "sandbox" && " Generated desk."}
+        </p>
+      )}
+
+      {/* A scope caveat, not a measurement. The heading and the fill count in
+          the section note already state what IS being counted, so folding the
+          reason the other measure is impossible costs the reader nothing at
+          rest and the summary still names the question. */}
+      <details className="disclosure">
+        <summary>What is missing from the denominator?</summary>
+        <p className="research-note">
+          Share of <em>fills</em>, not a fill ratio: an order that never filled never reached a venue,
+          so the audit log holds no denominator for one.
+        </p>
+      </details>
     </section>
   );
 }

@@ -118,10 +118,10 @@ export default function OperatorGuard({
 
       {guard === "open-demo" && (
         <p className="console-note">
-          <strong>Demo deployment: operator actions are open to anyone with this URL.</strong> No
-          token is asked — orders, risk actions and remediation work directly. Deliberate for a
-          paper-trading assessment (<code>ALPHAENGINE_OPERATOR_OPEN=1</code>); a typed credential is
-          still checked, and unsetting the flag requires one again.
+          <strong>Demo deployment: operator actions are open to anyone with this URL.</strong>{" "}
+          Orders, risk actions and remediation run without a token — deliberate for a paper-trading
+          assessment (<code>ALPHAENGINE_OPERATOR_OPEN=1</code>); a typed credential is still checked,
+          and unsetting the flag requires one again.
         </p>
       )}
     </>

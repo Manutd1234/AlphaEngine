@@ -9,8 +9,8 @@
  * A required member added here without a matching check there is a snapshot
  * the runtime waves through untyped; a check there with no member here is a
  * snapshot the runtime rejects whole — which is how a starting Telegram bot
- * once became an UNKNOWN trading path. `tests/gateway-narrowing.test.ts`
- * measures the correspondence in both directions.
+ * once became an UNKNOWN trading path. Nothing measures that correspondence as
+ * of 2026-08-21 — the suite this named was gone, and the claim with it.
  */
 
 /**

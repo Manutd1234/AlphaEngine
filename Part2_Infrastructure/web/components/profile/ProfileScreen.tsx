@@ -3,7 +3,7 @@
 /**
  * The account's security centre — a sibling route to `/login`, not a ninth tab.
  *
- * It is not a workspace view on purpose. `tests/workspace-routing.test.ts`
+ * It is not a workspace view on purpose. `tests/workspace-routing-nav.test.ts`
  * deep-equals the eight nav ids and `app/page.tsx` derives its view union from
  * the same list, so a ninth entry is a change to what the desk *is*. This is
  * not a desk surface; it is where you manage the account that the desk happens
@@ -35,7 +35,7 @@
  * `user-prefs.ts` — a missing table is a degradation, not a failure.
  *
  * Every hook is above the first bail-out, which
- * `tests/workspace-routing.test.ts` now enforces for this file: three panels
+ * `tests/workspace-routing-hook-order.test.ts` now enforces for this file: three panels
  * with three independent async loads behind three early returns is the textbook
  * shape for a conditional-hook bug.
  */

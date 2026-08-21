@@ -803,7 +803,7 @@
    applying and would not have flipped with data-theme even when they did. */
 
 .overview-section {
-  margin-top: 28px;
+  margin-top: var(--space-4); /* was 28px: a break, not a screenful */
 }
 
 .section-heading {
@@ -1862,9 +1862,9 @@ a.text-action {
 .portfolio-concentration {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 22px;
-  padding-top: 16px;
+  gap: var(--space-2);
+  margin-top: var(--space-4); /* the border above already separates this */
+  padding-top: var(--space-3);
   border-top: 1px solid var(--grid);
 }
 
@@ -1897,8 +1897,8 @@ a.text-action {
 }
 
 .workspace-footer {
-  margin-top: 42px;
-  padding-top: 18px;
+  margin-top: var(--space-6); /* was 42px, the workspace's largest gap */
+  padding-top: var(--space-3);
   border-top: 1px solid var(--border);
   color: var(--text-muted);
   display: flex;

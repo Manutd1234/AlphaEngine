@@ -282,11 +282,19 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
           </tbody>
         </table>
       </div>
-      {/* The verdict above already reads this run's gap in words. */}
-      <p className="research-note">
-        Each fold optimises on the train window and trades the <strong>next</strong>, unseen one; the
-        in-sample → out-of-sample gap is the overfitting.
-      </p>
+      {/* The verdict above already reads this run's gap in words, and every
+          fact this sentence carries is signalled by something the eye reaches
+          first: the legend prints "In-sample (parameters fitted here)" and
+          "Out-of-sample (blind)", and the table has explicit Train window and
+          Test window columns. It is construction, not measurement, so it folds
+          under a summary that names the two things it defines. */}
+      <details className="disclosure">
+        <summary>Which window does a fold trade, and what does the gap mean?</summary>
+        <p className="research-note">
+          Each fold trades the window <strong>after</strong> the one it fitted; the in-sample →
+          out-of-sample gap is the overfitting.
+        </p>
+      </details>
     </div>
   );
 }

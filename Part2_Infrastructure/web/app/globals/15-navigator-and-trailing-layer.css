@@ -1466,7 +1466,7 @@
 }
 
 /* Windows "More contrast" and the like (at the end of the file on purpose:
-   theme.test.ts locates the dark palette by the first `:root[data-theme="dark"]`
+   theme-palette-parity.test.ts locates the dark palette by the first `:root[data-theme="dark"]`
    in the sheet, and this selector list must not be it): the muted ink steps up to the
    secondary role and hairlines to the axis colour, in both palettes. Token
    re-pointing only — the AA contrast the theme test asserts is unchanged,

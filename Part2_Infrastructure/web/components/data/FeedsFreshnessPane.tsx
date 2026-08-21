@@ -93,9 +93,19 @@ export default function FeedsFreshnessPane({ health, symbol, gatewaySource }: Fe
       )}
 
       <p className="console-footnote">
-        Gateway observed at {absoluteTime(gatewaySource?.observedAt)}. Ages belong to each
-        venue and symbol; fetching does not make an old feed fresh.
+        Gateway observed at {absoluteTime(gatewaySource?.observedAt)}.
       </p>
+      {/* The observation time is a measurement and stays. What folds is the
+          reading rule beside it, and the summary asks the misreading it
+          exists to prevent — so a reader who never opens it has still been
+          asked whether a refresh buys freshness, which is the belief at
+          stake. The two empty states above are untouched. */}
+      <details className="disclosure">
+        <summary>Does pressing refresh change how old a feed is?</summary>
+        <p className="console-footnote">
+          Ages belong to each venue and symbol; fetching does not make an old feed fresh.
+        </p>
+      </details>
     </section>
   );
 }

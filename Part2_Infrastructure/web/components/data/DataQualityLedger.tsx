@@ -210,10 +210,17 @@ export default function DataQualityLedger({
             </div>
           </dl>
 
-          <p className="console-subhead">
-            Escalations
-            <small className="muted"> — a fatal burst or a fail rate over threshold, per provider; auto-resolved when it clears.</small>
-          </p>
+          <p className="console-subhead">Escalations</p>
+          {/* The rule definition folds; the vocabulary it defines does not.
+              RULE_LABEL prints "fatal burst" and "fail rate" verbatim on every
+              row below, beside Open / Taken / Cleared, so every escalation
+              stays readable with this closed — only the threshold semantics
+              move. The lock note beneath stays on screen: it is the reason a
+              visible control is dimmed, which is never a fold. */}
+          <details className="disclosure">
+            <summary>What opens one of these, and what closes it again?</summary>
+            <p className="sub"> — a fatal burst or a fail rate over threshold, per provider; auto-resolved when it clears.</p>
+          </details>
           {lockNote && takeable.length > 0 && (
             // On screen, not only in the disabled button's tooltip: a dimmed
             // control with no visible reason is the same dead end as a missing

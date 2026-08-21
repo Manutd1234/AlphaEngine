@@ -86,11 +86,20 @@ function McBrowserParityCheck() {
         <div><span>Numerics custody</span><h2>Run the parity check in this browser</h2></div>
         <StatusPill state={state} live={requested && simulation.status === "running"} />
       </div>
-      <p className="developer-cp-disclosure">
-        The committed reference, this deployment&apos;s Node and your browser all recompute the
-        same {MC_PARITY_PATHS.toLocaleString()}-path bootstrap, and must agree byte for byte.
-        {" "}{state.detail}
-      </p>
+      {/* Split along the seam between method and result, and only the method
+          folds. `state.detail` is the result claim in every run state, and
+          before a run it is "Runs entirely in this tab; nothing is uploaded." —
+          the sandbox statement for this card, and the only thing keeping the
+          card from being blank at rest. So it stays on screen; what the three
+          runtimes compare is read once and goes behind the summary. */}
+      <p className="developer-cp-disclosure">{state.detail}</p>
+      <details className="developer-cp-disclosure disclosure">
+        <summary>Which three runtimes have to agree, and on what</summary>
+        <p>
+          The committed reference, this deployment&apos;s Node and your browser all recompute the
+          same {MC_PARITY_PATHS.toLocaleString()}-path bootstrap, and must agree byte for byte.
+        </p>
+      </details>
       <div className="developer-cp-section-hero__actions">
         <button
           type="button"

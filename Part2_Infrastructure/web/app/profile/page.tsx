@@ -4,7 +4,7 @@ import ProfileScreen from "@/components/profile/ProfileScreen";
 
 /**
  * The second route outside the workspace shell, and a sibling to `/login`
- * rather than a ninth tab: `tests/workspace-routing.test.ts` deep-equals the
+ * rather than a ninth tab: `tests/workspace-routing-nav.test.ts` deep-equals the
  * eight nav ids and `app/page.tsx` derives its view union from the same list,
  * so adding one there would change what the desk is.
  *

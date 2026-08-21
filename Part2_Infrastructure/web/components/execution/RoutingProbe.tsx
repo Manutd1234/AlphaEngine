@@ -291,8 +291,8 @@ export default function RoutingProbe({
       <details className="card execution-methodology">
         <summary>How the live routing feed works</summary>
         <p className="sub">
-          The ladders stream over WebSockets opened from your browser to Binance and Bybit. The
-          same maths serves REST snapshots at <code>/api/depth</code> and <code>/api/tca</code>{" "}
+          The ladders stream over WebSockets from your browser to Binance and Bybit. The same
+          maths serves REST snapshots at <code>/api/depth</code> and <code>/api/tca</code>{" "}
           for non-browser callers. Pre-trade risk checks and the kill-switch stay on the gateway.
         </p>
       </details>

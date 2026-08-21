@@ -37,7 +37,7 @@ const ROLE_CARDS: {
     role: "Quant Trader",
     action: "Open Execution →",
     headline: (c) => `${c.side} ${c.symbol}, ${usd(c.notional, 0)}`,
-    status: (c) => `${c.slippageBps} bps modeled cost budget`,
+    status: (c) => `${c.slippageBps} bps modelled cost budget`,
   },
   {
     view: "portfolio",

@@ -150,8 +150,7 @@ export default function OverviewStanding({
         </div>
         <p className="sub">
           {alerts.length
-            ? `${alerts.length} limit${alerts.length === 1 ? " is" : "s are"} inside a warning band, `
-              + "each quoting the published limit it was read from."
+            ? `${alerts.length} limit${alerts.length === 1 ? " is" : "s are"} inside a warning band.`
             : `No position has spent ${fmt(ALERT_BANDS.symbolNear * 100, 0)}% of its symbol cap, `
               + `gross exposure is under ${fmt(ALERT_BANDS.gross * 100, 0)}% of its limit, and less `
               + `than ${fmt(ALERT_BANDS.drawdown * 100, 0)}% of the daily drawdown budget is spent.`}

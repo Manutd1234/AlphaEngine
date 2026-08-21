@@ -333,9 +333,15 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
         </table>
       </div>
 
-      <p className="research-note">
-        {legs.find((leg) => leg.key === "residual" || leg.key === "unattributed")?.note}
-      </p>
+      {/* A definition of a leg the chart already draws, names and basis-marks,
+          and which the bar's own <title> repeats. The anti-alpha guard is done
+          by the leg's NAME, which no fold touches. */}
+      <details className="disclosure">
+        <summary>What lands in the leg that is left over</summary>
+        <p className="research-note">
+          {legs.find((leg) => leg.key === "residual" || leg.key === "unattributed")?.note}
+        </p>
+      </details>
 
       {waterfall.unmeasuredSymbols.length > 0 && (
         <p className="research-note">
@@ -367,13 +373,18 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
           right. */}
       {legs.some((leg) => leg.key === "market" && leg.value !== null)
         && waterfall.referenceReturn != null && waterfall.referenceSymbol && (
-        <p className="research-note">
-          The market leg uses {waterfall.referenceSymbol} at {pct(waterfall.referenceReturn, 2)} as
-          the reference move, through each position&apos;s measured beta.{" "}
-          {generated
-            ? "In the sandbox that move is supplied, not measured, so no generated P&L is attributed to a real market move."
-            : `Measured on the daily bar covering the gateway's session, withheld when the newest bar does not.`}
-        </p>
+        <details className="disclosure">
+          <summary>
+            Which move the market leg is measured against, and when it is not measured at all
+          </summary>
+          <p className="research-note">
+            The market leg uses {waterfall.referenceSymbol} at {pct(waterfall.referenceReturn, 2)} as
+            the reference move, through each position&apos;s measured beta.{" "}
+            {generated
+              ? "In the sandbox that move is supplied, not measured, so no generated P&L is attributed to a real market move."
+              : `Measured on the daily bar covering the gateway's session, withheld when the newest bar does not.`}
+          </p>
+        </details>
       )}
     </div>
   );

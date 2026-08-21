@@ -61,17 +61,34 @@ export default function QuotaHeadroom({ health }: { health: SystemHealth | null 
 
       {/* Only over a populated chart. With zero metered rows the all-clear
           sentence would be comfort over an empty set, and the bars' own
-          emptyNote already reports the emptiness honestly. */}
+          emptyNote already reports the emptiness honestly.
+
+          The keyless exclusion is NOT restated here. The footnote below names
+          those providers, says why they keep no ledger and says their absence
+          is not headroom — so a clause here saying the same thing unnamed was
+          the same caveat twice on one pane, and the weaker of the two. */}
       {rows.length > 0 && (
-        <p className="research-note">
-          Each bar is a share of its own window; the absolute count sits beside it. {fenced
-            ? <><strong>{fenced}</strong> provider{fenced === 1 ? " is" : "s are"} at or past the
-              reserve, so background refreshes there are refused while interactive lookups still
-              work.</>
-            : "No provider has reached its reserve, so background and interactive traffic are both funded."}
-          {" "}Keyless providers are left out — an unspendable budget is not headroom; the window
-          countdown and per-call ledger live in Providers.
-        </p>
+        <>
+          <p className="research-note">
+            {fenced
+              ? <><strong>{fenced}</strong> provider{fenced === 1 ? " is" : "s are"} at or past the
+                reserve, so background refreshes there are refused while interactive lookups still
+                work.</>
+              : "No provider has reached its reserve, so background and interactive traffic are both funded."}
+          </p>
+          {/* A split, not a move. The middle clause of the paragraph above is a
+              figure a reader acts on — background polling already being
+              refused — and it stays on screen. What folds is a reading rule
+              over a fact already printed on every row ("{used} of {limit} per
+              {window}") and a pointer to where the clock is drawn. */}
+          <details className="disclosure">
+            <summary>How should a bar&rsquo;s length be read, and where is the reset clock?</summary>
+            <p className="research-note">
+              Each bar is a share of its own window; the absolute count sits beside it. The window
+              countdown and per-call ledger live in Providers.
+            </p>
+          </details>
+        </>
       )}
 
       {/* The chart's excluded half, named. These providers ARE configured, so

@@ -177,7 +177,17 @@ export default function DeveloperPipelines({ view }: { view: SystemHealthView })
             <section className="card developer-cp-artifact-card stagger-reveal" style={{ "--stagger-i": 1 } as CSSProperties}>
               <div className="developer-cp-heading"><div><span>Artifact registry</span><h2>Deployable lineage</h2></div><span>Runtime-observed state</span></div>
               <ArtifactLineage view={view} />
-              <p className="developer-cp-disclosure">Custody passes only when the pinned Ed25519 signer attests this commit, environment and build provenance; release bundles and promotion records are separate evidence.</p>
+              {/* The definition, not the verdict. What "Attested" means — and
+                  which evidence it does NOT cover — is read once and not on
+                  every visit, so it folds; the custody reading itself is a pill
+                  on the lineage rows above and stays on screen, as does the
+                  four-column table this sits under, which is why folding this
+                  leaves runtime state rather than a blank card. The summary
+                  names the two questions and answers neither. */}
+              <details className="developer-cp-disclosure disclosure">
+                <summary>What custody attests, and what it leaves to other evidence</summary>
+                <p>Custody passes only when the pinned Ed25519 signer attests this commit, environment and build provenance; release bundles and promotion records are separate evidence.</p>
+              </details>
             </section>
           </>
         )}

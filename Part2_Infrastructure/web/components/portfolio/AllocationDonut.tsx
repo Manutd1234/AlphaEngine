@@ -197,9 +197,9 @@ export default function AllocationDonut({
       <details className="disclosure">
         <summary>How this is sized, and what it does not tell you</summary>
         <p className="research-note">
-          Sized by gross notional, so a long and a short of the same size read as two concentrations
-          rather than cancelling. Whether those positions move together is the correlation
-          matrix&rsquo;s question, not this ring&rsquo;s.
+          Sized by gross notional, so a long and a short of the same size read as two
+          concentrations rather than cancelling. Whether they move together is the correlation
+          matrix&rsquo;s question.
         </p>
       </details>
     </div>

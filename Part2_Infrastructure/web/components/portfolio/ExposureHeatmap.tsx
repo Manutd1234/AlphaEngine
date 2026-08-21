@@ -222,8 +222,8 @@ export default function ExposureHeatmap({
       <details className="disclosure">
         <summary>Why only utilisation is drawn</summary>
         <p className="research-note">
-          Utilisation is nearness to the cap the risk gate enforces, so a small position can be the
-          one nearest a hard stop. Share of gross has no meaningful 100% to draw against.
+          Utilisation is nearness to the cap the risk gate enforces, so a small position can be
+          the one nearest a hard stop. Share of gross has no 100% to draw against.
         </p>
       </details>
 

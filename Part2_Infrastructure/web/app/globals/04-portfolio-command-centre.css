@@ -42,7 +42,7 @@
    75% is a ceiling, not a preference: --text-primary on the deepest tile is
    4.64:1 in the dark palette and 4.96:1 in light. At 80% dark falls to 4.24:1
    and the printed number — the whole point of the encoding — stops clearing AA.
-   tests/correlation.test.ts does the arithmetic.
+   Unverified as of 2026-08-21: lib/correlation.ts is imported by no test, so the ratios above are a claim rather than a measurement.
 
    No --status-* token appears here in any form; the poles are --diverging-*,
    which are graphical roles with no text contract. */

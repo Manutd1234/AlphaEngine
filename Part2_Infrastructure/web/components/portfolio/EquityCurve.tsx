@@ -265,13 +265,25 @@ export default function EquityCurve({
         </div>
       )}
 
-      <p className="research-note">
-        {generated
-          ? "Generated path for the sandbox book, deterministic and ending on the stated equity."
-          : backfilled
-            ? "Backfilled from the gateway's persisted snapshots and extended by this tab's polls. The sampling interval is the resolution: a shape, not a tick record."
-            : "Built from this tab's polls since it opened, filling in as persisted snapshots accumulate."}
-      </p>
+      {/* The generated branch does NOT fold. It is the marker saying this
+          curve was drawn from a seed, and a marker one click away is a marker
+          that did not fire. The two observed branches are provenance and
+          resolution — read once — and the header still prints the observation
+          count beside the title, so the series' size stays on screen. */}
+      {generated ? (
+        <p className="research-note">
+          Generated path for the sandbox book, deterministic and ending on the stated equity.
+        </p>
+      ) : (
+        <details className="disclosure">
+          <summary>Where these points come from, and how coarse they are</summary>
+          <p className="research-note">
+            {backfilled
+              ? "Backfilled from the gateway's persisted snapshots and extended by this tab's polls. The sampling interval is the resolution: a shape, not a tick record."
+              : "Built from this tab's polls since it opened, filling in as persisted snapshots accumulate."}
+          </p>
+        </details>
+      )}
     </div>
   );
 }

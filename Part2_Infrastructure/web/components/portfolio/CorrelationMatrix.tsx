@@ -27,7 +27,7 @@ interface CorrelationMatrixProps {
 }
 
 export default function CorrelationMatrix({ model, worst, observations }: CorrelationMatrixProps) {
-  // Declared before any bail-out. tests/workspace-routing.test.ts scans this
+  // Declared before any bail-out. tests/workspace-routing-hook-order.test.ts scans this
   // file for a hook below an early return.
   const [cross, setCross] = useState<{ i: number; j: number } | null>(null);
   const symbols = model.symbols;

@@ -136,21 +136,31 @@ export default function HealthMatrix({
 
       <section
         className="console-percentile-guide"
-        id="reliability-latency-guide"
         aria-labelledby="reliability-latency-guide-title"
-        tabIndex={-1}
       >
         <span className="console-percentile-guide__mark" aria-hidden>P99</span>
         <div>
           <h3 id="reliability-latency-guide-title">Tail latency, explained</h3>
-          <p>
-            <strong>Decision p99 (header chip)</strong> — in-process inside the gateway, pushed with
-            the ops snapshot; every sample since start, excluding kernel and wire.
-          </p>
-          <p>
-            <strong>Upstream p99 (this table)</strong> — network, polled from this browser;
-            nearest-rank over the rolling 15-minute pool, failures included; shown after 20 samples.
-          </p>
+          {/* Methodology, not a figure: the table prints n= on every row, so
+              the sample floor below is observable without reading this.
+
+              The id rides the <summary>, not this box. The header's latency
+              chip focuses it, so a reader who pressed a chip to have p99
+              explained lands on the control that opens the answer rather than
+              on a closed triangle. No tabIndex: a <summary> is focusable
+              already, and -1 would take the guide's only control out of the
+              keyboard order to buy nothing. */}
+          <details className="disclosure">
+            <summary id="reliability-latency-guide">Which clock produces each of these two figures?</summary>
+            <p>
+              <strong>Decision p99 (header chip)</strong> — in-process inside the gateway, pushed with
+              the ops snapshot; every sample since start, excluding kernel and wire.
+            </p>
+            <p>
+              <strong>Upstream p99 (this table)</strong> — network, polled from this browser;
+              nearest-rank over the rolling 15-minute pool, failures included; shown after 20 samples.
+            </p>
+          </details>
         </div>
 
       </section>

@@ -292,7 +292,7 @@ export default function LoginScreen() {
             <span aria-hidden>◌</span>
             <div>
               Accounts are not configured in this deployment, so there is nothing to sign in to.
-              The desk opens as a guest instead — the full workspace, on generated data.
+              The desk opens as a guest instead.
             </div>
           </div>
           <button
@@ -305,8 +305,8 @@ export default function LoginScreen() {
           </button>
         </div>
         <p className="auth-guest__note">
-          Every visitor gets a desk seeded just for their browser. Nothing is shared, and nothing
-          here reaches a real venue.
+          Each browser gets its own seeded desk — the full workspace, on generated data. Nothing
+          is shared, and nothing here reaches a real venue.
         </p>
       </main>
     );
@@ -365,8 +365,8 @@ export default function LoginScreen() {
         {guestBusy ? "Opening the desk…" : "Continue as guest"}
       </button>
       <p className="auth-guest__note">
-        A guest desk is seeded just for this browser: the full workspace, generated data, no
-        account. Preferences will not follow you to another device.
+        A guest desk is seeded for this browser: the full workspace, on generated data. Without
+        an account, preferences stay on this device.
       </p>
     </main>
   );

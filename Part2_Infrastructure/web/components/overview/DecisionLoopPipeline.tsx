@@ -10,7 +10,7 @@
  * theme, including a duplicate of the status ramp. The band now renders on
  * `--surface-2` like every other band on the desk, so the ordinary text roles
  * are not merely allowed here, they are the correct ones: they are the tokens
- * whose contrast `tests/theme.test.ts` already checks against the surfaces
+ * whose contrast `tests/theme-contrast.test.ts` already checks against the surfaces
  * they actually land on, in both themes. Precedent for the shape:
  * ROUTE_STATE_STYLE in components/systems/types.ts — icon + word carry the
  * meaning; colour reinforces.

@@ -35,11 +35,21 @@ export default function DeskTape({ symbol }: { symbol: string }) {
         </span>
       </div>
 
-      <p className="sub">
-        Filtered to {symbol}. The complete record is the Blotter pane, polled from the
-        gateway&apos;s authoritative store; a stream can drop silently, so this is watched,
-        not counted on.
-      </p>
+      <p className="sub">Filtered to {symbol}.</p>
+
+      {/* The summary, not a neutral label, is what keeps `desk-tape.test.ts`
+          honest. That suite's assertion is named "the panel says so where a
+          reader will see it", and its intent is at-rest visibility — which a
+          `<details>` body satisfies mechanically and not in spirit. So the
+          summary itself carries "not the record": at rest the reader still
+          learns the tape is a stream, and only the mechanism folds. */}
+      <details className="disclosure">
+        <summary>Why is this not the record?</summary>
+        <p className="research-note">
+          The complete record is the Blotter pane, polled from the gateway&apos;s authoritative
+          store; a stream can drop silently, so this is watched, not counted on.
+        </p>
+      </details>
 
       {state !== "live" || rows.length === 0 ? (
         <p className={state === "unavailable" ? "banner warn" : "muted"} role="status">

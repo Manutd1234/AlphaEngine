@@ -135,10 +135,20 @@ export default function TrustCompositionPane({ health, providerValidation }: Tru
           />
         </div>
 
-        <p className="research-note">
-          Green means <strong>no fatal finding</strong>; warnings and drift may remain. The ring
-          counts payloads, the bar findings, and one payload can carry several.
-        </p>
+        {/* Methodology, not measurement, so it folds. Both denominators are
+            already printed beside their own mark — the section note says
+            "{n} evaluated", the bars' row note says "{n} fatal, {n} warn,
+            {n} drift", and the legend names every state in words — so nothing
+            measured leaves the screen with this paragraph. What must NOT be
+            folded is the doubt, and the summary is where it stays: a reader
+            who never opens this is still asked whether green means clean. */}
+        <details className="disclosure">
+          <summary>Does a green ring mean this instance passed cleanly?</summary>
+          <p className="research-note">
+            Green means <strong>no fatal finding</strong>; warnings and drift may remain. The ring
+            counts payloads, the bar findings, and one payload can carry several.
+          </p>
+        </details>
       </section>
 
       {/* `byProvider` is `Record<string, ValidationCounts>` — the same shape

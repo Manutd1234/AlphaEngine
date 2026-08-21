@@ -66,8 +66,8 @@ export default function ProfilePasswordCard({ onBanner }: { onBanner: ReportBann
       <span className="page-kicker">Credentials</span>
       <h2 className="mt-0.5 text-fs-title">Change password</h2>
       <p className="mt-1 text-fs-body leading-snug text-text-secondary">
-        Change the password first, then revoke other sessions above if you want them ended.
-        Doing it the other way round ends this session too, and the change never lands.
+        Change the password first, then revoke other sessions above. The other way round ends
+        this session too, and the change never lands.
       </p>
 
       <label className="mt-3 block text-fs-sm font-semibold text-text-secondary" htmlFor="profile-password">

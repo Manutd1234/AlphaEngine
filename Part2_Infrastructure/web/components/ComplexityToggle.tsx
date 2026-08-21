@@ -42,8 +42,7 @@ export default function ComplexityToggle() {
         ))}
       </div>
       <p className="mt-1.5 text-fs-xs leading-snug text-text-muted">
-        {description} Every tab and section is available at every level; only how much is expanded
-        changes.
+        {description} Every tab and section is available at every level.
       </p>
     </div>
   );

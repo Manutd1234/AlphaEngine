@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The command center — a composer since the four-feature upgrade.
+ * The command centre — a composer since the four-feature upgrade.
  *
  * The hero pipeline, KPI deck and role launcher live in components/overview/;
  * this file derives their inputs from live page state. Provider readiness reads
@@ -197,7 +197,7 @@ export default function WorkspaceOverview({
           render, with the same chip anatomy and the same height. */}
       <section className="overview-hero" data-plane="inverted">
       <PageHead
-        kicker="AlphaEngine command center"
+        kicker="AlphaEngine command centre"
         /* The tagline, not "Overview" — the user's explicit choice for the
            landing tab. The nav rail already says Overview one row up, so the
            h1 is free to say what the desk does; the other seven tabs keep

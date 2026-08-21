@@ -177,10 +177,24 @@ export default function SizingPanel({ best, gate, equity }: SizingPanelProps) {
         </div>
       )}
 
+      {/* The paragraph is split at the seam it already had. The first half is a
+          live caption for the fraction the reader just pressed — decision
+          support for an active control — so it stays where the control is. The
+          second is an estimation caveat about where the odds came from, which
+          is this file's own header argument restated for the reader, and it
+          folds. Nothing that qualifies the recommended fraction directly moves:
+          the notional, the thin-sample banner and both cap banners are above
+          and stay above, each rendering only in the state it describes. */}
       <p className="research-note">
-        {FRACTIONS.find((f) => f.value === fraction)?.note}. These odds are estimates from an
-        already-optimised search, so they are biased upward and over-betting hurts super-linearly.
+        {FRACTIONS.find((f) => f.value === fraction)?.note}.
       </p>
+      <details className="disclosure">
+        <summary>How reliable are the odds behind this fraction?</summary>
+        <p className="research-note">
+          These odds are estimates from an
+          already-optimised search, so they are biased upward and over-betting hurts super-linearly.
+        </p>
+      </details>
     </div>
   );
 }

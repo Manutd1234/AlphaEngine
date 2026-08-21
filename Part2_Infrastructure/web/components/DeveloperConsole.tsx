@@ -40,7 +40,20 @@ function DeveloperChanges() {
   return (
     <div className="developer-cp-stack">
       <section className="card developer-cp-section-hero">
-        <div><span>Repository evidence</span><h2>Code &amp; Diffs</h2><p>This runtime exposes the committed path manifest, not source contents; GitHub carries blame, history and diffs.</p></div>
+        <div>
+          <span>Repository evidence</span>
+          <h2>Code &amp; Diffs</h2>
+          {/* A why-this-is-withheld note, folded because the panel beneath it
+              is the demonstration: CodebaseExplorer renders the whole manifest
+              with per-file metadata and an "Open source" link to GitHub for
+              every path, so a reader learns where the diffs live by using the
+              card rather than by reading a sentence about it first. The kicker,
+              the heading, the commit pill and "Open commit" all stay. */}
+          <details className="disclosure">
+            <summary>What this manifest holds, and where the diffs live</summary>
+            <p>This runtime exposes the committed path manifest, not source contents; GitHub carries blame, history and diffs.</p>
+          </details>
+        </div>
         <div className="developer-cp-section-hero__actions">
           <StatusPill state={{ label: APP_COMMIT, detail: "Build-time Git identity.", tone: APP_COMMIT === "dev" ? "warn" : "good" }} />
           <a className="text-action" href={APP_COMMIT === "dev" ? `${GITHUB_REPOSITORY_ROOT}/commits/main` : `${GITHUB_REPOSITORY_ROOT}/commit/${APP_COMMIT}`} target="_blank" rel="noreferrer">Open commit ↗</a>

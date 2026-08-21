@@ -140,8 +140,18 @@ export default function FeedsContractsPane({
           Window {trust.validation ? `${trust.validation.retained}/${trust.validation.capacity}` : "not exposed"}
           {trust.validation?.windowStart ? `; since ${absoluteTime(trust.validation.windowStart)}` : ""}
           {trust.validation?.lastValidationAt ? `; last ${absoluteTime(trust.validation.lastValidationAt)}` : ""}.
-          Aggregate counts reset with the function instance and are not tied to {symbol}.
         </p>
+        {/* The measured half of the footnote stays above. Only the scope
+            caveat folds, and the summary states its exact doubt as a question
+            so a reader who leaves it closed is still warned the totals may
+            not be about the symbol in the heading. The pane's empty state
+            carries the harder half of this claim and is untouched. */}
+        <details className="disclosure">
+          <summary>Do these totals belong to the instrument in the heading?</summary>
+          <p className="console-footnote">
+            Aggregate counts reset with the function instance and are not tied to {symbol}.
+          </p>
+        </details>
       </section>
 
       <section className="data-trust-section" aria-labelledby="trust-actions-heading">
