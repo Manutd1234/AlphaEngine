@@ -3,9 +3,10 @@
  * truthful panel stop looking broken.
  *
  * Overview and Performance were split the same way afterwards; the assertions
- * specific to those two live in `portfolio-section-panes.test.ts`. What is
- * shared — that there is one rail and that every pane is a conditional render —
- * is pinned here, over the whole file.
+ * specific to those two live in the `portfolio-section-panes-*.test.ts` family
+ * — `-splits`, `-overview`, `-performance` and `-cross-link`. What is shared —
+ * that there is one rail and that every pane is a conditional render — is
+ * pinned here, over the whole file.
  *
  * Positions was eight cards in one scroll and Allocation four. Splitting them
  * has two failure modes worth pinning: a nested `<WorkspaceSubtabs>`, which

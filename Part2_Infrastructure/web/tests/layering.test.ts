@@ -24,7 +24,7 @@
  *     header on every narrow viewport, and looks perfectly reasonable in review.
  *
  * Parsing CSS with a regex is normally a bad idea; the justification is the one
- * `theme.test.ts` already gives for the same file. The input is one hand-written
+ * `theme-contrast.test.ts` already gives for the same file. The input is one hand-written
  * stylesheet and the alternative is carrying a CSS parser to assert two facts.
  */
 

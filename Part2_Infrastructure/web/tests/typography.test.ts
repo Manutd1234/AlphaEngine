@@ -23,7 +23,7 @@
  *  3. **Nothing else loads type.** No `@font-face`, no Google Fonts host in
  *     the sources next/font does not own.
  *
- * Regex over hand-written sources, per the justification in `theme.test.ts`.
+ * Regex over hand-written sources, per the justification in `theme-contrast.test.ts`.
  */
 
 import assert from "node:assert/strict";

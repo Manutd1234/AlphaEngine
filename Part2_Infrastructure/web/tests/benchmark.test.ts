@@ -2,7 +2,7 @@
  * Comparison against an external instrument.
  *
  * Two things are being defended here, and they are not the arithmetic — the
- * regression is `regress()`, which `quant.test.ts` already covers.
+ * regression is `regress()`, which `quant-regression.test.ts` already covers.
  *
  * The first is the JOIN. Two vendors rarely stamp the same bar with the same
  * epoch, so the failure mode is an empty or near-empty intersection producing a

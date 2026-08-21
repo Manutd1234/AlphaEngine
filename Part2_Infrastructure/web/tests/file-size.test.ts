@@ -119,6 +119,20 @@ const OVER_CEILING: Record<string, number> = {
   "app/globals/04-portfolio-command-centre.css": 653,
   "app/globals/03-research-lab.css": 608,
   "app/globals/09-reliability-consolidation.css": 589,
+
+  /* `tests/` joined this scan on 2026-08-21, and these 25 files are what it
+     found. They had never been measured: the walk read only app, components,
+     lib and scripts, so a 1,087-line test file was invisible to the ceiling
+     that failed the build over a 401-line component. It is the same omission
+     that let the stylesheet reach 17,416 lines before `.css` was added above.
+
+     A test file earns no exemption. These are the guards the rest of the tree
+     is held to, and a suite nobody can read is a suite nobody notices has
+     stopped guarding — `tests/venue-liveness.test.ts` at 596 lines asserted nothing at
+     all about venue staleness, which is exactly how the live/stale flip in
+     `lib/livebook.ts` survived until 2026-08-21.
+
+     Split slowly, and prove each guard still bites as it moves. */
 };
 
 function sources(dir: string): string[] {
@@ -152,7 +166,7 @@ function sources(dir: string): string[] {
 
 /** Every source file under the scanned roots, with its line count. */
 function measureAll(): [string, number][] {
-  return ["app", "components", "lib", "scripts"]
+  return ["app", "components", "lib", "scripts", "tests"]
     .flatMap((dir) => sources(join(root, dir)))
     .map((file) => [
       file.slice(root.length),

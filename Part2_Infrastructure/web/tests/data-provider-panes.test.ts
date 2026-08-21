@@ -173,7 +173,7 @@ describe("the reliability hand-off travels with Routing and keeps its door", () 
   });
 
   it("still reaches reliability/overview, which the interconnect scan measures", () => {
-    // `desk-interconnect.test.ts` asserts something opens reliability/overview;
+    // `desk-interconnect-cross-links.test.ts` asserts something opens reliability/overview;
     // this is that something's wiring. page.tsx threads the prop, and the
     // measured `openSection("reliability", "overview")` behind it is
     // `openReliabilityOverview` in lib/use-workspace-routing.ts.

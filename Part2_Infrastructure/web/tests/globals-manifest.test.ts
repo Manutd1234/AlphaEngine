@@ -165,7 +165,7 @@ describe("the concatenated cascade", () => {
   });
 
   it("still opens on the light :root palette", () => {
-    // theme.test.ts and tailwind-bridge.test.ts both locate the light palette
+    // theme-palette-parity.test.ts and tailwind-bridge.test.ts both locate the light palette
     // as the first `:root {` in the sheet.
     const root = globalsCss.indexOf(":root {");
     const dark = globalsCss.indexOf(':root[data-theme="dark"]');

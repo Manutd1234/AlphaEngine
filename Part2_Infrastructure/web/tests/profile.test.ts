@@ -219,7 +219,7 @@ describe("the avatar is private, and addressed by owner", () => {
   });
 
   it("hardcodes the bucket rather than adding a public env var", () => {
-    // A NEXT_PUBLIC_* addition fails deployment-contract.test.ts.
+    // A NEXT_PUBLIC_* addition fails deployment-contract-config-surfaces.test.ts.
     assert.doesNotMatch(code(centre), /NEXT_PUBLIC_/);
     assert.doesNotMatch(code(read("../lib/profile.ts")), /NEXT_PUBLIC_/);
   });

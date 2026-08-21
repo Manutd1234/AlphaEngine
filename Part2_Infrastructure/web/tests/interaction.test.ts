@@ -11,7 +11,7 @@
  * case for pinning them.
  *
  * Regex over one hand-written stylesheet, per the justification in
- * `theme.test.ts`.
+ * `theme-contrast.test.ts`.
  */
 
 import assert from "node:assert/strict";

@@ -24,7 +24,8 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -61,6 +62,21 @@ const verdict = code(read("../components/Verdict.tsx"));
 const routingProbe = code(read("../components/execution/RoutingProbe.tsx"));
 
 /** Every `description={<>…</>}` rendered by a workspace header, by source. */
+/** Every component file, for the invariants that scan the whole tree. */
+function componentFiles(): string[] {
+  const root = fileURLToPath(new URL("../components", import.meta.url));
+  const out: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) walk(full);
+      else if (full.endsWith(".tsx")) out.push(full);
+    }
+  };
+  walk(root);
+  return out;
+}
+
 function descriptions(source: string): string[] {
   return [...source.matchAll(/description=\{<>([\s\S]*?)<\/>\}/g)].map((m) =>
     m[1].replace(/\{[^}]*\}/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim(),
@@ -118,7 +134,7 @@ describe("a note does not repeat a figure that is a headline beside it", () => {
     const intent = deck.slice(deck.indexOf("const intentNote"), deck.indexOf("const intentNote") + 400);
     assert.doesNotMatch(intent, /gross/i, "Order intent restates the Gross exposure card");
     assert.doesNotMatch(intent, /headroom/i, "Order intent restates the Binding constraint card");
-    assert.match(intent, /modeled cost/, "the modelled cost is this card's own fact and must stay");
+    assert.match(intent, /modelled cost/, "the modelled cost is this card's own fact and must stay");
   });
 
   it("the Data plane card does not carry the p99 the band above states", () => {
@@ -218,5 +234,68 @@ describe("a line does not quote figures the row below it pairs properly", () => 
     assert.doesNotMatch(probe.slice(0, 400), /what it would actually cost/,
       'the card is titled "Execution cost probe"');
     assert.match(probe.slice(0, 400), /live ladder/, "that the walk is live is not in the heading");
+  });
+});
+
+/**
+ * A fifth shape: a `<summary>` that answers the question its own body answers.
+ *
+ * `<details>` is a bargain with the reader — the summary names a question, and
+ * opening it buys the answer. When the summary states the answer instead, the
+ * reader pays for the sentence twice and the disclosure earns nothing.
+ *
+ * The invariant below is deliberately narrow: a contiguous four-word phrase
+ * shared between a summary and the lines it hides. A looser word-overlap
+ * measure was written first and thrown away, because it flagged "How effective
+ * positions is derived" over a body defining effective positions — a summary
+ * MUST name its subject, and the subject necessarily recurs underneath. That
+ * test would have pushed every disclosure toward naming its subject less
+ * clearly, which is the failure mode this file opens by warning about. Verbatim
+ * repetition is the part that is unambiguously waste.
+ *
+ * The two reworded cases a phrase match cannot see are pinned individually
+ * below, which is the same division of labour the rest of this file uses.
+ */
+describe("a disclosure summary asks; its body answers", () => {
+  const phrases = (text: string, n = 4) => {
+    const words = text.toLowerCase().match(/[a-z]+/g) ?? [];
+    return new Set(
+      Array.from({ length: Math.max(0, words.length - n + 1) },
+        (_, i) => words.slice(i, i + n).join(" ")),
+    );
+  };
+
+  it("no summary repeats a phrase from the lines it hides", () => {
+    const offenders: string[] = [];
+    for (const file of componentFiles()) {
+      const source = readFileSync(file, "utf8");
+      for (const match of source.matchAll(/<summary\b[^>]*>([^<]{10,})<\/summary>([\s\S]{0,400})/g)) {
+        const summary = match[1].replace(/\s+/g, " ").trim();
+        // Interpolated summaries are built from data, not prose.
+        if (summary.includes("{")) continue;
+        const body = match[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 300);
+        const bodyPhrases = phrases(body);
+        const repeated = [...phrases(summary)].filter((p) => bodyPhrases.has(p));
+        if (repeated.length) {
+          offenders.push(
+            `${file.split("/web/")[1]}: "${summary}" repeats "${repeated[0]}"`,
+          );
+        }
+      }
+    }
+    assert.deepEqual(offenders, [],
+      `these summaries state the answer they are hiding:\n    ${offenders.join("\n    ")}`);
+  });
+
+  it("the two reworded restatements stay removed", () => {
+    // Both stated the body's opening claim in the summary, reworded just enough
+    // that a phrase match cannot see it.
+    const planes = code(read("../components/systems/ReliabilityPlanes.tsx"));
+    assert.doesNotMatch(planes, /<summary>[^<]*why only OpenBB is probed/,
+      'the body opens "Only OpenBB is probed automatically" — the summary asks what gets probed');
+
+    const platform = code(read("../components/systems/ReliabilityPlatform.tsx"));
+    assert.doesNotMatch(platform, /<summary>[^<]*slots are not worker heartbeats/,
+      'the body opens "Queue workers are configured slots, not heartbeats"');
   });
 });

@@ -7,7 +7,7 @@
  * The redactor matched only the alternation `(apikey|token)` with no `i` flag,
  * while the Massive target builds `apiKey=` with a capital K. So a keyed Massive
  * capture wrote the live credential verbatim into the fixture's `_url`.
- * `raw-contracts.test.ts` would have caught it, but only AFTER the key was on
+ * `raw-contracts-rest-calibration.test.ts` would have caught it, but only AFTER the key was on
  * disk, and a credential that has been written is not un-written by deleting
  * the file.
  *

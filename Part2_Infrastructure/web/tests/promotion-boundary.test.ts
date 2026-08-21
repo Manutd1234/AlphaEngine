@@ -27,7 +27,7 @@
  *      Research tab's own Decision section since `page.tsx` was split. What it
  *      passes is state staging plus navigation, and that is pinned here.
  *
- * `desk-interconnect.test.ts` also touches this hand-off, but it is asking a
+ * `desk-interconnect-cross-links.test.ts` also touches this hand-off, but it is asking a
  * different question — that the link lands on live/trade rather than wherever
  * execution was last read. That is a routing property. This file is the safety
  * one, and they should not be merged: a rewording of the destination table

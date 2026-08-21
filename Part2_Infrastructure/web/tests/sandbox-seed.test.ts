@@ -1,7 +1,7 @@
 /**
  * Per-visitor sandboxes, and the invariant they must not break.
  *
- * `sandbox-desk.test.ts` already pins that the generated blotter reconciles with
+ * `sandbox-desk-reconciliation.test.ts` already pins that the generated blotter reconciles with
  * the generated book's attribution table — per sleeve, the same order counts,
  * fill counts, total notional and total fees — because a PM reading attribution
  * on one tab and a trader reading execution quality on another are looking at
@@ -97,7 +97,7 @@ describe("a seed is deterministic and actually changes the desk", () => {
 
   it("the default is untouched by the new argument", () => {
     // The whole point of defaulting rather than requiring: every existing
-    // caller, and every expectation pinned in sandbox-desk.test.ts, must see
+    // caller, and every expectation pinned in sandbox-desk-reconciliation.test.ts, must see
     // exactly what it saw before.
     assert.deepEqual(sandboxBlotter(), sandboxBlotter(undefined, 0xa1fae));
   });

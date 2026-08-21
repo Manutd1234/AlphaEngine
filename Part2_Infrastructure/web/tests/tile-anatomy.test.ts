@@ -8,9 +8,9 @@
  * flagged it: the copies rendered identically right up until someone changed
  * the component and only two thirds of the desk moved.
  *
- * This is the same ratchet shape `portfolio-section-panes.test.ts` uses for
- * CrossLinkTile: an allow-list of remaining hand-rolled copies that may shrink
- * and must not grow.
+ * This is the same ratchet shape `portfolio-section-panes-cross-link.test.ts`
+ * uses for CrossLinkTile: an allow-list of remaining hand-rolled copies that
+ * may shrink and must not grow.
  */
 
 import assert from "node:assert/strict";

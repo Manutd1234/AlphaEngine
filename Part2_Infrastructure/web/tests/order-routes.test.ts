@@ -6,10 +6,10 @@
  * (`/api/gateway/orders/{id}/cancel`, `.../replace`). None of them is imported
  * here. They read `process.env` at call time and would need a live gateway to
  * exercise, so what is pinned is the contract a future edit would have to break
- * deliberately — the same approach `cockpit.test.ts` and `risk-actions.test.ts`
+ * deliberately — the same approach `cockpit-blotter-data.test.ts` and `risk-actions.test.ts`
  * take for the routes they cover.
  *
- * This lives in its own file rather than appended to `cockpit.test.ts` on
+ * This lives in its own file rather than appended to `cockpit-blotter-data.test.ts` on
  * purpose. That file locates the order route's gate by *string offset* into the
  * source, which is a measurement that a stray edit above the call site can
  * silently invert. Growing that pattern across five routes in one file would

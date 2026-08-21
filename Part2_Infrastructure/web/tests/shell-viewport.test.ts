@@ -18,7 +18,7 @@
  *    that still called it would leave the new tab parked wherever the last one
  *    was read to, with no error to say so.
  *
- * Regex over CSS, for the reason theme.test.ts and layering.test.ts already
+ * Regex over CSS, for the reason theme-contrast.test.ts and layering.test.ts already
  * give: one hand-written stylesheet, and the alternative is carrying a parser to
  * assert a handful of facts.
  */

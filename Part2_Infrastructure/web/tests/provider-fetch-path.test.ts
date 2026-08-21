@@ -20,7 +20,8 @@
  *      by two when Alpha Vantage and Firecrawl were captured and is wrong by
  *      three now OpenBB has been. The rule is what the test below asserts; the
  *      membership is derived from the fixture directory in
- *      `tests/raw-contracts-rest.test.ts`, where it cannot go stale.
+ *      `tests/raw-contracts-rest-calibration.test.ts`, where it cannot go
+ *      stale.
  *
  * These are behavioural wherever a behaviour can express them, because a
  * source scan that follows a moved file is still a scan that agrees with
@@ -226,8 +227,9 @@ describe("nothing thrown by the fetch path names the key or the host", () => {
 describe("RAW_CALIBRATED is not widened by a refactor", () => {
   it("stays defined in one file, which no part of the fetch path may extend", () => {
     /**
-     * Deliberately NOT a literal membership list. `tests/raw-contracts-rest.ts`
-     * already derives the set from which providers have a committed healthy
+     * Deliberately NOT a literal membership list.
+     * `tests/raw-contracts-rest-calibration.test.ts` already derives the set
+     * from which providers have a committed healthy
      * capture under `tests/fixtures/raw/`, and that derivation is the honest
      * guard: a second copy of the list here would either duplicate it or, worse,
      * contradict it the day a real capture lands and turn a correct widening

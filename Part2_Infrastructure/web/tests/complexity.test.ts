@@ -97,7 +97,11 @@ describe("tiers change density, never navigation", () => {
     "../lib/workspace-hash.ts",
     "../components/ResearchWorkspace.tsx",
   ].map(read).join("\n");
-  const routing = read("./workspace-routing.test.ts");
+  // `workspace-routing-nav.test.ts` was split by concern on 2026-08-21. The rail's
+  // section-panel guard — the `tabId` scan this reads for — went to
+  // `workspace-routing-sections.test.ts`, so the sibling check follows it there
+  // rather than reading a file that no longer exists.
+  const routing = read("./workspace-routing-sections.test.ts");
 
   it("no tab or rail section is conditional on the tier", () => {
     // The invariant. A tier that can remove a destination is a navigation fork.

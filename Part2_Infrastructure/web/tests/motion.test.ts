@@ -21,7 +21,7 @@
  *     from zero on load is a slot machine, which is the gamification boundary.
  *
  * Regex over one hand-written stylesheet, per the justification in
- * `theme.test.ts` and `layering.test.ts`.
+ * `theme-contrast.test.ts` and `layering.test.ts`.
  */
 
 import assert from "node:assert/strict";

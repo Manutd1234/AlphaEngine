@@ -17,7 +17,7 @@
  *     missing" is the one update the throttle silently eats.
  *
  * Driven by a fake clock, which is why the machine is a class rather than only
- * a hook — the same argument `polling.test.ts` makes for `PollingController`.
+ * a hook — the same argument `polling-backoff.test.ts` makes for `PollingController`.
  */
 
 import assert from "node:assert/strict";

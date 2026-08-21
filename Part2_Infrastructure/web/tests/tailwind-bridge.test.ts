@@ -19,7 +19,7 @@ const tailwind = readFileSync(join(root, "app/tailwind.css"), "utf8").replace(/\
 const globals = globalsCss;
 const layout = readFileSync(join(root, "app/layout.tsx"), "utf8");
 
-/** The declarations of the :root light block, same approach as theme.test.ts. */
+/** The declarations of the :root light block, same approach as theme-contrast.test.ts. */
 function lightBlock(css: string): string {
   const start = css.indexOf(":root {");
   assert.ok(start >= 0, "globals.css must open with a :root block");
