@@ -195,7 +195,7 @@ export default function OrderTicketForm({
       {limitInvalid && !busy && !disabled ? (
         <p className="cockpit-ticket__hint">
           Type a limit price to enable Send, or switch back to Market. The grey number is the
-          current mark, not a filled-in value.
+          mark, not a filled-in value.
         </p>
       ) : null}
 

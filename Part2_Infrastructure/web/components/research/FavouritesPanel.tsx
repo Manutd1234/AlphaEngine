@@ -125,11 +125,19 @@ export default function FavouritesPanel({ records }: { records: ExperimentRecord
         <span className="num muted">{selected.length}/{MAX_SELECTED} selected</span>
       </div>
 
-      <p className="sub">
-        Each saved run is <strong>re-executed</strong>, not replayed: the history stores the recipe,
-        not the return series. Weights are fitted on the earlier {Math.round(0.7 * 100)}% of the
-        shared window and measured on the rest.
-      </p>
+      {/* Construction, not measurement: how a combination is produced and which
+          bars the weights were fitted on. It carries no figure and no status —
+          the selection cap, the empty state ("Save at least two runs") and every
+          result number stay at rest below. The summary names both halves it
+          holds, so a reader can decide whether to open it. */}
+      <details className="disclosure">
+        <summary>How a combination is produced</summary>
+        <p className="sub">
+          Each saved run is <strong>re-executed</strong>, not replayed: the history stores the recipe,
+          not the return series. Weights are fitted on the earlier {Math.round(0.7 * 100)}% of the
+          shared window and measured on the rest.
+        </p>
+      </details>
 
       {records.length < 2 ? (
         <p className="muted">Save at least two runs to combine them.</p>
@@ -166,7 +174,7 @@ export default function FavouritesPanel({ records }: { records: ExperimentRecord
         </button>
         {selected.length >= MAX_SELECTED ? (
           <small className="muted">
-            Five is the cap: past it, saved variations are one bet and the reported
+            Five is the cap: past it, saved variations are one bet whose reported
             diversification benefit is not there.
           </small>
         ) : null}

@@ -159,65 +159,64 @@ function occurrences(relative: string, needle: string): boolean[] {
  * matters at rest, WHERE IT STILL SHOWS on screen with the fold shut.
  */
 const MOVED: Array<{ file: string; needle: string; why: string }> = [
-  {
-    file: "components/portfolio/PerformanceSection.tsx",
-    needle:
-      "Lifetime totals, every order since the audit log opened. The Overview waterfall is "
+  { file: "components/portfolio/PerformanceSection.tsx",
+    needle: "Lifetime totals, every order since the audit log opened. The Overview waterfall is "
       + "session-scoped: mixing the two subtracts a lifetime fee bill from one day&apos;s P&amp;L.",
-    why: "scope caveat; the pane switcher above reads \"Flow, lifetime\" and \"Trend, this session\"",
-  },
-  {
-    file: "components/portfolio/RiskAdjustedTrend.tsx",
-    needle:
-      "Drawdown uses the same running high-water mark as the gateway&rsquo;s halt rule. "
+    why: "scope caveat; the pane switcher above reads \"Flow, lifetime\" and \"Trend, this session\"" },
+  { file: "components/portfolio/RiskAdjustedTrend.tsx",
+    needle: "Drawdown uses the same running high-water mark as the gateway&rsquo;s halt rule. "
       + "The Sharpe line is <strong>per observation and not annualised</strong>: a poll series has "
       + "no stable period to scale by. It is blank for the first{\" \"} "
       + "{MIN_SHARPE_OBSERVATIONS} observations and breaks wherever the window is too thin to score.",
-    why: "methodology; the plot's own caption reads \"Rolling Sharpe, per observation\"",
-  },
-  {
-    file: "components/portfolio/DriftBars.tsx",
-    needle:
-      "Drift is{\" \"} <span className=\"num\">(target notional − current notional) ÷ gross before</span> — a share "
+    why: "methodology; the plot's own caption reads \"Rolling Sharpe, per observation\"" },
+  { file: "components/portfolio/DriftBars.tsx",
+    needle: "Drift is{\" \"} <span className=\"num\">(target notional − current notional) ÷ gross before</span> — a share "
       + "of the <strong>whole book</strong>, not of the position, so a bar reading{\" \"} "
       + "{pct(driftBand, 0)} on a name twice that size means moving half of it.",
-    why: "axis definition and a worked reading; the legend above still says \"of gross\"",
-  },
-  {
-    file: "components/portfolio/PnlWaterfall.tsx",
+    why: "axis definition and a worked reading; the legend above still says \"of gross\"" },
+  { file: "components/portfolio/PnlWaterfall.tsx",
     needle: "{legs.find((leg) => leg.key === \"residual\" || leg.key === \"unattributed\")?.note}",
-    why: "defines a leg the chart already names, labels and basis-marks; also on the bar's <title>",
-  },
-  {
-    file: "components/portfolio/PnlWaterfall.tsx",
-    needle:
-      "The market leg uses {waterfall.referenceSymbol} at {pct(waterfall.referenceReturn, 2)} as "
+    why: "defines a leg the chart already names, labels and basis-marks; also on the bar's <title>" },
+  { file: "components/portfolio/PnlWaterfall.tsx",
+    needle: "The market leg uses {waterfall.referenceSymbol} at {pct(waterfall.referenceReturn, 2)} as "
       + "the reference move, through each position&apos;s measured beta.",
-    why: "provenance for one leg the table twin above prints with its basis and source",
-  },
-  {
-    file: "components/portfolio/PnlWaterfall.tsx",
-    needle:
-      "In the sandbox that move is supplied, not measured, so no generated P&L is attributed to a real market move.",
-    why: "the card's own kicker and the full-width chrome both declare the sandbox at rest",
-  },
-  {
-    file: "components/portfolio/PnlWaterfall.tsx",
+    why: "provenance for one leg the table twin above prints with its basis and source" },
+  { file: "components/portfolio/PnlWaterfall.tsx",
+    needle: "In the sandbox that move is supplied, not measured, so no generated P&L is attributed to a real market move.",
+    why: "the card's own kicker and the full-width chrome both declare the sandbox at rest" },
+  { file: "components/portfolio/PnlWaterfall.tsx",
     needle: "Measured on the daily bar covering the gateway's session, withheld when the newest bar does not.",
-    why: "provenance for the measured branch of the same sentence",
-  },
-  {
-    file: "components/portfolio/EquityCurve.tsx",
-    needle:
-      "Backfilled from the gateway's persisted snapshots and extended by this tab's polls. "
+    why: "provenance for the measured branch of the same sentence" },
+  { file: "components/portfolio/EquityCurve.tsx",
+    needle: "Backfilled from the gateway's persisted snapshots and extended by this tab's polls. "
       + "The sampling interval is the resolution: a shape, not a tick record.",
-    why: "provenance and resolution; the header still prints the observation count",
-  },
-  {
-    file: "components/portfolio/EquityCurve.tsx",
+    why: "provenance and resolution; the header still prints the observation count" },
+  { file: "components/portfolio/EquityCurve.tsx",
     needle: "Built from this tab's polls since it opened, filling in as persisted snapshots accumulate.",
-    why: "the same note's other non-generated branch",
-  },
+    why: "the same note's other non-generated branch" },
+  { file: "components/portfolio/CorrelationMatrix.tsx",
+    needle: "Measured from {observations} daily closes of the instruments actually held, not from assumed "
+      + "factor loadings. The diagonal is 1.00 by construction, not measurement.",
+    why: "provenance and one construction rule; every coefficient stays drawn and the heading above "
+      + "still prints the observation count, so the sample size never leaves the screen" },
+  { file: "components/portfolio/RiskContributions.tsx",
+    needle: "Sums to the book&apos;s total volatility, so it answers what to cut.",
+    why: "how the Euler decomposition is built; the Risk share column it describes stays drawn, and "
+      + "the kicker above still reads \"Where the risk lives\"" },
+  { file: "components/portfolio/PerformanceSection.tsx",
+    needle: "An instrument that never rejects is either well-sized or never tested.",
+    why: "a reading rule for the Rejected column, not a measurement; every count in the table stays "
+      + "drawn either way" },
+  { file: "components/portfolio/PerformanceSection.tsx",
+    needle: "A mean decision time hides the one order in a hundred slow enough to miss its price.",
+    why: "a caveat about a summary statistic, and the argument for the tile beside it; the p99 and "
+      + "p50 it asks for are on screen at rest" },
+  { file: "components/portfolio/BookChrome.tsx",
+    needle: "Self-hosting? Set <code>ALPHAENGINE_GATEWAY_URL</code> and{\" \"} "
+      + "<code>ALPHAENGINE_GATEWAY_TOKEN</code> on the server and this surface switches to the "
+      + "authoritative book.",
+    why: "operator configuration for a different reader; it says nothing about the state of the "
+      + "book, the sub above still says why there is no gateway, and both actions stay enabled" },
 ];
 
 describe("the sweep moved prose and deleted none of it", () => {

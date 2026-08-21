@@ -115,6 +115,21 @@ const MOVED: Array<[relative: string, sentence: string]> = [
     "Aggregate counts reset with the function instance and are not tied to {symbol}."],
   ["components/data/FeedsFreshnessPane.tsx",
     "Ages belong to each venue and symbol; fetching does not make an old feed fresh."],
+  // A second pass, same terms: each was a provenance explanation or a reading
+  // rule beside the figures it explains, and the absence, the cost or the
+  // degradation sharing its paragraph stayed outside the fold.
+  ["components/data/DataWorkBoard.tsx",
+    "Every create and status change is versioned in the gateway&apos;s work-item table; a stale edit is refused rather than overwritten."],
+  ["components/data/QuotaHeadroom.tsx",
+    "keyless or billed by request weight, not call count, so no local ledger is kept."],
+  ["components/data/DataQualityLedger.tsx",
+    "newest first; every instance and every replay job writes here."],
+  // Split in two because a JSX expression — the gateway's tick period — sits
+  // between them; the literal halves are what a byte-for-byte check can assert.
+  ["components/data/ReplayBackfillPanel.tsx",
+    "config-driven (<code>DATA_SCHEDULES</code> on the gateway), ticked every"],
+  ["components/data/ReplayBackfillPanel.tsx",
+    "invalid entries stay listed with their error."],
 ];
 
 describe("a disclosure moves a fact; it never spends one", () => {
@@ -205,6 +220,26 @@ const MUST_STAY: Array<[relative: string, sentence: string, why: string]> = [
   ["components/data/SupplyPosture.tsx",
     "no routable node at all.",
     "a figure a reader acts on: chains that cannot be served at all"],
+  // Measured for the second pass and refused. Each is the largest block of
+  // prose left in its file, which is why the reason is written down.
+  ["components/data/DataWorkBoard.tsx",
+    "so this is the last list loaded — or the seeded sample if none has — and edits are held in this browser until it answers.",
+    "the provenance of every row while the gateway is unreachable; folded, seeded sample rows read as the desk's real queue"],
+  ["components/data/DataWorkBoard.tsx",
+    "Nothing here is lost silently, and nothing here is confirmed either.",
+    "the degradation's whole claim — an unconfirmed queue must never read as a confirmed one"],
+  ["components/data/DataWorkBoard.tsx",
+    "The persisted queue arrives with the first gateway read.",
+    "the loading state, and the scope line's only content while it holds; folded, the heading sits over nothing"],
+  ["components/data/ReplayBackfillPanel.tsx",
+    "Spends one interactive provider call through this workspace.",
+    "the price of pressing the button beside it, which a reader weighs before acting"],
+  ["components/data/FeedThroughput.tsx",
+    "The registry can still answer requests, but nothing here proves streaming freshness or update rate. An absent monitor is not a silent tape.",
+    "empty state: what an absent monitor does and does not prove"],
+  ["components/DataConsole.tsx",
+    "Breaker timelines, latency SLOs, failure drills and remediation controls.",
+    "what a reader crosses to another workspace for; folded, it costs a click to decide whether to pay a navigation"],
 ];
 
 describe("an empty state, a null explanation and a refusal stay on screen", () => {
@@ -236,6 +271,10 @@ describe("an empty state, a null explanation and a refusal stay on screen", () =
       /no .{0,30}has been submitted/i,
       /clean bill of health/i,
       /\bis disabled\b/i,
+      // An empty state and an all-clear, held as vocabulary rather than as two
+      // more sentences: hidden, each reads as a check that never ran.
+      /a quiet instance/i,
+      /more than one node able/i,
     ];
     const offenders: string[] = [];
     for (const relative of OWNED) {
@@ -255,7 +294,7 @@ describe("every fold on this tab is a real bargain", () => {
     // Without this the assertions below pass on a tab with no disclosures at
     // all, which is the state this sweep started from.
     const total = OWNED.reduce((sum, relative) => sum + folds(relative).length, 0);
-    assert.ok(total >= 9, `expected the data tab's disclosures, found ${total}`);
+    assert.ok(total >= 13, `expected the data tab's disclosures, found ${total}`);
   });
 
   it("has a non-empty summary and a non-empty body", () => {

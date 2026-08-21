@@ -169,7 +169,7 @@ export default function BreakerStateMachine({
 
         {/* The edge that is NOT here, said out loud. */}
         <text x={280} y={195} textAnchor="middle" fontSize={10} fill="var(--text-muted)">
-          there is no half-open → open edge: a failed probe restarts the count from one
+          no half-open → open edge: a failed probe restarts the count from one
         </text>
       </svg>
 
@@ -221,7 +221,7 @@ export default function BreakerStateMachine({
         <summary>What a closure proves, and why half-open reads zero</summary>
         <p className="research-note">
           <strong>Half-open is a moment, not a resting state.</strong> The dispatch gate retires an
-          elapsed cooldown on the next call that touches the provider, so a permanent zero there is
+          elapsed cooldown on the next call to the provider, so a permanent zero there is
           correct.
         </p>
         <p className="research-note">

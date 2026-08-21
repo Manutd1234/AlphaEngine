@@ -1,0 +1,116 @@
+/* Research density pass — 2026-08-22.
+ *
+ * One partial per tab so eight parallel agents never share a file, named 14b–14i
+ * so the lexicographic order globals-manifest.test.ts pins slots them after the
+ * partials whose selectors they override and before the terminal
+ * 15-navigator-and-trailing-layer.css. The owners are on the over-ceiling
+ * ledger and may never grow, which is why these overrides live here at all.
+ *
+ * Desk-width packing only: every rule in this file must sit inside a
+ * min-width media query, so phones keep the single-column flow.
+ */
+
+/* What this pass measured before writing a rule, so the next reader does not
+ * re-survey. Research is the split-pane surface: a 310px control sidebar and
+ * one evidence section at a time in a scrolling right pane (~890px at a
+ * 1280px viewport). Most of the density work was already done before this
+ * pass: `.compact-grid-2col` pairs by CONTAINER width (auto-fit over a 360px
+ * floor, partial 01), so the Summary chart pair, both Attribution panes and
+ * the Decision gate/sizing pair are genuinely two-across at 1280 already; the
+ * quality breakdown goes two-column inside any card wider than 620px, and the
+ * tile rows are container-queried. What was left stacked at 1280: the two
+ * parameter panels, and the walk-forward card's chart sitting above its own
+ * four gauge tiles. Those two rows are what this file packs.
+ *
+ * Refused, with reasons, so a later agent does not force them:
+ *   - provenance capsule beside the verdict card on Summary: the capsule sits
+ *     OUTSIDE the stale gate on purpose (reading the old result's provenance
+ *     is what someone facing the veil does) and the verdict sits inside it —
+ *     a shared row would put one veil across that boundary;
+ *   - verdict card beside the stat tiles: the verdict is the section's
+ *     headline answer, stated full-measure before any chart on purpose;
+ *     halved, its one-sentence verdict wraps and reads as a peer of its own
+ *     supporting tiles;
+ *   - signal path beside the corpus on Lineage: five stages carry a 176px
+ *     floor each (~900px of track), so a half-width column hides half the
+ *     pipeline behind a horizontal scroll — on the one panel whose point is
+ *     the path's shape at a glance;
+ *   - run history beside the favourites combiner: the workspace pins the
+ *     order — favourites BELOW the log it draws from, because a combine
+ *     control beside unread history has nothing to point at yet;
+ *   - quality score beside the promotion gate or sizing: the score ranks and
+ *     the gate vetoes, and both panels document that side by side they read
+ *     as two rival verdicts on one run — the vertical order is the argument;
+ *   - fitted-model capsule beside its corpus tiles or run table: the
+ *     capsule's four-track field grid clips "0 purged, 0 embargoed" mid-word
+ *     below ~160px per track (partial 01 records the defect), which is
+ *     exactly what half width would reintroduce;
+ *   - strategy doc card beside the codex: the codex grid drops from three
+ *     columns to one beside a half-width neighbour and grows taller than the
+ *     ~260px doc card it would absorb — a net loss.
+ */
+@media (min-width: 1280px) {
+  /* Parameters: the stability surface and the candidate ranking are two
+   * selection handles on the same sweep — the heatmap's cells and the
+   * table's rows both feed inspectCombo — so they work as one bench, not a
+   * queue. The ranking track is the wider one: its ten columns want measure,
+   * while the heatmap draws itself to whatever width its card gives it. The
+   * table keeps every column, behind its own focusable .table-wrap scroll
+   * where the width does run out; nothing is truncated. */
+  #panel-research .research-param-pair {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    column-gap: var(--space-3);
+    /* A table pair has nothing to put on a shared baseline — the same call
+     * partial 12 records for the other table pairs on this tab. */
+    align-items: start;
+  }
+
+  /* Fewer than four results renders no stability panel at all, and a lone
+   * ranking card must not sit in half a row. */
+  #panel-research .research-param-pair > .card:only-child {
+    grid-column: 1 / -1;
+  }
+
+  /* The contract `.compact-grid-2col > *` already carries: each half-width
+   * card is the container its own contents measure against, so the stability
+   * tile row falls to two-across inside it (03-research-lab's 620px container
+   * query) rather than staying four-across at ~105px per tile. */
+  #panel-research .research-param-pair > * {
+    container-type: inline-size;
+  }
+
+  /* Walk-forward: the fold chart and the four gauge tiles that summarise it
+   * are one reading — the tiles ARE the chart's totals — and stacked they
+   * spent ~320px where the taller of the two needs ~215px. The legend rides
+   * in the chart's cell so the key stays with the drawing it keys. */
+  #panel-research .walkforward-flank {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    column-gap: var(--space-4);
+    align-items: start;
+  }
+
+  /* Two-across beside the chart — the same form the tiles already take on a
+   * 720px viewport — instead of four 85px slivers in a 360px cell. Stated
+   * directly rather than through a container query because the flank cell is
+   * not a container and does not need to become one for one rule. */
+  #panel-research .walkforward-flank > .stability-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Rhythm: the reproducibility capsule carried 16px below it, twice the 8px
+   * the standardisation layer gives every card on this tab. Scoped to the
+   * Summary capsule (a direct child of its panel); the copy inside the
+   * fitted-models card keeps its 16px, where two bordered blocks need the
+   * wider seam to read as two regions (03-research-lab records why). */
+  #panel-research .workspace-subtab-panel > .research-provenance {
+    margin-bottom: var(--space-2);
+  }
+
+  /* The Attribution pane switcher closes ranks to the tab's 8px rhythm, the
+   * same step Execution's segs took in 14d. Phones keep their 12px. */
+  #panel-research .workspace-subtab-panel > .seg {
+    margin-bottom: var(--space-2);
+  }
+}

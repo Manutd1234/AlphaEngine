@@ -220,8 +220,8 @@ export default function Heatmap({
         </span>
         <span className="muted heatmap-legend__hint" style={{ fontSize: "var(--fs-body)" }}>
           {showKinds
-            ? "click a cell to inspect those parameters"
-            : "grey = no edge; click a cell to inspect those parameters"}
+            ? "click a cell for its parameters"
+            : "grey = no edge; click a cell for its parameters"}
         </span>
       </div>
 

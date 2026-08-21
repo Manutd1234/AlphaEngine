@@ -46,9 +46,9 @@ type PositionsPane = "holdings" | "shape" | "exit";
  * split and becomes a second navigation the reader has to learn.
  */
 const POSITIONS_PANES: Array<{ id: PositionsPane; label: string; hint: string }> = [
-  { id: "holdings", label: "Holdings", hint: "Every open position, what it is worth, and the actions on it" },
+  { id: "holdings", label: "Holdings", hint: "Every open position, its worth, and the actions on it" },
   { id: "shape", label: "Shape", hint: "Weight against each symbol's own cap, and how unrealised P&L is spread" },
-  { id: "exit", label: "Exit", hint: "What getting out costs at a chosen participation rate, and the orders already working" },
+  { id: "exit", label: "Exit", hint: "What exiting costs at a chosen participation rate, and the orders already working" },
 ];
 
 export interface PositionsSectionProps {
@@ -225,8 +225,8 @@ export default function PositionsSection({
               <strong>No open positions</strong>
               <p>
                 {isStale
-                  ? "The last successful snapshot was flat. Reconnect before relying on current exposure."
-                  : "The gateway is connected and the book is flat."}
+                  ? "Last successful snapshot was flat; reconnect before relying on current exposure."
+                  : "The gateway is connected; the book is flat."}
               </p>
               <button onClick={() => onFocusSymbol(selectedSymbol, "research")}>Open research workspace</button>
             </div>
@@ -258,8 +258,14 @@ export default function PositionsSection({
               in the condition an order poll would keep hitting the gateway
               behind a tab nobody is looking at, which is what it did while
               every Positions card shared one scroll. */}
+          {/* The book's own source and nothing else. `isStale` used to map to
+              "unavailable", so during an outage this panel said "No gateway in
+              this deployment" while BookChrome, reading the same fact, said
+              "stale" — one fact in two vocabularies. Staleness of the resting
+              book is now the panel's own machine's finding, and the book's
+              staleness still locks writes through `isStale` below. */}
           <WorkingOrders
-            source={book.sandbox ? "sandbox" : isStale ? "unavailable" : "live"}
+            source={book.sandbox ? "sandbox" : "live"}
             focusSymbol={selectedSymbol}
             isStale={isStale}
             active={sectionActive && positionsPane === "exit"}

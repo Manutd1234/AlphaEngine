@@ -1,0 +1,116 @@
+/* Data density pass — 2026-08-22.
+ *
+ * One partial per tab so eight parallel agents never share a file, named 14b–14i
+ * so the lexicographic order globals-manifest.test.ts pins slots them after the
+ * partials whose selectors they override and before the terminal
+ * 15-navigator-and-trailing-layer.css. The owners are on the over-ceiling
+ * ledger and may never grow, which is why these overrides live here at all.
+ *
+ * Desk-width packing only: every rule in this file must sit inside a
+ * min-width media query, so phones keep the single-column flow.
+ */
+
+/* What this pass found, so the next one does not re-survey. The Data tab has
+ * already been through three deliberate consolidations, and most of what looks
+ * pairable was UN-paired on purpose, with tests pinning the decision:
+ * incidents (outage + quarantine) and the response pane's latency + quota
+ * cards already share rows, the work board is a four-column grid, and the
+ * evidence and scope tiles are four-up grids inside their sections. What was
+ * left: one pair of peer contract-validation cards stacked in the Composition
+ * pane, a 16px pane rhythm sitting above the tab's own 8px base, two monitor
+ * cards padded past the house card token, a 132px reservation on the operator
+ * action cards, and a 90px reservation under every empty work-board column
+ * that duplicates the empty-state box beneath it.
+ *
+ * Refused, with reasons, so a later agent does not force them:
+ *   - failover chain beside the quota meters: data-provider-panes.test.ts
+ *     pins the un-pairing (`compact-grid-2col` banned from the panel) and the
+ *     full-width chain has its own deliberate sizing rule;
+ *   - cross-source check beside the quality ledger: DataConsole records the
+ *     refusal in place — the ledger's seven-column table was drawn for the
+ *     whole panel, and the consensus legs need their columns;
+ *   - freshness monitor beside the contracts monitor: un-paired in the feeds
+ *     consolidation for the same six- and five-column table squeeze, and the
+ *     panes are now conditional renders, never siblings;
+ *   - pipeline inspector beside replay/backfill: two wide table-bearing
+ *     consoles (a six-column job table beside trace tables);
+ *   - contracts monitor beside the operator path: the action cards are the
+ *     response to the evidence above them — a summary stays above its detail;
+ *   - hero beside the scope tiles: the verdict is the tab's headline and
+ *     reads full-width before any figure;
+ *   - scope tiles beside evidence tiles: each is one row of four ~290px
+ *     tiles; side by side they become 2×2 grids and the save is one heading
+ *     (~40px) against tiles too narrow for their nowrap values;
+ *   - quota meter rows two-up inside the Budget pane: DataConsole documents
+ *     giving the meters back their full width, and the row is a shared list
+ *     grammar with the Systems console.
+ */
+
+@media (min-width: 1100px) {
+  /* The pane stack ran at 16px between seg, hero, tile sections and cards —
+   * twice the 8px the standardisation layer gives the rest of this tab
+   * (`.data-control-plane > * + *`). Four gaps on the verdict pane alone. */
+  .data-control-plane .data-trust-overview {
+    gap: var(--space-2);
+  }
+
+  /* The seg switchers that sit directly in a subtab panel (providers), on the
+   * same 8px rhythm. Scoped to this tab so no other panel's seg moves. */
+  .data-control-plane .workspace-subtab-panel > .seg {
+    margin-bottom: var(--space-2);
+  }
+
+  /* Routing pane: failover graph to reliability-handoff seam, 16px to 8px. */
+  .data-control-plane .data-console-stack {
+    gap: var(--space-2);
+  }
+
+  /* The two monitor cards pad 16px all round; the house card token spends
+   * 11px vertically (`--card-pad-y`) and keeps the 16px gutter. Same rhythm,
+   * two cards, ~10px back each. */
+  .data-control-plane .data-trust-monitor {
+    padding-block: var(--card-pad-y);
+  }
+
+  /* The verdict hero at 18px vertical padding was the tallest seam on its
+   * pane; 14px keeps it the headline without a fifth of it being plane. */
+  .data-control-plane .data-trust-hero {
+    padding-block: 14px;
+  }
+
+  /* 132px was reserved so three action cards level up; sharing one grid row
+   * they stretch to the tallest content anyway, so the reservation only pays
+   * when every card is short — which is exactly when it is not needed. */
+  .data-control-plane button.data-trust-action {
+    min-height: 0;
+  }
+
+  /* An empty board column reserved 90px of list on top of the 92px dashed
+   * empty-state box directly beneath it — the box says "No work in this
+   * stage"; the blank list above it said nothing. */
+  .data-control-plane .data-work-column__list:empty {
+    min-height: 0;
+  }
+}
+
+@media (min-width: 1280px) {
+  /* Composition pane: the payload-verdict ring and the per-provider breakdown
+   * both wear the "Contract validation" kicker — two views of one window's
+   * counters — and stacked they spent ~560px where their shared row spends
+   * ~330px. `auto-fit` because the per-provider card withholds itself when
+   * nothing was evaluated: the survivor then takes the whole row rather than
+   * half of it. `align-items: start` — neither card can fill slack, and
+   * opening one card's disclosure must not stretch its neighbour. Below this
+   * breakpoint the wrapper is a plain div and the stack is untouched. */
+  .data-trust-contract-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+    gap: var(--space-2) var(--space-4);
+    align-items: start;
+  }
+
+  .data-trust-contract-row > .card {
+    min-width: 0;
+    margin-bottom: 0;
+  }
+}

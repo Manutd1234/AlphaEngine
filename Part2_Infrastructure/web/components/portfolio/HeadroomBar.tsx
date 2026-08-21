@@ -137,7 +137,7 @@ export default function HeadroomBar({
       value: pct(bindingUtilisation, 1),
       limit: "of limit",
       utilisation: bindingUtilisation,
-      detail: "reported by the gateway as the tightest constraint",
+      detail: "the gateway's reported tightest constraint",
       binding: true,
     });
   }

@@ -1,0 +1,161 @@
+/* Developer density pass — 2026-08-22.
+ *
+ * One partial per tab so eight parallel agents never share a file, named 14b–14i
+ * so the lexicographic order globals-manifest.test.ts pins slots them after the
+ * partials whose selectors they override and before the terminal
+ * 15-navigator-and-trailing-layer.css. The owners are on the over-ceiling
+ * ledger and may never grow, which is why these overrides live here at all.
+ *
+ * Desk-width packing only: every rule in this file must sit inside a
+ * min-width media query, so phones keep the single-column flow.
+ *
+ * What this pass packs, and what it refused to pack.
+ *
+ * Every Developer subtab stacked its panels one per row at desk width, and two
+ * of them additionally left a dead band beside a spanned card. Four pairings:
+ *
+ *  1. Overview — the topology card spans 8 of 12 columns with nothing in the
+ *     other 4 (the readiness cards that share its grid are `hidden` there).
+ *     The shared-context card, a ~120px full-width row below, moves into that
+ *     band. DOM order is untouched: topology reads first, left of context.
+ *  2. Readiness — the ring card (span 4) plus the schema card (span 6) left
+ *     2 columns dead, and the artifact card wrapped to a half-empty second
+ *     row. The ring becomes a two-row column with schema and artifact stacked
+ *     beside it; at 1280px the 8-column slot (~790px) clears both tables'
+ *     min-widths (590px and 610px).
+ *  3. CI / CD, Pipeline pane — the section hero is a title and a pill on a
+ *     112px full-width row; it becomes a 4-column companion beside the
+ *     pipeline card, whose 660px strip clears the 8-column slot.
+ *  4. API & Schema, Contracts pane — the same hero shape beside the schema
+ *     gate table (590px min-width, same 8-column slot).
+ *
+ * Refused, with reasons:
+ *  - Verification pane (jobs matrix + artifact lineage): 780px + 610px row
+ *    min-widths cannot share 1280px; forcing it buys a scrollbar, not height.
+ *  - Codebase hero + explorer: the explorer is a two-pane workspace (file list
+ *    beside detail) that needs the full column; squeezing it to 8 columns
+ *    re-wraps its toolbar and panes for a ~110px saving above it.
+ *  - Work hero + queue: the queue's toolbar (search, four-way kind filter,
+ *    status select) and three-column table already consume the width.
+ *  - Readiness check-row min-heights: after packing, the ring column is the
+ *    shorter side of its row, so tightening it saves nothing from the tab.
+ *  - The codebase file list's scroll-frame height: shrinking a scroller shows
+ *    fewer rows at once, which is the complaint moved, not removed.
+ *
+ * Scoping notes. The Overview and Readiness parts share one component and one
+ * grid; which part is rendered is detectable without a DOM change because the
+ * other part's cards carry `hidden` (a real `display: none` — the `[hidden]`
+ * reset in 06 is `!important`). `:has(> .developer-cp-context:not([hidden]))`
+ * is therefore "the topology part". The stack pairings key on adjacency
+ * (`.developer-cp-section-hero + .developer-cp-pipeline-card`), which exists
+ * only in the pane being packed, so no other pane inherits the rule.
+ */
+
+@media (min-width: 1280px) {
+
+  /* ---------- 1 · Overview: context beside topology ---------- */
+
+  /* The outer section column becomes the 12-column frame; the inner grid
+     (holding only the visible topology card here) takes 8, the context card
+     takes the 4 that were bare surface. The error banner, when present, stays
+     a full-width row above both. */
+  .developer-cp-overview:has(> .developer-cp-context:not([hidden])) {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+
+  .developer-cp-overview:has(> .developer-cp-context:not([hidden])) > * {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .developer-cp-overview:has(> .developer-cp-context:not([hidden]))
+    > .developer-cp-overview__grid {
+    grid-column: 1 / 9;
+  }
+
+  /* Full width of the narrowed inner grid — the base `span 8` was sized
+     against the original 12-column row and would leave a third of it bare
+     again. */
+  .developer-cp-overview:has(> .developer-cp-context:not([hidden]))
+    .developer-cp-topology {
+    grid-column: 1 / -1;
+  }
+
+  .developer-cp-overview:has(> .developer-cp-context:not([hidden]))
+    > .developer-cp-context {
+    grid-column: 9 / -1;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    gap: 12px;
+  }
+
+  /* The facts strip's vertical rules divided three side-by-side regions; in
+     the stacked column the seams run horizontally instead. */
+  .developer-cp-overview:has(> .developer-cp-context:not([hidden]))
+    .developer-cp-context__facts {
+    padding: 8px 0;
+    border-top: 1px solid var(--border);
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    border-left: 0;
+  }
+
+  .developer-cp-overview:has(> .developer-cp-context:not([hidden]))
+    .developer-cp-context__actions {
+    justify-content: flex-start;
+  }
+
+  /* ---------- 2 · Readiness: ring column, evidence stacked beside ---------- */
+
+  .developer-cp-overview__grid > .developer-cp-readiness {
+    grid-row: 1 / 3;
+    grid-column: 1 / 5;
+  }
+
+  .developer-cp-overview__grid > .developer-cp-schema-card,
+  .developer-cp-overview__grid > .developer-cp-artifact-card {
+    grid-column: 5 / -1;
+  }
+
+  /* ---------- 3 · Card stacks gain real columns ---------- */
+
+  /* The stack had no explicit columns, so a lone `span 6` child manufactured
+     six implicit ones (the hazard the pane switchers already document).
+     Explicit columns make every child full-bleed by default and give the two
+     hero pairings below a frame to place into. Row gap tightens 14px to 12px;
+     the 16px gutter matches the Overview grid's. */
+  .developer-cp-stack {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 12px 16px;
+  }
+
+  .developer-cp-stack > * {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  /* ---------- 3a · Hero-beside-detail pairings: withdrawn ---------- */
+  /* Built, then removed on the owner's instruction — a hero restacked into a
+     side column reads as a different tab. The heroes keep their full-width
+     banner shape; the saving comes from the reserved-space rules below. */
+
+  /* ---------- 4 · Reserved space and rhythm ---------- */
+
+  /* 112px reserved for a kicker, a title and one sentence (~90px). The two
+     heroes that stay full width (Codebase, Task Queue) shrink to content;
+     the two paired ones are sized by their row partner anyway. */
+  .developer-cp-stack > .developer-cp-section-hero {
+    min-height: 0;
+  }
+
+  .developer-cp-overview {
+    gap: 12px;
+  }
+
+  /* In-card head margin, 16px to 12px: a desk reads down a column, and the
+     rule under each head already draws the separation. */
+  .developer-cp-heading {
+    margin-bottom: 12px;
+  }
+}

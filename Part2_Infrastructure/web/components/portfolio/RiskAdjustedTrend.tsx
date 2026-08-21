@@ -138,7 +138,7 @@ export default function RiskAdjustedTrend({
           </div>
         </div>
         <p className="muted">
-          The equity track holds fewer than two observations, so there is no path to measure yet.
+          The equity track holds fewer than two observations, so no path to measure yet.
         </p>
       </section>
     );
@@ -156,24 +156,34 @@ export default function RiskAdjustedTrend({
         </span>
       </div>
 
-      <div className="field">Drawdown from high-water mark</div>
-      <Plot
-        values={underwater.map((p) => p.drawdown)}
-        times={underwater.map((p) => p.t)}
-        format={(v) => pct(v, 1)}
-        label="Drawdown from the running high-water mark"
-        tone="var(--diverging-neg)"
-        fill
-      />
+      {/* Structural wrapper only: each label stays welded to its plot, and the
+          pair shares one row at desk width (the grid lives in
+          14f-density-portfolio.css). Below that breakpoint the wrapper is a
+          plain block and the two stack exactly as they always did. */}
+      <div className="portfolio-trend-pair">
+        <div>
+          <div className="field">Drawdown from high-water mark</div>
+          <Plot
+            values={underwater.map((p) => p.drawdown)}
+            times={underwater.map((p) => p.t)}
+            format={(v) => pct(v, 1)}
+            label="Drawdown from the running high-water mark"
+            tone="var(--diverging-neg)"
+            fill
+          />
+        </div>
 
-      <div className="field">Rolling Sharpe, per observation</div>
-      <Plot
-        values={sharpe.map((p) => p.sharpe)}
-        times={sharpe.map((p) => p.t)}
-        format={(v) => v.toFixed(2)}
-        label="Rolling Sharpe ratio per observation over the equity track"
-        tone="var(--series-1)"
-      />
+        <div>
+          <div className="field">Rolling Sharpe, per observation</div>
+          <Plot
+            values={sharpe.map((p) => p.sharpe)}
+            times={sharpe.map((p) => p.t)}
+            format={(v) => v.toFixed(2)}
+            label="Rolling Sharpe ratio per observation over the equity track"
+            tone="var(--series-1)"
+          />
+        </div>
+      </div>
 
       {/* The generated marker LEFT the paragraph rather than folding with it.
           It was a trailing clause on a methodology note; a reader who never

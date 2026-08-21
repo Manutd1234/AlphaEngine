@@ -104,7 +104,7 @@ export default function VarBacktestChart({
     <div className="card var-backtest">
       <p className="console-subhead">
         Forecast against realised
-        <small className="muted"> — where the model was breached, and whether the breaches clustered.</small>
+        <small className="muted"> — where the model was breached, and whether breaches clustered.</small>
       </p>
 
       <div className="legend" style={{ marginBottom: 4 }}>
@@ -297,8 +297,8 @@ export default function VarBacktestChart({
         <summary>Exception days ({exceptions.length})</summary>
         {exceptions.length === 0 ? (
           <p className="research-note">
-            No day in this window lost more than its own forecast. At 95% a model that is never
-            breached is usually too wide.
+            No day in this window lost more than its own forecast. At 95% a model never breached
+            is usually too wide.
           </p>
         ) : (
           <div className="table-wrap" tabIndex={0}>

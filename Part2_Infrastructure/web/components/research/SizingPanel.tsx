@@ -156,7 +156,7 @@ export default function SizingPanel({ best, gate, equity }: SizingPanelProps) {
               <>
                 <strong>Payoff ratio is undefined, not infinite.</strong> No losing trades to
                 measure against ({best.trades} trade{best.trades === 1 ? "" : "s"}), so it is sized
-                to zero until there is a loss to divide by.
+                to zero until a loss exists to divide by.
               </>
             ) : sizing.cappedBy === "no_edge" ? (
               <>

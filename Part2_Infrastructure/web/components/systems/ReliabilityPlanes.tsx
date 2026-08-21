@@ -66,7 +66,7 @@ function providerSignal(provider: ProviderRow): {
   if (!provider.configured) {
     return {
       label: "Not configured",
-      detail: `Set ${provider.keyEnv} to enable this provider.`,
+      detail: `Set ${provider.keyEnv} to enable it.`,
       tone: "warn",
     };
   }
@@ -128,8 +128,14 @@ export default function ReliabilityPlanes({
   const [pane, setPane] = useState<DependencyPane>("map");
   const { health, healthError } = view;
   const providers = health?.providers ?? [];
-  const configuredProviders = providers.filter((provider) => provider.configured).length;
-  const routableProviders = providers.filter((provider) => provider.ready).length;
+  /**
+   * The snapshot builder's own counts, not a client-side re-derivation. The
+   * chrome tile one section over prints `summary.ready/summary.total`, and a
+   * second `providers.filter(...)` here agrees with it only while the server's
+   * readiness rule and this filter happen to coincide — the builder is the one
+   * place that decides what "ready" means, so both surfaces read it.
+   */
+  const summary = health?.summary;
   const platform = health?.platform;
   const slowestRoute = platform?.route_latency.routes.reduce<GatewayOpsSnapshot["route_latency"]["routes"][number] | null>(
     (slowest, route) => !slowest || route.p95_ms > slowest.p95_ms ? route : slowest,
@@ -148,7 +154,7 @@ export default function ReliabilityPlanes({
       : gatewayState === "unreachable" ? "Unreachable"
       : gatewayState === "not_configured" ? "Not configured"
       : "—",
-    note: health?.sources?.gateway?.detail ?? "one FastAPI process; there is no fleet to count",
+    note: health?.sources?.gateway?.detail ?? "one FastAPI process; no fleet to count",
   };
 
   /**
@@ -190,8 +196,8 @@ export default function ReliabilityPlanes({
         </div>
         <div>
           <span>Provider APIs routable</span>
-          <strong>{health ? `${routableProviders}/${providers.length}` : "—"}</strong>
-          <small>{health ? `${configuredProviders} configured` : "registry not observed"}</small>
+          <strong>{summary ? `${summary.ready}/${summary.total}` : "—"}</strong>
+          <small>{summary ? `${summary.configured} configured` : "registry not observed"}</small>
         </div>
         <div>
           <span>Slowest route p99</span>
@@ -271,7 +277,7 @@ export default function ReliabilityPlanes({
           <summary>What Idle means, and what gets probed</summary>
           <p className="reliability-window-note">
             Idle means configured, within quota, no open circuit and no call in the fifteen-minute
-            window. Only OpenBB is probed automatically; probing every paid API on each refresh
+            window. Only OpenBB is probed automatically; probing every paid API each refresh
             would spend quota.
           </p>
         </details>

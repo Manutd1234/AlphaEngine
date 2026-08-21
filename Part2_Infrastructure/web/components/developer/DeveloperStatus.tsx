@@ -103,6 +103,14 @@ export function StatusPill({
   );
 }
 
+/**
+ * The immediate, per-packet reading. `healthError` is a transient the shared
+ * poll sets on any failure and clears on any success, so rendered raw this
+ * flips with each packet. The tab renders it only through
+ * `useWorkspaceHealth`, which holds Degraded until `PROMOTION_STREAK`
+ * consecutive successes — `tests/developer-stability.test.ts` pins both the
+ * hold and this function's single-caller status.
+ */
 export function workspaceState(view: SystemHealthView): ControlState {
   if (view.healthError) return { label: "Degraded", detail: view.healthError, tone: "bad" };
   if (!view.health) return { label: "Checking", detail: "Waiting for the shared health snapshot.", tone: "info" };
@@ -112,7 +120,7 @@ export function workspaceState(view: SystemHealthView): ControlState {
 export function gatewayState(view: SystemHealthView): ControlState {
   const source = view.health?.sources?.gateway;
   const platform = view.health?.platform;
-  if (!view.health) return { label: "Checking", detail: "Gateway health has not arrived yet.", tone: "info" };
+  if (!view.health) return { label: "Checking", detail: "Waiting for gateway health.", tone: "info" };
   if (!platform) {
     const off = source?.state === "not_configured";
     const offline = "FastAPI gateway offline; start it with 'python -m uvicorn main:app --port 8000'.";
@@ -182,14 +190,19 @@ export function artifactCustodyState(view: SystemHealthView): ControlState {
 
 export function openBBState(view: SystemHealthView): ControlState {
   const provider = view.health?.providers.find((item) => item.id === "openbb");
-  if (!view.health) return { label: "Checking", detail: "Provider health has not arrived yet.", tone: "info" };
+  if (!view.health) return { label: "Checking", detail: "Waiting for provider health.", tone: "info" };
   if (!provider?.configured) return { label: "Off", detail: provider?.statusDetail ?? "OpenBB is not configured.", tone: "off", unmeasured: true };
   if (!provider.ready) return { label: "Degraded", detail: provider.statusDetail, tone: "warn" };
   return { label: "Healthy", detail: provider.statusDetail, tone: "good" };
 }
 
-export function stateForDeployable(id: string, view: SystemHealthView): ControlState {
-  if (id === "workspace") return workspaceState(view);
+/**
+ * `workspace` is the settled reading from `useWorkspaceHealth`, required
+ * rather than derived here so a caller cannot quietly fall back to the
+ * per-packet one and flap beside sections that hold.
+ */
+export function stateForDeployable(id: string, view: SystemHealthView, workspace: ControlState): ControlState {
+  if (id === "workspace") return workspace;
   if (id === "gateway") return gatewayState(view);
   return openBBState(view);
 }
@@ -252,8 +265,8 @@ export function SchemaGateTable({ view, compact = false }: { view: SystemHealthV
   );
 }
 
-export function ArtifactLineage({ view, compact = false }: { view: SystemHealthView; compact?: boolean }) {
-  const states = Object.fromEntries(DEPLOYABLES.map((item) => [item.id, stateForDeployable(item.id, view)]));
+export function ArtifactLineage({ view, workspace, compact = false }: { view: SystemHealthView; workspace: ControlState; compact?: boolean }) {
+  const states = Object.fromEntries(DEPLOYABLES.map((item) => [item.id, stateForDeployable(item.id, view, workspace)]));
   return (
     <div className={`developer-cp-artifacts${compact ? " is-compact" : ""}`} role="table" aria-label="Deployment artifact lineage">
       <div className="developer-cp-artifacts__row is-head" role="row">

@@ -47,7 +47,7 @@ export const API_OPERATIONS: readonly ApiOperation[] = [
   { method: "GET", path: "/api/gateway/research/graph/{id}", purpose: "Documents connected to one research document", group: "gateway" },
   { method: "GET", path: "/api/gateway/orders", purpose: "Order blotter from the authoritative gateway", group: "gateway" },
   { method: "POST", path: "/api/gateway/orders", purpose: "Risk-gated paper-order submission", group: "gateway" },
-  { method: "GET", path: "/api/gateway/orders/working", purpose: "Orders resting on the book right now", group: "gateway" },
+  { method: "GET", path: "/api/gateway/orders/working", purpose: "Orders resting on the book now", group: "gateway" },
   { method: "POST", path: "/api/gateway/orders/{id}/cancel", purpose: "Pull one resting order (operator-gated)", group: "gateway" },
   { method: "POST", path: "/api/gateway/orders/{id}/replace", purpose: "Cancel-and-new at a fresh limit (operator-gated)", group: "gateway" },
   { method: "GET", path: "/api/gateway/portfolio", purpose: "Authoritative portfolio and risk state", group: "gateway" },
@@ -118,7 +118,7 @@ export default function DeveloperApiCatalog() {
       await navigator.clipboard.writeText(command);
       setAnnouncement(`Copied ${operation.method} ${operation.path}.`);
     } catch {
-      setAnnouncement("Clipboard access was blocked; select the path directly instead.");
+      setAnnouncement("Clipboard access was blocked; select the path instead.");
     }
   };
 

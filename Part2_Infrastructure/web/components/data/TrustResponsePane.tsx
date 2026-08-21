@@ -113,7 +113,7 @@ export default function TrustResponsePane({ health }: { health: SystemHealth | n
           <p className="research-note">
             A minute with fewer than {latencyWindow?.minSamplesPerBucket ?? 3} calls is drawn as
             a gap, not bridged. A source shown as <strong>p95 n/a</strong> — the gateway probe
-            is one — has no aggregate on the wire, so its sample count comes from the
+            is one — publishes no aggregate, so its sample count comes from the
             window&rsquo;s own buckets.
           </p>
         </details>

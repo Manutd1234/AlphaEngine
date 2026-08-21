@@ -48,7 +48,7 @@ const DEVELOPER_WORK_SEEDS: readonly DeveloperWorkSeed[] = [
     priority: "P1",
     status: "progress",
     title: "Terminate TLS in front of the gateway",
-    summary: "Caddy sidecar with a pinned internal CA now deploys on :8443; remaining: open OCI ingress and flip ALPHAENGINE_GATEWAY_URL per docs/TLS_FLIP.md.",
+    summary: "Caddy sidecar with a pinned internal CA now deploys on :8443; remaining: open OCI ingress and flip ALPHAENGINE_GATEWAY_URL per docs/engineering/TLS_FLIP.md.",
     owner: "Ian",
     area: "Infrastructure",
     ageHours: 6,

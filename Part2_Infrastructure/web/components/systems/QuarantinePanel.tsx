@@ -202,14 +202,25 @@ export default function QuarantinePanel({
 
       {/* The payload types are named by the count above; repeating them here was
           the same list twice on one screen. The redaction sentence held for both
-          branches, so it is stated once after them rather than inside each. */}
-      <p className="research-note">
-        Scope:{" "}
-        {validation?.scope === "gateway-ledger"
-          ? "the counts are the gateway's durable ledger, merged across instances and kept across restarts; the excerpts are this instance's bounded buffer."
-          : "this health-route instance only, bounded in memory — not every route, provider, symbol or instance."}{" "}
-        Rejected payloads were never cached; excerpts follow the redaction rules.
-      </p>
+          branches, so it is stated once after them rather than inside each.
+
+          Folded, not cut. Both halves are static provenance — where the counts
+          come from and how an excerpt is produced — which is the same shape as
+          the wire tap's "Where these frames are captured" and folds for the
+          same reason. Nothing evidential moved: the evaluated/passed figures,
+          both empty states and every flagged excerpt above are untouched and at
+          rest, and the summary names both halves so a reader can tell from the
+          closed line whether they need it. */}
+      <details className="disclosure">
+        <summary>What these counts cover, and how excerpts are handled</summary>
+        <p className="research-note">
+          Scope:{" "}
+          {validation?.scope === "gateway-ledger"
+            ? "the counts are the gateway's durable ledger, merged across instances, kept across restarts; the excerpts are this instance's bounded buffer."
+            : "this health-route instance only, bounded in memory — not every route, provider, symbol or instance."}{" "}
+          Rejected payloads were never cached; excerpts follow the redaction rules.
+        </p>
+      </details>
     </div>
   );
 }

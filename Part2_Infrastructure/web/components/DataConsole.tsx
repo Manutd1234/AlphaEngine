@@ -382,7 +382,7 @@ export default function DataConsole({
           onMutation={onWorkMutation}
           pendingWrites={pendingWorkWrites}
           readOnly={guard === "locked"}
-          readOnlyReason={guard === "locked" ? "Operator actions are disabled on this deployment, so the queue is read-only here." : undefined}
+          readOnlyReason={guard === "locked" ? "Operator actions are disabled on this deployment, so this queue is read-only." : undefined}
         />
         {workNotice && <p className="sr-only" role="status" aria-live="polite">{workNotice}</p>}
       </WorkspaceSubtabPanel>

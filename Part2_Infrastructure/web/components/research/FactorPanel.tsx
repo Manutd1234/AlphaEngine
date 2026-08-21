@@ -107,8 +107,8 @@ export default function FactorPanel({ report }: { report: FactorReport | null })
           <span aria-hidden>!</span>
           <div>
             <strong>Alpha is not statistically distinguishable from zero</strong> (|t| ={" "}
-            {fmt(Math.abs(r.alphaTStat), 2)}, below {T_SIGNIFICANT}). The part not explained by
-            market, trend and volatility exposure is within the noise of this sample.
+            {fmt(Math.abs(r.alphaTStat), 2)}, below {T_SIGNIFICANT}). What market, trend and
+            volatility exposure do not explain is within this sample&apos;s noise.
           </div>
         </div>
       )}
@@ -116,7 +116,7 @@ export default function FactorPanel({ report }: { report: FactorReport | null })
       <div className="table-wrap" tabIndex={0} style={{ marginTop: 14 }}>
         <table>
           <caption className="sr-only">
-            Factor loadings with t-statistics, p-values and a bar showing relative magnitude.
+            Factor loadings with t-statistics, p-values and a relative-magnitude bar.
           </caption>
           <thead>
             <tr>

@@ -110,13 +110,19 @@ export default function TearSheet({
         </span>
       </div>
 
-      <p className="console-subhead">
-        Monthly returns
-        <small className="muted">
-          {" "}— compounded within each calendar month, so a partial first or last month is shorter
+      <p className="console-subhead">Monthly returns</p>
+      {/* The grid's construction rule, not one of its cells. Every figure the
+          grid carries stays on screen; what folds is how a month is added up
+          and why the first and last one may cover fewer bars. The words are the
+          heading's old trailing clause, which loses only the em dash that
+          joined it to "Monthly returns". */}
+      <details className="disclosure">
+        <summary>How a calendar month is totalled</summary>
+        <p className="research-note">
+          Compounded within each calendar month, so a partial first or last month is shorter
           than the rest.
-        </small>
-      </p>
+        </p>
+      </details>
 
       {years.length === 0 ? (
         <p className="sub">No completed month in this window.</p>

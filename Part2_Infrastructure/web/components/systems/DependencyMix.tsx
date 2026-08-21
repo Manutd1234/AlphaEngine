@@ -141,7 +141,7 @@ export default function DependencyMix({
             centreValue={String(total)}
             centreLabel="components"
             ariaLabel="Dependency components by observed state"
-            emptyNote="No health snapshot yet, so there is no topology to compose."
+            emptyNote="No health snapshot yet, so no topology to compose."
           />
         </div>
         <div>
@@ -164,7 +164,7 @@ export default function DependencyMix({
           when last asked, and says nothing about the hour before.
         </p>
         <p className="research-note">
-          <strong>Grey is not red.</strong> When the gateway cannot be reached, everything behind it
+          <strong>Grey is not red.</strong> When the gateway is unreachable, everything behind it
           reports <em>not observed</em> rather than <em>down</em>. <em>Not configured</em> is
           likewise not a fault, and a hollow dashed tile is a component this deployment never had.
         </p>

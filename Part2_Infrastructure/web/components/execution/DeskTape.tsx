@@ -1,7 +1,8 @@
 "use client";
 
+import { tapeSurface } from "@/components/execution/tape-view";
 import { describeTape, useDeskTape } from "@/lib/use-desk-tape";
-import { fmt, formatDuration, usd } from "@/lib/format";
+import { formatDuration, usd } from "@/lib/format";
 
 /**
  * The live decision tape.
@@ -18,6 +19,14 @@ import { fmt, formatDuration, usd } from "@/lib/format";
  */
 export default function DeskTape({ symbol }: { symbol: string }) {
   const { state, rows, seen } = useDeskTape(symbol);
+  /**
+   * The table used to render only while `state === "live"`, so a channel drop
+   * replaced every decision already on the tape with the banner — and back
+   * again on the resubscribe, at whatever cadence the socket flapped. The rows
+   * are measured; the decision that they stay on screen through any transport
+   * state is `tapeSurface`, pure so the stability suite can replay the flap.
+   */
+  const surface = tapeSurface(state, rows.length);
 
   return (
     <section className="card desk-tape" aria-labelledby="desk-tape-title">
@@ -51,12 +60,13 @@ export default function DeskTape({ symbol }: { symbol: string }) {
         </p>
       </details>
 
-      {state !== "live" || rows.length === 0 ? (
+      {surface.notice && (
         <p className={state === "unavailable" ? "banner warn" : "muted"} role="status">
           {state === "unavailable" && <span aria-hidden>! </span>}
           {describeTape(state, rows.length)}
         </p>
-      ) : (
+      )}
+      {surface.table && (
         <div className="table-wrap" tabIndex={0}>
           <table>
             <caption className="sr-only">
@@ -90,7 +100,7 @@ export default function DeskTape({ symbol }: { symbol: string }) {
 
       {state === "live" && seen > rows.length && (
         <p className="muted">
-          {seen} decisions seen this session; the {rows.length} most recent are shown.
+          {seen} decisions seen this session; showing the {rows.length} most recent.
         </p>
       )}
     </section>

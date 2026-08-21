@@ -49,7 +49,7 @@ const METHODS: Array<{ id: AllocationMethod; label: string; group: string; expla
     id: "equal_weight",
     label: "Equal weight",
     group: "Naive",
-    explain: "Every position the same size. The baseline the other three have to beat.",
+    explain: "Every position the same size — the baseline the other three must beat.",
   },
   {
     id: "inverse_vol",
@@ -199,7 +199,7 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
             {overshoot > 0
               ? `over-allocated by ${fmt(overshoot * 100, 1)}pp.`
               : `under-allocated by ${fmt(-overshoot * 100, 1)}pp.`}{" "}
-            Trades are withheld until it balances; nothing typed has been rescaled.
+            Trades are withheld until it balances; nothing typed was rescaled.
           </div>
         </div>
       )}
@@ -231,7 +231,7 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
       {/* Forced open while overriding: the toggle's whole effect is the inputs
           in this table, and a control whose result is hidden reads as broken. */}
       <details className="disclosure" open={override}>
-        <summary>Every weight as a table, with notional now and target</summary>
+        <summary>Every weight as a table, notional now and target</summary>
         <div className="table-wrap" tabIndex={0}>
         <table>
           <caption className="sr-only">
@@ -312,7 +312,7 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
              up as a tolerance decision would credit the band for a result the
              arithmetic already fixed. */
           <p className="research-note">
-            Target equals current, so there is nothing for the band to suppress.
+            Target equals current: nothing for the band to suppress.
           </p>
         ) : (
           <p className="research-note">
@@ -363,8 +363,8 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
             </>
           ) : (
             <>
-              No expected return is forecast: this answers how the risk should be spread, not what
-              to own.
+              No expected return is forecast: this answers how to spread the risk, not what to
+              own.
             </>
           )}
         </p>
@@ -372,14 +372,13 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
             band's effect on each bar. The fees-versus-risk reason is the only
             part it does not carry. */}
         <p className="research-note">
-          Correcting a small deviation costs more in fees and slippage than the deviation costs in
-          risk.
+          Correcting a small deviation costs more in fees and slippage than it costs in risk.
         </p>
         {capBinds && (
           <p className="research-note">
             The gross cap sits below current gross, so target weights are measured over the cap and
-            drift over gross — which is why the{" "}
-            <span className="num">current → target</span> pair is withheld.
+            drift over gross — which is why the <span className="num">current → target</span> pair
+            is withheld.
           </p>
         )}
       </details>

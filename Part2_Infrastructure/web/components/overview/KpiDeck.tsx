@@ -213,7 +213,7 @@ export default function KpiDeck({
               points={equitySpark}
               width={120}
               height={34}
-              ariaLabel={`Equity curve of the current candidate, ending at ${fmt(equitySpark[equitySpark.length - 1], 2)}×`}
+              ariaLabel={`Current candidate's equity curve, ending at ${fmt(equitySpark[equitySpark.length - 1], 2)}×`}
             />
           ) : undefined
         }

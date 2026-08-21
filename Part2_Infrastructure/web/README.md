@@ -490,7 +490,16 @@ web/
 │   ├── stats.ts              PSR, Deflated Sharpe, verdict logic
 │   ├── marketdata.ts         Binance klines + deterministic synthetic fallback
 │   ├── venues.ts             live venue adapters + book/TCA maths
-│   ├── livebook.ts           browser WebSocket L2 client (Binance + Bybit)
+│   ├── livebook.ts           browser WebSocket L2 client (Binance + Bybit);
+│   │                          venue status decided by VenueLiveness, below
+│   ├── desk-source.ts        DeskSourceMachine — what the desk shows and why:
+│   │                          measured data is never replaced by generated,
+│   │                          demotion is immediate, promotion needs a streak.
+│   │                          The anti-twitch property, as a plain class a fake
+│   │                          clock can drive; use-desk-source.ts is the wrapper
+│   ├── venue-liveness.ts     per-venue live/stale hysteresis on the same
+│   │                          asymmetry — read in update(), not on observation,
+│   │                          so a throttled background tab cannot disarm it
 │   ├── params.ts             NaN-safe query-parameter coercion for the routes
 │   ├── format.ts             number/date formatting shared by the UI
 │   ├── types.ts              shared contracts

@@ -159,7 +159,7 @@ function phrases(text: string, n = 4): Set<string> {
  * the file must still hold.
  */
 const MUST_SURVIVE: { file: Owned; text: string }[] = [
-  { file: "components/WorkspaceOverview.tsx", text: "One {request.symbol} context across the loop, and one record they all reconcile to." },
+  { file: "components/WorkspaceOverview.tsx", text: "Your one-stop infrastructure that can solve all needs from trade execution, debugging and research." },
   { file: "components/WorkspaceOverview.tsx", text: "start ${usd(equity.start_of_day, 0)}; gateway snapshot" },
   { file: "components/WorkspaceOverview.tsx", text: "${signedPct(equity.daily_return)} on the session" },
   { file: "components/WorkspaceOverview.tsx", text: "backtested in this browser" },
@@ -198,7 +198,7 @@ const MUST_SURVIVE: { file: Owned; text: string }[] = [
  * figure with no provenance.
  */
 const MUST_STAY_VISIBLE: { file: Owned; text: string; kind: string }[] = [
-  { file: "components/WorkspaceOverview.tsx", text: "One {request.symbol} context across the loop, and one record they all reconcile to.", kind: "the tab's thesis line, read by copy-audit as the question this tab answers" },
+  { file: "components/WorkspaceOverview.tsx", text: "Your one-stop infrastructure that can solve all needs from trade execution, debugging and research.", kind: "the tab's thesis line, read by copy-audit as the question this tab answers" },
   { file: "components/WorkspaceOverview.tsx", text: "backtested in this browser", kind: "provenance for the VaR figure a risk reader acts on" },
   { file: "components/WorkspaceOverview.tsx", text: "measured from this browser's polls", kind: "provenance that stops p99 reading as gateway-measured" },
   { file: "components/WorkspaceOverview.tsx", text: "fewer than 20 polls measured", kind: "null explanation, the whole content of the chip under a dash" },
@@ -219,6 +219,66 @@ const MUST_STAY_VISIBLE: { file: Owned; text: string; kind: string }[] = [
   { file: "components/overview/AuditTrail.tsx", text: "paper-only, recorded by the gateway itself.", kind: "safety statement" },
   { file: "components/overview/AuditTrail.tsx", text: "generated for this session; paper-only, recorded by nothing.", kind: "safety statement" },
 ];
+
+// ---------------------------------------------------------------------------
+// 2b. What this tab did fold, pinned in both directions
+// ---------------------------------------------------------------------------
+
+/**
+ * The sentences a disclosure sweep moved off the screen at rest.
+ *
+ * `MUST_SURVIVE` above already says each of these is still in its file byte for
+ * byte; this list says the other half, and the two together are what makes a
+ * fold distinguishable from a deletion. Without the second assertion a later
+ * sweep could delete the folded sentence and the page would simply be shorter
+ * again, with nothing red.
+ *
+ * `summary` is the line that stays ON screen in the folded sentence's place, so
+ * it is asserted visible: a summary behind another fold is a sentence nobody
+ * can find, and the words it costs are the price of the fold — this tab pays
+ * two of them for ten, and `tests/summarised-overview.test.ts` counts both.
+ */
+const MUST_STAY_FOLDED: { file: Owned; text: string; summary: string; kind: string }[] = [
+  {
+    file: "components/overview/AuditTrail.tsx",
+    text: "Every paper order, accepted or refused, with the refusing gate.",
+    summary: "Ledger scope",
+    kind: "a scope caveat, and the Outcome column below states the same scope in data",
+  },
+];
+
+describe("a folded sentence is folded, not deleted", () => {
+  for (const { file, text, summary, kind } of MUST_STAY_FOLDED) {
+    it(`${file}: "${text.slice(0, 44)}" is still here, behind a fold`, () => {
+      const source = src(file);
+      const at = source.indexOf(text);
+      assert.notEqual(at, -1, `the folded line was deleted rather than kept: ${text}`);
+      // Every occurrence, like the visibility block: a copy left unfolded
+      // outside the <details> would put the sentence back on screen and make
+      // the fold cosmetic.
+      for (let index = at; index !== -1; index = source.indexOf(text, index + 1)) {
+        assert.ok(
+          foldedAt(source, index),
+          `${kind} — unfolded at offset ${index}: ${text}`,
+        );
+      }
+    });
+
+    it(`${file}: "${summary}" is the line left on screen in its place`, () => {
+      const source = src(file);
+      const tag = `<summary>${summary}</summary>`;
+      const at = source.indexOf(tag);
+      assert.notEqual(at, -1, `the summary for this fold is gone: ${summary}`);
+      // The offset of the summary's TEXT, not of its opening tag: `foldedAt`
+      // reads the tag itself as part of the folded body, and it is the words a
+      // reader meets that this asserts are on screen.
+      assert.ok(
+        !foldedAt(source, at + "<summary>".length),
+        `the summary itself was folded away: ${summary}`,
+      );
+    });
+  }
+});
 
 describe("the Overview sources were actually read", () => {
   for (const path of OWNED) {

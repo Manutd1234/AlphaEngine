@@ -2,37 +2,34 @@
  * The Risk tab's progressive-disclosure sweep, pinned so it cannot become a
  * deletion sweep by accident.
  *
- * A previous pass measured the tab and stopped: what was left was load-bearing
- * prose, and removing any of it would have cost the desk a fact. The lever that
- * remains is not "say less" but "say it later" — a methodology note, a scope
- * caveat, a "why this is withheld" explanation each stay in the DOM, byte for
- * byte, and move behind a `<details>` so the tab reads short at rest.
+ * Deletion on this tab is exhausted: what is left is load-bearing prose. The
+ * lever that remains is not "say less" but "say it later" — a methodology note,
+ * a scope caveat, a "why this is withheld" explanation each stay in the DOM
+ * byte for byte and move behind a `<details>`, so the tab reads short at rest.
  *
  * THE FAILURE MODE THIS FILE EXISTS FOR
  * ------------------------------------------------------------------------
  * A disclosure sweep and a deletion sweep produce the same screenshot. Both
- * shorten the page; only one of them still knows the thing it stopped saying.
- * So every sentence this sweep moved is asserted PRESENT, verbatim, in the file
- * that used to render it openly — a diff that quietly dropped one would light
- * this suite up rather than looking like a bigger win.
+ * shorten the page; only one still knows the thing it stopped saying. So every
+ * moved sentence is asserted PRESENT verbatim AND inside a fold — a diff that
+ * quietly dropped one would light this suite up, not read as a bigger win.
  *
  * THE HONESTY FLOOR
  * ------------------------------------------------------------------------
  * Four kinds of sentence may never be folded, because folding them makes the
  * desk lie by omission rather than merely read long: an EMPTY STATE (a kicker
  * over blank space is indistinguishable from broken); a NULL EXPLANATION that
- * is a panel's only content (the one thing separating a deliberate blank from
- * a bug); a SAFETY statement (two destructive-looking buttons with nothing
- * beside them saying they cannot fire is the worst screen on the desk); and a
- * figure a reader ACTS on, with any caveat that changes what it means — fold
- * "this total is understated" and someone sizes against a number they believe
- * is complete. Each is named below with its reason attached, so a future fold
- * fails with an argument rather than a diff.
+ * is a panel's only content (the one thing separating a deliberate blank from a
+ * bug); a SAFETY statement, and the reason a control a reader can SEE is dimmed
+ * or refusing (a fold is as unreachable as a tooltip); and a figure a reader
+ * ACTS on, with any caveat that changes what it means — fold "this total is
+ * understated" and someone sizes against a number they believe is complete.
+ * Each is named in VISIBLE below with its reason, so a future fold fails with
+ * an argument rather than a diff.
  *
  * `tests/copy-audit.test.ts` holds the tree-wide rule that a `<summary>` may not
- * repeat a contiguous four-word phrase from what it hides. It is re-run here
- * over just these six files, so this suite fails on its own terms rather than
- * pointing at another one.
+ * repeat a contiguous four-word phrase from what it hides, re-run here over
+ * these seven files so this suite fails on its own terms.
  */
 
 import assert from "node:assert/strict";
@@ -40,9 +37,13 @@ import { describe, it } from "node:test";
 
 import { readSource, stripCode } from "./helpers/source-files";
 
-/** The six files the Risk tab draws itself from. */
+/**
+ * The seven files the Risk tab draws itself from. `MonteCarloDistribution` was
+ * missing from the first six, which is why the first sweep never reached it.
+ */
 const PATHS = [
   "components/RiskWorkspace.tsx",
+  "components/risk/MonteCarloDistribution.tsx",
   "components/portfolio/RiskEngine.tsx",
   "components/portfolio/StressTest.tsx",
   "components/portfolio/VarBacktestChart.tsx",
@@ -52,12 +53,9 @@ const PATHS = [
 
 type Path = (typeof PATHS)[number];
 
-/**
- * Raw text and comment-stripped code for each file, read once. Both forms are
- * needed: several of these files carry comments that mention `<details>` by
- * name while explaining why one is or is not there, and a depth scanner that
- * counted those would nest itself into nonsense.
- */
+/** Raw text and comment-stripped code, read once. Both forms are needed: these
+ *  files carry comments naming `<details>` while explaining why one is or is
+ *  not there, and a depth scanner counting those nests itself into nonsense. */
 const raw = new Map<Path, string>();
 const code = new Map<Path, string>();
 for (const path of PATHS) {
@@ -69,13 +67,9 @@ for (const path of PATHS) {
 /** JSX wraps prose across lines at whatever indent it lands on. */
 const flat = (source: string) => source.replace(/\s+/g, " ");
 
-/**
- * Is `index` inside an open `<details>`?
- *
- * Counts opens against closes up to that point rather than pairing tags, which
- * is enough for a depth question and survives the nested `<details>` this tree
- * already has (PipelineRestTrace has one; the Risk tab may grow one).
- */
+/** Is `index` inside an open `<details>`? Counts opens against closes rather
+ *  than pairing tags — enough for a depth question, and it survives the nested
+ *  `<details>` this tree already has (PipelineRestTrace). */
 function foldDepthAt(source: string, index: number): number {
   let depth = 0;
   for (const tag of source.matchAll(/<details\b|<\/details>/g)) {
@@ -85,32 +79,38 @@ function foldDepthAt(source: string, index: number): number {
   return depth;
 }
 
-/**
- * Where a sentence sits, or `null` if it is not in the file at all. Whitespace
- * is flattened on both sides, so the answer indexes the FLATTENED source —
- * which is what `foldDepthAt` is handed, flattening moving no tag past another.
- */
+/** Where a sentence sits, or `null` if it is not in the file. Whitespace is
+ *  flattened on both sides, so the answer indexes the FLATTENED source — which
+ *  is what `foldDepthAt` is handed, flattening moving no tag past another. */
 function locate(path: Path, sentence: string): number | null {
   const at = flat(code.get(path) as string).indexOf(flat(sentence));
   return at === -1 ? null : at;
 }
 
-/** A sentence that moved behind a fold: still in the file, now folded. */
-interface Moved {
-  path: Path;
-  text: string;
-  /** Why it was safe to fold — none of the four must-stay kinds. */
-  because: string;
-}
-
-/** A sentence that must stay on screen at rest, with the reason it must. */
-interface Visible {
+/**
+ * A pinned sentence. A `MOVED` one is still in the file and now inside a
+ * `<details>`; a `VISIBLE` one is still in the file and must never be. Either
+ * way `because` is the argument a future sweep has to beat.
+ */
+interface Pinned {
   path: Path;
   text: string;
   because: string;
 }
 
-const MOVED: Moved[] = [
+const MOVED: Pinned[] = [
+  {
+    path: "components/risk/MonteCarloDistribution.tsx",
+    text:
+      "Resamples <strong>{driver.label}</strong>&apos;s realised {driver.interval} returns with "
+      + "the{\" \"} {MC_RESAMPLER_LABELS[ran]} over a {horizonDays}-day forward horizon, keeping "
+      + "where each path ends.",
+    because:
+      "Method and provenance, plus the chart-reading rule that a path counts where it ENDS. "
+      + "Every parameter it names is also a control at rest in the rail above — the Resampler "
+      + "select, the workspace's horizon seg — so the prose was the restatement, not the source. "
+      + "Histogram, markers, four tiles and the headroom verdict all stay on screen.",
+  },
   {
     path: "components/portfolio/VarBacktestChart.tsx",
     text:
@@ -152,7 +152,39 @@ const MOVED: Moved[] = [
   },
 ];
 
-const VISIBLE: Visible[] = [
+const VISIBLE: Pinned[] = [
+  {
+    path: "components/risk/MonteCarloDistribution.tsx",
+    text: "Worker unavailable; chunked fallback, same numbers.",
+    because:
+      "A STATUS: which of the two engines drew the figures below. It was the tail of the sentence "
+      + "that folded and would have travelled as a passenger, so it keeps its own line at rest. "
+      + "`.disclosure` is documented in globals as taking derivations and never a status.",
+  },
+  {
+    path: "components/risk/MonteCarloDistribution.tsx",
+    text: "Resamples the drivers behind the Research equity band. Run research first.",
+    because:
+      "EMPTY STATE, and the card's whole body before any research has run. It is what makes the "
+      + "Open Research button beside it read as the next step rather than a stray link.",
+  },
+  {
+    path: "components/risk/MonteCarloDistribution.tsx",
+    text: "Clear the box to use the sweep&apos;s own seed,",
+    because:
+      "NULL EXPLANATION and the reason a visible control refuses input. An unusable seed simulates "
+      + "nothing, so this banner is the card's only content below the rail and the recovery "
+      + "instruction for the box being typed in. Folded, the card is a heading over five controls.",
+  },
+  {
+    path: "components/risk/MonteCarloDistribution.tsx",
+    text: "A multi-day loss against today&apos;s budget is a conservative screen.",
+    because:
+      "A caveat on a figure a reader ACTS on. It qualifies the Within/Breaches headroom verdict "
+      + "in the same banner: the screen compares a multi-day tail against one day's cushion, so a "
+      + "breach is stricter than it looks. Fold it and \"Breaches headroom\" reads as an exact "
+      + "verdict. It also sits inside a role=\"status\" region, which a fold would truncate.",
+  },
   {
     path: "components/portfolio/VarBacktestChart.tsx",
     text: "Generated notionals, measured returns: real Binance closes on an invented book.",
@@ -239,10 +271,8 @@ describe("the Risk tab's sources are actually being read", () => {
   });
 
   it("the fold scanner finds the folds it is meant to be measuring", () => {
-    const folds = PATHS.reduce(
-      (n, path) => n + [...(code.get(path) as string).matchAll(/<details\b/g)].length,
-      0,
-    );
+    const folds = PATHS.reduce((n, path) =>
+      n + [...(code.get(path) as string).matchAll(/<details\b/g)].length, 0);
     assert.ok(folds >= 4, `expected at least four disclosures across the Risk tab, found ${folds}`);
   });
 });
@@ -250,12 +280,9 @@ describe("the Risk tab's sources are actually being read", () => {
 describe("no fact was deleted: everything moved is still in the file", () => {
   for (const { path, text } of MOVED) {
     it(`${path.split("/").pop()} still says "${text.slice(0, 46)}…"`, () => {
-      assert.notEqual(
-        locate(path, text),
-        null,
+      assert.notEqual(locate(path, text), null,
         `this sentence is GONE from ${path}, not folded. A disclosure sweep that deleted it `
-        + `would otherwise read as a bigger win:\n    ${text}`,
-      );
+        + `would otherwise read as a bigger win:\n    ${text}`);
     });
   }
 });
@@ -265,10 +292,8 @@ describe("everything moved is behind a fold, or the sweep did nothing", () => {
     it(`${path.split("/").pop()}: "${text.slice(0, 46)}…" is folded`, () => {
       const at = locate(path, text);
       assert.notEqual(at, null, `sentence missing from ${path}`);
-      assert.ok(
-        foldDepthAt(flat(code.get(path) as string), at as number) > 0,
-        `this is still on screen at rest in ${path}; the sweep claims it moved.\n    ${because}`,
-      );
+      assert.ok(foldDepthAt(flat(code.get(path) as string), at as number) > 0,
+        `this is still on screen at rest in ${path}; the sweep claims it moved.\n    ${because}`);
     });
   }
 });
@@ -278,20 +303,15 @@ describe("the honesty floor: these stay on screen at rest", () => {
     it(`${path.split("/").pop()}: "${text.slice(0, 46)}…" is not folded`, () => {
       const at = locate(path, text);
       assert.notEqual(at, null, `this sentence has been deleted from ${path}:\n    ${text}`);
-      assert.equal(
-        foldDepthAt(flat(code.get(path) as string), at as number),
-        0,
-        `this has been folded and it may not be:\n    ${because}`,
-      );
+      assert.equal(foldDepthAt(flat(code.get(path) as string), at as number), 0,
+        `this has been folded and it may not be:\n    ${because}`);
     });
   }
 });
 
 describe("every fold on this tab is a real bargain with the reader", () => {
-  /**
-   * `<details>` blocks in the six files, paired by depth so a nested one is
-   * measured as its own fold rather than swallowing its parent's close tag.
-   */
+  /** `<details>` blocks, paired by depth so a nested one is measured as its
+   *  own fold rather than swallowing its parent's close tag. */
   function folds(source: string): Array<{ open: number; end: number }> {
     const out: Array<{ open: number; end: number }> = [];
     const stack: number[] = [];
@@ -317,24 +337,17 @@ describe("every fold on this tab is a real bargain with the reader", () => {
         assert.ok(named.length > 0, `a <summary> in ${path} names nothing`);
         const body = block.slice(block.indexOf("</summary>") + "</summary>".length).trim();
         assert.ok(body.length > 0, `the fold "${named}" in ${path} hides nothing`);
-        assert.match(
-          body,
-          /[<{]/,
-          `the fold "${named}" in ${path} hides no element and no value`,
-        );
+        assert.match(body, /[<{]/, `the fold "${named}" in ${path} hides nothing real`);
         checked += 1;
       }
     }
     assert.ok(checked >= 4, `expected at least four folds to check, checked ${checked}`);
   });
 
-  /**
-   * The same invariant `tests/copy-audit.test.ts` holds tree-wide, re-run over
-   * these six files. A summary is a question; paying to open it must buy an
-   * answer that was not already given away. Four contiguous words is the
-   * narrow, unarguable form of "already given away" — a looser overlap measure
-   * punishes a summary for naming its own subject, which it must do.
-   */
+  /** The tree-wide `copy-audit` invariant, re-run over these seven files. A
+   *  summary is a question; opening it must buy an answer not already given
+   *  away. Four contiguous words is the narrow, unarguable form of that — a
+   *  looser measure punishes a summary for naming its own subject. */
   it("no summary repeats a four-word phrase from the first 300 chars it hides", () => {
     const phrases = (text: string, n = 4) => {
       const words = text.toLowerCase().match(/[a-z]+/g) ?? [];
@@ -360,36 +373,26 @@ describe("every fold on this tab is a real bargain with the reader", () => {
       }
     }
     assert.ok(seen >= 3, `expected at least three prose summaries on this tab, found ${seen}`);
-    assert.deepEqual(
-      offenders,
-      [],
-      `these summaries answer what they are hiding:\n    ${offenders.join("\n    ")}`,
-    );
+    assert.deepEqual(offenders, [],
+      `these summaries answer what they are hiding:\n    ${offenders.join("\n    ")}`);
   });
 
-  /**
-   * The summaries this sweep wrote, pinned by shape rather than by string.
-   *
-   * A question mark is not decoration here: it is the whole difference between
-   * "What happens to a slider you never touch?" and "A row at 0% is pinned
-   * flat", which is the body. The four-gram rule above cannot see a summary
-   * that answers in different words; this can see that it stopped asking.
-   */
-  it("the three new summaries ask a question", () => {
+  /** The summaries these sweeps wrote. The question mark is not decoration: it
+   *  is the difference between "What happens to a slider you never touch?" and
+   *  "A row at 0% is pinned flat", which is the body. The four-gram rule cannot
+   *  see a summary that answers in other words; this sees it stopped asking. */
+  it("every summary this tab's sweeps wrote asks a question", () => {
     const asked = [
       ["components/portfolio/VarBacktestChart.tsx", "What window and which returns produced this forecast?"],
       ["components/portfolio/VarBacktestChart.tsx", "Why does the axis count observations?"],
       ["components/portfolio/StressTest.tsx", "What happens to a slider you never touch?"],
+      ["components/risk/MonteCarloDistribution.tsx", "How is this simulated?"],
     ] as const;
     for (const [path, summary] of asked) {
-      assert.ok(
-        summary.endsWith("?"),
-        `this suite's own expectation is malformed: "${summary}" does not ask`,
-      );
-      assert.ok(
-        (code.get(path as Path) as string).includes(`<summary>${summary}</summary>`),
-        `${path} does not carry the summary this sweep wrote: "${summary}"`,
-      );
+      assert.ok(summary.endsWith("?"),
+        `this suite's own expectation is malformed: "${summary}" does not ask`);
+      assert.ok((code.get(path as Path) as string).includes(`<summary>${summary}</summary>`),
+        `${path} does not carry the summary this sweep wrote: "${summary}"`);
     }
   });
 });

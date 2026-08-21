@@ -55,7 +55,7 @@ export default function AlertFeed({ events, source = "live" }: AlertFeedProps) {
           <h3>Alerts &amp; risk events</h3>
           <p className="muted">
             {source === "sandbox"
-              ? "A generated event stream in the risk monitor's shape, from a seed rather than a desk."
+              ? "Generated in the risk monitor's shape, from a seed rather than a desk."
               : "Everything the gateway decided unasked, the stream the Telegram companion pushes."}
           </p>
         </div>

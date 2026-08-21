@@ -119,4 +119,13 @@
    purpose — theme-palette-parity.test.ts locates the dark palette by the FIRST
    `:root[data-theme="dark"]` in the sheet, and that selector list must not be
    it. Nothing may be imported after this line. */
+@import "./globals/14a-codex-and-notice-structure.css";
+@import "./globals/14b-density-overview.css";
+@import "./globals/14c-density-research.css";
+@import "./globals/14d-density-execution.css";
+@import "./globals/14e-density-risk.css";
+@import "./globals/14f-density-portfolio.css";
+@import "./globals/14g-density-data.css";
+@import "./globals/14h-density-systems.css";
+@import "./globals/14i-density-developer.css";
 @import "./globals/15-navigator-and-trailing-layer.css";

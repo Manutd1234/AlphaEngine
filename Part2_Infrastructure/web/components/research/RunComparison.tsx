@@ -57,7 +57,7 @@ export default function RunComparison({ a, b, onClose }: RunComparisonProps) {
           <span aria-hidden>=</span>
           <div>
             <strong>Same data.</strong> Both runs fingerprint to <code>{a.dataHash}</code>, so the
-            differences below are attributable to the request, not to the bars.
+            differences below are attributable to the request, not the bars.
           </div>
         </div>
       ) : comparison.sameData === false ? (
@@ -73,8 +73,8 @@ export default function RunComparison({ a, b, onClose }: RunComparisonProps) {
         <div className="banner" role="status">
           <span aria-hidden>?</span>
           <div>
-            <strong>Comparability unknown.</strong> At least one run predates dataset fingerprinting,
-            so there is no way to confirm they saw the same prices.
+            <strong>Comparability unknown.</strong> At least one run predates dataset
+            fingerprinting, so nothing can confirm they saw the same prices.
           </div>
         </div>
       )}
@@ -82,13 +82,13 @@ export default function RunComparison({ a, b, onClose }: RunComparisonProps) {
       <h3 className="run-comparison__subhead">What changed in the request</h3>
       {comparison.requestDiffs.length === 0 ? (
         <p className="sub">
-          Identical requests: any difference below is engine non-determinism or a change in the
+          Identical requests: any difference below is engine non-determinism or changed
           underlying data.
         </p>
       ) : (
         <div className="table-wrap" tabIndex={0}>
           <table>
-            <caption className="sr-only">Request fields that differ between the two runs.</caption>
+            <caption className="sr-only">Request fields differing between the two runs.</caption>
             <thead>
               <tr>
                 <th scope="col">Field</th>

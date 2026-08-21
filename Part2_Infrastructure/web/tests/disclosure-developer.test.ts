@@ -93,9 +93,11 @@ function phrases(text: string, n = 4): Set<string> {
 // ---------------------------------------------------------------------------
 
 /**
- * The four sentences this sweep folded, with the summary that now names the
- * question each one answers. Verbatim: if a word here differs from the file,
- * the fact was reworded rather than moved and that is a deletion by degrees.
+ * The sentences this sweep folded, with the summary that now names the
+ * question each one answers. Four were moved in the first disclosure pass; the
+ * fifth, the repository snapshot's provenance strip, in the second. Verbatim:
+ * if a word here differs from the file, the fact was reworded rather than moved
+ * and that is a deletion by degrees.
  */
 const MOVED = [
   {
@@ -122,6 +124,22 @@ const MOVED = [
       + "blame, history and diffs.",
     why: "a why-this-is-withheld note whose answer is demonstrated directly beneath it — the"
       + " explorer renders the manifest and links every path to source",
+  },
+  {
+    file: "components/developer/CodebaseExplorer.tsx",
+    summary: "Snapshot scope, refresh command and manifest commit",
+    // Markup included on purpose. This block is prose with two `<code>` runs
+    // threaded through it, so the only way to pin it byte for byte — rather
+    // than pinning three fragments that a rewrite could reassemble into a
+    // different sentence — is to assert the whole collapsed run.
+    text:
+      "<strong>Read-only repository snapshot.</strong> <span>Refresh with "
+      + "<code>npm run catalog:refresh</code> when files are added or removed; manifest "
+      + "<code>{REPOSITORY_MANIFEST_PROVENANCE.commit}</code>.</span>",
+    why: "a scope caveat and a provenance explanation, over a stats strip that keeps the card"
+      + " numerate at rest: the manifest's As-of date and its file, area, test and route counts"
+      + " are all outside this fold, so what is hidden is how the snapshot was made rather than"
+      + " what it measured",
   },
   {
     file: "components/developer/DeveloperInterfaces.tsx",
@@ -183,6 +201,22 @@ const VISIBLE = [
     file: "components/developer/CodebaseExplorer.tsx",
     text: "Its ownership, purpose, and canonical source link will appear here.",
     why: "EMPTY STATE. A panel that says nothing when no path is selected looks broken.",
+  },
+  {
+    file: "components/developer/CodebaseExplorer.tsx",
+    text:
+      "<div className=\"codebase-explorer__asof\"><span>As of</span>"
+      + "<strong className=\"num\">{REPOSITORY_MANIFEST_PROVENANCE.generatedAt}</strong></div>",
+    why: "FIGURES A READER ACTS ON, and the date that qualifies them. The provenance fold beside"
+      + " this strip is only defensible while the stamp and the four counts are outside it: a"
+      + " count whose date is one click away has already been believed, which is the defect"
+      + " tests/repository-provenance.test.ts exists to catch.",
+  },
+  {
+    file: "components/developer/CodebaseExplorer.tsx",
+    text: "<div><span>Files</span><strong className=\"num\">{REPOSITORY_STATS.files}</strong></div>",
+    why: "FIGURE A READER ACTS ON. The headline count of the card, and the first of the four the"
+      + " As-of stamp dates; folding it would leave a repository map that states no size.",
   },
   {
     file: "components/developer/DeveloperApiCatalog.tsx",

@@ -80,7 +80,7 @@ function requestFor(intent: HandoffIntent): Composed {
         method: "POST",
         path: "/api/risk/kill",
         body: JSON.stringify({ reason: "manual halt from portfolio review" }, null, 2),
-        why: "Trips the kill switch: every pre-trade check rejects until it is cleared, and the event is appended to the audit log.",
+        why: "Trips the kill switch: every pre-trade check rejects until cleared, and the event is appended to the audit log.",
         action: "halt",
         confirmWord: "HALT",
       };
@@ -169,7 +169,7 @@ export default function ExecutionHandoff({ intent, onClose, sandbox, onExecuted,
   const canExecute = !sandbox && !locked && !noGateway && !tokenMissing && armed && !busy;
 
   const blockedReason = sandbox
-    ? "This is the sandbox book — there is no real position to act on."
+    ? "This is the sandbox book — no real position to act on."
     : noGateway
       ? "No risk gateway is connected in this environment."
       : locked

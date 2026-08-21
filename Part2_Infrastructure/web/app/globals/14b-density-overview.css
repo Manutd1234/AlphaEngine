@@ -1,0 +1,63 @@
+/* Overview density pass — 2026-08-22.
+ *
+ * One partial per tab so eight parallel agents never share a file, named 14b–14i
+ * so the lexicographic order globals-manifest.test.ts pins slots them after the
+ * partials whose selectors they override and before the terminal
+ * 15-navigator-and-trailing-layer.css. The owners are on the over-ceiling
+ * ledger and may never grow, which is why these overrides live here at all.
+ *
+ * Desk-width packing only: every rule in this file must sit inside a
+ * min-width media query, so phones keep the single-column flow.
+ */
+
+/* What this pass measured before writing a rule, so the next reader does not
+ * re-derive it: the Overview is a subtab workspace — the hero band and the
+ * rail are always on screen, and exactly ONE of the three sections renders
+ * below them (the others persist behind `hidden`, which is display: none).
+ * The KPI deck is already a four-column grid (grid-cols-4 in KpiDeck.tsx),
+ * the role launcher is already four-across at >=1121px (partial 01), and the
+ * decision loop is already one nowrap row. There are no stacked peer panels
+ * to pair here: the only full-width blocks are the hero (the identity band,
+ * with nothing to pair against) and the audit card (an eight-column table
+ * that needs the width, alone in its section). So this file spends its lines
+ * on the two honest levers left — vertical rhythm and reserved space — and
+ * pairs nothing, because pairing here would mean wrapping the headline or
+ * crushing the chips below their 172px floor.
+ */
+@media (min-width: 1100px) {
+  /* The page column: hero to rail to section. One step down the spacing
+     scale; the rail's own bottom margin steps with it so the pane still
+     opens an even distance below the rail in all three sections. */
+  .overview-page {
+    gap: var(--space-3);
+  }
+
+  .overview-page > .workspace-subtabs {
+    margin-bottom: var(--space-2);
+  }
+
+  /* The hero keeps its 320px floor, its plane and its headline type — the
+     presence the band was given on purpose lives in those, not in the eight
+     pixels of extra padding trimmed here. Content sits above the floor
+     before and after this rule, so the floor is not what this trims. */
+  .overview-hero {
+    padding: var(--space-5) var(--space-6) var(--space-4);
+  }
+
+  .overview-hero .page-heading {
+    margin-bottom: var(--space-3);
+  }
+
+  /* The chips' note slot reserves two lines so the eight tab headers stay
+     the same height; the hero opted out of that parity contract long ago
+     ("nothing in this band has to match anything" — partial 12). Its four
+     notes are one-liners today, so the reserve is a blank line under each
+     figure. Let the slot size to its content: the sparkline still rides in
+     it, grid row-stretch still equalises the four chips against the tallest,
+     and a note that genuinely wraps to two lines gets its second line back
+     the moment it needs one. The shared `.page-insight > small` rule that
+     page-head-contract.test.ts reads is untouched. */
+  .overview-hero .page-insight > small {
+    min-height: 0;
+  }
+}

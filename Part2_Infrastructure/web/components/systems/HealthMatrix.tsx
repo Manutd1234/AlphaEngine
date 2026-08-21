@@ -261,7 +261,7 @@ export default function HealthMatrix({
                           lockNote
                             ?? (provider.configured
                               ? "Sends one real request and times it. Spends one call."
-                              : "Not configured — there is nothing to probe.")
+                              : "Not configured — nothing to probe.")
                         }
                       >
                         Test
@@ -350,7 +350,7 @@ export default function HealthMatrix({
           </p>
           <div className="table-wrap" tabIndex={0}>
             <table>
-              <caption className="sr-only">Latency of the exchange clients that bypass the provider registry.</caption>
+              <caption className="sr-only">Latency of the exchange clients bypassing the provider registry.</caption>
               <thead>
                 <tr>
                   <th scope="col">Client</th>

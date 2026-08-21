@@ -143,11 +143,27 @@ export default function CrossSourceCheck({ symbol }: CrossSourceCheckProps) {
 
       {/* The fan-out is the button's own label ("Reconcile … across all
           sources"), so the note keeps only the method, the reason no other
-          panel can do this, and the price that is why it is manual. */}
+          panel can do this, and the price that is why it is manual.
+
+          The PRICE stays at rest, on the line above the button that spends it:
+          a cost a reader has to open something to find is a cost they meet
+          after clicking. What the median comparison is FOR is methodology, and
+          methodology folds — the sentence is byte-identical inside the
+          disclosure, one click from the reader who wants it stated and out of
+          the way of the one who already knows. "It spends" became "This check
+          spends" for the one reason the split forced: with the method sentence
+          no longer above it, "It" had lost its antecedent. */}
       <p className="console-note">
-        Each leg&apos;s distance from the median, the only check here that catches a stale price
-        served with HTTP 200. It spends a call per provider, so it runs only when you ask.
+        This check spends a call per provider, so it runs only when you ask.
       </p>
+
+      <details className="disclosure">
+        <summary>What a median across sources catches</summary>
+        <p className="console-note">
+          Each leg&apos;s distance from the median, the only check here that catches a stale price
+          served with HTTP 200.
+        </p>
+      </details>
 
       <div className="console-inspector__controls">
         <button type="button" onClick={() => void run()} disabled={busy}>
@@ -198,11 +214,11 @@ export default function CrossSourceCheck({ symbol }: CrossSourceCheckProps) {
               <span aria-hidden>!</span>
               <div>
                 {configured === 0
-                  ? "No price source is configured for this symbol, so there is no independent value to reconcile."
+                  ? "No price source is configured for this symbol, leaving no independent value to reconcile."
                   : answering === 0
                     ? `${configured} source${configured === 1 ? " is" : "s are"} configured, but none answered this check.`
                     : configured === 1
-                      ? "Only one price source is configured and answering, so there is no independent value to reconcile against."
+                      ? "Only one price source is configured and answering, leaving no independent value to reconcile against."
                       : `Only one of ${configured} configured sources answered. Review the failed legs below before treating that value as consensus.`}
               </div>
             </div>

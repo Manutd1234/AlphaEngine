@@ -97,7 +97,7 @@ export default function FeedThroughput({ health }: { health: SystemHealth | null
                 rows={rows}
                 max={peakRate > 0 ? peakRate : undefined}
                 ariaLabel={`${feed.venue} book update rate per symbol, in updates per second.`}
-                emptyNote={`Every ${feed.venue} book reports 0 Hz. That is a measured stop, not a missing measurement.`}
+                emptyNote={`Every ${feed.venue} book reports 0 Hz — a measured stop, not a missing measurement.`}
               />
             </div>
           );

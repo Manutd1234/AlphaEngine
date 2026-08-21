@@ -109,7 +109,7 @@ export default function DataQualityLedger({
         ...prev,
         [id]: body.taken ? new Date().toISOString() : "",
       }));
-      if (!body.taken) setAckError("There was nothing open to take — it has already resolved.");
+      if (!body.taken) setAckError("Nothing was open to take — it has already resolved.");
     } catch {
       setAckError("The acknowledgement could not be sent.");
     } finally {
@@ -175,7 +175,7 @@ export default function DataQualityLedger({
             ? `gateway SQLite, ${ledger.retentionDays}-day retention; ${ledger.instances} ${ledger.instances === 1 ? "instance" : "instances"} reporting`
             : healthLoaded
               ? "gateway ledger not returned"
-              : "waiting for the health snapshot"}
+              : "waiting for health snapshot"}
         </span>
       </div>
 
@@ -218,7 +218,7 @@ export default function DataQualityLedger({
               move. The lock note beneath stays on screen: it is the reason a
               visible control is dimmed, which is never a fold. */}
           <details className="disclosure">
-            <summary>What opens one of these, and what closes it again?</summary>
+            <summary>What opens one of these, and what closes it?</summary>
             <p className="sub"> — a fatal burst or a fail rate over threshold, per provider; auto-resolved when it clears.</p>
           </details>
           {lockNote && takeable.length > 0 && (
@@ -264,13 +264,16 @@ export default function DataQualityLedger({
                     {e.detail}; opened {utc(e.opened_at)}{e.resolved_at ? `; cleared ${utc(e.resolved_at)}` : ""}.
                     {/* A Telegram id names a person; `web:token` names the
                         credential that made the call and nothing more. Said
-                        differently, because they are different facts. */}
+                        differently, because they are different facts. The
+                        credential branch reads "names no person" rather than
+                        "does not name a person": shorter, same negation, and
+                        the negation is the whole content of the clause. */}
                     {e.acknowledged_at && e.acknowledged_by?.startsWith("telegram:")
                       && ` Taken by ${e.acknowledged_by.slice("telegram:".length)} at ${utc(e.acknowledged_at)}.`}
                     {e.acknowledged_at && !e.acknowledged_by?.startsWith("telegram:")
-                      && ` Taken at ${utc(e.acknowledged_at)} by an operator credential, which does not name a person.`}
+                      && ` Taken at ${utc(e.acknowledged_at)} by an operator credential, which names no person.`}
                     {!e.acknowledged_at && taken[e.id]
-                      && ` Taken from this desk just now; the ledger catches up on the next poll.`}
+                      && ` Taken from this desk just now; the ledger catches up next poll.`}
                   </small>
                 </li>
               ))}
@@ -316,10 +319,17 @@ export default function DataQualityLedger({
             </div>
           )}
 
-          <p className="console-subhead">
-            Recent findings
-            <small className="muted"> — newest first; every instance and every replay job writes here.</small>
-          </p>
+          <p className="console-subhead">Recent findings</p>
+          {/* Provenance and an ordering rule, so it folds. Every row below
+              prints its own observation time and its own source — the instance
+              id, or the replay job — so the list stays readable closed, and
+              what moves is only the claim about who else writes into it. The
+              empty state beneath, the fail-rate dash note above and the lock
+              note are all outside every fold in this file. */}
+          <details className="disclosure">
+            <summary>The order, and who writes here</summary>
+            <p className="sub"> — newest first; every instance and every replay job writes here.</p>
+          </details>
           {(older ?? ledger.recent).length === 0 ? (
             <p className="sub">No finding recorded in the window.</p>
           ) : (

@@ -121,8 +121,8 @@ export default function PnlStrip({
           className="muted cockpit-strip__sync"
           title={
             transport === "live-pushed"
-              ? "Pushed by the gateway when the risk state changes — about a second old."
-              : "Polled on a timer — up to one poll interval old, and the stream is not carrying it."
+              ? "Pushed by the gateway on a risk-state change — about a second old."
+              : "Polled on a timer — up to one poll interval old; the stream is not carrying it."
           }
         >
           {mode === "sandbox"

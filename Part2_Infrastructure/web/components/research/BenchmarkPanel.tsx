@@ -66,7 +66,7 @@ const COLLAPSED_HINT =
 
 /** Said when there is no control on the screen at all, which is not this card's to fix. */
 const ABSENT_HINT =
-  "The benchmark control is not on this screen; it lives in the research rail's setup panel.";
+  "No benchmark control on this screen; it lives in the research rail's setup panel.";
 
 export default function BenchmarkPanel({ comparison, requested }: BenchmarkPanelProps) {
   /**

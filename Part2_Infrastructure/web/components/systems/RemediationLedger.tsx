@@ -116,17 +116,36 @@ export default function RemediationLedger({ active }: { active: boolean }) {
         </span>
       </div>
 
-      {error ? (
-        <p className="muted">
-          {error}. The ledger reads this instance&rsquo;s own event ring, so an unreachable route
-          breaks the reader, not the desk.
+      {/* A failed poll DEMOTES this panel, it never erases it — the same
+          asymmetry `DeskSourceMachine` pins for the cockpit. Forking the whole
+          body on `error` swapped the retained history for a one-line apology
+          on every failed poll, so a route refusing every other request had the
+          charts alternating with an error card four times a minute. The
+          error-only reading is legitimate exactly once: when the ring has
+          never been read. */}
+      {error && (
+        <p className="muted" role="status">
+          {error}.{" "}
+          {data
+            ? "The figures below are from the last successful read of this instance's ring."
+            : "The ledger reads this instance's own event ring, so an unreachable route breaks the reader, not the desk."}
         </p>
-      ) : !model.trips ? (
+      )}
+
+      {/* Not the no-trips line: before the first read settles there is no
+          evidence either way, and "No circuit has tripped" is a finding. */}
+      {!data && !error && (
+        <p className="muted">This instance&rsquo;s event ring has not been read yet.</p>
+      )}
+
+      {data && !model.trips && (
         <p className="muted">
           No circuit has tripped on this instance since it started — a short window and a bounded
           ring, not a reliability record.
         </p>
-      ) : (
+      )}
+
+      {data && model.trips > 0 && (
         <>
           {/* The ring is gated on the SAME constant that withholds the rate.
               `DonutChart` prints a rounded share beside every legend row, so an
@@ -153,7 +172,7 @@ export default function RemediationLedger({ active }: { active: boolean }) {
                   total={model.trips}
                   centreValue={String(model.trips)}
                   centreLabel="paired trips"
-                  ariaLabel="Circuit trips by how each was closed"
+                  ariaLabel="Circuit trips by how each closed"
                   emptyNote="No circuit has tripped on this instance."
                 />
               </div>
@@ -192,12 +211,12 @@ export default function RemediationLedger({ active }: { active: boolean }) {
 
           <CategoryBars
             rows={rows}
-            ariaLabel="Circuit trips by provider and how each was closed"
+            ariaLabel="Circuit trips by provider and how each closed"
             emptyNote="No provider has tripped."
           />
 
           <details className="disclosure">
-            <summary>Every matched trip and closure, with times and how each was closed</summary>
+            <summary>Every matched trip and closure, with times and how each closed</summary>
           <div className="table-wrap" tabIndex={0}>
             <table>
               <caption className="sr-only">Matched circuit trips and recoveries</caption>
@@ -248,12 +267,28 @@ export default function RemediationLedger({ active }: { active: boolean }) {
       {/* The refusal, rendered where a reader would look for the chart. The
           headline stays on screen and the reasoning collapses — a one-line
           refusal is read, and a 600-character one is skipped, so this makes the
-          refusal MORE prominent rather than less. */}
+          refusal MORE prominent rather than less. That sentence described an
+          intention the file had not carried out; the reasoning now genuinely
+          sits behind the summary below, byte for byte, pinned present and
+          pinned folded in `disclosure-reliability.test.ts`.
+
+          TWO THINGS STAY. The headline, because a chart that is absent by
+          decision must say so without being opened — `breaker-machine.test.ts`
+          asserts it survives with every disclosure stripped. And the
+          truncation warning, because it changes what the counts ABOVE mean: a
+          caveat on a figure a reader is reading is not methodology. */}
       <p className="research-note">
-        <strong>No MTTR trend is drawn.</strong> The sample that survives a bounded ring is biased
-        short, so a trend through it would slope toward a recovery time nobody achieved.
+        <strong>No MTTR trend is drawn.</strong>
         {truncated && " Lines have already been evicted here, so the counts above are a floor."}
       </p>
+
+      <details className="disclosure">
+        <summary>Why this sample cannot carry a trend</summary>
+        <p className="research-note">
+          The sample surviving a bounded ring is biased short, so a trend through it would slope
+          toward a recovery time nobody achieved.
+        </p>
+      </details>
 
       {/* The refusal above already states the conclusion — the surviving
           sample is biased short — so a summary saying it again charged the
@@ -263,8 +298,8 @@ export default function RemediationLedger({ active }: { active: boolean }) {
         <summary>How the pairing works, and what these numbers are not</summary>
         <p className="research-note">
           Pairing needs both the trip and its closure still in this instance&rsquo;s{" "}
-          {data?.cursor.capacity ?? 600}-event ring, shared with dispatch, cache and quota traffic,
-          and a long outage loses its opening line first.
+          {data?.cursor.capacity ?? 600}-event ring, shared with dispatch, cache and quota traffic;
+          a long outage loses its opening line first.
         </p>
         <p className="research-note">
           A diagnostic for one function instance, reset by redeploy and by Clear telemetry, never

@@ -60,10 +60,19 @@ export default function ResearchCorpus() {
       </div>
 
       {/* "every result is something this account produced" was "this desk's own
-          backtests and risk incidents" a second time in the same sentence. */}
-      <p className="sub">
-        Similarity search over this desk&rsquo;s own backtests and risk incidents, not the open web.
-      </p>
+          backtests and risk incidents" a second time in the same sentence.
+
+          Folded, not dropped: it is a scope caveat about the index rather than
+          anything the search returns, and the heading above it already asks
+          "Has the desk seen this before?" — so the words a reader needs before
+          typing are on screen, and the exact boundary is one labelled click
+          away. No result, count or status moves. */}
+      <details className="disclosure">
+        <summary>What this searches over</summary>
+        <p className="sub">
+          Similarity search over this desk&rsquo;s own backtests and risk incidents, not the open web.
+        </p>
+      </details>
 
       <form
         className="corpus-search"

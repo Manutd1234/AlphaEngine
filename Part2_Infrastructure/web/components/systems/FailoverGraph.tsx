@@ -190,7 +190,7 @@ export default function FailoverGraph({
                       title={
                         lockNote
                           ?? (node.state === "ready"
-                            ? "Simulate an outage here and watch the next request move down the chain."
+                            ? "Simulate an outage and watch the next request move down the chain."
                             : "Only a routable provider can be knocked out.")
                       }
                     >
@@ -213,7 +213,7 @@ export default function FailoverGraph({
                 A request for <strong>{routeNoun(route.capability, route.asset)}</strong>{" "}
                 would be served by <strong>{route.nodes.find((n) => n.active)?.label}</strong>
                 {route.nodes.filter((n) => n.rank < (route.nodes.find((x) => x.active)?.rank ?? 0)).length > 0
-                  && ", after skipping every higher-ranked provider above it"}.
+                  && ", after skipping every higher-ranked provider"}.
               </>
             ) : (
               <>

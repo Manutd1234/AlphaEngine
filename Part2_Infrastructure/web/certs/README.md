@@ -6,7 +6,7 @@ the deploy workflow's "TLS sidecar" step). It is not a secret — it contains no
 private key material and committing it is the pinning.
 
 Node trusts it via `NODE_EXTRA_CA_CERTS` (see
-[`docs/TLS_FLIP.md`](../../../docs/TLS_FLIP.md) for the full flip checklist),
+[`docs/engineering/TLS_FLIP.md`](../../../docs/engineering/TLS_FLIP.md) for the full flip checklist),
 *in addition to* the default bundle, so Supabase, Oracle and every other TLS
 peer keep verifying exactly as before.
 

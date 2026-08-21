@@ -93,11 +93,20 @@ export default function RoutingProbe({
       <h2>Execution cost probe</h2>
       {/* "see what it would actually cost" was the h2 above it in a longer
           form. What the heading does not say is that the walk is over the
-          live ladder rather than a model, and that the split comes with it. */}
-      <p className="sub">
-        Walks the live ladder for a target order, and the cross-venue split
-        that minimises it.
-      </p>
+          live ladder rather than a model, and that the split comes with it.
+
+          That is provenance and method, which is what a `.disclosure` is for:
+          the sentence stays word for word one click away, and the heading, the
+          controls and every figure the estimate produces are unmoved. Nothing
+          here is an empty state, a null explanation or a reason a control is
+          dimmed — the what-if panel states its own empty case at rest, beside
+          the control it is about. */}
+      <details className="disclosure">
+        <summary>How the estimate is produced</summary>
+        <p className="sub">
+          Walks the live ladder for a target order, and the cheapest cross-venue split.
+        </p>
+      </details>
 
       <div className="row" style={{ marginBottom: 12, alignItems: "flex-end" }}>
         <div style={{ flex: 1.4 }}>
@@ -291,8 +300,8 @@ export default function RoutingProbe({
       <details className="card execution-methodology">
         <summary>How the live routing feed works</summary>
         <p className="sub">
-          The ladders stream over WebSockets from your browser to Binance and Bybit. The same
-          maths serves REST snapshots at <code>/api/depth</code> and <code>/api/tca</code>{" "}
+          Ladders stream over WebSockets from your browser to Binance and Bybit; the same
+          maths serves <code>/api/depth</code> and <code>/api/tca</code> as REST snapshots
           for non-browser callers. Pre-trade risk checks and the kill-switch stay on the gateway.
         </p>
       </details>

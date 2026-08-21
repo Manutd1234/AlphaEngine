@@ -1,0 +1,140 @@
+/* Portfolio density pass — 2026-08-22.
+ *
+ * One partial per tab so eight parallel agents never share a file, named 14b–14i
+ * so the lexicographic order globals-manifest.test.ts pins slots them after the
+ * partials whose selectors they override and before the terminal
+ * 15-navigator-and-trailing-layer.css. The owners are on the over-ceiling
+ * ledger and may never grow, which is why these overrides live here at all.
+ *
+ * Desk-width packing only: every rule in this file must sit inside a
+ * min-width media query, so phones keep the single-column flow.
+ */
+
+/* What this pass measured before writing a rule, section by section:
+ *
+ *  - equity: already packed — EquityCurve and PnlWaterfall share a
+ *    `.compact-grid-2col.portfolio-chart-pair` row in the workspace.
+ *  - positions/holdings: refused — a nine-column table with a row-actions
+ *    menu earns its full width; halving it buys a horizontal scrollbar.
+ *  - positions/exit: refused — LiquidityPanel (seven columns, a probe button
+ *    per row) and WorkingOrders (ten columns, an inline amend flow) are both
+ *    wide interactive tables. Side by side, each would scroll sideways at
+ *    1280px, which trades one page of vertical scroll for two panes of
+ *    horizontal hunting.
+ *  - overview/standing: refused — the alerts card renders only when a limit
+ *    is inside its warning band, and that is exactly when it must keep the
+ *    full width of the reader's glance; on the quiet book only the summary
+ *    card renders, so there is nothing to pair anyway.
+ *  - allocation: refused — one card per pane, and each already packs
+ *    internally (ring beside legend, three mixes in an auto-fit row).
+ *  - performance/flow, strategy table: refused — nine columns, full width.
+ *  - OracleVarPanel's 192px reserve: refused — the file lives in
+ *    components/portfolio/ but the card renders on the Risk tab
+ *    (RiskWorkspace mounts it), and the reserve is the measured height of
+ *    the tiles-and-caption result it holds space for; reclaiming it would
+ *    reintroduce the re-run bounce its own comment documents.
+ *
+ * What it packs instead is below: three card pairs, one in-card chart pair,
+ * a six-across summary strip, and one over-tall empty state. */
+
+/* The overview summary strip: six facts on `minmax(190px, 1fr)` auto-fit
+   land 5 + 1 between ~1100 and ~1230px of viewport — a whole second row
+   spent on one tile. A 172px floor seats all six on one row from ~1124px
+   up, and auto-fit still degrades to 5/4 across, never an overflow, on
+   anything narrower. Wider desks were already six-across and are unchanged. */
+@media (min-width: 1100px) {
+  #portfolio-subpanel-overview > .portfolio-metrics {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 172px), 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  /* Three of the five section panels become two-track grids. Every direct
+     child spans both tracks by default, so segs, banners, strips and wide
+     tables keep today's full-width flow and today's DOM order; only the
+     pairs named below opt into a shared row. Child margins hand the rhythm
+     to the row gap so grid gap and card margin cannot stack. The row gap is
+     the --space-2 the cards already kept between themselves; the segs and
+     strips tighten from 12px to the same 8px, which is the vertical-rhythm
+     half of this pass. */
+  #portfolio-subpanel-overview,
+  #portfolio-subpanel-positions,
+  #portfolio-subpanel-performance {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2) var(--space-3);
+  }
+
+  #portfolio-subpanel-overview > *,
+  #portfolio-subpanel-positions > *,
+  #portfolio-subpanel-performance > * {
+    grid-column: 1 / -1;
+    min-width: 0;
+    margin-bottom: 0;
+  }
+
+  /* Overview, Book pane: the session-shape glance and the largest-exposures
+     summary are two halves of "what is the book holding", read from one
+     snapshot. Side by side they keep DOM order — glance left, table right —
+     and the risk cross-link tile below them keeps the full row. Both render
+     unconditionally, so neither can end up beside an empty track. */
+  #portfolio-subpanel-overview > .portfolio-glance,
+  #portfolio-subpanel-overview > .portfolio-glance + .card {
+    grid-column: auto;
+  }
+
+  /* Positions, Shape pane: limit pressure and the unrealised spread are two
+     per-position readings of the same positions array — peers by
+     construction, and the only `.portfolio-shape-card` elements anywhere.
+     Both charts measure their own width, so each simply redraws at the
+     track's width. Their empty states carry the same class and pair the
+     same way: two one-line cards on one row. */
+  #portfolio-subpanel-positions > .portfolio-shape-card {
+    grid-column: auto;
+  }
+
+  /* Performance, Flow pane: the instrument-flow table and the
+     execution-quality tiles are both lifetime figures from the same gateway
+     tally. Each is conditional — no symbol flow early in a log's life, no
+     quality tiles on the sandbox book — so the pair engages only when both
+     cards rendered; a lone survivor keeps the full row rather than sitting
+     beside an empty track. */
+  #portfolio-subpanel-performance
+    > .portfolio-flow-symbols-card:has(+ .portfolio-exec-quality-card),
+  #portfolio-subpanel-performance
+    > .portfolio-flow-symbols-card + .portfolio-exec-quality-card {
+    grid-column: auto;
+  }
+
+  /* The four quality tiles read the shared `.tiles` six-track grid, whose
+     container queries measure the subtab panel, not this half-width card —
+     so at half width they would keep six 90px tracks. Two-by-two is the
+     shape a ~620px card bears. */
+  #portfolio-subpanel-performance
+    > .portfolio-flow-symbols-card + .portfolio-exec-quality-card .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Performance, Trend pane: drawdown and rolling Sharpe are two views of
+     one equity track, stacked ~170px each inside a single card. The wrapper
+     keeps each label welded to its plot; both plots measure their own width
+     and redraw at the half. `align-items: start` so the not-enough-
+     observations line in one half does not stretch to the other's height. */
+  #portfolio-subpanel-performance .portfolio-trend-pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-3);
+    align-items: start;
+  }
+
+  #portfolio-subpanel-performance .portfolio-trend-pair > * {
+    min-width: 0;
+  }
+
+  /* The flat-book state is one strong line, one sentence and one button —
+     about 110px — centred in a 140px reserve. At desk width the content is
+     its own height; phones keep the roomier box. */
+  #portfolio-subpanel-positions .portfolio-empty-book {
+    min-height: 0;
+  }
+}

@@ -150,7 +150,7 @@ export default function MonteCarloDistribution({
         <div>
           <span className="page-kicker">No completed run</span>
           <h2>The distribution needs the research winner&apos;s returns.</h2>
-          <p>It resamples the drivers behind the Research equity band. Run research first.</p>
+          <p>Resamples the drivers behind the Research equity band. Run research first.</p>
           <button type="button" className="text-action" onClick={onOpenResearch}>
             Open Research
           </button>
@@ -187,11 +187,26 @@ export default function MonteCarloDistribution({
           derivedSeed={driver.seed}
         />
       </div>
-      <p className="sub">
-        Resamples <strong>{driver.label}</strong>&apos;s realised {driver.interval} returns with the{" "}
-        {MC_RESAMPLER_LABELS[ran]} over a {horizonDays}-day forward horizon, keeping where each
-        path ends.{state.engine === "main-thread" ? " Worker unavailable; chunked fallback, same numbers." : ""}
-      </p>
+      {/* The method, not the result. Which returns were resampled, by which
+          resampler and over what horizon: read once, and every parameter it
+          names is also a control in the rail above, so nothing at rest stops
+          being knowable. Word for word what the card used to say openly.
+
+          The engine notice does NOT come along. `.disclosure` takes
+          derivations and never a status, and which of the two engines drew
+          these numbers is a status — so it keeps its own line at rest and the
+          reader is told before opening anything. */}
+      <details className="disclosure">
+        <summary>How is this simulated?</summary>
+        <p className="research-note">
+          Resamples <strong>{driver.label}</strong>&apos;s realised {driver.interval} returns with the{" "}
+          {MC_RESAMPLER_LABELS[ran]} over a {horizonDays}-day forward horizon, keeping where each
+          path ends.
+        </p>
+      </details>
+      {state.engine === "main-thread" && (
+        <p className="sub">Worker unavailable; chunked fallback, same numbers.</p>
+      )}
 
       {ran === "iid" && (
         <div className="banner warn" role="status">
@@ -219,18 +234,26 @@ export default function MonteCarloDistribution({
         <>
           {/* Reserved at the shape of the result it precedes — the histogram
               with its range row (198px of svg plus the min/max line), then
-              the tile row — rather than one short shimmer. A single 180px
+              the tile block — rather than one short shimmer. A single 180px
               skeleton collapsed the card by roughly 200px on every re-run,
               so each horizon or parameter change bounced whatever sat below
-              it: the twitch, not the simulation, was what the reader saw. */}
+              it: the twitch, not the simulation, was what the reader saw.
+              The tile reserve is two rows: the five tiles land 4 + 1 on the
+              four-track stability grid, so a single-row reserve still let
+              every re-run collapse the card by a tile row. 196 is two 92px
+              rows plus the 12px grid gap — the fallback below. At desk width
+              the density partial (14e) lays the five tiles on five tracks,
+              one 92px row, and narrows `--mc-tile-reserve` alongside that
+              grid rule, so reserve and result stay the same shape at every
+              width rather than only below the desk breakpoint. */}
           <div className="skeleton" style={{ height: 212 }} />
-          <div className="skeleton" style={{ height: 92, marginTop: 12 }} />
+          <div className="skeleton" style={{ height: "var(--mc-tile-reserve, 196px)", marginTop: 12 }} />
           <p className="muted num" style={{ fontSize: "var(--fs-body)" }}>
             simulating: {(state.progress?.done ?? 0).toLocaleString()} /{" "}
             {(state.progress?.total ?? paths).toLocaleString()} paths
           </p>
           <span className="sr-only" role="status">
-            Monte Carlo simulation running.
+            Monte Carlo running.
           </span>
         </>
       )}

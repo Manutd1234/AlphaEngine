@@ -237,7 +237,7 @@ export default function OperatorPanel({
         <span aria-hidden>!</span>
         <div>
           <strong>These are not fleet or trading controls.</strong> A mutation affects only the
-          Next.js provider-routing instance that receives it, and nothing here halts or resumes the
+          Next.js provider-routing instance that receives it; nothing here halts or resumes the
           Python trading gateway.
         </div>
       </div>

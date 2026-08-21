@@ -1,0 +1,48 @@
+/* Structural separators added 2026-08-22, in their own file because the two
+ * files that own these selectors — 14-symbol-combobox.css and
+ * 08-developer-engineering.css — are both on tests/file-size.test.ts's
+ * over-ceiling ledger, which is a one-way ratchet: they may shrink but never
+ * grow. Named 14a so the lexicographic order globals-manifest.test.ts pins puts it
+ * after both owners and before 15-navigator-and-trailing-layer.css, whose
+ * prefers-contrast block must stay terminal; equal-specificity declarations
+ * here win over the owners by cascade order alone.
+ */
+
+/* ── Strategy codex cards: one hairline per fact ─────────────────────────────
+ * Each card face is four stacked facts — name, thesis, failure mode, then the
+ * meta row's verdict and alternatives. Hairlines between them let the eye read
+ * the SAME row across neighbouring cards (every Fails line sits under a rule),
+ * which the bare 6px gap could not do once the summaries wrapped unevenly.
+ */
+.codex-card__summary,
+.codex-card__fails {
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  padding-top: 6px;
+}
+
+/* Full-width rule: the meta row is state (verdict, alternatives), not doc, and
+ * the heavier border marks where the strategy's own description ends. */
+.codex-card__meta {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.codex-card__similar {
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  padding-top: 4px;
+}
+
+/* ── Codebase snapshot notice ────────────────────────────────────────────────
+ * The notice became a <details>; the flex it inherits from
+ * 08-developer-engineering.css made its summary and body flex items sharing
+ * one row, so the fold's content rendered BESIDE its own summary. Block
+ * restores the flow a disclosure assumes: summary line, then body below it.
+ * `.developer-work__scope`, still a plain div of inline runs, keeps its flex.
+ */
+details.codebase-explorer__notice {
+  display: block;
+}
+
+.codebase-explorer__notice[open] summary {
+  margin-bottom: 5px;
+}

@@ -95,15 +95,15 @@ export default function AllocationMixes({
           characters explaining them do not. */}
       <details className="disclosure">
         <summary>
-          What each cut measures: classified by the router, inferred from the ticker, and traded flow
+          What each cut measures: classified by the router, inferred from the ticker, traded flow
         </summary>
         <p className="research-note">
           <strong>Asset class</strong> is gross exposure classified by the module that routes each
           symbol&rsquo;s quotes.
         </p>
         <p className="research-note">
-          <strong>Settlement currency is derived from the ticker.</strong> No currency is recorded
-          on a position, so a symbol with no quote suffix counts as unknown, not as dollars.
+          <strong>Settlement currency is derived from the ticker.</strong> Positions record no
+          currency, so a symbol with no quote suffix counts as unknown, not as dollars.
         </p>
         <p className="research-note">
           <strong>Sleeve is traded notional, not holdings.</strong> Positions carry no sleeve tag,

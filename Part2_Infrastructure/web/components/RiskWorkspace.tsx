@@ -258,9 +258,9 @@ export default function RiskWorkspace({
               <summary>How effective positions is derived</summary>
               <p className="research-note">
                 1 ÷ the Herfindahl index of the book&apos;s weights: how many equally-sized
-                positions would carry this much concentration. {positions.length} position
+                positions would carry this concentration. {positions.length} position
                 {positions.length === 1 ? "" : "s"} behaving like{" "}
-                {fmt(book.concentration.effective_positions, 1)} says how much is really one bet.
+                {fmt(book.concentration.effective_positions, 1)} says how much is one bet.
               </p>
             </details>
           </div>

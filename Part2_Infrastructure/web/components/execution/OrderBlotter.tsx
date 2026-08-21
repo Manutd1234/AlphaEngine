@@ -145,7 +145,7 @@ export default function OrderBlotter({
               caveat travels with them: the menu's own name states the count it
               is about to write, so a reader who has narrowed the table sees the
               narrowed number before opening it. */}
-          <RowMenu label={`Export the rows on screen (${visible.length})`}>
+          <RowMenu label={`Export rows on screen (${visible.length})`}>
             <button
               type="button"
               role="menuitem"
@@ -176,7 +176,7 @@ export default function OrderBlotter({
               // The old copy said "send one and it will appear here", which on a
               // deployment with no audit log was an instruction that could not
               // work. An empty table must say WHY it is empty.
-              ? "No audit log is reachable here, so there is nothing to list."
+              ? "No audit log is reachable here, so nothing can be listed."
               : "No orders yet. Send one from the ticket above."}
         </p>
       ) : (

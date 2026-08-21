@@ -40,7 +40,7 @@ type PerformancePane = "flow" | "trend";
  * split and becomes a second navigation the reader has to learn.
  */
 const PERFORMANCE_PANES: Array<{ id: PerformancePane; label: string; hint: string }> = [
-  { id: "flow", label: "Flow, lifetime", hint: "Every audited order since the log was opened, by sleeve, by instrument and desk-wide" },
+  { id: "flow", label: "Flow, lifetime", hint: "Every audited order since the log opened, by sleeve, by instrument and desk-wide" },
   { id: "trend", label: "Trend, this session", hint: "How far under water this session went, and whether its return was worth its variance" },
 ];
 
@@ -194,7 +194,7 @@ export default function PerformanceSection({ book, isStale, equityTrack }: Perfo
                 </table>
               </div>
             ) : (
-              <p className="portfolio-attribution-empty">No audited order flow has been recorded for this session.</p>
+              <p className="portfolio-attribution-empty">No audited order flow was recorded this session.</p>
             )}
             {/* The boundary itself is on screen without this: the pane switcher
                 above reads "Flow, lifetime" beside "Trend, this session", and
@@ -202,7 +202,7 @@ export default function PerformanceSection({ book, isStale, equityTrack }: Perfo
                 mixing warning, which is a methodology claim read once. */}
             <details className="disclosure">
               <summary>
-                Which window these rows cover, and why they cannot be added to the waterfall
+                Which window these rows cover, and why they cannot join the waterfall
               </summary>
               <p className="research-note">
                 Lifetime totals, every order since the audit log opened. The Overview waterfall is
@@ -212,7 +212,7 @@ export default function PerformanceSection({ book, isStale, equityTrack }: Perfo
           </div>
 
           {symbolFlow.length > 0 && (
-            <div className="card">
+            <div className="card portfolio-flow-symbols-card">
               <div className="portfolio-card-heading">
                 <div>
                   <span className="page-kicker">Execution attribution</span>
@@ -251,9 +251,14 @@ export default function PerformanceSection({ book, isStale, equityTrack }: Perfo
                   </tbody>
                 </table>
               </div>
-              <p className="research-note">
-                An instrument that never rejects is either well-sized or never tested.
-              </p>
+              {/* A reading rule for the Rejected column, not a measurement:
+                  every count in the table stays drawn either way. */}
+              <details className="disclosure">
+                <summary>Reading the rejected column</summary>
+                <p className="research-note">
+                  An instrument that never rejects is either well-sized or never tested.
+                </p>
+              </details>
             </div>
           )}
 
@@ -268,7 +273,7 @@ export default function PerformanceSection({ book, isStale, equityTrack }: Perfo
               no tiles to draw. The two tables above carry the pane on their own,
               and both state their own emptiness, so no fallback is owed here. */}
           {executionTiles.length > 0 && (
-            <div className="card">
+            <div className="card portfolio-exec-quality-card">
               <div className="portfolio-card-heading">
                 <div>
                   <span className="page-kicker">Desk-wide and lifetime, computed by the gateway</span>
@@ -281,10 +286,16 @@ export default function PerformanceSection({ book, isStale, equityTrack }: Perfo
                   <StatTile key={tile.label} label={tile.label} value={tile.value} note={tile.note} />
                 ))}
               </div>
-              <p className="research-note">
-                A mean decision time hides the one order in a hundred that took long enough to miss
-                its price.
-              </p>
+              {/* Why the tile beside it quotes a tail rather than a mean — a
+                  caveat about a summary statistic, not a figure. The p99 and
+                  p50 the sentence argues for are drawn above it at rest. */}
+              <details className="disclosure">
+                <summary>Why p99, not the mean</summary>
+                <p className="research-note">
+                  A mean decision time hides the one order in a hundred slow enough to miss its
+                  price.
+                </p>
+              </details>
             </div>
           )}
         </>

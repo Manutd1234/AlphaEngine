@@ -71,7 +71,7 @@ export default function ExposureHeatmap({
 
   if (!cells.length) {
     return (
-      <section className="card">
+      <section className="card portfolio-shape-card">
         <div className="portfolio-card-heading">
           <div>
             <span className="page-kicker">Concentration</span>
@@ -96,7 +96,7 @@ export default function ExposureHeatmap({
   const base = MARGIN.top + rows.length * ROW;
 
   return (
-    <section className="card">
+    <section className="card portfolio-shape-card">
       <div className="portfolio-card-heading">
         <div>
           <span className="page-kicker">Concentration</span>
@@ -116,7 +116,7 @@ export default function ExposureHeatmap({
           aria-label={
             `Symbol-limit utilisation for ${rows.length} positions, ranked. `
             + `${withheld} have no published limit; ${tight.length} at or above `
-            + `${pct(TIGHT, 0)} of their limit. The same figures are in the table below.`
+            + `${pct(TIGHT, 0)} of their limit. Same figures in the table below.`
           }
         >
           {/* The limit itself, and the pressure threshold. Both solid — dashing
@@ -222,8 +222,8 @@ export default function ExposureHeatmap({
       <details className="disclosure">
         <summary>Why only utilisation is drawn</summary>
         <p className="research-note">
-          Utilisation is nearness to the cap the risk gate enforces, so a small position can be
-          the one nearest a hard stop. Share of gross has no 100% to draw against.
+          Utilisation is nearness to the risk gate&apos;s enforced cap, so a small position can
+          sit nearest a hard stop. Share of gross has no 100% to draw against.
         </p>
       </details>
 

@@ -248,19 +248,27 @@ export default function ResearchWorkspace({
                   targetInterval={req.interval}
                   onRerun={() => run()}
                 >
-                  {data.results.length > 3 ? (
-                    <StabilityPanel
-                      stability={data.stability}
-                      results={data.results}
-                      best={data.best}
-                      selected={inspect}
-                      onSelect={inspectCombo}
-                    />
-                  ) : null}
-                  <div className="card">
-                    <h2>Candidate ranking</h2>
-                    <p className="sub">The top 15 combinations behind the winner. Select a row to inspect that pair without losing the sweep.</p>
-                    <ResultsTable data={data} onSelect={inspectCombo} selected={inspect} />
+                  {/* The surface and the list are two selection handles on
+                      the same sweep — both call inspectCombo — so at desk
+                      width they share a row (14c-density-research.css) and
+                      below it this wrapper is an unstyled div and the stack
+                      is exactly what it was. DOM order is unchanged:
+                      surface first, ranking second. */}
+                  <div className="research-param-pair">
+                    {data.results.length > 3 ? (
+                      <StabilityPanel
+                        stability={data.stability}
+                        results={data.results}
+                        best={data.best}
+                        selected={inspect}
+                        onSelect={inspectCombo}
+                      />
+                    ) : null}
+                    <div className="card">
+                      <h2>Candidate ranking</h2>
+                      <p className="sub">The top 15 combinations behind the winner. Select a row to inspect that pair without losing the sweep.</p>
+                      <ResultsTable data={data} onSelect={inspectCombo} selected={inspect} />
+                    </div>
                   </div>
                 </StaleGate>
               </WorkspaceSubtabPanel>

@@ -78,7 +78,7 @@ export default function OperatorGuard({
                 type="button"
                 className="console-node__action"
                 onClick={() => onTokenChange("")}
-                title="Forget the token and return this tab to its default identity."
+                title="Forget the token; this tab returns to its default identity."
               >
                 Clear
               </button>

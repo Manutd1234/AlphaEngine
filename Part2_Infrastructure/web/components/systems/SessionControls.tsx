@@ -27,12 +27,6 @@ interface SessionControlsProps {
   onReconnectSockets: () => void;
 }
 
-/**
- * Remediation's Session pane — split from `OperatorPanel` along the
- * blast-radius seam its two group headings drew: everything in that panel
- * mutates server state behind the guard; nothing here touches the server, so no
- * guard renders.
- */
 export default function SessionControls({
   pollMs,
   onPollMsChange,
@@ -96,7 +90,7 @@ export default function SessionControls({
         <summary>What each session control touches</summary>
         <dl className="operator-scope-notes">
           <dt>Reconnect WebSockets</dt>
-          <dd>Resets the backoff and the sequence guard rather than waiting one out.</dd>
+          <dd>Resets the backoff and sequence guard rather than waiting one out.</dd>
           <dt>Health snapshot cadence</dt>
           <dd>Background priority is fenced out of each provider&rsquo;s interactive reserve; only an explicit <em>Refresh now</em> is interactive.</dd>
         </dl>

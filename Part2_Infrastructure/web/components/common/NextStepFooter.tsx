@@ -240,7 +240,7 @@ const FLOW_MAP: Record<WorkspaceView, { nextId: WorkspaceView; kicker: string; t
     nextId: "data",
     kicker: "Next step for the data engineer",
     title: "Verify data lineage and feed freshness",
-    hint: "Provider quotas, contract evidence, the pipeline DAG.",
+    hint: "Provider quotas, contract evidence, pipeline DAG.",
   },
   data: {
     nextId: "reliability",
@@ -252,13 +252,13 @@ const FLOW_MAP: Record<WorkspaceView, { nextId: WorkspaceView; kicker: string; t
     nextId: "developer",
     kicker: "Next step for the quant developer",
     title: "Inspect CI/CD and schema contracts",
-    hint: "Deployment topology, OpenAPI diffs, the task queue.",
+    hint: "Deployment topology, OpenAPI diffs, task queue.",
   },
   developer: {
     nextId: "overview",
     kicker: "Next step around the decision loop",
     title: "Return to the desk overview",
-    hint: "Equity, the decision pipeline, the audit trail.",
+    hint: "Equity, decision pipeline, audit trail.",
   },
 };
 

@@ -1,0 +1,69 @@
+/* Execution density pass — 2026-08-22.
+ *
+ * One partial per tab so eight parallel agents never share a file, named 14b–14i
+ * so the lexicographic order globals-manifest.test.ts pins slots them after the
+ * partials whose selectors they override and before the terminal
+ * 15-navigator-and-trailing-layer.css. The owners are on the over-ceiling
+ * ledger and may never grow, which is why these overrides live here at all.
+ *
+ * Desk-width packing only: every rule in this file must sit inside a
+ * min-width media query, so phones keep the single-column flow.
+ */
+
+/* What this pass found, so the next one does not re-survey. The Execution tab
+ * was already the most packed on the desk: three of its thirteen panels were
+ * gridded before this pass (chart + ladder on Liquidity, decomposition + venue
+ * mix on Fill quality, tape + alerts on Blotter), and its heavy remainders are
+ * full-width tables and a 12-tile scroller that earn their width. What was
+ * left: one pair of peer histograms stacked inside the quality card, and a
+ * handful of inter-card margins sitting above the tab's own 8px base rhythm.
+ *
+ * Refused, with reasons, so a later agent does not force them:
+ *   - market strip beside the P&L strip: different containers (LiveMarket vs
+ *     .cockpit), and the P&L/halt strip is the risk-gate summary that reads
+ *     above the ticket;
+ *   - watchlist beside book or probe: a ~1780px horizontal scroller loses
+ *     twice the scroll it saves at half width;
+ *   - per-venue table beside the blended tiles in RouteEstimate: the
+ *     detail -> route bar -> summary sequence is one argument;
+ *   - heatmap beside the Where pair, blotter beside anything: full-width
+ *     tables.
+ */
+@media (min-width: 1100px) {
+  /* The two spend-a-row-each histograms in the Cost pane — gate latency and
+   * effective spread — are the same shape answering neighbouring questions.
+   * Side by side their combined height halves; each keeps its caption and its
+   * fold inside its own cell, and `align-items: start` means opening the
+   * latency fold never stretches its neighbour. Below the breakpoint the
+   * wrapper is a plain div and the stack is untouched. */
+  .cockpit-quality__distributions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-4);
+    align-items: start;
+  }
+
+  /* Cards inside the cockpit's shared rows carried 16px below them, twice the
+   * 8px the standardisation layer gives every other card on this tab. The
+   * grids do their spacing with `gap`; the trailing margin only pushes the
+   * next section further down. */
+  .cockpit-grid > .card {
+    margin-bottom: var(--space-2);
+  }
+
+  /* The two Trade strips close ranks to the same 8px rhythm. Phones keep the
+   * 12px they have — a thumb needs the seam more than a desk does. */
+  .execution-market-strip {
+    margin-bottom: var(--space-2);
+  }
+
+  .cockpit-strip--compact {
+    margin-bottom: var(--space-2);
+  }
+
+  /* The pane switchers above Fill quality and Blotter, cockpit-scoped so no
+   * other tab's seg moves. */
+  .cockpit .workspace-subtab-panel > .seg {
+    margin-bottom: var(--space-2);
+  }
+}

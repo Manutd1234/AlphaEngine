@@ -28,7 +28,7 @@ import { TEST_COUNTS } from "@/lib/test-counts.generated";
 import { APP_COMMIT } from "@/lib/version";
 
 import { GITHUB_REPOSITORY_ROOT } from "./console-identity";
-import { ArtifactLineage, PipelineStrip, StatusPill, workspaceState } from "./DeveloperStatus";
+import { ArtifactLineage, PipelineStrip, StatusPill, type ControlState } from "./DeveloperStatus";
 
 /*
  * Measured, not remembered.
@@ -74,10 +74,16 @@ type QualityPane = "pipeline" | "verification";
 
 const QUALITY_PANES: Array<{ id: QualityPane; label: string; hint: string }> = [
   { id: "pipeline", label: "Pipeline", hint: "The stages this commit travels, and how far this build got" },
-  { id: "verification", label: "Verification", hint: "What the configured gates prove, and for which artifact" },
+  { id: "verification", label: "Verification", hint: "What configured gates prove, and for which artifact" },
 ];
 
-export default function DeveloperPipelines({ view }: { view: SystemHealthView }) {
+export default function DeveloperPipelines({ view, workspaceHealth }: {
+  view: SystemHealthView;
+  /** The settled workspace reading from the shell's `useWorkspaceHealth` —
+   *  the panes here remount on every switch, so a machine of their own would
+   *  forget a demotion the Overview is still holding. */
+  workspaceHealth: ControlState;
+}) {
   const [pane, setPane] = useState<QualityPane>("pipeline");
   const totalTests = CI_JOBS.reduce((sum, job) => sum + (job.count ?? 0), 0);
   return (
@@ -130,7 +136,7 @@ export default function DeveloperPipelines({ view }: { view: SystemHealthView })
             </section>
 
             <section className="card developer-cp-pipeline-card stagger-reveal" style={{ "--stagger-i": 1 } as CSSProperties}>
-              <div className="developer-cp-heading"><div><span>Current build path</span><h2>Commit {APP_COMMIT}</h2></div><StatusPill state={workspaceState(view)} live={workspaceState(view).tone === "good"} /></div>
+              <div className="developer-cp-heading"><div><span>Current build path</span><h2>Commit {APP_COMMIT}</h2></div><StatusPill state={workspaceHealth} live={workspaceHealth.tone === "good"} /></div>
               <PipelineStrip />
             </section>
           </>
@@ -176,7 +182,7 @@ export default function DeveloperPipelines({ view }: { view: SystemHealthView })
 
             <section className="card developer-cp-artifact-card stagger-reveal" style={{ "--stagger-i": 1 } as CSSProperties}>
               <div className="developer-cp-heading"><div><span>Artifact registry</span><h2>Deployable lineage</h2></div><span>Runtime-observed state</span></div>
-              <ArtifactLineage view={view} />
+              <ArtifactLineage view={view} workspace={workspaceHealth} />
               {/* The definition, not the verdict. What "Attested" means — and
                   which evidence it does NOT cover — is read once and not on
                   every visit, so it folds; the custody reading itself is a pill

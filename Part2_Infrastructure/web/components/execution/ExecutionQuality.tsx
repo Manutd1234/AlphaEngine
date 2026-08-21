@@ -64,8 +64,8 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
       {!summary.orders ? (
         <p className="muted">
           {source === "unavailable"
-            ? "There is nothing to measure without a source."
-            : "Nothing has been sent yet, so there is nothing to measure."}
+            ? "Nothing to measure without a source."
+            : "Nothing sent yet, so there is nothing to measure."}
         </p>
       ) : (
         <>
@@ -124,6 +124,13 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
             </p>
           )}
 
+          {/* One wrapper, two peer histograms. At desk width the density
+              partial (14d) lays them side by side — they are the same shape
+              answering neighbouring questions, and stacked they spent two
+              rows on one reading. Each block keeps its own caption and its
+              own fold; below the breakpoint this div is plain block flow and
+              the stack is exactly what it was. */}
+          <div className="cockpit-quality__distributions">
           <div className="cockpit-quality__distribution">
             <span className="field">Gate latency distribution</span>
             <LatencyHistogram
@@ -131,12 +138,22 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
               ariaLabel="Distribution of gate decision latency"
               format={(v) => formatDuration(v, "ms")}
             />
-            <small className="muted">
-              Time inside the pre-trade battery, not order-to-fill.
-              {source === "sandbox"
-                ? " Sandbox latencies are generated uniform 140–250 µs; the flat shape is the generator."
-                : ""}
-            </small>
+            {/* A chart-reading rule, not a measurement. What the axis is
+                bounded to stays at rest twice over — the tile above reads
+                "Median gate latency" and this chart's own field label reads
+                "Gate latency distribution" — so what folds is the spelt-out
+                negation and, on a generated desk, why the shape is flat. Every
+                figure the reader acts on (p50, p90, p99, the bars) is still on
+                screen. */}
+            <details className="disclosure">
+              <summary>What this latency measures</summary>
+              <small className="muted">
+                Time inside the pre-trade battery, not order-to-fill.
+                {source === "sandbox"
+                  ? " Sandbox latencies are generated uniform 140–250 µs; the flat shape is the generator."
+                  : ""}
+              </small>
+            </details>
           </div>
 
           {/* The distribution that is actually about fill quality. The one above
@@ -151,6 +168,7 @@ export default function ExecutionQuality({ summary, symbol, symbolOrders, rows =
               noun="fills"
               ariaLabel="Distribution of effective spread across fills"
             />
+          </div>
           </div>
 
           {summary.topRejectReason ? (

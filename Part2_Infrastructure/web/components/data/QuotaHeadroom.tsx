@@ -51,11 +51,13 @@ export default function QuotaHeadroom({ health }: { health: SystemHealth | null 
 
       {/* A shared 0–100 denominator: each row is a share of its OWN window, and
           `max` fixes the scale so two providers with different limits are still
-          comparable side by side. */}
+          comparable side by side. The label names one "share" and lets it
+          distribute over all three bands; naming it three times was the only
+          thing the shorter wording dropped. */}
       <CategoryBars
         rows={bars}
         max={100}
-        ariaLabel="Each metered provider's quota window: the share spent, the share free for background polling, and the share reserved for interactive lookups."
+        ariaLabel="Each metered provider's quota window: the share spent, free for background polling, and reserved for interactive lookups."
         emptyNote="No provider in this environment keeps a local quota ledger, so there is no headroom to report."
       />
 
@@ -74,7 +76,7 @@ export default function QuotaHeadroom({ health }: { health: SystemHealth | null 
               ? <><strong>{fenced}</strong> provider{fenced === 1 ? " is" : "s are"} at or past the
                 reserve, so background refreshes there are refused while interactive lookups still
                 work.</>
-              : "No provider has reached its reserve, so background and interactive traffic are both funded."}
+              : "No provider has reached its reserve; background and interactive traffic are both funded."}
           </p>
           {/* A split, not a move. The middle clause of the paragraph above is a
               figure a reader acts on — background polling already being
@@ -82,7 +84,7 @@ export default function QuotaHeadroom({ health }: { health: SystemHealth | null 
               over a fact already printed on every row ("{used} of {limit} per
               {window}") and a pointer to where the clock is drawn. */}
           <details className="disclosure">
-            <summary>How should a bar&rsquo;s length be read, and where is the reset clock?</summary>
+            <summary>How is a bar&rsquo;s length read, and where is the reset clock?</summary>
             <p className="research-note">
               Each bar is a share of its own window; the absolute count sits beside it. The window
               countdown and per-call ledger live in Providers.
@@ -97,11 +99,22 @@ export default function QuotaHeadroom({ health }: { health: SystemHealth | null 
           ledger with room in it. Unnamed, they are indistinguishable from
           providers this deployment does not have. */}
       {unmetered.length > 0 && (
-        <p className="console-footnote">
-          Unmetered: {unmetered.map((provider) => provider.label).join(", ")} — keyless or billed by
-          request weight, not by call count, so no local ledger is kept. Their absence from the
-          chart is not headroom.
-        </p>
+        <>
+          <p className="console-footnote">
+            Unmetered: {unmetered.map((provider) => provider.label).join(", ")}. Their absence from
+            the chart is not headroom.
+          </p>
+          {/* A split, not a move. The claim a reader could be misled by — that
+              a provider missing from the bars has room — stays on screen with
+              the names it applies to. Only the billing reason those providers
+              keep no ledger folds: it changes nothing a reader does, and the
+              chart's own emptyNote and the reserve sentence above are both
+              outside every fold on this card. */}
+          <details className="disclosure">
+            <summary>Why these providers keep no ledger</summary>
+            <p className="console-footnote"> — keyless or billed by request weight, not call count, so no local ledger is kept.</p>
+          </details>
+        </>
       )}
     </section>
   );

@@ -77,7 +77,7 @@ export default function CodebaseExplorer() {
       <div className="codebase-explorer__heading">
         <div>
           <span className="page-kicker">Repository map</span>
-          <h2>Browse the complete codebase snapshot</h2>
+          <h2>The complete codebase snapshot</h2>
           {/* No subtitle: it restated the heading. Read-only-ness and coverage
               are stated once, by the notice block below, which also carries the
               actionable refresh command. */}
@@ -93,13 +93,29 @@ export default function CodebaseExplorer() {
         </div>
       </div>
 
-      <div className="codebase-explorer__notice">
-        <strong>Read-only repository snapshot.</strong>
-        <span>
-          Refresh with <code>npm run catalog:refresh</code> when files are added or removed; manifest{" "}
-          <code>{REPOSITORY_MANIFEST_PROVENANCE.commit}</code>.
-        </span>
-      </div>
+      {/* Provenance and scope, folded: what the snapshot may not do, the
+          command that remakes it, and the commit it was generated at are read
+          once and not on every visit. Nothing measured moves — the "As of"
+          date and all four counts stay in the stats strip above, where they
+          qualify the figures a reader actually takes from this card, and the
+          strip is why folding this leaves numbers rather than a blank. The
+          summary names the three things inside and answers none of them.
+
+          The `<span>` is one line now so the sentence is one contiguous run of
+          source: the `{" "}` it used to need was an artefact of the wrap, not
+          rendered text, and the pinning assertion in
+          `tests/disclosure-developer.test.ts` compares collapsed source. Same
+          words, same spacing, same render. */}
+      <details className="codebase-explorer__notice disclosure">
+        <summary>Snapshot scope, refresh command and manifest commit</summary>
+        {/* One source line, deliberately: JSX strips newline-adjacent
+            whitespace between elements, so splitting these across lines glued
+            "snapshot." to "Refresh" on screen while the collapsed-source pin in
+            `tests/disclosure-developer.test.ts` — which sees the newline as a
+            space — kept passing. The renderer and the test must read the same
+            byte, and only a same-line space is the same byte in both. */}
+        <strong>Read-only repository snapshot.</strong> <span>Refresh with <code>npm run catalog:refresh</code> when files are added or removed; manifest <code>{REPOSITORY_MANIFEST_PROVENANCE.commit}</code>.</span>
+      </details>
 
       <div className="codebase-explorer__toolbar">
         <label className="codebase-explorer__search">
@@ -169,7 +185,7 @@ export default function CodebaseExplorer() {
           ) : (
             <div className="codebase-filelist__empty">
               <strong>No matching paths</strong>
-              <span>Try a shorter search or clear the code-area filter.</span>
+              <span>Shorten the search, or clear the code-area filter.</span>
             </div>
           )}
         </aside>

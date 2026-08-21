@@ -29,7 +29,7 @@ export default function UnrealisedSpread({
 
   if (!spread.n) {
     return (
-      <section className="card">
+      <section className="card portfolio-shape-card">
         <div className="portfolio-card-heading">
           <div>
             <span className="page-kicker">Open P&amp;L</span>
@@ -37,8 +37,8 @@ export default function UnrealisedSpread({
           </div>
         </div>
         <p className="muted">
-          No open position carries an unrealised figure, so there is nothing to distribute. A flat
-          book, not an unmeasured one.
+          No open position carries an unrealised figure: nothing to distribute. A flat book, not
+          an unmeasured one.
         </p>
       </section>
     );
@@ -49,7 +49,7 @@ export default function UnrealisedSpread({
     .sort((a, b) => b.unrealized_pnl - a.unrealized_pnl);
 
   return (
-    <section className="card">
+    <section className="card portfolio-shape-card">
       <div className="portfolio-card-heading">
         <div>
           <span className="page-kicker">Open P&amp;L</span>
@@ -99,8 +99,7 @@ export default function UnrealisedSpread({
       <details className="disclosure">
         <summary>What a small total can hide</summary>
         <p className="research-note">
-          A flat book and two large positions cancelling report the same total, and only one of
-          them is quiet.
+          A flat book and two large positions cancelling report the same total; only one is quiet.
         </p>
       </details>
     </section>

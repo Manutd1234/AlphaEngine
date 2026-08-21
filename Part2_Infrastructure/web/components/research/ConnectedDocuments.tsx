@@ -79,15 +79,15 @@ export default function ConnectedDocuments({ documentId }: { documentId: string 
 
       {load.status === "error" && (
         <p className="sub">
-          The graph could not be walked: {load.message.replace(/\.$/, "")}. That is not the same
-          as nothing being connected.
+          The graph could not be walked: {load.message.replace(/\.$/, "")}. Not the same as
+          nothing being connected.
         </p>
       )}
 
       {load.status === "done" && load.payload.state !== "ok" && (
         <p className="sub">
-          No graph is available here — either the corpus is unconfigured, or this deployment
-          predates the traversal function.
+          No graph here — either the corpus is unconfigured, or this deployment predates the
+          traversal function.
         </p>
       )}
 

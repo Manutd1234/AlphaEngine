@@ -124,7 +124,7 @@ export default function SupplyPosture({ health }: { health: SystemHealth | null 
               readable closed. The summary asks the exact misreading it
               prevents, which is the part that cannot be allowed to go quiet. */}
           <details className="disclosure">
-            <summary>Does a bar&rsquo;s left-to-right order tell you which node is tried first?</summary>
+            <summary>Does a bar&rsquo;s left-to-right order say which node is tried first?</summary>
             <p className="research-note">
               Each bar groups a chain&rsquo;s nodes by state, <strong>not</strong> by rank; which
               provider answers first lives in Providers.

@@ -24,9 +24,12 @@ import { useCallback, useEffect, useState } from "react";
 
 import { filterWorkingOrders, sandboxWorkingOrders, toWorkingOrder, type WorkingOrderRow } from "@/lib/blotter";
 import RowMenu from "@/components/common/RowMenu";
+import WorkingOrderActions from "@/components/portfolio/WorkingOrderActions";
+import { workingOrdersFeedView } from "@/components/portfolio/working-orders-feed";
 import { download } from "@/lib/download";
 import { workingOrdersToCsv } from "@/lib/export-csv";
 import { fmt, usd } from "@/lib/format";
+import { useDeskSource } from "@/lib/use-desk-source";
 import { probeGateway } from "@/lib/use-gateway-connection";
 import { usePolling } from "@/lib/use-polling";
 
@@ -86,44 +89,45 @@ export default function WorkingOrders({
   origin = "portfolio panel",
   query = "",
 }: WorkingOrdersProps) {
-  const [rows, setRows] = useState<WorkingOrderRow[]>([]);
-  const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [amending, setAmending] = useState<string | null>(null);
   const [draftPrice, setDraftPrice] = useState("");
+  // What the last cancel or amend came back with. Distinct from the feed's
+  // health, which lives in the machine below: an action result is caused by a
+  // click and cleared by the next one, so it cannot flap on the poll cadence.
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const sandbox = source === "sandbox";
+
+  /* The feed's provenance. `rows` + `error` used to be two `useState`s written
+     on every poll with no hysteresis, so a gateway dropping every other
+     request toggled the error banner at the 5s cadence — and a feed that had
+     never answered still rendered the quiet-desk copy. The machine keeps the
+     last measured rows through failures and demotes them to stale instead;
+     `working-orders-feed.ts` maps its state to the one rendered decision, and
+     `portfolio-stability.test.ts` replays the flap against both. */
+  const { state: feedState, observe } = useDeskSource<WorkingOrderRow[]>();
 
   const load = useCallback(async () => {
     // Never `/api/gateway/portfolio` from a component — that snapshot has one
     // owner, `lib/use-book.ts`, so two tabs can never disagree about the book.
     // Through the connection manager for its 2.5s deadline. This was a bare
-    // fetch: a gateway that accepted and never answered left `loaded` false and
-    // the panel on its skeleton for as long as the tab stayed open.
+    // fetch: a gateway that accepted and never answered left the panel on its
+    // "reading" state for as long as the tab stayed open.
     const outcome = await probeGateway<{ rows?: unknown[] }>("/api/gateway/orders/working");
     if (!outcome.ok) {
-      setError(outcome.failure.timedOut
-        ? "the working-order feed did not answer in time"
-        : "the working-order feed is unreachable");
-      setLoaded(true);
-      return;
+      observe(outcome);
+      return outcome;
     }
     const parsed = (Array.isArray(outcome.payload?.rows) ? outcome.payload.rows : [])
       .map(toWorkingOrder)
       .filter((row: WorkingOrderRow | null): row is WorkingOrderRow => row !== null);
-    setRows(parsed);
-    setError(null);
-    setLoaded(true);
-  }, []);
+    observe({ ok: true, payload: parsed });
+    return outcome;
+  }, [observe]);
 
   useEffect(() => {
-    if (sandbox) {
-      setRows(sandboxWorkingOrders());
-      setLoaded(true);
-      return;
-    }
-    if (!active || source === "unavailable") return;
+    if (sandbox || !active || source === "unavailable") return;
     void load();
   }, [active, sandbox, source, load]);
 
@@ -132,7 +136,12 @@ export default function WorkingOrders({
      five seconds, and a refusing gateway was asked twelve times a minute
      forever. The controller carries both. */
   usePolling({
-    tick: load,
+    tick: async () => {
+      const outcome = await load();
+      // The controller backs off on a rejected tick; the machine has already
+      // recorded the failure, so this throw carries the fact, not new copy.
+      if (!outcome.ok) throw new Error(outcome.failure.message);
+    },
     intervalMs: POLL_MS,
     maxBackoffMs: 60_000,
     enabled: !sandbox && active && source !== "unavailable",
@@ -151,7 +160,7 @@ export default function WorkingOrders({
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        setError(payload?.detail ?? payload?.error ?? `gateway returned ${response.status}`);
+        setActionError(payload?.detail ?? payload?.error ?? `gateway returned ${response.status}`);
         return;
       }
 
@@ -164,9 +173,9 @@ export default function WorkingOrders({
       const decision = payload?.decision;
       if (decision && decision.accepted === false) {
         const gates: string[] = Array.isArray(decision.rejected_by) ? decision.rejected_by : [];
-        setError(
-          `The replacement was refused by ${gates.join(", ") || "a pre-trade gate"}`
-          + ` — and the original order is already cancelled, so nothing is resting for ${orderId} now.`
+        setActionError(
+          `The replacement was refused by ${gates.join(", ") || "a pre-trade gate"};`
+          + ` the original order is already cancelled, so nothing rests for ${orderId} now.`
           + (decision.reason ? ` ${decision.reason}` : ""),
         );
         await load();
@@ -174,16 +183,21 @@ export default function WorkingOrders({
         return;
       }
 
-      setError(null);
+      setActionError(null);
       await load();
       onChanged?.();
     } catch {
-      setError("the request did not reach the gateway");
+      setActionError("the request did not reach the gateway");
     } finally {
       setBusy(null);
       setAmending(null);
     }
   }, [operatorToken, load, onChanged]);
+
+  const feedView = workingOrdersFeedView(source, feedState);
+  const rows = feedView.kind === "measured"
+    ? feedView.rows
+    : feedView.kind === "generated" ? sandboxWorkingOrders() : [];
 
   // `visible` is what the table and the export show; `rows` stays the
   // unfiltered truth so the committed total below still reports the whole
@@ -205,7 +219,9 @@ export default function WorkingOrders({
           <span>
             {rows.length
               ? `${usd(committed, 0)} across ${rows.length} order${rows.length === 1 ? "" : "s"}`
-              : "nothing resting"}
+              // Only a reading may call the desk quiet; every other state
+              // names itself in the body below.
+              : feedView.kind === "measured" ? "nothing resting" : "—"}
             {visible.length !== rows.length ? `, showing ${visible.length}` : ""}
           </span>
           {/* Its own header, not the blotter's 18 columns: a resting order has
@@ -254,27 +270,45 @@ export default function WorkingOrders({
         <div className="banner warn sandbox-banner" role="status">
           <span aria-hidden>◆</span>
           <div>
-            <strong>Generated resting orders.</strong> Never sent and not cancellable; the actions
+            <strong>Generated resting orders.</strong> Never sent, not cancellable; the actions
             below are disabled rather than hidden.
           </div>
         </div>
       )}
 
-      {error && (
-        <div className="banner error" role="alert">
-          <span aria-hidden>▲</span>
-          <div>{error}</div>
+      {feedView.kind === "measured" && feedView.stale && (
+        // Keyed on the machine's demotion, which an alternating gateway cannot
+        // toggle — only the promotion streak clears it. The rows stay: real
+        // orders from the last successful read, carried with their age.
+        <div className="banner warn" role="status">
+          <span aria-hidden>!</span>
+          <div>
+            <strong>The resting book cannot be refreshed.</strong>{" "}
+            Showing the last successful read, {feedView.lastGoodAt.toLocaleTimeString()}.
+          </div>
         </div>
       )}
 
-      {!rows.length ? (
-        <p className="muted">
-          {!loaded
-            ? "Reading the resting book…"
-            : source === "unavailable"
-              ? "No gateway in this deployment, so there is no resting book to read."
-              : "Nothing is resting. Every accepted order so far filled at once."}
-        </p>
+      {actionError && (
+        <div className="banner error" role="alert">
+          <span aria-hidden>▲</span>
+          <div>{actionError}</div>
+        </div>
+      )}
+
+      {feedView.kind === "connecting" ? (
+        <p className="muted">Reading the resting book…</p>
+      ) : feedView.kind === "unavailable" ? (
+        <p className="muted">No gateway in this deployment is answering, so no resting book to read.</p>
+      ) : feedView.kind === "failed" ? (
+        // A feed that has never answered is a failure to report, not a quiet
+        // desk: the claim below needs a measured read behind it.
+        <div className="banner error" role="alert">
+          <span aria-hidden>▲</span>
+          <div>{feedView.message} Nothing is generated in its place.</div>
+        </div>
+      ) : !rows.length ? (
+        <p className="muted">Nothing is resting. Every accepted order so far filled at once.</p>
       ) : (
         <div className="table-wrap" tabIndex={0}>
           <table>
@@ -326,63 +360,24 @@ export default function WorkingOrders({
                   </td>
                   <td className="muted">{row.strategy ?? "—"}</td>
                   <td>
-                    {amending === row.orderId ? (
-                      <div className="portfolio-row-actions">
-                        <input
-                          className="allocation-target-input"
-                          type="text"
-                          inputMode="decimal"
-                          aria-label={`New limit price for ${row.symbol}`}
-                          value={draftPrice}
-                          autoFocus
-                          onChange={(event) => setDraftPrice(event.target.value)}
-                          onKeyDown={(event) => { if (event.key === "Escape") setAmending(null); }}
-                        />
-                        <button
-                          type="button"
-                          disabled={busy === row.orderId || !Number.isFinite(Number(draftPrice))}
-                          onClick={() => void mutate(
-                            `/api/gateway/orders/${encodeURIComponent(row.orderId)}/replace`,
-                            { limit_price: Number(draftPrice), reason: `amended from the ${origin}` },
-                            row.orderId,
-                          )}
-                        >
-                          Send
-                        </button>
-                        <button type="button" onClick={() => setAmending(null)}>Cancel edit</button>
-                      </div>
-                    ) : (
-                      <div className="portfolio-row-actions">
-                        <button
-                          type="button"
-                          disabled={writesDisabled || busy === row.orderId}
-                          title={
-                            sandbox ? "Generated orders cannot be amended."
-                              : isStale ? "Reconnect the portfolio gateway before amending."
-                                : "Replace this order at a new limit — it faces every gate again"
-                          }
-                          onClick={() => { setAmending(row.orderId); setDraftPrice(String(row.limitPrice)); }}
-                        >
-                          Amend
-                        </button>
-                        <button
-                          type="button"
-                          disabled={writesDisabled || busy === row.orderId}
-                          title={
-                            sandbox ? "Generated orders cannot be cancelled."
-                              : isStale ? "Reconnect the portfolio gateway before cancelling."
-                                : "Pull this order off the book"
-                          }
-                          onClick={() => void mutate(
-                            `/api/gateway/orders/${encodeURIComponent(row.orderId)}/cancel`,
-                            { reason: `cancelled from the ${origin}` },
-                            row.orderId,
-                          )}
-                        >
-                          {busy === row.orderId ? "…" : "Cancel"}
-                        </button>
-                      </div>
-                    )}
+                    {/* The cell is its own file; the editing state is not.
+                        Which row is open, the draft and the in-flight order
+                        stay here because one edit at a time is the table's
+                        property, not a row's. */}
+                    <WorkingOrderActions
+                      row={row}
+                      busy={busy === row.orderId}
+                      amending={amending === row.orderId}
+                      draftPrice={draftPrice}
+                      writesDisabled={writesDisabled}
+                      sandbox={sandbox}
+                      isStale={isStale}
+                      origin={origin}
+                      onDraftChange={setDraftPrice}
+                      onAmendStart={() => { setAmending(row.orderId); setDraftPrice(String(row.limitPrice)); }}
+                      onAmendClose={() => setAmending(null)}
+                      onMutate={(path, body, orderId) => void mutate(path, body, orderId)}
+                    />
                   </td>
                 </tr>
               ))}
@@ -397,7 +392,7 @@ export default function WorkingOrders({
         <p className="research-note">
           A new order is projected against the worst side of this book filling, so two orders that
           each pass a symbol cap alone can fail it together. Fills are not queued: an order fills
-          in full the moment the touch crosses it, which is optimistic.
+          in full the moment the touch crosses it — optimistic.
         </p>
       </details>
     </div>

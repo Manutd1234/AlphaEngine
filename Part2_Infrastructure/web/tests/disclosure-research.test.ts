@@ -201,6 +201,20 @@ const MOVED: {
       "Each fold trades the window after the one it fitted; the in-sample →"
       + " out-of-sample gap is the overfitting.",
   },
+  // The fourth pass: construction rather than measurement — how a number was
+  // produced, or how a drawing is read. What it REFUSED is recorded in STAYS.
+  { file: "components/research/FavouritesPanel.tsx", summary: "How a combination is produced",
+    fact: "not replayed: the history stores the recipe, not the return series." },
+  // Computed in place: the ledger reads it as the scanner does, not as "70%".
+  { file: "components/research/FavouritesPanel.tsx", summary: "How a combination is produced", fact: "Weights are fitted on the earlier {Math.round(0.7 * 100)}% of the shared window and measured on the rest." },
+  // The "Monthly returns" subhead's trailing clause, less the em dash only.
+  { file: "components/research/TearSheet.tsx", summary: "How a calendar month is totalled",
+    fact: "Compounded within each calendar month, so a partial first or last month is shorter than the rest." },
+  { file: "components/research/ResearchSummary.tsx", summary: "How to read the shaded bands",
+    fact: "Shaded bands are held positions. Signals form on one bar and execute on the next." },
+  { file: "components/research/ResearchCorpus.tsx", summary: "What this searches over",
+    fact: "Similarity search over this desk’s own backtests and risk incidents, not the open web." },
+  { file: "components/research/MlRunCapsule.tsx", summary: "What a re-run needs", fact: "Re-running this model takes the seed, build, engine and dataset hash above." },
 ];
 
 /** The honesty floor: reachable with nothing opened, or the panel is lying. */
@@ -247,6 +261,27 @@ const STAYS: { file: string; why: string; fragments: string[] }[] = [
       "A large loading means the edge is that exposure.",
     ],
   },
+  // The same pass's refusals: each was a fold candidate, and each is one of the
+  // four shapes above, named so the floor can be argued with.
+  { file: "components/research/ExperimentHistory.tsx", why: "EMPTY STATE, and the cross-run count that qualifies every DSR in the table", fragments: [
+    "No runs recorded yet in this browser. Every completed sweep is saved here.",
+    "the best row's DSR overstates the evidence: a maximum over",
+  ] },
+  { file: "components/research/RunComparison.tsx", why: "EMPTY STATE, and the comparability verdict every delta below it rests on", fragments: [
+    "Identical requests: any difference below is engine non-determinism or changed underlying data.",
+    "At least one run predates dataset fingerprinting, so nothing can confirm they saw the same prices.",
+  ] },
+  { file: "components/research/FavouritesPanel.tsx", why: "EMPTY STATE, and the reason a visible checkbox is disabled at the cap", fragments: [
+    "Save at least two runs to combine them.",
+    "Five is the cap: past it, saved variations are one bet whose reported diversification benefit is not there.",
+  ] },
+  { file: "components/research/WalkForwardTimeline.tsx", why: "EMPTY STATE — a panel whose \"not enough bars\" is folded reads as broken",
+    fragments: ["Not enough bars to split into training and testing windows. Increase history depth or reduce the fold count."] },
+  { file: "components/research/PromotionPanel.tsx", why: "the reason the Promote button is dimmed: the gate is conjunctive", fragments: ["Every row is a veto."] },
+  { file: "components/research/FittedModels.tsx", why: "the sentence that qualifies every figure in the run table",
+    fragments: ["Every figure here is out of sample; a failed run carries its reason on the status cell."] },
+  { file: "components/ResearchWorkspace.tsx", why: "the ranking table's scope, and the only statement that its rows are pressable",
+    fragments: ["The top 15 combinations behind the winner. Select a row to inspect that pair without losing the sweep."] },
 ];
 
 describe("the research disclosure sweep reads what it is checking", () => {

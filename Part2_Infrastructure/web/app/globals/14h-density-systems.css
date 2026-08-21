@@ -1,0 +1,161 @@
+/* Systems density pass — 2026-08-22.
+ *
+ * One partial per tab so eight parallel agents never share a file, named 14b–14i
+ * so the lexicographic order globals-manifest.test.ts pins slots them after the
+ * partials whose selectors they override and before the terminal
+ * 15-navigator-and-trailing-layer.css. The owners are on the over-ceiling
+ * ledger and may never grow, which is why these overrides live here at all.
+ *
+ * Desk-width packing only: every rule in this file must sit inside a
+ * min-width media query, so phones keep the single-column flow.
+ *
+ * WHAT THIS PASS DOES, AND WHAT IT REFUSED. The Reliability tab's scroll
+ * height is layout, not words: at desk width nearly every card stacked
+ * full-width in one column. Panels paired here are peers reading the same
+ * snapshot, each carrying its own heading, so no caption is split from the
+ * thing it governs and DOM order — the order a screen reader walks — is the
+ * left-to-right order a sighted reader sees. Refused on those grounds:
+ * the provider matrix and venue table (a six-column table needs the width;
+ * the venue subhead is welded to its table), the trace console (already a
+ * master–detail split; its log viewport height is the point of a log),
+ * RouteLatencyBars (148px of route labels plus a numbers gutter — at half
+ * width the bars stop being comparable, and it is the tallest card in its
+ * pane so pairing it buys nothing), the operator guard and its warning
+ * banner (authorisation state must stay full-bleed above every control it
+ * gates), and the four Remediation panes against each other (conditionally
+ * rendered — never on screen together, so there is nothing to pair). */
+
+/* ------------------------------------------------------------------ */
+/* Reclaimed space and rhythm — safe at any desk width                 */
+/* ------------------------------------------------------------------ */
+@media (min-width: 1100px) {
+  /* The section column's own rhythm: 16px gaps between cards read as four
+     extra pixels per seam at desk density. Scoped to this tab's two
+     grid-flow sections; the token itself is shared and stays untouched. */
+  #reliability-subpanel-overview .reliability-overview,
+  #reliability-subpanel-planes .reliability-overview {
+    gap: var(--space-3);
+  }
+
+  /* Four reliability cards sit at 18px padding while the house desk rhythm
+     is 13px vertical; same gutter, tighter column. */
+  .reliability-attention,
+  .reliability-response,
+  .reliability-dependency-digest,
+  .reliability-evidence {
+    padding: var(--card-pad-tight) var(--card-pad);
+  }
+
+  /* The all-clear box reserves 92px for a message that is two lines tall.
+     Its icon, padding and copy set the natural height; nothing is removed. */
+  #reliability-subpanel-overview .reliability-all-clear {
+    min-height: 0;
+  }
+
+  /* The breaker diagram is a 560x208 drawing scaled to the card's full inner
+     width — at desk width that is over 400px of height spent magnifying
+     three boxes and four arrows. Cap the drawing at a size its labels were
+     drawn for and centre it; every count, edge and caption is unchanged. */
+  #reliability-subpanel-controls .breaker-machine {
+    max-width: 660px;
+    margin: var(--space-3) auto;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Panel pairing — two halves need roughly 560px each, so 1280 and up  */
+/* ------------------------------------------------------------------ */
+@media (min-width: 1280px) {
+  /* OVERVIEW: left as one column on purpose. A three-across top row was
+     built here and then withdrawn on the owner's instruction — the desk must
+     not read as a different desk. The saving is taken from rhythm instead. */
+  /* DEPENDENCIES: two columns; everything spans both unless paired below,
+     so the summary strip, the pane switcher and any pane's lone card keep
+     the full width they had. */
+  #reliability-subpanel-planes .reliability-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #reliability-subpanel-planes .reliability-overview > * {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  /* Map pane: composition (donuts and tech marks) beside topology (the
+     tree). Peers over one derivation — deriveDependencyTree feeds both —
+     and each keeps its own heading, note and disclosure. */
+  #reliability-subpanel-planes .reliability-overview > .card:has(> .tech-mark-strip),
+  #reliability-subpanel-planes .reliability-overview > .card:has(> .dependency-tree) {
+    grid-column: auto;
+  }
+
+  /* At half width the tree row's fixed 96px state-word column crowds the
+     reason column that unhealthy rows exist to show. The word column earns
+     only what "not observed" measures; the freed space goes to the detail. */
+  #reliability-subpanel-planes .reliability-overview > .card:has(> .dependency-tree) .dependency-node__row {
+    grid-template-columns: 20px 16px 20px minmax(120px, 1.1fr) auto minmax(0, 1.6fr) auto;
+  }
+
+  /* Platform pane: the gateway's component grid beside the evidence
+     boundary. RouteLatencyBars above them keeps the full width. */
+  #reliability-subpanel-planes .reliability-overview > .reliability-platform,
+  #reliability-subpanel-planes .reliability-overview > .reliability-evidence {
+    grid-column: auto;
+  }
+
+  /* Five component articles at four-across do not survive a half-width
+     card; two-across keeps every figure and sentence legible. */
+  #reliability-subpanel-planes .reliability-overview > .reliability-platform .reliability-platform__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* SERVICES: the percentile guide and the action-cost note are two prose
+     blocks stacked above the matrix, each a row of mostly margin at desk
+     width. One row, two columns; the table below spans both. Row gap stays
+     zero so each block's own margin keeps carrying the rhythm. */
+  .reliability-service-panel > .console-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    column-gap: var(--space-4);
+    row-gap: 0;
+  }
+
+  .reliability-service-panel > .console-card > * {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .reliability-service-panel > .console-card > .console-percentile-guide {
+    grid-column: 1;
+  }
+
+  .reliability-service-panel > .console-card > .console-matrix-action-note {
+    grid-column: 2;
+    align-self: center;
+  }
+
+  /* REMEDIATION control rows: left one per row on purpose — same owner's
+     instruction as the Overview. A control surface reads top to bottom, and
+     that is worth more than the two rows the packing saved. */
+  /* History pane: the how-each-trip-ended donut beside the counts it
+     summarises. Both read the same pairing; when the donut withholds
+     itself below the trip floor, the facts simply take the first column
+     and nothing reflows wrongly. */
+  #reliability-subpanel-controls .remediation-ledger {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-4);
+    row-gap: 0;
+    align-items: start;
+  }
+
+  #reliability-subpanel-controls .remediation-ledger > * {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  #reliability-subpanel-controls .remediation-ledger > .dependency-charts,
+  #reliability-subpanel-controls .remediation-ledger > .remediation-ledger__facts {
+    grid-column: auto;
+  }
+}

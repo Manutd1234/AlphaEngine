@@ -75,7 +75,7 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
           </div>
         </div>
         <p className="sub">
-          No book to decompose yet. The split needs a session&apos;s P&amp;L, the positions behind
+          No book to decompose yet: the split needs a session&apos;s P&amp;L, the positions behind
           it and a reference return.
         </p>
       </div>
@@ -295,7 +295,7 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
       <div className="table-wrap" tabIndex={0}>
         <table>
           <caption className="sr-only">
-            Each leg of the day&apos;s P&amp;L, its basis, and why any missing leg is missing.
+            Each leg of the day&apos;s P&amp;L, its basis, and why any is missing.
           </caption>
           <thead>
             <tr>
@@ -337,7 +337,7 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
           and which the bar's own <title> repeats. The anti-alpha guard is done
           by the leg's NAME, which no fold touches. */}
       <details className="disclosure">
-        <summary>What lands in the leg that is left over</summary>
+        <summary>What lands in the leftover leg</summary>
         <p className="research-note">
           {legs.find((leg) => leg.key === "residual" || leg.key === "unattributed")?.note}
         </p>
@@ -375,7 +375,7 @@ export default function PnlWaterfall({ waterfall, generated }: PnlWaterfallProps
         && waterfall.referenceReturn != null && waterfall.referenceSymbol && (
         <details className="disclosure">
           <summary>
-            Which move the market leg is measured against, and when it is not measured at all
+            Which move the market leg is measured against, and when it is not measured
           </summary>
           <p className="research-note">
             The market leg uses {waterfall.referenceSymbol} at {pct(waterfall.referenceReturn, 2)} as

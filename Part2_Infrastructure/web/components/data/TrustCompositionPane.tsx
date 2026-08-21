@@ -89,6 +89,14 @@ export default function TrustCompositionPane({ health, providerValidation }: Tru
           So: a ring over payloads, bars over findings, and a sentence saying a
           green ring means no FATAL finding rather than a clean one.
           ------------------------------------------------------------------ */}
+      {/* Both cards in this row carry the "Contract validation" kicker: the
+          ring-and-findings card and the per-provider breakdown are two views
+          of one window's counters, so at desk width they share a row instead
+          of each spending a full-width card (14g-density-data.css). The div
+          is a plain block below that breakpoint, and when the per-provider
+          card withholds itself the survivor takes the whole row. DOM order —
+          summary before breakdown — is unchanged. */}
+      <div className="data-trust-contract-row">
       <section className="card data-trust-verdict-ring" aria-labelledby="trust-verdict-ring-heading">
         <div className="portfolio-card-heading">
           <div>
@@ -188,6 +196,7 @@ export default function TrustCompositionPane({ health, providerValidation }: Tru
               clutter this pass removed. */}
         </section>
       )}
+      </div>
 
       <section className="card data-trust-provenance" aria-labelledby="trust-provenance-heading">
         <div className="portfolio-card-heading">
@@ -208,7 +217,7 @@ export default function TrustCompositionPane({ health, providerValidation }: Tru
             slices={provenanceSlices}
             centreValue={provenanceAnswers ? String(provenanceAnswers) : undefined}
             centreLabel="answers"
-            ariaLabel="Answers served, by contract-checked against replayed from cache."
+            ariaLabel="Answers served: contract-checked against replayed from cache."
             emptyNote="Nothing served yet."
           />
           <CategoryBars

@@ -72,7 +72,7 @@ export default function DislocationStrip({
       <span className="disloc-note">
         {marginal
           ? `Under ${FEE_FLOOR_BPS} bps — two taker legs cost more than this. Reported, not tradeable.`
-          : "Gross of fees and transfer. Size is the smaller resting leg, since both have to fill."}
+          : "Gross of fees and transfer. Size is the smaller resting leg, since both must fill."}
       </span>
     </div>
   );

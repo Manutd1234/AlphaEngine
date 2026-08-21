@@ -93,7 +93,7 @@ export default function LiquidityPanel({
       </div>
 
       <p className="sub">
-        Sessions required to exit each position at {Math.round(participation * 100)}% of its average
+        Sessions to exit each position at {Math.round(participation * 100)}% of its average
         daily volume. {positions.length} position{positions.length === 1 ? "" : "s"}
         {unmeasurable > 0 && `, ${unmeasurable} without enough volume history to measure`}.
       </p>
@@ -195,12 +195,12 @@ export default function LiquidityPanel({
       </div>
 
       <details className="disclosure">
-        <summary>Why a liquidation horizon is a floor rather than a forecast</summary>
+        <summary>Why a liquidation horizon is a floor, not a forecast</summary>
         <p className="research-note">
           A horizon assumes the stated share of average daily volume is available every session,
           which a stressed tape does not offer. Positions with fewer than{" "}
           {MIN_ADV_OBSERVATIONS} volume observations are banded{" "}
-          <strong>unmeasurable</strong> rather than estimated.
+          <strong>unmeasurable</strong>, not estimated.
         </p>
       </details>
     </div>

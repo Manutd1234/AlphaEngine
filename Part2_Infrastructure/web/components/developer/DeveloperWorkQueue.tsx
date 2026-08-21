@@ -211,7 +211,7 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
               maxLength={240}
               value={draft.summary}
               onChange={(event) => setDraft((current) => ({ ...current, summary: event.target.value }))}
-              placeholder="Why it matters and how a reviewer will know it is done"
+              placeholder="Why it matters, and how a reviewer knows it is done"
             />
           </label>
           <label>
@@ -331,7 +331,7 @@ export default function DeveloperWorkQueue({ items, onItemsChange }: DeveloperWo
         {!visibleItems.length && (
           <div className="developer-work__empty">
             <strong>No matching work</strong>
-            <span>Clear a filter or create a new feature, bug, or ticket.</span>
+            <span>Clear a filter, or create a feature, bug or ticket.</span>
           </div>
         )}
       </div>

@@ -47,7 +47,7 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
           </div>
         </div>
         <p className="sub">
-          Not enough bars to split into training and testing windows. Increase the history depth or
+          Not enough bars to split into training and testing windows. Increase history depth or
           reduce the fold count.
         </p>
       </div>
@@ -91,6 +91,12 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
         <p>{report.verdict.detail}</p>
       </div>
 
+      {/* At desk width the chart and its four gauge tiles share a row
+          (14c-density-research.css); below the breakpoint both wrappers are
+          unstyled divs and the stack reads exactly as before. DOM order is
+          unchanged: legend, chart, tiles. */}
+      <div className="walkforward-flank">
+      <div className="walkforward-chart">
       <div className="legend" style={{ marginBottom: 6 }}>
         <span>
           <i style={{ background: "var(--series-1)" }} aria-hidden /> In-sample (parameters fitted here)
@@ -159,6 +165,7 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
           })}
         </svg>
       </div>
+      </div>
 
       <div className="tiles stability-tiles">
         <div className="stability-tile">
@@ -219,6 +226,7 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
           <small>folds where the pick ranked below median OOS</small>
         </div>
       </div>
+      </div>
 
       {/* The one per-fold table on this tab. A second card below it used to
           repeat five of these columns for the same folds under its own
@@ -228,7 +236,7 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
       <div className="table-wrap" tabIndex={0}>
         <table>
           <caption className="sr-only">
-            Per-fold walk-forward results, one row per fold.
+            Walk-forward results, one row per fold.
           </caption>
           <thead>
             <tr>
@@ -270,7 +278,7 @@ export default function WalkForwardTimeline({ report }: { report: WalkForwardRep
                 <td className={f.oosReturn >= 0 ? "pos" : "neg"}>{pct(f.oosReturn)}</td>
                 <td>
                   {f.efficiency === null ? (
-                    <span className="muted" title="In-sample Sharpe was not positive, so the ratio would be misleading">
+                    <span className="muted" title="In-sample Sharpe was not positive, so the ratio would mislead">
                       n/a
                     </span>
                   ) : (

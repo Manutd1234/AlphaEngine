@@ -37,12 +37,17 @@ export default function RiskContributions({ contributions }: RiskContributionsPr
         <span>{contributions.length} positions</span>
       </div>
 
-      {/* The sum-to-total property is this card's own fact and stays. The
-          clause contrasting risk with size went: Share of book and Risk share
-          are adjacent columns, and the over/under-risked marks name the gap. */}
-      <p className="sub">
-        Sums to the book&apos;s total volatility, so it answers what to cut.
-      </p>
+      {/* The sum-to-total property is this card's own fact and stays in the
+          DOM. The clause contrasting risk with size went: Share of book and
+          Risk share are adjacent columns, and the over/under-risked marks name
+          the gap. What folds is the property itself — how the decomposition is
+          built, read once, with every contribution still drawn below. */}
+      <details className="disclosure">
+        <summary>How the shares are built</summary>
+        <p className="research-note">
+          Sums to the book&apos;s total volatility, so it answers what to cut.
+        </p>
+      </details>
 
       <div className="table-wrap" tabIndex={0}>
         <table>

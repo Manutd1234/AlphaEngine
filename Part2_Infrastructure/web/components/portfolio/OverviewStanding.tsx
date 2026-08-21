@@ -80,13 +80,13 @@ export default function OverviewStanding({
   if (book.risk_budget.gross_exposure.utilisation >= ALERT_BANDS.gross) {
     alerts.push({
       tone: "critical", glyph: "▲", word: "Gross",
-      detail: `Gross exposure is at ${fmt(book.risk_budget.gross_exposure.utilisation * 100, 1)}% of the cap — adding to any sleeve needs room made elsewhere.`,
+      detail: `Gross exposure is ${fmt(book.risk_budget.gross_exposure.utilisation * 100, 1)}% of the cap; adding to any sleeve needs room made elsewhere.`,
     });
   }
   if (book.risk_budget.daily_drawdown.utilisation >= ALERT_BANDS.drawdown) {
     alerts.push({
       tone: "critical", glyph: "▲", word: "Drawdown",
-      detail: `${fmt(book.risk_budget.daily_drawdown.utilisation * 100, 0)}% of the daily drawdown budget is spent; reduce-only engages at ${fmt(ALERT_BANDS.drawdown * 100, 0)}%.`,
+      detail: `${fmt(book.risk_budget.daily_drawdown.utilisation * 100, 0)}% of the daily drawdown budget spent; reduce-only engages at ${fmt(ALERT_BANDS.drawdown * 100, 0)}%.`,
     });
   }
 
@@ -120,7 +120,7 @@ export default function OverviewStanding({
         <div className="banner context-change" role="status">
           <div>
             <strong>Book drift is {pct(bookDrift, 1)}</strong> against an inverse-volatility
-            target — past the point where rebalancing costs less than the drift.
+            target — past where rebalancing costs less than the drift.
           </div>
           <button type="button" onClick={() => onOpenSection("allocation")}>
             Open allocation
@@ -152,8 +152,8 @@ export default function OverviewStanding({
           {alerts.length
             ? `${alerts.length} limit${alerts.length === 1 ? " is" : "s are"} inside a warning band.`
             : `No position has spent ${fmt(ALERT_BANDS.symbolNear * 100, 0)}% of its symbol cap, `
-              + `gross exposure is under ${fmt(ALERT_BANDS.gross * 100, 0)}% of its limit, and less `
-              + `than ${fmt(ALERT_BANDS.drawdown * 100, 0)}% of the daily drawdown budget is spent.`}
+              + `gross exposure is under ${fmt(ALERT_BANDS.gross * 100, 0)}% of its limit, and under `
+              + `${fmt(ALERT_BANDS.drawdown * 100, 0)}% of the daily drawdown budget is spent.`}
         </p>
         {/* Nothing when the prompt is up. That branch read "Book drift
             is 20.3% against an inverse-volatility target, which is what

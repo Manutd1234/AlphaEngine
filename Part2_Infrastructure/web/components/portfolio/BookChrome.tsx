@@ -60,8 +60,8 @@ export function BookFallback({ view, onOpenResearch, surface = "portfolio" }: Bo
           </div>
         </div>
         <p className="sub">
-          Serverless cannot host a long-lived process, and the gateway is one. This site runs the
-          sandbox instead: a generated book judged by the same gate logic.
+          Serverless cannot host a long-lived process, and the gateway is one. The sandbox runs
+          instead: a generated book judged by the same gate logic.
         </p>
         <div className="page-actions">
           <button className="primary-action" onClick={() => setSandbox(true)}>
@@ -69,11 +69,17 @@ export function BookFallback({ view, onOpenResearch, surface = "portfolio" }: Bo
           </button>
           <button onClick={onOpenResearch}>Open Research</button>
         </div>
-        <p className="research-note">
-          Self-hosting? Set <code>ALPHAENGINE_GATEWAY_URL</code> and{" "}
-          <code>ALPHAENGINE_GATEWAY_TOKEN</code> on the server and this surface switches to the
-          authoritative book.
-        </p>
+        {/* Operator configuration, for a different reader than the one who
+            landed here. Nothing about the state of the book: the sub above
+            says why there is no gateway and both actions stay enabled. */}
+        <details className="disclosure">
+          <summary>What self-hosting needs on the server</summary>
+          <p className="research-note">
+            Self-hosting? Set <code>ALPHAENGINE_GATEWAY_URL</code> and{" "}
+            <code>ALPHAENGINE_GATEWAY_TOKEN</code> on the server and this surface switches to the
+            authoritative book.
+          </p>
+        </details>
       </div>
     );
   }
@@ -144,7 +150,7 @@ export function BookChrome({ view }: { view: BookView }) {
           <span aria-hidden>!</span>
           <div>
             <strong>Portfolio data is stale.</strong>{" "}
-            Last successful refresh was {lastRefreshLabel}. {error?.error} Execution handoffs are
+            Last successful refresh {lastRefreshLabel}. {error?.error} Execution handoffs are
             disabled until the gateway reconnects.
           </div>
         </div>

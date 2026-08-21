@@ -36,10 +36,10 @@ import { STRATEGY_LABELS, type Strategy, type StrategyFamily } from "@/lib/types
 const FAMILY_THESIS: Record<StrategyFamily, string> = {
   Trend: "Hold while a direction persists — give up the turn to keep the middle.",
   Breakout: "Enter when price leaves a level it respected; the old range is the risk.",
-  "Mean reversion": "Fade the stretch back toward an anchor. A stretch that keeps going is called a trend.",
-  Momentum: "Bet that recent winners keep winning for about as long as the lookback.",
+  "Mean reversion": "Fade the stretch toward an anchor. A stretch that keeps going is called a trend.",
+  Momentum: "Bet recent winners keep winning for about as long as the lookback.",
   Volume: "Read conviction from participation — price moves count more when volume agrees.",
-  Volatility: "Trade the character of movement rather than its direction.",
+  Volatility: "Trade the character of movement, not its direction.",
   Fitted: "Coefficients estimated from the data: the two parameters tune the fit, not the rule.",
 };
 

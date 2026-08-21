@@ -85,7 +85,7 @@ export default function ReliabilityAttention({
         : tradingStatus === "critical"
           ? "Trading-path component is unavailable"
           : tradingStatus === "degraded"
-            ? "Trading path is operating with restrictions"
+            ? "Trading path is restricted"
             : "Trading-path health is unverified",
       detail: posture.paths.trading.reason,
       tone: tradingStatus === "critical" || tradingStatus === "halted" ? "critical" : "warn",
@@ -190,7 +190,7 @@ export default function ReliabilityAttention({
               <span aria-hidden>✓</span>
               <div>
                 <strong>No active symptoms in the observed planes</strong>
-                <small>Provider routes have headroom and no dependency drill is running.</small>
+                <small>Provider routes have headroom; no dependency drill is running.</small>
               </div>
             </div>
           ) : !health && !healthError ? (
@@ -198,7 +198,7 @@ export default function ReliabilityAttention({
               <span aria-hidden>…</span>
               <div>
                 <strong>Waiting for telemetry</strong>
-                <small>The first health snapshot has not arrived yet.</small>
+                <small>No health snapshot has arrived yet.</small>
               </div>
             </div>
           ) : (

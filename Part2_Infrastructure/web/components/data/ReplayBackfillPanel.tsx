@@ -142,13 +142,15 @@ export default function ReplayBackfillPanel({
   const locked = guard === "locked";
   const canSubmit = !locked && operatorReady && busy === null;
 
-  const load = useCallback(async () => {
+  /** True when the gateway answered at least one of the two reads. */
+  const load = useCallback(async (): Promise<boolean> => {
     const [j, s] = await Promise.all([
       probeGateway<JobsPayload>("/api/gateway/data/jobs?limit=25"),
       probeGateway<SchedulesPayload>("/api/gateway/data/schedules"),
     ]);
     if (j.ok) { setJobs(j.payload); setJobsError(null); } else { setJobsError(j.failure.timedOut ? "the gateway did not answer within the deadline" : j.failure.message); }
     if (s.ok) { setSchedules(s.payload); setSchedulesError(null); } else { setSchedulesError(s.failure.timedOut ? "the gateway did not answer within the deadline" : s.failure.message); }
+    return j.ok || s.ok;
   }, []);
 
   useEffect(() => {
@@ -157,7 +159,18 @@ export default function ReplayBackfillPanel({
   }, [active, load]);
 
   usePolling({
-    tick: load,
+    // The rejection is what drives PollingController's backoff, and until the
+    // tick threw one the `maxBackoffMs` below was configured but unreachable:
+    // `load` files every failure into state, so a dead gateway was re-asked at
+    // full cadence — 1s on the console's debugging cadence — for the life of
+    // the tab. `useSystemHealth`'s wrapper pattern, for the same reason it is
+    // a wrapper there: `load` itself stays quiet so the mount read and the
+    // post-submit re-read cannot become unhandled rejections. Both reads
+    // failing is the transport-outage case worth backing off for; one read
+    // answering proves the gateway alive, and the failed half is then worth
+    // re-asking at the panel's own cadence. Pinned by
+    // `tests/data-stability.test.ts`.
+    tick: async () => { if (!(await load())) throw new Error("replay/backfill reads failed"); },
     intervalMs: pollMs ?? 0,
     maxBackoffMs: 300_000,
     enabled: active && Boolean(pollMs),
@@ -226,7 +239,7 @@ export default function ReplayBackfillPanel({
         <div className="banner warn" role="status">
           <span aria-hidden>!</span>
           <div>
-            <strong>Executor not configured.</strong> Replay and equity backfill run through this workspace&apos;s fetch path, which the gateway
+            <strong>Executor not configured.</strong> Replay and equity backfill use this workspace&apos;s fetch path, which the gateway
             cannot reach without <code>WEB_WORKSPACE_URL</code>. Crypto backfill (Binance) still works.
           </div>
         </div>
@@ -329,10 +342,16 @@ export default function ReplayBackfillPanel({
         </div>
       )}
 
-      <p className="console-subhead">
-        Schedule
-        <small className="muted"> — config-driven (<code>DATA_SCHEDULES</code> on the gateway), ticked every {schedules ? `${schedules.tick_seconds} s` : "tick"}; invalid entries stay listed with their error.</small>
-      </p>
+      <p className="console-subhead">Schedule</p>
+      {/* Provenance and a reading rule, folded on the same terms as the jobs
+          caveat above. Every schedule row below already prints its own state,
+          its next due time and, when it is invalid, its error — so the list is
+          readable closed. The two absences underneath stay on screen: the read
+          failure, and the empty state that names the variable to set. */}
+      <details className="disclosure">
+        <summary>The schedule&rsquo;s source, tick rate and invalid entries</summary>
+        <p className="sub"> — config-driven (<code>DATA_SCHEDULES</code> on the gateway), ticked every {schedules ? `${schedules.tick_seconds} s` : "tick"}; invalid entries stay listed with their error.</p>
+      </details>
       {schedulesError && <p className="sub">The schedule could not be read: {schedulesError}.</p>}
       {schedules && schedules.schedules.length === 0 && !schedulesError && (
         <p className="sub">No schedule is configured — set <code>DATA_SCHEDULES</code> on the gateway, for example <code>replay:quote:BTCUSDT@every=1h;backfill:ETHUSDT:1h:2d@daily=03:30</code>.</p>

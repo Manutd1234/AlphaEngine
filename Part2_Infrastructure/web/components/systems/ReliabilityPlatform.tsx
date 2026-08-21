@@ -42,7 +42,13 @@ export default function ReliabilityPlatform({
   onOpenData: () => void;
 }) {
   const { health } = view;
-  const quarantined = health?.quarantine?.size ?? 0;
+  /**
+   * Null, never zero: with no snapshot there is no quarantine count, and
+   * `quarantine` is optional on the wire — an older instance's snapshot has
+   * no count either. "0 records held out" is a measurement; neither of these
+   * is one.
+   */
+  const quarantined = health?.quarantine ? health.quarantine.size : null;
   const posture = health ? deriveReliabilityPosture(health) : null;
   const planeTile = (plane: keyof ReliabilityPosture["paths"], title: string, waiting: string) => (
     <div>
@@ -215,8 +221,7 @@ export default function ReliabilityPlatform({
           </div>
           <p className="muted">
             No gateway ops snapshot is arriving, so its market-data, risk, audit and queue
-            components cannot be observed from here. That is a missing measurement, not a set of
-            failures.
+            components cannot be observed from here — a missing measurement, not a set of failures.
           </p>
         </section>
       )}
@@ -249,14 +254,18 @@ export default function ReliabilityPlatform({
           metrics={[
             {
               label: "Quarantined",
-              value: String(quarantined),
-              note: "records held out of the desk's series",
+              value: quarantined == null ? "—" : String(quarantined),
+              note: quarantined == null
+                ? health
+                  ? "this instance publishes no quarantine count"
+                  : "no health snapshot yet"
+                : "records held out of the desk's series",
               tone: quarantined ? "warn" : undefined,
             },
             {
               label: "Cache entries",
-              value: String(health?.cache.entries ?? 0),
-              note: "provider payloads currently held",
+              value: health ? String(health.cache.entries) : "—",
+              note: health ? "provider payloads currently held" : "no health snapshot yet",
             },
           ]}
         />

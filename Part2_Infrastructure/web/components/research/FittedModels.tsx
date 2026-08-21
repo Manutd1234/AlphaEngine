@@ -20,13 +20,15 @@
  * and ranking it against one that did not would be comparing two experiments.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import MlRunCapsule, {
   PBO_UNSTATED, type MlRunEvidence, type MlRunProvenance,
 } from "@/components/research/MlRunCapsule";
+import { runsView } from "@/components/research/runs-view";
 import StatTile from "@/components/StatTile";
 import { fmt } from "@/lib/format";
+import { useDeskSource } from "@/lib/use-desk-source";
 import { GATEWAY_DEADLINE_MS, probeGateway } from "@/lib/use-gateway-connection";
 
 /**
@@ -71,13 +73,6 @@ interface RunsPayload {
   runs: MlRun[];
 }
 
-type Load =
-  | { status: "idle" }
-  | { status: "loading" }
-  | { status: "done"; payload: RunsPayload }
-  /** The gateway could not be reached — a different fact from an empty corpus. */
-  | { status: "error"; message: string };
-
 function Figure({ value, places = 2 }: { value: number | null; places?: number }) {
   // A missing figure is not a small one. "not computed" is what the corpus
   // stores and what this shows, rather than an em dash that reads as zero.
@@ -86,14 +81,33 @@ function Figure({ value, places = 2 }: { value: number | null; places?: number }
 }
 
 export default function FittedModels() {
-  const [load, setLoad] = useState<Load>({ status: "idle" });
+  /*
+   * The corpus list rides `DeskSourceMachine`, not a Load union: the union
+   * this replaces blanked the table on every refresh and swapped it for a
+   * failure card on one failed probe, so a flaky gateway alternated the two.
+   * The machine holds the last measured list through any failure; `runsView`
+   * decides what renders, and `research-stability.test.ts` replays the flap.
+   */
+  const corpus = useDeskSource<RunsPayload>();
+  const { observe } = corpus;
+  /** A read in flight — a button label, never a reason to blank the table. */
+  const [reading, setReading] = useState(false);
+  const readingNow = useRef(false);
 
   const refresh = useCallback(async () => {
-    setLoad({ status: "loading" });
-    const outcome = await probeGateway<RunsPayload>("/api/gateway/research/ml/runs?limit=25");
-    if (outcome.ok) setLoad({ status: "done", payload: outcome.payload });
-    else setLoad({ status: "error", message: outcome.failure.message });
-  }, []);
+    // One settled probe, observed once: `probeGateway` coalesces concurrent
+    // callers, so an unguarded second call would feed the same outcome to the
+    // machine twice and move the promotion streak on one packet.
+    if (readingNow.current) return;
+    readingNow.current = true;
+    setReading(true);
+    try {
+      observe(await probeGateway<RunsPayload>("/api/gateway/research/ml/runs?limit=25"));
+    } finally {
+      readingNow.current = false;
+      setReading(false);
+    }
+  }, [observe]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -154,13 +168,15 @@ export default function FittedModels() {
           return;
         }
       }
-      setNotice("Still running; it will appear here once it settles.");
+      setNotice("Still running; it appears here once it settles.");
     } finally {
       setFitting(false);
     }
   }, [refresh]);
 
-  const runs = load.status === "done" ? load.payload.runs : [];
+  const view = runsView(corpus.state);
+  const payload = view.kind === "runs" ? view.payload : null;
+  const runs = payload ? payload.runs : [];
   const succeeded = runs.filter((run) => run.status === "succeeded");
   /** The deflated Sharpes that exist. A run without one did not score zero. */
   const deflated = succeeded
@@ -220,36 +236,50 @@ export default function FittedModels() {
             {fitting ? "Fitting…" : "Fit a model"}
           </button>
           <button type="button" className="text-action" onClick={() => void refresh()}>
-            {load.status === "loading" ? "Reading…" : "Refresh"}
+            {reading ? "Reading…" : "Refresh"}
           </button>
         </div>
       </div>
 
-      {load.status === "error" && (
+      {view.kind === "connecting" && (
+        <p className="sub">Reading the research corpus…</p>
+      )}
+
+      {view.kind === "unreachable" && (
         <p className="sub">
           {/* The failure messages already end in a full stop; appending another
               gave "…cannot reach.. This says nothing". */}
-          The research corpus could not be reached: {load.message.replace(/\.$/, "")}. Not the
+          The research corpus could not be reached: {view.reason.replace(/\.$/, "")}. Not the
           same as no runs existing.
+        </p>
+      )}
+
+      {view.kind === "runs" && view.caution !== null && (
+        /* One sentence for the whole episode, independent of `caution.reason`
+           on purpose — copy switching on it would alternate two sentences at
+           the poll cadence. See runs-view.ts. */
+        <p className="sub" role="status">
+          The corpus is not answering reliably; this list is the last read that succeeded.
+          Not the same as an empty corpus.
         </p>
       )}
 
       {notice && <p className="sub">{notice}</p>}
 
-      {load.status === "done" && load.payload.state === "unreadable" && (
+      {payload?.state === "unreadable" && (
         <p className="sub">
           A configured research corpus could not be read — a rejected key, a missing table, a
           stale schema cache. Not an empty corpus.
         </p>
       )}
 
-      {load.status === "done" && load.payload.state === "unavailable" && (
+      {payload?.state === "unavailable" && (
         <p className="sub">
           No research corpus is configured, so runs still execute but nothing is filed.
         </p>
       )}
 
-      {load.status === "done" && load.payload.state === "ok" && runs.length === 0 && (
+      {payload?.state === "ok" && runs.length === 0 && (
         <p className="sub">
           The corpus is reachable and holds no supervised runs yet.
         </p>

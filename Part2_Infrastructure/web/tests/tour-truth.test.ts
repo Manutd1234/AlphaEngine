@@ -1,7 +1,7 @@
 /**
  * The feature tour describes a desk that exists.
  *
- * `docs/FEATURE_TOUR.md` walks a reader through all eight workspaces and names
+ * `docs/product/FEATURE_TOUR.md` walks a reader through all eight workspaces and names
  * the sections in each rail. Those lists were hand-mirrored from the app, and
  * every one of the eight had drifted: seven whole sections were missing
  * (Lineage, Fill quality, Equity & P&L, Monte Carlo, Feeds & Contracts,
@@ -28,7 +28,7 @@ const read = (relative: string) =>
   readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8");
 
 const sections = read("../lib/sections.ts");
-const tour = read("../../../docs/FEATURE_TOUR.md");
+const tour = read("../../../docs/product/FEATURE_TOUR.md");
 // The eight stops are built in lib/workspace-tour.ts since page.tsx was split.
 const page = read("../lib/workspace-tour.ts");
 
@@ -132,7 +132,7 @@ describe("the tour quotes no figure it cannot support", () => {
 /**
  * The in-app tour, checked the same way the document is.
  *
- * `docs/FEATURE_TOUR.md` had a whole test file holding it to `lib/sections.ts`
+ * `docs/product/FEATURE_TOUR.md` had a whole test file holding it to `lib/sections.ts`
  * while the tour a reviewer actually presses "?" to see had none — and it
  * drifted, exactly there: stop 7 read "Reliability → Telemetry & SLIs" long
  * after that section was renamed "Attention & SLIs". The `retired` list below

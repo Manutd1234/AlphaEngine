@@ -1,0 +1,66 @@
+/* Risk density pass — 2026-08-22.
+ *
+ * One partial per tab so eight parallel agents never share a file, named 14b–14i
+ * so the lexicographic order globals-manifest.test.ts pins slots them after the
+ * partials whose selectors they override and before the terminal
+ * 15-navigator-and-trailing-layer.css. The owners are on the over-ceiling
+ * ledger and may never grow, which is why these overrides live here at all.
+ *
+ * Desk-width packing only: every rule in this file must sit inside a
+ * min-width media query, so phones keep the single-column flow.
+ */
+
+/* What this pass measured before writing a rule, subtab by subtab:
+ *
+ *  - limits: already packed — the headroom gauges are an auto-fit row and the
+ *    budget table shares `.risk-main-grid` with the cross-link tile.
+ *  - drivers: already packed — contributions and the correlation matrix share
+ *    a `.compact-grid-2col` row.
+ *  - scenarios: refused. The per-position table and the ranked-scenarios
+ *    table are separated by a conditional halt banner, so grid placement by
+ *    child index would silently reorder when the banner appears, and the
+ *    ranked table's own h3 caption must never be split from it.
+ *  - controls: refused — the sole panel on its subtab; nothing to pair with.
+ *
+ * That leaves the two rules below. */
+
+@media (min-width: 1280px) {
+  /* Model subtab: the risk-engine card and its VaR backtest scorecard were
+     the tab's only two full-width panels stacked on one screen. They are
+     peers — one model's figures and that same model's scorecard, fed by one
+     prop source — so they share a row. DOM order is unchanged: figures
+     first, scorecard second, reading left to right. auto-fit rather than a
+     fixed pair, because the loading card, the not-enough-history card and a
+     missing `varSeries` each leave one child, which must span the row
+     rather than sit beside an empty track. */
+  #risk-subpanel-model {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr));
+    column-gap: var(--space-3);
+    align-items: start;
+  }
+
+  /* Monte Carlo subtab: five StatTiles landed 4 + 1 on the four-track
+     stability grid — a whole second row spent on one tile. Five tracks at
+     desk width put them on one row at roughly 230px per tile, wider than
+     the 190px floor `.portfolio-metrics` already accepts. */
+  #risk-subpanel-montecarlo .stability-tiles {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  /* The running-state reserve must stay the same shape as the tile grid it
+     precedes: one 92px row here, the two-row 196px fallback in the
+     component everywhere else. Without this the desk re-run over-reserves
+     by a row and the card collapses when the result lands — the exact
+     bounce the reserve exists to prevent, inverted. */
+  #risk-subpanel-montecarlo {
+    --mc-tile-reserve: 92px;
+  }
+
+  /* Rhythm: the shared horizon seg sits above the card it governs on the
+     montecarlo and oraclevar subtabs; at desk width the pair reads as one
+     unit with the tighter step. Phones keep the roomier 12px. */
+  #panel-risk .workspace-subtab-panel > .seg {
+    margin-bottom: var(--space-2);
+  }
+}

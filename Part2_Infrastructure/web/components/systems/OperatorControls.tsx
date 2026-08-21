@@ -252,9 +252,9 @@ export default function OperatorControls({
         <dt>Purge cached responses</dt>
         <dd>Drops matching entries only; quota counters and breaker state are a different namespace.</dd>
         <dt>Restore routing</dt>
-        <dd>A circuit that is still failing reopens after three more consecutive failures.</dd>
+        <dd>A still-failing circuit reopens after three more consecutive failures.</dd>
         <dt>Re-read provider configuration</dt>
-        <dd>Re-evaluates the environment this process already holds and drops the cached OpenBB readiness verdict.</dd>
+        <dd>Re-evaluates the environment this process already holds, dropping the cached OpenBB readiness verdict.</dd>
         <dt>Reset a quota ledger</dt>
         <dd>Useful after an instance swap left the ledger pessimistic.</dd>
         <dt>Clear telemetry buffers</dt>

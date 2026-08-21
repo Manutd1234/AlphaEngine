@@ -133,11 +133,6 @@ export default function FillQualityHeatmap({
       <header className="section-heading compact">
         <div>
           <h3>Fill quality by hour and venue</h3>
-          <p className="muted">
-            Mean realised slippage (bps) across {view.fillCount}
-            {source === "sandbox" ? " generated" : ""} priced fills by UTC hour;
-            red pays up, blue beats the reference.
-          </p>
         </div>
       </header>
       <div className="table-wrap" tabIndex={0}>
@@ -178,6 +173,23 @@ export default function FillQualityHeatmap({
           </tbody>
         </table>
       </div>
+      {/* Methodology and a chart-reading rule, folded where SpreadDecomposition
+          and VenueMixDonut beside it fold theirs: what the cells measure, over
+          which sample, bucketed how, and which way the ramp runs.
+
+          Nothing measured leaves the screen with it. Every cell prints its own
+          signed number and carries venue, hour, mean and fill count on its
+          title, so the colour was never the only reading — and the sample floor
+          has its own at-rest sentence in the branch above, which is the one a
+          reader would be wrong not to have seen. */}
+      <details className="disclosure">
+        <summary>How to read this grid</summary>
+        <p className="research-note">
+          Mean realised slippage (bps) across {view.fillCount}
+          {source === "sandbox" ? " generated" : ""} priced fills by UTC hour;
+          red pays up, blue beats the reference.
+        </p>
+      </details>
     </section>
   );
 }

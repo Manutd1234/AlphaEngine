@@ -146,7 +146,7 @@ export default function WorkspaceOverview({
       case "research":
         return researchStale || !result
           ? { label: running ? "Research running…" : "Run research", run: onRun }
-          : { label: "Review the verdict", run: () => onNavigate("research") };
+          : { label: "Review verdict", run: () => onNavigate("research") };
       case "risk":
         return { label: "Open risk limits", run: () => onNavigate("risk") };
       case "execution":
@@ -208,9 +208,9 @@ export default function WorkspaceOverview({
         /* The four planes are not listed here: the decision loop directly
            below names them in order, and a sentence that enumerates what the
            next element enumerates is a caption for a diagram nobody has read
-           yet. What survives is the claim the loop cannot make on its own —
-           one context, one audit trail. */
-        description={<>One {request.symbol} context across the loop, and one record they all reconcile to.</>}
+           yet. What survives is what the desk is FOR, which the pipeline
+           cannot say about itself. */
+        description={<>Your one-stop infrastructure that can solve all needs from trade execution, debugging and research.</>}
         metrics={[
           {
             label: "Equity",
@@ -222,7 +222,7 @@ export default function WorkspaceOverview({
                 points={equitySpark}
                 width={90}
                 height={26}
-                ariaLabel={`Equity through the session, ending at ${usd(equitySpark[equitySpark.length - 1], 0)}`}
+                ariaLabel={`Session equity curve, ending at ${usd(equitySpark[equitySpark.length - 1], 0)}`}
               />
             ) : undefined,
           },

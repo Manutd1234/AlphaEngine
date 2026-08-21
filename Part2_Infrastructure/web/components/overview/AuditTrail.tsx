@@ -13,30 +13,30 @@
  * public one. It now shows the same generated orders the Execution blotter
  * shows, labelled as generated. Nothing is invented here that is not already on
  * screen one tab away.
+ *
+ * Which of those states the panel is in is `DeskSourceMachine`'s decision, not
+ * this file's. The inline version demoted `ready` straight to `generated` on
+ * one failed poll — real recorded orders replaced by sandbox ones, swapped
+ * back on the next success, alternating at the 30s cadence against a flapping
+ * gateway. Routed through the machine, a failure with a ledger behind it keeps
+ * the measured rows (rule 1), and `tests/overview-stability.test.ts` drives
+ * the pass/fail/pass script against `audit-trail-state.ts` to hold it there.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
+import { auditProbeOutcome, auditView } from "@/components/overview/audit-trail-state";
 import { fmt, usd } from "@/lib/format";
 import { type AuditRow, sandboxAuditRows } from "@/lib/fallbacks/audit";
+import { useDeskSource } from "@/lib/use-desk-source";
 import { probeGateway } from "@/lib/use-gateway-connection";
 import { usePolling } from "@/lib/use-polling";
-
-/**
- * No `"unreachable"` member.
- *
- * It was one, and it was the only state that rendered no table. `"generated"`
- * replaces it: same rows, stated provenance. The live path is unchanged.
- */
-type AuditState =
-  | { kind: "loading" }
-  | { kind: "ready"; rows: AuditRow[]; fetchedAt: Date }
-  | { kind: "generated"; rows: AuditRow[]; detail: string };
 
 const POLL_MS = 30_000;
 
 export default function AuditTrail({ active, seed }: { active: boolean; seed?: number }) {
-  const [state, setState] = useState<AuditState>({ kind: "loading" });
+  const source = useDeskSource<AuditRow[]>();
+  const { observe } = source;
   const sequence = useRef(0);
 
   const refresh = useCallback(async () => {
@@ -47,19 +47,10 @@ export default function AuditTrail({ active, seed }: { active: boolean; seed?: n
     const outcome = await probeGateway<{ rows?: AuditRow[]; error?: string }>(
       "/api/gateway/audit?limit=40",
     );
+    // A superseded probe is not an outcome; observing it would move the streak.
     if (current !== sequence.current) return;
-    if (!outcome.ok || !Array.isArray(outcome.payload.rows)) {
-      setState({
-        kind: "generated",
-        rows: sandboxAuditRows(undefined, seed),
-        detail: outcome.ok
-          ? "The gateway answered without an audit feed."
-          : outcome.failure.message,
-      });
-      return;
-    }
-    setState({ kind: "ready", rows: outcome.payload.rows, fetchedAt: new Date() });
-  }, [seed]);
+    observe(auditProbeOutcome(outcome, "The gateway answered without an audit feed."));
+  }, [observe]);
 
   // Poll only while the panel is the visible one — hidden panels stay mounted
   // in this app, and an audit table nobody is looking at should cost nothing.
@@ -70,6 +61,11 @@ export default function AuditTrail({ active, seed }: { active: boolean; seed?: n
 
   usePolling({ tick: refresh, intervalMs: POLL_MS, maxBackoffMs: 300_000, enabled: active });
 
+  // The same seed the Execution blotter generates from, so a generated ledger
+  // here lists the orders that tab lists.
+  const generatedRows = useMemo(() => sandboxAuditRows(undefined, seed), [seed]);
+  const state = auditView(source.state, generatedRows);
+
   return (
     <div className="card">
       <div className="section-heading compact">
@@ -77,20 +73,34 @@ export default function AuditTrail({ active, seed }: { active: boolean; seed?: n
           <span className="page-kicker">Gateway ledger</span>
           <h2>Order audit trail</h2>
         </div>
-        <span className="section-note">
-          {/* "the gateway saw" was the kicker's word and the provenance line's
-              claim, said a third time; and in the generated state it was not
-              even true. What is left is the scope: everything, both outcomes,
-              and who refused. */}
-          Every paper order, accepted or refused, with the refusing gate.
-        </span>
       </div>
+
+      {/* The scope line, folded rather than cut — it is a scope caveat, which
+          is the one shape a disclosure is for, and the columns below state the
+          same scope in data (an Outcome column that reads "accepted" or a
+          refusing gate). "the gateway saw" was the kicker's word and the
+          provenance line's claim, said a third time; and in the generated
+          state it was not even true. What is left is the scope: everything,
+          both outcomes, and who refused — word for word, one summary line away.
+
+          Two words on that line, and no more, because a summary is rendered
+          prose and `tests/summarised-overview.test.ts` counts it as such: this
+          tab stands two words under that ratchet, so the fold is allowed to
+          cost exactly two and the ceiling is not touched. It still names what
+          is inside rather than teasing it, which is the whole difference
+          between a disclosure and a trap. */}
+      <details className="disclosure">
+        <summary>Ledger scope</summary>
+        <p className="research-note">
+          Every paper order, accepted or refused, with the refusing gate.
+        </p>
+      </details>
 
       {state.kind === "loading" && (
         // aria-busy, like the cockpit's placeholders: this panel is working, and
         // without the attribute nothing outside it — a screen reader, the desk
         // sweep — can tell the difference between "loading" and "empty".
-        <div className="skeleton" style={{ height: 220 }} aria-busy="true" aria-label="Loading the audit trail" />
+        <div className="skeleton" style={{ height: 220 }} aria-busy="true" aria-label="Loading audit trail" />
       )}
 
       {state.kind === "generated" && (
@@ -112,7 +122,7 @@ export default function AuditTrail({ active, seed }: { active: boolean; seed?: n
           <div className="table-wrap table-wrap--clamped">
             <table>
               <caption className="sr-only">
-                Order audit rows, most recent first.
+                Order audit rows, newest first.
               </caption>
               <thead>
                 <tr>
@@ -156,7 +166,7 @@ export default function AuditTrail({ active, seed }: { active: boolean; seed?: n
             </table>
           </div>
           <p className="research-note">
-            {state.rows.length} most recent rows;{" "}
+            {state.rows.length} newest rows;{" "}
             {state.kind === "ready"
               ? `read ${state.fetchedAt.toLocaleTimeString()}; paper-only, recorded by the gateway itself.`
               : "generated for this session; paper-only, recorded by nothing."}

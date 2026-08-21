@@ -45,7 +45,7 @@ export default function CorrelationMatrix({ model, worst, observations }: Correl
           </div>
         </div>
         <p className="sub">
-          One measurable instrument. Correlation needs a pair, so nothing shows until a second
+          One measurable instrument. Correlation needs a pair: nothing shows until a second
           position has enough history.
         </p>
       </div>
@@ -75,8 +75,8 @@ export default function CorrelationMatrix({ model, worst, observations }: Correl
             <strong>
               {worst.a} and {worst.b} correlate at {fmt(worst.corr, 2)}.
             </strong>{" "}
-            That is close to one position of their combined size: the book is less diversified than
-            the position count suggests.
+            Close to one position of their combined size: the book is less diversified than the
+            position count suggests.
           </div>
         </div>
       )}
@@ -140,10 +140,16 @@ export default function CorrelationMatrix({ model, worst, observations }: Correl
         </table>
       </div>
 
-      <p className="research-note">
-        Measured from {observations} daily closes of the instruments actually held, not from assumed
-        factor loadings. The diagonal is 1.00 by construction, not by measurement.
-      </p>
+      {/* Provenance and one construction rule, both read once. Every measured
+          coefficient stays drawn and the heading above still prints the
+          observation count, so the sample size never leaves the screen. */}
+      <details className="disclosure">
+        <summary>Which closes this is measured from</summary>
+        <p className="research-note">
+          Measured from {observations} daily closes of the instruments actually held, not from assumed
+          factor loadings. The diagonal is 1.00 by construction, not measurement.
+        </p>
+      </details>
     </div>
   );
 }

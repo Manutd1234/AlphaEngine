@@ -118,29 +118,35 @@ describe("a disclosure is not a deletion", () => {
    * presence check — it fails if the prose is on screen at rest, AND the
    * presence assertion inside `foldedIn` fails if it was cut instead.
    */
+  /* One entry per line from here down. `file-size.test.ts`'s 400-line ceiling
+     reaches `tests/` as of 2026-08-21, and a suite that cannot record what the
+     next sweep moved is a suite that has stopped guarding. No entry lost a
+     character in the reflow; the strings are the assertions. */
   const MOVED = [
-    {
-      path: "components/systems/HealthMatrix.tsx",
-      what: "the decision p99 methodology note",
-      sentence:
-        "Decision p99 (header chip) — in-process inside the gateway, pushed with "
-        + "the ops snapshot; every sample since start, excluding kernel and wire.",
-    },
-    {
-      path: "components/systems/HealthMatrix.tsx",
-      what: "the upstream p99 methodology note",
-      sentence:
-        "Upstream p99 (this table) — network, polled from this browser; "
-        + "nearest-rank over the rolling 15-minute pool, failures included; shown after 20 samples.",
-    },
-    {
-      path: "components/systems/RouteLatencyBars.tsx",
-      what: "the in-process measurement boundary and the thin-row reading key",
-      sentence:
-        "Measured inside the gateway process : handler time, not the round trip a "
-        + "browser pays and not exchange order-to-ack. Sorted slowest first by p95; a route with fewer "
-        + "than {MIN_SAMPLES} samples prints its numbers and draws no bar.",
-    },
+    { path: "components/systems/HealthMatrix.tsx", what: "the decision p99 methodology note",
+      sentence: "Decision p99 (header chip) — in-process inside the gateway, pushed with the ops snapshot; every sample since start, excluding kernel and wire." },
+    { path: "components/systems/HealthMatrix.tsx", what: "the upstream p99 methodology note",
+      sentence: "Upstream p99 (this table) — network, polled from this browser; nearest-rank over the rolling 15-minute pool, failures included; shown after 20 samples." },
+    { path: "components/systems/RouteLatencyBars.tsx", what: "the in-process measurement boundary and the thin-row reading key",
+      sentence: "Measured inside the gateway process : handler time, not the round trip a browser pays and not exchange order-to-ack. Sorted slowest first by p95; a route with fewer than {MIN_SAMPLES} samples prints its numbers and draws no bar." },
+    /* A second pass, three folds, each split from something that had to stay —
+       which is why each is pinned on both sides. The reconciliation note kept
+       its price and folded its method; the MTTR refusal kept its headline and
+       its truncation caveat and folded its reasoning; the quarantine footnote
+       folded whole, scope and handling being provenance, with none of the
+       evidence — the evaluated/passed figures, both empty states, every flagged
+       excerpt — ever having been in that paragraph. The halves that stayed are
+       in the honesty floor below, each named by the kind that held it there. */
+    { path: "components/systems/CrossSourceCheck.tsx", what: "what a median across sources catches",
+      sentence: "Each leg&apos;s distance from the median, the only check here that catches a stale price served with HTTP 200." },
+    { path: "components/systems/RemediationLedger.tsx", what: "the reasoning under the MTTR refusal",
+      sentence: "The sample surviving a bounded ring is biased short, so a trend through it would slope toward a recovery time nobody achieved." },
+    { path: "components/systems/QuarantinePanel.tsx", what: "the gateway-ledger scope of the counts",
+      sentence: "the counts are the gateway's durable ledger, merged across instances, kept across restarts; the excerpts are this instance's bounded buffer." },
+    { path: "components/systems/QuarantinePanel.tsx", what: "the per-instance scope of the counts",
+      sentence: "this health-route instance only, bounded in memory — not every route, provider, symbol or instance." },
+    { path: "components/systems/QuarantinePanel.tsx", what: "how a rejected payload and a retained excerpt are handled",
+      sentence: "Rejected payloads were never cached; excerpts follow the redaction rules." },
   ] as const;
 
   for (const { path, what, sentence } of MOVED) {
@@ -165,6 +171,11 @@ describe("a disclosure is not a deletion", () => {
       foldedIn("components/systems/RouteLatencyBars.tsx", "not exchange order-to-ack"),
       "the route-timing caveat is still on screen at rest",
     );
+    for (const [path, needle] of [
+      ["components/systems/CrossSourceCheck.tsx", "the only check here that catches a stale price"],
+      ["components/systems/RemediationLedger.tsx", "The sample surviving a bounded ring is biased"],
+      ["components/systems/QuarantinePanel.tsx", "excerpts follow the redaction rules"],
+    ] as const) assert.ok(foldedIn(path, needle), `${path}: the second pass's prose is still on screen at rest`);
   });
 });
 
@@ -190,61 +201,34 @@ describe("what a reader would be wrong not to have seen stays on screen", () => 
    *   the panel has. Folded, the panel is blank.
    */
   const VISIBLE = [
-    {
-      path: "components/systems/OperatorPanel.tsx",
-      kind: "SAFETY",
-      needle: "<strong>These are not fleet or trading controls.</strong>",
-    },
-    {
-      path: "components/systems/HealthMatrix.tsx",
-      kind: "COST and SAFETY",
-      needle: "Test spends one real provider call.",
-    },
-    {
-      path: "components/systems/HealthMatrix.tsx",
-      kind: "COST and SAFETY",
-      needle: "Neither reaches another instance or the trading",
-    },
-    {
-      path: "components/systems/OperatorGuard.tsx",
-      kind: "SAFETY",
-      needle: "<strong>Demo deployment: operator actions are open to anyone with this URL.</strong>",
-    },
-    {
-      path: "components/systems/OperatorGuard.tsx",
-      kind: "SAFETY",
-      needle: "<strong>Actions are disabled on this deployment.</strong>",
-    },
-    {
-      path: "components/systems/OperatorGuard.tsx",
-      kind: "handling promise",
-      needle: "session storage; gone when the tab closes, never logged.",
-    },
-    {
-      path: "components/systems/RouteLatencyBars.tsx",
-      kind: "EMPTY STATE",
-      needle: "No gateway ops snapshot in this deployment.",
-    },
-    {
-      path: "components/systems/RouteLatencyBars.tsx",
-      kind: "EMPTY STATE",
-      needle: "The gateway answered but has recorded no route timing in the last",
-    },
-    {
-      path: "components/systems/HealthMatrix.tsx",
-      kind: "EMPTY STATE",
-      needle: "No providers are registered.",
-    },
-    {
-      path: "components/systems/HealthMatrix.tsx",
-      kind: "EMPTY STATE",
-      needle: "Loading provider health…",
-    },
-    {
-      path: "components/systems/ReliabilityPlatform.tsx",
-      kind: "EMPTY STATE",
-      needle: "Authoritative gateway",
-    },
+    { path: "components/systems/OperatorPanel.tsx", kind: "SAFETY", needle: "<strong>These are not fleet or trading controls.</strong>" },
+    { path: "components/systems/HealthMatrix.tsx", kind: "COST and SAFETY", needle: "Test spends one real provider call." },
+    { path: "components/systems/HealthMatrix.tsx", kind: "COST and SAFETY", needle: "Neither reaches another instance or the trading" },
+    { path: "components/systems/OperatorGuard.tsx", kind: "SAFETY", needle: "<strong>Demo deployment: operator actions are open to anyone with this URL.</strong>" },
+    { path: "components/systems/OperatorGuard.tsx", kind: "SAFETY", needle: "<strong>Actions are disabled on this deployment.</strong>" },
+    { path: "components/systems/OperatorGuard.tsx", kind: "handling promise", needle: "session storage; gone when the tab closes, never logged." },
+    { path: "components/systems/RouteLatencyBars.tsx", kind: "EMPTY STATE", needle: "No gateway ops snapshot in this deployment." },
+    { path: "components/systems/RouteLatencyBars.tsx", kind: "EMPTY STATE", needle: "The gateway answered but has recorded no route timing in the last" },
+    { path: "components/systems/HealthMatrix.tsx", kind: "EMPTY STATE", needle: "No providers are registered." },
+    { path: "components/systems/HealthMatrix.tsx", kind: "EMPTY STATE", needle: "Loading provider health…" },
+    { path: "components/systems/ReliabilityPlatform.tsx", kind: "EMPTY STATE", needle: "Authoritative gateway" },
+    /* The second pass folded three things and put these four back, each named
+       by the kind that stopped it. The recovery rate is not printed below
+       MIN_TRIPS_FOR_RATE and this sentence is the only reason a reader can see
+       for the missing percentage. The MTTR headline and the truncation caveat
+       are the halves that fold left standing — a chart absent by decision says
+       so unopened, and eviction changes what the counts above MEAN. The
+       reconciliation price is what its note kept, on the line above the button
+       that spends it. Four more were weighed and refused for the same reasons,
+       and did not need a new pin to hold them: OutageIncidents' "says nothing
+       about whether the providers are healthy" (an empty state's whole point),
+       QuotaMeters' "a timeout still costs a unit" (cost), LatencyTrend's "gaps
+       are polls below" (the key to a gap being read right now) and
+       PipelineSocketTrace's "no streaming venue coverage" (empty state). */
+    { path: "components/systems/RemediationLedger.tsx", kind: "NULL EXPLANATION", needle: "A recovery rate is withheld below" },
+    { path: "components/systems/RemediationLedger.tsx", kind: "REFUSAL HEADLINE", needle: "<strong>No MTTR trend is drawn.</strong>" },
+    { path: "components/systems/RemediationLedger.tsx", kind: "CAVEAT ON A FIGURE", needle: "the counts above are a floor." },
+    { path: "components/systems/CrossSourceCheck.tsx", kind: "COST", needle: "This check spends a call per provider, so it runs only when you ask." },
     /**
      * The one candidate this sweep surveyed and did NOT move, recorded here so
      * the next reader knows it was weighed rather than missed.

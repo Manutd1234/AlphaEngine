@@ -299,7 +299,7 @@ export default function StressTest({
                   ) : p.appliedMove !== 0 ? (
                     <span className="muted">shocked</span>
                   ) : referenceShocked ? (
-                    <span className="muted" title="No beta could be measured, so no move was assumed">
+                    <span className="muted" title="No beta measured, so no move was assumed">
                       not measurable
                     </span>
                   ) : (
@@ -308,7 +308,7 @@ export default function StressTest({
                        measurable" blames the data for a gap in the hypothesis. */
                     <span
                       className="muted"
-                      title={`No move is set for ${referenceSymbol}, so beta has nothing to propagate from.`}
+                      title={`No move is set for ${referenceSymbol}, so beta has nothing to propagate.`}
                     >
                       not propagated
                     </span>

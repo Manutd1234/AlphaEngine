@@ -198,7 +198,7 @@ export default function ExperimentHistory({
                 <strong>{records.length} hypotheses tested across {distinctSymbols}{" "}
                   instrument{distinctSymbols === 1 ? "" : "s"}.</strong>{" "}
                 Each row&apos;s Deflated Sharpe prices only the grid <em>inside</em> that run, so
-                the best row&apos;s DSR overstates the evidence: it is a maximum over{" "}
+                the best row&apos;s DSR overstates the evidence: a maximum over{" "}
                 {records.length} searches.
               </div>
             </div>
@@ -266,7 +266,9 @@ export default function ExperimentHistory({
                       </td>
                       <td>{fmt(r.sharpe, 2)}</td>
                       <td>{fmt(r.deflatedSharpeRatio, 3)}</td>
-                      <td className={(r.walkForwardOosSharpe ?? 0) >= 0 ? "pos" : "neg"}>
+                      {/* No tone on the dash: `?? 0` gave a null OOS the green
+                          `pos` class — a sign asserted for an absent value. */}
+                      <td className={r.walkForwardOosSharpe === null ? undefined : r.walkForwardOosSharpe >= 0 ? "pos" : "neg"}>
                         {r.walkForwardOosSharpe === null ? "—" : fmt(r.walkForwardOosSharpe, 2)}
                       </td>
                       <td className="neg">{pct(r.maxDrawdown)}</td>
@@ -310,7 +312,7 @@ export default function ExperimentHistory({
                               type="button"
                               role="menuitem"
                               onClick={() => exportPython(r)}
-                              title="Download a Python script that reproduces this run offline"
+                              title="Download a Python script reproducing this run offline"
                             >
                               Export Python script
                             </button>

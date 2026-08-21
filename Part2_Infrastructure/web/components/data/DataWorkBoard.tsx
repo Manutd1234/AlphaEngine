@@ -199,13 +199,10 @@ export default function DataWorkBoard({
       <p className="data-workboard__scope">
         {source?.kind === "gateway" ? (
           <>
-            {/* The pill and the Persistence tile above print the gateway, SQLite and the audit log. */}
-            Every create and status change is versioned in the gateway&apos;s work-item table, and
-            a stale edit is refused rather than overwritten.
+            This is a queue, not a ticket system.
             {source.seeded > 0
               ? ` ${source.seeded} of these ${source.seeded === 1 ? "is a seeded sample row" : "are seeded sample rows"}, marked ‹sample›.`
               : ""}
-            {" "}This is a queue, not a ticket system.
           </>
         ) : source?.kind === "local" ? (
           <>
@@ -214,10 +211,26 @@ export default function DataWorkBoard({
             Nothing here is lost silently, and nothing here is confirmed either.
           </>
         ) : (
-          <>The persisted queue arrives with the first read from the gateway.</>
+          <>The persisted queue arrives with the first gateway read.</>
         )}
         {readOnly && readOnlyReason ? ` ${readOnlyReason}` : ""}
       </p>
+
+      {/* Provenance, not a measurement, so it folds. The pill and the
+          Persistence tile above already print the gateway, SQLite and the
+          audit log; what moves here is only HOW a write is recorded once it
+          gets there. The scope line above keeps every absence and every
+          degradation on screen — the local-hold sentence, the seeded-row
+          count and the read-only reason are all outside this fold. */}
+      {source?.kind === "gateway" && (
+        <details className="disclosure">
+          <summary>How an edit is recorded</summary>
+          <p className="sub">
+            Every create and status change is versioned in the gateway&apos;s work-item table;
+            a stale edit is refused rather than overwritten.
+          </p>
+        </details>
+      )}
 
       <div className="data-workboard__toolbar">
         <label className="data-workboard__search">

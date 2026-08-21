@@ -36,8 +36,8 @@ type AllocationPane = "mix" | "targets" | "composition";
  * split and becomes a second navigation the reader has to learn.
  */
 const ALLOCATION_PANES: Array<{ id: AllocationPane; label: string; hint: string }> = [
-  { id: "mix", label: "Mix", hint: "What the book is concentrated in right now, measured from notional alone" },
-  { id: "targets", label: "Targets", hint: "What the book should be under a risk model, and the trades that close the gap — needs a covariance" },
+  { id: "mix", label: "Mix", hint: "What the book is concentrated in now, measured from notional alone" },
+  { id: "targets", label: "Targets", hint: "What the book should be under a risk model, and the trades closing the gap — needs a covariance" },
   { id: "composition", label: "Composition", hint: "Asset class, settlement currency and sleeve: three cuts of one book, three different claims" },
 ];
 

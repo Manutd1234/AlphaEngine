@@ -48,7 +48,7 @@ export default function RouteLatencyBars({
         </div>
         <p className="muted">
           No gateway ops snapshot in this deployment. Route latency is measured inside the FastAPI
-          process, so there is nothing to read here — a missing observer, not a slow desk.
+          process, leaving nothing to read here — a missing observer, not a slow desk.
         </p>
       </section>
     );

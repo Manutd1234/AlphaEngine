@@ -82,7 +82,7 @@ type QualityPane = "cost" | "where";
 
 const QUALITY_PANES: Array<{ id: QualityPane; label: string; hint: string }> = [
   { id: "cost", label: "Cost", hint: "Fill rate, realised slippage, fees and the decision-latency tail" },
-  { id: "where", label: "Where", hint: "Which venue, which part of the spread, and which hour the cost came from" },
+  { id: "where", label: "Where", hint: "Which venue, which part of the spread, which hour the cost came from" },
 ];
 
 /**
@@ -331,10 +331,15 @@ export default function ExecutionCockpit({
         )}
 
         {activityPane === "tape" && (
-          <>
+          /* One row, not a stack: the tape's five narrow columns and the alert
+             list each sat full-width, one below the other, so reaching the
+             alerts meant scrolling past a screen of mostly empty tape. The
+             same grid the Where pane uses puts them side by side at desk
+             widths and collapses back to the stack below 900px. */
+          <div className="cockpit-grid">
             <DeskTape symbol={symbol} />
             <AlertFeed events={effectiveEvents} source={feedSource} />
-          </>
+          </div>
         )}
       </WorkspaceSubtabPanel>
     </div>

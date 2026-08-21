@@ -456,9 +456,9 @@ export default function Controls({
           </summary>
 
           <p className="friction-note">
+            {/* "run" bounds the parity claim: a bare "this" reads as the panel, not the sweep. */}
             Beyond flat fee and slippage; each defaults to zero. At all zeros this run matches the
-            gateway&apos;s reference engine exactly; any non-zero value makes it a model of your
-            own assumptions.
+            gateway&apos;s reference engine exactly; any non-zero value makes it a model of your own assumptions.
           </p>
 
           <div className="row">
@@ -480,8 +480,8 @@ export default function Controls({
             />
           </div>
           <p className="friction-note">
-            Square-root impact: <code>k·√(order ÷ ADV)</code>. Doubling size costs about 1.41×, not 2×.
-            Both must be non-zero for impact to apply.
+            Square-root impact: <code>k·√(order ÷ ADV)</code>. Doubling size costs about 1.41×,
+            not 2×; both must be non-zero to apply.
           </p>
 
           <div className="row">
@@ -503,8 +503,8 @@ export default function Controls({
             />
           </div>
           <p className="friction-note">
-            Funding is charged on absolute exposure every bar; borrow only on short exposure, so it
-            is inert in a long-only run.
+            Funding is charged on absolute exposure every bar; borrow only on short exposure, so it is
+            inert in a long-only run.
           </p>
         </details>
 

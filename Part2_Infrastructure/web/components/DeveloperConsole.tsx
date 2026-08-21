@@ -25,7 +25,8 @@ import DeveloperOverview from "@/components/developer/DeveloperOverview";
 import DeveloperPipelines from "@/components/developer/DeveloperPipelines";
 import DeveloperWorkQueue from "@/components/developer/DeveloperWorkQueue";
 import { GITHUB_REPOSITORY_ROOT, HAS_COMMIT_IDENTITY, RUNTIME_LABEL } from "@/components/developer/console-identity";
-import { StatusPill, workspaceState } from "@/components/developer/DeveloperStatus";
+import { StatusPill } from "@/components/developer/DeveloperStatus";
+import { useWorkspaceHealth } from "@/components/developer/use-workspace-health";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import FreshnessStamp from "@/components/workspace/FreshnessStamp";
 import PageHead from "@/components/workspace/PageHead";
@@ -95,7 +96,13 @@ export default function DeveloperConsole({
   active = true,
 }: DeveloperConsoleProps) {
   const openWork = workItems.filter((item) => item.status !== "done");
-  const currentState = workspaceState(view);
+  // The settled reading, derived once for the whole tab. It demotes on the
+  // first failed poll and returns to Healthy only after a promotion streak,
+  // so the pill, the topology edge, the pipeline card and the readiness
+  // ladder cannot flap on an intermittent gateway — and cannot disagree,
+  // because every section renders this one value.
+  // Pinned by tests/developer-stability.test.ts.
+  const workspaceHealth = useWorkspaceHealth(view);
   const openSection = (next: DeveloperSection) => {
     onSectionChange(next);
     window.requestAnimationFrame(() => document.getElementById(`developer-subtab-${next}`)?.focus());
@@ -114,7 +121,7 @@ export default function DeveloperConsole({
       <PageHead
         kicker="Quant developer"
         title="Developer"
-        description="What is deployed, what CI proved, and where the schema contracts stand."
+        description="What is deployed, what CI proved, where the schema contracts stand."
         actions={<FreshnessStamp updatedAt={view.updatedAt} pollMs={view.pollMs} paused={view.paused} />}
         metrics={[
           { label: "Repository", value: "Developer_Analyst_Infra", note: "committed delivery tree", mono: false },
@@ -128,8 +135,8 @@ export default function DeveloperConsole({
           },
         ]}
         status={{
-          label: currentState.label,
-          tone: currentState.tone === "bad" ? "critical" : currentState.tone === "good" ? "good" : currentState.tone === "warn" ? "warn" : "neutral",
+          label: workspaceHealth.label,
+          tone: workspaceHealth.tone === "bad" ? "critical" : workspaceHealth.tone === "good" ? "good" : workspaceHealth.tone === "warn" ? "warn" : "neutral",
         }}
       />
 
@@ -146,6 +153,7 @@ export default function DeveloperConsole({
       <WorkspaceSubtabPanel workspaceId="developer" tabId="overview" activeId={section}>
         <DeveloperOverview
           view={view}
+          workspaceHealth={workspaceHealth}
           workspaceSymbol={workspaceSymbol}
           workItems={workItems}
           onOpenSection={openSection}
@@ -159,6 +167,7 @@ export default function DeveloperConsole({
       <WorkspaceSubtabPanel workspaceId="developer" tabId="readiness" activeId={section}>
         <DeveloperOverview
           view={view}
+          workspaceHealth={workspaceHealth}
           workspaceSymbol={workspaceSymbol}
           workItems={workItems}
           onOpenSection={openSection}
@@ -170,7 +179,7 @@ export default function DeveloperConsole({
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="developer" tabId="quality" activeId={section}>
-        <DeveloperPipelines view={view} />
+        <DeveloperPipelines view={view} workspaceHealth={workspaceHealth} />
       </WorkspaceSubtabPanel>
 
       <WorkspaceSubtabPanel workspaceId="developer" tabId="apis" activeId={section}>

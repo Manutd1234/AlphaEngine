@@ -83,7 +83,7 @@ function McBrowserParityCheck() {
   return (
     <section className="card developer-cp-schema-card">
       <div className="developer-cp-heading">
-        <div><span>Numerics custody</span><h2>Run the parity check in this browser</h2></div>
+        <div><span>Numerics custody</span><h2>Parity check in this browser</h2></div>
         <StatusPill state={state} live={requested && simulation.status === "running"} />
       </div>
       {/* Split along the seam between method and result, and only the method
@@ -117,9 +117,9 @@ function McBrowserParityCheck() {
 type InterfacePane = "contracts" | "routes" | "numerics";
 
 const INTERFACE_PANES: Array<{ id: InterfacePane; label: string; hint: string }> = [
-  { id: "contracts", label: "Contracts", hint: "Which compatibility gates are automated, and which are unverified" },
-  { id: "routes", label: "Routes", hint: "Every operation this runtime serves, with a curl for each" },
-  { id: "numerics", label: "Numerics", hint: "Recompute the Monte Carlo reference and compare it byte for byte" },
+  { id: "contracts", label: "Contracts", hint: "Which compatibility gates are automated, and which unverified" },
+  { id: "routes", label: "Routes", hint: "Every operation this runtime serves, each with a curl" },
+  { id: "numerics", label: "Numerics", hint: "Recompute the Monte Carlo reference and compare byte for byte" },
 ];
 
 export default function DeveloperInterfaces({ view }: { view: SystemHealthView }) {

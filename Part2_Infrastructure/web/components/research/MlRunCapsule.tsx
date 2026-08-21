@@ -99,7 +99,7 @@ const NO_SHA =
   + "still pins the bars.";
 
 const NO_FEATURES =
-  "The feature spec hash is on the run detail record, GET /api/research/ml/runs/{run_id}, "
+  "Feature spec hash: on the run detail record, GET /api/research/ml/runs/{run_id}, "
   + "not read back yet. Two runs are comparable only once their spec hashes are.";
 
 const NO_PURGE =
@@ -147,8 +147,8 @@ function describeGaps(values: number[]): string {
 }
 
 const GAPS_MEANING =
-  "Bars dropped from the end of each training window because their labels reach into "
-  + "the test window (purge), and from the start of the next (embargo). A range means "
+  "Bars dropped from each training window's end because their labels reach into "
+  + "the test window (purge), and from the next window's start (embargo). A range means "
   + "the folds disagreed. Zero is a claim, not an absence.";
 
 export default function MlRunCapsule({ run, evidence }: {
@@ -161,7 +161,7 @@ export default function MlRunCapsule({ run, evidence }: {
       <div className="research-provenance" aria-label="Fitted model reproducibility capsule">
         <div className="research-provenance__lead">
           <span className="page-kicker">Reproducibility capsule</span>
-          <strong>A fitted model is its seed, its code and its bars.</strong>
+          <strong>A fitted model is its seed, code and bars.</strong>
           <small>
             Run <code title={run.id}>{run.id.slice(0, 8)}</code>, {run.status}. Choose another row
             to read its provenance.
@@ -234,10 +234,17 @@ export default function MlRunCapsule({ run, evidence }: {
 
       {/* The one thing the columns cannot say for themselves: which four of
           them are the re-run set. The sentence about dashes went with the
-          second pass — every dash already carries its own cause on `title`. */}
-      <p className="research-note">
-        Re-running this model takes the seed, build, engine and dataset hash above.
-      </p>
+          second pass — every dash already carries its own cause on `title`.
+
+          It folds because it is a reading of the list above rather than part of
+          it: all nine fields, and every withheld one's reason, stay at rest in
+          the dl. */}
+      <details className="disclosure">
+        <summary>What a re-run needs</summary>
+        <p className="research-note">
+          Re-running this model takes the seed, build, engine and dataset hash above.
+        </p>
+      </details>
     </>
   );
 }

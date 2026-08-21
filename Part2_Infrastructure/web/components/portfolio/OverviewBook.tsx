@@ -97,7 +97,7 @@ export default function OverviewBook({
           </>
         ) : (
           <p className="muted">
-            The equity track holds fewer than two observations, so there is no path to draw yet.
+            Fewer than two observations in the equity track: no path to draw yet.
           </p>
         )}
       </div>
@@ -156,7 +156,7 @@ export default function OverviewBook({
             </table>
           </div>
         ) : (
-          <p className="research-note">The book is flat — there is no exposure to rank.</p>
+          <p className="research-note">The book is flat: no exposure to rank.</p>
         )}
       </div>
 
@@ -189,7 +189,7 @@ export default function OverviewBook({
           {
             label: "Gross headroom",
             value: usd(book.risk_budget.gross_exposure.remaining, 0),
-            note: `${fmt(book.risk_budget.gross_exposure.utilisation * 100, 1)}% of the cap in use`,
+            note: `${fmt(book.risk_budget.gross_exposure.utilisation * 100, 1)}% of the cap used`,
             tone: book.risk_budget.gross_exposure.utilisation >= ALERT_BANDS.gross ? "warn" : undefined,
           },
           {

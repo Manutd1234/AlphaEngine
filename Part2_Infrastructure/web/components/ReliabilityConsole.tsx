@@ -191,7 +191,7 @@ export default function ReliabilityConsole({
       label: "Overall state",
       value: overallState,
       note: view.healthError
-        ? health ? "last good snapshot retained" : "no health snapshot available"
+        ? health ? "last good snapshot retained" : "no health snapshot"
         : posture
           ? `trading ${POSTURE_LABEL[posture.paths.trading.status].toLowerCase()}; research ${POSTURE_LABEL[posture.paths.research.status].toLowerCase()}; alerting ${POSTURE_LABEL[posture.paths.notifications.status].toLowerCase()}`
           : "awaiting snapshot",

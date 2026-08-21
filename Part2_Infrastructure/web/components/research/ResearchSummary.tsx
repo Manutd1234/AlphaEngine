@@ -67,7 +67,7 @@ export default function ResearchSummary({
             definition: "Excess return per unit of volatility, scaled to a year.",
             formula: "√periods·mean(r) ÷ stdev(r)",
             plainEnglish:
-              "How much return the strategy earned for the amount it bounced around. "
+              "Return the strategy earned for the amount it bounced around. "
               + "Beating the market matters less than beating it per unit of risk.",
           }}
         />
@@ -86,8 +86,8 @@ export default function ResearchSummary({
             definition: "The deepest peak-to-trough fall in equity over the run.",
             formula: "min(equity ÷ running-max(equity) − 1)",
             plainEnglish:
-              "The worst losing streak you would have had to sit through, and the number that "
-              + "decides whether a strategy is tradable: a great Sharpe with a 60% drawdown "
+              "The worst losing streak you would have sat through, and the number deciding "
+              + "whether a strategy is tradable: a great Sharpe with a 60% drawdown "
               + "gets turned off long before it recovers.",
           }}
         />
@@ -198,7 +198,14 @@ export default function ResearchSummary({
 
           <div className="card">
             <h2>Signal behaviour</h2>
-            <p className="sub">Shaded bands are held positions. Signals form on one bar and execute on the next.</p>
+            {/* A chart-reading rule and the execution convention behind it —
+                two facts about how the drawing was made, neither of them a
+                measurement. The chart, its axes and every price stay at rest;
+                only the key to the shading folds. */}
+            <details className="disclosure">
+              <summary>How to read the shaded bands</summary>
+              <p className="sub">Shaded bands are held positions. Signals form on one bar and execute on the next.</p>
+            </details>
             <PriceChart
               series={displayedResult.series}
               strategy={displayedResult.request.strategy}

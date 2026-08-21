@@ -162,14 +162,14 @@ export function transportCause(error: unknown): string | null {
  * enough to search for — an unknown code must not silence the diagnosis.
  */
 export const TRANSPORT_HINTS: Record<string, string> = {
-  // The pinned-CA flip in docs/TLS_FLIP.md, unfinished or misconfigured.
+  // The pinned-CA flip in docs/engineering/TLS_FLIP.md, unfinished or misconfigured.
   UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
     `The gateway's certificate is signed by a root this deployment does not trust. `
     + `Point NODE_EXTRA_CA_CERTS at the bundled certs/gateway-ca.pem, or set ${GATEWAY_URL_ENV} back to the plaintext port.`,
   SELF_SIGNED_CERT_IN_CHAIN:
-    `The gateway's certificate chain ends in a root this deployment does not trust — see docs/TLS_FLIP.md.`,
+    `The gateway's certificate chain ends in a root this deployment does not trust — see docs/engineering/TLS_FLIP.md.`,
   DEPTH_ZERO_SELF_SIGNED_CERT:
-    `The gateway presented a self-signed certificate with no chain — see docs/TLS_FLIP.md.`,
+    `The gateway presented a self-signed certificate with no chain — see docs/engineering/TLS_FLIP.md.`,
   CERT_HAS_EXPIRED:
     `The gateway's certificate has expired. Re-copy the root printed by the deploy workflow's TLS sidecar step.`,
   ERR_TLS_CERT_ALTNAME_INVALID:

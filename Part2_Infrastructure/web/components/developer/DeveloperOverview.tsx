@@ -38,11 +38,14 @@ import {
   gatewayState,
   schemaCompatibilityState,
   stateForDeployable,
-  workspaceState,
+  type ControlState,
 } from "./DeveloperStatus";
 
 interface DeveloperOverviewProps {
   view: SystemHealthView;
+  /** The settled workspace reading from the shell's `useWorkspaceHealth` —
+   *  never re-derived here, so this section cannot flap beside its siblings. */
+  workspaceHealth: ControlState;
   workspaceSymbol: string;
   workItems: DeveloperWorkItem[];
   onOpenSection: (section: DeveloperSection) => void;
@@ -58,6 +61,7 @@ interface DeveloperOverviewProps {
 
 export default function DeveloperOverview({
   view,
+  workspaceHealth,
   workspaceSymbol,
   workItems,
   onOpenSection,
@@ -70,9 +74,9 @@ export default function DeveloperOverview({
   const showReadiness = part === "readiness";
   const deploymentStates = DEPLOYABLES.map((deployable) => ({
     deployable,
-    state: stateForDeployable(deployable.id, view),
+    state: stateForDeployable(deployable.id, view, workspaceHealth),
   }));
-  const currentWorkspace = workspaceState(view);
+  const currentWorkspace = workspaceHealth;
   const currentGateway = gatewayState(view);
   const currentSchema = schemaCompatibilityState(view);
   const currentArtifact = artifactCustodyState(view);
@@ -201,7 +205,7 @@ export default function DeveloperOverview({
             <div><span>Build custody</span><h2>Artifact lineage</h2></div>
             <StatusPill state={currentArtifact} compact />
           </div>
-          <ArtifactLineage view={view} compact />
+          <ArtifactLineage view={view} workspace={workspaceHealth} compact />
         </section>
       </div>
 
