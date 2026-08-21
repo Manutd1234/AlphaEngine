@@ -88,7 +88,7 @@ missing (§9 has the detail):
 | **Risk Manager** | *Is the model right, and will the limits hold?* | Kupiec VaR backtest, stress scenarios, reduce-only mode, kill switch | No margin or liquidation modelling |
 | **Data Engineer** | *Can I trust this data?* | Overview-first trust cockpit, provider registry, failover, quote/bars/news/fundamentals contracts, quarantine and lineage, a durable cross-instance quality ledger with rule-based escalation, replay and backfill jobs on a config-driven schedule, a persisted versioned work queue | One gateway process and one SQLite file — durable across restarts and deploys, not replicated across regions; contracts check the normalised shape, not each vendor's raw JSON |
 | **DevOps / SRE** | *Is it healthy, and what do I do at 3am?* | `/health`, `/metrics`, systems console, alert rules, runbook | No log aggregation or distributed tracing |
-| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, parity suites (Python ↔ TypeScript to 1e-4, Python ↔ C++ to the bit), CI, 1,493 + 3,181 + 14 tests | No generated client, no property-based fuzzing |
+| **Quant Developer** | *Can I change this safely?* | Typed contracts, OpenAPI snapshot, parity suites (Python ↔ TypeScript to 1e-4, Python ↔ C++ to the bit), CI, 1,706 + 3,861 + 14 tests | No generated client, no property-based fuzzing |
 
 ### Quant Traders — *"Can I send this, and what will it cost?"*
 
@@ -217,7 +217,7 @@ the instance that produced it.
 | Documented tunables | `BacktestRequest` carries bounds *and* descriptions, so `/docs` doubles as the researcher's parameter registry |
 | Confidence that two implementations agree | Python↔TypeScript parity suites for the **backtest engine** and the **risk engine**, both driven by fixtures the Python reference emits; and Python↔C++ parity for the **pre-trade decision** — the twenty-scenario `gate-parity.json` fixture, reproduced bit-for-bit (`tests/test_gate_parity.py`, `tests/test_decision_core_native.py`) |
 | To debug a request without guessing | Pipeline inspector down to raw vendor JSON; bounded trace ring with redaction; `/api/system/inspect` |
-| Tests that run anywhere | 1,493 gateway + 3,181 web + 14 service tests (2026-08-21), all offline by construction — no network, no fixtures fetched at test time. Each figure is what its runner prints: `venv/bin/python -m pytest`, `(cd web && npm test)`, `venv/bin/python -m pytest OpenBB_Service/tests`; `web/lib/test-counts.generated.ts` records them and CI checks it |
+| Tests that run anywhere | 1,706 gateway + 3,861 web + 14 service tests (2026-08-22), all offline by construction — no network, no fixtures fetched at test time. Each figure is what its runner prints: `venv/bin/python -m pytest`, `(cd web && npm test)`, `venv/bin/python -m pytest OpenBB_Service/tests`; `web/lib/test-counts.generated.ts` records them and CI checks it |
 | A lint gate that catches defects, not style | ruff with bugbear, async and bandit rules; `tsc --strict` on the web tier |
 | To add a provider or an endpoint without breaking things | Uniform `Adapter` interface with declared capabilities; the recipe is in §7 and in `web/README.md` |
 
@@ -426,7 +426,7 @@ service carries no pinned version.
 | Component | Version | Role in AlphaEngine |
 |---|---|---|
 | **[Docker](https://www.docker.com)** | `29.7.2` | Two-stage `python:3.12-slim` image ([`docker/gateway.Dockerfile`](docker/gateway.Dockerfile)): the builder stage installs `requirements-native.txt` and compiles the decision core, the runtime stage copies the `.so` and nothing else from it; non-root uid 10001, stdlib health probe, compose file at the repo root. `tests/test_container_contract.py` rejects any secret-shaped literal in the committed files. |
-| **[Caddy](https://caddyserver.com)** | `2-alpine` | TLS termination on the VM: the deploy workflow runs a Caddy sidecar on `:8443` with its **internal CA** (a bare IP gets no public issuance; the single client that matters pins the root instead — [`docs/TLS_FLIP.md`](../docs/TLS_FLIP.md)), so the gateway token need not cross the internet in cleartext. |
+| **[Caddy](https://caddyserver.com)** | `2-alpine` | TLS termination on the VM: the deploy workflow runs a Caddy sidecar on `:8443` with its **internal CA** (a bare IP gets no public issuance; the single client that matters pins the root instead — [`docs/engineering/TLS_FLIP.md`](../docs/engineering/TLS_FLIP.md)), so the gateway token need not cross the internet in cleartext. |
 | **[Supabase CLI](https://supabase.com/docs/guides/cli)** | `2.112.0` | Migration push via the IPv4 session pooler (the direct DB host is IPv6-only) and edge-function deploys. |
 | **[Oracle Cloud](https://www.oracle.com/cloud/)** | managed | The always-on host (Singapore). Region is load-bearing: US egress gets Binance HTTP 451 / Bybit 403 (§11). |
 | **[Vercel](https://vercel.com)** | managed | Two serverless projects (web portal, OpenBB service) from one repo with different Root Directories, region `sin1`. Artifact custody via an Ed25519-signed build attestation against a trust root pinned in reviewed source (`web/lib/artifact-trust.mjs`). |
@@ -453,6 +453,9 @@ credentials**, and the service-role key never leaves the gateway host.
 | `TELEGRAM_BOT_TOKEN` (+ allowlists) | [Telegram Bot API](https://core.telegram.org/bots/api) | the companion; fail-closed user allowlist | gateway `.env` |
 | `TELEGRAM_LINK_SECRET` *(optional, ≥32 chars)* | Connect-button account linking | HMACs the single-use deep link that binds a chat to a web desk pass; below 32 characters the feature stays off | gateway `.env` **and** Vercel, identical |
 | `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` | Supabase PostgREST | the order mirror + RAG writes | **gateway `.env` only — never Vercel** |
+| `GEMINI_API_KEY` / `GEMINI_MODEL` *(optional)* | [Gemini](https://ai.google.dev) | Stage-5 grounded generation over the research corpus; unset, every answer reports `verdict: refused` with the reason and the desk runs exactly as before | gateway `.env` only |
+| `RERANK_MODEL_PATH` *(optional)* | local BGE cross-encoder (ONNX) | research re-ranking; a path to model weights, no vendor and no network — unset, RRF order stands | gateway `.env` only |
+| `NEO4J_URI` / `_USERNAME` / `_PASSWORD` / `_DATABASE` *(optional)* | Neo4j Aura | the rebuildable graph read model; paste Aura's credentials file verbatim — current-generation instances use the instance id, not `neo4j`, for username and database | gateway `.env` only |
 | `NEXT_PUBLIC_SUPABASE_URL` / `_ANON_KEY` | Supabase (browser) | the browser Realtime client (`web/lib/supabaseClient.ts`) and, in `web/proxy.ts`, the single test for whether this deployment can authenticate anyone at all — absent, the edge mints a guest pass instead of asking for a sign-in. Publishable on purpose: RLS scopes the anon key to gateway-decided, unowned rows on the public demo desk and nothing else | Vercel |
 | `ALPHAENGINE_ARTIFACT_SIGNING_KEY` | build attestation | Ed25519 signature over commit/env/tree, verified against the pinned trust root | Vercel (build-time only) |
 | Binance & Bybit L2 | public venue WebSockets | **keyless** — consolidated depth needs no credential | — |
@@ -472,7 +475,11 @@ no paid inference, and nothing generated presented as measured.
 | **Index** | pgvector HNSW, cosine | `match_research_documents` is `SECURITY INVOKER` and refuses any row that is not `embedding_status='ready'`. |
 | **Storage honesty** | `body` holds the exact embedded text | A renderer change can never silently invalidate stored vectors. An embed outage stores `embedding_status='pending'` — **never a zero vector**, which is equidistant from everything and would rank as "similar" to any query. |
 | **Retrieval trigger** | A precisely-defined execution anomaly | An accepted fill whose *realised* slippage exceeds the pre-trade ceiling (`max_est_slippage_bps`), a rejection citing `est_slippage`/`daily_drawdown`, or the drawdown breaker engaging. Not vibes, not every order. |
-| **Surfaces** | `POST /api/research/rag/search` · `GET /api/research/rag/status` | Top-3 similar historical reports attach to the alert already being broadcast. When Supabase is absent the routes return a typed `unavailable` — never `[]`, because "searched, found nothing" is a different fact. |
+| **Lexical arm (BM25)** | `modules/research_bm25.py` — Okapi BM25, k1=1.2 / b=0.75 (Robertson & Sparck Jones) | The third retrieval arm, fused with the dense and FTS arms by the same RRF at k=60. Scores only the survivors the hybrid RPC returned, so it can reorder but never add or drop; when it cannot discriminate (a term in every candidate) retrieval falls back to the two-arm result unchanged, with the reason named. |
+| **Re-ranking** | `modules/research_rerank.py` — BGE cross-encoder, ONNX, CPU-only (optional: `requirements-rerank.txt`) | With `RERANK_MODEL_PATH` set, retrieval widens to 20 candidates and the cross-encoder picks the top 3; unset, today's RRF order passes through untouched and `rerank_state` says why. Runs off the event loop behind a bulkhead — this process also serves pre-trade risk. |
+| **Generation** | `modules/research_generate.py` — Gemini via `google-genai` (optional: `requirements-genai.txt`) | Stage 5, fenced: below the CRAG refuse band the model is never called; every claim must cite a supplied document id and a fabricated citation refuses the whole answer; `corpus_silent` ("the corpus does not say") is a correct verdict, not an error. Every model call lands in the `research_tool_call` ledger with model, latency and tokens. |
+| **Graph read model** | `modules/research_graph_projection.py` → Neo4j (optional: `requirements-graph.txt`) | Postgres stays authoritative; the 6h reconcile sweep MERGEs the same derived edges into Neo4j, and a daily sweep partitions the whole corpus (Louvain, seeded — `requirements-communities.txt`) and writes community labels back, stamped with the sweep that made them. Drift is a non-event: drop the graph and re-project. |
+| **Surfaces** | `POST /api/research/rag/search` · `GET /api/research/rag/status` · `GET /api/research/graph/communities` · `GET /api/research/graph/centrality` | Top-3 similar historical reports attach to the alert already being broadcast. When Supabase is absent the routes return a typed `unavailable` — never `[]`, because "searched, found nothing" is a different fact. The two graph routes return whole-corpus reports (partition, PageRank) whose absent keys carry meaning. |
 
 **Quant/statistical ML in the engine** — all in-process, no external ML service:
 
@@ -636,7 +643,7 @@ with `steady_clock` at **83 ns p50** on that Mac and **~320 ns p50 / 352 ns
 p99** on the shared production VM (read from the live `/metrics` on
 2026-08-17). The three figures are three planes and never blended — the
 decision in µs, the core in ns, the ~70 ms round trip to the venue in ms —
-and [`docs/LATENCY_BUDGET.md`](../docs/LATENCY_BUDGET.md) is the full
+and [`docs/architecture/LATENCY_BUDGET.md`](../docs/architecture/LATENCY_BUDGET.md) is the full
 argument, with the regenerated table. `reduce_only` was added
 with the reduce-only work and the count moved from twelve to fourteen; the two
 that were previously one row are now their own, because a hard stop and a
@@ -1245,6 +1252,9 @@ order rather than around them.
 | `GET` | `/api/jobs` · `/api/jobs/{id}` | queue stats · progress, then the full result |
 | `GET` | `/api/audit/orders` · `events` · `backtests` · `stats` | audit log |
 | `GET` | `/api/research/openbb/health` · `quote` · `bars` · `news` · `fundamentals` | Local/compatibility OpenBB bridge used by the companion |
+| `POST` | `/api/research/rag/search` · `/ask` | hybrid retrieval over the research corpus (dense + FTS + BM25, RRF k=60; cross-encoder re-ranked when a model is configured) · the CRAG-graded answer path, with optional fenced Gemini generation |
+| `GET` | `/api/research/rag/status` | corpus reachability and counts — typed `unavailable`, never `[]` |
+| `GET` | `/api/research/graph/communities` · `centrality` | whole-corpus Louvain partition · PageRank; absent keys carry meaning (nothing ranked ≠ could not read) |
 | `POST` | `/telegram/webhook` | Telegram updates |
 
 Three of the order routes deserve their reasons stated. `GET /api/orders` is the
@@ -1762,7 +1772,7 @@ OCI instance:
    `docker compose up -d --build`.
 4. **HTTPS**: the deploy workflow already runs the Caddy TLS sidecar on
    `:8443` (internal CA, pinned by the web project) — follow
-   [`docs/TLS_FLIP.md`](../docs/TLS_FLIP.md) to open the port and flip
+   [`docs/engineering/TLS_FLIP.md`](../docs/engineering/TLS_FLIP.md) to open the port and flip
    `ALPHAENGINE_GATEWAY_URL`. With a domain, swap `tls internal` for
    automatic issuance.
 5. On Vercel set `ALPHAENGINE_GATEWAY_URL=https://your-domain.com` and
@@ -1922,7 +1932,7 @@ Everything a reviewer needs to check runs offline:
 
 ```bash
 pytest                                    # 1,493 gateway + companion tests, 1 skipped (3.12, native core built)
-python tools/bench_decision.py            # regenerates the latency table in docs/LATENCY_BUDGET.md §2.1
+python tools/bench_decision.py            # regenerates the latency table in docs/architecture/LATENCY_BUDGET.md §2.1
 python tools/synthetic_probe.py           # end-to-end: book → cost → gate → audit
 cd OpenBB_Service && pytest               # 13 stateless service tests
 cd web && npm install && npm test         # 3,181 workspace tests across 762 suites, incl. the parity suites

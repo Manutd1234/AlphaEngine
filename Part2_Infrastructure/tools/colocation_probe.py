@@ -37,7 +37,7 @@ There is no NIC hardware timestamping and no PTP on a cloud VM, so every number
 here is in-process: it excludes kernel scheduling on both ends and includes
 whatever the local stack added. Treat it as a floor on the true wire latency,
 never as the wire latency. The same caveat is on every figure in
-docs/LATENCY_BUDGET.md and it is the reason this prints a range rather than a
+docs/architecture/LATENCY_BUDGET.md and it is the reason this prints a range rather than a
 single number.
 """
 

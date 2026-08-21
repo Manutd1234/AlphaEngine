@@ -14,7 +14,7 @@ without the suite saying so.*
 - Portal: <https://alphaengine-workspace.vercel.app> (also answers on `developer-analyst-infra.vercel.app`)
 - Gateway (OCI, Singapore): `http://149.118.48.255:8000` — `GET /health` answers keyless and
   names the decision engine (`native` on 2026-08-17); `https://149.118.48.255:8443` is the same
-  gateway behind the Caddy sidecar's pinned internal CA (`docs/TLS_FLIP.md`).
+  gateway behind the Caddy sidecar's pinned internal CA (`docs/engineering/TLS_FLIP.md`).
 - Local: `cd Part2_Infrastructure/web && npm run dev:all` starts both (gateway on `:8000`,
   portal on `:3000`).
 
@@ -149,7 +149,7 @@ the live ladder), **Fat finger $500k** (blocked by the per-order notional cap), 
 burst** (twelve $1k orders; the token bucket stops the tail). Fire all three. Each decision
 comes back with its full gate vector — **15 checks on any order path, with the one that failed
 named** — decided by the gateway in tens of microseconds (15 µs p50 on the compiled engine,
-23 µs on the Python reference; `docs/LATENCY_BUDGET.md` §2.1 has the regenerated table). Liquidity is the consolidated Binance+Bybit L2
+23 µs on the Python reference; `docs/architecture/LATENCY_BUDGET.md` §2.1 has the regenerated table). Liquidity is the consolidated Binance+Bybit L2
 book; click a ladder price to stage a limit order back on Trade. Routing & TCA prices the same
 order across venues against the routed execution, not the mid. **Fill quality** closes the loop
 the other three open: realised cost against the cost the model predicted, which is the only
@@ -170,7 +170,7 @@ order can reach **15** of them. The two it never reaches — `paper_execution_mo
 vendor quote rather than a live L2 ladder, and a quote can be stale or refuse to honour a
 resting `LIMIT` in a way a ladder cannot. Quote 15 when describing what an order goes through
 and 17 when describing what the module implements; the full table, with what each gate guards
-against, is in [`Part2_Infrastructure/README.md` §4](../Part2_Infrastructure/README.md).
+against, is in [`Part2_Infrastructure/README.md` §4](../../README.md).
 
 ## Tab 4 — Portfolio (`#portfolio`, Alt+4)
 
@@ -363,7 +363,7 @@ because one process mints the token and a different process on a different host 
 Unset is fail-closed — the chip renders a refusal naming the missing secret rather than a link
 that cannot complete. `TELEGRAM_BOT_TOKEN` lives in the gateway's `.env` and nowhere else.
 Leave both empty and the gateway and workspace run unchanged. See
-[`SETUP.md` §Telegram](../SETUP.md).
+[`SETUP.md` §Telegram](../../SETUP.md).
 
 ---
 
@@ -387,7 +387,13 @@ this order; the list doubles as a checklist for a manual tour:
 10. Backtest — a sweep runs end to end and returns a verdict.
 11. Oracle ADB — the VaR persistence layer answers.
 12. Supabase — the audit-log mirror answers.
-13. RAG embed — the research-corpus embedding path answers.
+13. RAG embed — the research-corpus embedding path answers. Retrieval behind it
+    is three-armed (dense pgvector, Postgres FTS, Okapi BM25 — fused by RRF at
+    k=60), cross-encoder re-ranked when `RERANK_MODEL_PATH` is set, graded by
+    the CRAG bands, and — with a `GEMINI_API_KEY` — answered in prose that must
+    cite the documents it was handed or refuse. The derived edge graph is also
+    projected into Neo4j (when configured) as a rebuildable read model, with a
+    daily Louvain partition written back as community labels.
 
 **The five-minute ops drill.** `python3 tools/e2e_smoke.py --drill` adds two *mutating but
 reversible* proofs on top of the read-only probes: it simulates a provider outage and asserts

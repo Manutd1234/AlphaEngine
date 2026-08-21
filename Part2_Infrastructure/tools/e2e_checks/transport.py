@@ -17,7 +17,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
 
-# Defaults mirror docs/FEATURE_TOUR.md; the env vars are authoritative when the
+# Defaults mirror docs/product/FEATURE_TOUR.md; the env vars are authoritative when the
 # deployment moves — a stale default here must fail loudly, not silently probe
 # the wrong host.
 GATEWAY = os.environ.get("E2E_GATEWAY_URL", "http://149.118.48.255:8000").rstrip("/")

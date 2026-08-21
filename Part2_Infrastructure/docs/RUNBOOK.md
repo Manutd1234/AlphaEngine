@@ -321,7 +321,7 @@ nothing, and that failure once read as a gateway outage for a day.
 **2. Open the path.** Both layers, or it looks identical to a closed one:
 
 - OCI VCN security list: ingress TCP 22 and 8000 — and 8443 as well if the TLS
-  sidecar is to be reachable from outside (`docs/TLS_FLIP.md`).
+  sidecar is to be reachable from outside (`docs/engineering/TLS_FLIP.md`).
 - The instance firewall: Oracle Linux images ship restrictive `iptables`.
   `sudo firewall-cmd --permanent --add-port=8000/tcp && sudo firewall-cmd --reload`
 
@@ -331,7 +331,7 @@ deploy time rather than when someone opens the site.
 
 ### On the bearer token travelling in clear
 
-Unless the Vercel project has been flipped — step 3 of `docs/TLS_FLIP.md`, a
+Unless the Vercel project has been flipped — step 3 of `docs/engineering/TLS_FLIP.md`, a
 setting this repository cannot read — Vercel reaches the gateway over plain
 HTTP and `WEB_API_TOKEN` crosses the internet unencrypted. It is acceptable
 for a paper-trading case study — the token authorises reads and simulated
@@ -344,7 +344,7 @@ automatically obtained public certificate — nothing will issue one for a bare
 IP — so the root is pinned by the one client that matters, and that root is
 committed at `Part2_Infrastructure/web/certs/gateway-ca.pem`. What remains is
 ingress on 8443 and pointing `ALPHAENGINE_GATEWAY_URL` at `https://<IP>:8443`;
-`docs/TLS_FLIP.md` is the checklist.
+`docs/engineering/TLS_FLIP.md` is the checklist.
 
 ### When a deploy fails
 

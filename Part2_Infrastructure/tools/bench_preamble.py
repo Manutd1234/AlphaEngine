@@ -22,7 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 #: The whole-decision p50 the preamble is being weighed against, from
-#: docs/LATENCY_BUDGET.md §2.1 on the machine that generated it.
+#: docs/architecture/LATENCY_BUDGET.md §2.1 on the machine that generated it.
 DECISION_P50_US = 15.0
 
 SAMPLES = 50_000

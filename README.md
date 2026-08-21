@@ -17,7 +17,7 @@ Two parts, in two directories. Start with whichever question you came for.
 ### Start here, with ten minutes
 
 - **What it is:** the [Part 2 summary below](#part-2--alphaengine) — one paragraph, three modules, and
-  [`docs/FEATURE_TOUR.md`](docs/FEATURE_TOUR.md) when a walkthrough beats a summary.
+  [`docs/product/FEATURE_TOUR.md`](docs/product/FEATURE_TOUR.md) when a walkthrough beats a summary.
 - **See it running:** the desk at <https://alphaengine-workspace.vercel.app> ("Continue as guest" — no
   account needed) and the gateway's own `GET /health` at `http://149.118.48.255:8000/health`.
 - **Judge the engineering from three files:** the seventeen-gate battery in
@@ -168,11 +168,11 @@ mistake in this repository.
 **→ [`Part2_Infrastructure/README.md`](Part2_Infrastructure/README.md)** for the
 architecture, the design arguments, and what is implemented versus mocked.
 
-**→ [`docs/FEATURE_TOUR.md`](docs/FEATURE_TOUR.md)** — the guided walkthrough of the whole
+**→ [`docs/product/FEATURE_TOUR.md`](docs/product/FEATURE_TOUR.md)** — the guided walkthrough of the whole
 platform, tab by tab, with the zero-config / keyed / gateway-backed capability map and the
 verify-it-yourself E2E checklist; the UI overhaul's slices and the passes that followed
 (one type scale in rem, the moving desk, the header's priority ladder, the decision chip)
-are named in it where they land. **[`docs/LATENCY_BUDGET.md`](docs/LATENCY_BUDGET.md)** is
+are named in it where they land. **[`docs/architecture/LATENCY_BUDGET.md`](docs/architecture/LATENCY_BUDGET.md)** is
 the three-plane latency argument with its regenerated bench table. The audit that findings
 were raised against and the plans that sequenced the work are working notes kept outside
 this repository; what survives them is enforced by the design-system tests, which is the

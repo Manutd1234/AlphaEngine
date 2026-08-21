@@ -1,6 +1,6 @@
 """Measure the pre-trade decision, reproducibly.
 
-The figures in ``docs/LATENCY_BUDGET.md`` §2.1 were a one-off run on one
+The figures in ``docs/architecture/LATENCY_BUDGET.md`` §2.1 were a one-off run on one
 machine, quoted from memory ever since. This harness makes them regenerable:
 it builds the same shape ("5 000 orders against a synthetic 50-level book,
 warmed"), runs the gateway's own ``submit()`` in-process, and prints what it
@@ -9,7 +9,7 @@ number nobody can reproduce never appears there again.
 
     venv/bin/python tools/bench_decision.py --engine python --venues 2
     venv/bin/python tools/bench_decision.py --engine both --venues 2 --repeat 3 \\
-        --json docs/latency-bench.generated.json --update-doc
+        --json docs/architecture/latency-bench.generated.json --update-doc
 
 Two figures, deliberately kept apart:
 
@@ -281,7 +281,7 @@ def main() -> int:
     ap.add_argument("--repeat", type=int, default=1)
     ap.add_argument("--gc-on", action="store_true", help="leave the cyclic GC enabled during the loop")
     ap.add_argument("--json", type=Path, default=None, help="write the results here")
-    ap.add_argument("--update-doc", action="store_true", help="rewrite the table in docs/LATENCY_BUDGET.md")
+    ap.add_argument("--update-doc", action="store_true", help="rewrite the table in docs/architecture/LATENCY_BUDGET.md")
     args = ap.parse_args()
 
     pinning = _pin()

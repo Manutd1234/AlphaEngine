@@ -339,7 +339,7 @@ Telegram is an independent notification companion, never an auth provider.
 | | |
 |---|---|
 | Desk workspace | https://alphaengine-workspace.vercel.app |
-| Risk gateway | http://149.118.48.255:8000 — and `https://149.118.48.255:8443` behind the Caddy sidecar's pinned internal CA (`docs/TLS_FLIP.md`); both answered `/health` on 2026-08-17 |
+| Risk gateway | http://149.118.48.255:8000 — and `https://149.118.48.255:8443` behind the Caddy sidecar's pinned internal CA (`docs/engineering/TLS_FLIP.md`); both answered `/health` on 2026-08-17 |
 
 The gateway deploys itself from `main` via `.github/workflows/deploy.yml` — the
 suite runs first (with the native core built), then build, push to GHCR, SSH,

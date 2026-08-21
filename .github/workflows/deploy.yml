@@ -505,7 +505,7 @@ jobs:
       # project) and proxies to the gateway on 127.0.0.1:8000. Additive: :8000
       # keeps serving until the web flips ALPHAENGINE_GATEWAY_URL, so this can
       # never take the desk down. The root CA is a PUBLIC certificate and is
-      # printed in the log on purpose — docs/TLS_FLIP.md is the checklist that
+      # printed in the log on purpose — docs/engineering/TLS_FLIP.md is the checklist that
       # consumes it.
       # -----------------------------------------------------------------------
       - name: TLS sidecar — Caddy with a pinned internal CA on :8443
@@ -618,7 +618,7 @@ jobs:
               echo "::notice::no known firewall tool found; if 8443 stays closed, check the instance firewall by hand"
             fi
 
-            echo "==> Root CA (PUBLIC certificate — paste into the web flip, see docs/TLS_FLIP.md)"
+            echo "==> Root CA (PUBLIC certificate — paste into the web flip, see docs/engineering/TLS_FLIP.md)"
             docker exec alphaengine_caddy cat /data/caddy/pki/authorities/local/root.crt
         env:
           PUBLIC_IP: ${{ secrets.SSH_HOST }}
@@ -659,8 +659,8 @@ jobs:
           tls_url="https://${SSH_HOST}:8443/health"
           echo "Probing ${tls_url} from a GitHub runner"
           if curl -skf --max-time 15 "$tls_url" >/dev/null; then
-            echo "TLS endpoint reachable from the internet — docs/TLS_FLIP.md finishes the flip."
+            echo "TLS endpoint reachable from the internet — docs/engineering/TLS_FLIP.md finishes the flip."
           else
             echo "::notice::TCP 8443 is not reachable externally yet. Open it in the OCI"
-            echo "::notice::security list + instance firewall, then follow docs/TLS_FLIP.md."
+            echo "::notice::security list + instance firewall, then follow docs/engineering/TLS_FLIP.md."
           fi

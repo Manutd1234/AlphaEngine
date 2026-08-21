@@ -30,15 +30,15 @@ extra skip is `tests/test_backtester.py`, "vectorbt not installed", because
 numba has no 3.14 wheel — so the vectorbt engine goes untested and the summary
 line still reads green.
 
-**Count the skips, not the passes.** On 3.12 it is **1,493 passed and exactly
-one skipped** (run on 2026-08-21; `web/lib/test-counts.generated.ts` carries
+**Count the skips, not the passes.** On 3.12 it is **1,706 passed and exactly
+one skipped** (run on 2026-08-22; `web/lib/test-counts.generated.ts` carries
 the current figure). That one skip is expected and is *not* the vectorbt one —
 it is `tests/test_data_ops_postgrest.py`, which reports honestly that no
 `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` was in the environment so the
 Postgres backend never ran. A **second** skip is the signal that the venv is
 the wrong Python. Build it with `python3.12 -m venv venv` explicitly; the
 default `python3` on a current macOS/Homebrew is 3.14. Two more things the
-1,493 needs:
+1,706 needs:
 `requirements-native.txt` and a built native decision core
 (`python native/decision_core/setup.py build_ext --inplace --build-temp
 build/native`) — `tests/test_decision_core_native.py` and
