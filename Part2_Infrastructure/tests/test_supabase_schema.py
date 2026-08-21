@@ -40,7 +40,7 @@ RISK_PROXY = "\n".join(path.read_text() for path in RISK_PROXY_FILES)
 
 
 def engine_gate_names() -> set[str]:
-    """Every gate name `submit()` can emit, read from the package's source.
+    r"""Every gate name `submit()` can emit, read from the package's source.
 
     Parsed, not grepped. The regex this replaced — `add\("([a-z_]+)"` — could
     only see a call whose name literal sat on the same line as the `add(`, and

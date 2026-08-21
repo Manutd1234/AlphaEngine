@@ -12,3 +12,9 @@
 # the algorithms run here rather than in Neo4j's GDS library, which the Aura
 # Free tier does not carry.
 networkx>=3.2
+# networkx's PageRank has been scipy-backed since 3.x — nx.pagerank imports
+# scipy or raises. Louvain alone runs pure-Python, which is how this file
+# shipped without scipy and stayed green on every machine that had it via
+# requirements-ml.txt, then failed only in CI. Declared here so the extras
+# file states what the module actually needs, not what one laptop had.
+scipy>=1.11
