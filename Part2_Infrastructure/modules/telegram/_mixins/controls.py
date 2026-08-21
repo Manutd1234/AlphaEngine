@@ -1,6 +1,39 @@
 """Controls — the only commands that change risk state.
 
 Three gates, and the banner comment below is the argument for each.
+
+The CONFIRMATION is tappable; the command is not. `/halt` still has to be
+typed. No keyboard in this package offers a control, `/menu` and the tab
+footers do not carry one, and `_handle_callback` still refuses every Controls
+callback that is not already a confirmation. What the button replaces is the
+second round trip — reading a four-digit code off a card and typing
+`/halt 4821` — with a tap whose callback datum IS `v1|halt|4821`.
+
+The property that survives is the one the README argues for: **there is no path
+from a fresh chat to a control.** A button that can arm a control is a control
+a stray tap can arm, so this button cannot arm one. It can only confirm one the
+same user asked for, in text, seconds earlier. Concretely:
+
+  * The datum carries the single-use code, so it is evidence rather than
+    authority. Tapped without a live challenge — a replayed datum, a forwarded
+    card, a harvested button re-tapped by a test harness — it reaches
+    `_consume_challenge` with nothing to consume and is refused. The code
+    requirement is not relaxed; the tap only changes how the code is delivered.
+  * The challenge is keyed to the user who TYPED the command, so in a shared
+    chat nobody but the requester can fire the button they can all see.
+  * `_control` re-checks read authorisation and `TELEGRAM_CONTROL_USER_IDS` on
+    the confirming call, tapped or typed, so a still-visible button belonging
+    to a revoked operator is dead.
+  * The tapped path IS the typed path: both land in
+    `_control("halt", ["4821"], ...)` with the same composite actor, so the
+    audit row `_apply_control` writes is identical and names who did it either
+    way.
+  * Every card that follows a consumed challenge is sent with an empty
+    keyboard, so a confirm button never outlives the confirmation it carried.
+
+`_is_control_confirmation` is the predicate `_handle_callback` asks before it
+lets a Controls callback through, kept here so the shape of a confirmation is
+defined once, beside the code that issues it.
 """
 
 from __future__ import annotations
@@ -8,10 +41,30 @@ from __future__ import annotations
 import re
 import secrets
 import time
+from typing import Any
 
 from config import settings
 from modules.telegram._common import log
 from modules.telegram.format import _money, esc, text_card
+from modules.telegram.keyboards import cb, kb
+
+#: A confirmation code as `_control` parses it: exactly four digits, which is
+#: what tells it apart from a symbol argument.
+_CONFIRM_CODE_RE = re.compile(r"^[0-9]{4}$")
+
+#: action -> (registered spec NAME, the tokens its handler needs to rebuild the
+#: action). `cb()` takes spec names only, and `reduceonly_off` is an internal
+#: action rather than a command, so the direction rides as an argument the way
+#: a typed `/reduceonly off 4821` carries it.
+_CONFIRM_ROUTE: dict[str, tuple[str, tuple[str, ...]]] = {
+    "halt": ("halt", ()),
+    "resume": ("resume", ()),
+    "flatten": ("flatten", ()),
+    "reduceonly": ("reduceonly", ("on",)),
+    "reduceonly_off": ("reduceonly", ("off",)),
+    "resetbook": ("resetbook", ()),
+    "replay": ("replay", ()),
+}
 
 
 class ControlsMixin:
@@ -31,7 +84,9 @@ class ControlsMixin:
     #   2. A per-user, single-use challenge code that expires. `/halt` alone
     #      never acts; it returns a code that `/halt <code>` consumes. A copied
     #      or forwarded command cannot fire, because the code is bound to the
-    #      user who asked and dies after one use.
+    #      user who asked and dies after one use. The card carries a Confirm
+    #      button which delivers that same code — see the module docstring for
+    #      why a tap can confirm a control but still cannot reach one.
     #   3. The gateway's own audit log, which records the actor either way.
 
     _CHALLENGE_TTL_SECONDS = 90.0
@@ -56,6 +111,40 @@ class ControlsMixin:
         if pending["code"] != code:
             return False, None, "Wrong code."
         return True, pending["symbol"], ""
+
+    def _is_control_confirmation(self, name: str, args) -> bool:
+        """May this Controls callback through? True only for a confirmation.
+
+        `_handle_callback` asks before it dispatches anything in the Controls
+        category, and the answer is deliberately narrow: the ONLY tap a control
+        accepts is one that already carries a four-digit code, which is to say
+        one that confirms a challenge some earlier typed message opened. Every
+        other shape — no argument at all, a symbol, a code with anything beside
+        it — is refused there with the "typed, never tapped" toast, so no tap
+        can reach the branch of `_control` that ISSUES a challenge.
+
+        Strict about the shape rather than about the digits: `["on", "4821"]`
+        passes for /reduceonly, whose handler reads a direction first, and
+        fails for /halt, whose handler would read "on" as a SYMBOL and arm a
+        fresh challenge from a button.
+        """
+        tokens = [str(token) for token in args]
+        if name == "reduceonly" and tokens[:1] and tokens[0].lower() in {"on", "off"}:
+            tokens = tokens[1:]
+        return len(tokens) == 1 and _CONFIRM_CODE_RE.fullmatch(tokens[0]) is not None
+
+    def _confirm_keyboard(self, action: str, code: str) -> dict[str, Any]:
+        """The one button a control ever sends: confirm THIS challenge.
+
+        The datum is the typed confirmation, spelled as a callback: the spec
+        name, the direction token where the handler needs one, and the
+        single-use code. It is the whole of what the button can say — no chat
+        id, no user id, no grant — so tapping it anywhere other than in front
+        of the live challenge it was minted for confirms nothing.
+        """
+        name, prefix = _CONFIRM_ROUTE[action]
+        direction = f" {prefix[0]}" if prefix else ""
+        return kb([[(f"✅ Confirm /{name}{direction}", cb(name, *prefix, code))]])
 
     async def _control(self, action: str, args, chat_id, actor) -> None:
         # This line used to read `user_id = str(actor)`, which handed the whole
@@ -116,21 +205,30 @@ class ControlsMixin:
                 "resetbook": "Positions and session accounting on the PAPER book are cleared. This is not an order and sends nothing to a venue.",
                 "replay": "One capability is re-fetched through the validated path with its cache bypassed. It spends provider quota and writes a contract result to the data-quality ledger, which can escalate.",
             }[action]
+            # The button carries this code and nothing else, so it is a shortcut
+            # for the reply below rather than a second way in. The typed line
+            # stays on the card: an operator who distrusts a button, or whose
+            # client will not render one, has lost nothing.
             await self.send_message(chat_id, text_card(
                 f"⚠ Confirm /{action}", "ACTION NOT YET TAKEN",
                 [
                     f"Scope <b>{scope}</b>",
                     impact,
                     "",
-                    f"Reply <code>/{action} {code}</code> within {int(self._CHALLENGE_TTL_SECONDS)}s.",
-                    "<i>The code is single-use and tied to your user ID, so a forwarded message cannot fire it.</i>",
+                    f"Tap <b>Confirm</b> below, or reply <code>/{action} {code}</code>, within {int(self._CHALLENGE_TTL_SECONDS)}s.",
+                    "<i>The code is single-use and tied to your user ID, so neither a forwarded message nor a forwarded button can fire it.</i>",
                 ],
-                source="Risk gateway", next_commands="/risk · /positions"))
+                source="Risk gateway", next_commands="/risk · /positions"),
+                reply_markup=self._confirm_keyboard(action, code))
             return
 
+        # Every card past this point is sent with an EMPTY keyboard. When the
+        # confirmation was a tap, `send_message` edits the challenge card in
+        # place, and an omitted `reply_markup` would leave Telegram showing the
+        # spent Confirm button on top of the outcome.
         ok, symbol, reason = self._consume_challenge(user_id, action, code_arg)
         if not ok:
-            await self.send_message(chat_id, text_card(f"✕ /{action} not confirmed", "REJECTED", [esc(reason)], source="Risk gateway", next_commands=f"/{action}"))
+            await self.send_message(chat_id, text_card(f"✕ /{action} not confirmed", "REJECTED", [esc(reason)], source="Risk gateway", next_commands=f"/{action}"), reply_markup=kb([]))
             return
 
         try:
@@ -141,10 +239,10 @@ class ControlsMixin:
             result = await self._apply_control(action, symbol, actor)
         except Exception as exc:  # noqa: BLE001 - surfaced to the operator verbatim
             log.exception("control %s failed", action)
-            await self.send_message(chat_id, text_card(f"✕ /{action} failed", "GATEWAY ERROR", [esc(str(exc)[:200])], source="Risk gateway", next_commands="/status"))
+            await self.send_message(chat_id, text_card(f"✕ /{action} failed", "GATEWAY ERROR", [esc(str(exc)[:200])], source="Risk gateway", next_commands="/status"), reply_markup=kb([]))
             return
 
-        await self.send_message(chat_id, text_card(f"✅ /{action} applied", "RISK STATE CHANGED", result, source="Risk gateway · audited", next_commands="/risk · /positions · /orders"))
+        await self.send_message(chat_id, text_card(f"✅ /{action} applied", "RISK STATE CHANGED", result, source="Risk gateway · audited", next_commands="/risk · /positions · /orders"), reply_markup=kb([]))
 
     async def _apply_control(self, action: str, symbol: str | None, actor: str) -> list[str]:
         gateway = self.gateway

@@ -33,7 +33,7 @@ def help_text(query: str | None = None) -> str:
                 "as text cards, real-data charts and tappable buttons. <code>/menu</code> opens the desks.",
                 "Order submission is intentionally unavailable. The five emergency controls "
                 "(/halt, /resume, /flatten, /reduceonly, /resetbook, /replay) need the operator allow-list "
-                "and a confirmation code, and are typed, never tapped.",
+                "and a confirmation code, and are typed, never tapped (only the confirmation is a button).",
                 "",
                 f"<b>Categories</b>\n{esc(categories)}",
                 "",

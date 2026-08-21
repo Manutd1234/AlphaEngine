@@ -105,10 +105,14 @@ class DispatchMixin:
         those differ: the card was sent to the chat, but authorisation belongs
         to whoever pressed the button.
 
-        Controls are the one category a button never reaches. A tap is easier
+        Controls are the one category a button may never ARM. A tap is easier
         to fire by accident than a typed command, and the whole point of the
         challenge flow is deliberateness — so no challenge is ever issued from
-        a button, not even the first step.
+        a button, not even the first step. `_is_control_confirmation` is the
+        narrow exception: a Controls callback already carrying a four-digit
+        code confirms a challenge that a typed message opened seconds ago, and
+        `_consume_challenge` refuses it unless one is live for this tapper.
+        A tap can therefore finish a control, never start one.
         """
         cb_id = str(callback.get("id") or "")
         user = callback.get("from") or {}
@@ -145,7 +149,7 @@ class DispatchMixin:
                 cb_id, text="This button is from an older build. Send the command instead.",
             )
             return
-        if spec.category == "Controls":
+        if spec.category == "Controls" and not self._is_control_confirmation(spec.name, args):
             await self.answer_callback_query(
                 cb_id, text=f"Controls are typed, never tapped. Send /{spec.name}.",
             )

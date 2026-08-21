@@ -22,6 +22,7 @@ import httpx
 
 from config import settings
 from modules.telegram._mixins import (
+    ActivityMixin,
     AlertsMixin,
     AllocationMixin,
     AnalyticsMixin,
@@ -30,6 +31,7 @@ from modules.telegram._mixins import (
     CostsMixin,
     DataOpsMixin,
     DeliveryMixin,
+    DesksMixin,
     DeveloperMixin,
     EssentialsMixin,
     FoldsMixin,
@@ -41,10 +43,16 @@ from modules.telegram._mixins import (
     OrdersMixin,
     ParsingMixin,
     PortfolioMixin,
+    PreviewMixin,
     ReliabilityMixin,
+    ResearchDetailMixin,
     ResearchMixin,
+    RiskDriversMixin,
     RiskMixin,
+    ScenarioReportMixin,
     ScenariosMixin,
+    ServicesMixin,
+    StreamingMixin,
     SubscriptionsMixin,
     TabsMixin,
     TabsOpsMixin,
@@ -85,10 +93,21 @@ class TelegramBot(
     ReliabilityMixin,
     DeveloperMixin,
     CompareMixin,
+    StreamingMixin,
     SubscriptionsMixin,
     AlertsMixin,
     LiveMixin,
     DeliveryMixin,
+    # Web-parity mixins (2026-08-21): one per web rail section that had no
+    # Telegram equivalent. Appended rather than interleaved so the original
+    # MRO order is untouched.
+    ActivityMixin,
+    PreviewMixin,
+    DesksMixin,
+    RiskDriversMixin,
+    ScenarioReportMixin,
+    ResearchDetailMixin,
+    ServicesMixin,
 ):
     def __init__(self, gateway=None, tca=None, queue=None, audit=None) -> None:
         self.gateway = gateway
@@ -181,7 +200,8 @@ class TelegramBot(
             "username": (self.me or {}).get("username"),
             "updates_handled": self.updates_handled,
             # Inline keyboards and callback queries are served; every button
-            # resolves to a registered typed command and controls are excluded.
+            # resolves to a registered typed command, and controls are excluded
+            # except a confirmation carrying a live, single-use code.
             "interactive": True,
             "callbacks_handled": self.callbacks_handled,
             "uptime_s": round(time.time() - self.started_at, 1) if self.started_at else 0.0,

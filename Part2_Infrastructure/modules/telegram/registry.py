@@ -66,7 +66,7 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     # Market data / OpenBB
     CommandSpec("openbb", "Markets · OpenBB provider readiness", "Markets", "/openbb", "/openbb", "_cmd_openbb"),
     CommandSpec("quote", "Markets · OpenBB quote", "Markets", "/quote SYMBOL [equity|crypto]", "/quote AAPL", "_cmd_quote", ("market",)),
-    CommandSpec("bars", "Markets · Recent OpenBB OHLCV rows", "Markets", "/bars SYMBOL [15m|1h|4h|1d] [COUNT]", "/bars AAPL 1d 5", "_cmd_bars"),
+    CommandSpec("bars", "Markets \u00b7 Recent OpenBB OHLCV rows, drawn as close, volume, drawdown or returns", "Markets", "/bars SYMBOL [15m|1h|4h|1d] [COUNT] [close|volume|drawdown|returns]", "/bars AAPL 1d 30 returns", "_cmd_bars"),
     CommandSpec("trend", "Markets · Return and direction over recent bars", "Markets", "/trend SYMBOL [INTERVAL] [COUNT]", "/trend NVDA 1d 20", "_cmd_trend"),
     CommandSpec("range", "Markets · High/low range over recent bars", "Markets", "/range SYMBOL [INTERVAL] [COUNT]", "/range BTCUSDT 4h 12", "_cmd_range", in_menu=False),
     CommandSpec("volume", "Markets · Latest and average volume", "Markets", "/volume SYMBOL [INTERVAL] [COUNT]", "/volume MSFT 1d 20", "_cmd_volume", in_menu=False),
@@ -183,6 +183,28 @@ COMMAND_SPECS: tuple[CommandSpec, ...] = (
     CommandSpec("reduceonly", "Controls · Accept only risk-reducing orders", "Controls", "/reduceonly [on|off] | /reduceonly CODE", "/reduceonly on", "_cmd_reduceonly", ("softhalt",)),
     CommandSpec("resetbook", "Controls · Reset the paper book and session accounting", "Controls", "/resetbook | /resetbook CODE", "/resetbook", "_cmd_resetbook"),
     CommandSpec("replay", "Controls · Re-fetch a capability through the validated path and record the contract result", "Controls", "/replay [SYMBOL] | /replay CODE", "/replay BTCUSDT", "_cmd_replay", ("refetch",)),
+
+    # Web-parity commands (2026-08-21). Each mirrors a web rail section that had no
+    # Telegram equivalent. All in_menu=False: Telegram's "/" menu caps at 100 and 97
+    # slots were already taken — these still dispatch and still list under /commands.
+    CommandSpec("desks", "Overview \u00b7 Seven desk roles, the question each asks and the live figure answering it", "Overview", "/desks [SYMBOL]", "/desks BTCUSDT", "_cmd_desks", ("roles", "deskroles"), in_menu=False),
+    CommandSpec("activity", "Execution \u00b7 The Activity section: order record, decision tape and alert feed", "Execution", "/activity [record|fills|unfilled|active|tape|alerts] [N]", "/activity", "_cmd_activity", ("desktape", "feed"), in_menu=False),
+    CommandSpec("drivers", "Risk \u00b7 Per-position Euler risk contribution, marginal risk and limit pressure", "Risk", "/drivers [INTERVAL]", "/drivers", "_cmd_drivers", ("euler", "riskdrivers"), in_menu=False),
+    CommandSpec("oraclevar", "Risk \u00b7 In-database GBM terminal VaR check and its backtest exceptions", "Risk", "/oraclevar [1|10|30|90]", "/oraclevar", "_cmd_oraclevar", ("gbmvar",), in_menu=False),
+    CommandSpec("shock", "Risk \u00b7 Scenario report: every leg a shock moves, and the halt line", "Risk", "/shock [SCENARIO|SYM=PCT ...]", "/shock crypto_cascade", "_cmd_shock", ("stresslegs", "shocks"), in_menu=False),
+    CommandSpec("parameters", "Research \u00b7 Sweep grid, cost model and the frictions this gateway does not charge", "Research", "/parameters [STRATEGY]", "/parameters ma_cross", "_cmd_parameters", ("sweepgrid", "frictions"), in_menu=False),
+    CommandSpec("fitted", "Research \u00b7 Fitted-model reproducibility capsule: seed, data hash, features, purge, PBO", "Research", "/fitted [RUN_ID]", "/fitted", "_cmd_fitted", ("mlruns", "capsule"), in_menu=False),
+    CommandSpec("services", "Reliability \u00b7 Gateway components and per-provider circuit posture", "Reliability", "/services", "/services", "_cmd_services", ("servicecircuits", "components"), in_menu=False),
+
+    # in_menu=True deliberately: this is the read-only answer to "can the bot show me
+    # what the ticket would say". It takes the menu to 98/100 — the last slots.
+    CommandSpec("preview", "Execution \u00b7 Read-only pre-trade preview of the order ticket's verdict", "Execution", "/preview [SYMBOL] [BUY|SELL] [NOTIONAL]", "/preview BTCUSDT BUY 50000", "_cmd_preview", ("ticket", "verdict")),
+
+    # Streaming approximation (2026-08-21): a chat app cannot hold a socket, so
+    # "live" is a push on a SETTLED move — see SettledMove in _mixins/subscriptions.py.
+    CommandSpec("track", "Alerts \u00b7 Push this chat when a measure has really moved", "Alerts", "/track SYMBOL|equity|drawdown|gross [MOVE_%]", "/track BTCUSDT 0.5", "_cmd_track", ("follow",)),
+    CommandSpec("untrack", "Alerts \u00b7 Stop move pushes for one target, or all of them", "Alerts", "/untrack [SYMBOL|MEASURE]", "/untrack BTCUSDT", "_cmd_untrack", in_menu=False),
+    CommandSpec("tracking", "Alerts \u00b7 What this chat is pushed on, and the rule that decides", "Alerts", "/tracking", "/tracking", "_cmd_tracking", ("tracked",), in_menu=False),
 )
 
 def _build_command_index(specs: tuple[CommandSpec, ...]) -> dict[str, CommandSpec]:
@@ -215,10 +237,10 @@ BOT_COMMANDS = [(spec.name, spec.description) for spec in COMMAND_SPECS if spec.
 BOT_SHORT_DESCRIPTION = "Independent alerts and portfolio, market and risk reads — text, charts, buttons — plus six gated controls."
 BOT_DESCRIPTION = (
     "AlphaEngine Companion is separate from the web workspace. It reads portfolio state, "
-    "OpenBB market data, execution analytics, research status and operational alerts — as text "
-    "cards, real-data charts and inline buttons; /menu opens the tappable desks. There is no "
-    "/order; /backtest queues research, not trades. Five controls (/halt, /resume, /flatten, "
-    "/reduceonly, /resetbook, /replay) are typed, never tapped: they need a separate operator allow-list "
+    "OpenBB market data, execution analytics, research status and alerts — as text "
+    "cards, real-data charts and buttons; /menu opens the desks. There is no "
+    "/order; /backtest queues research, not trades. Six controls (/halt, /resume, /flatten, "
+    "/reduceonly, /resetbook, /replay) are typed, never tapped — only the confirm is a button, gated by an operator allow-list "
     "and a single-use code. Send /commands for the full catalogue."
 )
 

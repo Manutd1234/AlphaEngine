@@ -7,8 +7,76 @@ from typing import Any
 
 from config import settings
 from modules.telegram.format import _finite, _median, _money, _number, _percent, _stdev, esc, text_card
-from modules.telegram.keyboards import _interval_row, _symbol_row, kb
-from modules.telegram_charts import generate_series_chart_png
+from modules.telegram.keyboards import _choice_row, _interval_row, _symbol_row, kb
+from modules.telegram_charts import (
+    generate_bars_chart_png,
+    generate_drawdown_chart_png,
+    generate_histogram_png,
+    generate_series_chart_png,
+)
+
+_SOURCE = "OpenBB / yfinance"
+#: What /bars can draw from one window of OHLCV rows. Every measure is computed from the bars already fetched, so
+#: changing measure costs a redraw and never a second provider call — which is what makes offering it as a button honest.
+_MEASURES = (("Close", "close"), ("Volume", "volume"), ("Drawdown", "drawdown"), ("Returns", "returns"))
+_MEASURE_VALUES = tuple(value for _, value in _MEASURES)
+_WINDOWS = (10, 20, 30, 50)  #: `_limit` caps /bars at 50 rows, so 50 is the widest window a button may offer.
+_KEEP = 20  #: Past about twenty categories a bar chart's labels collide into one grey band.
+
+
+def _measure_arg(args: list[str]) -> str:
+    """The optional fourth positional — which measure the chart draws. `_bar_args` reads only the first three, so it is additive."""
+    value = args[3].strip().lower() if len(args) > 3 else "close"
+    if value not in _MEASURE_VALUES:
+        raise ValueError("measure must be one of " + ", ".join(_MEASURE_VALUES))
+    return value
+
+
+def _measure_chart(measure: str, symbol: str, interval: str, rows: list[dict[str, Any]]) -> bytes | None:
+    """One measure of one window, drawn from `rows` and nothing else.
+
+    None is an answer here rather than a failure: the histogram generator refuses under twenty observations and the bar
+    generator refuses an empty series, so a window too narrow to carry a measure yields no picture and the caption says
+    which. A histogram of four returns would give shape to noise, which on a desk tool is worse than no chart at all.
+    """
+    closes = [value for row in rows if (value := _finite(row.get("close"))) is not None]
+    if measure == "volume":
+        dated = [(str(row.get("date") or "")[5:16], _finite(row.get("volume"))) for row in rows[-_KEEP:]]
+        pairs = [(label, value) for label, value in dated if value is not None]
+        return generate_bars_chart_png(f"{symbol} volume · {interval} · last {len(pairs)} bars", [label for label, _ in pairs], [value for _, value in pairs], "Volume", value_fmt="{:,.0f}")
+    if measure == "drawdown":
+        return generate_drawdown_chart_png(symbol, closes)
+    if measure == "returns":
+        steps = [(closes[index] / closes[index - 1] - 1) * 100 for index in range(1, len(closes)) if closes[index - 1]]
+        return generate_histogram_png(f"{symbol} per-bar returns · {interval}", steps, "Per-bar return (%)", markers=[("median", _median(steps), "#f8fafc")] if steps else None)
+    return generate_series_chart_png(symbol, closes, interval, _SOURCE) if len(closes) >= 2 else None
+
+
+def _measure_note(measure: str, bars: int, drawn: bool) -> str:
+    """What the picture shows — or, when there is none, why there is none."""
+    if drawn:
+        return f"<i>Chart: {esc(measure)} across these {bars} bars — tap an interval, symbol or window below to redraw it.</i>"
+    missing = f"twenty observations are the floor an empirical distribution needs and {bars} bars give fewer" if measure == "returns" else f"none of these {bars} bars carried a usable value"
+    return f"<i>No {esc(measure)} chart: {missing}. The rows above are what the provider returned — tap a wider window.</i>"
+
+
+def _market_keyboard(command: str, symbol: str, interval: str, count: int, measure: str | None = None) -> dict[str, Any] | None:
+    """Interval, symbol and window rows — plus a measure row where there is one.
+
+    Each datum is `v1|<command>|SYMBOL|INTERVAL|COUNT[|MEASURE]`: the positional grammar the typed command already
+    takes, which is why a tap re-enters the handler it came from. None rather than a raise when a configured symbol is
+    long enough to push a datum past Telegram's 64-byte ceiling — a card without buttons still answers the question.
+    """
+    tail = (str(count),) if measure is None else (str(count), measure)
+    windows = [(str(value), str(value)) for value in sorted({*_WINDOWS, count})]
+    try:
+        rows = [_interval_row(command, symbol, interval, *tail), _symbol_row(command, symbol, interval, *tail),
+                _choice_row(command, windows, str(count), prefix_args=(symbol, interval), suffix_args=(measure,) if measure else ())]
+        if measure is not None:
+            rows.append(_choice_row(command, list(_MEASURES), measure, prefix_args=(symbol, interval, str(count))))
+        return kb(rows)
+    except ValueError:
+        return None
 
 
 class MarketMixin:
@@ -58,13 +126,7 @@ class MarketMixin:
             return None
         if not payload.get("ok"):
             return None
-        closes = [
-            value for value in (_finite(row.get("close")) for row in (payload.get("data") or []))
-            if value is not None
-        ]
-        if len(closes) < 2:
-            return None
-        return generate_series_chart_png(symbol, closes, "1d", "OpenBB / yfinance")
+        return _measure_chart("close", symbol, "1d", payload.get("data") or [])
 
     async def _cmd_quote(self, args, chat_id, actor) -> None:
         """
@@ -123,16 +185,10 @@ class MarketMixin:
 
         return await research.bars(symbol, asset, interval, count)
 
-    def _bars_switcher(self, symbol: str, interval: str, count: int) -> dict[str, Any]:
-        """Interval and symbol switch rows for the OHLCV chart commands."""
-        return kb([
-            _interval_row("bars", symbol, interval, str(count)),
-            _symbol_row("bars", symbol, interval, str(count)),
-        ])
-
     async def _cmd_bars(self, args, chat_id, actor) -> None:
         symbol, interval, count, asset = self._bar_args(args)
-        keyboard = self._bars_switcher(symbol, interval, count)
+        measure = _measure_arg(args)
+        keyboard = _market_keyboard("bars", symbol, interval, count, measure)
         payload = await self._bars_payload(symbol, interval, count, asset)
         if not payload.get("ok"):
             await self.send_message(chat_id, self._openbb_error("bars", payload), reply_markup=keyboard)
@@ -145,11 +201,11 @@ class MarketMixin:
         for row in rows[-min(count, 10):]:
             date_label = str(row.get("date") or "")[:16]
             lines.append(f"<code>{esc(date_label):<16}</code> O {_number(row.get('open'))} · H {_number(row.get('high'))} · L {_number(row.get('low'))} · C {_number(row.get('close'))}")
-        # This command used to answer entirely in text; it now draws the close
-        # series it already fetched, from those closes and nothing else.
-        closes = [value for row in rows if (value := _finite(row.get("close"))) is not None]
-        chart = generate_series_chart_png(symbol, closes, interval, "OpenBB / yfinance") if len(closes) >= 2 else None
-        card = text_card(f"🕯 {symbol} · {interval}", f"{len(rows)} DELAYED BARS", lines, source="OpenBB / yfinance", next_commands=f"/trend {symbol} {interval} {count} · /range {symbol} {interval} {count}")
+        # This command used to answer entirely in text, then in one fixed close
+        # series; it now draws whichever measure of those same bars was asked for.
+        chart = _measure_chart(measure, symbol, interval, rows)
+        lines.append(_measure_note(measure, len(rows), chart is not None))
+        card = text_card(f"🕯 {symbol} · {interval} · {measure}", f"{len(rows)} DELAYED BARS", lines, source=_SOURCE, next_commands=f"/trend {symbol} {interval} {count} · /range {symbol} {interval} {count}")
         await self.send_media_group(chat_id, [("bars", chart)] if chart else [], caption=card, reply_markup=keyboard)
 
     async def _cmd_trend(self, args, chat_id, actor) -> None:
@@ -167,11 +223,7 @@ class MarketMixin:
         closes = [value for row in rows if (value := _finite(row.get("close"))) is not None]
         # Per-bar returns, so the headline move can be read against the noise
         # it happened in rather than in isolation.
-        steps = [
-            closes[index] / closes[index - 1] - 1
-            for index in range(1, len(closes))
-            if closes[index - 1]
-        ]
+        steps = [closes[index] / closes[index - 1] - 1 for index in range(1, len(closes)) if closes[index - 1]]
         sigma = _stdev(steps) if len(steps) > 1 else None
         drift = (sum(steps) / len(steps)) if steps else None
         lines = [
@@ -193,33 +245,27 @@ class MarketMixin:
                 "<i>Under 1σ the move is ordinary variation for this instrument "
                 "over this many bars — a direction, not yet evidence.</i>"
             )
-        keyboard = kb([
-            _interval_row("trend", symbol, interval, str(count)),
-            _symbol_row("trend", symbol, interval, str(count)),
-        ])
-        chart = generate_series_chart_png(symbol, closes, interval, "OpenBB / yfinance") if len(closes) >= 2 else None
-        card = text_card(f"📈 {symbol} trend · {interval}", f"{len(rows)} DELAYED BARS", lines, source="OpenBB / yfinance", next_commands=f"/range {symbol} {interval} {count} · /volume {symbol} {interval} {count}")
+        keyboard = _market_keyboard("trend", symbol, interval, count)
+        chart = _measure_chart("close", symbol, interval, rows)
+        lines.append(_measure_note("close", len(rows), chart is not None))
+        card = text_card(f"📈 {symbol} trend · {interval}", f"{len(rows)} DELAYED BARS", lines, source=_SOURCE, next_commands=f"/range {symbol} {interval} {count} · /volume {symbol} {interval} {count}")
         await self.send_media_group(chat_id, [("trend", chart)] if chart else [], caption=card, reply_markup=keyboard)
 
     async def _cmd_range(self, args, chat_id, actor) -> None:
         symbol, interval, count, asset = self._bar_args(args)
+        keyboard = _market_keyboard("range", symbol, interval, count)
         payload = await self._bars_payload(symbol, interval, count, asset)
         rows = payload.get("data") or [] if payload.get("ok") else []
         highs = [value for row in rows if (value := _finite(row.get("high"))) is not None]
         lows = [value for row in rows if (value := _finite(row.get("low"))) is not None]
         if not highs or not lows:
-            await self.send_message(chat_id, self._openbb_error("range", payload if not payload.get("ok") else {"error": "no valid high/low values"}))
+            await self.send_message(chat_id, self._openbb_error("range", payload if not payload.get("ok") else {"error": "no valid high/low values"}), reply_markup=keyboard)
             return
         high, low = max(highs), min(lows)
         width = (high / low - 1) if low else None
         # Each bar's own high-low span, so today's range can be read against
         # what this instrument's ranges usually look like.
-        spans = [
-            (h / low_value - 1)
-            for row in rows
-            if (h := _finite(row.get("high"))) is not None
-            and (low_value := _finite(row.get("low")))
-        ]
+        spans = [(h / low_value - 1) for row in rows if (h := _finite(row.get("high"))) is not None and (low_value := _finite(row.get("low")))]
         typical = _median(spans) if spans else None
         widest = max(spans) if spans else None
         lines = [
@@ -240,15 +286,16 @@ class MarketMixin:
                 "<i>A bar much wider than the median is where slippage estimates "
                 "built on calm conditions stop holding.</i>"
             )
-        await self.send_message(chat_id, text_card(f"↕️ {symbol} range · {interval}", "DELAYED", lines, source="OpenBB / yfinance", next_commands=f"/bars {symbol} {interval} 5"))
+        await self.send_message(chat_id, text_card(f"↕️ {symbol} range · {interval}", "DELAYED", lines, source=_SOURCE, next_commands=f"/bars {symbol} {interval} {count}"), reply_markup=keyboard)
 
     async def _cmd_volume(self, args, chat_id, actor) -> None:
         symbol, interval, count, asset = self._bar_args(args)
+        keyboard = _market_keyboard("volume", symbol, interval, count)
         payload = await self._bars_payload(symbol, interval, count, asset)
         rows = payload.get("data") or [] if payload.get("ok") else []
         volumes = [value for row in rows if (value := _finite(row.get("volume"))) is not None]
         if not volumes:
-            await self.send_message(chat_id, self._openbb_error("volume", payload if not payload.get("ok") else {"error": "no volume values"}))
+            await self.send_message(chat_id, self._openbb_error("volume", payload if not payload.get("ok") else {"error": "no volume values"}), reply_markup=keyboard)
             return
         average = sum(volumes) / len(volumes)
         ratio = volumes[-1] / average if average else None
@@ -271,7 +318,9 @@ class MarketMixin:
             "<i>The median sits beside the mean because one halt or one auction "
             "print drags an average somewhere no bar actually was.</i>"
         )
-        await self.send_message(chat_id, text_card(f"🔊 {symbol} volume · {interval}", "DELAYED", lines, source="OpenBB / yfinance", next_commands=f"/trend {symbol} {interval} {count}"))
+        chart = _measure_chart("volume", symbol, interval, rows)
+        lines.append(_measure_note("volume", len(rows), chart is not None))
+        await self.send_media_group(chat_id, [("volume", chart)] if chart else [], caption=text_card(f"🔊 {symbol} volume · {interval}", "DELAYED", lines, source=_SOURCE, next_commands=f"/trend {symbol} {interval} {count}"), reply_markup=keyboard)
 
     async def _cmd_news(self, args, chat_id, actor) -> None:
         from modules import research

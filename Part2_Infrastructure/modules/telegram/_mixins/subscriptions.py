@@ -1,4 +1,43 @@
-"""Notification preferences — who is subscribed, in what role, watching what."""
+"""Notification preferences — who is subscribed, in what role, watching what.
+
+Plus the streaming approximation: a push only when a measure has really moved.
+=============================================================================
+
+The workspace holds sockets to Binance and Bybit. Telegram cannot hold one open
+to a reader, so the chat idiom for "live" is a PUSH — and the whole difficulty
+is deciding when a push is earned. `SettledMove` is that decision, and it makes
+the argument `web/lib/venue-liveness.ts` and `web/lib/desk-source.ts` already
+make here: a state read off the last packet OSCILLATES, so the two directions
+must not cost the same.
+
+── The rule ───────────────────────────────────────────────────────────────
+
+A subscription holds a REFERENCE — the value this chat was last told — and each
+tick offers it one sample.
+
+**Falling quiet is immediate.** A sample back inside the band clears the streak
+where it stands, and so does one that moved the other way. Silence is the safe
+direction here, exactly as `stale` and `cached` are the safe ones there.
+
+**Pushing is not.** The move has to sit past the band, in the SAME direction,
+for `confirmations` CONSECUTIVE samples, and `cooldown_s` has to have elapsed
+since the last push. So a price wobbling across the band boundary never
+accumulates a streak — the first sample back inside clears it — and one
+straggling tick cannot fire a notification by itself. That asymmetry is the
+whole property: a reader pushed at every wobble mutes the bot, and a muted bot
+is worth less than no bot at all. A push re-bases the reference, so a drift is
+reported once per band it crosses rather than once per tick it spends outside
+one.
+
+**An unmeasurable sample is neither.** It cannot confirm a move and it does not
+settle one, so it clears the streak; after `confirmations` consecutive blind
+samples the chat is told the measure could not be read, once per episode. Over
+a chat transport silence and "nothing moved" look identical, and they are
+different facts.
+
+The clock is injected, like `DeskSourceMachine`'s, so the oscillation this class
+refuses is arrange-act-assert rather than a test that waits.
+"""
 
 from __future__ import annotations
 
@@ -265,3 +304,24 @@ class SubscriptionsMixin:
                     continue
                 await self.send_message(chat_id, message)
                 self.alerts_sent += 1
+        await self._stream_tick()
+
+    # ------------------------------------------------------------------ #
+    # Streaming approximation — push on a settled move
+    # ------------------------------------------------------------------ #
+    #: The desk measures a chat may track by name — (label, format, relative).
+    #: Anything else must be a tracked instrument, whose consolidated mid is
+    #: the reading.
+    STREAM_MEASURES: dict[str, tuple[str, str, bool]] = {
+        "equity": ("Equity", "money", True),
+        "drawdown": ("Daily drawdown", "percent", False),
+        "gross": ("Gross exposure", "money", True),
+    }
+    #: Two, for the reason `PROMOTION_STREAK` is two in `desk-source.ts`: the
+    #: smallest streak one straggling sample cannot satisfy on its own.
+    STREAM_CONFIRMATIONS = 2
+    #: The floor between two pushes for one subscription, whatever the market
+    #: does in between. A settled move landing inside it is not lost — the
+    #: streak holds and the push follows once the floor lapses.
+    STREAM_COOLDOWN_S = 120.0
+    STREAM_DEFAULT_MOVE_PCT, STREAM_MIN_MOVE_PCT, STREAM_MAX_MOVE_PCT = 0.5, 0.05, 50.0

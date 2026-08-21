@@ -13,6 +13,7 @@ the top of each file.
 
 from __future__ import annotations
 
+from modules.telegram._mixins.activity import ActivityMixin
 from modules.telegram._mixins.alerts import AlertsMixin
 from modules.telegram._mixins.allocation import AllocationMixin
 from modules.telegram._mixins.analytics import AnalyticsMixin
@@ -21,6 +22,7 @@ from modules.telegram._mixins.controls import ControlsMixin
 from modules.telegram._mixins.costs import CostsMixin
 from modules.telegram._mixins.dataops import DataOpsMixin
 from modules.telegram._mixins.delivery import DeliveryMixin
+from modules.telegram._mixins.desks import DesksMixin
 from modules.telegram._mixins.developer import DeveloperMixin
 from modules.telegram._mixins.essentials import EssentialsMixin
 from modules.telegram._mixins.folds import FoldsMixin
@@ -32,15 +34,29 @@ from modules.telegram._mixins.montecarlo import MonteCarloMixin
 from modules.telegram._mixins.orders import OrdersMixin
 from modules.telegram._mixins.parsing import ParsingMixin
 from modules.telegram._mixins.portfolio import PortfolioMixin
+from modules.telegram._mixins.preview import PreviewMixin
 from modules.telegram._mixins.reliability import ReliabilityMixin
 from modules.telegram._mixins.research import ResearchMixin
+from modules.telegram._mixins.research_detail import ResearchDetailMixin
 from modules.telegram._mixins.risk import RiskMixin
+from modules.telegram._mixins.riskdrivers import RiskDriversMixin
+from modules.telegram._mixins.scenario_report import ScenarioReportMixin
 from modules.telegram._mixins.scenarios import ScenariosMixin
+from modules.telegram._mixins.services import ServicesMixin
+from modules.telegram._mixins.streaming import StreamingMixin
 from modules.telegram._mixins.subscriptions import SubscriptionsMixin
 from modules.telegram._mixins.tabs import TabsMixin
 from modules.telegram._mixins.tabs_ops import TabsOpsMixin
 
 __all__ = [
+    "StreamingMixin",
+    "PreviewMixin",
+    "ServicesMixin",
+    "ScenarioReportMixin",
+    "RiskDriversMixin",
+    "ResearchDetailMixin",
+    "DesksMixin",
+    "ActivityMixin",
     "AlertsMixin",
     "AllocationMixin",
     "AnalyticsMixin",
