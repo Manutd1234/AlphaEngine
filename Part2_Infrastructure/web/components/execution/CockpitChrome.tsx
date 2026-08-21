@@ -47,6 +47,18 @@ interface CockpitBannersProps {
   mode: CockpitMode;
   /** True once a probe has settled on "there is no gateway in this deployment". */
   unconfigured: boolean;
+  /**
+   * Measured numbers the gateway is no longer confirming.
+   *
+   * A state the cockpit could not previously be in: a failed probe discarded
+   * the book and fell to the sandbox, so there was nothing to label. Keeping
+   * the last good reading is the better behaviour, but it creates the
+   * obligation this flag discharges — a stale desk that looks identical to a
+   * live one is the same defect as a generated one that looks measured.
+   */
+  stale: boolean;
+  /** When the gateway last actually answered, for the age on that banner. */
+  lastSyncAt: Date | null;
   sandboxOff: boolean;
   onSandboxOff: (off: boolean) => void;
 }
@@ -57,9 +69,22 @@ interface CockpitBannersProps {
  * Neither banner is dismissible and neither is a one-time notice: a generated
  * desk that announced itself once is a real desk ten minutes into a reading.
  */
-export function CockpitBanners({ mode, unconfigured, sandboxOff, onSandboxOff }: CockpitBannersProps) {
+export function CockpitBanners({
+  mode, unconfigured, stale, lastSyncAt, sandboxOff, onSandboxOff,
+}: CockpitBannersProps) {
   return (
     <>
+    {stale && (
+      <div className="banner warn" role="status">
+        <span aria-hidden>◆</span>
+        <div>
+          <strong>Last known desk.</strong> The gateway stopped answering, so these are the
+          numbers it last sent
+          {lastSyncAt ? <> at <span className="num">{lastSyncAt.toLocaleTimeString()}</span></> : null}
+          , not the book as it stands now. Nothing here is generated.
+        </div>
+      </div>
+    )}
     {mode === "sandbox" && (
       /* Same grammar as the book chrome: persistent, above everything, on
          every render — a one-time notice is how a generated desk gets

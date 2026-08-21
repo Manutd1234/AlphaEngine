@@ -85,7 +85,8 @@ export interface LiveSnapshot {
 // `connect` is not re-exported: it is an implementation detail of `useLiveBook`
 // and nothing outside these two modules has ever called it.
 
-import { connect, emptyBook, STALE_AFTER_MS } from "./livebook-socket";
+import { connect, emptyBook } from "./livebook-socket";
+import { VenueLiveness } from "./venue-liveness";
 
 // --------------------------------------------------------------------------
 // Socket registry
@@ -143,6 +144,14 @@ export function useLiveBook(symbol: string, enabled = true, publishHz = PUBLISH_
     setSnapshot(null);
 
     const venues: VenueName[] = ["BINANCE", "BYBIT"];
+    /*
+     * One liveness machine per venue, rebuilt with the state map.
+     *
+     * The live/stale decision used to be an inline expression in the publish
+     * tick below — see `lib/venue-liveness.ts` for the oscillation that
+     * produced and why coming back is gated while going stale is not.
+     */
+    const liveness = new Map(venues.map((v) => [v, new VenueLiveness()]));
     state.current = new Map(
       venues.map((v) => [
         v,
@@ -167,11 +176,13 @@ export function useLiveBook(symbol: string, enabled = true, publishHz = PUBLISH_
           s.updates += 1;
           s.lastUpdate = Date.now();
           s.status = "live";
+          liveness.get(venue)!.update(s.lastUpdate);
         },
         onStatus: (status, error) => {
           const s = state.current.get(venue)!;
           if (s.status !== "live" || status !== "connecting") s.status = status;
           s.error = error;
+          liveness.get(venue)!.transport(status);
         },
         onReconnect: () => {
           state.current.get(venue)!.reconnects += 1;
@@ -194,6 +205,7 @@ export function useLiveBook(symbol: string, enabled = true, publishHz = PUBLISH_
           // reconnect, wrong for one an operator just asked for and is watching.
           s.status = "connecting";
           s.error = undefined;
+          liveness.get(venue)!.restart();
         },
       }),
     );
@@ -202,13 +214,10 @@ export function useLiveBook(symbol: string, enabled = true, publishHz = PUBLISH_
       const now = Date.now();
       const venueStates = [...state.current.values()].map((s) => ({
         ...s,
-        // `lastUpdate` seeds at 0, and "live" is set on handshake — so without
-        // the `updates > 0` guard every venue flashes amber "stale" between the
-        // handshake and its first frame, when there is no book to be stale.
-        status:
-          s.status === "live" && s.updates > 0 && now - s.lastUpdate > STALE_AFTER_MS
-            ? ("stale" as const)
-            : s.status,
+        // Asked, not recomputed. The rule — and the "no ladder yet" guard that
+        // stops a venue flashing stale between handshake and first book — lives
+        // in `VenueLiveness`, with hysteresis this expression never had.
+        status: liveness.get(s.venue)!.statusAt(now),
       }));
 
       // Only books that are both connected and fresh may price an order.

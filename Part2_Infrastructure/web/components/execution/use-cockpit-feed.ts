@@ -35,6 +35,7 @@ import {
   toBlotterRow,
   toRiskEvent,
 } from "@/lib/blotter";
+import { DeskSourceMachine, type DeskSourceState } from "@/lib/desk-source";
 import { sandboxBook } from "@/lib/portfolio";
 import { probeGateway } from "@/lib/use-gateway-connection";
 import { usePolling } from "@/lib/use-polling";
@@ -81,16 +82,32 @@ export interface CockpitFeedOptions {
 }
 
 export function useCockpitFeed({ seed, symbol, onOrderSettled }: CockpitFeedOptions) {
-  const [book, setBook] = useState<PortfolioSnapshot | null>(null);
   const [orders, setOrders] = useState<BlotterRow[]>([]);
   const [events, setEvents] = useState<RiskEventRow[]>([]);
-  const [problem, setProblem] = useState<Unavailable | null>(null);
   const [loading, setLoading] = useState(true);
-  const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
-  /** Set once the first refresh settles on "there is no gateway here". */
-  const [unconfigured, setUnconfigured] = useState(false);
-  /** Explicit opt-out: "Live gateway" pressed on a deployment that has none. */
-  const [sandboxOff, setSandboxOff] = useState(false);
+  /**
+   * Who decides what this surface is showing.
+   *
+   * The book, the problem, the last good sync and the sandbox opt-out were
+   * four pieces of state that had to agree and did not: a failed probe called
+   * `setBook(null)`, which threw away the last good reading and dropped `mode`
+   * to `"sandbox"` — so at this hook's 4s cadence a gateway dropping one poll
+   * in three made the entire cockpit alternate between measured fills and
+   * generated ones. Worse than the flicker, `judge` is handed to the ticket on
+   * `mode === "sandbox"`, so which of the two order paths a click took was
+   * decided by whichever way the last probe happened to land.
+   *
+   * `DeskSourceMachine` holds all four as one state with one rule — measured
+   * data is never replaced by generated data — and the alternation is not a
+   * behaviour it can express. See `lib/desk-source.ts`.
+   */
+  const machine = useRef<DeskSourceMachine<PortfolioSnapshot> | null>(null);
+  if (machine.current === null) machine.current = new DeskSourceMachine<PortfolioSnapshot>();
+  /** The machine is mutable; this is the snapshot React renders from. */
+  const [source, setSource] = useState<DeskSourceState<PortfolioSnapshot>>(
+    () => machine.current!.state,
+  );
+  const publish = useCallback(() => setSource(machine.current!.state), []);
   const sequence = useRef(0);
   const ticks = useRef(0);  // audit feeds ride every AUDIT_EVERY-th one
 
@@ -120,19 +137,15 @@ export function useCockpitFeed({ seed, symbol, onOrderSettled }: CockpitFeedOpti
     // response overwrite a newer one, and counting it would move a backoff.
     if (current !== sequence.current) return true;
 
-    if (!bookOutcome.ok) {
-      setProblem({
-        code: bookOutcome.failure.code,
-        error: bookOutcome.failure.message,
-        hint: bookOutcome.failure.hint,
-      });
-      setBook(null);
-      setUnconfigured(bookOutcome.failure.code === "gateway_not_configured");
-    } else {
-      setBook(bookOutcome.payload);
-      setProblem(null);
-      setUnconfigured(false);
-    }
+    /*
+     * One observation, and the machine decides what it means.
+     *
+     * This branch used to null the book on failure. It no longer can: the
+     * outcome goes in, and a desk that has ever had a reading demotes to
+     * `cached` and keeps its numbers rather than falling to a generated desk.
+     */
+    machine.current!.observe(bookOutcome);
+    publish();
 
     // The audit panels are allowed to be empty without taking the whole
     // cockpit down: a gateway with no history yet is a working gateway.
@@ -144,28 +157,49 @@ export function useCockpitFeed({ seed, symbol, onOrderSettled }: CockpitFeedOpti
       setEvents(((eventOutcome.payload.rows ?? []) as unknown[])
         .map(toRiskEvent).filter((r): r is RiskEventRow => r !== null));
     }
-    setLastSyncAt(new Date());
     // Unconditional, and that is the fix: the old `finally` only ran because the
     // fetches always settled, which under a hang they did not.
     setLoading(false);
     return bookOutcome.ok;
-  }, []);
+  }, [publish]);
 
   /**
-   * A settled failure enters the sandbox, whatever the reason.
+   * The four facts the panels read, all now derived from one state.
    *
-   * This read `unconfigured && !sandboxOff`, so only a deployment with no
-   * gateway at all got a filled-in desk; a gateway that was refusing, hanging or
-   * returning 503 produced "outage" and three sections with nothing in them.
-   * That is the same doctrine `useBook` carried and the same correction: what
-   * makes generated data safe is that it is labelled and that writes are locked,
-   * not that we withhold it during an incident. `sandboxOff` still wins — it is
-   * the explicit "Live gateway" click — and `problem` is only set once a probe
-   * has actually settled, so this never pre-empts the first load.
+   * A settled failure still enters the sandbox whatever the reason — a gateway
+   * that is refusing, hanging or returning 503 gets a filled-in desk rather
+   * than three empty sections, because what makes generated data safe is that
+   * it is labelled and that writes are locked, not that we withhold it during
+   * an incident. What changed is that it can only do so from a desk that has
+   * never had a reading. With one in hand, a failure is `cached`: the same
+   * numbers, marked stale, which is what `useBook` always did.
    */
-  const mode: CockpitMode = book
+  const { showing } = source;
+  const book = showing.kind === "measured" ? showing.payload : null;
+  /**
+   * Measured but not current. The panels keep rendering; the chrome says how
+   * old it is. This is the state that used to be a generated desk.
+   */
+  const stale = showing.kind === "measured" && showing.tier === "cached";
+  const problem: Unavailable | null = source.failure
+    ? {
+        code: source.failure.code,
+        error: source.failure.message ?? "The risk gateway did not return a usable response.",
+        hint: source.failure.hint,
+      }
+    : null;
+  const unconfigured = source.failure?.code === "gateway_not_configured";
+  /** Explicit opt-out: "Live gateway" pressed on a deployment that has none. */
+  const sandboxOff = source.chosen === "live";
+  const setSandboxOff = useCallback((off: boolean) => {
+    if (off) machine.current!.choose("live");
+    else machine.current!.release();
+    publish();
+  }, [publish]);
+
+  const mode: CockpitMode = showing.kind === "measured"
     ? "live"
-    : problem && !sandboxOff ? "sandbox" : "outage";
+    : showing.kind === "generated" ? "sandbox" : "outage";
 
   /**
    * One invalidation path for every mutation this surface makes: the ticket and
@@ -267,7 +301,17 @@ export function useCockpitFeed({ seed, symbol, onOrderSettled }: CockpitFeedOpti
     book,
     problem,
     loading,
-    lastSyncAt,
+    /**
+     * When the gateway last actually answered — not when we last asked.
+     *
+     * This was stamped `new Date()` at the end of every refresh, successful or
+     * not, so "last sync" ticked forward all through an outage and the one
+     * figure that could have revealed a stale desk was the one guaranteed to
+     * look fresh.
+     */
+    lastSyncAt: source.lastGoodAt,
+    /** Measured, but not current. The panels render; the chrome dates them. */
+    stale,
     unconfigured,
     sandboxOff,
     setSandboxOff,

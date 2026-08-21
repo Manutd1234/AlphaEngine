@@ -31,6 +31,7 @@ import {
 } from "@/lib/book-bars";
 import { fetchEquityHistory, type PeriodReturns } from "@/lib/book-history";
 import type { BookConnectionState, BookError, BookView } from "@/lib/book-view";
+import { useDeskSource } from "@/lib/use-desk-source";
 import { useBookRisk } from "@/lib/use-book-risk";
 import { deskSeed } from "@/lib/desk-identity";
 import {
@@ -57,22 +58,28 @@ export type { BookConnectionState, BookError, BookView } from "@/lib/book-view";
 
 export function useBook(): BookView {
   const session = useSession();
-  const [portfolio, setPortfolio] = useState<PortfolioPayload | null>(null);
-  const [error, setError] = useState<BookError | null>(null);
-  const [lastSuccessAt, setLastSuccessAt] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [sandbox, setSandboxState] = useState(false);
-  // An explicit click on either side of the Live/Sandbox toggle is a decision;
-  // the auto-entry below must never override one. Session-scoped on purpose —
-  // a fresh visit starts from the same defaults a reviewer's first visit does.
-  const chose = useRef(false);
 
+  /**
+   * Payload, failure, staleness and the Live/Sandbox choice as one state with
+   * one rule — see `lib/desk-source.ts` for the rule and the argument.
+   *
+   * What it adds here is hysteresis. `isStale` was a pure function of the last
+   * probe, so a gateway dropping every other poll flipped "Last known book" on
+   * and off every fifteen seconds — and `WorkingOrders` reads `isStale` as
+   * `writesDisabled`, so amend and cancel flipped with it.
+   */
+  const { state: source, observe, choose, restore } = useDeskSource<PortfolioPayload>();
+
+  const sandbox = source.showing.kind === "generated";
+  // An explicit click on either side of the Live/Sandbox toggle is a decision;
+  // the machine's auto-entry never overrides one. Session-scoped on purpose —
+  // a fresh visit starts from the same defaults a reviewer's first visit does.
   const setSandbox = useCallback((on: boolean) => {
-    chose.current = true;
     try { sessionStorage.setItem("alphaengine-book-source", on ? "sandbox" : "live"); } catch { /* private mode */ }
-    setSandboxState(on);
-  }, []);
+    choose(on ? "sandbox" : "live");
+  }, [choose]);
   const [returns, setReturns] = useState<ReturnsBySymbol>({});
   const [sessionBars, setSessionBars] = useState<SessionBars>({});
   const [barTimes, setBarTimes] = useState<Record<string, number[]>>({});
@@ -106,7 +113,22 @@ export function useBook(): BookView {
    * anyway once a probe has failed.
    */
   const [seed, setSeed] = useState<number | undefined>(undefined);
-  useEffect(() => { setSeed(deskSeed(session.userId)); }, [session.userId]);
+  useEffect(() => {
+    /*
+     * Not while the session probe is still out — the header stops guessing for
+     * the same reason.
+     *
+     * `deskSeed` falls back to a per-tab guest id when it has no user id, and
+     * during `loading` there is no user id *yet*, so seeding there produced a
+     * guest desk that the resolving session then replaced with the account's:
+     * every position and P&L figure in the generated book changed under the
+     * reader for no reason they could see. Waiting costs nothing — `seed`
+     * stays undefined, the shared worked example the server already rendered —
+     * and leaves one transition, when we actually learn who this is.
+     */
+    if (session.status === "loading") return;
+    setSeed(deskSeed(session.userId));
+  }, [session.status, session.userId]);
 
   // The sandbox replaces the payload entirely rather than patching gaps in it.
   // A book that is half real and half generated is the one thing worse than
@@ -116,7 +138,8 @@ export function useBook(): BookView {
   // of every consumer, which was merely wasteful while it was a constant and
   // becomes a new object identity per render now that it takes an argument.
   const generated = useMemo(() => sandboxBook(undefined, seed), [seed]);
-  const book: PortfolioPayload | null = sandbox ? generated : portfolio;
+  const measured = source.showing.kind === "measured" ? source.showing.payload : null;
+  const book: PortfolioPayload | null = sandbox ? generated : measured;
 
   const refresh = useCallback(async (quiet = false) => {
     const current = ++sequence.current;
@@ -137,16 +160,9 @@ export function useBook(): BookView {
       const outcome = await probeGateway<PortfolioPayload>("/api/gateway/portfolio");
       // Superseded: neither success nor failure, so it moves no backoff.
       if (current !== sequence.current) return true;
-      if (!outcome.ok) {
-        setError({
-          code: outcome.failure.code,
-          error: outcome.failure.message,
-          hint: outcome.failure.hint,
-        });
-        return false;
-      }
+      observe(outcome);
+      if (!outcome.ok) return false;
       const payload = outcome.payload;
-      setPortfolio(payload);
       setObserved((current) => {
         const equity = payload.equity.current;
         const at = Date.parse(payload.as_of) || Date.now();
@@ -156,12 +172,13 @@ export function useBook(): BookView {
         const hwm = Math.max(current[current.length - 1]?.highWaterMark ?? equity, equity);
         return [...current, { t: at, equity, highWaterMark: hwm }].slice(-240);
       });
-      setLastSuccessAt(new Date());
-      setError(null);
       return true;
     } catch {
       if (current === sequence.current) {
-        setError({ error: "The portfolio view could not reach its same-origin gateway route." });
+        observe({
+          ok: false,
+          failure: { message: "The portfolio view could not reach its same-origin gateway route." },
+        });
       }
       return false;
     } finally {
@@ -170,7 +187,7 @@ export function useBook(): BookView {
         setRefreshing(false);
       }
     }
-  }, []);
+  }, [observe]);
 
   // One backfill on mount, so the curve does not start blank every time someone
   // opens the tab — and the period figures are derived from the same rows.
@@ -192,13 +209,23 @@ export function useBook(): BookView {
     try {
       const stored = sessionStorage.getItem("alphaengine-book-source");
       if (stored === "sandbox" || stored === "live") {
-        chose.current = true;
-        setSandboxState(stored === "sandbox");
+        restore(stored);
       }
     } catch { /* private mode */ }
-  }, []);
+  }, [restore]);
 
+  /**
+   * One probe on mount, and one more whenever someone returns to Live.
+   *
+   * This re-probed on any change to `sandbox`, so *entering* the sandbox fired
+   * a request nothing would read and — the non-quiet path setting `loading` —
+   * dragged every consumer through a loading state into a book already in
+   * memory. Entering is a local switch; only leaving asks the gateway.
+   */
+  const probed = useRef(false);
   useEffect(() => {
+    if (probed.current && sandbox) return;
+    probed.current = true;
     void refresh();
     return () => { sequence.current += 1; };
   }, [refresh, sandbox]);
@@ -230,30 +257,14 @@ export function useBook(): BookView {
     enabled: !sandbox,
   });
 
-  /**
-   * Fill the book in when the first probe settles without one — for any reason.
-   *
-   * This used to admit only `gateway_not_configured`, on the grounds that
-   * auto-faking a book during an incident is what this codebase exists to
-   * refuse. Right about the danger, wrong about the remedy: refusing left
-   * Portfolio a single GATEWAY UNAVAILABLE card and Risk reading "Connecting /
-   * Pending / Pending", so the desk showed nothing at all — not a safer
-   * failure than generated numbers, only a less useful one.
-   *
-   * What makes it safe is the labelling and the lock, not the refusal.
-   * `describeTier` reports an incident sandbox as "△ Sandbox · gateway
-   * incident" rather than the "◇ Sandbox · no gateway here" a
-   * configuration-absent desk gets, and `writesEnabled` is false in every tier
-   * but `live`. A reader is told the numbers are generated and cannot act.
-   *
-   * Only when there is nothing else: a cached payload beats a generated one
-   * (hence the wait on `portfolio` being null), and never a human choice —
-   * `chose.current` is checked first, as always.
+  /*
+   * Auto-entry into the sandbox on a settled failure — for any reason, not
+   * only `gateway_not_configured` — used to be an effect here. It is now a
+   * rule in the machine, which is strictly stronger: the effect only ran while
+   * `portfolio` was null, so "a cached payload beats a generated one" was a
+   * guard to remember; the machine cannot enter the sandbox with a reading in
+   * hand at all. The doctrine and its argument are on `DeskSourceMachine`.
    */
-  useEffect(() => {
-    if (loading || portfolio || chose.current) return;
-    if (error) setSandboxState(true);
-  }, [loading, portfolio, error]);
 
   // Daily closes for whatever the book holds. The gateway knows the positions
   // and nothing about how they co-move, so the covariance has to be measured
@@ -300,29 +311,30 @@ export function useBook(): BookView {
     [book, observed],
   );
 
-  const connectionState: BookConnectionState = book
-    ? error ? "stale" : "live"
-    : error?.code === "gateway_not_configured" ? "unconfigured" : "error";
+  /** The failure, in the shape a dozen components already read. */
+  const error: BookError | null = source.failure
+    ? {
+        code: source.failure.code,
+        error: source.failure.message ?? "The risk gateway did not return a usable response.",
+        hint: source.failure.hint,
+      }
+    : null;
+  const lastSuccessAt = source.lastGoodAt;
 
   /**
-   * The same facts in the vocabulary every other surface now uses.
-   *
    * `connectionState` stays — a dozen components read it, and "stale" carries a
    * meaning for the book specifically — but it cannot describe the desk as a
-   * whole, because it has no word for "generated" and no way to distinguish an
-   * absent gateway from a broken one. Derived rather than stored so the two can
-   * never drift: a sandbox book is `sandbox` whatever the probe last said, real
-   * numbers with a failed refresh behind them are `cached`, and nothing else is
-   * `live`.
+   * whole: it has no word for "generated" and cannot tell an absent gateway
+   * from a broken one. Both now read the machine rather than recomputing the
+   * decision from `book` and `error`, which is what puts the hysteresis
+   * behind them.
    */
-  const tier: DataTier = sandbox ? "sandbox" : book ? (error ? "cached" : "live") : "sandbox";
-  const cause: TierCause | null = tier !== "sandbox"
-    ? null
-    : chose.current
-      ? "chosen"
-      : error && error.code !== "gateway_not_configured"
-        ? "incident"
-        : "not-configured";
+  const connectionState: BookConnectionState = book
+    ? source.tier === "cached" ? "stale" : "live"
+    : error?.code === "gateway_not_configured" ? "unconfigured" : "error";
+
+  const tier: DataTier = source.tier;
+  const cause: TierCause | null = source.cause;
 
   /**
    * One identity per set of facts.

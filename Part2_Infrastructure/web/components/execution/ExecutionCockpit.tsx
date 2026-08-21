@@ -172,7 +172,7 @@ export default function ExecutionCockpit({
    * render" on.
    */
   const {
-    mode, book, problem, loading, lastSyncAt, unconfigured, sandboxOff, setSandboxOff,
+    mode, book, problem, loading, lastSyncAt, stale, unconfigured, sandboxOff, setSandboxOff,
     refresh, revalidate, judge, effectiveBook, effectiveEvents, effectiveOrders,
     feedSource, summary, symbolOrders,
   } = useCockpitFeed({ seed, symbol, onOrderSettled });
@@ -196,6 +196,8 @@ export default function ExecutionCockpit({
       <CockpitBanners
         mode={mode}
         unconfigured={unconfigured}
+        stale={stale}
+        lastSyncAt={lastSyncAt}
         sandboxOff={sandboxOff}
         onSandboxOff={setSandboxOff}
       />
