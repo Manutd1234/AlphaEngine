@@ -7,7 +7,7 @@
  * in `./slis` and the snapshot-backed analytics in `./analytics` and `./feeds`.
  *
  * `DataTrustDestination` is declared HERE and nowhere else. Its members are
- * checked against `DATA_SECTIONS` by `tests/data-reliability-consolidation.test.ts`,
+ * checked against `DATA_SECTIONS` by `tests/data-reliability-consolidation-reliability.test.ts`,
  * which reads this file as text — if the union moves again, re-anchor that read
  * with it rather than letting the regex find nothing.
  */

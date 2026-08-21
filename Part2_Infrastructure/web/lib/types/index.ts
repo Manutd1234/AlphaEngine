@@ -11,8 +11,8 @@
  * silently drops nothing when a sibling renames — the failure mode is a name
  * that quietly stops existing at this path while every file still compiles
  * against the sibling directly. Spelled out, a rename is a compile error here,
- * which is where a contract change should surface. `tests/types-barrel.test.ts`
- * holds the two lists to each other.
+ * which is where a contract change should surface. Nothing holds the two lists
+ * to each other as of 2026-08-21; the suite this named no longer exists.
  */
 
 export type { BenchmarkComparison } from "../benchmark";

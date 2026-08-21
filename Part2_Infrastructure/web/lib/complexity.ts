@@ -4,7 +4,7 @@
  * WHAT THIS IS NOT
  *
  * It is not three products, three navigations, or three feature sets. Every tab
- * and every rail section exists at every tier, and `workspace-routing.test.ts`
+ * and every rail section exists at every tier, and `workspace-routing-sections.test.ts`
  * asserts that the list is byte-identical across all three. A tier that hides a
  * tab is a navigation fork, and a beginner who cannot find a feature they were
  * later told about has been lied to about what the tool does.

@@ -256,7 +256,7 @@ export function useWorkspaceRouting() {
    *
    * The id is checked against the same rail `lib/sections` defines, so the pairs
    * cannot silently rot into hashes `readLocation` would reject; the pairs
-   * themselves are pinned by tests/desk-interconnect.test.ts.
+   * themselves are pinned by tests/desk-interconnect-cross-links.test.ts.
    */
   const openSection = useCallback((next: WorkspaceView, section?: string) => {
     const apply = section === undefined ? null : applier[next](section);

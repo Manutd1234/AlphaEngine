@@ -47,13 +47,15 @@ OVER_CEILING: dict[str, int] = {
     "tests/test_decision_core_native.py": 435,
     # Not split, and the reason is the image rather than the code. The
     # gateway Dockerfile copies the root modules BY NAME
-    # (`COPY main.py config.py celery_tasks.py worker.py ./`), so a `config/`
-    # package beside it would simply not exist in the runtime layer, and no
-    # test in this tree builds an image to catch that. `Settings` is also one
-    # frozen dataclass: its fields cannot move to another file without an
-    # inheritance chain that reorders them.
-    "config.py": 434,
     "tests/test_telegram_interactive.py": 422,
+    # Written over the ceiling on purpose, and the only entry here that is a
+    # debt from the day it was written. `SettledMove` — the hysteresis that
+    # makes a pushed price move a notification rather than spam — has to sit
+    # beside the subscription commands that construct it, and the rule needs
+    # its argument written down: an undocumented anti-twitch threshold is one
+    # somebody later "simplifies" back into an oscillator. The split it owes is
+    # the streaming half into its own mixin, which needs `_mixins/__init__.py`
+    # and `bot.py` to name the new base — neither of which this change may
 }
 
 ROOTS = ("modules", "tools", "tests")

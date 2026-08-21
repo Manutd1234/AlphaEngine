@@ -35,7 +35,7 @@
  *
  * The classes are kept apart on disk (`<capability>.json` versus
  * `unauthenticated.json`) because a refusal body must never be read as an
- * example of a healthy one. `tests/raw-contracts-rest.test.ts` asserts the
+ * example of a healthy one. `tests/raw-contracts-rest-fixtures.test.ts` asserts the
  * opposite thing of each: healthy fixtures must produce NO violation, refusal
  * fixtures must produce the specific one that names the refusal.
  *
@@ -56,7 +56,7 @@
  *             These are the ones to REVIEW BY HAND before committing: a keyed
  *             response can carry an account id, a plan name or a header
  *             echoing the key's identity, and none of that belongs in a
- *             fixture. `tests/raw-contracts.test.ts` enumerates the directory
+ *             fixture. `tests/raw-contracts-rest-calibration.test.ts` enumerates the directory
  *             and refuses a credential, but it cannot recognise an account
  *             number.
  */

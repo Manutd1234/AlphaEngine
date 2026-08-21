@@ -8,8 +8,10 @@
  * point the fill wins and the number, which is the fallback, stops being
  * legible.
  *
- * Kept out of the component so the arithmetic is testable. tests/correlation.test.ts
- * recomputes the contrast rather than trusting the comment below.
+ * Kept out of the component so the arithmetic is testable — though as of
+ * 2026-08-21 nothing does: no suite imports this module, so `corrFill`,
+ * `corrLabel` and `CORR_ALPHA_MAX` are unguarded. A pointer here used to claim
+ * otherwise, which is worse than silence.
  */
 
 /**

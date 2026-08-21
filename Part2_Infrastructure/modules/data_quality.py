@@ -17,7 +17,11 @@ channel it went to, so "escalated to log" is never mistaken for a page.
 
 Boundaries, stated: one gateway process and one file — durable across
 restarts and deploys, not replicated across regions; a single channel with
-a cooldown, no acknowledgement workflow.
+a cooldown. Acknowledging is optional and resolves nothing — an escalation
+clears when the condition that raised it clears, not when someone takes it.
+Taking one is recorded three ways: the Take button on Data > Incidents,
+`POST /api/data-quality/escalations/{id}/ack`, and Telegram `/ack <ID>`. Only
+the Telegram path records a person; the web path records a credential.
 
 
 The file itself is a FACADE plus the ledger's own construction and raw-SQL

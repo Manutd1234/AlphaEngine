@@ -35,7 +35,7 @@ import { ExecutionEstimate, Level, RoutingLeg, Side, VenueBook } from "./types";
  * The literal has to stay equal to the Python one. Two engines answering the
  * same question about the same book with different boundaries is worse than
  * either boundary alone: the portal says routable, the gateway refuses the
- * order, and nothing in either log explains the disagreement. `venues.test.ts`
+ * order, and nothing in either log explains the disagreement. `venues-fill-tolerance.test.ts`
  * reads both files and fails if the two literals drift.
  */
 export const FILL_TOLERANCE = 1e-9;

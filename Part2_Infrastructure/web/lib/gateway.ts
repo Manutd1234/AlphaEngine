@@ -199,7 +199,7 @@ export const TRANSPORT_HINTS: Record<string, string> = {
  * Two route handlers asking the gateway for the same payload in the same
  * moment made two upstream round trips. The browser side of this was already
  * solved at a better layer — `lib/use-book.ts` and `lib/use-system-health.ts`
- * own the shared polls and `workspace-routing.test.ts` fails the build if a
+ * own the shared polls and `workspace-routing-nav.test.ts` fails the build if a
  * panel fetches them itself — so what is left is server-side collapsing:
  * separate requests, separate lambdas' worth of work, one upstream call.
  *

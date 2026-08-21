@@ -30,7 +30,7 @@
  * fires on a healthy response is worse than no check at all, and until a real
  * body has been through them the honest severity is one that reports without
  * failing anything over. `RAW_CALIBRATED` below records which providers have
- * earned `fatal`, and `tests/raw-contracts.test.ts` asserts the uncalibrated
+ * earned `fatal`, and `tests/raw-contracts-rest-calibration.test.ts` asserts the uncalibrated
  * ones cannot reach it.
  */
 

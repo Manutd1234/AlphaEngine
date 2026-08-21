@@ -23,7 +23,7 @@ import { BlotterRow, RiskEventRow, WorkingOrderRow } from "./types";
 
 /**
  * Order-level limits, mirroring `config.py` defaults — these describe an order,
- * not a book, so they carry across unchanged. `tests/sandbox-desk.test.ts` pins
+ * not a book, so they carry across unchanged. `tests/sandbox-desk-gates.test.ts` pins
  * them; a drift means the sandbox demonstrates a risk system that no longer
  * exists.
  *
@@ -120,7 +120,7 @@ const REJECT_REASONS: Record<(typeof REJECT_GATES)[number], string> = {
  * that across several seeds rather than trusting this paragraph.
  *
  * The default is the original literal, so every existing caller and every
- * pinned expectation in `sandbox-desk.test.ts` gets byte-identical output.
+ * pinned expectation in `sandbox-desk-reconciliation.test.ts` gets byte-identical output.
  */
 export function sandboxBlotter(
   now = Date.parse("2026-08-04T12:00:00Z"),
@@ -204,7 +204,7 @@ export function sandboxRiskEvents(now = Date.parse("2026-08-04T12:00:00Z")): Ris
  * `SANDBOX_MARKS` above: a working order and a position in the same instrument
  * appear on the same tab, and quoting BTCUSDT at two different marks a few
  * hundred pixels apart is the kind of incoherence the sandbox exists to avoid.
- * `sandbox-desk.test.ts` pins the agreement so an edit to either side fails
+ * `sandbox-desk-reconciliation.test.ts` pins the agreement so an edit to either side fails
  * loudly instead of drifting.
  */
 const SANDBOX_BOOK_MARKS: Record<string, number> = {

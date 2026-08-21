@@ -3,7 +3,7 @@
  * ==============================================
  *
  * Not "how many requests" — the hooks already own the shared polls and
- * workspace-routing.test.ts holds them there — but how long the main thread is
+ * workspace-routing-hook-order.test.ts holds them there — but how long the main thread is
  * busy between the click and the desk being usable again. Three numbers per
  * tab, at 4x CPU throttle so a fast laptop cannot hide a slow render:
  *
