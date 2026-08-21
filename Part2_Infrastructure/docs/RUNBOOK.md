@@ -3,10 +3,11 @@
 What to do when something breaks, written for the person on the other end of the
 alert rather than for the person who wrote the code.
 
-Every procedure here can be rehearsed against a local instance — the systems
-console can simulate a provider outage, the risk controls can be exercised on a
-paper book, and the synthetic-book fallback makes a total feed loss reproducible
-offline. A runbook nobody has practised is a document, not a procedure.
+Every procedure here can be rehearsed against a local instance — the
+Reliability console can simulate a provider outage, the risk controls can be
+exercised on a paper book, and the synthetic-book fallback makes a total feed
+loss reproducible offline. A runbook nobody has practised is a document, not a
+procedure.
 
 **Where to look first, in order:**
 
@@ -14,9 +15,9 @@ offline. A runbook nobody has practised is a document, not a procedure.
 |---|---|
 | Is the process alive and what is it doing? | `GET /health` |
 | What are the numbers doing over time? | `GET /metrics` (Prometheus text) |
-| What did the system decide on its own? | Execution tab → Alerts, or `GET /api/audit/events` |
+| What did the system decide on its own? | Execution tab → Blotter → Tape & alerts, or `GET /api/audit/events` |
 | What happened to a specific order? | Execution tab → Blotter, or `GET /api/audit/orders` |
-| Is a data provider the problem? | Systems tab → Health matrix, failover graph, quarantine |
+| Is a data provider the problem? | Reliability tab → Services & Circuits (health matrix); Data tab → Providers & Capacity (failover graph) and Incidents (quarantine) |
 
 ---
 
@@ -32,9 +33,10 @@ budget), it goes reduce-only: closing orders pass, opening orders do not.
 **Do not resume first.** The breaker did its job; the question is whether the
 thing that caused the loss is still happening.
 
-1. **Confirm what tripped it.** `/incidents` in Telegram, or the Alerts panel on
-   the Execution tab. The audit row for `kill_switch_engaged` names the actor —
-   `circuit-breaker` means automatic, anything else means a human.
+1. **Confirm what tripped it.** `/incidents` in Telegram, or the alert feed on
+   Execution tab → Blotter → Tape & alerts. The audit row for
+   `kill_switch_engaged` names the actor — `circuit-breaker` means automatic,
+   anything else means a human.
 2. **Check whether the loss is real or a bad mark.** A stale or crossed book
    marks positions wrong and can trip the breaker on a move that never happened.
    Cross-check `alphaengine_book_age_seconds` and the venue status pills. If the
@@ -91,11 +93,12 @@ the audit log, which is strictly more risk for no gain.
 Most orders are being refused. This is the pre-trade gates working; the question
 is which gate and why.
 
-1. **Name the gate.** Execution tab → Blotter → the "Most frequent block" line,
-   or expand any rejected row for its full check vector. The vector lists the
-   gates that *ran*, not a fixed-length row: fifteen of the seventeen can appear
-   on a crypto order, and `paper_execution_model` and `reference_freshness` only
-   on a paper-equity one. Every rejection carries the gate that tripped it.
+1. **Name the gate.** Execution tab → Fill quality → Cost → the "Most frequent
+   block" line, or expand any rejected row on Blotter for its full check
+   vector. The vector lists the gates that *ran*, not a fixed-length row:
+   fifteen of the seventeen can appear on a crypto order, and
+   `paper_execution_model` and `reference_freshness` only on a paper-equity
+   one. Every rejection carries the gate that tripped it.
 2. **Read it as a sizing problem first.** `max_order_notional`,
    `symbol_concentration` and `gross_exposure` all mean the same thing: the size
    is wrong for the limit, not the limit wrong for the size. Changing a limit is
@@ -159,7 +162,9 @@ cannot delay a risk decision.
 
 ## Provider degraded or quota exhausted
 
-**Where:** Systems tab → Health matrix, failover graph, quota meters.
+**Where:** Reliability tab → Services & Circuits for the health matrix; Data
+tab → Providers & Capacity, whose Routing pane draws the failover graph and
+whose Budget pane holds the quota meters.
 
 The research data plane is separate from the trading data plane: a failing
 provider affects backtests and fundamentals, never the order book or the risk
@@ -178,7 +183,7 @@ gates.
 
 ## Data quality: quarantined payloads
 
-**Where:** Systems tab → Quarantine.
+**Where:** Data tab → Incidents → Quarantine.
 
 Transport health and data health are different questions. A provider can answer
 in 40ms, from a closed breaker, with a bar series that has a duplicated
@@ -204,9 +209,9 @@ pages older rows.
 ## Data-quality escalation fired
 
 **Where:** the Telegram alert chat (or the gateway log when the bot is off), a
-`data_quality_escalation` row in `/api/audit/events`, and Data tab → Quality &
-Incidents → Quality ledger and escalations, which shows the rule, the provider,
-the channel it went to and when it cleared.
+`data_quality_escalation` row in `/api/audit/events`, and Data tab → Quality →
+Quality ledger and escalations, which shows the rule, the provider, the channel
+it went to and when it cleared.
 
 Two rules, evaluated when findings arrive:
 
@@ -217,9 +222,13 @@ Two rules, evaluated when findings arrive:
   `DATA_QUALITY_ESCALATE_MIN_SAMPLES` (8) were evaluated in the window.
 
 One escalation per (rule, provider) per `DATA_QUALITY_ESCALATE_COOLDOWN_MINUTES`
-(60). There is no acknowledgement step: an escalation resolves itself when the
-condition no longer holds in the window, and the card shows "Cleared" with the
-time. What to do:
+(60). An escalation resolves itself when the condition no longer holds in the
+window, and the card shows "Cleared" with the time. Acknowledging one is
+optional and resolves nothing — it records who took it and the row reads
+"Taken": the **Take** button on that card, `POST
+/api/data-quality/escalations/{id}/ack`, or `/ack <ID>` in Telegram. Only
+Telegram carries a real user id; an acknowledgement from the web records the
+credential (`web:token`), not a person. What to do:
 
 1. Read the recent findings on the same card — the check ids name the defect
    (`bars.unique_timestamps`, `quote.price_positive`, `news.ids_unique`).
@@ -259,7 +268,7 @@ time. What to do:
 | Drawdown halt | Submit orders on the paper book until the budget is spent, or lower `MAX_DAILY_DRAWDOWN_PCT` |
 | Reduce-only | Set `REDUCE_ONLY_THRESHOLD=0.1` and take a small loss |
 | Rejection spike | The order ticket's "fat finger" and "rate-limit burst" presets |
-| Provider outage | Systems tab → simulate an outage (self-expiring, bounded) |
+| Provider outage | Reliability tab → Services & Circuits, or the failover graph on Data tab → Providers & Capacity → simulate an outage (self-expiring, bounded) |
 | End-to-end check | `python tools/synthetic_probe.py` — walks book → cost → risk gate → audit |
 
 ---
@@ -286,6 +295,9 @@ are Vercel projects that deploy themselves from git.
 | `DB_PASSWORD` | `ci.yml` live-smoke | Same. |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | deploy (optional) | Turns the Postgres mirror on. |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_USER_IDS` | deploy (optional) | Notification companion. |
+| `TELEGRAM_CONTROL_USER_IDS` | deploy (optional) | The separate control allow-list. Without it `/halt`, `/resume` and `/flatten` refuse. |
+| `TELEGRAM_ALERT_CHAT_IDS` | deploy (optional) | Where risk and data-quality escalations are pushed. |
+| `TELEGRAM_LINK_SECRET` | deploy (optional) | Signs the single-use link tokens. |
 
 **`DB_*` are not passed to the gateway container.** The gateway is Python and
 has no Oracle client; `ORACLE_*` is read by the Next.js routes on Vercel, which
@@ -308,7 +320,8 @@ nothing, and that failure once read as a gateway outage for a day.
 
 **2. Open the path.** Both layers, or it looks identical to a closed one:
 
-- OCI VCN security list: ingress TCP 22 and 8000.
+- OCI VCN security list: ingress TCP 22 and 8000 — and 8443 as well if the TLS
+  sidecar is to be reachable from outside (`docs/TLS_FLIP.md`).
 - The instance firewall: Oracle Linux images ship restrictive `iptables`.
   `sudo firewall-cmd --permanent --add-port=8000/tcp && sudo firewall-cmd --reload`
 
@@ -318,12 +331,20 @@ deploy time rather than when someone opens the site.
 
 ### On the bearer token travelling in clear
 
-Vercel reaches the gateway over plain HTTP, so `WEB_API_TOKEN` crosses the
-internet unencrypted. It is acceptable for a paper-trading case study — the
-token authorises reads and simulated orders, nothing else — but it is not a
-production posture. Terminating TLS in front of the container (Caddy will
-obtain a certificate automatically given a hostname) and switching
-`ALPHAENGINE_GATEWAY_URL` to `https://` removes it.
+Unless the Vercel project has been flipped — step 3 of `docs/TLS_FLIP.md`, a
+setting this repository cannot read — Vercel reaches the gateway over plain
+HTTP and `WEB_API_TOKEN` crosses the internet unencrypted. It is acceptable
+for a paper-trading case study — the token authorises reads and simulated
+orders, nothing else — but it is not a production posture.
+
+The container half is already built: every deploy runs a Caddy sidecar that
+terminates TLS on `:8443` and proxies to `127.0.0.1:8000`, additively, so
+`:8000` keeps serving throughout. It uses Caddy's *internal* CA rather than an
+automatically obtained public certificate — nothing will issue one for a bare
+IP — so the root is pinned by the one client that matters, and that root is
+committed at `Part2_Infrastructure/web/certs/gateway-ca.pem`. What remains is
+ingress on 8443 and pointing `ALPHAENGINE_GATEWAY_URL` at `https://<IP>:8443`;
+`docs/TLS_FLIP.md` is the checklist.
 
 ### When a deploy fails
 

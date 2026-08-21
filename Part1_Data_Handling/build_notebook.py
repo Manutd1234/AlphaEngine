@@ -2009,9 +2009,9 @@ show_figure(fig, _FIGN,
 say(f"""
 **{_FIGN}. The two ratios the test in the table is fitted to — blended price per 1k
 tokens (top) and tokens per request (bottom) — daily, with 7-day mean and fitted
-trend.** Same estimator and same standard errors as Figure 1; the y-axes start at zero
+trend.** Same estimator and same standard errors as Figure 6; the y-axes start at zero
 so that "flat" is flat rather than a rescaled wobble. *What to conclude:* the growth
-in Figure 1 is happening at a constant blended price ({_ct['weekly_pct']:+.3f}%/week,
+in Figure 6 is happening at a constant blended price ({_ct['weekly_pct']:+.3f}%/week,
 p = {_ct['p']:.2f}) and constant request size ({_tr['weekly_pct']:+.3f}%/week,
 p = {_tr['p']:.2f}). Whatever moves the daily line here — the premium service's share of
 the day's traffic, mostly, as the next figure shows — it does not accumulate.

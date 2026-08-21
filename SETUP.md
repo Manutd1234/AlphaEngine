@@ -2,7 +2,7 @@
 
 Everything you need to get AlphaEngine running, in the order you need it.
 `README.md` explains what it is and why; this file only gets it on screen.
-Every command and count here was re-run against the tree on 2026-08-17.
+Every command and count here was re-run against the tree on 2026-08-21.
 
 ---
 
@@ -179,10 +179,12 @@ trusting the counts — they drift, and a number nobody re-measured is a number
 nobody should quote.
 
 ```bash
-# Gateway suite — 864 passed, nothing skipped (native core built, Python 3.12)
+# Gateway suite — 1,493 passed, 1 skipped (native core built, Python 3.12).
+# The one skip is test_data_ops_postgrest.py with no Supabase creds in the
+# environment; a SECOND skip means the venv is not 3.12.
 cd Part2_Infrastructure && venv/bin/python -m pytest
 
-# Web suite — 2410 passed across 620 suites, no browser needed
+# Web suite — 3,181 passed across 762 suites, no browser needed
 cd Part2_Infrastructure/web && npm test
 
 # Research service — 14 passed

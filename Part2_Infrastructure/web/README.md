@@ -90,7 +90,7 @@ npm install
 npm run dev        # http://localhost:3000 (Turbopack)
 npm run build      # Turbopack production build
 npm run typecheck  # tsc --noEmit
-npm test           # 2,410 tests across 620 suites, no network required (2026-08-17;
+npm test           # 3,181 tests across 762 suites, no network required (2026-08-21;
                    # lib/test-counts.generated.ts records the figure and CI checks it)
 ```
 
@@ -510,7 +510,7 @@ web/
 │       └── …one adapter per vendor (binance, fmp, tiingo, massive,
 │            alphavantage, firecrawl, openbb)
 ├── components/               charts (hand-rolled SVG), controls, tables
-└── tests/                   2,410 tests across 620 suites, incl. cross-engine,
+└── tests/                   3,181 tests across 762 suites, incl. cross-engine,
                               risk-engine and gate parity, and the design-system
                               ratchets (type-scale, motion, house-rules, dead-css,
                               accent-budget, null-honesty, live-motion, forced-colors,
@@ -669,8 +669,10 @@ to honour.
 3. **Throw, do not coerce, on a missing primary field.** A quote with no price
    must fail loudly so the chain moves on. Returning a null price instead
    converts a failover into a silently wrong number.
-4. **Add a case to `tests/providers.test.ts`** with a canned vendor payload —
-   fixtures are committed, so no test reaches the network.
+4. **Add a case to the `tests/providers-*.test.ts` suite** with a canned vendor
+   payload — `providers-coercion.test.ts` for the parsing, `providers-routing.test.ts`
+   for classification and rank. Fixtures are committed, so no test reaches the
+   network.
 
 Quote and bar data contracts (`lib/providers/contracts.ts`) then apply
 automatically: the capability façade attaches the expectations, and a payload

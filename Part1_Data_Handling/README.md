@@ -36,15 +36,17 @@ venv/bin/python -m jupyter nbconvert --to html Part1_Data_Handling.ipynb
 ```
 
 The notebook reads the workbook from its own directory, so it runs from here
-without arguments. Its first cell prints the interpreter version, every library
-version, the workbook's SHA-256 and the random seed, so a reader can tell at a
-glance whether their run matches the committed outputs. Every bootstrap is seeded;
-re-running gives identical numbers.
+without arguments. Its first cell prints the interpreter version, the five analysis
+library versions (pandas, numpy, scipy, statsmodels, matplotlib), the workbook's
+SHA-256 and the random seed, so a reader can tell at a glance whether their run
+matches the committed outputs. Every bootstrap is seeded; re-running gives identical
+numbers.
 
-**No number in the notebook's prose is typed by hand.** Markdown cells carry
-argument; every figure that appears in a sentence is rendered from the dataframe by
-the code cell above it. Re-running against a different file cannot leave the text
-stale.
+**No derived number in the notebook's prose is typed by hand.** Markdown cells
+carry argument, and quote literal values from the file verbatim (`09/05/2026`,
+`requests = -25`); every quantity computed from the data is rendered from the
+dataframe by the code cell above it. Re-running against a different file cannot
+leave the text stale.
 
 ## How it is organised
 
@@ -78,7 +80,7 @@ are different counts because one row carries two of them.
 
 | Issue | Rows | Treatment |
 |---|---|---|
-| `date` mixes ISO and `DD/MM/YYYY` | 1 | Day-first — month-first falls outside the window every other row occupies, and day-first fills the panel's only gap exactly |
+| `date` mixes ISO and `DD/MM/YYYY` | 1 | Day-first — month-first falls outside the window every other row occupies, and day-first fills the only gap in `ticket-summarizer`'s own series exactly (the panel has four gaps in all) |
 | `team` case variant (`platform`) | 1 | Canonicalised — ungrouped it splits every per-team total |
 | `service` label variant (`Chat Router`) | 1 | Canonicalised — the cost ranking depends on grouping it as one |
 | Exact duplicate row | 1 | Dropped — identical in all seven columns, so a double-counted export |
@@ -144,16 +146,17 @@ tells them what disagreeing would cost.
 nine cleanings, each flipping one judgement call.
 
 **Q2 survives everything.** `doc-analysis` is the cost leader in all nine; its share
-moves at most 1.85 points, and the cost-per-request ratio at most 1.9× on a base of
-25×.
+moves at most 1.85 points, and the cost-per-request ratio at most 1.93× on a base
+of 25×.
 
 **One decision changes Q1 materially: the date.** Read month-first, weekly growth is
 +1.21% with an interval of −2.49 to +5.04% — no longer distinguishable from zero,
-because it strands one row four months past the end of the window with enormous
-leverage on the fit. That does not make the growth finding fragile; it means *that*
-reading destroys the series. The evidence for day-first is independent of the trend
-and was settled before any model was fitted. The point of reporting it is that a
-reader who rejects the date argument must also give up the growth estimate.
+because it moves one row four months — 9 May to 5 September — stranding it 83 days
+past the last row in the file, with enormous leverage on the fit. That does not
+make the growth finding fragile; it means *that* reading destroys the series. The
+evidence for day-first is independent of the trend and was settled before any model
+was fitted. The point of reporting it is that a reader who rejects the date argument
+must also give up the growth estimate.
 
 Everything else is near-immaterial — under 0.51 points on the cost share. Notably,
 reading `requests = -25` as a sign flip changes no cost figure at all.

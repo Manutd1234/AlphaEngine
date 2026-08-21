@@ -80,7 +80,7 @@ narration that did not happen never changes it.
 ## What it looks like
 
 ```
-$ graph_recall.py --data-hash 9f2c1a77
+$ venv/bin/python tools/graph_recall.py --data-hash 9f2c1a77
 
 GRAPH RECALL  every run over data_hash 9f2c1a77, and what followed each
 ● ok  2 rows
@@ -95,14 +95,14 @@ GRAPH RECALL  every run over data_hash 9f2c1a77, and what followed each
     → nothing downstream in the graph
 ```
 
-`→ nothing downstream in the graph` and `→ — what followed could not be read`
-are different lines because they are different facts.
+`→ nothing downstream in the graph` and `→ — what followed could not be read
+(the reason is above)` are different lines because they are different facts.
 
 A traversal carries the relation that reached each row, so the output can say
 *shares a data hash* rather than *is related*:
 
 ```
-$ graph_recall.py --from-run job-4412 --depth 2
+$ venv/bin/python tools/graph_recall.py --from-run job-4412 --depth 2
 
   ●  depth 1  via same_data  on 9f2c1a77
     ml_run  run-77  BTCUSDT  gbdt  2026-08-13T11:00:00Z
@@ -151,8 +151,8 @@ how they connect. Four rules hold it in place.
    A summary that replaces the rows is how a reproducible desk stops being one.
 
 `--narrate` is never required for a scriptable answer: `--json` emits
-`state`, `reason`, `rows`, `row_count`, `notes` and a `narration` object that is
-`null` when no narrator was asked for.
+`state`, `question`, `reason`, `rows`, `row_count`, `notes` and a `narration`
+object that is `null` when no narrator was asked for.
 
 ## Running it
 

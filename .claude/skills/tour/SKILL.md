@@ -190,7 +190,7 @@ liquidation modelling. Point the user at that table rather than reciting it; the
 gaps column is the argument.
 
 That table's test counts were last re-measured against a green run on
-2026-08-17 — 864 gateway, 2,410 web across 620 suites, 14 service
+2026-08-21 — 1,493 gateway (1 skipped), 3,181 web across 762 suites, 14 service
 (`web/lib/test-counts.generated.ts` is the recorded copy). Cite them if
 you must, but the standing rule outranks the sentence: **never quote a test
 count from prose.** Run the `verify` skill and read the number off the output.

@@ -7,25 +7,32 @@ the trust root is *pinned*, which is stronger than public PKI for a
 single-client hop) and proxies to the gateway on `127.0.0.1:8000`. Port 8000
 keeps serving throughout, so nothing breaks while the flip is partial.
 
-Everything below is deliberate operator action — none of it happens
-automatically.
+Everything below is deliberate operator action, with one exception: the
+deploy already tries to open 8443 in the *instance* firewall itself (§1).
 
 **Where the flip stands (2026-08-17).** Step 2 is done: the root is committed at
 `Part2_Infrastructure/web/certs/gateway-ca.pem` (since 2026-08-11). Step 1 is
 done: `https://149.118.48.255:8443/health` answered from outside the VM on
-2026-08-17, as did `:8000`. Steps 3–5 are Vercel-side settings and cannot be
-read from this repository — verify them with §4 rather than assuming; the
-`reachable` job's notice line says which state it found. Nothing here is
-load-bearing until step 3 is made: the workspace keeps talking to `:8000`
-exactly as before, and the smoke tool's default `E2E_GATEWAY_URL` is still the
-plaintext port.
+2026-08-17, as did `:8000`. Steps 3–5 are operator actions outside this
+repository — verify them with §4 rather than assuming. The `reachable` job's
+notice line reports only whether TCP 8443 answers from a GitHub runner; it
+cannot see the Vercel project's environment. Nothing here is load-bearing
+until step 3 is made: the workspace keeps talking to `:8000` exactly as
+before, and the smoke tool's default `E2E_GATEWAY_URL` is still the plaintext
+port.
 
 ## 1. Open ingress TCP 8443
 
 OCI Console → Networking → your VCN → Security List: add an ingress rule for
-TCP 8443 (same shape as the existing 8000 rule). Oracle images also ship
-restrictive iptables on the instance itself — mirror whatever was done for
-8000 (`sudo firewall-cmd --permanent --add-port=8443/tcp && sudo firewall-cmd
+TCP 8443 (same shape as the existing 8000 rule). This half is yours — nothing
+in the deploy touches the VCN.
+
+Oracle images also ship restrictive iptables on the instance itself, and the
+deploy's TLS sidecar step already tries to open 8443 there — firewalld first,
+then iptables, idempotent, and persisted where it can be. That attempt is
+advisory: where `sudo` is not available non-interactively it prints a
+`::notice::` and the deploy stays green, and then it is yours too
+(`sudo firewall-cmd --permanent --add-port=8443/tcp && sudo firewall-cmd
 --reload`, or the iptables equivalent).
 
 The deploy's `reachable` job probes `https://<IP>:8443/health` and prints a
