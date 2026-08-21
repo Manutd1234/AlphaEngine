@@ -63,6 +63,7 @@ from modules.jobs import get_queue
 from modules.metrics import RequestTimingMiddleware
 from modules.ml.store import get_ml_store
 from modules.research_rag import get_rag
+from modules.research_schedule import get_research_scheduler
 from modules.risk_proxy import get_gateway
 from modules.supabase_mirror import get_mirror
 from modules.tca_engine import get_engine
@@ -127,6 +128,12 @@ async def lifespan(app: FastAPI):
     await rag.start()
     scheduler = get_scheduler()
     scheduler.start()
+    # Reconciliation, beside the data scheduler and for the same reason: linking
+    # happens on write, so the graph is only as complete as the moment each
+    # document was written. A document written before its relation existed never
+    # gets that edge until something sweeps for it.
+    research_reconcile_scheduler = get_research_scheduler()
+    research_reconcile_scheduler.start()
     # Built here rather than on the first write: a fit job that has just spent
     # seconds of CPU should not then discover its transport is unconfigured, or
     # pay for a TLS handshake inside the persist it is being timed on.
