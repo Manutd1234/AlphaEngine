@@ -306,9 +306,26 @@ class MLWalkForward:
         equity = self._equity(oos)
         skew = float(_skew(oos))
         kurt = float(_kurtosis(oos))
+        # De-annualised for the deflation, exactly as `modules/backtester/run.py`
+        # does it, and for the reason `_min_track_record_bars` below spells out:
+        # `probabilistic_sharpe_ratio` is documented per-observation, and both
+        # `scored` and `sharpe` arrive here annualised because `_score` multiplies
+        # by √ann. Feeding annualised figures to it inflated (sr − sr*)·√(n−1) by
+        # √(bars per year) and put an annualised Sharpe inside the
+        # `1 − γ₃·S + (γ₄−1)/4·S²` variance term against per-bar skew and
+        # kurtosis measured from `oos` — so every DSR and PSR this path reported
+        # was computed in two units at once, and read far too high.
+        root_ann = math.sqrt(ann)
+        sr_per_bar = sharpe / root_ann
+        candidates_per_bar = np.array(scored, dtype=np.float64) / root_ann
         dsr, psr, expected_max = deflated_sharpe_ratio(
-            np.array(scored, dtype=np.float64), sharpe, int(oos.size), skew, kurt,
+            candidates_per_bar, sr_per_bar, int(oos.size), skew, kurt,
         )
+        # Reported back in the unit its neighbours on `MLRunResult` carry:
+        # `oos_sharpe` is annualised, and a per-bar hurdle sitting beside it
+        # under a name that does not say so is the blend this codebase treats
+        # as the defect. The deflation above is unaffected — this is display.
+        expected_max *= root_ann
 
         return MLRunResult(
             folds=tuple(results),

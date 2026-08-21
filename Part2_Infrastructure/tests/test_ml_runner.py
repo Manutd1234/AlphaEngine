@@ -9,9 +9,13 @@ and nobody would know why.
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 import pytest
 
+from modules.backtester import bars_per_year
+from modules.backtester.statistics import deflated_sharpe_ratio, dsr_verdict
 from modules.ml.features import FeatureBuilder, FeatureSpec, LabelSpec
 from modules.ml.models import LogisticRegression, Ridge
 from modules.ml.runner import MLWalkForward
@@ -139,6 +143,55 @@ def test_the_deflation_uses_the_folds_that_were_actually_scored():
     assert result.expected_max_sharpe >= 0.0
     assert 0.0 <= result.psr <= 1.0
     assert 0.0 <= result.deflated_sharpe <= 1.0
+
+
+def test_the_deflation_is_computed_per_bar_not_annualised():
+    """The units the DSR is computed in, pinned.
+
+    ``probabilistic_sharpe_ratio`` is documented per-observation, and the runner
+    scores candidates annualised — ``_score`` multiplies by √ann. Handing those
+    figures straight to ``deflated_sharpe_ratio`` inflated (sr − sr*)·√(n−1) by
+    √(bars per year) and mixed an annualised Sharpe into a variance term built
+    from per-bar skew and kurtosis. On an hourly interval that is a factor of
+    ~94, which saturated the statistic: a mediocre winner over a 24-candidate
+    grid reported DSR 1.0000 and a verdict of PASS where the honest figure was
+    0.54 and a FAIL. The gate that exists to catch selection bias passed
+    everything it was shown.
+
+    ``modules/backtester/run.py`` always de-annualised before this call, and
+    ``_min_track_record_bars`` in the runner itself warns about exactly this
+    factor — so the convention was never in doubt, only unapplied here.
+    """
+    ann = bars_per_year("1h")
+    root = math.sqrt(ann)
+    n = 2000
+    rng = np.random.default_rng(7)
+    candidates_ann = rng.normal(0.4, 0.8, 24)
+    selected_ann = float(candidates_ann.max())
+
+    annualised = deflated_sharpe_ratio(candidates_ann, selected_ann, n, -0.3, 4.5)
+    per_bar = deflated_sharpe_ratio(candidates_ann / root, selected_ann / root, n, -0.3, 4.5)
+
+    # The defect, stated as the thing that must not come back.
+    assert annualised[0] > 0.999, "the mis-scaled call saturates against the PASS threshold"
+    assert per_bar[0] < 0.95, "the honest figure does not clear the PASS threshold"
+    assert dsr_verdict(annualised[0]).startswith("PASS")
+    assert dsr_verdict(per_bar[0]).startswith("FAIL")
+
+
+def test_the_expected_max_sharpe_is_reported_in_the_same_unit_as_oos_sharpe():
+    # The hurdle sits on `MLRunResult` beside an annualised `oos_sharpe`. A
+    # per-bar figure under a name that does not say per-bar is the unit blend
+    # this codebase treats as the defect, so the runner re-annualises it after
+    # deflating. Same plane, or the comparison a reader makes is meaningless.
+    builder = _builder()
+    data = builder.build(**_bars(_with_momentum()))
+    result = MLWalkForward(Ridge(alpha=1.0)).run(data, builder.splitter(5))
+    if result.expected_max_sharpe > 0.0:
+        # Per-bar hurdles on an intraday interval are ~1e-2; annualised ones are
+        # order 1. The boundary is loose on purpose — this pins the plane, not
+        # the value.
+        assert result.expected_max_sharpe > 0.05
 
 
 @pytest.mark.parametrize("splits", [1, 3, 8])
