@@ -54,6 +54,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from modules import research_stages
 from modules.research_router import Execution, ResearchRouter, ToolResult
 from modules.schemas import ResearchGraphNeighbour, ResearchRagMatch
 
@@ -263,6 +264,16 @@ class ResearchAnswer(BaseModel):
     planner: str = "rules"
     fallback: bool = False
     calls: list[ToolCallView] = Field(default_factory=list)
+    #: The cross-encoder's own report on `matches`: whether it ordered them and
+    #: the state that says so. `rerank_state` None means re-ranking was never
+    #: reached, which is not "reached it with no model configured".
+    reranked: bool = False
+    rerank_state: str | None = None
+    #: The generation report, or None when generation was never ATTEMPTED —
+    #: a different fact from a report whose `verdict` is "refused". Never
+    #: flattened into `state`/`refusal`: CRAG refuses on retrieval relevance,
+    #: generation on a grounding fence, and one field cannot say which fired.
+    generation: dict[str, Any] | None = None
 
 
 def _views(calls: list[ToolResult]) -> list[ToolCallView]:
@@ -316,7 +327,9 @@ async def answer_from_corpus(
     router = router or ResearchRouter(audit=audit)
 
     plan = router.plan(query)
-    run = await router.execute(plan, rag, match_count=match_count, kind=kind)
+    # WIDE, and narrowed by the cross-encoder below — wide only when one is
+    # configured to narrow it again; `research_stages.wide` holds that trade.
+    run = await router.execute(plan, rag, match_count=research_stages.wide(match_count), kind=kind)
     calls = list(run.calls)
 
     if run.state != "ok" or not run.matches:
@@ -330,6 +343,10 @@ async def answer_from_corpus(
             calls=_views(calls),
         )
 
+    # Narrow BEFORE grading: `grade` reads matches[0] as the best match, and
+    # re-ranking is what changes which row that is.
+    run.matches, rerank_report = await research_stages.narrow(query, run.matches, match_count)
+
     grade = grader.grade(query, run.matches, now=now)
     answered, rewritten, retrievals = query, None, 1
 
@@ -341,17 +358,24 @@ async def answer_from_corpus(
             # gained a data hash should reach the lexical tool this time.
             rewritten, retrievals = candidate, 2
             retry_plan = router.plan(candidate)
-            retry = await router.execute(retry_plan, rag, match_count=match_count, kind=kind)
+            retry = await router.execute(retry_plan, rag, match_count=research_stages.wide(match_count), kind=kind)
             calls += retry.calls
             if retry.state == "ok" and retry.matches:
+                # The same narrowing, or the comparison below is between a
+                # cross-encoder score and an RRF one — two different scales.
+                retry.matches, retry_rerank = await research_stages.narrow(candidate, retry.matches, match_count)
                 retry_grade = grader.grade(candidate, retry.matches, now=now)
                 # Keep the better round. A rewrite that made things worse is a
                 # rewrite that should not cost the caller its first answer.
                 if retry_grade.score >= grade.score:
                     answered, run, grade, plan = candidate, retry, retry_grade, retry_plan
+                    rerank_report = retry_rerank
         # There is no third attempt, and no loop for one to be added to.
 
     refused = grade.score < grader.refuse_band
+    # Generation only where CRAG kept the evidence. None means never ATTEMPTED,
+    # which is not the fact a report whose verdict is "refused" states.
+    generation = None if refused else await research_stages.synthesise(answered, run.matches, grade.score, router)
     return ResearchAnswer(
         state="refused" if refused else "ok",
         query=answered,
@@ -367,4 +391,6 @@ async def answer_from_corpus(
         planner=plan.planner,
         fallback=plan.fallback,
         calls=_views(calls),
+        reranked=rerank_report["reranked"], rerank_state=rerank_report["state"],
+        generation=generation,
     )

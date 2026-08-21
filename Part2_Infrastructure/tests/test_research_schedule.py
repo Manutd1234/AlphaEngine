@@ -124,15 +124,15 @@ class TestWhatIsDeclared:
     def test_the_planner_is_not_one_of_the_scopes(self):
         """Recorded as a decision, not an omission: reconciliation is for the
         corpus, routing is for questions, and the router writes nothing."""
-        assert set(ENTRYPOINTS) == {"graph", "chart_docs"}
+        assert set(ENTRYPOINTS) == {"graph", "chart_docs", "communities"}
         source = (modules.research_schedule.__doc__ or "")
         assert "NOT THE PLANNER" in source and "determinism is not the reason" in source
 
-    def test_the_defaults_parse_and_run_six_hourly(self):
+    def test_every_default_parses(self):
+        # The per-scope cadence MAP is pinned in test_research_centrality_route.py.
         for expression in DEFAULT_RECONCILE_SCHEDULES:
             schedule = parse_reconcile_schedule(expression)
             assert schedule.valid, schedule.error
-            assert schedule.every_ms == 6 * HOUR_MS
 
     def test_a_cadence_outside_the_closed_vocabulary_is_reported_not_dropped(self):
         schedule = parse_reconcile_schedule("reconcile:graph@every=5m")

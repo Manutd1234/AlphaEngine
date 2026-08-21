@@ -2893,6 +2893,18 @@
             "title": "Fallback",
             "type": "boolean"
           },
+          "generation": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generation"
+          },
           "matches": {
             "items": {
               "$ref": "#/components/schemas/ResearchRagMatch"
@@ -2926,6 +2938,22 @@
               }
             ],
             "title": "Refusal"
+          },
+          "rerank_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rerank State"
+          },
+          "reranked": {
+            "default": false,
+            "title": "Reranked",
+            "type": "boolean"
           },
           "retrievals": {
             "default": 1,
@@ -3176,6 +3204,17 @@
       },
       "ResearchRagMatch": {
         "properties": {
+          "bm25_rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bm25 Rank"
+          },
           "body": {
             "title": "Body",
             "type": "string"
@@ -3208,6 +3247,17 @@
             "format": "date-time",
             "title": "Occurred At",
             "type": "string"
+          },
+          "rerank_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rerank Score"
           },
           "similarity": {
             "title": "Similarity",
@@ -3311,6 +3361,18 @@
       "ResearchRagSearchResponse": {
         "description": "`unavailable` is a state, never an empty match list wearing one's face:\n\"searched and found nothing\" and \"could not search\" are different facts.",
         "properties": {
+          "bm25": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bm25"
+          },
           "corpus_size": {
             "anyOf": [
               {
@@ -3328,6 +3390,22 @@
             },
             "title": "Matches",
             "type": "array"
+          },
+          "rerank_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rerank State"
+          },
+          "reranked": {
+            "default": false,
+            "title": "Reranked",
+            "type": "boolean"
           },
           "state": {
             "enum": [
@@ -7480,6 +7558,142 @@
         ]
       }
     },
+    "/api/research/graph/centrality": {
+      "get": {
+        "description": "PageRank over the whole corpus: the documents research keeps returning to.\n\nThe debt the communities route wrote down \u2014 \"centrality is owed its own\nroute\" \u2014 paid. Same literal-before-parameter placement as its sibling, for\nthe same reason: declared below the `{document_id}` handler, \"centrality\"\nwould be swallowed as a document id and answered 200 with a neighbour list.\n\nUntyped like the communities report and for the same argument: absence\ncarries meaning (`ranking.scores` is missing when nothing was ranked, and\n`ranking.reason` says whether that is a corpus that could not be read or a\ngraph with no edges \u2014 different facts a response model would flatten).",
+        "operationId": "research_graph_centrality_api_research_graph_centrality_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Research Graph Centrality Api Research Graph Centrality Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Research Graph Centrality",
+        "tags": [
+          "C \u00b7 Research"
+        ]
+      }
+    },
+    "/api/research/graph/communities": {
+      "get": {
+        "description": "Louvain over the WHOLE corpus of derived edges, in one sweep.\n\nThe question neither of the other research routes can answer. `rag/search`\nranks documents against a query and `graph/{document_id}` walks outward from\none document; this partitions the corpus into the clusters it actually has,\nand a partition is a property of the whole graph rather than of any one\nquery \u2014 which is why the read behind it refuses to partition a truncated\npage walk instead of partitioning the fragment it got.\n\nDETECTION ONLY. `research_communities.rank_documents` (PageRank over the\nsame edges) is deliberately not called here: it is a second whole-corpus\ncomputation answering a different question, and the sweep this route calls\ndoes not hand the edge rows back for one \u2014 a whole-corpus edge list is a\npayload, not a report. Centrality is owed its own route, not a passenger\non this one.\n\nREAD-ONLY, so `project=False` is fixed here rather than exposed as a\nparameter. A GET that wrote community labels into Neo4j would be a GET with\na side effect, and any crawler, prefetch or retry would repartition the\ndesk's graph. The projection sub-report still comes back, saying the caller\nasked for a partition only \u2014 a named reason, not a silently missing key.\nWriting labels is `research_reconcile`'s sweep, on its own cadence.\n\nTHE REPORT IS RETURNED UNALTERED, and untyped for that reason. Absence\ncarries meaning in it: `detection.modularity` is missing when the graph had\nno tie to measure, and `projection.labelled` is missing when nothing was\nwritten. A response model would have to declare both optional, which\nMATERIALISES them as null on the wire \u2014 and a null measurement in a report\nis the one somebody later reads through `?? 0`. It is already JSON-safe:\nstring keys, plain ints and lists, and modularity cast to float so no numpy\nscalar reaches the serialiser.",
+        "operationId": "research_graph_communities_api_research_graph_communities_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-AlphaEngine-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alphaengine-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Research Graph Communities Api Research Graph Communities Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Research Graph Communities",
+        "tags": [
+          "C \u00b7 Research"
+        ]
+      }
+    },
     "/api/research/graph/{document_id}": {
       "get": {
         "description": "What is CONNECTED to one research document \u2014 the question similarity cannot answer.\n\n`/api/research/rag/search` finds what a document resembles. This walks\nresearch_edges instead: every run that saw the same bars, the incident that\nfollowed a promotion, the regime a parameter set was fitted in. Those are\nrelations between documents, and a fused similarity ranking has no way to\nexpress one \u2014 the two documents at either end of the most useful edge here\ntypically read nothing alike.\n\nDepth is capped at 4 by the SQL function regardless of what is asked for,\nand every row carries the relation and the evidence that reached it.",
@@ -8401,7 +8615,7 @@
     },
     "/api/research/rag/search": {
       "post": {
-        "description": "Similarity search over the desk's own backtests, summaries and incidents.\n\nReturns `state: unavailable` when Supabase is not configured \u2014 deliberately\nnot an empty list, which would mean \"searched, found nothing\".",
+        "description": "Similarity search over the desk's own backtests, summaries and incidents.\n\nReturns `state: unavailable` when Supabase is not configured \u2014 deliberately\nnot an empty list, which would mean \"searched, found nothing\".\n\nRETRIEVE WIDE, THEN NARROW \u2014 both ends, or neither. `research_stages.wide`\nasks the index for `RERANK_CANDIDATES` when a cross-encoder is configured to\nsort them out again, and for the caller's own `match_count` when one is not.\nWidening without narrowing would buy recall and pay for it in precision on\nthe same request, which is the trade `research_rerank` exists to break; the\ntwo lines belong together and this is the only place they are written.\n\n`research_stages.narrow` rather than `asyncio.to_thread(rerank, ...)` here,\nand the difference is the bulkhead rather than the call. `rerank` is tens of\nmilliseconds of solid CPU and this process also serves the pre-trade risk\nchecks \u2014 research may wait, risk may not. The stage owns a semaphore of two\nover the shared default executor; a second, unbounded path through the same\nexecutor would silently double the occupancy that bound was sized for.\n\n`rerank_state` stays None on any state but `ok`: nothing was retrieved, so\nthe stage was never REACHED \u2014 a different fact from reaching it with no\nmodel configured, which reports \"unconfigured\".",
         "operationId": "research_rag_search_api_research_rag_search_post",
         "parameters": [
           {

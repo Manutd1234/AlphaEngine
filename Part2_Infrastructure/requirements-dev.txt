@@ -6,3 +6,4 @@
 # build toolchain (setuptools, pybind11) is a dev dependency — never a runtime one.
 -r requirements-native.txt
 ruff>=0.6
+-r requirements-communities.txt

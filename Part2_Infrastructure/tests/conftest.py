@@ -22,6 +22,54 @@ os.environ.setdefault("DB_PATH", str(_TMP / "test.duckdb"))
 os.environ.setdefault("ENABLE_MARKET_DATA", "0")
 os.environ.setdefault("TELEGRAM_BOT_TOKEN", "")
 os.environ.setdefault("REQUIRE_AUTH", "0")
+# The research plane's two optional extras, blanked for the same reason as the
+# bot token. `POST /api/research/rag/ask` now calls `research_generate` on every
+# graded answer, so a developer whose `.env` holds a real GEMINI_API_KEY — and
+# who has `requirements-genai.txt` installed — would have `test_research_answer`
+# spending live model calls on every run. The suite must be free and offline on
+# any machine, not only on the one where the key happens to be missing.
+#
+# ASSIGNED, NOT `setdefault`, and the difference is the whole claim above.
+# `setdefault` only wins over a `.env`; an EXPORTED variable is already in
+# `os.environ`, so it survives untouched and reaches `settings.gemini_api_key`.
+# `tests/test_research_answer.py` drives the real `/api/research/rag/ask` route
+# and patches neither `research_generate.settings` nor `_sdk` — it relies on
+# this line alone — so `setdefault` here left a shell that exports the key
+# spending a live call per test while the file said it could not happen.
+# Measured: with the key exported, `settings.gemini_api_key` came through whole.
+#
+# Nothing legitimate is lost. No test in this suite calls either extra for real:
+# the generation seam installs a fake provider at `research_generate._sdk` and
+# the re-rank seam a fake encoder at `research_rerank._import_cross_encoder`,
+# both of which are patched onto the module and ignore the environment. That is
+# the difference from SUPABASE_URL below, which keeps `setdefault` because
+# `tests/test_data_ops_postgrest.py` is a documented opt-in.
+#
+# RERANK_MODEL_PATH goes the same way for the second half of the house rule: a
+# seeded fastembed cache would have the route tests LOAD ~110M parameters off
+# disk, which is "no model downloaded" broken by a directory nobody mentioned.
+os.environ["GEMINI_API_KEY"] = ""
+os.environ["RERANK_MODEL_PATH"] = ""
+# The two research BACKENDS, blanked for the same reason and in the same place.
+#
+# `tests/test_research_contract.py` calls `research_reconcile.run_reconcile`,
+# which builds its corpus client from `settings` — so on a machine whose `.env`
+# names a live Supabase the sweep REACHES IT, reports `reachable: True`, and the
+# test that exists to prove "could not sweep" is distinguishable from "nothing to
+# sweep" fails while the suite quietly makes a network call. The same `.env`
+# hands `research_graph_projection._driver` real Aura credentials.
+#
+# Blanked here rather than patched inside that one test: the rejected
+# alternative fixes the assertion and leaves every other suite reading a
+# developer's live corpus, which is the condition, not the symptom. `setdefault`
+# keeps the deliberate opt-in intact — `tests/test_data_ops_postgrest.py` still
+# exercises the Postgres backend when the variables are EXPORTED for the run,
+# which is a choice somebody made, rather than one a deployment file made for
+# them.
+os.environ.setdefault("SUPABASE_URL", "")
+os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "")
+os.environ.setdefault("NEO4J_URI", "")
+os.environ.setdefault("NEO4J_PASSWORD", "")
 
 
 def stub_feed(name: str, book):

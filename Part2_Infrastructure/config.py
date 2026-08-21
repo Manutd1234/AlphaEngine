@@ -17,8 +17,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-# Coercion helpers and the optional ``.env`` load live in `env_coerce`. Re-exported
-# under their original private names, so every field below is untouched.
+# Coercion helpers and the ``.env`` load live in `env_coerce`, re-exported here
+# under their original private names so every field below is untouched.
 from env_coerce import BASE_DIR, load_dotenv_if_present
 from env_coerce import env as _env
 from env_coerce import env_bool as _env_bool
@@ -125,6 +125,16 @@ class Settings:
     # Supabase code path is a no-op and the suite passes offline.
     supabase_url: str = field(default_factory=lambda: _env("SUPABASE_URL", ""))
     supabase_service_role_key: str = field(default_factory=lambda: _env("SUPABASE_SERVICE_ROLE_KEY", ""))
+
+    neo4j_uri: str = field(default_factory=lambda: _env("NEO4J_URI", ""))
+    neo4j_password: str = field(default_factory=lambda: _env("NEO4J_PASSWORD", ""))
+    neo4j_user: str = field(default_factory=lambda: _env("NEO4J_USERNAME", "") or _env("NEO4J_USER", "neo4j"))
+    neo4j_database: str = field(default_factory=lambda: _env("NEO4J_DATABASE", "neo4j") or "neo4j")
+
+    # Stage-5 generation and stage-3 re-ranking (both optional; absent = reported).
+    gemini_api_key: str = field(default_factory=lambda: _env("GEMINI_API_KEY", ""))
+    gemini_model: str = field(default_factory=lambda: _env("GEMINI_MODEL", "gemini-2.5-flash"))
+    rerank_model_path: str = field(default_factory=lambda: _env("RERANK_MODEL_PATH", ""))
     supabase_mirror_enabled: bool = field(default_factory=lambda: _env_bool("SUPABASE_MIRROR_ENABLED", False))
     supabase_desk_id: str = field(default_factory=lambda: _env("SUPABASE_DESK_ID", "00000000-0000-0000-0000-000000000001"))
     supabase_timeout_s: float = field(default_factory=lambda: _env_float("SUPABASE_TIMEOUT_S", 5.0))

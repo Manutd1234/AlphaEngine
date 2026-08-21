@@ -1,0 +1,9 @@
+# Optional: the Neo4j projection of research_edges.
+#
+# Separate from requirements-core.txt on purpose. The desk runs, and every test
+# passes, with no graph at all — modules/research_graph_projection.py reports the
+# driver's absence the same way it reports an unset NEO4J_URI, so installing this
+# is a choice rather than a prerequisite.
+#
+# Postgres remains authoritative. Nothing here is on the request path.
+neo4j>=5.20

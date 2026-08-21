@@ -13,12 +13,13 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from modules import research
+from modules import research, research_stages
 from modules.api.deps import trader_identity
 from modules.audit import get_audit
 from modules.backtester import run_backtest
 from modules.jobs import get_queue
 from modules.research_crag import ResearchAnswer, answer_from_corpus
+from modules.research_graph_reads import community_report
 from modules.research_rag import EMBEDDING_DIMENSIONS, EMBEDDING_MODEL, get_rag
 from modules.schemas import (
     BacktestRequest,
@@ -39,8 +40,34 @@ async def research_rag_search(req: ResearchRagSearchRequest, _actor: str = Depen
 
     Returns `state: unavailable` when Supabase is not configured — deliberately
     not an empty list, which would mean "searched, found nothing".
+
+    RETRIEVE WIDE, THEN NARROW — both ends, or neither. `research_stages.wide`
+    asks the index for `RERANK_CANDIDATES` when a cross-encoder is configured to
+    sort them out again, and for the caller's own `match_count` when one is not.
+    Widening without narrowing would buy recall and pay for it in precision on
+    the same request, which is the trade `research_rerank` exists to break; the
+    two lines belong together and this is the only place they are written.
+
+    `research_stages.narrow` rather than `asyncio.to_thread(rerank, ...)` here,
+    and the difference is the bulkhead rather than the call. `rerank` is tens of
+    milliseconds of solid CPU and this process also serves the pre-trade risk
+    checks — research may wait, risk may not. The stage owns a semaphore of two
+    over the shared default executor; a second, unbounded path through the same
+    executor would silently double the occupancy that bound was sized for.
+
+    `rerank_state` stays None on any state but `ok`: nothing was retrieved, so
+    the stage was never REACHED — a different fact from reaching it with no
+    model configured, which reports "unconfigured".
     """
-    result = await get_rag().search(req.query, match_count=req.match_count, kind=req.kind)
+    result = await get_rag().search(
+        req.query, match_count=research_stages.wide(req.match_count), kind=req.kind,
+    )
+    if result["state"] == "ok":
+        result["matches"], report = await research_stages.narrow(
+            req.query, result["matches"], req.match_count,
+        )
+        result["reranked"] = report["reranked"]
+        result["rerank_state"] = report["state"]
     return ResearchRagSearchResponse(**result)
 
 
@@ -83,6 +110,68 @@ async def research_rag_embed(req: ResearchRagEmbedRequest, _actor: str = Depends
         model=EMBEDDING_MODEL,
         dimensions=EMBEDDING_DIMENSIONS,
     )
+
+
+# DECLARED BEFORE `/api/research/graph/{document_id}`, and the order is the
+# contract rather than a preference: Starlette matches routes in registration
+# order, so the parameterised path declared first would swallow "communities" as
+# a document id and answer HTTP 200 with a neighbour list. A wrong shape under a
+# right status code is the failure this ordering exists to prevent, and moving
+# this handler below the next one is all it takes to bring it back.
+@router.get("/api/research/graph/communities")
+async def research_graph_communities(_actor: str = Depends(trader_identity)) -> dict[str, Any]:
+    """Louvain over the WHOLE corpus of derived edges, in one sweep.
+
+    The question neither of the other research routes can answer. `rag/search`
+    ranks documents against a query and `graph/{document_id}` walks outward from
+    one document; this partitions the corpus into the clusters it actually has,
+    and a partition is a property of the whole graph rather than of any one
+    query — which is why the read behind it refuses to partition a truncated
+    page walk instead of partitioning the fragment it got.
+
+    DETECTION ONLY. `research_communities.rank_documents` (PageRank over the
+    same edges) is deliberately not called here: it is a second whole-corpus
+    computation answering a different question, and the sweep this route calls
+    does not hand the edge rows back for one — a whole-corpus edge list is a
+    payload, not a report. Centrality is owed its own route, not a passenger
+    on this one.
+
+    READ-ONLY, so `project=False` is fixed here rather than exposed as a
+    parameter. A GET that wrote community labels into Neo4j would be a GET with
+    a side effect, and any crawler, prefetch or retry would repartition the
+    desk's graph. The projection sub-report still comes back, saying the caller
+    asked for a partition only — a named reason, not a silently missing key.
+    Writing labels is `research_reconcile`'s sweep, on its own cadence.
+
+    THE REPORT IS RETURNED UNALTERED, and untyped for that reason. Absence
+    carries meaning in it: `detection.modularity` is missing when the graph had
+    no tie to measure, and `projection.labelled` is missing when nothing was
+    written. A response model would have to declare both optional, which
+    MATERIALISES them as null on the wire — and a null measurement in a report
+    is the one somebody later reads through `?? 0`. It is already JSON-safe:
+    string keys, plain ints and lists, and modularity cast to float so no numpy
+    scalar reaches the serialiser.
+    """
+    return await community_report(project=False)
+
+
+@router.get("/api/research/graph/centrality")
+async def research_graph_centrality(_actor: str = Depends(trader_identity)) -> dict[str, Any]:
+    """PageRank over the whole corpus: the documents research keeps returning to.
+
+    The debt the communities route wrote down — "centrality is owed its own
+    route" — paid. Same literal-before-parameter placement as its sibling, for
+    the same reason: declared below the `{document_id}` handler, "centrality"
+    would be swallowed as a document id and answered 200 with a neighbour list.
+
+    Untyped like the communities report and for the same argument: absence
+    carries meaning (`ranking.scores` is missing when nothing was ranked, and
+    `ranking.reason` says whether that is a corpus that could not be read or a
+    graph with no edges — different facts a response model would flatten).
+    """
+    from modules.research_graph_reads import centrality_report
+
+    return await centrality_report()
 
 
 @router.get("/api/research/graph/{document_id}", response_model=ResearchGraphResponse)

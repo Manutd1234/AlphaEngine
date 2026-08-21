@@ -47,6 +47,16 @@ OVER_CEILING: dict[str, int] = {
     "tests/test_decision_core_native.py": 435,
     # Not split, and the reason is the image rather than the code. The
     # gateway Dockerfile copies the root modules BY NAME
+    #: `config.py` is the documented un-splittable file. It is one flat
+    #: `Settings` dataclass whose ~200 fields are read as `settings.x` from
+    #: almost every module in the tree, so nesting them into sub-dataclasses is
+    #: a correct refactor and a breaking one. It came OFF this list on
+    #: 2026-08-21 at 396 after the env-coercion helpers moved to `env_coerce`,
+    #: and returned when the NEO4J_*, GEMINI_* and RERANK_* settings landed (now 407). The honest
+    #: choice was between four configurable settings and a line count; the
+    #: settings won. `tests/test_container_contract.py` guards the split that
+    #: would actually reduce this, whenever someone takes it on.
+    "config.py": 407,
     "tests/test_telegram_interactive.py": 422,
     # Written over the ceiling on purpose, and the only entry here that is a
     # debt from the day it was written. `SettledMove` — the hysteresis that

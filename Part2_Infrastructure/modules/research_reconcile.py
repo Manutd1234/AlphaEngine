@@ -115,6 +115,11 @@ class _EdgeWriteGuard:
         self.reads_failed = 0
         self.writes_failed = 0
         self.last_error: str | None = None
+        #: The edge rows this tick derived, kept so the Neo4j projection can
+        #: MERGE exactly what Postgres was asked to hold — rather than reading
+        #: them back and risking a second, subtly different view of the same
+        #: sweep. Bounded by the tick's own document and candidate ceilings.
+        self.rows_seen: list[dict[str, Any]] = []
 
     async def get(self, path: str, params: dict[str, Any] | None = None, **kwargs: Any) -> Any:
         try:
@@ -135,6 +140,7 @@ class _EdgeWriteGuard:
             return await self._client.post(path, json=json, headers=headers, **kwargs)
         rows = _deduped(json)
         self.edges_derived += len(rows)
+        self.rows_seen.extend(rows)
         if not rows:
             return _Reply([], 200)
         response = await self._send(rows)
@@ -239,6 +245,7 @@ async def sweep_edges(
 
     guard = _EdgeWriteGuard(client)
     last_clean = await _sweep_batch(guard, batch, desk_id=desk_id, candidates=candidates, report=report)
+    report["graph"] = _project_graph(batch, guard.rows_seen)
     report["edges_derived"] = guard.edges_derived
     report["edges_written"] = guard.edges_written
     report["edges_already_present"] = guard.edges_already_present
@@ -257,6 +264,23 @@ async def sweep_edges(
         client, _query(desk_id=desk_id, cursor=report["cursor"], horizon=horizon),
     )
     return report
+
+
+def _project_graph(batch: list[dict[str, Any]], edges: list[dict[str, Any]]) -> dict[str, Any]:
+    """Copy this tick's derived edges into Neo4j, if one is configured.
+
+    Postgres is authoritative and this is a read model, so a projection failure
+    is reported and the sweep carries on: the edges are already durable in
+    `research_edges`, and the graph can be rebuilt from them at any time. That
+    is the whole reason this is safe to call inline.
+    """
+    from modules.research_graph_projection import project
+
+    return project(
+        [{k: d.get(k) for k in ("id", "kind", "symbol", "strategy", "data_hash", "occurred_at")}
+         for d in batch],
+        edges,
+    )
 
 
 async def _sweep_batch(
@@ -354,3 +378,10 @@ def reconcile_graph(
     del job_id  # accepted so the scheduler may offer it; the sweep has no use for it
     params: dict[str, Any] = {"desk_id": desk_id, "max_documents": int(limit)}
     return run_reconcile(params, now_ms=now_ms if now_ms is not None else time.time() * 1000.0)
+
+
+# Resolved by NAME from `research_schedule` like every other entry point; it
+# LIVES in `research_graph_reads` because this module is fenced off from the
+# community machinery — a tick carries one window's edges, and the fence keeps
+# the whole-corpus partition from ever looking like the obvious next commit.
+from modules.research_graph_reads import reconcile_communities  # noqa: E402, F401

@@ -358,6 +358,18 @@ class ResearchRouter:
         """Write the plan to the audit log. Never fails the query."""
         self._write("research_plan", query, plan.as_audit())
 
+    def record_generation(self, query: str, report: dict[str, Any]) -> None:
+        """One ledger row per generation call actually SPENT. Never raises.
+
+        Gated on ``model_called``, NEVER on ``generated``: a refusal that fired AFTER the call —
+        a fabricated citation, a timeout — spent the same money and is exactly the row an auditor
+        goes looking for, so gating on the answer would delete the expensive half of the ledger.
+        The report is copied WHOLE rather than key by key, because reading each key with ``.get``
+        would write a null token count wherever the SDK reported none, which is spend read as nothing.
+        """
+        if report.get("model_called"):
+            self._write("research_generation", query, dict(report))
+
     def _write(self, event: str, query: str, payload: dict[str, Any]) -> None:
         """One row in the ledger, through ``AuditLog``'s ACTUAL signature.
 

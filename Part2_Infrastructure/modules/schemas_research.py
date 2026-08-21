@@ -83,6 +83,25 @@ class ResearchRagMatch(BaseModel):
     #: symptom was identical to the 404 fallback, which cost a wrong diagnosis.
     vector_rank: int | None = None
     lexical_rank: int | None = None
+    #: Where the THIRD arm placed this document, 1-based, or None when Okapi
+    #: BM25 did not rank it — never 0, which in a 1-based ranking would read as
+    #: "better than first". `research_bm25.fuse` writes this key onto every row
+    #: it fuses; without a field for it pydantic drops it on the way out and the
+    #: arm looks like it never ran. That is not a hypothetical: it is exactly
+    #: how the two ranks above went missing, and the note there is the record.
+    bm25_rank: int | None = None
+    #: The cross-encoder's relevance score for (query, this document), from
+    #: `research_rerank`, which attaches it only to documents it actually
+    #: scored. That module OMITS the key rather than writing None, and pydantic
+    #: renders the omission as null here — null is still not zero. An unscored
+    #: row must never carry 0.0, which reads as "scored, and worst of all".
+    #:
+    #: This field says what the score WAS, never whose order the list is in:
+    #: the fallback returns a perfectly good fused ranking with no scores at
+    #: all. `reranked`/`rerank_state` on the response are what answer that, and
+    #: "the cross-encoder's pick of twenty" and "RRF's top three" are different
+    #: claims about a list that looks identical.
+    rerank_score: float | None = None
 
 
 class ResearchRagSearchResponse(BaseModel):
@@ -95,6 +114,26 @@ class ResearchRagSearchResponse(BaseModel):
     #: could not be taken — "1 of 1" and "1 of 400" are different answers, and
     #: an unknown denominator must not render as zero.
     corpus_size: int | None = None
+    #: WHOSE ORDER `matches` are in. False with a `rerank_state` naming the
+    #: reason — "unconfigured", "unavailable", "failed", "empty" — means the
+    #: rows are the fused RRF ordering, which is what this desk served before a
+    #: cross-encoder existed and is a correct ranking rather than a degradation.
+    #:
+    #: `rerank_state` None means re-ranking was never REACHED: an unavailable
+    #: index or a failed embed has nothing to narrow, which is a different fact
+    #: from reaching the stage with no model configured. `ResearchAnswer`
+    #: carries the same pair for the same reason.
+    reranked: bool = False
+    rerank_state: str | None = None
+    #: The third lexical arm's own report, in `research_bm25`'s shape, passed
+    #: through unaltered. A mapping rather than a sub-model on purpose: a second
+    #: definition of a shape that module owns would drift the day it adds a
+    #: counter, and a reader holding one report could not tell that drift from a
+    #: result — the argument `retrieval._arm_unavailable` already makes.
+    #:
+    #: Defaulted to None so a response can be built without one; `search` sets
+    #: it on EVERY branch, refusals included, so on the wire it is always there.
+    bm25: dict[str, Any] | None = None
 
 
 class ResearchRagAnomalyMatch(BaseModel):

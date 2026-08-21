@@ -81,18 +81,18 @@ RECONCILE_KIND = "data.reconcile"
 ENTRYPOINTS: dict[str, tuple[str, ...]] = {
     "graph": ("reconcile_graph", "reconcile_edges"),
     "chart_docs": ("reconcile_chart_docs", "reconcile_charts"),
+    "communities": ("reconcile_communities",),
 }
 
 #: Six-hourly is the honest default: the backlog a sweep clears accumulates at
 #: the rate documents are written out of order, not at the rate a clock ticks.
 DEFAULT_RECONCILE_SCHEDULES: tuple[str, ...] = (
     "reconcile:graph@every=6h",
-    # chart_docs is NOT scheduled: no sweep implements it, so a cadence would file
-    # a `failed` job every six hours for ever. The scope stays in ENTRYPOINTS.
+    # Daily: a partition only moves when the edge set does. chart_docs stays unscheduled.
+    "reconcile:communities@every=1d",
 )
 
-#: Carries a cadence into `parse_schedule`, so `@every=…` and `@daily=HH:MM`
-#: are validated by the desk's own parser and not by a second copy of them.
+#: Carries a cadence into `parse_schedule`: the desk's own parser validates it, not a second copy.
 _CADENCE_PROBE = "replay:quote:BTCUSDT"
 
 #: The four dials. BATCH is documents per sweep — bounded work per tick, never a

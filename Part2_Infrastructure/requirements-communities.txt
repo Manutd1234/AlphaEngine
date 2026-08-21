@@ -1,0 +1,14 @@
+# Optional: community detection and centrality over the research graph.
+#
+#   pip install -r requirements-communities.txt
+#
+# Separate from requirements-graph.txt because the two are independent: the
+# graph projection needs a Neo4j driver and a reachable instance, while Louvain
+# and PageRank run in process over the edge list and need neither. A desk that
+# wants community summaries without operating a graph database installs only
+# this one.
+#
+# networkx is pure Python — no compiler, no wheel roulette, no GPU. That is why
+# the algorithms run here rather than in Neo4j's GDS library, which the Aura
+# Free tier does not carry.
+networkx>=3.2

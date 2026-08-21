@@ -1,0 +1,37 @@
+# Optional: the cross-encoder re-ranker for research retrieval.
+#
+#   pip install -r requirements-rerank.txt
+#
+# Deliberately NOT part of requirements-core.txt. The desk retrieves, fuses by
+# RRF and grades with no re-ranker at all, and every test in the suite passes
+# without a byte of this installed — modules/research_rerank.py reports
+# fastembed's absence exactly the way it reports an unset RERANK_MODEL_PATH, and
+# hands back the fused order untouched and truncated. Installing this buys
+# precision; it is never a prerequisite for an answer.
+#
+# fastembed rather than a hosted re-ranker, and the reason is the one that keeps
+# the Anthropic SDK out of requirements-recall.txt: this is ONNX on the CPU. No
+# API key on the retrieval path, no vendor outage that becomes a retrieval
+# outage, no query text and no desk research leaving the box, and no accuracy
+# that changes silently when somebody else ships a model version. Cohere Rerank
+# and Voyage are both better scorers and were rejected on exactly that.
+#
+# Two things it needs beyond the package:
+#
+#   RERANK_MODEL_PATH   the directory fastembed resolves BAAI/bge-reranker-base
+#                       from. Empty by default, which is a reported state and
+#                       not a fault.
+#   a seeded directory  the ONNX weights are fetched once into that path. Do it
+#                       at image build time, never on the request path: the
+#                       first query after boot would otherwise pay for a
+#                       download, and CI is network-free by construction.
+#
+# Pinned to a line rather than floated, for the reason scikit-learn is: a
+# re-ranker that scores differently between releases re-orders what the desk was
+# shown, and the order IS the research result.
+#
+# onnxruntime is fastembed's own dependency and is named here anyway so the CPU
+# distribution is the one on record. `onnxruntime-gpu` is a DIFFERENT package,
+# not a flag, and substituting it wants a CUDA runtime this VM does not have.
+fastembed>=0.4,<0.8
+onnxruntime>=1.17

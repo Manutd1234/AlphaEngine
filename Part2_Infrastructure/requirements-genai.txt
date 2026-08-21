@@ -1,0 +1,13 @@
+# Optional: Stage 5, grounded generation over the research corpus.
+#
+# Separate from requirements-core.txt on purpose. The desk runs, and every test
+# passes, with no generation provider at all — modules/research_generate.py
+# reports this package's absence in the same shape it reports an unset
+# GEMINI_API_KEY, so installing it is a choice rather than a prerequisite.
+#
+# The import is lazy and inside `_sdk()`. A module-level import here would make
+# the gateway fail to boot for want of a feature it is not using.
+#
+# Nothing here is on the trade path, and nothing here is authoritative: this
+# package writes prose over documents Postgres already holds.
+google-genai>=1.0
