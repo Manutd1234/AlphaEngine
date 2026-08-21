@@ -478,11 +478,14 @@ export interface ResearchAnswer {
   connected?: Array<ResearchGraphNeighbour>;
   corpus_size?: number | null;
   fallback?: boolean;
+  generation?: Record<string, unknown> | null;
   matches?: Array<ResearchRagMatch>;
   planner?: string;
   query: string;
   reasons?: Array<string>;
   refusal?: string | null;
+  rerank_state?: string | null;
+  reranked?: boolean;
   retrievals?: number;
   rewritten_query?: string | null;
   score?: number | null;
@@ -526,12 +529,14 @@ export interface ResearchRagEmbedResponse {
 }
 
 export interface ResearchRagMatch {
+  bm25_rank?: number | null;
   body: string;
   id: string;
   kind: string;
   lexical_rank?: number | null;
   metrics?: Record<string, unknown>;
   occurred_at: string;
+  rerank_score?: number | null;
   similarity: number;
   source_ref: string;
   strategy?: string | null;
@@ -547,8 +552,11 @@ export interface ResearchRagSearchRequest {
 }
 
 export interface ResearchRagSearchResponse {
+  bm25?: Record<string, unknown> | null;
   corpus_size?: number | null;
   matches?: Array<ResearchRagMatch>;
+  rerank_state?: string | null;
+  reranked?: boolean;
   state: "ok" | "unavailable" | "embed_failed";
 }
 
@@ -908,6 +916,8 @@ export interface GatewayOperations {
   "POST /api/orders/{order_id}/replace": { request: ReplaceRequest; response: RiskDecision };
   "GET /api/portfolio": { response: Record<string, unknown> };
   "GET /api/portfolio/history": { response: Record<string, unknown> };
+  "GET /api/research/graph/centrality": { response: Record<string, unknown> };
+  "GET /api/research/graph/communities": { response: Record<string, unknown> };
   "GET /api/research/graph/{document_id}": { response: ResearchGraphResponse };
   "POST /api/research/ml/fit": { request: MLFitRequest; response: DataJobAccepted };
   "GET /api/research/ml/runs": { response: MLRunsResponse };
@@ -964,6 +974,8 @@ export const GATEWAY_CONTRACT_PATHS = [
   "/api/orders/{order_id}/replace",
   "/api/portfolio",
   "/api/portfolio/history",
+  "/api/research/graph/centrality",
+  "/api/research/graph/communities",
   "/api/research/graph/{document_id}",
   "/api/research/ml/fit",
   "/api/research/ml/runs",
