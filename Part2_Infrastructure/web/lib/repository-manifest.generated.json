@@ -1,7 +1,7 @@
 {
   "version": 2,
   "generatedAt": "2026-08-22",
-  "commit": "4e14bf3",
+  "commit": "7e19115",
   "files": [
     ".claude/skills/start-alpha-engine/SKILL.md",
     ".claude/skills/tour/SKILL.md",
@@ -15,6 +15,7 @@
     ".gitignore",
     ".nvmrc",
     ".vercelignore",
+    "AlphaEngine_Institutional_Whitepaper.pdf",
     "CLAUDE.md",
     "docker-compose.yml",
     "docs/architecture/ARCHITECTURE.md",
