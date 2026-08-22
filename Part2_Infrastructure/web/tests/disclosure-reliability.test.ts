@@ -210,7 +210,21 @@ describe("what a reader would be wrong not to have seen stays on screen", () => 
     { path: "components/systems/RouteLatencyBars.tsx", kind: "EMPTY STATE", needle: "No gateway ops snapshot in this deployment." },
     { path: "components/systems/RouteLatencyBars.tsx", kind: "EMPTY STATE", needle: "The gateway answered but has recorded no route timing in the last" },
     { path: "components/systems/HealthMatrix.tsx", kind: "EMPTY STATE", needle: "No providers are registered." },
+    /* Added 2026-08-22: the digest rendered an empty registry as nothing at all — a panel that
+       looks unfinished on the view whose job is to say which research APIs exist. */
+    { path: "components/systems/ReliabilityPlanes.tsx", kind: "EMPTY STATE", needle: "No provider is registered in this deployment" },
     { path: "components/systems/HealthMatrix.tsx", kind: "EMPTY STATE", needle: "Loading provider health…" },
+    /* Added 2026-08-22 by the interface sweep: `venues.length > 0 &&` hid the venue subhead, its
+       table and its scope caveat together, so an instance with no direct exchange client stopped
+       naming that plane at all. The two panes of the same absence — nothing read yet, nothing
+       registered — are pinned separately, because a panel that reports them as one sends a reader
+       hunting a transport fault that is not there. */
+    { path: "components/systems/HealthMatrix.tsx", kind: "EMPTY STATE", needle: "none registered in this deployment, so nothing reaches an exchange" },
+    { path: "components/systems/BreakerStateMachine.tsx", kind: "EMPTY STATE", needle: "No provider is registered in this deployment, so there is no circuit to trip" },
+    { path: "components/systems/BreakerStateMachine.tsx", kind: "EMPTY STATE", needle: "The provider registry has not been observed, so no circuit state can be counted" },
+    /* The dimmed control that named no reason: with no metered provider the quota select is empty
+       and Reset counter is disabled, and neither said why until this pass. */
+    { path: "components/systems/OperatorControls.tsx", kind: "ABSENCE NAMES ITSELF", needle: "No provider in this instance keeps a local quota ledger, so there is nothing to reset." },
     { path: "components/systems/ReliabilityPlatform.tsx", kind: "EMPTY STATE", needle: "Authoritative gateway" },
     /* The second pass folded three things and put these four back, each named
        by the kind that stopped it. The recovery rate is not printed below

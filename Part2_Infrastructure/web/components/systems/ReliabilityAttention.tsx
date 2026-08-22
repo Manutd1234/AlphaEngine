@@ -170,11 +170,13 @@ export default function ReliabilityAttention({
 
   return (
     <div className="reliability-overview">
-      {/* Conditional at the section boundary, not `hidden` here: the parent
-          mounts this half only when the reader is on it, so nothing below is a
-          hidden subtree quietly holding an observer. */}
-      <LatencyTrend history={view.latencyHistory} />
-
+      {/* SYMPTOMS FIRST, THEN THE TREND. The trend chart used to open this
+          section, which put a 168px plot plus its heading and legend between
+          the rail and the only list on the tab that says what is wrong right
+          now — on a laptop the first symptom sat below the fold. The chart
+          answers "since when", and that is the second question: the console
+          header already prints the current p99 as a tile, so nothing here is
+          the reader's only route to the number. */}
       <div className="reliability-overview__split">
         <section className="card reliability-attention" aria-labelledby="reliability-attention-title">
           <div className="section-heading compact">
@@ -266,6 +268,11 @@ export default function ReliabilityAttention({
           </ol>
         </section>
       </div>
+
+      {/* Conditional at the section boundary, not `hidden` here: the parent
+          mounts this half only when the reader is on it, so nothing below is a
+          hidden subtree quietly holding an observer. */}
+      <LatencyTrend history={view.latencyHistory} />
     </div>
   );
 }

@@ -273,6 +273,16 @@ export default function ReliabilityPlanes({
           })}
           {!health && <li className="is-loading">Loading all provider states…</li>}
         </ul>
+        {/* Reported, not hidden. `health` with an empty registry rendered the
+            list as nothing at all — indistinguishable from a panel that had
+            not finished loading, on the one view whose job is to say which
+            research APIs exist. HealthMatrix already answers the same question
+            in its own table. */}
+        {health && providers.length === 0 && (
+          <p className="muted console-empty">
+            No provider is registered in this deployment — an empty registry, not a failed probe.
+          </p>
+        )}
         <details className="disclosure">
           <summary>What Idle means, and what gets probed</summary>
           <p className="reliability-window-note">

@@ -195,8 +195,6 @@ export function metricsForSection(
     ];
   }
 
-  const feeds = health?.platform?.market_data.feeds ?? [];
-  const freshFeeds = feeds.filter((feed) => feed.status === "up" && feed.connected).length;
   const probeContract = probe?.provenance?.contract;
   return [
     { label: "Instrument", value: symbol, note: interval, tone: "neutral" },

@@ -110,7 +110,11 @@ export default function RunComparison({ a, b, onClose }: RunComparisonProps) {
       )}
 
       <h3 className="run-comparison__subhead">What it did to the result</h3>
-      <div className="table-wrap table-wrap--clamped">
+      {/* tabIndex, like the request-diff table twelve lines up. This one is
+          the card's taller table and the only one that also scrolls
+          vertically (`--clamped`), and it was the half a keyboard could not
+          reach. */}
+      <div className="table-wrap table-wrap--clamped" tabIndex={0}>
         <table>
           <caption className="sr-only">Metric values for both runs and the change between them.</caption>
           <thead>

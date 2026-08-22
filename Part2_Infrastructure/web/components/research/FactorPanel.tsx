@@ -103,7 +103,7 @@ export default function FactorPanel({ report }: { report: FactorReport | null })
       </div>
 
       {!alphaSignificant && (
-        <div className="banner warn" role="status" style={{ marginTop: 14 }}>
+        <div className="banner warn" role="status" style={{ marginTop: "var(--space-3)" }}>
           <span aria-hidden>!</span>
           <div>
             <strong>Alpha is not statistically distinguishable from zero</strong> (|t| ={" "}
@@ -113,7 +113,7 @@ export default function FactorPanel({ report }: { report: FactorReport | null })
         </div>
       )}
 
-      <div className="table-wrap" tabIndex={0} style={{ marginTop: 14 }}>
+      <div className="table-wrap" tabIndex={0} style={{ marginTop: "var(--space-3)" }}>
         <table>
           <caption className="sr-only">
             Factor loadings with t-statistics, p-values and a relative-magnitude bar.
@@ -173,7 +173,7 @@ export default function FactorPanel({ report }: { report: FactorReport | null })
       </div>
 
       {worstCollinearity && Math.abs(worstCollinearity.corr) >= COLLINEARITY_WARN && (
-        <div className="banner warn" role="status" style={{ marginTop: 12 }}>
+        <div className="banner warn" role="status" style={{ marginTop: "var(--space-3)" }}>
           <span aria-hidden>!</span>
           <div>
             <strong>Factors are highly correlated.</strong> {worstCollinearity.a} and{" "}
@@ -183,7 +183,7 @@ export default function FactorPanel({ report }: { report: FactorReport | null })
         </div>
       )}
 
-      <details style={{ marginTop: 12 }}>
+      <details className="disclosure">
         <summary>Factor correlations and method</summary>
         <div className="table-wrap" tabIndex={0}>
           <table>

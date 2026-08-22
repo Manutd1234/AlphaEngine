@@ -118,7 +118,7 @@ export default function OverviewBook({
         </div>
 
         {largest.length ? (
-          <div className="table-wrap table-wrap--clamped">
+          <div className="table-wrap table-wrap--clamped" tabIndex={0}>
             <table>
               <caption className="sr-only">
                 The {largest.length} largest positions by notional.

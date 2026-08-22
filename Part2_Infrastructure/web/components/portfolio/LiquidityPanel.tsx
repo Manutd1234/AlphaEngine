@@ -70,6 +70,12 @@ export default function LiquidityPanel({
   const report = timeToLiquidate(inputs, participation);
   const concentration = liquidityConcentration(report);
   const unmeasurable = report.rows.filter((row) => row.band === "unmeasurable").length;
+  // `shareClearableInOneSession` is a ratio over the rows that HAVE a horizon,
+  // and it falls back to 0 when there are none — so a flat book, and a book
+  // whose every symbol lacks volume history, both printed "0% clearable in one
+  // session". That is the strongest claim the tile can make, made from no
+  // measurement at all. Counted here so the tile can dash instead.
+  const measured = report.rows.length - unmeasurable;
 
   return (
     <div className="card">
@@ -112,8 +118,10 @@ export default function LiquidityPanel({
         />
         <StatTile
           label="Clearable in one session"
-          value={`${(report.shareClearableInOneSession * 100).toFixed(0)}%`}
-          note="Of measured positions"
+          value={measured ? `${(report.shareClearableInOneSession * 100).toFixed(0)}%` : "—"}
+          note={measured
+            ? `Of ${measured} measured position${measured === 1 ? "" : "s"}`
+            : "No position has a measurable horizon"}
         />
         <StatTile
           label="Unwind concentration"
@@ -122,6 +130,14 @@ export default function LiquidityPanel({
         />
       </div>
 
+      {/* The header row used to draw over an empty body on a flat book: seven
+          column names framing nothing, which reads as a table still loading
+          rather than as a book with no positions in it. */}
+      {report.rows.length === 0 ? (
+        <p className="portfolio-attribution-empty">
+          No open position to exit. The horizon table and its exit probe return with the first fill.
+        </p>
+      ) : (
       <div className="table-wrap" tabIndex={0}>
         <table>
           <thead>
@@ -193,6 +209,7 @@ export default function LiquidityPanel({
           </tbody>
         </table>
       </div>
+      )}
 
       <details className="disclosure">
         <summary>Why a liquidation horizon is a floor, not a forecast</summary>

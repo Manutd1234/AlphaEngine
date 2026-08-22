@@ -162,11 +162,19 @@ export default function AllocationPanel({ positions, model, limits }: Allocation
           <label className="allocation-method-label" htmlFor="allocation-method">
             {manual ? "Seed" : "Model"}
           </label>
+          {/* Dimmed with a reason. Override means the typed weights decide, so
+              the model picker cannot change the targets while it is on — and a
+              greyed control that says nothing is the same defect as a bare
+              dash. The label beside it flips to "Seed" because the choice is
+              still what the typed weights started from. */}
           <select
             id="allocation-method"
             className="allocation-method"
             value={method}
             disabled={override}
+            title={override
+              ? "Typed weights decide the targets while Override is on; turn it off to pick a model."
+              : "The model that computes the target weights"}
             onChange={(event) => setMethod(event.target.value as AllocationMethod)}
           >
             {GROUPS.map((group) => (

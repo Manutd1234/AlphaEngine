@@ -147,13 +147,19 @@ export function BookChrome({ view }: { view: BookView }) {
         </div>
       )}
 
+      {/* The refresh time is NOT repeated here. `isStale` is `!sandbox &&
+          connectionState === "stale"`, so the strip below renders under exactly
+          this condition and prints the same `lastRefreshLabel` off the same
+          variable, in the tabular face a timestamp belongs in — this said it and
+          then the strip said it again, two lines apart. What is left is the half
+          the strip cannot carry: what went wrong, and what stops working until
+          it is fixed. */}
       {isStale && (
         <div className="banner warn" role="status" aria-live="polite">
           <span aria-hidden>!</span>
           <div>
             <strong>Portfolio data is stale.</strong>{" "}
-            Last successful refresh {lastRefreshLabel}. {error?.error} Execution handoffs are
-            disabled until the gateway reconnects.
+            {error?.error} Execution handoffs are disabled until the gateway reconnects.
           </div>
         </div>
       )}

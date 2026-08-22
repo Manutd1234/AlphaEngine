@@ -194,7 +194,17 @@ export default function FavouritesPanel({ records }: { records: ExperimentRecord
             ) : null}
           </p>
 
-          <div className="table-scroll">
+          {/* `.table-scroll` has no screen rule anywhere: its only declaration
+              is the print sheet's `:is(.table-wrap, .table-scroll, …)` list, so
+              this was the one table on the tab with no overflow container and
+              no focus target — five columns simply squeezed, and a keyboard
+              could not reach what a mouse could drag. `.table-wrap` plus
+              `tabIndex` is what the other eight tables here carry. The old name
+              stays on the element because it is still a declared selector and
+              nothing else in the app renders it; dead-css.test.ts sits exactly
+              on its 24-class ceiling and 15-navigator-and-trailing-layer.css is
+              shared. */}
+          <div className="table-wrap table-scroll" tabIndex={0}>
             <table className="favourites-table">
               <thead>
                 <tr>

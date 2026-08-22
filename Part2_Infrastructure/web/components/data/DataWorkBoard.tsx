@@ -5,7 +5,6 @@ import { FormEvent, useDeferredValue, useEffect, useMemo, useRef, useState } fro
 import DataWorkCard from "@/components/data/DataWorkCard";
 import WorkComposer from "@/components/data/WorkComposer";
 import {
-  AREA_OPTIONS,
   DEFAULT_DRAFT,
   KIND_LABEL,
   SLA_HOURS,
@@ -16,13 +15,11 @@ import {
 } from "@/components/data/work-board-model";
 import {
   DATA_WORK_KINDS,
-  DATA_WORK_PRIORITIES,
   filterAndSortDataWorkItems,
   moveDataWorkItem,
   nextDataWorkId,
   type DataWorkItem,
   type DataWorkKind,
-  type DataWorkPriority,
   type DataWorkSource,
   type DataWorkSort,
   type DataWorkStatus,

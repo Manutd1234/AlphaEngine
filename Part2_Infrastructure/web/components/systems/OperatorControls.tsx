@@ -201,6 +201,12 @@ export default function OperatorControls({
             }}
             disabled={disabled || !quotaTarget}
             className="is-disruptive"
+            /* A dimmed control names its own reason, as the Session card's
+               Reconnect does. This one dims for two different reasons and used
+               to give neither. */
+            title={metered.length === 0
+              ? "No provider in this instance keeps a quota ledger."
+              : quotaTarget ? undefined : "Choose a provider first."}
           >
             Reset counter
           </button>
@@ -214,6 +220,13 @@ export default function OperatorControls({
         This clears <em>our</em> count, not the vendor&apos;s meter; further requests may still be
         rejected upstream or billed.
       </small>
+      {/* The absence names itself: with no metered provider the select is empty
+          and the button is dimmed, and a reader was left to guess which. */}
+      {metered.length === 0 && (
+        <small className="muted">
+          No provider in this instance keeps a local quota ledger, so there is nothing to reset.
+        </small>
+      )}
     </div>
 
     {/* ---- telemetry --------------------------------------------------- */}

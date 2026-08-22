@@ -47,12 +47,11 @@ export default function SpreadDecomposition({
   if (source === "unavailable") {
     return (
       <section className="card">
-        <div className="portfolio-card-heading">
+        <header className="section-heading compact">
           <div>
-            <span className="page-kicker">Cost decomposition</span>
-            <h2>Effective spread and fee</h2>
+            <h3>Effective spread and fee</h3>
           </div>
-        </div>
+        </header>
         <p className="muted">
           No audit log is reachable here, so no fill has a price to measure a spread against.
         </p>
@@ -65,12 +64,11 @@ export default function SpreadDecomposition({
   if (!priced.length) {
     return (
       <section className="card">
-        <div className="portfolio-card-heading">
+        <header className="section-heading compact">
           <div>
-            <span className="page-kicker">Cost decomposition</span>
-            <h2>Effective spread and fee</h2>
+            <h3>Effective spread and fee</h3>
           </div>
-        </div>
+        </header>
         <p className="muted">
           No priced fill in this window. Rejections carry no execution price, so this is an absence
           of trading, not of measurement.
@@ -96,7 +94,12 @@ export default function SpreadDecomposition({
       {/* The Where pane's own grammar — section-heading compact + h3, like
           FillQualityHeatmap beside it. This card wore the portfolio heading
           class (kicker + underlined h2), so one pane showed two card-header
-          styles and a skipped heading level between peer cards. */}
+          styles and a skipped heading level between peer cards. The two
+          early returns above kept the old shell after the populated one lost
+          it, so an empty pane still showed both grammars and the "Cost
+          decomposition" kicker a reader of a working panel never meets. Same
+          header in every branch now; the h3 names the two measured legs, which
+          is what the kicker was saying in other words. */}
       <header className="section-heading compact">
         <div>
           <h3>Effective spread and fee</h3>

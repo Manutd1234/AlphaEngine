@@ -119,7 +119,14 @@ export default function AuditTrail({ active, seed }: { active: boolean; seed?: n
 
       {state.kind !== "loading" && state.rows.length > 0 && (
         <>
-          <div className="table-wrap table-wrap--clamped">
+          {/* tabIndex={0}, like every other scrolling table on the desk.
+              This wrapper clamps to min(480px, 60vh) and scrolls both ways —
+              forty rows and eight columns — and it was the one scroll
+              container on this tab nobody could focus, so a keyboard or
+              switch user reached the header row and stopped there. The
+              `.table-wrap:focus-visible` outline already waiting in
+              00-tokens-and-base.css was drawn for exactly this. */}
+          <div className="table-wrap table-wrap--clamped" tabIndex={0}>
             <table>
               <caption className="sr-only">
                 Order audit rows, newest first.

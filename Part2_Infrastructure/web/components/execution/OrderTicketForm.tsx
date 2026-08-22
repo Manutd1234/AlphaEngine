@@ -217,7 +217,18 @@ export default function OrderTicketForm({
           type="button"
           className={`icon${preset.tone ? ` preset--${preset.tone}` : ""}`}
           disabled={busy || disabled || credentialMissing}
-          title={preset.hint}
+          /* The reason first when it is dead, the demonstration when it is
+             live. These three were dimmed by an outage or a missing
+             credential while still offering to explain which gate they trip
+             — the one thing a reader cannot act on. Same wording as the Send
+             button above, which is refused for the same two causes. */
+          title={
+            disabled
+              ? "No gateway is answering, so the ticket is disabled."
+              : credentialMissing
+              ? "Enter the operator credential above to send live orders."
+              : preset.hint
+          }
           onClick={() => onSubmit(preset.repeat ?? 1, preset.notional, "preset")}
         >
           {preset.label}

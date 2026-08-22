@@ -66,11 +66,13 @@
     align-items: start;
   }
 
-  /* Fewer than four results renders no stability panel at all, and a lone
-   * ranking card must not sit in half a row. */
-  #panel-research .research-param-pair > .card:only-child {
-    grid-column: 1 / -1;
-  }
+  /* A `> .card:only-child { grid-column: 1 / -1 }` rule stood here for the
+   * case where fewer than four results rendered no stability panel at all. The
+   * workspace no longer has that case: rendering nothing was the defect, and
+   * StabilityPanel now reports the count it got against the count a
+   * neighbourhood needs, so the pair always has two children and a lone card
+   * in half a row is unreachable. Both cards also carry the house head now
+   * (kicker, then title), so the two heading rules land at one height. */
 
   /* The contract `.compact-grid-2col > *` already carries: each half-width
    * card is the container its own contents measure against, so the stability

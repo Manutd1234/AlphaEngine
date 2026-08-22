@@ -18,7 +18,16 @@ export default function McHistogram({ result }: { result: McDistributionResult }
   const [ref, width] = useMeasuredWidth<HTMLDivElement>();
   const height = 180;
   const bins = result.histogram;
-  if (!bins || width === 0) return <div ref={ref} />;
+  // Two silences, two returns. `width === 0` is the measuring pass: the ref
+  // div is what gets measured and the chart draws a frame later. A null
+  // histogram is not a pass but a result — `mc-distribution.ts` returns null
+  // when no path ended at a finite P&L — and the tiles beside it have already
+  // rendered, so the shared blank return read as a chart that never arrived
+  // rather than one there was nothing to draw.
+  if (!bins) {
+    return <p className="sub">No histogram: no path ended at a finite P&amp;L.</p>;
+  }
+  if (width === 0) return <div ref={ref} />;
 
   const lo = bins.edges[0];
   const hi = bins.edges[bins.edges.length - 1];

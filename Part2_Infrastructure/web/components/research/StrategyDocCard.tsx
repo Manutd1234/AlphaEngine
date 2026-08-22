@@ -27,7 +27,6 @@ import { PARAM_MEANING, STRATEGY_FAMILY, STRATEGY_LABELS, type Strategy } from "
 
 interface StrategyDocCardProps {
   strategy: Strategy;
-  /** Switches the picker without leaving the card. */
 }
 
 export default function StrategyDocCard({ strategy }: StrategyDocCardProps) {

@@ -29,20 +29,21 @@
  *   - heatmap beside the Where pair, blotter beside anything: full-width
  *     tables.
  */
-@media (min-width: 1100px) {
-  /* The two spend-a-row-each histograms in the Cost pane — gate latency and
-   * effective spread — are the same shape answering neighbouring questions.
-   * Side by side their combined height halves; each keeps its caption and its
-   * fold inside its own cell, and `align-items: start` means opening the
-   * latency fold never stretches its neighbour. Below the breakpoint the
-   * wrapper is a plain div and the stack is untouched. */
-  .cockpit-quality__distributions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: var(--space-4);
-    align-items: start;
-  }
-
+/* Two bands, because the tab does not become a desk all at once.
+ *
+ * `.cockpit-grid` collapses to one column at `max-width: 900px` and the
+ * liquidity pair, the full watchlist and the two-column Where and Tape rows
+ * all hold from 901px up — so every margin rule below is about a layout that
+ * is already the desk layout at 960px. They used to start at 1100px with the
+ * distributions grid, which left a reader at 1000px looking at the same
+ * two-column tab on a 16px seam while a reader at 1100px got 8px. Same
+ * screen, two rhythms, and the only thing deciding which was a breakpoint
+ * chosen for a chart pair that has nothing to do with the seams.
+ *
+ * 901px, not 900px, mirrors that `max-width: 900px` exactly: at 900px the
+ * cockpit is a single column and the phone rhythm is the right one.
+ */
+@media (min-width: 901px) {
   /* Cards inside the cockpit's shared rows carried 16px below them, twice the
    * 8px the standardisation layer gives every other card on this tab. The
    * grids do their spacing with `gap`; the trailing margin only pushes the
@@ -65,5 +66,22 @@
    * other tab's seg moves. */
   .cockpit .workspace-subtab-panel > .seg {
     margin-bottom: var(--space-2);
+  }
+}
+
+/* The one rule that genuinely needs the wider band: two histograms side by
+ * side want a real second column, not half of a 1000px panel. */
+@media (min-width: 1100px) {
+  /* The two spend-a-row-each histograms in the Cost pane — gate latency and
+   * effective spread — are the same shape answering neighbouring questions.
+   * Side by side their combined height halves; each keeps its caption and its
+   * fold inside its own cell, and `align-items: start` means opening the
+   * latency fold never stretches its neighbour. Below the breakpoint the
+   * wrapper is a plain div and the stack is untouched. */
+  .cockpit-quality__distributions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-4);
+    align-items: start;
   }
 }

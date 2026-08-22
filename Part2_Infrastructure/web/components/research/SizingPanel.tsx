@@ -135,7 +135,7 @@ export default function SizingPanel({ best, gate, equity }: SizingPanelProps) {
           limit doing its job; a fraction estimated from nine trades is a number
           that should not have been believed in the first place. */}
       {sizing.thinSample && sizing.recommendedFraction > 0 && (
-        <div className="banner warn" role="status" style={{ marginTop: 12 }}>
+        <div className="banner warn" role="status" style={{ marginTop: "var(--space-3)" }}>
           <span aria-hidden>!</span>
           <div>
             <strong>
@@ -149,7 +149,7 @@ export default function SizingPanel({ best, gate, equity }: SizingPanelProps) {
       )}
 
       {sizing.cappedBy && (
-        <div className="banner warn" role="status" style={{ marginTop: 12 }}>
+        <div className="banner warn" role="status" style={{ marginTop: "var(--space-3)" }}>
           <span aria-hidden>!</span>
           <div>
             {sizing.cappedBy === "no_edge" && sizing.payoffRatio === 0 ? (

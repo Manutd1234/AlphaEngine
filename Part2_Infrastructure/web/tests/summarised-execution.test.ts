@@ -53,6 +53,8 @@ const PATHS = {
   ticketForm: "../components/execution/OrderTicketForm.tsx",
   pnl: "../components/execution/PnlStrip.tsx",
   dislocation: "../components/DislocationStrip.tsx",
+  spread: "../components/execution/SpreadDecomposition.tsx",
+  venueMix: "../components/execution/VenueMixDonut.tsx",
 } as const;
 
 type Key = keyof typeof PATHS;
@@ -224,6 +226,30 @@ const REWRITES: Rewrite[] = [
     cut: ["when the risk state changes"],
   },
   {
+    key: "spread",
+    before: "Cost decomposition Effective spread and fee",
+    after: "Effective spread and fee",
+    // A kicker over a heading that said the same thing in other words, and it
+    // survived only in the two EMPTY-STATE returns: the populated card lost the
+    // portfolio header grammar and its kicker with it, so "Cost decomposition"
+    // was a phrase no reader of a working panel ever met. The h3 names the two
+    // measured legs, which is the decomposition. Both empty sentences are
+    // untouched and `disclosure-execution.test.ts` still pins them as floor
+    // entries; what went is the shell around the heading.
+    facts: ["Effective spread and fee"],
+    cut: ["Cost decomposition"],
+  },
+  {
+    key: "venueMix",
+    before: "Execution venues Share of fills by venue",
+    after: "Share of fills by venue",
+    // Same shape, same reason, in the one early return this card has. "Share of
+    // fills by venue" already carries what is counted AND the denominator
+    // caveat the heading exists to make — the kicker only restated the subject.
+    facts: ["Share of fills by venue"],
+    cut: ["Execution venues"],
+  },
+  {
     key: "pnl",
     before: "Polled on a timer — up to one poll interval old, and the stream is not carrying it.",
     after: "Polled on a timer — up to one poll interval old; the stream is not carrying it.",
@@ -270,6 +296,16 @@ const REFUSED: { key: Key; sentence: string; token: string }[] = [
     key: "cockpit",
     sentence: "The record: every order sent, what it cost, which gate stopped it, and the resting book",
     token: "the resting book — a fourth column of content, not a restatement of the first three",
+  },
+  {
+    key: "spread",
+    sentence: "No priced fill in this window. Rejections carry no execution price, so this is an absence",
+    token: "no execution price — the reason the window is empty, which is what separates it from a broken feed",
+  },
+  {
+    key: "venueMix",
+    sentence: "No audit log is reachable here, so there are no fills to attribute to a venue.",
+    token: "No audit log is reachable here — names the missing source rather than blaming a quiet desk",
   },
 ];
 

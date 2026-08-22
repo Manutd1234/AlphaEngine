@@ -150,7 +150,12 @@ export default function OrderBlotter({
               type="button"
               role="menuitem"
               disabled={!visible.length}
-              title="Download exactly the rows on screen as CSV"
+              /* The count in the menu's own name is already zero, but a dead
+                 item whose tooltip still offers the download says nothing
+                 about why. */
+              title={visible.length
+                ? "Download exactly the rows on screen as CSV"
+                : "No rows on screen to export."}
               onClick={() => download(`${exportStamp()}.csv`, blotterToCsv(visible), "text/csv")}
             >
               Export CSV
@@ -159,7 +164,9 @@ export default function OrderBlotter({
               type="button"
               role="menuitem"
               disabled={!visible.length}
-              title="Download exactly the rows on screen as JSON"
+              title={visible.length
+                ? "Download exactly the rows on screen as JSON"
+                : "No rows on screen to export."}
               onClick={() => download(`${exportStamp()}.json`, JSON.stringify(visible, null, 2), "application/json")}
             >
               Export JSON
@@ -300,7 +307,13 @@ export default function OrderBlotter({
                                 paid one. */}
                             {view === "unfilled" && row.feeUsd != null ? <>; fee {usd(row.feeUsd, 2)}</> : null}
                           </p>
-                          {row.reason ? <p>{row.reason}</p> : null}
+                          {/* Fills only, on the fee rule directly above. The
+                              unfilled view carries a Reason column, so this
+                              reprinted the same string in the row immediately
+                              beneath the cell holding it; the fills view has no
+                              such column and this is the only place a reason
+                              reaches a reader there. */}
+                          {view === "fills" && row.reason ? <p>{row.reason}</p> : null}
 
                           {row.checks.length ? (
                             <ol className="cockpit-checks">

@@ -6,8 +6,11 @@
  * 15-navigator-and-trailing-layer.css. The owners are on the over-ceiling
  * ledger and may never grow, which is why these overrides live here at all.
  *
- * Desk-width packing only: every rule in this file must sit inside a
- * min-width media query, so phones keep the single-column flow.
+ * Desk-width packing only: every PACKING rule in this file must sit inside a
+ * min-width media query, so phones keep the single-column flow. The one
+ * unqueried rule at the foot of the file removes a doubled border rather than
+ * changing a column count, and carries its own note saying why it cannot be
+ * width-scoped.
  */
 
 /* What this pass measured before writing a rule, so the next reader does not
@@ -60,4 +63,58 @@
   .overview-hero .page-insight > small {
     min-height: 0;
   }
+}
+
+/* ── The role launcher's orphan row, 721–1120px ────────────────────────────
+ *
+ * Seven cards in a two-track grid put cards 1–6 on three full rows and card 7
+ * alone at the left of a fourth, with half the row empty beside it — the one
+ * width band where the launcher reads as a grid that ran out of content
+ * rather than a set of seven doors. Partial 01 already solved exactly this
+ * shape at >=1121px, by laying the grid on twice as many tracks as it has
+ * cards per row and centring the tail; this is that same treatment one band
+ * down, four tracks instead of eight, so the answer to an orphan is the same
+ * answer at every desk width rather than two different ones.
+ *
+ * Bounded above at 1120px so partial 01's eight-track rule keeps the wide
+ * layout untouched, and floored at 721px so the phone stack below it is not
+ * reached at all.
+ */
+@media (min-width: 721px) and (max-width: 1120px) {
+  .role-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .role-card {
+    grid-column: span 2;
+  }
+
+  .role-card:nth-child(7) {
+    grid-column: 2 / span 2;
+  }
+}
+
+/* ── One rule between the audit head and its disclosure, not two ───────────
+ *
+ * The only rule in this file outside a min-width query, and deliberately so:
+ * it corrects a doubled border, not a column count, and a doubled border is
+ * exactly as wrong on a phone as it is on a desk. The packing rules above
+ * stay desk-only for the reason the header states; this one cannot.
+ *
+ * `.card > .section-heading:not(:last-child)` closes a panel head with a
+ * hairline at --rule (partial 12), and `.disclosure` opens with its own
+ * hairline at --grid (partial 13). In the audit panel the disclosure is the
+ * head's next sibling, so the two land about eight pixels apart with nothing
+ * between them: two lines drawn to separate one boundary. The head's rule is
+ * the house grammar and stays; the disclosure's is the redundant one, and
+ * dropping its top spacing with it gives the fold back the space the second
+ * line was occupying.
+ *
+ * Scoped to .overview-page because the same adjacency exists on other tabs
+ * and those files belong to other owners.
+ */
+.overview-page .card > .section-heading + .disclosure {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
 }

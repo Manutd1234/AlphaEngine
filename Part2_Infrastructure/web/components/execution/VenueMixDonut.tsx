@@ -41,12 +41,11 @@ export default function VenueMixDonut({
   if (source === "unavailable") {
     return (
       <section className="card">
-        <div className="portfolio-card-heading">
+        <header className="section-heading compact">
           <div>
-            <span className="page-kicker">Execution venues</span>
-            <h2>Share of fills by venue</h2>
+            <h3>Share of fills by venue</h3>
           </div>
-        </div>
+        </header>
         <p className="muted">
           No audit log is reachable here, so there are no fills to attribute to a venue.
         </p>
@@ -65,7 +64,11 @@ export default function VenueMixDonut({
   return (
     <section className="card">
       {/* section-heading compact + h3, matching its Where-pane peer — see the
-          note in SpreadDecomposition for why the portfolio grammar left. */}
+          note in SpreadDecomposition for why the portfolio grammar left. The
+          early return above kept it after this branch lost it, so an empty
+          pane showed both grammars and an "Execution venues" kicker no reader
+          of a populated panel ever meets; the h3 already says which venues and
+          what is counted. */}
       <header className="section-heading compact">
         <div>
           <h3>Share of fills by venue</h3>

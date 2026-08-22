@@ -238,7 +238,7 @@ export default function WorkingOrders({
               type="button"
               role="menuitem"
               disabled={!visible.length}
-              title="Download the resting orders on screen as CSV"
+              title={visible.length ? "Download the resting orders on screen as CSV" : "No resting orders on screen to export"}
               onClick={() => download(
                 `alphaengine-working-${source}-${visible.length}rows-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}.csv`,
                 workingOrdersToCsv(visible),
@@ -251,7 +251,7 @@ export default function WorkingOrders({
               type="button"
               role="menuitem"
               disabled={!visible.length}
-              title="Download the resting orders on screen as JSON"
+              title={visible.length ? "Download the resting orders on screen as JSON" : "No resting orders on screen to export"}
               onClick={() => download(
                 `alphaengine-working-${source}-${visible.length}rows-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}.json`,
                 JSON.stringify(visible, null, 2),

@@ -492,6 +492,16 @@ export interface ResearchAnswer {
   state: "ok" | "refused" | "unavailable" | "embed_failed";
 }
 
+export interface ResearchBoundRefusal {
+  correlation_id?: string | null;
+  query: string;
+  reason: string;
+  retry_after_s?: number | null;
+  route: string;
+  spend?: Record<string, unknown> | null;
+  state: "rate_limited" | "spend_capped" | "scope_unavailable";
+}
+
 export interface ResearchGraphNeighbour {
   arrived_by: string;
   depth: number;
@@ -554,6 +564,8 @@ export interface ResearchRagSearchRequest {
 export interface ResearchRagSearchResponse {
   bm25?: Record<string, unknown> | null;
   corpus_size?: number | null;
+  correlation_id?: string | null;
+  image?: Record<string, unknown> | null;
   matches?: Array<ResearchRagMatch>;
   rerank_state?: string | null;
   reranked?: boolean;

@@ -144,7 +144,7 @@ export default function PerformanceSection({ book, isStale, equityTrack }: Perfo
               </span>
             </div>
             {strategies.length ? (
-              <div className="table-wrap table-wrap--clamped">
+              <div className="table-wrap table-wrap--clamped" tabIndex={0}>
                 <table>
                   <caption className="sr-only">Order activity and performance attributed by strategy</caption>
                   <thead>
@@ -211,15 +211,21 @@ export default function PerformanceSection({ book, isStale, equityTrack }: Perfo
             </details>
           </div>
 
-          {symbolFlow.length > 0 && (
-            <div className="card portfolio-flow-symbols-card">
-              <div className="portfolio-card-heading">
-                <div>
-                  <span className="page-kicker">Execution attribution</span>
-                  <h2>Flow by instrument</h2>
-                </div>
-                <span>{symbolFlow.length} instrument{symbolFlow.length === 1 ? "" : "s"} touched</span>
+          {/* Rendered whether or not the gateway has attributed anything yet.
+              It used to disappear entirely on an empty `by_symbol`, which on a
+              live desk early in a log's life left the Strategy flow card above
+              reporting its own emptiness in words while this one reported the
+              same emptiness by not existing — two peer tables on one pane,
+              disagreeing about whether an absent measurement is worth saying. */}
+          <div className="card portfolio-flow-symbols-card">
+            <div className="portfolio-card-heading">
+              <div>
+                <span className="page-kicker">Execution attribution</span>
+                <h2>Flow by instrument</h2>
               </div>
+              <span>{symbolFlow.length} instrument{symbolFlow.length === 1 ? "" : "s"} touched</span>
+            </div>
+            {symbolFlow.length ? (
               <div className="table-wrap" tabIndex={0}>
                 <table>
                   <caption className="sr-only">Order flow attributed by instrument</caption>
@@ -251,16 +257,20 @@ export default function PerformanceSection({ book, isStale, equityTrack }: Perfo
                   </tbody>
                 </table>
               </div>
-              {/* A reading rule for the Rejected column, not a measurement:
-                  every count in the table stays drawn either way. */}
-              <details className="disclosure">
-                <summary>Reading the rejected column</summary>
-                <p className="research-note">
-                  An instrument that never rejects is either well-sized or never tested.
-                </p>
-              </details>
-            </div>
-          )}
+            ) : (
+              <p className="portfolio-attribution-empty">
+                No order has been attributed to an instrument yet.
+              </p>
+            )}
+            {/* A reading rule for the Rejected column, not a measurement:
+                every count in the table stays drawn either way. */}
+            <details className="disclosure">
+              <summary>Reading the rejected column</summary>
+              <p className="research-note">
+                An instrument that never rejects is either well-sized or never tested.
+              </p>
+            </details>
+          </div>
 
           {/* The totals row of the two tables above, which is why it sits with
               them rather than with the session chart. `execution_stats()` on the

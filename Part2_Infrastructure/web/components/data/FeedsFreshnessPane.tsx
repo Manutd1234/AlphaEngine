@@ -84,10 +84,13 @@ export default function FeedsFreshnessPane({ health, symbol, gatewaySource }: Fe
         </div>
       ) : (
         <div className="data-trust-empty">
+          {/* The gateway source state is NOT restated here: the section note in
+              this card's own heading prints it on every render — "gateway
+              stale", "gateway not observed" — so a second copy two rows below
+              was the same reading twice, in a second spelling of the absence. */}
           <strong>No gateway feed evidence.</strong>
           <p>
-            The registry may still answer requests, but it cannot prove feed freshness. Gateway
-            source: {gatewaySource?.state?.replace("_", " ") ?? "not exposed"}.
+            The registry may still answer requests, but it cannot prove feed freshness.
           </p>
         </div>
       )}

@@ -173,9 +173,17 @@ export default function ResearchWorkspace({
               type="button"
               onClick={pinRun}
               disabled={!data || currentPinned || running}
+              /* Every disabled state names its own cause: `running` and
+                 `!data` used to fall through to the enabled title, so a
+                 dimmed button said what it would do and not why it would
+                 not. */
               title={currentPinned
                 ? "These parameters are already in the run archive"
-                : "Record these parameters and their result in the run archive"}
+                : running
+                  ? "Wait for the sweep to finish; no settled result to record yet"
+                  : !data
+                    ? "No result to record yet"
+                    : "Record these parameters and their result in the run archive"}
             >
               {currentPinned ? "Pinned" : "Pin run"}
             </button>
@@ -253,19 +261,28 @@ export default function ResearchWorkspace({
                       width they share a row (14c-density-research.css) and
                       below it this wrapper is an unstyled div and the stack
                       is exactly what it was. DOM order is unchanged:
-                      surface first, ranking second. */}
+                      surface first, ranking second. A `results.length > 3`
+                      gate stood on the surface and rendered NOTHING for a
+                      narrow grid; the threshold is inside StabilityPanel now,
+                      which reports it. */}
                   <div className="research-param-pair">
-                    {data.results.length > 3 ? (
-                      <StabilityPanel
-                        stability={data.stability}
-                        results={data.results}
-                        best={data.best}
-                        selected={inspect}
-                        onSelect={inspectCombo}
-                      />
-                    ) : null}
+                    <StabilityPanel
+                      stability={data.stability}
+                      results={data.results}
+                      best={data.best}
+                      selected={inspect}
+                      onSelect={inspectCombo}
+                    />
+                    {/* The house head, not a bare h2: sharing a row with the
+                        surface, a kickerless title sat a rung higher and its
+                        heading rule landed at a different height. */}
                     <div className="card">
-                      <h2>Candidate ranking</h2>
+                      <div className="section-heading compact">
+                        <div>
+                          <span className="page-kicker">Grid search</span>
+                          <h2>Candidate ranking</h2>
+                        </div>
+                      </div>
                       <p className="sub">The top 15 combinations behind the winner. Select a row to inspect that pair without losing the sweep.</p>
                       <ResultsTable data={data} onSelect={inspectCombo} selected={inspect} />
                     </div>

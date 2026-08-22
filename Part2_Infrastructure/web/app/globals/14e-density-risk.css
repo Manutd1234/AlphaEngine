@@ -6,9 +6,59 @@
  * 15-navigator-and-trailing-layer.css. The owners are on the over-ceiling
  * ledger and may never grow, which is why these overrides live here at all.
  *
- * Desk-width packing only: every rule in this file must sit inside a
- * min-width media query, so phones keep the single-column flow.
+ * Desk-width PACKING only: every rule that puts two panels on one row sits
+ * inside a min-width media query, so phones keep the single-column flow. The
+ * two exceptions below are not packing — see each block for what it is.
+ *
+ * The unconditional blocks at the top are not packing. Two are the shape of
+ * control groups this tab owns, and they exist to make a row WRAP rather than
+ * to fit more on a screen — a fix a phone needs more than a desk does. The
+ * third puts the disabled Flatten button's reason on its own line under the
+ * action row, at every width, because a reason crushed against the control it
+ * explains is a reason a reader scrolls past. The horizon row's step is
+ * tightened inside the desk query below, with everything else.
  */
+
+/* The shared forward horizon, above the card on the montecarlo and oraclevar
+   subtabs (components/risk/HorizonSeg.tsx). A row: the control's visible name,
+   then the seg. It wraps because the name and the four buttons are the whole
+   width of a narrow panel. */
+.risk-horizon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.risk-horizon > span {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* The Monte Carlo card's five parameter controls, inside the card heading.
+   `.portfolio-card-heading` is a non-wrapping `space-between` flex row, so as
+   five siblings they were spread across the heading's full width at desk size
+   and overflowed the card below it. One flex item that wraps within itself is
+   what the heading's grammar expects on every other card: title left, the
+   controls that act on the panel right. */
+.mc-parameter-rail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+}
+
+/* The reason "Flatten the book" is unavailable, under the two buttons on the
+   controls subtab. `small` is inline; without this it would sit tight against
+   the action row it explains. */
+#risk-subpanel-controls .page-actions + small {
+  display: block;
+  margin-top: var(--space-2);
+}
 
 /* What this pass measured before writing a rule, subtab by subtab:
  *
@@ -57,10 +107,38 @@
     --mc-tile-reserve: 92px;
   }
 
-  /* Rhythm: the shared horizon seg sits above the card it governs on the
+  /* Rhythm: the shared horizon row sits above the card it governs on the
      montecarlo and oraclevar subtabs; at desk width the pair reads as one
      unit with the tighter step. Phones keep the roomier 12px. */
-  #panel-risk .workspace-subtab-panel > .seg {
+  #panel-risk .risk-horizon {
     margin-bottom: var(--space-2);
+  }
+}
+
+/* The other end of the same reserve, which had nothing holding it.
+ *
+ * `--mc-tile-reserve` is the height the running Monte Carlo holds for the five
+ * tiles its result will land in, and the component's 196px fallback is two
+ * 92px rows plus the 12px gap — correct only while the tiles are four across.
+ * `.stability-tiles` drops to two tracks at 720px and to one at 520px, so on a
+ * phone the reserve was holding two rows for a result three or five rows tall
+ * and the card grew by 100–300px the moment the simulation finished. That is
+ * the bounce the reserve exists to prevent, at the width with the least room
+ * to absorb it. Same arithmetic as the desk rule above, at each track count.
+ *
+ * These are max-width queries in a file that is otherwise desk-only, and they
+ * are the exception the header block describes: nothing here packs a row, it
+ * keeps a reserve honest about the grid it is standing in for. */
+@media (max-width: 720px) {
+  /* Two tracks: three rows of tiles. */
+  #risk-subpanel-montecarlo {
+    --mc-tile-reserve: 300px;
+  }
+}
+
+@media (max-width: 520px) {
+  /* One track: five rows. */
+  #risk-subpanel-montecarlo {
+    --mc-tile-reserve: 508px;
   }
 }

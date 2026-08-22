@@ -55,6 +55,11 @@ export default function AllocationMixes({
     <section className="card">
       <div className="portfolio-card-heading">
         <div>
+          {/* The only card heading on this tab that carried no kicker: the
+              wrapper was already here, sized for one. Thirty-five siblings
+              name their subject above the title, so a reader scanning the
+              left edge of the column hit one blank line here. */}
+          <span className="page-kicker">Composition</span>
           <h2>Asset class, settlement and sleeve</h2>
         </div>
         {generated && <span className="section-note">generated book</span>}

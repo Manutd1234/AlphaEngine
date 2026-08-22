@@ -103,10 +103,18 @@ export default function DependencyTree({
 }) {
   const root = deriveDependencyTree(health, healthError);
   const counts = summariseTree(root);
-  const tone = counts.down > 0 ? "critical"
-    : counts.degraded > 0 ? "warning"
-    : counts.unknown > 0 ? "neutral"
-    : "good";
+  /**
+   * `pill--*`, not `pill is-*`. `.pill` styles its tones as
+   * `pill--live|--stop|--warn|--info` and no `.pill.is-critical` rule has ever
+   * existed, so this count rendered as untoned text — the same defect
+   * `HealthMatrix` records finding on its own three counts. Nothing looked
+   * broken, because the word beside the mark was always the carrier; the
+   * colour was simply never applied.
+   */
+  const tone = counts.down > 0 ? "pill--stop"
+    : counts.degraded > 0 ? "pill--warn"
+    : counts.unknown > 0 ? "pill--info"
+    : "pill--live";
 
   return (
     <section className="card console-card">
@@ -115,7 +123,7 @@ export default function DependencyTree({
           <span className="page-kicker">Topology</span>
           <h2>What this desk depends on</h2>
         </div>
-        <span className={`pill is-${tone}`}>
+        <span className={`pill ${tone}`}>
           {counts.down > 0
             ? `${counts.down} down`
             : counts.degraded > 0

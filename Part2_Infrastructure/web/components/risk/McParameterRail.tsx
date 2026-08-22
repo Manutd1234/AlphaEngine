@@ -69,7 +69,14 @@ export default function McParameterRail({
   derivedSeed,
 }: McParameterRailProps) {
   return (
-    <>
+    // One box, not five loose children of the card heading. The heading is a
+    // `justify-content: space-between` flex row, so five sibling labels were
+    // spread across its whole width — "Paths" pushed up against the title, the
+    // rest strung out between there and the right edge — and with no wrapper
+    // there was nothing to wrap: below desk width the five controls and the
+    // heading overflowed the card side by side. Grouped, they are one item at
+    // the right of the title, and they wrap as a block.
+    <div className="mc-parameter-rail">
       <label className="rail-toggle">
         Paths
         <select
@@ -140,7 +147,7 @@ export default function McParameterRail({
           aria-label={`Simulation seed; empty runs the sweep's derived seed, ${derivedSeed}`}
         />
       </label>
-    </>
+    </div>
   );
 }
 

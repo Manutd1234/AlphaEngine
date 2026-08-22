@@ -141,6 +141,16 @@ export default function ReplayBackfillPanel({
 
   const locked = guard === "locked";
   const canSubmit = !locked && operatorReady && busy === null;
+  /**
+   * Why both submits are dimmed, on screen and not only in their `title` — the
+   * rule the ledger's Take already follows, because a tooltip is unreachable by
+   * touch. The titles stay: they name the refusal at the control too.
+   */
+  const submitLock = locked
+    ? "Replay and backfill are disabled: operator actions are switched off on this deployment."
+    : !operatorReady
+      ? "Replay and backfill are disabled: they need the operator credential. Enter the operator token in Reliability → Remediation."
+      : null;
 
   /** True when the gateway answered at least one of the two reads. */
   const load = useCallback(async (): Promise<boolean> => {
@@ -245,6 +255,8 @@ export default function ReplayBackfillPanel({
         </div>
       )}
 
+      {submitLock && <p className="console-note">{submitLock}</p>}
+
       <div className="data-console-pair">
         <form onSubmit={onReplay} aria-label="Replay one capability">
           {/* "one capability" was the seg below and the submit button, which
@@ -282,6 +294,11 @@ export default function ReplayBackfillPanel({
               {busy === "backfill" ? "Queuing…" : "Backfill"}
             </button>
           </div>
+          {/* The third reason this button dims, and the only one the reader can
+              fix here: without it a same-day range is a dead control. */}
+          {from >= to && (
+            <p className="console-note">Backfill is disabled: the From date must be earlier than the To date.</p>
+          )}
           <p className="console-trace-cost">
             Binance for a crypto pair, this workspace&apos;s registry for an equity; capped at {schedules?.max_backfill_bars ?? "the gateway's"} bars.
           </p>
@@ -304,6 +321,9 @@ export default function ReplayBackfillPanel({
         <summary>How far back does this table reach?</summary>
         <p className="sub"> — the queue&apos;s in-process memory since the gateway started; the audit log keeps status rows.</p>
       </details>
+      {/* The state that rendered as nothing: until the first answer this
+          subhead stood over blank panel, and a read in flight is not empty. */}
+      {!jobs && !jobsError && <p className="sub">Reading the job queue from the gateway…</p>}
       {jobsError && <p className="sub">The job list could not be read: {jobsError}. Nothing here says the queue is empty.</p>}
       {jobs && jobs.jobs.length === 0 && !jobsError && (
         <p className="sub">No replay or backfill job has been submitted since the gateway started.</p>
@@ -352,6 +372,7 @@ export default function ReplayBackfillPanel({
         <summary>The schedule&rsquo;s source, tick rate and invalid entries</summary>
         <p className="sub"> — config-driven (<code>DATA_SCHEDULES</code> on the gateway), ticked every {schedules ? `${schedules.tick_seconds} s` : "tick"}; invalid entries stay listed with their error.</p>
       </details>
+      {!schedules && !schedulesError && <p className="sub">Reading the schedule from the gateway…</p>}
       {schedulesError && <p className="sub">The schedule could not be read: {schedulesError}.</p>}
       {schedules && schedules.schedules.length === 0 && !schedulesError && (
         <p className="sub">No schedule is configured — set <code>DATA_SCHEDULES</code> on the gateway, for example <code>replay:quote:BTCUSDT@every=1h;backfill:ETHUSDT:1h:2d@daily=03:30</code>.</p>

@@ -88,6 +88,12 @@ export default function PromotionPanel({
     <div className="card promotion-card">
       <div className="section-heading compact">
         <div>
+          {/* This card shares a row with Position sizing, whose head carries
+              an "Allocation" kicker — without one here the two titles sat a
+              rung apart and each card's heading rule landed at a different
+              height. The word names the boundary the panel guards rather than
+              repeating "gate" from the title beside it. */}
+          <span className="page-kicker">Research to execution</span>
           <h2>Promotion gate</h2>
         </div>
         <span

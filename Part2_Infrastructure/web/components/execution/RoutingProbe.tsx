@@ -57,6 +57,9 @@ function RoutingProbe({
   const [includedVenues, setIncludedVenues] = useState<string[] | null>(null);
   const [capText, setCapText] = useState("");
   const capBps = Number.isFinite(parseFloat(capText)) ? parseFloat(capText) : undefined;
+  /** No consolidated mid means nothing to cap slippage against — named once,
+   *  read by the preset seg and the cap input, which must agree about why. */
+  const noMid = snap?.consolidatedMid == null;
   const whatIfActive = includedVenues !== null || capBps !== undefined;
   const tca = liveTca(
     snap,
@@ -201,22 +204,39 @@ function RoutingProbe({
                 { label: "Passive", cap: "1" },
                 { label: "Balanced", cap: "3" },
                 { label: "Aggressive", cap: "" },
-              ] as const).map((preset) => (
-                <button
-                  key={preset.label}
-                  type="button"
-                  aria-pressed={capText === preset.cap && includedVenues === null}
-                  disabled={snap?.consolidatedMid == null && preset.cap !== ""}
-                  onClick={() => {
-                    setCapText(preset.cap);
-                    setIncludedVenues(null);
-                  }}
-                  title={preset.cap === "" ? "All venues, uncapped" : `All venues, max slippage ${preset.cap} bps`}
-                >
-                  {preset.label}
-                </button>
-              ))}
+              ] as const).map((preset) => {
+                const needsMid = noMid && preset.cap !== "";
+                return (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    aria-pressed={capText === preset.cap && includedVenues === null}
+                    disabled={needsMid}
+                    onClick={() => {
+                      setCapText(preset.cap);
+                      setIncludedVenues(null);
+                    }}
+                    /* The reason when it is dead, the behaviour when it is
+                       live — the same vocabulary the Max slippage input at the
+                       end of this row already uses for the same cause. A
+                       dimmed control whose tooltip describes what it would do
+                       is the button equivalent of a bare dash. */
+                    title={needsMid
+                      ? "A cap needs a reference mid"
+                      : preset.cap === "" ? "All venues, uncapped" : `All venues, max slippage ${preset.cap} bps`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
             </div>
+            {/* Stated, not only hovered — the same at-rest sentence the venue
+                group below gives for the same missing book. */}
+            {noMid ? (
+              <span className="muted" style={{ fontSize: "var(--fs-body)" }}>
+                A cap needs a reference mid, so only Aggressive is available until a book arrives.
+              </span>
+            ) : null}
           </div>
           {/* Same row as the strategy that these two qualify; flex-wrap still
               drops them under it when the panel cannot hold all three. */}
@@ -286,8 +306,8 @@ function RoutingProbe({
               step={1}
               value={capText}
               placeholder="uncapped"
-              disabled={snap?.consolidatedMid == null}
-              title={snap?.consolidatedMid == null ? "A cap needs a reference mid" : undefined}
+              disabled={noMid}
+              title={noMid ? "A cap needs a reference mid" : undefined}
               onChange={(e) => setCapText(e.target.value)}
             />
           </div>

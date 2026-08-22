@@ -354,4 +354,24 @@ describe("the tokens a rewrite is most likely to drop", () => {
       "the sentence that makes Flatten and Halt read as request composers",
     );
   });
+
+  /**
+   * Added by the fourth sweep, which found no prose to cut on this tab and one
+   * silence to break. `McHistogram`'s two empty cases shared a single
+   * `return <div ref={ref} />`: the pre-measure frame, and a result whose
+   * histogram is null. The second drew a completed card with a hole where the
+   * chart goes, beside five tiles that had already rendered — an unreported
+   * empty result, which this tree treats as the same defect as a coerced zero.
+   */
+  it("the histogram reports a result it cannot bin, rather than drawing nothing", () => {
+    const hist = stripCode(readSource("components/risk/McHistogram.tsx")).replace(/\s+/g, " ");
+    assert.ok(
+      hist.includes("No histogram: no path ended at a finite P&amp;L."),
+      "the null-histogram case lost its negation or the reason there is nothing to draw",
+    );
+    assert.ok(
+      !/if \(!bins \|\| width === 0\)/.test(hist),
+      "the measuring frame and the empty result share one blank return again",
+    );
+  });
 });

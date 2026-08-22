@@ -88,6 +88,14 @@ export default function MarketWatchlist({
       </div>
       </div>
 
+      {/* Only where there is a venue socket to report on. `.venue-status-strip`
+          carries a top border and 20px of its own padding, so for an
+          instrument with no direct L2 stream it drew a hairline rule with
+          nothing beneath it — a divider separating the watchlist from empty
+          plane. No fact goes with it: the mode chip in this card's own heading
+          already reads "Quote coverage only" at rest, which is the reason
+          there is no venue row to draw. */}
+      {liveSupported ? (
       <div className="venue-status-strip" aria-label={`${symbol} venue status`}>
         {(snap?.venues ?? []).map((venue) => {
           const status = STATUS_STYLE[venue.status];
@@ -106,13 +114,14 @@ export default function MarketWatchlist({
             </div>
           );
         })}
-        {liveSupported && !snap ? (
+        {!snap ? (
           <div className="venue-status is-connecting">
             <span className="venue-status__name"><i aria-hidden /><strong>VENUES</strong><small>connecting</small></span>
             <span className="venue-status__metrics">Opening public sockets…</span>
           </div>
         ) : null}
       </div>
+      ) : null}
     </section>
   );
 }

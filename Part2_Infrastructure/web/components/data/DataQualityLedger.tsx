@@ -191,18 +191,17 @@ export default function DataQualityLedger({
 
       {ledger && (
         <>
+          {/* Two tiles, not four. Payloads evaluated and the fatal/warn/drift
+              split stand in the page head of this same section, read off this
+              same `validation` object (`data-console-metrics.tsx`, the
+              `quality` branch), so the card was restating its own header — the
+              defect the work board's deck had already cut. What stays is
+              the window every count in this card is bounded by, and the open
+              count, which the head prints only when it is above zero. */}
           <dl className="console-facts console-facts--tight" aria-label="Ledger totals">
             <div>
               <dt>Window</dt>
               <dd>{ledger.windowMinutes >= 1440 ? `${Math.round(ledger.windowMinutes / 60)} h` : `${ledger.windowMinutes} min`}</dd>
-            </div>
-            <div>
-              <dt>Payloads evaluated</dt>
-              <dd>{validation!.evaluated}</dd>
-            </div>
-            <div>
-              <dt>Findings</dt>
-              <dd>{validation!.fatal} fatal, {validation!.warn} warn, {validation!.drift} drift</dd>
             </div>
             <div>
               <dt>Escalations open</dt>

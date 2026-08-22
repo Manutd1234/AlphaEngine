@@ -370,3 +370,26 @@ describe("the house rules a rewrite could break", () => {
     }
   });
 });
+
+/**
+ * The restatements this pass cut, each pinned twice: gone from the file that
+ * repeated it, still printed by the file that prints it first. Both files are
+ * in OWNED above, so both were read non-empty before these negatives ran.
+ */
+const LEDGER = "components/data/DataQualityLedger.tsx";
+const METRICS = "components/data/data-console-metrics.tsx";
+const FRESH = "components/data/FeedsFreshnessPane.tsx";
+const RESTATED: Array<[gone: string, repeat: string, keeps: string, kept: string]> = [
+  [LEDGER, "<dt>Payloads evaluated</dt>", METRICS, 'label: "Payloads evaluated"'],
+  [LEDGER, "<dt>Findings</dt>", METRICS, 'label: "Fatal findings"'],
+  [FRESH, "Gateway source:", FRESH, 'gateway {gatewaySource?.state?.replace("_", " ") ?? "not observed"}'],
+];
+
+describe("a figure cut as a restatement is still printed on the same screen", () => {
+  for (const [gone, repeat, keeps, kept] of RESTATED) {
+    it(`${gone.split("/").pop()} drops "${repeat}"`, () => {
+      assert.ok(!source(gone).includes(flat(repeat)), `${gone} restates what its page head prints`);
+      assert.ok(source(keeps).includes(flat(kept)), `${keeps} stopped printing ${kept}`);
+    });
+  }
+});

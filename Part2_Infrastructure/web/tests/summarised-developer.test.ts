@@ -277,6 +277,10 @@ const TAB_FACTS: ReadonlyArray<readonly [string, string]> = [
   ["single-use", "the Telegram token's lifetime"],
   ["a stale version returns the current row", "the versioned-edit contract"],
   ["Sample data, stored in this browser", "what the queue's rows actually are"],
+  ["Off / not configured", "the topology legend, the only place on that card expanding the Off pill"],
+  ["Closed in this browser", "where a Done row is closed, and where it is not"],
+  ["${job.count} tests", "the unit on the CI bars; without the note they fall back to a bare number"],
+  ["Every push", "how often the verification matrix runs, beside the date its counts were taken"],
 ];
 
 /**

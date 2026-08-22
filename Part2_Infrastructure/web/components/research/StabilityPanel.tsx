@@ -37,6 +37,19 @@ const LEVEL_TONE: Record<string, string> = {
 
 const LEVEL_GLYPH: Record<string, string> = { pass: "✓", marginal: "▲", fail: "✕" };
 
+/**
+ * The grid size below which there is no neighbourhood to draw.
+ *
+ * `parameterStability` classifies a cell from the tested cells around it and
+ * calls anything with fewer than three of them `isolated`, so a sweep of three
+ * or fewer combinations produces a surface every cell of which is unclassified.
+ * The workspace used to express that by not rendering this panel at all, which
+ * is the one thing an honest panel may not do: half the Parameters bench
+ * disappeared and nothing said why, on a state the range sliders reach
+ * directly. The threshold lives here now, and the panel reports it.
+ */
+const MIN_SURFACE_RESULTS = 3;
+
 export default function StabilityPanel({
   stability,
   results,
@@ -46,6 +59,43 @@ export default function StabilityPanel({
 }: StabilityPanelProps) {
   const [mode, setMode] = useState<"sharpe" | "stability">("stability");
   const winner = stability.best;
+
+  if (results.length <= MIN_SURFACE_RESULTS) {
+    return (
+      <div className="card">
+        <div className="section-heading compact">
+          <div>
+            <span className="page-kicker">Robustness</span>
+            <h2>Parameter surface &amp; stability</h2>
+          </div>
+          <span className="section-note">
+            {results.length} of {MIN_SURFACE_RESULTS + 1} combinations needed
+          </span>
+        </div>
+
+        {/* The engine already wrote a verdict for this grid and nobody ever
+            read it: with the panel unrendered, "The winner sits on the grid
+            edge" and its instruction to widen the range went nowhere. */}
+        <div
+          className="stability-verdict"
+          style={{ borderLeftColor: LEVEL_TONE[stability.verdict.level] }}
+          role="status"
+        >
+          <strong style={{ color: LEVEL_TONE[stability.verdict.level] }}>
+            <span aria-hidden>{LEVEL_GLYPH[stability.verdict.level]}</span>{" "}
+            {stability.verdict.headline}
+          </strong>
+          <p>{stability.verdict.detail}</p>
+        </div>
+
+        <p className="sub">
+          No surface is drawn from {results.length} combination{results.length === 1 ? "" : "s"}: a
+          neighbourhood needs at least {MIN_SURFACE_RESULTS + 1}. Widen the fast or slow range, or cut
+          the step, in the research rail&rsquo;s setup panel.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="card">

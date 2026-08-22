@@ -93,7 +93,9 @@ export default function BreakerStateMachine({
           <span className="page-kicker">How recovery works here</span>
           <h2>Circuit breaker states</h2>
         </div>
-        <span className="section-note">{rows.length} providers</span>
+        <span className="section-note">
+          {providers === null ? "registry not observed" : `${rows.length} providers`}
+        </span>
       </div>
 
       <svg
@@ -210,10 +212,20 @@ export default function BreakerStateMachine({
         </div>
       )}
 
-      {!rows.length && (
+      {/* Two different findings, told apart. `providers === null` is no snapshot;
+          an empty array is a deployment that registers no provider at all, and
+          reporting both as "not observed" told a reader to go looking for a
+          transport fault that is not there. */}
+      {providers === null && (
         <p className="muted">
           The provider registry has not been observed, so no circuit state can be counted — a
           missing reading, not a healthy desk.
+        </p>
+      )}
+      {providers !== null && rows.length === 0 && (
+        <p className="muted">
+          No provider is registered in this deployment, so there is no circuit to trip — an empty
+          registry, not a missing reading.
         </p>
       )}
 

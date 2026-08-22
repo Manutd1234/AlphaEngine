@@ -178,7 +178,19 @@ export default function DeveloperOverview({
                     not run both sit outside the pass count, and the glyph is
                     what tells them apart — the dot's colour never does. */}
                 <i className={check.state === "pass" ? "is-good" : "is-warn"} aria-hidden="true">{check.state === "pass" ? "✓" : check.state === "failed" ? "✕" : "◌"}</i>
-                <span><b>{check.label}</b><small>{check.detail}</small></span><strong>{check.value}</strong>
+                {/* `title` on the detail, because the detail is clipped.
+                    `.developer-cp-readiness__checks > div > span > small` is
+                    `white-space: nowrap; text-overflow: ellipsis`, so in this
+                    column "Not a Vercel deployment, so there is no promotion
+                    candidate to check." renders as three or four words and an
+                    ellipsis. That sentence is the REASON a gate is unverified
+                    rather than failed — the one thing the ladder above exists
+                    to distinguish — and the summary below names the gate but
+                    not its reason. The full string reaches assistive
+                    technology either way (clipping is presentational); this is
+                    how a sighted reader gets it back, and it is the same
+                    affordance `StatusPill` already uses for `state.detail`. */}
+                <span><b>{check.label}</b><small title={check.detail}>{check.detail}</small></span><strong>{check.value}</strong>
               </div>
             ))}
           </div>

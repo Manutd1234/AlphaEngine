@@ -323,6 +323,13 @@ export default function ExecutionCockpit({
             rows={effectiveOrders}
             focusSymbol={symbol}
             source={feedSource}
+            /* The Active pane's cancel and amend write to a gateway that, on a
+               stale desk, has stopped answering — and `WorkingOrders` already
+               refuses writes and names the reason when it is told. It was not
+               being told: the flag stopped at the banner above, so the one
+               state where the buttons must be dead was the one state they
+               stayed live in. */
+            isStale={stale}
             active={section === "activity"}
             operatorToken={operatorToken}
             onChanged={revalidate}

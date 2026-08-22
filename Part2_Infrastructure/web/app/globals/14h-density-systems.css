@@ -26,6 +26,25 @@
  * rendered — never on screen together, so there is nothing to pair). */
 
 /* ------------------------------------------------------------------ */
+/* Orphan cell — the fifth component article                           */
+/* ------------------------------------------------------------------ */
+/* `.reliability-platform__grid` is four tracks and the card renders FIVE
+   articles whenever the gateway publishes the Postgres mirror counters, so
+   the mirror sat alone in a quarter-width cell on a row of its own — the one
+   card on the tab with three empty cells beside it, which reads as a panel
+   that failed to load rather than as the last of five. The lone last child
+   takes the whole row instead. `1 / -1` rather than a track count, because
+   the same grid is two columns once the platform card is paired at 1280 and
+   a fixed span would invent implicit columns there. Nothing is added or
+   removed: with four articles the row is already full and this never
+   matches. */
+@media (min-width: 901px) {
+  #reliability-subpanel-planes .reliability-platform__grid > article:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Reclaimed space and rhythm — safe at any desk width                 */
 /* ------------------------------------------------------------------ */
 @media (min-width: 1100px) {

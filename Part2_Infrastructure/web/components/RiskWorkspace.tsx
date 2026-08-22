@@ -22,6 +22,7 @@ import HeadroomBar from "@/components/portfolio/HeadroomBar";
 import OracleVarPanel from "@/components/portfolio/OracleVarPanel";
 import RiskEngine from "@/components/portfolio/RiskEngine";
 import StressTest from "@/components/portfolio/StressTest";
+import HorizonSeg from "@/components/risk/HorizonSeg";
 import MonteCarloDistribution, { type McDriver } from "@/components/risk/MonteCarloDistribution";
 import WorkspaceSubtabs, { WorkspaceSubtabPanel } from "@/components/WorkspaceSubtabs";
 import { fmt, pct, usd } from "@/lib/format";
@@ -59,15 +60,13 @@ const TONE_TEXT: Record<LimitTone, string | undefined> = {
   critical: "var(--critical-text)",
 };
 
+/** Why "Flatten the book" is unavailable, in the button and on screen. */
+const FLAT_BOOK_REASON = "Nothing to flatten: this book holds no open position.";
+
 /** Raw values arrive from `limitRows`; the unit decides the formatter. */
 function limitValue(value: number, unit: "usd" | "pct"): string {
   return unit === "usd" ? usd(value, 0) : pct(value, 2);
 }
-
-/** The montecarlo and oraclevar sections' shared forward horizon, in days.
- *  1 day is here for the GBM panel's original range; the bootstrap converts
- *  it to ≥1 bar. */
-const MC_HORIZON_CHOICES = [1, 10, 30, 90] as const;
 
 export default function RiskWorkspace({
   view,
@@ -112,6 +111,7 @@ export default function RiskWorkspace({
 
   const binding = book.risk_budget.binding_constraint;
   const positions = book.exposure.positions;
+  const flatBook = positions.length === 0;
 
   /**
    * Same props, same snapshot, one half each. The model and drivers subtabs
@@ -141,19 +141,7 @@ export default function RiskWorkspace({
    * rendered twice.
    */
   const horizonSeg = (ariaLabel: string) => (
-    <div className="seg research-seg" role="group" aria-label={ariaLabel}>
-      {MC_HORIZON_CHOICES.map((days) => (
-        <button
-          key={days}
-          type="button"
-          aria-pressed={mcHorizonDays === days}
-          title={`Run both estimates over a ${days}-day forward horizon`}
-          onClick={() => setMcHorizonDays(days)}
-        >
-          {days}d
-        </button>
-      ))}
-    </div>
+    <HorizonSeg ariaLabel={ariaLabel} days={mcHorizonDays} onDays={(days) => setMcHorizonDays(days)} />
   );
 
   return (
@@ -376,11 +364,25 @@ export default function RiskWorkspace({
             authenticated request your gateway would gate and audit.
           </p>
           <div className="page-actions">
-            <button onClick={() => setHandoff({ kind: "flatten_all" })} disabled={!positions.length}>
+            <button
+              type="button"
+              disabled={flatBook}
+              title={flatBook ? FLAT_BOOK_REASON : undefined}
+              onClick={() => setHandoff({ kind: "flatten_all" })}
+            >
               Flatten the book
             </button>
-            <button onClick={() => setHandoff({ kind: "halt" })}>Halt trading</button>
+            <button type="button" onClick={() => setHandoff({ kind: "halt" })}>Halt trading</button>
           </div>
+          {/* On screen, not only in the disabled button's title: a tooltip
+              needs a pointer and a disabled button takes no focus, so a dimmed
+              control explained by a hover alone is a bare dash. Halt stays
+              live — a flat book can still be stopped from trading. */}
+          {flatBook && (
+            <small className="muted">
+              <span aria-hidden>◌</span> {FLAT_BOOK_REASON}
+            </small>
+          )}
           <ExecutionHandoff
             intent={handoff}
             onClose={() => setHandoff(null)}

@@ -125,7 +125,7 @@ export default function PositionsSection({
           </div>
 
           {positions.length ? (
-            <div className="table-wrap table-wrap--clamped">
+            <div className="table-wrap table-wrap--clamped" tabIndex={0}>
               <table>
                 <caption className="sr-only">Current portfolio positions and their measured risk contributions</caption>
                 <thead>

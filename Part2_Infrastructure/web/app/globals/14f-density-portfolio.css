@@ -35,7 +35,8 @@
  *    reintroduce the re-run bounce its own comment documents.
  *
  * What it packs instead is below: three card pairs, one in-card chart pair,
- * a six-across summary strip, and one over-tall empty state. */
+ * a six-across summary strip, one pane-switcher rhythm the fifth panel was
+ * missing, and one over-tall empty state. */
 
 /* The overview summary strip: six facts on `minmax(190px, 1fr)` auto-fit
    land 5 + 1 between ~1100 and ~1230px of viewport — a whole second row
@@ -129,6 +130,20 @@
 
   #portfolio-subpanel-performance .portfolio-trend-pair > * {
     min-width: 0;
+  }
+
+  /* One switcher, one rhythm. The three panels above hand their children's
+     margins to an 8px row gap, so on Overview, Positions and Performance the
+     pane switcher sits 8px above the card it governs. Allocation is not a
+     grid — one card per pane — so its identical `.seg` kept the shared 12px
+     from `.workspace-subtab-panel > .seg`, and the same control in the same
+     place had two different gaps under it depending on which subtab the
+     reader was on. Stated the way the Research, Risk, Execution and Data
+     partials state theirs: tab-scoped, desk width only, phones keep 12px.
+     Redundant on the three gridded panels, where the child margin is already
+     zeroed, and that is the point — one rule, no exceptions to remember. */
+  #panel-portfolio .workspace-subtab-panel > .seg {
+    margin-bottom: var(--space-2);
   }
 
   /* The flat-book state is one strong line, one sentence and one button —

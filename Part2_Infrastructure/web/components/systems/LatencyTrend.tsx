@@ -90,11 +90,16 @@ export default function LatencyTrend({ history }: { history: LatencyHistoryPoint
   }, [history, width]);
 
   return (
-    <div className="card latency-trend">
-      <div className="portfolio-card-heading">
+    /* `.section-heading compact`, the grammar every other panel on this tab
+       uses — kicker, title, then the note that acts on the panel. This card
+       alone wore `.portfolio-card-heading`, which sets its own min-height and
+       rule, so the first card of the section was the one card whose head sat
+       at a different height from all seventeen below it. */
+    <section className="card latency-trend" aria-labelledby="reliability-latency-trend-title">
+      <div className="section-heading compact">
         <div>
           <span className="page-kicker">Service level</span>
-          <h2>Tail latency over the observed window</h2>
+          <h2 id="reliability-latency-trend-title">Tail latency over the observed window</h2>
         </div>
         <span className="section-note">
           {view ? `${history.length} polls; peak p99 ${view.peak} ms` : "collecting samples"}
@@ -160,6 +165,6 @@ export default function LatencyTrend({ history }: { history: LatencyHistoryPoint
           </p>
         )}
       </div>
-    </div>
+    </section>
   );
 }

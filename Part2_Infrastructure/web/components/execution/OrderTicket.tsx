@@ -227,9 +227,6 @@ export default function OrderTicket({
     }
   }
 
-  const latest = decisions[decisions.length - 1];
-  const burstAccepted = decisions.filter((d) => d.accepted).length;
-
   return (
     <section className="card cockpit-ticket">
       <header className="section-heading compact">
