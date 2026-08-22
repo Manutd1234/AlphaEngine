@@ -208,9 +208,11 @@ sequenceDiagram
     participant R as research_router<br>ResearchRouter
     participant RAG as research_rag<br>ResearchRag.search / connected
     participant B as research_bm25
+    participant I as research_image_arm<br>(OPTIONAL)
     participant S as research_stages
     participant RR as research_rerank
     participant G as research_generate
+    participant V as research_generate_vision<br>+ research_image_store
     participant A as AuditLog (DuckDB)
 
     W->>API: POST /api/research/rag/ask
@@ -236,12 +238,14 @@ sequenceDiagram
             else
                 RAG->>RAG: rpc match_research_documents_hybrid — dense + lexical arms, RRF k=60, similarity floor 0.76
                 RAG->>B: apply_bm25 → rank_candidates + fuse at RRF_K — the third arm, reorders but never adds or drops
-                RAG-->>R: state ok, matches + bm25 report (or unavailable, typed, never an empty list)
+                RAG->>I: image_arm — OPTIONAL fourth arm, LAST, and never handed the gte-small vector:<br>the query is re-embedded by the CLIP TEXT encoder, because 384 numbers against a 512-dim<br>column is either an error or, far worse, a ranking by two unrelated coordinate systems
+                I-->>RAG: rows fused at the same RRF k=60. A document only the picture found is APPENDED<br>with image_rank / image_similarity and similarity left null, never 0.<br>Unconfigured: ranked false + a named reason, and the three-arm order is unchanged
+                RAG-->>R: state ok, matches + bm25 + image reports (or unavailable, typed, never an empty list)
             end
         else graph_traverse
             R->>RAG: connected(seed id from earlier matches, width = research_stages.graph_width(n))<br>via traverse_research_graph — nothing narrows this arm
             RAG-->>R: state ok + connected rows, or skipped when nothing was retrieved to walk from
-            R->>R: fuse_graph_matches — the walk joins as the FOURTH arm at the same RRF k=60;<br>graph_rank is POSITION in the traversal, never a function of depth;<br>rows the walk did not reach carry null, never 0
+            R->>R: fuse_graph_matches — the walk joins as a FIFTH ranking at the same RRF k=60,<br>one stage later than the four inside search();<br>graph_rank is POSITION in the traversal, never a function of depth;<br>rows the walk did not reach carry null, never 0
         end
         R->>A: research_tool_call row per invocation — wall-clock timed, recording the text<br>ACTUALLY sent (the bare token for lexical_exact, not the query), the width and the kind
     end
@@ -250,7 +254,7 @@ sequenceDiagram
         CRAG-->>API: ResearchAnswer state unavailable / embed_failed, or ok with no rows — ungraded, and NOT a refusal
     else rows came back
         CRAG->>S: narrow(query, matches, n)
-        S->>RR: asyncio.to_thread(rerank) under _RERANK_BULKHEAD Semaphore(2)
+        S->>RR: asyncio.to_thread(rerank) under _RERANK_BULKHEAD Semaphore(1) — ONE slot, measured:<br>to_thread takes one thread but onnxruntime spreads it over ~9 of 18 cores,<br>so two at once bought 1.30–1.37x throughput for 1.46–1.54x latency on EVERY request
         RR-->>S: report — reranked, or unconfigured / unavailable / failed / empty with the fused order kept
         CRAG->>CRAG: ContextGrader.grade — 0.40 agreement + 0.25 similarity + 0.25 overlap + 0.10 recency,<br>then research_crag_signals.cross_encoder folds the re-ranker's own logit at weight 0.25<br>via sigmoid (its training objective). Absent / null / non-finite: the score does not move<br>by a decimal and no reason line claims a signal that was not read
 
@@ -274,13 +278,17 @@ sequenceDiagram
             else SDK absent
                 G-->>S: verdict refused — GEMINI_API_KEY unset or google-genai not installed — a normal deployment, reported not raised
             else model called
-                G->>G: Gemini generate_content — TIMEOUT_MS 20000, MAX_OUTPUT_TOKENS 1024, TEMPERATURE 0.0
+                G->>V: resolve chart images for the cited chart documents — LRU, then the JobRecord,<br>then ONE PostgREST GET to research_chart_images (1200 ms cap, and 0 disables it)
+                V-->>G: at most 2 attachments, each under 2 MB — or a NAMED absence:<br>chart_not_rendered / job_not_retained / image_not_stored / image_too_large /<br>model_declines_images. Never a silent text-only call
+                G->>G: Gemini generate_content — MAX_OUTPUT_TOKENS 1024, TEMPERATURE 0.0, thinking_budget 0;<br>TIMEOUT_MS 20000 for text, VISION_TIMEOUT_MS 45000 when an image travels<br>(measured live at 20.6 s and 29.9 s)
                 alt reply starts CORPUS_SILENT
                     G-->>S: verdict corpus_silent — a correct answer, not a failure
                 else a citation is fabricated, or none given
                     G-->>S: verdict refused — the whole answer, never flagged and returned
                 else a figure appears in no supplied document
                     G-->>S: verdict refused — its own reason, deliberately a DIFFERENT sentence from the<br>citation one; the call was spent, so the ledger row is still written
+                else a [chart:id] marker names a document whose image was NOT sent
+                    G-->>S: verdict refused — without this check the marker would be a way to buy an<br>exemption from the figure fence by labelling an invented number
                 else
                     G-->>S: verdict answered + verified [doc:id] citations
                 end
@@ -320,8 +328,8 @@ into `synthesise()`, `modules.api.research` defers `centrality_report` into its
 route, and the router still never imports `research_rag` **for retrieval** — it
 calls whatever `rag` object it is handed. It does now take one deferred import
 from that package, inside `_fuse()`: `fuse_graph_matches`, which
-`research_rag.retrieval` re-exports from `research_graph_fusion` so the four
-arms are named in one place. The import is inside the function and typed on
+`research_rag.retrieval` re-exports from `research_graph_fusion` so every arm is
+named in one place. The import is inside the function and typed on
 failure — an unimportable primitive reports `{"state": "unavailable", …}` and
 the retrieved rows survive — so it is a decoration the arm can lose, not a
 dependency it needs. Only the research plane's own modules are drawn; the files
@@ -329,7 +337,15 @@ each stage was split into to stay under the 400-line ceiling
 (`research_router_calls` / `_exec`, `research_crag_policy` / `_signals`,
 `research_generate_prompt` / `_figures`, `research_ingest_delivery` /
 `_session`, `research_structured` / `_reads`, `research_graph_read_model`) are
-named on their parent's box rather than given one each. Sources under
+named on their parent's box rather than given one each — as are
+`research_image_arm` and `research_image_ingest` on `research_image`, and
+`research_image_store_write` on `research_image_store`. Two arrows to check
+against the tree if this drawing is ever doubted:
+`research_rag.retrieval` imports `image_arm` at module level (it is the query
+side of the fourth arm), and `research_generate` imports
+`research_generate_vision` as `vision`, which in turn imports
+`research_image_store` — `CHART_IMAGE_KEYS` **is** `CHART_PNG_FIELDS` rather
+than a copy of it, so an image cannot be stored that no reader can use. Sources under
 [`Part2_Infrastructure/modules/`](../../Part2_Infrastructure/modules/).
 
 ```mermaid
@@ -375,7 +391,7 @@ classDiagram
         wide()
         narrow()
         synthesise()
-        _RERANK_BULKHEAD : Semaphore(2)
+        _RERANK_BULKHEAD : Semaphore(1)
     }
     class research_rerank {
         rerank()
@@ -394,6 +410,24 @@ classDiagram
         fuse()
         tokenise()
         RRF_K : 60
+    }
+    class research_image["modules.research_image (OPTIONAL)"] {
+        the CLIP ViT-B/32 model seam
+        image_arm() : research_image_arm
+        embed at ingest : research_image_ingest
+        IMAGE_MODEL_PATH : empty by default
+    }
+    class research_image_store {
+        locate() / remember()
+        CHART_PNG_FIELDS : the ONE map
+        write half : research_image_store_write
+        FETCH_TIMEOUT_MS : 1200 (0 disables)
+    }
+    class research_generate_vision {
+        attachments()
+        CHART_IMAGE_KEYS IS research_image_store.CHART_PNG_FIELDS
+        VISION_TIMEOUT_MS : 45000
+        MAX_IMAGES : 2 / MAX_IMAGE_BYTES : 2 MiB
     }
     class research_rag["modules.research_rag (package)"] {
         ResearchRag / get_rag()
@@ -447,6 +481,9 @@ classDiagram
     research_graph_reads ..> research_graph_read_model : try Neo4j first, fall back to the corpus
 
     research_rag ..> research_bm25 : rank_candidates / fuse
+    research_rag ..> research_image : image_arm, LAST and never handed the gte-small vector
+    research_generate ..> research_generate_vision : attach the chart as evidence, never a source
+    research_generate_vision ..> research_image_store : locate the bytes — LRU, JobRecord, then one GET
     research_graph_reads ..> research_communities : detect_communities, rank_documents
     research_graph_reads ..> research_graph_projection : project_communities
     research_reconcile ..> research_graph_reads : scheduler name resolution
@@ -456,6 +493,8 @@ classDiagram
     note for research_graph_projection "Neo4j, optional (requirements-graph.txt).\nUnconfigured reports a named reason, never an\nexception. Postgres stays authoritative - drop\nthe graph and re-project."
     note for research_communities "networkx, optional (requirements-communities.txt).\nAbsent reports unavailable with the reason.\nLouvain IS seeded - one partition per edge set,\nnot one per run. PageRank takes NO seed and cannot:\nit is deterministic by construction, reproducible\nfrom the canonical node order plus pinned\nMAX_ITER / TOLERANCE."
     note for research_graph_read_model "Binds _driver at IMPORT deliberately, so the\nprojection suites patching research_graph_projection._driver\n(to prove a GET never WRITES) cannot silently\nredirect the read path. Every refusal falls back\nto the in-process computation and says so."
+    note for research_image "OFF by default and measured, not hedged:\nCLIP alone scores 0.671 nDCG@3 against the computed\ndescription's 0.687 and 0.747 fused - so ~0.6 GB of\nweights buys +0.06 only in fusion, and the arm is a\nfourth 1/(k+rank) term that can ADD a document and\nnever remove one. No similarity floor: 0.76 was\nmeasured against gte-small's range and a CLIP number\nwould be the unmeasured constant this tree refuses."
+    note for research_image_store "One map, two halves, so they cannot disagree -\nresearch_generate_vision.CHART_IMAGE_KEYS IS this\nobject, not a copy. _fetch is a SYNCHRONOUS GET on\nthe event loop's thread; the owed fix is one line in\nresearch_generate.generate (await hydrate). Bounded\nby a 1200 ms cap, an LRU, and the write path warming\nthat same LRU so an ingesting gateway never fetches."
     note for research_quota "Inert with no GEMINI_API_KEY: a desk that cannot\nreach a model cannot spend, and refusing a free\nquery because a paid one would be expensive is an\noutage, not a bound. A call with no token counts is\nrecorded UNPRICED and the window total is a floor -\nnever an invented average price."
 ```
 
@@ -473,6 +512,8 @@ states it about itself:
 | Supabase corpus (`research_rag`) | `SUPABASE_URL` / service key unset | `search` and `connected` return a typed `unavailable` state, never `[]`; a failed embed returns `None`, never a zero vector. |
 | `structured_runs` tool (`research_structured`) | No audit store is handed to the router | **Built** — it answers counts, extrema and means from the audit log's own `backtest_runs`. Four states, never a zero standing in for any of them: `ok`, `empty` (searched, nothing matched — including a `data_hash` no run carries, which is named rather than silently widened into a count of everything), `unavailable` (no readable store), `skipped` (an extremum with no metric named — skipped rather than guessed). NULL metrics are excluded from extrema and means and the number excluded is reported. `modules/ml/store.py`'s `ml_runs` is deliberately **not** reached: it is async PostgREST behind Supabase, and reaching it would put a network call in the test suite. |
 | The graph arm's fusion (`research_graph_fusion`) | Nothing to join — no neighbours, rows without ids, or a dense-only path with no ranks to rebuild from | Five named refusals in the BM25 arm's report shape (`ranked: false` + `reason` + `detail`), each returning the caller's rows **untouched**. A walk that returned rows and a walk whose rows were never ranked in stay distinguishable, on the tool call's own detail. |
+| Image arm (`research_image`, `research_image_arm`) | `RESEARCH_IMAGE_MODEL_PATH` unset (the default), `fastembed` or Pillow missing, or migration `20260822100000` not applied | `search` returns its `image` report with `ranked: false` and a named reason, and the fused order is **byte-for-byte** the three-arm order — the arm can only add a document, so its absence cannot change what a configured desk already saw. "No vision model" and "no image library" are different sentences, because they have different fixes. On the write side an unconfigured deployment sends the row it sent before the module existed, not even nulls: a PostgREST insert naming a column the deployed schema has not got is answered 400, and the drain would then dead-letter **every** document. |
+| Chart pixels for generation (`research_generate_vision`, `research_image_store`) | The chart was never rendered, the job record is gone (restart, Celery worker, second replica), the row predates migration `20260822110000`, the store is unreachable, or the image is over the 2 MB ceiling | Five named states — `chart_not_rendered`, `job_not_retained`, `image_not_stored`, `image_store_unreachable`, `image_too_large` — carried on the report, never an exception and never a silent text-only call. That distinction matters more here than almost anywhere in the plane, because the failure it prevents is an answer that says "the chart shows" over a call that carried no chart, and a reader cannot tell those apart from the prose. |
 | The `/ask` bound (`research_quota`) | `GEMINI_API_KEY` unset | Inert by design, and that is what keeps an offline suite from being rate-limited by a cap written for a deployment that would spend. `/search` is not rate-limited at all: it cannot reach a model, and a request-rate control over the whole research plane is a different control with a different argument that should not be smuggled inside a spend cap. |
 
 Two debts this table used to carry are closed. `research_stages` now computes a
@@ -485,7 +526,14 @@ floored at 20, ceilinged at 60) instead of a constant that happened to equal
 the ceiling, so a caller asking for more documents than 60 gets no widening —
 deliberate, because bounding the widening must never narrow the request, and
 serving 60 rows as the top 200 would be a worse defect than the one being
-fixed. Likewise
+fixed. A third debt has moved rather than closed. The blocking read in
+`research_image_store._fetch` is a synchronous PostgREST GET on the event
+loop's thread, and the fix is one line in `research_generate.generate`
+(`documents = await hydrate(documents)`) that this change could not reach. It is
+recorded in that module's own docstring with the two rejected non-blocking
+designs, and collected in [`PLAN.md` §2.10](../planning/PLAN.md).
+
+Likewise
 `RAG_MIN_SIMILARITY = 0.76` is measured from six queries against one document
 and its comment says the number will move; the eval harness is the named owner
 of turning it from a floor derived from three observed clusters into one that

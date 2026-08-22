@@ -158,6 +158,7 @@ arguments.
 | [`requirements-graph.txt`](../../Part2_Infrastructure/requirements-graph.txt) | The `neo4j` driver for the projection sweep **and** for reading the sweep's labels back on `/api/research/graph/communities` and `/centrality`. | Reported the same way as an unset `NEO4J_URI`, and the two report routes fall back to the in-process networkx computation with `source: "corpus"`. Postgres remains authoritative; **no request path depends on the graph being up** — request-time traversal is the Postgres recursive CTE, and the two report routes degrade rather than fail. |
 | [`requirements-communities.txt`](../../Part2_Infrastructure/requirements-communities.txt) | networkx — Louvain and PageRank **in process** over the edge list, independent of the graph database. | `/api/research/graph/communities` and `/centrality` return `unavailable` with the reason string, including the install command. |
 | [`requirements-rerank.txt`](../../Part2_Infrastructure/requirements-rerank.txt) | fastembed + onnxruntime, the local BGE cross-encoder. | `modules/research_rerank.py` hands back the fused RRF order untouched and truncated, and `rerank_state` says why. Precision is bought, never a prerequisite for an answer. |
+| *(no file of its own)* — the **CLIP image arm** | Nothing new to install: it reuses `fastembed` from `requirements-rerank.txt`, plus `PIL.Image`, which fastembed's image models already depend on. There is deliberately no `requirements-image.txt`, because there is no package to add — what an operator must supply is the seeded ~0.6 GB `ViT-B/32` pair at `RESEARCH_IMAGE_MODEL_PATH` and migrations `20260822100000` / `20260822110000`. | The arm does not run; `search`'s `image` report names the reason, and the three-arm ordering is byte-for-byte what it was. `modules/research_image.py` distinguishes "no vision model" from "no image library" in a sentence rather than a traceback, because they have different fixes. |
 | [`requirements-genai.txt`](../../Part2_Infrastructure/requirements-genai.txt) | `google-genai`, Stage-5 grounded generation. | `modules/research_generate.py` reports the package's absence in the same shape as an unset `GEMINI_API_KEY`: every answer is `verdict: refused` with the reason, and the desk runs exactly as before. |
 | [`requirements-recall.txt`](../../Part2_Infrastructure/requirements-recall.txt) | Nothing new — one package already in core, so `tools/graph_recall.py` runs from a minimal laptop venv. Deliberately **not** here: the Anthropic SDK — `--narrate` shells out to the `claude` CLI instead, keeping the integration outside the dependency graph entirely. | If `claude` is not on PATH or fails, the CLI says so with the reason and prints the deterministic traversal anyway. |
 
@@ -247,8 +248,22 @@ measured path may be a function of a vendor's model version or uptime).
 | A graph database as authoritative store, with GDS for algorithms | Postgres `research_edges` authoritative; Neo4j Aura Free as a **rebuildable projection**; Louvain/PageRank **in process** via networkx | A dual write is two systems that must agree; projecting makes divergence a non-event. And Aura Free has no GDS — `CALL gds.louvain.stream(...)` there is procedure-not-found, so the algorithms run where they can run everywhere: pure Python, in CI, on a laptop with no Neo4j at all. |
 | Always-on generation | Optional Gemini, fenced, refuse-first | A model that invents a Sharpe ratio is worse than no answer: the invented number arrives wearing the same typography as a measured one. Below the CRAG refuse band the model is never called. |
 
-**NOT BUILT:** multimodal generation — the generation stage writes prose over
-documents Postgres already holds, and nothing generates or interprets images.
+**Both halves of multimodal are now BUILT and both are OFF by default** — this
+paragraph read "NOT BUILT" until 2026-08-22 and the correction is a change to
+the tree, not a re-wording. *Retrieval*: `modules/research_image.py` holds a
+local CLIP `ViT-B/32` pair (fastembed, ONNX on CPU — the same "no vendor on the
+retrieval path" argument as the re-ranker), embedding a chart's PNG into a
+512-dim `image_embedding` column and ranking it as a fourth arm at the same
+k = 60. *Generation*: `research_generate_vision.py` attaches the chart PNG to
+the Gemini call as **evidence, never a source**. Both are gated on an operator
+opting in (`RESEARCH_IMAGE_MODEL_PATH`, plus migrations `20260822100000` and
+`20260822110000`), and the measured reason the default stays off is in
+[`PRD.md` §6](PRD.md): CLIP alone scores 0.671 nDCG@3 against the computed
+description's 0.687, so ~0.6 GB of weights buys +0.06 only in fusion. The Edge
+runtime constraint that originally blocked this is unchanged and still true —
+`Supabase.ai.Session` takes no image; what moved is that the model now runs in
+the gateway rather than in the edge function.
+
 Also deliberately absent, with the argument in
 [README §What is deliberately missing](../../Part2_Infrastructure/README.md#what-is-deliberately-missing):
 real broker connectivity, multi-worker serving, and the rest of the list that
@@ -256,9 +271,14 @@ section owns.
 
 ## Verifying any of this
 
-Never trust a version or a count in prose, including this file's. The suite
-figures committed on 2026-08-21 (`web/lib/test-counts.generated.ts`): gateway
-2,028 passed + 2 skipped, web 3,900 tests across 839 suites, OpenBB service 14.
+Never trust a version or a count in prose, including this file's — and this
+file has stopped carrying the suite figures for exactly that reason. They live
+in `web/lib/test-counts.generated.ts`, argued in
+[`TESTING.md`](../testing/TESTING.md), which is also the only document that
+states the two conditions attached to them: the gateway has two correct pass
+counts depending on whether the cross-encoder weights are seeded, and the
+committed web figure is a dated measurement rather than a contract, currently
+behind the runner by three changes' worth of new suites.
 CLAUDE.md's rule stands — run the suite and read the number off the output;
 `/verify` runs every check and reports real measurements. For the wider walk of
 what these pieces do in use, start at the [feature tour](../product/FEATURE_TOUR.md).

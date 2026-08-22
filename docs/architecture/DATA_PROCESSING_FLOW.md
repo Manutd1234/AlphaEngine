@@ -20,7 +20,14 @@ Four planes, deliberately kept apart:
 The separations are the design. The mirror cannot slow an order because its
 enqueue is `put_nowait`; the corpus cannot slow an order because it hangs off
 the same post-decision hook; the graph cannot corrupt the corpus because Neo4j
-is a projection nothing reads to answer a request today.
+is a **projection** — Postgres owns `research_edges`, the sweep only MERGEs
+derived state in, and drop-and-re-project is the repair. This line used to end
+"a projection nothing reads to answer a request", and that is no longer true:
+`/communities` and `/centrality` read the sweep's labels back (§4). The
+separation survives the change intact, because those two try the projection and
+**fall back to the in-process computation**, saying which answered — so no
+request path depends on the graph being up, and request-time traversal is still
+the Postgres CTE.
 
 ---
 
@@ -205,6 +212,9 @@ flowchart TD
     DEL --> EF["supabase/functions/embed-research<br/>Supabase.ai gte-small, 384-dim, normalised<br/>service-role only; anon gets 401"]
     EF --> RD[("public.research_documents<br/>body = the exact embedded text<br/>pgvector HNSW, cosine")]
     EF -.->|"embed failure"| PEND["embedding_status='pending'<br/>never a zero vector"]
+    DEL -.->|"OPTIONAL, only if an operator set<br/>RESEARCH_IMAGE_MODEL_PATH"| IMG["research_image_ingest<br/>CLIP ViT-B/32 over the sweep's PNGs<br/>→ 512-dim image_embedding on the SAME row"]
+    IMG --> RD
+    RD -.->|"a SEPARATE request, AFTER the document lands,<br/>so a missing migration 404s here and nowhere else"| CI[("public.research_chart_images<br/>the PNG itself, for the generator;<br/>read: LRU → JobRecord → one GET")]
     RD --> PE["modules/research_graph.persist_edges<br/>one statement per written document"]
     PE --> RE[("public.research_edges<br/>unique (src_id, dst_id, relation)")]
     BF["tools/backfill_research_rag.py<br/>replays backtest_runs + ml_runs and renders<br/>one execution_summary per CLOSED session;<br/>upserts merge-duplicates — it never<br/>selects on embedding_status"] --> EF
@@ -220,6 +230,18 @@ The rules that make the corpus trustworthy, each with its reason:
   ([`modules/research_cards.py`](../../Part2_Infrastructure/modules/research_cards.py)).
 - **`body` stores the exact text that was embedded**, so a renderer change can
   never silently invalidate stored vectors.
+- **Indexing may never fail the thing it indexes**, and the image path is
+  arranged twice over to guarantee it. The CLIP columns sit *on*
+  `research_documents`, so that half gates itself on an operator having set
+  `RESEARCH_IMAGE_MODEL_PATH` and otherwise sends no image keys at all — not
+  even nulls, because PostgREST answers 400 to a payload naming a column the
+  deployed schema has not got, and `deliver` would then dead-letter **every**
+  document on a deployment that asked for no image search. The PNG bytes go to a
+  *separate table* in a *separate request* after the document has landed, so a
+  deployment without migration `20260822110000` answers 404 there and nowhere
+  else. Nothing on either path raises: a sweep that finished is filed as a sweep
+  that finished, and each way an image can be missing, malformed or
+  unembeddable is a named state on the row.
 - **An embed outage stores `embedding_status='pending'` — never a zero
   vector**, which is equidistant from everything and would rank as "similar"
   to any query. **The backfill tool does not sweep those rows.** It never
@@ -276,15 +298,25 @@ The rules that make the corpus trustworthy, each with its reason:
   backfill is run and not before. The diagram above shows it on the backfill
   arm for that reason, not on the live one.
 
-Retrieval (three fused arms — pgvector, Postgres FTS, Okapi BM25 in
-[`modules/research_bm25.py`](../../Part2_Infrastructure/modules/research_bm25.py) —
-then the optional ONNX cross-encoder re-ranker and the optional Gemini
-generation stage) is the README's subject, not this document's: see
-[§RAG & ML](../../Part2_Infrastructure/README.md#rag--ml). The absence
-behaviour is the part that belongs here: no `RERANK_MODEL_PATH` means the RRF
-order stands and `rerank_state` says why; no `GEMINI_API_KEY` means every
-`/api/research/rag/ask` answers `verdict: refused` with the reason, and the
-desk runs exactly as before. The surfaces are
+Retrieval — up to **five** fused arms, all at RRF k = 60: pgvector, Postgres
+FTS, Okapi BM25 in
+[`modules/research_bm25.py`](../../Part2_Infrastructure/modules/research_bm25.py),
+the optional CLIP image arm in
+[`modules/research_image_arm.py`](../../Part2_Infrastructure/modules/research_image_arm.py),
+and the graph walk fused one stage later in the router's execution — then the
+optional ONNX cross-encoder re-ranker and the optional Gemini generation stage.
+The mechanism is the README's subject, not this document's: see
+[§RAG & ML](../../Part2_Infrastructure/README.md#rag--ml). The absence behaviour
+is the part that belongs here, and every one of these is a *named* state rather
+than a silence: no `RERANK_MODEL_PATH` means the RRF order stands and
+`rerank_state` says why; no `RESEARCH_IMAGE_MODEL_PATH` means the image arm does
+not run, `search`'s `image` report says why, and the ordering is byte-for-byte
+the three-arm ordering, because that arm only ever *adds* a document; no
+`GEMINI_API_KEY` means every `/api/research/rag/ask` answers `verdict: refused`
+with the reason, and the desk runs exactly as before. A chart the generator
+cannot reach the pixels of is likewise a named state — `image_absent`,
+`job_not_retained`, `image_not_stored`, `image_store_unreachable` — never an
+answer that quietly claims to have seen a chart it was not sent. The surfaces are
 `POST /api/research/rag/search`, `POST /api/research/rag/ask`,
 `GET /api/research/rag/status`, `GET /api/research/graph/communities` and
 `GET /api/research/graph/centrality`
@@ -410,11 +442,15 @@ partition of nothing, `detected: True` with zero communities.
 | Automatic replay of a dead-lettered document | **NOT BUILT** — the book is in-memory, bounded and inspectable through `status()`; nothing re-submits from it |
 | Edge pruning in the reconcile sweep | **NOT BUILT** — rows are never deleted; the rule distinguishing "no longer true" from "not re-derived" is unwritten |
 | `chart_docs` reconcile scope | declared, **unscheduled and unimplemented** — no entry point exists on `research_reconcile`; stale chart text is honestly not assessable |
-| Multimodal / image embedding | **NOT BUILT** — charts are embedded as the text of their own figures; there is no vision model in this path |
+| Multimodal / image embedding | **Built, optional, off by default.** A chart's PNG is embedded by a local CLIP `ViT-B/32` pair into a 512-dim `image_embedding` column and ranked as a fourth arm; the computed-description index is unchanged and remains the default, because the arm measured 0.671 nDCG@3 alone against descriptions' 0.687 and only earns its keep in fusion (+0.06). Needs `RESEARCH_IMAGE_MODEL_PATH` and migration `20260822100000`; unset, the write path sends the row it sent before the module existed |
+| Multimodal generation (the chart shown to the model) | **Built, optional.** `research_generate_vision.py` attaches a chart document's PNG to the Gemini call as evidence, never a source; ≤2 images, ≤2 MB each, 45 s budget against text's 20 s. Every "no image" outcome is a named state |
+| Durable home for the chart pixels | **Built, with one debt.** `research_chart_images` (migration `20260822110000`) means a chart survives a restart, a Celery worker and a second replica, where the path used to answer `job_not_retained`. The debt: its PostgREST GET is synchronous and runs on the event loop's thread, bounded at 1,200 ms behind an LRU the write path warms — the one owed line is `documents = await hydrate(documents)` in `research_generate.generate`. `supabase/apply_all.generated.sql` also does **not yet carry** that migration |
+| A backfill for pre-migration chart rows | **NOT BUILT** — rows written before `20260822110000` report `image_not_stored` with re-indexing the run named as the fix; no tool re-stores them |
 | Neo4j on the request path | **partly** — `/communities` and `/centrality` read the sweep's labels back and fall back to the in-process computation, saying which answered (`source`); request-time *traversal* is still the Postgres CTE, and no request path depends on the graph being up. The algorithms are not run inside Neo4j: GDS is not on Aura Free and cannot be installed in CI |
 | `/api/research/rag/ask` in the UI | **no consumer** — the workspace proxies `/search` only; `/ask` is reachable, contract-pinned and auth-covered, but nothing in `web/` calls it |
 | RLS on `research_documents` | **still bypassed** — the gateway reads with the service-role key and the writer sets no `user_id`. What landed is an optional `filter_desk_id` predicate on both retrieval RPCs, off by default, refusing rather than reading wide when it is on and cannot be applied |
-| The re-ranker's real ONNX weights in CI | **NOT RUN** — they would have to be downloaded and this suite is network-free by construction; the ONNX path is exercised through a fake cross-encoder at the import seam |
+| The re-ranker's real ONNX weights in CI | **NOT RUN on a push** — they would have to be downloaded and the default suite is network-free by construction; the ONNX path is exercised through a fake cross-encoder at the import seam. CI's opt-in `rerank-real` job (`workflow_dispatch`, or a PR labelled `rerank`) seeds them and runs eight cases against the real model |
+| The image arm's retrieval bench in CI | **NOT WIRED** — `tools/bench_image_retrieval.py` is an executable entry point with its corpus, answer key, metrics and degrade paths under test, and nothing runs it on a push; it wants the `rerank-real` treatment |
 | Supabase absent | mirror and corpus writes are no-ops; retrieval returns typed `unavailable`, never `[]` |
 | Gemini absent | `/api/research/rag/ask` answers `verdict: refused` with the reason |
 | Re-ranker absent | RRF order stands; `rerank_state` says why |

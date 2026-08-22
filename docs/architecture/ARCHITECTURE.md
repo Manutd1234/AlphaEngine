@@ -161,11 +161,17 @@ browser — because neither runtime can call the other; parity fixtures make a
 one-sided formula change fail the other side's suite. The pre-trade arithmetic
 exists a third time in C++. README §12 is the full parity argument.
 
-Test truth, from `web/lib/test-counts.generated.ts` (generated 2026-08-21, the
-only file allowed to carry these numbers): gateway **2,028 passed and exactly
-one skipped** (the skip is the Postgres data-ops backend reporting no Supabase
-credentials — expected; a *second* skip means the venv is the wrong Python, per
-CLAUDE.md), web **3,900 tests across 839 suites**, service **14**.
+Test truth is deliberately **not** restated here. `web/lib/test-counts.generated.ts`
+is the only file allowed to carry those numbers, and
+[`TESTING.md` §"The counts, and why they are generated"](../testing/TESTING.md)
+is the one document that explains them — including the two facts that make a
+single figure misleading on its own: the gateway suite has two correct pass
+counts depending on whether the cross-encoder weights are seeded, and the
+committed web figure is a dated measurement that goes stale the moment a suite
+is added (it is stale as this is written). An architecture document quoting a
+count is how five files drifted together last time, so this one links instead.
+The discipline in one line: read the skip **reasons**, not the pass count —
+[`WORKFLOW.md` §2](../planning/WORKFLOW.md) is the short version.
 
 ## The desk workspace — eight tabs
 
@@ -203,8 +209,14 @@ so it cannot block, cannot raise past its own frame, and on a full queue
 *counts the drop* rather than waiting. A mirror that can slow an order down has
 become load-bearing; this one is structurally incapable of it. Second, the
 **RAG corpus**: `public.research_documents` under a 384-dim pgvector HNSW
-cosine index, written through the same bounded-queue discipline **and now the
-same delivery discipline**. The queue always matched the mirror's — `put_nowait`,
+cosine index — plus, on a deployment that has opted in, a second 512-dim
+`image_embedding` column carrying a chart's *pixels* through CLIP, and a
+`research_chart_images` side table holding the PNG itself so the generator can
+show it to the model after the process that drew it is gone. The side table
+exists rather than a column precisely so no retrieval projection can ever name
+those bytes, and so a deployment that has not run the migration answers 404 to
+the image write and nowhere else. The corpus is written through the same
+bounded-queue discipline **and now the same delivery discipline**. The queue always matched the mirror's — `put_nowait`,
 drop and count, never blocking a caller — but for a while only the queue did:
 the drain made one delivery attempt and discarded, where the mirror retried
 three times with backoff. `modules/research_ingest_delivery.py` closes that
@@ -218,7 +230,7 @@ durable replay queue** — replaying a dead letter is still
 `tools/backfill_research_rag.py`'s job. RLS on this corpus is **still
 bypassed** (the gateway reads with the service-role key); what landed instead
 is an optional `filter_desk_id` predicate on both retrieval RPCs, described
-under the pipeline below. Tables are append-only by trigger; the 33 ordered
+under the pipeline below. Tables are append-only by trigger; the 35 ordered
 migrations live in [`supabase/migrations/`](../../supabase/migrations/). With no
 `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` configured every mirror method is a
 no-op and every RAG route returns a typed `unavailable` — which is what keeps
@@ -278,11 +290,12 @@ flowchart TB
         sources --> cards --> writer --> embed --> corpus
     end
 
-    subgraph s2["Stage 2 — retrieval, four arms"]
+    subgraph s2["Stage 2 — retrieval, five arms at one k"]
         rpc["match_research_documents_hybrid RPC:<br/>dense cosine + FTS ts_rank_cd,<br/>fused by RRF, k = 60;<br/>optional filter_desk_id predicate"]
         bm25["research_bm25.py — third arm<br/>Okapi BM25 k1=1.2 b=0.75,<br/>re-fused at the same k = 60"]
-        gwalk["traverse_research_graph CTE — fourth arm<br/>research_graph_fusion.fuse_graph_matches<br/>joins the walk in at the same k = 60"]
-        rpc --> bm25 --> gwalk
+        imgarm["research_image_arm.py — fourth arm, OPTIONAL<br/>match_research_document_images over<br/>CLIP image_embedding; can ADD a document"]
+        gwalk["traverse_research_graph CTE — fifth arm,<br/>joined in stage 3 by<br/>research_graph_fusion.fuse_graph_matches"]
+        rpc --> bm25 --> imgarm --> gwalk
     end
 
     subgraph s3["Stage 3 — orchestration (built, not LangGraph)"]
@@ -291,13 +304,15 @@ flowchart TB
     end
 
     subgraph s4["Stage 4 — re-rank (OPTIONAL) + CRAG grading"]
-        rerank["research_rerank.py<br/>BGE cross-encoder, ONNX, CPU-only:<br/>widen ×4 (floor 20, ceiling 60), keep top 3,<br/>off the event loop, behind a bulkhead"]
+        rerank["research_rerank.py<br/>BGE cross-encoder, ONNX, CPU-only:<br/>widen ×4 (floor 20, ceiling 60), keep top 3,<br/>off the loop behind a ONE-slot bulkhead"]
         grade["research_crag.py + research_crag_policy.py<br/>≥ 0.8 answer · 0.4–0.8 rewrite once,<br/>then answer or REFUSE · < 0.4 refuse"]
         rerank --> grade
     end
 
     subgraph s5["Stage 5 — fenced generation (OPTIONAL)"]
         generate["research_generate.py + _prompt + _figures<br/>Gemini via google-genai; five fences,<br/>four of which refuse in code"]
+        vision["research_generate_vision.py + research_image_store<br/>the chart PNG attached as EVIDENCE, never a source;<br/>45 s budget, ≤2 images, every absence a named state"]
+        generate --- vision
     end
 
     corpus --> rpc
@@ -318,7 +333,16 @@ Stage by stage, with what each refuses to do:
    incidents. `body` stores the exact embedded text, so a renderer change can
    never silently invalidate stored vectors. An embed outage stores
    `embedding_status='pending'` — **never a zero vector**, which is equidistant
-   from everything and would rank as "similar" to any query. The drain is
+   from everything and would rank as "similar" to any query. On an
+   image-configured deployment the same pass embeds the sweep's PNGs: the
+   `equity_curve` chart document gets `equity_curve_png`, the *run card* gets
+   `heatmap_png` (no `ChartDoc` describes a Sharpe surface, so the picture is
+   the only thing that can answer "a broad stable plateau or one lucky cell"),
+   and the drawdown, walk-forward and gate-ladder documents get **nothing**
+   rather than being pointed at a picture that is not of them. Indexing never
+   fails the thing it indexes: every way an image can be missing, malformed or
+   unembeddable is a named state on the row, and the sweep is filed regardless.
+   The drain is
    supervised: one document at a time inside a broad guard (so a poisoned
    response dead-letters that document instead of killing the loop), three
    delivery attempts on the mirror's backoff curve, a bounded dead-letter book
@@ -335,8 +359,9 @@ Stage by stage, with what each refuses to do:
    Reciprocal Rank Fusion at `k = 60`
    (`supabase/migrations/20260810090000_hybrid_research_search.sql`); the BM25
    arm re-scores only the survivors and re-fuses at the same k, and the graph
-   walk now joins as a **fourth arm** through
-   `research_graph_fusion.fuse_graph_matches` at that same k — because an arm
+   walk joins as a **fifth ranking** — one stage later than the four inside
+   `search`, in the router's execution — through
+   `research_graph_fusion.fuse_graph_matches`, at that same k, because an arm
    joining on a different constant is a second fusion wearing the first one's
    name. The graph rank is *position* in the traversal, not a function of depth:
    "a two-hop document is half as relevant" is a number nobody measured. Rows
@@ -347,6 +372,23 @@ Stage by stage, with what each refuses to do:
    is taken, so a scoped rank is a rank among rows the caller was allowed rather
    than "rank 4 of everybody"; null means unscoped, never "rows whose owner is
    null".
+
+   The **image arm** (`modules/research_image_arm.py`) is the fourth ranking
+   inside `search` itself and is *optional*: with `RESEARCH_IMAGE_MODEL_PATH`
+   set, the question is embedded by the **text** half of the CLIP pair —
+   deliberately not by gte-small, because handing a 384-dim vector to a 512-dim
+   column would either error or, far worse, rank by an accident of two unrelated
+   coordinate systems — and `match_research_document_images` ranks the
+   `image_embedding` column. It joins at the same k = 60 and it is the one arm
+   that can **add** a document rather than only reorder: a row only the picture
+   found is appended carrying `image_rank` and `image_similarity`, with
+   `similarity` left `None` rather than 0, because it has no gte-small
+   similarity to this query and a 0 would read as "measured, and terrible".
+   There is deliberately no similarity floor on it — `RAG_MIN_SIMILARITY` = 0.76
+   was measured against gte-small's compressed range, CLIP cosines live far
+   lower, and inventing a CLIP number would be exactly the unmeasured constant
+   this tree refuses. The **graph walk** is the fifth ranking and joins one stage
+   later, in the router's execution, at that same k.
 3. **Orchestration** — *built, not LangGraph* (`modules/research_router.py`,
    `research_router_calls.py`, `research_router_exec.py`): a deterministic
    rule-based planner picks from a closed four-tool registry — `hybrid_search`,
@@ -368,8 +410,18 @@ Stage by stage, with what each refuses to do:
    set, retrieval widens by a genuine multiple (`wide()`: ×4, floored at
    `RERANK_CANDIDATES` = 20 and ceilinged at 60, and never below what the caller
    asked for) and the cross-encoder keeps the top 3, through `asyncio.to_thread`
-   behind a two-slot bulkhead (`modules/research_stages.py`) because this event
-   loop also serves pre-trade risk, whose budget is microseconds. The graph arm
+   behind a **one-slot** bulkhead (`modules/research_stages.py`) because this
+   event loop also serves pre-trade risk, whose budget is microseconds. One slot,
+   not two, and the number is measured rather than argued: `asyncio.to_thread`
+   occupies one thread, but onnxruntime's intra-op pool then spreads that single
+   re-rank across ~9 of an 18-core box, so an executor *worker* was never the
+   scarce resource. Two simultaneous re-ranks measured 1.30–1.37× the throughput
+   for 1.46–1.54× the latency on **every** request and double the CPU claim
+   against the plane that may not wait; on a deployment container of a handful of
+   vCPUs the second slot buys nothing at all. The module states the real lever it
+   is not taking — `TextCrossEncoder(threads=…)`, which halved CPU for no
+   wall-clock cost on one machine and is therefore owed on the deployment box
+   rather than guessed in the tree. The graph arm
    has its **own** width now — nothing narrows it, so every row it asks for is a
    row the caller is served. Then `modules/research_crag.py` grades
    (`ANSWER_BAND = 0.8`, `REFUSE_BAND = 0.4`): deterministic arithmetic over
@@ -396,6 +448,24 @@ Stage by stage, with what each refuses to do:
    a refusal that fired after the call still spent the money and still gets its
    row.
 
+   **The chart now reaches the model** (`modules/research_generate_vision.py`).
+   `settings.gemini_model` is `gemini-2.5-flash`, which is natively multimodal,
+   so a chart document's PNG is attached beside the document it belongs to. An
+   image is **evidence, never a source**: the document text is still the thing
+   that gets cited, the image is named to the model by that document's id
+   through a `[chart:<id>]` protocol, and `research_generate_figures` refuses a
+   marker naming a document whose image was not actually sent — without that
+   check the marker would be a way to buy an exemption from the figure fence by
+   labelling an invented number. At most two images travel with one call, each
+   under a 2 MB ceiling; the text budget stays 20 s and a call carrying images
+   gets 45 s, because that is what it measured (two live calls at 20.6 s and
+   29.9 s with `thinking_budget=0`). Every way this can end in "no image" is a
+   **named state** rather than a silent text-only call — `chart_not_rendered` is
+   a gap in what the desk draws, `job_not_retained` a restart,
+   `image_too_large` a bound, `model_declines_images` configuration — because a
+   reader cannot tell from the prose whether "the chart shows" was written over
+   a call that carried a chart.
+
 **The bound in front of `/ask`** (`modules/research_quota.py`,
 `research_quota_gate.py`): a token bucket — the gateway's own
 `risk_proxy.rate_limit.TokenBucket`, imported rather than reinvented — plus a
@@ -420,11 +490,13 @@ state, not a failure, and each one names itself:
 | 1 · Ingestion | `SUPABASE_URL` + service-role key | every write is a no-op; search returns typed `unavailable`, never `[]` — "could not search" and "found nothing" are different facts |
 | 2 · Dense + FTS | the same Supabase | as above — one switch for the whole corpus |
 | 2 · BM25 arm | nothing (in-tree, pure Python) | not optional; but when it cannot discriminate, the two-arm order stands unchanged and the report names the reason — declining is not failing |
+| 2 · Image arm | `RESEARCH_IMAGE_MODEL_PATH` + the CLIP pair on disk (~0.6 GB) + migration `20260822100000` | the arm does not run and `search`'s `image` report says why; the three-arm ordering is byte-for-byte what it was, because this arm only ever adds |
 | 2 · Graph arm | nothing (Postgres CTE) | the fusion declines in the BM25 arm's report shape (`ranked: false` + a named reason) and the retrieved rows survive unchanged — a walk that returned rows and a walk whose rows were never ranked in stay distinguishable |
 | 3 · Orchestration | nothing | always on; `structured_runs` reports `unavailable` with no audit store rather than answering zero |
 | 4 · Re-rank | `RERANK_MODEL_PATH` + `requirements-rerank.txt` | RRF order passes through untouched, retrieval stays at the caller's width, `rerank_state` says why, and the grader's fifth signal is simply not read |
 | 4 · CRAG | nothing | always on — it is the policy over retrieval, not an extra |
 | 5 · Generation | `GEMINI_API_KEY` + `requirements-genai.txt` | every answer reports `verdict: refused` with the reason; the spend bound is inert; the desk runs exactly as before |
+| 5 · Chart attachment | a chart document whose PNG is reachable — the job record in this process, the in-process LRU, or the `research_chart_images` row from migration `20260822110000` | the answer is generated from text alone and the report carries the named reason the image was absent; no answer ever claims to have seen a chart it was not sent |
 
 ## The Telegram companion
 
@@ -441,12 +513,67 @@ a placeholder captioned as data. The command tables in README §6 are generated
 from the registry by `tools/telegram_catalogue.py` — never edited by hand — so
 the counts above cannot drift from what the bot dispatches without a red check.
 
-## Not built, and said plainly
+## Not built, and said plainly — and one entry that stopped being true
 
-- **Multimodal generation is NOT BUILT.** No image is embedded and there is no
-  vision model anywhere in the research path: a chart document is retrievable
-  by the text describing the figures that drew it, because the Edge runtime's
-  embedding session takes no image.
+The first bullet is the one worth reading twice. This list's whole job is that a
+gap is never rounded up to "planned"; the mirror of that rule is that a gap
+which has been *closed* is never left standing because the sentence still reads
+well. The multimodal entry is the second case, and it is kept in place with its
+own history rather than quietly deleted.
+
+- **Multimodal is now BUILT, in both halves, and both are OFF by default.**
+  This entry read "NOT BUILT" until 2026-08-22 and the correction is a change to
+  the tree, not a softening of the prose. Two different capabilities were being
+  conflated under one word, which is how the whole thing stayed written off:
+  - *Embedding* a chart's pixels so a query can retrieve it. The **Edge runtime
+    constraint still stands** — `Supabase.ai.Session` exposes `gte-small` and
+    nothing in its inference API takes an image — so this does not run in the
+    edge function. It runs **in the gateway**: `modules/research_image.py` holds
+    the CLIP `ViT-B/32` pair, `research_image_ingest.py` embeds a chart's PNG at
+    ingest into a 512-dim `image_embedding` column
+    (`20260822100000_research_image_embedding.sql`), and
+    `research_image_arm.py` ranks it as the fourth arm above.
+  - *Generation* over the chart — showing the model the picture while it answers
+    — was never blocked by anything and simply was not wired.
+    `research_generate_vision.py` wires it, and it was measured against the real
+    key on an equity curve with a −34 % drawdown injected at bars 220–300: the
+    model read the injection back off the pixels rather than off any sentence.
+- **The image arm does not beat the description arm, and that is measured, not
+  hedged.** `tools/bench_image_retrieval.py` — seven charts drawn by the desk's
+  own `modules/backtester/plots.py`, nine queries, six corpus draws, macOS
+  arm64, fastembed 0.7.4, 2026-08-22 — puts CLIP alone at nDCG@3 0.671 against
+  the description arm's 0.687, inside the noise between two draws of one corpus.
+  **Fused** it is worth +0.06 nDCG@3 over descriptions (0.747), ahead of both
+  arms on five draws of six. It is also confidently wrong in a named way: it
+  ranks the *same* Sharpe heatmap first for both "broad plateau" and "isolated
+  peak", the two queries it should have been best at. So the default stays off,
+  ~0.6 GB of weights and a forward pass per chart are not bought by +0.06 on a
+  seven-document corpus, and `modules/research_chartdoc.py`'s argument — a
+  computed sentence is *exact* where a vision model is approximate — is
+  unweakened. What the picture genuinely earns is questions about a curve's
+  **shape or scale**, and nothing else. The bench is **not wired into CI**:
+  `.github/workflows/ci.yml` already caches weights for `tools/bench_rerank.py`
+  and this bench wants the same treatment, which nobody has added yet.
+- **The durable chart store has one blocking call, written down rather than
+  hidden.** Until 2026-08-22 the vision path resolved a chart's bytes only
+  through the finished `JobRecord` in *this* process, so with `REDIS_URL` set,
+  after a restart, or on a replica that did not serve the sweep, it answered
+  `job_not_retained` — the feature worked on a laptop and was absent on every
+  deployment that scales. `research_chart_images` (migration
+  `20260822110000`) closes that with a side table, read in the order in-process
+  LRU → `JobRecord` → one PostgREST GET. That GET is synchronous and runs on the
+  event loop's thread, because `resolve` is synchronous and the only place that
+  could await a hydration step is `research_generate.generate`. The end state is
+  one line there (`documents = await hydrate(documents)`) and it is **owed**;
+  meanwhile the stall is bounded on three sides (a 1,200 ms timeout that 0
+  disables outright, an LRU so it is paid once per chart per process, and the
+  write path warming that LRU so an ingesting gateway never fetches at all).
+  Two further gaps are named and not closed: `supabase/apply_all.generated.sql`
+  does **not yet carry** `20260822110000`, so the bundle must be regenerated
+  (`python3 tools/bundle_migrations.py`) before that migration reaches a
+  paste-the-bundle deployment; and rows written before the migration report
+  `image_not_stored` with re-indexing named as the fix, because no backfill tool
+  was written for them.
 - **The community and centrality reports now read Neo4j; nothing else does.**
   Those two routes try the projection first and fall back to the in-process
   networkx computation, saying which answered. Request-time *traversal* still
@@ -460,11 +587,18 @@ the counts above cannot drift from what the bot dispatches without a red check.
   them — but nothing emits one in process, because that needs a hook at the
   session-rollover site in `modules/risk_proxy/`. On a running desk the
   summaries appear when the backfill is run and not before.
-- **The re-ranker's ONNX weights do not run in CI.** `BAAI/bge-reranker-base`
-  would have to be downloaded and this suite is network-free by construction
-  (`tests/conftest.py` blanks `RERANK_MODEL_PATH` deliberately). What CI proves
-  is the wiring and the arithmetic around the model, through a fake
-  cross-encoder at the import seam — not the model.
+- **The re-ranker's ONNX weights do not run in CI — but the opt-in is real and
+  has been run.** `BAAI/bge-reranker-base` would have to be downloaded and this
+  suite is network-free by construction (`tests/conftest.py` blanks
+  `RERANK_MODEL_PATH` by *assignment*, so an exported shell variable cannot
+  smuggle it in). What CI proves is the wiring and the arithmetic around the
+  model, through a fake cross-encoder at the import seam. Seed the weights with
+  `tools/bench_rerank.py --seed --model-path DIR` (1.05 GiB) and
+  `tests/test_research_rerank_real.py` runs **eight cases green** against the
+  real cross-encoder — verified, not theoretical. The equivalent hole is still
+  open one arm along: conftest does **not** blank `RESEARCH_IMAGE_MODEL_PATH`
+  the way it blanks `RERANK_MODEL_PATH`, so a developer who has seeded the
+  ~0.6 GB CLIP pair can have unrelated suites load it through `search`.
 - **RLS on the research corpus is still bypassed** and the tenant scope is
   per-desk, not per-user. The gateway reads with the service-role key and the
   writer sets no `user_id`; what landed is the `filter_desk_id` predicate the
@@ -490,6 +624,7 @@ the counts above cannot drift from what the bot dispatches without a red check.
 | Why is the decision µs and the core ns? | [`docs/architecture/LATENCY_BUDGET.md`](LATENCY_BUDGET.md) |
 | Where does data-ops state live? | [`docs/architecture/DATA_OPS_BACKEND.md`](DATA_OPS_BACKEND.md) |
 | How does the TLS hop work? | [`docs/engineering/TLS_FLIP.md`](../engineering/TLS_FLIP.md) |
+| The institutional argument, end to end | [`docs/whitepaper/`](../whitepaper/) — Typst source, compiled to PDF; it replaces the legacy `AlphaEngine_Project_Explainer.pdf` |
 | Everything, at length | [`Part2_Infrastructure/README.md`](../../Part2_Infrastructure/README.md) |
 | What agents get wrong | [`CLAUDE.md`](../../CLAUDE.md) |
 | The workspace in detail | [`Part2_Infrastructure/web/README.md`](../../Part2_Infrastructure/web/README.md) |

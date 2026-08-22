@@ -89,23 +89,46 @@ reason, never a 500 (`tests/test_research.py`); the one expected pytest skip
 (`tests/test_data_ops_postgrest.py`) *says* which credentials were absent; an
 empty panel says it is empty rather than rendering as though still loading.
 
-**NOT BUILT**, stated plainly because this document would otherwise imply it:
-multimodal generation. The only place a model writes prose a trader acts on is
-`research_generate`, and it produces grounded text only — it quotes figures
-from supplied documents and never computes, draws or renders anything. The
-reason it waits is a runtime fact, not a plan: the Supabase Edge runtime's
-`Supabase.ai.Session` exposes `gte-small` for text and nothing in its inference
-API takes an image, so there is no vision model to call.
+**This paragraph used to say multimodal generation was NOT BUILT, and it is now
+the standards document's own worked example of the rule it teaches.** The gap
+was real when written; it was closed on 2026-08-22 by building the thing, and
+the correct edit is therefore to *state what shipped*, not to leave a plausible
+sentence standing. `research_generate` still produces grounded text only and
+still quotes figures rather than computing them — but `research_generate_vision`
+now attaches the chart PNG to the call, and the discipline that made that safe
+is worth reading as an example: an image is **evidence, never a source**; it is
+named to the model by the id of the document it belongs to; the figure fence
+refuses a `[chart:<id>]` marker naming a document whose image was not actually
+sent, because without that check the marker would be a way to buy an exemption
+from the fence by labelling an invented number; and every way the path can end
+in "no image" is a **named state** rather than a silent text-only call, because
+a reader cannot tell from the prose whether "the chart shows" was written over a
+call that carried a chart. One claim in the old paragraph is still exactly true
+and is kept: the Supabase Edge runtime's `Supabase.ai.Session` exposes
+`gte-small` and nothing in its inference API takes an image. What changed is
+where the vision model runs — in the gateway, not the edge function.
 
-**Also NOT BUILT, and named for the same reason:** the real cross-encoder never
-runs in CI (the weights would need a download and the suite is network-free by
-construction), `execution_summary` documents have no in-process producer (only
-the backfill tool emits them), nothing re-embeds the corpus's `pending` rows
-(no query selects on `embedding_status`), and RLS on `research_documents` is
-still bypassed — what landed is an optional `filter_desk_id` predicate on the
+**Still NOT BUILT, or built and off, and named for the same reason:** the real
+cross-encoder does not run in CI on a push (the weights would need a download
+and the default suite is network-free by construction — CI's opt-in
+`rerank-real` job runs it on request, and eight cases pass against the real
+model); the CLIP image retrieval arm is built but **off by default**, because it
+measured 0.671 nDCG@3 alone against the computed description's 0.687 and only
+earns +0.06 in fusion — a price, stated with its number, not an aspiration;
+`tools/bench_image_retrieval.py` is not wired into CI; `tests/conftest.py` does
+not blank `RESEARCH_IMAGE_MODEL_PATH` the way it blanks `RERANK_MODEL_PATH`;
+`supabase/apply_all.generated.sql` does not yet carry
+`20260822110000_research_chart_images.sql`; the durable chart store's PostgREST
+GET still runs on the event loop's thread with the fix written down as one owed
+line; `execution_summary` documents have no in-process producer (only the
+backfill tool emits them); nothing re-embeds the corpus's `pending` rows (no
+query selects on `embedding_status`); and RLS on `research_documents` is still
+bypassed — what landed is an optional `filter_desk_id` predicate on the
 retrieval RPCs, off by default. Each is written where the code is as well as
-here; the rule this document enforces is that a gap is never rounded up to
-"planned".
+here, and collected in [`PLAN.md` §2](../planning/PLAN.md); the rule this
+document enforces is that a gap is never rounded up to "planned" — and its
+mirror image, that a gap which has been closed is never left standing as prose
+because the sentence still reads well.
 
 ## 3. UI typography: no emoji, no colour-only meaning, no middle dot as a word
 
@@ -125,6 +148,53 @@ here; the rule this document enforces is that a gap is never rounded up to
 - Type sizes read the `--fs-*` ladder in `globals.css`, never a literal
   (`type-scale.test.ts`); `prefers-reduced-motion` is respected everywhere
   (`motion.test.ts`, and JS animators check the query themselves).
+- **The saturated accent has a budget, and it belongs to controls that
+  commit.** `--series-1` filled is the desk's loudest statement, reserved for
+  Send order, Sign in, Promote strategy, Retry connection. It had also been
+  given to `.seg button[aria-pressed="true"]` — the *selected* state of a
+  segmented control — and twenty-two components render a `.seg`, so choosing a
+  log level or a blotter filter shouted in exactly the voice reserved for
+  submitting an order, on all eight tabs. Emphasis that is everywhere carries
+  nothing. One exception is deliberate and is asserted as hard as the rule: the
+  order ticket's BUY/SELL picker keeps it, because quieting the base rule alone
+  would have made the control deciding *which direction an order goes* exactly
+  as loud as a filter, on the one screen where misreading it sends a wrong-way
+  trade. Held by `accent-budget.test.ts`.
+- **No chrome metric may follow selection.** The three controls a reader might
+  call "subtabs" — the eight role tabs (`.workspace-tabs`), the section rail
+  (`.workspace-subtabs`) and the in-panel pane switcher (`.seg`) — declare one
+  metric set each, and no size, padding, border or inset varies with selection,
+  hover, focus or a variant class. A control that grows when pressed moves
+  everything beside it, which reads as the page twitching rather than as
+  feedback. Two structural corollaries the suites enforce alongside it: each
+  box is declared in **one** place, and the assertion is made against the
+  *concatenated cascade* rather than one partial. Both come from the same
+  incident — the rail was sized in four partials at once (06, 07, 12 and 15),
+  three of which lost silently on specificity in files whose comments described
+  them as live. Nothing was wrong on screen at any instant, and no reader could
+  tell which number was real. Held by `tab-chrome-metrics.test.ts`, with
+  `seg-metrics.test.ts` the deeper suite on `.seg`.
+
+### Four conventions this document does NOT settle, and should not pretend to
+
+A standards document that names only its settled rules implies everything else
+is a matter of taste, which is how a tree ends up with two dialects and no
+record of the split. These four were each surveyed across the whole workspace on
+2026-08-22 by the tab sweeps, found genuinely divided, and left alone on purpose
+— because a unilateral fix in one tab converts a tree-wide split into a tab-wide
+oddity, which is worse. Each needs one decision applied everywhere, not eight.
+
+| Split | The count | Why it was not fixed locally |
+|---|---|---|
+| `412 ms` versus `412ms` | 29 spaced against 37 unspaced across `components/` and `lib/` | Roughly even, and it correlates with context rather than with tab — the compact form sits in narrow numeric table columns and dimension expressions, the spaced form in prose. Consistent *by context*, both unambiguous; settling it belongs to whoever owns `lib/format`'s contract. |
+| Rail labels: Title Case versus sentence case | `RISK_SECTIONS` is sentence case ("VaR & model", "Risk drivers"); `DATA_SECTIONS` and `RELIABILITY_SECTIONS` are Title Case ("Trust Summary", "Feeds & Contracts") | The rails read as two products side by side, and two tab headings inherit the Title Case verbatim because they repeat the rail label. The fix is one edit in `lib/sections.ts`, after which the headings follow for free. |
+| Column header "Symbol" versus "Instrument" | 5 components against 10 | Not a settled house term. In `ExposureHeatmap` "Instrument" would sit beside a "Symbol limit used" column and read worse, so even the majority spelling is not right everywhere. |
+| `aria-label` on a role-less `<div>` | four places on the Developer tab, and its twin on Data | Most assistive technology ignores an `aria-label` on a generic element, so these are inert rather than harmful. It is consistent across the tabs that do it, which makes it a shared decision — and the rule that accessibility text is never *cut* on one person's judgement outranks tidiness. |
+
+The house position on all four is the same and is worth stating as a rule in its
+own right: **an inconsistency that spans surfaces is fixed at the level it spans,
+or it is written down.** Recording it costs a paragraph; fixing half of it costs
+a second dialect and the memory of why.
 
 ## 4. British spelling — in prose and in identifiers
 
@@ -258,6 +328,19 @@ complexity-debt ledger, the four generated gates, and the count-the-skips
 rule are workflow rather than style: see
 [`docs/planning/WORKFLOW.md`](../planning/WORKFLOW.md). The test suites that
 enforce this document: `house-rules`, `motion`, `forced-colors`, `type-scale`,
-`accent-budget`, `null-honesty`, `live-motion`, `interaction`, `dead-css`,
-`header-ladder`, `decision-latency`, `middle-dot` (all under `web/tests/`),
-plus the gateway-side seam, parity and self-measure suites named above.
+`accent-budget`, `tab-chrome-metrics`, `seg-metrics`, `null-honesty`,
+`live-motion`, `interaction`, `dead-css`, `header-ladder`, `decision-latency`,
+`middle-dot` (all under `web/tests/`), plus the gateway-side seam, parity and
+self-measure suites named above.
+
+**One limit on all of the CSS-side suites above, stated because it is invisible
+from their assertions.** They read stylesheet *text* — `tests/globals-css.ts`
+concatenates the partials in import order, so a rule is judged against the
+cascade a browser would apply rather than against whichever partial declared it
+last, which is what makes the "declared in one place" rule checkable at all.
+What they cannot do is run the layout: there is no jsdom and no headless
+browser in `web/`, so a rule that is present and correct can still wrap or
+overflow at a width nobody tried. Geometry is therefore **derived, never
+observed**, and a change to it is walked by a human before it ships — see
+[`TESTING.md` §"No DOM, and therefore no layout"](../testing/TESTING.md), which
+names the surfaces currently standing on a derivation.

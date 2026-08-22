@@ -6,9 +6,13 @@ loop itself — **Overview → Research → Execution → Portfolio → Risk →
 Developer** — because that is the order a desk makes decisions in, and the workspace's tabs are
 that loop made navigable.
 
-*Walked against the deployed system on 2026-08-17; the rail lists are pinned to
-`lib/sections.ts` by `web/tests/tour-truth.test.ts`, so a rail here cannot drift from the app
-without the suite saying so.*
+*Walked against the deployed system on 2026-08-17. The panel descriptions were re-read against
+the tree on 2026-08-22, when the Remediation and API & Schema sections changed shape — those two
+are described from the source, not from a walk, and the two stamps are kept apart rather than
+merged into one flattering date. The rail lists are pinned to `lib/sections.ts` by
+`web/tests/tour-truth.test.ts`, so a rail here cannot drift from the app without the suite saying
+so; a **pane** inside a section is component state and has no such guard, which is why the pane
+lists below are the part of this document most worth distrusting.*
 
 **Live URLs.**
 - Portal: <https://alphaengine-workspace.vercel.app> (also answers on `developer-analyst-infra.vercel.app`)
@@ -131,7 +135,7 @@ the product, and its scarcity is the point. Also worth ten seconds: drag the fas
 and watch Auto re-run, then note the trail does *not* grow — auto-runs are deliberately not
 recorded, because the trail is an honest count of hypotheses, not keystrokes.
 
-**Strategies** (the last rail entry, after Runs — the section id stays `codex` because ids are
+**Strategies** (the last rail entry, after Fitted models — the section id stays `codex` because ids are
 public deep links, so the rail reads "Strategies" and the URL still says `#research/codex`):
 all 46 models in seven families, browsable before any run exists. Each card carries the summary, the first sentence of *when it fails*, and an
 explored-state chip — `●  best: PASS` versus `◌ not yet run` — derived live from this browser's
@@ -148,8 +152,10 @@ On Trade, the order ticket carries three presets — **Valid $25k** (passes ever
 the live ladder), **Fat finger $500k** (blocked by the per-order notional cap), **Rate-limit
 burst** (twelve $1k orders; the token bucket stops the tail). Fire all three. Each decision
 comes back with its full gate vector — **15 checks on any order path, with the one that failed
-named** — decided by the gateway in tens of microseconds (15 µs p50 on the compiled engine,
-23 µs on the Python reference; `docs/architecture/LATENCY_BUDGET.md` §2.1 has the regenerated table). Liquidity is the consolidated Binance+Bybit L2
+named** — decided by the gateway in tens of microseconds (**13.2 µs p50** on the compiled engine,
+**25.3 µs** on the Python reference, read off `docs/architecture/latency-bench.generated.json`,
+regenerated 2026-08-20; the budget's §2.1 carries the same block with its machine and its caveat —
+that run was unpinned on a loaded laptop, and the Python reference reads 23.1 µs on a quiet one). Liquidity is the consolidated Binance+Bybit L2
 book; click a ladder price to stage a limit order back on Trade. Routing & TCA prices the same
 order across venues against the routed execution, not the mid. **Fill quality** closes the loop
 the other three open: realised cost against the cost the model predicted, which is the only
@@ -246,8 +252,36 @@ data hash traces back to a provider, a cache state and a validation pass.
 Remediation**. Attention & SLIs is triage first and telemetry second — what needs a human, then
 the signals and the path into an incident, with error budgets. Provider circuit breakers,
 cross-origin event investigation, and guarded remediation actions (cache purge, simulated
-outage — both expire) follow. Remediation splits across **Act · Recovery · History**: what you
-can do, how a tripped circuit comes back on its own, and which ones actually tripped here.
+outage — both expire) follow. Remediation splits across five in-panel panes —
+**Mutations · Scope · Session · Recovery · History** — and the split is along one seam: what
+changes server state, what merely describes it, and what only touches this browser tab.
+**Mutations** is the default and holds everything a reader needs before pressing a button: the
+blast-radius banner, the operator guard and its token field, the last action's result, the five
+server writes with every price stated inline, and the map below. **Scope** is the reference half
+— the provider-routing donut and the counts that answer "what would a write reach in this
+instance, right now", which is a question asked *before* deciding rather than while pressing.
+**Session** is this tab's own sockets and poll cadence, and touches no server at all. Recovery is
+how a tripped circuit comes back on its own with the cooldown left; History is which ones actually
+tripped here and how each closed.
+
+**The blast-radius map is new, and it is the thing to open Remediation on.** Under the five
+mutation buttons is a drawing of what each one reaches: five server writes on the left, the seven
+stores on the right, and an arrow only where a write actually touches a store. Hover or focus a
+mutation and the rest dim. Below it the same relation is a table — 5 × 7 = **35 cells**, each
+carrying the reason it says what it says, every one read out of the write path in `lib/operator.ts`
+rather than paraphrased from the prose it replaced (two cells came out *different* from that prose
+once the code was open: `clear_telemetry` zeroes the cache counters while leaving cached responses
+in place, and `reload_providers` drops the cached OpenBB readiness verdict while leaving the
+response cache alone). Four effects, never three — `● cleared`, `→ re-read`, `○ left intact`,
+`◌ out of reach` — because the mark carries the meaning, the word repeats it, and colour is the
+third carrier and never the first.
+
+**The seventh store is the point of the drawing.** Six of them live in this instance and can be
+counted. The vendor's meter cannot: it is held by the provider, no route in this deployment reads
+it, and no button on this pane can reset it. "Reset a quota ledger" is the one control on the desk
+whose name most invites the opposite belief, so the store it does **not** touch is drawn beside
+the ones it does — dashed, with the reason attached — rather than left out. An absence a reader
+has to notice is not an absence a reader will notice.
 
 **Dependencies** is the section worth stopping on, and it answers a question the other four
 cannot: *when something breaks, how much of the desk goes with it?* It draws the topology twice.
@@ -289,23 +323,52 @@ Queue**. Topology is the runtime map and the context the three deployment units 
 **Readiness** is the gate in front of a release — launch gates, schema state and artifacts —
 and it is separate from CI / CD on purpose: a green pipeline says the code compiles and the
 tests pass, which is not the same claim as "this is safe to ship". CI / CD carries the four
-network-free jobs (**2,028 gateway + 3,900 web + 14 service tests** on 2026-08-22 — each figure is
-what its own runner prints and `web/lib/test-counts.generated.ts` is where the desk reads it
-from, so re-run rather than trust the sentence), API & Schema the committed OpenAPI contract
-with drift detection, Code & Diffs the repository manifest, Task Queue the engineering-impact
-work.
+network-free jobs and the test counts for all three suites — read off
+`web/lib/test-counts.generated.ts`, which is the only place in this system allowed to carry
+them. **Do not quote the figure this panel shows without re-running the suite**: it is a
+generated measurement with a date, not a contract, and it is behind the tree as this tour is
+written. [`TESTING.md`](../testing/TESTING.md) is the argument for why, and the one document
+that carries the conditions attached to each figure. API & Schema is the committed OpenAPI
+contract with drift detection, Code & Diffs the repository manifest, Task Queue the
+engineering-impact work.
+
+**API & Schema splits three ways — Contracts · Routes · Numerics — and Numerics is where the
+custody argument got drawn.** That card used to be a status pill and one sentence: *byte-exact,
+this browser reproduced sha256 009be58f34bb… exactly*. The digest is the end of a five-link
+chain of artefacts in this repository and none of the links were on screen, so the panel
+asserted custody and showed none. It now draws the chain as the path it is — the bootstrap that
+produces the distribution, the canonicaliser, the SHA-256, the comparison, and the committed
+reference module — using `SignalDAGViewer`'s own idiom rather than a second dialect for the same
+job. Press the button and the computing links resolve; **before you press it they all read "not
+run"**, because a row of ticks at rest would be the panel congratulating itself on a measurement
+it never took. The one thing knowable without pressing anything is whether the committed module
+is self-consistent, and the panel re-hashes it on load rather than assuming so.
+
+Three verifiers check the same claim, which is the point: the committed reference
+(`tests/mc-parity.test.ts`), this deployment's Node runtime, and the browser reading the page.
+**What is not drawn** — named because the panel now sets an expectation the neighbouring pane
+does not meet — is the *other* digest chain. The gateway OpenAPI contract has exactly this shape
+(`main.py` routes → `tools/export_openapi.py` → `tools/openapi.json` → canonicalise and SHA-256 →
+`lib/gateway-openapi-digest.generated.ts`, gated at `prebuild` and again by
+`python tools/export_openapi.py --check` in CI), and in the Contracts pane it is still a verdict
+pill with no digest visible at all. The components take a caption, a hex, a note and a mark and
+know nothing about Monte Carlo, so drawing it needs a second chain array and a caller — not new
+machinery.
 
 **The three route figures, and why they disagree without contradicting.** State the basis or a
 reader will "correct" one of them into agreement with another:
 
 | Figure | Count | Basis |
 |---|---|---|
-| Route decorators in `main.py` | **43** | 29 `@app.get` + 13 `@app.post` + 1 `@app.websocket` |
-| Operations in the OpenAPI schema | **39** | the 43 less the WebSocket, which OpenAPI does not describe, and less the three HTML routes (`/`, `/app`, `/ui`) marked `include_in_schema=False` |
-| Paths in the OpenAPI schema | **38** | the 39 operations, less one — `/api/orders` serves both `GET` and `POST`, so two operations share one path |
+| Route decorators in the tree | **60** | 3 `@app.get` left in `main.py` (the HTML routes) + 57 across the eight routers in `modules/api/` — 36 `get`, 19 `post`, 1 `patch`, 1 `websocket` |
+| Operations in the OpenAPI schema | **56** | the 60 less the WebSocket, which OpenAPI does not describe, and less the three HTML routes (`/`, `/app`, `/ui`) marked `include_in_schema=False` |
+| Paths in the OpenAPI schema | **54** | the 56 operations, less two — `/api/orders` and `/api/data/work-items` each serve `GET` and `POST`, so two operations share one path twice |
 
-Re-derive rather than trust the table: `grep -cE '^@app\.' main.py` for the first, and
-`len(paths)` against the summed verb count in `tools/openapi.json` for the other two.
+Counted 2026-08-22. The first figure moved with the split that emptied `main.py`: the routes now
+live in `modules/api/`, so `grep -cE '^@app\.' main.py` alone answers 4 (three routes and an
+exception handler) and would understate the tree by an order of magnitude. Re-derive with
+`grep -rhcE '^@(app|router)\.' main.py modules/api/*.py` for the first, and `len(paths)` against
+the summed verb count in `tools/openapi.json` for the other two.
 
 **The moment worth showing:** API & Schema's contract drift check — the portal carries a
 committed digest of the gateway's OpenAPI and compares it against the live one.
@@ -323,7 +386,7 @@ header carries a **Connect** chip. The bot is
 an auth provider: a binding runs **one way**, from a web identity to a Telegram read, and the
 bot never authenticates the website.
 
-**What the companion is, today.** 114 commands from one registry that also drives dispatch and
+**What the companion is, today.** 135 commands from one registry that also drives dispatch and
 the `/` menu (README §6 and the live checklist are generated from it, and a test fails when
 they drift); the command centre, the tab cards and the section cards carry **inline
 keyboards**, so a read is a tap rather than a typed command, taps are authorised on the tapper
@@ -388,10 +451,13 @@ this order; the list doubles as a checklist for a manual tour:
 11. Oracle ADB — the VaR persistence layer answers.
 12. Supabase — the audit-log mirror answers.
 13. RAG embed — the research-corpus embedding path answers. Retrieval behind it
-    is **four**-armed (dense pgvector, Postgres FTS, Okapi BM25 and the derived
-    edge graph's own walk — all fused by RRF at the same k=60, because an arm
-    joining on a different constant is a second fusion wearing the first one's
-    name), cross-encoder re-ranked when `RERANK_MODEL_PATH` is set, graded by
+    is **five**-armed: four always on — dense pgvector, Postgres FTS, Okapi BM25
+    and the derived edge graph's own walk — plus the optional CLIP image arm
+    over `image_embedding`, which runs only with `RESEARCH_IMAGE_MODEL_PATH`
+    set and is the one arm that can *add* a document rather than only reorder.
+    All five fuse by RRF at the same k=60, because an arm joining on a different
+    constant is a second fusion wearing the first one's name. Then
+    cross-encoder re-ranked when `RERANK_MODEL_PATH` is set, graded by
     the CRAG bands — all three of which now decide, so a middling result that
     its one rewrite does not rescue is refused rather than served — and, with a
     `GEMINI_API_KEY`, answered in prose that must cite the documents it was
@@ -428,4 +494,13 @@ scale, the moving desk, the decision chip and its three planes, the header's pri
 and larger type, the interactive Telegram companion — are recorded in the audit's closing table
 (to 2026-08-17). This tour doubles as the acceptance script: walking it end to end — once with
 motion on, once with the OS reduce-motion switch set, and once at ~1200px wide to watch the
-header fold without clipping — is the manual verification pass.*
+header fold without clipping — is the manual verification pass.
+
+That pass is not optional politeness, and one item on it is now load-bearing. The web suite has
+no DOM and no layout engine: it reads source and stylesheet text, so it can prove a rule is
+present and correct in the cascade and can prove nothing about where the pixels land
+([`TESTING.md` §"No DOM, and therefore no layout"](../testing/TESTING.md)). Three surfaces
+described above are argued rather than observed and want a human at ~1000px and ~1400px: the
+blast-radius map and the eight-column mutation matrix on Reliability → Remediation → Mutations
+(the matrix scrolls inside its own container, so the check is that the **page** does not scroll
+sideways), and the two 64-character digest rows on Developer → API & Schema → Numerics.*

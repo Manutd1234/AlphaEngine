@@ -48,17 +48,59 @@ and `tests/test_core_self_measure.py` **fail**, not skip, when
 never a quiet absence. The deliberate escape hatch is `DECISION_CORE=python`,
 set on purpose, not arrived at by forgetting the build step.
 
+## 1b. The `.env` trap: never `set -a`
+
+`Part2_Infrastructure/.env` holds the real `SUPABASE_*`, `NEO4J_*`,
+`GEMINI_API_KEY` and `RERANK_MODEL_PATH`. The obvious way to load it is the one
+that costs the hour:
+
+```bash
+set -a && . ./.env       # ← not before a test run
+```
+
+That also exports `REQUIRE_AUTH`. `tests/conftest.py` sets it with
+`os.environ.setdefault`, and **`setdefault` cannot override a variable that is
+already exported** — so the app comes up requiring auth and about **eighty tests
+fail with 401**. Nothing is broken. The shell decided the suite's policy, and
+the failure looks like a bug in the auth layer rather than like an environment
+mistake, which is why it is written down here.
+
+**Pass one variable per run instead:**
+
+```bash
+SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… venv/bin/python -m pytest tests/test_data_ops_postgrest.py
+RERANK_TEST_MODEL_PATH=/path/to/weights venv/bin/python -m pytest tests/test_research_rerank_real.py
+```
+
+Two variables are deliberately immune to this, and the difference is the point.
+`GEMINI_API_KEY` and `RERANK_MODEL_PATH` are **assigned** `""` in the conftest,
+not `setdefault`-ed, so an exported real key cannot reach `settings` and spend
+quota during a test run. Do not weaken that. `RESEARCH_IMAGE_MODEL_PATH` — the
+CLIP pair behind the image retrieval arm — has **not** been given the same
+treatment yet, and is recorded as owed in [`PLAN.md` §2.11](PLAN.md).
+[`TESTING.md`](../testing/TESTING.md) argues why the two mechanisms encode two
+different policies.
+
+---
+
 ## 2. Count the skips, not the passes
 
 The suite's health is read off the skip REASONS, because the pass count stays
-plausible under several failure modes. On a correct 3.12 venv the gateway suite
-is **2,028 passed and exactly two skipped** (the figure the tree carries, in
-[`web/lib/test-counts.generated.ts`](../../Part2_Infrastructure/web/lib/test-counts.generated.ts),
-generated 2026-08-22 — re-run the suite rather than trusting either file; the
-counts in prose have drifted before, which is why that file is generated).
+plausible under several failure modes — and because the pass count legitimately
+moves. On a correct 3.12 venv the gateway suite reads **2,036 passed and one
+skipped** with the cross-encoder weights seeded on disk, and **2,028 passed and
+two skipped** without them, which is what CI sees. Both are correct; the
+difference is one opt-in file, not a regression.
+[`web/lib/test-counts.generated.ts`](../../Part2_Infrastructure/web/lib/test-counts.generated.ts)
+(generated 2026-08-22) carries the seeded figure — 2,037 collected, 2,036
+passed, 1 skipped. Re-run the suite rather than trusting either file; the counts
+in prose have drifted before, which is why that file is generated — and its own
+web line is behind the tree as this is written, so it is not a substitute for
+running the suite either. [`TESTING.md`](../testing/TESTING.md) is the argument
+in full.
 
-Run `venv/bin/python -m pytest -rs` and read what each one says. Both expected
-skips name the thing they did not exercise, which is the whole point of them:
+Run `venv/bin/python -m pytest -rs` and read what each one says. Every expected
+skip names the thing it did not exercise, which is the whole point of them:
 
 - `tests/test_data_ops_postgrest.py` — no `SUPABASE_URL` /
   `SUPABASE_SERVICE_ROLE_KEY` in the environment, so the Postgres backend never
@@ -70,8 +112,10 @@ skips name the thing they did not exercise, which is the whole point of them:
 
 **Counting rather than reading is the trap.** This section said "exactly one
 skipped" and "a second skip is the alarm" until 2026-08-22, when the opt-in
-re-ranker test made two correct — so a count alone would now flag a healthy
-tree. The alarm is a NAMED skip that should not be there, above all the
+re-ranker test made two correct — and then, later the same day, seeding the
+weights locally made *one* correct again. It has now been wrong in both
+directions, which is as clear a case as this repository has for reading rather
+than counting. The alarm is a NAMED skip that should not be there, above all the
 vectorbt one from `tests/test_backtester.py`, which means the venv is the wrong
 Python and that engine is silently untested. A skip that disappears is worth
 the same attention: `test_data_ops_postgrest.py` going quiet means Supabase
@@ -84,8 +128,8 @@ All from `Part2_Infrastructure` unless stated; web commands from
 
 | What | Command | Notes |
 |---|---|---|
-| Gateway tests | `venv/bin/python -m pytest` | 102 `test_*.py` suites (`ls`, 2026-08-22), deterministic, no network |
-| Web tests | `npm test` | `node --test` via tsx; 3,900 tests across 839 suites as generated on 2026-08-22 |
+| Gateway tests | `venv/bin/python -m pytest` | 130 `test_*.py` suites (`ls tests/test_*.py \| wc -l`, 2026-08-22), deterministic, no network |
+| Web tests | `npm test` | `node --test` via tsx; **4,124 tests across 899 suites in 279 files**, measured 2026-08-22. Two skips, both cross-ownership debts rather than opt-ins. The committed record still reads 4,008 — refresh it, see §4.3 |
 | Service tests | `cd OpenBB_Service && python -m pytest` | own `pyproject.toml`, 14 tests |
 | Typecheck | `npm run typecheck` | `tsc --noEmit`, strict |
 | Lint | `venv/bin/python -m ruff check .` | configured in `pyproject.toml`; installed only by `requirements-dev.txt` |
@@ -150,7 +194,17 @@ cannot be asserted from *inside* the suite — a test checking the count changes
 the count — so CI checks it one step outside: the Tests step tees its log and
 `scripts/check-test-counts.mjs` compares the runner's summary line against the
 committed figure. Refresh after adding tests: `npm run counts:refresh` (or
-`--suite=web` to re-run only the web suite).
+`--suite=web` to re-run only the web suite, which keeps the committed Python
+figures).
+
+**This gate is red on the current tree**, and it is the worked example of why
+it exists: three changes landed on 2026-08-22 adding suites, none refreshed the
+module, and the committed 4,008 now faces a measured 4,124. Nothing is broken —
+the gate is doing precisely its job, which is to make "I added tests and forgot"
+a red step rather than a stale number on the Developer tab. Run
+`npm run counts:refresh -- --suite=web` and commit the result. Do not edit the
+integer: it is a `*.generated.*` file, and hand-editing one is the original
+defect the generator was written to end.
 
 **4. Gateway client.** `lib/gateway-contract.generated.ts` is typed bindings
 for the committed OpenAPI contract, produced by a bespoke ~150-line converter
@@ -185,6 +239,17 @@ someone makes things worse. The rare deliberate raise is written down in the
 ledger with its argument (see `tests/test_session_rollover.py`'s entry), which
 is the honest version of what other codebases do silently.
 
+**Two files currently have zero headroom, and the next change to either must
+pay for itself by splitting something first** (measured 2026-08-22):
+`web/components/portfolio/OracleVarPanel.tsx` at 398 lines and
+`web/components/ResearchWorkspace.tsx` at 399. Neither is on the ledger, so one
+added line puts each over the ceiling. Both are pinned to their current paths by
+several other suites — for `OracleVarPanel` that is risk-stability,
+no-dead-ends, summarised-risk, tile-anatomy and layout-stability — so a split
+has to move the guards with it rather than around them. The web ceiling scans
+`app`, `components`, `lib`, `scripts` and `tests`; documents, including this
+one, are not in it.
+
 The Python side has a twin for complexity: the `C901`/`PLR0915` per-file-ignores
 ledger in `pyproject.toml`, seeded from the offenders that existed when the
 rules were switched on, with `tests/test_complexity_debt.py` failing when an
@@ -214,7 +279,22 @@ Runtimes are pinned where the code declares them: Python 3.12 in the workflow
 a bump that missed one had CI testing a version nobody develops on). npm, not
 yarn or pnpm — `package-lock.json` and `npm ci` are what CI uses.
 
-A fifth job, `live-smoke`, is `workflow_dispatch` only and skips cleanly when
+Two further jobs are opt-in rather than on every push, and both are deliberate
+holes in the network-free rule rather than exceptions to it.
+
+**`rerank-real`** (`workflow_dispatch`, or a PR labelled `rerank`) caches the
+`BAAI/bge-reranker-base` weights keyed on the `requirements-rerank.txt` pin —
+keyed on the pin because a re-ranker that scores differently between releases
+re-orders what the desk was shown — seeds them in the one networked step in the
+file, runs the real ONNX suite against the seeded directory, then re-runs the
+default suite to prove it is still weight-free, and finally benches on the
+runner. **The equivalent job for the image arm does not exist.**
+`tools/bench_image_retrieval.py` is wired exactly the way `bench_rerank` was
+before CI adopted it — an executable entry point with its corpus, answer key,
+metrics and degrade paths under test — and wants the same treatment. It is
+recorded as owed in [`PLAN.md` §2.11](PLAN.md) rather than described as covered.
+
+**`live-smoke`** is `workflow_dispatch` only and skips cleanly when
 secrets are absent — putting a live-database probe on `pull_request` would
 trade away the network-free guarantee, since an idle Always Free ADB
 auto-stops. The other workflows split by tempo on purpose:

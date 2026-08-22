@@ -66,7 +66,7 @@ if you would rather see each step:
 cd OpenBB_Service
 python3.12 -m venv .venv            # pyproject requires >=3.12,<3.15
 .venv/bin/python -m pip install -r requirements-dev.txt
-.venv/bin/python -m pytest          # 14 passed (2026-08-20)
+.venv/bin/python -m pytest          # 14 passed (re-measured 2026-08-22)
 .venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8010
 ```
 
@@ -127,7 +127,7 @@ against a local run on 2026-08-20:
 `{"ok": false, "error": …}`. An honest case exists for a 502 instead, and this
 service keeps the 200 for one reason: *the failure is not this service's.* A
 5xx would be counted against this deployment by the web app's circuit breaker
-(`lib/providers/runtime.ts`), by `openBBReadiness`, and by any platform health
+(`web/lib/providers/runtime.ts`), by `openBBReadiness`, and by any platform health
 check — taking a healthy service out of rotation because Yahoo rate-limited a
 symbol. Choosing another data provider is a routing decision, and routing needs
 a body it can read rather than a status it has to guess from.
@@ -160,7 +160,7 @@ It is not applicable here, for three reasons:
 1. **Different consumer.** A Workspace backend serves widget definitions to
    OpenBB Workspace. This service serves JSON to AlphaEngine's Next.js adapter,
    whose route shapes are pinned by `web/lib/providers/openbb.ts` and by
-   `tests/fixtures/raw/openbb/quote.json`. Nothing renders a widget.
+   `web/tests/fixtures/raw/openbb/quote.json`. Nothing renders a widget.
 2. **It is not installed, on purpose.** `openbb-api` ships with the `openbb`
    metapackage, not with `openbb-core`; the pinned set here provides only
    `openbb-build`. `tests/test_provider.py` asserts `openbb==` is absent from
@@ -196,7 +196,10 @@ because a validator that has never seen one must not be able to reject one.
 ## Deploy independently to Vercel
 
 Create a separate Vercel project and set its Root Directory to
-`OpenBB_Service`. FastAPI is detected from `[tool.vercel].entrypoint` and the
+`Part2_Infrastructure/OpenBB_Service` — the repository root is one level above
+`Part2_Infrastructure`, which is why the gateway README's §11 spells it the same
+way. A Root Directory of `OpenBB_Service` is only correct if this directory is
+itself the repository root, which in this deliverable it is not. FastAPI is detected from `[tool.vercel].entrypoint` and the
 included `vercel.json` gives the function a 30-second ceiling. Add
 `OPENBB_API_TOKEN` as a sensitive Production and Preview environment variable,
 then deploy.

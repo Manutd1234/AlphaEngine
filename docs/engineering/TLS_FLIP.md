@@ -10,11 +10,20 @@ keeps serving throughout, so nothing breaks while the flip is partial.
 Everything below is deliberate operator action, with one exception: the
 deploy already tries to open 8443 in the *instance* firewall itself (§1).
 
-**Where the flip stands (2026-08-17).** Step 2 is done: the root is committed at
-`Part2_Infrastructure/web/certs/gateway-ca.pem` (since 2026-08-11). Step 1 is
-done: `https://149.118.48.255:8443/health` answered from outside the VM on
-2026-08-17, as did `:8000`. Steps 3–5 are operator actions outside this
-repository — verify them with §4 rather than assuming. The `reachable` job's
+**Where the flip stands (last probed 2026-08-17; repo side re-checked
+2026-08-22).** Step 2 is done: the root is committed at
+`Part2_Infrastructure/web/certs/gateway-ca.pem` (since 2026-08-11), beside a
+`README.md` saying what it is and that it is not yet load-bearing. Step 1 was
+done at the last probe: `https://149.118.48.255:8443/health` answered from
+outside the VM on 2026-08-17, as did `:8000`. Steps 3–5 are operator actions
+outside this repository and **nothing in the tree can tell you whether they have
+been made** — verify them with §4 rather than assuming, and treat the 2026-08-17
+probe as the date it was last confirmed rather than as a current reading. What
+*was* re-checked from the tree on 2026-08-22 and is unchanged: the smoke tool's
+default is still the plaintext port
+(`tools/e2e_checks/transport.py` — `E2E_GATEWAY_URL` defaults to
+`http://149.118.48.255:8000`), which is the cheapest single signal that step 5
+has not been taken. The `reachable` job's
 notice line reports only whether TCP 8443 answers from a GitHub runner; it
 cannot see the Vercel project's environment. Nothing here is load-bearing
 until step 3 is made: the workspace keeps talking to `:8000` exactly as

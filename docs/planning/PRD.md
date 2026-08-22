@@ -114,15 +114,15 @@ it waits — §6).
 |---|---|---|---|
 | 1 | Document ingestion | **Built** — five kinds in the enum. Four (`backtest_run`, `chart`, `ml_run`, `risk_incident`) are written by the live gateway path; the fifth, `execution_summary`, is produced **only by `tools/backfill_research_rag.py`** — the producer is real and tested, but it has no in-process caller (see below). Written through a bounded queue whose drain retries three times and dead-letters what never lands; `body` stores the exact embedded text | `modules/research_rag/writer.py`, `modules/research_ingest_delivery.py`, `modules/research_ingest_session.py`, `modules/research_cards.py`, migrations `20260808120400`, `20260820090600`, `20260820100700` |
 | 1 | External-document parsing | **NOT BUILT** — no PDF/OCR/table parser exists anywhere in this tree | §6 |
-| 1 | Multimodal (chart image) ingestion | **Substituted** — charts are indexed by computed descriptions, never by pixels | `modules/research_chartdoc.py` |
+| 1 | Multimodal (chart image) ingestion | **Built, optional — and the substitution still stands as the default.** A chart's PNG is embedded by CLIP `ViT-B/32` into a 512-dim `image_embedding` column at ingest, gated on an operator setting `RESEARCH_IMAGE_MODEL_PATH`; unset, the row sent is byte-for-byte the row sent before the module existed, not even nulls. The computed description remains the primary index and `research_chartdoc`'s argument is unweakened — the measured reason is in §6 | `modules/research_image.py`, `research_image_ingest.py`, `research_chartdoc.py`, migration `20260822100000` |
 | 2 | Vector search | **Built** — pgvector HNSW over gte-small (384-dim, unit-normalised), embedded by a Supabase edge function; similarity floor 0.76, measured not chosen | `modules/research_rag/retrieval.py`, `supabase/functions/embed-research/` |
-| 2 | Sparse search | **Built, twice** — `ts_rank_cd` over a generated tsvector (GIN-indexed, supplies recall) plus an in-process Okapi BM25 arm (k1=1.2, b=0.75) that re-scores candidates; all three arms fused by RRF at k=60 | `supabase/migrations/20260810090000_hybrid_research_search.sql`, `modules/research_bm25.py` |
-| 2 | Graph retrieval | **Built** — derived edges in Postgres, a recursive-CTE traverse, and an optional Neo4j projection that is now also **read back**: the community and centrality routes try Neo4j first and fall back to the in-process computation, marking `source: "neo4j"` or `"corpus"`. Louvain runs in-process on a fixed seed; **PageRank takes no seed** — networkx's is deterministic by construction, and its reproducibility comes from the canonical node order plus pinned `MAX_ITER`/`TOLERANCE`. The walk's rows are fused into the ranking at the same k = 60 as the other three arms | `modules/research_graph.py`, `research_graph_projection.py`, `research_graph_read_model.py`, `research_communities.py`, `research_graph_reads.py`, `research_graph_fusion.py` |
+| 2 | Sparse search | **Built, twice** — `ts_rank_cd` over a generated tsvector (GIN-indexed, supplies recall) plus an in-process Okapi BM25 arm (k1=1.2, b=0.75) that re-scores candidates; every arm fused by RRF at the same k=60, imported rather than restated so a further arm cannot join on a different constant | `supabase/migrations/20260810090000_hybrid_research_search.sql`, `modules/research_bm25.py` |
+| 2 | Graph retrieval | **Built** — derived edges in Postgres, a recursive-CTE traverse, and an optional Neo4j projection that is now also **read back**: the community and centrality routes try Neo4j first and fall back to the in-process computation, marking `source: "neo4j"` or `"corpus"`. Louvain runs in-process on a fixed seed; **PageRank takes no seed** — networkx's is deterministic by construction, and its reproducibility comes from the canonical node order plus pinned `MAX_ITER`/`TOLERANCE`. The walk's rows are fused into the ranking at the same k = 60 as every other arm, one stage later — in the router's execution rather than inside `search` | `modules/research_graph.py`, `research_graph_projection.py`, `research_graph_read_model.py`, `research_communities.py`, `research_graph_reads.py`, `research_graph_fusion.py` |
 | 3 | LangGraph orchestration | **Substituted** — a bounded, deterministic, audit-replayable router; LangGraph itself NOT BUILT. The bound is now enforced by the router (`bound_calls`, a named priority ladder) rather than by slicing the planner's list, so a substituted planner cannot drop the guaranteed `hybrid_search`; one correlation id stamps the plan, every tool call and the generation row | `modules/research_router.py`, `research_router_calls.py`, `research_router_exec.py`, §6 |
-| 4 | Cross-encoder re-ranking | **Built, optional** — `BAAI/bge-reranker-base` via fastembed, ONNX on CPU, off the event loop behind a two-slot bulkhead; unconfigured, the RRF order passes through and `rerank_state` says why | `modules/research_rerank.py`, `modules/research_stages.py`, `requirements-rerank.txt` |
+| 4 | Cross-encoder re-ranking | **Built, optional** — `BAAI/bge-reranker-base` via fastembed, ONNX on CPU, off the event loop behind a **one**-slot bulkhead (measured: 197 ms at short rows, 1,523 ms at the truncation ceiling, and a second concurrent slot buys 1.30–1.37× throughput for 1.46–1.54× latency on every request); unconfigured, the RRF order passes through and `rerank_state` says why | `modules/research_rerank.py`, `modules/research_stages.py`, `requirements-rerank.txt`, `tools/bench_rerank.py` |
 | 4 | CRAG evaluation | **Built, and all three bands now decide** — `ANSWER_BAND` (0.8) was a constructor default nothing read; a mid-band retrieval that does not clear it after its one rewrite now **refuses**, where it used to be served with `state: "ok"`. The grader stays arithmetic over fields the RPC already returns — deliberately not a model — with the cross-encoder's own logit folded in as a fifth signal at weight 0.25 when a re-ranker ran, and untouched when none did | `modules/research_crag.py`, `research_crag_policy.py`, `research_crag_signals.py` |
 | 5 | Grounded generation | **Built, optional** — Gemini via `google-genai` behind five fences, **four of which now refuse in code**: the band check before the call, the quoted/untrusted document boundary with a pre-call refusal for an instruction-shaped override, the figure fence, and the citation check. Only the fifth — the bound — is a limit rather than a check. Verdicts `answered`, `corpus_silent` and `refused` never collapse into each other; every model call actually spent lands in the **`research_generation`** ledger | `modules/research_generate.py`, `research_generate_prompt.py`, `research_generate_figures.py`, `requirements-genai.txt` |
-| 5 | Multimodal generation | **NOT BUILT** | §6 |
+| 5 | Multimodal generation | **Built, optional** — `gemini-2.5-flash` is natively multimodal, so a chart document's PNG is attached beside the document it belongs to. An image is **evidence, never a source**: the text is what gets cited, the picture is named to the model by that document's id through `[chart:<id>]`, and the figure fence refuses a marker naming a document whose image was not actually sent. At most 2 images per call, each under 2 MB, 45 s budget against text's 20 s. Every "no image" outcome is a named state (`chart_not_rendered`, `job_not_retained`, `image_too_large`, `model_declines_images`), never a silent text-only call | `modules/research_generate_vision.py`, `research_image_store.py`, `research_image_store_write.py`, migration `20260822110000` |
 | — | Structured (non-similarity) answers | **Built** — "how many runs since `<hash>`", best/worst by metric and means, read from the audit log's own `backtest_runs`; a NULL metric is excluded from extrema and means and the count of excluded rows is reported, never filled with a zero. Computed rows carry **no** `similarity` and stay off `Execution.matches`, because a required float would have to be written 0.0 | `modules/research_structured.py`, `research_structured_reads.py` |
 | — | Abuse and cost bound on `/ask` | **Built** — a token bucket (the gateway's own `risk_proxy.rate_limit.TokenBucket`, not a second one) plus a rolling spend window priced from the SDK's token counts; refusals are typed `rate_limited` / `spend_capped` / `scope_unavailable` on 429/503, never a bare 500. Inert when no `GEMINI_API_KEY` is configured — a deployment that cannot reach a model cannot spend | `modules/research_quota.py`, `research_quota_gate.py` |
 | — | Tenant scoping of retrieval | **Partly built** — both retrieval RPCs take an optional `filter_desk_id`, applied inside the candidate CTE so every rank is a rank among rows the caller was allowed. Off by default (`RESEARCH_SCOPE_TO_DESK`), and when it is on and the predicate cannot be applied the route refuses rather than serving the whole corpus. **RLS itself is still bypassed** and the scope is per-desk, not per-user — see §6 | `supabase/migrations/20260822090000_research_tenant_scope.sql`, `modules/research_quota_scope.py` |
@@ -182,16 +182,74 @@ property of the system and it is tested, not aspirational.
 
 ## 6. NOT BUILT, and why each waits
 
-**Multimodal generation and vision embedding.** The plan allowed a second edge
-function embedding chart images, gated on the Supabase Edge runtime offering a
-vision model. It does not: `Supabase.ai.Session` exposes `gte-small` for text
-and nothing in its inference API takes an image
-(`modules/research_chartdoc.py` records this rather than shipping a stub). The
-substitution that holds meanwhile is *exact where a vision model would be
-approximate*: every figure a model would squint at off the pixels is a number
-the desk computed in order to draw the chart, so the chart's meaning is
-rendered as a sentence and the sentence is embedded. Image retrieval here is
-retrieval over descriptions until the runtime changes.
+**Multimodal — no longer NOT BUILT, and the correction is a change to the tree
+rather than a softening of this document.** Until 2026-08-22 this section said
+both halves were absent. Two different capabilities were being conflated under
+one word, which is how the whole thing stayed written off:
+
+*Vision embedding.* The plan allowed a second **edge function** embedding chart
+images, gated on the Supabase Edge runtime offering a vision model. **That
+constraint still holds and always did**: `Supabase.ai.Session` exposes
+`gte-small` for text and nothing in its inference API takes an image. What
+changed is where the model runs — in the **gateway**, not the edge function.
+`modules/research_image.py` holds the CLIP `ViT-B/32` pair, `research_image_ingest.py`
+embeds the sweep's PNGs at ingest, and `research_image_arm.py` ranks the column
+as a fourth `1/(k + rank)` term at the same k = 60 as every other arm.
+
+*Multimodal generation.* This half was never blocked by anything. The model was
+already `gemini-2.5-flash`, the key was already configured, and the PNG already
+existed in-process — `modules/telegram/_mixins/delivery.py` decodes and sends it
+to a chat. It was two function calls from the one place on this desk where a
+model writes prose a trader acts on, and it was not being sent.
+`research_generate_vision.py` sends it, and it was **measured** against the real
+key on an equity curve with a −34 % drawdown injected at bars 220–300: with
+`thinking_budget=0` and a 300-token cap the model answered in 29.9 s with 85
+output tokens and read the injection back off the pixels. It is not decoration.
+
+**What is off by default, and why that is a price rather than an impossibility.**
+`tools/bench_image_retrieval.py` measures the arm on seven charts drawn by the
+desk's own `modules/backtester/plots.py`, nine queries, six corpus draws, macOS
+arm64, fastembed 0.7.4, 2026-08-22 — means over the six:
+
+| configuration | nDCG@3 | MRR | recall@3 |
+|---|---|---|---|
+| description only | 0.687 | 0.656 | 0.871 |
+| image only (CLIP) | 0.671 | 0.649 | 0.843 |
+| fused (RRF, k = 60) | **0.747** | **0.722** | **0.889** |
+
+**The image arm does not beat the description arm.** 0.671 against 0.687 is not
+a win and not a loss: per draw it spans 0.640–0.710 against the description
+arm's 0.599–0.766, so the gap between arms is a quarter of the noise between two
+draws of one corpus. Fused it is worth something small — +0.06 nDCG@3, ahead of
+both arms on five draws of six and behind both on the sixth. And **not by the
+mechanism this arm was argued for**: the two queries asking for a *broad plateau*
+and an *isolated peak* on a Sharpe surface are the one thing no `ChartDoc`
+describes, and CLIP ranks the same heatmap first for both, on every seed tried.
+What it does earn is narrower and real — it puts the monotone riser first for
+"rises steadily" and the flat line first for "goes nowhere" where the
+description arm ranks them 4th and 3rd, because a sentence encoder does not
+compare −64.0 % against −27.4 % and a picture does not have to. It is also
+confidently wrong: it ranks the deep-drawdown chart *last* of five equity curves
+for a drawdown query.
+
+So the default stays off. ~0.6 GB of weights, a migration and a forward pass per
+chart are not bought by +0.06 nDCG@3 on a seven-document corpus that reverses on
+one draw in six, and `research_chartdoc`'s substitution argument — exact where a
+vision model is approximate, at zero cost and no new dependency — is
+**unweakened**. A desk that switches the arm on should expect it on questions
+about the *shape or scale* of a curve and nowhere else.
+
+**Still owed on this path**, and named rather than rounded up: the bench is not
+wired into CI (`.github/workflows/ci.yml` seeds weights for `bench_rerank` and
+would need the same job); `tests/conftest.py` does not blank
+`RESEARCH_IMAGE_MODEL_PATH` the way it blanks `RERANK_MODEL_PATH`;
+`supabase/apply_all.generated.sql` does not yet carry
+`20260822110000_research_chart_images.sql`; the durable store's one PostgREST
+GET still runs on the event loop's thread; the rendered Sharpe heatmap has no
+chart document and so no citable home; and rows written before the migration
+report `image_not_stored` with re-indexing named as the fix, because no backfill
+tool was written for them. All six are collected in
+[`PLAN.md` §2.10–2.11](PLAN.md).
 
 **Live emission of `execution_summary`.** The producer is built, tested and
 called — but by `tools/backfill_research_rag.py`, not by the running gateway.
@@ -239,7 +297,18 @@ What "done" means for this feature, all of them checkable today:
 
 - The whole suite passes with **none** of the optional stages installed —
   `requirements-graph.txt`, `-rerank.txt`, `-genai.txt`, `-communities.txt`
-  are choices, not prerequisites, and each module reports the absence.
+  are choices, not prerequisites, and each module reports the absence. The CLIP
+  image arm joins that list: unset `RESEARCH_IMAGE_MODEL_PATH` and the write
+  path sends the row it sent before the module existed — not even nulls, because
+  a PostgREST insert naming a column the deployed schema has not got is answered
+  400 and would dead-letter *every* document on a deployment that asked for no
+  image search at all.
+- The opt-in paths are **verified, not theoretical**. Seeded with
+  `tools/bench_rerank.py --seed --model-path DIR` (1.05 GiB),
+  `tests/test_research_rerank_real.py` runs eight cases green against the real
+  ONNX cross-encoder; with real Supabase credentials exported one variable at a
+  time, the live Postgres pass runs eleven green. Neither runs in CI, and CI's
+  green is not evidence that either does.
 - No fabricated recall: below the refuse band the model is never called; a
   citation not in the supplied context refuses the whole answer; `corpus_silent`
   is a verdict, not an error (`modules/research_generate.py`).

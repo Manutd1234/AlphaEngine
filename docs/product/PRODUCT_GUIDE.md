@@ -178,6 +178,33 @@ eight operator actions (`web/lib/operator-actions.ts`) — `purge_cache`,
 `POST /api/system/actions`; simulated outages carry a clamped TTL and expire on
 their own even if nobody clears them.
 
+The Remediation section is split into five panes along the blast-radius seam,
+and the seam is the product decision worth stating: **Mutations** holds the
+five server writes together with everything a reader needs *before* pressing
+one — the guard, the token field, the last result, each write's price stated
+inline — while **Scope** holds the reference material that answers "what would
+a write reach in this instance right now", and **Session** holds the controls
+that touch only this browser tab and no server at all. Recovery and History are
+the tripped-circuit views. Putting the guard beside the buttons rather than in
+the reference pane is deliberate: a control's authorisation belongs where the
+control is, not one click away.
+
+Under the buttons, what each write touches is a **matrix rather than a
+paragraph** — five mutations against seven stores, thirty-five cells, each with
+the reason it says what it says. The question an operator asks mid-incident is
+not "what does Purge do" but "which of the things I care about will still be
+there afterwards", and prose answers that only if you read all of it and hold
+the negative space in your head. Every cell was read out of the write path in
+`lib/operator.ts` rather than transcribed from the prose it replaced, and two
+came out different once the code was open — a matrix drawn from a paragraph is
+a picture of the paragraph, not of the system. The four effects are marked and
+worded, never coloured only: `● cleared`, `→ re-read`, `○ left intact`,
+`◌ out of reach`. That fourth one is the honesty rule applied to a diagram: the
+**vendor's meter** is drawn dashed beside the six stores this instance holds,
+because "reset a quota ledger" is the one control name that most invites the
+belief that it reaches the provider's own counter, and it does not. An absence
+a reader has to notice is not an absence a reader will notice.
+
 ### 8 · Developer — `#developer`
 
 **The question:** how is this built, and does the running system match the repo?
@@ -188,7 +215,23 @@ the code compiles and the tests pass, which is not the same claim as "this is
 safe to ship". API & Schema compares a committed digest of the gateway's
 OpenAPI against the live one; the test counts the desk quotes are read from
 `web/lib/test-counts.generated.ts`, never from prose — re-run the suites rather
-than trust any sentence, this one included.
+than trust any sentence, this one included, and note that the generated module
+is a dated measurement that goes stale the moment a suite is added rather than
+a contract that cannot ([`TESTING.md`](../testing/TESTING.md) carries the full
+argument, and the current state of it).
+
+API & Schema's Numerics pane is where the guide's own provenance thesis is
+shown rather than asserted. Its Monte Carlo parity check reports a SHA-256, and
+the panel now draws the **five-link chain that produces it** — bootstrap,
+canonicaliser, hash, comparison, committed reference — instead of stating the
+verdict alone. Two properties are worth naming because they are the doctrine
+applied to a diagram. The chain reads **"not run" on every computing link until
+you press the button**, because a tick at rest is a claim about a measurement
+nobody took; and the one thing knowable without pressing anything — whether the
+committed reference module is self-consistent — is re-hashed on load rather
+than assumed. The gateway's OpenAPI digest is the same shape of claim and is
+**not** drawn this way yet: in the Contracts pane it remains a verdict pill with
+no digest on screen.
 
 **Writes it gates:** none against the desk. The Task Queue is labelled sample
 data and keeps its edits in the current browser session
@@ -302,7 +345,12 @@ does, and tests hold each behaviour in place:
   degrade by design, and each names its absence: with no `GEMINI_API_KEY`,
   research answers report `verdict: refused` with the reason rather than
   generating ungrounded prose; with no `RERANK_MODEL_PATH`, the RRF retrieval
-  order stands un-re-ranked; with no Neo4j credentials, the graph read model is
+  order stands un-re-ranked; with no `RESEARCH_IMAGE_MODEL_PATH` the CLIP image
+  arm does not run and the ordering is byte-for-byte the ordering without it,
+  because that arm can only *add* a document; when a chart's pixels cannot be
+  reached, the answer is written from text alone and the report names which of
+  the four reasons applied, so no answer ever quietly claims to have seen a
+  chart it was not sent; with no Neo4j credentials, the graph read model is
   simply not projected, and the two graph report routes compute the partition
   and the ranking in process instead, saying which source answered — Postgres
   remains authoritative either way, and no request path depends on the graph
@@ -365,4 +413,7 @@ in README
 - [`docs/architecture/DATA_OPS_BACKEND.md`](../architecture/DATA_OPS_BACKEND.md) — what persists the Data
   tab's queue and ledger.
 - [`docs/engineering/TLS_FLIP.md`](../engineering/TLS_FLIP.md) — how the gateway origin is secured.
+- [`docs/whitepaper/`](../whitepaper/) — the institutional whitepaper (Typst
+  source, compiled to PDF). It replaces the legacy
+  `AlphaEngine_Project_Explainer.pdf`; cite it wherever that was cited.
 - [`SETUP.md`](../../SETUP.md) — running it, keys, Telegram bootstrap.

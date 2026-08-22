@@ -3,14 +3,24 @@
 Every number here was measured, with the method and the machine stated. Where
 something could not be measured, it says so rather than estimating. The table
 in §2.1 regenerates from `tools/bench_decision.py` and was last regenerated on
-2026-08-19; the production figures were read off the live `/metrics` on
-2026-08-17. Those are two different measurements on two different machines and
+2026-08-20 (the block stamps its own UTC date; that is the one to quote, and it
+is mirrored in `latency-bench.generated.json`); the production figures were read
+off the live `/metrics` on 2026-08-17. Those are two different measurements on two different machines and
 are never merged into one figure.
 
-**The conclusion first.** The desk's own risk decision runs in **~12 µs** on the
-compiled engine and **~23 µs** on the Python reference (p50, dev Mac, whole
-decision under the lock); the arithmetic battery inside it takes **83 ns** on
-that Mac and **~320 ns** on the shared production VM. The market data it decides
+**The conclusion first.** The desk's own risk decision runs in **13.2 µs** on
+the compiled engine and **25.3 µs** on the Python reference — p50, dev Mac,
+whole decision under the lock, and those are the figures the generated block in
+§2.1 carries, so they are the ones to quote anywhere else. On a *quiet* machine
+the same code measures 12.4 µs and 23.1 µs; §2.1 explains why the regenerated
+run is the slower pair (unpinned, on a laptop with another session working the
+same tree) and why the interleaved A/B evidence below, not this table, is what
+each change was adopted on. Both pairs are honest and the difference is the
+machine, not the code — but a document quoting "~12 / ~23" while the generated
+file says 13.2 / 25.3 invites a reader to "correct" one into the other, which is
+why this paragraph now leads with the generated pair and names the other as a
+quiet-machine reading. The arithmetic battery inside the decision takes **83 ns**
+on that Mac and **~320 ns** on the shared production VM. The market data it decides
 on is ~34 ms old when it arrives, and the order takes ~70 ms to reach the venue.
 The compute is **0.02 %** of the path, and no amount of further optimisation to
 it changes the system's latency in any way a trader could observe. The only
@@ -549,7 +559,7 @@ further, and that is a finding to publish rather than hide.
 ### 2.6 What is out of scope, and why
 
 * **FPGA** — no crypto venue rents an FPGA feed-handler path, and with the
-  decision at 12–23 µs against a millisecond-scale network there is nothing for
+  decision at 12–25 µs against a millisecond-scale network there is nothing for
   one to save.
 * **Microwave** — microwave links exist between physical exchange datacentres
   because the great-circle path beats fibre. Binance and Bybit are *inside AWS*;
@@ -738,11 +748,59 @@ connect. Vercel serves the web project from `sin1`, the same city as the VM.
 
 ---
 
+## 4b. The research plane — a third budget, and the rule that keeps it off the first
+
+The research plane runs **in the gateway process**, which is the whole reason it
+needs a budget of its own. Every figure below is seconds or hundreds of
+milliseconds on a process whose other job is answered in microseconds, so the
+governing sentence is `research_image_ingest._ENCODE_BULKHEAD`'s: *research may
+wait; risk may not.* These are not observability-path numbers (nobody is
+watching a screen for them) and they are emphatically not trading-path numbers.
+They are a third plane and are never quoted under either of the other two.
+
+| What | Measured | Where the number lives |
+|---|---|---|
+| Cross-encoder re-rank, twenty pairs at ~200 chars | **197 ms** wall, 1,776 ms CPU | `tools/bench_rerank.py`, BAAI/bge-reranker-base via fastembed 0.7.4 / onnxruntime 1.29.0, 18-core arm64, median of seven runs, weights seeded on disk |
+| The same at `MAX_DOCUMENT_CHARS` (2,000) | **1,523 ms** wall, 12,573 ms CPU | as above — this is the figure the widening actually lets through |
+| Two simultaneous re-ranks | 1.30–1.37× the throughput for **1.46–1.54× the latency on every request** | why the bulkhead is `Semaphore(1)` |
+| Fenced text generation | 20 s budget (`TIMEOUT_MS`) | `modules/research_generate.py` |
+| Generation with a chart attached | **20.6 s** and **29.9 s** on two live calls, budget 45 s | `research_generate_vision.VISION_TIMEOUT_MS`; measured with `thinking_budget=0` and a 300-token cap |
+| A chart's bytes fetched from the durable store | bounded at **1,200 ms**, and 0 disables the fetch | `RESEARCH_CHART_IMAGE_FETCH_TIMEOUT_MS` |
+
+Three things about that table are the point rather than the detail.
+
+**The CPU column is what decided the bulkhead, not the wall column.**
+`asyncio.to_thread` occupies exactly one thread, but onnxruntime's intra-op pool
+then spreads that single re-rank across ~9 of an 18-core box — the CPU figure
+divided by the wall figure. Counting executor *workers* was bounding the wrong
+resource entirely. A second slot buys about three quarters more throughput while
+doubling the CPU claim against the plane that may not wait, and on a deployment
+container of a handful of vCPUs it buys nothing whatsoever. So the semaphore is
+one, and `research_stages.py` carries the full measurement.
+
+**A `wait_for` timeout on the re-rank stays rejected.** `to_thread` cannot
+cancel the thread, so a timeout would release the waiting request while the CPU
+carried on burning — worse under the measurement, not better, since a timeout at
+1.5 s would abandon a request that still owns nine cores.
+
+**The one blocking call is written down rather than hidden.**
+`research_image_store._fetch` is a synchronous HTTP GET on the event loop's
+thread, because `resolve` is synchronous and the only place that could await a
+hydration step is `research_generate.generate`. That one line is owed. Until it
+lands the stall is bounded three ways — the 1,200 ms timeout above, an
+in-process LRU so it is paid at most once per chart per process, and the ingest
+path warming that same LRU so a gateway that indexed the sweep never fetches at
+all — and it lands on a request that is about to spend twenty to thirty seconds
+inside a model call anyway.
+
+---
+
 ## 5. Summary
 
 | Hop | Measured | Notes |
 |---|---|---|
-| Risk decision (crypto path, up to 15 of 17 gates) | **12.4 µs** p50 native · 23.1 µs Python | whole `submit()` under the lock, dev Mac, `tools/bench_decision.py`; in-process, excludes kernel and wire |
+| Risk decision (crypto path, up to 15 of 17 gates) | **12.4 µs** p50 native · 23.1 µs Python | whole `submit()` under the lock, dev Mac, `tools/bench_decision.py`; in-process, excludes kernel and wire. These are the **quiet-machine** readings from the interleaved A/B ladder in §2.3; the generated block in §2.1 reads 13.2 / 25.3 µs on a loaded laptop and is the pair to quote outside this document |
+| Cross-encoder re-rank (research plane) | **197 ms** at short rows · **1,523 ms** at the truncation ceiling | a different plane entirely; §4b, and never quoted under the decision's label |
 | Decision tail | 36.8 µs p99.9 native · 49.2 µs Python | scheduler jitter, not GC |
 | Arithmetic core (inside the decision) | **83 ns** p50 · **84 ns** p99 dev Mac · **320 ns** p50 / 352 ns p99 production VM | C++ battery incl. the routed walk, timed with `steady_clock` inside the engine; p50 and p99 are both 2 ticks of a ~41.67 ns clock — 0.9952 of calls finish inside 2 ticks, which is the figure with the resolution and the one to quote (§2); self-measured at startup, bit-exact vs Python |
 | Market data → gateway | **69.1 ms** RTT | Binance, Tokyo → Singapore; **the constraint** |

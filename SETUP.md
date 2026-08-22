@@ -2,7 +2,11 @@
 
 Everything you need to get AlphaEngine running, in the order you need it.
 `README.md` explains what it is and why; this file only gets it on screen.
-Every command and count here was re-run against the tree on 2026-08-21.
+Every command here was re-run against the tree on 2026-08-22 and the counts
+below are what those runs printed. They are AHEAD of
+`Part2_Infrastructure/web/lib/test-counts.generated.ts`, which the desk displays
+and which `npm run counts:refresh` is owed to bring up to date; `CLAUDE.md` §3
+and §4 hold the reconciliation and the list of what else needs regenerating.
 
 ---
 
@@ -21,9 +25,8 @@ Open **http://localhost:3000**. You land on a sign-in page that tells you
 accounts are not configured in this deployment and offers one button — **Open
 the workspace**. Click it and you are on the full eight-tab desk.
 
-That is the whole first run. If you have ten minutes rather than two, the
-[full local stack](#the-full-local-stack) adds the Python gateway and turns the
-generated data into live data.
+That is the whole first run. With ten minutes rather than two, the
+[full local stack](#the-full-local-stack) adds the gateway and real data.
 
 ### Why it works with nothing set
 
@@ -35,9 +38,8 @@ Three mechanisms, each deliberate:
 | `NEXT_PUBLIC_SUPABASE_*` | `authConfigured()` is false, so the edge middleware mints a guest desk pass instead of bouncing you to a form that cannot sign you in. | `authConfigured()` and the guest branch in `web/proxy.ts` |
 | A gateway that never answers | After the first probe fails with no cached payload, the book enters a deterministic browser-generated sandbox — clearly tagged as generated, with writes disabled in every tier but `live`, so you cannot act on numbers that are not real. | the `setSandboxState` effect in `web/lib/use-book.ts` |
 
-The sandbox is a last resort, not the default path: a cached payload is always
-preferred over a generated one, and an explicit human choice is preferred over
-both.
+The sandbox is a last resort, never the default path: a cached payload beats a
+generated one, and an explicit human choice beats both.
 
 ---
 
@@ -49,8 +51,8 @@ both.
 | **npm** | bundled | `package-lock.json` is committed and CI runs `npm ci`. Do not substitute yarn or pnpm. |
 | **Python** | **3.12** | Only needed for the gateway. The gateway itself supports 3.11–3.14, but `OpenBB_Service` requires `>=3.12,<3.15` and CI pins 3.12, so 3.12 is the version that works everywhere. |
 
-Nothing else. No Docker, no Redis, no database server — DuckDB is a file and
-the job queue runs in-process unless you set `REDIS_URL`.
+Nothing else — no Docker, no Redis, no database server. DuckDB is a file and the
+job queue runs in-process unless `REDIS_URL` is set.
 
 ---
 
@@ -85,26 +87,27 @@ venv/bin/python -m pip install --upgrade pip
 venv/bin/python -m pip install -r requirements-core.txt
 ```
 
-**Use `requirements-core.txt`, not `requirements.txt`.** Core is the lean,
-tested path — FastAPI, uvicorn, pandas, numpy, DuckDB, pytest. The full
-`requirements.txt` pulls vectorbt and numba, which frequently fail to build from
-source and buy you only a faster backtest engine; without them the backtester
+**Use `requirements-core.txt`, not `requirements.txt`.** Core is the lean tested
+path — FastAPI, uvicorn, pandas, numpy, DuckDB, pytest. The full
+`requirements.txt` pulls vectorbt and numba, which often fail to build from
+source and buy only a faster backtest engine; without them the backtester
 falls back to its built-in NumPy engine and every number is identical. CI itself
-installs `requirements-dev.txt`, which is core plus `ruff`, `requirements-communities.txt`
-(networkx, scipy), the build-time `requirements-native.txt`, and — so the job that gates the push runs what the suite
-tests instead of skipping it — `requirements-ml.txt`, vectorbt and the `httpx2`
-transport starlette's test client is built on.
+installs `requirements-dev.txt`: core plus `ruff`, `requirements-communities.txt`
+(networkx and scipy — 45 research tests skip without them), the build-time
+`requirements-native.txt`, and, so the job that gates the push runs what the
+suite tests rather than skipping it, `requirements-ml.txt`, vectorbt and the
+`httpx2` transport starlette's test client is built on.
 
 ### The native decision core (optional to run, required for the full suite)
 
 The gateway's pre-trade arithmetic exists twice — the Python reference in
-`modules/risk_proxy.py` and a C++ core in `native/decision_core/` — and
-`DECISION_CORE=auto` (the default) uses the compiled one when it imports and
-the Python one otherwise, publishing which on `/health`. Nothing needs it to
-*run*. Two test files need it to *pass*: `tests/test_decision_core_native.py`
-and `tests/test_core_self_measure.py` fail rather than skip when
-`modules/_decision_core` is absent, because a broken build has to turn CI red.
-Building it takes a compiler and about ten seconds:
+`modules/risk_proxy/` (`gates.py` declares the seventeen-name `GATE_ORDER`,
+`decision.py` evaluates it) and a C++ core in `native/decision_core/` — and
+`DECISION_CORE=auto` (the default) uses the compiled one when it imports and the
+Python one otherwise, publishing which on `/health`. Nothing needs it to *run*;
+`tests/test_decision_core_native.py` and `tests/test_core_self_measure.py` need
+it to *pass*, and fail rather than skip when `modules/_decision_core` is absent,
+because a broken build has to turn CI red. A compiler and ten seconds:
 
 ```bash
 cd Part2_Infrastructure
@@ -148,18 +151,18 @@ development-only fallback in the table above.
 
 ### One caveat, and it is the opposite of the obvious one
 
-On a fresh clone the gateway is **open** — `REQUIRE_AUTH` defaults to off
-(`config.py:292`), so `/api/portfolio`, `/api/risk/limits` and `/metrics` all
-answer unauthenticated on localhost. Verified: all four return 200 with no
+On a fresh clone the gateway is **open** — `config.py` defaults `require_auth`
+to `False` — so `/health`, `/api/portfolio`, `/api/risk/limits` and `/metrics`
+all answer unauthenticated on localhost. Verified: all four return 200 with no
 header.
 
 The trap is copying `.env.example` to `.env` as a reflex. That file ships
-`REQUIRE_AUTH=1` — correct for anything public, and it will break your local
-setup, because the web app has no `ALPHAENGINE_GATEWAY_TOKEN` to send. The
-gateway then returns 401, the web app treats it as an outage and drops into the
-sandbox, and you spend an afternoon debugging a gateway that is working
-perfectly. Verified: with `REQUIRE_AUTH=1`, `/api/portfolio` is 401 without a
-bearer token and 200 with one, while `/health` stays open either way.
+`REQUIRE_AUTH=1` — correct for anything public, and it breaks a local setup,
+because the web app has no `ALPHAENGINE_GATEWAY_TOKEN` to send. The gateway
+returns 401, the web app reads that as an outage and drops into the sandbox, and
+you debug a gateway that is working perfectly. Verified: with `REQUIRE_AUTH=1`,
+`/api/portfolio` is 401 without a bearer token and 200 with one, while `/health`
+stays open either way.
 
 If you do want auth on locally, set both sides:
 
@@ -176,19 +179,19 @@ ALPHAENGINE_GATEWAY_TOKEN=<the same value>
 
 ## Verify it
 
-Every command below was run against this tree. Run them yourself rather than
-trusting the counts — they drift, and a number nobody re-measured is a number
-nobody should quote.
+Every command below was run against this tree on 2026-08-22. Re-run them rather
+than trusting the counts: a number nobody re-measured is not a measurement.
 
 ```bash
-# Gateway suite — 2,028 passed, 2 skipped (native core built, Python 3.12).
-# The two skips are test_data_ops_postgrest.py (no Supabase creds) and
-# test_research_rerank_real.py (no seeded re-ranker weights). Both NAME what
-# was not exercised; read the reasons with -rs, never the count alone.
+# Gateway suite — 2,091 passed, 2 skipped (native core built, Python 3.12,
+# no .env in Part2_Infrastructure). The two skips are test_data_ops_postgrest.py
+# (no Supabase creds) and test_research_rerank_real.py (no seeded re-ranker
+# weights). Both NAME what was not exercised; read the reasons with -rs, never
+# the count alone.
 
 cd Part2_Infrastructure && venv/bin/python -m pytest
 
-# Web suite — 3,900 passed across 839 suites, no browser needed
+# Web suite — 4,122 passed, 2 skipped, 4,124 across 899 suites; no browser
 cd Part2_Infrastructure/web && npm test
 
 # Research service — 14 passed
@@ -203,35 +206,68 @@ cd Part2_Infrastructure/web && npm run build
 cd Part2_Infrastructure && venv/bin/python tools/synthetic_probe.py
 ```
 
-The probe prints six named steps and a total; a healthy run ends `6/6 steps
-passed`. It needs no network — market data falls back to simulation.
+The probe prints six named steps — gateway health, metrics exposition, order
+book, execution cost (TCA), risk gate rejects, audit trail — and a total; a
+healthy run ends `6/6 steps passed`, with no network: market data simulates.
+
+**Never source `.env` before running any of this.** `set -a && . ./.env` EXPORTS
+`REQUIRE_AUTH=1`, which beats the `setdefault` in `tests/conftest.py`, and about
+80 route tests then fail with 401 without saying why (`CLAUDE.md` §5). Pass one
+variable per run:
+
+```bash
+cd Part2_Infrastructure
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
+  venv/bin/python -m pytest tests/test_data_ops_postgrest.py   # 11 passed, 0 skipped
+```
+
+**Turning the other skip into passes.** `tests/test_research_rerank_real.py`
+skips at MODULE level, so its eight tests are not collected at all until weights
+exist. Seed them once — about 1.05 GiB, fetched from a third-party hub — and the
+run becomes 2,099 passed, 1 skipped:
+
+```bash
+cd Part2_Infrastructure
+venv/bin/python -m pip install -r requirements-rerank.txt
+venv/bin/python tools/bench_rerank.py --seed --model-path .rerank-weights
+RERANK_TEST_MODEL_PATH=.rerank-weights venv/bin/python -m pytest tests/test_research_rerank_real.py
+```
+
+That is what CI's opt-in `rerank-real` job does. **A `.env` does it too, and
+that surprises people:** `conftest.py` deliberately does not blank
+`RERANK_TEST_MODEL_PATH`, and python-dotenv fills it from
+`Part2_Infrastructure/.env`, so a machine whose deployment file names a weights
+directory prints 2,099 / 1 with nothing exported. Force the CI shape with
+`RERANK_TEST_MODEL_PATH= venv/bin/python -m pytest`. Only the **web** line of
+`web/lib/test-counts.generated.ts` is checked in CI
+(`node scripts/check-test-counts.mjs web <log>`), so its gateway line is a dated
+record rather than a gate.
 
 **There is no `lint` script for the web app.** `npm run lint` in `web/` fails as
 a missing script; that is not a broken linter. Linting is Python-side, via
 `ruff`, which is in `requirements-dev.txt` only.
 
 **`npm run build` runs two gates before Next.js starts.** The `prebuild` hook is
-`scripts/check-gateway-openapi-digest.mjs && scripts/generate-codebase-manifest.mjs --check`.
-The first canonicalises `tools/openapi.json`, SHA-256s it, and compares the
-result against a digest committed in
-`web/lib/gateway-openapi-digest.generated.ts`. On a match it prints
-`Gateway OpenAPI digest verified: <hash>`. On drift it exits 1 with
-`Gateway OpenAPI digest is stale`. That is an intentional contract assertion
-between two separately deployed units, not a broken build — regenerate the
-snapshot with `python tools/export_openapi.py` and update the digest module
-deliberately. The second refuses to build if the committed repository manifest
-(`web/lib/repository-manifest.generated.json`) no longer matches the tree —
-`npm run catalog:refresh` regenerates it. A third generated file,
-`web/lib/test-counts.generated.ts`, holds the counts the desk displays;
-`npm run counts:refresh` regenerates it and CI checks it against the run it
-just made.
+`node scripts/check-gateway-openapi-digest.mjs && node scripts/generate-codebase-manifest.mjs --check`.
+The first canonicalises `tools/openapi.json`, SHA-256s it and compares it with
+`web/lib/gateway-openapi-digest.generated.ts`, printing
+`Gateway OpenAPI digest verified: <hash>` on a match and exiting 1 with
+`Gateway OpenAPI digest is stale` on drift — a contract assertion between two
+separately deployed units, not a broken build. It verified on 2026-08-22. The
+second refuses to build if `web/lib/repository-manifest.generated.json` no
+longer matches the tree, and **on 2026-08-22 it does not**: 32 files added, so
+`npm run build` stops there until `npm run catalog:refresh` runs. A third
+generated file, `web/lib/test-counts.generated.ts`, is stale the same way and is
+refreshed by `npm run counts:refresh`; `CLAUDE.md` §4 tabulates all four.
 
 ### Advanced: the desk sweep
 
-`web/scripts/desk-sweep.mjs` drives all 43 rail sections across all 8 tabs under
+`web/scripts/desk-sweep.mjs` drives all 47 rail sections across all 8 tabs under
 six backend fault profiles, using Chrome DevTools Protocol fault injection, and
-asserts no surface can dead-end. It is a browser harness with real
-prerequisites, so it is not part of the verify block above.
+asserts no surface can dead-end. It is the only check in the repository that
+puts a browser in front of the desk — `npm test` is plain Node with no DOM and
+no layout engine — and it has real prerequisites, so it is not in the verify
+block above.
 
 ```bash
 # terminal 1 — note the port: 3100, not 3000
@@ -245,11 +281,26 @@ cd Part2_Infrastructure/web && PORT=3100 npm run dev
 cd Part2_Infrastructure/web && node scripts/desk-sweep.mjs
 ```
 
-Flags use `--name=value` form only — `--profile=gateway-hang --tab=portfolio`.
-A space-separated `--profile gateway-hang` is not parsed.
+Flags are `--name=value` only — `--profile=gateway-hang --tab=portfolio`; a
+space-separated `--profile gateway-hang` is not parsed.
 
-*Not run during the writing of this file — the prerequisites above are stated
-from the script's own header and argument parser.*
+*Not run while this file was written; the prerequisites are read off the
+script's own header and argument parser.*
+
+### Advanced: build the whitepaper
+
+`docs/whitepaper/` is Typst source — `main.typ`, six chapters under `sections/`,
+one `template.typ`. No PDF is committed, `typst` is in no requirements file and
+no CI job compiles it, so nothing reports a broken chapter until you run:
+
+```bash
+typst compile docs/whitepaper/main.typ AlphaEngine_Institutional_Whitepaper.pdf
+```
+
+Install Typst first (`brew install typst`, or a release binary). Re-run on
+2026-08-22: it completed with no warnings and produced 83 A4 pages. The one trap
+to know before editing a chapter — `#include` evaluates a file in its own scope,
+so `main.typ`'s imports do not reach the sections — is in `CLAUDE.md`.
 
 ---
 
@@ -257,18 +308,11 @@ from the script's own header and argument parser.*
 
 `.claude/skills/` holds three skills — one directory each, one `SKILL.md`
 apiece. They travel with the clone, so there is nothing to install; in Claude
-Code they are invoked as slash commands.
-
-| Skill | What it does |
-|---|---|
-| `/start-alpha-engine` | Boots the desk workspace and the FastAPI gateway, creating the virtualenv at the one path the dev scripts accept, and states what works with no API keys. |
-| `/tour` | Walks the architecture: the three deployment units, the two-implementation parity argument, and the honesty doctrine. |
-| `/verify` | Runs every check in *Verify it* above and reports the numbers it has just measured, never a remembered one. |
-
-They restate what this file and `CLAUDE.md` already say, in a form an agent
-follows rather than reads. Nothing in the repository depends on them, and every
-command they run is written out above — they save typing and they enforce the
-rule about counts, which is the whole of their value.
+Code they are slash commands. `/start-alpha-engine` boots the desk and the
+gateway, creating the virtualenv at the one path the dev scripts accept;
+`/tour` walks the architecture; `/verify` runs every check in *Verify it* above
+and reports only numbers it has just measured. They restate this file and
+`CLAUDE.md` in a form an agent follows rather than reads.
 
 ---
 
@@ -305,6 +349,17 @@ capability and nothing else changes; each one you leave unset produces an honest
 - Oracle vector search and in-database VaR: `ORACLE_CONN_STRING`,
   `ORACLE_PASSWORD`, `ORACLE_USER`.
 - Research service: `OPENBB_API_URL`, `OPENBB_API_TOKEN`.
+- The retrieval plane: `RESEARCH_RAG_ENABLED` (off by default), `GEMINI_API_KEY`
+  (unset means every answer reports `verdict=refused` with the reason;
+  retrieval is unaffected), `NEO4J_*` for the graph arm, `RERANK_MODEL_PATH` for
+  the local cross-encoder. Four modules read further knobs straight from
+  `os.environ` rather than through `config.py`, none yet in `.env.example`:
+  `RESEARCH_ASK_RATE_PER_S` / `RESEARCH_ASK_BURST` /
+  `RESEARCH_ASK_SPEND_CEILING_USD` (`modules/research_quota.py`),
+  `RESEARCH_SCOPE_TO_DESK` (`modules/research_quota_scope.py`),
+  `RESEARCH_VISION_TIMEOUT_MS` (default 45000, `modules/research_generate_vision.py`)
+  and `RESEARCH_IMAGE_MODEL_PATH` (`modules/research_image.py`). Each has a
+  working default; read the module header for what it costs to change.
 - Data-ops cadence: `WEB_WORKSPACE_URL`, `DATA_SCHEDULES`. The quality ledger,
   the persisted work queue and the replay/backfill routes all work with neither
   set — a schedule is the only thing that needs one, and a replay says which
@@ -327,14 +382,12 @@ Two rules worth stating out loud, because both have bitten:
 The header's **Connect** button links a web account — or a guest session — to
 `@alpha_engine_nussif_bot`. It needs `TELEGRAM_LINK_SECRET` set to the **same
 value** on the gateway and on Vercel, because one process mints the one-time
-token and a different process on a different host verifies it. Unset is
-fail-closed: the control renders a refusal naming the missing secret rather than
-a link that cannot complete. Never rename it to `NEXT_PUBLIC_TELEGRAM_LINK_SECRET`
-— that would inline it into the browser bundle and let anyone forge a binding.
-
-The bot token itself (`TELEGRAM_BOT_TOKEN`) lives in the gateway's `.env` and
-nowhere else. Leave it empty and the gateway and web workspace run unchanged;
-Telegram is an independent notification companion, never an auth provider.
+token and another host verifies it. Unset is fail-closed: the control renders a
+refusal naming the missing secret. Never rename it to
+`NEXT_PUBLIC_TELEGRAM_LINK_SECRET` — that inlines it into the browser bundle and
+lets anyone forge a binding. The bot token (`TELEGRAM_BOT_TOKEN`) lives in the
+gateway's `.env` and nowhere else; leave it empty and everything else runs
+unchanged. Telegram is a notification companion, never an auth provider.
 
 ---
 
@@ -368,6 +421,9 @@ warning above.
 **`Gateway OpenAPI digest is stale`, build exits 1.** The committed API contract
 and its digest disagree. Intentional gate, not a broken build.
 
+**`Repository manifest is stale (N added…)`, build exits 1.** Same shape, one
+gate later: `npm run catalog:refresh`. Expect it on this commit — 32 files.
+
 **Every panel says the data is generated.** The gateway is not running or not
 reachable. The workspace is in its sandbox tier — start the gateway, or accept
 it: the desk is fully navigable there, just read-only outside `live`.
@@ -376,8 +432,19 @@ it: the desk is fully navigable there, just read-only outside `live`.
 `REQUIRE_AUTH=1` and no matching `ALPHAENGINE_GATEWAY_TOKEN` on the web side.
 Set both, or delete the `.env`.
 
-**Port 3000 is taken.** `PORT=3100 npm run dev`. The gateway's dev-mode fallback
-targets `127.0.0.1:8000` regardless of which port the web app is on.
+**Port 3000 is taken.** `PORT=3100 npm run dev`; the gateway's dev-mode fallback
+still targets `127.0.0.1:8000`.
 
 **A pip install of `requirements.txt` fails building numba or vectorbt.** Use
 `requirements-core.txt`. It is the tested path and the numbers are identical.
+
+**About 80 pytest tests fail with 401 and none of them says why.** You exported
+the environment before running the suite — `set -a && . ./.env`, or the same
+thing inside a shell profile. `REQUIRE_AUTH=1` from that file beats
+`conftest.py`'s `setdefault`. Start a clean shell and pass one variable per run.
+See *Verify it* above.
+
+**`test_migration_bundle.py` fails after a new migration lands.**
+`supabase/apply_all.generated.sql` is behind `supabase/migrations/`. Regenerate
+it with `python3 tools/bundle_migrations.py` from the repository root; never
+hand-edit the bundle.

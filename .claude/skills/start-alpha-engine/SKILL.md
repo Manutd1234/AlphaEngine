@@ -117,7 +117,8 @@ Say this plainly — it is the point of the setup:
 
 - All eight tabs, every panel, full navigation.
 - Crypto quotes, bars and L2 depth via Binance's public endpoints.
-- The whole gateway: risk gates, TCA, backtests, the DuckDB audit log.
+- The whole gateway: the seventeen-gate battery (`modules/risk_proxy/` — a
+  package, not `risk_proxy.py`), TCA, backtests, the DuckDB audit log.
 - Unset provider keys produce an honest "not configured", never a blank panel
   and never a zero.
 
@@ -125,6 +126,14 @@ Keys only add breadth: equities and fundamentals (`FMP_API_KEY`,
 `TIINGO_API_KEY`, `MASSIVE_API_KEY`, `ALPHAVANTAGE_API_KEY`), web search
 (`FIRECRAWL_API_KEY`), vector research (`ORACLE_*`), the realtime tape and
 optional sign-in (`NEXT_PUBLIC_SUPABASE_*`).
+
+**The retrieval plane is the one thing that is genuinely OFF rather than
+degraded**, and it is worth saying so instead of letting someone conclude it is
+broken. `config.py` defaults `RESEARCH_RAG_ENABLED` to `False` and its corpus
+lives in Supabase, so with no keys there is nothing to retrieve from. Turned on
+but with `GEMINI_API_KEY` unset it still retrieves and every answer comes back
+`verdict=refused` naming the missing key, which is the designed behaviour and
+not a failure. Do not offer to set either up as part of "start it".
 
 ## If something breaks
 
@@ -134,10 +143,14 @@ optional sign-in (`NEXT_PUBLIC_SUPABASE_*`).
 - **Gateway returns 401 and the desk drops to the sandbox** — there is a
   `Part2_Infrastructure/.env` with `REQUIRE_AUTH=1` and no matching
   `ALPHAENGINE_GATEWAY_TOKEN` on the web side. On a fresh clone with no `.env`
-  the gateway is open on localhost (`config.py:292` defaults it off). Either set
-  both sides to the same token, or remove the `.env`. Never suggest copying
-  `.env.example` to `.env` to "fix" a local setup — that file ships
-  `REQUIRE_AUTH=1` and causes this exact failure.
+  the gateway is open on localhost (`config.py` defaults `require_auth` to
+  `False`). Either set both sides to the same token, or remove the `.env`. Never
+  suggest copying `.env.example` to `.env` to "fix" a local setup — that file
+  ships `REQUIRE_AUTH=1` and causes this exact failure. The same variable has a
+  second, nastier form: never `set -a && . ./.env` in a shell you then run
+  `pytest` in. That EXPORTS `REQUIRE_AUTH=1`, `tests/conftest.py` guards it with
+  `setdefault` (which loses to an exported variable), and about 80 route tests
+  fail with 401 for a reason none of them states.
 - **`npm run lint` — missing script** — correct, there is none. Linting is
   `venv/bin/python -m ruff check .` from `Part2_Infrastructure`.
 
