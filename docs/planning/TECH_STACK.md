@@ -233,7 +233,7 @@ section owns.
 
 Never trust a version or a count in prose, including this file's. The suite
 figures committed on 2026-08-21 (`web/lib/test-counts.generated.ts`): gateway
-1,717 passed + 1 skipped, web 3,883 tests across 838 suites, OpenBB service 14.
+1,719 passed + 1 skipped, web 3,883 tests across 838 suites, OpenBB service 14.
 CLAUDE.md's rule stands — run the suite and read the number off the output;
 `/verify` runs every check and reports real measurements. For the wider walk of
 what these pieces do in use, start at the [feature tour](../product/FEATURE_TOUR.md).

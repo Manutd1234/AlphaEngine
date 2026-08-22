@@ -181,7 +181,7 @@ trusting the counts — they drift, and a number nobody re-measured is a number
 nobody should quote.
 
 ```bash
-# Gateway suite — 1,717 passed, 1 skipped (native core built, Python 3.12).
+# Gateway suite — 1,719 passed, 1 skipped (native core built, Python 3.12).
 # The one skip is test_data_ops_postgrest.py with no Supabase creds in the
 # environment; a SECOND skip means the venv is not 3.12.
 cd Part2_Infrastructure && venv/bin/python -m pytest

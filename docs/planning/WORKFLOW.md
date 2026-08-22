@@ -52,7 +52,7 @@ set on purpose, not arrived at by forgetting the build step.
 
 The suite's health is read off the *skip* count, because the pass count stays
 plausible under several failure modes. On a correct 3.12 venv the gateway suite
-is **1,717 passed and exactly one skipped** (the figure the tree carries, in
+is **1,719 passed and exactly one skipped** (the figure the tree carries, in
 [`web/lib/test-counts.generated.ts`](../../Part2_Infrastructure/web/lib/test-counts.generated.ts),
 generated 2026-08-21 — re-run the suite rather than trusting either file; the
 counts in prose have drifted before, which is why that file is generated).
