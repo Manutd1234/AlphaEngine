@@ -23,6 +23,11 @@ Thumbs.db
 .vscode/
 *.swp
 *.pdf
+# ...except the institutional whitepaper, which is a deliverable rather than a
+# build artefact: it replaces the legacy AlphaEngine_Project_Explainer.pdf, and a
+# reader who clones this repository should get the document, not instructions for
+# producing it. Its Typst source is committed beside it in docs/whitepaper/.
+!AlphaEngine_Institutional_Whitepaper.pdf
 
 # ── Python (scoped to the gateway) ───────────────────────────────────────────
 /Part2_Infrastructure/venv/
