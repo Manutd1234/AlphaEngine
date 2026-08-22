@@ -23,13 +23,8 @@ from config import settings
 from modules.research_cards import classify_anomaly, render_backtest_documents, render_incident_card, render_ml_card
 from modules.research_graph import persist_edges
 from modules.research_image_ingest import IMAGE_PNG_FIELD, attach_chart_pngs, image_columns
-from modules.research_ingest_delivery import (
-    REASON_ERROR,
-    DeadLetterBook,
-    Delivered,
-    Undelivered,
-    deliver,
-)
+from modules.research_image_store_write import CHART_PNG_FIELD, persist_chart_image
+from modules.research_ingest_delivery import REASON_ERROR, DeadLetterBook, Delivered, Undelivered, deliver
 from modules.research_rag.retrieval import EMBEDDING_MODEL, _RetrievalMixin
 from modules.research_rag.session import _SessionIngestMixin
 
@@ -103,7 +98,6 @@ class ResearchRag(_RetrievalMixin, _SessionIngestMixin):
             self._client = None
         self._loop = None
 
-    # -- embedding --------------------------------------------------------- #
     # -- write path (all through the bounded queue) ------------------------ #
     def _submit(self, document: dict[str, Any]) -> None:
         """Queue a document from any thread.
@@ -313,6 +307,9 @@ class ResearchRag(_RetrievalMixin, _SessionIngestMixin):
         """Embed, insert, link, and retrieve neighbours for an anomaly card."""
         assert self._client is not None
         retrieve_after = document.pop("_retrieve_after", False)
+        # Popped BEFORE the row is built, like every private key here: an
+        # instruction to this loop, and a column PostgREST does not have.
+        chart_png = document.pop(CHART_PNG_FIELD, None)
         vector = await self._embed(document["body"])
         # The image arm's write half: an instruction to this loop, never a
         # column. EMPTY unless configured — see `research_image_ingest`.
@@ -339,6 +336,11 @@ class ResearchRag(_RetrievalMixin, _SessionIngestMixin):
             )
             return
         await persist_edges(self._client, outcome.response, desk_id=settings.supabase_desk_id)
+        # The chart's pixels, keyed to the document that just landed, so an
+        # answer can show the model a chart drawn by a Celery worker or by a
+        # process that has since restarted. Separate table, separate request,
+        # after the document is safe — `research_image_store_write` argues why.
+        await persist_chart_image(self._client, outcome.response, chart_png, document)
         if vector:
             self._indexed += 1
         else:
@@ -367,9 +369,7 @@ class ResearchRag(_RetrievalMixin, _SessionIngestMixin):
             "dead_letters_discarded": self._dead.discarded,
             "dead_letters": self._dead.recent(),
             "drain_restarts": self._restarts,
-            "last_anomaly_at": (
-                self._last_anomaly_at.isoformat() if self._last_anomaly_at else None
-            ),
+            "last_anomaly_at": self._last_anomaly_at.isoformat() if self._last_anomaly_at else None,
             "last_anomaly_matches": [
                 {
                     "title": m.get("title"),

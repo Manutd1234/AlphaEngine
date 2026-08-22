@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any
 
 from config import settings
 from modules.research_chartdoc import ChartDoc, describe_run
+from modules.research_image_store import CHART_PNG_FIELD, CHART_PNG_FIELDS
 
 if TYPE_CHECKING:
     from modules.schemas import OrderRequest, RiskDecision
@@ -271,7 +272,7 @@ def render_backtest_documents(
         chart_title = (
             f"{chart.title}: {row['symbol']} {row['interval']} {row['strategy']}"
         )
-        documents.append({
+        document = {
             **run,
             # Its own kind, not `backtest_run`. Filed as a run, four documents
             # per sweep made `corpus_size` report four runs and made
@@ -283,8 +284,44 @@ def render_backtest_documents(
             "title": chart_title,
             "body": f"{chart_title}\n{chart.body}",
             "metrics": {"chart": chart.chart},
-        })
+        }
+        _attach_png(document, result, chart)
+        documents.append(document)
     return documents
+
+
+def _attach_png(document: dict[str, Any], result: Any, chart: ChartDoc) -> None:
+    """Ride the rendered PNG along with the document that describes it.
+
+    UNDER A PRIVATE KEY, never a column. `research_rag.writer` pops it before
+    the row is inserted, exactly as it pops `_retrieve_after` and `_image_png`;
+    a key that reached PostgREST would be a 400 that dead-lettered the document.
+
+    Why it is attached HERE rather than fetched later: this is the one moment
+    the pixels and the document that describes them are in the same hand. The
+    result object holds `equity_curve_png` and this function is deciding what
+    `source_ref` that chart gets, so pairing them costs a `getattr`. Everything
+    downstream — the durable store, the answer that shows a model the chart —
+    is a consequence of the pair existing at all, and the alternative was
+    re-deriving it from a job id in a process that may not hold the job.
+
+    Only the charts `CHART_PNG_FIELDS` names, which today is the equity curve.
+    The drawdown is a subplot inside that same figure and the fold table is
+    text, so pointing either at the equity PNG would file a picture under a
+    document that is not a picture of it — the confident wrong answer this
+    plane is built to refuse. The rendered Sharpe heatmap goes the other way:
+    it exists and no chart document describes it, so there is nothing to cite
+    an answer against and it is deliberately not carried here.
+
+    Never raises. `result` is a `BacktestResult` on the live path and could be
+    anything on a replay, so the read is a `getattr` with a default: a missing
+    PNG is a document without a picture, which is already a named state on the
+    read side, and never a sweep that failed to index.
+    """
+    field = CHART_PNG_FIELDS.get(chart.chart)
+    png = getattr(result, field, None) if field else None
+    if isinstance(png, str) and png:
+        document[CHART_PNG_FIELD] = png
 
 
 def _describe_charts(result: Any) -> list[ChartDoc]:

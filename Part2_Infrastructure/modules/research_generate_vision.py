@@ -55,35 +55,44 @@ matching on prose, and each one is a different fact with a different fix:
 a restart, ``image_too_large`` is a bound, ``model_declines_images`` is
 configuration.
 
-Why the job queue and not the corpus
-------------------------------------
+Where the pixels come from
+--------------------------
 
-The corpus row for a chart carries the chart's DESCRIPTION and no pixels —
-`research_cards.render_backtest_documents` writes `kind="chart"`,
-`source_ref="<job id>:<chart>"` and a body, and `research_documents` has no blob
-column. The bytes live exactly one place: the finished `JobRecord` in this
-process. So the join is `source_ref` -> job id -> `record.result[<png key>]`,
-which is why a chart from a run this process did not serve, or served before a
-restart, reports ``job_not_retained`` rather than pretending. Writing the PNGs
-into the corpus was the rejected alternative: it puts a megabyte of base64 in
-every retrieval payload, on every query, to serve the small fraction of answers
-that want to look at one.
+This module used to answer that in one sentence: the finished `JobRecord` in
+this process, reached by `source_ref` -> job id -> `record.result[<png key>]`.
+That was true and it was the limit. The record is memory, so a chart from a
+Celery worker, from before a restart, or from a replica that did not serve the
+sweep reported ``job_not_retained`` — which meant the multimodal path worked on
+a laptop and was absent on every deployment that scales.
 
-`modules.jobs` is imported INSIDE the resolver, not at module scope. The
-research plane must not drag the job queue into its import graph — and
-`get_queue()` constructs a `ThreadPoolExecutor`, which spawns no thread until
-something is submitted, so resolving an image never starts a worker.
+`modules/research_image_store` closes it, and owns the whole argument: the job
+record stays the FAST PATH because it is a dict lookup that costs nothing, and
+behind it sit an in-process cache warmed at ingest and a corpus table holding
+the bytes. Writing the PNGs onto `research_documents` itself is still refused,
+for exactly the reason this file used to give — a measured 150,111-byte chart in
+the table every retrieval reads is a megabyte of base64 one forgetful projection
+away from every search payload — so they live in a side table no retrieval
+function can name. `supabase/migrations/20260822110000_research_chart_images.sql`
+carries that argument and the alternatives it rejected.
+
+What did not change: an image still arrives only alongside the chart DOCUMENT it
+belongs to, still named to the model by that document's id, and every way it can
+fail to arrive is still a named state on the report.
 """
 
 from __future__ import annotations
 
 import base64
-import logging
 import os
 from dataclasses import dataclass
 from typing import Any
 
-log = logging.getLogger("alphaengine.research_generate_vision")
+# The resolution states, the chart map and the three sources a chart's pixels
+# can come from all live in one module now, because they are one decision. The
+# logger went with them: every line this file used to log was about a lookup it
+# no longer performs, and a logger nobody writes to is a name the next reader
+# has to prove is dead.
+from modules import research_image_store as image_store
 
 #: Wall-clock ceiling for a call that carries an image, in milliseconds, and
 #: SEPARATE from the text budget on purpose — see `research_generate.TIMEOUT_MS`
@@ -129,24 +138,29 @@ MAX_IMAGES = int(os.environ.get("RESEARCH_VISION_MAX_IMAGES", "2"))
 VISION_MODEL_PREFIXES = ("gemini-1.5", "gemini-2.0", "gemini-2.5", "gemini-3")
 
 #: Chart name -> the key its rendered PNG occupies in a finished backtest
-#: result. Deliberately only the one entry that both halves exist for.
-#: `research_chartdoc.describe_run` also produces `drawdown`, `walk_forward` and
-#: `gate_ladder` documents, and this desk draws none of them as their own image
-#: — the drawdown is a subplot inside the equity figure and the other two are
-#: text. `heatmap_png` goes the other way: the Sharpe surface IS rendered, and
-#: no chart document describes it, so there is nothing to cite it against and an
-#: image with no citable document is exactly what this module refuses to send.
-#: Both gaps are recorded here rather than discovered later.
-CHART_IMAGE_KEYS: dict[str, str] = {"equity_curve": "equity_curve_png"}
+#: result, and THE SAME OBJECT the write path stores by rather than a copy of
+#: it. Two dicts spelled the same way would let the halves drift silently: a
+#: chart stored that no reader can use, or asked for that nobody was told to
+#: store. The mapping's own argument — why only `equity_curve`, and why the
+#: rendered Sharpe heatmap is deliberately not in it — lives beside the
+#: definition in `research_image_store`.
+CHART_IMAGE_KEYS: dict[str, str] = image_store.CHART_PNG_FIELDS
 
 #: Every way this can end, as values. See the module docstring.
+#:
+#: The five that describe WHERE THE PIXELS WERE are defined by the module that
+#: decides them and re-exported here, so a caller still reads every state off
+#: the one module it already imports. The rest are this module's own: they are
+#: about whether an image that was found can be SENT.
 ATTACHED = "attached"
 CHART_NOT_RENDERED = "chart_not_rendered"
-IMAGE_ABSENT = "image_absent"
+IMAGE_ABSENT = image_store.IMAGE_ABSENT
+IMAGE_NOT_STORED = image_store.IMAGE_NOT_STORED
+IMAGE_STORE_UNREACHABLE = image_store.IMAGE_STORE_UNREACHABLE
 IMAGE_TOO_LARGE = "image_too_large"
 IMAGE_UNDECODABLE = "image_undecodable"
-JOB_NOT_RETAINED = "job_not_retained"
-JOB_UNFINISHED = "job_unfinished"
+JOB_NOT_RETAINED = image_store.JOB_NOT_RETAINED
+JOB_UNFINISHED = image_store.JOB_UNFINISHED
 MODEL_DECLINES_IMAGES = "model_declines_images"
 OVER_IMAGE_BUDGET = "over_image_budget"
 SDK_HAS_NO_IMAGE_PART = "sdk_has_no_image_part"
@@ -197,32 +211,6 @@ def chart_name(doc: dict[str, Any]) -> str:
     return ref.rsplit(":", 1)[1] if ":" in ref else ""
 
 
-def _job_id(doc: dict[str, Any]) -> str:
-    ref = str(doc.get("source_ref") or "")
-    return ref.rsplit(":", 1)[0] if ":" in ref else ref
-
-
-def _from_job(doc: dict[str, Any], key: str) -> tuple[str | None, str | None]:
-    """The base64 PNG a finished job holds, or the state that says why not."""
-    from modules.jobs import get_queue
-
-    job_id = _job_id(doc)
-    if not job_id:
-        return None, JOB_NOT_RETAINED
-    try:
-        record = get_queue().get(job_id)
-    except Exception as exc:  # noqa: BLE001 - a queue failure is a state, not an outage
-        log.warning("research vision: job lookup failed for %s (%s)", job_id, exc)
-        return None, JOB_NOT_RETAINED
-    if record is None:
-        return None, JOB_NOT_RETAINED
-    result = getattr(record, "result", None)
-    if not isinstance(result, dict):
-        return None, JOB_UNFINISHED
-    encoded = result.get(key)
-    return (str(encoded), None) if encoded else (None, IMAGE_ABSENT)
-
-
 def _decoded(encoded: str) -> tuple[bytes | None, str | None]:
     try:
         data = base64.b64decode(encoded, validate=True)
@@ -235,18 +223,19 @@ def _decoded(encoded: str) -> tuple[bytes | None, str | None]:
     return data, None
 
 
+#: The sentence each state owes a reader. The resolution states come from the
+#: module that decides them — one place per fact, so a reason cannot go stale
+#: against the branch that produces it — and this file adds the ones about
+#: sending. `**` rather than `update()` so the merge is visible where the dict
+#: is read, and so a name defined in both would be this file's, deliberately.
 REASONS: dict[str, str] = {
+    **image_store.REASONS,
     CHART_NOT_RENDERED: ("this desk draws no separate image for that chart, so there was "
                          "nothing to attach; the document's own description is the evidence"),
-    IMAGE_ABSENT: "the run that produced this chart recorded no image for it",
     IMAGE_TOO_LARGE: (f"the image is larger than the {MAX_IMAGE_BYTES}-byte ceiling and was "
                       "NOT downscaled: an image this module resized is one whose pixels the "
                       "answer was read off and nobody can reproduce"),
     IMAGE_UNDECODABLE: "the stored image is not decodable base64, so it was not sent",
-    JOB_NOT_RETAINED: ("the job that drew this chart is not in this process's queue — a "
-                       "restart, or a worker elsewhere — so the pixels are unreachable from "
-                       "here; the corpus stores the chart's description, never the image"),
-    JOB_UNFINISHED: "the job that drew this chart carries no result yet",
     SDK_HAS_NO_IMAGE_PART: ("the installed google-genai build exposes no image Part, so the "
                             "call was made with text alone; the image was resolved and then "
                             "not sent, which is why this is a state and not silence"),
@@ -301,7 +290,20 @@ def _resolve_one(doc: dict[str, Any], chart: str, attachments: list[Attachment])
         key = CHART_IMAGE_KEYS.get(chart)
         if key is None:
             return CHART_NOT_RENDERED
-        encoded, missing = _from_job(doc, key)
+        # `locate` tries the in-process cache, then the job record, then the
+        # corpus's image table — in that cost order, and never raising. A
+        # document that already carries `IMAGE_FIELD` skips all three, which is
+        # the seam a caller with bytes of its own uses and the one the offline
+        # tests drive.
+        #
+        # A chart that goes on to lose the image budget below may therefore
+        # already have paid for a lookup. That was accepted rather than fixed
+        # by moving the budget check up: the rows that reach here are the
+        # handful the re-ranker kept, the fetch is cached for the life of the
+        # process, and checking the budget first would collapse "the run drew
+        # no picture" into "the budget was full" — two facts a reader acts on
+        # differently, and the reason the ordering here is what it is.
+        encoded, missing = image_store.locate(doc, key)
         if missing:
             return missing
     if len(attachments) >= MAX_IMAGES:

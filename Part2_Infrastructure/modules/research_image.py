@@ -22,20 +22,57 @@ before it is a figure in any table. No sentence from ``research_chartdoc``
 states any of those, because the desk never computed them: they are properties
 of the DRAWING, and only something that looks at the drawing can rank by them.
 
-THE HONEST CAVEAT, AND IT IS NOT A SMALL ONE
---------------------------------------------
+THE CAVEAT WAS REAL, AND IT HAS NOW BEEN MEASURED
+--------------------------------------------------
 
-CLIP is trained on natural images — photographs, illustrations, things with
-objects in them. A matplotlib line chart on a white ground is an odd domain for
-it, and there is a real possibility that its embeddings of two different equity
-curves are nearer to each other than either is to any query about them. How
-much genuine retrieval quality this arm delivers ON THIS CORPUS is an EMPIRICAL
-question, and no line in this file settles it. ``web/lib/retrieval-eval.ts`` is
-where it would be measured, the same way ``RAG_MIN_SIMILARITY`` was measured
-rather than chosen. Until somebody measures it, three things hold the risk down
-and all three are deliberate: the arm is OPTIONAL and off by default, it only
-ever ADDS a ``1/(k + rank)`` term to a fusion the other three arms already
-decide, and it can introduce a document but can never remove one.
+CLIP is trained on natural images and a matplotlib line chart on a dark ground
+is an odd domain for it. This paragraph used to say so, and then say that how
+much retrieval quality the arm delivers ON THIS CORPUS "is an EMPIRICAL
+question, and no line in this file settles it".
+``tools/bench_image_retrieval.py`` settles it: seven charts drawn by
+``modules/backtester/plots.py`` from series whose shape is an INSTRUCTION rather
+than a judgement, nine queries, the documents
+``research_cards.render_backtest_documents`` would actually have inserted, and
+the metric definitions ``web/lib/retrieval-eval.ts`` uses. Six corpus draws,
+macOS arm64, fastembed 0.7.4, 2026-08-22 — means over the six:
+
+    | configuration      | nDCG@3 | MRR   | recall@3 |
+    | description only   | 0.687  | 0.656 | 0.871    |
+    | image only (CLIP)  | 0.671  | 0.649 | 0.843    |
+    | fused (RRF, k=60)  | 0.747  | 0.722 | 0.889    |
+
+THE IMAGE ARM DOES NOT BEAT THE DESCRIPTION ARM. 0.671 against 0.687 is not a
+win, and not a loss either: per draw it spans 0.640-0.710 against the
+description arm's 0.599-0.766, so the gap between the arms is a quarter of the
+noise between two draws of one corpus. Alone it is worth nothing here. Fused it
+is worth something small — +0.06 nDCG@3 over descriptions, ahead of both arms on
+five draws of six and behind both on the sixth.
+
+AND NOT BY THE MECHANISM THIS FILE CLAIMED. Two queries ask for a BROAD PLATEAU
+and an ISOLATED PEAK on a Sharpe surface — the one thing no ``ChartDoc``
+describes, so the arm's best case by construction. CLIP ranks the SAME heatmap
+first for both, on every seed tried: it does not tell the surfaces apart. What it
+does earn is narrower and real — it puts the monotone riser first for "rises
+steadily" and the flat line first for "goes nowhere" where the description arm
+ranks them 4th and 3rd, because a sentence encoder does not compare -64.0%
+against -27.4% and a picture does not have to. It is also confidently wrong: it
+ranks the deep-drawdown chart LAST of five equity curves for a drawdown query.
+
+SO: LEAVE IT OFF BY DEFAULT, and the default stays what it was. ~0.6 GB of
+weights, a migration and a forward pass per chart are not bought by +0.06
+nDCG@3 on a seven-document corpus that reverses on one draw in six. A desk that
+switches it on should expect it on questions about the SHAPE or SCALE of a curve
+and nowhere else, and should keep it exactly what it is: a fourth
+``1/(k + rank)`` term that can introduce a document and never remove one.
+``image_arm._order``'s tie-break — text arms ahead of this one at an equal
+score — was written as caution and is now measured policy.
+
+Two caveats, not small either: the bench's description arm is
+``BAAI/bge-small-en-v1.5`` standing in for the deployed ``gte-small``, which
+fastembed does not serve, and nine queries over seven documents is a sample
+small enough that one rank position moves the headline by 0.03. Both are argued
+in the bench, and both are why this says "leave the default alone" rather than
+"delete the arm".
 
 WHY fastembed's SHARED CLIP PAIR, ON THE GATEWAY'S CPU
 ------------------------------------------------------
