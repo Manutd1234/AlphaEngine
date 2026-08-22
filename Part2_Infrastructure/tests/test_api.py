@@ -42,36 +42,6 @@ def client():
         yield c
 
 
-@pytest.fixture(autouse=True)
-def _fresh_book(client):
-    """Stamp the injected book as just-updated before every test, the way a
-    live feed's next tick would.
-
-    The book above is written once for the whole module, and `BookState.stale`
-    is wall-clock: `age_s > settings.venue_stale_after_s`, ten seconds by
-    default. So every order test in this file silently depended on the tests
-    before it finishing inside ten seconds of the fixture — true for years at
-    ~3s a module, and false the day `requirements-dev.txt` started installing
-    vectorbt: `TestJobs::test_backtest_job_lifecycle` then pays numba's cold
-    JIT compile on the CI runner, the module crosses the window, and every
-    `TestOrderLifecycle` order after it is REJECTED for a stale venue. CI read
-    six failures on a tree that passed locally and in a warm venv, which is
-    the signature of a clock in a fixture. Reproduced locally by shrinking the
-    window (`VENUE_STALE_AFTER_S=0.5`): the same six fail without this fixture
-    and pass with it.
-
-    The staleness rule itself is untouched — it is the gate's, and
-    `test_tca_patch_points.py` pins it. What changes is that the synthetic
-    feed behaves like a feed: a book that is connected and being read is a book
-    that is being updated. Function-scoped on purpose: a test that wants a
-    stale book sets `last_update_wall` itself, as `test_tca_engine.py` does,
-    and nothing here runs between that line and the assertion.
-    """
-    for feed in main.get_engine().feeds.values():
-        for book in feed.books.values():
-            book.last_update_wall = time.time()
-
-
 class TestMeta:
     def test_health_reports_all_three_modules(self, client):
         body = client.get("/health").json()

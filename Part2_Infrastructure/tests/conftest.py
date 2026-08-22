@@ -329,3 +329,43 @@ def _reset_data_ops_backend(tmp_path, monkeypatch):
     )
     yield
     reset_data_ops_store()
+
+
+@pytest.fixture(autouse=True)
+def _fresh_injected_books():
+    """Stamp every book on the process-wide TCA engine as just-updated before
+    each test — what the next tick of a live feed would do.
+
+    `test_api.py` injects one deep book into `get_engine()` for the whole
+    module and never touches it again, and `BookState.stale` is wall-clock:
+    `age_s > settings.venue_stale_after_s`, ten seconds by default. So every
+    order test there silently depended on the tests before it finishing
+    inside ten seconds of the fixture — true for years at ~3s a module, and
+    false the day `requirements-dev.txt` started installing vectorbt:
+    `TestJobs::test_backtest_job_lifecycle` then pays numba's cold JIT compile
+    on the CI runner, the module crosses the window, and every
+    `TestOrderLifecycle` order after it is REJECTED for a stale venue. CI read
+    six failures on a tree that passed locally and in a warm venv — the
+    signature of a clock inside a fixture. Reproduced by shrinking the window
+    (`VENUE_STALE_AFTER_S=0.5`): the same six fail without this and pass with it.
+
+    Here rather than in `test_api.py` because that file is over the length
+    ceiling `test_file_size.py` ratchets, and may not grow. Reads the
+    singleton's cache directly so a suite that never built the engine does
+    not build one here; touches only books that have a timestamp, so "never
+    updated" keeps its infinite age. The staleness rule itself is untouched —
+    it is the gate's, and `test_tca_patch_points.py` pins it — and a test that
+    wants a stale book sets `last_update_wall` itself, as `test_tca_engine.py`
+    does, after this has run.
+    """
+    import time
+
+    from modules.tca_engine import engine as tca_engine_module
+
+    engine = tca_engine_module._engine
+    if engine is None:
+        return
+    for feed in engine.feeds.values():
+        for book in feed.books.values():
+            if book.last_update_wall:
+                book.last_update_wall = time.time()

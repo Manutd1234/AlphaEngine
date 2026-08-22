@@ -15,10 +15,13 @@ exceed, once in a few hundred runs, in the one job that gates the push.
 
 What follows pins each half of the fix:
 
-- a fresh connection waits thirty seconds, and does contend on open — the
-  ``PRAGMA journal_mode=WAL`` a fresh connection runs takes the write lock
-  even on a database already in WAL mode, which is why the lock surfaced on
-  that line and not on a query;
+- a fresh connection waits thirty seconds for a lock another connection
+  HOLDS — the exclusive one a closing connection takes to checkpoint, which is
+  what the collector was doing to the leaked handle (a plain writer does not
+  reproduce it: WAL readers never wait for writers);
+- two connections opening one file at the same INSTANT are serialised, because
+  that race SQLite answers at once rather than waiting out, and the shared
+  store is built exactly once however many threads ask first;
 - a closed file-backed store reopens on its next use, so the fixture can
   close the shared store at teardown without taking the handle out from under
   a module-scoped fixture (the hazard that had ruled closing out);
@@ -218,3 +221,69 @@ class TestTheSuiteIsolatesEachTest:
         store = get_data_ops_store()
         assert store.path != ":memory:"
         assert store.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+
+
+class TestConcurrentOpens:
+    """Two connections opening one file at the same instant.
+
+    The busy timeout covers a lock another connection HOLDS; it does not cover
+    two first-opens racing each other's ``PRAGMA journal_mode=WAL``. Measured
+    before the fix, six threads released by a barrier onto a fresh file:
+    2 of 240 opens raised ``database is locked`` in 0.00s — the busy handler
+    never consulted. In the suite that was the gateway's own shutdown: the
+    data-quality sweep on the event loop and a second thread each found the
+    shared store unbuilt and each opened it. Both halves are pinned here —
+    the open is serialised, and the shared store is built once.
+    """
+
+    THREADS = 6
+    TRIALS = 40
+
+    def test_racing_first_opens_of_one_file_all_succeed(self, tmp_path):
+        errors: list[str] = []
+
+        def open_once(path: Path, barrier: threading.Barrier, trial: int) -> None:
+            barrier.wait(timeout=10)
+            try:
+                conn = open_data_ops_db(path)
+                try:
+                    conn.execute("CREATE TABLE IF NOT EXISTS t (x)")
+                finally:
+                    conn.close()
+            except Exception as exc:  # noqa: BLE001 - the whole point is to count them
+                errors.append(f"trial {trial}: {exc!r}")
+
+        for trial in range(self.TRIALS):
+            path = tmp_path / f"race-{trial}.sqlite"
+            barrier = threading.Barrier(self.THREADS)
+            threads = [
+                threading.Thread(target=open_once, args=(path, barrier, trial), name=f"open-{i}")
+                for i in range(self.THREADS)
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=30)
+        assert errors == [], errors
+
+    def test_the_shared_store_is_built_once_under_contention(self):
+        from modules.data_ops_backend import get_data_ops_store, reset_data_ops_store
+
+        reset_data_ops_store()
+        built: list[object] = []
+        barrier = threading.Barrier(8)
+
+        def run() -> None:
+            barrier.wait(timeout=10)
+            built.append(get_data_ops_store())
+
+        threads = [threading.Thread(target=run, name=f"build-{i}") for i in range(8)]
+        try:
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=30)
+            assert len(built) == 8
+            assert all(store is built[0] for store in built), "two threads built two stores"
+        finally:
+            reset_data_ops_store()

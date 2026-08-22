@@ -33,6 +33,7 @@ Postgres would be an unclosed pool per job.
 from __future__ import annotations
 
 import logging
+import threading
 from typing import Any, Protocol, runtime_checkable
 
 from modules.data_ops_store import SqliteStore
@@ -121,6 +122,14 @@ def open_data_ops_store(settings: Any = None) -> DataOpsStore:
 
 
 _shared: DataOpsStore | None = None
+#: Serialises the build. Without it two threads that both find `_shared`
+#: unbuilt — the event loop's data-quality sweep and a job worker's schedule
+#: outcome, say — each construct a store, and two first-opens of one SQLite
+#: file at the same instant is a race SQLite answers with `database is locked`
+#: rather than waiting out (`data_ops_store._OPEN_LOCK` records the measurement).
+#: The loser's store was also a leaked connection, held by whichever singleton
+#: captured it. Double-checked: the fast path costs a read once built.
+_build_lock = threading.Lock()
 
 
 def get_data_ops_store() -> DataOpsStore:
@@ -132,8 +141,10 @@ def get_data_ops_store() -> DataOpsStore:
     """
     global _shared
     if _shared is None:
-        _shared = open_data_ops_store()
-        log.info("data-ops backend: %s", _shared.backend)
+        with _build_lock:
+            if _shared is None:
+                _shared = open_data_ops_store()
+                log.info("data-ops backend: %s", _shared.backend)
     return _shared
 
 

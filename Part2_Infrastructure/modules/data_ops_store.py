@@ -39,19 +39,33 @@ from typing import Any
 #: shorter than a red build.
 BUSY_TIMEOUT_S = 30.0
 
+#: One open at a time, process-wide.
+#:
+#: The busy timeout above covers a lock another connection HOLDS. It does not
+#: cover two connections in one process opening the same file at the same
+#: instant and both running ``PRAGMA journal_mode=WAL``: measured on a fresh
+#: file with six threads released by a barrier, 2 of 240 opens failed at once
+#: with ``database is locked`` — in 0.00s, the busy handler never consulted.
+#: That is how the gateway's own shutdown failed in the suite: the event loop
+#: and a worker thread each found the shared store unbuilt and each opened it.
+#: Opens are rare and take a millisecond; a lock here costs nothing and turns
+#: a race SQLite refuses to wait out into a queue.
+_OPEN_LOCK = threading.Lock()
+
 
 def open_data_ops_db(path: Path | str) -> sqlite3.Connection:
     """Open (creating) the store with the pragmas a shared-file ledger wants."""
     if str(path) != ":memory:":
         Path(path).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(
-        str(path), timeout=BUSY_TIMEOUT_S, check_same_thread=False, isolation_level=None,
-    )
-    conn.row_factory = sqlite3.Row
-    if str(path) != ":memory:":
-        conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA synchronous=NORMAL")
-    conn.execute("PRAGMA foreign_keys=ON")
+    with _OPEN_LOCK:
+        conn = sqlite3.connect(
+            str(path), timeout=BUSY_TIMEOUT_S, check_same_thread=False, isolation_level=None,
+        )
+        conn.row_factory = sqlite3.Row
+        if str(path) != ":memory:":
+            conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
 
