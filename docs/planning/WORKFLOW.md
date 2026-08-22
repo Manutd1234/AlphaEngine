@@ -52,7 +52,7 @@ set on purpose, not arrived at by forgetting the build step.
 
 The suite's health is read off the *skip* count, because the pass count stays
 plausible under several failure modes. On a correct 3.12 venv the gateway suite
-is **1,706 passed and exactly one skipped** (the figure the tree carries, in
+is **1,717 passed and exactly one skipped** (the figure the tree carries, in
 [`web/lib/test-counts.generated.ts`](../../Part2_Infrastructure/web/lib/test-counts.generated.ts),
 generated 2026-08-21 — re-run the suite rather than trusting either file; the
 counts in prose have drifted before, which is why that file is generated).
@@ -74,7 +74,7 @@ All from `Part2_Infrastructure` unless stated; web commands from
 | What | Command | Notes |
 |---|---|---|
 | Gateway tests | `venv/bin/python -m pytest` | 102 `test_*.py` suites (`ls`, 2026-08-22), deterministic, no network |
-| Web tests | `npm test` | `node --test` via tsx; 3,861 tests across 832 suites as generated on 2026-08-21 |
+| Web tests | `npm test` | `node --test` via tsx; 3,883 tests across 838 suites as generated on 2026-08-22 |
 | Service tests | `cd OpenBB_Service && python -m pytest` | own `pyproject.toml`, 14 tests |
 | Typecheck | `npm run typecheck` | `tsc --noEmit`, strict |
 | Lint | `venv/bin/python -m ruff check .` | configured in `pyproject.toml`; installed only by `requirements-dev.txt` |

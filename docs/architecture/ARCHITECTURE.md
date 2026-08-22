@@ -162,10 +162,10 @@ one-sided formula change fail the other side's suite. The pre-trade arithmetic
 exists a third time in C++. README §12 is the full parity argument.
 
 Test truth, from `web/lib/test-counts.generated.ts` (generated 2026-08-21, the
-only file allowed to carry these numbers): gateway **1,706 passed and exactly
+only file allowed to carry these numbers): gateway **1,717 passed and exactly
 one skipped** (the skip is the Postgres data-ops backend reporting no Supabase
 credentials — expected; a *second* skip means the venv is the wrong Python, per
-CLAUDE.md), web **3,861 tests across 832 suites**, service **14**.
+CLAUDE.md), web **3,883 tests across 838 suites**, service **14**.
 
 ## The desk workspace — eight tabs
 

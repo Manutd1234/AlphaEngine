@@ -12,8 +12,8 @@ the habits that keep them honest. The four facts that cost an hour each are in
 
 Three suites, three runners, one committed record:
 [`web/lib/test-counts.generated.ts`](../../Part2_Infrastructure/web/lib/test-counts.generated.ts)
-holds what each runner printed on 2026-08-21 — **gateway 1,707 collected (1,706
-passed, 1 skipped)**, **web 3,861 tests across 832 suites**, **service 14** —
+holds what each runner printed on 2026-08-22 — **gateway 1,718 collected (1,717
+passed, 1 skipped)**, **web 3,883 tests across 838 suites**, **service 14** —
 and its own header explains why it exists: the counts were once three
 hand-copied integers in a component, and they drifted three separate times, the
 last time inside a single afternoon.
@@ -86,7 +86,7 @@ flowchart TD
 ## Reading the skips
 
 The skip line is a report, not noise. On Python 3.12 with the native core
-built, the gateway suite is 1,706 passed and **exactly one** skipped:
+built, the gateway suite is 1,717 passed and **exactly one** skipped:
 `tests/test_data_ops_postgrest.py`, whose skip reason states in full that no
 `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` was in the environment, so the
 Postgres backend was *not* exercised. That is the house habit of reporting
@@ -279,8 +279,8 @@ measured numbers. By hand, from `Part2_Infrastructure/`:
 
 | Suite | Command | Prerequisites and what green means |
 |---|---|---|
-| Gateway (1,707) | `venv/bin/python -m pytest` (add `-rs` to see skip reasons) | venv named exactly `venv`, Python 3.12, `requirements-dev.txt`, `requirements-native.txt` and the built core (`python native/decision_core/setup.py build_ext --inplace --build-temp build/native`). Expect exactly one skip; see "Reading the skips". |
-| Web (3,861 / 832 suites) | `cd web && npm test` | Node 22, `npm ci`. Runner is `node --import tsx --test tests/*.test.ts` — Node's own runner, no Jest/Vitest, consistent with the no-new-dependencies rule. |
+| Gateway (1,718) | `venv/bin/python -m pytest` (add `-rs` to see skip reasons) | venv named exactly `venv`, Python 3.12, `requirements-dev.txt`, `requirements-native.txt` and the built core (`python native/decision_core/setup.py build_ext --inplace --build-temp build/native`). Expect exactly one skip; see "Reading the skips". |
+| Web (3,883 / 838 suites) | `cd web && npm test` | Node 22, `npm ci`. Runner is `node --import tsx --test tests/*.test.ts` — Node's own runner, no Jest/Vitest, consistent with the no-new-dependencies rule. |
 | Web types | `cd web && npm run typecheck` | There is **no `lint` script** in `web/` — `npm run lint` fails as a missing script, not a broken linter. |
 | Python lint | `venv/bin/python -m ruff check .` | Configured in `pyproject.toml`, installed by `requirements-dev.txt`. |
 | OpenBB service (14) | `cd OpenBB_Service && python -m pytest` | Its own `requirements-dev.txt` (pytest 9.1.1, httpx); stateless, offline. |

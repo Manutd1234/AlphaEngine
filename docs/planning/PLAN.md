@@ -55,7 +55,7 @@ product — and empty states and null explanations are barred from folding,
 because "this is withheld because…" reads as broken behind a `<details>`.
 
 **The suite is green and the counts are measured, not remembered.** Gateway
-1,706 passed and exactly one skipped, web 3,861 tests across 832 suites,
+1,717 passed and exactly one skipped, web 3,883 tests across 838 suites,
 OpenBB service 14 — read from `web/lib/test-counts.generated.ts` (printed
 2026-08-21; re-run 2026-08-22 per [`CLAUDE.md`](../../CLAUDE.md), which also
 explains why the *skip count* is the number to watch, not the pass count).
