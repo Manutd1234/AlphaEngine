@@ -283,21 +283,49 @@ def completed_backtest(bot):
 
 
 @pytest.fixture(autouse=True)
-def _reset_data_ops_backend():
-    """Every test starts with no cached data-ops store.
+def _reset_data_ops_backend(tmp_path, monkeypatch):
+    """Every test starts with no cached data-ops store, on a file of its own,
+    and closes that store when it is done.
 
     The store is a process-wide singleton now, because four call sites share
     one backend and under Postgres each one is an httpx client with its own
     pool. That cache defeats the way tests redirect `data_ops_db_path`: the
     redirect lands after something already built a store against the real path.
 
-    Cleared at SETUP rather than teardown, and cleared rather than CLOSED. Both
-    were wrong first: closing after every test took the handle out from under
-    module-scoped fixtures, and `test_web_state.py` failed in the full run
-    while passing alone.
+    Three decisions here, each the answer to a real failure:
+
+    SETUP clears the cache, so the first lookup in this test builds against
+    this test's path. REDIRECT points `data_ops_db_path` at `tmp_path`, so no
+    two tests ever open the same SQLite file: the suite used to share one file
+    under `DATA_DIR` for all 1,700 tests, and the CI flake — `database is
+    locked` raised from `PRAGMA journal_mode=WAL` on a fresh connection while
+    `test_api.py` rendered the console — was the previous test's leaked handle
+    being closed by the garbage collector, checkpointing that shared file's WAL
+    under an exclusive lock, while this test opened it. Separate files cannot
+    contend. The `settings` object is frozen, so it is REPLACED rather than
+    patched (the shape `test_data_jobs._point_at` already uses); only
+    `open_data_ops_store` reads `config.settings` at call time, which is the
+    one reader that needs to see it.
+
+    TEARDOWN closes, through `reset_data_ops_store`, rather than clearing. The
+    earlier version of this fixture said "cleared rather than CLOSED" and was
+    right at the time: closing took the handle out from under module-scoped
+    fixtures, and `test_web_state.py` failed in the full run while passing
+    alone. A closed file-backed `SqliteStore` now reopens on its next use, so
+    a holder that outlives this test — the scheduler singleton's run store, a
+    module-scoped `TestClient` — carries on against the file it was built on,
+    which still exists under `tmp_path`. Closing deterministically is what
+    takes the garbage collector, and its timing, out of the picture.
     """
-    from modules.data_ops_backend import clear_data_ops_cache
+    from dataclasses import replace
+
+    import config
+    from modules.data_ops_backend import clear_data_ops_cache, reset_data_ops_store
 
     clear_data_ops_cache()
+    monkeypatch.setattr(
+        config, "settings",
+        replace(config.settings, data_ops_db_path=tmp_path / "data_ops.sqlite"),
+    )
     yield
-    clear_data_ops_cache()
+    reset_data_ops_store()

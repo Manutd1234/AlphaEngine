@@ -142,9 +142,18 @@ def clear_data_ops_cache() -> None:
 
     The distinction matters and cost two wrong attempts to find. A test that
     redirects `data_ops_db_path` needs the next lookup to rebuild — that is a
-    cache clear. Closing as well takes the handle out from under anything that
-    already holds one, which in the suite meant module-scoped fixtures failing
-    with "Cannot operate on a closed database" in a file that passed alone.
+    cache clear. Closing as well used to take the handle out from under
+    anything that already held one, which in the suite meant module-scoped
+    fixtures failing with "Cannot operate on a closed database" in a file that
+    passed alone.
+
+    That hazard is gone — a closed file-backed `SqliteStore` reopens on its
+    next use — and the suite now closes at teardown through
+    `reset_data_ops_store`, because the handle this left for the garbage
+    collector was the other half of a CI flake: its eventual close checkpoints
+    the WAL under an exclusive lock, on whatever thread the collector runs,
+    while the next test is opening the same file. This remains the SETUP
+    half: clear, so the next lookup builds against the redirected path.
 
     Function-scope imports for the same reason as `reset_data_ops_store`.
     """
@@ -162,11 +171,15 @@ def reset_data_ops_store() -> None:
 
     Three singletons keep a reference to this backend — the work-item store,
     the quality ledger and the scheduler's run store. Closing the shared store
-    without clearing them leaves each one holding a closed handle, and the next
-    call fails with `sqlite3.ProgrammingError: Cannot operate on a closed
-    database` somewhere unrelated. That is what caching a resource three other
-    modules depend on costs, and the cost is paid here rather than by whoever
-    calls reset.
+    without clearing them used to leave each one holding a closed handle, and
+    the next call failed with `sqlite3.ProgrammingError: Cannot operate on a
+    closed database` somewhere unrelated. A file-backed `SqliteStore` now
+    reopens on use, so a holder this cannot reach — the scheduler singleton's
+    run store, a module-scoped test client — carries on against the same
+    file; the two singletons this can reach are still cleared, so they rebuild
+    against whatever path is configured next. That is what caching a resource
+    three other modules depend on costs, and the cost is paid here rather than
+    by whoever calls reset.
 
     The imports are function-scope and stay that way: `work_items` and
     `data_quality` both import `get_data_ops_store` from this module, so a

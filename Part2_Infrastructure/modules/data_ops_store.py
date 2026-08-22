@@ -22,12 +22,31 @@ import threading
 from pathlib import Path
 from typing import Any
 
+#: How long a connection waits on another connection's lock before raising
+#: ``database is locked``, in seconds.
+#:
+#: Python's default is five. That was the CI flake: ``PRAGMA journal_mode=WAL``
+#: is the first statement on every fresh connection, and it has to read the
+#: file. A WAL reader never waits for a WAL writer — but it does wait for the
+#: EXCLUSIVE lock the last connection takes as it closes, to checkpoint the
+#: WAL and delete the -wal and -shm files. Under the old test fixture that
+#: close happened whenever the garbage collector reached a leaked handle, on
+#: whatever thread it was running, while the next test was opening the same
+#: file — and on a loaded runner the checkpoint outlasted five seconds. The
+#: lifecycle tests reproduce the lock with ``locking_mode=EXCLUSIVE`` and show
+#: that without a timeout the open raises at once. Thirty seconds is ``PRAGMA
+#: busy_timeout=30000``: a wait a lock-holder cannot plausibly exceed, and far
+#: shorter than a red build.
+BUSY_TIMEOUT_S = 30.0
+
 
 def open_data_ops_db(path: Path | str) -> sqlite3.Connection:
     """Open (creating) the store with the pragmas a shared-file ledger wants."""
     if str(path) != ":memory:":
         Path(path).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(path), check_same_thread=False, isolation_level=None)
+    conn = sqlite3.connect(
+        str(path), timeout=BUSY_TIMEOUT_S, check_same_thread=False, isolation_level=None,
+    )
     conn.row_factory = sqlite3.Row
     if str(path) != ":memory:":
         conn.execute("PRAGMA journal_mode=WAL")
@@ -39,31 +58,69 @@ def open_data_ops_db(path: Path | str) -> sqlite3.Connection:
 class SqliteStore:
     backend = "sqlite"
 
-    """A small strict wrapper: one connection, one lock, errors propagate."""
+    """A small strict wrapper: one connection, one lock, errors propagate.
+
+    The connection is long-lived on purpose — a store that reconnected per
+    statement would pay the WAL open and, as the last handle each time, the
+    checkpoint-and-delete on close, which is the contention this module
+    exists to avoid. What ``close()`` buys is a deterministic end to that
+    handle: the test fixture closes the process's shared store at the end of
+    every test rather than leaving it to the garbage collector.
+
+    A closed FILE store reopens on its next use. That is what makes the
+    teardown close safe: three singletons hold this object (the work-item
+    store, the quality ledger, the scheduler's run store) and a module-scoped
+    fixture can carry one across tests. Raising ``Cannot operate on a closed
+    database`` from whichever of them spoke next is what the old fixture was
+    written to avoid by never closing at all. An in-memory store stays closed,
+    because reopening ``:memory:`` is an empty database wearing the old name.
+
+    ``with SqliteStore(path) as store:`` closes on exit, for callers that
+    open one ad hoc.
+    """
 
     def __init__(self, path: Path | str) -> None:
         self.path = str(path)
-        self._conn = open_data_ops_db(path)
+        self._conn: sqlite3.Connection | None = open_data_ops_db(path)
         self._lock = threading.Lock()
+
+    @property
+    def closed(self) -> bool:
+        return self._conn is None
+
+    def _connection(self) -> sqlite3.Connection:
+        """The live connection, reopened after ``close()``. Call with the lock held."""
+        if self._conn is None:
+            if self.path == ":memory:":
+                raise sqlite3.ProgrammingError("Cannot operate on a closed database.")
+            self._conn = open_data_ops_db(self.path)
+        return self._conn
+
+    def __enter__(self) -> "SqliteStore":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
 
     def migrate(self, ddl: list[str]) -> None:
         with self._lock:
+            conn = self._connection()
             for statement in ddl:
-                self._conn.execute(statement)
+                conn.execute(statement)
 
     def execute(self, sql: str, params: tuple[Any, ...] | list[Any] = ()) -> sqlite3.Cursor:
         with self._lock:
-            return self._conn.execute(sql, params)
+            return self._connection().execute(sql, params)
 
     def executemany(self, sql: str, rows: list[tuple[Any, ...]]) -> None:
         if not rows:
             return
         with self._lock:
-            self._conn.executemany(sql, rows)
+            self._connection().executemany(sql, rows)
 
     def query(self, sql: str, params: tuple[Any, ...] | list[Any] = ()) -> list[dict[str, Any]]:
         with self._lock:
-            cursor = self._conn.execute(sql, params)
+            cursor = self._connection().execute(sql, params)
             return [dict(row) for row in cursor.fetchall()]
 
     def one(self, sql: str, params: tuple[Any, ...] | list[Any] = ()) -> dict[str, Any] | None:
@@ -204,8 +261,11 @@ class SqliteStore:
         return _Transaction(self)
 
     def close(self) -> None:
+        """Close the handle. Idempotent; a file store reopens on its next use."""
         with self._lock:
-            self._conn.close()
+            if self._conn is not None:
+                self._conn.close()
+                self._conn = None
 
 
 class _Transaction:
@@ -218,17 +278,27 @@ class _Transaction:
 
     def __init__(self, store: SqliteStore) -> None:
         self._store = store
+        self._conn: sqlite3.Connection | None = None
 
     def __enter__(self) -> sqlite3.Connection:
         self._store._lock.acquire()
-        self._store._conn.execute("BEGIN IMMEDIATE")
-        return self._store._conn
+        try:
+            self._conn = self._store._connection()
+            self._conn.execute("BEGIN IMMEDIATE")
+        except BaseException:
+            # A BEGIN that could not take the lock leaves nothing to roll back,
+            # and a lock held by a block that never ran would deadlock the
+            # next caller.
+            self._store._lock.release()
+            raise
+        return self._conn
 
     def __exit__(self, exc_type, exc, tb) -> None:
         try:
+            assert self._conn is not None
             if exc_type is None:
-                self._store._conn.execute("COMMIT")
+                self._conn.execute("COMMIT")
             else:
-                self._store._conn.execute("ROLLBACK")
+                self._conn.execute("ROLLBACK")
         finally:
             self._store._lock.release()
