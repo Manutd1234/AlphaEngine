@@ -90,8 +90,10 @@ tested path — FastAPI, uvicorn, pandas, numpy, DuckDB, pytest. The full
 `requirements.txt` pulls vectorbt and numba, which frequently fail to build from
 source and buy you only a faster backtest engine; without them the backtester
 falls back to its built-in NumPy engine and every number is identical. CI itself
-installs `requirements-dev.txt`, which is core plus `ruff` and the build-time
-`requirements-native.txt`.
+installs `requirements-dev.txt`, which is core plus `ruff`, `requirements-communities.txt`
+(networkx, scipy), the build-time `requirements-native.txt`, and — so the job that gates the push runs what the suite
+tests instead of skipping it — `requirements-ml.txt`, vectorbt and the `httpx2`
+transport starlette's test client is built on.
 
 ### The native decision core (optional to run, required for the full suite)
 
@@ -179,12 +181,12 @@ trusting the counts — they drift, and a number nobody re-measured is a number
 nobody should quote.
 
 ```bash
-# Gateway suite — 1,493 passed, 1 skipped (native core built, Python 3.12).
+# Gateway suite — 1,717 passed, 1 skipped (native core built, Python 3.12).
 # The one skip is test_data_ops_postgrest.py with no Supabase creds in the
 # environment; a SECOND skip means the venv is not 3.12.
 cd Part2_Infrastructure && venv/bin/python -m pytest
 
-# Web suite — 3,181 passed across 762 suites, no browser needed
+# Web suite — 3,883 passed across 838 suites, no browser needed
 cd Part2_Infrastructure/web && npm test
 
 # Research service — 14 passed

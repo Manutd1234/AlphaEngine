@@ -38,7 +38,7 @@ build explicitly:
 ```bash
 cd Part2_Infrastructure
 python3.12 -m venv venv
-venv/bin/pip install -r requirements-dev.txt   # core + native toolchain + ruff + networkx
+venv/bin/pip install -r requirements-dev.txt   # the CI set: core + native toolchain + ruff + networkx/scipy + scikit-learn + vectorbt + httpx2
 venv/bin/python native/decision_core/setup.py build_ext --inplace --build-temp build/native
 ```
 

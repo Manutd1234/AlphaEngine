@@ -16,4 +16,11 @@
 # scikit-learn is pinned to a major line rather than floated: a solver that
 # changes between releases changes yesterday's coefficients, and the
 # coefficients are the research result.
-scikit-learn>=1.5,<2.0
+#
+# Not 1.8.0. That release deprecated `penalty=` in favour of `C` alone, and
+# its own `penalty=None` check reads `C != 1.0` — so `C=np.inf`, the spelling
+# it recommends, trips the UserWarning it recommends against. The fit is
+# bit-identical either way (measured against 1.9.0); the exclusion exists so
+# the adapter's unpenalised path is warning-free on every version this file
+# admits, rather than papering over one release with a warnings filter.
+scikit-learn>=1.5,!=1.8.0,<2.0

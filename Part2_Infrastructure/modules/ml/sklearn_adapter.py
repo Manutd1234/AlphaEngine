@@ -305,10 +305,22 @@ class SklearnLogisticRegression(LogisticRegression):
             # than two engines disagreeing about what a degenerate fold is.
             raise ValueError("cannot fit a logistic model on a window with one class")
 
+        # No `penalty=` argument. scikit-learn 1.8 deprecated it (removal in
+        # 1.10) in favour of `C` alone: the default is the L2 penalty this
+        # adapter wants, and `C=np.inf` is the documented spelling of "none" —
+        # the 1/C term the solver adds is then exactly zero, which is what
+        # `penalty=None` did (coefficients bit-identical, measured on 1.8.0 and
+        # 1.9.0). Leaving the parameter unset rather than passing `l1_ratio=0`
+        # keeps the call warning-free on 1.5–1.7 and 1.9+, where `l1_ratio`
+        # outside elasticnet was itself a warning. The one release that is not
+        # warning-free is 1.8.0: its own `penalty=None` check reads `C != 1.0`,
+        # so the spelling it recommends trips the warning it recommends
+        # against. Harmless (the fit is the same) and fixed upstream in 1.9,
+        # so requirements-ml.txt excludes 1.8.0 rather than this code papering
+        # over it with a warnings filter.
         penalised = self.alpha > 0.0
         estimator = self._linear_model.LogisticRegression(
-            penalty="l2" if penalised else None,
-            C=(1.0 / self.alpha) if penalised else 1.0,
+            C=(1.0 / self.alpha) if penalised else np.inf,
             fit_intercept=True,
             solver="lbfgs",
             max_iter=max(int(self.max_iter), self.LBFGS_FLOOR),

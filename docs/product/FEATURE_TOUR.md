@@ -289,7 +289,7 @@ Queue**. Topology is the runtime map and the context the three deployment units 
 **Readiness** is the gate in front of a release — launch gates, schema state and artifacts —
 and it is separate from CI / CD on purpose: a green pipeline says the code compiles and the
 tests pass, which is not the same claim as "this is safe to ship". CI / CD carries the four
-network-free jobs (**1,493 gateway + 3,181 web + 14 service tests** on 2026-08-21 — each figure is
+network-free jobs (**1,717 gateway + 3,883 web + 14 service tests** on 2026-08-22 — each figure is
 what its own runner prints and `web/lib/test-counts.generated.ts` is where the desk reads it
 from, so re-run rather than trust the sentence), API & Schema the committed OpenAPI contract
 with drift detection, Code & Diffs the repository manifest, Task Queue the engineering-impact

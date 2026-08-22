@@ -7,3 +7,17 @@
 -r requirements-native.txt
 ruff>=0.6
 -r requirements-communities.txt
+# What the suite tests, so CI runs it rather than skipping it. Measured on
+# 2026-08-22 in a venv built from this file alone: 7 skips, of which one is the
+# designed Postgres opt-in and SIX were the backtester's vectorbt parity test
+# and the five scikit-learn adapter tests — every one of them green locally,
+# where requirements.txt and requirements-ml.txt are installed, and never run
+# by the job that gates the push. That is the "summary still reads green while
+# the vectorbt engine goes untested" failure requirements.txt warns about,
+# made permanent in CI. Python 3.12 is pinned there, so numba has a wheel.
+-r requirements-ml.txt
+vectorbt>=0.26
+# starlette 1.x's TestClient is built on httpx2 and warns on every run that
+# falls back to httpx. The runtime keeps httpx (requirements-core.txt); this is
+# the test client's transport only.
+httpx2>=2.0

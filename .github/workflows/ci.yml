@@ -55,7 +55,15 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-          cache-dependency-path: Part2_Infrastructure/requirements-dev.txt
+          # Every file requirements-dev.txt includes, not just the one it names:
+          # the cache key is a hash of these, and a bump inside an included file
+          # would otherwise restore a cache that predates it.
+          cache-dependency-path: |
+            Part2_Infrastructure/requirements-dev.txt
+            Part2_Infrastructure/requirements-core.txt
+            Part2_Infrastructure/requirements-native.txt
+            Part2_Infrastructure/requirements-communities.txt
+            Part2_Infrastructure/requirements-ml.txt
       - run: pip install -r requirements-dev.txt
 
       # The suite runs native-by-default (DECISION_CORE=auto), so the parity

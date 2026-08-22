@@ -263,7 +263,7 @@ gateway and its OpenBB adapter to the separate stateless service.
 cd web
 npm install
 npm run dev    # http://localhost:3000
-npm test       # 3,181 tests across 762 suites
+npm test       # 3,883 tests across 838 suites
 ```
 
 Live-feed endpoints (public, no key):
@@ -430,7 +430,7 @@ service carries no pinned version.
 | **[Supabase CLI](https://supabase.com/docs/guides/cli)** | `2.112.0` | Migration push via the IPv4 session pooler (the direct DB host is IPv6-only) and edge-function deploys. |
 | **[Oracle Cloud](https://www.oracle.com/cloud/)** | managed | The always-on host (Singapore). Region is load-bearing: US egress gets Binance HTTP 451 / Bybit 403 (§11). |
 | **[Vercel](https://vercel.com)** | managed | Two serverless projects (web portal, OpenBB service) from one repo with different Root Directories, region `sin1`. Artifact custody via an Ed25519-signed build attestation against a trust root pinned in reviewed source (`web/lib/artifact-trust.mjs`). |
-| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free jobs (gateway, OpenBB, web, repo-audit) plus a manual live-smoke: a red build means the code broke, never that an exchange was slow. 1,493 gateway + 3,181 web + 14 service tests. Three more workflows: `deploy.yml` (gateway CD to OCI with rollback and an engine check), `openbb-keepalive.yml` and `oracle-keepalive.yml` (schedulers Vercel Hobby and Always Free cannot provide), `schema.yml` (Supabase migrations). |
+| **[GitHub Actions](https://github.com/features/actions)** | managed | Four network-free jobs (gateway, OpenBB, web, repo-audit) plus a manual live-smoke: a red build means the code broke, never that an exchange was slow. 1,717 gateway + 3,883 web + 14 service tests. Three more workflows: `deploy.yml` (gateway CD to OCI with rollback and an engine check), `openbb-keepalive.yml` and `oracle-keepalive.yml` (schedulers Vercel Hobby and Always Free cannot provide), `schema.yml` (Supabase migrations). |
 
 ### API Keys & Secrets
 
@@ -1388,11 +1388,11 @@ This used to read "verified on 3.11 – 3.14, including vectorbt + numba on
 wheel, so on a 3.14 interpreter vectorbt does not install — and the suite does
 not fail, it *skips*: `tests/test_backtester.py:99`, "vectorbt not installed".
 The summary line still looks healthy while the vectorbt engine goes entirely
-untested. On 3.12 the same tree is 1,493 passed, 1 skipped (2026-08-21) — and
+untested. On 3.12 the same tree is 1,717 passed, 1 skipped (2026-08-22) — and
 that one skip is *not* vectorbt but `tests/test_data_ops_postgrest.py`, which
 says plainly that no Supabase credentials were in the environment so the
 Postgres backend never ran. Count the skips: one is expected, two means the
-interpreter is wrong. The 1,493 also needs the native decision core
+interpreter is wrong. The 1,717 also needs the native decision core
 built — `pip install -r requirements-native.txt`, then
 `python native/decision_core/setup.py build_ext --inplace --build-temp build/native`
 — because `tests/test_decision_core_native.py` and
@@ -1545,7 +1545,7 @@ files: those 38 plus `conftest.py`, which is fixtures rather than a suite. Both
 figures are `ls`, not memory — `ls tests/test_*.py | wc -l` and
 `ls tests/*.py | wc -l` (2026-08-17). No per-suite test counts are quoted below,
 because parametrised cases mean a file's `def test_` count is not the number it
-contributes to the 1,493.
+contributes to the 1,717.
 
 *Modules A, B and C — the engines*
 
@@ -1931,11 +1931,11 @@ on different iterations and disagree by more than the fixture allows.
 Everything a reviewer needs to check runs offline:
 
 ```bash
-pytest                                    # 1,493 gateway + companion tests, 1 skipped (3.12, native core built)
+pytest                                    # 1,717 gateway + companion tests, 1 skipped (3.12, native core built)
 python tools/bench_decision.py            # regenerates the latency table in docs/architecture/LATENCY_BUDGET.md §2.1
 python tools/synthetic_probe.py           # end-to-end: book → cost → gate → audit
 cd OpenBB_Service && pytest               # 13 stateless service tests
-cd web && npm install && npm test         # 3,181 workspace tests across 762 suites, incl. the parity suites
+cd web && npm install && npm test         # 3,883 workspace tests across 838 suites, incl. the parity suites
 bash tools/check_repo_complete.sh         # builds the *committed* tree
 ```
 

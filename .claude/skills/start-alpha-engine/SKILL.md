@@ -66,8 +66,12 @@ venv/bin/python -m pip install -r requirements-core.txt
 
 Use `requirements-core.txt`. The full `requirements.txt` pulls vectorbt and
 numba, which often fail to build from source; without them the backtester uses
-its built-in NumPy engine and every number is identical. If the user wants to
-lint too, use `requirements-dev.txt` (core plus `ruff`).
+its built-in NumPy engine and every number is identical. If the user only wants
+to lint too, `venv/bin/python -m pip install ruff` on top of core. Do NOT reach
+for `requirements-dev.txt` for that: it is the CI set — core, the native build
+toolchain, networkx/scipy, scikit-learn, vectorbt (numba again) and the `httpx2`
+test-client transport — and on an interpreter where numba has no wheel it fails
+to install for the reason the paragraph above avoids.
 
 If the user already has a `.venv` or a conda env, do not try to make the scripts
 find it. Create `venv` at the correct path — that is the supported layout.

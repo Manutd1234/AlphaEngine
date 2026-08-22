@@ -107,7 +107,14 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: Part2_Infrastructure/requirements-dev.txt
+          # The same key as ci.yml's gateway job: every file requirements-dev.txt
+          # includes, so a bump inside one of them cannot restore a stale cache.
+          cache-dependency-path: |
+            Part2_Infrastructure/requirements-dev.txt
+            Part2_Infrastructure/requirements-core.txt
+            Part2_Infrastructure/requirements-native.txt
+            Part2_Infrastructure/requirements-communities.txt
+            Part2_Infrastructure/requirements-ml.txt
       - run: pip install -r requirements-dev.txt
       # The gateway suite runs the native decision core by default; build it so
       # the parity tests exercise it and a broken core blocks the deploy.
